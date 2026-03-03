@@ -79,7 +79,7 @@ describe("TripCard", () => {
       expect(screen.getByText("Summer Beach Vacation")).toBeDefined();
       expect(screen.getByText("Malibu, CA")).toBeDefined();
       expect(screen.getByText("Jul 15 - 20, 2026")).toBeDefined();
-      expect(screen.getByText("John Doe")).toBeDefined();
+      expect(screen.getByText("5 travelers")).toBeDefined();
       expect(screen.getByText("3 events")).toBeDefined();
     });
 
@@ -162,10 +162,9 @@ describe("TripCard", () => {
       const { container } = render(<TripCard trip={trip} />);
 
       const placeholder = container.querySelector(
-        ".bg-gradient-to-br.from-primary\\/20.via-accent\\/15.to-secondary\\/20",
+        ".bg-gradient-to-br.from-primary\\/40.via-accent\\/30.to-secondary\\/40",
       );
       expect(placeholder).toBeDefined();
-      expect(placeholder?.querySelector("svg")).not.toBeNull();
     });
 
     it("shows cover image when coverImageUrl is provided", () => {
@@ -289,39 +288,18 @@ describe("TripCard", () => {
       };
       const { container } = render(<TripCard trip={trip} />);
 
-      const initialsElement = container.querySelector(".bg-muted");
+      const initialsElement = container.querySelector(".bg-white\\/20");
       expect(initialsElement).toBeDefined();
       expect(initialsElement?.textContent).toBe("JD");
-    });
-
-    it("shows organizer count when multiple organizers", () => {
-      const trip = {
-        ...baseTrip,
-        organizerInfo: [
-          {
-            id: "1",
-            displayName: "John",
-            profilePhotoUrl: "https://example.com/1.jpg",
-          },
-          {
-            id: "2",
-            displayName: "Jane",
-            profilePhotoUrl: "https://example.com/2.jpg",
-          },
-        ],
-      };
-      render(<TripCard trip={trip} />);
-
-      expect(screen.getByText("John +1")).toBeDefined();
     });
   });
 
   describe("Event count display", () => {
-    it('shows "No events yet" when eventCount is 0', () => {
+    it('shows "No events" when eventCount is 0', () => {
       const trip = { ...baseTrip, eventCount: 0 };
       render(<TripCard trip={trip} />);
 
-      expect(screen.getByText("No events yet")).toBeDefined();
+      expect(screen.getByText("No events")).toBeDefined();
     });
 
     it("shows singular event text for 1 event", () => {
@@ -335,6 +313,21 @@ describe("TripCard", () => {
       render(<TripCard trip={baseTrip} />);
 
       expect(screen.getByText("3 events")).toBeDefined();
+    });
+  });
+
+  describe("Member count display", () => {
+    it("shows singular traveler text for 1 member", () => {
+      const trip = { ...baseTrip, memberCount: 1 };
+      render(<TripCard trip={trip} />);
+
+      expect(screen.getByText("1 traveler")).toBeDefined();
+    });
+
+    it("shows plural travelers text for multiple members", () => {
+      render(<TripCard trip={baseTrip} />);
+
+      expect(screen.getByText("5 travelers")).toBeDefined();
     });
   });
 
@@ -383,6 +376,66 @@ describe("TripCard", () => {
     });
   });
 
+  describe("Card rotation", () => {
+    it("applies rotation based on index modulo 4", () => {
+      const rotations = [-1.5, 0.8, -0.5, 1.2];
+
+      for (let i = 0; i < 4; i++) {
+        const { container } = render(<TripCard trip={baseTrip} index={i} />);
+        const card = container.firstChild as HTMLElement;
+        expect(card.style.transform).toBe(`rotate(${rotations[i]}deg)`);
+      }
+    });
+
+    it("cycles rotations for indices beyond 3", () => {
+      const { container } = render(<TripCard trip={baseTrip} index={4} />);
+
+      const card = container.firstChild as HTMLElement;
+      // index 4 % 4 === 0, so rotation should be -1.5
+      expect(card.style.transform).toBe("rotate(-1.5deg)");
+    });
+  });
+
+  describe("Postcard layout", () => {
+    it("renders with postcard-card class", () => {
+      const { container } = render(<TripCard trip={baseTrip} />);
+
+      const card = container.firstChild as HTMLElement;
+      expect(card.className).toContain("postcard-card");
+    });
+
+    it("renders with card-noise class for paper grain", () => {
+      const { container } = render(<TripCard trip={baseTrip} />);
+
+      const card = container.firstChild as HTMLElement;
+      expect(card.className).toContain("card-noise");
+    });
+
+    it("renders with landscape aspect ratio", () => {
+      const { container } = render(<TripCard trip={baseTrip} />);
+
+      const card = container.firstChild as HTMLElement;
+      expect(card.className).toContain("aspect-[3/2]");
+    });
+
+    it("renders pushpin element", () => {
+      const { container } = render(<TripCard trip={baseTrip} />);
+
+      const pushpin = container.querySelector(".pushpin");
+      expect(pushpin).not.toBeNull();
+    });
+
+    it("applies motion-safe animation classes", () => {
+      const { container } = render(<TripCard trip={baseTrip} />);
+
+      const card = container.firstChild as HTMLElement;
+      expect(card.className).toContain(
+        "motion-safe:animate-[staggerIn_500ms_ease-out_both]",
+      );
+      expect(card.className).toContain("motion-safe:active:scale-[0.98]");
+    });
+  });
+
   describe("Text truncation", () => {
     it("applies truncate class to trip name", () => {
       const trip = {
@@ -413,25 +466,6 @@ describe("TripCard", () => {
 
       const link = screen.getByRole("link");
       expect(link).toBeDefined();
-    });
-
-    it("applies hover and active transition classes", () => {
-      const { container } = render(<TripCard trip={baseTrip} />);
-
-      const card = container.firstChild as HTMLElement;
-      expect(card.className).toContain("hover:shadow-lg");
-      expect(card.className).toContain("motion-safe:active:scale-[0.98]");
-      expect(card.className).toContain("transition-all");
-    });
-
-    it("applies motion-safe animation classes", () => {
-      const { container } = render(<TripCard trip={baseTrip} />);
-
-      const card = container.firstChild as HTMLElement;
-      expect(card.className).toContain(
-        "motion-safe:animate-[staggerIn_500ms_ease-out_both]",
-      );
-      expect(card.className).toContain("motion-safe:hover:-translate-y-1");
     });
   });
 });

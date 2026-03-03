@@ -16,26 +16,20 @@ import { TopoPattern } from "@/components/ui/topo-pattern";
 
 function SkeletonCard() {
   return (
-    <div className="bg-card rounded-2xl overflow-hidden border border-border">
-      <div className="relative h-48">
-        <Skeleton className="h-full w-full rounded-none" />
-        <div className="absolute top-3 left-3 flex gap-2">
-          <Skeleton className="h-5 w-16 rounded-full" />
-        </div>
+    <div className="relative aspect-[3/2] rounded-[4px] overflow-hidden bg-card border border-border shadow-[0_4px_12px_rgba(45,33,24,0.12)]">
+      <Skeleton className="absolute inset-0 rounded-none" />
+      {/* Badge placeholder */}
+      <div className="absolute top-3 left-3 flex gap-2 z-[1]">
+        <Skeleton className="h-5 w-16 rounded-full" />
       </div>
-      <div className="p-4 space-y-3">
-        <div className="space-y-2">
-          <Skeleton className="h-6 w-3/4" />
-          <Skeleton className="h-4 w-1/2" />
-        </div>
-        <Skeleton className="h-4 w-2/3" />
-        <div className="flex items-center justify-between pt-3 border-t border-border">
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-6 w-6 rounded-full" />
-            <Skeleton className="h-4 w-20" />
-          </div>
-          <Skeleton className="h-4 w-20" />
-        </div>
+      {/* Text overlay placeholders */}
+      <div className="absolute bottom-0 left-0 right-0 p-4 z-[1]">
+        <Skeleton className="h-6 w-3/4 mb-2 bg-white/10" />
+        <Skeleton className="h-3 w-1/2 bg-white/10" />
+      </div>
+      {/* Avatar placeholders — bottom right */}
+      <div className="absolute bottom-3 right-3 flex -space-x-2 z-[1]">
+        <Skeleton className="h-6 w-6 rounded-full bg-white/10" />
       </div>
     </div>
   );
@@ -168,8 +162,7 @@ export function TripsContent() {
 
         {/* Loading State */}
         {isPending && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <SkeletonCard />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <SkeletonCard />
             <SkeletonCard />
           </div>
@@ -250,18 +243,9 @@ export function TripsContent() {
                 <h2 className="text-xl sm:text-2xl font-semibold text-foreground mb-4 font-[family-name:var(--font-righteous)]">
                   Upcoming trips
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   {upcomingTrips.map((trip, index) => (
-                    <div
-                      key={trip.id}
-                      className={index === 0 ? "lg:row-span-2" : ""}
-                    >
-                      <TripCard
-                        trip={trip}
-                        index={index}
-                        className={index === 0 ? "lg:h-full" : ""}
-                      />
-                    </div>
+                    <TripCard key={trip.id} trip={trip} index={index} />
                   ))}
                 </div>
               </section>
@@ -278,7 +262,7 @@ export function TripsContent() {
                 <h2 className="text-xl sm:text-2xl font-semibold text-foreground mb-4 font-[family-name:var(--font-righteous)]">
                   Past trips
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   {pastTrips.map((trip, index) => (
                     <TripCard key={trip.id} trip={trip} index={index} />
                   ))}
