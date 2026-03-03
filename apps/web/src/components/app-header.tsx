@@ -58,7 +58,7 @@ export function AppHeader() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 w-full border-b bg-background">
+      <header className="sticky top-0 z-40 w-full bg-background">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2">
             {/* Mobile hamburger button */}
@@ -132,6 +132,8 @@ export function AppHeader() {
             </DropdownMenu>
           </div>
         </div>
+        {/* Airmail stripe decoration */}
+        <div className="airmail-stripe h-1" aria-hidden="true" />
       </header>
 
       {/* Mobile navigation sheet */}

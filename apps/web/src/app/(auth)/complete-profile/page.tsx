@@ -153,156 +153,171 @@ export default function CompleteProfilePage() {
 
   return (
     <div className="w-full max-w-md">
-      <div className="bg-card rounded-3xl shadow-2xl p-8 lg:p-12 border border-border/50 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 duration-700">
-        <div className="space-y-6">
-          <div className="space-y-2">
-            <h1 className="text-3xl font-semibold text-foreground tracking-tight">
-              Complete your profile
-            </h1>
-            <p className="text-muted-foreground">
-              Tell us a bit about yourself to get started
-            </p>
+      {/* Airmail stripe border wrapper */}
+      <div className="airmail-stripe rounded-lg p-1 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 duration-700">
+        <div className="relative bg-[#f5ecd7] rounded-md shadow-2xl p-8 lg:p-12 card-noise">
+          {/* Decorative travel stamp */}
+          <div
+            className="absolute top-4 right-4 w-12 h-12 border-2 border-dashed border-accent/30 rounded-sm flex items-center justify-center rotate-6 opacity-40"
+            aria-hidden="true"
+          >
+            <span className="text-[8px] font-accent text-accent/60 uppercase tracking-widest leading-tight text-center">
+              Air
+              <br />
+              Mail
+            </span>
           </div>
 
-          {/* Photo Upload Section */}
-          <div className="flex flex-col items-center gap-3">
-            <Avatar className="size-20 text-xl" data-testid="profile-avatar">
-              {photoPreview && (
-                <AvatarImage src={photoPreview} alt="Profile photo preview" />
-              )}
-              <AvatarFallback className="text-xl">
-                {displayName ? getInitials(displayName) : "?"}
-              </AvatarFallback>
-            </Avatar>
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <h1 className="text-3xl font-semibold text-foreground tracking-tight">
+                Complete your profile
+              </h1>
+              <p className="text-muted-foreground">
+                Tell us a bit about yourself to get started
+              </p>
+            </div>
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={ACCEPTED_IMAGE_TYPES.join(",")}
-              onChange={handleFileChange}
-              className="hidden"
-              aria-label="Upload profile photo"
-              data-testid="photo-file-input"
-            />
+            {/* Photo Upload Section */}
+            <div className="flex flex-col items-center gap-3">
+              <Avatar className="size-20 text-xl" data-testid="profile-avatar">
+                {photoPreview && (
+                  <AvatarImage src={photoPreview} alt="Profile photo preview" />
+                )}
+                <AvatarFallback className="text-xl">
+                  {displayName ? getInitials(displayName) : "?"}
+                </AvatarFallback>
+              </Avatar>
 
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="px-3 rounded-xl"
-                onClick={handlePhotoClick}
-                disabled={isSubmitting}
-                data-testid="upload-photo-button"
-              >
-                <Camera className="w-4 h-4 mr-1.5" />
-                {photoPreview ? "Change photo" : "Upload photo"}
-              </Button>
-              {photoPreview && (
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={ACCEPTED_IMAGE_TYPES.join(",")}
+                onChange={handleFileChange}
+                className="hidden"
+                aria-label="Upload profile photo"
+                data-testid="photo-file-input"
+              />
+
+              <div className="flex items-center gap-2">
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  className="px-3 rounded-xl text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={handleRemovePhoto}
+                  className="px-3 rounded-xl"
+                  onClick={handlePhotoClick}
                   disabled={isSubmitting}
-                  data-testid="remove-photo-button"
+                  data-testid="upload-photo-button"
                 >
-                  <Trash2 className="w-4 h-4 mr-1.5" />
-                  Remove
+                  <Camera className="w-4 h-4 mr-1.5" />
+                  {photoPreview ? "Change photo" : "Upload photo"}
                 </Button>
-              )}
+                {photoPreview && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="px-3 rounded-xl text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={handleRemovePhoto}
+                    disabled={isSubmitting}
+                    data-testid="remove-photo-button"
+                  >
+                    <Trash2 className="w-4 h-4 mr-1.5" />
+                    Remove
+                  </Button>
+                )}
+              </div>
             </div>
-          </div>
 
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="displayName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-sm font-medium text-foreground">
-                      Display name
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        type="text"
-                        placeholder="John Doe"
-                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring"
-                        disabled={isSubmitting}
-                        autoComplete="nickname"
-                        aria-required="true"
-                        {...field}
-                        ref={(e) => {
-                          field.ref(e);
-                          inputRef.current = e;
-                        }}
-                      />
-                    </FormControl>
-                    <FormDescription className="text-xs text-muted-foreground">
-                      This is how others will see you on the platform
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="timezone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-sm font-medium text-foreground">
-                      Timezone
-                    </FormLabel>
-                    <Select
-                      onValueChange={onTimezoneChange}
-                      value={selectTimezoneValue}
-                      disabled={isSubmitting}
-                    >
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="displayName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium text-foreground">
+                        Display name
+                      </FormLabel>
                       <FormControl>
-                        <SelectTrigger
-                          ref={field.ref}
-                          onBlur={field.onBlur}
+                        <Input
+                          type="text"
+                          placeholder="John Doe"
                           className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring"
-                        >
-                          <SelectValue placeholder="Select your timezone" />
-                        </SelectTrigger>
+                          disabled={isSubmitting}
+                          autoComplete="nickname"
+                          aria-required="true"
+                          {...field}
+                          ref={(e) => {
+                            field.ref(e);
+                            inputRef.current = e;
+                          }}
+                        />
                       </FormControl>
-                      <SelectContent>
-                        <SelectItem value={TIMEZONE_AUTO_DETECT}>
-                          Auto-detect ({getTimezoneLabel(detectedTimezone)})
-                        </SelectItem>
-                        {TIMEZONES.map((tz) => (
-                          <SelectItem key={tz.value} value={tz.value}>
-                            {tz.label}
+                      <FormDescription className="text-xs text-muted-foreground">
+                        This is how others will see you on the platform
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="timezone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium text-foreground">
+                        Timezone
+                      </FormLabel>
+                      <Select
+                        onValueChange={onTimezoneChange}
+                        value={selectTimezoneValue}
+                        disabled={isSubmitting}
+                      >
+                        <FormControl>
+                          <SelectTrigger
+                            ref={field.ref}
+                            onBlur={field.onBlur}
+                            className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring"
+                          >
+                            <SelectValue placeholder="Select your timezone" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value={TIMEZONE_AUTO_DETECT}>
+                            Auto-detect ({getTimezoneLabel(detectedTimezone)})
                           </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormDescription className="text-xs text-muted-foreground">
-                      Used to show you times in your local timezone
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                          {TIMEZONES.map((tz) => (
+                            <SelectItem key={tz.value} value={tz.value}>
+                              {tz.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription className="text-xs text-muted-foreground">
+                        Used to show you times in your local timezone
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                variant="gradient"
-                className="w-full h-12 rounded-xl"
-              >
-                {isSubmitting ? "Saving..." : "Complete profile"}
-              </Button>
-            </form>
-          </Form>
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  variant="gradient"
+                  className="w-full h-12 rounded-xl"
+                >
+                  {isSubmitting ? "Saving..." : "Complete profile"}
+                </Button>
+              </form>
+            </Form>
 
-          <p className="text-xs text-center text-muted-foreground">
-            You can update this information later in your settings
-          </p>
+            <p className="text-xs text-center text-muted-foreground">
+              You can update this information later in your settings
+            </p>
+          </div>
         </div>
       </div>
     </div>

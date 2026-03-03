@@ -83,93 +83,108 @@ function VerifyPageContent() {
 
   return (
     <div className="w-full max-w-md">
-      <div className="bg-card rounded-3xl shadow-2xl p-8 lg:p-12 border border-border/50 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 duration-700">
-        <div className="space-y-6">
-          <div className="space-y-2">
-            <h1 className="text-3xl font-semibold text-foreground tracking-tight">
-              Verify your number
-            </h1>
-            <p className="text-muted-foreground">
-              Enter the 6-digit code sent to{" "}
-              <span className="font-semibold text-foreground">
-                {formatPhoneNumber(phoneNumber)}
-              </span>
+      {/* Airmail stripe border wrapper */}
+      <div className="airmail-stripe rounded-lg p-1 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 duration-700">
+        <div className="relative bg-[#f5ecd7] rounded-md shadow-2xl p-8 lg:p-12 card-noise">
+          {/* Decorative travel stamp */}
+          <div
+            className="absolute top-4 right-4 w-12 h-12 border-2 border-dashed border-accent/30 rounded-sm flex items-center justify-center rotate-6 opacity-40"
+            aria-hidden="true"
+          >
+            <span className="text-[8px] font-accent text-accent/60 uppercase tracking-widest leading-tight text-center">
+              Air
+              <br />
+              Mail
+            </span>
+          </div>
+
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <h1 className="text-3xl font-semibold text-foreground tracking-tight">
+                Verify your number
+              </h1>
+              <p className="text-muted-foreground">
+                Enter the 6-digit code sent to{" "}
+                <span className="font-semibold text-foreground">
+                  {formatPhoneNumber(phoneNumber)}
+                </span>
+              </p>
+            </div>
+
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="code"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium text-foreground">
+                        Verification code
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          type="text"
+                          placeholder="000000"
+                          className="h-14 text-2xl font-mono text-center tracking-widest border-input focus-visible:border-ring focus-visible:ring-ring"
+                          disabled={isSubmitting}
+                          maxLength={6}
+                          autoComplete="one-time-code"
+                          aria-required="true"
+                          {...field}
+                          onChange={(e) => {
+                            field.onChange(e);
+                            setResendSuccess(null);
+                          }}
+                          ref={(e) => {
+                            field.ref(e);
+                            inputRef.current = e;
+                          }}
+                        />
+                      </FormControl>
+                      <FormDescription className="text-xs text-muted-foreground">
+                        Check your SMS messages for the code
+                      </FormDescription>
+                      <FormMessage />
+                      {resendSuccess && (
+                        <p className="text-sm text-success">{resendSuccess}</p>
+                      )}
+                    </FormItem>
+                  )}
+                />
+
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  variant="gradient"
+                  className="w-full h-12 rounded-xl"
+                >
+                  {isSubmitting ? "Verifying..." : "Verify"}
+                </Button>
+              </form>
+            </Form>
+
+            <div className="flex items-center justify-between text-sm">
+              <Link
+                href="/login"
+                className="text-primary hover:text-primary/80 font-medium transition-colors"
+              >
+                Change number
+              </Link>
+              <Button
+                type="button"
+                variant="link"
+                onClick={handleResendCode}
+                disabled={isResending}
+                className="text-primary hover:text-primary/80 font-medium p-0 h-auto"
+              >
+                {isResending ? "Sending..." : "Resend code"}
+              </Button>
+            </div>
+
+            <p className="text-xs text-center text-muted-foreground">
+              Didn&apos;t receive the code? Wait a moment and try resending
             </p>
           </div>
-
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="code"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-sm font-medium text-foreground">
-                      Verification code
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        type="text"
-                        placeholder="000000"
-                        className="h-14 text-2xl font-mono text-center tracking-widest border-input focus-visible:border-ring focus-visible:ring-ring"
-                        disabled={isSubmitting}
-                        maxLength={6}
-                        autoComplete="one-time-code"
-                        aria-required="true"
-                        {...field}
-                        onChange={(e) => {
-                          field.onChange(e);
-                          setResendSuccess(null);
-                        }}
-                        ref={(e) => {
-                          field.ref(e);
-                          inputRef.current = e;
-                        }}
-                      />
-                    </FormControl>
-                    <FormDescription className="text-xs text-muted-foreground">
-                      Check your SMS messages for the code
-                    </FormDescription>
-                    <FormMessage />
-                    {resendSuccess && (
-                      <p className="text-sm text-success">{resendSuccess}</p>
-                    )}
-                  </FormItem>
-                )}
-              />
-
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                variant="gradient"
-                className="w-full h-12 rounded-xl"
-              >
-                {isSubmitting ? "Verifying..." : "Verify"}
-              </Button>
-            </form>
-          </Form>
-
-          <div className="flex items-center justify-between text-sm">
-            <Link
-              href="/login"
-              className="text-primary hover:text-primary/80 font-medium transition-colors"
-            >
-              Change number
-            </Link>
-            <Button
-              type="button"
-              variant="link"
-              onClick={handleResendCode}
-              disabled={isResending}
-              className="text-primary hover:text-primary/80 font-medium p-0 h-auto"
-            >
-              {isResending ? "Sending..." : "Resend code"}
-            </Button>
-          </div>
-
-          <p className="text-xs text-center text-muted-foreground">
-            Didn&apos;t receive the code? Wait a moment and try resending
-          </p>
         </div>
       </div>
     </div>
@@ -181,20 +196,22 @@ export default function VerifyPage() {
     <Suspense
       fallback={
         <div className="w-full max-w-md">
-          <div className="bg-card rounded-3xl shadow-2xl p-8 lg:p-12 border border-border/50 space-y-6">
-            <div className="space-y-2">
-              <Skeleton className="h-9 w-56" />
-              <Skeleton className="h-5 w-72" />
-            </div>
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-14 w-full" />
-              <Skeleton className="h-3 w-56" />
-            </div>
-            <Skeleton className="h-12 w-full rounded-xl" />
-            <div className="flex justify-between">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-4 w-24" />
+          <div className="airmail-stripe rounded-lg p-1">
+            <div className="bg-[#f5ecd7] rounded-md shadow-2xl p-8 lg:p-12 card-noise space-y-6">
+              <div className="space-y-2">
+                <Skeleton className="h-9 w-56" />
+                <Skeleton className="h-5 w-72" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-14 w-full" />
+                <Skeleton className="h-3 w-56" />
+              </div>
+              <Skeleton className="h-12 w-full rounded-xl" />
+              <div className="flex justify-between">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-24" />
+              </div>
             </div>
           </div>
         </div>
