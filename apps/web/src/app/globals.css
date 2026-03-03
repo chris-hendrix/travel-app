@@ -197,12 +197,123 @@
   content: '';
   position: absolute;
   inset: 0;
-  opacity: 0.03;
+  opacity: 0.06;
   pointer-events: none;
   border-radius: inherit;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   background-repeat: repeat;
   background-size: 256px 256px;
+}
+
+.paper-grain {
+  position: relative;
+}
+
+.paper-grain::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.08;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+.paper-bg {
+  background-color: var(--color-background);
+  position: relative;
+}
+
+.paper-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.08;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+.film-grain {
+  position: relative;
+}
+
+.film-grain::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  opacity: 0.025;
+  pointer-events: none;
+  z-index: 50;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 512px 512px;
+  animation: grain-shift 0.5s steps(4) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .film-grain::after {
+    animation: none;
+  }
+}
+
+@keyframes grain-shift {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(-1px, 1px); }
+  50% { transform: translate(1px, -1px); }
+  75% { transform: translate(-1px, -1px); }
+  100% { transform: translate(1px, 1px); }
+}
+
+.airmail-stripe {
+  background: repeating-linear-gradient(
+    45deg,
+    #c45a3c 0px,
+    #c45a3c 8px,
+    transparent 8px,
+    transparent 16px,
+    #3d5a6b 16px,
+    #3d5a6b 24px,
+    transparent 24px,
+    transparent 32px
+  );
+}
+
+.postmark {
+  width: 64px;
+  height: 64px;
+  border: 2px double #6b5d4d;
+  border-radius: 50%;
+  opacity: 0.15;
+  transform: rotate(-15deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pushpin {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #e0e0e0, #888888, #666666);
+  box-shadow:
+    0 2px 4px rgba(45, 33, 24, 0.3),
+    inset 0 1px 1px rgba(255, 255, 255, 0.4);
+}
+
+.postcard-card {
+  position: relative;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(45, 33, 24, 0.12);
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.postcard-card:hover {
+  transform: rotate(0deg) translateY(-4px) !important;
+  box-shadow: 0 8px 24px rgba(45, 33, 24, 0.18);
 }
 
 @utility pb-safe {

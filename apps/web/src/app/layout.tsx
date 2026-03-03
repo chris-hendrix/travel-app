@@ -81,7 +81,7 @@ export default function RootLayout({
         bitter.variable,
       )}
     >
-      <body className="antialiased">
+      <body className="antialiased film-grain">
         <noscript>
           <div
             style={{
