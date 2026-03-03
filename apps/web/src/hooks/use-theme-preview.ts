@@ -108,7 +108,6 @@ export function useThemePreview({
       snapshotRef.current = null;
     };
     // Only run on enabled transitions, not on themeId/themeFont changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]);
 
   // Apply theme preview when selection changes
