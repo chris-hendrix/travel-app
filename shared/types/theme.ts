@@ -5,6 +5,8 @@
  * Each value maps to a Google Font loaded in the web app.
  */
 export const THEME_FONT_VALUES = [
+  "righteous", // 70s groovy display
+  "bitter", // slab serif body
   "plus-jakarta", // already loaded — default clean sans
   "playfair", // already loaded — elegant serif
   "space-grotesk", // already loaded — techy accent
@@ -41,3 +43,28 @@ export interface ThemePreset {
   /** Background style with dark/light indicator */
   background: ThemeBackground;
 }
+
+/**
+ * A postcard layout defines the physical card design:
+ * attachment style, title placement, font, and decorative elements.
+ */
+export interface PostcardLayout {
+  id: string;
+  name: string;
+  font: string;
+  titlePlacement: "bottom-left" | "bottom-center" | "center" | "top-left";
+  attachment: {
+    type: "pushpin" | "tape" | "magnet" | "clip";
+    position: { top: string; right?: string; left?: string };
+    rotation?: number;
+  };
+  defaultRotation: number;
+  decorations?: Array<{
+    type: "postmark" | "stamp" | "airmail-stripe";
+    position: string;
+    opacity: number;
+  }>;
+}
+
+export const POSTCARD_LAYOUT_VALUES = ["classic-pushpin"] as const;
+export type PostcardLayoutId = (typeof POSTCARD_LAYOUT_VALUES)[number];

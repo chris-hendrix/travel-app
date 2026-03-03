@@ -36,7 +36,7 @@ export function TripSettingsButton({ tripId, className }: TripSettingsButtonProp
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent>
           <SheetHeader>
-            <SheetTitle className="text-3xl font-[family-name:var(--font-playfair)] tracking-tight">
+            <SheetTitle className="text-3xl font-[family-name:var(--font-righteous)] tracking-tight">
               Trip settings
             </SheetTitle>
             <SheetDescription className="sr-only">

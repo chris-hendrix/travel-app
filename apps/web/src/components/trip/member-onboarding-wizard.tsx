@@ -334,7 +334,7 @@ export function MemberOnboardingWizard({
 
           {step === 0 && (
             <>
-              <SheetTitle className="text-3xl font-[family-name:var(--font-playfair)] tracking-tight">
+              <SheetTitle className="text-3xl font-[family-name:var(--font-righteous)] tracking-tight">
                 Share your phone number?
               </SheetTitle>
               <SheetDescription>
@@ -345,7 +345,7 @@ export function MemberOnboardingWizard({
 
           {step === 1 && (
             <>
-              <SheetTitle className="text-3xl font-[family-name:var(--font-playfair)] tracking-tight">
+              <SheetTitle className="text-3xl font-[family-name:var(--font-righteous)] tracking-tight">
                 When are you arriving?
               </SheetTitle>
               <SheetDescription>
@@ -356,7 +356,7 @@ export function MemberOnboardingWizard({
 
           {step === 2 && (
             <>
-              <SheetTitle className="text-3xl font-[family-name:var(--font-playfair)] tracking-tight">
+              <SheetTitle className="text-3xl font-[family-name:var(--font-righteous)] tracking-tight">
                 When are you leaving?
               </SheetTitle>
               <SheetDescription>
@@ -367,7 +367,7 @@ export function MemberOnboardingWizard({
 
           {step === eventsStepIndex && (
             <>
-              <SheetTitle className="text-3xl font-[family-name:var(--font-playfair)] tracking-tight">
+              <SheetTitle className="text-3xl font-[family-name:var(--font-righteous)] tracking-tight">
                 Want to suggest any activities?
               </SheetTitle>
               <SheetDescription>
@@ -378,7 +378,7 @@ export function MemberOnboardingWizard({
 
           {step === doneStepIndex && (
             <>
-              <SheetTitle className="text-3xl font-[family-name:var(--font-playfair)] tracking-tight">
+              <SheetTitle className="text-3xl font-[family-name:var(--font-righteous)] tracking-tight">
                 {"You're all set!"}
               </SheetTitle>
               <SheetDescription>

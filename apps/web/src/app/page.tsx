@@ -74,7 +74,7 @@ export default async function Home() {
         {/* Hero Section */}
         <section className="flex flex-col items-center justify-center px-4 pt-24 pb-20 text-center sm:pt-32 sm:pb-28">
           <div className="mb-6 h-1 w-16 rounded-full bg-accent" />
-          <h1 className="mb-4 max-w-2xl text-5xl font-bold tracking-tight text-foreground sm:text-6xl lg:text-7xl font-[family-name:var(--font-playfair)]">
+          <h1 className="mb-4 max-w-2xl text-5xl font-bold tracking-tight text-foreground sm:text-6xl lg:text-7xl font-[family-name:var(--font-righteous)]">
             Plan Group Trips Together
           </h1>
           <p className="mb-10 max-w-lg text-center text-lg text-muted-foreground sm:text-xl">
@@ -94,7 +94,7 @@ export default async function Home() {
         {/* Features Section */}
         <section className="px-4 py-20 sm:py-28">
           <div className="mx-auto max-w-5xl">
-            <h2 className="mb-12 text-center text-3xl font-bold tracking-tight text-foreground sm:text-4xl font-[family-name:var(--font-playfair)]">
+            <h2 className="mb-12 text-center text-3xl font-bold tracking-tight text-foreground sm:text-4xl font-[family-name:var(--font-righteous)]">
               Everything your group needs to plan the perfect trip
             </h2>
             <div className="grid gap-8 sm:grid-cols-2">
@@ -119,7 +119,7 @@ export default async function Home() {
         {/* How It Works Section */}
         <section className="px-4 py-20 sm:py-28">
           <div className="mx-auto max-w-3xl">
-            <h2 className="mb-12 text-center text-3xl font-bold tracking-tight text-foreground sm:text-4xl font-[family-name:var(--font-playfair)]">
+            <h2 className="mb-12 text-center text-3xl font-bold tracking-tight text-foreground sm:text-4xl font-[family-name:var(--font-righteous)]">
               How Tripful works
             </h2>
             <div className="grid gap-8 sm:grid-cols-3">
@@ -147,7 +147,7 @@ export default async function Home() {
             <div className="h-2 w-2 rotate-45 border border-primary/40" />
             <div className="h-px w-12 bg-border" />
           </div>
-          <h2 className="mb-6 text-2xl font-bold tracking-tight text-foreground sm:text-3xl font-[family-name:var(--font-playfair)]">
+          <h2 className="mb-6 text-2xl font-bold tracking-tight text-foreground sm:text-3xl font-[family-name:var(--font-righteous)]">
             Ready to plan your next adventure?
           </h2>
           <Button

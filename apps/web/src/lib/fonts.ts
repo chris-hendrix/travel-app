@@ -1,9 +1,11 @@
 import {
+  Bitter,
   Caveat,
   Nunito,
   Oswald,
   Playfair_Display,
   Plus_Jakarta_Sans,
+  Righteous,
   Space_Grotesk,
 } from "next/font/google";
 
@@ -41,5 +43,18 @@ export const caveat = Caveat({
 export const oswald = Oswald({
   subsets: ["latin"],
   variable: "--font-oswald",
+  display: "swap",
+});
+
+export const righteous = Righteous({
+  subsets: ["latin"],
+  variable: "--font-righteous",
+  display: "swap",
+  weight: "400",
+});
+
+export const bitter = Bitter({
+  subsets: ["latin"],
+  variable: "--font-bitter",
   display: "swap",
 });

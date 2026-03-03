@@ -275,7 +275,7 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
         <div className="absolute bottom-0 left-0 right-0 pb-5 sm:pb-6">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <h1
-              className={`text-2xl sm:text-4xl font-bold ${heroTextLight ? "text-white" : "text-foreground"} font-[family-name:var(--font-playfair)] line-clamp-2 drop-shadow-sm`}
+              className={`text-2xl sm:text-4xl font-bold ${heroTextLight ? "text-white" : "text-foreground"} font-[family-name:var(--font-righteous)] line-clamp-2 drop-shadow-sm`}
               style={trip.themeFont ? { fontFamily: THEME_FONTS[trip.themeFont as keyof typeof THEME_FONTS] } : undefined}
             >
               {trip.name}
@@ -485,7 +485,7 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
       >
         <SheetContent>
           <SheetHeader>
-            <SheetTitle className="text-3xl font-[family-name:var(--font-playfair)] tracking-tight">
+            <SheetTitle className="text-3xl font-[family-name:var(--font-righteous)] tracking-tight">
               {removingMember ? "Remove member" : "Members"}
             </SheetTitle>
             <SheetDescription className="sr-only">

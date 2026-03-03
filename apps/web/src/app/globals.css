@@ -1,54 +1,56 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #fbf6ef;
-  --color-foreground: #3a2d22;
-  --color-card: #ffffff;
-  --color-card-foreground: #3a2d22;
-  --color-popover: #ffffff;
-  --color-popover-foreground: #3a2d22;
-  --color-primary: #1a5c9e;
+  --color-background: #ede4ce;
+  --color-foreground: #2d2118;
+  --color-card: #f5ecd7;
+  --color-card-foreground: #2d2118;
+  --color-popover: #f5ecd7;
+  --color-popover-foreground: #2d2118;
+  --color-primary: #4a7a7a;
   --color-primary-foreground: #ffffff;
-  --color-secondary: #eee9e2;
-  --color-secondary-foreground: #3a2d22;
-  --color-muted: #eee9e2;
-  --color-muted-foreground: #5a5046;
-  --color-accent: #d1643d;
+  --color-secondary: #e5dbc5;
+  --color-secondary-foreground: #2d2118;
+  --color-muted: #e5dbc5;
+  --color-muted-foreground: #6b5d4d;
+  --color-accent: #c45a3c;
   --color-accent-foreground: #ffffff;
-  --color-destructive: #c6372a;
+  --color-destructive: #a63d2f;
   --color-destructive-foreground: #ffffff;
-  --color-success: #497e5a;
+  --color-success: #6b7c3f;
   --color-success-foreground: #ffffff;
-  --color-warning: #c78d29;
+  --color-warning: #c9a84c;
   --color-warning-foreground: #ffffff;
-  --color-border: #e5ddd1;
-  --color-input: #e5ddd1;
-  --color-ring: #1a5c9e;
+  --color-border: #d4c8b0;
+  --color-input: #d4c8b0;
+  --color-ring: #4a7a7a;
   --radius: 0.5rem;
-  --font-sans: var(--font-plus-jakarta);
-  --font-accent: var(--font-space-grotesk);
+  --font-sans: var(--font-bitter);
+  --font-accent: var(--font-oswald);
+  --font-display: var(--font-righteous);
+  --font-handwritten: var(--font-caveat);
 
-  /* Event type colors */
-  --color-event-travel: #2563eb;
-  --color-event-travel-light: #eff6ff;
-  --color-event-travel-border: #bfdbfe;
-  --color-event-meal: #d97706;
-  --color-event-meal-light: #fffbeb;
-  --color-event-meal-border: #fde68a;
-  --color-event-activity: #059669;
-  --color-event-activity-light: #ecfdf5;
-  --color-event-activity-border: #a7f3d0;
-  --color-accommodation: #9333ea;
-  --color-accommodation-light: #faf5ff;
-  --color-accommodation-border: #e9d5ff;
-  --color-member-travel: #6b7280;
-  --color-member-travel-light: #f9fafb;
-  --color-member-travel-border: #e5e7eb;
+  /* Event type colors — vintage palette */
+  --color-event-travel: #c45a3c;
+  --color-event-travel-light: #f5e8e2;
+  --color-event-travel-border: #d4a090;
+  --color-event-meal: #c9a84c;
+  --color-event-meal-light: #f5f0e0;
+  --color-event-meal-border: #d4c890;
+  --color-event-activity: #6b7c3f;
+  --color-event-activity-light: #eef0e5;
+  --color-event-activity-border: #a0b070;
+  --color-accommodation: #b07090;
+  --color-accommodation-light: #f0e8ec;
+  --color-accommodation-border: #d0a8b8;
+  --color-member-travel: #6b5d4d;
+  --color-member-travel-light: #f0ece5;
+  --color-member-travel-border: #d4c8b0;
 
-  /* Overlay text colors (bright on dark backgrounds like bg-black/50) */
-  --color-overlay-success: #6ee7b7;
-  --color-overlay-warning: #fcd34d;
-  --color-overlay-muted: #d4d4d4;
+  /* Overlay text colors (bright on dark backgrounds) */
+  --color-overlay-success: #a0c060;
+  --color-overlay-warning: #e0c060;
+  --color-overlay-muted: #d4c8b0;
 }
 
 @layer base {
@@ -182,9 +184,9 @@
 
 .gradient-mesh {
   background:
-    radial-gradient(ellipse at 20% 50%, #1a5c9e10 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, #d1643d08 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 80%, #497e5a08 0%, transparent 50%);
+    radial-gradient(ellipse at 20% 50%, #4a7a7a10 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, #c45a3c08 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 80%, #6b7c3f08 0%, transparent 50%);
 }
 
 .card-noise {

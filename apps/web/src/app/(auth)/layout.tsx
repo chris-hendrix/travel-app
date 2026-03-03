@@ -61,7 +61,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         className="relative z-10 flex min-h-screen flex-col items-center justify-center p-4"
       >
         {/* Tripful wordmark */}
-        <p className="mb-8 text-4xl font-bold tracking-tight text-foreground font-[family-name:var(--font-playfair)]">
+        <p className="mb-8 text-4xl font-bold tracking-tight text-foreground font-[family-name:var(--font-righteous)]">
           Tripful
         </p>
 

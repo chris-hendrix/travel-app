@@ -8,6 +8,8 @@ import type { ThemeFont } from "../types/theme";
  * with appropriate fallback font stacks.
  */
 export const THEME_FONTS: Record<ThemeFont, string> = {
+  righteous: "var(--font-righteous), system-ui, sans-serif",
+  bitter: "var(--font-bitter), Georgia, serif",
   "plus-jakarta": "var(--font-plus-jakarta), system-ui, sans-serif",
   playfair: "var(--font-playfair), Georgia, serif",
   "space-grotesk": "var(--font-space-grotesk), monospace",
@@ -21,6 +23,8 @@ export const THEME_FONTS: Record<ThemeFont, string> = {
  * Used in font picker UI.
  */
 export const FONT_DISPLAY_NAMES: Record<ThemeFont, string> = {
+  righteous: "Righteous",
+  bitter: "Bitter",
   "plus-jakarta": "Plus Jakarta Sans",
   playfair: "Playfair Display",
   "space-grotesk": "Space Grotesk",

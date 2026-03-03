@@ -122,9 +122,11 @@ export type {
 export type { Mutual, GetMutualsResponse } from "./mutuals";
 
 // Re-export theme types
-export { THEME_FONT_VALUES } from "./theme";
+export { THEME_FONT_VALUES, POSTCARD_LAYOUT_VALUES } from "./theme";
 export type {
   ThemeFont,
   ThemeBackground,
   ThemePreset,
+  PostcardLayout,
+  PostcardLayoutId,
 } from "./theme";

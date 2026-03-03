@@ -144,7 +144,7 @@ export function TripsContent() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <header className="mb-8">
-          <h1 className="text-2xl sm:text-4xl font-bold text-foreground mb-2 font-[family-name:var(--font-playfair)]">
+          <h1 className="text-2xl sm:text-4xl font-bold text-foreground mb-2 font-[family-name:var(--font-righteous)]">
             My Trips
           </h1>
           {!isPending && !isError && (
@@ -247,7 +247,7 @@ export function TripsContent() {
                 }
                 className={`mb-12 ${upcomingRevealed ? "motion-safe:animate-[revealUp_400ms_ease-out_both]" : "motion-safe:opacity-0"}`}
               >
-                <h2 className="text-xl sm:text-2xl font-semibold text-foreground mb-4 font-[family-name:var(--font-playfair)]">
+                <h2 className="text-xl sm:text-2xl font-semibold text-foreground mb-4 font-[family-name:var(--font-righteous)]">
                   Upcoming trips
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -275,7 +275,7 @@ export function TripsContent() {
                 }
                 className={pastRevealed ? "motion-safe:animate-[revealUp_400ms_ease-out_both]" : "motion-safe:opacity-0"}
               >
-                <h2 className="text-xl sm:text-2xl font-semibold text-foreground mb-4 font-[family-name:var(--font-playfair)]">
+                <h2 className="text-xl sm:text-2xl font-semibold text-foreground mb-4 font-[family-name:var(--font-righteous)]">
                   Past trips
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

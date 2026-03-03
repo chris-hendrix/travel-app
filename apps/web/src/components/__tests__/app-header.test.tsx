@@ -105,7 +105,7 @@ describe("AppHeader", () => {
 
     const wordmark = screen.getByText("Tripful");
     expect(wordmark.className).toContain(
-      "font-[family-name:var(--font-playfair)]",
+      "font-[family-name:var(--font-righteous)]",
     );
   });
 

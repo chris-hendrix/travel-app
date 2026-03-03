@@ -107,7 +107,7 @@ export function DeletedItemsDialog({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent>
         <SheetHeader>
-          <SheetTitle className="text-3xl font-[family-name:var(--font-playfair)] tracking-tight">
+          <SheetTitle className="text-3xl font-[family-name:var(--font-righteous)] tracking-tight">
             Deleted items
           </SheetTitle>
           <SheetDescription>

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { phoneNumberSchema } from "./phone";
 import { stripControlChars } from "../utils/sanitize";
 import { THEME_IDS } from "../config/themes";
+import { POSTCARD_LAYOUT_IDS } from "../config/postcard-layouts";
 import { THEME_FONT_VALUES } from "../types/theme";
 
 /**
@@ -78,7 +79,13 @@ const baseTripSchema = z.object({
   showAllMembers: z.boolean().default(false),
   coOrganizerPhones: z.array(phoneNumberSchema).optional(),
   themeId: z.enum(THEME_IDS).nullable().optional(),
-  themeFont: z.enum(THEME_FONT_VALUES).nullable().optional(),
+  themeFont: z
+    .enum([...THEME_FONT_VALUES, ...POSTCARD_LAYOUT_IDS] as [
+      string,
+      ...string[],
+    ])
+    .nullable()
+    .optional(),
 });
 
 /**

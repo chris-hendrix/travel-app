@@ -1030,7 +1030,7 @@ describe("MemberOnboardingWizard", () => {
       // Check phone step title first
       const phoneTitle = screen.getByText("Share your phone number?");
       expect(phoneTitle.className).toContain(
-        "font-[family-name:var(--font-playfair)]",
+        "font-[family-name:var(--font-righteous)]",
       );
 
       // Skip to arrival step and check that title too
@@ -1038,7 +1038,7 @@ describe("MemberOnboardingWizard", () => {
 
       const arrivalTitle = screen.getByText("When are you arriving?");
       expect(arrivalTitle.className).toContain(
-        "font-[family-name:var(--font-playfair)]",
+        "font-[family-name:var(--font-righteous)]",
       );
     });
 

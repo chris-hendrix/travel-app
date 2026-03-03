@@ -3,12 +3,17 @@
 import { describe, it, expect } from "vitest";
 import { THEME_PRESETS, THEME_IDS } from "../config/themes";
 import { THEME_FONTS, FONT_DISPLAY_NAMES } from "../config/theme-fonts";
-import { THEME_FONT_VALUES } from "../types/theme";
-import type { ThemePreset, ThemeBackground } from "../types/theme";
+import { THEME_FONT_VALUES, POSTCARD_LAYOUT_VALUES } from "../types/theme";
+import type {
+  ThemePreset,
+  ThemeBackground,
+  PostcardLayout,
+  PostcardLayoutId,
+} from "../types/theme";
 
 describe("THEME_PRESETS", () => {
-  it("should contain at least 6 presets", () => {
-    expect(THEME_PRESETS.length).toBeGreaterThanOrEqual(6);
+  it("should contain at least 3 presets", () => {
+    expect(THEME_PRESETS.length).toBeGreaterThanOrEqual(3);
   });
 
   it("should have unique IDs", () => {
@@ -73,17 +78,15 @@ describe("THEME_PRESETS", () => {
     });
   });
 
-  it("should include a mix of dark and light themes", () => {
+  it("should have all dark backgrounds for vintage themes", () => {
     const darkCount = THEME_PRESETS.filter((p) => p.background.isDark).length;
-    const lightCount = THEME_PRESETS.filter((p) => !p.background.isDark).length;
-    expect(darkCount).toBeGreaterThanOrEqual(3);
-    expect(lightCount).toBeGreaterThanOrEqual(3);
+    expect(darkCount).toBe(THEME_PRESETS.length);
   });
 
-  it("should include both dark and light tag categories", () => {
+  it("should include warm and cool tag categories", () => {
     const allTags = new Set(THEME_PRESETS.flatMap((p) => p.tags));
-    expect(allTags.has("dark")).toBe(true);
-    expect(allTags.has("light")).toBe(true);
+    expect(allTags.has("warm")).toBe(true);
+    expect(allTags.has("cool")).toBe(true);
   });
 
   it("should have no hsl values anywhere in backgrounds", () => {
@@ -180,5 +183,81 @@ describe("ThemePreset type", () => {
     };
     expect(bg.type).toBe("image");
     expect(bg.url).toContain("https://");
+  });
+});
+
+describe("THEME_FONT_VALUES", () => {
+  it("should include righteous and bitter fonts", () => {
+    expect(THEME_FONT_VALUES).toContain("righteous");
+    expect(THEME_FONT_VALUES).toContain("bitter");
+  });
+
+  it("should have righteous and bitter before other fonts", () => {
+    const righteousIndex = THEME_FONT_VALUES.indexOf("righteous");
+    const bitterIndex = THEME_FONT_VALUES.indexOf("bitter");
+    const plusJakartaIndex = THEME_FONT_VALUES.indexOf("plus-jakarta");
+    expect(righteousIndex).toBeLessThan(plusJakartaIndex);
+    expect(bitterIndex).toBeLessThan(plusJakartaIndex);
+  });
+});
+
+describe("POSTCARD_LAYOUT_VALUES", () => {
+  it("should contain at least one layout", () => {
+    expect(POSTCARD_LAYOUT_VALUES.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("should include classic-pushpin layout", () => {
+    expect(POSTCARD_LAYOUT_VALUES).toContain("classic-pushpin");
+  });
+
+  it("should use kebab-case IDs", () => {
+    const kebabCaseRegex = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
+    POSTCARD_LAYOUT_VALUES.forEach((id) => {
+      expect(id).toMatch(kebabCaseRegex);
+    });
+  });
+});
+
+describe("PostcardLayout type", () => {
+  it("should allow creating a valid postcard layout object", () => {
+    const layout: PostcardLayout = {
+      id: "classic-pushpin",
+      name: "Classic Pushpin",
+      font: "var(--font-righteous), system-ui, sans-serif",
+      titlePlacement: "bottom-left",
+      attachment: {
+        type: "pushpin",
+        position: { top: "-8px", left: "50%" },
+        rotation: 5,
+      },
+      defaultRotation: -1.5,
+      decorations: [
+        { type: "postmark", position: "top-right", opacity: 0.15 },
+        { type: "airmail-stripe", position: "bottom", opacity: 0.6 },
+      ],
+    };
+    expect(layout.id).toBe("classic-pushpin");
+    expect(layout.attachment.type).toBe("pushpin");
+    expect(layout.decorations).toHaveLength(2);
+  });
+
+  it("should allow layout without decorations", () => {
+    const layout: PostcardLayout = {
+      id: "minimal",
+      name: "Minimal",
+      font: "var(--font-bitter), Georgia, serif",
+      titlePlacement: "center",
+      attachment: {
+        type: "tape",
+        position: { top: "0px", right: "10px" },
+      },
+      defaultRotation: 0,
+    };
+    expect(layout.decorations).toBeUndefined();
+  });
+
+  it("should derive PostcardLayoutId from POSTCARD_LAYOUT_VALUES", () => {
+    const layoutId: PostcardLayoutId = "classic-pushpin";
+    expect(POSTCARD_LAYOUT_VALUES).toContain(layoutId);
   });
 });

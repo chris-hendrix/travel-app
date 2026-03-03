@@ -84,7 +84,7 @@ export function TripMessages({
       aria-label="Trip discussion"
     >
       <div className="flex items-center gap-3">
-        <h2 className="text-2xl font-semibold font-[family-name:var(--font-playfair)]">
+        <h2 className="text-2xl font-semibold font-[family-name:var(--font-righteous)]">
           Discussion
         </h2>
         {total > 0 && (

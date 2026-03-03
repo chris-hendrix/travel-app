@@ -3,11 +3,13 @@ import type { ReactNode } from "react";
 import "./globals.css";
 import { Providers } from "./providers/providers";
 import {
+  bitter,
   caveat,
   nunito,
   oswald,
   playfairDisplay,
   plusJakartaSans,
+  righteous,
   spaceGrotesk,
 } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
@@ -75,6 +77,8 @@ export default function RootLayout({
         nunito.variable,
         caveat.variable,
         oswald.variable,
+        righteous.variable,
+        bitter.variable,
       )}
     >
       <body className="antialiased">

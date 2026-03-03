@@ -131,7 +131,7 @@ export const TripCard = memo(function TripCard({
       <div className="p-4 space-y-3">
         <div>
           <h3
-            className="text-lg font-semibold text-foreground mb-1 truncate font-[family-name:var(--font-playfair)]"
+            className="text-lg font-semibold text-foreground mb-1 truncate font-[family-name:var(--font-righteous)]"
             style={trip.themeFont ? { fontFamily: THEME_FONTS[trip.themeFont as keyof typeof THEME_FONTS] } : undefined}
           >
             {trip.name}
