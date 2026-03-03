@@ -216,7 +216,7 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
         className="min-h-screen bg-background motion-safe:animate-[revealUp_400ms_ease-out_both]"
         style={preset ? { background: "var(--theme-background)" } : undefined}
       >
-      {/* Hero section with cover image + overlay */}
+      {/* Hero section — postcard front with stamp, postmark, and airmail stripe */}
       <div className="relative h-64 sm:h-80 overflow-hidden">
         {/* Background: cover photo or default pattern */}
         {trip.coverImageUrl ? (
@@ -243,6 +243,53 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
         {trip.coverImageUrl && (
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
         )}
+
+        {/* Postmark overlay — faded date stamp, rotated */}
+        <div
+          className="postmark absolute top-6 sm:top-8 left-6 sm:left-10 w-20 h-20 sm:w-24 sm:h-24 z-[1] pointer-events-none"
+          aria-hidden="true"
+          style={{ borderColor: heroTextLight ? "rgba(255,255,255,0.2)" : "rgba(107,93,77,0.2)" }}
+        >
+          <span
+            className={`text-[7px] sm:text-[8px] font-accent uppercase tracking-widest text-center leading-tight ${heroTextLight ? "text-white/15" : "text-foreground/15"}`}
+          >
+            {dateRange || "Dates TBD"}
+          </span>
+        </div>
+
+        {/* Stamp element — organizer avatar in stamp-like frame */}
+        <div className="absolute top-4 right-20 sm:right-24 z-[5] pointer-events-none" aria-hidden="true">
+          <div
+            className="w-12 h-14 sm:w-14 sm:h-16 border-2 border-dashed rounded-sm flex items-center justify-center overflow-hidden"
+            style={{
+              borderColor: heroTextLight ? "rgba(255,255,255,0.35)" : "rgba(107,93,77,0.35)",
+              transform: "rotate(3deg)",
+              background: heroTextLight ? "rgba(0,0,0,0.15)" : "rgba(245,236,215,0.5)",
+            }}
+          >
+            {trip.organizers[0]?.profilePhotoUrl ? (
+              <Image
+                src={getUploadUrl(trip.organizers[0].profilePhotoUrl)!}
+                alt=""
+                width={48}
+                height={56}
+                className="w-full h-full object-cover opacity-70"
+              />
+            ) : (
+              <svg
+                className={`w-6 h-6 sm:w-7 sm:h-7 ${heroTextLight ? "text-white/30" : "text-foreground/30"}`}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <path d="M3 7l3-3h12l3 3v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+                <circle cx="12" cy="12" r="3" />
+                <path d="M5 7h.01M19 7h.01" />
+              </svg>
+            )}
+          </div>
+        </div>
 
         {/* Top-right: notification + settings */}
         <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
@@ -298,10 +345,14 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
             </div>
           </div>
         </div>
+
+        {/* Airmail stripe — bottom edge of hero */}
+        <div className="airmail-stripe absolute bottom-0 left-0 right-0 h-1.5 z-[2]" aria-hidden="true" />
       </div>
 
-      {/* Content */}
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Content — paper-textured background */}
+      <div className="paper-bg">
+      <div className="relative z-[1] max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           {/* Badges */}
           <div className="flex flex-wrap items-center gap-2 mb-6">
@@ -452,6 +503,7 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
             />
           </ErrorBoundary>
         </div>
+      </div>
       </div>
 
       {/* Edit Trip Dialog */}

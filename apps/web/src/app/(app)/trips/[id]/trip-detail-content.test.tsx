@@ -446,7 +446,8 @@ describe("TripDetailContent", () => {
       });
 
       expect(screen.getByText("Miami Beach, FL")).toBeDefined();
-      expect(screen.getByText("Jun 1 - 5, 2026")).toBeDefined();
+      // Date text appears in both the postmark overlay and metadata bar
+      expect(screen.getAllByText("Jun 1 - 5, 2026").length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText("8 members")).toBeDefined();
       expect(screen.getByText("No events yet")).toBeDefined();
     });
@@ -524,7 +525,8 @@ describe("TripDetailContent", () => {
           screen.getByRole("heading", { name: "Bachelor Party in Miami" }),
         ).toBeDefined();
         expect(screen.getByText("Miami Beach, FL")).toBeDefined();
-        expect(screen.getByText("Jun 1 - 5, 2026")).toBeDefined();
+        // Date text appears in both the postmark overlay and metadata bar
+        expect(screen.getAllByText("Jun 1 - 5, 2026").length).toBeGreaterThanOrEqual(1);
       });
     });
 
@@ -1167,7 +1169,8 @@ describe("TripDetailContent", () => {
 
       expect(screen.getByText(mockTripDetail.destination)).toBeDefined();
       // Date range should be rendered (formatted — Jun 1-5, 2026)
-      expect(screen.getByText(/Jun/)).toBeDefined();
+      // Date text appears in both the postmark overlay and metadata bar
+      expect(screen.getAllByText(/Jun/).length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -1193,7 +1196,8 @@ describe("TripDetailContent", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText("Dates TBD")).toBeDefined();
+        // Date text appears in both the postmark overlay and metadata bar
+        expect(screen.getAllByText("Dates TBD").length).toBeGreaterThanOrEqual(1);
       });
     });
 
@@ -1311,7 +1315,8 @@ describe("TripDetailContent", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText("Jun 28 - Jul 5, 2026")).toBeDefined();
+        // Date text appears in both the postmark overlay and metadata bar
+        expect(screen.getAllByText("Jun 28 - Jul 5, 2026").length).toBeGreaterThanOrEqual(1);
       });
     });
 
@@ -1336,7 +1341,8 @@ describe("TripDetailContent", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText("Starts Jun 1, 2026")).toBeDefined();
+        // Date text appears in both the postmark overlay and metadata bar
+        expect(screen.getAllByText("Starts Jun 1, 2026").length).toBeGreaterThanOrEqual(1);
       });
     });
 
@@ -1361,7 +1367,8 @@ describe("TripDetailContent", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText("Ends Jun 5, 2026")).toBeDefined();
+        // Date text appears in both the postmark overlay and metadata bar
+        expect(screen.getAllByText("Ends Jun 5, 2026").length).toBeGreaterThanOrEqual(1);
       });
     });
   });
