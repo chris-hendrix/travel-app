@@ -16,9 +16,9 @@ export const notificationPreferencesSchema = z.object({
 
 /** Notification entity as returned by the API */
 const notificationEntitySchema = z.object({
-  id: z.string().uuid(),
-  userId: z.string().uuid(),
-  tripId: z.string().uuid().nullable(),
+  id: z.uuid(),
+  userId: z.uuid(),
+  tripId: z.uuid().nullable(),
   type: z.enum([
     "daily_itinerary",
     "trip_message",

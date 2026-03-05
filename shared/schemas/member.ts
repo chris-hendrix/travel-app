@@ -8,7 +8,7 @@ import { z } from "zod";
  */
 export const updateMemberRoleSchema = z.object({
   isOrganizer: z.boolean({
-    message: "isOrganizer must be a boolean",
+    error: "isOrganizer must be a boolean",
   }),
 });
 

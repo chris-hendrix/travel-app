@@ -10,7 +10,7 @@ import { z } from "zod";
  * - limit: page size (default 20, max 50)
  */
 export const getMutualsQuerySchema = z.object({
-  tripId: z.string().uuid().optional(),
+  tripId: z.uuid().optional(),
   search: z.string().max(100).optional(),
   cursor: z.string().max(500).optional(),
   limit: z.coerce.number().int().positive().max(50).optional().default(20),

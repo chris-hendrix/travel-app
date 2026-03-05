@@ -14,7 +14,7 @@ export const createMessageSchema = z.object({
     .min(1, "Message cannot be empty")
     .max(2000, "Message too long")
     .transform(stripControlChars),
-  parentId: z.string().uuid().optional(),
+  parentId: z.uuid().optional(),
 });
 
 /**
@@ -57,17 +57,17 @@ const reactionSummarySchema = z.object({
 
 /** Message author as returned by the API */
 const messageAuthorSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   displayName: z.string(),
   profilePhotoUrl: z.string().nullable(),
 });
 
 /** Message entity as returned by the API */
 const messageEntitySchema = z.object({
-  id: z.string().uuid(),
-  tripId: z.string().uuid(),
-  authorId: z.string().uuid(),
-  parentId: z.string().uuid().nullable(),
+  id: z.uuid(),
+  tripId: z.uuid(),
+  authorId: z.uuid(),
+  parentId: z.uuid().nullable(),
   content: z.string(),
   isPinned: z.boolean(),
   editedAt: z.date().nullable(),

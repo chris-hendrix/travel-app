@@ -12,10 +12,10 @@ export const requestCodeSchema = z.object({
   phoneNumber: z
     .string()
     .min(10, {
-      message: "Phone number must be at least 10 characters",
+      error: "Phone number must be at least 10 characters",
     })
     .max(20, {
-      message: "Phone number must not exceed 20 characters",
+      error: "Phone number must not exceed 20 characters",
     }),
 });
 
@@ -28,18 +28,18 @@ export const verifyCodeSchema = z.object({
   phoneNumber: z
     .string()
     .min(10, {
-      message: "Phone number must be at least 10 characters",
+      error: "Phone number must be at least 10 characters",
     })
     .max(20, {
-      message: "Phone number must not exceed 20 characters",
+      error: "Phone number must not exceed 20 characters",
     }),
   code: z
     .string()
     .length(6, {
-      message: "Verification code must be exactly 6 characters",
+      error: "Verification code must be exactly 6 characters",
     })
     .regex(/^\d{6}$/, {
-      message: "Verification code must contain only digits",
+      error: "Verification code must contain only digits",
     }),
 });
 
@@ -52,10 +52,10 @@ export const completeProfileSchema = z.object({
   displayName: z
     .string()
     .min(3, {
-      message: "Display name must be at least 3 characters",
+      error: "Display name must be at least 3 characters",
     })
     .max(50, {
-      message: "Display name must not exceed 50 characters",
+      error: "Display name must not exceed 50 characters",
     })
     .transform(stripControlChars),
   timezone: z.string().max(100).nullable().optional(),

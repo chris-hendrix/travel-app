@@ -15,5 +15,5 @@ export const PHONE_REGEX = /^\+[1-9]\d{1,14}$/;
  * Validates phone numbers in E.164 format
  */
 export const phoneNumberSchema = z.string().regex(PHONE_REGEX, {
-  message: "Phone number must be in E.164 format (e.g., +14155552671)",
+  error: "Phone number must be in E.164 format (e.g., +14155552671)",
 });

@@ -25,19 +25,19 @@ const baseTripSchema = z.object({
   name: z
     .string()
     .min(3, {
-      message: "Trip name must be at least 3 characters",
+      error: "Trip name must be at least 3 characters",
     })
     .max(100, {
-      message: "Trip name must not exceed 100 characters",
+      error: "Trip name must not exceed 100 characters",
     })
     .transform(stripControlChars),
   destination: z
     .string()
     .min(1, {
-      message: "Destination is required",
+      error: "Destination is required",
     })
     .max(255, {
-      message: "Destination must not exceed 255 characters",
+      error: "Destination must not exceed 255 characters",
     })
     .transform(stripControlChars),
   startDate: z.string().date().optional(),
@@ -46,14 +46,14 @@ const baseTripSchema = z.object({
   description: z
     .string()
     .max(2000, {
-      message: "Description must not exceed 2000 characters",
+      error: "Description must not exceed 2000 characters",
     })
     .transform(stripControlChars)
     .optional(),
   coverImageUrl: z
     .string()
     .max(2048, {
-      message: "Cover image URL must not exceed 2048 characters",
+      error: "Cover image URL must not exceed 2048 characters",
     })
     .refine(
       (val) => {

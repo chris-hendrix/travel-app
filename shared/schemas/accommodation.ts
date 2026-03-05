@@ -11,29 +11,29 @@ const baseAccommodationSchema = z.object({
   name: z
     .string()
     .min(1, {
-      message: "Accommodation name must be at least 1 character",
+      error: "Accommodation name must be at least 1 character",
     })
     .max(255, {
-      message: "Accommodation name must not exceed 255 characters",
+      error: "Accommodation name must not exceed 255 characters",
     })
     .transform(stripControlChars),
   address: z.string().max(500).optional(),
   description: z
     .string()
     .max(2000, {
-      message: "Description must not exceed 2000 characters",
+      error: "Description must not exceed 2000 characters",
     })
     .optional(),
   checkIn: z.string().datetime({ offset: true }).or(z.string().datetime()),
   checkOut: z.string().datetime({ offset: true }).or(z.string().datetime()),
   links: z
     .array(
-      z.string().url({
-        message: "Link must be a valid URL",
+      z.url({
+        error: "Link must be a valid URL",
       }),
     )
     .max(10, {
-      message: "Links must not exceed 10 items",
+      error: "Links must not exceed 10 items",
     })
     .optional(),
 });

@@ -8,14 +8,14 @@ import { z } from "zod";
  */
 const baseMemberTravelSchema = z.object({
   travelType: z.enum(["arrival", "departure"], {
-    message: "Travel type must be one of: arrival, departure",
+    error: "Travel type must be one of: arrival, departure",
   }),
   time: z.string().datetime(),
   location: z.string().max(500).optional(),
   details: z
     .string()
     .max(500, {
-      message: "Details must not exceed 500 characters",
+      error: "Details must not exceed 500 characters",
     })
     .optional(),
 });
@@ -29,7 +29,7 @@ const baseMemberTravelSchema = z.object({
  * - memberId: UUID of target member for delegation (optional, organizer-only)
  */
 export const createMemberTravelSchema = baseMemberTravelSchema.extend({
-  memberId: z.string().uuid({ message: "Invalid member ID format" }).optional(),
+  memberId: z.uuid({ error: "Invalid member ID format" }).optional(),
 });
 
 /**

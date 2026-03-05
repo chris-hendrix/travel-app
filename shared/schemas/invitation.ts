@@ -14,14 +14,14 @@ export const createInvitationsSchema = z
     phoneNumbers: z
       .array(phoneNumberSchema)
       .max(25, {
-        message: "Cannot invite more than 25 members at once",
+        error: "Cannot invite more than 25 members at once",
       })
       .optional()
       .default([]),
     userIds: z
-      .array(z.string().uuid({ message: "Each user ID must be a valid UUID" }))
+      .array(z.uuid({ error: "Each user ID must be a valid UUID" }))
       .max(25, {
-        message: "Cannot invite more than 25 members at once",
+        error: "Cannot invite more than 25 members at once",
       })
       .optional()
       .default([]),
@@ -37,7 +37,7 @@ export const createInvitationsSchema = z
  */
 export const updateRsvpSchema = z.object({
   status: z.enum(["going", "not_going", "maybe"], {
-    message: "Status must be one of: going, not_going, maybe",
+    error: "Status must be one of: going, not_going, maybe",
   }),
   sharePhone: z.boolean().optional(),
 });

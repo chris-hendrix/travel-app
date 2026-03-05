@@ -11,20 +11,20 @@ const baseEventSchema = z.object({
   name: z
     .string()
     .min(1, {
-      message: "Event name must be at least 1 character",
+      error: "Event name must be at least 1 character",
     })
     .max(255, {
-      message: "Event name must not exceed 255 characters",
+      error: "Event name must not exceed 255 characters",
     })
     .transform(stripControlChars),
   description: z
     .string()
     .max(2000, {
-      message: "Description must not exceed 2000 characters",
+      error: "Description must not exceed 2000 characters",
     })
     .optional(),
   eventType: z.enum(["travel", "meal", "activity"], {
-    message: "Event type must be one of: travel, meal, activity",
+    error: "Event type must be one of: travel, meal, activity",
   }),
   location: z.string().max(500).optional(),
   meetupLocation: z.string().max(200).optional(),
@@ -35,12 +35,12 @@ const baseEventSchema = z.object({
   isOptional: z.boolean().default(false),
   links: z
     .array(
-      z.string().url({
-        message: "Link must be a valid URL",
+      z.url({
+        error: "Link must be a valid URL",
       }),
     )
     .max(10, {
-      message: "Links must not exceed 10 items",
+      error: "Links must not exceed 10 items",
     })
     .optional(),
   timezone: z.string().max(100).optional(),

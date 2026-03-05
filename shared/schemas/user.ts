@@ -34,10 +34,10 @@ export const updateProfileSchema = z.object({
   displayName: z
     .string()
     .min(3, {
-      message: "Display name must be at least 3 characters",
+      error: "Display name must be at least 3 characters",
     })
     .max(50, {
-      message: "Display name must not exceed 50 characters",
+      error: "Display name must not exceed 50 characters",
     })
     .transform(stripControlChars)
     .optional(),
