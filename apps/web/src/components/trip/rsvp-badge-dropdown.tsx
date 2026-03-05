@@ -39,6 +39,10 @@ function StatusIcon({ status, className }: { status: RsvpStatus; className?: str
       return <CircleX className={`${className} text-destructive`} />;
     case "no_response":
       return <CircleHelp className={`${className} text-muted-foreground`} />;
+    default: {
+      const _exhaustive: never = status;
+      return _exhaustive;
+    }
   }
 }
 
