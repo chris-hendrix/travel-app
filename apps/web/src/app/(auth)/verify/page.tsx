@@ -83,10 +83,10 @@ function VerifyPageContent() {
 
   return (
     <div className="w-full max-w-md">
-      <div className="bg-card rounded-3xl shadow-2xl p-8 lg:p-12 border border-border/50 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 duration-700">
-        <div className="space-y-6">
+      <div className="relative bg-card rounded-md shadow-2xl p-8 lg:p-12 border border-border/50 linen-texture overflow-hidden motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 duration-700">
+        <div className="space-y-6 relative pt-2">
           <div className="space-y-2">
-            <h1 className="text-3xl font-semibold text-foreground tracking-tight">
+            <h1 className="text-3xl font-semibold text-foreground tracking-tight font-[family-name:var(--font-playfair)]">
               Verify your number
             </h1>
             <p className="text-muted-foreground">

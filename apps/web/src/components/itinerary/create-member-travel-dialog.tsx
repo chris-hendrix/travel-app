@@ -175,7 +175,7 @@ export function CreateMemberTravelDialog({
                   >
                     <FormControl>
                       <SelectTrigger
-                        className="h-12 text-base rounded-xl"
+                        className="h-12 text-base rounded-md"
                         data-testid="member-selector"
                       >
                         <SelectValue placeholder="Select a member" />
@@ -218,7 +218,7 @@ export function CreateMemberTravelDialog({
                     <FormLabel className="text-base font-semibold text-foreground">
                       Member
                     </FormLabel>
-                    <div className="flex items-center gap-2 h-12 px-3 rounded-xl border border-input bg-muted/50">
+                    <div className="flex items-center gap-2 h-12 px-3 rounded-md border border-input bg-muted/50">
                       <Avatar size="sm">
                         {currentMember.profilePhotoUrl && (
                           <AvatarImage
@@ -295,7 +295,7 @@ export function CreateMemberTravelDialog({
                   disabled={isPending}
                 >
                   <FormControl>
-                    <SelectTrigger className="h-12 text-base rounded-xl">
+                    <SelectTrigger className="h-12 text-base rounded-md">
                       <SelectValue />
                     </SelectTrigger>
                   </FormControl>
@@ -353,7 +353,7 @@ export function CreateMemberTravelDialog({
                       <Input
                         type="text"
                         placeholder="Miami International Airport (MIA)"
-                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl"
+                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                         disabled={isPending}
                         {...field}
                       />
@@ -382,7 +382,7 @@ export function CreateMemberTravelDialog({
                       <FormControl>
                         <Textarea
                           placeholder="Flight number, terminal, or other relevant details..."
-                          className="h-32 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl resize-none"
+                          className="h-32 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md resize-none"
                           disabled={isPending}
                           {...field}
                           value={field.value || ""}
@@ -409,7 +409,7 @@ export function CreateMemberTravelDialog({
                   variant="outline"
                   onClick={() => onOpenChange(false)}
                   disabled={isPending}
-                  className="flex-1 h-12 rounded-xl border-input"
+                  className="flex-1 h-12 rounded-md border-input"
                 >
                   Cancel
                 </Button>
@@ -417,7 +417,7 @@ export function CreateMemberTravelDialog({
                   type="submit"
                   disabled={isPending}
                   variant="gradient"
-                  className="flex-1 h-12 rounded-xl"
+                  className="flex-1 h-12 rounded-md"
                 >
                   {isPending && (
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />

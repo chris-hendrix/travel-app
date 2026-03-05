@@ -3,12 +3,15 @@ import type { ReactNode } from "react";
 import "./globals.css";
 import { Providers } from "./providers/providers";
 import {
+  bungeeShade,
   caveat,
   nunito,
   oswald,
+  italiana,
   playfairDisplay,
   plusJakartaSans,
   spaceGrotesk,
+  specialElite,
 } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
 import { SkipLink } from "@/components/skip-link";
@@ -69,6 +72,9 @@ export default function RootLayout({
       lang="en"
       suppressHydrationWarning
       className={cn(
+        bungeeShade.variable,
+        italiana.variable,
+        specialElite.variable,
         playfairDisplay.variable,
         plusJakartaSans.variable,
         spaceGrotesk.variable,

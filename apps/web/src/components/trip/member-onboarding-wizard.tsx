@@ -440,7 +440,7 @@ export function MemberOnboardingWizard({
                   value={arrivalLocationValue}
                   onChange={(e) => setArrivalLocationValue(e.target.value)}
                   placeholder="e.g., JFK Airport"
-                  className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl"
+                  className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                 />
               </div>
             </div>
@@ -472,7 +472,7 @@ export function MemberOnboardingWizard({
                   value={departureLocationValue}
                   onChange={(e) => setDepartureLocationValue(e.target.value)}
                   placeholder="e.g., JFK Airport"
-                  className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl"
+                  className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                 />
               </div>
             </div>
@@ -489,7 +489,7 @@ export function MemberOnboardingWizard({
                   value={eventName}
                   onChange={(e) => setEventName(e.target.value)}
                   placeholder="e.g., Beach day"
-                  className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl"
+                  className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                 />
               </div>
               <div className="space-y-2">
@@ -507,7 +507,7 @@ export function MemberOnboardingWizard({
               <Button
                 type="button"
                 variant="outline"
-                className="h-12 rounded-xl w-full"
+                className="h-12 rounded-md w-full"
                 onClick={handleAddEvent}
                 disabled={
                   !eventName || !eventStartTime || createEvent.isPending
@@ -565,7 +565,7 @@ export function MemberOnboardingWizard({
 
               <div className="space-y-3">
                 {arrivalTime && (
-                  <div className="flex items-start gap-3 p-3 rounded-xl bg-muted/50">
+                  <div className="flex items-start gap-3 p-3 rounded-md bg-muted/50">
                     <Plane className="w-5 h-5 text-primary mt-0.5" />
                     <div>
                       <p className="text-sm font-medium">Arrival</p>
@@ -583,7 +583,7 @@ export function MemberOnboardingWizard({
                 )}
 
                 {departureTime && (
-                  <div className="flex items-start gap-3 p-3 rounded-xl bg-muted/50">
+                  <div className="flex items-start gap-3 p-3 rounded-md bg-muted/50">
                     <Plane className="w-5 h-5 text-primary mt-0.5 rotate-90" />
                     <div>
                       <p className="text-sm font-medium">Departure</p>
@@ -595,7 +595,7 @@ export function MemberOnboardingWizard({
                 )}
 
                 {addedEvents.length > 0 && (
-                  <div className="flex items-start gap-3 p-3 rounded-xl bg-muted/50">
+                  <div className="flex items-start gap-3 p-3 rounded-md bg-muted/50">
                     <Calendar className="w-5 h-5 text-primary mt-0.5" />
                     <div>
                       <p className="text-sm font-medium">Activities</p>
@@ -623,7 +623,7 @@ export function MemberOnboardingWizard({
           <SheetFooter>
             <Button
               variant="gradient"
-              className="h-12 rounded-xl w-full"
+              className="h-12 rounded-md w-full"
               onClick={() => onOpenChange(false)}
             >
               View Itinerary
@@ -635,7 +635,7 @@ export function MemberOnboardingWizard({
               {step > 0 && (
                 <Button
                   variant="outline"
-                  className="h-12 rounded-xl"
+                  className="h-12 rounded-md"
                   onClick={handleBack}
                   disabled={isPending}
                 >
@@ -644,7 +644,7 @@ export function MemberOnboardingWizard({
               )}
               <Button
                 variant="ghost"
-                className="h-12 rounded-xl"
+                className="h-12 rounded-md"
                 onClick={handleSkip}
                 disabled={isPending}
               >
@@ -652,7 +652,7 @@ export function MemberOnboardingWizard({
               </Button>
               <Button
                 variant="gradient"
-                className="h-12 rounded-xl flex-1"
+                className="h-12 rounded-md flex-1"
                 onClick={handleNext}
                 disabled={isPending}
               >

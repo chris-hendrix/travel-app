@@ -98,7 +98,7 @@ export function ItineraryHeader({
           <div className="flex items-center justify-between gap-3 flex-wrap">
             {/* Left: View mode toggle + timezone */}
             <TooltipProvider>
-              <div className="inline-flex items-center gap-1 p-1 bg-muted rounded-xl border border-border">
+              <div className="inline-flex items-center gap-1 p-1 bg-muted rounded-md border border-border">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button

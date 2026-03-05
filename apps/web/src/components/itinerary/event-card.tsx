@@ -82,7 +82,7 @@ export const EventCard = memo(function EventCard({
       role="button"
       tabIndex={0}
       aria-expanded={isExpanded}
-      className={`rounded-xl border border-border/60 border-l-4 ${config.accent} ${config.bg} py-2 px-3 transition-all hover:shadow-lg motion-safe:hover:-translate-y-1 motion-safe:active:scale-[0.98] cursor-pointer`}
+      className={`rounded-md border border-border/60 border-l-4 ${config.accent} ${config.bg} py-2 px-3 transition-all hover:shadow-lg motion-safe:hover:-translate-y-1 motion-safe:active:scale-[0.98] cursor-pointer`}
       onClick={() => setIsExpanded((prev) => !prev)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {

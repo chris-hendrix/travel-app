@@ -46,10 +46,12 @@ export default function LoginPage() {
 
   return (
     <div className="w-full max-w-md">
-      <div className="bg-card rounded-3xl shadow-2xl p-8 lg:p-12 border border-border/50 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 duration-700">
-        <div className="space-y-6">
+      <div className="relative bg-card rounded-md shadow-2xl p-8 lg:p-12 border border-border/50 linen-texture overflow-hidden motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 duration-700">
+        {/* Airmail stripe top */}
+        <div className="space-y-6 relative pt-2">
           <div className="space-y-2">
-            <h1 className="text-3xl font-semibold text-foreground tracking-tight">
+            <p className="text-sm text-accent font-[family-name:var(--font-typewriter)] uppercase tracking-widest">Par Avion</p>
+            <h1 className="text-3xl font-semibold text-foreground tracking-tight font-[family-name:var(--font-playfair)]">
               Get started
             </h1>
             <p className="text-muted-foreground">
@@ -92,7 +94,7 @@ export default function LoginPage() {
                 type="submit"
                 disabled={isSubmitting}
                 variant="gradient"
-                className="w-full h-12 rounded-xl"
+                className="w-full h-12"
               >
                 {isSubmitting ? "Sending..." : "Continue"}
               </Button>

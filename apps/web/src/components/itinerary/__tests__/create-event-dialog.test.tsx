@@ -506,7 +506,7 @@ describe("CreateEventDialog", () => {
       expect(nameInput.className).toContain("h-12");
     });
 
-    it("applies rounded-xl to inputs and buttons", () => {
+    it("applies rounded-md to inputs and buttons", () => {
       renderWithQueryClient(
         <CreateEventDialog
           open={true}
@@ -517,12 +517,12 @@ describe("CreateEventDialog", () => {
       );
 
       const nameInput = screen.getByLabelText(/event name/i);
-      expect(nameInput.className).toContain("rounded-xl");
+      expect(nameInput.className).toContain("rounded-md");
 
       const submitButton = screen.getByRole("button", {
         name: /create event/i,
       });
-      expect(submitButton.className).toContain("rounded-xl");
+      expect(submitButton.className).toContain("rounded-md");
     });
   });
 });

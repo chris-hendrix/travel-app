@@ -244,7 +244,7 @@ export function CreateTripDialog({
                           <Input
                             type="text"
                             placeholder="Bachelor Party in Miami"
-                            className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl"
+                            className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                             aria-required="true"
                             {...field}
                           />
@@ -271,7 +271,7 @@ export function CreateTripDialog({
                           <Input
                             type="text"
                             placeholder="Miami Beach, FL"
-                            className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl"
+                            className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                             aria-required="true"
                             {...field}
                           />
@@ -349,7 +349,7 @@ export function CreateTripDialog({
                             <SelectTrigger
                               ref={field.ref}
                               onBlur={field.onBlur}
-                              className="h-12 text-base rounded-xl"
+                              className="h-12 text-base rounded-md"
                               aria-required="true"
                             >
                               <SelectValue />
@@ -377,7 +377,7 @@ export function CreateTripDialog({
                       type="button"
                       onClick={handleContinue}
                       variant="gradient"
-                      className="h-12 px-8 rounded-xl"
+                      className="h-12 px-8 rounded-md"
                     >
                       Continue
                     </Button>
@@ -403,7 +403,7 @@ export function CreateTripDialog({
                           <FormControl>
                             <Textarea
                               placeholder="Tell your group about this trip..."
-                              className="h-32 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl resize-none"
+                              className="h-32 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md resize-none"
                               disabled={isPending}
                               {...field}
                               value={field.value || ""}
@@ -496,7 +496,7 @@ export function CreateTripDialog({
                     control={form.control}
                     name="allowMembersToAddEvents"
                     render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-xl border border-border p-4">
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-border p-4">
                         <FormControl>
                           <Checkbox
                             checked={field.value}
@@ -585,7 +585,7 @@ export function CreateTripDialog({
                                   }
                                 }}
                                 disabled={isPending}
-                                className="flex-1 h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl"
+                                className="flex-1 h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                                 aria-label="Co-organizer phone number"
                                 aria-describedby={
                                   coOrganizerError
@@ -598,7 +598,7 @@ export function CreateTripDialog({
                                 type="button"
                                 onClick={handleAddCoOrganizer}
                                 disabled={isPending}
-                                className="h-12 px-4 bg-muted hover:bg-muted text-foreground rounded-xl"
+                                className="h-12 px-4 bg-muted hover:bg-muted text-foreground rounded-md"
                                 variant="outline"
                               >
                                 <Plus className="w-5 h-5" />
@@ -631,7 +631,7 @@ export function CreateTripDialog({
                       variant="outline"
                       onClick={handleBack}
                       disabled={isPending}
-                      className="flex-1 h-12 rounded-xl border-input"
+                      className="flex-1 h-12 rounded-md border-input"
                     >
                       Back
                     </Button>
@@ -639,7 +639,7 @@ export function CreateTripDialog({
                       type="submit"
                       disabled={isPending}
                       variant="gradient"
-                      className="flex-1 h-12 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 h-12 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isPending && (
                         <Loader2 className="w-4 h-4 animate-spin mr-2" />

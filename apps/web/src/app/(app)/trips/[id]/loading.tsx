@@ -15,7 +15,7 @@ export default function TripDetailLoading() {
           <Skeleton className="h-5 w-24" />
           <Skeleton className="h-5 w-20" />
         </div>
-        <Skeleton className="h-28 w-full rounded-2xl" />
+        <Skeleton className="h-28 w-full rounded-md" />
       </div>
     </div>
   );

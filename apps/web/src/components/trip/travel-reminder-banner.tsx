@@ -61,7 +61,7 @@ export function TravelReminderBanner({
 
   return (
     <div data-testid="travel-reminder-banner" className="mb-6">
-      <div className="relative rounded-2xl border border-primary/20 bg-primary/[0.03] p-4 sm:p-5">
+      <div className="relative rounded-md border border-primary/20 bg-primary/[0.03] p-4 sm:p-5">
         <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
           <div className="rounded-full bg-primary/10 p-2.5 shrink-0">
             <Plane className="w-5 h-5 text-primary" aria-hidden="true" />
@@ -79,7 +79,7 @@ export function TravelReminderBanner({
                 onClick={onAddTravel}
                 variant="gradient"
                 size="sm"
-                className="rounded-xl w-full sm:w-auto min-h-[44px]"
+                className="rounded-md w-full sm:w-auto min-h-[44px]"
               >
                 Add Travel Details
               </Button>
@@ -87,7 +87,7 @@ export function TravelReminderBanner({
                 onClick={handleDismiss}
                 variant="ghost"
                 size="sm"
-                className="rounded-xl text-muted-foreground min-h-[44px]"
+                className="rounded-md text-muted-foreground min-h-[44px]"
               >
                 Dismiss
               </Button>

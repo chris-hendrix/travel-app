@@ -412,7 +412,7 @@ export function DayByDayView({
       })}
 
       {dayData.length === 0 && (
-        <div className="bg-card rounded-2xl border border-border p-8 text-center">
+        <div className="bg-card rounded-md border border-border p-8 text-center">
           <p className="text-muted-foreground">
             No trip dates set. Set trip dates to see a day-by-day view.
           </p>

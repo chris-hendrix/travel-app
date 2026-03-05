@@ -102,7 +102,7 @@ function SkeletonDetail() {
           <Skeleton className="h-5 w-24" />
           <Skeleton className="h-5 w-20" />
         </div>
-        <Skeleton className="h-28 w-full rounded-2xl" />
+        <Skeleton className="h-28 w-full rounded-md" />
       </div>
     </div>
   );
@@ -130,8 +130,7 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
       data.map((m) => ({ id: m.id, userId: m.userId, isMuted: m.isMuted })),
   });
   const currentMember = members?.find((m) => m.userId === user?.id);
-  const { ref: itineraryRef, isRevealed: itineraryRevealed } =
-    useScrollReveal();
+  const { ref: itineraryRef } = useScrollReveal();
 
   const handleUpdateRole = (
     member: MemberWithProfile,
@@ -183,7 +182,7 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
   if (isError || !trip) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="bg-card rounded-2xl border border-destructive/30 p-8 text-center max-w-md">
+        <div className="bg-card rounded-md border border-destructive/30 p-8 text-center max-w-md">
           <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
           <h2 className="text-2xl font-semibold text-foreground mb-2 font-accent">
             Trip not found
@@ -191,7 +190,7 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
           <p className="text-muted-foreground mb-6">
             This trip doesn't exist or you don't have access to it.
           </p>
-          <Button variant="gradient" asChild className="h-12 px-8 rounded-xl">
+          <Button variant="gradient" asChild className="h-12 px-8 rounded-md">
             <Link href="/trips">Return to trips</Link>
           </Button>
         </div>
@@ -315,7 +314,7 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
 
           {/* Organizer actions */}
           {isOrganizer && (
-            <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 mb-6">
+            <div className="flex items-center gap-3 rounded-md border border-primary/20 bg-primary/5 px-4 py-3 mb-6">
               <span className="text-sm text-muted-foreground">
                 You&apos;re organizing this trip
               </span>
@@ -419,7 +418,7 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
                 About this trip
               </CollapsibleTrigger>
               <CollapsibleContent forceMount className="overflow-hidden data-[state=open]:animate-[collapsible-down_200ms_ease-out] data-[state=closed]:animate-[collapsible-up_200ms_ease-out] data-[state=closed]:h-0">
-                <div className="mt-3 bg-card rounded-2xl border border-border p-6">
+                <div className="mt-3 bg-card rounded-md border border-border p-6 linen-texture">
                   <p className="text-muted-foreground whitespace-pre-wrap">
                     {trip.description}
                   </p>
@@ -433,7 +432,7 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
         <div
           id="itinerary"
           ref={itineraryRef as RefObject<HTMLDivElement>}
-          className={`scroll-mt-14 ${itineraryRevealed ? "motion-safe:animate-[revealScale_500ms_ease-out_both]" : "motion-safe:opacity-0"}`}
+          className="scroll-mt-14"
         >
           <ItineraryView
             tripId={tripId}

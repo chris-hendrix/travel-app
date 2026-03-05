@@ -285,7 +285,7 @@ export function EditEventDialog({
                       <Input
                         type="text"
                         placeholder="Dinner at Seaside Restaurant"
-                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl"
+                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                         disabled={isPending || isDeleting}
                         aria-required="true"
                         {...field}
@@ -315,7 +315,7 @@ export function EditEventDialog({
                         <SelectTrigger
                           ref={field.ref}
                           onBlur={field.onBlur}
-                          className="h-12 text-base rounded-xl"
+                          className="h-12 text-base rounded-md"
                           aria-required="true"
                         >
                           <SelectValue />
@@ -345,7 +345,7 @@ export function EditEventDialog({
                       <Input
                         type="text"
                         placeholder="123 Main St, Miami Beach"
-                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl"
+                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                         disabled={isPending || isDeleting}
                         {...field}
                       />
@@ -373,7 +373,7 @@ export function EditEventDialog({
                         <SelectTrigger
                           ref={field.ref}
                           onBlur={field.onBlur}
-                          className="h-12 text-base rounded-xl"
+                          className="h-12 text-base rounded-md"
                         >
                           <SelectValue />
                         </SelectTrigger>
@@ -460,7 +460,7 @@ export function EditEventDialog({
                       <Input
                         type="text"
                         placeholder="Hotel lobby, parking lot, etc."
-                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl"
+                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                         disabled={isPending || isDeleting}
                         {...field}
                       />
@@ -507,7 +507,7 @@ export function EditEventDialog({
                 control={form.control}
                 name="allDay"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-xl border border-border p-4">
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-border p-4">
                     <FormControl>
                       <Checkbox
                         checked={field.value ?? false}
@@ -536,7 +536,7 @@ export function EditEventDialog({
                 control={form.control}
                 name="isOptional"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-xl border border-border p-4">
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-border p-4">
                     <FormControl>
                       <Checkbox
                         checked={field.value ?? false}
@@ -576,7 +576,7 @@ export function EditEventDialog({
                       <FormControl>
                         <Textarea
                           placeholder="Tell your group about this event..."
-                          className="h-32 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl resize-none"
+                          className="h-32 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md resize-none"
                           disabled={isPending || isDeleting}
                           {...field}
                           value={field.value || ""}
@@ -654,7 +654,7 @@ export function EditEventDialog({
                             }
                           }}
                           disabled={isPending || isDeleting}
-                          className="flex-1 h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl"
+                          className="flex-1 h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                           aria-label="Link URL"
                           aria-describedby={
                             linkError ? "edit-event-link-error" : undefined
@@ -664,7 +664,7 @@ export function EditEventDialog({
                           type="button"
                           onClick={handleAddLink}
                           disabled={isPending || isDeleting}
-                          className="h-12 px-4 bg-muted hover:bg-muted text-foreground rounded-xl"
+                          className="h-12 px-4 bg-muted hover:bg-muted text-foreground rounded-md"
                           variant="outline"
                         >
                           <Plus className="w-5 h-5" />
@@ -693,7 +693,7 @@ export function EditEventDialog({
                   variant="outline"
                   onClick={() => onOpenChange(false)}
                   disabled={isPending || isDeleting}
-                  className="flex-1 h-12 rounded-xl border-input"
+                  className="flex-1 h-12 rounded-md border-input"
                 >
                   Cancel
                 </Button>
@@ -701,7 +701,7 @@ export function EditEventDialog({
                   type="submit"
                   disabled={isPending || isDeleting}
                   variant="gradient"
-                  className="flex-1 h-12 rounded-xl"
+                  className="flex-1 h-12 rounded-md"
                 >
                   {isPending && (
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />

@@ -209,7 +209,7 @@ export function ImageUpload({
 
       {previewUrl ? (
         <div className="relative group">
-          <div className="relative h-48 rounded-xl overflow-hidden border-2 border-border">
+          <div className="relative h-48 rounded-md overflow-hidden border-2 border-border">
             <Image
               src={previewUrl}
               alt="Preview"
@@ -262,7 +262,7 @@ export function ImageUpload({
           tabIndex={disabled ? -1 : 0}
           aria-label="Upload image"
           className={cn(
-            "relative h-48 rounded-xl border-2 border-dashed transition-all duration-200",
+            "relative h-48 rounded-md border-2 border-dashed transition-all duration-200",
             "flex flex-col items-center justify-center gap-3",
             "bg-gradient-to-br from-muted to-primary/10",
             isDragging && !disabled
