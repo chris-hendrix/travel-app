@@ -24,7 +24,7 @@ export class TripsPage {
     this.userMenuButton = page.getByRole("button", { name: "User menu" });
     this.mobileMenuButton = page.getByRole("button", { name: "Open menu" });
     this.emptyStateHeading = page.getByRole("heading", {
-      name: "No trips yet",
+      name: "Your adventures await",
     });
     this.emptyStateCreateButton = page.getByRole("button", {
       name: "Create your first trip",
