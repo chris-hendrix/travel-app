@@ -16,26 +16,9 @@ import { TopoPattern } from "@/components/ui/topo-pattern";
 
 function SkeletonCard() {
   return (
-    <div className="bg-card rounded-2xl overflow-hidden border border-border">
-      <div className="relative h-48">
-        <Skeleton className="h-full w-full rounded-none" />
-        <div className="absolute top-3 left-3 flex gap-2">
-          <Skeleton className="h-5 w-16 rounded-full" />
-        </div>
-      </div>
-      <div className="p-4 space-y-3">
-        <div className="space-y-2">
-          <Skeleton className="h-6 w-3/4" />
-          <Skeleton className="h-4 w-1/2" />
-        </div>
-        <Skeleton className="h-4 w-2/3" />
-        <div className="flex items-center justify-between pt-3 border-t border-border">
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-6 w-6 rounded-full" />
-            <Skeleton className="h-4 w-20" />
-          </div>
-          <Skeleton className="h-4 w-20" />
-        </div>
+    <div className="postcard-mat" style={{ background: "var(--color-secondary)" }}>
+      <div className="postcard-image">
+        <Skeleton className="absolute inset-0 rounded-none" />
       </div>
     </div>
   );
@@ -168,7 +151,7 @@ export function TripsContent() {
 
         {/* Loading State */}
         {isPending && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
@@ -250,18 +233,9 @@ export function TripsContent() {
                 <h2 className="text-xl sm:text-2xl font-semibold text-foreground mb-4 font-[family-name:var(--font-playfair)]">
                   Upcoming trips
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                   {upcomingTrips.map((trip, index) => (
-                    <div
-                      key={trip.id}
-                      className={index === 0 ? "lg:row-span-2" : ""}
-                    >
-                      <TripCard
-                        trip={trip}
-                        index={index}
-                        className={index === 0 ? "lg:h-full" : ""}
-                      />
-                    </div>
+                    <TripCard key={trip.id} trip={trip} index={index} />
                   ))}
                 </div>
               </section>
@@ -278,7 +252,7 @@ export function TripsContent() {
                 <h2 className="text-xl sm:text-2xl font-semibold text-foreground mb-4 font-[family-name:var(--font-playfair)]">
                   Past trips
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                   {pastTrips.map((trip, index) => (
                     <TripCard key={trip.id} trip={trip} index={index} />
                   ))}
