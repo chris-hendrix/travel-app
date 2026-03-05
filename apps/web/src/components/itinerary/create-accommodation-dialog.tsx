@@ -210,7 +210,7 @@ export function CreateAccommodationDialog({
                       <Input
                         type="text"
                         placeholder="Oceanview Hotel"
-                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl"
+                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                         disabled={isPending}
                         aria-required="true"
                         {...field}
@@ -234,7 +234,7 @@ export function CreateAccommodationDialog({
                       <Input
                         type="text"
                         placeholder="123 Beach Blvd, Miami Beach, FL 33139"
-                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl"
+                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                         disabled={isPending}
                         {...field}
                       />
@@ -315,7 +315,7 @@ export function CreateAccommodationDialog({
                       <FormControl>
                         <Textarea
                           placeholder="Tell your group about this accommodation..."
-                          className="h-32 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl resize-none"
+                          className="h-32 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md resize-none"
                           disabled={isPending}
                           {...field}
                           value={field.value || ""}
@@ -394,7 +394,7 @@ export function CreateAccommodationDialog({
                             }
                           }}
                           disabled={isPending}
-                          className="flex-1 h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl"
+                          className="flex-1 h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                           aria-label="Link URL"
                           aria-describedby={
                             linkError ? "accommodation-link-error" : undefined
@@ -404,7 +404,7 @@ export function CreateAccommodationDialog({
                           type="button"
                           onClick={handleAddLink}
                           disabled={isPending}
-                          className="h-12 px-4 bg-muted hover:bg-muted text-foreground rounded-xl"
+                          className="h-12 px-4 bg-muted hover:bg-muted text-foreground rounded-md"
                           variant="outline"
                           aria-label="Add link"
                         >
@@ -434,7 +434,7 @@ export function CreateAccommodationDialog({
                   variant="outline"
                   onClick={() => onOpenChange(false)}
                   disabled={isPending}
-                  className="flex-1 h-12 rounded-xl border-input"
+                  className="flex-1 h-12 rounded-md border-input"
                 >
                   Cancel
                 </Button>
@@ -442,7 +442,7 @@ export function CreateAccommodationDialog({
                   type="submit"
                   disabled={isPending}
                   variant="gradient"
-                  className="flex-1 h-12 rounded-xl"
+                  className="flex-1 h-12 rounded-md"
                 >
                   {isPending && (
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />

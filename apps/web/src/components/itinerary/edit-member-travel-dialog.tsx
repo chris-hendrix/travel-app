@@ -235,7 +235,7 @@ export function EditMemberTravelDialog({
                   onValueChange={setSelectedTimezone}
                   disabled={isPending || isDeleting}
                 >
-                  <SelectTrigger className="h-12 text-base rounded-xl mt-2">
+                  <SelectTrigger className="h-12 text-base rounded-md mt-2">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -292,7 +292,7 @@ export function EditMemberTravelDialog({
                       <Input
                         type="text"
                         placeholder="Miami International Airport (MIA)"
-                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl"
+                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                         disabled={isPending || isDeleting}
                         {...field}
                       />
@@ -321,7 +321,7 @@ export function EditMemberTravelDialog({
                       <FormControl>
                         <Textarea
                           placeholder="Flight number, terminal, or other relevant details..."
-                          className="h-32 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl resize-none"
+                          className="h-32 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md resize-none"
                           disabled={isPending || isDeleting}
                           {...field}
                           value={field.value || ""}
@@ -348,7 +348,7 @@ export function EditMemberTravelDialog({
                   variant="outline"
                   onClick={() => onOpenChange(false)}
                   disabled={isPending || isDeleting}
-                  className="flex-1 h-12 rounded-xl border-input"
+                  className="flex-1 h-12 rounded-md border-input"
                 >
                   Cancel
                 </Button>
@@ -356,7 +356,7 @@ export function EditMemberTravelDialog({
                   type="submit"
                   disabled={isPending || isDeleting}
                   variant="gradient"
-                  className="flex-1 h-12 rounded-xl"
+                  className="flex-1 h-12 rounded-md"
                 >
                   {isPending && (
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />

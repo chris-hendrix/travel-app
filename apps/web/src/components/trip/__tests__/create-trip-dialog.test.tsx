@@ -1367,16 +1367,16 @@ describe("CreateTripDialog", () => {
       expect(nameInput.className).toContain("h-12");
     });
 
-    it("applies rounded-xl to inputs and buttons", () => {
+    it("applies rounded-md to inputs and buttons", () => {
       renderWithQueryClient(
         <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
       );
 
       const nameInput = screen.getByLabelText(/trip name/i);
-      expect(nameInput.className).toContain("rounded-xl");
+      expect(nameInput.className).toContain("rounded-md");
 
       const continueButton = screen.getByRole("button", { name: /continue/i });
-      expect(continueButton.className).toContain("rounded-xl");
+      expect(continueButton.className).toContain("rounded-md");
     });
 
     it("applies pb-6 bottom padding to form for mobile scroll", () => {

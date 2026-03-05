@@ -21,7 +21,8 @@ export function getUploadUrl(
 ): string | undefined {
   if (!path) return undefined;
   if (path.startsWith("http") || path.startsWith("blob:")) return path;
-  return `${API_BASE}${path}`;
+  // Use relative path so Next.js Image can optimize via the /uploads rewrite
+  return path.startsWith("/") ? path : `${API_BASE}${path}`;
 }
 
 /**

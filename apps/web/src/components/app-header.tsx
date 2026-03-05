@@ -58,7 +58,7 @@ export function AppHeader() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 w-full border-b bg-background">
+      <header className="sticky top-0 z-40 w-full bg-background border-b border-border linen-texture">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2">
             {/* Mobile hamburger button */}
@@ -75,7 +75,7 @@ export function AppHeader() {
 
             <Link
               href="/trips"
-              className="font-[family-name:var(--font-playfair)] text-xl font-bold tracking-tight"
+              className="font-[family-name:var(--font-display)] text-xl font-bold tracking-tight"
             >
               Tripful
             </Link>

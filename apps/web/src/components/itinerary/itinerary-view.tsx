@@ -148,9 +148,9 @@ export function ItineraryView({ tripId, onAddTravel }: ItineraryViewProps) {
           </div>
         </div>
         <div className="max-w-5xl mx-auto px-4 space-y-6">
-          <Skeleton className="h-20 w-full rounded-xl" />
-          <Skeleton className="h-20 w-full rounded-xl" />
-          <Skeleton className="h-20 w-full rounded-xl" />
+          <Skeleton className="h-20 w-full rounded-md" />
+          <Skeleton className="h-20 w-full rounded-md" />
+          <Skeleton className="h-20 w-full rounded-md" />
         </div>
       </div>
     );
@@ -162,7 +162,7 @@ export function ItineraryView({ tripId, onAddTravel }: ItineraryViewProps) {
   if (hasError) {
     return (
       <div className="max-w-5xl mx-auto px-4 py-8">
-        <div className="bg-card rounded-2xl border border-destructive/30 p-8 text-center">
+        <div className="bg-card rounded-md border border-destructive/30 p-8 text-center">
           <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
           <h2 className="text-2xl font-semibold text-foreground mb-2 font-accent">
             Failed to load itinerary
@@ -178,7 +178,7 @@ export function ItineraryView({ tripId, onAddTravel }: ItineraryViewProps) {
               refetchAccommodations();
               refetchMemberTravels();
             }}
-            className="h-12 px-8 rounded-xl"
+            className="h-12 px-8 rounded-md"
           >
             Retry
           </Button>
@@ -197,7 +197,7 @@ export function ItineraryView({ tripId, onAddTravel }: ItineraryViewProps) {
     return (
       <>
         <div className="max-w-5xl mx-auto px-4 py-8">
-          <div className="relative overflow-hidden bg-card rounded-2xl border border-border p-8 text-center card-noise">
+          <div className="relative overflow-hidden bg-card rounded-md border border-border p-8 text-center card-noise">
             <TopoPattern />
             <div className="relative">
               <CalendarX className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -209,7 +209,7 @@ export function ItineraryView({ tripId, onAddTravel }: ItineraryViewProps) {
                 travel details.
               </p>
               {isLocked && (
-                <div className="bg-muted/50 border border-border rounded-xl p-4 text-center text-sm text-muted-foreground">
+                <div className="bg-muted/50 border border-border rounded-md p-4 text-center text-sm text-muted-foreground">
                   <Lock className="w-4 h-4 inline mr-2" />
                   This trip has ended. The itinerary is read-only.
                 </div>
@@ -218,14 +218,14 @@ export function ItineraryView({ tripId, onAddTravel }: ItineraryViewProps) {
                 <div className="flex flex-wrap items-center justify-center gap-3">
                   <Button
                     variant="gradient"
-                    className="h-12 px-8 rounded-xl"
+                    className="h-12 px-8 rounded-md"
                     onClick={() => setIsCreateEventOpen(true)}
                   >
                     Add Event
                   </Button>
                   <Button
                     variant="outline"
-                    className="h-12 px-8 rounded-xl"
+                    className="h-12 px-8 rounded-md"
                     onClick={() => setIsCreateAccommodationOpen(true)}
                   >
                     Add Accommodation
@@ -305,7 +305,7 @@ export function ItineraryView({ tripId, onAddTravel }: ItineraryViewProps) {
             />
           )}
         {isLocked && (
-          <div className="bg-muted/50 border border-border rounded-xl p-4 text-center text-sm text-muted-foreground mb-6">
+          <div className="bg-muted/50 border border-border rounded-md p-4 text-center text-sm text-muted-foreground mb-6">
             <Lock className="w-4 h-4 inline mr-2" />
             This trip has ended. The itinerary is read-only.
           </div>

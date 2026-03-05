@@ -197,7 +197,7 @@ export function DayByDayView({
 
   return (
     <div className="divide-y divide-border">
-      {dayData.map((day, index) => {
+      {dayData.map((day) => {
         const isToday = day.date === todayString;
         const hasContent =
           day.events.length > 0 ||
@@ -357,10 +357,8 @@ export function DayByDayView({
             id={isToday ? "day-today" : undefined}
             className={cn(
               "grid grid-cols-[3.5rem_1fr] sm:grid-cols-[4rem_1fr] gap-x-3 py-4",
-              "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 duration-500",
               isToday && "scroll-mt-28",
             )}
-            style={{ animationDelay: `${index * 50}ms` }}
           >
             {/* Date gutter — outer cell stretches to row height so sticky works */}
             <div className="relative">
@@ -412,7 +410,7 @@ export function DayByDayView({
       })}
 
       {dayData.length === 0 && (
-        <div className="bg-card rounded-2xl border border-border p-8 text-center">
+        <div className="bg-card rounded-md border border-border p-8 text-center">
           <p className="text-muted-foreground">
             No trip dates set. Set trip dates to see a day-by-day view.
           </p>

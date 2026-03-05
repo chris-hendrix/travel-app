@@ -33,6 +33,9 @@ export class ProfilePage {
   /** Navigate to trips page and open the profile dialog from the header dropdown */
   async goto() {
     await this.page.goto("/trips");
+    // Wait for auth context to load user data before opening the dropdown,
+    // otherwise the profile menu item won't render (it's gated on user !== null).
+    await this.page.waitForLoadState("networkidle");
     await this.openDialog();
   }
 
@@ -49,7 +52,14 @@ export class ProfilePage {
       await this.page.getByRole("button", { name: "Open menu" }).click();
       await this.page.getByTestId("mobile-menu-profile-button").click();
     } else {
-      await this.page.getByRole("button", { name: "User menu" }).click();
+      const userMenuBtn = this.page.getByRole("button", {
+        name: "User menu",
+      });
+      await userMenuBtn.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+      await userMenuBtn.click();
+      await this.page
+        .getByTestId("profile-menu-item")
+        .waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
       await this.page.getByTestId("profile-menu-item").click();
     }
     await this.heading.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });

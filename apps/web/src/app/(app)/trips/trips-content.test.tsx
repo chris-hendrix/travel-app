@@ -284,7 +284,7 @@ describe("TripsContent", () => {
 
       renderWithClient(<TripsContent />);
 
-      expect(screen.getByText("No trips yet")).toBeDefined();
+      expect(screen.getByText("Your adventures await")).toBeDefined();
       expect(
         screen.getByText(
           "Start planning your next adventure by creating your first trip.",

@@ -229,7 +229,7 @@ export function CreateEventDialog({
                       <Input
                         type="text"
                         placeholder="Dinner at Seaside Restaurant"
-                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl"
+                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                         disabled={isPending}
                         aria-required="true"
                         {...field}
@@ -259,7 +259,7 @@ export function CreateEventDialog({
                         <SelectTrigger
                           ref={field.ref}
                           onBlur={field.onBlur}
-                          className="h-12 text-base rounded-xl"
+                          className="h-12 text-base rounded-md"
                           aria-required="true"
                         >
                           <SelectValue />
@@ -289,7 +289,7 @@ export function CreateEventDialog({
                       <Input
                         type="text"
                         placeholder="123 Main St, Miami Beach"
-                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl"
+                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                         disabled={isPending}
                         {...field}
                       />
@@ -317,7 +317,7 @@ export function CreateEventDialog({
                         <SelectTrigger
                           ref={field.ref}
                           onBlur={field.onBlur}
-                          className="h-12 text-base rounded-xl"
+                          className="h-12 text-base rounded-md"
                         >
                           <SelectValue />
                         </SelectTrigger>
@@ -404,7 +404,7 @@ export function CreateEventDialog({
                       <Input
                         type="text"
                         placeholder="Hotel lobby, parking lot, etc."
-                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl"
+                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                         disabled={isPending}
                         {...field}
                       />
@@ -451,7 +451,7 @@ export function CreateEventDialog({
                 control={form.control}
                 name="allDay"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-xl border border-border p-4">
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-border p-4">
                     <FormControl>
                       <Checkbox
                         checked={field.value}
@@ -480,7 +480,7 @@ export function CreateEventDialog({
                 control={form.control}
                 name="isOptional"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-xl border border-border p-4">
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-border p-4">
                     <FormControl>
                       <Checkbox
                         checked={field.value}
@@ -520,7 +520,7 @@ export function CreateEventDialog({
                       <FormControl>
                         <Textarea
                           placeholder="Tell your group about this event..."
-                          className="h-32 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl resize-none"
+                          className="h-32 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md resize-none"
                           disabled={isPending}
                           {...field}
                           value={field.value || ""}
@@ -598,7 +598,7 @@ export function CreateEventDialog({
                             }
                           }}
                           disabled={isPending}
-                          className="flex-1 h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl"
+                          className="flex-1 h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                           aria-label="Link URL"
                           aria-describedby={
                             linkError ? "event-link-error" : undefined
@@ -608,7 +608,7 @@ export function CreateEventDialog({
                           type="button"
                           onClick={handleAddLink}
                           disabled={isPending}
-                          className="h-12 px-4 bg-muted hover:bg-muted text-foreground rounded-xl"
+                          className="h-12 px-4 bg-muted hover:bg-muted text-foreground rounded-md"
                           variant="outline"
                           aria-label="Add link"
                         >
@@ -638,7 +638,7 @@ export function CreateEventDialog({
                   variant="outline"
                   onClick={() => onOpenChange(false)}
                   disabled={isPending}
-                  className="flex-1 h-12 rounded-xl border-input"
+                  className="flex-1 h-12 rounded-md border-input"
                 >
                   Cancel
                 </Button>
@@ -646,7 +646,7 @@ export function CreateEventDialog({
                   type="submit"
                   disabled={isPending}
                   variant="gradient"
-                  className="flex-1 h-12 rounded-xl"
+                  className="flex-1 h-12 rounded-md"
                 >
                   {isPending && (
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />

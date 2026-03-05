@@ -25,8 +25,8 @@ import {
   mySettingsQueryOptions,
 } from "./invitation-queries";
 
-// Import trip keys for cache invalidation on RSVP and member removal
-import { tripKeys } from "./trip-queries";
+// Import trip keys and types for cache invalidation and optimistic updates on RSVP
+import { tripKeys, type TripDetailWithMeta } from "./trip-queries";
 
 // Import event keys for cache invalidation on member removal (creatorAttending depends on member existence)
 import { eventKeys } from "./event-queries";
@@ -294,7 +294,12 @@ export function getUpdateMemberRoleErrorMessage(
 export function useUpdateRsvp(tripId: string) {
   const queryClient = useQueryClient();
 
-  return useMutation<MemberWithProfile, APIError, UpdateRsvpInput>({
+  return useMutation<
+    MemberWithProfile,
+    APIError,
+    UpdateRsvpInput,
+    { previousTrip: TripDetailWithMeta | undefined }
+  >({
     mutationKey: rsvpKeys.update(),
     mutationFn: async (data) => {
       const response = await apiRequest<UpdateRsvpResponse>(
@@ -305,6 +310,30 @@ export function useUpdateRsvp(tripId: string) {
         },
       );
       return response.member;
+    },
+    onMutate: async (data) => {
+      await queryClient.cancelQueries({ queryKey: tripKeys.detail(tripId) });
+
+      const previousTrip = queryClient.getQueryData<TripDetailWithMeta>(
+        tripKeys.detail(tripId),
+      );
+
+      if (previousTrip) {
+        queryClient.setQueryData<TripDetailWithMeta>(
+          tripKeys.detail(tripId),
+          { ...previousTrip, userRsvpStatus: data.status },
+        );
+      }
+
+      return { previousTrip };
+    },
+    onError: (_error, _data, context) => {
+      if (context?.previousTrip) {
+        queryClient.setQueryData(
+          tripKeys.detail(tripId),
+          context.previousTrip,
+        );
+      }
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) });

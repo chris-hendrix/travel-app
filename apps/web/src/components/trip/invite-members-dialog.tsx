@@ -236,12 +236,12 @@ export function InviteMembersDialog({
                       value={mutualSearch}
                       onChange={(e) => setMutualSearch(e.target.value)}
                       placeholder="Search mutuals..."
-                      className="w-full h-10 pl-9 pr-3 rounded-xl border border-input bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      className="w-full h-10 pl-9 pr-3 rounded-md border border-input bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   </div>
 
                   {/* Scrollable checkbox list */}
-                  <div className="max-h-48 overflow-y-auto space-y-1 rounded-xl border border-border p-2">
+                  <div className="max-h-48 overflow-y-auto space-y-1 rounded-md border border-border p-2">
                     {filteredSuggestions.length === 0 && mutualSearch.trim() ? (
                       <div className="py-6 text-center text-sm text-muted-foreground">
                         <Search className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
@@ -347,7 +347,7 @@ export function InviteMembersDialog({
                             }}
                             disabled={isPending}
                             placeholder="Enter phone number"
-                            className="flex-1 h-12 rounded-xl"
+                            className="flex-1 h-12 rounded-md"
                             aria-describedby={
                               phoneError ? "invite-phone-error" : undefined
                             }
@@ -358,7 +358,7 @@ export function InviteMembersDialog({
                           onClick={handleAddPhone}
                           disabled={isPending}
                           variant="outline"
-                          className="h-12 px-4 rounded-xl"
+                          className="h-12 px-4 rounded-md"
                         >
                           <UserPlus className="w-5 h-5" />
                           Add
@@ -393,7 +393,7 @@ export function InviteMembersDialog({
                   variant="outline"
                   onClick={() => onOpenChange(false)}
                   disabled={isPending}
-                  className="flex-1 h-12 rounded-xl border-input"
+                  className="flex-1 h-12 rounded-md border-input"
                 >
                   Cancel
                 </Button>
@@ -404,7 +404,7 @@ export function InviteMembersDialog({
                     (phoneNumbers.length === 0 && userIds.length === 0)
                   }
                   variant="gradient"
-                  className="flex-1 h-12 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 h-12 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isPending && (
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />

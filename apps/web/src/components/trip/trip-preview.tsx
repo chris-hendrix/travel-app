@@ -144,7 +144,7 @@ export function TripPreview({
         )}
 
         {/* Invitation CTA card — the main action */}
-        <div className="rounded-2xl border border-primary/20 bg-primary/[0.03] p-5 sm:p-6">
+        <div className="rounded-md border border-primary/20 bg-primary/[0.03] p-5 sm:p-6">
           <div className="text-center mb-5">
             <p className="text-lg sm:text-xl font-semibold text-foreground mb-1">
               You've been invited!
@@ -163,7 +163,7 @@ export function TripPreview({
               onClick={() => handleRsvp("going")}
               disabled={isPending}
               size="lg"
-              className={`flex-1 h-12 rounded-xl text-base font-semibold ${
+              className={`flex-1 h-12 rounded-md text-base font-semibold ${
                 trip.userRsvpStatus === "going"
                   ? "bg-success hover:bg-success/90 text-white shadow-md shadow-success/25"
                   : "bg-success/10 text-success hover:bg-success/20 border border-success/30"
@@ -181,7 +181,7 @@ export function TripPreview({
               onClick={() => handleRsvp("maybe")}
               disabled={isPending}
               size="lg"
-              className={`flex-1 h-12 rounded-xl text-base font-semibold ${
+              className={`flex-1 h-12 rounded-md text-base font-semibold ${
                 trip.userRsvpStatus === "maybe"
                   ? "bg-warning hover:bg-warning/90 text-white shadow-md shadow-warning/25"
                   : "bg-warning/10 text-warning hover:bg-warning/20 border border-warning/30"
@@ -199,7 +199,7 @@ export function TripPreview({
               onClick={() => handleRsvp("not_going")}
               disabled={isPending}
               size="lg"
-              className={`flex-1 h-12 rounded-xl text-base font-semibold ${
+              className={`flex-1 h-12 rounded-md text-base font-semibold ${
                 trip.userRsvpStatus === "not_going"
                   ? "bg-destructive/15 text-destructive shadow-md shadow-destructive/10 border border-destructive/30"
                   : "bg-muted/50 text-muted-foreground hover:bg-muted border border-border"

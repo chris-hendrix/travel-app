@@ -43,7 +43,7 @@ export const AccommodationCard = memo(function AccommodationCard({
       role="button"
       tabIndex={0}
       aria-expanded={isExpanded}
-      className="rounded-xl border border-border/60 border-l-2 border-l-[var(--color-accommodation)] py-2 px-3 transition-all hover:shadow-md motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-[0.98] cursor-pointer"
+      className="rounded-md border border-border/60 border-l-2 border-l-[var(--color-accommodation)] py-2 px-3 transition-all hover:shadow-md motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-[0.98] cursor-pointer"
       onClick={() => setIsExpanded((prev) => !prev)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {

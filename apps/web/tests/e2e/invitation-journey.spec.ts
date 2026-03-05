@@ -302,6 +302,48 @@ test.describe("Invitation Journey", () => {
         await snap(page, "16-member-not-attending-indicator");
       });
 
+      await test.step("organizer changes own RSVP via dropdown", async () => {
+        // The organizer is already on the trip detail page from the previous step.
+        // Click the RSVP dropdown (organizer is "Going" by default)
+        const rsvpButton = page.getByRole("button", { name: "Going" });
+        await rsvpButton.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await rsvpButton.click();
+
+        // Select "Maybe" from the dropdown
+        await page.getByRole("menuitem", { name: "Maybe" }).click();
+
+        // Wait for dropdown to close
+        await expect(page.getByRole("menu")).not.toBeVisible();
+
+        // Verify toast confirms the change
+        await expect(page.getByText('RSVP updated to "Maybe"')).toBeVisible({
+          timeout: TOAST_TIMEOUT,
+        });
+        await dismissToast(page);
+
+        // Trigger button should now show "Maybe"
+        const maybeButton = page.getByRole("button", { name: "Maybe" });
+        await maybeButton.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+
+        // Change back to "Going" via dropdown
+        await maybeButton.click();
+        await page.getByRole("menuitem", { name: "Going" }).first().click();
+
+        // Wait for dropdown to close
+        await expect(page.getByRole("menu")).not.toBeVisible();
+
+        await expect(page.getByText('RSVP updated to "Going"')).toBeVisible({
+          timeout: TOAST_TIMEOUT,
+        });
+        await dismissToast(page);
+
+        await expect(
+          page.getByRole("button", { name: "Going" }),
+        ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+
+        await snap(page, "16b-organizer-rsvp-dropdown");
+      });
+
       await test.step("member RSVPs Going again, indicator removed", async () => {
         // Use API shortcut to change RSVP back to going
         const inviteeCookie = await createUserViaAPI(

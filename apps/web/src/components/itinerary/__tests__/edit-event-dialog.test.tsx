@@ -487,7 +487,7 @@ describe("EditEventDialog", () => {
       );
     });
 
-    it("applies rounded-xl to buttons", () => {
+    it("applies rounded-md to buttons", () => {
       renderWithQueryClient(
         <EditEventDialog
           open={true}
@@ -500,7 +500,7 @@ describe("EditEventDialog", () => {
       const submitButton = screen.getByRole("button", {
         name: /update event/i,
       });
-      expect(submitButton.className).toContain("rounded-xl");
+      expect(submitButton.className).toContain("rounded-md");
     });
   });
 });

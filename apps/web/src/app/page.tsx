@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Calendar, Building2, PartyPopper, Plane } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PostmarkStamp } from "@/components/ui/postmark-stamp";
 import { JsonLd } from "@/components/json-ld";
 
 export const metadata: Metadata = {
@@ -70,21 +71,27 @@ export default async function Home() {
 
   return (
     <>
-      <main className="flex min-h-screen flex-col bg-background">
+      <main className="flex min-h-screen flex-col bg-background linen-texture">
         {/* Hero Section */}
-        <section className="flex flex-col items-center justify-center px-4 pt-24 pb-20 text-center sm:pt-32 sm:pb-28">
-          <div className="mb-6 h-1 w-16 rounded-full bg-accent" />
-          <h1 className="mb-4 max-w-2xl text-5xl font-bold tracking-tight text-foreground sm:text-6xl lg:text-7xl font-[family-name:var(--font-playfair)]">
+        <section className="relative flex flex-col items-center justify-center px-4 pt-24 pb-20 text-center sm:pt-32 sm:pb-28">
+          {/* Postmark decoration */}
+          <div className="absolute top-8 right-8 sm:top-12 sm:right-16 hidden sm:block">
+            <PostmarkStamp date="EST. 2026" city="TRIPFUL" size="lg" />
+          </div>
+          <h1 className="mb-4 max-w-2xl text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl font-[family-name:var(--font-display)]">
             Plan Group Trips Together
           </h1>
-          <p className="mb-10 max-w-lg text-center text-lg text-muted-foreground sm:text-xl">
+          <p className="mb-3 max-w-lg text-center text-lg text-muted-foreground sm:text-xl">
             The trip planning app that brings your travel group together.
             Coordinate everything in one place.
+          </p>
+          <p className="mb-10 text-xl text-accent font-[family-name:var(--font-script)]">
+            Wish you were here...
           </p>
           <Button
             variant="gradient"
             size="lg"
-            className="rounded-xl px-10 font-accent"
+            className="px-10 font-accent"
             asChild
           >
             <Link href="/login">Get started</Link>
@@ -101,7 +108,7 @@ export default async function Home() {
               {features.map((feature) => (
                 <div
                   key={feature.title}
-                  className="rounded-xl border border-border bg-card p-6"
+                  className="rounded-md border border-border bg-card p-6 linen-texture"
                 >
                   <feature.icon className="mb-3 h-6 w-6 text-accent" />
                   <h3 className="mb-2 text-lg font-semibold text-foreground font-accent">
@@ -125,7 +132,7 @@ export default async function Home() {
             <div className="grid gap-8 sm:grid-cols-3">
               {steps.map((step) => (
                 <div key={step.number} className="text-center">
-                  <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-accent text-sm font-bold text-accent-foreground font-accent">
+                  <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-sm border-2 border-dashed border-accent text-sm font-bold text-accent font-accent">
                     {step.number}
                   </div>
                   <h3 className="mb-2 text-lg font-semibold text-foreground font-accent">
@@ -142,18 +149,16 @@ export default async function Home() {
 
         {/* Bottom CTA Section */}
         <section className="flex flex-col items-center px-4 pt-12 pb-24 text-center sm:pb-32">
-          <div className="mb-8 flex items-center gap-3">
-            <div className="h-px w-12 bg-border" />
-            <div className="h-2 w-2 rotate-45 border border-primary/40" />
-            <div className="h-px w-12 bg-border" />
-          </div>
+          <p className="mb-2 text-lg text-accent font-[family-name:var(--font-script)]">
+            Wish you were here?
+          </p>
           <h2 className="mb-6 text-2xl font-bold tracking-tight text-foreground sm:text-3xl font-[family-name:var(--font-playfair)]">
             Ready to plan your next adventure?
           </h2>
           <Button
             variant="gradient"
             size="lg"
-            className="rounded-xl px-10 font-accent"
+            className="px-10 font-accent"
             asChild
           >
             <Link href="/login">Start planning</Link>

@@ -1,54 +1,59 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #fbf6ef;
-  --color-foreground: #3a2d22;
-  --color-card: #ffffff;
-  --color-card-foreground: #3a2d22;
-  --color-popover: #ffffff;
-  --color-popover-foreground: #3a2d22;
-  --color-primary: #1a5c9e;
-  --color-primary-foreground: #ffffff;
-  --color-secondary: #eee9e2;
-  --color-secondary-foreground: #3a2d22;
-  --color-muted: #eee9e2;
-  --color-muted-foreground: #5a5046;
-  --color-accent: #d1643d;
-  --color-accent-foreground: #ffffff;
-  --color-destructive: #c6372a;
-  --color-destructive-foreground: #ffffff;
-  --color-success: #497e5a;
-  --color-success-foreground: #ffffff;
-  --color-warning: #c78d29;
-  --color-warning-foreground: #ffffff;
-  --color-border: #e5ddd1;
-  --color-input: #e5ddd1;
-  --color-ring: #1a5c9e;
-  --radius: 0.5rem;
+  /* Vintage linen postcard palette — all hex, never hsl() */
+  --color-background: #f5edd6;
+  --color-foreground: #2c2217;
+  --color-card: #faf5e8;
+  --color-card-foreground: #2c2217;
+  --color-popover: #faf5e8;
+  --color-popover-foreground: #2c2217;
+  --color-primary: #2e5984;
+  --color-primary-foreground: #faf5e8;
+  --color-secondary: #e8dcc8;
+  --color-secondary-foreground: #2c2217;
+  --color-muted: #e8dcc8;
+  --color-muted-foreground: #5c4e3e;
+  --color-accent: #b8432e;
+  --color-accent-foreground: #faf5e8;
+  --color-destructive: #9e2f24;
+  --color-destructive-foreground: #faf5e8;
+  --color-success: #3d6b4a;
+  --color-success-foreground: #faf5e8;
+  --color-warning: #a87a28;
+  --color-warning-foreground: #faf5e8;
+  --color-border: #d4c9b5;
+  --color-input: #d4c9b5;
+  --color-ring: #2e5984;
+  --radius: 0.375rem;
   --font-sans: var(--font-plus-jakarta);
-  --font-accent: var(--font-space-grotesk);
+  --font-accent: var(--font-typewriter);
 
-  /* Event type colors */
-  --color-event-travel: #2563eb;
-  --color-event-travel-light: #eff6ff;
-  --color-event-travel-border: #bfdbfe;
-  --color-event-meal: #d97706;
-  --color-event-meal-light: #fffbeb;
-  --color-event-meal-border: #fde68a;
-  --color-event-activity: #059669;
-  --color-event-activity-light: #ecfdf5;
-  --color-event-activity-border: #a7f3d0;
-  --color-accommodation: #9333ea;
-  --color-accommodation-light: #faf5ff;
-  --color-accommodation-border: #e9d5ff;
-  --color-member-travel: #6b7280;
-  --color-member-travel-light: #f9fafb;
-  --color-member-travel-border: #e5e7eb;
+  /* Airmail stripe colors */
+  --color-airmail-red: #b8432e;
+  --color-airmail-blue: #2e5984;
+
+  /* Event type colors — desaturated linen tones */
+  --color-event-travel: #3b6898;
+  --color-event-travel-light: #f0ead8;
+  --color-event-travel-border: #a8bdd0;
+  --color-event-meal: #b07920;
+  --color-event-meal-light: #f5edd6;
+  --color-event-meal-border: #dbc391;
+  --color-event-activity: #2d7a58;
+  --color-event-activity-light: #e8f0e3;
+  --color-event-activity-border: #8fc4a8;
+  --color-accommodation: #6e3ca8;
+  --color-accommodation-light: #f0e8f5;
+  --color-accommodation-border: #c5aed9;
+  --color-member-travel: #6b6259;
+  --color-member-travel-light: #f3ede0;
+  --color-member-travel-border: #d4c9b5;
 
   /* Overlay text colors (bright on dark backgrounds like bg-black/50) */
-  --color-overlay-success: #6ee7b7;
-  --color-overlay-warning: #fcd34d;
-  --color-overlay-muted: #d4d4d4;
+  --color-overlay-success: #8ed4aa;
+  --color-overlay-warning: #e8c86e;
+  --color-overlay-muted: #c8c4bc;
 }
 
 @layer base {
@@ -180,11 +185,12 @@
   }
 }
 
+/* Subtle vintage paper mesh */
 .gradient-mesh {
   background:
-    radial-gradient(ellipse at 20% 50%, #1a5c9e10 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, #d1643d08 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 80%, #497e5a08 0%, transparent 50%);
+    radial-gradient(ellipse at 20% 50%, rgba(46, 89, 132, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(184, 67, 46, 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 80%, rgba(61, 107, 74, 0.03) 0%, transparent 50%);
 }
 
 .card-noise {
@@ -203,6 +209,104 @@
   background-size: 256px 256px;
 }
 
+/* Linen paper texture — subtle fiber grain for vintage postcard feel */
+.linen-texture {
+  position: relative;
+}
+
+.linen-texture::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.045;
+  pointer-events: none;
+  border-radius: inherit;
+  z-index: 0;
+  background-image: url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='linen'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch' seed='2'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23linen)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 200px 200px;
+}
+
+/* Airmail chevron stripe — horizontal red-blue-gap repeating pattern */
+.airmail-stripe {
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--color-airmail-red) 0px,
+    var(--color-airmail-red) 12px,
+    #faf5e8 12px,
+    #faf5e8 18px,
+    var(--color-airmail-blue) 18px,
+    var(--color-airmail-blue) 30px,
+    #faf5e8 30px,
+    #faf5e8 36px
+  );
+}
+
+/* Airmail border — pseudo-element stripe along an edge */
+.airmail-border-top {
+  position: relative;
+}
+
+.airmail-border-top::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  z-index: 2;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--color-airmail-red) 0px,
+    var(--color-airmail-red) 12px,
+    #faf5e8 12px,
+    #faf5e8 18px,
+    var(--color-airmail-blue) 18px,
+    var(--color-airmail-blue) 30px,
+    #faf5e8 30px,
+    #faf5e8 36px
+  );
+}
+
+.airmail-border-bottom {
+  position: relative;
+}
+
+.airmail-border-bottom::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  z-index: 2;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--color-airmail-red) 0px,
+    var(--color-airmail-red) 12px,
+    #faf5e8 12px,
+    #faf5e8 18px,
+    var(--color-airmail-blue) 18px,
+    var(--color-airmail-blue) 30px,
+    #faf5e8 30px,
+    #faf5e8 36px
+  );
+}
+
+/* Postcard back writing lines */
+.writing-lines {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 27px,
+    var(--color-border) 27px,
+    var(--color-border) 28px
+  );
+  background-position: 0 8px;
+}
+
 @utility pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
 }
@@ -213,4 +317,36 @@
 
 @utility bottom-safe-8 {
   bottom: calc(2rem + env(safe-area-inset-bottom));
+}
+
+/* Postcard card style — vintage with rounded corners */
+.postcard {
+  display: block;
+  transition: translate 0.3s ease, box-shadow 0.3s ease;
+  box-shadow:
+    0 2px 8px rgba(44, 34, 23, 0.08),
+    0 0 0 1px rgba(44, 34, 23, 0.04);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+@media (hover: hover) {
+  .postcard:hover {
+    translate: 0 -4px;
+    box-shadow:
+      0 8px 24px rgba(44, 34, 23, 0.15),
+      0 0 0 1px rgba(44, 34, 23, 0.06);
+  }
+}
+
+.postcard-mat {
+  padding: 12px;
+  border-radius: 6px;
+}
+
+.postcard-image {
+  position: relative;
+  aspect-ratio: 3/2;
+  overflow: hidden;
+  border-radius: 2px;
 }

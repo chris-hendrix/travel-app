@@ -13,29 +13,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useMounted } from "@/hooks/use-mounted";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
 import { TopoPattern } from "@/components/ui/topo-pattern";
+import { PostmarkStamp } from "@/components/ui/postmark-stamp";
 
 function SkeletonCard() {
   return (
-    <div className="bg-card rounded-2xl overflow-hidden border border-border">
-      <div className="relative h-48">
-        <Skeleton className="h-full w-full rounded-none" />
-        <div className="absolute top-3 left-3 flex gap-2">
-          <Skeleton className="h-5 w-16 rounded-full" />
-        </div>
-      </div>
-      <div className="p-4 space-y-3">
-        <div className="space-y-2">
-          <Skeleton className="h-6 w-3/4" />
-          <Skeleton className="h-4 w-1/2" />
-        </div>
-        <Skeleton className="h-4 w-2/3" />
-        <div className="flex items-center justify-between pt-3 border-t border-border">
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-6 w-6 rounded-full" />
-            <Skeleton className="h-4 w-20" />
-          </div>
-          <Skeleton className="h-4 w-20" />
-        </div>
+    <div className="postcard-mat" style={{ background: "var(--color-secondary)" }}>
+      <div className="postcard-image">
+        <Skeleton className="absolute inset-0 rounded-none" />
       </div>
     </div>
   );
@@ -140,8 +124,8 @@ export function TripsContent() {
   const isEmpty = trips.length === 0 && !isPending;
 
   return (
-    <div className="min-h-screen bg-background pb-24 motion-safe:animate-[revealUp_400ms_ease-out_both] gradient-mesh">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-background pb-24 motion-safe:animate-[revealUp_400ms_ease-out_both] gradient-mesh linen-texture">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <header className="mb-8">
           <h1 className="text-2xl sm:text-4xl font-bold text-foreground mb-2 font-[family-name:var(--font-playfair)]">
@@ -162,13 +146,13 @@ export function TripsContent() {
             placeholder="Search trips..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-12 pl-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl"
+            className="h-12 pl-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
           />
         </div>
 
         {/* Loading State */}
         {isPending && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
@@ -177,7 +161,7 @@ export function TripsContent() {
 
         {/* Error State */}
         {isError && (
-          <div className="bg-card rounded-2xl border border-destructive/30 p-8 text-center">
+          <div className="bg-card rounded-md border border-destructive/30 p-8 text-center">
             <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
             <h2 className="text-2xl font-semibold text-foreground mb-2 font-accent">
               Failed to load trips
@@ -189,7 +173,7 @@ export function TripsContent() {
               onClick={() => refetch()}
               disabled={isFetching}
               variant="gradient"
-              className="h-12 px-8 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-12 px-8 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isFetching && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               {isFetching ? "Loading..." : "Try again"}
@@ -199,11 +183,16 @@ export function TripsContent() {
 
         {/* Empty State (no trips at all) */}
         {isEmpty && (
-          <div className="relative overflow-hidden bg-card rounded-2xl border border-border p-12 text-center card-noise">
-            <TopoPattern />
+          <div className="relative overflow-hidden bg-card rounded-md border border-border p-12 text-center linen-texture">
+            <div className="absolute top-4 right-4 opacity-50">
+              <PostmarkStamp date="2026" city="TRIPFUL" size="lg" />
+            </div>
             <div className="relative max-w-md mx-auto">
-              <h2 className="text-2xl font-semibold text-foreground mb-2 font-accent">
-                No trips yet
+              <p className="text-2xl text-accent mb-2 font-[family-name:var(--font-script)]">
+                No postcards yet...
+              </p>
+              <h2 className="text-xl font-semibold text-foreground mb-2 font-accent">
+                Your adventures await
               </h2>
               <p className="text-muted-foreground mb-6">
                 Start planning your next adventure by creating your first trip.
@@ -211,7 +200,7 @@ export function TripsContent() {
               <Button
                 onClick={() => setCreateDialogOpen(true)}
                 variant="gradient"
-                className="h-12 px-8 rounded-xl"
+                className="h-12 px-8"
               >
                 <Plus className="w-5 h-5 mr-2" strokeWidth={2.5} />
                 Create your first trip
@@ -222,7 +211,7 @@ export function TripsContent() {
 
         {/* No Search Results */}
         {noResults && (
-          <div className="relative overflow-hidden bg-card rounded-2xl border border-border p-8 text-center card-noise">
+          <div className="relative overflow-hidden bg-card rounded-md border border-border p-8 text-center card-noise">
             <TopoPattern />
             <div className="relative">
               <Search className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -249,19 +238,11 @@ export function TripsContent() {
               >
                 <h2 className="text-xl sm:text-2xl font-semibold text-foreground mb-4 font-[family-name:var(--font-playfair)]">
                   Upcoming trips
+                  <span className="block text-xs font-normal text-muted-foreground font-accent tracking-wider uppercase mt-1">Departures</span>
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                   {upcomingTrips.map((trip, index) => (
-                    <div
-                      key={trip.id}
-                      className={index === 0 ? "lg:row-span-2" : ""}
-                    >
-                      <TripCard
-                        trip={trip}
-                        index={index}
-                        className={index === 0 ? "lg:h-full" : ""}
-                      />
-                    </div>
+                    <TripCard key={trip.id} trip={trip} index={index} />
                   ))}
                 </div>
               </section>
@@ -277,8 +258,9 @@ export function TripsContent() {
               >
                 <h2 className="text-xl sm:text-2xl font-semibold text-foreground mb-4 font-[family-name:var(--font-playfair)]">
                   Past trips
+                  <span className="block text-xs font-normal text-muted-foreground font-accent tracking-wider uppercase mt-1">Memories</span>
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                   {pastTrips.map((trip, index) => (
                     <TripCard key={trip.id} trip={trip} index={index} />
                   ))}
