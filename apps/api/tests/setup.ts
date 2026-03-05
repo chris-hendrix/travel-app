@@ -4,7 +4,7 @@ import { config } from "dotenv";
 
 // Load test environment variables
 // Vitest automatically sets NODE_ENV='test'
-config({ path: ".env" });
+config({ path: ".env", quiet: true });
 
 // Use main database for tests
 // Tests use unique phone numbers (generateUniquePhone) to prevent conflicts

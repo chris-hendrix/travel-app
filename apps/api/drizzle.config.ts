@@ -1,7 +1,7 @@
 import { defineConfig } from "drizzle-kit";
 import { config } from "dotenv";
 
-config();
+config({ quiet: true });
 
 // Use TEST_DATABASE_URL if set, otherwise fall back to DATABASE_URL
 const databaseUrl = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL!;

@@ -1,7 +1,7 @@
 import { Pool } from "pg";
 import { config } from "dotenv";
 
-config({ path: ".env" });
+config({ path: ".env", quiet: true });
 
 /**
  * Vitest globalSetup — runs ONCE in the main process before all workers start.

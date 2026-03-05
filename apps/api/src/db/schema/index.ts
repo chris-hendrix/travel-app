@@ -32,9 +32,9 @@ export const users = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => ({
-    phoneNumberIdx: index("users_phone_number_idx").on(table.phoneNumber),
-  }),
+  (table) => [
+    index("users_phone_number_idx").on(table.phoneNumber),
+  ],
 );
 
 // Inferred types for users table
@@ -99,9 +99,9 @@ export const trips = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => ({
-    createdByIdx: index("trips_created_by_idx").on(table.createdBy),
-  }),
+  (table) => [
+    index("trips_created_by_idx").on(table.createdBy),
+  ],
 );
 
 // Inferred types for trips table
@@ -129,18 +129,18 @@ export const members = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => ({
-    tripIdIdx: index("members_trip_id_idx").on(table.tripId),
-    userIdIdx: index("members_user_id_idx").on(table.userId),
-    tripUserUnique: unique("members_trip_user_unique").on(
+  (table) => [
+    index("members_trip_id_idx").on(table.tripId),
+    index("members_user_id_idx").on(table.userId),
+    unique("members_trip_user_unique").on(
       table.tripId,
       table.userId,
     ),
-    tripIdIsOrganizerIdx: index("members_trip_id_is_organizer_idx").on(
+    index("members_trip_id_is_organizer_idx").on(
       table.tripId,
       table.isOrganizer,
     ),
-  }),
+  ],
 );
 
 // Inferred types for members table
@@ -169,16 +169,16 @@ export const invitations = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => ({
-    tripIdIdx: index("invitations_trip_id_idx").on(table.tripId),
-    inviteePhoneIdx: index("invitations_invitee_phone_idx").on(
+  (table) => [
+    index("invitations_trip_id_idx").on(table.tripId),
+    index("invitations_invitee_phone_idx").on(
       table.inviteePhone,
     ),
-    tripPhoneUnique: unique("invitations_trip_phone_unique").on(
+    unique("invitations_trip_phone_unique").on(
       table.tripId,
       table.inviteePhone,
     ),
-  }),
+  ],
 );
 
 // Inferred types for invitations table
@@ -216,19 +216,19 @@ export const events = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => ({
-    tripIdIdx: index("events_trip_id_idx").on(table.tripId),
-    createdByIdx: index("events_created_by_idx").on(table.createdBy),
-    startTimeIdx: index("events_start_time_idx").on(table.startTime),
-    deletedAtIdx: index("events_deleted_at_idx").on(table.deletedAt),
-    tripIdDeletedAtIdx: index("events_trip_id_deleted_at_idx").on(
+  (table) => [
+    index("events_trip_id_idx").on(table.tripId),
+    index("events_created_by_idx").on(table.createdBy),
+    index("events_start_time_idx").on(table.startTime),
+    index("events_deleted_at_idx").on(table.deletedAt),
+    index("events_trip_id_deleted_at_idx").on(
       table.tripId,
       table.deletedAt,
     ),
-    tripIdNotDeletedIdx: index("events_trip_id_not_deleted_idx")
+    index("events_trip_id_not_deleted_idx")
       .on(table.tripId)
       .where(sql`${table.deletedAt} IS NULL`),
-  }),
+  ],
 );
 
 // Inferred types for events table
@@ -261,19 +261,19 @@ export const accommodations = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => ({
-    tripIdIdx: index("accommodations_trip_id_idx").on(table.tripId),
-    createdByIdx: index("accommodations_created_by_idx").on(table.createdBy),
-    checkInIdx: index("accommodations_check_in_idx").on(table.checkIn),
-    deletedAtIdx: index("accommodations_deleted_at_idx").on(table.deletedAt),
-    tripIdDeletedAtIdx: index("accommodations_trip_id_deleted_at_idx").on(
+  (table) => [
+    index("accommodations_trip_id_idx").on(table.tripId),
+    index("accommodations_created_by_idx").on(table.createdBy),
+    index("accommodations_check_in_idx").on(table.checkIn),
+    index("accommodations_deleted_at_idx").on(table.deletedAt),
+    index("accommodations_trip_id_deleted_at_idx").on(
       table.tripId,
       table.deletedAt,
     ),
-    tripIdNotDeletedIdx: index("accommodations_trip_id_not_deleted_idx")
+    index("accommodations_trip_id_not_deleted_idx")
       .on(table.tripId)
       .where(sql`${table.deletedAt} IS NULL`),
-  }),
+  ],
 );
 
 // Inferred types for accommodations table
@@ -304,23 +304,23 @@ export const memberTravel = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => ({
-    tripIdIdx: index("member_travel_trip_id_idx").on(table.tripId),
-    memberIdIdx: index("member_travel_member_id_idx").on(table.memberId),
-    timeIdx: index("member_travel_time_idx").on(table.time),
-    deletedAtIdx: index("member_travel_deleted_at_idx").on(table.deletedAt),
-    memberIdDeletedAtIdx: index("member_travel_member_id_deleted_at_idx").on(
+  (table) => [
+    index("member_travel_trip_id_idx").on(table.tripId),
+    index("member_travel_member_id_idx").on(table.memberId),
+    index("member_travel_time_idx").on(table.time),
+    index("member_travel_deleted_at_idx").on(table.deletedAt),
+    index("member_travel_member_id_deleted_at_idx").on(
       table.memberId,
       table.deletedAt,
     ),
-    tripIdDeletedAtIdx: index("member_travel_trip_id_deleted_at_idx").on(
+    index("member_travel_trip_id_deleted_at_idx").on(
       table.tripId,
       table.deletedAt,
     ),
-    tripIdNotDeletedIdx: index("member_travel_trip_id_not_deleted_idx")
+    index("member_travel_trip_id_not_deleted_idx")
       .on(table.tripId)
       .where(sql`${table.deletedAt} IS NULL`),
-  }),
+  ],
 );
 
 // Inferred types for member_travel table
@@ -353,20 +353,20 @@ export const messages = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => ({
-    tripIdCreatedAtIdx: index("messages_trip_id_created_at_idx").on(
+  (table) => [
+    index("messages_trip_id_created_at_idx").on(
       table.tripId,
       table.createdAt,
     ),
-    parentIdIdx: index("messages_parent_id_idx").on(table.parentId),
-    authorIdIdx: index("messages_author_id_idx").on(table.authorId),
-    tripTopLevelIdx: index("messages_trip_toplevel_idx")
+    index("messages_parent_id_idx").on(table.parentId),
+    index("messages_author_id_idx").on(table.authorId),
+    index("messages_trip_toplevel_idx")
       .on(table.tripId, table.createdAt)
       .where(sql`${table.parentId} IS NULL AND ${table.deletedAt} IS NULL`),
-    tripIdNotDeletedIdx: index("messages_trip_id_not_deleted_idx")
+    index("messages_trip_id_not_deleted_idx")
       .on(table.tripId)
       .where(sql`${table.deletedAt} IS NULL AND ${table.parentId} IS NULL`),
-  }),
+  ],
 );
 
 export type Message = typeof messages.$inferSelect;
@@ -388,13 +388,13 @@ export const messageReactions = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => ({
-    messageIdIdx: index("message_reactions_message_id_idx").on(table.messageId),
-    userIdIdx: index("message_reactions_user_id_idx").on(table.userId),
-    messageUserEmojiUnique: unique(
+  (table) => [
+    index("message_reactions_message_id_idx").on(table.messageId),
+    index("message_reactions_user_id_idx").on(table.userId),
+    unique(
       "message_reactions_message_user_emoji_unique",
     ).on(table.messageId, table.userId, table.emoji),
-  }),
+  ],
 );
 
 export type MessageReaction = typeof messageReactions.$inferSelect;
@@ -420,23 +420,23 @@ export const notifications = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => ({
-    userIdCreatedAtIdx: index("notifications_user_id_created_at_idx").on(
+  (table) => [
+    index("notifications_user_id_created_at_idx").on(
       table.userId,
       table.createdAt,
     ),
-    userIdCreatedAtDescIdx: index(
+    index(
       "notifications_user_id_created_at_desc_idx",
     ).on(table.userId, table.createdAt.desc()),
-    userUnreadIdx: index("notifications_user_unread_idx")
+    index("notifications_user_unread_idx")
       .on(table.userId, table.createdAt)
       .where(sql`${table.readAt} IS NULL`),
-    tripUserCreatedAtIdx: index("notifications_trip_user_created_at_idx").on(
+    index("notifications_trip_user_created_at_idx").on(
       table.tripId,
       table.userId,
       table.createdAt,
     ),
-  }),
+  ],
 );
 
 export type Notification = typeof notifications.$inferSelect;
@@ -462,12 +462,12 @@ export const notificationPreferences = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => ({
-    userTripUnique: unique("notification_preferences_user_trip_unique").on(
+  (table) => [
+    unique("notification_preferences_user_trip_unique").on(
       table.userId,
       table.tripId,
     ),
-  }),
+  ],
 );
 
 export type NotificationPreference =
@@ -493,12 +493,12 @@ export const mutedMembers = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => ({
-    tripUserUnique: unique("muted_members_trip_user_unique").on(
+  (table) => [
+    unique("muted_members_trip_user_unique").on(
       table.tripId,
       table.userId,
     ),
-  }),
+  ],
 );
 
 export type MutedMember = typeof mutedMembers.$inferSelect;
@@ -516,17 +516,17 @@ export const sentReminders = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => ({
-    typeRefUserUnique: unique("sent_reminders_type_ref_user_unique").on(
+  (table) => [
+    unique("sent_reminders_type_ref_user_unique").on(
       table.type,
       table.referenceId,
       table.userId,
     ),
-    typeRefIdx: index("sent_reminders_type_ref_idx").on(
+    index("sent_reminders_type_ref_idx").on(
       table.type,
       table.referenceId,
     ),
-  }),
+  ],
 );
 
 export type SentReminder = typeof sentReminders.$inferSelect;
@@ -546,11 +546,11 @@ export const blacklistedTokens = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => ({
-    expiresAtIdx: index("blacklisted_tokens_expires_at_idx").on(
+  (table) => [
+    index("blacklisted_tokens_expires_at_idx").on(
       table.expiresAt,
     ),
-  }),
+  ],
 );
 
 export type BlacklistedToken = typeof blacklistedTokens.$inferSelect;
@@ -575,11 +575,11 @@ export const rateLimitEntries = pgTable(
     count: integer("count").notNull().default(0),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   },
-  (table) => ({
-    expiresAtIdx: index("rate_limit_entries_expires_at_idx").on(
+  (table) => [
+    index("rate_limit_entries_expires_at_idx").on(
       table.expiresAt,
     ),
-  }),
+  ],
 );
 
 export type RateLimitEntry = typeof rateLimitEntries.$inferSelect;

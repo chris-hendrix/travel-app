@@ -2,7 +2,7 @@ import { z } from "zod";
 import { config } from "dotenv";
 
 // Load environment variables (.env.local takes precedence over .env)
-config({ path: [".env.local", ".env"] });
+config({ path: [".env.local", ".env"], quiet: true });
 
 const envSchema = z.object({
   // Server Configuration
@@ -18,8 +18,7 @@ const envSchema = z.object({
 
   // Database
   DATABASE_URL: z
-    .string()
-    .url("DATABASE_URL must be a valid PostgreSQL URL")
+    .url({ error: "DATABASE_URL must be a valid PostgreSQL URL" })
     .refine(
       (url) => url.startsWith("postgresql://"),
       "DATABASE_URL must start with postgresql://",
@@ -32,8 +31,7 @@ const envSchema = z.object({
 
   // Frontend
   FRONTEND_URL: z
-    .string()
-    .url("FRONTEND_URL must be a valid URL")
+    .url({ error: "FRONTEND_URL must be a valid URL" })
     .default("http://localhost:3000"),
 
   // Proxy
