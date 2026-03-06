@@ -7,8 +7,8 @@ export const API_URL =
 
 /**
  * Normalize an upload path for use in <Image> and <img> tags.
- * Returns the path as-is (e.g. /uploads/uuid.jpg) so that Next.js
- * rewrites proxy the request to the API in every environment.
+ * Returns the path as-is so Next.js rewrites proxy the request
+ * to the API in every environment.
  *
  * Returns undefined for null/undefined input. Passes through absolute
  * URLs (http/https) and blob URLs unchanged.
