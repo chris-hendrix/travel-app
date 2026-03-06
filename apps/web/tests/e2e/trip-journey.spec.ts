@@ -17,7 +17,6 @@ import {
   DIALOG_TIMEOUT,
   SLOW_NAVIGATION_TIMEOUT,
   RETRY_INTERVAL,
-  OPTIMISTIC_TIMEOUT,
 } from "./helpers/timeouts";
 
 /**
@@ -136,7 +135,7 @@ test.describe("Trip Journey", () => {
     await test.step("verify optimistic update and success", async () => {
       await expect(
         page.locator("h1").filter({ hasText: updatedName }),
-      ).toBeVisible({ timeout: OPTIMISTIC_TIMEOUT });
+      ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
       await expect(page.getByText("Trip updated successfully")).toBeVisible();
       await expect(tripDetail.editDialogHeading).not.toBeVisible();
 
