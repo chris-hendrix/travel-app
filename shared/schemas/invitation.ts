@@ -115,6 +115,7 @@ export const updateMySettingsSchema = z.object({
 export const mySettingsResponseSchema = z.object({
   success: z.literal(true),
   sharePhone: z.boolean(),
+  calendarExcluded: z.boolean(),
 });
 
 // Inferred TypeScript types from schemas

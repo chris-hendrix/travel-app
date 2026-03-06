@@ -476,7 +476,7 @@ export function useUpdateMySettings(tripId: string) {
   const queryClient = useQueryClient();
 
   return useMutation<
-    { success: true; sharePhone: boolean },
+    { success: true; sharePhone: boolean; calendarExcluded: boolean },
     APIError,
     UpdateMySettingsInput
   >({
@@ -485,6 +485,7 @@ export function useUpdateMySettings(tripId: string) {
       const response = await apiRequest<{
         success: true;
         sharePhone: boolean;
+        calendarExcluded: boolean;
       }>(`/trips/${tripId}/my-settings`, {
         method: "PATCH",
         body: JSON.stringify(data),

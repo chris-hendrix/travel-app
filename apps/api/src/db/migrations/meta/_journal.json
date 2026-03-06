@@ -141,6 +141,13 @@
       "when": 1772424229347,
       "tag": "0019_watery_wrecking_crew",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1772805886080,
+      "tag": "0020_young_krista_starr",
+      "breakpoints": true
     }
   ]
 }

@@ -28,6 +28,7 @@ export const users = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    calendarToken: uuid("calendar_token").unique(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -122,6 +123,7 @@ export const members = pgTable(
     status: rsvpStatusEnum("status").notNull().default("no_response"),
     isOrganizer: boolean("is_organizer").notNull().default(false),
     sharePhone: boolean("share_phone").notNull().default(false),
+    calendarExcluded: boolean("calendar_excluded").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

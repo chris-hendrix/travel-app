@@ -78,15 +78,24 @@ export const membersQueryOptions = (tripId: string) =>
 /**
  * Query options for fetching my-settings (privacy) for a trip
  */
+export interface MySettings {
+  sharePhone: boolean;
+  calendarExcluded: boolean;
+}
+
 export const mySettingsQueryOptions = (tripId: string) =>
-  queryOptions<boolean>({
+  queryOptions<MySettings>({
     queryKey: mySettingsKeys.detail(tripId),
     staleTime: 2 * 60 * 1000,
     queryFn: async ({ signal }) => {
-      const response = await apiRequest<{ success: true; sharePhone: boolean }>(
-        `/trips/${tripId}/my-settings`,
-        { signal },
-      );
-      return response.sharePhone;
+      const response = await apiRequest<{
+        success: true;
+        sharePhone: boolean;
+        calendarExcluded: boolean;
+      }>(`/trips/${tripId}/my-settings`, { signal });
+      return {
+        sharePhone: response.sharePhone,
+        calendarExcluded: response.calendarExcluded,
+      };
     },
   });

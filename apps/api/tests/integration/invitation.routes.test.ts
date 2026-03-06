@@ -2013,6 +2013,7 @@ describe("Invitation Routes", () => {
       const body = JSON.parse(response.body);
       expect(body).toHaveProperty("success", true);
       expect(body).toHaveProperty("sharePhone", false);
+      expect(body).toHaveProperty("calendarExcluded", false);
     });
 
     it("should return 401 when not authenticated", async () => {
@@ -2147,6 +2148,7 @@ describe("Invitation Routes", () => {
       const body = JSON.parse(response.body);
       expect(body).toHaveProperty("success", true);
       expect(body).toHaveProperty("sharePhone", true);
+      expect(body).toHaveProperty("calendarExcluded", false);
     });
 
     it("should update sharePhone back to false", async () => {
@@ -2218,6 +2220,7 @@ describe("Invitation Routes", () => {
       const body = JSON.parse(response.body);
       expect(body).toHaveProperty("success", true);
       expect(body).toHaveProperty("sharePhone", false);
+      expect(body).toHaveProperty("calendarExcluded", false);
     });
 
     it("should return 401 when not authenticated", async () => {

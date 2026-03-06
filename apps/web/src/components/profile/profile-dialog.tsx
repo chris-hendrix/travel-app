@@ -49,6 +49,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CalendarSyncSection } from "./calendar-sync-section";
 
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -444,6 +445,8 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
                   </Button>
                 </form>
               </Form>
+
+              <CalendarSyncSection />
             </div>
           ) : null}
         </SheetBody>

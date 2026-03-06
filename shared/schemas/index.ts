@@ -130,6 +130,20 @@ export {
   type NotificationPreferencesInput,
 } from "./notification";
 
+// Re-export calendar schemas
+export {
+  calendarTokenParamsSchema,
+  calendarEnableResponseSchema,
+  calendarExcludedSchema,
+  calendarStatusResponseSchema,
+  calendarSuccessResponseSchema,
+  type CalendarTokenParams,
+  type CalendarExcludedInput,
+  type CalendarStatusResponse,
+  type CalendarEnableResponse,
+  type CalendarSuccessResponse,
+} from "./calendar";
+
 // Re-export mutuals schemas
 export {
   getMutualsQuerySchema,
