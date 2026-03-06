@@ -243,9 +243,9 @@ export class AuthService implements IAuthService {
       return this.fastify.jwt.verify<JWTPayload>(token);
     } catch (error) {
       if (error instanceof Error) {
-        throw new Error(`Token verification failed: ${error.message}`);
+        throw new Error(`Token verification failed: ${error.message}`, { cause: error });
       }
-      throw new Error("Token verification failed");
+      throw new Error("Token verification failed", { cause: error });
     }
   }
 
