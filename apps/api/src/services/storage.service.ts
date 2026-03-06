@@ -5,6 +5,7 @@ import {
   PutObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  type GetObjectCommandOutput,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl as awsGetSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -159,7 +160,10 @@ export class S3StorageService implements IStorageService {
 
   async getObject(
     key: string,
-  ): Promise<{ body: NodeJS.ReadableStream; contentType: string | undefined }> {
+  ): Promise<{
+    body: NonNullable<GetObjectCommandOutput["Body"]>;
+    contentType: string | undefined;
+  }> {
     const response = await this.client.send(
       new GetObjectCommand({
         Bucket: this.bucket,
@@ -170,7 +174,7 @@ export class S3StorageService implements IStorageService {
       throw new Error("Empty response body");
     }
     return {
-      body: response.Body as NodeJS.ReadableStream,
+      body: response.Body,
       contentType: response.ContentType,
     };
   }
