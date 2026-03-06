@@ -35,9 +35,7 @@ const baseEventSchema = z.object({
   isOptional: z.boolean().default(false),
   links: z
     .array(
-      z.url({
-        error: "Link must be a valid URL",
-      }),
+      z.string().url("Link must be a valid URL"),
     )
     .max(10, {
       error: "Links must not exceed 10 items",

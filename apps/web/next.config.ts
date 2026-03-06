@@ -19,16 +19,7 @@ const nextConfig: NextConfig = {
     ];
   },
   images: {
-    remotePatterns: [
-      {
-        protocol: "http",
-        hostname: "localhost",
-      },
-      {
-        protocol: "https",
-        hostname: "api.tripful.me",
-      },
-    ],
+    remotePatterns: [],
   },
 };
 
