@@ -619,7 +619,7 @@ describe("invitation.service", () => {
         testTripId,
       );
 
-      expect(result).toEqual({ sharePhone: false });
+      expect(result).toEqual({ sharePhone: false, calendarExcluded: false });
     });
 
     it("should throw PermissionDeniedError for non-member", async () => {
@@ -640,7 +640,7 @@ describe("invitation.service", () => {
         true,
       );
 
-      expect(result).toEqual({ sharePhone: true });
+      expect(result).toEqual({ sharePhone: true, calendarExcluded: false });
     });
 
     it("should persist the updated value", async () => {
@@ -651,7 +651,7 @@ describe("invitation.service", () => {
         testTripId,
       );
 
-      expect(result).toEqual({ sharePhone: true });
+      expect(result).toEqual({ sharePhone: true, calendarExcluded: false });
     });
 
     it("should throw PermissionDeniedError for non-member", async () => {

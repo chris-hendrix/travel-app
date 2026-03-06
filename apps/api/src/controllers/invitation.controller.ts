@@ -458,6 +458,7 @@ export const invitationController = {
       return reply.status(200).send({
         success: true as const,
         sharePhone: settings.sharePhone,
+        calendarExcluded: settings.calendarExcluded,
       });
     } catch (error) {
       if (error && typeof error === "object" && "statusCode" in error) {
