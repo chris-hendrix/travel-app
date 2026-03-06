@@ -3952,7 +3952,7 @@ describe("DELETE /api/trips/:id/co-organizers/:userId", () => {
 
       const response = await app.inject({
         method: "DELETE",
-        url: "/api/trips/00000000-0000-0000-0000-000000000000/co-organizers/00000000-0000-0000-0000-000000000001",
+        url: "/api/trips/00000000-0000-0000-0000-000000000000/co-organizers/10000000-0000-4000-8000-000000000001",
       });
 
       expect(response.statusCode).toBe(401);
@@ -4057,7 +4057,7 @@ describe("DELETE /api/trips/:id/co-organizers/:userId", () => {
 
       const response = await app.inject({
         method: "DELETE",
-        url: "/api/trips/00000000-0000-0000-0000-000000000000/co-organizers/00000000-0000-0000-0000-000000000001",
+        url: "/api/trips/00000000-0000-0000-0000-000000000000/co-organizers/10000000-0000-4000-8000-000000000001",
         cookies: { auth_token: token },
       });
 

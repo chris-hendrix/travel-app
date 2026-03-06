@@ -92,11 +92,11 @@ const mockObserve = vi.fn();
 const mockDisconnect = vi.fn();
 
 beforeEach(() => {
-  global.IntersectionObserver = vi.fn().mockImplementation(() => ({
-    observe: mockObserve,
-    unobserve: vi.fn(),
-    disconnect: mockDisconnect,
-  })) as unknown as typeof IntersectionObserver;
+  global.IntersectionObserver = class {
+    observe = mockObserve;
+    unobserve = vi.fn();
+    disconnect = mockDisconnect;
+  } as unknown as typeof IntersectionObserver;
 });
 
 describe("MutualsContent", () => {
