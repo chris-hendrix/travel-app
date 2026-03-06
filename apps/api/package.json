@@ -45,6 +45,7 @@
     "fastify-plugin": "^5.1.0",
     "fastify-type-provider-zod": "^6.1.0",
     "file-type": "^21.3.0",
+    "ical-generator": "^10.0.0",
     "libphonenumber-js": "^1.12.38",
     "pg": "^8.19.0",
     "pg-boss": "^12.14.0",

@@ -34,6 +34,7 @@ import healthServicePlugin from "./plugins/health-service.js";
 import messageServicePlugin from "./plugins/message-service.js";
 import notificationServicePlugin from "./plugins/notification-service.js";
 import mutualsServicePlugin from "./plugins/mutuals-service.js";
+import calendarServicePlugin from "./plugins/calendar-service.js";
 import queueWorkersPlugin from "./queues/index.js";
 
 // Middleware
@@ -51,6 +52,7 @@ import { messageRoutes } from "./routes/message.routes.js";
 import { notificationRoutes } from "./routes/notification.routes.js";
 import { mutualsRoutes } from "./routes/mutuals.routes.js";
 import { userRoutes } from "./routes/user.routes.js";
+import { calendarRoutes } from "./routes/calendar.routes.js";
 
 // Config
 import { env } from "./config/env.js";
@@ -203,6 +205,7 @@ export async function buildApp(
   await app.register(mutualsServicePlugin);
   await app.register(invitationServicePlugin);
   await app.register(messageServicePlugin);
+  await app.register(calendarServicePlugin);
   await app.register(queueWorkersPlugin);
 
   // Register Swagger/OpenAPI documentation (non-production only)
@@ -225,6 +228,7 @@ export async function buildApp(
   await app.register(notificationRoutes, { prefix: "/api" });
   await app.register(mutualsRoutes, { prefix: "/api" });
   await app.register(userRoutes, { prefix: "/api/users" });
+  await app.register(calendarRoutes, { prefix: "/api" });
 
   // Not-found handler for unmatched routes
   app.setNotFoundHandler((request, reply) => {
