@@ -19,7 +19,7 @@ export const createInvitationsSchema = z
       .optional()
       .default([]),
     userIds: z
-      .array(z.uuid({ error: "Each user ID must be a valid UUID" }))
+      .array(z.string().uuid("Each user ID must be a valid UUID"))
       .max(25, {
         error: "Cannot invite more than 25 members at once",
       })

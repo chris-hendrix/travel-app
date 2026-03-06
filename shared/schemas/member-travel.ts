@@ -29,7 +29,7 @@ const baseMemberTravelSchema = z.object({
  * - memberId: UUID of target member for delegation (optional, organizer-only)
  */
 export const createMemberTravelSchema = baseMemberTravelSchema.extend({
-  memberId: z.uuid({ error: "Invalid member ID format" }).optional(),
+  memberId: z.string().uuid("Invalid member ID format").optional(),
 });
 
 /**

@@ -8,16 +8,12 @@ export { phoneNumberSchema, PHONE_REGEX } from "./phone";
 /**
  * Validates email addresses using Zod's built-in email validator
  */
-export const emailSchema = z.email({
-  error: "Invalid email address",
-});
+export const emailSchema = z.string().email("Invalid email address");
 
 /**
  * Validates UUID strings (v4 format)
  */
-export const uuidSchema = z.uuid({
-  error: "Invalid UUID format",
-});
+export const uuidSchema = z.string().uuid("Invalid UUID format");
 
 // Re-export authentication schemas
 export {
