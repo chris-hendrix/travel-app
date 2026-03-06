@@ -15,6 +15,50 @@ import {
   useUpdateMySettings,
   getUpdateMySettingsErrorMessage,
 } from "@/hooks/use-invitations";
+import {
+  useCalendarStatus,
+  useUpdateTripCalendarExclusion,
+} from "@/hooks/use-calendar";
+
+function CalendarTripSection({
+  tripId,
+  calendarExcluded,
+}: {
+  tripId: string;
+  calendarExcluded: boolean;
+}) {
+  const calendarStatus = useCalendarStatus();
+  const updateExclusion = useUpdateTripCalendarExclusion(tripId);
+
+  if (!calendarStatus.data?.enabled) return null;
+
+  return (
+    <>
+      <Separator className="my-4" />
+      <p className="text-sm font-medium mt-4 mb-2">Calendar</p>
+      <div className="flex items-center justify-between py-3">
+        <div className="space-y-0.5">
+          <Label htmlFor="calendar-include" className="text-sm font-medium">
+            Include in calendar
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            When this trip's events change, your calendar subscription will
+            reflect the updates.
+          </p>
+        </div>
+        <Switch
+          id="calendar-include"
+          checked={!calendarExcluded}
+          onCheckedChange={(checked) =>
+            updateExclusion.mutate({ excluded: !checked })
+          }
+          disabled={updateExclusion.isPending}
+          aria-label="Include in calendar"
+        />
+      </div>
+    </>
+  );
+}
 
 interface NotificationPreferencesProps {
   tripId: string;
@@ -38,7 +82,7 @@ export function NotificationPreferences({
 }: NotificationPreferencesProps) {
   const { data: prefs, isLoading } = useNotificationPreferences(tripId);
   const updatePreferences = useUpdateNotificationPreferences(tripId);
-  const { data: sharePhone, isLoading: isMySettingsLoading } =
+  const { data: mySettings, isLoading: isMySettingsLoading } =
     useMySettings(tripId);
   const updateMySettings = useUpdateMySettings(tripId);
 
@@ -143,7 +187,7 @@ export function NotificationPreferences({
           </div>
           <Switch
             id="share-phone"
-            checked={sharePhone ?? false}
+            checked={mySettings?.sharePhone ?? false}
             onCheckedChange={handleSharePhoneToggle}
             aria-label="Share phone number"
           />
@@ -152,6 +196,10 @@ export function NotificationPreferences({
       <p className="mt-4 text-xs text-muted-foreground">
         Notifications are sent in-app and via SMS to your phone number.
       </p>
+      <CalendarTripSection
+        tripId={tripId}
+        calendarExcluded={mySettings?.calendarExcluded ?? false}
+      />
     </div>
   );
 }

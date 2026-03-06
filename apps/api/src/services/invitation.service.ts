@@ -92,7 +92,7 @@ export interface IInvitationService {
   getMySettings(
     userId: string,
     tripId: string,
-  ): Promise<{ sharePhone: boolean }>;
+  ): Promise<{ sharePhone: boolean; calendarExcluded: boolean }>;
 
   /**
    * Updates the current member's per-trip settings
@@ -749,7 +749,7 @@ export class InvitationService implements IInvitationService {
   async getMySettings(
     userId: string,
     tripId: string,
-  ): Promise<{ sharePhone: boolean }> {
+  ): Promise<{ sharePhone: boolean; calendarExcluded: boolean }> {
     const membershipInfo = await this.permissionsService.getMembershipInfo(
       userId,
       tripId,
@@ -761,12 +761,18 @@ export class InvitationService implements IInvitationService {
     }
 
     const result = await this.db
-      .select({ sharePhone: members.sharePhone })
+      .select({
+        sharePhone: members.sharePhone,
+        calendarExcluded: members.calendarExcluded,
+      })
       .from(members)
       .where(and(eq(members.tripId, tripId), eq(members.userId, userId)))
       .limit(1);
 
-    return { sharePhone: result[0]!.sharePhone };
+    return {
+      sharePhone: result[0]!.sharePhone,
+      calendarExcluded: result[0]!.calendarExcluded,
+    };
   }
 
   /**

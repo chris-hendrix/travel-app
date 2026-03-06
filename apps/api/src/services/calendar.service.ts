@@ -97,7 +97,7 @@ export class CalendarService implements ICalendarService {
       x: [
         { key: "X-PUBLISHED-TTL", value: "PT15M" },
         {
-          key: "REFRESH-INTERVAL;VALUE=DURATION",
+          key: "X-REFRESH-INTERVAL;VALUE=DURATION",
           value: "PT15M",
         },
       ],
