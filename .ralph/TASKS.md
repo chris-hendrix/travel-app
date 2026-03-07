@@ -102,7 +102,7 @@
   - Implement: Update assertions to match current component output
   - Verify: run affected tests and confirm they pass
 
-- [ ] Task 5.7: Fix lint warning — no-explicit-any in calendar.service.test.ts
+- [x] Task 5.7: Fix lint warning — no-explicit-any in calendar.service.test.ts
   - Fix: `apps/api/tests/unit/calendar.service.test.ts` line 7 — `const service = new CalendarService(null as any)`
   - Implement: Use the same pattern applied to verification.service.test.ts in iteration 28
   - Verify: run `pnpm lint` with no warnings on that file

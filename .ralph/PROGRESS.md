@@ -2141,3 +2141,20 @@ The devcontainer sets `STORAGE_PROVIDER=s3` in its `.env` file. When `STORAGE_PR
 - When design polish changes component class names (rounded-md, font variables, z-index), tests that assert on class strings must be updated in lockstep — these are brittle but valuable for catching unintended regressions
 - The `mySettingsQueryOptions` queryFn returns an object `{ sharePhone, calendarExcluded }` extracted from the API response — when the API mock doesn't include a field, the extracted property is `undefined`, so `toEqual` must include `calendarExcluded: undefined`
 - IDE diagnostics for `@/lib/api` path alias errors are false positives — vitest resolves these correctly via its config, but the IDE TypeScript server doesn't
+
+## Iteration 43 — Task 5.7: Fix lint warning — no-explicit-any in calendar.service.test.ts
+
+**Status**: ✅ COMPLETE
+
+### Changes Made
+
+**Files modified:**
+- `apps/api/tests/unit/calendar.service.test.ts` — Changed `null as any` to `null as unknown as AppDatabase` (same pattern used in verification.service.test.ts); added `import type { AppDatabase } from "@/types/index.js"`
+
+### Verification
+- **Lint**: PASS — zero warnings (previously had `no-explicit-any` on line 7)
+- **Unit Tests**: PASS — all 21 calendar service tests pass
+- **Reviewer**: APPROVED (trivial single-line fix following established pattern)
+
+### Learnings
+- The `as unknown as Type` double-cast pattern is the project standard for stubbing unused constructor dependencies in tests
