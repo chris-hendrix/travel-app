@@ -2045,3 +2045,35 @@ Rather than adding a QueryClientProvider wrapper (which would change the testing
 - When a component is redesigned, tests for removed features should be deleted entirely rather than rewritten — they test behavior that no longer exists and have no value
 - The `.postcard` CSS class pattern (hover/transition in stylesheet instead of Tailwind utilities) means tests should verify the class is applied, not the individual visual effects — CSS behavior is the stylesheet's responsibility
 - `TripThemeProvider` uses `useLayoutEffect` and DOM manipulation for theme CSS variables, so mocking it as a passthrough fragment is the correct unit test approach — isolates TripCard from theme system side effects
+
+## Iteration 40 — Task 5.4: Fix test failures — missing schema field in fixture (1 failure)
+
+**Status**: COMPLETE
+
+### Changes Made
+
+**Files modified:**
+
+1. **`shared/__tests__/invitation-schemas.test.ts`** — Updated all `mySettingsResponseSchema` test fixtures to include the required `calendarExcluded` field and added a new rejection test
+
+### What Changed
+
+- Added `calendarExcluded: false` to valid response fixture `{ success: true, sharePhone: true }`
+- Added `calendarExcluded: true` to valid response fixture `{ success: true, sharePhone: false }` (covers both boolean values)
+- Added `calendarExcluded: false` to the "should reject success: false" fixture so it tests only the intended rejection reason
+- Added `calendarExcluded: false` to the "should reject missing success field" fixture
+- Added `calendarExcluded: false` to the "should reject missing sharePhone field" fixture
+- Added new test: "should reject missing calendarExcluded field" — validates `{ success: true, sharePhone: true }` without `calendarExcluded` is rejected
+
+### Verification
+
+- **invitation-schemas.test.ts**: PASS — 29 tests (was 28, +1 new)
+- **Shared tests**: PASS — 15 files, 308 tests
+- **TypeCheck**: PASS (all 3 packages)
+- **Lint**: PASS (0 errors, 1 pre-existing warning in calendar.service.test.ts)
+- **Reviewer**: APPROVED
+
+### Learnings
+
+- When a schema gains a new required field, all test fixtures in that schema's describe block must be updated — not just the "valid" fixtures but also the rejection tests, so each rejection test fails for exactly one reason (the field/value being tested)
+- Using both `true` and `false` values across valid fixtures provides boolean coverage without needing separate test cases

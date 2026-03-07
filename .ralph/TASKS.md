@@ -83,7 +83,7 @@
   - Implement: Update test assertions to match current component output
   - Verify: run affected tests and confirm they pass
 
-- [ ] Task 5.4: Fix test failures — missing schema field in fixture (1 failure)
+- [x] Task 5.4: Fix test failures — missing schema field in fixture (1 failure)
   - Fix: `shared/__tests__/invitation-schemas.test.ts` (1 failure) — test fixture missing `calendarExcluded` field
   - Implement: Add `calendarExcluded` to the test fixture object
   - Verify: run affected test and confirm it passes
