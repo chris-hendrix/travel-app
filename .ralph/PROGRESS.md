@@ -1803,3 +1803,36 @@ Trip card mat uses hardcoded `#ffffff` in `trip-card.tsx:57` for unthemed cards.
 - The devcontainer maps host port 6925→3000 (web) and 6924→8000 (api) — use localhost:3000 inside the container
 - PostmarkStamp SVG is fully dark-mode-safe thanks to `currentColor` pattern
 - Trip card mat `#ffffff` is the only hardcoded non-semantic color in the visible UI — a deliberate design choice for the postcard aesthetic
+
+## Iteration 34 — Task 3.1: Enable CSS View Transitions with reduced-motion support
+
+**Status**: ✅ COMPLETE
+
+### Changes Made
+
+**Files modified:**
+- `apps/web/next.config.ts` — Added `viewTransition: true` to the existing `experimental` block (line 15)
+- `apps/web/src/app/globals.css` — Added 4 new CSS blocks:
+  1. `@view-transition { navigation: auto; }` at-rule after the Tailwind import (lines 3-5)
+  2. `@keyframes viewFadeOut` — opacity 1→0 over 0.15s ease-in (lines 243-249)
+  3. `@keyframes viewFadeIn` — opacity 0→1 over 0.2s ease-out (lines 251-258)
+  4. `::view-transition-old(root)` and `::view-transition-new(root)` animation rules (lines 261-267)
+  5. `@media (prefers-reduced-motion: reduce)` block setting `animation-duration: 0s !important` on all `::view-transition-*` pseudo-elements (lines 269-275)
+
+### Design Decisions
+- **CSS-only approach** — No `<ViewTransition>` React component; the `@view-transition { navigation: auto }` at-rule + Next.js experimental flag handles everything
+- **Asymmetric timing** — Old view fades out in 0.15s (ease-in), new view fades in 0.2s (ease-out) for a natural crossfade feel
+- **Wildcard reduced-motion** — `::view-transition-group(*)` etc. covers any future named transition groups, not just `root`
+- **Progressive enhancement** — Unsupported browsers (Firefox) simply ignore the at-rules and get instant navigation
+
+### Verification
+- **TypeCheck**: PASS (all 3 packages)
+- **Lint**: PASS (0 errors, 1 pre-existing warning in calendar.service.test.ts)
+- **Unit/Integration Tests**: PASS (1 pre-existing failure in invitation-schemas.test.ts — unrelated schema/test mismatch for `calendarExcluded` field)
+- **Reviewer**: APPROVED
+
+### Learnings
+- Next.js 16 supports `experimental.viewTransition: true` which enables the View Transitions API for client-side navigations
+- `@view-transition { navigation: auto; }` is a top-level CSS at-rule that should go near the top of the stylesheet, before theme definitions
+- The `!important` on reduced-motion overrides is appropriate since it's an accessibility override that must win over any animation specificity
+- View transition pseudo-elements (`::view-transition-old`, `::view-transition-new`, `::view-transition-group`) are completely separate from regular DOM animations, so no conflicts with existing keyframes

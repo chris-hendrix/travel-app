@@ -36,7 +36,7 @@
 
 ## Phase 3: Page Transitions
 
-- [ ] Task 3.1: Enable CSS View Transitions with reduced-motion support
+- [x] Task 3.1: Enable CSS View Transitions with reduced-motion support
   - Implement: Add `viewTransition: true` to `experimental` in `apps/web/next.config.ts`
   - Implement: Add `@view-transition { navigation: auto; }` rule to `apps/web/src/app/globals.css`
   - Implement: Add `::view-transition-old(root)` and `::view-transition-new(root)` fade keyframes

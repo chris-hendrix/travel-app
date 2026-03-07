@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@tripful/shared"],
   reactStrictMode: true,
   experimental: {
+    viewTransition: true,
     optimizePackageImports: ["lucide-react", "date-fns"],
   },
   images: {
