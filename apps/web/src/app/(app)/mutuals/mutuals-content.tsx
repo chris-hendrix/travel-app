@@ -27,7 +27,7 @@ import {
 import { getUploadUrl } from "@/lib/api";
 import { getInitials } from "@/lib/format";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
-import { TopoPattern } from "@/components/ui/topo-pattern";
+import { EmptyState } from "@/components/ui/empty-state";
 
 function MutualCardSkeleton() {
   return (
@@ -186,19 +186,12 @@ export function MutualsContent() {
 
         {/* Empty State */}
         {isEmpty && (
-          <div className="relative overflow-hidden bg-card rounded-2xl border border-border p-12 text-center card-noise">
-            <TopoPattern />
-            <div className="relative max-w-md mx-auto">
-              <Users className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
-              <h2 className="text-2xl font-semibold text-foreground mb-2 font-accent">
-                No mutuals yet
-              </h2>
-              <p className="text-muted-foreground">
-                Mutuals are people who share trips with you. Start a trip and
-                invite friends to see them here.
-              </p>
-            </div>
-          </div>
+          <EmptyState
+            icon={Users}
+            title="No mutuals yet"
+            description="Mutuals are people who share trips with you. Start a trip and invite friends to see them here."
+            className="rounded-2xl p-12"
+          />
         )}
 
         {/* Mutuals Grid */}

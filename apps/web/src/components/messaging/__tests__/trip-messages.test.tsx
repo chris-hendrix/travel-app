@@ -179,9 +179,8 @@ describe("TripMessages", () => {
 
     render(<TripMessages tripId="trip-1" isOrganizer={false} />);
 
-    expect(
-      screen.getByText("No messages yet. Start the conversation!"),
-    ).toBeDefined();
+    expect(screen.getByText("No messages yet")).toBeDefined();
+    expect(screen.getByText("Start the conversation!")).toBeDefined();
   });
 
   it("renders message cards when messages exist", () => {

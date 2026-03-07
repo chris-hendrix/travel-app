@@ -874,7 +874,10 @@ describe("useMySettings", () => {
       expect(result.current.isSuccess).toBe(true);
     });
 
-    expect(result.current.data).toBe(true);
+    expect(result.current.data).toEqual({
+      sharePhone: true,
+      calendarExcluded: undefined,
+    });
   });
 
   it("handles error", async () => {

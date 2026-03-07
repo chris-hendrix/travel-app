@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useMessages } from "@/hooks/use-messages";
 import { MessageInput } from "./message-input";
 import { MessageCard } from "./message-card";
@@ -103,12 +104,12 @@ export function TripMessages({
       {isPending ? (
         <MessageSkeleton />
       ) : messages.length === 0 ? (
-        <div className="bg-card rounded-2xl border border-border p-8 text-center">
-          <MessageCircle className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
-          <p className="text-muted-foreground">
-            No messages yet. Start the conversation!
-          </p>
-        </div>
+        <EmptyState
+          icon={MessageCircle}
+          title="No messages yet"
+          description="Start the conversation!"
+          className="rounded-2xl"
+        />
       ) : (
         <div role="feed" aria-busy={isPending} className="space-y-3">
           {messages.map((message) => (

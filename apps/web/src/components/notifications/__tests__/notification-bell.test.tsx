@@ -5,15 +5,14 @@ import type { Notification, GetNotificationsResponse } from "@tripful/shared/typ
 
 // Mocks
 const mockPush = vi.fn();
-const mockPathname = vi.fn().mockReturnValue("/trips");
 const mockMarkAsRead = vi.fn();
 const mockMarkAllAsRead = vi.fn();
 const mockUseUnreadCount = vi.fn();
 const mockUseNotifications = vi.fn();
+const mockFetchNextPage = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush }),
-  usePathname: () => mockPathname(),
 }));
 
 vi.mock("@/hooks/use-notifications", () => ({
@@ -55,6 +54,9 @@ describe("NotificationBell", () => {
     mockUseNotifications.mockReturnValue({
       data: undefined,
       isLoading: false,
+      hasNextPage: false,
+      fetchNextPage: mockFetchNextPage,
+      isFetchingNextPage: false,
     });
   });
 
@@ -116,6 +118,16 @@ describe("NotificationBell", () => {
     render(<NotificationBell />);
 
     expect(screen.getByText("9+")).toBeDefined();
+  });
+
+  it("correct aria-label with unread count", () => {
+    mockUseUnreadCount.mockReturnValue({ data: 3, isLoading: false });
+    render(<NotificationBell />);
+
+    const button = screen.getByRole("button", {
+      name: "Notifications, 3 unread",
+    });
+    expect(button).toBeDefined();
   });
 
   it("opens popover when bell is clicked", async () => {
@@ -282,16 +294,6 @@ describe("NotificationBell", () => {
     expect(mockPush).toHaveBeenCalledWith("/trips/trip-xyz");
   });
 
-  it("correct aria-label with unread count", () => {
-    mockUseUnreadCount.mockReturnValue({ data: 3, isLoading: false });
-    render(<NotificationBell />);
-
-    const button = screen.getByRole("button", {
-      name: "Notifications, 3 unread",
-    });
-    expect(button).toBeDefined();
-  });
-
   it("navigates to discussion hash for trip_message notifications", async () => {
     const user = userEvent.setup();
     const notification = makeNotification({
@@ -386,7 +388,7 @@ describe("NotificationBell", () => {
     expect(screen.queryByText("Mark all as read")).toBeNull();
   });
 
-  it('shows "View all notifications" when total > displayed count', async () => {
+  it('shows "View all notifications" when hasNextPage is true', async () => {
     const user = userEvent.setup();
     mockUseNotifications.mockReturnValue({
       data: wrapNotifications({
@@ -409,7 +411,7 @@ describe("NotificationBell", () => {
     });
   });
 
-  it('does not show "View all notifications" when total <= displayed count', async () => {
+  it('does not show "View all notifications" when all notifications fit', async () => {
     const user = userEvent.setup();
     mockUseNotifications.mockReturnValue({
       data: wrapNotifications({
@@ -434,34 +436,8 @@ describe("NotificationBell", () => {
     expect(screen.queryByText("View all notifications")).toBeNull();
   });
 
-  it('does not show "View all notifications" in empty state', async () => {
+  it('"View all notifications" opens the sheet', async () => {
     const user = userEvent.setup();
-    mockUseNotifications.mockReturnValue({
-      data: wrapNotifications({
-        success: true,
-        notifications: [],
-        unreadCount: 0,
-        meta: { total: 0, limit: 10, hasMore: false, nextCursor: null },
-      }),
-      hasNextPage: false,
-      isLoading: false,
-    });
-
-    render(<NotificationBell />);
-
-    const button = screen.getByRole("button", { name: "Notifications" });
-    await user.click(button);
-
-    await waitFor(() => {
-      expect(screen.getByText("No notifications yet")).toBeDefined();
-    });
-
-    expect(screen.queryByText("View all notifications")).toBeNull();
-  });
-
-  it('"View all notifications" navigates to /trips and closes dropdown when not on trip page', async () => {
-    const user = userEvent.setup();
-    mockPathname.mockReturnValue("/trips");
     mockUseNotifications.mockReturnValue({
       data: wrapNotifications({
         success: true,
@@ -470,6 +446,8 @@ describe("NotificationBell", () => {
         meta: { total: 15, limit: 10, hasMore: true, nextCursor: "some-cursor" },
       }),
       hasNextPage: true,
+      fetchNextPage: mockFetchNextPage,
+      isFetchingNextPage: false,
       isLoading: false,
     });
 
@@ -484,10 +462,49 @@ describe("NotificationBell", () => {
 
     await user.click(screen.getByText("View all notifications"));
 
-    expect(mockPush).toHaveBeenCalledWith("/trips");
+    // Sheet should open with its title
+    await waitFor(() => {
+      expect(screen.getByText("View all your notifications")).toBeDefined();
+    });
   });
 
-  it("shows error boundary fallback when NotificationDropdown throws", async () => {
+  it("sheet shows Load more button and calls fetchNextPage", async () => {
+    const user = userEvent.setup();
+    mockUseNotifications.mockReturnValue({
+      data: wrapNotifications({
+        success: true,
+        notifications: [makeNotification()],
+        unreadCount: 1,
+        meta: { total: 15, limit: 10, hasMore: true, nextCursor: "some-cursor" },
+      }),
+      hasNextPage: true,
+      fetchNextPage: mockFetchNextPage,
+      isFetchingNextPage: false,
+      isLoading: false,
+    });
+
+    render(<NotificationBell />);
+
+    // Open popover then sheet
+    const bellButton = screen.getByRole("button", { name: "Notifications" });
+    await user.click(bellButton);
+
+    await waitFor(() => {
+      expect(screen.getByText("View all notifications")).toBeDefined();
+    });
+
+    await user.click(screen.getByText("View all notifications"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Load more")).toBeDefined();
+    });
+
+    await user.click(screen.getByText("Load more"));
+
+    expect(mockFetchNextPage).toHaveBeenCalled();
+  });
+
+  it("shows error boundary fallback when NotificationPreview throws", async () => {
     const user = userEvent.setup();
     // Make the notifications hook throw an error during render
     mockUseNotifications.mockImplementation(() => {
@@ -507,33 +524,5 @@ describe("NotificationBell", () => {
     });
 
     spy.mockRestore();
-  });
-
-  it('"View all notifications" navigates to trip page and closes dropdown when on a trip page', async () => {
-    const user = userEvent.setup();
-    mockPathname.mockReturnValue("/trips/trip-abc");
-    mockUseNotifications.mockReturnValue({
-      data: wrapNotifications({
-        success: true,
-        notifications: [makeNotification()],
-        unreadCount: 1,
-        meta: { total: 15, limit: 10, hasMore: true, nextCursor: "some-cursor" },
-      }),
-      hasNextPage: true,
-      isLoading: false,
-    });
-
-    render(<NotificationBell />);
-
-    const bellButton = screen.getByRole("button", { name: "Notifications" });
-    await user.click(bellButton);
-
-    await waitFor(() => {
-      expect(screen.getByText("View all notifications")).toBeDefined();
-    });
-
-    await user.click(screen.getByText("View all notifications"));
-
-    expect(mockPush).toHaveBeenCalledWith("/trips/trip-abc");
   });
 });

@@ -27,6 +27,11 @@ vi.mock("@/hooks/use-notifications", () => ({
 const mockUseMySettings = vi.fn();
 const mockUpdateMySettingsMutate = vi.fn();
 
+vi.mock("@/hooks/use-calendar", () => ({
+  useCalendarStatus: () => ({ data: null, isLoading: false }),
+  useUpdateTripCalendarExclusion: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+
 vi.mock("@/hooks/use-invitations", () => ({
   useMySettings: (tripId: string) => mockUseMySettings(tripId),
   useUpdateMySettings: () => ({
@@ -227,7 +232,7 @@ describe("NotificationPreferences", () => {
 
   it("shows share phone switch as checked when sharePhone is true", () => {
     mockUseMySettings.mockReturnValue({
-      data: true,
+      data: { sharePhone: true },
       isLoading: false,
     });
 

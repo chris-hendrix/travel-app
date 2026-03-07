@@ -8,9 +8,6 @@ export const THEME_FONT_VALUES = [
   "plus-jakarta", // already loaded — default clean sans
   "playfair", // already loaded — elegant serif
   "space-grotesk", // already loaded — techy accent
-  "nunito", // to add — playful/rounded
-  "caveat", // to add — handwritten
-  "oswald", // to add — bold/condensed
 ] as const;
 
 /** Font identifier type derived from available font options */

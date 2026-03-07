@@ -89,7 +89,7 @@ test.describe("Messaging Journey", () => {
 
       await test.step("verify empty state", async () => {
         await expect(
-          page.getByText("No messages yet. Start the conversation!"),
+          page.getByText("No messages yet"),
         ).toBeVisible();
       });
 
@@ -105,7 +105,7 @@ test.describe("Messaging Journey", () => {
         });
         // Empty state should be gone
         await expect(
-          page.getByText("No messages yet. Start the conversation!"),
+          page.getByText("No messages yet"),
         ).not.toBeVisible();
         // Feed container should exist
         await expect(page.getByRole("feed")).toBeVisible();

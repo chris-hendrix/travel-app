@@ -1,4 +1,4 @@
 # Ralph Config
 
-- description: skill-audit-remediation
+- description: design-polish
 - mode: branch

@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+@view-transition {
+  navigation: auto;
+}
+
 @theme {
   /* Vintage linen postcard palette — all hex, never hsl() */
   --color-background: #f5edd6;
@@ -35,13 +41,13 @@
 
   /* Event type colors — desaturated linen tones */
   --color-event-travel: #3b6898;
-  --color-event-travel-light: #f0ead8;
+  --color-event-travel-light: #dce8f3;
   --color-event-travel-border: #a8bdd0;
   --color-event-meal: #b07920;
-  --color-event-meal-light: #f5edd6;
+  --color-event-meal-light: #f5e6c8;
   --color-event-meal-border: #dbc391;
   --color-event-activity: #2d7a58;
-  --color-event-activity-light: #e8f0e3;
+  --color-event-activity-light: #d8eedf;
   --color-event-activity-border: #8fc4a8;
   --color-accommodation: #6e3ca8;
   --color-accommodation-light: #f0e8f5;
@@ -51,6 +57,55 @@
   --color-member-travel-border: #d4c9b5;
 
   /* Overlay text colors (bright on dark backgrounds like bg-black/50) */
+  --color-overlay-success: #8ed4aa;
+  --color-overlay-warning: #e8c86e;
+  --color-overlay-muted: #c8c4bc;
+}
+
+.dark {
+  --color-background: #1a1814;
+  --color-foreground: #e8dcc8;
+  --color-card: #252018;
+  --color-card-foreground: #e8dcc8;
+  --color-popover: #252018;
+  --color-popover-foreground: #e8dcc8;
+  --color-primary: #5a9fd4;
+  --color-primary-foreground: #1a1814;
+  --color-secondary: #2a2520;
+  --color-secondary-foreground: #e8dcc8;
+  --color-muted: #2a2520;
+  --color-muted-foreground: #9a8e7f;
+  --color-accent: #d4613e;
+  --color-accent-foreground: #1a1814;
+  --color-destructive: #c94438;
+  --color-destructive-foreground: #faf5e8;
+  --color-success: #5a9e6e;
+  --color-success-foreground: #1a1814;
+  --color-warning: #d4a03a;
+  --color-warning-foreground: #1a1814;
+  --color-border: #3a3530;
+  --color-input: #3a3530;
+  --color-ring: #5a9fd4;
+
+  --color-airmail-red: #d4613e;
+  --color-airmail-blue: #5a9fd4;
+
+  --color-event-travel: #6aafe0;
+  --color-event-travel-light: #1a2d3e;
+  --color-event-travel-border: #3a5a78;
+  --color-event-meal: #d4a03a;
+  --color-event-meal-light: #2e2414;
+  --color-event-meal-border: #6a5a30;
+  --color-event-activity: #5aae80;
+  --color-event-activity-light: #162e1e;
+  --color-event-activity-border: #3a6a50;
+  --color-accommodation: #9a6ed4;
+  --color-accommodation-light: #251a30;
+  --color-accommodation-border: #5a3a80;
+  --color-member-travel: #9a9088;
+  --color-member-travel-light: #252220;
+  --color-member-travel-border: #4a4540;
+
   --color-overlay-success: #8ed4aa;
   --color-overlay-warning: #e8c86e;
   --color-overlay-muted: #c8c4bc;
@@ -185,12 +240,67 @@
   }
 }
 
+@keyframes checkPop {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes viewFadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes viewFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+::view-transition-old(root) {
+  animation: viewFadeOut 0.15s ease-in forwards;
+}
+
+::view-transition-new(root) {
+  animation: viewFadeIn 0.2s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0s !important;
+  }
+}
+
 /* Subtle vintage paper mesh */
 .gradient-mesh {
   background:
     radial-gradient(ellipse at 20% 50%, rgba(46, 89, 132, 0.04) 0%, transparent 50%),
     radial-gradient(ellipse at 80% 20%, rgba(184, 67, 46, 0.03) 0%, transparent 50%),
     radial-gradient(ellipse at 50% 80%, rgba(61, 107, 74, 0.03) 0%, transparent 50%);
+}
+
+.dark .gradient-mesh {
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(90, 159, 212, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(212, 97, 62, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 80%, rgba(90, 158, 110, 0.04) 0%, transparent 50%);
 }
 
 .card-noise {
@@ -207,6 +317,10 @@
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   background-repeat: repeat;
   background-size: 256px 256px;
+}
+
+.dark .card-noise::after {
+  opacity: 0.015;
 }
 
 /* Linen paper texture — subtle fiber grain for vintage postcard feel */
@@ -227,18 +341,22 @@
   background-size: 200px 200px;
 }
 
+.dark .linen-texture::before {
+  opacity: 0.025;
+}
+
 /* Airmail chevron stripe — horizontal red-blue-gap repeating pattern */
 .airmail-stripe {
   background-image: repeating-linear-gradient(
     90deg,
     var(--color-airmail-red) 0px,
     var(--color-airmail-red) 12px,
-    #faf5e8 12px,
-    #faf5e8 18px,
+    var(--color-card) 12px,
+    var(--color-card) 18px,
     var(--color-airmail-blue) 18px,
     var(--color-airmail-blue) 30px,
-    #faf5e8 30px,
-    #faf5e8 36px
+    var(--color-card) 30px,
+    var(--color-card) 36px
   );
 }
 
@@ -260,12 +378,12 @@
     90deg,
     var(--color-airmail-red) 0px,
     var(--color-airmail-red) 12px,
-    #faf5e8 12px,
-    #faf5e8 18px,
+    var(--color-card) 12px,
+    var(--color-card) 18px,
     var(--color-airmail-blue) 18px,
     var(--color-airmail-blue) 30px,
-    #faf5e8 30px,
-    #faf5e8 36px
+    var(--color-card) 30px,
+    var(--color-card) 36px
   );
 }
 
@@ -286,12 +404,12 @@
     90deg,
     var(--color-airmail-red) 0px,
     var(--color-airmail-red) 12px,
-    #faf5e8 12px,
-    #faf5e8 18px,
+    var(--color-card) 12px,
+    var(--color-card) 18px,
     var(--color-airmail-blue) 18px,
     var(--color-airmail-blue) 30px,
-    #faf5e8 30px,
-    #faf5e8 36px
+    var(--color-card) 30px,
+    var(--color-card) 36px
   );
 }
 
@@ -336,6 +454,20 @@
     box-shadow:
       0 8px 24px rgba(44, 34, 23, 0.15),
       0 0 0 1px rgba(44, 34, 23, 0.06);
+  }
+}
+
+.dark .postcard {
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+@media (hover: hover) {
+  .dark .postcard:hover {
+    box-shadow:
+      0 8px 24px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(255, 255, 255, 0.1);
   }
 }
 

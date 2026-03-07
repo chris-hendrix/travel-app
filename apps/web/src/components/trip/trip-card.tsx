@@ -51,10 +51,10 @@ export const TripCard = memo(function TripCard({
   const preset = trip.themeId
     ? (THEME_PRESETS.find((p) => p.id === trip.themeId) ?? null)
     : null;
-  // Mat background: white border (theme cards use theme background)
+  // Mat background: theme cards use theme background, others use bg-card
   const matBackground = preset
     ? buildBackground(preset.background)
-    : "#ffffff";
+    : undefined;
 
   const fontFamily = trip.themeFont
     ? THEME_FONTS[trip.themeFont as keyof typeof THEME_FONTS]
@@ -74,7 +74,10 @@ export const TripCard = memo(function TripCard({
         style={{ animationDelay: `${index * 80}ms` }}
       >
         {/* Mat: white border */}
-        <div className="postcard-mat" style={{ background: matBackground }}>
+        <div
+          className={cn("postcard-mat", !matBackground && "bg-card")}
+          style={matBackground ? { background: matBackground } : undefined}
+        >
           {/* Inner: cover image with overlay */}
           <div className="postcard-image">
               {trip.coverImageUrl ? (

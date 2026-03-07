@@ -11,10 +11,10 @@ import {
   Users,
   ClipboardList,
   AlertCircle,
-  ImagePlus,
   UserPlus,
   Pencil,
   ChevronDown,
+  Settings,
 } from "lucide-react";
 import { useTripDetail } from "@/hooks/use-trips";
 import { useEvents } from "@/hooks/use-events";
@@ -28,7 +28,6 @@ import { membersQueryOptions } from "@/hooks/invitation-queries";
 import { useQuery } from "@tanstack/react-query";
 import type { MemberWithProfile } from "@/hooks/use-invitations";
 import { useAuth } from "@/app/providers/auth-provider";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RsvpBadgeDropdown } from "@/components/trip/rsvp-badge-dropdown";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -50,10 +49,7 @@ import {
 } from "@/components/ui/sheet";
 import { ItineraryView } from "@/components/itinerary/itinerary-view";
 import { TripMessages, MessageCountIndicator } from "@/components/messaging";
-import {
-  TripNotificationBell,
-  TripSettingsButton,
-} from "@/components/notifications";
+import { NotificationPreferences } from "@/components/notifications/notification-preferences";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { MembersList } from "@/components/trip/members-list";
 import { TripPreview } from "@/components/trip/trip-preview";
@@ -115,6 +111,7 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isMembersOpen, setIsMembersOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [removingMember, setRemovingMember] = useState<{
     member: MemberWithProfile;
   } | null>(null);
@@ -243,43 +240,8 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
         )}
 
-        {/* Top-right: notification + settings */}
-        <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
-          <TripNotificationBell
-            tripId={tripId}
-            className={heroTextLight ? "text-white/80 hover:text-white hover:bg-white/10 focus-visible:ring-white/50" : "text-foreground/80 hover:text-foreground hover:bg-foreground/10 focus-visible:ring-foreground/50"}
-          />
-          <TripSettingsButton
-            tripId={tripId}
-            className={heroTextLight ? "text-white/80 hover:text-white hover:bg-white/10 focus-visible:ring-white/50" : "text-foreground/80 hover:text-foreground hover:bg-foreground/10 focus-visible:ring-foreground/50"}
-          />
-        </div>
 
-        {/* Organizer: add cover photo button */}
-        {!trip.coverImageUrl && isOrganizer && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className={`absolute top-4 left-4 z-10 ${heroTextLight ? "text-white/60 hover:text-white hover:bg-white/10 focus-visible:ring-white/50" : "text-foreground/60 hover:text-foreground hover:bg-foreground/10 focus-visible:ring-foreground/50"}`}
-            onClick={() => setIsEditOpen(true)}
-            onMouseEnter={supportsHover ? preloadEditTripDialog : undefined}
-            onFocus={preloadEditTripDialog}
-          >
-            <ImagePlus className="w-4 h-4" aria-hidden="true" />
-            Add cover photo
-          </Button>
-        )}
-
-        {/* Badges overlay — top-left */}
-        {isOrganizer && (
-          <div className="absolute top-4 left-4 z-10">
-            <Badge className="bg-black/50 backdrop-blur-md text-white border-white/20 shadow-sm">
-              Organizing
-            </Badge>
-          </div>
-        )}
-
-        {/* Bottom: title + metadata overlay */}
+        {/* Bottom: title + metadata */}
         <div className="absolute bottom-0 left-0 right-0 pb-5 sm:pb-6">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <h1
@@ -311,36 +273,44 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
       {/* Content */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          {/* Organizer actions */}
-          {isOrganizer && (
-            <div className="flex items-center justify-between rounded-md border border-primary/20 bg-primary/5 px-4 py-3 mb-6">
-              <span className="text-sm text-muted-foreground hidden sm:inline">
-                You&apos;re organizing this trip
-              </span>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setIsInviteOpen(true)}
-                  onMouseEnter={supportsHover ? preloadInviteMembersDialog : undefined}
-                  onTouchStart={preloadInviteMembersDialog}
-                  onFocus={preloadInviteMembersDialog}
-                  className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors cursor-pointer"
-                >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  Invite
-                </button>
-                <button
-                  onClick={() => setIsEditOpen(true)}
-                  onMouseEnter={supportsHover ? preloadEditTripDialog : undefined}
-                  onTouchStart={preloadEditTripDialog}
-                  onFocus={preloadEditTripDialog}
-                  className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors cursor-pointer"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                  Edit trip
-                </button>
-              </div>
+          {/* RSVP + action icons */}
+          <div className="flex items-center mb-6">
+            <RsvpBadgeDropdown tripId={trip.id} status={trip.userRsvpStatus} />
+            <span className="flex-1" aria-hidden="true" />
+            <div className="flex items-center gap-3">
+              {isOrganizer && (
+                <>
+                  <button
+                    onClick={() => setIsInviteOpen(true)}
+                    onMouseEnter={supportsHover ? preloadInviteMembersDialog : undefined}
+                    onTouchStart={preloadInviteMembersDialog}
+                    onFocus={preloadInviteMembersDialog}
+                    className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    aria-label="Invite members"
+                  >
+                    <UserPlus className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => setIsEditOpen(true)}
+                    onMouseEnter={supportsHover ? preloadEditTripDialog : undefined}
+                    onTouchStart={preloadEditTripDialog}
+                    onFocus={preloadEditTripDialog}
+                    className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    aria-label="Edit trip"
+                  >
+                    <Pencil className="w-5 h-5" />
+                  </button>
+                </>
+              )}
+              <button
+                onClick={() => setIsSettingsOpen(true)}
+                className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                aria-label="Settings"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
             </div>
-          )}
+          </div>
 
           {/* Organizers */}
           {trip.organizers.length > 0 && (
@@ -379,7 +349,6 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
 
           {/* Stats */}
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mb-6">
-            <RsvpBadgeDropdown tripId={trip.id} status={trip.userRsvpStatus} />
             <button
               onClick={() => setIsMembersOpen(true)}
               className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
@@ -476,6 +445,23 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
           tripId={tripId}
         />
       )}
+
+      {/* Settings Sheet */}
+      <Sheet open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle className="text-3xl font-[family-name:var(--font-playfair)] tracking-tight">
+              Trip settings
+            </SheetTitle>
+            <SheetDescription className="sr-only">
+              Manage notification preferences and privacy settings for this trip
+            </SheetDescription>
+          </SheetHeader>
+          <SheetBody>
+            <NotificationPreferences tripId={tripId} />
+          </SheetBody>
+        </SheetContent>
+      </Sheet>
 
       {/* Members Sheet */}
       <Sheet

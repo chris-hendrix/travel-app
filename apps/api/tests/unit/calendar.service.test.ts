@@ -1,10 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { CalendarService } from "@/services/calendar.service.js";
 import type { Trip, Event } from "@/db/schema/index.js";
+import type { AppDatabase } from "@/types/index.js";
 
 // generateIcsFeed is a pure function that does not use the database,
 // so we can safely pass null for the db dependency.
-const service = new CalendarService(null as any);
+const service = new CalendarService(null as unknown as AppDatabase);
 
 // ---------------------------------------------------------------------------
 // Test data helpers

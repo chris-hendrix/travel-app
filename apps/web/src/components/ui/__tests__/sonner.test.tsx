@@ -11,6 +11,28 @@ describe("Toaster", () => {
     expect(section?.getAttribute("aria-label")).toContain("Notifications");
   });
 
+  it("applies checkPop animation class to success toast icons", async () => {
+    const { container } = render(<Toaster />);
+
+    act(() => {
+      toast.success("Success!");
+    });
+
+    await vi.waitFor(() => {
+      const toastEl = container.querySelector(
+        "[data-sonner-toast][data-type='success']",
+      );
+      expect(toastEl).toBeTruthy();
+    });
+
+    const toastEl = container.querySelector(
+      "[data-sonner-toast][data-type='success']",
+    );
+    expect(toastEl?.className).toContain(
+      "motion-safe:[&_[data-icon]]:animate-[checkPop_400ms_ease-out]",
+    );
+  });
+
   it("renders toaster with bottom-right position and z-[60] class when a toast is shown", async () => {
     const { container } = render(<Toaster />);
 

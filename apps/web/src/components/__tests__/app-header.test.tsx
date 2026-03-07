@@ -100,12 +100,12 @@ describe("AppHeader", () => {
     expect(wordmark.closest("a")?.getAttribute("href")).toBe("/trips");
   });
 
-  it("renders the wordmark in Playfair Display font", () => {
+  it("renders the wordmark in display font", () => {
     render(<AppHeader />);
 
     const wordmark = screen.getByText("Tripful");
     expect(wordmark.className).toContain(
-      "font-[family-name:var(--font-playfair)]",
+      "font-[family-name:var(--font-display)]",
     );
   });
 

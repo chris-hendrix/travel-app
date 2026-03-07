@@ -12,8 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMounted } from "@/hooks/use-mounted";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
-import { TopoPattern } from "@/components/ui/topo-pattern";
 import { PostmarkStamp } from "@/components/ui/postmark-stamp";
+import { EmptyState } from "@/components/ui/empty-state";
 
 function SkeletonCard() {
   return (
@@ -211,18 +211,11 @@ export function TripsContent() {
 
         {/* No Search Results */}
         {noResults && (
-          <div className="relative overflow-hidden bg-card rounded-md border border-border p-8 text-center card-noise">
-            <TopoPattern />
-            <div className="relative">
-              <Search className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h2 className="text-xl font-semibold text-foreground mb-2 font-accent">
-                No trips found
-              </h2>
-              <p className="text-muted-foreground">
-                Try searching with different keywords
-              </p>
-            </div>
-          </div>
+          <EmptyState
+            icon={Search}
+            title="No trips found"
+            description="Try searching with different keywords"
+          />
         )}
 
         {/* Trips Sections */}

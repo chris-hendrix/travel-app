@@ -47,6 +47,29 @@ vi.mock("@/lib/supports-hover", () => ({
   supportsHover: true,
 }));
 
+// Mock TripThemeProvider as a passthrough wrapper
+vi.mock("@/components/trip/trip-theme-provider", () => ({
+  TripThemeProvider: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
+}));
+
+// Mock theme-styles
+vi.mock("@/lib/theme-styles", () => ({
+  buildBackground: () => "#ffffff",
+}));
+
+// Mock shared config
+vi.mock("@tripful/shared/config", () => ({
+  THEME_PRESETS: [],
+  THEME_FONTS: {},
+}));
+
+// Mock getUploadUrl to return the URL as-is
+vi.mock("@/lib/api", () => ({
+  getUploadUrl: (url: string) => url,
+}));
+
 describe("TripCard", () => {
   beforeEach(() => {
     mockPrefetch.mockClear();
@@ -79,8 +102,6 @@ describe("TripCard", () => {
       expect(screen.getByText("Summer Beach Vacation")).toBeDefined();
       expect(screen.getByText("Malibu, CA")).toBeDefined();
       expect(screen.getByText("Jul 15 - 20, 2026")).toBeDefined();
-      expect(screen.getByText("John Doe")).toBeDefined();
-      expect(screen.getByText("3 events")).toBeDefined();
     });
 
     it("displays cover image when provided", () => {
@@ -93,13 +114,6 @@ describe("TripCard", () => {
       expect(image.src).toBe("https://example.com/beach.jpg");
     });
 
-    it("displays organizer profile photos when provided", () => {
-      render(<TripCard trip={baseTrip} />);
-
-      const avatar = screen.getByAltText("John Doe") as HTMLImageElement;
-      expect(avatar).toBeDefined();
-      expect(avatar.src).toBe("https://example.com/john.jpg");
-    });
   });
 
   describe("RSVP badge rendering", () => {
@@ -216,128 +230,6 @@ describe("TripCard", () => {
     });
   });
 
-  describe("Organizer avatars", () => {
-    it("displays up to 3 organizer avatars", () => {
-      const trip = {
-        ...baseTrip,
-        organizerInfo: [
-          {
-            id: "1",
-            displayName: "John",
-            profilePhotoUrl: "https://example.com/1.jpg",
-          },
-          {
-            id: "2",
-            displayName: "Jane",
-            profilePhotoUrl: "https://example.com/2.jpg",
-          },
-          {
-            id: "3",
-            displayName: "Bob",
-            profilePhotoUrl: "https://example.com/3.jpg",
-          },
-        ],
-      };
-      render(<TripCard trip={trip} />);
-
-      expect(screen.getByAltText("John")).toBeDefined();
-      expect(screen.getByAltText("Jane")).toBeDefined();
-      expect(screen.getByAltText("Bob")).toBeDefined();
-    });
-
-    it("limits to 3 organizer avatars even when more exist", () => {
-      const trip = {
-        ...baseTrip,
-        organizerInfo: [
-          {
-            id: "1",
-            displayName: "John",
-            profilePhotoUrl: "https://example.com/1.jpg",
-          },
-          {
-            id: "2",
-            displayName: "Jane",
-            profilePhotoUrl: "https://example.com/2.jpg",
-          },
-          {
-            id: "3",
-            displayName: "Bob",
-            profilePhotoUrl: "https://example.com/3.jpg",
-          },
-          {
-            id: "4",
-            displayName: "Alice",
-            profilePhotoUrl: "https://example.com/4.jpg",
-          },
-        ],
-      };
-      const { container } = render(<TripCard trip={trip} />);
-
-      const avatars = container.querySelectorAll(
-        "img[alt='John'], img[alt='Jane'], img[alt='Bob']",
-      );
-      expect(avatars.length).toBe(3);
-      expect(screen.queryByAltText("Alice")).toBeNull();
-    });
-
-    it("shows initials when organizer has no profile photo", () => {
-      const trip = {
-        ...baseTrip,
-        organizerInfo: [
-          { id: "1", displayName: "John Doe", profilePhotoUrl: null },
-        ],
-      };
-      const { container } = render(<TripCard trip={trip} />);
-
-      const initialsElement = container.querySelector(".bg-muted");
-      expect(initialsElement).toBeDefined();
-      expect(initialsElement?.textContent).toBe("JD");
-    });
-
-    it("shows organizer count when multiple organizers", () => {
-      const trip = {
-        ...baseTrip,
-        organizerInfo: [
-          {
-            id: "1",
-            displayName: "John",
-            profilePhotoUrl: "https://example.com/1.jpg",
-          },
-          {
-            id: "2",
-            displayName: "Jane",
-            profilePhotoUrl: "https://example.com/2.jpg",
-          },
-        ],
-      };
-      render(<TripCard trip={trip} />);
-
-      expect(screen.getByText("John +1")).toBeDefined();
-    });
-  });
-
-  describe("Event count display", () => {
-    it('shows "No events yet" when eventCount is 0', () => {
-      const trip = { ...baseTrip, eventCount: 0 };
-      render(<TripCard trip={trip} />);
-
-      expect(screen.getByText("No events yet")).toBeDefined();
-    });
-
-    it("shows singular event text for 1 event", () => {
-      const trip = { ...baseTrip, eventCount: 1 };
-      render(<TripCard trip={trip} />);
-
-      expect(screen.getByText("1 event")).toBeDefined();
-    });
-
-    it("shows plural events text for multiple events", () => {
-      render(<TripCard trip={baseTrip} />);
-
-      expect(screen.getByText("3 events")).toBeDefined();
-    });
-  });
-
   describe("Navigation", () => {
     it("renders as a link to trip detail page", () => {
       render(<TripCard trip={baseTrip} />);
@@ -400,7 +292,7 @@ describe("TripCard", () => {
         ...baseTrip,
         destination: "A very long destination name that should be truncated",
       };
-      const { container } = render(<TripCard trip={trip} />);
+      render(<TripCard trip={trip} />);
 
       const destinationSpan = screen.getByText(trip.destination);
       expect(destinationSpan.className).toContain("truncate");
@@ -415,13 +307,11 @@ describe("TripCard", () => {
       expect(link).toBeDefined();
     });
 
-    it("applies hover and active transition classes", () => {
+    it("applies postcard class for hover and transition styles", () => {
       const { container } = render(<TripCard trip={baseTrip} />);
 
       const card = container.firstChild as HTMLElement;
-      expect(card.className).toContain("hover:shadow-lg");
-      expect(card.className).toContain("motion-safe:active:scale-[0.98]");
-      expect(card.className).toContain("transition-all");
+      expect(card.className).toContain("postcard");
     });
 
     it("applies motion-safe animation classes", () => {
@@ -431,7 +321,6 @@ describe("TripCard", () => {
       expect(card.className).toContain(
         "motion-safe:animate-[staggerIn_500ms_ease-out_both]",
       );
-      expect(card.className).toContain("motion-safe:hover:-translate-y-1");
     });
   });
 });

@@ -24,7 +24,7 @@ import { CreateEventDialog } from "./create-event-dialog";
 import { CreateAccommodationDialog } from "./create-accommodation-dialog";
 import { DeletedItemsDialog } from "./deleted-items-dialog";
 import { TravelReminderBanner } from "@/components/trip/travel-reminder-banner";
-import { TopoPattern } from "@/components/ui/topo-pattern";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface ItineraryViewProps {
   tripId: string;
@@ -197,43 +197,36 @@ export function ItineraryView({ tripId, onAddTravel }: ItineraryViewProps) {
     return (
       <>
         <div className="max-w-5xl mx-auto px-4 py-8">
-          <div className="relative overflow-hidden bg-card rounded-md border border-border p-8 text-center card-noise">
-            <TopoPattern />
-            <div className="relative">
-              <CalendarX className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h2 className="text-2xl font-semibold text-foreground mb-2 font-accent">
-                No itinerary yet
-              </h2>
-              <p className="text-muted-foreground mb-6">
-                Start planning your trip by adding events, accommodations, and
-                travel details.
-              </p>
-              {isLocked && (
-                <div className="bg-muted/50 border border-border rounded-md p-4 text-center text-sm text-muted-foreground">
-                  <Lock className="w-4 h-4 inline mr-2" />
-                  This trip has ended. The itinerary is read-only.
-                </div>
-              )}
-              {isOrganizer && !isLocked && (
-                <div className="flex flex-wrap items-center justify-center gap-3">
-                  <Button
-                    variant="gradient"
-                    className="h-12 px-8 rounded-md"
-                    onClick={() => setIsCreateEventOpen(true)}
-                  >
-                    Add Event
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="h-12 px-8 rounded-md"
-                    onClick={() => setIsCreateAccommodationOpen(true)}
-                  >
-                    Add Accommodation
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
+          <EmptyState
+            icon={CalendarX}
+            title="No itinerary yet"
+            description="Start planning your trip by adding events, accommodations, and travel details."
+          >
+            {isLocked && (
+              <div className="bg-muted/50 border border-border rounded-md p-4 text-center text-sm text-muted-foreground">
+                <Lock className="w-4 h-4 inline mr-2" />
+                This trip has ended. The itinerary is read-only.
+              </div>
+            )}
+            {isOrganizer && !isLocked && (
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <Button
+                  variant="gradient"
+                  className="h-12 px-8 rounded-md"
+                  onClick={() => setIsCreateEventOpen(true)}
+                >
+                  Add Event
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-12 px-8 rounded-md"
+                  onClick={() => setIsCreateAccommodationOpen(true)}
+                >
+                  Add Accommodation
+                </Button>
+              </div>
+            )}
+          </EmptyState>
           {isOrganizer && hasDeletedItems && (
             <button
               type="button"

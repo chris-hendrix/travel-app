@@ -157,6 +157,27 @@ vi.mock("@tanstack/react-query", async () => {
   };
 });
 
+// Mock RsvpBadgeDropdown component
+const rsvpLabels: Record<string, string> = {
+  going: "Going",
+  maybe: "Maybe",
+  not_going: "Not Going",
+  no_response: "No Response",
+};
+vi.mock("@/components/trip/rsvp-badge-dropdown", () => ({
+  RsvpBadgeDropdown: ({
+    tripId,
+    status,
+  }: {
+    tripId: string;
+    status: string;
+  }) => (
+    <div data-testid="rsvp-badge-dropdown" data-trip-id={tripId}>
+      {rsvpLabels[status] ?? status}
+    </div>
+  ),
+}));
+
 // Mock MembersList component
 vi.mock("@/components/trip/members-list", () => ({
   MembersList: ({
@@ -202,16 +223,11 @@ vi.mock("@/components/trip/members-list", () => ({
   ),
 }));
 
-// Mock TripNotificationBell and TripSettingsButton components
-vi.mock("@/components/notifications", () => ({
-  TripNotificationBell: ({ tripId }: { tripId: string }) => (
-    <div data-testid="trip-notification-bell" data-trip-id={tripId}>
-      Trip Notification Bell
-    </div>
-  ),
-  TripSettingsButton: ({ tripId }: { tripId: string }) => (
-    <div data-testid="trip-settings-button" data-trip-id={tripId}>
-      Trip Settings
+// Mock NotificationPreferences component
+vi.mock("@/components/notifications/notification-preferences", () => ({
+  NotificationPreferences: ({ tripId }: { tripId: string }) => (
+    <div data-testid="notification-preferences" data-trip-id={tripId}>
+      Notification Preferences
     </div>
   ),
 }));
@@ -779,7 +795,7 @@ describe("TripDetailContent", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText("Edit trip")).toBeDefined();
+        expect(screen.getByRole("button", { name: "Edit trip" })).toBeDefined();
       });
     });
 
@@ -801,7 +817,7 @@ describe("TripDetailContent", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText("Edit trip")).toBeDefined();
+        expect(screen.getByRole("button", { name: "Edit trip" })).toBeDefined();
       });
     });
 
@@ -828,10 +844,10 @@ describe("TripDetailContent", () => {
         ).toBeDefined();
       });
 
-      expect(screen.queryByText("Edit trip")).toBeNull();
+      expect(screen.queryByRole("button", { name: "Edit trip" })).toBeNull();
     });
 
-    it("shows organizer badge for organizers only", async () => {
+    it("shows organizer action icons for organizers only", async () => {
       mockUseAuth.mockReturnValue({ user: mockUser });
       mockUseTripDetail.mockReturnValue({
         data: mockTripDetail,
@@ -848,11 +864,16 @@ describe("TripDetailContent", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText("Organizing")).toBeDefined();
+        expect(
+          screen.getByRole("button", { name: "Edit trip" }),
+        ).toBeDefined();
+        expect(
+          screen.getByRole("button", { name: "Invite members" }),
+        ).toBeDefined();
       });
     });
 
-    it("hides organizer badge for non-organizers", async () => {
+    it("hides organizer action icons for non-organizers", async () => {
       const regularUser = { ...mockUser, id: "user-789" };
       mockUseAuth.mockReturnValue({ user: regularUser });
       mockUseTripDetail.mockReturnValue({
@@ -875,7 +896,10 @@ describe("TripDetailContent", () => {
         ).toBeDefined();
       });
 
-      expect(screen.queryByText("Organizing")).toBeNull();
+      expect(screen.queryByRole("button", { name: "Edit trip" })).toBeNull();
+      expect(
+        screen.queryByRole("button", { name: "Invite members" }),
+      ).toBeNull();
     });
 
     it("renders Invite button for organizer", async () => {
@@ -895,7 +919,9 @@ describe("TripDetailContent", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText("Invite")).toBeDefined();
+        expect(
+          screen.getByRole("button", { name: "Invite members" }),
+        ).toBeDefined();
       });
     });
 
@@ -922,7 +948,9 @@ describe("TripDetailContent", () => {
         ).toBeDefined();
       });
 
-      expect(screen.queryByText("Invite")).toBeNull();
+      expect(
+        screen.queryByRole("button", { name: "Invite members" }),
+      ).toBeNull();
     });
   });
 
@@ -1016,7 +1044,7 @@ describe("TripDetailContent", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText("Edit trip")).toBeDefined();
+        expect(screen.getByRole("button", { name: "Edit trip" })).toBeDefined();
       });
 
       const editButton = screen.getByText("Edit trip");
@@ -1047,7 +1075,7 @@ describe("TripDetailContent", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText("Edit trip")).toBeDefined();
+        expect(screen.getByRole("button", { name: "Edit trip" })).toBeDefined();
       });
 
       // Open dialog
@@ -1095,7 +1123,7 @@ describe("TripDetailContent", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText("Edit trip")).toBeDefined();
+        expect(screen.getByRole("button", { name: "Edit trip" })).toBeDefined();
       });
 
       // Get the EditTripDialog mock and trigger its onSuccess
@@ -1999,123 +2027,4 @@ describe("TripDetailContent", () => {
     });
   });
 
-  describe("trip notification bell", () => {
-    it("renders TripNotificationBell with correct tripId for organizer", async () => {
-      mockUseTripDetail.mockReturnValue({
-        data: mockTripDetail,
-        isPending: false,
-        isError: false,
-        error: null,
-        refetch: vi.fn(),
-      });
-
-      render(
-        <Suspense fallback={null}>
-          <TripDetailContent tripId="trip-123" />
-        </Suspense>,
-      );
-
-      await waitFor(() => {
-        const bell = screen.getByTestId("trip-notification-bell");
-        expect(bell).toBeDefined();
-        expect(bell.getAttribute("data-trip-id")).toBe("trip-123");
-      });
-    });
-
-    it("renders TripNotificationBell for non-organizer members", async () => {
-      const regularUser = { ...mockUser, id: "user-789" };
-      mockUseAuth.mockReturnValue({ user: regularUser });
-      mockUseTripDetail.mockReturnValue({
-        data: { ...mockTripDetail, isOrganizer: false },
-        isPending: false,
-        isError: false,
-        error: null,
-        refetch: vi.fn(),
-      });
-
-      render(
-        <Suspense fallback={null}>
-          <TripDetailContent tripId="trip-123" />
-        </Suspense>,
-      );
-
-      await waitFor(() => {
-        const bell = screen.getByTestId("trip-notification-bell");
-        expect(bell).toBeDefined();
-        expect(bell.getAttribute("data-trip-id")).toBe("trip-123");
-      });
-
-      // Non-organizer should not see edit/invite but should see bell
-      expect(screen.queryByText("Edit trip")).toBeNull();
-      expect(screen.queryByText("Invite")).toBeNull();
-    });
-
-    it("does not render TripNotificationBell in preview mode", async () => {
-      const previewTrip = {
-        ...mockTripDetail,
-        isPreview: true,
-        userRsvpStatus: "no_response" as const,
-        isOrganizer: false,
-      };
-      mockUseTripDetail.mockReturnValue({
-        data: previewTrip,
-        isPending: false,
-        isError: false,
-        error: null,
-        refetch: vi.fn(),
-      });
-
-      render(
-        <Suspense fallback={null}>
-          <TripDetailContent tripId="trip-123" />
-        </Suspense>,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("trip-preview")).toBeDefined();
-      });
-
-      expect(screen.queryByTestId("trip-notification-bell")).toBeNull();
-    });
-
-    it("does not render TripNotificationBell in error state", async () => {
-      mockUseTripDetail.mockReturnValue({
-        data: undefined,
-        isPending: false,
-        isError: true,
-        error: new Error("NOT_FOUND"),
-        refetch: vi.fn(),
-      });
-
-      render(
-        <Suspense fallback={null}>
-          <TripDetailContent tripId="trip-123" />
-        </Suspense>,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByText("Trip not found")).toBeDefined();
-      });
-
-      expect(screen.queryByTestId("trip-notification-bell")).toBeNull();
-    });
-
-    it("does not render TripNotificationBell in loading state", () => {
-      mockUseTripDetail.mockReturnValue({
-        data: undefined,
-        isPending: true,
-        isError: false,
-        error: null,
-        refetch: vi.fn(),
-      });
-
-      render(
-        <Suspense fallback={null}>
-          <TripDetailContent tripId="trip-123" />
-        </Suspense>,
-      );
-
-      expect(screen.queryByTestId("trip-notification-bell")).toBeNull();
-    });
-  });
 });

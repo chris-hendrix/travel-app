@@ -20,11 +20,11 @@ describe("Input", () => {
     expect(h9Classes.length).toBe(0);
   });
 
-  it("uses rounded-xl border radius", () => {
+  it("uses rounded-md border radius", () => {
     render(<Input aria-label="test input" />);
 
     const input = screen.getByRole("textbox", { name: "test input" });
-    expect(input.className).toContain("rounded-xl");
+    expect(input.className).toContain("rounded-md");
   });
 
   it("transitions border-color along with color and box-shadow", () => {

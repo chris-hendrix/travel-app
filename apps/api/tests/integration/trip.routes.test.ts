@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, beforeEach } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../helpers.js";
 import { db } from "@/config/database.js";
@@ -6,6 +6,7 @@ import { users, members, trips, events } from "@/db/schema/index.js";
 import { eq, and } from "drizzle-orm";
 import { generateUniquePhone } from "../test-utils.js";
 import FormData from "form-data";
+import { env } from "@/config/env.js";
 
 describe("POST /api/trips", () => {
   let app: FastifyInstance;
@@ -5008,8 +5009,16 @@ describe("DELETE /api/trips/:id/cover-image", () => {
 
 describe("GET /uploads/:filename", () => {
   let app: FastifyInstance;
+  let originalStorageProvider: "local" | "s3";
+
+  beforeEach(() => {
+    // Force local storage mode so @fastify/static is registered for these tests
+    originalStorageProvider = env.STORAGE_PROVIDER;
+    env.STORAGE_PROVIDER = "local";
+  });
 
   afterEach(async () => {
+    env.STORAGE_PROVIDER = originalStorageProvider;
     if (app) {
       await app.close();
     }

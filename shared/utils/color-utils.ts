@@ -116,9 +116,9 @@ export function derivePaletteVariants(hex: string): {
 } {
   const [h] = hexToHsl(hex);
 
-  // light: same hue, low saturation (~18%), very high lightness (~96%)
-  // Produces a subtle tinted background (e.g., #2563eb → pale blue like #eff6ff)
-  const light = hslToHex(h, 18, 96);
+  // light: same hue, moderate saturation (~35%), high lightness (~92%)
+  // Produces a noticeably tinted background (e.g., #2563eb → soft blue like #dce8f3)
+  const light = hslToHex(h, 35, 92);
 
   // border: same hue, medium saturation (~45%), high lightness (~87%)
   // Produces a medium-pale tint (e.g., #2563eb → medium blue like #bfdbfe)
@@ -145,12 +145,12 @@ export function deriveDarkPaletteVariants(hex: string): {
   const [h] = hexToHsl(hex);
 
   // light: same hue, moderate saturation, very low lightness
-  // Produces a subtle dark-tinted background
-  const light = hslToHex(h, 25, 14);
+  // Produces a noticeably tinted dark background
+  const light = hslToHex(h, 35, 13);
 
   // border: same hue, moderate saturation, low-medium lightness
   // Produces a slightly visible colored border
-  const border = hslToHex(h, 30, 25);
+  const border = hslToHex(h, 35, 24);
 
   return {
     base: hex.startsWith("#") ? hex : `#${hex}`,

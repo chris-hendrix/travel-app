@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTheme } from "next-themes";
 import { Camera, Loader2, Trash2 } from "lucide-react";
 import { useAuth } from "@/app/providers/auth-provider";
 import {
@@ -61,6 +62,7 @@ interface ProfileDialogProps {
 
 export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
   const { user, loading } = useAuth();
+  const { theme, setTheme } = useTheme();
   const updateProfile = useUpdateProfile();
   const uploadPhoto = useUploadProfilePhoto();
   const removePhoto = useRemoveProfilePhoto();
@@ -365,6 +367,32 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
                       </FormItem>
                     )}
                   />
+
+                  {/* Appearance */}
+                  <div className="space-y-2">
+                    <label className="text-base font-semibold text-foreground">
+                      Appearance
+                    </label>
+                    <Select
+                      onValueChange={setTheme}
+                      value={theme ?? "light"}
+                    >
+                      <SelectTrigger
+                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl"
+                        data-testid="appearance-select"
+                      >
+                        <SelectValue placeholder="Select appearance" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="light">Light</SelectItem>
+                        <SelectItem value="dark">Dark</SelectItem>
+                        <SelectItem value="system">System</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-sm text-muted-foreground">
+                      Choose how Tripful looks for you
+                    </p>
+                  </div>
 
                   <Separator />
 

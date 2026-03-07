@@ -162,66 +162,37 @@ test.describe("Notification Journey", () => {
 
       await snap(page, "51-notification-after-click");
 
-      await test.step("verify per-trip notification bell shows 2 unread", async () => {
-        const tripBell = page.getByRole("button", {
-          name: /Trip notifications, 2 unread/,
+      await test.step("verify global bell shows 2 unread after reading one", async () => {
+        // After clicking one notification, the global bell should show 2 remaining
+        const bell = page.getByRole("button", {
+          name: /Notifications, 2 unread/,
         });
-        await expect(tripBell).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
+        await expect(bell).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
       });
 
-      await test.step("click trip bell and verify dialog with notifications", async () => {
-        const tripBell = page.getByRole("button", {
-          name: /Trip notifications, 2 unread/,
+      await test.step("mark all as read via global bell", async () => {
+        const bell = page.getByRole("button", {
+          name: /Notifications, 2 unread/,
         });
-        await tripBell.click();
+        await bell.click();
 
-        const dialog = page.getByRole("dialog");
         await expect(
-          dialog.getByRole("heading", { name: "Notifications" }),
+          page.getByRole("heading", { name: "Notifications" }),
         ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
 
-        // Dialog shows all notifications (read + unread), so both are visible
-        const notificationItems = dialog
-          .locator("button")
-          .filter({ hasText: "New message" });
-        await expect(notificationItems).toHaveCount(2, {
-          timeout: ELEMENT_TIMEOUT,
-        });
-      });
-
-      await snap(page, "52-trip-notification-dialog-unread");
-
-      await test.step("click mark all as read", async () => {
-        const dialog = page.getByRole("dialog");
-        const markAllButton = dialog.getByRole("button", {
+        const markAllButton = page.getByRole("button", {
           name: "Mark all as read",
         });
         await expect(markAllButton).toBeVisible();
         await markAllButton.click();
       });
 
-      await test.step("verify unread count disappears from trip bell", async () => {
-        const dialog = page.getByRole("dialog");
+      await snap(page, "52-notification-mark-all-read");
+
+      await test.step("verify global bell reflects zero unread", async () => {
+        // Close the popover by pressing Escape
         await page.keyboard.press("Escape");
-        await expect(dialog).not.toBeVisible({ timeout: DIALOG_TIMEOUT });
 
-        // Wait for bell to appear (may still show unread count briefly)
-        const tripBell = page.getByRole("button", {
-          name: /^Trip notifications/,
-        });
-        await expect(tripBell).toBeVisible({ timeout: ELEMENT_TIMEOUT });
-
-        // Wait for unread count to disappear after cache invalidation
-        await expect(
-          page.getByRole("button", {
-            name: /Trip notifications, \d+ unread/,
-          }),
-        ).not.toBeVisible({ timeout: ELEMENT_TIMEOUT });
-      });
-
-      await snap(page, "53-trip-notification-all-read");
-
-      await test.step("verify global bell also reflects zero unread", async () => {
         const globalBell = page.getByRole("button", {
           name: "Notifications",
           exact: true,

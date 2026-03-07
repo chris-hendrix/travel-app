@@ -403,16 +403,37 @@ export function MembersList({
   return (
     <div className="flex flex-col flex-1">
       <Tabs defaultValue="going" className="flex-1">
-        <TabsList className="w-full">
-          <TabsTrigger value="going">Going ({going.length})</TabsTrigger>
-          <TabsTrigger value="maybe">Maybe ({maybe.length})</TabsTrigger>
+        <TabsList
+          variant="line"
+          className="flex w-full justify-start overflow-x-auto overflow-y-hidden [&>*]:flex-none gap-1 border-b border-border px-0"
+        >
+          <TabsTrigger value="going" className="text-sm">
+            Going
+            <span className="ml-1 inline-flex size-5 items-center justify-center rounded-full bg-muted text-xs font-semibold">
+              {going.length}
+            </span>
+          </TabsTrigger>
+          <TabsTrigger value="maybe" className="text-sm">
+            Maybe
+            <span className="ml-1 inline-flex size-5 items-center justify-center rounded-full bg-muted text-xs font-semibold">
+              {maybe.length}
+            </span>
+          </TabsTrigger>
           {isOrganizer && (
-            <TabsTrigger value="not_going">
-              Not Going ({notGoing.length})
+            <TabsTrigger value="not_going" className="text-sm">
+              Not Going
+              <span className="ml-1 inline-flex size-5 items-center justify-center rounded-full bg-muted text-xs font-semibold">
+                {notGoing.length}
+              </span>
             </TabsTrigger>
           )}
           {isOrganizer && (
-            <TabsTrigger value="invited">Invited ({invitedCount})</TabsTrigger>
+            <TabsTrigger value="invited" className="text-sm">
+              Invited
+              <span className="ml-1 inline-flex size-5 items-center justify-center rounded-full bg-muted text-xs font-semibold">
+                {invitedCount}
+              </span>
+            </TabsTrigger>
           )}
         </TabsList>
 

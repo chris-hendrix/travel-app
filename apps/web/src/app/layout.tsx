@@ -4,9 +4,6 @@ import "./globals.css";
 import { Providers } from "./providers/providers";
 import {
   bungeeShade,
-  caveat,
-  nunito,
-  oswald,
   italiana,
   playfairDisplay,
   plusJakartaSans,
@@ -78,9 +75,6 @@ export default function RootLayout({
         playfairDisplay.variable,
         plusJakartaSans.variable,
         spaceGrotesk.variable,
-        nunito.variable,
-        caveat.variable,
-        oswald.variable,
       )}
     >
       <body className="antialiased">
