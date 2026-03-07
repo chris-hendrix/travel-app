@@ -88,7 +88,7 @@
   - Implement: Add `calendarExcluded` to the test fixture object
   - Verify: run affected test and confirm it passes
 
-- [ ] Task 5.5: Fix test failure — upload route 404 (1 failure)
+- [x] Task 5.5: Fix test failure — upload route 404 (1 failure)
   - Fix: `apps/api/tests/integration/trip.routes.test.ts` (1 failure) — upload route returns 404 but test expects 200
   - Investigate: Determine if the route was removed/renamed or if the test needs updating
   - Verify: run affected test and confirm it passes

@@ -2077,3 +2077,38 @@ Rather than adding a QueryClientProvider wrapper (which would change the testing
 
 - When a schema gains a new required field, all test fixtures in that schema's describe block must be updated — not just the "valid" fixtures but also the rejection tests, so each rejection test fails for exactly one reason (the field/value being tested)
 - Using both `true` and `false` values across valid fixtures provides boolean coverage without needing separate test cases
+
+## Iteration 41 — Task 5.5: Fix test failure — upload route 404 (1 failure)
+
+**Status**: COMPLETE
+
+### Changes Made
+
+**Files modified:**
+
+1. **`apps/api/tests/integration/trip.routes.test.ts`** — Fixed `describe("GET /uploads/:filename")` block to work regardless of `STORAGE_PROVIDER` setting
+
+### What Changed
+
+- Added `import { env } from "@/config/env.js"` at line 9
+- Added `beforeEach` that saves original `env.STORAGE_PROVIDER` and overrides it to `"local"` so `@fastify/static` is registered by `buildApp()`
+- Added env restore logic in `afterEach` (before `app.close()`)
+- Used proper union type `"local" | "s3"` for the saved value variable
+
+### Root Cause
+
+The devcontainer sets `STORAGE_PROVIDER=s3` in its `.env` file. When `STORAGE_PROVIDER=s3`, `app.ts` skips registering `@fastify/static` and instead uses an S3 proxy route in `upload-service.ts`. The test writes a file to the local filesystem and expects `@fastify/static` to serve it, so it gets a 404 from the S3 proxy (which can't find the file in MinIO).
+
+### Verification
+
+- **Upload route tests**: PASS — 2/2 tests pass (was 1 failing)
+- **Full API test suite**: PASS — 60 files, 1143 tests, 0 failures
+- **TypeCheck**: PASS (all 3 packages)
+- **Lint**: PASS (0 errors, 1 pre-existing warning in calendar.service.test.ts)
+- **Reviewer**: APPROVED
+
+### Learnings
+
+- The `env` object from `config/env.ts` is a module-level singleton created by `envSchema.parse(process.env)` at import time — it's a plain mutable object, so properties can be directly mutated in tests without type assertions
+- When `STORAGE_PROVIDER=s3`, `app.ts` conditionally skips `@fastify/static` registration and the upload-service plugin registers its own S3 proxy route at `/uploads/:key` instead
+- Tests that depend on specific environment configurations should explicitly set those values rather than relying on the environment's `.env` file
