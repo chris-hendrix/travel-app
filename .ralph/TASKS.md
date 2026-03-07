@@ -93,7 +93,7 @@
   - Investigate: Determine if the route was removed/renamed or if the test needs updating
   - Verify: run affected test and confirm it passes
 
-- [ ] Task 5.6: Fix remaining scattered test failures (5 failures)
+- [x] Task 5.6: Fix remaining scattered test failures (5 failures)
   - Fix: `apps/web/src/hooks/__tests__/use-invitations.test.tsx` (1 failure)
   - Fix: `apps/web/src/components/ui/__tests__/button.test.tsx` (1 failure) — class name changed to rounded-xl
   - Fix: `apps/web/src/components/ui/__tests__/input.test.tsx` (1 failure)

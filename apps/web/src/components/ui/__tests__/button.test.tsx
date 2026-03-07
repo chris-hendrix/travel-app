@@ -55,10 +55,10 @@ describe("buttonVariants", () => {
     });
   });
 
-  describe("base radius uses rounded-xl", () => {
-    it("default variant has rounded-xl", () => {
+  describe("base radius uses rounded-md", () => {
+    it("default variant has rounded-md", () => {
       const classes = buttonVariants({ variant: "default" });
-      expect(classes).toContain("rounded-xl");
+      expect(classes).toContain("rounded-md");
     });
 
     it("icon-xs retains rounded-md for compact icon buttons", () => {

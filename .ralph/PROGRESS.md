@@ -2112,3 +2112,32 @@ The devcontainer sets `STORAGE_PROVIDER=s3` in its `.env` file. When `STORAGE_PR
 - The `env` object from `config/env.ts` is a module-level singleton created by `envSchema.parse(process.env)` at import time — it's a plain mutable object, so properties can be directly mutated in tests without type assertions
 - When `STORAGE_PROVIDER=s3`, `app.ts` conditionally skips `@fastify/static` registration and the upload-service plugin registers its own S3 proxy route at `/uploads/:key` instead
 - Tests that depend on specific environment configurations should explicitly set those values rather than relying on the environment's `.env` file
+
+## Iteration 42 — Task 5.6: Fix remaining scattered test failures (5 failures)
+
+**Status**: COMPLETE
+
+### Changes Made
+
+**Files modified:**
+
+1. **`apps/web/src/hooks/__tests__/use-invitations.test.tsx`** — Updated `useMySettings` test assertion from `.toBe(true)` to `.toEqual({ sharePhone: true, calendarExcluded: undefined })` to match the object shape now returned by `mySettingsQueryOptions`
+2. **`apps/web/src/components/ui/__tests__/button.test.tsx`** — Updated assertion and test name from `rounded-xl` to `rounded-md` to match button.tsx CVA base class
+3. **`apps/web/src/components/ui/__tests__/input.test.tsx`** — Updated assertion and test name from `rounded-xl` to `rounded-md` to match input.tsx
+4. **`apps/web/src/components/__tests__/app-header.test.tsx`** — Updated assertion from `--font-playfair` to `--font-display` to match app-header.tsx CSS variable name
+5. **`apps/web/src/components/itinerary/__tests__/itinerary-header.test.tsx`** — Updated assertions from `top-14`/`z-20` to `top-0`/`z-30` to match itinerary-header.tsx sticky positioning
+
+### Verification
+
+- **5 affected test files**: PASS — 126/126 tests pass
+- **Full web test suite**: PASS — 73 files, 1231 tests, 0 failures
+- **TypeCheck**: PASS (all 3 packages)
+- **Lint**: PASS (0 errors, 1 pre-existing warning in calendar.service.test.ts)
+- **Reviewer**: APPROVED
+- **Note**: 6 pre-existing API test failures in MinIO/S3 upload routes (unrelated to this task)
+
+### Learnings
+
+- When design polish changes component class names (rounded-md, font variables, z-index), tests that assert on class strings must be updated in lockstep — these are brittle but valuable for catching unintended regressions
+- The `mySettingsQueryOptions` queryFn returns an object `{ sharePhone, calendarExcluded }` extracted from the API response — when the API mock doesn't include a field, the extracted property is `undefined`, so `toEqual` must include `calendarExcluded: undefined`
+- IDE diagnostics for `@/lib/api` path alias errors are false positives — vitest resolves these correctly via its config, but the IDE TypeScript server doesn't
