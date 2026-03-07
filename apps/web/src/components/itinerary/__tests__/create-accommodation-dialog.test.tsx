@@ -333,7 +333,7 @@ describe("CreateAccommodationDialog", () => {
 
       const title = screen.getByText("Create a new accommodation");
       expect(title.className).toContain(
-        "font-[family-name:var(--font-playfair)]",
+        "font-playfair",
       );
     });
   });

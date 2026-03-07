@@ -53,7 +53,7 @@ export function EmptyState({
         <h2
           className={cn(
             isCard
-              ? "text-xl font-semibold text-foreground mb-2 font-accent"
+              ? "text-xl font-semibold text-foreground mb-2 font-playfair"
               : "text-sm font-medium text-foreground mb-1",
           )}
         >

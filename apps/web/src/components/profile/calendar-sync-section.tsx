@@ -86,7 +86,7 @@ export function CalendarSyncSection() {
           <Button
             type="button"
             variant="outline"
-            className="justify-start rounded-xl"
+            className="justify-start rounded-md"
             disabled={isSubscribing}
             onClick={() => handleSubscribe("google")}
           >
@@ -101,7 +101,7 @@ export function CalendarSyncSection() {
           <Button
             type="button"
             variant="outline"
-            className="justify-start rounded-xl"
+            className="justify-start rounded-md"
             disabled={isSubscribing}
             onClick={() => handleSubscribe("apple")}
           >

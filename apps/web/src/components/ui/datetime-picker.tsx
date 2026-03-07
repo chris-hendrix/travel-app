@@ -89,7 +89,7 @@ export function DateTimePicker({
           disabled={disabled}
           aria-label={ariaLabel}
           className={cn(
-            "h-12 w-full justify-start text-left text-base font-normal rounded-xl border-input",
+            "h-12 w-full justify-start text-left text-base font-normal rounded-md border-input",
             !value && "text-muted-foreground",
           )}
         >
@@ -111,7 +111,7 @@ export function DateTimePicker({
             type="time"
             value={localParts.time || ""}
             onChange={handleTimeChange}
-            className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
             aria-label="Time"
           />
         </div>

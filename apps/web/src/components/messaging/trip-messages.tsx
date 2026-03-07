@@ -21,7 +21,7 @@ function MessageSkeleton() {
   return (
     <div className="space-y-4">
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="bg-card rounded-xl border border-border p-4">
+        <div key={i} className="bg-card rounded-md border border-border p-4">
           <div className="flex items-start gap-3">
             <Skeleton className="size-9 rounded-full" />
             <div className="flex-1 space-y-2">
@@ -85,7 +85,7 @@ export function TripMessages({
       aria-label="Trip discussion"
     >
       <div className="flex items-center gap-3">
-        <h2 className="text-2xl font-semibold font-[family-name:var(--font-playfair)]">
+        <h2 className="text-2xl font-semibold font-playfair">
           Discussion
         </h2>
         {total > 0 && (
@@ -108,7 +108,7 @@ export function TripMessages({
           icon={MessageCircle}
           title="No messages yet"
           description="Start the conversation!"
-          className="rounded-2xl"
+          className="rounded-lg"
         />
       ) : (
         <div role="feed" aria-busy={isPending} className="space-y-3">

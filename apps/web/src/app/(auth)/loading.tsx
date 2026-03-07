@@ -15,13 +15,13 @@ export default function AuthLoading() {
           <div className="space-y-3">
             <Skeleton className="h-4 w-24" />
             {/* Input */}
-            <Skeleton className="h-12 w-full rounded-xl" />
+            <Skeleton className="h-12 w-full rounded-md" />
             {/* Helper text */}
             <Skeleton className="h-3 w-56" />
           </div>
 
           {/* Submit button */}
-          <Skeleton className="h-12 w-full rounded-xl" />
+          <Skeleton className="h-12 w-full rounded-md" />
 
           {/* Footer text */}
           <Skeleton className="h-3 w-72 mx-auto" />

@@ -43,7 +43,7 @@ export const AccommodationCard = memo(function AccommodationCard({
       role="button"
       tabIndex={0}
       aria-expanded={isExpanded}
-      className="rounded-md border border-border/60 border-l-2 border-l-[var(--color-accommodation)] py-2 px-3 transition-all hover:shadow-md motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-[0.98] cursor-pointer"
+      className="rounded-md border border-border/60 border-l-2 border-l-accommodation py-2 px-3 transition-all hover:shadow-md motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-[0.98] cursor-pointer"
       onClick={() => setIsExpanded((prev) => !prev)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -54,7 +54,7 @@ export const AccommodationCard = memo(function AccommodationCard({
     >
       {/* Compact view */}
       <div className="flex items-center gap-2">
-        <div className="shrink-0 text-[var(--color-accommodation)]">
+        <div className="shrink-0 text-accommodation">
           {isExpanded ? (
             <ChevronDown className="w-3.5 h-3.5" />
           ) : (
@@ -62,7 +62,7 @@ export const AccommodationCard = memo(function AccommodationCard({
           )}
         </div>
 
-        <Building2 className="w-3.5 h-3.5 shrink-0 text-[var(--color-accommodation)]" />
+        <Building2 className="w-3.5 h-3.5 shrink-0 text-accommodation" />
 
         <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
           <span className="font-semibold text-foreground text-sm truncate">

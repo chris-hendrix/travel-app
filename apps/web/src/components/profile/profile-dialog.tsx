@@ -185,7 +185,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent>
         <SheetHeader>
-          <SheetTitle className="text-3xl font-[family-name:var(--font-playfair)] tracking-tight">
+          <SheetTitle className="text-3xl font-playfair tracking-tight">
             Profile
           </SheetTitle>
           <SheetDescription>
@@ -198,11 +198,11 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
             <div className="space-y-6 pb-6">
               <div className="flex items-center gap-4">
                 <Skeleton className="h-20 w-20 rounded-full shrink-0" />
-                <Skeleton className="h-11 w-32 rounded-xl" />
+                <Skeleton className="h-11 w-32 rounded-md" />
               </div>
-              <Skeleton className="h-12 w-full rounded-xl" />
-              <Skeleton className="h-12 w-full rounded-xl" />
-              <Skeleton className="h-12 w-full rounded-xl" />
+              <Skeleton className="h-12 w-full rounded-md" />
+              <Skeleton className="h-12 w-full rounded-md" />
+              <Skeleton className="h-12 w-full rounded-md" />
             </div>
           ) : user ? (
             <div className="space-y-6 pb-6">
@@ -245,7 +245,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="px-3 rounded-xl"
+                    className="px-3 rounded-md"
                     onClick={handlePhotoClick}
                     disabled={isPhotoLoading}
                     data-testid="upload-photo-button"
@@ -258,7 +258,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="px-3 rounded-xl text-destructive hover:text-destructive hover:bg-destructive/10"
+                      className="px-3 rounded-md text-destructive hover:text-destructive hover:bg-destructive/10"
                       onClick={handleRemovePhoto}
                       disabled={isPhotoLoading}
                       data-testid="remove-photo-button"
@@ -291,7 +291,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
                           <Input
                             type="text"
                             placeholder="John Doe"
-                            className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl"
+                            className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                             disabled={updateProfile.isPending}
                             autoComplete="nickname"
                             aria-required="true"
@@ -317,7 +317,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
                       value={formatPhoneNumber(user.phoneNumber)}
                       readOnly
                       disabled
-                      className="h-12 text-base border-input bg-muted cursor-not-allowed rounded-xl"
+                      className="h-12 text-base border-input bg-muted cursor-not-allowed rounded-md"
                       data-testid="phone-number-input"
                     />
                     <p className="text-sm text-muted-foreground">
@@ -343,7 +343,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
                             <SelectTrigger
                               ref={field.ref}
                               onBlur={field.onBlur}
-                              className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl"
+                              className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                               data-testid="timezone-select"
                             >
                               <SelectValue placeholder="Select your timezone" />
@@ -378,7 +378,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
                       value={theme ?? "light"}
                     >
                       <SelectTrigger
-                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl"
+                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                         data-testid="appearance-select"
                       >
                         <SelectValue placeholder="Select appearance" />
@@ -419,7 +419,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
                             <Input
                               type="text"
                               placeholder="@your-venmo"
-                              className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl"
+                              className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                               disabled={updateProfile.isPending}
                               data-testid="venmo-handle-input"
                               {...field}
@@ -442,7 +442,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
                             <Input
                               type="text"
                               placeholder="@your-instagram"
-                              className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl"
+                              className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                               disabled={updateProfile.isPending}
                               data-testid="instagram-handle-input"
                               {...field}
@@ -459,7 +459,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
                     type="submit"
                     disabled={updateProfile.isPending}
                     variant="gradient"
-                    className="w-full h-12 rounded-xl"
+                    className="w-full h-12 rounded-md"
                     data-testid="save-profile-button"
                   >
                     {updateProfile.isPending ? (

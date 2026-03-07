@@ -51,6 +51,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { VenmoIcon } from "@/components/icons/venmo-icon";
 import { InstagramIcon } from "@/components/icons/instagram-icon";
 import {
@@ -355,10 +356,12 @@ export function MembersList({
   if (!members || members.length === 0) {
     return (
       <div className="flex flex-col flex-1">
-        <div className="flex-1 flex flex-col items-center justify-center py-8 text-center">
-          <Users className="w-10 h-10 text-muted-foreground/50 mb-3" />
-          <p className="text-sm text-muted-foreground">No members yet</p>
-        </div>
+        <EmptyState
+          icon={Users}
+          title="No members yet"
+          variant="inline"
+          className="flex-1"
+        />
         {isOrganizer && onInvite && (
           <div className="mt-auto pt-4 border-t border-border">
             <Button

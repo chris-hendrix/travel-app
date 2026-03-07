@@ -483,7 +483,7 @@ describe("EditEventDialog", () => {
 
       const title = screen.getByText("Edit event");
       expect(title.className).toContain(
-        "font-[family-name:var(--font-playfair)]",
+        "font-playfair",
       );
     });
 

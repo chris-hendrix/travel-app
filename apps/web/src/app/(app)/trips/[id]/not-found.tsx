@@ -11,7 +11,7 @@ export default function TripNotFound() {
         </p>
         <Link
           href="/trips"
-          className="inline-block px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+          className="inline-block px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
         >
           Back to trips
         </Link>

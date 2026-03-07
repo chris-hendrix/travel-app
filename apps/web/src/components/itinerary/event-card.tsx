@@ -27,19 +27,19 @@ interface EventCardProps {
 
 const EVENT_TYPE_CONFIG = {
   travel: {
-    color: "text-[var(--color-event-travel)]",
-    accent: "border-l-[var(--color-event-travel)]",
-    bg: "bg-[var(--color-event-travel-light)]",
+    color: "text-event-travel",
+    accent: "border-l-event-travel",
+    bg: "bg-event-travel-light",
   },
   meal: {
-    color: "text-[var(--color-event-meal)]",
-    accent: "border-l-[var(--color-event-meal)]",
-    bg: "bg-[var(--color-event-meal-light)]",
+    color: "text-event-meal",
+    accent: "border-l-event-meal",
+    bg: "bg-event-meal-light",
   },
   activity: {
-    color: "text-[var(--color-event-activity)]",
-    accent: "border-l-[var(--color-event-activity)]",
-    bg: "bg-[var(--color-event-activity-light)]",
+    color: "text-event-activity",
+    accent: "border-l-event-activity",
+    bg: "bg-event-activity-light",
   },
 } as const;
 

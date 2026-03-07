@@ -38,7 +38,7 @@ export function ThemePicker({ value, onChange }: ThemePickerProps) {
   const groups = groupPresets();
 
   return (
-    <div className="max-h-[60vh] overflow-y-auto rounded-lg border border-border p-3 space-y-4">
+    <div className="max-h-[60vh] overflow-y-auto rounded-md border border-border p-3 space-y-4">
       {/* No theme option */}
       <div className="grid grid-cols-3 gap-2">
         <button

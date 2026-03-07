@@ -23,7 +23,7 @@ export function FontPicker({ value, onChange }: FontPickerProps) {
             type="button"
             onClick={() => onChange(isSelected ? null : font)}
             className={cn(
-              "w-full rounded-lg border p-3 cursor-pointer text-left transition-all",
+              "w-full rounded-md border p-3 cursor-pointer text-left transition-all",
               isSelected
                 ? "border-primary bg-primary/5"
                 : "border-border hover:border-muted-foreground/30",

@@ -1354,7 +1354,7 @@ describe("CreateTripDialog", () => {
 
       const title = screen.getByText("Create a new trip");
       expect(title.className).toContain(
-        "font-[family-name:var(--font-playfair)]",
+        "font-playfair",
       );
     });
 

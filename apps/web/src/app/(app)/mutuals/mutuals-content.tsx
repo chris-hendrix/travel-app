@@ -31,7 +31,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 
 function MutualCardSkeleton() {
   return (
-    <div className="bg-card rounded-2xl border border-border p-6">
+    <div className="bg-card rounded-lg border border-border p-6">
       <div className="flex items-center gap-4">
         <Skeleton className="size-10 rounded-full" />
         <div className="space-y-2">
@@ -106,7 +106,7 @@ export function MutualsContent() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <header className="mb-8">
-          <h1 className="text-2xl sm:text-4xl font-bold text-foreground mb-2 font-[family-name:var(--font-playfair)]">
+          <h1 className="text-2xl sm:text-4xl font-bold text-foreground mb-2 font-playfair">
             My Mutuals
           </h1>
           {!isPending && !isError && (
@@ -125,7 +125,7 @@ export function MutualsContent() {
               placeholder="Search mutuals..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-12 pl-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-xl"
+              className="h-12 pl-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
             />
           </div>
           {trips.length > 0 && (
@@ -164,9 +164,9 @@ export function MutualsContent() {
 
         {/* Error State */}
         {isError && (
-          <div className="bg-card rounded-2xl border border-destructive/30 p-8 text-center">
+          <div className="bg-card rounded-lg border border-destructive/30 p-8 text-center">
             <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
-            <h2 className="text-2xl font-semibold text-foreground mb-2 font-accent">
+            <h2 className="text-2xl font-semibold text-foreground mb-2 font-playfair">
               Failed to load mutuals
             </h2>
             <p className="text-muted-foreground mb-6">
@@ -176,7 +176,7 @@ export function MutualsContent() {
               onClick={() => refetch()}
               disabled={isFetching}
               variant="gradient"
-              className="h-12 px-8 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-12 px-8 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isFetching && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               {isFetching ? "Loading..." : "Try again"}
@@ -190,7 +190,7 @@ export function MutualsContent() {
             icon={Users}
             title="No mutuals yet"
             description="Mutuals are people who share trips with you. Start a trip and invite friends to see them here."
-            className="rounded-2xl p-12"
+            className="rounded-lg p-12"
           />
         )}
 
@@ -206,7 +206,7 @@ export function MutualsContent() {
                 key={mutual.id}
                 role="button"
                 tabIndex={0}
-                className={`bg-card rounded-2xl border border-border p-6 hover:border-primary/30 transition-colors cursor-pointer ${gridRevealed ? "motion-safe:animate-[staggerIn_500ms_ease-out_both]" : "motion-safe:opacity-0"}`}
+                className={`bg-card rounded-lg border border-border p-6 hover:border-primary/30 transition-colors cursor-pointer ${gridRevealed ? "motion-safe:animate-[staggerIn_500ms_ease-out_both]" : "motion-safe:opacity-0"}`}
                 style={
                   gridRevealed
                     ? { animationDelay: `${index * 80}ms` }

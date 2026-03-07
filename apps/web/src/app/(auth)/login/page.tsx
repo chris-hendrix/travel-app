@@ -50,8 +50,8 @@ export default function LoginPage() {
         {/* Airmail stripe top */}
         <div className="space-y-6 relative pt-2">
           <div className="space-y-2">
-            <p className="text-sm text-accent font-[family-name:var(--font-typewriter)] uppercase tracking-widest">Par Avion</p>
-            <h1 className="text-3xl font-semibold text-foreground tracking-tight font-[family-name:var(--font-playfair)]">
+            <p className="text-sm text-accent font-accent uppercase tracking-widest">Par Avion</p>
+            <h1 className="text-3xl font-semibold text-foreground tracking-tight font-playfair">
               Get started
             </h1>
             <p className="text-muted-foreground">

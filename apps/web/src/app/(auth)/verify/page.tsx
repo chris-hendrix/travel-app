@@ -86,7 +86,7 @@ function VerifyPageContent() {
       <div className="relative bg-card rounded-md shadow-2xl p-8 lg:p-12 border border-border/50 linen-texture overflow-hidden motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 duration-700">
         <div className="space-y-6 relative pt-2">
           <div className="space-y-2">
-            <h1 className="text-3xl font-semibold text-foreground tracking-tight font-[family-name:var(--font-playfair)]">
+            <h1 className="text-3xl font-semibold text-foreground tracking-tight font-playfair">
               Verify your number
             </h1>
             <p className="text-muted-foreground">
@@ -142,7 +142,7 @@ function VerifyPageContent() {
                 type="submit"
                 disabled={isSubmitting}
                 variant="gradient"
-                className="w-full h-12 rounded-xl"
+                className="w-full h-12 rounded-md"
               >
                 {isSubmitting ? "Verifying..." : "Verify"}
               </Button>
@@ -191,7 +191,7 @@ export default function VerifyPage() {
               <Skeleton className="h-14 w-full" />
               <Skeleton className="h-3 w-56" />
             </div>
-            <Skeleton className="h-12 w-full rounded-xl" />
+            <Skeleton className="h-12 w-full rounded-md" />
             <div className="flex justify-between">
               <Skeleton className="h-4 w-28" />
               <Skeleton className="h-4 w-24" />

@@ -30,7 +30,7 @@ export function MutualProfileSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent>
         <SheetHeader>
-          <SheetTitle className={cn("text-3xl font-[family-name:var(--font-playfair)] tracking-tight")}>
+          <SheetTitle className={cn("text-3xl font-playfair tracking-tight")}>
             {mutual?.displayName ?? ""}
           </SheetTitle>
           <SheetDescription>
