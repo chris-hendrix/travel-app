@@ -2158,3 +2158,26 @@ The devcontainer sets `STORAGE_PROVIDER=s3` in its `.env` file. When `STORAGE_PR
 
 ### Learnings
 - The `as unknown as Type` double-cast pattern is the project standard for stubbing unused constructor dependencies in tests
+
+## Iteration 44 — Task 5.8: Verify no DB rows reference removed fonts (nunito/caveat/oswald)
+
+**Status**: ✅ COMPLETE
+
+### Investigation Results
+
+- Queried the `trips` table (2281 rows) for `theme_font IN ('nunito', 'caveat', 'oswald')` — **0 rows found**
+- All 2281 rows have `theme_font = NULL` — no stale font references exist
+- The `trips.theme_font` column (`varchar(30)`, nullable) is the only font-related column in the database
+- No migration or code changes were needed — falls into the "document and close" path
+
+### Files Changed
+- None
+
+### Verification
+- **TypeCheck**: PASS (all 3 packages)
+- **Reviewer**: APPROVED — investigation was thorough, correct column and values checked, no other font storage exists
+
+### Learnings
+- The `theme_font` column has no DB-level constraint (plain varchar) — validation is application-level only via Zod schema
+- All 2281 dev trips have NULL theme_font, meaning the default font behavior applies everywhere
+- psql is not available in the app container; DB queries must go through the `db` service container directly

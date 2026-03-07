@@ -107,7 +107,7 @@
   - Implement: Use the same pattern applied to verification.service.test.ts in iteration 28
   - Verify: run `pnpm lint` with no warnings on that file
 
-- [ ] Task 5.8: Verify no DB rows reference removed fonts (nunito/caveat/oswald)
+- [x] Task 5.8: Verify no DB rows reference removed fonts (nunito/caveat/oswald)
   - Investigate: Query the database for any trip/theme rows where the font column contains `nunito`, `caveat`, or `oswald`
   - If rows exist: Write and apply a migration to update them to a valid ThemeFont value
   - If no rows exist: Document the result and close
