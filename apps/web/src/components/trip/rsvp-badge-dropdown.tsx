@@ -23,10 +23,10 @@ const labels: Record<RsvpStatus, string> = {
   no_response: "No Response",
 };
 
-const options: { value: UpdateRsvpInput["status"]; label: string; dot: string }[] = [
-  { value: "going", label: "Going", dot: "bg-success" },
-  { value: "maybe", label: "Maybe", dot: "bg-warning" },
-  { value: "not_going", label: "Not Going", dot: "bg-destructive" },
+const options: { value: UpdateRsvpInput["status"]; label: string }[] = [
+  { value: "going", label: "Going" },
+  { value: "maybe", label: "Maybe" },
+  { value: "not_going", label: "Not Going" },
 ];
 
 function StatusIcon({ status, className }: { status: RsvpStatus; className?: string }) {
@@ -79,10 +79,10 @@ export function RsvpBadgeDropdown({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-4 py-1.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors cursor-pointer shadow-sm"
         >
           <StatusIcon status={status} className="w-5 h-5" />
-          <span className="text-sm">{labels[status]}</span>
+          {labels[status]}
           <ChevronDown className="w-3.5 h-3.5 opacity-50" />
         </button>
       </DropdownMenuTrigger>
@@ -92,7 +92,7 @@ export function RsvpBadgeDropdown({
             key={option.value}
             onClick={() => handleSelect(option.value)}
           >
-            <span className={`size-2 rounded-full ${option.dot}`} />
+            <StatusIcon status={option.value} className="w-4 h-4" />
             {option.label}
             {status === option.value && (
               <Check className="ml-auto size-4 text-foreground" />

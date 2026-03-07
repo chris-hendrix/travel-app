@@ -68,7 +68,7 @@ export function NotificationBell() {
             className="relative rounded-lg"
             aria-label={ariaLabel}
           >
-            <Bell className="size-5" />
+            <Bell />
             {displayCount ? (
               <span
                 aria-live="polite"

@@ -151,11 +151,11 @@ describe("derivePaletteVariants", () => {
     expect(result.base).toBe("#2563eb");
   });
 
-  it("should produce a very light variant (high lightness)", () => {
+  it("should produce a light variant (high lightness)", () => {
     const result = derivePaletteVariants("#2563eb");
     const [, , lightL] = hexToHsl(result.light);
-    expect(lightL).toBeGreaterThanOrEqual(93);
-    expect(lightL).toBeLessThanOrEqual(100);
+    expect(lightL).toBeGreaterThanOrEqual(89);
+    expect(lightL).toBeLessThanOrEqual(95);
   });
 
   it("should produce a border lighter than base but darker than light", () => {
@@ -179,11 +179,12 @@ describe("derivePaletteVariants", () => {
     expect(Math.abs(baseH - borderH)).toBeLessThanOrEqual(5);
   });
 
-  it("should produce subtle tints for theme colors from the plan", () => {
+  it("should produce noticeably tinted backgrounds for theme colors", () => {
     // Blue: #2563eb
     const blue = derivePaletteVariants("#2563eb");
     const [, , blueLL] = hexToHsl(blue.light);
-    expect(blueLL).toBeGreaterThanOrEqual(93);
+    expect(blueLL).toBeGreaterThanOrEqual(89);
+    expect(blueLL).toBeLessThanOrEqual(95);
 
     // Amber: #d97706
     const amber = derivePaletteVariants("#d97706");
@@ -194,7 +195,8 @@ describe("derivePaletteVariants", () => {
     // Green: #059669
     const green = derivePaletteVariants("#059669");
     const [, , greenLL] = hexToHsl(green.light);
-    expect(greenLL).toBeGreaterThanOrEqual(93);
+    expect(greenLL).toBeGreaterThanOrEqual(89);
+    expect(greenLL).toBeLessThanOrEqual(95);
 
     // Purple: #9333ea
     const purple = derivePaletteVariants("#9333ea");

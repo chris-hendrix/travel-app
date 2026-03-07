@@ -41,13 +41,13 @@
 
   /* Event type colors — desaturated linen tones */
   --color-event-travel: #3b6898;
-  --color-event-travel-light: #f0ead8;
+  --color-event-travel-light: #dce8f3;
   --color-event-travel-border: #a8bdd0;
   --color-event-meal: #b07920;
-  --color-event-meal-light: #f5edd6;
+  --color-event-meal-light: #f5e6c8;
   --color-event-meal-border: #dbc391;
   --color-event-activity: #2d7a58;
-  --color-event-activity-light: #e8f0e3;
+  --color-event-activity-light: #d8eedf;
   --color-event-activity-border: #8fc4a8;
   --color-accommodation: #6e3ca8;
   --color-accommodation-light: #f0e8f5;
@@ -91,13 +91,13 @@
   --color-airmail-blue: #5a9fd4;
 
   --color-event-travel: #6aafe0;
-  --color-event-travel-light: #1e2a35;
+  --color-event-travel-light: #1a2d3e;
   --color-event-travel-border: #3a5a78;
   --color-event-meal: #d4a03a;
-  --color-event-meal-light: #2a2518;
+  --color-event-meal-light: #2e2414;
   --color-event-meal-border: #6a5a30;
   --color-event-activity: #5aae80;
-  --color-event-activity-light: #1a2a20;
+  --color-event-activity-light: #162e1e;
   --color-event-activity-border: #3a6a50;
   --color-accommodation: #9a6ed4;
   --color-accommodation-light: #251a30;

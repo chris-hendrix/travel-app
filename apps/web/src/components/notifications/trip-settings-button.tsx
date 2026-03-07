@@ -26,12 +26,12 @@ export function TripSettingsButton({ tripId, className }: TripSettingsButtonProp
     <>
       <Button
         variant="ghost"
-        size="icon"
-        className={cn("relative rounded-lg", className)}
+        size="icon-xs"
+        className={cn(className)}
         aria-label="Trip settings"
         onClick={() => setOpen(true)}
       >
-        <Settings className="size-5" />
+        <Settings />
       </Button>
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent>
