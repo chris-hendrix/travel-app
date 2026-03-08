@@ -51,7 +51,7 @@ export function CustomizeThemeSheet({
   useEffect(() => {
     if (open) {
       setThemeId(trip.themeId ?? null);
-      setThemeFont((trip.themeFont as string) ?? null);
+      setThemeFont(trip.themeFont ?? null);
     }
   }, [open, trip.themeId, trip.themeFont]);
 
@@ -59,7 +59,7 @@ export function CustomizeThemeSheet({
     themeId,
     themeFont,
     initialThemeId: trip.themeId ?? null,
-    initialThemeFont: (trip.themeFont as string) ?? null,
+    initialThemeFont: trip.themeFont ?? null,
     enabled: open,
   });
 
@@ -107,7 +107,7 @@ export function CustomizeThemeSheet({
             );
             // Revert local state on error
             setThemeId(trip.themeId ?? null);
-            setThemeFont((trip.themeFont as string) ?? null);
+            setThemeFont(trip.themeFont ?? null);
           },
         },
       );
@@ -128,7 +128,7 @@ export function CustomizeThemeSheet({
                 "Failed to update font. Please try again.",
             );
             // Revert local state on error
-            setThemeFont((trip.themeFont as string) ?? null);
+            setThemeFont(trip.themeFont ?? null);
           },
         },
       );
