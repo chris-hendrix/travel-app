@@ -117,8 +117,8 @@ test.describe("Invitation Journey", () => {
         // Click "Send invitations" button
         await dialog.getByRole("button", { name: "Send invitations" }).click();
 
-        // Verify toast with "invitation" text appears
-        await expect(page.getByText(/invitation/i)).toBeVisible({
+        // Verify toast with "invitation sent" text appears
+        await expect(page.getByText(/invitation.*sent/i)).toBeVisible({
           timeout: TOAST_TIMEOUT,
         });
         await snap(page, "12-invite-sent");
