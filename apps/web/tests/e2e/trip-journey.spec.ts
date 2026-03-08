@@ -51,18 +51,18 @@ test.describe("Trip Journey", () => {
         });
       }).toPass({ timeout: ELEMENT_TIMEOUT });
       await expect(tripDetail.step1Indicator).toBeVisible();
-      await expect(page.getByText("Basic information")).toBeVisible();
+      await expect(page.getByText("Trip details")).toBeVisible();
 
       await tripDetail.nameInput.fill(tripName);
       await tripDetail.destinationInput.fill(tripDestination);
       await pickDate(page, tripDetail.startDateButton, "2026-10-12");
       await pickDate(page, tripDetail.endDateButton, "2026-10-14");
+      await tripDetail.descriptionInput.fill(tripDescription);
       await snap(page, "05-create-trip-step1");
       await tripDetail.continueButton.click();
 
       await expect(tripDetail.step2Indicator).toBeVisible();
-      await expect(page.getByText("Details & settings")).toBeVisible();
-      await tripDetail.descriptionInput.fill(tripDescription);
+      await expect(page.getByText("Customize")).toBeVisible();
       await snap(page, "06-create-trip-step2");
       await tripDetail.createTripButton.click();
 

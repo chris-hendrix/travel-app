@@ -7,8 +7,8 @@ import { THEME_FONT_VALUES } from "../types/theme";
 import type { ThemePreset, ThemeBackground } from "../types/theme";
 
 describe("THEME_PRESETS", () => {
-  it("should contain at least 6 presets", () => {
-    expect(THEME_PRESETS.length).toBeGreaterThanOrEqual(6);
+  it("should contain at least 5 presets", () => {
+    expect(THEME_PRESETS.length).toBeGreaterThanOrEqual(5);
   });
 
   it("should have unique IDs", () => {
@@ -73,19 +73,6 @@ describe("THEME_PRESETS", () => {
     });
   });
 
-  it("should include a mix of dark and light themes", () => {
-    const darkCount = THEME_PRESETS.filter((p) => p.background.isDark).length;
-    const lightCount = THEME_PRESETS.filter((p) => !p.background.isDark).length;
-    expect(darkCount).toBeGreaterThanOrEqual(3);
-    expect(lightCount).toBeGreaterThanOrEqual(3);
-  });
-
-  it("should include both dark and light tag categories", () => {
-    const allTags = new Set(THEME_PRESETS.flatMap((p) => p.tags));
-    expect(allTags.has("dark")).toBe(true);
-    expect(allTags.has("light")).toBe(true);
-  });
-
   it("should have no hsl values anywhere in backgrounds", () => {
     THEME_PRESETS.forEach((preset) => {
       const bg = preset.background;
@@ -95,6 +82,22 @@ describe("THEME_PRESETS", () => {
         bg.stops.forEach((stop) => {
           expect(stop).not.toContain("hsl");
         });
+      }
+    });
+  });
+
+  it("should have valid defaultCoverUrl when present", () => {
+    THEME_PRESETS.forEach((preset) => {
+      if (preset.defaultCoverUrl) {
+        expect(preset.defaultCoverUrl).toMatch(/^\/themes\/.+\.webp$/);
+      }
+    });
+  });
+
+  it("should have valid suggestedFont when present", () => {
+    THEME_PRESETS.forEach((preset) => {
+      if (preset.suggestedFont) {
+        expect(THEME_FONT_VALUES).toContain(preset.suggestedFont);
       }
     });
   });
@@ -126,7 +129,6 @@ describe("THEME_FONTS", () => {
   });
 
   it("should include fallback fonts", () => {
-    // Each font-family string should have at least one comma (font + fallback)
     Object.values(THEME_FONTS).forEach((fontFamily) => {
       expect(fontFamily).toContain(",");
     });
@@ -180,5 +182,19 @@ describe("ThemePreset type", () => {
     };
     expect(bg.type).toBe("image");
     expect(bg.url).toContain("https://");
+  });
+
+  it("should allow optional defaultCoverUrl and suggestedFont", () => {
+    const preset: ThemePreset = {
+      id: "test-full",
+      name: "Test Full",
+      tags: ["light"],
+      palette: ["#ff0000", "#00ff00", "#0000ff", "#ff00ff", "#ffff00"],
+      background: { type: "solid", color: "#ffffff", isDark: false },
+      defaultCoverUrl: "/themes/test-cover.webp",
+      suggestedFont: "playfair",
+    };
+    expect(preset.defaultCoverUrl).toBe("/themes/test-cover.webp");
+    expect(preset.suggestedFont).toBe("playfair");
   });
 });

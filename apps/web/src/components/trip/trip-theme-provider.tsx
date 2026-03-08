@@ -49,11 +49,13 @@ export function TripThemeProvider({
     for (const key of keys) {
       root.style.setProperty(key, styles[key] ?? "");
     }
+    root.dataset.tripTheme = preset.background.isDark ? "dark" : "light";
 
     return () => {
       for (const key of keys) {
         root.style.removeProperty(key);
       }
+      delete root.dataset.tripTheme;
     };
   }, [scope, preset, themeFont]);
 

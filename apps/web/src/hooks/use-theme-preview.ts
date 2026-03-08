@@ -31,12 +31,21 @@ function snapshotInlineStyles(): CssSnapshot {
     const val = root.style.getPropertyValue(key);
     snap.set(key, val || undefined);
   }
+  snap.set("__tripTheme", root.dataset.tripTheme);
   return snap;
 }
 
 function restoreSnapshot(snap: CssSnapshot) {
   const root = document.documentElement;
   for (const [key, val] of snap) {
+    if (key === "__tripTheme") {
+      if (val !== undefined) {
+        root.dataset.tripTheme = val;
+      } else {
+        delete root.dataset.tripTheme;
+      }
+      continue;
+    }
     if (val !== undefined) {
       root.style.setProperty(key, val);
     } else {
@@ -65,6 +74,13 @@ function applyThemeToRoot(themeId: string | null, themeFont: string | null) {
   for (const [key, val] of Object.entries(styles)) {
     root.style.setProperty(key, val);
   }
+
+  // Set data attribute for theme-aware CSS selectors (textures/shadows)
+  if (preset) {
+    root.dataset.tripTheme = preset.background.isDark ? "dark" : "light";
+  } else {
+    delete root.dataset.tripTheme;
+  }
 }
 
 /**
@@ -85,6 +101,7 @@ export function useThemePreview({
   const snapshotRef = useRef<CssSnapshot | null>(null);
   const committedRef = useRef(false);
   const hasSeenInitialRef = useRef(false);
+  const prevInitialRef = useRef({ themeId: initialThemeId, font: initialThemeFont });
 
   // Take snapshot when enabled transitions to true
   useEffect(() => {
@@ -109,6 +126,20 @@ export function useThemePreview({
     };
     // Only run on enabled transitions, not on themeId/themeFont changes
   }, [enabled]);
+
+  // Re-snapshot when server data updates (mutation succeeded) so that
+  // the "return to initial" branch doesn't restore a stale snapshot.
+  useEffect(() => {
+    if (!enabled || !snapshotRef.current) return;
+    if (
+      prevInitialRef.current.themeId !== initialThemeId ||
+      prevInitialRef.current.font !== initialThemeFont
+    ) {
+      prevInitialRef.current = { themeId: initialThemeId, font: initialThemeFont };
+      // TripThemeProvider (layout effect) already applied correct styles
+      snapshotRef.current = snapshotInlineStyles();
+    }
+  }, [enabled, initialThemeId, initialThemeFont]);
 
   // Apply theme preview when selection changes
   useEffect(() => {
@@ -136,6 +167,7 @@ export function useThemePreview({
       for (const key of ALL_THEME_CSS_KEYS) {
         root.style.removeProperty(key);
       }
+      delete root.dataset.tripTheme;
       // Point --theme-background at the default so elements using
       // var(--theme-background) fall back to the unthemed background color
       root.style.setProperty("--theme-background", "var(--color-background)");

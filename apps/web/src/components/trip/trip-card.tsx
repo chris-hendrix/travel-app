@@ -88,6 +88,14 @@ export const TripCard = memo(function TripCard({
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   className="object-cover"
                 />
+              ) : preset?.defaultCoverUrl ? (
+                <Image
+                  src={preset.defaultCoverUrl}
+                  alt={preset.name}
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  className="object-cover"
+                />
               ) : preset ? (
                 <div
                   className="absolute inset-0"

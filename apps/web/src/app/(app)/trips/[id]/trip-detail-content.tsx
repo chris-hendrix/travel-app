@@ -13,6 +13,7 @@ import {
   AlertCircle,
   UserPlus,
   Pencil,
+  Paintbrush,
   ChevronDown,
   Settings,
 } from "lucide-react";
@@ -68,6 +69,15 @@ const EditTripDialog = dynamic(() =>
 const preloadEditTripDialog = () =>
   void import("@/components/trip/edit-trip-dialog");
 
+const CustomizeThemeSheet = dynamic(() =>
+  import("@/components/trip/customize-theme-sheet").then((mod) => ({
+    default: mod.CustomizeThemeSheet,
+  })),
+);
+
+const preloadCustomizeThemeSheet = () =>
+  void import("@/components/trip/customize-theme-sheet");
+
 const InviteMembersDialog = dynamic(() =>
   import("@/components/trip/invite-members-dialog").then((mod) => ({
     default: mod.InviteMembersDialog,
@@ -109,6 +119,7 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
   const { data: events } = useEvents(tripId);
 
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isMembersOpen, setIsMembersOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -168,7 +179,7 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
     ? (THEME_PRESETS.find((p) => p.id === trip.themeId) ?? null)
     : null;
   const heroTextLight =
-    trip?.coverImageUrl || !preset || preset.background.isDark;
+    trip?.coverImageUrl || preset?.defaultCoverUrl || !preset || preset.background.isDark;
 
   // Loading state
   if (isPending) {
@@ -214,11 +225,20 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
       >
       {/* Hero section with cover image + overlay */}
       <div className="relative h-64 sm:h-80 overflow-hidden">
-        {/* Background: cover photo or default pattern */}
+        {/* Background: cover photo → theme cover → theme gradient → default */}
         {trip.coverImageUrl ? (
           <Image
             src={getUploadUrl(trip.coverImageUrl)!}
             alt={trip.name}
+            fill
+            priority
+            sizes="(min-width: 1024px) 1024px, 100vw"
+            className="object-cover"
+          />
+        ) : preset?.defaultCoverUrl ? (
+          <Image
+            src={preset.defaultCoverUrl}
+            alt={preset.name}
             fill
             priority
             sizes="(min-width: 1024px) 1024px, 100vw"
@@ -236,10 +256,28 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
         )}
 
         {/* Gradient scrim for text readability */}
-        {trip.coverImageUrl && (
+        {(trip.coverImageUrl || preset?.defaultCoverUrl) && (
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
         )}
 
+        {/* Customize button — top-right overlay on hero */}
+        {isOrganizer && (
+          <button
+            onClick={() => setIsCustomizeOpen(true)}
+            onMouseEnter={supportsHover ? preloadCustomizeThemeSheet : undefined}
+            onTouchStart={preloadCustomizeThemeSheet}
+            onFocus={preloadCustomizeThemeSheet}
+            className={`absolute top-3 right-3 sm:top-4 sm:right-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium backdrop-blur-sm transition-colors cursor-pointer ${
+              heroTextLight
+                ? "bg-white/20 text-white hover:bg-white/30"
+                : "bg-black/10 text-foreground hover:bg-black/20"
+            }`}
+            aria-label="Customize theme"
+          >
+            <Paintbrush className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Customize</span>
+          </button>
+        )}
 
         {/* Bottom: title + metadata */}
         <div className="absolute bottom-0 left-0 right-0 pb-5 sm:pb-6">
@@ -412,7 +450,7 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
       </div>
 
       {/* Discussion */}
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
         <div className="border-t border-border mt-6 pt-6">
           <ErrorBoundary>
             <TripMessages
@@ -424,6 +462,15 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
           </ErrorBoundary>
         </div>
       </div>
+
+      {/* Customize Theme Sheet */}
+      {isOrganizer && trip && (
+        <CustomizeThemeSheet
+          trip={trip}
+          open={isCustomizeOpen}
+          onOpenChange={setIsCustomizeOpen}
+        />
+      )}
 
       {/* Edit Trip Dialog */}
       {isOrganizer && trip && (

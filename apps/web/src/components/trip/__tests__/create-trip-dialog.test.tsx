@@ -96,7 +96,7 @@ describe("CreateTripDialog", () => {
     });
   });
 
-  describe("Step 1 - Basic information rendering", () => {
+  describe("Step 1 - Trip details rendering", () => {
     it("displays all Step 1 fields", () => {
       renderWithQueryClient(
         <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
@@ -115,7 +115,7 @@ describe("CreateTripDialog", () => {
       );
 
       expect(screen.getByText("Step 1 of 2")).toBeDefined();
-      expect(screen.getByText("Basic information")).toBeDefined();
+      expect(screen.getByText("Trip details")).toBeDefined();
     });
 
     it("displays Continue button on Step 1", () => {
@@ -326,7 +326,7 @@ describe("CreateTripDialog", () => {
       // Should show Step 2
       await waitFor(() => {
         expect(screen.getByText("Step 2 of 2")).toBeDefined();
-        expect(screen.getByText("Details & settings")).toBeDefined();
+        expect(screen.getByText("Customize")).toBeDefined();
       });
     });
 
@@ -397,7 +397,7 @@ describe("CreateTripDialog", () => {
     });
   });
 
-  describe("Step 2 - Details & settings rendering", () => {
+  describe("Step 2 - Customize rendering", () => {
     async function navigateToStep2(user: ReturnType<typeof userEvent.setup>) {
       const nameInput = screen.getByLabelText(/trip name/i);
       await user.type(nameInput, "Test Trip");
@@ -451,7 +451,7 @@ describe("CreateTripDialog", () => {
       await navigateToStep2(user);
 
       expect(screen.getByText("Step 2 of 2")).toBeDefined();
-      expect(screen.getByText("Details & settings")).toBeDefined();
+      expect(screen.getByText("Customize")).toBeDefined();
     });
   });
 

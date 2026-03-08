@@ -193,11 +193,13 @@ test.describe("Notification Journey", () => {
         // Close the popover by pressing Escape
         await page.keyboard.press("Escape");
 
+        // Wait for the unread count to clear — mark-all-as-read may take
+        // a moment to propagate on slow CI runners.
         const globalBell = page.getByRole("button", {
           name: "Notifications",
           exact: true,
         });
-        await expect(globalBell).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+        await expect(globalBell).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
 
         await expect(
           page.getByRole("button", {

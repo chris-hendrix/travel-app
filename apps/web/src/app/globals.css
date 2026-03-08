@@ -296,7 +296,7 @@
     radial-gradient(ellipse at 50% 80%, rgba(61, 107, 74, 0.03) 0%, transparent 50%);
 }
 
-.dark .gradient-mesh {
+:where(.dark:not([data-trip-theme="light"]), [data-trip-theme="dark"]) .gradient-mesh {
   background:
     radial-gradient(ellipse at 20% 50%, rgba(90, 159, 212, 0.06) 0%, transparent 50%),
     radial-gradient(ellipse at 80% 20%, rgba(212, 97, 62, 0.04) 0%, transparent 50%),
@@ -319,7 +319,7 @@
   background-size: 256px 256px;
 }
 
-.dark .card-noise::after {
+:where(.dark:not([data-trip-theme="light"]), [data-trip-theme="dark"]) .card-noise::after {
   opacity: 0.015;
 }
 
@@ -341,7 +341,7 @@
   background-size: 200px 200px;
 }
 
-.dark .linen-texture::before {
+:where(.dark:not([data-trip-theme="light"]), [data-trip-theme="dark"]) .linen-texture::before {
   opacity: 0.025;
 }
 
@@ -475,14 +475,14 @@
   }
 }
 
-.dark .postcard {
+:where(.dark:not([data-trip-theme="light"]), [data-trip-theme="dark"]) .postcard {
   box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.3),
     0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
 @media (hover: hover) {
-  .dark .postcard:hover {
+  :where(.dark:not([data-trip-theme="light"]), [data-trip-theme="dark"]) .postcard:hover {
     box-shadow:
       0 8px 24px rgba(0, 0, 0, 0.5),
       0 0 0 1px rgba(255, 255, 255, 0.1);

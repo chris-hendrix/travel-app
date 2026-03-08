@@ -37,4 +37,8 @@ export interface ThemePreset {
   palette: string[];
   /** Background style with dark/light indicator */
   background: ThemeBackground;
+  /** Static URL for the default cover image (e.g., "/themes/snow-cover.webp") */
+  defaultCoverUrl?: string;
+  /** Font to auto-select when this theme is chosen */
+  suggestedFont?: ThemeFont;
 }

@@ -3,85 +3,78 @@
 import type { ThemePreset } from "../types/theme";
 
 /**
- * 6 curated theme presets: 3 dark + 3 light.
- * Each preset includes a background style and 5-color palette:
+ * Trip-type theme presets.
+ * Each preset includes a background style, 5-color palette, default cover, and suggested font:
  *   [0] travel, [1] meal, [2] activity, [3] accommodation, [4] highlight
  *
  * All colors are hex values (never hsl — Tailwind v4 @theme bug).
  */
 export const THEME_PRESETS: ThemePreset[] = [
-  // --- Dark themes ---
   {
-    id: "midnight",
-    name: "Midnight",
-    tags: ["dark"],
-    palette: ["#60a5fa", "#fbbf24", "#34d399", "#c084fc", "#f472b6"],
+    id: "impressionist-beach",
+    name: "Impressionist Beach",
+    tags: ["light", "beach"],
+    palette: ["#2F7FA3", "#E88C6A", "#8EC6E8", "#1F3A4A", "#F2C14E"],
     background: {
       type: "gradient",
-      angle: 135,
-      stops: ["#0f172a", "#1e293b"],
-      isDark: true,
+      angle: 160,
+      stops: ["#F4E7C8", "#D4EEF6"],
+      isDark: false,
     },
+    defaultCoverUrl: "/themes/impressionist-beach-cover.webp",
+    suggestedFont: "playfair",
   },
   {
-    id: "noir",
-    name: "Noir",
-    tags: ["dark"],
-    palette: ["#f9a8d4", "#fde68a", "#86efac", "#c4b5fd", "#fb7185"],
+    id: "pop-art-neon-city",
+    name: "Pop Art Neon City",
+    tags: ["dark", "city", "nightlife"],
+    palette: ["#19D4FF", "#FF2F92", "#7A4DFF", "#E8E6FF", "#FF2F92"],
     background: {
       type: "solid",
-      color: "#18181b",
+      color: "#0F1030",
       isDark: true,
     },
+    defaultCoverUrl: "/themes/pop-art-neon-city-cover.webp",
+    suggestedFont: "space-grotesk",
   },
   {
-    id: "sunset-beach",
-    name: "Sunset Beach",
-    tags: ["dark"],
-    palette: ["#38bdf8", "#fbbf24", "#34d399", "#e879f9", "#fb923c"],
-    background: {
-      type: "gradient",
-      angle: 180,
-      stops: ["#431407", "#7c2d12", "#1c1917"],
-      isDark: true,
-    },
-  },
-
-  // --- Light themes ---
-  {
-    id: "cloud",
-    name: "Cloud",
-    tags: ["light"],
-    palette: ["#3b82f6", "#f59e0b", "#10b981", "#8b5cf6", "#6366f1"],
-    background: {
-      type: "gradient",
-      angle: 180,
-      stops: ["#f8fafc", "#eef2ff"],
-      isDark: false,
-    },
-  },
-  {
-    id: "cotton-candy",
-    name: "Cotton Candy",
-    tags: ["light"],
-    palette: ["#818cf8", "#f472b6", "#34d399", "#a78bfa", "#ec4899"],
-    background: {
-      type: "gradient",
-      angle: 135,
-      stops: ["#fdf2f8", "#ede9fe", "#f0f9ff"],
-      isDark: false,
-    },
-  },
-  {
-    id: "linen",
-    name: "Linen",
-    tags: ["light"],
-    palette: ["#7c3aed", "#b45309", "#047857", "#9333ea", "#be185d"],
+    id: "romanticism-mountain",
+    name: "Romanticism Mountain",
+    tags: ["dark", "mountain", "nature"],
+    palette: ["#5E7C9A", "#D6A25A", "#2F4A3A", "#E6DDCF", "#D6A25A"],
     background: {
       type: "solid",
-      color: "#faf5f0",
+      color: "#1A120B",
+      isDark: true,
+    },
+    defaultCoverUrl: "/themes/romanticism-mountain-cover.webp",
+    suggestedFont: "playfair",
+  },
+  {
+    id: "art-nouveau-wedding-cake",
+    name: "Art Nouveau Wedding Cake",
+    tags: ["light", "wedding", "elegant"],
+    palette: ["#7F9A86", "#D8A867", "#E7C6B6", "#4A3A2B", "#D8A867"],
+    background: {
+      type: "solid",
+      color: "#F6F1E7",
       isDark: false,
     },
+    defaultCoverUrl: "/themes/art-nouveau-wedding-cake-cover.webp",
+    suggestedFont: "playfair",
+  },
+  {
+    id: "80s-pop-art-ski-slope",
+    name: "80s Pop Art Ski Slope",
+    tags: ["light", "ski", "retro"],
+    palette: ["#27C6D9", "#FF4FA3", "#FFD34F", "#2B2E4A", "#FF4FA3"],
+    background: {
+      type: "solid",
+      color: "#F5F7F6",
+      isDark: false,
+    },
+    defaultCoverUrl: "/themes/80s-pop-art-ski-slope-cover.webp",
+    suggestedFont: "space-grotesk",
   },
 ];
 
