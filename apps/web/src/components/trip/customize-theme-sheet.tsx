@@ -65,15 +65,12 @@ export function CustomizeThemeSheet({
     enabled: open,
   });
 
-  // Track whether we're in the initial sync to avoid auto-suggesting font
-  const isInitializing = useRef(false);
+  // Skip auto-suggest on the first handleThemeChange after opening
+  const isFirstChange = useRef(true);
 
   useEffect(() => {
     if (open) {
-      isInitializing.current = true;
-      requestAnimationFrame(() => {
-        isInitializing.current = false;
-      });
+      isFirstChange.current = true;
     }
   }, [open]);
 
@@ -81,22 +78,20 @@ export function CustomizeThemeSheet({
     (newThemeId: string | null) => {
       setThemeId(newThemeId);
 
-      // Auto-suggest font when theme changes and no font is currently set
-      let newFont = themeFont;
-      if (!isInitializing.current && newThemeId && !themeFont) {
-        const preset = THEME_PRESETS.find((p) => p.id === newThemeId);
-        if (preset?.suggestedFont) {
-          newFont = preset.suggestedFont;
-          setThemeFont(newFont);
-        }
-      }
+      // Auto-suggest font when user picks a theme and no font is set
+      const shouldAutoSuggest = !isFirstChange.current;
+      isFirstChange.current = false;
 
-      // Fire mutation with both themeId and potentially auto-suggested font
       const data: { themeId: string | null; themeFont?: ThemeFont | null } = {
         themeId: newThemeId,
       };
-      if (newFont !== themeFont) {
-        data.themeFont = newFont as ThemeFont | null;
+
+      if (shouldAutoSuggest && newThemeId && !themeFont) {
+        const preset = THEME_PRESETS.find((p) => p.id === newThemeId);
+        if (preset?.suggestedFont) {
+          setThemeFont(preset.suggestedFont);
+          data.themeFont = preset.suggestedFont;
+        }
       }
 
       updateTrip(

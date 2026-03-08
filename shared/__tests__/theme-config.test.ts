@@ -7,8 +7,8 @@ import { THEME_FONT_VALUES } from "../types/theme";
 import type { ThemePreset, ThemeBackground } from "../types/theme";
 
 describe("THEME_PRESETS", () => {
-  it("should contain at least 1 preset", () => {
-    expect(THEME_PRESETS.length).toBeGreaterThanOrEqual(1);
+  it("should contain at least 5 presets", () => {
+    expect(THEME_PRESETS.length).toBeGreaterThanOrEqual(5);
   });
 
   it("should have unique IDs", () => {
