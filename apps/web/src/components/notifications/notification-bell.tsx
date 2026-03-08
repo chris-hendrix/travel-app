@@ -222,7 +222,7 @@ function NotificationSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent>
         <SheetHeader>
-          <SheetTitle className="text-3xl font-[family-name:var(--font-playfair)] tracking-tight">
+          <SheetTitle className="text-3xl font-playfair tracking-tight">
             Notifications
           </SheetTitle>
           <SheetDescription className="sr-only">

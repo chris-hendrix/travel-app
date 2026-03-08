@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 function MutualCardSkeleton() {
   return (
-    <div className="bg-card rounded-2xl border border-border p-6">
+    <div className="bg-card rounded-lg border border-border p-6">
       <div className="flex items-center gap-4">
         <Skeleton className="size-10 rounded-full" />
         <div className="space-y-2">
@@ -26,7 +26,7 @@ export default function MutualsLoading() {
 
         {/* Search and Filter Controls */}
         <div className="flex flex-col sm:flex-row gap-4 mb-8">
-          <Skeleton className="h-12 flex-1 rounded-xl" />
+          <Skeleton className="h-12 flex-1 rounded-md" />
           <Skeleton className="h-12 w-full sm:w-[200px]" />
         </div>
 

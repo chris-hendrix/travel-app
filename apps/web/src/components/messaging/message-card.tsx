@@ -139,7 +139,7 @@ export const MessageCard = memo(function MessageCard({
   if (isDeleted) {
     return (
       <article
-        className="bg-card rounded-xl border border-border p-3 sm:p-4 motion-safe:animate-[messageIn_300ms_ease-out]"
+        className="bg-card rounded-md border border-border p-3 sm:p-4 motion-safe:animate-[messageIn_300ms_ease-out]"
         aria-label="Deleted message"
       >
         <div className="flex items-start gap-3">
@@ -178,7 +178,7 @@ export const MessageCard = memo(function MessageCard({
 
   return (
     <article
-      className="bg-card rounded-xl border border-border p-3 sm:p-4 hover:shadow-sm transition-shadow motion-safe:animate-[messageIn_300ms_ease-out]"
+      className="bg-card rounded-md border border-border p-3 sm:p-4 hover:shadow-sm transition-shadow motion-safe:animate-[messageIn_300ms_ease-out]"
       aria-label={`Message from ${message.author.displayName}`}
     >
       <div className="flex items-start gap-3">
@@ -272,7 +272,7 @@ export const MessageCard = memo(function MessageCard({
                   setEditContent(e.target.value.slice(0, MAX_LENGTH));
                   adjustEditHeight();
                 }}
-                className="w-full resize-none bg-muted/50 rounded-lg border border-border p-2 text-sm outline-none focus:border-primary"
+                className="w-full resize-none bg-muted/50 rounded-md border border-border p-2 text-sm outline-none focus:border-primary"
                 rows={2}
                 disabled={editMessage.isPending}
               />

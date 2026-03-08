@@ -23,7 +23,7 @@ export function PinnedMessages({ messages }: PinnedMessagesProps) {
   return (
     <div
       data-testid="pinned-messages"
-      className="bg-primary/5 border border-primary/20 rounded-xl p-4"
+      className="bg-primary/5 border border-primary/20 rounded-md p-4"
     >
       <button
         type="button"

@@ -93,9 +93,7 @@ describe("EventCard", () => {
         />,
       );
 
-      const iconContainer = container.querySelector(
-        ".text-\\[var\\(--color-event-travel\\)\\]",
-      );
+      const iconContainer = container.querySelector(".text-event-travel");
       expect(iconContainer).not.toBeNull();
     });
 
@@ -109,9 +107,7 @@ describe("EventCard", () => {
         />,
       );
 
-      const iconContainer = container.querySelector(
-        ".text-\\[var\\(--color-event-meal\\)\\]",
-      );
+      const iconContainer = container.querySelector(".text-event-meal");
       expect(iconContainer).not.toBeNull();
     });
 
@@ -126,9 +122,7 @@ describe("EventCard", () => {
         />,
       );
 
-      const iconContainer = container.querySelector(
-        ".text-\\[var\\(--color-event-activity\\)\\]",
-      );
+      const iconContainer = container.querySelector(".text-event-activity");
       expect(iconContainer).not.toBeNull();
     });
   });

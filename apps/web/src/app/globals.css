@@ -425,6 +425,24 @@
   background-position: 0 8px;
 }
 
+/* Font family utilities — using @utility to avoid @theme circular references
+   (Next.js font loader and Tailwind @theme both set --font-* on :root) */
+@utility font-playfair {
+  font-family: var(--font-playfair);
+}
+
+@utility font-display {
+  font-family: var(--font-display);
+}
+
+@utility font-script {
+  font-family: var(--font-script);
+}
+
+@utility font-space-grotesk {
+  font-family: var(--font-space-grotesk);
+}
+
 @utility pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
 }

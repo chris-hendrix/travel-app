@@ -292,7 +292,7 @@ export function ImageUpload({
       )}
 
       {error && (
-        <div className="mt-2 p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+        <div className="mt-2 p-3 rounded-md bg-destructive/10 border border-destructive/30">
           <div className="flex items-start gap-2 mb-2">
             <AlertCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
             <p className="text-sm text-destructive flex-1">{error}</p>

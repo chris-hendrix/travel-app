@@ -78,14 +78,14 @@ export default async function Home() {
           <div className="absolute top-8 right-8 sm:top-12 sm:right-16 hidden sm:block">
             <PostmarkStamp date="EST. 2026" city="TRIPFUL" size="lg" />
           </div>
-          <h1 className="mb-4 max-w-2xl text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl font-[family-name:var(--font-display)]">
+          <h1 className="mb-4 max-w-2xl text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl font-display">
             Plan Group Trips Together
           </h1>
           <p className="mb-3 max-w-lg text-center text-lg text-muted-foreground sm:text-xl">
             The trip planning app that brings your travel group together.
             Coordinate everything in one place.
           </p>
-          <p className="mb-10 text-xl text-accent font-[family-name:var(--font-script)]">
+          <p className="mb-10 text-xl text-accent font-script">
             Wish you were here...
           </p>
           <Button
@@ -101,7 +101,7 @@ export default async function Home() {
         {/* Features Section */}
         <section className="px-4 py-20 sm:py-28">
           <div className="mx-auto max-w-5xl">
-            <h2 className="mb-12 text-center text-3xl font-bold tracking-tight text-foreground sm:text-4xl font-[family-name:var(--font-playfair)]">
+            <h2 className="mb-12 text-center text-3xl font-bold tracking-tight text-foreground sm:text-4xl font-playfair">
               Everything your group needs to plan the perfect trip
             </h2>
             <div className="grid gap-8 sm:grid-cols-2">
@@ -126,7 +126,7 @@ export default async function Home() {
         {/* How It Works Section */}
         <section className="px-4 py-20 sm:py-28">
           <div className="mx-auto max-w-3xl">
-            <h2 className="mb-12 text-center text-3xl font-bold tracking-tight text-foreground sm:text-4xl font-[family-name:var(--font-playfair)]">
+            <h2 className="mb-12 text-center text-3xl font-bold tracking-tight text-foreground sm:text-4xl font-playfair">
               How Tripful works
             </h2>
             <div className="grid gap-8 sm:grid-cols-3">
@@ -149,10 +149,10 @@ export default async function Home() {
 
         {/* Bottom CTA Section */}
         <section className="flex flex-col items-center px-4 pt-12 pb-24 text-center sm:pb-32">
-          <p className="mb-2 text-lg text-accent font-[family-name:var(--font-script)]">
+          <p className="mb-2 text-lg text-accent font-script">
             Wish you were here?
           </p>
-          <h2 className="mb-6 text-2xl font-bold tracking-tight text-foreground sm:text-3xl font-[family-name:var(--font-playfair)]">
+          <h2 className="mb-6 text-2xl font-bold tracking-tight text-foreground sm:text-3xl font-playfair">
             Ready to plan your next adventure?
           </h2>
           <Button

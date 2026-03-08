@@ -129,12 +129,12 @@ describe("EmptyState", () => {
         icon={Search}
         title="Empty"
         description="Nothing"
-        className="rounded-2xl p-12"
+        className="rounded-lg p-12"
       />,
     );
 
     const root = container.querySelector('[data-slot="empty-state"]')!;
-    expect(root.className).toContain("rounded-2xl");
+    expect(root.className).toContain("rounded-lg");
     expect(root.className).toContain("p-12");
   });
 });

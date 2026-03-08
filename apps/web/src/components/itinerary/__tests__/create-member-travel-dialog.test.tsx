@@ -341,7 +341,7 @@ describe("CreateMemberTravelDialog", () => {
 
       const title = screen.getByText("Add your travel details");
       expect(title.className).toContain(
-        "font-[family-name:var(--font-playfair)]",
+        "font-playfair",
       );
     });
   });

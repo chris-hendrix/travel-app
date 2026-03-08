@@ -59,7 +59,7 @@ export function DatePicker({
           disabled={disabled}
           aria-label={ariaLabel}
           className={cn(
-            "h-12 w-full justify-start text-left text-base font-normal rounded-xl border-input",
+            "h-12 w-full justify-start text-left text-base font-normal rounded-md border-input",
             !value && "text-muted-foreground",
           )}
         >

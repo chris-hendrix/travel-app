@@ -128,7 +128,7 @@ export function TripsContent() {
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <header className="mb-8">
-          <h1 className="text-2xl sm:text-4xl font-bold text-foreground mb-2 font-[family-name:var(--font-playfair)]">
+          <h1 className="text-2xl sm:text-4xl font-bold text-foreground mb-2 font-playfair">
             My Trips
           </h1>
           {!isPending && !isError && (
@@ -163,7 +163,7 @@ export function TripsContent() {
         {isError && (
           <div className="bg-card rounded-md border border-destructive/30 p-8 text-center">
             <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
-            <h2 className="text-2xl font-semibold text-foreground mb-2 font-accent">
+            <h2 className="text-2xl font-semibold text-foreground mb-2 font-playfair">
               Failed to load trips
             </h2>
             <p className="text-muted-foreground mb-6">
@@ -188,10 +188,10 @@ export function TripsContent() {
               <PostmarkStamp date="2026" city="TRIPFUL" size="lg" />
             </div>
             <div className="relative max-w-md mx-auto">
-              <p className="text-2xl text-accent mb-2 font-[family-name:var(--font-script)]">
+              <p className="text-2xl text-accent mb-2 font-script">
                 No postcards yet...
               </p>
-              <h2 className="text-xl font-semibold text-foreground mb-2 font-accent">
+              <h2 className="text-xl font-semibold text-foreground mb-2 font-playfair">
                 Your adventures await
               </h2>
               <p className="text-muted-foreground mb-6">
@@ -229,7 +229,7 @@ export function TripsContent() {
                 }
                 className={`mb-12 ${upcomingRevealed ? "motion-safe:animate-[revealUp_400ms_ease-out_both]" : "motion-safe:opacity-0"}`}
               >
-                <h2 className="text-xl sm:text-2xl font-semibold text-foreground mb-4 font-[family-name:var(--font-playfair)]">
+                <h2 className="text-xl sm:text-2xl font-semibold text-foreground mb-4 font-playfair">
                   Upcoming trips
                   <span className="block text-xs font-normal text-muted-foreground font-accent tracking-wider uppercase mt-1">Departures</span>
                 </h2>
@@ -249,7 +249,7 @@ export function TripsContent() {
                 }
                 className={pastRevealed ? "motion-safe:animate-[revealUp_400ms_ease-out_both]" : "motion-safe:opacity-0"}
               >
-                <h2 className="text-xl sm:text-2xl font-semibold text-foreground mb-4 font-[family-name:var(--font-playfair)]">
+                <h2 className="text-xl sm:text-2xl font-semibold text-foreground mb-4 font-playfair">
                   Past trips
                   <span className="block text-xs font-normal text-muted-foreground font-accent tracking-wider uppercase mt-1">Memories</span>
                 </h2>

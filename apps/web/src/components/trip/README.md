@@ -68,7 +68,7 @@ function TripList({ trips }: { trips: TripSummary[] }) {
 
 The component uses Tailwind CSS with the following key styles:
 
-- Rounded corners (`rounded-2xl`)
+- Rounded corners (`rounded-lg`)
 - Hover shadow effect
 - Active scale-down effect (`motion-safe:active:scale-[0.98]`)
 - Playfair Display font for trip names (inline style)

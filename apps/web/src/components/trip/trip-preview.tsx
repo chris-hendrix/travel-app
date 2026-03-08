@@ -86,7 +86,7 @@ export function TripPreview({
 
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Trip info — compact & scannable */}
-        <h1 className="text-2xl sm:text-4xl font-bold text-foreground font-[family-name:var(--font-playfair)] mb-3">
+        <h1 className="text-2xl sm:text-4xl font-bold text-foreground font-playfair mb-3">
           {trip.name}
         </h1>
 

@@ -181,7 +181,7 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="bg-card rounded-md border border-destructive/30 p-8 text-center max-w-md">
           <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
-          <h2 className="text-2xl font-semibold text-foreground mb-2 font-accent">
+          <h2 className="text-2xl font-semibold text-foreground mb-2 font-playfair">
             Trip not found
           </h2>
           <p className="text-muted-foreground mb-6">
@@ -245,7 +245,7 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
         <div className="absolute bottom-0 left-0 right-0 pb-5 sm:pb-6">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <h1
-              className={`text-2xl sm:text-4xl font-bold ${heroTextLight ? "text-white" : "text-foreground"} font-[family-name:var(--font-playfair)] line-clamp-2 drop-shadow-sm`}
+              className={`text-2xl sm:text-4xl font-bold ${heroTextLight ? "text-white" : "text-foreground"} font-playfair line-clamp-2 drop-shadow-sm`}
               style={trip.themeFont ? { fontFamily: THEME_FONTS[trip.themeFont as keyof typeof THEME_FONTS] } : undefined}
             >
               {trip.name}
@@ -450,7 +450,7 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
       <Sheet open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
         <SheetContent>
           <SheetHeader>
-            <SheetTitle className="text-3xl font-[family-name:var(--font-playfair)] tracking-tight">
+            <SheetTitle className="text-3xl font-playfair tracking-tight">
               Trip settings
             </SheetTitle>
             <SheetDescription className="sr-only">
@@ -473,7 +473,7 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
       >
         <SheetContent>
           <SheetHeader>
-            <SheetTitle className="text-3xl font-[family-name:var(--font-playfair)] tracking-tight">
+            <SheetTitle className="text-3xl font-playfair tracking-tight">
               {removingMember ? "Remove member" : "Members"}
             </SheetTitle>
             <SheetDescription className="sr-only">

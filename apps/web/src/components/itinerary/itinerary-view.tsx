@@ -164,7 +164,7 @@ export function ItineraryView({ tripId, onAddTravel }: ItineraryViewProps) {
       <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="bg-card rounded-md border border-destructive/30 p-8 text-center">
           <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
-          <h2 className="text-2xl font-semibold text-foreground mb-2 font-accent">
+          <h2 className="text-2xl font-semibold text-foreground mb-2 font-playfair">
             Failed to load itinerary
           </h2>
           <p className="text-muted-foreground mb-6">
@@ -228,14 +228,14 @@ export function ItineraryView({ tripId, onAddTravel }: ItineraryViewProps) {
             )}
           </EmptyState>
           {isOrganizer && hasDeletedItems && (
-            <button
-              type="button"
-              className="mt-4 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mx-auto cursor-pointer"
+            <Button
+              variant="ghost"
+              className="mt-4 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mx-auto"
               onClick={() => setIsDeletedItemsOpen(true)}
             >
               <Trash2 className="w-4 h-4" />
               View deleted items
-            </button>
+            </Button>
           )}
         </div>
 
@@ -331,14 +331,14 @@ export function ItineraryView({ tripId, onAddTravel }: ItineraryViewProps) {
           />
         )}
         {isOrganizer && hasDeletedItems && (
-          <button
-            type="button"
-            className="mt-4 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mx-auto cursor-pointer"
+          <Button
+            variant="ghost"
+            className="mt-4 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mx-auto"
             onClick={() => setIsDeletedItemsOpen(true)}
           >
             <Trash2 className="w-4 h-4" />
             View deleted items
-          </button>
+          </Button>
         )}
       </div>
 

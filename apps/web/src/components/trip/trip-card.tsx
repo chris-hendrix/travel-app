@@ -115,7 +115,7 @@ export const TripCard = memo(function TripCard({
               {/* Trip info overlay — bottom */}
               <div className="absolute bottom-0 left-0 right-0 p-4">
                 <h3
-                  className="text-lg font-semibold text-white mb-1 truncate font-[family-name:var(--font-playfair)]"
+                  className="text-lg font-semibold text-white mb-1 truncate font-playfair"
                   style={fontFamily ? { fontFamily } : undefined}
                 >
                   {trip.name}

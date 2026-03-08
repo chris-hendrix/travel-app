@@ -190,7 +190,7 @@ export default function CompleteProfilePage() {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="px-3 rounded-xl"
+                className="px-3 rounded-md"
                 onClick={handlePhotoClick}
                 disabled={isSubmitting}
                 data-testid="upload-photo-button"
@@ -203,7 +203,7 @@ export default function CompleteProfilePage() {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="px-3 rounded-xl text-destructive hover:text-destructive hover:bg-destructive/10"
+                  className="px-3 rounded-md text-destructive hover:text-destructive hover:bg-destructive/10"
                   onClick={handleRemovePhoto}
                   disabled={isSubmitting}
                   data-testid="remove-photo-button"
@@ -293,7 +293,7 @@ export default function CompleteProfilePage() {
                 type="submit"
                 disabled={isSubmitting}
                 variant="gradient"
-                className="w-full h-12 rounded-xl"
+                className="w-full h-12 rounded-md"
               >
                 {isSubmitting ? "Saving..." : "Complete profile"}
               </Button>

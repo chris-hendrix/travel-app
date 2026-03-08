@@ -488,7 +488,7 @@ describe("CreateEventDialog", () => {
 
       const title = screen.getByText("Create a new event");
       expect(title.className).toContain(
-        "font-[family-name:var(--font-playfair)]",
+        "font-playfair",
       );
     });
 

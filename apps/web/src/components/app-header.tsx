@@ -75,7 +75,7 @@ export function AppHeader() {
 
             <Link
               href="/trips"
-              className="font-[family-name:var(--font-display)] text-xl font-bold tracking-tight"
+              className="font-display text-xl font-bold tracking-tight"
             >
               Tripful
             </Link>

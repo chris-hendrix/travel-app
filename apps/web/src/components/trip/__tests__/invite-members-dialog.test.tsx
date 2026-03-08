@@ -536,7 +536,7 @@ describe("InviteMembersDialog", () => {
 
       const title = screen.getByText("Invite members");
       expect(title.className).toContain(
-        "font-[family-name:var(--font-playfair)]",
+        "font-playfair",
       );
     });
 

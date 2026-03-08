@@ -5,5 +5,20 @@
       <stop offset="100%" stop-color="#d1643d"/>
     </linearGradient>
   </defs>
-  <path d="M30.2 1.8c-1.1-1.1-3-.9-4.3.4L19.5 8.6l-14-4.2c-.4-.1-.9 0-1.2.3L2.1 6.9c-.4.4-.4 1 0 1.3l10 6.5-4.8 4.8-3.5-.7c-.4-.1-.8 0-1 .3l-1.5 1.5c-.3.3-.3.9.1 1.2l4.2 2.6 2.6 4.2c.3.4.8.5 1.2.1l1.5-1.5c.3-.3.3-.7.3-1l-.7-3.5 4.8-4.8 6.5 10c.4.4 1 .4 1.3 0l2.2-2.2c.3-.3.4-.8.3-1.2l-4.2-14 6.4-6.4c1.3-1.3 1.5-3.2.4-4.3z" fill="url(#g)"/>
+  <g transform="rotate(-6 16 16)">
+    <!-- Card body -->
+    <rect x="3" y="6" width="26" height="20" rx="2" fill="url(#g)"/>
+    <!-- Divider line -->
+    <line x1="16" y1="9" x2="16" y2="23" stroke="#fff" stroke-opacity="0.5" stroke-width="0.8"/>
+    <!-- Stamp -->
+    <rect x="21" y="8.5" width="5.5" height="5" rx="0.5" fill="#fff" fill-opacity="0.3"/>
+    <circle cx="23.75" cy="11" r="1.5" fill="#fff" fill-opacity="0.5"/>
+    <!-- Address lines -->
+    <line x1="18.5" y1="16" x2="26" y2="16" stroke="#fff" stroke-opacity="0.6" stroke-width="0.8" stroke-linecap="round"/>
+    <line x1="18.5" y1="18.5" x2="26" y2="18.5" stroke="#fff" stroke-opacity="0.6" stroke-width="0.8" stroke-linecap="round"/>
+    <line x1="18.5" y1="21" x2="24" y2="21" stroke="#fff" stroke-opacity="0.6" stroke-width="0.8" stroke-linecap="round"/>
+    <!-- Landscape illustration (left side) -->
+    <circle cx="8" cy="12" r="1.5" fill="#fff" fill-opacity="0.4"/>
+    <path d="M5 21 L8.5 15 L11 19 L12.5 16.5 L14.5 21 Z" fill="#fff" fill-opacity="0.35"/>
+  </g>
 </svg>

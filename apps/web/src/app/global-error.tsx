@@ -2,6 +2,7 @@
 
 import { playfairDisplay, plusJakartaSans, spaceGrotesk } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 export default function GlobalError({
   error,
@@ -24,12 +25,7 @@ export default function GlobalError({
               {error.message ||
                 "An unexpected error occurred. Please try again later."}
             </p>
-            <button
-              onClick={reset}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              Try again
-            </button>
+            <Button onClick={reset}>Try again</Button>
           </div>
         </div>
       </body>

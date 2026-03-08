@@ -50,7 +50,7 @@ export const MemberTravelCard = memo(function MemberTravelCard({
       role="button"
       tabIndex={0}
       aria-expanded={isExpanded}
-      className="rounded-md border border-border/60 border-l-2 border-l-[var(--color-member-travel)] py-2 px-3 transition-all hover:shadow-md motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-[0.98] cursor-pointer"
+      className="rounded-md border border-border/60 border-l-2 border-l-member-travel py-2 px-3 transition-all hover:shadow-md motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-[0.98] cursor-pointer"
       onClick={() => setIsExpanded((prev) => !prev)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -61,7 +61,7 @@ export const MemberTravelCard = memo(function MemberTravelCard({
     >
       {/* Compact view */}
       <div className="flex items-center gap-2">
-        <div className="shrink-0 text-[var(--color-member-travel)]">
+        <div className="shrink-0 text-member-travel">
           {isExpanded ? (
             <ChevronDown className="w-3.5 h-3.5" />
           ) : (
@@ -69,7 +69,7 @@ export const MemberTravelCard = memo(function MemberTravelCard({
           )}
         </div>
 
-        <PlaneIcon className="w-3.5 h-3.5 shrink-0 text-[var(--color-member-travel)]" />
+        <PlaneIcon className="w-3.5 h-3.5 shrink-0 text-member-travel" />
 
         <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
           <span className="font-semibold text-foreground text-sm truncate">

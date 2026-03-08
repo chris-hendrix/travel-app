@@ -90,7 +90,7 @@ export function MessageInput({
     return (
       <div
         className={cn(
-          "bg-card rounded-xl border border-border p-4",
+          "bg-card rounded-md border border-border p-4",
           compact && "p-3",
         )}
       >
@@ -104,7 +104,7 @@ export function MessageInput({
   return (
     <div
       className={cn(
-        "bg-card rounded-xl border border-border p-4",
+        "bg-card rounded-md border border-border p-4",
         compact && "p-3",
       )}
     >

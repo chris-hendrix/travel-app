@@ -783,7 +783,7 @@ describe("EditTripDialog", () => {
 
       const title = screen.getByText("Edit trip");
       expect(title.className).toContain(
-        "font-[family-name:var(--font-playfair)]",
+        "font-playfair",
       );
     });
 
