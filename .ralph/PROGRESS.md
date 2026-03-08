@@ -2455,3 +2455,36 @@ APPROVED — Fix is minimal and correct. No other E2E tests have the same issue 
 - `apiRequest<T>` returns the full JSON body — callers must unwrap envelopes (e.g., `response.weather`)
 - Lucide React icons are typed via `LucideIcon` from `lucide-react` — can be stored in data structures and rendered as `<info.icon />`
 - WMO codes from Open-Meteo include freezing variants (56, 57, 66, 67) and snow showers (85, 86) beyond the basic groups listed in architecture
+
+## Iteration 53 — Task 4.2: Create WeatherDayBadge and WeatherForecastCard components
+
+**Status**: ✅ COMPLETE
+
+### Changes Made
+
+**Files created:**
+- `apps/web/src/components/itinerary/weather-day-badge.tsx` — Memoized compact inline component: renders weather icon (16px) + "H°/L°" temperature range. Returns null when no forecast. Uses `getWeatherInfo()` for WMO code → icon mapping and `toDisplayTemp()` for Celsius/Fahrenheit conversion.
+- `apps/web/src/components/itinerary/weather-forecast-card.tsx` — Memoized Card component with four states: (1) loading skeleton (5 columns), (2) unavailable with message (dashed-border card), (3) unavailable without message (returns null for past trips), (4) available (horizontal-scrolling daily forecasts with day-of-week, icon, high/low temps, and precipitation %).
+
+**Files modified:**
+- `apps/web/src/components/itinerary/index.ts` — Added barrel exports for `WeatherDayBadge` and `WeatherForecastCard`
+
+### Key Design Decisions
+1. **Memoized components** — Both wrapped with `memo()` since they receive primitive/stable props and will be rendered in lists
+2. **Local date parsing** — `formatDayOfWeek` splits the ISO date string and constructs `new Date(year, month-1, day)` to avoid UTC timezone shift that would show wrong day-of-week
+3. **Precipitation conditional** — Only shows Droplets icon + percentage when `precipitationProbability > 0`
+4. **Duplicated `toDisplayTemp`** — Intentionally kept in both files (reviewer noted as LOW) since it's a 4-line pure function; extracting would add import complexity for minimal benefit
+
+### Verification
+- **TypeCheck**: PASS (all 3 packages)
+- **Lint**: PASS (all 3 packages)
+- **API Tests**: PASS (63 files, 1172 tests)
+- **Web Tests**: 64 failures — all pre-existing (CustomizeThemeSheet QueryClientProvider issue in trip-detail-content.test.tsx and create-trip-dialog.test.tsx), verified by stashing changes and re-running
+- **Shared Tests**: 1 failure — pre-existing (80s-pop-art-ski-slope theme ID vs kebab-case regex)
+- **Reviewer**: APPROVED (1 LOW item: duplicated toDisplayTemp utility)
+
+### Learnings
+- Array destructuring (`const [a, b, c] = str.split("-")`) avoids TypeScript strict-mode errors about `parts[n]` being `string | undefined`, unlike indexed access on `string[]`
+- `new Date("2026-03-15")` parses as UTC midnight, which can shift the day-of-week backward in western timezones — always parse date-only strings via component parts for local display
+- shadcn Card component had not been used in itinerary components before this task — first usage establishes the pattern for future cards
+- Pre-existing web test failures (64 tests) are caused by CustomizeThemeSheet using `useQueryClient()` without provider in test context — unrelated to weather feature

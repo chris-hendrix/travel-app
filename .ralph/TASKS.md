@@ -70,7 +70,7 @@
   - Test: Verify typecheck passes
   - Verify: Run full test suite
 
-- [ ] Task 4.2: Create WeatherDayBadge and WeatherForecastCard components
+- [x] Task 4.2: Create WeatherDayBadge and WeatherForecastCard components
   - Implement: Create `apps/web/src/components/itinerary/weather-day-badge.tsx` — icon + temp range, Celsius/Fahrenheit conversion, null if no data
   - Implement: Create `apps/web/src/components/itinerary/weather-forecast-card.tsx` — loading skeleton, unavailable message, horizontal scroll forecast, shadcn Card
   - Implement: Export from `apps/web/src/components/itinerary/index.ts` barrel
