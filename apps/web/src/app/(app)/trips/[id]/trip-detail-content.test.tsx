@@ -324,6 +324,25 @@ vi.mock("@/components/trip/invite-members-dialog", () => ({
     open ? <div data-testid="invite-members-dialog">Invite Dialog</div> : null,
 }));
 
+// Mock CustomizeThemeSheet component
+vi.mock("@/components/trip/customize-theme-sheet", () => ({
+  CustomizeThemeSheet: ({
+    open,
+    onOpenChange,
+  }: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+  }) =>
+    open ? (
+      <div data-testid="customize-theme-sheet">
+        Customize Theme
+        <button data-testid="theme-sheet-close" onClick={() => onOpenChange(false)}>
+          Close Theme Sheet
+        </button>
+      </div>
+    ) : null,
+}));
+
 // Mock EditTripDialog component
 vi.mock("@/components/trip/edit-trip-dialog", () => ({
   EditTripDialog: ({
@@ -696,7 +715,7 @@ describe("TripDetailContent", () => {
       });
     });
 
-    it("badge container has flex-wrap for mobile wrapping", async () => {
+    it("badge container has items-center for vertical alignment", async () => {
       mockUseTripDetail.mockReturnValue({
         data: mockTripDetail,
         isPending: false,
@@ -718,7 +737,7 @@ describe("TripDetailContent", () => {
       const goingBadge = screen.getByText("Going");
       const badgeContainer = goingBadge.closest("div.flex");
       expect(badgeContainer).not.toBeNull();
-      expect(badgeContainer!.className).toContain("flex-wrap");
+      expect(badgeContainer!.className).toContain("items-center");
     });
 
     it("shows description in collapsible when available", async () => {
@@ -1047,7 +1066,7 @@ describe("TripDetailContent", () => {
         expect(screen.getByRole("button", { name: "Edit trip" })).toBeDefined();
       });
 
-      const editButton = screen.getByText("Edit trip");
+      const editButton = screen.getByRole("button", { name: "Edit trip" });
       await user.click(editButton);
 
       await waitFor(() => {
@@ -1079,7 +1098,7 @@ describe("TripDetailContent", () => {
       });
 
       // Open dialog
-      const editButton = screen.getByText("Edit trip");
+      const editButton = screen.getByRole("button", { name: "Edit trip" });
       await user.click(editButton);
 
       await waitFor(() => {

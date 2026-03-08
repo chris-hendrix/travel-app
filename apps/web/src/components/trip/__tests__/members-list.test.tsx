@@ -278,11 +278,15 @@ describe("MembersList", () => {
         <MembersList tripId="trip-123" isOrganizer={true} />,
       );
 
-      expect(screen.getByRole("tab", { name: "Going (1)" })).toBeDefined();
-      expect(screen.getByRole("tab", { name: "Maybe (1)" })).toBeDefined();
-      expect(screen.getByRole("tab", { name: "Not Going (1)" })).toBeDefined();
+      expect(screen.getByRole("tab", { name: /^Going\W*1$/ })).toBeDefined();
+      expect(screen.getByRole("tab", { name: /^Maybe\W*1$/ })).toBeDefined();
+      expect(
+        screen.getByRole("tab", { name: /^Not Going\W*1$/ }),
+      ).toBeDefined();
       // Invited = 1 no_response member + 0 pending invitations
-      expect(screen.getByRole("tab", { name: "Invited (1)" })).toBeDefined();
+      expect(
+        screen.getByRole("tab", { name: /^Invited\W*1$/ }),
+      ).toBeDefined();
     });
 
     it("shows correct Invited count including pending invitations", () => {
@@ -296,7 +300,9 @@ describe("MembersList", () => {
       );
 
       // 1 no_response member + 2 pending/failed invitations = 3
-      expect(screen.getByRole("tab", { name: "Invited (3)" })).toBeDefined();
+      expect(
+        screen.getByRole("tab", { name: /^Invited\W*3$/ }),
+      ).toBeDefined();
     });
 
     it("defaults to Going tab", () => {

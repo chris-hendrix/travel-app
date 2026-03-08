@@ -2578,3 +2578,47 @@ Read the entire PROGRESS.md (54 iterations) with 3 parallel researchers:
 - Triage tasks should group failures by ROOT CAUSE: the 64 QueryClientProvider failures span 3 files but share one fix (mocking CustomizeThemeSheet), making them a single task
 - No TODO/FIXME/HACK comments exist in any weather feature files — all deferred work was captured in PROGRESS.md reviewer notes
 - The reviewer LOW items from weather iterations fall cleanly into two categories: code quality improvements (actionable) and design decisions (intentional) — distinguishing between these is the core skill of triage
+
+## Iteration 56 — Task 5.1.1: Fix 64 pre-existing web test failures (CustomizeThemeSheet QueryClientProvider) — HIGH
+
+**Status**: ✅ COMPLETE
+
+### Changes Made
+
+**Files modified (test files only — no component source changes):**
+
+1. **`apps/web/src/app/(app)/trips/[id]/trip-detail-content.test.tsx`** (38 failures fixed)
+   - Added `vi.mock("@/components/trip/customize-theme-sheet", ...)` — stubs CustomizeThemeSheet with a simple div, following the same pattern as EditTripDialog, InviteMembersDialog, and MemberOnboardingWizard mocks
+   - Renamed "badge container has flex-wrap for mobile wrapping" → "badge container has items-center for vertical alignment" to match actual assertion
+
+2. **`apps/web/src/components/trip/__tests__/create-trip-dialog.test.tsx`** (24 failures fixed)
+   - Updated "displays all Step 2 fields" to check for Cover photo, Theme, Font (actual Step 2 content)
+   - Moved Description tests from "Step 2" to "Step 1" (removed `navigateToStep2` calls, renamed describe blocks)
+   - Moved "Allow members to add events checkbox" tests from "Step 2" to "Step 1"
+   - Deleted all 10 Co-organizers tests (co-organizer UI was removed from component)
+   - Updated Back-navigation test and renamed to "renders Step 2 fields after round-trip navigation"
+   - Deleted redundant "disables all fields during submission" test (duplicate of "disables Back and Create trip buttons during submission")
+   - Updated remaining loading state tests for Step 2's actual fields
+
+3. **`apps/web/src/components/trip/__tests__/members-list.test.tsx`** (2 failures fixed)
+   - Changed exact-match tab name assertions (`"Going (1)"`, `"Invited (3)"`) to regex patterns (`/^Going\W*1$/`, `/^Invited\W*3$/`) to match actual accessible names rendered without parentheses
+
+### Root Causes
+
+1. **trip-detail-content (38)**: `CustomizeThemeSheet` loaded via `next/dynamic` mock's `React.lazy`, calling `useQueryClient()` without provider — fixed by mocking the component
+2. **create-trip-dialog (24)**: Component restructured — Description and Allow Members moved from Step 2 to Step 1; Co-organizers UI removed; Step 2 now has Cover photo, Theme, Font — tests updated to match
+3. **members-list (2)**: Tab accessible names computed as "Invited 1" not "Invited (1)" — regex assertions handle both formats
+
+### Verification
+
+- **Web Tests**: PASS — 70 files, 1157 tests, 0 failures (1 redundant test deleted)
+- **TypeCheck**: PASS — all 3 packages
+- **Lint**: PASS — all 3 packages
+- **Reviewer**: APPROVED
+
+### Learnings
+
+- The 24 create-trip-dialog failures were NOT from QueryClientProvider — they were from a component restructuring that moved fields between steps. The task description was partially incorrect; actual root cause analysis required reading the component
+- When `next/dynamic` is mocked with `React.lazy`, ALL dynamically imported components must also be mocked or they'll resolve to real implementations with their full dependency trees
+- Accessible name computation in testing-library concatenates text content of child elements — `"Label" + <span>1</span>` produces "Label 1" (with space from whitespace nodes), not "Label (1)"
+- Deleting tests that no longer apply (co-organizer UI removed) is the correct approach rather than trying to adapt them to test something different

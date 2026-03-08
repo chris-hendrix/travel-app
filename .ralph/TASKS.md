@@ -94,7 +94,7 @@
   - Fix: Create individual fix tasks in TASKS.md for each outstanding issue
   - Verify: Run full test suite
 
-- [ ] Task 5.1.1: Fix 64 pre-existing web test failures (CustomizeThemeSheet QueryClientProvider) — HIGH
+- [x] Task 5.1.1: Fix 64 pre-existing web test failures (CustomizeThemeSheet QueryClientProvider) — HIGH
   - Root cause: `CustomizeThemeSheet` component calls `useQueryClient()` without a `QueryClientProvider` in the test render tree
   - Fix: Mock `CustomizeThemeSheet` in `trip-detail-content.test.tsx` (38 failures) and `create-trip-dialog.test.tsx` (24 failures)
   - Fix: Fix tab count assertion mismatch in `members-list.test.tsx` (2 failures) — expected "Invited (3)" but rendered count differs
