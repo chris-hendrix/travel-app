@@ -4,7 +4,6 @@ import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { updateTripSchema, type UpdateTripInput } from "@tripful/shared";
-import { THEME_PRESETS } from "@tripful/shared/config";
 import { toast } from "sonner";
 import {
   useUpdateTrip,
@@ -53,10 +52,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ImageUpload } from "@/components/trip/image-upload";
-import { ThemePicker } from "@/components/trip/theme-picker";
-import { FontPicker } from "@/components/trip/font-picker";
-import { useThemePreview } from "@/hooks/use-theme-preview";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Trash2, Loader2 } from "lucide-react";
 import { TIMEZONES } from "@/lib/constants";
@@ -86,23 +81,9 @@ export function EditTripDialog({
       endDate: undefined,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       description: "",
-      coverImageUrl: null,
-      themeId: null,
-      themeFont: null,
       allowMembersToAddEvents: true,
       showAllMembers: false,
     },
-  });
-
-  const watchedThemeId = form.watch("themeId");
-  const watchedThemeFont = form.watch("themeFont");
-
-  const { commit: commitThemePreview } = useThemePreview({
-    themeId: watchedThemeId ?? null,
-    themeFont: watchedThemeFont ?? null,
-    initialThemeId: trip.themeId ?? null,
-    initialThemeFont: (trip.themeFont ?? null) as string | null,
-    enabled: open,
   });
 
   const isInitializing = useRef(false);
@@ -118,9 +99,6 @@ export function EditTripDialog({
         endDate: trip.endDate || undefined,
         timezone: trip.preferredTimezone,
         description: trip.description || "",
-        coverImageUrl: trip.coverImageUrl,
-        themeId: trip.themeId ?? null,
-        themeFont: (trip.themeFont ?? null) as UpdateTripInput["themeFont"],
         allowMembersToAddEvents: trip.allowMembersToAddEvents,
         showAllMembers: trip.showAllMembers,
       });
@@ -130,21 +108,6 @@ export function EditTripDialog({
       });
     }
   }, [open, trip, form]);
-
-  // Auto-suggest font when theme changes and no font is set yet
-  const prevThemeId = useRef(watchedThemeId);
-  useEffect(() => {
-    if (isInitializing.current) return;
-    if (watchedThemeId !== prevThemeId.current) {
-      prevThemeId.current = watchedThemeId;
-      if (watchedThemeId && !form.getValues("themeFont")) {
-        const preset = THEME_PRESETS.find((p) => p.id === watchedThemeId);
-        if (preset?.suggestedFont) {
-          form.setValue("themeFont", preset.suggestedFont);
-        }
-      }
-    }
-  }, [watchedThemeId, form]);
 
   // Auto-fill endDate when startDate is set and endDate is empty
   const startDateValue = form.watch("startDate");
@@ -156,7 +119,6 @@ export function EditTripDialog({
   }, [startDateValue, form]);
 
   const handleSubmit = (data: UpdateTripInput) => {
-    commitThemePreview();
     updateTrip(
       { tripId: trip.id, data },
       {
@@ -387,75 +349,6 @@ export function EditTripDialog({
                     </FormItem>
                   );
                 }}
-              />
-
-              {/* Cover Image */}
-              <FormField
-                control={form.control}
-                name="coverImageUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base font-semibold text-foreground">
-                      Cover image
-                    </FormLabel>
-                    <FormControl>
-                      <ImageUpload
-                        value={field.value ?? null}
-                        onChange={field.onChange}
-                        tripId={trip.id}
-                        disabled={isPending || isDeleting}
-                      />
-                    </FormControl>
-                    <FormDescription className="text-sm text-muted-foreground">
-                      Optional: Upload a cover image for your trip
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Theme */}
-              <FormField
-                control={form.control}
-                name="themeId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base font-semibold text-foreground">
-                      Theme
-                    </FormLabel>
-                    <FormControl>
-                      <ThemePicker
-                        value={field.value ?? null}
-                        onChange={field.onChange}
-                      />
-                    </FormControl>
-                    <FormDescription className="text-sm text-muted-foreground">
-                      Optional: Choose a visual theme for your trip
-                    </FormDescription>
-                  </FormItem>
-                )}
-              />
-
-              {/* Font */}
-              <FormField
-                control={form.control}
-                name="themeFont"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base font-semibold text-foreground">
-                      Title font
-                    </FormLabel>
-                    <FormControl>
-                      <FontPicker
-                        value={field.value ?? null}
-                        onChange={field.onChange}
-                      />
-                    </FormControl>
-                    <FormDescription className="text-sm text-muted-foreground">
-                      Optional: Choose a font for trip titles
-                    </FormDescription>
-                  </FormItem>
-                )}
               />
 
               {/* Allow Members to Add Events */}
