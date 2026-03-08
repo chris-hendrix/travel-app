@@ -35,7 +35,7 @@
   - Test: Unit test geocoding service — successful geocode, no results, API error
   - Verify: Run full test suite
 
-- [ ] Task 2.2: Hook geocoding into trip create/update and add getEffectiveDateRange
+- [x] Task 2.2: Hook geocoding into trip create/update and add getEffectiveDateRange
   - Implement: Inject `geocodingService` into `TripService` constructor (update plugin to pass it)
   - Implement: In `updateTrip()` — if destination changed, geocode and store lat/lon; if cleared, null out; delete weather cache on change
   - Implement: In `createTrip()` — if destination provided, geocode and store lat/lon

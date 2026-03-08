@@ -2311,3 +2311,49 @@ APPROVED — Fix is minimal and correct. No other E2E tests have the same issue 
 - Services with no constructor dependencies (no DB, no config) are the simplest pattern — just instantiate directly in the plugin
 - Reviewer suggested adding a logger parameter and empty-string guard as optional improvements — consider for future cleanup
 - Optimistic creation in `use-trips.ts` manually lists every `Trip` field — any new required field on the `Trip` interface must be added there or TypeScript will error
+
+## Iteration 49 — Task 2.2: Hook geocoding into trip create/update and add getEffectiveDateRange
+
+**Status**: ✅ COMPLETE
+
+### Changes Made
+
+**Files modified:**
+- `apps/api/src/services/trip.service.ts` — Added `IGeocodingService` as 3rd constructor parameter; geocoding in `createTrip()` (before transaction, best-effort with try/catch); geocoding + weather cache deletion in `updateTrip()` when `data.destination !== undefined`; new `getEffectiveDateRange(tripId)` method on `ITripService` interface and `TripService` class; imports for `weatherCache`, `min`, `max`, `IGeocodingService`
+- `apps/api/src/plugins/trip-service.ts` — Passes `fastify.geocodingService` as 3rd arg to `TripService` constructor; added `"geocoding-service"` to plugin dependencies array
+- `apps/api/tests/unit/trip.service.test.ts` — Added mock `IGeocodingService` (`vi.fn().mockResolvedValue({ lat: 32.7157, lon: -117.1611 })`); updated all `TripService` instantiations to pass mock; added 9 new test cases
+
+### Implementation Details
+
+**createTrip geocoding** (lines 295-308): Before the transaction, calls `this.geocodingService.geocode(data.destination)`. On success, `destinationLat`/`destinationLon` are included in the insert values. On failure (null result or exception), lat/lon remain null — geocoding never blocks trip creation.
+
+**updateTrip geocoding** (lines 739-758): When `data.destination !== undefined`, geocodes the new destination, sets `updateData.destinationLat`/`destinationLon` from result (or null on failure), and deletes any `weatherCache` row for the trip regardless of geocoding outcome.
+
+**getEffectiveDateRange** (lines 1058-1100): Two queries — (1) trip's `startDate`/`endDate`, (2) `MIN(events.startTime)` and `MAX(COALESCE(events.endTime, events.startTime))` excluding soft-deleted events. Returns the earliest start and latest end across both sources. Handles all combinations of null trip dates and null event ranges.
+
+### Tests Written (9 new tests)
+1. `createTrip with destination geocodes and stores coordinates`
+2. `createTrip with geocode failure still creates trip with null lat/lon`
+3. `updateTrip with destination change geocodes and stores new coordinates + deletes weather cache`
+4. `updateTrip without destination change does not geocode`
+5. `getEffectiveDateRange with trip dates returns trip dates`
+6. `getEffectiveDateRange with no trip dates but events returns event range`
+7. `getEffectiveDateRange with both trip dates and events returns combined range`
+8. `getEffectiveDateRange with no dates and no events returns nulls`
+9. `getEffectiveDateRange ignores soft-deleted events`
+
+### Verification
+- **TypeCheck**: PASS (all 3 packages)
+- **Lint**: PASS (after fixing `no-useless-assignment` — converted `let` with if/else to `const` with ternary)
+- **API Tests**: PASS — 61 files, 1158 tests, 0 failures (9 new tests)
+- **Shared Tests**: 320 passed, 1 pre-existing failure (theme-config kebab-case ID)
+- **Web Tests**: 1104 passed, 64 pre-existing failures (create-trip-dialog, trip-detail-content, members-list — unrelated UI restructuring)
+- **Reviewer**: APPROVED (3 LOW items: redundant geocoding on same-destination updates, no test for non-existent tripId in getEffectiveDateRange, no membership check in getEffectiveDateRange — all non-blocking)
+
+### Learnings
+- ESLint's `no-useless-assignment` catches `let x = null` followed by an if/else that always assigns — use `const` with ternary expressions instead
+- Geocoding should happen BEFORE the database transaction to avoid holding a transaction open during an external API call
+- The `weatherCache` table has `ON DELETE CASCADE` from trips, but explicit deletion is needed when destination changes (trip is not being deleted, just updated)
+- `data.destination !== undefined` is the correct check for "field is present in partial update" — `undefined` means "not included in update payload"
+- Drizzle's `min()` and `max()` aggregate functions work with `sql` template literals for `COALESCE` expressions
+- Trip `startDate`/`endDate` are `date` type (string like "2026-06-01") while event `startTime`/`endTime` are `timestamp with tz` — `new Date()` constructor handles both correctly for comparison
