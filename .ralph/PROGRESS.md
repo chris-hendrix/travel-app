@@ -2398,3 +2398,37 @@ APPROVED — Fix is minimal and correct. No other E2E tests have the same issue 
 - When mocking `ITripService`, cast via `as unknown as ITripService` since only `getEffectiveDateRange` is needed
 - Open-Meteo forecast API returns parallel arrays under `daily` key — zip by index to create typed objects
 - The `_userId` prefix convention signals intentionally unused parameters in TypeScript strict mode
+
+## Iteration 51 — Task 3.2: Create weather controller and route
+
+**Status**: ✅ COMPLETE
+
+### Changes Made
+
+**Files created:**
+- `apps/api/src/controllers/weather.controller.ts` — Weather controller with `getForecast` method: extracts tripId/userId, checks membership via `permissionsService.isMember()`, calls `weatherService.getForecast()`, returns `{ success: true, weather: result }`
+- `apps/api/src/routes/weather.routes.ts` — Registers `GET /trips/:tripId/weather` with auth middleware, rate limiting, UUID param validation, and Zod response schema wrapping `tripWeatherResponseSchema`
+- `apps/api/tests/integration/weather.routes.test.ts` — 5 integration tests
+
+**Files modified:**
+- `apps/api/src/app.ts` — Added import and registration of `weatherRoutes` with `{ prefix: "/api" }`
+
+### Tests Written (5 tests)
+1. Returns weather forecast for valid trip member (mocked Open-Meteo fetch)
+2. Returns unavailable when trip has no coordinates
+3. Returns 401 when not authenticated
+4. Returns 404 for non-member
+5. Returns 400 for invalid trip ID format
+
+### Verification
+- **TypeCheck**: PASS (all 3 packages)
+- **Lint**: PASS (all 3 packages)
+- **Weather Route Tests**: PASS — 5 tests, 0 failures
+- **API Tests**: PASS — 63 files, 1172 tests, 0 failures
+- **Reviewer**: APPROVED (3 LOW items: inline vs destructured service access is a style choice, `_userId` in weather service is intentionally unused for now, `buildApp()` per test is consistent with existing patterns)
+
+### Learnings
+- Weather route follows the sub-resource pattern: registered with `prefix: "/api"` and defines full path `/trips/:tripId/weather` internally
+- Membership check pattern: `permissionsService.isMember()` returning false → throw `TripNotFoundError()` (returns 404, not 403, to avoid leaking trip existence)
+- Response schema wraps service result: `z.object({ success: z.literal(true), weather: tripWeatherResponseSchema })`
+- Integration tests mock `global.fetch` with `vi.spyOn(global, "fetch").mockResolvedValueOnce()` to avoid real HTTP calls to external APIs

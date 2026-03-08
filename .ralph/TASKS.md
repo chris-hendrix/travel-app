@@ -55,7 +55,7 @@
   - Test: Unit test weather service — cache hit, cache miss, stale cache, no coords, no dates, past trip, >16 days, API error, parallel array parsing
   - Verify: Run full test suite
 
-- [ ] Task 3.2: Create weather controller and route
+- [x] Task 3.2: Create weather controller and route
   - Implement: Create `apps/api/src/controllers/weather.controller.ts` with `getForecast` handler — extract tripId from params, userId from JWT, verify membership, call weatherService
   - Implement: Create `apps/api/src/routes/weather.routes.ts` with `GET /trips/:tripId/weather`, auth middleware, UUID param schema, response schema
   - Implement: Register routes in `apps/api/src/app.ts` with `{ prefix: "/api" }`

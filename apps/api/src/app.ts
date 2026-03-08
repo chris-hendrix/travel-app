@@ -55,6 +55,7 @@ import { notificationRoutes } from "./routes/notification.routes.js";
 import { mutualsRoutes } from "./routes/mutuals.routes.js";
 import { userRoutes } from "./routes/user.routes.js";
 import { calendarRoutes } from "./routes/calendar.routes.js";
+import { weatherRoutes } from "./routes/weather.routes.js";
 
 // Config
 import { env } from "./config/env.js";
@@ -233,6 +234,7 @@ export async function buildApp(
   await app.register(mutualsRoutes, { prefix: "/api" });
   await app.register(userRoutes, { prefix: "/api/users" });
   await app.register(calendarRoutes, { prefix: "/api" });
+  await app.register(weatherRoutes, { prefix: "/api" });
 
   // Not-found handler for unmatched routes
   app.setNotFoundHandler((request, reply) => {
