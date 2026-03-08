@@ -2282,4 +2282,32 @@ APPROVED — Fix is minimal and correct. No other E2E tests have the same issue 
 - `TripDetail` extends `Trip`, so adding fields to `Trip` propagates automatically — no separate update needed
 - `tripEntitySchema` feeds into `tripDetailSchema` and `tripResponseSchema`, so adding fields there propagates to all response schemas
 - `userResponseSchema` in auth.ts uses `z.string().nullable().optional()` (looser than `z.enum()`) for `temperatureUnit` — this is intentional as a response schema to be permissive with API output; the stricter `z.enum()` is used in the input `updateProfileSchema`
+
+## Iteration 48 — Task 2.1: Create geocoding service with plugin registration
+
+**Status**: ✅ COMPLETE
+
+### Changes Made
+
+**Files created:**
+- `apps/api/src/services/geocoding.service.ts` — `IGeocodingService` interface with `geocode(query)` method, `OpenMeteoGeocodingService` implementation using native `fetch` against `https://geocoding-api.open-meteo.com/v1/search`. Returns `{ lat, lon }` from first result or `null` on any failure (no results, network error, non-OK response).
+- `apps/api/src/plugins/geocoding-service.ts` — Fastify plugin using `fp()`, instantiates `OpenMeteoGeocodingService` and decorates `fastify.geocodingService`. Depends on `["config"]`, no database dependency.
+- `apps/api/tests/unit/geocoding.service.test.ts` — 6 unit tests: valid coordinates, no results key, empty results array, network error, non-OK HTTP response, URL encoding of special characters. Uses `vi.stubGlobal("fetch", ...)` for mocking.
+
+**Files modified:**
+- `apps/api/src/types/index.ts` — Added `import type { IGeocodingService }` and `geocodingService: IGeocodingService` to FastifyInstance augmentation
+- `apps/api/src/app.ts` — Added import and registration of `geocodingServicePlugin` after `smsServicePlugin` in the service plugins block
+
+### Verification
+- **TypeCheck**: PASS (all 3 packages)
+- **Lint**: PASS (all 3 packages)
+- **Geocoding Unit Tests**: PASS (6/6 tests)
+- **All API Tests**: PASS (1149 tests, 0 failures)
+- **Reviewer**: APPROVED
+
+### Learnings
+- Use `vi.stubGlobal("fetch", mockFn)` instead of `global.fetch = mockFn` in vitest — the latter causes TypeScript errors because `global` is not typed in the test environment
+- Open-Meteo geocoding API returns no `results` key (not an empty array) when no matches found — must handle both `undefined` and empty array cases
+- Services with no constructor dependencies (no DB, no config) are the simplest pattern — just instantiate directly in the plugin
+- Reviewer suggested adding a logger parameter and empty-string guard as optional improvements — consider for future cleanup
 - Optimistic creation in `use-trips.ts` manually lists every `Trip` field — any new required field on the `Trip` interface must be added there or TypeScript will error

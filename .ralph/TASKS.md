@@ -25,7 +25,7 @@
 
 ## Phase 2: Backend Geocoding
 
-- [ ] Task 2.1: Create geocoding service with plugin registration
+- [x] Task 2.1: Create geocoding service with plugin registration
   - Implement: Create `apps/api/src/services/geocoding.service.ts` with `IGeocodingService` interface and `OpenMeteoGeocodingService` class
   - Implement: `geocode(query)` calls `https://geocoding-api.open-meteo.com/v1/search?name={query}&count=1&language=en`, returns `{ lat, lon }` or null
   - Implement: Handle network errors gracefully (return null)
