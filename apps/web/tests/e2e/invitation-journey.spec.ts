@@ -14,6 +14,7 @@ import {
   ELEMENT_TIMEOUT,
   TOAST_TIMEOUT,
   DIALOG_TIMEOUT,
+  RETRY_INTERVAL,
 } from "./helpers/timeouts";
 import { pickDateTime } from "./helpers/date-pickers";
 import { dismissToast } from "./helpers/toast";
@@ -478,17 +479,18 @@ test.describe("Invitation Journey", () => {
       ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
 
       // Click member count button to open members sheet
+      // Retry click — on cold CI the first click can be swallowed during React hydration
       const memberCountBtn = page
         .getByRole("button")
         .filter({ hasText: /\d+ members?/ });
       await memberCountBtn.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
-      await memberCountBtn.click();
-
-      // Wait for Members sheet to appear
       const dialog = page.getByRole("dialog");
-      await expect(
-        dialog.getByRole("heading", { name: "Members" }),
-      ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+      await expect(async () => {
+        await memberCountBtn.click();
+        await expect(
+          dialog.getByRole("heading", { name: "Members" }),
+        ).toBeVisible({ timeout: RETRY_INTERVAL });
+      }).toPass({ timeout: ELEMENT_TIMEOUT });
 
       // Verify organizer is listed with "Organizer" badge
       await expect(dialog.getByText("Organizer Delta")).toBeVisible();
