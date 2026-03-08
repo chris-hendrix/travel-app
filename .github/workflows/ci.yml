@@ -185,8 +185,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shardIndex: [1, 2]
-        shardTotal: [2]
+        shardIndex: [1, 2, 3, 4]
+        shardTotal: [4]
     env:
       NODE_ENV: test
       DATABASE_URL: postgresql://tripful:tripful123@localhost:5432/tripful
@@ -267,7 +267,10 @@ jobs:
           merge-multiple: true
 
       - name: Merge Reports
-        run: pnpm --filter @tripful/web exec npx playwright merge-reports --reporter html ./all-blob-reports
+        run: |
+          pnpm --filter @tripful/web exec playwright merge-reports --reporter=html ./all-blob-reports
+          echo '### E2E Test Report' >> $GITHUB_STEP_SUMMARY
+          echo 'Full HTML report available in the **playwright-report** artifact.' >> $GITHUB_STEP_SUMMARY
 
       - name: Upload HTML Report
         uses: actions/upload-artifact@v7

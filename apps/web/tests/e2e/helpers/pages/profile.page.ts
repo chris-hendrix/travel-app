@@ -48,6 +48,7 @@ export class ProfilePage {
 
   /** Open the profile dialog from the header dropdown or mobile nav (adapts to viewport) */
   async openDialog() {
+    await this.page.waitForLoadState("networkidle");
     if (await this.isMobileViewport()) {
       await this.page.getByRole("button", { name: "Open menu" }).click();
       await this.page.getByTestId("mobile-menu-profile-button").click();

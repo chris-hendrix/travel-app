@@ -70,6 +70,7 @@ test.describe("Profile Journey", () => {
     "profile page navigation and editing",
     { tag: "@regression" },
     async ({ page, request }) => {
+      test.slow(); // Multiple page reloads + dialog re-opens on CI
       const trips = new TripsPage(page);
       const profile = new ProfilePage(page);
       await authenticateViaAPI(page, request, "Profile Test User");

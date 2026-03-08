@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "postbuild": "cp -r public .next/standalone/apps/web/public && cp -r .next/static .next/standalone/apps/web/.next/static",
     "start": "next start",
     "lint": "eslint . --ignore-pattern '**/*.test.tsx' --ignore-pattern '**/*.test.ts' --ignore-pattern '**/*.spec.tsx' --ignore-pattern '**/*.spec.ts'",
     "test": "vitest run",
