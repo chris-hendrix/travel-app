@@ -736,25 +736,35 @@ export class TripService implements ITripService {
     }
 
     // If destination changed, geocode and update coordinates + delete weather cache
+    // Only re-geocode if the destination value actually differs from the current one
     if (data.destination !== undefined) {
-      let newLat: number | null = null;
-      let newLon: number | null = null;
-      try {
-        const coords = await this.geocodingService.geocode(data.destination);
-        if (coords) {
-          newLat = coords.lat;
-          newLon = coords.lon;
-        }
-      } catch {
-        // Geocoding failure is non-blocking
-      }
-      updateData.destinationLat = newLat;
-      updateData.destinationLon = newLon;
+      // Fetch current trip to compare destination
+      const [currentTrip] = await this.db
+        .select({ destination: trips.destination })
+        .from(trips)
+        .where(eq(trips.id, tripId))
+        .limit(1);
 
-      // Delete weather cache when destination changes (regardless of geocoding result)
-      await this.db
-        .delete(weatherCache)
-        .where(eq(weatherCache.tripId, tripId));
+      if (data.destination !== currentTrip?.destination) {
+        let newLat: number | null = null;
+        let newLon: number | null = null;
+        try {
+          const coords = await this.geocodingService.geocode(data.destination);
+          if (coords) {
+            newLat = coords.lat;
+            newLon = coords.lon;
+          }
+        } catch {
+          // Geocoding failure is non-blocking
+        }
+        updateData.destinationLat = newLat;
+        updateData.destinationLon = newLon;
+
+        // Delete weather cache when destination changes (regardless of geocoding result)
+        await this.db
+          .delete(weatherCache)
+          .where(eq(weatherCache.tripId, tripId));
+      }
     }
 
     // Perform update

@@ -1,3 +1,5 @@
+import type { Logger } from "@/types/logger.js";
+
 /**
  * Geocoding Service Interface
  * Defines the contract for converting location names to coordinates.
@@ -20,7 +22,13 @@ const GEOCODING_API_BASE =
  * No API key required.
  */
 export class OpenMeteoGeocodingService implements IGeocodingService {
+  constructor(private logger?: Logger) {}
+
   async geocode(query: string): Promise<{ lat: number; lon: number } | null> {
+    if (!query?.trim()) return null;
+
+    this.logger?.info({ query }, "Geocoding query");
+
     try {
       const url = `${GEOCODING_API_BASE}?name=${encodeURIComponent(query)}&count=1&language=en`;
       const response = await fetch(url);
@@ -42,7 +50,8 @@ export class OpenMeteoGeocodingService implements IGeocodingService {
         lat: first.latitude,
         lon: first.longitude,
       };
-    } catch {
+    } catch (err) {
+      this.logger?.error(err, "Geocoding failed");
       return null;
     }
   }

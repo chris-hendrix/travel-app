@@ -9,7 +9,7 @@ import { OpenMeteoGeocodingService } from "@/services/geocoding.service.js";
  */
 export default fp(
   async function geocodingServicePlugin(fastify: FastifyInstance) {
-    const geocodingService = new OpenMeteoGeocodingService();
+    const geocodingService = new OpenMeteoGeocodingService(fastify.log);
     fastify.decorate("geocodingService", geocodingService);
   },
   {

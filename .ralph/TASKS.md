@@ -115,7 +115,7 @@
   - Fix: Replace manual column selection with `getTableColumns(users)` and exclude `passwordHash`
   - Verify: API tests pass, no behavior change
 
-- [ ] Task 5.1.5: Geocoding service improvements — LOW
+- [x] Task 5.1.5: Geocoding service improvements — LOW
   - Fix: Add logger parameter to geocoding service for production debugging
   - Fix: Add empty-string guard to `geocode()` to avoid wasting HTTP calls on empty destinations
   - Fix: Skip redundant geocoding in `updateTrip` when destination has not changed

@@ -3,9 +3,10 @@ import { OpenMeteoGeocodingService } from "@/services/geocoding.service.js";
 
 describe("OpenMeteoGeocodingService", () => {
   let service: OpenMeteoGeocodingService;
+  const mockLogger = { info: vi.fn(), error: vi.fn() };
 
   beforeEach(() => {
-    service = new OpenMeteoGeocodingService();
+    service = new OpenMeteoGeocodingService(mockLogger as any);
   });
 
   afterEach(() => {
@@ -58,14 +59,19 @@ describe("OpenMeteoGeocodingService", () => {
       expect(result).toBeNull();
     });
 
-    it("should return null on network error", async () => {
+    it("should return null on network error and log the error", async () => {
+      const networkError = new Error("Network error");
       vi.stubGlobal(
         "fetch",
-        vi.fn().mockRejectedValue(new Error("Network error")),
+        vi.fn().mockRejectedValue(networkError),
       );
 
       const result = await service.geocode("San Diego");
       expect(result).toBeNull();
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        networkError,
+        "Geocoding failed",
+      );
     });
 
     it("should return null on non-OK response", async () => {
@@ -97,6 +103,24 @@ describe("OpenMeteoGeocodingService", () => {
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining("San%20Jos%C3%A9%2C%20Costa%20Rica"),
       );
+    });
+
+    it("should return null for empty query", async () => {
+      const mockFetch = vi.fn();
+      vi.stubGlobal("fetch", mockFetch);
+
+      const result = await service.geocode("");
+      expect(result).toBeNull();
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("should return null for whitespace-only query", async () => {
+      const mockFetch = vi.fn();
+      vi.stubGlobal("fetch", mockFetch);
+
+      const result = await service.geocode("   ");
+      expect(result).toBeNull();
+      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 });

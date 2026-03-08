@@ -2708,3 +2708,31 @@ Pure refactor: the manual `.select({ id: users.id, phoneNumber: users.phoneNumbe
 - The task description mentioned excluding `passwordHash`, but the users table has no such column — this is a phone-based auth system with no passwords
 - `getTableColumns` is the standard Drizzle pattern in this codebase for selecting all columns from a table, especially useful in JOIN queries to avoid ambiguity
 - When refactoring column selections, existing tests that verify returned object shapes are sufficient validation
+
+## Iteration 60 — Task 5.1.5: Geocoding service improvements — LOW
+
+**Status**: ✅ COMPLETE
+
+### Changes Made
+
+**Files modified:**
+- `apps/api/src/services/geocoding.service.ts` — Added `Logger` import from `@/types/logger.js`; added optional `logger` constructor parameter; added empty-string guard (`if (!query?.trim()) return null`); added `this.logger?.info()` at geocode start; replaced bare `catch {}` with `this.logger?.error(err, "Geocoding failed")`
+- `apps/api/src/plugins/geocoding-service.ts` — Pass `fastify.log` to `OpenMeteoGeocodingService` constructor
+- `apps/api/src/services/trip.service.ts` — In `updateTrip()`, when `data.destination` is provided, fetch current trip destination and compare; skip geocoding and weather cache deletion when destination unchanged
+- `apps/api/tests/unit/geocoding.service.test.ts` — Added mock logger to all tests; added 2 new tests for empty-string and whitespace-only guards; updated network error test to assert `mockLogger.error` was called
+
+### Verification
+
+- **TypeCheck**: PASS — all 3 packages
+- **Lint**: PASS — 1 pre-existing `@typescript-eslint/no-explicit-any` warning in test file (non-blocking)
+- **API Tests**: PASS — 63 files, 1174 tests, 0 failures (8/8 geocoding tests pass)
+- **Web Tests**: PASS — 71 files, 1164 tests, 0 failures
+- **Shared Tests**: PASS — 16 files, 321 tests, 0 failures
+- **Reviewer**: APPROVED
+
+### Learnings
+
+- The codebase `Logger` interface is at `@/types/logger.js` and supports Pino-style overloaded signatures: `(obj, msg)` and `(msg)`
+- Services use optional logger as last constructor param with optional chaining — consistent pattern across message, invitation, SMS, and verification services
+- The extra SELECT in updateTrip (primary key lookup) is negligible cost vs saving an external HTTP geocoding call + weather cache DELETE
+- `fastify.log` conforms to the custom `Logger` interface and is the standard way to pass a logger to services via plugins
