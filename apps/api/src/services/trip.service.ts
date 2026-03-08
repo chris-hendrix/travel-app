@@ -957,6 +957,7 @@ export class TripService implements ITripService {
         profilePhotoUrl: users.profilePhotoUrl,
         handles: users.handles,
         timezone: users.timezone,
+        temperatureUnit: users.temperatureUnit,
         calendarToken: users.calendarToken,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,

@@ -13,6 +13,7 @@ import {
   unique,
   jsonb,
   integer,
+  doublePrecision,
 } from "drizzle-orm/pg-core";
 
 // Users table
@@ -25,6 +26,7 @@ export const users = pgTable(
     profilePhotoUrl: text("profile_photo_url"),
     handles: jsonb("handles").$type<Record<string, string>>(),
     timezone: varchar("timezone", { length: 100 }),
+    temperatureUnit: varchar("temperature_unit", { length: 10 }).default("celsius"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -78,6 +80,8 @@ export const trips = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     name: varchar("name", { length: 100 }).notNull(),
     destination: text("destination").notNull(),
+    destinationLat: doublePrecision("destination_lat"),
+    destinationLon: doublePrecision("destination_lon"),
     startDate: date("start_date"),
     endDate: date("end_date"),
     preferredTimezone: varchar("preferred_timezone", { length: 100 }).notNull(),
@@ -586,3 +590,13 @@ export const rateLimitEntries = pgTable(
 
 export type RateLimitEntry = typeof rateLimitEntries.$inferSelect;
 export type NewRateLimitEntry = typeof rateLimitEntries.$inferInsert;
+
+// Weather Cache
+export const weatherCache = pgTable("weather_cache", {
+  tripId: uuid("trip_id").primaryKey().references(() => trips.id, { onDelete: "cascade" }),
+  response: jsonb("response").notNull(),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type WeatherCache = typeof weatherCache.$inferSelect;
+export type NewWeatherCache = typeof weatherCache.$inferInsert;

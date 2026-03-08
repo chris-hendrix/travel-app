@@ -2219,3 +2219,31 @@ APPROVED — Fix is minimal and correct. No other E2E tests have the same issue 
 
 - The `playwright-cli` tool's `run-code` and `eval` commands have severe shell quoting limitations when passing strings containing quotes through `make test-exec CMD="..."` — string values like `"dark"` get unquoted by intermediate shell layers. Use `String.fromCharCode()` for `eval` or pre-existing screenshots for dark mode verification.
 - E2E tests that assert on combined text strings are brittle when component refactoring splits text into separate elements — prefer asserting on the most stable single text element (e.g., the title) rather than concatenated title+description.
+
+## Iteration 46 — Task 1.1: Add coordinate columns, temperature unit, and weather cache table
+
+**Status**: ✅ COMPLETE
+
+### Changes Made
+
+**Files modified:**
+- `apps/api/src/db/schema/index.ts` — Added `doublePrecision` import; added `destinationLat` (doublePrecision, nullable) and `destinationLon` (doublePrecision, nullable) to `trips` table; added `temperatureUnit` (varchar(10), default "celsius") to `users` table; created `weatherCache` table with `tripId` (uuid PK, FK cascade to trips), `response` (jsonb, notNull), `fetchedAt` (timestamp with tz, notNull, defaultNow); exported `WeatherCache` and `NewWeatherCache` types
+- `apps/api/src/db/schema/relations.ts` — Added `weatherCache` import; added `weatherCache: one(weatherCache)` to `tripsRelations`; added `weatherCacheRelations` definition with `trip: one(trips, ...)`
+- `apps/api/src/services/trip.service.ts` — Added `temperatureUnit: users.temperatureUnit` to `getCoOrganizers` explicit select (required because method returns `User[]` and new column must be included)
+
+**Files generated:**
+- `apps/api/src/db/migrations/0021_pale_agent_brand.sql` — Migration with CREATE TABLE weather_cache, ALTER TABLE trips ADD destination_lat/destination_lon, ALTER TABLE users ADD temperature_unit, FK constraint weather_cache → trips with cascade delete
+
+### Verification
+- **TypeCheck**: PASS (all 3 packages)
+- **Lint**: PASS (all 3 packages)
+- **Unit/Integration Tests**: PASS (API: 1143 tests, Shared: 308 tests, Web: 1104 tests; pre-existing failures in theme-config, trip-detail-content, create-trip-dialog, members-list tests are unrelated)
+- **Migration SQL**: Correct — verified all DDL statements match architecture spec
+- **Reviewer**: APPROVED
+
+### Learnings
+- `doublePrecision` was not previously imported in the schema — first usage in the codebase for coordinate columns
+- `weatherCache` uses `tripId` as PK (not a separate UUID id) — first table with this pattern (1:1 cache table)
+- Adding a column to the `users` table requires updating any service method that uses explicit column selects returning `User[]` (e.g., `getCoOrganizers` in trip.service.ts)
+- Reviewer noted that `temperatureUnit` is nullable for existing rows (ALTER TABLE ADD COLUMN default only applies to new inserts) — downstream code should treat null as "celsius"
+- Reviewer suggested using `getTableColumns(users)` instead of manual column listing in `getCoOrganizers` to avoid future maintenance — consider for a future cleanup task

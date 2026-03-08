@@ -2,7 +2,7 @@
 
 ## Phase 1: Database & Shared Types
 
-- [ ] Task 1.1: Add coordinate columns, temperature unit, and weather cache table
+- [x] Task 1.1: Add coordinate columns, temperature unit, and weather cache table
   - Implement: Add `destinationLat` (doublePrecision, nullable) and `destinationLon` (doublePrecision, nullable) to `trips` table in `apps/api/src/db/schema/index.ts`
   - Implement: Add `temperatureUnit` (varchar(10), default "celsius") to `users` table
   - Implement: Create `weatherCache` table with `tripId` (uuid PK, FK cascade to trips), `response` (jsonb, notNull), `fetchedAt` (timestamp with tz, notNull, defaultNow)
