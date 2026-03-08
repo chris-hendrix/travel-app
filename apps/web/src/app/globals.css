@@ -40,19 +40,19 @@
   --color-airmail-blue: #2e5984;
 
   /* Event type colors — desaturated linen tones */
-  --color-event-travel: #3b6898;
+  --color-event-travel: #1a3a5e;
   --color-event-travel-light: #dce8f3;
   --color-event-travel-border: #a8bdd0;
-  --color-event-meal: #b07920;
+  --color-event-meal: #6a4508;
   --color-event-meal-light: #f5e6c8;
   --color-event-meal-border: #dbc391;
-  --color-event-activity: #2d7a58;
+  --color-event-activity: #14482e;
   --color-event-activity-light: #d8eedf;
   --color-event-activity-border: #8fc4a8;
-  --color-accommodation: #6e3ca8;
+  --color-accommodation: #3e1a6e;
   --color-accommodation-light: #f0e8f5;
   --color-accommodation-border: #c5aed9;
-  --color-member-travel: #6b6259;
+  --color-member-travel: #3a3228;
   --color-member-travel-light: #f3ede0;
   --color-member-travel-border: #d4c9b5;
 
@@ -90,19 +90,19 @@
   --color-airmail-red: #d4613e;
   --color-airmail-blue: #5a9fd4;
 
-  --color-event-travel: #6aafe0;
+  --color-event-travel: #8ac4f0;
   --color-event-travel-light: #1a2d3e;
   --color-event-travel-border: #3a5a78;
-  --color-event-meal: #d4a03a;
+  --color-event-meal: #e8b850;
   --color-event-meal-light: #2e2414;
   --color-event-meal-border: #6a5a30;
-  --color-event-activity: #5aae80;
+  --color-event-activity: #78c8a0;
   --color-event-activity-light: #162e1e;
   --color-event-activity-border: #3a6a50;
-  --color-accommodation: #9a6ed4;
+  --color-accommodation: #b88ee8;
   --color-accommodation-light: #251a30;
   --color-accommodation-border: #5a3a80;
-  --color-member-travel: #9a9088;
+  --color-member-travel: #b8aea4;
   --color-member-travel-light: #252220;
   --color-member-travel-border: #4a4540;
 
@@ -278,6 +278,44 @@
 
 ::view-transition-new(root) {
   animation: viewFadeIn 0.2s ease-out forwards;
+}
+
+/* Sheet pop animation — overrides default slide */
+[data-slot="sheet-content"] {
+  transform-origin: right center;
+
+  &[data-state="open"] {
+    animation: sheet-pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both !important;
+  }
+  &[data-state="closed"] {
+    animation: sheet-pop-out 0.3s cubic-bezier(0.55, 0, 1, 0.45) both !important;
+  }
+}
+
+@keyframes sheet-pop-in {
+  0% {
+    opacity: 0;
+    transform: translateX(40%) scale(0.88);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes sheet-pop-out {
+  0% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  40% {
+    opacity: 1;
+    transform: translateX(-2%) scale(1.02);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(40%) scale(0.88);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -131,7 +131,9 @@ test.describe("Mutuals Journey", () => {
         await dialog.getByRole("button", { name: "Send invitations" }).click();
 
         // Verify toast
-        await expect(page.getByText(/member added|invitation/i)).toBeVisible({
+        await expect(
+          page.getByText(/member added|invitation.*sent/i),
+        ).toBeVisible({
           timeout: TOAST_TIMEOUT,
         });
 

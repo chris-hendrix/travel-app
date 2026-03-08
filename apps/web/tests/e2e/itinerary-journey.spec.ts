@@ -55,9 +55,10 @@ test.describe("Itinerary Journey", () => {
         await expect(page.getByText(/Dinner at Harbor/)).toBeVisible();
         await expect.soft(page.getByText(/6:30 PM/)).toBeVisible();
 
-        // Location should be a Google Maps link
+        // Location text visible with link icon to Google Maps
+        await expect.soft(page.getByText("Harbor Drive Seafood")).toBeVisible();
         const locationLink = page.getByRole("link", {
-          name: "Harbor Drive Seafood",
+          name: /Harbor Drive Seafood.*Google Maps/,
         });
         await expect.soft(locationLink).toBeVisible();
         await expect
@@ -98,19 +99,18 @@ test.describe("Itinerary Journey", () => {
           .getByRole("button", { name: "Create accommodation" })
           .click();
 
-        // Address link is visible in the compact card header (no expand needed)
+        // Address link is visible in the compact line-item (click opens detail sheet)
         const accommodationCard = page
-          .locator('[role="button"][aria-expanded]')
+          .locator('[role="button"]')
           .filter({
             hasText: new RegExp(accommodationName.replace(/\d+/g, "\\d+")),
           })
           .first();
         await expect(accommodationCard).toBeVisible({ timeout: ELEMENT_TIMEOUT });
 
-        // Address should be a Google Maps link (scoped to first card instance)
-        // Compact view truncates addresses > 20 chars: "123 Main St, San Die…"
+        // Location pin + link icon visible (address details in detail sheet)
         const addressLink = accommodationCard.getByRole("link", {
-          name: /123 Main St/,
+          name: /Google Maps/,
         });
         await expect(addressLink).toBeVisible();
         await expect(addressLink).toHaveAttribute(
@@ -140,21 +140,8 @@ test.describe("Itinerary Journey", () => {
           .fill("Arriving from Chicago");
         await page.getByRole("button", { name: "Add travel details" }).click();
 
-        // Travel card shows member name
+        // Travel card shows member name (location details in detail sheet)
         await expect(page.getByText(/Itinerary Tester/).first()).toBeVisible();
-
-        // Location should be a Google Maps link (may take extra time on iPhone
-        // as the refetch after travel creation needs to complete with JOIN data).
-        const travelLocationLink = page.getByRole("link", {
-          name: "San Diego Airport",
-        });
-        await expect(travelLocationLink).toBeVisible({
-          timeout: ELEMENT_TIMEOUT,
-        });
-        await expect(travelLocationLink).toHaveAttribute(
-          "href",
-          /google\.com\/maps\/search/,
-        );
 
         // Expand travel card to see details — use getByRole to target
         // the travel card button, not the "Itinerary Tester" text in Organizers
@@ -169,11 +156,12 @@ test.describe("Itinerary Journey", () => {
       });
 
       await test.step("edit event", async () => {
+        // Click event card to open detail sheet, then click Edit
         await page
           .getByText(/Dinner at Harbor/)
           .first()
           .click();
-        await page.locator('button[title="Edit event"]').first().click();
+        await page.locator('button[title="Edit"]').first().click();
         await expect(
           page.getByRole("heading", { name: "Edit event" }),
         ).toBeVisible();
@@ -191,9 +179,10 @@ test.describe("Itinerary Journey", () => {
         ).not.toBeVisible();
 
         await expect(page.getByText(/Updated Dinner/)).toBeVisible();
-        // Updated location should also be a Google Maps link
+        // Updated location text visible with link icon
+        await expect(page.getByText("Gaslamp Quarter")).toBeVisible();
         const updatedLocationLink = page.getByRole("link", {
-          name: "Gaslamp Quarter",
+          name: /Gaslamp Quarter.*Google Maps/,
         });
         await expect(updatedLocationLink).toBeVisible();
         await expect(updatedLocationLink).toHaveAttribute(
@@ -204,34 +193,23 @@ test.describe("Itinerary Journey", () => {
       });
 
       await test.step("delete event with cancel then confirm", async () => {
-        // Find the event card — it may still be expanded from the edit step
-        const card = page
-          .locator('[role="button"][aria-expanded]')
-          .filter({ hasText: /Updated Dinner/ })
-          .first();
-        const expanded = await card.getAttribute("aria-expanded");
-        if (expanded !== "true") {
-          await card.click();
-        }
-        await expect(
-          page.locator('button[title="Edit event"]').first(),
-        ).toBeVisible({ timeout: DIALOG_TIMEOUT });
-        await page.locator('button[title="Edit event"]').first().click();
-        await expect(
-          page.getByRole("heading", { name: "Edit event" }),
-        ).toBeVisible();
+        // Click event card to open detail sheet
+        await page.getByText(/Updated Dinner/).first().click();
+        const deleteBtn = page.locator('button[title="Delete"]').first();
+        await expect(deleteBtn).toBeVisible({ timeout: DIALOG_TIMEOUT });
 
-        await page.getByRole("button", { name: "Delete event" }).click();
+        // Click Delete in detail sheet — triggers confirmation dialog
+        await deleteBtn.click();
         await expect(page.getByText("Are you sure?")).toBeVisible();
 
         // Cancel first
         await page.getByRole("button", { name: "Cancel" }).last().click();
-        await expect(
-          page.getByRole("heading", { name: "Edit event" }),
-        ).toBeVisible();
+
+        // Detail sheet should still be open — Delete button still visible
+        await expect(deleteBtn).toBeVisible();
 
         // Delete for real
-        await page.getByRole("button", { name: "Delete event" }).click();
+        await deleteBtn.click();
         await expect(page.getByText("Are you sure?")).toBeVisible();
         await page.getByRole("button", { name: "Yes, delete" }).click();
 
@@ -305,9 +283,10 @@ test.describe("Itinerary Journey", () => {
           timeout: NAVIGATION_TIMEOUT,
         });
 
-        // Location is a Google Maps link
+        // Location text visible with link icon
+        await expect(page.getByText("Las Vegas Airport")).toBeVisible();
         const airportLink = page.getByRole("link", {
-          name: "Las Vegas Airport",
+          name: /Las Vegas Airport.*Google Maps/,
         });
         await expect(airportLink).toBeVisible();
         await expect(airportLink).toHaveAttribute(
@@ -340,11 +319,8 @@ test.describe("Itinerary Journey", () => {
         await expect.soft(page.locator('[title="Arrivals"]')).toBeVisible();
         await expect.soft(page.getByText(/Lunch/)).toBeVisible();
         await expect.soft(page.getByText(/Show/)).toBeVisible();
-        // Location is still a Google Maps link in group-by-type view
-        const airportLinkGrouped = page.getByRole("link", {
-          name: "Las Vegas Airport",
-        });
-        await expect.soft(airportLinkGrouped).toBeVisible();
+        // Location still visible in group-by-type view
+        await expect.soft(page.getByText("Las Vegas Airport").first()).toBeVisible();
         // Verify date labels appear on cards in group-by-type view
         await expect.soft(page.getByText(/Mar 10/).first()).toBeVisible();
         await snap(page, "11-itinerary-group-by-type");
@@ -464,27 +440,21 @@ test.describe("Itinerary Journey", () => {
         });
       });
 
-      await test.step("expand event card and delete via edit dialog", async () => {
-        // Click on the event card to expand it
+      await test.step("open event detail sheet and delete via dialog", async () => {
+        // Click on the event card to open the detail sheet
         const card = page
-          .locator('[role="button"][aria-expanded]')
+          .locator('[role="button"]')
           .filter({ hasText: /Dinner at Joe's/ })
           .first();
-        const expanded = await card.getAttribute("aria-expanded");
-        if (expanded !== "true") {
-          await card.click();
-        }
+        await card.click();
 
-        // Click the Edit button, then Delete event in the edit dialog
+        // Click the Delete button (trash icon) in the detail sheet
         await expect(
-          page.locator('button[title="Edit event"]').first(),
+          page.locator('button[title="Delete"]').first(),
         ).toBeVisible({ timeout: DIALOG_TIMEOUT });
-        await page.locator('button[title="Edit event"]').first().click();
-        await expect(
-          page.getByRole("heading", { name: "Edit event" }),
-        ).toBeVisible();
+        await page.locator('button[title="Delete"]').first().click();
 
-        await page.getByRole("button", { name: "Delete event" }).click();
+        // Confirm deletion in the alert dialog
         await expect(page.getByText("Are you sure?")).toBeVisible();
         await page.getByRole("button", { name: "Yes, delete" }).click();
       });

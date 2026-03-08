@@ -117,8 +117,8 @@ test.describe("Invitation Journey", () => {
         // Click "Send invitations" button
         await dialog.getByRole("button", { name: "Send invitations" }).click();
 
-        // Verify toast with "invitation" text appears
-        await expect(page.getByText(/invitation/i)).toBeVisible({
+        // Verify toast with "invitation sent" text appears
+        await expect(page.getByText(/invitation.*sent/i)).toBeVisible({
           timeout: TOAST_TIMEOUT,
         });
         await snap(page, "12-invite-sent");
@@ -296,11 +296,13 @@ test.describe("Invitation Journey", () => {
           }),
         ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
 
-        // Verify "Member no longer attending" badge is visible
+        // Badge is in the detail sheet — click event card to open it
+        await page.getByText(eventName).click();
         await expect(page.getByText("Member no longer attending")).toBeVisible({
           timeout: ELEMENT_TIMEOUT,
         });
         await snap(page, "16-member-not-attending-indicator");
+        await page.keyboard.press("Escape");
       });
 
       await test.step("organizer changes own RSVP via dropdown", async () => {
@@ -363,10 +365,12 @@ test.describe("Invitation Journey", () => {
           }),
         ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
 
-        // Verify badge is gone
+        // Badge should be gone — open detail sheet to verify
+        await page.getByText(eventName).click();
         await expect(
           page.getByText("Member no longer attending"),
         ).not.toBeVisible();
+        await page.keyboard.press("Escape");
       });
     },
   );

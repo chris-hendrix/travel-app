@@ -3,8 +3,11 @@
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import type { Event, Accommodation, MemberTravel } from "@tripful/shared/types";
 import { EventCard } from "./event-card";
-import { AccommodationCard } from "./accommodation-card";
-import { MemberTravelCard } from "./member-travel-card";
+import { AccommodationLineItem } from "./accommodation-line-item";
+import { MemberTravelLineItem } from "./member-travel-line-item";
+import { EventDetailSheet } from "./event-detail-sheet";
+import { AccommodationDetailSheet } from "./accommodation-detail-sheet";
+import { MemberTravelDetailSheet } from "./member-travel-detail-sheet";
 import { EditEventDialog } from "./edit-event-dialog";
 import { EditAccommodationDialog } from "./edit-accommodation-dialog";
 import { EditMemberTravelDialog } from "./edit-member-travel-dialog";
@@ -14,6 +17,7 @@ import {
   getDayNumber,
   getMonthAbbrev,
   getWeekdayAbbrev,
+  utcToLocalParts,
 } from "@/lib/utils/timezone";
 import { cn } from "@/lib/utils";
 import { CalendarOff } from "lucide-react";
@@ -97,11 +101,39 @@ export function DayByDayView({
       }
     };
 
-    // Add events to days
+    // Add events to days (multi-day events appear on all spanned days)
     events.forEach((event) => {
-      const day = getDayInTimezone(event.startTime, timezone);
-      ensureDay(day);
-      days.get(day)!.events.push(event);
+      const startDay = getDayInTimezone(event.startTime, timezone);
+
+      // Midnight end times don't count as a separate day (e.g. 8 PM–12 AM is single-day)
+      const endIsMidnight = event.endTime
+        ? utcToLocalParts(
+            typeof event.endTime === "string" ? event.endTime : event.endTime.toISOString(),
+            timezone,
+          ).time === "00:00"
+        : false;
+      const endDay =
+        event.endTime && !endIsMidnight
+          ? getDayInTimezone(event.endTime, timezone)
+          : startDay;
+
+      if (startDay === endDay || !event.endTime) {
+        // Single-day event
+        ensureDay(startDay);
+        days.get(startDay)!.events.push(event);
+      } else {
+        // Multi-day event: add to every day from start through end
+        const current = new Date(startDay + "T00:00:00");
+        const end = new Date(endDay + "T00:00:00");
+        while (current <= end) {
+          const dateString = current.toISOString().split("T")[0] || "";
+          if (dateString) {
+            ensureDay(dateString);
+            days.get(dateString)!.events.push(event);
+          }
+          current.setDate(current.getDate() + 1);
+        }
+      }
     });
 
     // Add accommodations to all spanned days (check-in through day before check-out)
@@ -184,18 +216,17 @@ export function DayByDayView({
     tripEndDate,
   ]);
 
+  // Detail sheet state
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [selectedAccommodation, setSelectedAccommodation] = useState<Accommodation | null>(null);
+  const [selectedMemberTravel, setSelectedMemberTravel] = useState<MemberTravel | null>(null);
+
   // Edit dialog state
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [editingAccommodation, setEditingAccommodation] =
     useState<Accommodation | null>(null);
   const [editingMemberTravel, setEditingMemberTravel] =
     useState<MemberTravel | null>(null);
-
-  const handleEditEvent = (event: Event) => setEditingEvent(event);
-  const handleEditAccommodation = (acc: Accommodation) =>
-    setEditingAccommodation(acc);
-  const handleEditMemberTravel = (travel: MemberTravel) =>
-    setEditingMemberTravel(travel);
 
   return (
     <div className="divide-y divide-border">
@@ -227,25 +258,10 @@ export function DayByDayView({
         // Accommodations (no specific time, show first)
         day.accommodations.forEach((acc) => {
           cardElements.push(
-            <AccommodationCard
+            <AccommodationLineItem
               key={`acc-${acc.id}-${day.date}`}
               accommodation={acc}
-              timezone={timezone}
-              canEdit={canModifyAccommodation(
-                acc,
-                userId,
-                isOrganizer,
-                isLocked,
-              )}
-              canDelete={canModifyAccommodation(
-                acc,
-                userId,
-                isOrganizer,
-                isLocked,
-              )}
-              onEdit={handleEditAccommodation}
-              onDelete={handleEditAccommodation}
-              createdByName={userNameMap.get(acc.createdBy)}
+              onClick={setSelectedAccommodation}
             />,
           );
         });
@@ -259,11 +275,7 @@ export function DayByDayView({
                 key={event.id}
                 event={event}
                 timezone={timezone}
-                canEdit={canModifyEvent(event, userId, isOrganizer, isLocked)}
-                canDelete={canModifyEvent(event, userId, isOrganizer, isLocked)}
-                onEdit={handleEditEvent}
-                onDelete={handleEditEvent}
-                createdByName={userNameMap.get(event.createdBy)}
+                onClick={setSelectedEvent}
               />,
             );
           });
@@ -303,45 +315,18 @@ export function DayByDayView({
                 key={item.event.id}
                 event={item.event}
                 timezone={timezone}
-                canEdit={canModifyEvent(
-                  item.event,
-                  userId,
-                  isOrganizer,
-                  isLocked,
-                )}
-                canDelete={canModifyEvent(
-                  item.event,
-                  userId,
-                  isOrganizer,
-                  isLocked,
-                )}
-                onEdit={handleEditEvent}
-                onDelete={handleEditEvent}
-                createdByName={userNameMap.get(item.event.createdBy)}
+                onClick={setSelectedEvent}
               />,
             );
           } else {
             maybeInsertNow(item.travel.time);
             cardElements.push(
-              <MemberTravelCard
+              <MemberTravelLineItem
                 key={item.travel.id}
                 memberTravel={item.travel}
                 memberName={item.travel.memberName || "Unknown member"}
                 timezone={timezone}
-                canEdit={canModifyMemberTravel(
-                  item.travel,
-                  userId,
-                  isOrganizer,
-                  isLocked,
-                )}
-                canDelete={canModifyMemberTravel(
-                  item.travel,
-                  userId,
-                  isOrganizer,
-                  isLocked,
-                )}
-                onEdit={handleEditMemberTravel}
-                onDelete={handleEditMemberTravel}
+                onClick={setSelectedMemberTravel}
               />,
             );
           }
@@ -457,6 +442,42 @@ export function DayByDayView({
           tripEndDate={tripEndDate}
         />
       )}
+
+      {/* Detail sheets */}
+      <EventDetailSheet
+        event={selectedEvent}
+        open={!!selectedEvent}
+        onOpenChange={(open) => { if (!open) setSelectedEvent(null); }}
+        timezone={timezone}
+        canEdit={selectedEvent ? canModifyEvent(selectedEvent, userId, isOrganizer, isLocked) : false}
+        canDelete={selectedEvent ? canModifyEvent(selectedEvent, userId, isOrganizer, isLocked) : false}
+        onEdit={(event) => { setSelectedEvent(null); setEditingEvent(event); }}
+        createdByName={selectedEvent ? userNameMap.get(selectedEvent.createdBy) : undefined}
+      />
+
+      <AccommodationDetailSheet
+        accommodation={selectedAccommodation}
+        open={!!selectedAccommodation}
+        onOpenChange={(open) => { if (!open) setSelectedAccommodation(null); }}
+        timezone={timezone}
+        canEdit={selectedAccommodation ? canModifyAccommodation(selectedAccommodation, userId, isOrganizer, isLocked) : false}
+        canDelete={selectedAccommodation ? canModifyAccommodation(selectedAccommodation, userId, isOrganizer, isLocked) : false}
+        onEdit={(acc) => { setSelectedAccommodation(null); setEditingAccommodation(acc); }}
+        onDelete={() => setSelectedAccommodation(null)}
+        createdByName={selectedAccommodation ? userNameMap.get(selectedAccommodation.createdBy) : undefined}
+      />
+
+      <MemberTravelDetailSheet
+        memberTravel={selectedMemberTravel}
+        open={!!selectedMemberTravel}
+        onOpenChange={(open) => { if (!open) setSelectedMemberTravel(null); }}
+        timezone={timezone}
+        memberName={selectedMemberTravel?.memberName || "Unknown member"}
+        canEdit={selectedMemberTravel ? canModifyMemberTravel(selectedMemberTravel, userId, isOrganizer, isLocked) : false}
+        canDelete={selectedMemberTravel ? canModifyMemberTravel(selectedMemberTravel, userId, isOrganizer, isLocked) : false}
+        onEdit={(travel) => { setSelectedMemberTravel(null); setEditingMemberTravel(travel); }}
+        onDelete={() => setSelectedMemberTravel(null)}
+      />
     </div>
   );
 }

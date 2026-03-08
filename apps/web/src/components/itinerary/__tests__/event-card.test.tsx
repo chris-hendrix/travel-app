@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, it, expect, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { EventCard } from "../event-card";
 import type { Event } from "@tripful/shared/types";
@@ -26,14 +26,19 @@ describe("EventCard", () => {
     updatedAt: new Date("2026-01-01T00:00:00Z"),
   };
 
+  const onClick = vi.fn();
+
+  beforeEach(() => {
+    onClick.mockClear();
+  });
+
   describe("Rendering", () => {
     it("renders event name and time", () => {
       render(
         <EventCard
           event={baseEvent}
           timezone="America/Los_Angeles"
-          canEdit={false}
-          canDelete={false}
+          onClick={onClick}
         />,
       );
 
@@ -45,8 +50,7 @@ describe("EventCard", () => {
         <EventCard
           event={baseEvent}
           timezone="America/Los_Angeles"
-          canEdit={false}
-          canDelete={false}
+          onClick={onClick}
         />,
       );
 
@@ -59,8 +63,7 @@ describe("EventCard", () => {
         <EventCard
           event={event}
           timezone="America/Los_Angeles"
-          canEdit={false}
-          canDelete={false}
+          onClick={onClick}
         />,
       );
 
@@ -72,8 +75,7 @@ describe("EventCard", () => {
         <EventCard
           event={baseEvent}
           timezone="America/Los_Angeles"
-          canEdit={false}
-          canDelete={false}
+          onClick={onClick}
         />,
       );
 
@@ -82,48 +84,48 @@ describe("EventCard", () => {
   });
 
   describe("Event types", () => {
-    it("shows correct icon and color for travel event", () => {
+    it("applies correct color class for travel event", () => {
       const event = { ...baseEvent, eventType: "travel" as const };
       const { container } = render(
         <EventCard
           event={event}
           timezone="America/Los_Angeles"
-          canEdit={false}
-          canDelete={false}
+          onClick={onClick}
         />,
       );
 
-      const iconContainer = container.querySelector(".text-event-travel");
-      expect(iconContainer).not.toBeNull();
+      const card = container.firstElementChild;
+      expect(card?.className).toContain("border-l-event-travel");
+      expect(card?.className).toContain("bg-event-travel-light");
     });
 
-    it("shows correct icon and color for meal event", () => {
+    it("applies correct color class for meal event", () => {
       const { container } = render(
         <EventCard
           event={baseEvent}
           timezone="America/Los_Angeles"
-          canEdit={false}
-          canDelete={false}
+          onClick={onClick}
         />,
       );
 
-      const iconContainer = container.querySelector(".text-event-meal");
-      expect(iconContainer).not.toBeNull();
+      const card = container.firstElementChild;
+      expect(card?.className).toContain("border-l-event-meal");
+      expect(card?.className).toContain("bg-event-meal-light");
     });
 
-    it("shows correct icon and color for activity event", () => {
+    it("applies correct color class for activity event", () => {
       const event = { ...baseEvent, eventType: "activity" as const };
       const { container } = render(
         <EventCard
           event={event}
           timezone="America/Los_Angeles"
-          canEdit={false}
-          canDelete={false}
+          onClick={onClick}
         />,
       );
 
-      const iconContainer = container.querySelector(".text-event-activity");
-      expect(iconContainer).not.toBeNull();
+      const card = container.firstElementChild;
+      expect(card?.className).toContain("border-l-event-activity");
+      expect(card?.className).toContain("bg-event-activity-light");
     });
   });
 
@@ -134,8 +136,7 @@ describe("EventCard", () => {
         <EventCard
           event={event}
           timezone="America/Los_Angeles"
-          canEdit={false}
-          canDelete={false}
+          onClick={onClick}
         />,
       );
 
@@ -143,402 +144,101 @@ describe("EventCard", () => {
     });
   });
 
-  describe("Expandable behavior", () => {
-    it("shows description when expanded", async () => {
+  describe("Click behavior", () => {
+    it("calls onClick when card is clicked", async () => {
       const user = userEvent.setup();
       render(
         <EventCard
           event={baseEvent}
           timezone="America/Los_Angeles"
-          canEdit={false}
-          canDelete={false}
+          onClick={onClick}
         />,
       );
 
-      // Click to expand
-      const card = screen.getByText("Beach Lunch").closest("div");
-      if (card) await user.click(card);
+      const card = screen.getByRole("button");
+      await user.click(card);
 
-      expect(screen.getByText("Lunch at beachside restaurant")).toBeDefined();
+      expect(onClick).toHaveBeenCalledWith(baseEvent);
     });
 
-    it("shows links when expanded", async () => {
+    it("calls onClick on Enter key", async () => {
       const user = userEvent.setup();
       render(
         <EventCard
           event={baseEvent}
           timezone="America/Los_Angeles"
-          canEdit={false}
-          canDelete={false}
+          onClick={onClick}
         />,
       );
 
-      // Click to expand
-      const card = screen.getByText("Beach Lunch").closest("div");
-      if (card) await user.click(card);
+      const card = screen.getByRole("button");
+      card.focus();
+      await user.keyboard("{Enter}");
 
-      const link = screen.getByText("Link 1");
-      expect(link).toBeDefined();
-      expect(link.closest("a")?.href).toBe("https://example.com/menu");
+      expect(onClick).toHaveBeenCalledWith(baseEvent);
+    });
+
+    it("calls onClick on Space key", async () => {
+      const user = userEvent.setup();
+      render(
+        <EventCard
+          event={baseEvent}
+          timezone="America/Los_Angeles"
+          onClick={onClick}
+        />,
+      );
+
+      const card = screen.getByRole("button");
+      card.focus();
+      await user.keyboard(" ");
+
+      expect(onClick).toHaveBeenCalledWith(baseEvent);
     });
   });
 
-  describe("Edit and delete buttons", () => {
-    it("shows edit button when canEdit is true", async () => {
-      const user = userEvent.setup();
-      const onEdit = vi.fn();
-      render(
-        <EventCard
-          event={baseEvent}
-          timezone="America/Los_Angeles"
-          canEdit={true}
-          canDelete={false}
-          onEdit={onEdit}
-        />,
-      );
-
-      // Expand card
-      const card = screen.getByText("Beach Lunch").closest("div");
-      if (card) await user.click(card);
-
-      await waitFor(() => {
-        expect(screen.getByText("Edit")).toBeDefined();
-      });
-    });
-
-    it("shows delete button when canDelete is true", async () => {
-      const user = userEvent.setup();
-      const onDelete = vi.fn();
-      render(
-        <EventCard
-          event={baseEvent}
-          timezone="America/Los_Angeles"
-          canEdit={false}
-          canDelete={true}
-          onDelete={onDelete}
-        />,
-      );
-
-      // Expand card
-      const card = screen.getByText("Beach Lunch").closest("div");
-      if (card) await user.click(card);
-
-      await waitFor(() => {
-        expect(screen.getByText("Delete")).toBeDefined();
-      });
-    });
-
-    it("calls onEdit when edit button is clicked", async () => {
-      const user = userEvent.setup();
-      const onEdit = vi.fn();
-      render(
-        <EventCard
-          event={baseEvent}
-          timezone="America/Los_Angeles"
-          canEdit={true}
-          canDelete={false}
-          onEdit={onEdit}
-        />,
-      );
-
-      // Expand card
-      const card = screen.getByText("Beach Lunch").closest("div");
-      if (card) await user.click(card);
-
-      const editButton = screen.getByText("Edit");
-      await user.click(editButton);
-
-      expect(onEdit).toHaveBeenCalled();
-    });
-
-    it("calls onDelete when delete button is clicked", async () => {
-      const user = userEvent.setup();
-      const onDelete = vi.fn();
-      render(
-        <EventCard
-          event={baseEvent}
-          timezone="America/Los_Angeles"
-          canEdit={false}
-          canDelete={true}
-          onDelete={onDelete}
-        />,
-      );
-
-      // Expand card
-      const card = screen.getByText("Beach Lunch").closest("div");
-      if (card) await user.click(card);
-
-      const deleteButton = screen.getByText("Delete");
-      await user.click(deleteButton);
-
-      expect(onDelete).toHaveBeenCalled();
-    });
-  });
-
-  describe("Creator attending indicator", () => {
-    it("shows indicator when creatorAttending is false", () => {
-      const event = { ...baseEvent, creatorAttending: false };
-      render(
-        <EventCard
-          event={event}
-          timezone="America/Los_Angeles"
-          canEdit={false}
-          canDelete={false}
-        />,
-      );
-
-      expect(screen.getByText("Member no longer attending")).toBeDefined();
-    });
-
-    it("does not show indicator when creatorAttending is true", () => {
-      const event = { ...baseEvent, creatorAttending: true };
-      render(
-        <EventCard
-          event={event}
-          timezone="America/Los_Angeles"
-          canEdit={false}
-          canDelete={false}
-        />,
-      );
-
-      expect(screen.queryByText("Member no longer attending")).toBeNull();
-    });
-
-    it("does not show indicator when creatorAttending is undefined", () => {
-      render(
-        <EventCard
-          event={baseEvent}
-          timezone="America/Los_Angeles"
-          canEdit={false}
-          canDelete={false}
-        />,
-      );
-
-      expect(screen.queryByText("Member no longer attending")).toBeNull();
-    });
-
-    it("shows dimmed creator name when creatorAttending is false", async () => {
-      const user = userEvent.setup();
-      const event = { ...baseEvent, creatorAttending: false };
-      render(
-        <EventCard
-          event={event}
-          timezone="America/Los_Angeles"
-          canEdit={false}
-          canDelete={false}
-          createdByName="Alice"
-        />,
-      );
-
-      // Click to expand
-      const card = screen.getByText("Beach Lunch").closest("div");
-      if (card) await user.click(card);
-
-      const creatorElement = screen.getByText("Created by Alice");
-      expect(creatorElement.className).toContain("opacity-50");
-      expect(creatorElement.className).toContain("line-through");
-    });
-
-    it("does not dim creator name when creatorAttending is true", async () => {
-      const user = userEvent.setup();
-      const event = { ...baseEvent, creatorAttending: true };
-      render(
-        <EventCard
-          event={event}
-          timezone="America/Los_Angeles"
-          canEdit={false}
-          canDelete={false}
-          createdByName="Alice"
-        />,
-      );
-
-      // Click to expand
-      const card = screen.getByText("Beach Lunch").closest("div");
-      if (card) await user.click(card);
-
-      const creatorElement = screen.getByText("Created by Alice");
-      expect(creatorElement.className).not.toContain("opacity-50");
-    });
-
-    it("uses warning badge styling", () => {
-      const event = { ...baseEvent, creatorAttending: false };
-      render(
-        <EventCard
-          event={event}
-          timezone="America/Los_Angeles"
-          canEdit={false}
-          canDelete={false}
-        />,
-      );
-
-      const badgeText = screen.getByText("Member no longer attending");
-      const badge = badgeText.closest('[data-slot="badge"]');
-      expect(badge).not.toBeNull();
-      expect(badge?.className).toContain("bg-warning/15");
-      expect(badge?.className).toContain("text-warning");
-      expect(badge?.className).toContain("border-warning/30");
-    });
-  });
-
-  describe("Multi-day badge", () => {
-    it("shows multi-day badge when endTime is on a different day than startTime", () => {
+  describe("Multi-day time display", () => {
+    it("shows date with time for multi-day events", () => {
       const event = {
         ...baseEvent,
         startTime: new Date("2026-02-10T10:00:00Z"),
         endTime: new Date("2026-02-12T18:00:00Z"),
       };
       render(
-        <EventCard
-          event={event}
-          timezone="UTC"
-          canEdit={false}
-          canDelete={false}
-        />,
+        <EventCard event={event} timezone="UTC" onClick={onClick} />,
       );
 
+      // Should show month in the time display for multi-day events
       expect(screen.getByText(/Feb 10/)).toBeDefined();
       expect(screen.getByText(/Feb 12/)).toBeDefined();
     });
 
-    it("does not show multi-day badge when endTime is on the same day as startTime", () => {
+    it("treats midnight end time as same-day event", () => {
+      const event = {
+        ...baseEvent,
+        // 8 PM to midnight — should be treated as single-day, not multi-day
+        startTime: new Date("2026-02-10T20:00:00Z"),
+        endTime: new Date("2026-02-11T00:00:00Z"),
+      };
+      render(
+        <EventCard event={event} timezone="UTC" onClick={onClick} />,
+      );
+
+      // Should show normal time range, not multi-day format
+      expect(screen.getByText(/8:00 PM - 12:00 AM/)).toBeDefined();
+    });
+
+    it("shows normal time range for same-day events", () => {
       const event = {
         ...baseEvent,
         startTime: new Date("2026-02-10T10:00:00Z"),
         endTime: new Date("2026-02-10T18:00:00Z"),
       };
       render(
-        <EventCard
-          event={event}
-          timezone="UTC"
-          canEdit={false}
-          canDelete={false}
-        />,
+        <EventCard event={event} timezone="UTC" onClick={onClick} />,
       );
 
-      // There should be no badge with a date range containing an en-dash
-      const badges = document.querySelectorAll('[data-slot="badge"]');
-      const multiDayBadge = Array.from(badges).find((badge) =>
-        badge.textContent?.includes("\u2013"),
-      );
-      expect(multiDayBadge).toBeUndefined();
-    });
-
-    it("does not show multi-day badge when endTime is null", () => {
-      const event = {
-        ...baseEvent,
-        endTime: null,
-      };
-      render(
-        <EventCard
-          event={event}
-          timezone="UTC"
-          canEdit={false}
-          canDelete={false}
-        />,
-      );
-
-      const badges = document.querySelectorAll('[data-slot="badge"]');
-      const multiDayBadge = Array.from(badges).find((badge) =>
-        badge.textContent?.includes("\u2013"),
-      );
-      expect(multiDayBadge).toBeUndefined();
-    });
-
-    it("shows correct date range format in the badge", () => {
-      const event = {
-        ...baseEvent,
-        startTime: new Date("2026-02-10T10:00:00Z"),
-        endTime: new Date("2026-02-12T18:00:00Z"),
-      };
-      render(
-        <EventCard
-          event={event}
-          timezone="UTC"
-          canEdit={false}
-          canDelete={false}
-        />,
-      );
-
-      const badges = document.querySelectorAll('[data-slot="badge"]');
-      const multiDayBadge = Array.from(badges).find((badge) =>
-        badge.textContent?.includes("\u2013"),
-      );
-      expect(multiDayBadge).not.toBeUndefined();
-      expect(multiDayBadge?.textContent).toBe("Feb 10\u2013Feb 12");
-    });
-  });
-
-  describe("Meetup info display", () => {
-    it("should display meetup info when meetup fields are present", async () => {
-      const user = userEvent.setup();
-      const eventWithMeetup = {
-        ...baseEvent,
-        meetupLocation: "Hotel lobby",
-        meetupTime: new Date("2026-06-15T18:30:00Z"),
-      };
-      render(
-        <EventCard
-          event={eventWithMeetup}
-          timezone="America/Los_Angeles"
-          canEdit={false}
-          canDelete={false}
-        />,
-      );
-
-      // Expand the card
-      const card = screen.getByText("Beach Lunch").closest("div");
-      if (card) await user.click(card);
-
-      await waitFor(() => {
-        const meetupText = screen.getByText(/Meet at Hotel lobby/);
-        expect(meetupText).toBeDefined();
-      });
-    });
-
-    it("should not display meetup info when meetup fields are null", async () => {
-      const user = userEvent.setup();
-      render(
-        <EventCard
-          event={baseEvent}
-          timezone="America/Los_Angeles"
-          canEdit={false}
-          canDelete={false}
-        />,
-      );
-
-      // Expand the card
-      const card = screen.getByText("Beach Lunch").closest("div");
-      if (card) await user.click(card);
-
-      await waitFor(() => {
-        expect(screen.queryByText(/^Meet/)).toBeNull();
-      });
-    });
-
-    it("should display only meetup location when meetupTime is null", async () => {
-      const user = userEvent.setup();
-      const eventWithLocation = {
-        ...baseEvent,
-        meetupLocation: "Hotel lobby",
-        meetupTime: null,
-      };
-      render(
-        <EventCard
-          event={eventWithLocation}
-          timezone="America/Los_Angeles"
-          canEdit={false}
-          canDelete={false}
-        />,
-      );
-
-      // Expand the card
-      const card = screen.getByText("Beach Lunch").closest("div");
-      if (card) await user.click(card);
-
-      await waitFor(() => {
-        const meetupText = screen.getByText(/Meet at Hotel lobby/);
-        expect(meetupText).toBeDefined();
-      });
+      // Should not include month in single-day time display
+      expect(screen.getByText(/10:00 AM - 6:00 PM/)).toBeDefined();
     });
   });
 });

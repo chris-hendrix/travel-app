@@ -581,16 +581,20 @@ test.describe("Trip Journey", () => {
         });
       });
 
-      await test.step("verify member's event shows 'no longer attending' badge", async () => {
-        await expect(page.getByText("Member's Dinner Plan")).toBeVisible({
+      await test.step("verify member's event shows 'no longer attending' badge in detail sheet", async () => {
+        const eventCard = page.getByText("Member's Dinner Plan");
+        await expect(eventCard).toBeVisible({
           timeout: ELEMENT_TIMEOUT,
         });
 
+        // Badge is in the detail sheet, not on the card
+        await eventCard.click();
         await expect(page.getByText("Member no longer attending")).toBeVisible({
           timeout: ELEMENT_TIMEOUT,
         });
 
         await snap(page, "25-member-no-longer-attending");
+        await page.keyboard.press("Escape");
       });
     },
   );
