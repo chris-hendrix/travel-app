@@ -1,113 +1,230 @@
-# Architecture: Frontend Design Polish
+# Architecture: Weather Feature
 
-Four visual improvements to the Tripful web frontend: font cleanup, dark mode, page transitions, and empty state standardization.
+Weather forecasts for trip itineraries. Geocodes destinations to coordinates, fetches forecasts from Open-Meteo (free, no API key), caches server-side with 3h TTL, displays as day badges and forecast card.
 
-## Phase 1: Trim Unused Fonts
+## Database Schema
 
-Remove 3 unused Google Font families (Nunito, Caveat, Oswald) that are imported but never referenced in any component.
+### Additions to `apps/api/src/db/schema/index.ts`
 
-**Files:**
-- `apps/web/src/lib/fonts.ts` — Remove `nunito`, `caveat`, `oswald` exports and their imports from `next/font/google`
-- `apps/web/src/app/layout.tsx` — Remove imports of `nunito`, `caveat`, `oswald` and their `.variable` entries from the `<html>` className
+**trips table** — add nullable coordinate columns:
+```typescript
+destinationLat: doublePrecision("destination_lat"),
+destinationLon: doublePrecision("destination_lon"),
+```
 
-**Verification:** Grep the codebase for `--font-nunito`, `--font-caveat`, `--font-oswald`, `nunito`, `caveat`, `oswald` to confirm no references remain.
+**users table** — add temperature unit preference:
+```typescript
+temperatureUnit: varchar("temperature_unit", { length: 10 }).default("celsius"),
+```
 
-## Phase 2: Dark Mode
+**New weather_cache table** — 1:1 with trips, raw API response cached as JSONB:
+```typescript
+export const weatherCache = pgTable("weather_cache", {
+  tripId: uuid("trip_id").primaryKey().references(() => trips.id, { onDelete: "cascade" }),
+  response: jsonb("response").notNull(),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+});
+```
 
-System-preference-based dark theme using CSS `@media (prefers-color-scheme: dark)` on `:root`. No manual toggle.
+Single migration covers all three changes.
 
-### Approach
+## Shared Types
 
-Tailwind v4's `@theme` block defines the light palette. Dark overrides go in a `@media (prefers-color-scheme: dark) { :root { ... } }` block in `globals.css`, overriding the same CSS custom properties.
+### `shared/types/weather.ts`
+```typescript
+export type TemperatureUnit = "celsius" | "fahrenheit";
 
-**CRITICAL**: All colors in `@theme` must remain hex (Tailwind v4 bug). The dark overrides in `@media` go outside `@theme` so `hsl()` would technically work, but use hex for consistency.
+export interface DailyForecast {
+  date: string;                    // "2026-03-15"
+  weatherCode: number;             // WMO code
+  temperatureMax: number;          // always Celsius from API
+  temperatureMin: number;          // always Celsius from API
+  precipitationProbability: number; // 0-100
+}
 
-### Dark Palette — "Night Travel" Aesthetic
-
-Warm charcoal base (`#1a1814`), linen cream foreground (`#e8dcc8`), brighter airmail blue (`#5a9fd4`), brighter rust accent (`#d4613e`). Full palette specified in the PRD.
-
-### Files to Modify
-
-1. **`apps/web/src/app/globals.css`**:
-   - Add `@media (prefers-color-scheme: dark) { :root { ... } }` block with all color overrides
-   - Replace hardcoded `#faf5e8` in `.airmail-stripe`, `.airmail-border-top`, `.airmail-border-bottom` with `var(--color-card)`
-   - Add dark variant for `.gradient-mesh` using `@media (prefers-color-scheme: dark)` with adjusted rgba values
-   - Adjust `.linen-texture` opacity for dark (reduce from 0.045 to ~0.025)
-   - Adjust `.card-noise` opacity for dark (reduce from 0.03 to ~0.015)
-   - Add dark variant for `.postcard` shadow (lighter shadow for dark backgrounds)
-
-2. **`apps/web/src/components/ui/sonner.tsx`**:
-   - Change `theme="light"` to `theme="system"`
-
-3. **`apps/web/src/app/global-error.tsx`**:
-   - Uses its own `<html>` tag — ensure it uses `bg-background text-foreground` classes on the body so dark CSS variables apply
-
-### Components to Manually Verify in Dark Mode
-
-- PostmarkStamp SVG text colors (may use hardcoded fills)
-- Trip card image overlay scrims (`bg-black/50` etc. — probably fine)
-- Auth layout pages (login, verify, complete-profile)
-- Loading skeletons (should use `bg-muted` which auto-adapts)
-
-## Phase 3: Page Transitions
-
-CSS-only View Transitions using `@view-transition { navigation: auto; }`. Progressive enhancement — unsupported browsers get instant navigation (current behavior).
-
-### Files to Modify
-
-1. **`apps/web/next.config.ts`**:
-   - Add `viewTransition: true` to the `experimental` block
-
-2. **`apps/web/src/app/globals.css`**:
-   - Add `@view-transition { navigation: auto; }` rule
-   - Add `::view-transition-old(root)` and `::view-transition-new(root)` with fade animations
-   - Add `@media (prefers-reduced-motion: reduce)` to disable animations
-
-No `<ViewTransition>` React component needed — CSS-only approach.
-
-## Phase 4: Empty States & Success Animations
-
-### EmptyState Component
-
-Create `apps/web/src/components/ui/empty-state.tsx` — a unified component for all empty states.
-
-```tsx
-interface EmptyStateProps {
-  icon: LucideIcon;
-  title: string;
-  description: string;
-  action?: { label: string; onClick: () => void } | { label: string; href: string };
+export interface TripWeatherResponse {
+  available: boolean;
+  message?: string;
+  forecasts: DailyForecast[];
+  fetchedAt: string | null;
 }
 ```
 
-Styling: centered layout, muted icon (size-12), Playfair heading (`font-playfair`), muted description, optional CTA button. Uses `card-noise` background.
+### `shared/schemas/weather.ts`
+Zod schemas mirroring the types: `dailyForecastSchema`, `tripWeatherResponseSchema`.
 
-### Locations to Refactor
+### Type Updates
+- `shared/types/trip.ts`: Add `destinationLat?: number | null` and `destinationLon?: number | null` to `Trip` and `TripDetail`
+- `shared/types/user.ts`: Add `temperatureUnit?: TemperatureUnit` to `User`
+- `shared/schemas/user.ts`: Add `temperatureUnit` to `updateProfileSchema`
+- `shared/schemas/auth.ts`: Add `temperatureUnit` to `userResponseSchema`
+- `shared/schemas/trip.ts`: Add `destinationLat`, `destinationLon` to `tripEntitySchema`
 
-| File | Current State | New Props |
-|------|---------------|-----------|
-| `apps/web/src/components/trip/trips-content.tsx` | Rich PostmarkStamp layout | `icon=Plane, title="No postcards yet", description="Start planning your next adventure", action={href="/trips/new"}` |
-| `apps/web/src/components/messaging/trip-messages.tsx` | Simple icon + text | `icon=MessageCircle, title="No messages yet", description="Start the conversation..."` |
-| `apps/web/src/components/itinerary/itinerary-view.tsx` | Icon + heading + desc | `icon=CalendarDays, title="No itinerary yet", description="Add events, accommodations..."` |
-| `apps/web/src/components/notifications/notification-dropdown.tsx` | Icon + text | `icon=Bell, title="All caught up", description="You'll see trip updates..."` |
-| `apps/web/src/components/trip/mutuals-content.tsx` | Icon + heading + desc + topo | `icon=Users, title="No mutuals yet", description="Mutuals are people who share trips..."` |
+## Backend Services
 
-### Success Toast Animation
+### Geocoding Service — `apps/api/src/services/geocoding.service.ts`
 
-Add `@keyframes checkPop` animation in `globals.css`. Style via Sonner's `toastOptions.classNames` in `sonner.tsx` to add a subtle scale animation to success toast icons.
+```typescript
+export interface IGeocodingService {
+  geocode(query: string): Promise<{ lat: number; lon: number } | null>;
+}
+```
+
+- Calls `https://geocoding-api.open-meteo.com/v1/search?name={query}&count=1&language=en`
+- Returns `results[0].latitude/longitude` or null
+- Uses native `fetch` (no axios)
+
+**Plugin**: `apps/api/src/plugins/geocoding-service.ts` — depends on `["config"]`
+
+### Weather Service — `apps/api/src/services/weather.service.ts`
+
+```typescript
+export interface IWeatherService {
+  getForecast(tripId: string, userId: string): Promise<TripWeatherResponse>;
+}
+```
+
+**Logic flow**:
+1. Fetch trip (need lat, lon, preferredTimezone)
+2. Get effective date range via `getEffectiveDateRange(tripId)` — queries trip dates AND event dates, returns min start / max end
+3. No lat/lon → `{ available: false, message: "Set a destination to see weather" }`
+4. No start date → `{ available: false, message: "Set trip dates to see weather" }`
+5. End < today → `{ available: false }` (past trip)
+6. Start > 16 days away → `{ available: false, message: "Weather forecast available within 16 days of your trip" }`
+7. Check `weather_cache` for tripId where `fetchedAt > now - 3h` → if fresh, parse and return
+8. Fetch Open-Meteo: `https://api.open-meteo.com/v1/forecast?latitude=...&longitude=...&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=...&forecast_days=16`
+9. Upsert raw response into `weather_cache.response` JSONB
+10. Parse parallel arrays → `DailyForecast[]`, filter to trip date range, return
+
+**API always returns Celsius.** Frontend converts based on user preference.
+
+**Error handling**: If Open-Meteo API fails (network error, non-200), return `{ available: false, message: "Weather temporarily unavailable" }`.
+
+**Plugin**: `apps/api/src/plugins/weather-service.ts` — depends on `["database", "config"]`
+
+### Trip Service Changes — `apps/api/src/services/trip.service.ts`
+
+**`updateTrip()`**: If `data.destination` changed, geocode and store lat/lon. Clear weather cache on destination change. If destination cleared, set lat/lon to null and clear cache.
+
+**`createTrip()`**: If destination provided, geocode and store lat/lon.
+
+**New `getEffectiveDateRange(tripId)`**: Returns `{ start: Date | null, end: Date | null }` computed from `min(trip.startDate, earliest event startTime)` and `max(trip.endDate, latest event endTime/startTime)`.
+
+### Weather Controller — `apps/api/src/controllers/weather.controller.ts`
+
+```typescript
+getForecast(request, reply):
+  tripId = request.params.tripId
+  userId = request.user.sub
+  // Membership check: reuse existing pattern (query members table)
+  result = weatherService.getForecast(tripId, userId)
+  reply.status(200).send(result)
+```
+
+### Weather Route — `apps/api/src/routes/weather.routes.ts`
+
+`GET /trips/:tripId/weather` — auth middleware, UUID param validation, response schema.
+
+### Plugin Registration — `apps/api/src/app.ts`
+
+Add in order:
+1. `geocodingServicePlugin` — after config, before service plugins
+2. `weatherServicePlugin` — after database plugin, with other services
+3. `weatherRoutes` — with other route registrations
+
+### Type Augmentation — `apps/api/src/types/index.ts`
+
+Add to FastifyInstance:
+```typescript
+geocodingService: IGeocodingService;
+weatherService: IWeatherService;
+```
+
+## Frontend
+
+### Weather Query Hook — `apps/web/src/hooks/use-weather.ts`
+
+```typescript
+export const weatherKeys = {
+  all: ["weather"] as const,
+  forecast: (tripId: string) => ["weather", "forecast", tripId] as const,
+};
+
+export const weatherForecastQueryOptions = (tripId: string) =>
+  queryOptions({
+    queryKey: weatherKeys.forecast(tripId),
+    staleTime: 30 * 60 * 1000, // 30 min client-side
+    queryFn: async ({ signal }) => {
+      return apiRequest<TripWeatherResponse>(`/trips/${tripId}/weather`, { signal });
+    },
+    enabled: !!tripId,
+  });
+
+export function useWeatherForecast(tripId: string) {
+  return useQuery(weatherForecastQueryOptions(tripId));
+}
+```
+
+### WMO Weather Codes — `apps/web/src/lib/weather-codes.ts`
+
+Maps WMO codes to Lucide icon component + label string. Groups:
+- 0: Clear / Sun
+- 1-3: Partly cloudy / CloudSun
+- 45,48: Foggy / CloudFog
+- 51-55: Drizzle / CloudDrizzle
+- 61-65: Rain / CloudRain
+- 71-77: Snow / Snowflake
+- 80-82: Showers / CloudRain
+- 95,96,99: Thunderstorm / CloudLightning
+
+### WeatherDayBadge — `apps/web/src/components/itinerary/weather-day-badge.tsx`
+
+Props: `forecast: DailyForecast | undefined, temperatureUnit: TemperatureUnit`
+- Compact: weather icon (16px) + "H°/L°"
+- Converts Celsius → Fahrenheit if needed: `Math.round(c * 9/5 + 32)`
+- Returns null if no forecast
+
+### WeatherForecastCard — `apps/web/src/components/itinerary/weather-forecast-card.tsx`
+
+Props: `weather: TripWeatherResponse | undefined, isLoading: boolean, temperatureUnit: TemperatureUnit`
+- Loading: skeleton
+- Not available + message: muted card with message text
+- Not available + no message: hidden (past trip)
+- Available: horizontal scroll of daily items (day of week, icon, high/low, precip %)
+- Uses shadcn Card
+
+### Integration Points
+
+**`apps/web/src/components/itinerary/itinerary-view.tsx`**:
+- Add `useWeatherForecast(tripId)` hook
+- Get user's `temperatureUnit` from auth context
+- Render `<WeatherForecastCard>` between header area and main content
+- Pass `forecasts` + `temperatureUnit` down to `DayByDayView`
+
+**`apps/web/src/components/itinerary/day-by-day-view.tsx`**:
+- Accept `forecasts?: DailyForecast[]` and `temperatureUnit?: TemperatureUnit` props
+- In day header sticky column: render `<WeatherDayBadge>` below weekday text
+- Match forecast by date string comparison
+
+**`apps/web/src/components/profile/profile-dialog.tsx`**:
+- Add °C/°F toggle after timezone field
+- Wire to `temperatureUnit` in form state and update mutation
+
+### User Auth Context
+
+The `useAuth()` hook returns the user object. Ensure `temperatureUnit` is available on the user type so components can access `user.temperatureUnit`.
 
 ## Testing Strategy
 
-### Automated
-- **Typecheck**: `pnpm typecheck` — no new errors
-- **Lint**: `pnpm lint` — no new errors
-- **Unit/Integration**: `pnpm test` — all existing tests pass
-- **E2E**: `pnpm test:e2e` — all existing tests pass
+**Unit tests** (written alongside implementation):
+- Weather service: cache hit/miss/stale, unavailable states, date range filtering, API error handling
+- Geocoding service: success, no results, network error
+- WMO code mapping: all code groups
 
-### Manual (Playwright browser)
-- **Light mode**: Visual verification of all pages
-- **Dark mode**: Emulate `prefers-color-scheme: dark` via Playwright, verify all pages
-- **Page transitions**: Navigate between pages, verify crossfade animation
-- **Empty states**: Verify all 5 empty state locations render correctly in both modes
-- **Success toasts**: Trigger a success action, verify animation
-- **Reduced motion**: Emulate `prefers-reduced-motion: reduce`, verify transitions are disabled
+**Integration tests** (written alongside routes):
+- GET /trips/:tripId/weather: success, no coords, auth checks
+- Trip update: destination change triggers geocode + lat/lon storage
+
+**E2E tests**: Not required for this feature (weather data is external/dynamic, hard to assert in E2E).
+
+**Manual testing**: Create trip with destination within 16 days, verify weather badge + card appear, change destination, verify update, test >16 days message, test no destination state.
