@@ -144,6 +144,14 @@ export {
   type CalendarSuccessResponse,
 } from "./calendar";
 
+// Re-export weather schemas
+export {
+  dailyForecastSchema,
+  tripWeatherResponseSchema,
+  type DailyForecastSchema,
+  type TripWeatherResponseSchema,
+} from "./weather";
+
 // Re-export mutuals schemas
 export {
   getMutualsQuerySchema,

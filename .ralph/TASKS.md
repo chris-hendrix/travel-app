@@ -10,7 +10,7 @@
   - Implement: Generate migration with `pnpm db:generate` (from apps/api)
   - Verify: Review generated SQL, run `pnpm db:migrate`, run full test suite
 
-- [ ] Task 1.2: Create shared weather types, schemas, and update existing types
+- [x] Task 1.2: Create shared weather types, schemas, and update existing types
   - Implement: Create `shared/types/weather.ts` with `TemperatureUnit`, `DailyForecast`, `TripWeatherResponse`
   - Implement: Export from `shared/types/index.ts`
   - Implement: Create `shared/schemas/weather.ts` with `dailyForecastSchema`, `tripWeatherResponseSchema`

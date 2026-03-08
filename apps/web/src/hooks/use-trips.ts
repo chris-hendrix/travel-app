@@ -162,6 +162,8 @@ export function useCreateTrip() {
         id: "temp-" + Date.now(), // Temporary ID until server responds
         name: newTrip.name,
         destination: newTrip.destination,
+        destinationLat: null,
+        destinationLon: null,
         startDate: newTrip.startDate || null,
         endDate: newTrip.endDate || null,
         preferredTimezone: newTrip.timezone,

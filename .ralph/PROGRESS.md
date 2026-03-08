@@ -2247,3 +2247,39 @@ APPROVED — Fix is minimal and correct. No other E2E tests have the same issue 
 - Adding a column to the `users` table requires updating any service method that uses explicit column selects returning `User[]` (e.g., `getCoOrganizers` in trip.service.ts)
 - Reviewer noted that `temperatureUnit` is nullable for existing rows (ALTER TABLE ADD COLUMN default only applies to new inserts) — downstream code should treat null as "celsius"
 - Reviewer suggested using `getTableColumns(users)` instead of manual column listing in `getCoOrganizers` to avoid future maintenance — consider for a future cleanup task
+
+## Iteration 47 — Task 1.2: Create shared weather types, schemas, and update existing types
+
+**Status**: ✅ COMPLETE
+
+### Changes Made
+
+**Files created:**
+- `shared/types/weather.ts` — `TemperatureUnit` type alias (`"celsius" | "fahrenheit"`), `DailyForecast` interface (date, weatherCode, temperatureMax, temperatureMin, precipitationProbability), `TripWeatherResponse` interface (available, message?, forecasts, fetchedAt)
+- `shared/schemas/weather.ts` — `dailyForecastSchema` (weatherCode `.int()`, precipitationProbability `.min(0).max(100)`), `tripWeatherResponseSchema` (message `.optional()`, fetchedAt `.nullable()`), inferred types exported
+- `shared/__tests__/weather-schemas.test.ts` — 11 tests covering valid inputs, boundary values, negative temps, non-integer codes, missing fields, invalid nested data
+
+**Files modified:**
+- `shared/types/index.ts` — Added weather type re-exports (`TemperatureUnit`, `DailyForecast`, `TripWeatherResponse`)
+- `shared/types/trip.ts` — Added `destinationLat: number | null` and `destinationLon: number | null` to `Trip` interface (inherited by `TripDetail`)
+- `shared/types/user.ts` — Added `temperatureUnit?: TemperatureUnit` to `User` interface (import from `./weather`)
+- `shared/schemas/index.ts` — Added weather schema re-exports
+- `shared/schemas/user.ts` — Added `temperatureUnit: z.enum(["celsius", "fahrenheit"]).optional()` to `updateProfileSchema`
+- `shared/schemas/auth.ts` — Added `temperatureUnit: z.string().nullable().optional()` to `userResponseSchema`
+- `shared/schemas/trip.ts` — Added `destinationLat: z.number().nullable()` and `destinationLon: z.number().nullable()` to `tripEntitySchema`
+- `apps/web/src/hooks/use-trips.ts` — Added `destinationLat: null` and `destinationLon: null` to optimistic trip creation object
+- `apps/api/src/services/trip.service.ts` — Added `destinationLat`/`destinationLon` to `TripPreview` type and preview object construction; added `temperatureUnit` to `getCoOrganizers` select
+- `shared/__tests__/exports.test.ts` — Added weather schema export verification test
+
+### Verification
+- **TypeCheck**: PASS (all 3 packages, with `--force` no turbo cache)
+- **Lint**: PASS (all 3 packages)
+- **Unit/Integration Tests**: PASS (API: 1143 tests, Shared: 320 tests incl. 11 new weather tests, Web: 1104 tests; pre-existing failures in theme-config, trip-detail-content, create-trip-dialog, members-list unrelated)
+- **Reviewer**: APPROVED
+
+### Learnings
+- IDE diagnostics for Drizzle schema columns can be stale when the TypeScript language server hasn't reloaded after schema changes — always verify with actual `tsc --noEmit` in the container
+- `TripDetail` extends `Trip`, so adding fields to `Trip` propagates automatically — no separate update needed
+- `tripEntitySchema` feeds into `tripDetailSchema` and `tripResponseSchema`, so adding fields there propagates to all response schemas
+- `userResponseSchema` in auth.ts uses `z.string().nullable().optional()` (looser than `z.enum()`) for `temperatureUnit` — this is intentional as a response schema to be permissive with API output; the stricter `z.enum()` is used in the input `updateProfileSchema`
+- Optimistic creation in `use-trips.ts` manually lists every `Trip` field — any new required field on the `Trip` interface must be added there or TypeScript will error

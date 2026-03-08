@@ -49,6 +49,8 @@ import {
   mySettingsResponseSchema,
   getMutualsQuerySchema,
   getMutualSuggestionsQuerySchema,
+  dailyForecastSchema,
+  tripWeatherResponseSchema,
 } from "../schemas/index.js";
 
 describe("Package Exports", () => {
@@ -89,6 +91,11 @@ describe("Package Exports", () => {
   it("should export all mutuals schemas", () => {
     expect(getMutualsQuerySchema).toBeDefined();
     expect(getMutualSuggestionsQuerySchema).toBeDefined();
+  });
+
+  it("should export all weather schemas", () => {
+    expect(dailyForecastSchema).toBeDefined();
+    expect(tripWeatherResponseSchema).toBeDefined();
   });
 
   it("should export existing schemas", () => {

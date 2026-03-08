@@ -104,6 +104,8 @@ type TripPreview = Pick<
   | "id"
   | "name"
   | "destination"
+  | "destinationLat"
+  | "destinationLon"
   | "startDate"
   | "endDate"
   | "preferredTimezone"
@@ -409,6 +411,8 @@ export class TripService implements ITripService {
         id: trip.id,
         name: trip.name,
         destination: trip.destination,
+        destinationLat: trip.destinationLat,
+        destinationLon: trip.destinationLon,
         startDate: trip.startDate,
         endDate: trip.endDate,
         preferredTimezone: trip.preferredTimezone,

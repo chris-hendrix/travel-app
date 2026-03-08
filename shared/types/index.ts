@@ -128,3 +128,10 @@ export type {
   ThemeBackground,
   ThemePreset,
 } from "./theme";
+
+// Re-export weather types
+export type {
+  TemperatureUnit,
+  DailyForecast,
+  TripWeatherResponse,
+} from "./weather";
