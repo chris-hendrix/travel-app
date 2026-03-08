@@ -2432,3 +2432,26 @@ APPROVED — Fix is minimal and correct. No other E2E tests have the same issue 
 - Membership check pattern: `permissionsService.isMember()` returning false → throw `TripNotFoundError()` (returns 404, not 403, to avoid leaking trip existence)
 - Response schema wraps service result: `z.object({ success: z.literal(true), weather: tripWeatherResponseSchema })`
 - Integration tests mock `global.fetch` with `vi.spyOn(global, "fetch").mockResolvedValueOnce()` to avoid real HTTP calls to external APIs
+
+## Iteration 52 — Task 4.1: Create weather query hook and WMO code mapping
+
+**Status**: ✅ COMPLETE
+
+### Changes Made
+
+**Files created:**
+- `apps/web/src/hooks/weather-queries.ts` — Server-safe query options file with `weatherKeys` factory (`all`, `forecast(tripId)`) and `weatherForecastQueryOptions(tripId)` function. Uses 30-minute `staleTime` (server caches 3h). Unwraps `response.weather` from API envelope `{ success: true, weather: TripWeatherResponse }`.
+- `apps/web/src/hooks/use-weather.ts` — `"use client"` hook file with `useWeatherForecast(tripId)` hook. Re-exports query keys and options. Uses `enabled: !!tripId` guard.
+- `apps/web/src/lib/weather-codes.ts` — WMO weather code mapping with `getWeatherInfo(code)` returning `{ label: string, icon: LucideIcon }`. Covers all 33 WMO codes (0-3, 45, 48, 51-57, 61-67, 71-77, 80-86, 95-99) plus fallback `Cloud`/"Unknown" for unexpected codes.
+
+### Verification
+- **TypeCheck**: PASS (all 3 packages)
+- **Lint**: PASS (all 3 packages)
+- **Unit Tests**: PASS (1 pre-existing unrelated failure in shared theme-config kebab-case test)
+- **Reviewer**: APPROVED (1 LOW item: function declaration vs arrow function style is cosmetic)
+
+### Learnings
+- The codebase uses a two-file query pattern: `*-queries.ts` (server-safe, no "use client") + `use-*.ts` ("use client" hooks that import from queries file)
+- `apiRequest<T>` returns the full JSON body — callers must unwrap envelopes (e.g., `response.weather`)
+- Lucide React icons are typed via `LucideIcon` from `lucide-react` — can be stored in data structures and rendered as `<info.icon />`
+- WMO codes from Open-Meteo include freezing variants (56, 57, 66, 67) and snow showers (85, 86) beyond the basic groups listed in architecture

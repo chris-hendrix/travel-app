@@ -64,7 +64,7 @@
 
 ## Phase 4: Frontend Weather
 
-- [ ] Task 4.1: Create weather query hook and WMO code mapping
+- [x] Task 4.1: Create weather query hook and WMO code mapping
   - Implement: Create `apps/web/src/hooks/use-weather.ts` with `weatherKeys` factory, `weatherForecastQueryOptions(tripId)`, `useWeatherForecast(tripId)` hook
   - Implement: Create `apps/web/src/lib/weather-codes.ts` with `getWeatherInfo(code)` returning `{ label, icon }` for all WMO code groups
   - Test: Verify typecheck passes
