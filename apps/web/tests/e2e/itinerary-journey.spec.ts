@@ -156,11 +156,12 @@ test.describe("Itinerary Journey", () => {
       });
 
       await test.step("edit event", async () => {
+        // Click event card to open detail sheet, then click Edit
         await page
           .getByText(/Dinner at Harbor/)
           .first()
           .click();
-        await page.locator('button[title="Edit event"]').first().click();
+        await page.locator('button[title="Edit"]').first().click();
         await expect(
           page.getByRole("heading", { name: "Edit event" }),
         ).toBeVisible();
@@ -192,34 +193,23 @@ test.describe("Itinerary Journey", () => {
       });
 
       await test.step("delete event with cancel then confirm", async () => {
-        // Find the event card — it may still be expanded from the edit step
-        const card = page
-          .locator('[role="button"][aria-expanded]')
-          .filter({ hasText: /Updated Dinner/ })
-          .first();
-        const expanded = await card.getAttribute("aria-expanded");
-        if (expanded !== "true") {
-          await card.click();
-        }
-        await expect(
-          page.locator('button[title="Edit event"]').first(),
-        ).toBeVisible({ timeout: DIALOG_TIMEOUT });
-        await page.locator('button[title="Edit event"]').first().click();
-        await expect(
-          page.getByRole("heading", { name: "Edit event" }),
-        ).toBeVisible();
+        // Click event card to open detail sheet
+        await page.getByText(/Updated Dinner/).first().click();
+        const deleteBtn = page.locator('button[title="Delete"]').first();
+        await expect(deleteBtn).toBeVisible({ timeout: DIALOG_TIMEOUT });
 
-        await page.getByRole("button", { name: "Delete event" }).click();
+        // Click Delete in detail sheet — triggers confirmation dialog
+        await deleteBtn.click();
         await expect(page.getByText("Are you sure?")).toBeVisible();
 
         // Cancel first
         await page.getByRole("button", { name: "Cancel" }).last().click();
-        await expect(
-          page.getByRole("heading", { name: "Edit event" }),
-        ).toBeVisible();
+
+        // Detail sheet should still be open — Delete button still visible
+        await expect(deleteBtn).toBeVisible();
 
         // Delete for real
-        await page.getByRole("button", { name: "Delete event" }).click();
+        await deleteBtn.click();
         await expect(page.getByText("Are you sure?")).toBeVisible();
         await page.getByRole("button", { name: "Yes, delete" }).click();
 
