@@ -268,7 +268,9 @@ jobs:
 
       - name: Merge Reports
         run: |
-          pnpm --filter @tripful/web exec playwright merge-reports --reporter=html,markdown ./all-blob-reports >> $GITHUB_STEP_SUMMARY
+          pnpm --filter @tripful/web exec playwright merge-reports --reporter=html ./all-blob-reports
+          echo '### E2E Test Report' >> $GITHUB_STEP_SUMMARY
+          echo 'Full HTML report available in the **playwright-report** artifact.' >> $GITHUB_STEP_SUMMARY
 
       - name: Upload HTML Report
         uses: actions/upload-artifact@v7
