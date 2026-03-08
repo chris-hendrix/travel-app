@@ -3,11 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  createTripSchema,
-  PHONE_REGEX,
-  type CreateTripInput,
-} from "@tripful/shared";
+import { createTripSchema, type CreateTripInput } from "@tripful/shared";
 import { THEME_PRESETS } from "@tripful/shared/config";
 import { toast } from "sonner";
 import { useCreateTrip, getCreateTripErrorMessage } from "@/hooks/use-trips";
@@ -45,7 +41,7 @@ import { ThemePicker } from "@/components/trip/theme-picker";
 import { FontPicker } from "@/components/trip/font-picker";
 import { useThemePreview } from "@/hooks/use-theme-preview";
 import { DatePicker } from "@/components/ui/date-picker";
-import { Plus, X, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { TIMEZONES } from "@/lib/constants";
 
 interface CreateTripDialogProps {
@@ -58,9 +54,6 @@ export function CreateTripDialog({
   onOpenChange,
 }: CreateTripDialogProps) {
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
-  const [newCoOrganizerPhone, setNewCoOrganizerPhone] = useState("");
-  const [coOrganizerError, setCoOrganizerError] = useState<string | null>(null);
-
   const { mutate: createTrip, isPending } = useCreateTrip();
 
   const form = useForm({
@@ -144,43 +137,6 @@ export function CreateTripDialog({
     });
   };
 
-  const validatePhoneNumber = (phone: string): boolean => {
-    return PHONE_REGEX.test(phone);
-  };
-
-  const handleAddCoOrganizer = () => {
-    setCoOrganizerError(null);
-
-    if (!newCoOrganizerPhone.trim()) {
-      setCoOrganizerError("Phone number is required");
-      return;
-    }
-
-    if (!validatePhoneNumber(newCoOrganizerPhone)) {
-      setCoOrganizerError(
-        "Phone number must be in E.164 format (e.g., +14155552671)",
-      );
-      return;
-    }
-
-    const currentPhones = form.getValues("coOrganizerPhones") || [];
-    if (currentPhones.includes(newCoOrganizerPhone)) {
-      setCoOrganizerError("This phone number is already added");
-      return;
-    }
-
-    form.setValue("coOrganizerPhones", [...currentPhones, newCoOrganizerPhone]);
-    setNewCoOrganizerPhone("");
-  };
-
-  const handleRemoveCoOrganizer = (phoneToRemove: string) => {
-    const currentPhones = form.getValues("coOrganizerPhones") || [];
-    form.setValue(
-      "coOrganizerPhones",
-      currentPhones.filter((phone) => phone !== phoneToRemove),
-    );
-  };
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent>
@@ -198,7 +154,7 @@ export function CreateTripDialog({
           <div className="mb-4">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-medium text-foreground">
-                {currentStep === 1 ? "Basic information" : "Details & settings"}
+                {currentStep === 1 ? "Trip details" : "Customize"}
               </span>
               <span className="text-sm text-muted-foreground">
                 Step {currentStep} of 2
@@ -386,22 +342,6 @@ export function CreateTripDialog({
                     )}
                   />
 
-                  {/* Continue Button */}
-                  <div className="flex justify-end pt-4">
-                    <Button
-                      type="button"
-                      onClick={handleContinue}
-                      variant="gradient"
-                      className="h-12 px-8 rounded-md"
-                    >
-                      Continue
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {currentStep === 2 && (
-                <div className="space-y-4">
                   {/* Description */}
                   <FormField
                     control={form.control}
@@ -438,6 +378,52 @@ export function CreateTripDialog({
                     }}
                   />
 
+                  {/* Allow Members to Add Events */}
+                  <FormField
+                    control={form.control}
+                    name="allowMembersToAddEvents"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-border p-4">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value ?? true}
+                            onCheckedChange={field.onChange}
+                            ref={field.ref}
+                            onBlur={field.onBlur}
+                            name={field.name}
+                            disabled={isPending}
+                            aria-label="Allow members to add events"
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel className="text-base font-semibold text-foreground cursor-pointer">
+                            Allow members to add events
+                          </FormLabel>
+                          <FormDescription className="text-sm text-muted-foreground">
+                            Let trip members create and propose events for the
+                            itinerary
+                          </FormDescription>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Continue Button */}
+                  <div className="flex justify-end pt-4">
+                    <Button
+                      type="button"
+                      onClick={handleContinue}
+                      variant="gradient"
+                      className="h-12 px-8 rounded-md"
+                    >
+                      Continue
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {currentStep === 2 && (
+                <div className="space-y-4">
                   {/* Cover Image */}
                   <FormField
                     control={form.control}
@@ -445,7 +431,7 @@ export function CreateTripDialog({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-base font-semibold text-foreground">
-                          Cover image
+                          Cover photo
                         </FormLabel>
                         <FormControl>
                           <ImageUpload
@@ -478,7 +464,7 @@ export function CreateTripDialog({
                           />
                         </FormControl>
                         <FormDescription className="text-sm text-muted-foreground">
-                          Optional: Choose a visual theme for your trip
+                          Choose a visual theme for your trip
                         </FormDescription>
                       </FormItem>
                     )}
@@ -491,7 +477,7 @@ export function CreateTripDialog({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-base font-semibold text-foreground">
-                          Title font
+                          Font
                         </FormLabel>
                         <FormControl>
                           <FontPicker
@@ -500,143 +486,10 @@ export function CreateTripDialog({
                           />
                         </FormControl>
                         <FormDescription className="text-sm text-muted-foreground">
-                          Optional: Choose a font for trip titles
+                          Choose a font for trip titles
                         </FormDescription>
                       </FormItem>
                     )}
-                  />
-
-                  {/* Allow Members to Add Events */}
-                  <FormField
-                    control={form.control}
-                    name="allowMembersToAddEvents"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-border p-4">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value ?? true}
-                            onCheckedChange={field.onChange}
-                            ref={field.ref}
-                            onBlur={field.onBlur}
-                            name={field.name}
-                            disabled={isPending}
-                            aria-label="Allow members to add events"
-                          />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel className="text-base font-semibold text-foreground cursor-pointer">
-                            Allow members to add events
-                          </FormLabel>
-                          <FormDescription className="text-sm text-muted-foreground">
-                            Let trip members create and propose events for the
-                            itinerary
-                          </FormDescription>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Co-Organizers */}
-                  <FormField
-                    control={form.control}
-                    name="coOrganizerPhones"
-                    render={({ field }) => {
-                      const phones = field.value || [];
-
-                      return (
-                        <FormItem>
-                          <FormLabel className="text-base font-semibold text-foreground">
-                            Co-organizers
-                          </FormLabel>
-                          <FormDescription className="text-sm text-muted-foreground">
-                            Add phone numbers of people who can help organize
-                            this trip
-                          </FormDescription>
-
-                          {/* List of added co-organizers */}
-                          {phones.length > 0 && (
-                            <div className="space-y-2 mt-2">
-                              {phones.map((phone) => (
-                                <div
-                                  key={phone}
-                                  className="flex items-center justify-between p-3 rounded-lg bg-secondary border border-border"
-                                >
-                                  <span className="text-sm font-medium text-foreground">
-                                    {phone}
-                                  </span>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() =>
-                                      handleRemoveCoOrganizer(phone)
-                                    }
-                                    disabled={isPending}
-                                    className="min-w-[44px] min-h-[44px] rounded-full hover:bg-muted"
-                                    aria-label={`Remove ${phone}`}
-                                  >
-                                    <X className="w-4 h-4 text-muted-foreground" />
-                                  </Button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Add co-organizer input */}
-                          <div className="space-y-2 mt-2">
-                            <div className="flex gap-2">
-                              <Input
-                                type="tel"
-                                placeholder="+14155552671"
-                                value={newCoOrganizerPhone}
-                                onChange={(e) => {
-                                  setNewCoOrganizerPhone(e.target.value);
-                                  setCoOrganizerError(null);
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    handleAddCoOrganizer();
-                                  }
-                                }}
-                                disabled={isPending}
-                                className="flex-1 h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
-                                aria-label="Co-organizer phone number"
-                                aria-describedby={
-                                  coOrganizerError
-                                    ? "co-organizer-phone-error"
-                                    : undefined
-                                }
-                                autoComplete="tel"
-                              />
-                              <Button
-                                type="button"
-                                onClick={handleAddCoOrganizer}
-                                disabled={isPending}
-                                className="h-12 px-4 bg-muted hover:bg-muted text-foreground rounded-md"
-                                variant="outline"
-                              >
-                                <Plus className="w-5 h-5" />
-                              </Button>
-                            </div>
-                            {coOrganizerError && (
-                              <p
-                                id="co-organizer-phone-error"
-                                aria-live="polite"
-                                className="text-sm text-destructive"
-                              >
-                                {coOrganizerError}
-                              </p>
-                            )}
-                            <p className="text-xs text-muted-foreground">
-                              Format: E.164 (e.g., +14155552671)
-                            </p>
-                          </div>
-
-                          <FormMessage />
-                        </FormItem>
-                      );
-                    }}
                   />
 
                   {/* Action Buttons */}
