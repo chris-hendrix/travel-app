@@ -19,7 +19,7 @@ export class TripsPage {
     this.page = page;
     this.heading = page.getByRole("heading", { name: "My Trips" });
     this.createTripButton = page.getByRole("button", {
-      name: "Create new trip",
+      name: "New Trip",
     });
     this.userMenuButton = page.getByRole("button", { name: "User menu" });
     this.mobileMenuButton = page.getByRole("button", { name: "Open menu" });
