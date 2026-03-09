@@ -49,7 +49,7 @@ function TestComponent(props: {
   props.onResult?.({ isRevealed });
 
   return (
-    <div ref={ref as React.RefObject<HTMLDivElement>} data-revealed={String(isRevealed)}>
+    <div ref={ref} data-revealed={String(isRevealed)}>
       content
     </div>
   );

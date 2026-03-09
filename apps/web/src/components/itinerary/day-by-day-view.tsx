@@ -399,7 +399,7 @@ export function DayByDayView({
                 </span>
                 <WeatherDayBadge
                   forecast={forecastMap.get(day.date)}
-                  temperatureUnit={temperatureUnit || "celsius"}
+                  temperatureUnit={temperatureUnit || "fahrenheit"}
                 />
               </div>
             </div>

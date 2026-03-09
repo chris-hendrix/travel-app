@@ -17,7 +17,7 @@ export const AccommodationLineItem = memo(function AccommodationLineItem({
     <div
       role="button"
       tabIndex={0}
-      className="flex items-center gap-2 py-2.5 px-3 border-b border-border/40 hover:bg-muted/50 cursor-pointer transition-colors"
+      className="flex items-center gap-2 py-2 px-3 border-b border-border/40 hover:bg-muted/50 cursor-pointer transition-colors"
       onClick={() => onClick(accommodation)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -26,13 +26,13 @@ export const AccommodationLineItem = memo(function AccommodationLineItem({
         }
       }}
     >
-      <Building2 className="w-3.5 h-3.5 text-accommodation shrink-0" />
-      <span className="font-semibold text-sm truncate min-w-0">
+      <Building2 className="w-3 h-3 text-accommodation shrink-0" />
+      <span className="font-medium text-xs truncate min-w-0">
         {accommodation.name}
       </span>
       {accommodation.address && (
         <>
-          <span className="text-xs text-muted-foreground truncate min-w-0 hidden sm:inline">
+          <span className="text-[11px] text-muted-foreground truncate min-w-0 hidden sm:inline">
             {accommodation.address}
           </span>
           <a
@@ -47,7 +47,7 @@ export const AccommodationLineItem = memo(function AccommodationLineItem({
           </a>
         </>
       )}
-      <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/60 ml-auto shrink-0" />
+      <ChevronRight className="w-3 h-3 text-muted-foreground/60 ml-auto shrink-0" />
     </div>
   );
 });

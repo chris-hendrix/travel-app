@@ -182,17 +182,15 @@ export function MemberTravelDetailSheet({
 
           {/* Location */}
           {memberTravel.location && (
-            <div className="mt-4 flex items-start gap-2">
-              <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
-              <a
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(memberTravel.location)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-primary underline underline-offset-2 hover:text-primary/80 transition-colors"
-              >
-                {memberTravel.location}
-              </a>
-            </div>
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(memberTravel.location)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+            >
+              <MapPin className="w-3.5 h-3.5 shrink-0" />
+              <span>{memberTravel.location}</span>
+            </a>
           )}
 
           {/* Details */}

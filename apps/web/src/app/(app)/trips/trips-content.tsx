@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef, type RefObject } from "react";
-import { createPortal } from "react-dom";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Plus, Search, AlertCircle, Loader2 } from "lucide-react";
 import { useTrips, type TripSummary } from "@/hooks/use-trips";
@@ -10,7 +9,6 @@ import { CreateTripDialog } from "@/components/trip/create-trip-dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useMounted } from "@/hooks/use-mounted";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
 import { PostmarkStamp } from "@/components/ui/postmark-stamp";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -31,7 +29,6 @@ export function TripsContent() {
   const searchParams = useSearchParams();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState(searchParams.get("q") ?? "");
-  const mounted = useMounted();
   const { ref: upcomingSectionRef, isRevealed: upcomingRevealed } =
     useScrollReveal();
   const { ref: pastSectionRef, isRevealed: pastRevealed } = useScrollReveal();
@@ -127,15 +124,25 @@ export function TripsContent() {
     <div className="min-h-screen bg-background pb-24 motion-safe:animate-[revealUp_400ms_ease-out_both] gradient-mesh linen-texture">
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <header className="mb-8">
-          <h1 className="text-2xl sm:text-4xl font-bold text-foreground mb-2 font-playfair">
-            My Trips
-          </h1>
-          {!isPending && !isError && (
-            <p className="text-muted-foreground">
-              {tripCount} trip{tripCount !== 1 ? "s" : ""}
-            </p>
-          )}
+        <header className="flex items-start justify-between mb-8">
+          <div>
+            <h1 className="text-2xl sm:text-4xl font-bold text-foreground mb-2 font-playfair">
+              My Trips
+            </h1>
+            {!isPending && !isError && (
+              <p className="text-muted-foreground">
+                {tripCount} trip{tripCount !== 1 ? "s" : ""}
+              </p>
+            )}
+          </div>
+          <Button
+            onClick={() => setCreateDialogOpen(true)}
+            variant="outline"
+            className="h-10 px-4 rounded-md"
+          >
+            <Plus className="w-4 h-4" strokeWidth={2.5} />
+            New Trip
+          </Button>
         </header>
 
         {/* Search Bar */}
@@ -224,9 +231,7 @@ export function TripsContent() {
             {/* Upcoming Trips */}
             {upcomingTrips.length > 0 && (
               <section
-                ref={
-                  upcomingSectionRef as RefObject<HTMLElement>
-                }
+                ref={upcomingSectionRef}
                 className={`mb-12 ${upcomingRevealed ? "motion-safe:animate-[revealUp_400ms_ease-out_both]" : "motion-safe:opacity-0"}`}
               >
                 <h2 className="text-xl sm:text-2xl font-semibold text-foreground mb-4 font-playfair">
@@ -244,9 +249,7 @@ export function TripsContent() {
             {/* Past Trips */}
             {pastTrips.length > 0 && (
               <section
-                ref={
-                  pastSectionRef as RefObject<HTMLElement>
-                }
+                ref={pastSectionRef}
                 className={pastRevealed ? "motion-safe:animate-[revealUp_400ms_ease-out_both]" : "motion-safe:opacity-0"}
               >
                 <h2 className="text-xl sm:text-2xl font-semibold text-foreground mb-4 font-playfair">
@@ -263,21 +266,6 @@ export function TripsContent() {
           </div>
         )}
       </div>
-
-      {/* Floating Action Button (FAB) — portaled to body to escape ancestor transforms that break position:fixed */}
-      {mounted &&
-        createPortal(
-          <Button
-            onClick={() => setCreateDialogOpen(true)}
-            variant="gradient"
-            size="icon"
-            className="fixed bottom-safe-6 right-6 sm:bottom-safe-8 sm:right-8 w-14 h-14 rounded-full z-50"
-            aria-label="Create new trip"
-          >
-            <Plus className="w-6 h-6" strokeWidth={2.5} />
-          </Button>,
-          document.body,
-        )}
 
       {/* Create Trip Dialog */}
       <CreateTripDialog

@@ -319,7 +319,7 @@ export function ItineraryView({ tripId, onAddTravel, forecasts, temperatureUnit 
             userNameMap={userNameMap}
             isLocked={isLocked}
             forecasts={forecasts ?? []}
-            temperatureUnit={temperatureUnit ?? "celsius"}
+            temperatureUnit={temperatureUnit ?? "fahrenheit"}
           />
         ) : (
           <GroupByTypeView

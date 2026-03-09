@@ -35,6 +35,7 @@ import { Badge } from "@/components/ui/badge";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { Loader2, X, UserPlus, Phone, Search, Users } from "lucide-react";
@@ -57,7 +58,8 @@ export function InviteMembersDialog({
   const [mutualSearch, setMutualSearch] = useState("");
 
   const { mutate: inviteMembers, isPending } = useInviteMembers(tripId);
-  const { data: suggestions } = useMutualSuggestions(tripId);
+  const { data: suggestions, isPending: isSuggestionsLoading } =
+    useMutualSuggestions(tripId);
 
   const form = useForm({
     resolver: zodResolver(createInvitationsSchema),
@@ -184,7 +186,7 @@ export function InviteMembersDialog({
             Invite members
           </SheetTitle>
           <SheetDescription>
-            {hasMutuals
+            {hasMutuals || isSuggestionsLoading
               ? "Select mutuals or add phone numbers to invite to this trip"
               : "Add phone numbers of people you want to invite to this trip"}
           </SheetDescription>
@@ -196,8 +198,34 @@ export function InviteMembersDialog({
               onSubmit={form.handleSubmit(handleSubmit)}
               className="space-y-6 pb-6"
             >
-              {/* Mutuals Section - only show when suggestions exist */}
-              {hasMutuals && (
+              {/* Mutuals Section - loading skeleton */}
+              {isSuggestionsLoading && (
+                <div className="space-y-3">
+                  <Skeleton className="h-5 w-40" />
+                  <Skeleton className="h-10 w-full rounded-md" />
+                  <div className="space-y-1 rounded-md border border-border p-2">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="flex items-center gap-3 p-2">
+                        <Skeleton className="h-4 w-4 rounded" />
+                        <Skeleton className="size-8 rounded-full" />
+                        <div className="space-y-1.5">
+                          <Skeleton className="h-4 w-24" />
+                          <Skeleton className="h-3 w-16" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="relative py-2">
+                    <Separator />
+                    <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-3 text-xs text-muted-foreground">
+                      Or invite by phone number
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Mutuals Section - show when suggestions loaded */}
+              {hasMutuals && !isSuggestionsLoading && (
                 <div className="space-y-3" data-testid="mutuals-section">
                   <label className="text-base font-semibold text-foreground">
                     Suggest from mutuals

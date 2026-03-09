@@ -87,7 +87,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
       form.reset({
         displayName: user.displayName,
         timezone: user.timezone,
-        temperatureUnit: (user.temperatureUnit as "celsius" | "fahrenheit") || "celsius",
+        temperatureUnit: (user.temperatureUnit as "celsius" | "fahrenheit") || "fahrenheit",
         handles: {
           venmo: user.handles?.venmo ?? "",
           instagram: user.handles?.instagram ?? "",
@@ -382,7 +382,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
                         </FormLabel>
                         <Select
                           onValueChange={field.onChange}
-                          value={field.value || "celsius"}
+                          value={field.value || "fahrenheit"}
                           disabled={updateProfile.isPending}
                         >
                           <FormControl>

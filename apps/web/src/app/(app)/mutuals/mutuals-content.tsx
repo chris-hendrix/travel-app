@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  useState,
-  useEffect,
-  useRef,
-  type KeyboardEvent,
-  type RefObject,
-} from "react";
+import { useState, useEffect, useRef, type KeyboardEvent } from "react";
 import { Search, Users, AlertCircle, Loader2 } from "lucide-react";
 import type { Mutual } from "@tripful/shared/types";
 import { useMutuals } from "@/hooks/use-mutuals";
@@ -197,7 +191,7 @@ export function MutualsContent() {
         {/* Mutuals Grid */}
         {!isPending && !isError && mutuals.length > 0 && (
           <div
-            ref={gridRevealRef as RefObject<HTMLDivElement>}
+            ref={gridRevealRef}
             className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${gridRevealed ? "motion-safe:animate-[revealUp_400ms_ease-out_both]" : "motion-safe:opacity-0"}`}
             aria-live="polite"
           >

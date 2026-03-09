@@ -866,13 +866,14 @@ test.describe("Trip Journey", () => {
       });
 
       await test.step("verify delegated travel appears with correct member name", async () => {
-        // The travel card shows "Name · Time · Location" format
+        // The travel card shows "Name · Time" in compact format
         // Verify the delegated member's name appears on the travel card
         await expect(page.getByText("Delegated Member").first()).toBeVisible({
           timeout: ELEMENT_TIMEOUT,
         });
 
-        // Location should also be visible (compact view truncates > 20 chars)
+        // Click the travel card to open the detail sheet and verify location there
+        await page.getByText("Delegated Member").first().click();
         const locationLink = page.getByRole("link", {
           name: /Seattle-Tacoma/,
         });

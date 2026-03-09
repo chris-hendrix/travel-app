@@ -48,14 +48,14 @@ export const MemberTravelLineItem = memo(function MemberTravelLineItem({
       tabIndex={0}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
-      className="flex items-center gap-2 py-2.5 px-3 border-b border-border/40 hover:bg-muted/50 cursor-pointer transition-colors"
+      className="flex items-center gap-2 py-2 px-3 border-b border-border/40 hover:bg-muted/50 cursor-pointer transition-colors"
     >
-      <PlaneIcon className="w-3.5 h-3.5 text-member-travel shrink-0" />
-      <span className="font-semibold text-sm truncate">{memberName}</span>
-      <span className="text-xs text-muted-foreground">· {time}</span>
+      <PlaneIcon className="w-3 h-3 text-member-travel shrink-0" />
+      <span className="font-medium text-xs truncate">{memberName}</span>
+      <span className="text-[11px] text-muted-foreground">· {time}</span>
       {memberTravel.location && (
         <>
-          <span className="text-xs text-muted-foreground truncate min-w-0">
+          <span className="text-[11px] text-muted-foreground truncate min-w-0">
             {memberTravel.location}
           </span>
           <a
@@ -70,7 +70,7 @@ export const MemberTravelLineItem = memo(function MemberTravelLineItem({
           </a>
         </>
       )}
-      <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/60 ml-auto shrink-0" />
+      <ChevronRight className="w-3 h-3 text-muted-foreground/60 ml-auto shrink-0" />
     </div>
   );
 });
