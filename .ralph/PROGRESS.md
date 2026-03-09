@@ -192,3 +192,30 @@ Reviewed all 5 iterations of PROGRESS.md to identify FAILURE, BLOCKED, reviewer 
 ### Learnings
 - Triage tasks should check not just explicit failures but also implicit issues like functions that share the same bug pattern (e.g., `upload()` having the same nested-path issue as `delete()`)
 - Pre-existing test failures that appear identically across all iterations are safely excluded from feature-specific fix tasks
+
+## Iteration 7 — Task 6.2: FIX: LocalStorageService doesn't handle nested photo paths
+
+**Status**: ✅ COMPLETE
+
+### What was done
+- Fixed `LocalStorageService.upload()` in `apps/api/src/services/storage.service.ts`: Added `mkdirSync(dirname(filePath), { recursive: true })` before `writeFileSync` so nested paths like `photos/{tripId}/{uuid}.webp` create intermediate directories automatically
+- Fixed `LocalStorageService.delete()`: Replaced `url.split("/").pop()` (which only extracted the filename) with logic that strips the `/uploads/` prefix to preserve the full relative path. Also handles bare keys (no `/uploads/` prefix) since the photo processing worker calls `storage.delete(rawKey)` directly
+- Added `dirname` import from `node:path`
+- S3StorageService was NOT modified — it already handled nested paths correctly
+
+### Tests written
+- `apps/api/tests/unit/storage.service.test.ts` (10 tests):
+  - **upload**: flat file, nested path with intermediate directory creation, deeply nested path
+  - **delete**: flat file by URL, nested file by URL, bare key (no `/uploads/` prefix), non-existent file, empty URL, `/uploads/`-only URL, path traversal prevention
+
+### Verification
+- **New tests**: 10/10 passed
+- **Typecheck**: PASS (all 3 packages)
+- **Lint**: PASS (all 3 packages)
+- **Full suite**: Pre-existing failures only (8 API flaky concurrency, 3 web FAB test) — no new failures
+- **Reviewer**: APPROVED — correct root cause fixes for both bugs, security check preserved, consistent with S3StorageService approach, thorough test coverage
+
+### Learnings
+- `LocalStorageService.delete()` must handle two caller patterns: controller passes URL (`/uploads/photos/tripId/uuid.webp`) while worker passes bare key (`photos/tripId/uuid_raw.jpg`) — the `startsWith("/uploads/")` check correctly handles both
+- `mkdirSync(dirname(filePath), { recursive: true })` is idempotent and also creates the root uploads dir, making the explicit `ensureUploadsDirExists()` in the constructor redundant (but harmlessly kept)
+- Test files in this project use `process.cwd()` for temp directories, not `__dirname` (ESM compatibility)

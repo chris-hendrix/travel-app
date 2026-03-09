@@ -79,7 +79,7 @@
   - Fix: Create individual fix tasks in TASKS.md for each outstanding issue
   - Verify: Run full test suite
 
-- [ ] Task 6.2: FIX: LocalStorageService doesn't handle nested photo paths
+- [x] Task 6.2: FIX: LocalStorageService doesn't handle nested photo paths
   - Fix: In `apps/api/src/services/storage.service.ts`, update `LocalStorageService.delete()` to extract the full relative path after `/uploads/` instead of just the filename via `.pop()`
   - Fix: Update `LocalStorageService.upload()` to create intermediate directories with `mkdirSync(dirname(filePath), { recursive: true })` for nested paths like `photos/{tripId}/{uuid}.webp`
   - Test: Write unit tests verifying upload and delete work with nested paths

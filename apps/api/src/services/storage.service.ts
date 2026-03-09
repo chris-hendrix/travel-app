@@ -1,5 +1,5 @@
 import { writeFileSync, unlinkSync, mkdirSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import {
   S3Client,
   PutObjectCommand,
@@ -62,19 +62,22 @@ export class LocalStorageService implements IStorageService {
     filename: string,
     _mimetype: string,
   ): Promise<string> {
-    this.ensureUploadsDirExists();
     const filePath = resolve(this.uploadsDir, filename);
+    mkdirSync(dirname(filePath), { recursive: true });
     writeFileSync(filePath, file);
     return `/uploads/${filename}`;
   }
 
   async delete(url: string): Promise<void> {
-    const filename = url.split("/").pop();
-    if (!filename) {
+    // Strip /uploads/ prefix if present, otherwise use as-is (bare key)
+    const relativePath = url.startsWith("/uploads/")
+      ? url.slice("/uploads/".length)
+      : url;
+    if (!relativePath) {
       return;
     }
 
-    const filePath = resolve(this.uploadsDir, filename);
+    const filePath = resolve(this.uploadsDir, relativePath);
 
     // Security check: prevent path traversal attacks
     if (!filePath.startsWith(this.uploadsDir)) {
