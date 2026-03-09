@@ -277,9 +277,7 @@ export function PhotoUploadDropzone({
         <div className="p-3 rounded-md bg-destructive/10 border border-destructive/30">
           <div className="flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
-            <p className="text-sm text-destructive flex-1">
-              {validationError}
-            </p>
+            <p className="text-sm text-destructive flex-1">{validationError}</p>
           </div>
         </div>
       )}
@@ -306,7 +304,9 @@ export function PhotoUploadDropzone({
               </div>
 
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{entry.file.name}</p>
+                <p className="text-sm font-medium truncate">
+                  {entry.file.name}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {formatFileSize(entry.file.size)}
                 </p>

@@ -35,7 +35,10 @@ import { S3StorageService } from "@/services/storage.service.js";
  */
 export default fp(
   async function queueWorkersPlugin(fastify: FastifyInstance) {
-    if (fastify.config.NODE_ENV === "test" && !process.env.ENABLE_QUEUE_WORKERS) {
+    if (
+      fastify.config.NODE_ENV === "test" &&
+      !process.env.ENABLE_QUEUE_WORKERS
+    ) {
       fastify.log.debug("queue workers skipped in test environment");
       return;
     }

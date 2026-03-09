@@ -1,10 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyRequest, FastifyReply } from "fastify";
 import type { UpdatePhotoCaptionInput } from "@tripful/shared/schemas";
-import {
-  PermissionDeniedError,
-  PhotoNotFoundError,
-} from "../errors.js";
+import { PermissionDeniedError, PhotoNotFoundError } from "../errors.js";
 import { QUEUE } from "@/queues/types.js";
 import type { PhotoProcessingPayload } from "@/queues/types.js";
 
@@ -21,7 +18,9 @@ async function assertUploaderOrOrganizer(
   userId: string,
   tripId: string,
   uploadedBy: string,
-  permissionsService: { isOrganizer(userId: string, tripId: string): Promise<boolean> },
+  permissionsService: {
+    isOrganizer(userId: string, tripId: string): Promise<boolean>;
+  },
   action: string,
 ): Promise<void> {
   if (uploadedBy !== userId) {
@@ -163,14 +162,11 @@ export const photoController = {
 
         // Enqueue processing job
         if (request.server.boss) {
-          await request.server.boss.send(
-            QUEUE.PHOTO_PROCESSING,
-            {
-              photoId: photo.id,
-              tripId,
-              rawKey,
-            } satisfies PhotoProcessingPayload,
-          );
+          await request.server.boss.send(QUEUE.PHOTO_PROCESSING, {
+            photoId: photo.id,
+            tripId,
+            rawKey,
+          } satisfies PhotoProcessingPayload);
         }
 
         photos.push(photo);
@@ -307,7 +303,13 @@ export const photoController = {
       }
 
       // Check permission: uploader or organizer
-      await assertUploaderOrOrganizer(userId, tripId, photo.uploadedBy, permissionsService, "update");
+      await assertUploaderOrOrganizer(
+        userId,
+        tripId,
+        photo.uploadedBy,
+        permissionsService,
+        "update",
+      );
 
       const updatedPhoto = await photoService.updateCaption(photoId, caption);
 
@@ -374,7 +376,13 @@ export const photoController = {
       }
 
       // Check permission: uploader or organizer
-      await assertUploaderOrOrganizer(userId, tripId, photo.uploadedBy, permissionsService, "delete");
+      await assertUploaderOrOrganizer(
+        userId,
+        tripId,
+        photo.uploadedBy,
+        permissionsService,
+        "delete",
+      );
 
       // Delete processed image from storage if URL exists.
       // Note: The raw file is not cleaned up here because the raw key is not

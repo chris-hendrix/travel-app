@@ -63,9 +63,9 @@ describe("LocalStorageService", () => {
       );
 
       expect(url).toBe("/uploads/a/b/c/d/file.webp");
-      expect(
-        existsSync(resolve(TEST_UPLOADS_DIR, "a/b/c/d/file.webp")),
-      ).toBe(true);
+      expect(existsSync(resolve(TEST_UPLOADS_DIR, "a/b/c/d/file.webp"))).toBe(
+        true,
+      );
     });
   });
 
@@ -100,10 +100,7 @@ describe("LocalStorageService", () => {
     it("should delete a file by bare key (no /uploads/ prefix)", async () => {
       const buffer = Buffer.from("bare-key-delete");
       await service.upload(buffer, "photos/trip-1/raw_file.jpg", "image/webp");
-      const filePath = resolve(
-        TEST_UPLOADS_DIR,
-        "photos/trip-1/raw_file.jpg",
-      );
+      const filePath = resolve(TEST_UPLOADS_DIR, "photos/trip-1/raw_file.jpg");
       expect(existsSync(filePath)).toBe(true);
 
       await service.delete("photos/trip-1/raw_file.jpg");

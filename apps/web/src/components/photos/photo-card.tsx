@@ -44,9 +44,7 @@ export function PhotoCard({
         )}
       >
         <AlertCircle className="w-6 h-6 text-destructive" />
-        <span className="text-xs text-muted-foreground">
-          Processing failed
-        </span>
+        <span className="text-xs text-muted-foreground">Processing failed</span>
       </div>
     );
   }

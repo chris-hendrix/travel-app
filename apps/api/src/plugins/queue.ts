@@ -11,7 +11,10 @@ import { PgBoss } from "pg-boss";
  */
 export default fp(
   async function queuePlugin(fastify: FastifyInstance) {
-    if (fastify.config.NODE_ENV === "test" && !process.env.ENABLE_QUEUE_WORKERS) {
+    if (
+      fastify.config.NODE_ENV === "test" &&
+      !process.env.ENABLE_QUEUE_WORKERS
+    ) {
       fastify.decorate("boss", null);
       return;
     }

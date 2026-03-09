@@ -177,10 +177,7 @@ export function useUpdatePhotoCaption(tripId: string) {
     // On error: Rollback optimistic update
     onError: (_error, _variables, context) => {
       if (context?.previousPhotos) {
-        queryClient.setQueryData(
-          photoKeys.all(tripId),
-          context.previousPhotos,
-        );
+        queryClient.setQueryData(photoKeys.all(tripId), context.previousPhotos);
       }
     },
 
@@ -279,10 +276,7 @@ export function useDeletePhoto(tripId: string) {
     // On error: Rollback optimistic update
     onError: (_error, _photoId, context) => {
       if (context?.previousPhotos) {
-        queryClient.setQueryData(
-          photoKeys.all(tripId),
-          context.previousPhotos,
-        );
+        queryClient.setQueryData(photoKeys.all(tripId), context.previousPhotos);
       }
     },
 
@@ -300,9 +294,7 @@ export function useDeletePhoto(tripId: string) {
  * @param error - Error from mutation
  * @returns User-friendly error message
  */
-export function getDeletePhotoErrorMessage(
-  error: Error | null,
-): string | null {
+export function getDeletePhotoErrorMessage(error: Error | null): string | null {
   if (!error) return null;
 
   if (error instanceof APIError) {

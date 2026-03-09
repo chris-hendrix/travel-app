@@ -1,6 +1,9 @@
 "use client";
 
-import type { KeyboardEvent as ReactKeyboardEvent, TouchEvent as ReactTouchEvent } from "react";
+import type {
+  KeyboardEvent as ReactKeyboardEvent,
+  TouchEvent as ReactTouchEvent,
+} from "react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import { X, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
@@ -58,7 +61,15 @@ export function PhotoLightbox({
           break;
       }
     },
-    [currentPhoto, onClose, onNavigate, currentIndex, hasPrev, hasNext, isEditingCaption],
+    [
+      currentPhoto,
+      onClose,
+      onNavigate,
+      currentIndex,
+      hasPrev,
+      hasNext,
+      isEditingCaption,
+    ],
   );
 
   useEffect(() => {

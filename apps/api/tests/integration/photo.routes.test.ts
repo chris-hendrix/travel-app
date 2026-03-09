@@ -49,11 +49,7 @@ async function createTripWithMember(creatorId: string) {
 }
 
 /** Helper to add a regular member to a trip */
-async function addMember(
-  userId: string,
-  tripId: string,
-  isOrganizer = false,
-) {
+async function addMember(userId: string, tripId: string, isOrganizer = false) {
   await db.insert(members).values({
     userId,
     tripId,

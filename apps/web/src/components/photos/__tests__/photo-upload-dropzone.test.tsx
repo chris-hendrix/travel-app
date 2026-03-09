@@ -55,7 +55,9 @@ describe("PhotoUploadDropzone", () => {
     return new File([blob], name, { type });
   };
 
-  const renderDropzone = (props?: Partial<React.ComponentProps<typeof PhotoUploadDropzone>>) => {
+  const renderDropzone = (
+    props?: Partial<React.ComponentProps<typeof PhotoUploadDropzone>>,
+  ) => {
     return render(
       <PhotoUploadDropzone
         tripId="trip-123"

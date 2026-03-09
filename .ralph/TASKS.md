@@ -90,7 +90,7 @@
   - Test: Upload photo to trip, verify grid display, open lightbox, navigate, edit caption, delete photo
   - Verify: Run E2E test suite
 
-- [ ] Task 6.4: Manual browser testing with screenshots for photo feature
+- [x] Task 6.4: Manual browser testing with screenshots for photo feature
   - Verify: Start dev servers, navigate to trip detail page
   - Verify: Screenshot empty photo state, upload flow, gallery grid, lightbox navigation, caption editing
   - Verify: Save screenshots to `.ralph/screenshots/` with `task-6.4-` prefix
