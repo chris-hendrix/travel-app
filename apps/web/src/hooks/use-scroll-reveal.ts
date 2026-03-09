@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 interface UseScrollRevealOptions {
   /** Intersection threshold (0-1). Default: 0.1 */
@@ -15,15 +15,20 @@ interface UseScrollRevealOptions {
  * Uses IntersectionObserver with a one-shot pattern: once the element
  * is intersecting, `isRevealed` becomes true and the observer disconnects.
  *
+ * Uses a callback ref so it works correctly with conditionally rendered elements.
+ *
  * @param options - Optional threshold and rootMargin for the observer
- * @returns Object with a ref to attach to the target element and the revealed state
+ * @returns Object with a ref callback to attach to the target element and the revealed state
  */
 export function useScrollReveal(options?: UseScrollRevealOptions) {
-  const ref = useRef<HTMLElement>(null);
+  const [element, setElement] = useState<HTMLElement | null>(null);
   const [isRevealed, setIsRevealed] = useState(false);
 
+  const ref = useCallback((node: HTMLElement | null) => {
+    setElement(node);
+  }, []);
+
   useEffect(() => {
-    const element = ref.current;
     if (!element || isRevealed) return;
 
     const observer = new IntersectionObserver(
@@ -44,7 +49,7 @@ export function useScrollReveal(options?: UseScrollRevealOptions) {
     return () => {
       observer.disconnect();
     };
-  }, [isRevealed, options?.threshold, options?.rootMargin]);
+  }, [element, isRevealed, options?.threshold, options?.rootMargin]);
 
   return { ref, isRevealed };
 }

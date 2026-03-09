@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type RefObject } from "react";
+import { useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import Image from "next/image";
@@ -455,7 +455,7 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
       {/* Itinerary — outside padded container so sticky header works */}
       <div
         id="itinerary"
-        ref={itineraryRef as RefObject<HTMLDivElement>}
+        ref={itineraryRef}
         className="scroll-mt-14"
       >
         <ItineraryView

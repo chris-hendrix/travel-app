@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef, type RefObject } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Plus, Search, AlertCircle, Loader2 } from "lucide-react";
@@ -224,9 +224,7 @@ export function TripsContent() {
             {/* Upcoming Trips */}
             {upcomingTrips.length > 0 && (
               <section
-                ref={
-                  upcomingSectionRef as RefObject<HTMLElement>
-                }
+                ref={upcomingSectionRef}
                 className={`mb-12 ${upcomingRevealed ? "motion-safe:animate-[revealUp_400ms_ease-out_both]" : "motion-safe:opacity-0"}`}
               >
                 <h2 className="text-xl sm:text-2xl font-semibold text-foreground mb-4 font-playfair">
@@ -244,9 +242,7 @@ export function TripsContent() {
             {/* Past Trips */}
             {pastTrips.length > 0 && (
               <section
-                ref={
-                  pastSectionRef as RefObject<HTMLElement>
-                }
+                ref={pastSectionRef}
                 className={pastRevealed ? "motion-safe:animate-[revealUp_400ms_ease-out_both]" : "motion-safe:opacity-0"}
               >
                 <h2 className="text-xl sm:text-2xl font-semibold text-foreground mb-4 font-playfair">
