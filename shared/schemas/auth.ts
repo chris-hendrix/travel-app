@@ -71,6 +71,7 @@ export const userResponseSchema = z.object({
   profilePhotoUrl: z.string().nullable().optional(),
   timezone: z.string().nullable(),
   handles: z.record(z.string(), z.string()).nullable().optional(),
+  temperatureUnit: z.enum(["celsius", "fahrenheit"]).nullable().optional(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });

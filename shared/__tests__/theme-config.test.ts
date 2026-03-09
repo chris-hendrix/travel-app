@@ -24,7 +24,7 @@ describe("THEME_PRESETS", () => {
   });
 
   it("should use kebab-case IDs", () => {
-    const kebabCaseRegex = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
+    const kebabCaseRegex = /^[a-z0-9]+(-[a-z0-9]+)*$/;
     THEME_PRESETS.forEach((preset) => {
       expect(preset.id).toMatch(kebabCaseRegex);
     });

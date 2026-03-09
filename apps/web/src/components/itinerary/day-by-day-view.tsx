@@ -1,7 +1,14 @@
 "use client";
 
 import { type ReactNode, useEffect, useMemo, useState } from "react";
-import type { Event, Accommodation, MemberTravel } from "@tripful/shared/types";
+import type {
+  Event,
+  Accommodation,
+  MemberTravel,
+  DailyForecast,
+  TemperatureUnit,
+} from "@tripful/shared/types";
+import { WeatherDayBadge } from "./weather-day-badge";
 import { EventCard } from "./event-card";
 import { AccommodationLineItem } from "./accommodation-line-item";
 import { MemberTravelLineItem } from "./member-travel-line-item";
@@ -21,7 +28,6 @@ import {
 } from "@/lib/utils/timezone";
 import { cn } from "@/lib/utils";
 import { CalendarOff } from "lucide-react";
-import { EmptyState } from "@/components/ui/empty-state";
 import {
   canModifyEvent,
   canModifyAccommodation,
@@ -39,6 +45,8 @@ interface DayByDayViewProps {
   userId: string;
   userNameMap: Map<string, string>;
   isLocked?: boolean;
+  forecasts?: DailyForecast[];
+  temperatureUnit?: TemperatureUnit;
 }
 
 interface DayData {
@@ -70,6 +78,8 @@ export function DayByDayView({
   userId,
   userNameMap,
   isLocked,
+  forecasts,
+  temperatureUnit,
 }: DayByDayViewProps) {
   // Track current time for the "now" indicator
   const [now, setNow] = useState(() => Date.now());
@@ -83,6 +93,17 @@ export function DayByDayView({
     () => getDayInTimezone(new Date(now), timezone),
     [now, timezone],
   );
+
+  // Build forecast lookup by date
+  const forecastMap = useMemo(() => {
+    const map = new Map<string, DailyForecast>();
+    if (forecasts) {
+      for (const f of forecasts) {
+        map.set(f.date, f);
+      }
+    }
+    return map;
+  }, [forecasts]);
 
   // Group data by day
   const dayData = useMemo(() => {
@@ -343,7 +364,7 @@ export function DayByDayView({
             key={day.date}
             id={isToday ? "day-today" : undefined}
             className={cn(
-              "grid grid-cols-[3.5rem_1fr] sm:grid-cols-[4rem_1fr] gap-x-3 py-4",
+              "grid grid-cols-[4.5rem_1fr] sm:grid-cols-[5rem_1fr] gap-x-3 py-4",
               isToday && "scroll-mt-28",
             )}
           >
@@ -376,22 +397,25 @@ export function DayByDayView({
                 >
                   {getWeekdayAbbrev(day.date, timezone)}
                 </span>
+                <WeatherDayBadge
+                  forecast={forecastMap.get(day.date)}
+                  temperatureUnit={temperatureUnit || "celsius"}
+                />
               </div>
             </div>
 
             {/* Content column */}
-            <div className="min-w-0">
-              <div className="space-y-2">
-                {cardElements}
-                {!hasContent && !isToday && (
-                  <EmptyState
-                    icon={CalendarOff}
-                    title="No events scheduled"
-                    variant="inline"
-                    className="min-h-[4.5rem] pl-5 py-0 items-start justify-center"
-                  />
-                )}
-              </div>
+            <div className={cn("min-w-0", !hasContent && !isToday && "flex items-center")}>
+              {hasContent || isToday ? (
+                <div className="space-y-2">
+                  {cardElements}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 min-h-[4.5rem] pl-5 text-muted-foreground">
+                  <CalendarOff className="size-5 shrink-0" />
+                  <span className="text-sm">No events scheduled</span>
+                </div>
+              )}
             </div>
           </div>
         );

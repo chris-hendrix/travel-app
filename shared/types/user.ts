@@ -1,5 +1,7 @@
 // User-related types for the Tripful platform
 
+import type { TemperatureUnit } from "./weather";
+
 /**
  * User entity representation
  * Note: Dates are serialized as ISO 8601 strings for API responses
@@ -17,6 +19,8 @@ export interface User {
   timezone: string | null;
   /** User social media handles (e.g., venmo, instagram) */
   handles: Record<string, string> | null;
+  /** Preferred temperature unit for weather display */
+  temperatureUnit?: TemperatureUnit;
   /** Account creation timestamp (ISO 8601 string) */
   createdAt: string;
   /** Last update timestamp (ISO 8601 string) */

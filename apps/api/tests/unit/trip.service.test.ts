@@ -1,15 +1,21 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { db } from "@/config/database.js";
-import { trips, members, users, events, type User } from "@/db/schema/index.js";
+import { trips, members, users, events, weatherCache, type User } from "@/db/schema/index.js";
 import { eq, and } from "drizzle-orm";
 import { TripService, type TripSummary } from "@/services/trip.service.js";
 import { PermissionsService } from "@/services/permissions.service.js";
+import type { IGeocodingService } from "@/services/geocoding.service.js";
 import { generateUniquePhone } from "../test-utils.js";
 import type { CreateTripInput } from "@tripful/shared/schemas";
 
+// Create mock geocoding service
+const mockGeocodingService: IGeocodingService = {
+  geocode: vi.fn().mockResolvedValue({ lat: 32.7157, lon: -117.1611 }),
+};
+
 // Create service instances with db for testing
 const permissionsService = new PermissionsService(db);
-const tripService = new TripService(db, permissionsService);
+const tripService = new TripService(db, permissionsService, mockGeocodingService);
 
 describe("trip.service", () => {
   // Use unique phone numbers per test run to enable parallel execution
@@ -1662,6 +1668,321 @@ describe("trip.service", () => {
         expect(coOrganizers).toHaveLength(0);
         expect(Array.isArray(coOrganizers)).toBe(true);
       });
+    });
+  });
+
+  describe("geocoding on create/update", () => {
+    let geoTestUserId: string;
+    let geoTestTripId: string;
+    let geoTestPhone: string;
+
+    beforeEach(async () => {
+      vi.mocked(mockGeocodingService.geocode).mockResolvedValue({
+        lat: 32.7157,
+        lon: -117.1611,
+      });
+
+      geoTestPhone = generateUniquePhone();
+      const [user] = await db
+        .insert(users)
+        .values({
+          phoneNumber: geoTestPhone,
+          displayName: "Geo Test User",
+          timezone: "UTC",
+        })
+        .returning();
+      geoTestUserId = user.id;
+    });
+
+    afterEach(async () => {
+      if (geoTestTripId) {
+        await db.delete(events).where(eq(events.tripId, geoTestTripId));
+        await db.delete(members).where(eq(members.tripId, geoTestTripId));
+        await db.delete(trips).where(eq(trips.id, geoTestTripId));
+      }
+      await db.delete(users).where(eq(users.id, geoTestUserId));
+      vi.mocked(mockGeocodingService.geocode).mockReset();
+    });
+
+    it("createTrip with destination geocodes and stores coordinates", async () => {
+      vi.mocked(mockGeocodingService.geocode).mockResolvedValue({
+        lat: 21.3069,
+        lon: -157.8583,
+      });
+
+      const trip = await tripService.createTrip(geoTestUserId, {
+        name: "Hawaii Trip",
+        destination: "Honolulu, HI",
+        timezone: "Pacific/Honolulu",
+        allowMembersToAddEvents: true,
+      });
+      geoTestTripId = trip.id;
+
+      expect(mockGeocodingService.geocode).toHaveBeenCalledWith("Honolulu, HI");
+      expect(trip.destinationLat).toBe(21.3069);
+      expect(trip.destinationLon).toBe(-157.8583);
+    });
+
+    it("createTrip with geocode failure still creates trip with null lat/lon", async () => {
+      vi.mocked(mockGeocodingService.geocode).mockResolvedValue(null);
+
+      const trip = await tripService.createTrip(geoTestUserId, {
+        name: "Unknown Trip",
+        destination: "Nonexistent Place XYZ",
+        timezone: "UTC",
+        allowMembersToAddEvents: true,
+      });
+      geoTestTripId = trip.id;
+
+      expect(mockGeocodingService.geocode).toHaveBeenCalledWith(
+        "Nonexistent Place XYZ",
+      );
+      expect(trip.destinationLat).toBeNull();
+      expect(trip.destinationLon).toBeNull();
+    });
+
+    it("updateTrip with destination change geocodes and stores new coordinates + deletes weather cache", async () => {
+      // Create trip first
+      vi.mocked(mockGeocodingService.geocode).mockResolvedValue({
+        lat: 32.7157,
+        lon: -117.1611,
+      });
+      const trip = await tripService.createTrip(geoTestUserId, {
+        name: "SD Trip",
+        destination: "San Diego, CA",
+        timezone: "America/Los_Angeles",
+        allowMembersToAddEvents: true,
+      });
+      geoTestTripId = trip.id;
+
+      // Insert a weather cache entry
+      await db.insert(weatherCache).values({
+        tripId: trip.id,
+        response: { temp: 72 },
+      });
+
+      // Update destination
+      vi.mocked(mockGeocodingService.geocode).mockResolvedValue({
+        lat: 40.7128,
+        lon: -74.006,
+      });
+      const updated = await tripService.updateTrip(
+        trip.id,
+        geoTestUserId,
+        { destination: "New York, NY" },
+      );
+
+      expect(mockGeocodingService.geocode).toHaveBeenCalledWith("New York, NY");
+      expect(updated.destinationLat).toBe(40.7128);
+      expect(updated.destinationLon).toBe(-74.006);
+
+      // Verify weather cache was deleted
+      const cacheRows = await db
+        .select()
+        .from(weatherCache)
+        .where(eq(weatherCache.tripId, trip.id));
+      expect(cacheRows).toHaveLength(0);
+    });
+
+    it("updateTrip without destination change does not geocode", async () => {
+      vi.mocked(mockGeocodingService.geocode).mockResolvedValue({
+        lat: 32.7157,
+        lon: -117.1611,
+      });
+      const trip = await tripService.createTrip(geoTestUserId, {
+        name: "SD Trip",
+        destination: "San Diego, CA",
+        timezone: "America/Los_Angeles",
+        allowMembersToAddEvents: true,
+      });
+      geoTestTripId = trip.id;
+
+      // Reset mock to track calls from updateTrip only
+      vi.mocked(mockGeocodingService.geocode).mockReset();
+
+      const updated = await tripService.updateTrip(
+        trip.id,
+        geoTestUserId,
+        { name: "Updated Name" },
+      );
+
+      expect(mockGeocodingService.geocode).not.toHaveBeenCalled();
+      expect(updated.name).toBe("Updated Name");
+      // Coordinates should remain unchanged
+      expect(updated.destinationLat).toBe(32.7157);
+      expect(updated.destinationLon).toBe(-117.1611);
+    });
+  });
+
+  describe("getEffectiveDateRange", () => {
+    let dateTestUserId: string;
+    let dateTestTripId: string;
+    let dateTestPhone: string;
+
+    beforeEach(async () => {
+      vi.mocked(mockGeocodingService.geocode).mockResolvedValue({
+        lat: 0,
+        lon: 0,
+      });
+      dateTestPhone = generateUniquePhone();
+      const [user] = await db
+        .insert(users)
+        .values({
+          phoneNumber: dateTestPhone,
+          displayName: "Date Range Test User",
+          timezone: "UTC",
+        })
+        .returning();
+      dateTestUserId = user.id;
+    });
+
+    afterEach(async () => {
+      if (dateTestTripId) {
+        await db.delete(events).where(eq(events.tripId, dateTestTripId));
+        await db.delete(members).where(eq(members.tripId, dateTestTripId));
+        await db.delete(trips).where(eq(trips.id, dateTestTripId));
+      }
+      await db.delete(users).where(eq(users.id, dateTestUserId));
+      vi.mocked(mockGeocodingService.geocode).mockReset();
+    });
+
+    it("with trip dates returns trip dates", async () => {
+      const trip = await tripService.createTrip(dateTestUserId, {
+        name: "Dated Trip",
+        destination: "Test",
+        timezone: "UTC",
+        startDate: "2026-06-01",
+        endDate: "2026-06-10",
+        allowMembersToAddEvents: true,
+      });
+      dateTestTripId = trip.id;
+
+      const range = await tripService.getEffectiveDateRange(trip.id);
+
+      expect(range.start).toBeInstanceOf(Date);
+      expect(range.end).toBeInstanceOf(Date);
+      expect(range.start!.toISOString()).toContain("2026-06-01");
+      expect(range.end!.toISOString()).toContain("2026-06-10");
+    });
+
+    it("with no trip dates but events returns event range", async () => {
+      const trip = await tripService.createTrip(dateTestUserId, {
+        name: "Undated Trip",
+        destination: "Test",
+        timezone: "UTC",
+        allowMembersToAddEvents: true,
+      });
+      dateTestTripId = trip.id;
+
+      // Add events
+      await db.insert(events).values([
+        {
+          tripId: trip.id,
+          createdBy: dateTestUserId,
+          name: "Event 1",
+          eventType: "activity",
+          startTime: new Date("2026-07-01T10:00:00Z"),
+          endTime: new Date("2026-07-01T12:00:00Z"),
+        },
+        {
+          tripId: trip.id,
+          createdBy: dateTestUserId,
+          name: "Event 2",
+          eventType: "meal",
+          startTime: new Date("2026-07-05T18:00:00Z"),
+        },
+      ]);
+
+      const range = await tripService.getEffectiveDateRange(trip.id);
+
+      expect(range.start).toBeInstanceOf(Date);
+      expect(range.end).toBeInstanceOf(Date);
+      expect(range.start!.toISOString()).toBe("2026-07-01T10:00:00.000Z");
+      // Event 2 has no endTime, so COALESCE uses startTime
+      expect(range.end!.toISOString()).toBe("2026-07-05T18:00:00.000Z");
+    });
+
+    it("with both trip dates and events returns combined range", async () => {
+      const trip = await tripService.createTrip(dateTestUserId, {
+        name: "Combined Trip",
+        destination: "Test",
+        timezone: "UTC",
+        startDate: "2026-06-15",
+        endDate: "2026-06-20",
+        allowMembersToAddEvents: true,
+      });
+      dateTestTripId = trip.id;
+
+      // Add event that starts before trip startDate
+      await db.insert(events).values({
+        tripId: trip.id,
+        createdBy: dateTestUserId,
+        name: "Early Event",
+        eventType: "travel",
+        startTime: new Date("2026-06-10T08:00:00Z"),
+        endTime: new Date("2026-06-25T20:00:00Z"),
+      });
+
+      const range = await tripService.getEffectiveDateRange(trip.id);
+
+      expect(range.start).toBeInstanceOf(Date);
+      expect(range.end).toBeInstanceOf(Date);
+      // Event starts before trip date, so event start is used
+      expect(range.start!.toISOString()).toBe("2026-06-10T08:00:00.000Z");
+      // Event ends after trip date, so event end is used
+      expect(range.end!.toISOString()).toBe("2026-06-25T20:00:00.000Z");
+    });
+
+    it("with no dates and no events returns nulls", async () => {
+      const trip = await tripService.createTrip(dateTestUserId, {
+        name: "Empty Trip",
+        destination: "Test",
+        timezone: "UTC",
+        allowMembersToAddEvents: true,
+      });
+      dateTestTripId = trip.id;
+
+      const range = await tripService.getEffectiveDateRange(trip.id);
+
+      expect(range.start).toBeNull();
+      expect(range.end).toBeNull();
+    });
+
+    it("ignores soft-deleted events", async () => {
+      const trip = await tripService.createTrip(dateTestUserId, {
+        name: "Deleted Events Trip",
+        destination: "Test",
+        timezone: "UTC",
+        allowMembersToAddEvents: true,
+      });
+      dateTestTripId = trip.id;
+
+      // Add active event
+      await db.insert(events).values({
+        tripId: trip.id,
+        createdBy: dateTestUserId,
+        name: "Active Event",
+        eventType: "activity",
+        startTime: new Date("2026-07-01T10:00:00Z"),
+        endTime: new Date("2026-07-01T12:00:00Z"),
+      });
+
+      // Add deleted event with wider range (should be ignored)
+      await db.insert(events).values({
+        tripId: trip.id,
+        createdBy: dateTestUserId,
+        name: "Deleted Event",
+        eventType: "activity",
+        startTime: new Date("2026-06-01T00:00:00Z"),
+        endTime: new Date("2026-08-01T00:00:00Z"),
+        deletedAt: new Date(),
+        deletedBy: dateTestUserId,
+      });
+
+      const range = await tripService.getEffectiveDateRange(trip.id);
+
+      expect(range.start!.toISOString()).toBe("2026-07-01T10:00:00.000Z");
+      expect(range.end!.toISOString()).toBe("2026-07-01T12:00:00.000Z");
     });
   });
 });

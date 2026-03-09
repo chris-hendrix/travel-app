@@ -25,13 +25,16 @@ import { CreateAccommodationDialog } from "./create-accommodation-dialog";
 import { DeletedItemsDialog } from "./deleted-items-dialog";
 import { TravelReminderBanner } from "@/components/trip/travel-reminder-banner";
 import { EmptyState } from "@/components/ui/empty-state";
+import type { DailyForecast, TemperatureUnit } from "@tripful/shared/types";
 
 interface ItineraryViewProps {
   tripId: string;
   onAddTravel?: () => void;
+  forecasts?: DailyForecast[] | undefined;
+  temperatureUnit?: TemperatureUnit | undefined;
 }
 
-export function ItineraryView({ tripId, onAddTravel }: ItineraryViewProps) {
+export function ItineraryView({ tripId, onAddTravel, forecasts, temperatureUnit }: ItineraryViewProps) {
   const { user } = useAuth();
 
   // Fetch data
@@ -315,6 +318,8 @@ export function ItineraryView({ tripId, onAddTravel }: ItineraryViewProps) {
             userId={user?.id || ""}
             userNameMap={userNameMap}
             isLocked={isLocked}
+            forecasts={forecasts ?? []}
+            temperatureUnit={temperatureUnit ?? "celsius"}
           />
         ) : (
           <GroupByTypeView

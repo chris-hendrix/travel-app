@@ -35,6 +35,8 @@ import messageServicePlugin from "./plugins/message-service.js";
 import notificationServicePlugin from "./plugins/notification-service.js";
 import mutualsServicePlugin from "./plugins/mutuals-service.js";
 import calendarServicePlugin from "./plugins/calendar-service.js";
+import geocodingServicePlugin from "./plugins/geocoding-service.js";
+import weatherServicePlugin from "./plugins/weather-service.js";
 import queueWorkersPlugin from "./queues/index.js";
 
 // Middleware
@@ -53,6 +55,7 @@ import { notificationRoutes } from "./routes/notification.routes.js";
 import { mutualsRoutes } from "./routes/mutuals.routes.js";
 import { userRoutes } from "./routes/user.routes.js";
 import { calendarRoutes } from "./routes/calendar.routes.js";
+import { weatherRoutes } from "./routes/weather.routes.js";
 
 // Config
 import { env } from "./config/env.js";
@@ -192,6 +195,7 @@ export async function buildApp(
 
   // Register service plugins
   await app.register(smsServicePlugin);
+  await app.register(geocodingServicePlugin);
   await app.register(verificationServicePlugin);
   await app.register(healthServicePlugin);
   await app.register(permissionsServicePlugin);
@@ -206,6 +210,7 @@ export async function buildApp(
   await app.register(invitationServicePlugin);
   await app.register(messageServicePlugin);
   await app.register(calendarServicePlugin);
+  await app.register(weatherServicePlugin);
   await app.register(queueWorkersPlugin);
 
   // Register Swagger/OpenAPI documentation (non-production only)
@@ -229,6 +234,7 @@ export async function buildApp(
   await app.register(mutualsRoutes, { prefix: "/api" });
   await app.register(userRoutes, { prefix: "/api/users" });
   await app.register(calendarRoutes, { prefix: "/api" });
+  await app.register(weatherRoutes, { prefix: "/api" });
 
   // Not-found handler for unmatched routes
   app.setNotFoundHandler((request, reply) => {

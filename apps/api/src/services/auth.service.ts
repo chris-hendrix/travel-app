@@ -43,6 +43,7 @@ export interface IAuthService {
       timezone?: string | null;
       profilePhotoUrl?: string | null;
       handles?: Record<string, string> | null;
+      temperatureUnit?: string;
     },
   ): Promise<User>;
 
@@ -187,6 +188,7 @@ export class AuthService implements IAuthService {
       timezone?: string | null;
       profilePhotoUrl?: string | null;
       handles?: Record<string, string> | null;
+      temperatureUnit?: string;
     },
   ): Promise<User> {
     const updateData: Partial<User> = {

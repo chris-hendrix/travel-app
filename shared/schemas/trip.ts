@@ -157,6 +157,8 @@ const tripEntitySchema = z.object({
   id: z.string(),
   name: z.string(),
   destination: z.string(),
+  destinationLat: z.number().nullable(),
+  destinationLon: z.number().nullable(),
   startDate: z.string().nullable(),
   endDate: z.string().nullable(),
   preferredTimezone: z.string(),

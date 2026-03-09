@@ -27,6 +27,7 @@ import {
   tripDetailQueryOptions,
   type TripDetailWithMeta,
 } from "./trip-queries";
+import { weatherKeys } from "./weather-queries";
 
 // Re-export for backward compatibility
 export { tripKeys, tripsQueryOptions, tripDetailQueryOptions };
@@ -162,6 +163,8 @@ export function useCreateTrip() {
         id: "temp-" + Date.now(), // Temporary ID until server responds
         name: newTrip.name,
         destination: newTrip.destination,
+        destinationLat: null,
+        destinationLon: null,
         startDate: newTrip.startDate || null,
         endDate: newTrip.endDate || null,
         preferredTimezone: newTrip.timezone,
@@ -391,9 +394,16 @@ export function useUpdateTrip() {
 
     // Always invalidate queries after mutation settles (success or error)
     // This ensures the cache stays in sync with the server
-    onSettled: () => {
+    onSettled: (_data, _error, { tripId, data }) => {
       // tripKeys.all (["trips"]) prefix-matches all trip queries including details
       queryClient.invalidateQueries({ queryKey: tripKeys.all });
+
+      // Refetch weather when destination changes (server clears weather cache on destination update)
+      if (data.destination !== undefined) {
+        queryClient.invalidateQueries({
+          queryKey: weatherKeys.forecast(tripId),
+        });
+      }
     },
   });
 }

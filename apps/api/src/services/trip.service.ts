@@ -3,6 +3,7 @@ import {
   members,
   users,
   events,
+  weatherCache,
   type Trip,
   type Member,
   type User,
@@ -19,10 +20,13 @@ import {
   gt,
   isNotNull,
   or,
+  min,
+  max,
 } from "drizzle-orm";
 import type { CreateTripInput, UpdateTripInput } from "@tripful/shared/schemas";
 import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
+import type { IGeocodingService } from "@/services/geocoding.service.js";
 import {
   TripNotFoundError,
   PermissionDeniedError,
@@ -104,6 +108,8 @@ type TripPreview = Pick<
   | "id"
   | "name"
   | "destination"
+  | "destinationLat"
+  | "destinationLon"
   | "startDate"
   | "endDate"
   | "preferredTimezone"
@@ -223,6 +229,15 @@ export interface ITripService {
    * @returns Promise that resolves to the member count
    */
   getMemberCount(tripId: string): Promise<number>;
+
+  /**
+   * Gets the effective date range for a trip by combining trip dates and event times
+   * @param tripId - The UUID of the trip
+   * @returns Promise that resolves to the earliest start and latest end across trip dates and events
+   */
+  getEffectiveDateRange(
+    tripId: string,
+  ): Promise<{ start: Date | null; end: Date | null }>;
 }
 
 /**
@@ -233,6 +248,7 @@ export class TripService implements ITripService {
   constructor(
     private db: AppDatabase,
     private permissionsService: IPermissionsService,
+    private geocodingService: IGeocodingService,
   ) {}
 
   /**
@@ -276,6 +292,23 @@ export class TripService implements ITripService {
       coOrganizerUserIds = coOrganizerUsers.map((u) => u.id);
     }
 
+    // Geocode destination if provided (best-effort, failure does not block creation)
+    let destinationLat: number | null = null;
+    let destinationLon: number | null = null;
+    let destinationDisplayName: string | null = null;
+    if (data.destination) {
+      try {
+        const coords = await this.geocodingService.geocode(data.destination);
+        if (coords) {
+          destinationLat = coords.lat;
+          destinationLon = coords.lon;
+          destinationDisplayName = coords.displayName;
+        }
+      } catch {
+        // Geocoding failure is non-blocking
+      }
+    }
+
     // Wrap all inserts in a transaction for atomicity
     const trip = await this.db.transaction(async (tx) => {
       // Insert trip record
@@ -284,6 +317,9 @@ export class TripService implements ITripService {
         .values({
           name: data.name,
           destination: data.destination,
+          destinationLat,
+          destinationLon,
+          destinationDisplayName,
           startDate: data.startDate || null,
           endDate: data.endDate || null,
           preferredTimezone: data.timezone,
@@ -409,6 +445,8 @@ export class TripService implements ITripService {
         id: trip.id,
         name: trip.name,
         destination: trip.destination,
+        destinationLat: trip.destinationLat,
+        destinationLon: trip.destinationLon,
         startDate: trip.startDate,
         endDate: trip.endDate,
         preferredTimezone: trip.preferredTimezone,
@@ -700,6 +738,48 @@ export class TripService implements ITripService {
       delete updateData.timezone;
     }
 
+    // If destination changed, geocode and update coordinates + delete weather cache
+    // Only re-geocode if the destination value actually differs from the current one
+    if (data.destination !== undefined) {
+      // Fetch current trip to compare destination
+      const [currentTrip] = await this.db
+        .select({ destination: trips.destination })
+        .from(trips)
+        .where(eq(trips.id, tripId))
+        .limit(1);
+
+      if (data.destination !== currentTrip?.destination) {
+        let newLat: number | null = null;
+        let newLon: number | null = null;
+        let newDisplayName: string | null = null;
+        try {
+          const coords = await this.geocodingService.geocode(data.destination);
+          if (coords) {
+            newLat = coords.lat;
+            newLon = coords.lon;
+            newDisplayName = coords.displayName;
+          }
+        } catch {
+          // Geocoding failure is non-blocking
+        }
+        updateData.destinationLat = newLat;
+        updateData.destinationLon = newLon;
+        updateData.destinationDisplayName = newDisplayName;
+
+        // Delete weather cache when destination changes (regardless of geocoding result)
+        await this.db
+          .delete(weatherCache)
+          .where(eq(weatherCache.tripId, tripId));
+      }
+    }
+
+    // Clear weather cache if trip dates changed (cached forecast may not cover new range)
+    if (data.startDate !== undefined || data.endDate !== undefined) {
+      await this.db
+        .delete(weatherCache)
+        .where(eq(weatherCache.tripId, tripId));
+    }
+
     // Perform update
     const result = await this.db
       .update(trips)
@@ -950,17 +1030,7 @@ export class TripService implements ITripService {
   async getCoOrganizers(tripId: string): Promise<User[]> {
     // Single JOIN query: get members with isOrganizer=true and their user info
     const results = await this.db
-      .select({
-        id: users.id,
-        phoneNumber: users.phoneNumber,
-        displayName: users.displayName,
-        profilePhotoUrl: users.profilePhotoUrl,
-        handles: users.handles,
-        timezone: users.timezone,
-        calendarToken: users.calendarToken,
-        createdAt: users.createdAt,
-        updatedAt: users.updatedAt,
-      })
+      .select(getTableColumns(users))
       .from(members)
       .innerJoin(users, eq(members.userId, users.id))
       .where(and(eq(members.tripId, tripId), eq(members.isOrganizer, true)));
@@ -988,5 +1058,59 @@ export class TripService implements ITripService {
       .from(members)
       .where(eq(members.tripId, tripId));
     return result?.value ?? 0;
+  }
+
+  /**
+   * Gets the effective date range for a trip by combining trip dates and event times.
+   * Returns the earliest of (trip.startDate, min event startTime) and
+   * the latest of (trip.endDate, max event endTime or startTime).
+   * @param tripId - The UUID of the trip
+   * @returns The effective start and end dates, or nulls if no dates/events exist
+   */
+  async getEffectiveDateRange(
+    tripId: string,
+  ): Promise<{ start: Date | null; end: Date | null }> {
+    // Query trip for startDate/endDate
+    const [trip] = await this.db
+      .select({ startDate: trips.startDate, endDate: trips.endDate })
+      .from(trips)
+      .where(eq(trips.id, tripId))
+      .limit(1);
+
+    if (!trip) {
+      return { start: null, end: null };
+    }
+
+    // Query events for min(startTime) and max(coalesce(endTime, startTime))
+    const [eventRange] = await this.db
+      .select({
+        minStart: min(events.startTime),
+        maxEnd: max(sql<Date>`COALESCE(${events.endTime}, ${events.startTime})`),
+      })
+      .from(events)
+      .where(and(eq(events.tripId, tripId), isNull(events.deletedAt)));
+
+    const tripStart = trip.startDate ? new Date(trip.startDate) : null;
+    const tripEnd = trip.endDate ? new Date(trip.endDate) : null;
+    const eventStart = eventRange?.minStart ? new Date(eventRange.minStart) : null;
+    const eventEnd = eventRange?.maxEnd ? new Date(eventRange.maxEnd) : null;
+
+    // Determine effective start: earliest of trip start and event start
+    const effectiveStart =
+      tripStart && eventStart
+        ? tripStart < eventStart
+          ? tripStart
+          : eventStart
+        : (tripStart ?? eventStart);
+
+    // Determine effective end: latest of trip end and event end
+    const effectiveEnd =
+      tripEnd && eventEnd
+        ? tripEnd > eventEnd
+          ? tripEnd
+          : eventEnd
+        : (tripEnd ?? eventEnd);
+
+    return { start: effectiveStart, end: effectiveEnd };
   }
 }

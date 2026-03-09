@@ -76,6 +76,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
     defaultValues: {
       displayName: "",
       timezone: null,
+      temperatureUnit: undefined,
       handles: { venmo: "", instagram: "" },
     },
   });
@@ -86,6 +87,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
       form.reset({
         displayName: user.displayName,
         timezone: user.timezone,
+        temperatureUnit: (user.temperatureUnit as "celsius" | "fahrenheit") || "celsius",
         handles: {
           venmo: user.handles?.venmo ?? "",
           instagram: user.handles?.instagram ?? "",
@@ -125,6 +127,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
       {
         displayName: data.displayName,
         timezone: data.timezone,
+        temperatureUnit: data.temperatureUnit,
         handles: Object.keys(cleanHandles).length > 0 ? cleanHandles : null,
       },
       {
@@ -362,6 +365,47 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
                         </Select>
                         <FormDescription className="text-sm text-muted-foreground">
                           Used to show you times in your local timezone
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Temperature Unit */}
+                  <FormField
+                    control={form.control}
+                    name="temperatureUnit"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-base font-semibold text-foreground">
+                          Temperature unit
+                        </FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value || "celsius"}
+                          disabled={updateProfile.isPending}
+                        >
+                          <FormControl>
+                            <SelectTrigger
+                              ref={field.ref}
+                              onBlur={field.onBlur}
+                              className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
+                              data-testid="temperature-unit-select"
+                            >
+                              <SelectValue placeholder="Select temperature unit" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="celsius">
+                              °C Celsius
+                            </SelectItem>
+                            <SelectItem value="fahrenheit">
+                              °F Fahrenheit
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormDescription className="text-sm text-muted-foreground">
+                          Used for weather forecasts in your itinerary
                         </FormDescription>
                         <FormMessage />
                       </FormItem>

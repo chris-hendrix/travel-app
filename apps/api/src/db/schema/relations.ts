@@ -14,6 +14,7 @@ import {
   mutedMembers,
   sentReminders,
   blacklistedTokens,
+  weatherCache,
 } from "./index.js";
 
 export const usersRelations = relations(users, ({ many }) => ({
@@ -40,6 +41,7 @@ export const tripsRelations = relations(trips, ({ one, many }) => ({
   notifications: many(notifications),
   notificationPreferences: many(notificationPreferences),
   mutedMembers: many(mutedMembers),
+  weatherCache: one(weatherCache),
 }));
 
 export const membersRelations = relations(members, ({ one, many }) => ({
@@ -170,3 +172,10 @@ export const blacklistedTokensRelations = relations(
     }),
   }),
 );
+
+export const weatherCacheRelations = relations(weatherCache, ({ one }) => ({
+  trip: one(trips, {
+    fields: [weatherCache.tripId],
+    references: [trips.id],
+  }),
+}));

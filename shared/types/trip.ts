@@ -11,6 +11,10 @@ export interface Trip {
   name: string;
   /** Trip destination location */
   destination: string;
+  /** Destination latitude (from geocoding) */
+  destinationLat: number | null;
+  /** Destination longitude (from geocoding) */
+  destinationLon: number | null;
   /** Trip start date (ISO 8601 string, null if not set) */
   startDate: string | null;
   /** Trip end date (ISO 8601 string, null if not set) */

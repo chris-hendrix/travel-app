@@ -26,11 +26,12 @@ export const userController = {
       const userId = request.user.sub;
 
       // Build update data from only defined fields
-      const { displayName, timezone, handles } = request.body;
+      const { displayName, timezone, handles, temperatureUnit } = request.body;
       const updateData: {
         displayName?: string;
         timezone?: string | null;
         handles?: Record<string, string> | null;
+        temperatureUnit?: string;
       } = {};
 
       if (displayName !== undefined) {
@@ -41,6 +42,9 @@ export const userController = {
       }
       if (handles !== undefined) {
         updateData.handles = handles;
+      }
+      if (temperatureUnit !== undefined) {
+        updateData.temperatureUnit = temperatureUnit;
       }
 
       // Update profile via service

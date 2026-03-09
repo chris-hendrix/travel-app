@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ItineraryView } from "../itinerary-view";
-import type { Event, Accommodation, MemberTravel } from "@tripful/shared/types";
+import type { Event, Accommodation } from "@tripful/shared/types";
 
 // Mock hooks
 const mockUseAuth = vi.fn();
@@ -59,6 +59,12 @@ vi.mock("@/hooks/use-member-travel", () => ({
   useDeleteMemberTravel: () => ({ mutate: vi.fn(), isPending: false }),
   useRestoreMemberTravel: () => ({ mutate: vi.fn(), isPending: false }),
   getRestoreMemberTravelErrorMessage: () => null,
+}));
+
+vi.mock("@/hooks/use-weather", () => ({
+  useWeatherForecast: () => ({ data: undefined, isLoading: false }),
+  weatherKeys: { all: ["weather"] },
+  weatherForecastQueryOptions: () => ({}),
 }));
 
 function Wrapper({ children }: { children: React.ReactNode }) {
@@ -123,6 +129,8 @@ describe("ItineraryView", () => {
     allDay: false,
     isOptional: false,
     links: null,
+    meetupLocation: null,
+    meetupTime: null,
     deletedAt: null,
     deletedBy: null,
     createdAt: new Date(),

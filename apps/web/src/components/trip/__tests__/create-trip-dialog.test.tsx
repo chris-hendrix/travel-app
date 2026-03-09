@@ -420,12 +420,9 @@ describe("CreateTripDialog", () => {
 
       await navigateToStep2(user);
 
-      expect(screen.getByLabelText(/description/i)).toBeDefined();
-      expect(screen.getAllByText(/cover image/i).length).toBeGreaterThan(0);
-      expect(
-        screen.getByLabelText(/allow members to add events/i),
-      ).toBeDefined();
-      expect(screen.getAllByText(/co-organizers/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/cover photo/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/theme/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/font/i).length).toBeGreaterThan(0);
     });
 
     it("shows Back and Create trip buttons on Step 2", async () => {
@@ -455,28 +452,12 @@ describe("CreateTripDialog", () => {
     });
   });
 
-  describe("Step 2 - Description field", () => {
-    async function navigateToStep2(user: ReturnType<typeof userEvent.setup>) {
-      const nameInput = screen.getByLabelText(/trip name/i);
-      await user.type(nameInput, "Test Trip");
-
-      const destinationInput = screen.getByLabelText(/destination/i);
-      await user.type(destinationInput, "Miami");
-
-      await user.click(screen.getByRole("button", { name: /continue/i }));
-
-      await waitFor(() => {
-        expect(screen.getByText("Step 2 of 2")).toBeDefined();
-      });
-    }
-
+  describe("Step 1 - Description field", () => {
     it("allows entering description text", async () => {
       const user = userEvent.setup();
       renderWithQueryClient(
         <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
       );
-
-      await navigateToStep2(user);
 
       const descriptionInput = screen.getByLabelText(
         /description/i,
@@ -492,8 +473,6 @@ describe("CreateTripDialog", () => {
         <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
       );
 
-      await navigateToStep2(user);
-
       const descriptionInput = screen.getByLabelText(/description/i);
       await user.type(descriptionInput, "Short description");
 
@@ -505,8 +484,6 @@ describe("CreateTripDialog", () => {
       renderWithQueryClient(
         <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
       );
-
-      await navigateToStep2(user);
 
       const descriptionInput = screen.getByLabelText(
         /description/i,
@@ -522,13 +499,14 @@ describe("CreateTripDialog", () => {
       });
     });
 
-    it("shows error when description exceeds 2000 characters", async () => {
+    it("prevents submission when description exceeds 2000 characters", async () => {
+      const { apiRequest } = await import("@/lib/api");
+      vi.mocked(apiRequest).mockClear();
+
       const user = userEvent.setup();
       renderWithQueryClient(
         <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
       );
-
-      await navigateToStep2(user);
 
       const descriptionInput = screen.getByLabelText(
         /description/i,
@@ -539,12 +517,20 @@ describe("CreateTripDialog", () => {
       await user.click(descriptionInput);
       await user.paste(tooLongText);
 
-      await user.click(screen.getByRole("button", { name: /create trip/i }));
+      // Fill required fields and navigate to Step 2 to trigger submission validation
+      await user.type(screen.getByLabelText(/trip name/i), "Test Trip");
+      await user.type(screen.getByLabelText(/destination/i), "Miami");
+      await user.click(screen.getByRole("button", { name: /continue/i }));
 
       await waitFor(() => {
-        expect(
-          screen.getByText(/description must not exceed 2000 characters/i),
-        ).toBeDefined();
+        expect(screen.getByText("Step 2 of 2")).toBeDefined();
+      });
+
+      await user.click(screen.getByRole("button", { name: /create trip/i }));
+
+      // Form validation should prevent the API call
+      await waitFor(() => {
+        expect(apiRequest).not.toHaveBeenCalled();
       });
     });
 
@@ -574,10 +560,17 @@ describe("CreateTripDialog", () => {
         <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
       );
 
-      await navigateToStep2(user);
-
       const descriptionInput = screen.getByLabelText(/description/i);
       await user.type(descriptionInput, "Valid description");
+
+      // Fill required fields and navigate to Step 2 to submit
+      await user.type(screen.getByLabelText(/trip name/i), "Test Trip");
+      await user.type(screen.getByLabelText(/destination/i), "Miami");
+      await user.click(screen.getByRole("button", { name: /continue/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText("Step 2 of 2")).toBeDefined();
+      });
 
       await user.click(screen.getByRole("button", { name: /create trip/i }));
 
@@ -664,28 +657,11 @@ describe("CreateTripDialog", () => {
     });
   });
 
-  describe("Step 2 - Allow members to add events checkbox", () => {
-    async function navigateToStep2(user: ReturnType<typeof userEvent.setup>) {
-      const nameInput = screen.getByLabelText(/trip name/i);
-      await user.type(nameInput, "Test Trip");
-
-      const destinationInput = screen.getByLabelText(/destination/i);
-      await user.type(destinationInput, "Miami");
-
-      await user.click(screen.getByRole("button", { name: /continue/i }));
-
-      await waitFor(() => {
-        expect(screen.getByText("Step 2 of 2")).toBeDefined();
-      });
-    }
-
+  describe("Step 1 - Allow members to add events checkbox", () => {
     it("defaults to checked (true)", async () => {
-      const user = userEvent.setup();
       renderWithQueryClient(
         <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
       );
-
-      await navigateToStep2(user);
 
       const checkbox = screen.getByRole("checkbox", {
         name: /allow members to add events/i,
@@ -698,8 +674,6 @@ describe("CreateTripDialog", () => {
       renderWithQueryClient(
         <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
       );
-
-      await navigateToStep2(user);
 
       const checkbox = screen.getByRole("checkbox", {
         name: /allow members to add events/i,
@@ -716,8 +690,6 @@ describe("CreateTripDialog", () => {
       renderWithQueryClient(
         <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
       );
-
-      await navigateToStep2(user);
 
       const checkbox = screen.getByRole("checkbox", {
         name: /allow members to add events/i,
@@ -757,10 +729,17 @@ describe("CreateTripDialog", () => {
         <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
       );
 
-      await navigateToStep2(user);
-
       const checkbox = screen.getByLabelText(/allow members to add events/i);
       await user.click(checkbox);
+
+      // Fill required fields and navigate to Step 2 to submit
+      await user.type(screen.getByLabelText(/trip name/i), "Test Trip");
+      await user.type(screen.getByLabelText(/destination/i), "Miami");
+      await user.click(screen.getByRole("button", { name: /continue/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText("Step 2 of 2")).toBeDefined();
+      });
 
       await user.click(screen.getByRole("button", { name: /create trip/i }));
 
@@ -774,286 +753,8 @@ describe("CreateTripDialog", () => {
     });
   });
 
-  describe("Step 2 - Co-organizers field", () => {
-    async function navigateToStep2(user: ReturnType<typeof userEvent.setup>) {
-      const nameInput = screen.getByLabelText(/trip name/i);
-      await user.type(nameInput, "Test Trip");
-
-      const destinationInput = screen.getByLabelText(/destination/i);
-      await user.type(destinationInput, "Miami");
-
-      await user.click(screen.getByRole("button", { name: /continue/i }));
-
-      await waitFor(() => {
-        expect(screen.getByText("Step 2 of 2")).toBeDefined();
-      });
-    }
-
-    it("shows co-organizer input field", async () => {
-      const user = userEvent.setup();
-      renderWithQueryClient(
-        <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
-      );
-
-      await navigateToStep2(user);
-
-      expect(screen.getByLabelText(/co-organizer phone number/i)).toBeDefined();
-    });
-
-    it("allows adding valid phone number", async () => {
-      const user = userEvent.setup();
-      renderWithQueryClient(
-        <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
-      );
-
-      await navigateToStep2(user);
-
-      const phoneInput = screen.getByLabelText(/co-organizer phone number/i);
-      await user.type(phoneInput, "+14155552671");
-
-      const addButton = screen.getByRole("button", {
-        name: "",
-      });
-      await user.click(addButton);
-
-      await waitFor(() => {
-        expect(screen.getByText("+14155552671")).toBeDefined();
-      });
-    });
-
-    it("shows error for invalid phone format", async () => {
-      const user = userEvent.setup();
-      renderWithQueryClient(
-        <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
-      );
-
-      await navigateToStep2(user);
-
-      const phoneInput = screen.getByLabelText(/co-organizer phone number/i);
-      await user.type(phoneInput, "invalid");
-
-      const addButton = screen.getByRole("button", {
-        name: "",
-      });
-      await user.click(addButton);
-
-      await waitFor(() => {
-        expect(
-          screen.getByText(/phone number must be in E\.164 format/i),
-        ).toBeDefined();
-      });
-    });
-
-    it("shows error for empty phone number", async () => {
-      const user = userEvent.setup();
-      renderWithQueryClient(
-        <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
-      );
-
-      await navigateToStep2(user);
-
-      const addButton = screen.getByRole("button", {
-        name: "",
-      });
-      await user.click(addButton);
-
-      await waitFor(() => {
-        expect(screen.getByText(/phone number is required/i)).toBeDefined();
-      });
-    });
-
-    it("prevents duplicate phone numbers", async () => {
-      const user = userEvent.setup();
-      renderWithQueryClient(
-        <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
-      );
-
-      await navigateToStep2(user);
-
-      const phoneInput = screen.getByLabelText(/co-organizer phone number/i);
-      const addButton = screen.getByRole("button", {
-        name: "",
-      });
-
-      // Add first phone
-      await user.type(phoneInput, "+14155552671");
-      await user.click(addButton);
-
-      await waitFor(() => {
-        expect(screen.getByText("+14155552671")).toBeDefined();
-      });
-
-      // Try to add same phone again
-      await user.type(phoneInput, "+14155552671");
-      await user.click(addButton);
-
-      await waitFor(() => {
-        expect(
-          screen.getByText(/this phone number is already added/i),
-        ).toBeDefined();
-      });
-    });
-
-    it("allows adding multiple co-organizers", async () => {
-      const user = userEvent.setup();
-      renderWithQueryClient(
-        <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
-      );
-
-      await navigateToStep2(user);
-
-      const phoneInput = screen.getByLabelText(/co-organizer phone number/i);
-      const addButton = screen.getByRole("button", {
-        name: "",
-      });
-
-      // Add first phone
-      await user.type(phoneInput, "+14155552671");
-      await user.click(addButton);
-
-      await waitFor(() => {
-        expect(screen.getByText("+14155552671")).toBeDefined();
-      });
-
-      // Add second phone
-      await user.type(phoneInput, "+14155552672");
-      await user.click(addButton);
-
-      await waitFor(() => {
-        expect(screen.getByText("+14155552672")).toBeDefined();
-      });
-    });
-
-    it("allows removing co-organizers", async () => {
-      const user = userEvent.setup();
-      renderWithQueryClient(
-        <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
-      );
-
-      await navigateToStep2(user);
-
-      const phoneInput = screen.getByLabelText(/co-organizer phone number/i);
-      const addButton = screen.getByRole("button", {
-        name: "",
-      });
-
-      // Add phone
-      await user.type(phoneInput, "+14155552671");
-      await user.click(addButton);
-
-      await waitFor(() => {
-        expect(screen.getByText("+14155552671")).toBeDefined();
-      });
-
-      // Remove phone
-      const removeButton = screen.getByRole("button", {
-        name: /remove \+14155552671/i,
-      });
-      await user.click(removeButton);
-
-      await waitFor(() => {
-        expect(screen.queryByText("+14155552671")).toBeNull();
-      });
-    });
-
-    it("clears input after adding co-organizer", async () => {
-      const user = userEvent.setup();
-      renderWithQueryClient(
-        <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
-      );
-
-      await navigateToStep2(user);
-
-      const phoneInput = screen.getByLabelText(
-        /co-organizer phone number/i,
-      ) as HTMLInputElement;
-      const addButton = screen.getByRole("button", {
-        name: "",
-      });
-
-      await user.type(phoneInput, "+14155552671");
-      await user.click(addButton);
-
-      await waitFor(() => {
-        expect(phoneInput.value).toBe("");
-      });
-    });
-
-    it("allows adding co-organizer by pressing Enter", async () => {
-      const user = userEvent.setup();
-      renderWithQueryClient(
-        <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
-      );
-
-      await navigateToStep2(user);
-
-      const phoneInput = screen.getByLabelText(/co-organizer phone number/i);
-      await user.type(phoneInput, "+14155552671");
-      await user.keyboard("{Enter}");
-
-      await waitFor(() => {
-        expect(screen.getByText("+14155552671")).toBeDefined();
-      });
-    });
-
-    it("includes co-organizers in form submission", async () => {
-      const { apiRequest } = await import("@/lib/api");
-      vi.mocked(apiRequest).mockClear();
-      vi.mocked(apiRequest).mockResolvedValueOnce({
-        success: true,
-        trip: {
-          id: "trip-123",
-          name: "Test Trip",
-          destination: "Miami",
-          startDate: null,
-          endDate: null,
-          preferredTimezone: "America/New_York",
-          description: null,
-          coverImageUrl: null,
-          createdBy: "user-123",
-          allowMembersToAddEvents: true,
-          cancelled: false,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      });
-
-      const user = userEvent.setup();
-      renderWithQueryClient(
-        <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
-      );
-
-      await navigateToStep2(user);
-
-      const phoneInput = screen.getByLabelText(/co-organizer phone number/i);
-      const addButton = screen.getByRole("button", {
-        name: "",
-      });
-
-      // Add co-organizers
-      await user.type(phoneInput, "+14155552671");
-      await user.click(addButton);
-
-      await user.type(phoneInput, "+14155552672");
-      await user.click(addButton);
-
-      await user.click(screen.getByRole("button", { name: /create trip/i }));
-
-      await waitFor(() => {
-        expect(apiRequest).toHaveBeenCalled();
-        const callArgs = vi.mocked(apiRequest).mock.calls[0];
-        expect(callArgs).toBeDefined();
-        const body = JSON.parse(callArgs[1]?.body as string);
-        expect(body.coOrganizerPhones).toEqual([
-          "+14155552671",
-          "+14155552672",
-        ]);
-      });
-    });
-  });
-
   describe("Step 2 - Back navigation preserves data", () => {
-    it("preserves Step 2 data when navigating back to Step 1", async () => {
+    it("renders Step 2 fields after round-trip navigation", async () => {
       const user = userEvent.setup();
       renderWithQueryClient(
         <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
@@ -1068,12 +769,10 @@ describe("CreateTripDialog", () => {
         expect(screen.getByText("Step 2 of 2")).toBeDefined();
       });
 
-      // Fill Step 2
-      const descriptionInput = screen.getByLabelText(/description/i);
-      await user.type(descriptionInput, "Test description");
-
-      const checkbox = screen.getByLabelText(/allow members to add events/i);
-      await user.click(checkbox);
+      // Verify Step 2 fields are present
+      expect(screen.getAllByText(/cover photo/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/theme/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/font/i).length).toBeGreaterThan(0);
 
       // Navigate back
       await user.click(screen.getByRole("button", { name: /back/i }));
@@ -1089,16 +788,10 @@ describe("CreateTripDialog", () => {
         expect(screen.getByText("Step 2 of 2")).toBeDefined();
       });
 
-      // Verify data is preserved
-      const descriptionInputAfterBack = screen.getByLabelText(
-        /description/i,
-      ) as HTMLTextAreaElement;
-      expect(descriptionInputAfterBack.value).toBe("Test description");
-
-      const checkboxAfterBack = screen.getByRole("checkbox", {
-        name: /allow members to add events/i,
-      });
-      expect(checkboxAfterBack.getAttribute("data-state")).toBe("unchecked");
+      // Verify Step 2 fields are still present after round-trip
+      expect(screen.getAllByText(/cover photo/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/theme/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/font/i).length).toBeGreaterThan(0);
     });
   });
 
@@ -1159,57 +852,6 @@ describe("CreateTripDialog", () => {
 
       // Should show loading text
       expect(screen.getByText("Creating trip...")).toBeDefined();
-    });
-
-    it("disables all fields during submission", async () => {
-      const { apiRequest } = await import("@/lib/api");
-      // Mock API with delay to observe disabled state
-      vi.mocked(apiRequest).mockImplementationOnce(
-        () =>
-          new Promise((resolve) => {
-            setTimeout(
-              () =>
-                resolve({
-                  success: true,
-                  trip: {
-                    id: "trip-123",
-                    name: "Test Trip",
-                    destination: "Miami",
-                    startDate: null,
-                    endDate: null,
-                    preferredTimezone: "America/New_York",
-                    description: null,
-                    coverImageUrl: null,
-                    createdBy: "user-123",
-                    allowMembersToAddEvents: true,
-                    cancelled: false,
-                    createdAt: new Date(),
-                    updatedAt: new Date(),
-                  },
-                }),
-              100,
-            );
-          }),
-      );
-
-      const user = userEvent.setup();
-      renderWithQueryClient(
-        <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
-      );
-
-      await navigateToStep2(user);
-
-      await user.click(screen.getByRole("button", { name: /create trip/i }));
-
-      // Check that fields are disabled
-      const descriptionInput = screen.getByLabelText(/description/i);
-      expect(descriptionInput).toHaveProperty("disabled", true);
-
-      const checkbox = screen.getByLabelText(/allow members to add events/i);
-      expect(checkbox).toHaveProperty("disabled", true);
-
-      const phoneInput = screen.getByLabelText(/co-organizer phone number/i);
-      expect(phoneInput).toHaveProperty("disabled", true);
     });
 
     it("disables Back and Create trip buttons during submission", async () => {

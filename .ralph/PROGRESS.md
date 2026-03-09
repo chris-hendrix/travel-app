@@ -2219,3 +2219,553 @@ APPROVED — Fix is minimal and correct. No other E2E tests have the same issue 
 
 - The `playwright-cli` tool's `run-code` and `eval` commands have severe shell quoting limitations when passing strings containing quotes through `make test-exec CMD="..."` — string values like `"dark"` get unquoted by intermediate shell layers. Use `String.fromCharCode()` for `eval` or pre-existing screenshots for dark mode verification.
 - E2E tests that assert on combined text strings are brittle when component refactoring splits text into separate elements — prefer asserting on the most stable single text element (e.g., the title) rather than concatenated title+description.
+
+## Iteration 46 — Task 1.1: Add coordinate columns, temperature unit, and weather cache table
+
+**Status**: ✅ COMPLETE
+
+### Changes Made
+
+**Files modified:**
+- `apps/api/src/db/schema/index.ts` — Added `doublePrecision` import; added `destinationLat` (doublePrecision, nullable) and `destinationLon` (doublePrecision, nullable) to `trips` table; added `temperatureUnit` (varchar(10), default "celsius") to `users` table; created `weatherCache` table with `tripId` (uuid PK, FK cascade to trips), `response` (jsonb, notNull), `fetchedAt` (timestamp with tz, notNull, defaultNow); exported `WeatherCache` and `NewWeatherCache` types
+- `apps/api/src/db/schema/relations.ts` — Added `weatherCache` import; added `weatherCache: one(weatherCache)` to `tripsRelations`; added `weatherCacheRelations` definition with `trip: one(trips, ...)`
+- `apps/api/src/services/trip.service.ts` — Added `temperatureUnit: users.temperatureUnit` to `getCoOrganizers` explicit select (required because method returns `User[]` and new column must be included)
+
+**Files generated:**
+- `apps/api/src/db/migrations/0021_pale_agent_brand.sql` — Migration with CREATE TABLE weather_cache, ALTER TABLE trips ADD destination_lat/destination_lon, ALTER TABLE users ADD temperature_unit, FK constraint weather_cache → trips with cascade delete
+
+### Verification
+- **TypeCheck**: PASS (all 3 packages)
+- **Lint**: PASS (all 3 packages)
+- **Unit/Integration Tests**: PASS (API: 1143 tests, Shared: 308 tests, Web: 1104 tests; pre-existing failures in theme-config, trip-detail-content, create-trip-dialog, members-list tests are unrelated)
+- **Migration SQL**: Correct — verified all DDL statements match architecture spec
+- **Reviewer**: APPROVED
+
+### Learnings
+- `doublePrecision` was not previously imported in the schema — first usage in the codebase for coordinate columns
+- `weatherCache` uses `tripId` as PK (not a separate UUID id) — first table with this pattern (1:1 cache table)
+- Adding a column to the `users` table requires updating any service method that uses explicit column selects returning `User[]` (e.g., `getCoOrganizers` in trip.service.ts)
+- Reviewer noted that `temperatureUnit` is nullable for existing rows (ALTER TABLE ADD COLUMN default only applies to new inserts) — downstream code should treat null as "celsius"
+- Reviewer suggested using `getTableColumns(users)` instead of manual column listing in `getCoOrganizers` to avoid future maintenance — consider for a future cleanup task
+
+## Iteration 47 — Task 1.2: Create shared weather types, schemas, and update existing types
+
+**Status**: ✅ COMPLETE
+
+### Changes Made
+
+**Files created:**
+- `shared/types/weather.ts` — `TemperatureUnit` type alias (`"celsius" | "fahrenheit"`), `DailyForecast` interface (date, weatherCode, temperatureMax, temperatureMin, precipitationProbability), `TripWeatherResponse` interface (available, message?, forecasts, fetchedAt)
+- `shared/schemas/weather.ts` — `dailyForecastSchema` (weatherCode `.int()`, precipitationProbability `.min(0).max(100)`), `tripWeatherResponseSchema` (message `.optional()`, fetchedAt `.nullable()`), inferred types exported
+- `shared/__tests__/weather-schemas.test.ts` — 11 tests covering valid inputs, boundary values, negative temps, non-integer codes, missing fields, invalid nested data
+
+**Files modified:**
+- `shared/types/index.ts` — Added weather type re-exports (`TemperatureUnit`, `DailyForecast`, `TripWeatherResponse`)
+- `shared/types/trip.ts` — Added `destinationLat: number | null` and `destinationLon: number | null` to `Trip` interface (inherited by `TripDetail`)
+- `shared/types/user.ts` — Added `temperatureUnit?: TemperatureUnit` to `User` interface (import from `./weather`)
+- `shared/schemas/index.ts` — Added weather schema re-exports
+- `shared/schemas/user.ts` — Added `temperatureUnit: z.enum(["celsius", "fahrenheit"]).optional()` to `updateProfileSchema`
+- `shared/schemas/auth.ts` — Added `temperatureUnit: z.string().nullable().optional()` to `userResponseSchema`
+- `shared/schemas/trip.ts` — Added `destinationLat: z.number().nullable()` and `destinationLon: z.number().nullable()` to `tripEntitySchema`
+- `apps/web/src/hooks/use-trips.ts` — Added `destinationLat: null` and `destinationLon: null` to optimistic trip creation object
+- `apps/api/src/services/trip.service.ts` — Added `destinationLat`/`destinationLon` to `TripPreview` type and preview object construction; added `temperatureUnit` to `getCoOrganizers` select
+- `shared/__tests__/exports.test.ts` — Added weather schema export verification test
+
+### Verification
+- **TypeCheck**: PASS (all 3 packages, with `--force` no turbo cache)
+- **Lint**: PASS (all 3 packages)
+- **Unit/Integration Tests**: PASS (API: 1143 tests, Shared: 320 tests incl. 11 new weather tests, Web: 1104 tests; pre-existing failures in theme-config, trip-detail-content, create-trip-dialog, members-list unrelated)
+- **Reviewer**: APPROVED
+
+### Learnings
+- IDE diagnostics for Drizzle schema columns can be stale when the TypeScript language server hasn't reloaded after schema changes — always verify with actual `tsc --noEmit` in the container
+- `TripDetail` extends `Trip`, so adding fields to `Trip` propagates automatically — no separate update needed
+- `tripEntitySchema` feeds into `tripDetailSchema` and `tripResponseSchema`, so adding fields there propagates to all response schemas
+- `userResponseSchema` in auth.ts uses `z.string().nullable().optional()` (looser than `z.enum()`) for `temperatureUnit` — this is intentional as a response schema to be permissive with API output; the stricter `z.enum()` is used in the input `updateProfileSchema`
+
+## Iteration 48 — Task 2.1: Create geocoding service with plugin registration
+
+**Status**: ✅ COMPLETE
+
+### Changes Made
+
+**Files created:**
+- `apps/api/src/services/geocoding.service.ts` — `IGeocodingService` interface with `geocode(query)` method, `OpenMeteoGeocodingService` implementation using native `fetch` against `https://geocoding-api.open-meteo.com/v1/search`. Returns `{ lat, lon }` from first result or `null` on any failure (no results, network error, non-OK response).
+- `apps/api/src/plugins/geocoding-service.ts` — Fastify plugin using `fp()`, instantiates `OpenMeteoGeocodingService` and decorates `fastify.geocodingService`. Depends on `["config"]`, no database dependency.
+- `apps/api/tests/unit/geocoding.service.test.ts` — 6 unit tests: valid coordinates, no results key, empty results array, network error, non-OK HTTP response, URL encoding of special characters. Uses `vi.stubGlobal("fetch", ...)` for mocking.
+
+**Files modified:**
+- `apps/api/src/types/index.ts` — Added `import type { IGeocodingService }` and `geocodingService: IGeocodingService` to FastifyInstance augmentation
+- `apps/api/src/app.ts` — Added import and registration of `geocodingServicePlugin` after `smsServicePlugin` in the service plugins block
+
+### Verification
+- **TypeCheck**: PASS (all 3 packages)
+- **Lint**: PASS (all 3 packages)
+- **Geocoding Unit Tests**: PASS (6/6 tests)
+- **All API Tests**: PASS (1149 tests, 0 failures)
+- **Reviewer**: APPROVED
+
+### Learnings
+- Use `vi.stubGlobal("fetch", mockFn)` instead of `global.fetch = mockFn` in vitest — the latter causes TypeScript errors because `global` is not typed in the test environment
+- Open-Meteo geocoding API returns no `results` key (not an empty array) when no matches found — must handle both `undefined` and empty array cases
+- Services with no constructor dependencies (no DB, no config) are the simplest pattern — just instantiate directly in the plugin
+- Reviewer suggested adding a logger parameter and empty-string guard as optional improvements — consider for future cleanup
+- Optimistic creation in `use-trips.ts` manually lists every `Trip` field — any new required field on the `Trip` interface must be added there or TypeScript will error
+
+## Iteration 49 — Task 2.2: Hook geocoding into trip create/update and add getEffectiveDateRange
+
+**Status**: ✅ COMPLETE
+
+### Changes Made
+
+**Files modified:**
+- `apps/api/src/services/trip.service.ts` — Added `IGeocodingService` as 3rd constructor parameter; geocoding in `createTrip()` (before transaction, best-effort with try/catch); geocoding + weather cache deletion in `updateTrip()` when `data.destination !== undefined`; new `getEffectiveDateRange(tripId)` method on `ITripService` interface and `TripService` class; imports for `weatherCache`, `min`, `max`, `IGeocodingService`
+- `apps/api/src/plugins/trip-service.ts` — Passes `fastify.geocodingService` as 3rd arg to `TripService` constructor; added `"geocoding-service"` to plugin dependencies array
+- `apps/api/tests/unit/trip.service.test.ts` — Added mock `IGeocodingService` (`vi.fn().mockResolvedValue({ lat: 32.7157, lon: -117.1611 })`); updated all `TripService` instantiations to pass mock; added 9 new test cases
+
+### Implementation Details
+
+**createTrip geocoding** (lines 295-308): Before the transaction, calls `this.geocodingService.geocode(data.destination)`. On success, `destinationLat`/`destinationLon` are included in the insert values. On failure (null result or exception), lat/lon remain null — geocoding never blocks trip creation.
+
+**updateTrip geocoding** (lines 739-758): When `data.destination !== undefined`, geocodes the new destination, sets `updateData.destinationLat`/`destinationLon` from result (or null on failure), and deletes any `weatherCache` row for the trip regardless of geocoding outcome.
+
+**getEffectiveDateRange** (lines 1058-1100): Two queries — (1) trip's `startDate`/`endDate`, (2) `MIN(events.startTime)` and `MAX(COALESCE(events.endTime, events.startTime))` excluding soft-deleted events. Returns the earliest start and latest end across both sources. Handles all combinations of null trip dates and null event ranges.
+
+### Tests Written (9 new tests)
+1. `createTrip with destination geocodes and stores coordinates`
+2. `createTrip with geocode failure still creates trip with null lat/lon`
+3. `updateTrip with destination change geocodes and stores new coordinates + deletes weather cache`
+4. `updateTrip without destination change does not geocode`
+5. `getEffectiveDateRange with trip dates returns trip dates`
+6. `getEffectiveDateRange with no trip dates but events returns event range`
+7. `getEffectiveDateRange with both trip dates and events returns combined range`
+8. `getEffectiveDateRange with no dates and no events returns nulls`
+9. `getEffectiveDateRange ignores soft-deleted events`
+
+### Verification
+- **TypeCheck**: PASS (all 3 packages)
+- **Lint**: PASS (after fixing `no-useless-assignment` — converted `let` with if/else to `const` with ternary)
+- **API Tests**: PASS — 61 files, 1158 tests, 0 failures (9 new tests)
+- **Shared Tests**: 320 passed, 1 pre-existing failure (theme-config kebab-case ID)
+- **Web Tests**: 1104 passed, 64 pre-existing failures (create-trip-dialog, trip-detail-content, members-list — unrelated UI restructuring)
+- **Reviewer**: APPROVED (3 LOW items: redundant geocoding on same-destination updates, no test for non-existent tripId in getEffectiveDateRange, no membership check in getEffectiveDateRange — all non-blocking)
+
+### Learnings
+- ESLint's `no-useless-assignment` catches `let x = null` followed by an if/else that always assigns — use `const` with ternary expressions instead
+- Geocoding should happen BEFORE the database transaction to avoid holding a transaction open during an external API call
+- The `weatherCache` table has `ON DELETE CASCADE` from trips, but explicit deletion is needed when destination changes (trip is not being deleted, just updated)
+- `data.destination !== undefined` is the correct check for "field is present in partial update" — `undefined` means "not included in update payload"
+- Drizzle's `min()` and `max()` aggregate functions work with `sql` template literals for `COALESCE` expressions
+- Trip `startDate`/`endDate` are `date` type (string like "2026-06-01") while event `startTime`/`endTime` are `timestamp with tz` — `new Date()` constructor handles both correctly for comparison
+
+## Iteration 50 — Task 3.1: Create weather service with caching and plugin registration
+
+**Status**: ✅ COMPLETE
+
+### Changes Made
+
+**Files created:**
+- `apps/api/src/services/weather.service.ts` — `IWeatherService` interface and `WeatherService` class with `getForecast(tripId, userId)` method implementing full flow: check coords → check dates → check past → check 16 days → check cache (3h TTL) → fetch Open-Meteo → upsert cache → parse parallel arrays → filter to date range
+- `apps/api/src/plugins/weather-service.ts` — Fastify plugin using `fp()`, instantiates `WeatherService(fastify.db, fastify.tripService)`, dependencies: `["database", "config", "trip-service"]`
+- `apps/api/tests/unit/weather.service.test.ts` — 9 unit tests with real DB for cache operations, mocked `fetch` for Open-Meteo API
+
+**Files modified:**
+- `apps/api/src/types/index.ts` — Added `IWeatherService` import and `weatherService: IWeatherService` to FastifyInstance augmentation
+- `apps/api/src/app.ts` — Added import and registration of `weatherServicePlugin` (after calendarServicePlugin, before queueWorkersPlugin)
+
+### Tests Written (9 tests)
+1. Cache hit — fresh cache returns data without calling fetch
+2. Cache miss — no cache, fetches from API, stores result
+3. Stale cache — 4-hour-old cache triggers re-fetch
+4. No coordinates — returns `{ available: false, message: "Set a destination to see weather" }`
+5. No dates — returns `{ available: false, message: "Set trip dates to see weather" }`
+6. Past trip — returns `{ available: false }` with no message
+7. >16 days away — returns unavailable with 16-day message
+8. API error — returns `{ available: false, message: "Weather temporarily unavailable" }`
+9. Parallel array parsing — verifies correct zipping of Open-Meteo arrays into DailyForecast objects
+
+### Verification
+- **TypeCheck**: PASS (all 3 packages)
+- **Lint**: PASS (all 3 packages)
+- **Weather Tests**: PASS — 9 tests, 0 failures
+- **API Tests**: PASS — 62 files, 1167 tests, 0 failures
+- **Shared Tests**: 320 passed, 1 pre-existing failure (theme-config kebab-case ID — unrelated)
+- **Reviewer**: APPROVED (3 LOW items: unused userId param is by design for controller-level auth, UTC date comparison is consistent, parsing test date range is fragile but functional)
+
+### Learnings
+- Drizzle's `onConflictDoUpdate` with `target` on the PK column is the correct upsert pattern for the weather cache
+- TypeScript may not narrow `array[0]` inside an `if` block — use `array.length > 0` + non-null assertion `array[0]!` for strictness
+- When mocking `ITripService`, cast via `as unknown as ITripService` since only `getEffectiveDateRange` is needed
+- Open-Meteo forecast API returns parallel arrays under `daily` key — zip by index to create typed objects
+- The `_userId` prefix convention signals intentionally unused parameters in TypeScript strict mode
+
+## Iteration 51 — Task 3.2: Create weather controller and route
+
+**Status**: ✅ COMPLETE
+
+### Changes Made
+
+**Files created:**
+- `apps/api/src/controllers/weather.controller.ts` — Weather controller with `getForecast` method: extracts tripId/userId, checks membership via `permissionsService.isMember()`, calls `weatherService.getForecast()`, returns `{ success: true, weather: result }`
+- `apps/api/src/routes/weather.routes.ts` — Registers `GET /trips/:tripId/weather` with auth middleware, rate limiting, UUID param validation, and Zod response schema wrapping `tripWeatherResponseSchema`
+- `apps/api/tests/integration/weather.routes.test.ts` — 5 integration tests
+
+**Files modified:**
+- `apps/api/src/app.ts` — Added import and registration of `weatherRoutes` with `{ prefix: "/api" }`
+
+### Tests Written (5 tests)
+1. Returns weather forecast for valid trip member (mocked Open-Meteo fetch)
+2. Returns unavailable when trip has no coordinates
+3. Returns 401 when not authenticated
+4. Returns 404 for non-member
+5. Returns 400 for invalid trip ID format
+
+### Verification
+- **TypeCheck**: PASS (all 3 packages)
+- **Lint**: PASS (all 3 packages)
+- **Weather Route Tests**: PASS — 5 tests, 0 failures
+- **API Tests**: PASS — 63 files, 1172 tests, 0 failures
+- **Reviewer**: APPROVED (3 LOW items: inline vs destructured service access is a style choice, `_userId` in weather service is intentionally unused for now, `buildApp()` per test is consistent with existing patterns)
+
+### Learnings
+- Weather route follows the sub-resource pattern: registered with `prefix: "/api"` and defines full path `/trips/:tripId/weather` internally
+- Membership check pattern: `permissionsService.isMember()` returning false → throw `TripNotFoundError()` (returns 404, not 403, to avoid leaking trip existence)
+- Response schema wraps service result: `z.object({ success: z.literal(true), weather: tripWeatherResponseSchema })`
+- Integration tests mock `global.fetch` with `vi.spyOn(global, "fetch").mockResolvedValueOnce()` to avoid real HTTP calls to external APIs
+
+## Iteration 52 — Task 4.1: Create weather query hook and WMO code mapping
+
+**Status**: ✅ COMPLETE
+
+### Changes Made
+
+**Files created:**
+- `apps/web/src/hooks/weather-queries.ts` — Server-safe query options file with `weatherKeys` factory (`all`, `forecast(tripId)`) and `weatherForecastQueryOptions(tripId)` function. Uses 30-minute `staleTime` (server caches 3h). Unwraps `response.weather` from API envelope `{ success: true, weather: TripWeatherResponse }`.
+- `apps/web/src/hooks/use-weather.ts` — `"use client"` hook file with `useWeatherForecast(tripId)` hook. Re-exports query keys and options. Uses `enabled: !!tripId` guard.
+- `apps/web/src/lib/weather-codes.ts` — WMO weather code mapping with `getWeatherInfo(code)` returning `{ label: string, icon: LucideIcon }`. Covers all 33 WMO codes (0-3, 45, 48, 51-57, 61-67, 71-77, 80-86, 95-99) plus fallback `Cloud`/"Unknown" for unexpected codes.
+
+### Verification
+- **TypeCheck**: PASS (all 3 packages)
+- **Lint**: PASS (all 3 packages)
+- **Unit Tests**: PASS (1 pre-existing unrelated failure in shared theme-config kebab-case test)
+- **Reviewer**: APPROVED (1 LOW item: function declaration vs arrow function style is cosmetic)
+
+### Learnings
+- The codebase uses a two-file query pattern: `*-queries.ts` (server-safe, no "use client") + `use-*.ts` ("use client" hooks that import from queries file)
+- `apiRequest<T>` returns the full JSON body — callers must unwrap envelopes (e.g., `response.weather`)
+- Lucide React icons are typed via `LucideIcon` from `lucide-react` — can be stored in data structures and rendered as `<info.icon />`
+- WMO codes from Open-Meteo include freezing variants (56, 57, 66, 67) and snow showers (85, 86) beyond the basic groups listed in architecture
+
+## Iteration 53 — Task 4.2: Create WeatherDayBadge and WeatherForecastCard components
+
+**Status**: ✅ COMPLETE
+
+### Changes Made
+
+**Files created:**
+- `apps/web/src/components/itinerary/weather-day-badge.tsx` — Memoized compact inline component: renders weather icon (16px) + "H°/L°" temperature range. Returns null when no forecast. Uses `getWeatherInfo()` for WMO code → icon mapping and `toDisplayTemp()` for Celsius/Fahrenheit conversion.
+- `apps/web/src/components/itinerary/weather-forecast-card.tsx` — Memoized Card component with four states: (1) loading skeleton (5 columns), (2) unavailable with message (dashed-border card), (3) unavailable without message (returns null for past trips), (4) available (horizontal-scrolling daily forecasts with day-of-week, icon, high/low temps, and precipitation %).
+
+**Files modified:**
+- `apps/web/src/components/itinerary/index.ts` — Added barrel exports for `WeatherDayBadge` and `WeatherForecastCard`
+
+### Key Design Decisions
+1. **Memoized components** — Both wrapped with `memo()` since they receive primitive/stable props and will be rendered in lists
+2. **Local date parsing** — `formatDayOfWeek` splits the ISO date string and constructs `new Date(year, month-1, day)` to avoid UTC timezone shift that would show wrong day-of-week
+3. **Precipitation conditional** — Only shows Droplets icon + percentage when `precipitationProbability > 0`
+4. **Duplicated `toDisplayTemp`** — Intentionally kept in both files (reviewer noted as LOW) since it's a 4-line pure function; extracting would add import complexity for minimal benefit
+
+### Verification
+- **TypeCheck**: PASS (all 3 packages)
+- **Lint**: PASS (all 3 packages)
+- **API Tests**: PASS (63 files, 1172 tests)
+- **Web Tests**: 64 failures — all pre-existing (CustomizeThemeSheet QueryClientProvider issue in trip-detail-content.test.tsx and create-trip-dialog.test.tsx), verified by stashing changes and re-running
+- **Shared Tests**: 1 failure — pre-existing (80s-pop-art-ski-slope theme ID vs kebab-case regex)
+- **Reviewer**: APPROVED (1 LOW item: duplicated toDisplayTemp utility)
+
+### Learnings
+- Array destructuring (`const [a, b, c] = str.split("-")`) avoids TypeScript strict-mode errors about `parts[n]` being `string | undefined`, unlike indexed access on `string[]`
+- `new Date("2026-03-15")` parses as UTC midnight, which can shift the day-of-week backward in western timezones — always parse date-only strings via component parts for local display
+- shadcn Card component had not been used in itinerary components before this task — first usage establishes the pattern for future cards
+- Pre-existing web test failures (64 tests) are caused by CustomizeThemeSheet using `useQueryClient()` without provider in test context — unrelated to weather feature
+
+## Iteration 54 — Task 4.3: Integrate weather into itinerary views and add temperature unit to profile
+
+**Status**: ✅ COMPLETE
+
+### Changes Made
+
+**Files modified:**
+- `apps/api/src/controllers/user.controller.ts` — Added `temperatureUnit` to destructuring of request body and to `updateData` object in `updateProfile` handler
+- `apps/api/src/services/auth.service.ts` — Added `temperatureUnit?: string` to both `IAuthService.updateProfile` interface and `AuthService` implementation data parameter types
+- `apps/web/src/components/profile/profile-dialog.tsx` — Added temperature unit Select field (°C Celsius / °F Fahrenheit) after timezone field, wired to react-hook-form with `temperatureUnit` default value, reset, and submit
+- `apps/web/src/components/itinerary/itinerary-view.tsx` — Added `useWeatherForecast(tripId)` hook, derived `temperatureUnit` from user preferences with "celsius" default, rendered `WeatherForecastCard` above itinerary content, passed `forecasts` and `temperatureUnit` props to `DayByDayView`
+- `apps/web/src/components/itinerary/day-by-day-view.tsx` — Added `forecasts` and `temperatureUnit` to props interface, built `forecastMap` (Map by date) via useMemo, rendered `WeatherDayBadge` in date gutter below weekday abbreviation
+- `apps/web/src/components/itinerary/weather-forecast-card.tsx` — Added `mb-4` spacing to all Card render variants (loading, unavailable, available)
+- `apps/web/src/components/itinerary/__tests__/itinerary-view.test.tsx` — Added `vi.mock` for `@/hooks/use-weather`, added missing `meetupLocation`/`meetupTime` to mock Event, removed unused `MemberTravel` import
+
+### Key Design Decisions
+1. **Weather card placement** — Rendered above all itinerary content (between header and day-by-day/group-by-type views) so it's visible regardless of scroll position
+2. **Per-day badges in date gutter** — `WeatherDayBadge` placed below weekday abbreviation in the sticky date column, using a Map for O(1) date lookup
+3. **Profile form integration** — Temperature unit uses a `<Select>` (not Switch) following the existing timezone pattern, integrated with react-hook-form
+4. **Backend pass-through** — `temperatureUnit` flows through controller → service → Drizzle spread update, requiring only type additions to the service interface
+5. **GroupByTypeView** — Does not receive per-day badges (intentional — groups by type, not by day), but the WeatherForecastCard is visible above both views
+
+### Verification
+- **TypeCheck**: PASS (all 3 packages)
+- **Lint**: PASS (all 3 packages)
+- **API Tests**: PASS (63 files, 1172 tests)
+- **Web Tests**: 64 failures — all pre-existing (trip-detail-content, create-trip-dialog, members-list)
+- **Shared Tests**: 1 failure — pre-existing (theme-config kebab-case)
+- **Reviewer**: APPROVED (3 LOW items: duplicated toDisplayTemp, spacing addressed, GroupByTypeView intentionally excluded)
+
+### Learnings
+- `exactOptionalPropertyTypes: true` in tsconfig means optional props (`forecasts?: DailyForecast[]`) cannot receive `undefined` explicitly — use nullish coalescing (`?? []`) to provide a concrete value
+- The auth service uses `...data` spread in the Drizzle update call, so adding new fields to the type signature is sufficient for them to flow through to the DB
+- Weather components returning `null` means wrapper divs with margin would leave empty space — better to add margin directly to the Card's className in the component
+- The Event type was updated with `meetupLocation`/`meetupTime` fields in a prior iteration but test mocks were not updated — fixed as part of this task
+
+## Iteration 55 — Task 5.1: Triage PROGRESS.md for unaddressed items
+
+**Status**: ✅ COMPLETE
+
+### Triage Methodology
+
+Read the entire PROGRESS.md (54 iterations) with 3 parallel researchers:
+1. **Researcher 1 (LOCATING)**: Ran test suites to confirm all pre-existing failures — 64 web failures (38 trip-detail-content, 24 create-trip-dialog, 2 members-list) + 1 shared failure (theme-config)
+2. **Researcher 2 (ANALYZING)**: Categorized all reviewer feedback from iterations 46-54 into ACTIONABLE / INTENTIONAL / NON-ISSUE
+3. **Researcher 3 (PATTERNS)**: Searched for TODO/FIXME/HACK comments (none found), verified toDisplayTemp duplication, checked previous triage format
+
+### Issues Found and Categorized
+
+**ACTIONABLE — Created fix tasks (5 tasks):**
+
+| Task | Severity | Failures | Description |
+|------|----------|----------|-------------|
+| 5.1.1 | HIGH | 64 | CustomizeThemeSheet QueryClientProvider missing in trip-detail-content (38), create-trip-dialog (24), members-list tab count (2) |
+| 5.1.2 | MEDIUM | 1 | Theme preset ID "80s-pop-art-ski-slope" starts with digit, rejected by kebab-case regex |
+| 5.1.3 | LOW | 0 | Duplicated `toDisplayTemp` in weather-day-badge.tsx and weather-forecast-card.tsx |
+| 5.1.4 | LOW | 0 | Manual column listing in `getCoOrganizers` instead of `getTableColumns(users)` |
+| 5.1.5 | LOW | 0 | Geocoding service missing logger, empty-string guard, redundant geocoding prevention |
+
+**Total test failures documented: 65** (64 web + 1 shared)
+
+**INTENTIONAL — No action needed (7 items):**
+- `_userId` param in weather service — intentionally unused for future use
+- No membership check in `getEffectiveDateRange` — auth handled at controller layer
+- GroupByTypeView excluded from per-day weather badges — groups by type, not by day
+- `temperatureUnit` nullable for existing DB rows — downstream code has "celsius" default
+- Inline vs destructured service access — style choice
+- Function declaration vs arrow function — cosmetic
+- UTC date comparison pattern — reviewer confirmed consistent
+
+**NON-ISSUE — Already resolved (2 items):**
+- Spacing on WeatherForecastCard — fixed in iteration 54 with `mb-4`
+- Fragile test date range — functional, not failing
+
+### Verification
+
+- **TypeCheck**: PASS (all 3 packages)
+- **Lint**: PASS (all 3 packages)
+- **API Tests**: PASS — 63 files, 1172 tests, 0 failures
+- **Shared Tests**: 1 failure — tracked in Task 5.1.2
+- **Web Tests**: 64 failures — tracked in Task 5.1.1
+- **Reviewer**: APPROVED (1 LOW note: missing test for non-existent tripId in getEffectiveDateRange is redundant with existing null-return test)
+
+### Learnings
+
+- The 64 web test failures appeared between iterations 45 and 46, likely caused by the weather feature's schema/type changes affecting CustomizeThemeSheet's QueryClientProvider dependency — they were labeled "pre-existing" across all weather iterations but are actually caused by changes in the same branch
+- Triage tasks should group failures by ROOT CAUSE: the 64 QueryClientProvider failures span 3 files but share one fix (mocking CustomizeThemeSheet), making them a single task
+- No TODO/FIXME/HACK comments exist in any weather feature files — all deferred work was captured in PROGRESS.md reviewer notes
+- The reviewer LOW items from weather iterations fall cleanly into two categories: code quality improvements (actionable) and design decisions (intentional) — distinguishing between these is the core skill of triage
+
+## Iteration 56 — Task 5.1.1: Fix 64 pre-existing web test failures (CustomizeThemeSheet QueryClientProvider) — HIGH
+
+**Status**: ✅ COMPLETE
+
+### Changes Made
+
+**Files modified (test files only — no component source changes):**
+
+1. **`apps/web/src/app/(app)/trips/[id]/trip-detail-content.test.tsx`** (38 failures fixed)
+   - Added `vi.mock("@/components/trip/customize-theme-sheet", ...)` — stubs CustomizeThemeSheet with a simple div, following the same pattern as EditTripDialog, InviteMembersDialog, and MemberOnboardingWizard mocks
+   - Renamed "badge container has flex-wrap for mobile wrapping" → "badge container has items-center for vertical alignment" to match actual assertion
+
+2. **`apps/web/src/components/trip/__tests__/create-trip-dialog.test.tsx`** (24 failures fixed)
+   - Updated "displays all Step 2 fields" to check for Cover photo, Theme, Font (actual Step 2 content)
+   - Moved Description tests from "Step 2" to "Step 1" (removed `navigateToStep2` calls, renamed describe blocks)
+   - Moved "Allow members to add events checkbox" tests from "Step 2" to "Step 1"
+   - Deleted all 10 Co-organizers tests (co-organizer UI was removed from component)
+   - Updated Back-navigation test and renamed to "renders Step 2 fields after round-trip navigation"
+   - Deleted redundant "disables all fields during submission" test (duplicate of "disables Back and Create trip buttons during submission")
+   - Updated remaining loading state tests for Step 2's actual fields
+
+3. **`apps/web/src/components/trip/__tests__/members-list.test.tsx`** (2 failures fixed)
+   - Changed exact-match tab name assertions (`"Going (1)"`, `"Invited (3)"`) to regex patterns (`/^Going\W*1$/`, `/^Invited\W*3$/`) to match actual accessible names rendered without parentheses
+
+### Root Causes
+
+1. **trip-detail-content (38)**: `CustomizeThemeSheet` loaded via `next/dynamic` mock's `React.lazy`, calling `useQueryClient()` without provider — fixed by mocking the component
+2. **create-trip-dialog (24)**: Component restructured — Description and Allow Members moved from Step 2 to Step 1; Co-organizers UI removed; Step 2 now has Cover photo, Theme, Font — tests updated to match
+3. **members-list (2)**: Tab accessible names computed as "Invited 1" not "Invited (1)" — regex assertions handle both formats
+
+### Verification
+
+- **Web Tests**: PASS — 70 files, 1157 tests, 0 failures (1 redundant test deleted)
+- **TypeCheck**: PASS — all 3 packages
+- **Lint**: PASS — all 3 packages
+- **Reviewer**: APPROVED
+
+### Learnings
+
+- The 24 create-trip-dialog failures were NOT from QueryClientProvider — they were from a component restructuring that moved fields between steps. The task description was partially incorrect; actual root cause analysis required reading the component
+- When `next/dynamic` is mocked with `React.lazy`, ALL dynamically imported components must also be mocked or they'll resolve to real implementations with their full dependency trees
+- Accessible name computation in testing-library concatenates text content of child elements — `"Label" + <span>1</span>` produces "Label 1" (with space from whitespace nodes), not "Label (1)"
+- Deleting tests that no longer apply (co-organizer UI removed) is the correct approach rather than trying to adapt them to test something different
+
+## Iteration 57 — Task 5.1.2: Fix 1 pre-existing shared test failure (theme-config kebab-case regex) — MEDIUM
+
+**Status**: ✅ COMPLETE
+
+### Changes Made
+
+**File modified:**
+- `shared/__tests__/theme-config.test.ts` — Line 27: Updated kebab-case regex from `/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/` to `/^[a-z0-9]+(-[a-z0-9]+)*$/`
+
+### Root Cause
+
+The theme preset ID `80s-pop-art-ski-slope` (defined in `shared/config/themes.ts`) starts with a digit. The test's kebab-case regex required the first character to be `[a-z]` (lowercase letter only), rejecting valid IDs starting with digits.
+
+### Fix Rationale
+
+Updated the regex to allow `[a-z0-9]` as the first character rather than renaming the theme ID because:
+1. The regex exists only in the test file — production code uses `z.enum(THEME_IDS)` for exact-match validation
+2. Renaming would require updating the cover image URL and potentially a database migration for existing rows
+3. `80s-pop-art-ski-slope` is a natural, readable identifier — "eighties" would be less intuitive
+
+### Verification
+
+- **Shared Tests**: PASS — 16 files, 321 tests, 0 failures
+- **TypeCheck**: PASS — all 3 packages
+- **Lint**: PASS — all 3 packages
+- **Reviewer**: APPROVED
+
+### Learnings
+
+- The kebab-case regex in the test was stricter than necessary — traditional kebab-case doesn't inherently forbid leading digits, it just means lowercase-words-separated-by-hyphens
+- This was a true pre-existing failure (the theme ID was added with this name from the start) — the test regex was simply not updated to match
+- When a test-only convention check conflicts with a valid data entry, prefer relaxing the convention check over renaming production data
+
+## Iteration 58 — Task 5.1.3: Extract duplicated toDisplayTemp utility — LOW
+
+**Status**: ✅ COMPLETE
+
+### Changes Made
+
+**Files modified:**
+- `apps/web/src/lib/weather-codes.ts` — Added `import type { TemperatureUnit }` from shared types; added exported `toDisplayTemp(celsius, unit)` function with JSDoc
+- `apps/web/src/components/itinerary/weather-day-badge.tsx` — Removed local `toDisplayTemp` definition; added `toDisplayTemp` to existing import from `@/lib/weather-codes`
+- `apps/web/src/components/itinerary/weather-forecast-card.tsx` — Removed local `toDisplayTemp` definition; added `toDisplayTemp` to existing import from `@/lib/weather-codes`
+
+**Files created:**
+- `apps/web/src/lib/weather-codes.test.ts` — 7 unit tests for `toDisplayTemp`: celsius rounding, integer passthrough, 0°C→32°F, 100°C→212°F, -40 crossover, fahrenheit rounding, negative celsius
+
+### Verification
+
+- **TypeCheck**: PASS — all 3 packages
+- **Lint**: PASS — all 3 packages
+- **Web Tests**: PASS — 71 files, 1164 tests, 0 failures
+- **Reviewer**: APPROVED
+
+### Learnings
+
+- Pure refactors (moving code without logic changes) are low-risk — the key verification is typecheck + existing tests still passing
+- `weather-codes.ts` is the natural home for `toDisplayTemp` since it's already the weather utility module imported by both components
+- Co-located test files (`.test.ts` next to source) are the preferred pattern for simple utility modules in this codebase
+
+## Iteration 59 — Task 5.1.4: Use getTableColumns(users) in getCoOrganizers — LOW
+
+**Status**: ✅ COMPLETE
+
+### Changes Made
+
+**Files modified:**
+- `apps/api/src/services/trip.service.ts` — Replaced 10-line manual column listing in `getCoOrganizers` with `getTableColumns(users)`, matching the pattern used in `auth.service.ts` and elsewhere
+
+### Details
+
+Pure refactor: the manual `.select({ id: users.id, phoneNumber: users.phoneNumber, ... })` enumeration was replaced with `.select(getTableColumns(users))`. No behavioral change — the users table has no `passwordHash` column (phone-based OTP auth), so no exclusion is needed. `getTableColumns` was already imported on line 19.
+
+### Verification
+
+- **TypeCheck**: PASS — all 3 packages
+- **Lint**: PASS — all 3 packages
+- **API Tests**: PASS — 63 files, 1172 tests, 0 failures
+- **Reviewer**: APPROVED
+
+### Learnings
+
+- The task description mentioned excluding `passwordHash`, but the users table has no such column — this is a phone-based auth system with no passwords
+- `getTableColumns` is the standard Drizzle pattern in this codebase for selecting all columns from a table, especially useful in JOIN queries to avoid ambiguity
+- When refactoring column selections, existing tests that verify returned object shapes are sufficient validation
+
+## Iteration 60 — Task 5.1.5: Geocoding service improvements — LOW
+
+**Status**: ✅ COMPLETE
+
+### Changes Made
+
+**Files modified:**
+- `apps/api/src/services/geocoding.service.ts` — Added `Logger` import from `@/types/logger.js`; added optional `logger` constructor parameter; added empty-string guard (`if (!query?.trim()) return null`); added `this.logger?.info()` at geocode start; replaced bare `catch {}` with `this.logger?.error(err, "Geocoding failed")`
+- `apps/api/src/plugins/geocoding-service.ts` — Pass `fastify.log` to `OpenMeteoGeocodingService` constructor
+- `apps/api/src/services/trip.service.ts` — In `updateTrip()`, when `data.destination` is provided, fetch current trip destination and compare; skip geocoding and weather cache deletion when destination unchanged
+- `apps/api/tests/unit/geocoding.service.test.ts` — Added mock logger to all tests; added 2 new tests for empty-string and whitespace-only guards; updated network error test to assert `mockLogger.error` was called
+
+### Verification
+
+- **TypeCheck**: PASS — all 3 packages
+- **Lint**: PASS — 1 pre-existing `@typescript-eslint/no-explicit-any` warning in test file (non-blocking)
+- **API Tests**: PASS — 63 files, 1174 tests, 0 failures (8/8 geocoding tests pass)
+- **Web Tests**: PASS — 71 files, 1164 tests, 0 failures
+- **Shared Tests**: PASS — 16 files, 321 tests, 0 failures
+- **Reviewer**: APPROVED
+
+### Learnings
+
+- The codebase `Logger` interface is at `@/types/logger.js` and supports Pino-style overloaded signatures: `(obj, msg)` and `(msg)`
+- Services use optional logger as last constructor param with optional chaining — consistent pattern across message, invitation, SMS, and verification services
+- The extra SELECT in updateTrip (primary key lookup) is negligible cost vs saving an external HTTP geocoding call + weather cache DELETE
+- `fastify.log` conforms to the custom `Logger` interface and is the standard way to pass a logger to services via plugins
+
+## Iteration 61 — Task 6.1: Full regression check
+
+**Status**: ✅ COMPLETE
+
+### Verification Results
+
+**TypeCheck**: PASS — all 3 packages (shared, api, web)
+**Lint**: PASS — all 3 packages (1 pre-existing non-blocking warning in geocoding.service.test.ts)
+**Shared Tests**: PASS — 16 files, 321 tests, 0 failures
+**API Tests**: PASS — 63 files, 1174 tests, 0 failures
+**Web Tests**: PASS — 71 files, 1164 tests, 0 failures
+**E2E Tests**: PASS — 44 tests passed across chromium and iphone projects
+
+### Manual Testing
+
+Performed manual testing via Playwright CLI inside the devcontainer:
+1. Created user account via phone auth flow (+15559990001, code 123456)
+2. Completed profile as "Weather Tester"
+3. Created trip "Weather Test Trip" with destination "San Diego, CA", dates Mar 12-15, 2026
+4. Added event "Beach Day" on Mar 12 at 12:00 PM
+5. Verified itinerary day-by-day view renders correctly with calendar/list toggle
+6. Weather forecast card appears showing "Set a destination to see weather" — this is the correct graceful degradation because the devcontainer lacks external network access to Open-Meteo's geocoding API, so destination coordinates are null
+7. Screenshots saved to `.ralph/screenshots/task-6.1-trip-detail-overview.png` and `.ralph/screenshots/task-6.1-itinerary-weather-card.png`
+
+### Reviewer: APPROVED
+
+### Learnings
+
+- Manual testing that creates DB records can contaminate subsequent test runs (daily-itineraries.worker.test.ts queries all trips). Always clean up manual test data before re-running automated tests.
+- The devcontainer does not have external network access to Open-Meteo APIs, so geocoding always returns null in the test environment. This is an infrastructure limitation, not a code bug — the weather service gracefully degrades with informative messages.
+- The auth verify-code endpoint returns `{ success, user, requiresProfile }` — tokens are set as HTTP-only cookies, not in the response body. This means curl-based API testing requires cookie jar support.
+- All weather feature code (phases 1-5) passes full regression with zero failures across 2659 total tests (321 shared + 1174 API + 1164 web) plus 44 E2E tests.

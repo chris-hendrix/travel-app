@@ -43,6 +43,7 @@ export const updateProfileSchema = z.object({
     .optional(),
   timezone: z.string().max(100).nullable().optional(),
   handles: userHandlesSchema,
+  temperatureUnit: z.enum(["celsius", "fahrenheit"]).optional(),
 });
 
 // Inferred TypeScript types from schemas
