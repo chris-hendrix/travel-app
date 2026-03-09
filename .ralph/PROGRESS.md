@@ -164,3 +164,31 @@
 - Caption input `onBlur` should save (not cancel) for better UX — Escape key handler cancels before blur fires since React batches state updates and unmounts the input
 - Delete in lightbox needs pre-mutation snapshot of `photos.length - 2` for boundary check since optimistic updates may change the array before `onSuccess` fires
 - Pre-existing diagnostics in trip-detail-content.test.tsx (cannot find module `@/hooks/use-trips`, `require` type, `Date` not assignable to `string`) are from the existing test file and unrelated to this task
+
+## Iteration 6 — Task 6.1: Triage PROGRESS.md for unaddressed items
+
+**Status**: ✅ COMPLETE
+
+### What was done
+Reviewed all 5 iterations of PROGRESS.md to identify FAILURE, BLOCKED, reviewer caveats, or deferred items. Three unaddressed issues were found and added as fix sub-tasks to TASKS.md:
+
+1. **Task 6.2: FIX: LocalStorageService doesn't handle nested photo paths** — `LocalStorageService.delete()` uses `url.split("/").pop()` which only gets the filename, losing the nested `photos/{tripId}/` directory structure. `LocalStorageService.upload()` also fails for nested paths because `writeFileSync` can't create intermediate directories. S3 implementation is unaffected.
+
+2. **Task 6.3: Write E2E tests for photo feature** — Task 5.1 spec included E2E tests (`apps/web/tests/e2e/photos.spec.ts`) but the file was never created.
+
+3. **Task 6.4: Manual browser testing with screenshots** — Task 5.1 spec included manual browser testing with screenshots but no photo-related screenshots exist in `.ralph/screenshots/`.
+
+### Pre-existing failures reviewed and excluded
+- 9 API failures: S3/MinIO concurrency issues in cover-image and profile-photo upload tests — environmental, not code bugs, consistently documented across all 5 iterations
+- 3 Web failures: Stale FAB tests in `trips-content.test.tsx` referencing a removed `aria-label="Create new trip"` element — pre-dates photo feature
+- "Orphaned raw file" edge case in delete handler — intentionally documented in code as accepted tradeoff, not a bug
+
+### Verification
+- **Typecheck**: PASS (all 3 packages)
+- **Lint**: PASS (all 3 packages)
+- **Tests**: API 1208/1217 passed (9 pre-existing), Web 1218/1221 passed (3 pre-existing) — no new failures
+- **Reviewer**: APPROVED — identified additional nested-path issue in `upload()` (added to Task 6.2)
+
+### Learnings
+- Triage tasks should check not just explicit failures but also implicit issues like functions that share the same bug pattern (e.g., `upload()` having the same nested-path issue as `delete()`)
+- Pre-existing test failures that appear identically across all iterations are safely excluded from feature-specific fix tasks

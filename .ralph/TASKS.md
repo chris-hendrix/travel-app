@@ -73,11 +73,27 @@
 
 ## Phase 6: Cleanup
 
-- [ ] Task 6.1: Triage PROGRESS.md for unaddressed items
+- [x] Task 6.1: Triage PROGRESS.md for unaddressed items
   - Review: Read entire PROGRESS.md
   - Identify: Find FAILURE, BLOCKED, reviewer caveats, or deferred items across ALL phases
   - Fix: Create individual fix tasks in TASKS.md for each outstanding issue
   - Verify: Run full test suite
+
+- [ ] Task 6.2: FIX: LocalStorageService doesn't handle nested photo paths
+  - Fix: In `apps/api/src/services/storage.service.ts`, update `LocalStorageService.delete()` to extract the full relative path after `/uploads/` instead of just the filename via `.pop()`
+  - Fix: Update `LocalStorageService.upload()` to create intermediate directories with `mkdirSync(dirname(filePath), { recursive: true })` for nested paths like `photos/{tripId}/{uuid}.webp`
+  - Test: Write unit tests verifying upload and delete work with nested paths
+  - Verify: Run full test suite
+
+- [ ] Task 6.3: Write E2E tests for photo feature
+  - Implement: Create `apps/web/tests/e2e/photos.spec.ts` following existing E2E patterns (see `itinerary-journey.spec.ts`)
+  - Test: Upload photo to trip, verify grid display, open lightbox, navigate, edit caption, delete photo
+  - Verify: Run E2E test suite
+
+- [ ] Task 6.4: Manual browser testing with screenshots for photo feature
+  - Verify: Start dev servers, navigate to trip detail page
+  - Verify: Screenshot empty photo state, upload flow, gallery grid, lightbox navigation, caption editing
+  - Verify: Save screenshots to `.ralph/screenshots/` with `task-6.4-` prefix
 
 ## Phase 7: Final Verification
 
