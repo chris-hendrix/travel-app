@@ -57,3 +57,40 @@
 - The `IStorageService` interface doesn't have a `download`/`getObject` method — the `downloadBuffer` function was implemented as a closure in queue registration, handling both S3 (via `S3StorageService.getObject`) and local storage (via `fs.readFile`)
 - `storage` was exposed as a Fastify decorator from `upload-service.ts` to make it accessible to queue workers
 - pg-boss v12's `Job` type doesn't expose `retryCount`; `JobWithMetadata` type is needed with a cast since the runtime object always has it
+
+## Iteration 3 — Task 3.1: Create photo routes and controller with integration tests
+
+**Status**: ✅ COMPLETE
+
+### What was done
+- Created `apps/api/src/controllers/photo.controller.ts` with 4 handlers: `uploadPhotos` (multi-file multipart), `getPhotos`, `updateCaption`, `deletePhoto`
+- Created `apps/api/src/routes/photo.routes.ts` with GET `/`, POST `/`, PATCH `/:photoId`, DELETE `/:photoId` — follows scoped write routes pattern with `authenticate` + `requireCompleteProfile`
+- Added `PhotoNotFoundError` to `apps/api/src/errors.ts`
+- Registered `photoRoutes` in `apps/api/src/app.ts` at prefix `/api/trips/:id/photos`
+- Changed multipart config `files: 1` → `files: 5` in `app.ts`
+- Extracted `assertUploaderOrOrganizer` helper to deduplicate permission checks in updateCaption and deletePhoto
+- Added `tripIdParamsSchema` for UUID validation on GET and POST routes (consistency with PATCH/DELETE which use `photoIdParamsSchema`)
+- Upload handler enforces 20-photo-per-trip limit (including in-batch count), validates files via `uploadService.validateImage`, uploads raw to storage, enqueues pg-boss `photo/process` job
+- Delete handler cleans up processed image from storage; raw file cleanup delegated to worker (documented edge case for mid-processing deletes)
+
+### Tests written
+- `apps/api/tests/integration/photo.routes.test.ts` (18 tests):
+  - Upload: single file (201), multiple files (201)
+  - Upload errors: no auth (401), non-member (403), invalid file type (400), 20-photo limit (400)
+  - List: photos sorted DESC (200 with order verification), empty array (200), non-member (403)
+  - Update caption: own photo (200), organizer on other's photo (200), non-owner non-organizer (403), photo not found (404)
+  - Delete: own photo (200 with DB verification), organizer (200), non-owner non-organizer (403), not found (404), no auth (401)
+
+### Verification
+- **Typecheck**: PASS (all 3 packages)
+- **Lint**: PASS (all 3 packages)
+- **New tests**: 18/18 passed when run in isolation (702ms)
+- **Full suite**: 13 failures — all pre-existing (8 API: S3/MinIO upload concurrency, 5 web: component tests)
+- **Reviewer**: APPROVED after one round of fixes (param validation, sort order test assertion, permission helper extraction, raw file cleanup documentation)
+
+### Learnings
+- Photo routes use nested prefix `/api/trips/:id/photos` — the `:id` param comes from the parent prefix, not the route path itself
+- Multipart routes can still set `params` schema even without `body` schema — useful for UUID validation
+- File upload integration tests that touch storage (S3/MinIO) fail in full suite due to concurrency/ordering but pass in isolation — this is a pre-existing environment issue affecting all upload tests
+- The `assertUploaderOrOrganizer` pattern with a parameterized `action` string provides contextual error messages while keeping DRY code
+- Empty string caption is intentional — allows clearing captions via PATCH

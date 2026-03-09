@@ -58,6 +58,7 @@ import { mutualsRoutes } from "./routes/mutuals.routes.js";
 import { userRoutes } from "./routes/user.routes.js";
 import { calendarRoutes } from "./routes/calendar.routes.js";
 import { weatherRoutes } from "./routes/weather.routes.js";
+import { photoRoutes } from "./routes/photo.routes.js";
 
 // Config
 import { env } from "./config/env.js";
@@ -166,7 +167,7 @@ export async function buildApp(
   await app.register(multipart, {
     limits: {
       fileSize: app.config.MAX_FILE_SIZE,
-      files: 1,
+      files: 5,
       fieldNameSize: 100,
       fields: 10,
       headerPairs: 2000,
@@ -239,6 +240,7 @@ export async function buildApp(
   await app.register(userRoutes, { prefix: "/api/users" });
   await app.register(calendarRoutes, { prefix: "/api" });
   await app.register(weatherRoutes, { prefix: "/api" });
+  await app.register(photoRoutes, { prefix: "/api/trips/:id/photos" });
 
   // Not-found handler for unmatched routes
   app.setNotFoundHandler((request, reply) => {

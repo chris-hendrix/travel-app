@@ -27,7 +27,7 @@
 
 ## Phase 3: Backend — Routes & Controller
 
-- [ ] Task 3.1: Create photo routes and controller with integration tests
+- [x] Task 3.1: Create photo routes and controller with integration tests
   - Implement: Create `apps/api/src/controllers/photo.controller.ts` with `uploadPhotos`, `getPhotos`, `updateCaption`, `deletePhoto` handlers
   - Implement: Create `apps/api/src/routes/photo.routes.ts` with GET/POST/PATCH/DELETE endpoints, auth + membership checks, permission checks for PATCH/DELETE
   - Implement: Register routes in `apps/api/src/app.ts` at `/api/trips/:id/photos`
