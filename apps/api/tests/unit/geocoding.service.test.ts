@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { NominatimGeocodingService } from "@/services/geocoding.service.js";
+import type { Logger } from "@/types/logger.js";
 
 describe("NominatimGeocodingService", () => {
   let service: NominatimGeocodingService;
   const mockLogger = { info: vi.fn(), error: vi.fn() };
 
   beforeEach(() => {
-    service = new NominatimGeocodingService(mockLogger as any);
+    service = new NominatimGeocodingService(mockLogger as unknown as Logger);
   });
 
   afterEach(() => {
@@ -29,7 +30,7 @@ describe("NominatimGeocodingService", () => {
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining("nominatim.openstreetmap.org"),
         expect.objectContaining({
-          headers: { "User-Agent": "tripful-app" },
+          headers: { "User-Agent": "tripful-app (https://github.com/chris-hendrix/tripful)" },
         }),
       );
     });
