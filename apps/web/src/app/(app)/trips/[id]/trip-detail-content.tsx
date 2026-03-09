@@ -267,28 +267,10 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
         )}
 
-        {/* Customize button — top-right overlay on hero */}
-        {isOrganizer && (
-          <button
-            onClick={() => setIsCustomizeOpen(true)}
-            onMouseEnter={supportsHover ? preloadCustomizeThemeSheet : undefined}
-            onTouchStart={preloadCustomizeThemeSheet}
-            onFocus={preloadCustomizeThemeSheet}
-            className={`absolute top-3 right-3 sm:top-4 sm:right-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium backdrop-blur-sm transition-colors cursor-pointer ${
-              heroTextLight
-                ? "bg-white/20 text-white hover:bg-white/30"
-                : "bg-black/10 text-foreground hover:bg-black/20"
-            }`}
-            aria-label="Customize theme"
-          >
-            <Paintbrush className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Customize</span>
-          </button>
-        )}
-
         {/* Bottom: title + metadata */}
         <div className="absolute bottom-0 left-0 right-0 pb-5 sm:pb-6">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 flex items-end">
+            <div className="flex-1 min-w-0">
             <h1
               className={`text-2xl sm:text-4xl font-bold ${heroTextLight ? "text-white" : "text-foreground"} font-playfair line-clamp-2 drop-shadow-sm`}
               style={trip.themeFont ? { fontFamily: THEME_FONTS[trip.themeFont as keyof typeof THEME_FONTS] } : undefined}
@@ -311,6 +293,26 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
                 <span>{dateRange}</span>
               </span>
             </div>
+            </div>
+
+            {/* Customize button */}
+            {isOrganizer && (
+              <button
+                onClick={() => setIsCustomizeOpen(true)}
+                onMouseEnter={supportsHover ? preloadCustomizeThemeSheet : undefined}
+                onTouchStart={preloadCustomizeThemeSheet}
+                onFocus={preloadCustomizeThemeSheet}
+                className={`shrink-0 ml-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium backdrop-blur-sm transition-colors cursor-pointer ${
+                  heroTextLight
+                    ? "bg-white/20 text-white hover:bg-white/30"
+                    : "bg-black/10 text-foreground hover:bg-black/20"
+                }`}
+                aria-label="Customize theme"
+              >
+                <Paintbrush className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Customize</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
