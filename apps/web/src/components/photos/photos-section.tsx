@@ -13,8 +13,7 @@ import { PhotoUploadDropzone } from "./photo-upload-dropzone";
 import { PhotoGrid } from "./photo-grid";
 import { PhotoLightbox } from "./photo-lightbox";
 import type { Photo } from "@tripful/shared/types";
-
-const MAX_PHOTOS_PER_TRIP = 20;
+import { MAX_PHOTOS_PER_TRIP } from "@tripful/shared/config";
 
 interface PhotosSectionProps {
   tripId: string;

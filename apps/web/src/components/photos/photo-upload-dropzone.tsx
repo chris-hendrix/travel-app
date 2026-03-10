@@ -11,11 +11,12 @@ import {
 import { Upload, AlertCircle, Loader2, X, ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUploadPhotos } from "@/hooks/use-photos";
+import { MAX_PHOTOS_PER_TRIP } from "@tripful/shared/config";
 
 interface PhotoUploadDropzoneProps {
   tripId: string;
   currentCount: number;
-  maxCount?: number;
+  maxCount?: number; // defaults to MAX_PHOTOS_PER_TRIP
   className?: string;
 }
 
@@ -50,7 +51,7 @@ function formatFileSize(bytes: number): string {
 export function PhotoUploadDropzone({
   tripId,
   currentCount,
-  maxCount = 20,
+  maxCount = MAX_PHOTOS_PER_TRIP,
   className,
 }: PhotoUploadDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false);

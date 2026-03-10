@@ -1,11 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyRequest, FastifyReply } from "fastify";
 import type { UpdatePhotoCaptionInput } from "@tripful/shared/schemas";
+import { MAX_PHOTOS_PER_TRIP } from "@tripful/shared/config";
 import { PermissionDeniedError, PhotoNotFoundError } from "../errors.js";
 import { QUEUE } from "@/queues/types.js";
 import type { PhotoProcessingPayload } from "@/queues/types.js";
-
-const MAX_PHOTOS_PER_TRIP = 20;
 
 const MIME_TO_EXT: Record<string, string> = {
   "image/jpeg": "jpg",
