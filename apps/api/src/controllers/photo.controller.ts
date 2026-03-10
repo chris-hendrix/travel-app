@@ -156,10 +156,15 @@ export const photoController = {
       }
 
       // --- Phase 2: Count check + record creation INSIDE a transaction ---
-      // SELECT count(*) with FOR UPDATE serializes concurrent uploads.
+      // Advisory lock + count check serializes concurrent uploads per trip.
       const { db } = request.server;
       const createdPhotos = await db.transaction(async (tx) => {
-        // Lock rows to serialize concurrent uploads for this trip
+        // Acquire an advisory lock scoped to this trip to serialize concurrent uploads.
+        // hashtext() returns a stable int4 from the tripId string.
+        await tx.execute(
+          sql`SELECT pg_advisory_xact_lock(hashtext(${tripId}))`,
+        );
+
         const rows = await tx
           .select({ count: sql<number>`count(*)::int` })
           .from(tripPhotos)
