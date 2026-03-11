@@ -156,6 +156,7 @@ export function MobileTripLayout({
               onAddTravel={() => setShowOnboarding(true)}
               {...(weather?.forecasts ? { forecasts: weather.forecasts } : {})}
               temperatureUnit={temperatureUnit}
+              hideFab={activeIndex !== 1}
             />
             <MessagesPanel
               tripId={tripId}

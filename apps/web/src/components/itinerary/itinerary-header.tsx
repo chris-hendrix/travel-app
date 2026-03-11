@@ -52,6 +52,7 @@ interface ItineraryHeaderProps {
   isMember: boolean;
   allowMembersToAddEvents: boolean;
   isLocked?: boolean;
+  hideFab?: boolean;
   tripStartDate?: string | null | undefined;
   tripEndDate?: string | null | undefined;
 }
@@ -68,6 +69,7 @@ export function ItineraryHeader({
   isMember,
   allowMembersToAddEvents,
   isLocked,
+  hideFab,
   tripStartDate,
   tripEndDate,
 }: ItineraryHeaderProps) {
@@ -176,6 +178,7 @@ export function ItineraryHeader({
       {mounted &&
         hasAnyAction &&
         !isLocked &&
+        !hideFab &&
         createPortal(
           <DropdownMenu open={fabOpen} onOpenChange={setFabOpen}>
             <DropdownMenuTrigger asChild>

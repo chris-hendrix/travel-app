@@ -32,6 +32,7 @@ interface ItineraryViewProps {
   onAddTravel?: () => void;
   forecasts?: DailyForecast[] | undefined;
   temperatureUnit?: TemperatureUnit | undefined;
+  hideFab?: boolean;
 }
 
 export function ItineraryView({
@@ -39,6 +40,7 @@ export function ItineraryView({
   onAddTravel,
   forecasts,
   temperatureUnit,
+  hideFab,
 }: ItineraryViewProps) {
   const { user } = useAuth();
 
@@ -289,6 +291,7 @@ export function ItineraryView({
         isMember={!!isMember}
         allowMembersToAddEvents={trip?.allowMembersToAddEvents || false}
         isLocked={isLocked}
+        {...(hideFab != null ? { hideFab } : {})}
         tripStartDate={trip?.startDate || null}
         tripEndDate={trip?.endDate || null}
       />

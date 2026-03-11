@@ -8,6 +8,7 @@ interface ItineraryPanelProps {
   onAddTravel?: () => void;
   forecasts?: DailyForecast[];
   temperatureUnit?: TemperatureUnit;
+  hideFab?: boolean;
 }
 
 export function ItineraryPanel({
@@ -15,6 +16,7 @@ export function ItineraryPanel({
   onAddTravel,
   forecasts,
   temperatureUnit,
+  hideFab,
 }: ItineraryPanelProps) {
   return (
     <ItineraryView
@@ -22,6 +24,7 @@ export function ItineraryPanel({
       {...(onAddTravel ? { onAddTravel } : {})}
       {...(forecasts ? { forecasts } : {})}
       {...(temperatureUnit ? { temperatureUnit } : {})}
+      {...(hideFab != null ? { hideFab } : {})}
     />
   );
 }
