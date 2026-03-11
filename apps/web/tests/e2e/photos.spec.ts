@@ -118,6 +118,9 @@ test.describe("Photos Journey", () => {
 
       const tmpDir = path.join("/tmp", `tripful-test-photos-${Date.now()}`);
       fs.mkdirSync(tmpDir, { recursive: true });
+      // Mobile Photos panel has no "Photos (n/20)" header — only desktop uses PhotosSection
+      const vp = page.viewportSize();
+      const isMobile = vp ? vp.width < 768 : false;
 
       try {
         await authenticateViaAPI(page, request, "Photo Tester");
@@ -140,13 +143,17 @@ test.describe("Photos Journey", () => {
         await navigateToMobilePanel(page, "Photos");
 
         await test.step("verify empty state", async () => {
-          // Photos section header shows 0/20 count
-          await expect(page.getByText(/Photos \(0\/20\)/)).toBeVisible({
-            timeout: ELEMENT_TIMEOUT,
-          });
+          // Photos section header shows 0/20 count (desktop only — mobile panel has no header)
+          if (!isMobile) {
+            await expect(page.getByText(/Photos \(0\/20\)/)).toBeVisible({
+              timeout: ELEMENT_TIMEOUT,
+            });
+          }
 
           // Empty state message
-          await expect(page.getByText("No photos yet")).toBeVisible();
+          await expect(page.getByText("No photos yet")).toBeVisible({
+            timeout: ELEMENT_TIMEOUT,
+          });
 
           await snap(page, "photos-01-empty-state");
         });
@@ -168,10 +175,12 @@ test.describe("Photos Journey", () => {
             timeout: ELEMENT_TIMEOUT,
           });
 
-          // Counter should update to 1/20
-          await expect(page.getByText(/Photos \(1\/20\)/)).toBeVisible({
-            timeout: ELEMENT_TIMEOUT,
-          });
+          // Counter should update to 1/20 (desktop only)
+          if (!isMobile) {
+            await expect(page.getByText(/Photos \(1\/20\)/)).toBeVisible({
+              timeout: ELEMENT_TIMEOUT,
+            });
+          }
 
           await snap(page, "photos-02-one-photo");
         });
@@ -191,10 +200,12 @@ test.describe("Photos Journey", () => {
             timeout: ELEMENT_TIMEOUT,
           });
 
-          // Counter should update to 2/20
-          await expect(page.getByText(/Photos \(2\/20\)/)).toBeVisible({
-            timeout: ELEMENT_TIMEOUT,
-          });
+          // Counter should update to 2/20 (desktop only)
+          if (!isMobile) {
+            await expect(page.getByText(/Photos \(2\/20\)/)).toBeVisible({
+              timeout: ELEMENT_TIMEOUT,
+            });
+          }
 
           await snap(page, "photos-03-two-photos");
         });
@@ -285,10 +296,12 @@ test.describe("Photos Journey", () => {
           // deleting first photo of two — known component behavior)
           await expect(lightbox).not.toBeVisible({ timeout: ELEMENT_TIMEOUT });
 
-          // Counter should decrement to 1/20
-          await expect(page.getByText(/Photos \(1\/20\)/)).toBeVisible({
-            timeout: ELEMENT_TIMEOUT,
-          });
+          // Counter should decrement to 1/20 (desktop only)
+          if (!isMobile) {
+            await expect(page.getByText(/Photos \(1\/20\)/)).toBeVisible({
+              timeout: ELEMENT_TIMEOUT,
+            });
+          }
 
           // Only one photo card should remain
           await expect(readyPhotoCards(page)).toHaveCount(1, {

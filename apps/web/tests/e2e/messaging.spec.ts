@@ -18,6 +18,7 @@ import {
 } from "./helpers/timeouts";
 import { dismissToast } from "./helpers/toast";
 import { scrollToDiscussion } from "./helpers/messaging";
+import { navigateToMobilePanel } from "./helpers/mobile-panels";
 
 /**
  * E2E Journey: Messaging Flows
@@ -401,6 +402,9 @@ test.describe("Messaging Journey", () => {
 
       await test.step("organizer mutes the member via members dialog", async () => {
         await dismissToast(page);
+
+        // On mobile the members count is in the Home/Info panel, not the Messages panel.
+        await navigateToMobilePanel(page, "Home");
 
         // Open members dialog
         await page.getByText(/\d+ members?/).click();

@@ -25,7 +25,7 @@ describe("TravelReminderBanner", () => {
   it("renders banner when no arrival and not dismissed", () => {
     render(<TravelReminderBanner {...defaultProps} />);
     expect(screen.getByTestId("travel-reminder-banner")).toBeDefined();
-    expect(screen.getByText("Add your travel details")).toBeDefined();
+    expect(screen.getByText("Share your travel plans")).toBeDefined();
     expect(screen.getByText("Add Travel Details")).toBeDefined();
     expect(screen.getByText("Dismiss")).toBeDefined();
   });

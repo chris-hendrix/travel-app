@@ -68,7 +68,7 @@ export function TravelReminderBanner({
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-base font-semibold text-foreground mb-1">
-              Add your travel details
+              Share your travel plans
             </h3>
             <p className="text-sm text-muted-foreground mb-3">
               Let everyone know when you&apos;re arriving and departing so the
