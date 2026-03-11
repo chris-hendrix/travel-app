@@ -4,7 +4,11 @@ import { memo } from "react";
 import { Calendar, Car, ExternalLink, MapPin, Utensils } from "lucide-react";
 import type { Event } from "@tripful/shared/types";
 import { Badge } from "@/components/ui/badge";
-import { formatInTimezone, getDayInTimezone, utcToLocalParts } from "@/lib/utils/timezone";
+import {
+  formatInTimezone,
+  getDayInTimezone,
+  utcToLocalParts,
+} from "@/lib/utils/timezone";
 
 interface EventCardProps {
   event: Event;
@@ -45,7 +49,9 @@ export const EventCard = memo(function EventCard({
   // Midnight end times don't count as a separate day (e.g. 8 PM–12 AM is single-day)
   const endIsMidnight = event.endTime
     ? utcToLocalParts(
-        typeof event.endTime === "string" ? event.endTime : event.endTime.toISOString(),
+        typeof event.endTime === "string"
+          ? event.endTime
+          : event.endTime.toISOString(),
         timezone,
       ).time === "00:00"
     : false;
@@ -103,7 +109,7 @@ export const EventCard = memo(function EventCard({
         <span className="font-semibold text-foreground text-sm truncate">
           {event.name}
         </span>
-{event.isOptional && (
+        {event.isOptional && (
           <Badge
             variant="outline"
             className="text-xs bg-background/50 border-border shrink-0"

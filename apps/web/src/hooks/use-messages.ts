@@ -160,10 +160,9 @@ export function useCreateMessage(tripId: string) {
       });
 
       // Snapshot the previous values for rollback
-      const previousMessages =
-        queryClient.getQueryData<InfiniteData<GetMessagesResponse>>(
-          messageKeys.list(tripId),
-        );
+      const previousMessages = queryClient.getQueryData<
+        InfiniteData<GetMessagesResponse>
+      >(messageKeys.list(tripId));
       const previousCount = queryClient.getQueryData<number>(
         messageKeys.count(tripId),
       );
@@ -358,10 +357,9 @@ export function useEditMessage(tripId: string) {
     onMutate: async ({ messageId, data }) => {
       await queryClient.cancelQueries({ queryKey: messageKeys.list(tripId) });
 
-      const previousMessages =
-        queryClient.getQueryData<InfiniteData<GetMessagesResponse>>(
-          messageKeys.list(tripId),
-        );
+      const previousMessages = queryClient.getQueryData<
+        InfiniteData<GetMessagesResponse>
+      >(messageKeys.list(tripId));
 
       if (previousMessages) {
         const now = new Date().toISOString();
@@ -499,10 +497,9 @@ export function useDeleteMessage(tripId: string) {
           queryKey: messageKeys.latest(tripId),
         });
 
-        const previousMessages =
-          queryClient.getQueryData<InfiniteData<GetMessagesResponse>>(
-            messageKeys.list(tripId),
-          );
+        const previousMessages = queryClient.getQueryData<
+          InfiniteData<GetMessagesResponse>
+        >(messageKeys.list(tripId));
         const previousCount = queryClient.getQueryData<number>(
           messageKeys.count(tripId),
         );
@@ -662,10 +659,9 @@ export function useToggleReaction(tripId: string) {
     onMutate: async ({ messageId, data }) => {
       await queryClient.cancelQueries({ queryKey: messageKeys.list(tripId) });
 
-      const previousMessages =
-        queryClient.getQueryData<InfiniteData<GetMessagesResponse>>(
-          messageKeys.list(tripId),
-        );
+      const previousMessages = queryClient.getQueryData<
+        InfiniteData<GetMessagesResponse>
+      >(messageKeys.list(tripId));
 
       if (previousMessages) {
         queryClient.setQueryData<InfiniteData<GetMessagesResponse>>(
@@ -858,10 +854,9 @@ export function usePinMessage(tripId: string) {
     onMutate: async ({ messageId, data }) => {
       await queryClient.cancelQueries({ queryKey: messageKeys.list(tripId) });
 
-      const previousMessages =
-        queryClient.getQueryData<InfiniteData<GetMessagesResponse>>(
-          messageKeys.list(tripId),
-        );
+      const previousMessages = queryClient.getQueryData<
+        InfiniteData<GetMessagesResponse>
+      >(messageKeys.list(tripId));
 
       if (previousMessages) {
         queryClient.setQueryData<InfiniteData<GetMessagesResponse>>(

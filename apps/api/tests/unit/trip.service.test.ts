@@ -1,6 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { db } from "@/config/database.js";
-import { trips, members, users, events, weatherCache, type User } from "@/db/schema/index.js";
+import {
+  trips,
+  members,
+  users,
+  events,
+  weatherCache,
+  type User,
+} from "@/db/schema/index.js";
 import { eq, and } from "drizzle-orm";
 import { TripService, type TripSummary } from "@/services/trip.service.js";
 import { PermissionsService } from "@/services/permissions.service.js";
@@ -15,7 +22,11 @@ const mockGeocodingService: IGeocodingService = {
 
 // Create service instances with db for testing
 const permissionsService = new PermissionsService(db);
-const tripService = new TripService(db, permissionsService, mockGeocodingService);
+const tripService = new TripService(
+  db,
+  permissionsService,
+  mockGeocodingService,
+);
 
 describe("trip.service", () => {
   // Use unique phone numbers per test run to enable parallel execution
@@ -1766,11 +1777,9 @@ describe("trip.service", () => {
         lat: 40.7128,
         lon: -74.006,
       });
-      const updated = await tripService.updateTrip(
-        trip.id,
-        geoTestUserId,
-        { destination: "New York, NY" },
-      );
+      const updated = await tripService.updateTrip(trip.id, geoTestUserId, {
+        destination: "New York, NY",
+      });
 
       expect(mockGeocodingService.geocode).toHaveBeenCalledWith("New York, NY");
       expect(updated.destinationLat).toBe(40.7128);
@@ -1800,11 +1809,9 @@ describe("trip.service", () => {
       // Reset mock to track calls from updateTrip only
       vi.mocked(mockGeocodingService.geocode).mockReset();
 
-      const updated = await tripService.updateTrip(
-        trip.id,
-        geoTestUserId,
-        { name: "Updated Name" },
-      );
+      const updated = await tripService.updateTrip(trip.id, geoTestUserId, {
+        name: "Updated Name",
+      });
 
       expect(mockGeocodingService.geocode).not.toHaveBeenCalled();
       expect(updated.name).toBe("Updated Name");

@@ -162,6 +162,13 @@
       "when": 1773020870219,
       "tag": "0022_lonely_the_spike",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1773032304908,
+      "tag": "0023_icy_genesis",
+      "breakpoints": true
     }
   ]
 }

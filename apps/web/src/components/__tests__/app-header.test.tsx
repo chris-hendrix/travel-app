@@ -104,9 +104,7 @@ describe("AppHeader", () => {
     render(<AppHeader />);
 
     const wordmark = screen.getByText("Tripful");
-    expect(wordmark.className).toContain(
-      "font-display",
-    );
+    expect(wordmark.className).toContain("font-display");
   });
 
   it("renders a header landmark", () => {
@@ -316,9 +314,7 @@ describe("AppHeader", () => {
 
     await waitFor(() => {
       // Sheet content should be removed from DOM after closing animation
-      expect(
-        screen.queryByTestId("mobile-menu-trips-link"),
-      ).toBeNull();
+      expect(screen.queryByTestId("mobile-menu-trips-link")).toBeNull();
     });
   });
 

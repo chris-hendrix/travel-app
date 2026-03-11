@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { Notification, GetNotificationsResponse } from "@tripful/shared/types";
+import type {
+  Notification,
+  GetNotificationsResponse,
+} from "@tripful/shared/types";
 
 // Mocks
 const mockPush = vi.fn();
@@ -395,7 +398,12 @@ describe("NotificationBell", () => {
         success: true,
         notifications: [makeNotification()],
         unreadCount: 1,
-        meta: { total: 15, limit: 10, hasMore: true, nextCursor: "some-cursor" },
+        meta: {
+          total: 15,
+          limit: 10,
+          hasMore: true,
+          nextCursor: "some-cursor",
+        },
       }),
       hasNextPage: true,
       isLoading: false,
@@ -443,7 +451,12 @@ describe("NotificationBell", () => {
         success: true,
         notifications: [makeNotification()],
         unreadCount: 1,
-        meta: { total: 15, limit: 10, hasMore: true, nextCursor: "some-cursor" },
+        meta: {
+          total: 15,
+          limit: 10,
+          hasMore: true,
+          nextCursor: "some-cursor",
+        },
       }),
       hasNextPage: true,
       fetchNextPage: mockFetchNextPage,
@@ -475,7 +488,12 @@ describe("NotificationBell", () => {
         success: true,
         notifications: [makeNotification()],
         unreadCount: 1,
-        meta: { total: 15, limit: 10, hasMore: true, nextCursor: "some-cursor" },
+        meta: {
+          total: 15,
+          limit: 10,
+          hasMore: true,
+          nextCursor: "some-cursor",
+        },
       }),
       hasNextPage: true,
       fetchNextPage: mockFetchNextPage,

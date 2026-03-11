@@ -169,10 +169,11 @@ export function useMarkAsRead() {
         string,
         InfiniteData<GetNotificationsResponse>
       >();
-      const listQueries =
-        queryClient.getQueriesData<InfiniteData<GetNotificationsResponse>>({
-          queryKey: notificationKeys.lists(),
-        });
+      const listQueries = queryClient.getQueriesData<
+        InfiniteData<GetNotificationsResponse>
+      >({
+        queryKey: notificationKeys.lists(),
+      });
       for (const [key, data] of listQueries) {
         if (data) {
           previousLists.set(JSON.stringify(key), data);
@@ -368,10 +369,11 @@ export function useMarkAllAsRead() {
         string,
         InfiniteData<GetNotificationsResponse>
       >();
-      const listQueries =
-        queryClient.getQueriesData<InfiniteData<GetNotificationsResponse>>({
-          queryKey: notificationKeys.lists(),
-        });
+      const listQueries = queryClient.getQueriesData<
+        InfiniteData<GetNotificationsResponse>
+      >({
+        queryKey: notificationKeys.lists(),
+      });
       for (const [key, data] of listQueries) {
         if (data) {
           previousLists.set(JSON.stringify(key), data);

@@ -1029,17 +1029,13 @@ describe("MemberOnboardingWizard", () => {
 
       // Check phone step title first
       const phoneTitle = screen.getByText("Share your phone number?");
-      expect(phoneTitle.className).toContain(
-        "font-playfair",
-      );
+      expect(phoneTitle.className).toContain("font-playfair");
 
       // Skip to arrival step and check that title too
       await skipPhoneStep(user);
 
       const arrivalTitle = screen.getByText("When are you arriving?");
-      expect(arrivalTitle.className).toContain(
-        "font-playfair",
-      );
+      expect(arrivalTitle.className).toContain("font-playfair");
     });
 
     it("applies progress dot styling", () => {

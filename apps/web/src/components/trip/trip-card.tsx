@@ -52,9 +52,7 @@ export const TripCard = memo(function TripCard({
     ? (THEME_PRESETS.find((p) => p.id === trip.themeId) ?? null)
     : null;
   // Mat background: theme cards use theme background, others use bg-card
-  const matBackground = preset
-    ? buildBackground(preset.background)
-    : undefined;
+  const matBackground = preset ? buildBackground(preset.background) : undefined;
 
   const fontFamily = trip.themeFont
     ? THEME_FONTS[trip.themeFont as keyof typeof THEME_FONTS]
@@ -80,68 +78,67 @@ export const TripCard = memo(function TripCard({
         >
           {/* Inner: cover image with overlay */}
           <div className="postcard-image">
-              {trip.coverImageUrl ? (
-                <Image
-                  src={getUploadUrl(trip.coverImageUrl)!}
-                  alt={trip.name}
-                  fill
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  className="object-cover"
-                />
-              ) : preset?.defaultCoverUrl ? (
-                <Image
-                  src={preset.defaultCoverUrl}
-                  alt={preset.name}
-                  fill
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  className="object-cover"
-                />
-              ) : preset ? (
-                <div
-                  className="absolute inset-0"
-                  style={{ background: buildBackground(preset.background) }}
-                />
-              ) : (
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-accent/15 to-secondary/20 flex items-center justify-center">
-                  <ImagePlus className="w-8 h-8 text-foreground/20" />
-                </div>
+            {trip.coverImageUrl ? (
+              <Image
+                src={getUploadUrl(trip.coverImageUrl)!}
+                alt={trip.name}
+                fill
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                className="object-cover"
+              />
+            ) : preset?.defaultCoverUrl ? (
+              <Image
+                src={preset.defaultCoverUrl}
+                alt={preset.name}
+                fill
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                className="object-cover"
+              />
+            ) : preset ? (
+              <div
+                className="absolute inset-0"
+                style={{ background: buildBackground(preset.background) }}
+              />
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-accent/15 to-secondary/20 flex items-center justify-center">
+                <ImagePlus className="w-8 h-8 text-foreground/20" />
+              </div>
+            )}
+
+            {/* Scrim gradient for text readability */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+
+            {/* Badges overlay — top-left */}
+            <div className="absolute top-3 left-3 flex gap-2">
+              {trip.isOrganizer && (
+                <Badge className="bg-black/50 backdrop-blur-md text-white border-white/20 shadow-sm">
+                  Organizing
+                </Badge>
               )}
-
-              {/* Scrim gradient for text readability */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-
-              {/* Badges overlay — top-left */}
-              <div className="absolute top-3 left-3 flex gap-2">
-                {trip.isOrganizer && (
-                  <Badge className="bg-black/50 backdrop-blur-md text-white border-white/20 shadow-sm">
-                    Organizing
-                  </Badge>
-                )}
-                <RsvpBadge status={trip.rsvpStatus} variant="overlay" />
-              </div>
-
-              {/* Trip info overlay — bottom */}
-              <div className="absolute bottom-0 left-0 right-0 p-4">
-                <h3
-                  className="text-lg font-semibold text-white mb-1 truncate font-playfair"
-                  style={fontFamily ? { fontFamily } : undefined}
-                >
-                  {trip.name}
-                </h3>
-                <div className="flex items-center gap-3 text-white/80 text-sm">
-                  <span className="flex items-center gap-1 truncate">
-                    <MapPin className="w-3.5 h-3.5 shrink-0" />
-                    {trip.destination}
-                  </span>
-                  <span className="flex items-center gap-1 shrink-0">
-                    <Calendar className="w-3.5 h-3.5 shrink-0" />
-                    {dateRange}
-                  </span>
-                </div>
-              </div>
+              <RsvpBadge status={trip.rsvpStatus} variant="overlay" />
             </div>
 
+            {/* Trip info overlay — bottom */}
+            <div className="absolute bottom-0 left-0 right-0 p-4">
+              <h3
+                className="text-lg font-semibold text-white mb-1 truncate font-playfair"
+                style={fontFamily ? { fontFamily } : undefined}
+              >
+                {trip.name}
+              </h3>
+              <div className="flex items-center gap-3 text-white/80 text-sm">
+                <span className="flex items-center gap-1 truncate">
+                  <MapPin className="w-3.5 h-3.5 shrink-0" />
+                  {trip.destination}
+                </span>
+                <span className="flex items-center gap-1 shrink-0">
+                  <Calendar className="w-3.5 h-3.5 shrink-0" />
+                  {dateRange}
+                </span>
+              </div>
+            </div>
           </div>
+        </div>
       </Link>
     </TripThemeProvider>
   );

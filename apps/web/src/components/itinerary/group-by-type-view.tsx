@@ -87,8 +87,10 @@ export function GroupByTypeView({
 
   // Detail sheet state
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
-  const [selectedAccommodation, setSelectedAccommodation] = useState<Accommodation | null>(null);
-  const [selectedMemberTravel, setSelectedMemberTravel] = useState<MemberTravel | null>(null);
+  const [selectedAccommodation, setSelectedAccommodation] =
+    useState<Accommodation | null>(null);
+  const [selectedMemberTravel, setSelectedMemberTravel] =
+    useState<MemberTravel | null>(null);
 
   // Edit dialog state
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
@@ -282,35 +284,100 @@ export function GroupByTypeView({
       <EventDetailSheet
         event={selectedEvent}
         open={!!selectedEvent}
-        onOpenChange={(open) => { if (!open) setSelectedEvent(null); }}
+        onOpenChange={(open) => {
+          if (!open) setSelectedEvent(null);
+        }}
         timezone={timezone}
-        canEdit={selectedEvent ? canModifyEvent(selectedEvent, userId, isOrganizer, isLocked) : false}
-        canDelete={selectedEvent ? canModifyEvent(selectedEvent, userId, isOrganizer, isLocked) : false}
-        onEdit={(event) => { setSelectedEvent(null); setEditingEvent(event); }}
-        createdByName={selectedEvent ? userNameMap.get(selectedEvent.createdBy) : undefined}
+        canEdit={
+          selectedEvent
+            ? canModifyEvent(selectedEvent, userId, isOrganizer, isLocked)
+            : false
+        }
+        canDelete={
+          selectedEvent
+            ? canModifyEvent(selectedEvent, userId, isOrganizer, isLocked)
+            : false
+        }
+        onEdit={(event) => {
+          setSelectedEvent(null);
+          setEditingEvent(event);
+        }}
+        createdByName={
+          selectedEvent ? userNameMap.get(selectedEvent.createdBy) : undefined
+        }
       />
 
       <AccommodationDetailSheet
         accommodation={selectedAccommodation}
         open={!!selectedAccommodation}
-        onOpenChange={(open) => { if (!open) setSelectedAccommodation(null); }}
+        onOpenChange={(open) => {
+          if (!open) setSelectedAccommodation(null);
+        }}
         timezone={timezone}
-        canEdit={selectedAccommodation ? canModifyAccommodation(selectedAccommodation, userId, isOrganizer, isLocked) : false}
-        canDelete={selectedAccommodation ? canModifyAccommodation(selectedAccommodation, userId, isOrganizer, isLocked) : false}
-        onEdit={(acc) => { setSelectedAccommodation(null); setEditingAccommodation(acc); }}
+        canEdit={
+          selectedAccommodation
+            ? canModifyAccommodation(
+                selectedAccommodation,
+                userId,
+                isOrganizer,
+                isLocked,
+              )
+            : false
+        }
+        canDelete={
+          selectedAccommodation
+            ? canModifyAccommodation(
+                selectedAccommodation,
+                userId,
+                isOrganizer,
+                isLocked,
+              )
+            : false
+        }
+        onEdit={(acc) => {
+          setSelectedAccommodation(null);
+          setEditingAccommodation(acc);
+        }}
         onDelete={() => setSelectedAccommodation(null)}
-        createdByName={selectedAccommodation ? userNameMap.get(selectedAccommodation.createdBy) : undefined}
+        createdByName={
+          selectedAccommodation
+            ? userNameMap.get(selectedAccommodation.createdBy)
+            : undefined
+        }
       />
 
       <MemberTravelDetailSheet
         memberTravel={selectedMemberTravel}
         open={!!selectedMemberTravel}
-        onOpenChange={(open) => { if (!open) setSelectedMemberTravel(null); }}
+        onOpenChange={(open) => {
+          if (!open) setSelectedMemberTravel(null);
+        }}
         timezone={timezone}
         memberName={selectedMemberTravel?.memberName || "Unknown member"}
-        canEdit={selectedMemberTravel ? canModifyMemberTravel(selectedMemberTravel, userId, isOrganizer, isLocked) : false}
-        canDelete={selectedMemberTravel ? canModifyMemberTravel(selectedMemberTravel, userId, isOrganizer, isLocked) : false}
-        onEdit={(travel) => { setSelectedMemberTravel(null); setEditingMemberTravel(travel); }}
+        canEdit={
+          selectedMemberTravel
+            ? canModifyMemberTravel(
+                selectedMemberTravel,
+                userId,
+                isOrganizer,
+                isLocked,
+              )
+            : false
+        }
+        canDelete={
+          selectedMemberTravel
+            ? canModifyMemberTravel(
+                selectedMemberTravel,
+                userId,
+                isOrganizer,
+                isLocked,
+              )
+            : false
+        }
+        onEdit={(travel) => {
+          setSelectedMemberTravel(null);
+          setEditingMemberTravel(travel);
+        }}
         onDelete={() => setSelectedMemberTravel(null)}
       />
     </div>

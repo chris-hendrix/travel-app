@@ -106,7 +106,9 @@ test.describe("Itinerary Journey", () => {
             hasText: new RegExp(accommodationName.replace(/\d+/g, "\\d+")),
           })
           .first();
-        await expect(accommodationCard).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+        await expect(accommodationCard).toBeVisible({
+          timeout: ELEMENT_TIMEOUT,
+        });
 
         // Location pin + link icon visible (address details in detail sheet)
         const addressLink = accommodationCard.getByRole("link", {
@@ -194,7 +196,10 @@ test.describe("Itinerary Journey", () => {
 
       await test.step("delete event with cancel then confirm", async () => {
         // Click event card to open detail sheet
-        await page.getByText(/Updated Dinner/).first().click();
+        await page
+          .getByText(/Updated Dinner/)
+          .first()
+          .click();
         const deleteBtn = page.locator('button[title="Delete"]').first();
         await expect(deleteBtn).toBeVisible({ timeout: DIALOG_TIMEOUT });
 
@@ -320,7 +325,9 @@ test.describe("Itinerary Journey", () => {
         await expect.soft(page.getByText(/Lunch/)).toBeVisible();
         await expect.soft(page.getByText(/Show/)).toBeVisible();
         // Location still visible in group-by-type view
-        await expect.soft(page.getByText("Las Vegas Airport").first()).toBeVisible();
+        await expect
+          .soft(page.getByText("Las Vegas Airport").first())
+          .toBeVisible();
         // Verify date labels appear on cards in group-by-type view
         await expect.soft(page.getByText(/Mar 10/).first()).toBeVisible();
         await snap(page, "11-itinerary-group-by-type");
@@ -342,7 +349,10 @@ test.describe("Itinerary Journey", () => {
         // Wait for the option to be visible before clicking.
         await tzTrigger.click();
         const currentOption = page.getByRole("option", { name: /Current/ });
-        await currentOption.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await currentOption.waitFor({
+          state: "visible",
+          timeout: ELEMENT_TIMEOUT,
+        });
         await currentOption.click();
         await expect(tzTrigger).toContainText("Current");
         await expect(page.getByText(/Lunch/)).toBeVisible();
@@ -350,7 +360,10 @@ test.describe("Itinerary Journey", () => {
         // Switch back to trip timezone
         await tzTrigger.click();
         const tripOption = page.getByRole("option", { name: /Trip/ });
-        await tripOption.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await tripOption.waitFor({
+          state: "visible",
+          timeout: ELEMENT_TIMEOUT,
+        });
         await tripOption.click();
         await expect(tzTrigger).toContainText("Trip");
       });
@@ -475,7 +488,9 @@ test.describe("Itinerary Journey", () => {
         const viewDeletedBtn = page.getByRole("button", {
           name: "View deleted items",
         });
-        await expect(viewDeletedBtn).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
+        await expect(viewDeletedBtn).toBeVisible({
+          timeout: NAVIGATION_TIMEOUT,
+        });
         await viewDeletedBtn.click();
 
         // Verify dialog opens with the deleted event

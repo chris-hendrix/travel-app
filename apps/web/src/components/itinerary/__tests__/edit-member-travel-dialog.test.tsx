@@ -357,9 +357,7 @@ describe("EditMemberTravelDialog", () => {
       );
 
       const title = screen.getByText("Edit travel details");
-      expect(title.className).toContain(
-        "font-playfair",
-      );
+      expect(title.className).toContain("font-playfair");
     });
   });
 });

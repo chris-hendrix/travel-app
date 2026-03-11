@@ -526,7 +526,10 @@ export class TripService implements ITripService {
         // OR (startDate IS NULL) -- nulls come last
         baseConditions.push(
           or(
-            and(isNotNull(trips.startDate), gt(trips.startDate, cursorStartDate)),
+            and(
+              isNotNull(trips.startDate),
+              gt(trips.startDate, cursorStartDate),
+            ),
             and(
               isNotNull(trips.startDate),
               eq(trips.startDate, cursorStartDate),
@@ -775,9 +778,7 @@ export class TripService implements ITripService {
 
     // Clear weather cache if trip dates changed (cached forecast may not cover new range)
     if (data.startDate !== undefined || data.endDate !== undefined) {
-      await this.db
-        .delete(weatherCache)
-        .where(eq(weatherCache.tripId, tripId));
+      await this.db.delete(weatherCache).where(eq(weatherCache.tripId, tripId));
     }
 
     // Perform update
@@ -1085,14 +1086,18 @@ export class TripService implements ITripService {
     const [eventRange] = await this.db
       .select({
         minStart: min(events.startTime),
-        maxEnd: max(sql<Date>`COALESCE(${events.endTime}, ${events.startTime})`),
+        maxEnd: max(
+          sql<Date>`COALESCE(${events.endTime}, ${events.startTime})`,
+        ),
       })
       .from(events)
       .where(and(eq(events.tripId, tripId), isNull(events.deletedAt)));
 
     const tripStart = trip.startDate ? new Date(trip.startDate) : null;
     const tripEnd = trip.endDate ? new Date(trip.endDate) : null;
-    const eventStart = eventRange?.minStart ? new Date(eventRange.minStart) : null;
+    const eventStart = eventRange?.minStart
+      ? new Date(eventRange.minStart)
+      : null;
     const eventEnd = eventRange?.maxEnd ? new Date(eventRange.maxEnd) : null;
 
     // Determine effective start: earliest of trip start and event start

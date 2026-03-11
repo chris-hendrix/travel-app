@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-  PinoDrizzleLogger,
-  instrumentPool,
-} from "@/plugins/query-logger.js";
+import { PinoDrizzleLogger, instrumentPool } from "@/plugins/query-logger.js";
 
 describe("PinoDrizzleLogger", () => {
   let logger: PinoDrizzleLogger;
-  let mockPino: { debug: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn> };
+  let mockPino: {
+    debug: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -103,7 +103,10 @@ describe("PinoDrizzleLogger", () => {
 
 describe("instrumentPool", () => {
   let queryLogger: PinoDrizzleLogger;
-  let mockPino: { debug: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn> };
+  let mockPino: {
+    debug: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -130,9 +133,14 @@ describe("instrumentPool", () => {
 
   it("should warn for slow promise-based queries (over threshold)", async () => {
     const mockPool = {
-      query: vi.fn().mockImplementation(
-        () => new Promise((resolve) => setTimeout(() => resolve({ rows: [] }), 60)),
-      ),
+      query: vi
+        .fn()
+        .mockImplementation(
+          () =>
+            new Promise((resolve) =>
+              setTimeout(() => resolve({ rows: [] }), 60),
+            ),
+        ),
     };
 
     // Use a very low threshold to trigger slow query warning
@@ -154,7 +162,10 @@ describe("instrumentPool", () => {
   it("should warn for slow callback-based queries", async () => {
     const mockPool = {
       query: vi.fn().mockImplementation((...args: unknown[]) => {
-        const cb = args[args.length - 1] as (err: unknown, res: unknown) => void;
+        const cb = args[args.length - 1] as (
+          err: unknown,
+          res: unknown,
+        ) => void;
         setTimeout(() => cb(null, { rows: [{ ok: true }] }), 60);
       }),
     };
@@ -186,7 +197,9 @@ describe("instrumentPool", () => {
 
     instrumentPool(mockPool as never, queryLogger, 500);
 
-    const result = await mockPool.query("SELECT * FROM trips WHERE id = $1", ["abc"]);
+    const result = await mockPool.query("SELECT * FROM trips WHERE id = $1", [
+      "abc",
+    ]);
 
     expect(result).toEqual(expectedResult);
     expect(result).toBe(expectedResult);

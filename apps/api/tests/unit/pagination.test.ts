@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
-import { encodeCursor, decodeCursor, decodeCursorAs } from "@/utils/pagination.js";
+import {
+  encodeCursor,
+  decodeCursor,
+  decodeCursorAs,
+} from "@/utils/pagination.js";
 import { InvalidCursorError } from "@/errors.js";
 
 describe("pagination utils", () => {

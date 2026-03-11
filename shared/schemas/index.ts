@@ -161,3 +161,9 @@ export {
   type GetMutualSuggestionsQueryInput,
   type GetMutualsResponse,
 } from "./mutuals";
+
+// Re-export photo schemas
+export {
+  updatePhotoCaptionSchema,
+  type UpdatePhotoCaptionInput,
+} from "./photo";

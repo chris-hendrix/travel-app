@@ -25,7 +25,9 @@ describe("input length validation", () => {
       const result = getMutualsQuerySchema.safeParse({ cursor });
       expect(result.success).toBe(false);
       if (!result.success) {
-        const issue = result.error.issues.find((i) => i.path.includes("cursor"));
+        const issue = result.error.issues.find((i) =>
+          i.path.includes("cursor"),
+        );
         expect(issue).toBeDefined();
       }
     });
@@ -41,7 +43,9 @@ describe("input length validation", () => {
       const result = getMutualSuggestionsQuerySchema.safeParse({ cursor });
       expect(result.success).toBe(false);
       if (!result.success) {
-        const issue = result.error.issues.find((i) => i.path.includes("cursor"));
+        const issue = result.error.issues.find((i) =>
+          i.path.includes("cursor"),
+        );
         expect(issue).toBeDefined();
       }
     });

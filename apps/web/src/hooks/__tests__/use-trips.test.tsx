@@ -118,7 +118,12 @@ describe("useTrips", () => {
       vi.mocked(apiRequest).mockResolvedValueOnce({
         success: true,
         data: mockTrips,
-        meta: { total: mockTrips.length, limit: 20, hasMore: false, nextCursor: null },
+        meta: {
+          total: mockTrips.length,
+          limit: 20,
+          hasMore: false,
+          nextCursor: null,
+        },
       });
 
       const { result } = renderHook(() => useTrips(), { wrapper });
@@ -167,15 +172,21 @@ describe("useTrips", () => {
       const mockResponse = {
         success: true as const,
         data: mockTrips,
-        meta: { total: mockTrips.length, limit: 20, hasMore: false, nextCursor: null },
+        meta: {
+          total: mockTrips.length,
+          limit: 20,
+          hasMore: false,
+          nextCursor: null,
+        },
       };
       vi.mocked(apiRequest).mockResolvedValueOnce(mockResponse);
 
       renderHook(() => useTrips(), { wrapper });
 
       await waitFor(() => {
-        const cachedData =
-          queryClient.getQueryData<InfiniteData<GetTripsResponse>>(["trips"]);
+        const cachedData = queryClient.getQueryData<
+          InfiniteData<GetTripsResponse>
+        >(["trips"]);
         expect(cachedData?.pages[0]?.data).toEqual(mockTrips);
       });
     });
@@ -218,7 +229,12 @@ describe("useTrips", () => {
       vi.mocked(apiRequest).mockResolvedValueOnce({
         success: true,
         data: mockTrips,
-        meta: { total: mockTrips.length, limit: 20, hasMore: false, nextCursor: null },
+        meta: {
+          total: mockTrips.length,
+          limit: 20,
+          hasMore: false,
+          nextCursor: null,
+        },
       });
 
       const { result } = renderHook(() => useTrips(), { wrapper });
@@ -245,8 +261,7 @@ describe("useTrips", () => {
       // Wait for refetch to complete and data to update
       await waitFor(
         () => {
-          const trips =
-            result.current.data?.pages.flatMap((p) => p.data) ?? [];
+          const trips = result.current.data?.pages.flatMap((p) => p.data) ?? [];
           expect(trips.length).toBe(1);
         },
         { timeout: 3000 },
@@ -465,8 +480,9 @@ describe("useCreateTrip", () => {
 
       // Check cache was updated optimistically (before API resolves)
       await waitFor(() => {
-        const cachedData =
-          queryClient.getQueryData<InfiniteData<GetTripsResponse>>(["trips"]);
+        const cachedData = queryClient.getQueryData<
+          InfiniteData<GetTripsResponse>
+        >(["trips"]);
         const cachedTrips = cachedData?.pages.flatMap((p) => p.data) ?? [];
         expect(cachedTrips).toHaveLength(2);
         expect(cachedTrips[0].id).toMatch(/^temp-/); // Temporary ID
@@ -560,8 +576,9 @@ describe("useCreateTrip", () => {
       });
 
       // Verify cache was rolled back to original state
-      const cachedData =
-        queryClient.getQueryData<InfiniteData<GetTripsResponse>>(["trips"]);
+      const cachedData = queryClient.getQueryData<
+        InfiniteData<GetTripsResponse>
+      >(["trips"]);
       expect(cachedData).toEqual(initialData);
     });
 

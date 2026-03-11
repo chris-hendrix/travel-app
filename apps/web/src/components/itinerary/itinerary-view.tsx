@@ -34,7 +34,12 @@ interface ItineraryViewProps {
   temperatureUnit?: TemperatureUnit | undefined;
 }
 
-export function ItineraryView({ tripId, onAddTravel, forecasts, temperatureUnit }: ItineraryViewProps) {
+export function ItineraryView({
+  tripId,
+  onAddTravel,
+  forecasts,
+  temperatureUnit,
+}: ItineraryViewProps) {
   const { user } = useAuth();
 
   // Fetch data

@@ -16,9 +16,7 @@ export function QueryErrorBoundaryWrapper({
 }) {
   return (
     <QueryErrorResetBoundary>
-      {({ reset }) => (
-        <ErrorBoundary onReset={reset}>{children}</ErrorBoundary>
-      )}
+      {({ reset }) => <ErrorBoundary onReset={reset}>{children}</ErrorBoundary>}
     </QueryErrorResetBoundary>
   );
 }

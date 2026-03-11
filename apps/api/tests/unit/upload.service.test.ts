@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
   existsSync,
   readdirSync,
-  unlinkSync,
   rmSync,
   readFileSync,
 } from "node:fs";
@@ -40,7 +39,7 @@ describe("upload.service", () => {
     if (existsSync(testUploadsDir)) {
       const files = readdirSync(testUploadsDir);
       files.forEach((file) => {
-        unlinkSync(resolve(testUploadsDir, file));
+        rmSync(resolve(testUploadsDir, file), { recursive: true, force: true });
       });
     }
   };

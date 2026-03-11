@@ -27,9 +27,7 @@ const baseAccommodationSchema = z.object({
   checkIn: z.string().datetime({ offset: true }).or(z.string().datetime()),
   checkOut: z.string().datetime({ offset: true }).or(z.string().datetime()),
   links: z
-    .array(
-      z.string().url("Link must be a valid URL"),
-    )
+    .array(z.string().url("Link must be a valid URL"))
     .max(10, {
       error: "Links must not exceed 10 items",
     })

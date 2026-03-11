@@ -38,7 +38,10 @@ export class NominatimGeocodingService implements IGeocodingService {
     try {
       const url = `${NOMINATIM_API_BASE}?q=${encodeURIComponent(query.trim())}&format=json&limit=1`;
       const response = await fetch(url, {
-        headers: { "User-Agent": "tripful-app (https://github.com/chris-hendrix/tripful)" },
+        headers: {
+          "User-Agent":
+            "tripful-app (https://github.com/chris-hendrix/tripful)",
+        },
       });
 
       if (!response.ok) return null;
@@ -63,4 +66,3 @@ export class NominatimGeocodingService implements IGeocodingService {
     }
   }
 }
-

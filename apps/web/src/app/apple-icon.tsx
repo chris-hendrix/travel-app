@@ -30,14 +30,61 @@ export default function AppleIcon() {
         </defs>
         <g transform="rotate(-6 16 16)">
           <rect x="3" y="6" width="26" height="20" rx="2" fill="url(#g)" />
-          <line x1="16" y1="9" x2="16" y2="23" stroke="#fff" strokeOpacity="0.5" strokeWidth="0.8" />
-          <rect x="21" y="8.5" width="5.5" height="5" rx="0.5" fill="#fff" fillOpacity="0.3" />
+          <line
+            x1="16"
+            y1="9"
+            x2="16"
+            y2="23"
+            stroke="#fff"
+            strokeOpacity="0.5"
+            strokeWidth="0.8"
+          />
+          <rect
+            x="21"
+            y="8.5"
+            width="5.5"
+            height="5"
+            rx="0.5"
+            fill="#fff"
+            fillOpacity="0.3"
+          />
           <circle cx="23.75" cy="11" r="1.5" fill="#fff" fillOpacity="0.5" />
-          <line x1="18.5" y1="16" x2="26" y2="16" stroke="#fff" strokeOpacity="0.6" strokeWidth="0.8" strokeLinecap="round" />
-          <line x1="18.5" y1="18.5" x2="26" y2="18.5" stroke="#fff" strokeOpacity="0.6" strokeWidth="0.8" strokeLinecap="round" />
-          <line x1="18.5" y1="21" x2="24" y2="21" stroke="#fff" strokeOpacity="0.6" strokeWidth="0.8" strokeLinecap="round" />
+          <line
+            x1="18.5"
+            y1="16"
+            x2="26"
+            y2="16"
+            stroke="#fff"
+            strokeOpacity="0.6"
+            strokeWidth="0.8"
+            strokeLinecap="round"
+          />
+          <line
+            x1="18.5"
+            y1="18.5"
+            x2="26"
+            y2="18.5"
+            stroke="#fff"
+            strokeOpacity="0.6"
+            strokeWidth="0.8"
+            strokeLinecap="round"
+          />
+          <line
+            x1="18.5"
+            y1="21"
+            x2="24"
+            y2="21"
+            stroke="#fff"
+            strokeOpacity="0.6"
+            strokeWidth="0.8"
+            strokeLinecap="round"
+          />
           <circle cx="8" cy="12" r="1.5" fill="#fff" fillOpacity="0.4" />
-          <path d="M5 21 L8.5 15 L11 19 L12.5 16.5 L14.5 21 Z" fill="#fff" fillOpacity="0.35" />
+          <path
+            d="M5 21 L8.5 15 L11 19 L12.5 16.5 L14.5 21 Z"
+            fill="#fff"
+            fillOpacity="0.35"
+          />
         </g>
       </svg>
     </div>,

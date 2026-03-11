@@ -136,7 +136,9 @@ test.describe("Invitation Journey", () => {
         await page.goto(`/trips/${tripId}`);
 
         // Verify preview mode
-        await expect(page.locator("#main-content").getByText("You've been invited!")).toBeVisible({
+        await expect(
+          page.locator("#main-content").getByText("You've been invited!"),
+        ).toBeVisible({
           timeout: NAVIGATION_TIMEOUT,
         });
         await expect(
@@ -183,7 +185,9 @@ test.describe("Invitation Journey", () => {
         });
 
         // Preview should disappear
-        await expect(page.locator("#main-content").getByText("You've been invited!")).not.toBeVisible({
+        await expect(
+          page.locator("#main-content").getByText("You've been invited!"),
+        ).not.toBeVisible({
           timeout: ELEMENT_TIMEOUT,
         });
 
@@ -257,7 +261,9 @@ test.describe("Invitation Journey", () => {
 
         // Navigate to trip to verify event is visible
         await page.goto(`/trips/${tripId}`);
-        await expect(page.getByText(eventName)).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
+        await expect(page.getByText(eventName)).toBeVisible({
+          timeout: NAVIGATION_TIMEOUT,
+        });
       });
 
       await test.step("member changes RSVP to Maybe", async () => {
@@ -273,7 +279,9 @@ test.describe("Invitation Journey", () => {
         await page.reload();
 
         // Since member is now "maybe" (non-Going), they should see preview
-        await expect(page.locator("#main-content").getByText("You've been invited!")).toBeVisible({
+        await expect(
+          page.locator("#main-content").getByText("You've been invited!"),
+        ).toBeVisible({
           timeout: NAVIGATION_TIMEOUT,
         });
         await snap(page, "15-rsvp-changed-to-maybe");
@@ -309,7 +317,10 @@ test.describe("Invitation Journey", () => {
         // The organizer is already on the trip detail page from the previous step.
         // Click the RSVP dropdown (organizer is "Going" by default)
         const rsvpButton = page.getByRole("button", { name: "Going" });
-        await rsvpButton.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await rsvpButton.waitFor({
+          state: "visible",
+          timeout: ELEMENT_TIMEOUT,
+        });
         await rsvpButton.click();
 
         // Select "Maybe" from the dropdown
@@ -326,7 +337,10 @@ test.describe("Invitation Journey", () => {
 
         // Trigger button should now show "Maybe"
         const maybeButton = page.getByRole("button", { name: "Maybe" });
-        await maybeButton.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await maybeButton.waitFor({
+          state: "visible",
+          timeout: ELEMENT_TIMEOUT,
+        });
 
         // Change back to "Going" via dropdown
         await maybeButton.click();
@@ -340,9 +354,9 @@ test.describe("Invitation Journey", () => {
         });
         await dismissToast(page);
 
-        await expect(
-          page.getByRole("button", { name: "Going" }),
-        ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+        await expect(page.getByRole("button", { name: "Going" })).toBeVisible({
+          timeout: ELEMENT_TIMEOUT,
+        });
 
         await snap(page, "16b-organizer-rsvp-dropdown");
       });
@@ -487,7 +501,10 @@ test.describe("Invitation Journey", () => {
       const memberCountBtn = page
         .getByRole("button")
         .filter({ hasText: /\d+ members?/ });
-      await memberCountBtn.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+      await memberCountBtn.waitFor({
+        state: "visible",
+        timeout: ELEMENT_TIMEOUT,
+      });
       const dialog = page.getByRole("dialog");
       await expect(async () => {
         await memberCountBtn.click();
@@ -560,7 +577,9 @@ test.describe("Invitation Journey", () => {
         await page.goto(`/trips/${tripId}`);
 
         // Verify preview mode
-        await expect(page.locator("#main-content").getByText("You've been invited!")).toBeVisible({
+        await expect(
+          page.locator("#main-content").getByText("You've been invited!"),
+        ).toBeVisible({
           timeout: NAVIGATION_TIMEOUT,
         });
       });
@@ -705,7 +724,9 @@ test.describe("Invitation Journey", () => {
         await expect(page.getByText(/\d+ members?/)).toBeVisible();
 
         // Preview should not be visible
-        await expect(page.locator("#main-content").getByText("You've been invited!")).not.toBeVisible();
+        await expect(
+          page.locator("#main-content").getByText("You've been invited!"),
+        ).not.toBeVisible();
 
         await snap(page, "25-wizard-complete-full-view");
       });

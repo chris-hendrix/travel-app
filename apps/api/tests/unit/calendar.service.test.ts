@@ -99,9 +99,7 @@ describe("CalendarService.generateIcsFeed", () => {
 
       expect(ics).toContain("BEGIN:VEVENT");
       expect(ics).toContain(`SUMMARY:${trip.name}`);
-      expect(ics).toContain(
-        `UID:trip-${trip.id}@tripful.app`,
-      );
+      expect(ics).toContain(`UID:trip-${trip.id}@tripful.app`);
       expect(ics).toContain("TRANSP:TRANSPARENT");
       // All-day events use DATE (not DATE-TIME)
       expect(ics).toContain("DTSTART;VALUE=DATE:20260701");
@@ -192,7 +190,10 @@ describe("CalendarService.generateIcsFeed", () => {
 
     it("should convert UTC times to trip timezone", () => {
       // 2026-07-02T23:00:00Z = 6:00 PM CDT (America/Cancun is UTC-5 year-round)
-      const trip = makeTrip({ startDate: null, preferredTimezone: "America/Cancun" });
+      const trip = makeTrip({
+        startDate: null,
+        preferredTimezone: "America/Cancun",
+      });
       const event = makeEvent({
         startTime: new Date("2026-07-02T23:00:00Z"),
         endTime: new Date("2026-07-03T02:00:00Z"),

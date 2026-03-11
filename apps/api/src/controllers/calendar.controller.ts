@@ -25,8 +25,9 @@ export const calendarController = {
       });
     }
 
-    const tripsWithEvents =
-      await calendarService.getCalendarTripsAndEvents(user.id);
+    const tripsWithEvents = await calendarService.getCalendarTripsAndEvents(
+      user.id,
+    );
     const icsContent = calendarService.generateIcsFeed(tripsWithEvents);
 
     return reply
@@ -35,10 +36,7 @@ export const calendarController = {
       .send(icsContent);
   },
 
-  async getStatus(
-    request: FastifyRequest,
-    reply: FastifyReply,
-  ): Promise<void> {
+  async getStatus(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const userId = request.user.sub;
     const { calendarService } = request.server;
 
@@ -51,10 +49,7 @@ export const calendarController = {
     });
   },
 
-  async enable(
-    request: FastifyRequest,
-    reply: FastifyReply,
-  ): Promise<void> {
+  async enable(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const userId = request.user.sub;
     const { calendarService } = request.server;
 
@@ -67,10 +62,7 @@ export const calendarController = {
     });
   },
 
-  async disable(
-    request: FastifyRequest,
-    reply: FastifyReply,
-  ): Promise<void> {
+  async disable(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const userId = request.user.sub;
     const { calendarService } = request.server;
 

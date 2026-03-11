@@ -92,7 +92,9 @@ export function AppHeader() {
                   size="icon"
                   className="hidden md:flex rounded-full"
                   aria-label="User menu"
-                  onMouseEnter={supportsHover ? preloadProfileDialog : undefined}
+                  onMouseEnter={
+                    supportsHover ? preloadProfileDialog : undefined
+                  }
                   onTouchStart={preloadProfileDialog}
                   onFocus={preloadProfileDialog}
                 >
@@ -104,7 +106,9 @@ export function AppHeader() {
                   <>
                     <DropdownMenuItem
                       onSelect={() => setProfileDialogOpen(true)}
-                      onMouseEnter={supportsHover ? preloadProfileDialog : undefined}
+                      onMouseEnter={
+                        supportsHover ? preloadProfileDialog : undefined
+                      }
                       onTouchStart={preloadProfileDialog}
                       onFocus={preloadProfileDialog}
                       className="flex flex-col items-start gap-0 font-accent"

@@ -272,17 +272,26 @@ describe("mySettingsResponseSchema", () => {
   });
 
   it("should reject missing success field", () => {
-    const result = mySettingsResponseSchema.safeParse({ sharePhone: true, calendarExcluded: false });
+    const result = mySettingsResponseSchema.safeParse({
+      sharePhone: true,
+      calendarExcluded: false,
+    });
     expect(result.success).toBe(false);
   });
 
   it("should reject missing sharePhone field", () => {
-    const result = mySettingsResponseSchema.safeParse({ success: true, calendarExcluded: false });
+    const result = mySettingsResponseSchema.safeParse({
+      success: true,
+      calendarExcluded: false,
+    });
     expect(result.success).toBe(false);
   });
 
   it("should reject missing calendarExcluded field", () => {
-    const result = mySettingsResponseSchema.safeParse({ success: true, sharePhone: true });
+    const result = mySettingsResponseSchema.safeParse({
+      success: true,
+      sharePhone: true,
+    });
     expect(result.success).toBe(false);
   });
 });

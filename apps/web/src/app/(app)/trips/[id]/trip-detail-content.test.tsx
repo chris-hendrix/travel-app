@@ -104,6 +104,11 @@ vi.mock("@/components/itinerary/itinerary-view", () => ({
   ),
 }));
 
+// Mock PhotosSection component to avoid QueryClientProvider requirement
+vi.mock("@/components/photos/photos-section", () => ({
+  PhotosSection: () => <div data-testid="photos-section">Photos Section</div>,
+}));
+
 // Mock useRemoveMember, useUpdateMemberRole hooks
 const mockRemoveMember = vi.hoisted(() => ({
   mutate: vi.fn(),
@@ -138,10 +143,9 @@ vi.mock("@/hooks/invitation-queries", () => ({
 
 // Mock useQuery from @tanstack/react-query for direct usage in the component
 vi.mock("@tanstack/react-query", async () => {
-  const actual =
-    await vi.importActual<typeof import("@tanstack/react-query")>(
-      "@tanstack/react-query",
-    );
+  const actual = await vi.importActual<typeof import("@tanstack/react-query")>(
+    "@tanstack/react-query",
+  );
   return {
     ...actual,
     useQuery: (options: any) => {
@@ -336,7 +340,10 @@ vi.mock("@/components/trip/customize-theme-sheet", () => ({
     open ? (
       <div data-testid="customize-theme-sheet">
         Customize Theme
-        <button data-testid="theme-sheet-close" onClick={() => onOpenChange(false)}>
+        <button
+          data-testid="theme-sheet-close"
+          onClick={() => onOpenChange(false)}
+        >
           Close Theme Sheet
         </button>
       </div>
@@ -770,7 +777,7 @@ describe("TripDetailContent", () => {
       });
     });
 
-    it("hides description section when description is null", async () => {
+    it("hides description text when description is null", async () => {
       const tripWithoutDescription = { ...mockTripDetail, description: null };
       mockUseTripDetail.mockReturnValue({
         data: tripWithoutDescription,
@@ -792,7 +799,11 @@ describe("TripDetailContent", () => {
         ).toBeDefined();
       });
 
-      expect(screen.queryByText("About this trip")).toBeNull();
+      // "About this trip" section still renders (contains weather), but description text is absent
+      expect(screen.getByText("About this trip")).toBeDefined();
+      expect(
+        screen.queryByText("Epic bachelor party weekend with the crew!"),
+      ).toBeNull();
     });
   });
 
@@ -883,9 +894,7 @@ describe("TripDetailContent", () => {
       );
 
       await waitFor(() => {
-        expect(
-          screen.getByRole("button", { name: "Edit trip" }),
-        ).toBeDefined();
+        expect(screen.getByRole("button", { name: "Edit trip" })).toBeDefined();
         expect(
           screen.getByRole("button", { name: "Invite members" }),
         ).toBeDefined();
@@ -1244,7 +1253,7 @@ describe("TripDetailContent", () => {
       });
     });
 
-    it("handles null description (doesn't render section)", async () => {
+    it("handles null description (section renders without description text)", async () => {
       const tripWithoutDescription = { ...mockTripDetail, description: null };
       mockUseTripDetail.mockReturnValue({
         data: tripWithoutDescription,
@@ -1266,7 +1275,11 @@ describe("TripDetailContent", () => {
         ).toBeDefined();
       });
 
-      expect(screen.queryByText("About this trip")).toBeNull();
+      // "About this trip" section still renders (contains weather), but description text is absent
+      expect(screen.getByText("About this trip")).toBeDefined();
+      expect(
+        screen.queryByText("Epic bachelor party weekend with the crew!"),
+      ).toBeNull();
     });
 
     it("handles empty organizers list", async () => {
@@ -2045,5 +2058,4 @@ describe("TripDetailContent", () => {
       });
     });
   });
-
 });

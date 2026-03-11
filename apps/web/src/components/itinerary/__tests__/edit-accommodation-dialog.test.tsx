@@ -360,9 +360,7 @@ describe("EditAccommodationDialog", () => {
       );
 
       const title = screen.getByText("Edit accommodation");
-      expect(title.className).toContain(
-        "font-playfair",
-      );
+      expect(title.className).toContain("font-playfair");
     });
   });
 });

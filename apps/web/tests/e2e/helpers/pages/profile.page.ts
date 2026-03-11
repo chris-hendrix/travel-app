@@ -41,9 +41,7 @@ export class ProfilePage {
 
   /** Returns true if the mobile hamburger menu is visible (small viewport). */
   private async isMobileViewport(): Promise<boolean> {
-    return this.page
-      .getByRole("button", { name: "Open menu" })
-      .isVisible();
+    return this.page.getByRole("button", { name: "Open menu" }).isVisible();
   }
 
   /** Open the profile dialog from the header dropdown or mobile nav (adapts to viewport) */

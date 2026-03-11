@@ -535,9 +535,7 @@ describe("InviteMembersDialog", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
       const title = screen.getByText("Invite members");
-      expect(title.className).toContain(
-        "font-playfair",
-      );
+      expect(title.className).toContain("font-playfair");
     });
 
     it("submit button uses gradient variant", () => {

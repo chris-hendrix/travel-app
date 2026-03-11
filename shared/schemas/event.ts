@@ -34,9 +34,7 @@ const baseEventSchema = z.object({
   allDay: z.boolean().default(false),
   isOptional: z.boolean().default(false),
   links: z
-    .array(
-      z.string().url("Link must be a valid URL"),
-    )
+    .array(z.string().url("Link must be a valid URL"))
     .max(10, {
       error: "Links must not exceed 10 items",
     })

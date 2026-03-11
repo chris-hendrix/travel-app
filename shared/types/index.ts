@@ -123,11 +123,7 @@ export type { Mutual, GetMutualsResponse } from "./mutuals";
 
 // Re-export theme types
 export { THEME_FONT_VALUES } from "./theme";
-export type {
-  ThemeFont,
-  ThemeBackground,
-  ThemePreset,
-} from "./theme";
+export type { ThemeFont, ThemeBackground, ThemePreset } from "./theme";
 
 // Re-export weather types
 export type {
@@ -135,3 +131,12 @@ export type {
   DailyForecast,
   TripWeatherResponse,
 } from "./weather";
+
+// Re-export photo types
+export type {
+  PhotoStatus,
+  Photo,
+  GetPhotosResponse,
+  UploadPhotosResponse,
+  UpdatePhotoResponse,
+} from "./photo";

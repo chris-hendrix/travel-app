@@ -19,11 +19,8 @@ export class PinoDrizzleLogger implements DrizzleLogger {
     this.logger?.debug({ query, params }, "db query");
   }
 
-  warnSlowQuery(
-    query: string | { text?: string },
-    durationMs: number,
-  ): void {
-    const sql = typeof query === "string" ? query : query?.text ?? "unknown";
+  warnSlowQuery(query: string | { text?: string }, durationMs: number): void {
+    const sql = typeof query === "string" ? query : (query?.text ?? "unknown");
     this.logger?.warn(
       { query: sql, duration_ms: Math.round(durationMs) },
       "slow query detected",

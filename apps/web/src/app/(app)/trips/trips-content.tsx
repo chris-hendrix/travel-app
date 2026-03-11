@@ -15,7 +15,10 @@ import { EmptyState } from "@/components/ui/empty-state";
 
 function SkeletonCard() {
   return (
-    <div className="postcard-mat" style={{ background: "var(--color-secondary)" }}>
+    <div
+      className="postcard-mat"
+      style={{ background: "var(--color-secondary)" }}
+    >
       <div className="postcard-image">
         <Skeleton className="absolute inset-0 rounded-none" />
       </div>
@@ -71,14 +74,7 @@ export function TripsContent() {
     return () => clearTimeout(timeout);
   }, [searchQuery]);
 
-  const {
-    data,
-    isPending,
-    isError,
-    error,
-    refetch,
-    isFetching,
-  } = useTrips();
+  const { data, isPending, isError, error, refetch, isFetching } = useTrips();
 
   const trips = data?.pages.flatMap((p) => p.data) ?? [];
 
@@ -94,7 +90,8 @@ export function TripsContent() {
     );
   }, [trips, searchQuery]);
 
-  // Split trips into upcoming and past based on start date
+  // Split trips into upcoming and past based on end date (or start date)
+  // Trips stay "upcoming" until one day after their end date
   const { upcomingTrips, pastTrips } = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -105,8 +102,10 @@ export function TripsContent() {
         upcoming.push(trip);
         continue;
       }
-      const startDate = new Date(trip.startDate);
-      if (startDate >= today) {
+      const effectiveEnd = new Date(trip.endDate ?? trip.startDate);
+      effectiveEnd.setDate(effectiveEnd.getDate() + 1);
+      effectiveEnd.setHours(23, 59, 59, 999);
+      if (effectiveEnd >= today) {
         upcoming.push(trip);
       } else {
         past.push(trip);
@@ -236,7 +235,9 @@ export function TripsContent() {
               >
                 <h2 className="text-xl sm:text-2xl font-semibold text-foreground mb-4 font-playfair">
                   Upcoming trips
-                  <span className="block text-xs font-normal text-muted-foreground font-accent tracking-wider uppercase mt-1">Departures</span>
+                  <span className="block text-xs font-normal text-muted-foreground font-accent tracking-wider uppercase mt-1">
+                    Departures
+                  </span>
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                   {upcomingTrips.map((trip, index) => (
@@ -250,11 +251,17 @@ export function TripsContent() {
             {pastTrips.length > 0 && (
               <section
                 ref={pastSectionRef}
-                className={pastRevealed ? "motion-safe:animate-[revealUp_400ms_ease-out_both]" : "motion-safe:opacity-0"}
+                className={
+                  pastRevealed
+                    ? "motion-safe:animate-[revealUp_400ms_ease-out_both]"
+                    : "motion-safe:opacity-0"
+                }
               >
                 <h2 className="text-xl sm:text-2xl font-semibold text-foreground mb-4 font-playfair">
                   Past trips
-                  <span className="block text-xs font-normal text-muted-foreground font-accent tracking-wider uppercase mt-1">Memories</span>
+                  <span className="block text-xs font-normal text-muted-foreground font-accent tracking-wider uppercase mt-1">
+                    Memories
+                  </span>
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                   {pastTrips.map((trip, index) => (

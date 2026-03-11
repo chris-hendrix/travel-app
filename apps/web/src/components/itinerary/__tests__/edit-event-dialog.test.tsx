@@ -482,9 +482,7 @@ describe("EditEventDialog", () => {
       );
 
       const title = screen.getByText("Edit event");
-      expect(title.className).toContain(
-        "font-playfair",
-      );
+      expect(title.className).toContain("font-playfair");
     });
 
     it("applies rounded-md to buttons", () => {

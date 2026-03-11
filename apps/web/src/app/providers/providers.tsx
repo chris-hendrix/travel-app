@@ -26,7 +26,10 @@ export function Providers({ children }: { children: ReactNode }) {
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>{children}</AuthProvider>
-        <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
+        <ReactQueryDevtools
+          initialIsOpen={false}
+          buttonPosition="bottom-left"
+        />
         <Toaster />
       </QueryClientProvider>
     </ThemeProvider>

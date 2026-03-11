@@ -26,7 +26,9 @@ export const users = pgTable(
     profilePhotoUrl: text("profile_photo_url"),
     handles: jsonb("handles").$type<Record<string, string>>(),
     timezone: varchar("timezone", { length: 100 }),
-    temperatureUnit: varchar("temperature_unit", { length: 10 }).default("celsius"),
+    temperatureUnit: varchar("temperature_unit", { length: 10 }).default(
+      "celsius",
+    ),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -35,9 +37,7 @@ export const users = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => [
-    index("users_phone_number_idx").on(table.phoneNumber),
-  ],
+  (table) => [index("users_phone_number_idx").on(table.phoneNumber)],
 );
 
 // Inferred types for users table
@@ -105,9 +105,7 @@ export const trips = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => [
-    index("trips_created_by_idx").on(table.createdBy),
-  ],
+  (table) => [index("trips_created_by_idx").on(table.createdBy)],
 );
 
 // Inferred types for trips table
@@ -139,10 +137,7 @@ export const members = pgTable(
   (table) => [
     index("members_trip_id_idx").on(table.tripId),
     index("members_user_id_idx").on(table.userId),
-    unique("members_trip_user_unique").on(
-      table.tripId,
-      table.userId,
-    ),
+    unique("members_trip_user_unique").on(table.tripId, table.userId),
     index("members_trip_id_is_organizer_idx").on(
       table.tripId,
       table.isOrganizer,
@@ -178,9 +173,7 @@ export const invitations = pgTable(
   },
   (table) => [
     index("invitations_trip_id_idx").on(table.tripId),
-    index("invitations_invitee_phone_idx").on(
-      table.inviteePhone,
-    ),
+    index("invitations_invitee_phone_idx").on(table.inviteePhone),
     unique("invitations_trip_phone_unique").on(
       table.tripId,
       table.inviteePhone,
@@ -228,10 +221,7 @@ export const events = pgTable(
     index("events_created_by_idx").on(table.createdBy),
     index("events_start_time_idx").on(table.startTime),
     index("events_deleted_at_idx").on(table.deletedAt),
-    index("events_trip_id_deleted_at_idx").on(
-      table.tripId,
-      table.deletedAt,
-    ),
+    index("events_trip_id_deleted_at_idx").on(table.tripId, table.deletedAt),
     index("events_trip_id_not_deleted_idx")
       .on(table.tripId)
       .where(sql`${table.deletedAt} IS NULL`),
@@ -361,10 +351,7 @@ export const messages = pgTable(
       .defaultNow(),
   },
   (table) => [
-    index("messages_trip_id_created_at_idx").on(
-      table.tripId,
-      table.createdAt,
-    ),
+    index("messages_trip_id_created_at_idx").on(table.tripId, table.createdAt),
     index("messages_parent_id_idx").on(table.parentId),
     index("messages_author_id_idx").on(table.authorId),
     index("messages_trip_toplevel_idx")
@@ -398,9 +385,11 @@ export const messageReactions = pgTable(
   (table) => [
     index("message_reactions_message_id_idx").on(table.messageId),
     index("message_reactions_user_id_idx").on(table.userId),
-    unique(
-      "message_reactions_message_user_emoji_unique",
-    ).on(table.messageId, table.userId, table.emoji),
+    unique("message_reactions_message_user_emoji_unique").on(
+      table.messageId,
+      table.userId,
+      table.emoji,
+    ),
   ],
 );
 
@@ -432,9 +421,10 @@ export const notifications = pgTable(
       table.userId,
       table.createdAt,
     ),
-    index(
-      "notifications_user_id_created_at_desc_idx",
-    ).on(table.userId, table.createdAt.desc()),
+    index("notifications_user_id_created_at_desc_idx").on(
+      table.userId,
+      table.createdAt.desc(),
+    ),
     index("notifications_user_unread_idx")
       .on(table.userId, table.createdAt)
       .where(sql`${table.readAt} IS NULL`),
@@ -501,10 +491,7 @@ export const mutedMembers = pgTable(
       .defaultNow(),
   },
   (table) => [
-    unique("muted_members_trip_user_unique").on(
-      table.tripId,
-      table.userId,
-    ),
+    unique("muted_members_trip_user_unique").on(table.tripId, table.userId),
   ],
 );
 
@@ -529,10 +516,7 @@ export const sentReminders = pgTable(
       table.referenceId,
       table.userId,
     ),
-    index("sent_reminders_type_ref_idx").on(
-      table.type,
-      table.referenceId,
-    ),
+    index("sent_reminders_type_ref_idx").on(table.type, table.referenceId),
   ],
 );
 
@@ -553,11 +537,7 @@ export const blacklistedTokens = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => [
-    index("blacklisted_tokens_expires_at_idx").on(
-      table.expiresAt,
-    ),
-  ],
+  (table) => [index("blacklisted_tokens_expires_at_idx").on(table.expiresAt)],
 );
 
 export type BlacklistedToken = typeof blacklistedTokens.$inferSelect;
@@ -582,11 +562,7 @@ export const rateLimitEntries = pgTable(
     count: integer("count").notNull().default(0),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   },
-  (table) => [
-    index("rate_limit_entries_expires_at_idx").on(
-      table.expiresAt,
-    ),
-  ],
+  (table) => [index("rate_limit_entries_expires_at_idx").on(table.expiresAt)],
 );
 
 export type RateLimitEntry = typeof rateLimitEntries.$inferSelect;
@@ -594,10 +570,51 @@ export type NewRateLimitEntry = typeof rateLimitEntries.$inferInsert;
 
 // Weather Cache
 export const weatherCache = pgTable("weather_cache", {
-  tripId: uuid("trip_id").primaryKey().references(() => trips.id, { onDelete: "cascade" }),
+  tripId: uuid("trip_id")
+    .primaryKey()
+    .references(() => trips.id, { onDelete: "cascade" }),
   response: jsonb("response").notNull(),
-  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 export type WeatherCache = typeof weatherCache.$inferSelect;
 export type NewWeatherCache = typeof weatherCache.$inferInsert;
+
+// Trip Photos
+export const photoStatusEnum = pgEnum("photo_status", [
+  "processing",
+  "ready",
+  "failed",
+]);
+
+export const tripPhotos = pgTable(
+  "trip_photos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tripId: uuid("trip_id")
+      .notNull()
+      .references(() => trips.id, { onDelete: "cascade" }),
+    uploadedBy: uuid("uploaded_by")
+      .notNull()
+      .references(() => users.id),
+    url: text("url"),
+    caption: varchar("caption", { length: 200 }),
+    status: photoStatusEnum("status").notNull().default("processing"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("trip_photos_trip_id_idx").on(table.tripId),
+    index("trip_photos_uploaded_by_idx").on(table.uploadedBy),
+  ],
+);
+
+export type TripPhoto = typeof tripPhotos.$inferSelect;
+export type NewTripPhoto = typeof tripPhotos.$inferInsert;

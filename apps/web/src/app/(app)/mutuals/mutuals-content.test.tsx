@@ -33,10 +33,9 @@ vi.mock("@/hooks/use-trips", () => ({
 
 // Mock useInfiniteQuery from @tanstack/react-query for direct usage in the component
 vi.mock("@tanstack/react-query", async () => {
-  const actual =
-    await vi.importActual<typeof import("@tanstack/react-query")>(
-      "@tanstack/react-query",
-    );
+  const actual = await vi.importActual<typeof import("@tanstack/react-query")>(
+    "@tanstack/react-query",
+  );
   return {
     ...actual,
     useInfiniteQuery: (options: any) => {
@@ -437,8 +436,7 @@ describe("MutualsContent", () => {
     beforeEach(() => {
       originalHasPointerCapture = Element.prototype.hasPointerCapture;
       originalSetPointerCapture = Element.prototype.setPointerCapture;
-      originalReleasePointerCapture =
-        Element.prototype.releasePointerCapture;
+      originalReleasePointerCapture = Element.prototype.releasePointerCapture;
       originalScrollIntoView = Element.prototype.scrollIntoView;
       Element.prototype.hasPointerCapture = vi.fn(() => false);
       Element.prototype.setPointerCapture = vi.fn();
@@ -449,8 +447,7 @@ describe("MutualsContent", () => {
     afterEach(() => {
       Element.prototype.hasPointerCapture = originalHasPointerCapture;
       Element.prototype.setPointerCapture = originalSetPointerCapture;
-      Element.prototype.releasePointerCapture =
-        originalReleasePointerCapture;
+      Element.prototype.releasePointerCapture = originalReleasePointerCapture;
       Element.prototype.scrollIntoView = originalScrollIntoView;
     });
 

@@ -12,6 +12,8 @@ export const QUEUE = {
   INVITATION_SEND_DLQ: "invitation/send/dlq",
   DAILY_ITINERARIES: "daily-itineraries",
   DAILY_ITINERARIES_DLQ: "daily-itineraries/dlq",
+  PHOTO_PROCESSING: "photo/process",
+  PHOTO_PROCESSING_DLQ: "photo/process/dlq",
   RATE_LIMIT_CLEANUP: "rate-limit/cleanup",
   AUTH_ATTEMPTS_CLEANUP: "auth-attempts/cleanup",
   TOKEN_BLACKLIST_CLEANUP: "token-blacklist/cleanup",
@@ -34,6 +36,12 @@ export interface NotificationDeliverPayload {
 export interface InvitationSendPayload {
   phoneNumber: string;
   message: string;
+}
+
+export interface PhotoProcessingPayload {
+  photoId: string;
+  tripId: string;
+  rawKey: string;
 }
 
 export interface WorkerDeps {

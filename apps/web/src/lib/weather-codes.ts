@@ -11,7 +11,13 @@ import {
   CloudLightning,
 } from "lucide-react";
 
-export type WeatherTone = "sunny" | "cloudy" | "fog" | "rain" | "snow" | "storm";
+export type WeatherTone =
+  | "sunny"
+  | "cloudy"
+  | "fog"
+  | "rain"
+  | "snow"
+  | "storm";
 
 export interface WeatherInfo {
   label: string;
@@ -61,11 +67,23 @@ const WMO_CODE_MAP: Record<number, WeatherInfo> = {
 
   // Thunderstorm
   95: { label: "Thunderstorm", icon: CloudLightning, tone: "storm" },
-  96: { label: "Thunderstorm with slight hail", icon: CloudLightning, tone: "storm" },
-  99: { label: "Thunderstorm with heavy hail", icon: CloudLightning, tone: "storm" },
+  96: {
+    label: "Thunderstorm with slight hail",
+    icon: CloudLightning,
+    tone: "storm",
+  },
+  99: {
+    label: "Thunderstorm with heavy hail",
+    icon: CloudLightning,
+    tone: "storm",
+  },
 };
 
-const UNKNOWN_WEATHER: WeatherInfo = { label: "Unknown", icon: Cloud, tone: "cloudy" };
+const UNKNOWN_WEATHER: WeatherInfo = {
+  label: "Unknown",
+  icon: Cloud,
+  tone: "cloudy",
+};
 
 /**
  * Get human-readable label and Lucide icon for a WMO weather code.

@@ -35,11 +35,7 @@ export function PostcardBack({
           <div className="w-12 h-14 sm:w-14 sm:h-16 border-2 border-dashed border-border rounded-sm bg-card/50" />
           {/* Postmark overlapping stamp */}
           <div className="-ml-6 mt-2">
-            <PostmarkStamp
-              date={stampDate}
-              city={stampCity}
-              size="md"
-            />
+            <PostmarkStamp date={stampDate} city={stampCity} size="md" />
           </div>
         </div>
 
@@ -51,11 +47,7 @@ export function PostcardBack({
           </div>
 
           {/* Right: metadata aside */}
-          {aside && (
-            <div className="mt-6 md:mt-0 pt-6 md:pt-10">
-              {aside}
-            </div>
-          )}
+          {aside && <div className="mt-6 md:mt-0 pt-6 md:pt-10">{aside}</div>}
         </div>
       </div>
 

@@ -101,7 +101,10 @@ export function useThemePreview({
   const snapshotRef = useRef<CssSnapshot | null>(null);
   const committedRef = useRef(false);
   const hasSeenInitialRef = useRef(false);
-  const prevInitialRef = useRef({ themeId: initialThemeId, font: initialThemeFont });
+  const prevInitialRef = useRef({
+    themeId: initialThemeId,
+    font: initialThemeFont,
+  });
 
   // Take snapshot when enabled transitions to true
   useEffect(() => {
@@ -135,7 +138,10 @@ export function useThemePreview({
       prevInitialRef.current.themeId !== initialThemeId ||
       prevInitialRef.current.font !== initialThemeFont
     ) {
-      prevInitialRef.current = { themeId: initialThemeId, font: initialThemeFont };
+      prevInitialRef.current = {
+        themeId: initialThemeId,
+        font: initialThemeFont,
+      };
       // TripThemeProvider (layout effect) already applied correct styles
       snapshotRef.current = snapshotInlineStyles();
     }

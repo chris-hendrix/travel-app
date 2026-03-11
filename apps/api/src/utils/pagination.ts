@@ -23,7 +23,11 @@ export function encodeCursor(data: Record<string, unknown>): string {
 export function decodeCursor(cursor: string): Record<string, unknown> {
   try {
     const parsed = JSON.parse(Buffer.from(cursor, "base64url").toString());
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    if (
+      typeof parsed !== "object" ||
+      parsed === null ||
+      Array.isArray(parsed)
+    ) {
       throw new InvalidCursorError("Invalid cursor format");
     }
     return parsed as Record<string, unknown>;

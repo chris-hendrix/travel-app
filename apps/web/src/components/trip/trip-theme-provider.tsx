@@ -72,8 +72,7 @@ export function TripThemeProvider({
   const localStyles: Record<string, string> = resolvePaletteStyles(preset);
 
   if (themeFont && themeFont in THEME_FONTS) {
-    localStyles.fontFamily =
-      THEME_FONTS[themeFont as keyof typeof THEME_FONTS];
+    localStyles.fontFamily = THEME_FONTS[themeFont as keyof typeof THEME_FONTS];
   }
 
   return (

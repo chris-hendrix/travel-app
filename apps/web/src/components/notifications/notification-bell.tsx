@@ -159,11 +159,7 @@ function NotificationPreview({
 
   if (notifications.length === 0) {
     return (
-      <EmptyState
-        variant="inline"
-        icon={Bell}
-        title="No notifications yet"
-      />
+      <EmptyState variant="inline" icon={Bell} title="No notifications yet" />
     );
   }
 
@@ -231,7 +227,9 @@ function NotificationSheet({
         </SheetHeader>
 
         <SheetBody>
-          {open && <NotificationSheetBody onClose={() => onOpenChange(false)} />}
+          {open && (
+            <NotificationSheetBody onClose={() => onOpenChange(false)} />
+          )}
         </SheetBody>
       </SheetContent>
     </Sheet>
@@ -292,9 +290,7 @@ function NotificationSheetBody({ onClose }: { onClose: () => void }) {
     return (
       <div className="flex flex-col items-center justify-center px-4 py-10">
         <Bell className="mb-2 size-8 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">
-          No notifications yet
-        </p>
+        <p className="text-sm text-muted-foreground">No notifications yet</p>
       </div>
     );
   }

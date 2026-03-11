@@ -137,7 +137,9 @@ export function CustomizeThemeSheet({
     (_url: string | null) => {
       // ImageUpload handles the upload directly via tripId prop.
       // Invalidate the trip query so the hero updates.
-      void queryClient.invalidateQueries({ queryKey: tripKeys.detail(trip.id) });
+      void queryClient.invalidateQueries({
+        queryKey: tripKeys.detail(trip.id),
+      });
       void queryClient.invalidateQueries({
         queryKey: tripKeys.all,
         exact: true,
@@ -238,7 +240,6 @@ export function CustomizeThemeSheet({
               <FontPicker value={themeFont} onChange={handleFontChange} />
             </div>
           </div>
-
         </SheetBody>
         <SheetFooter>
           <SheetClose asChild>

@@ -113,7 +113,6 @@ describe("TripCard", () => {
       expect(image).toBeDefined();
       expect(image.src).toBe("https://example.com/beach.jpg");
     });
-
   });
 
   describe("RSVP badge rendering", () => {

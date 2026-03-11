@@ -74,6 +74,18 @@ export const InvalidCursorError = createError("INVALID_CURSOR", "%s", 400);
 export const FileTooLargeError = createError("FILE_TOO_LARGE", "%s", 400);
 export const InvalidFileTypeError = createError("INVALID_FILE_TYPE", "%s", 400);
 
+// Photo errors
+export const PhotoNotFoundError = createError(
+  "PHOTO_NOT_FOUND",
+  "Photo not found",
+  404,
+);
+export const PhotoLimitExceededError = createError(
+  "PHOTO_LIMIT_EXCEEDED",
+  "%s",
+  400,
+);
+
 // Invitation errors
 export const InvitationNotFoundError = createError(
   "INVITATION_NOT_FOUND",

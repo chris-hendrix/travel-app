@@ -52,11 +52,7 @@ describe("POST /api/auth/request-code", () => {
     it("should accept phone numbers in various valid formats", async () => {
       app = await buildApp();
 
-      const validPhoneNumbers = [
-        newPhone(),
-        newPhone(),
-        newPhone(),
-      ];
+      const validPhoneNumbers = [newPhone(), newPhone(), newPhone()];
 
       for (const phoneNumber of validPhoneNumbers) {
         const response = await app.inject({

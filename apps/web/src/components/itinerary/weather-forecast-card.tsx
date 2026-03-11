@@ -22,11 +22,7 @@ interface WeatherForecastCardProps {
 
 function formatDayOfWeek(dateStr: string): string {
   const [yearStr, monthStr, dayStr] = dateStr.split("-");
-  const date = new Date(
-    Number(yearStr),
-    Number(monthStr) - 1,
-    Number(dayStr),
-  );
+  const date = new Date(Number(yearStr), Number(monthStr) - 1, Number(dayStr));
   return date.toLocaleDateString("en-US", { weekday: "short" });
 }
 
@@ -43,15 +39,14 @@ function formatRelativeTime(isoStr: string): string {
 
 function formatDate(dateStr: string): string {
   const [yearStr, monthStr, dayStr] = dateStr.split("-");
-  const date = new Date(
-    Number(yearStr),
-    Number(monthStr) - 1,
-    Number(dayStr),
-  );
+  const date = new Date(Number(yearStr), Number(monthStr) - 1, Number(dayStr));
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-const TONE_STYLES: Record<WeatherTone, { light: string; dark: string; icon: string; iconDark: string }> = {
+const TONE_STYLES: Record<
+  WeatherTone,
+  { light: string; dark: string; icon: string; iconDark: string }
+> = {
   sunny: {
     light: "bg-amber-100",
     dark: "bg-amber-950",
@@ -115,9 +110,7 @@ export const WeatherForecastCard = memo(function WeatherForecastCard({
 
   if (!weather || !weather.available) {
     if (weather?.message) {
-      return (
-        <p className="text-sm text-muted-foreground">{weather.message}</p>
-      );
+      return <p className="text-sm text-muted-foreground">{weather.message}</p>;
     }
     return null;
   }
@@ -132,59 +125,75 @@ export const WeatherForecastCard = memo(function WeatherForecastCard({
 
   return (
     <div className="space-y-1.5">
-      <div className="flex gap-1.5 overflow-x-auto pb-0.5" role="region" aria-label="Weather forecast" tabIndex={0}>
-          {upcomingForecasts.map((day) => {
-            const { icon: Icon, label, tone } = getWeatherInfo(day.weatherCode);
-            const high = toDisplayTemp(day.temperatureMax, temperatureUnit);
-            const low = toDisplayTemp(day.temperatureMin, temperatureUnit);
-            const styles = TONE_STYLES[tone];
-            const tileBg = isDark ? styles.dark : styles.light;
-            const iconColor = isDark ? styles.iconDark : styles.icon;
+      <div
+        className="flex gap-1.5 overflow-x-auto pb-0.5"
+        role="region"
+        aria-label="Weather forecast"
+        tabIndex={0}
+      >
+        {upcomingForecasts.map((day) => {
+          const { icon: Icon, label, tone } = getWeatherInfo(day.weatherCode);
+          const high = toDisplayTemp(day.temperatureMax, temperatureUnit);
+          const low = toDisplayTemp(day.temperatureMin, temperatureUnit);
+          const styles = TONE_STYLES[tone];
+          const tileBg = isDark ? styles.dark : styles.light;
+          const iconColor = isDark ? styles.iconDark : styles.icon;
 
-            return (
-              <div
-                key={day.date}
-                className={`flex min-w-[6rem] flex-1 flex-col items-center rounded-md px-1.5 py-2 ${tileBg}`}
-                title={label}
-                aria-label={`${formatDayOfWeek(day.date)}: ${label}, high ${high}, low ${low}${day.precipitationProbability > 5 ? `, ${day.precipitationProbability}% rain` : ""}`}
+          return (
+            <div
+              key={day.date}
+              className={`flex min-w-[6rem] flex-1 flex-col items-center rounded-md px-1.5 py-2 ${tileBg}`}
+              title={label}
+              aria-label={`${formatDayOfWeek(day.date)}: ${label}, high ${high}, low ${low}${day.precipitationProbability > 5 ? `, ${day.precipitationProbability}% rain` : ""}`}
+            >
+              {/* Day + date */}
+              <span
+                className={`text-[0.625rem] font-semibold uppercase tracking-wide ${isDark ? "text-foreground" : "text-foreground/70"}`}
               >
-                {/* Day + date */}
-                <span className={`text-[0.625rem] font-semibold uppercase tracking-wide ${isDark ? "text-foreground" : "text-foreground/70"}`}>
-                  {formatDayOfWeek(day.date)}
+                {formatDayOfWeek(day.date)}
+              </span>
+              <span
+                className={`text-[0.5625rem] leading-tight ${isDark ? "text-foreground/70" : "text-muted-foreground"}`}
+              >
+                {formatDate(day.date)}
+              </span>
+
+              {/* Icon */}
+              <Icon
+                className={`my-1 h-5 w-5 ${iconColor}`}
+                aria-hidden="true"
+              />
+
+              {/* Temperatures */}
+              <div className="flex items-baseline gap-0.5">
+                <span className="text-sm font-semibold tabular-nums leading-none text-foreground">
+                  {high}&deg;
                 </span>
-                <span className={`text-[0.5625rem] leading-tight ${isDark ? "text-foreground/70" : "text-muted-foreground"}`}>
-                  {formatDate(day.date)}
+                <span
+                  className={`text-[0.625rem] tabular-nums ${isDark ? "text-foreground/70" : "text-muted-foreground"}`}
+                >
+                  {low}&deg;{unit}
                 </span>
-
-                {/* Icon */}
-                <Icon className={`my-1 h-5 w-5 ${iconColor}`} aria-hidden="true" />
-
-                {/* Temperatures */}
-                <div className="flex items-baseline gap-0.5">
-                  <span className="text-sm font-semibold tabular-nums leading-none text-foreground">
-                    {high}&deg;
-                  </span>
-                  <span className={`text-[0.625rem] tabular-nums ${isDark ? "text-foreground/70" : "text-muted-foreground"}`}>
-                    {low}&deg;{unit}
-                  </span>
-                </div>
-
-                {/* Precipitation */}
-                {day.precipitationProbability > 5 && (
-                  <span className={`mt-0.5 inline-flex items-center gap-0.5 text-[0.5625rem] ${isDark ? "text-blue-300" : "text-blue-500/80"}`}>
-                    <Droplets className="h-2.5 w-2.5" />
-                    {day.precipitationProbability}%
-                  </span>
-                )}
               </div>
-            );
-          })}
+
+              {/* Precipitation */}
+              {day.precipitationProbability > 5 && (
+                <span
+                  className={`mt-0.5 inline-flex items-center gap-0.5 text-[0.5625rem] ${isDark ? "text-blue-300" : "text-blue-500/80"}`}
+                >
+                  <Droplets className="h-2.5 w-2.5" />
+                  {day.precipitationProbability}%
+                </span>
+              )}
+            </div>
+          );
+        })}
       </div>
       {(weather.location || weather.fetchedAt) && (
-        <div className={`text-[0.6875rem] ${isDark ? "text-foreground/50" : "text-muted-foreground/70"}`}>
-          {weather.location && (
-            <p className="truncate">{weather.location}</p>
-          )}
+        <div
+          className={`text-[0.6875rem] ${isDark ? "text-foreground/50" : "text-muted-foreground/70"}`}
+        >
+          {weather.location && <p className="truncate">{weather.location}</p>}
           {weather.fetchedAt && (
             <p>Updated {formatRelativeTime(weather.fetchedAt)}</p>
           )}

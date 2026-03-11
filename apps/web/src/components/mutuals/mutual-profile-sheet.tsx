@@ -61,7 +61,11 @@ export function MutualProfileSheet({
               {/* Shared Trips List */}
               {mutual.sharedTrips.length > 0 && (
                 <div className={cn("space-y-2")}>
-                  <h3 className={cn("text-sm font-semibold text-muted-foreground uppercase tracking-wide")}>
+                  <h3
+                    className={cn(
+                      "text-sm font-semibold text-muted-foreground uppercase tracking-wide",
+                    )}
+                  >
                     Shared Trips
                   </h3>
                   <ul className={cn("space-y-1")}>
@@ -69,7 +73,9 @@ export function MutualProfileSheet({
                       <li key={trip.id}>
                         <Link
                           href={`/trips/${trip.id}`}
-                          className={cn("block rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors")}
+                          className={cn(
+                            "block rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors",
+                          )}
                         >
                           {trip.name}
                         </Link>

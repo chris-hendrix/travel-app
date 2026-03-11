@@ -35,9 +35,7 @@ describe("Account Lockout Integration", () => {
   afterEach(async () => {
     // Clean up auth attempts, users, and rate limit entries for test phones
     for (const phone of testPhones) {
-      await db
-        .delete(authAttempts)
-        .where(eq(authAttempts.phoneNumber, phone));
+      await db.delete(authAttempts).where(eq(authAttempts.phoneNumber, phone));
       await db.delete(users).where(eq(users.phoneNumber, phone));
       await db.execute(
         sql`DELETE FROM rate_limit_entries WHERE key = ${phone}`,

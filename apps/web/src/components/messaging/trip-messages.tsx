@@ -85,9 +85,7 @@ export function TripMessages({
       aria-label="Trip discussion"
     >
       <div className="flex items-center gap-3">
-        <h2 className="text-2xl font-semibold font-playfair">
-          Discussion
-        </h2>
+        <h2 className="text-2xl font-semibold font-playfair">Discussion</h2>
         {total > 0 && (
           <span className="text-muted-foreground text-sm mt-1">{total}</span>
         )}
@@ -131,9 +129,7 @@ export function TripMessages({
                 onClick={() => fetchNextPage()}
                 disabled={isFetchingNextPage}
               >
-                {isFetchingNextPage
-                  ? "Loading..."
-                  : "Load earlier messages"}
+                {isFetchingNextPage ? "Loading..." : "Load earlier messages"}
               </Button>
             </div>
           )}

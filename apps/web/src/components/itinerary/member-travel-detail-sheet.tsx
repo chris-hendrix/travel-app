@@ -1,6 +1,14 @@
 "use client";
 
-import { Loader2, MapPin, Pencil, PlaneLanding, PlaneTakeoff, Trash2, XIcon } from "lucide-react";
+import {
+  Loader2,
+  MapPin,
+  Pencil,
+  PlaneLanding,
+  PlaneTakeoff,
+  Trash2,
+  XIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { VisuallyHidden } from "radix-ui";
 import type { MemberTravel } from "@tripful/shared/types";

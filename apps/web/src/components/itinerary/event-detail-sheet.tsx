@@ -1,6 +1,14 @@
 "use client";
 
-import { Pencil, Trash2, XIcon, MapPin, ExternalLink, Users, Loader2 } from "lucide-react";
+import {
+  Pencil,
+  Trash2,
+  XIcon,
+  MapPin,
+  ExternalLink,
+  Users,
+  Loader2,
+} from "lucide-react";
 import { VisuallyHidden } from "radix-ui";
 import { toast } from "sonner";
 import type { Event } from "@tripful/shared/types";
@@ -23,12 +31,13 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import {
-  useDeleteEvent,
-  getDeleteEventErrorMessage,
-} from "@/hooks/use-events";
+import { useDeleteEvent, getDeleteEventErrorMessage } from "@/hooks/use-events";
 import { cn } from "@/lib/utils";
-import { formatInTimezone, getDayInTimezone, utcToLocalParts } from "@/lib/utils/timezone";
+import {
+  formatInTimezone,
+  getDayInTimezone,
+  utcToLocalParts,
+} from "@/lib/utils/timezone";
 import { EVENT_TYPE_CONFIG } from "./event-card";
 
 interface EventDetailSheetProps {
@@ -73,10 +82,7 @@ export function EventDetailSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        showCloseButton={false}
-        className={cn(config?.bg)}
-      >
+      <SheetContent showCloseButton={false} className={cn(config?.bg)}>
         <VisuallyHidden.Root>
           <SheetTitle>Event details</SheetTitle>
         </VisuallyHidden.Root>
@@ -84,10 +90,7 @@ export function EventDetailSheet({
         {/* Accent bar */}
         {config && (
           <div
-            className={cn(
-              "h-1.5 w-full",
-              config.color.replace("text-", "bg-"),
-            )}
+            className={cn("h-1.5 w-full", config.color.replace("text-", "bg-"))}
           />
         )}
 
@@ -148,7 +151,13 @@ export function EventDetailSheet({
         </div>
 
         <SheetBody>
-          {event && <EventDetailBody event={event} timezone={timezone} createdByName={createdByName} />}
+          {event && (
+            <EventDetailBody
+              event={event}
+              timezone={timezone}
+              createdByName={createdByName}
+            />
+          )}
         </SheetBody>
       </SheetContent>
     </Sheet>
@@ -170,7 +179,9 @@ function EventDetailBody({
   // Midnight end times don't count as a separate day (e.g. 8 PM–12 AM is single-day)
   const endIsMidnight = event.endTime
     ? utcToLocalParts(
-        typeof event.endTime === "string" ? event.endTime : event.endTime.toISOString(),
+        typeof event.endTime === "string"
+          ? event.endTime
+          : event.endTime.toISOString(),
         timezone,
       ).time === "00:00"
     : false;

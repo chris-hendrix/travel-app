@@ -319,20 +319,17 @@ export function useUpdateRsvp(tripId: string) {
       );
 
       if (previousTrip) {
-        queryClient.setQueryData<TripDetailWithMeta>(
-          tripKeys.detail(tripId),
-          { ...previousTrip, userRsvpStatus: data.status },
-        );
+        queryClient.setQueryData<TripDetailWithMeta>(tripKeys.detail(tripId), {
+          ...previousTrip,
+          userRsvpStatus: data.status,
+        });
       }
 
       return { previousTrip };
     },
     onError: (_error, _data, context) => {
       if (context?.previousTrip) {
-        queryClient.setQueryData(
-          tripKeys.detail(tripId),
-          context.previousTrip,
-        );
+        queryClient.setQueryData(tripKeys.detail(tripId), context.previousTrip);
       }
     },
     onSettled: () => {

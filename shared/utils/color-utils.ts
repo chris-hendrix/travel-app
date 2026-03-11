@@ -9,7 +9,14 @@
  */
 function expandShortHex(hex: string): string {
   if (hex.length === 3) {
-    return hex.charAt(0) + hex.charAt(0) + hex.charAt(1) + hex.charAt(1) + hex.charAt(2) + hex.charAt(2);
+    return (
+      hex.charAt(0) +
+      hex.charAt(0) +
+      hex.charAt(1) +
+      hex.charAt(1) +
+      hex.charAt(2) +
+      hex.charAt(2)
+    );
   }
   return hex;
 }

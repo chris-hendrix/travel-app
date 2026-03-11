@@ -28,7 +28,9 @@ export async function authenticate(
 
   // Check token blacklist (skip for tokens without jti for backward compat)
   if (request.user.jti) {
-    const isRevoked = await request.server.authService.isBlacklisted(request.user.jti);
+    const isRevoked = await request.server.authService.isBlacklisted(
+      request.user.jti,
+    );
     if (isRevoked) {
       return reply.status(401).send({
         success: false,

@@ -21,7 +21,10 @@ export const WeatherDayBadge = memo(function WeatherDayBadge({
   const unit = temperatureUnit === "fahrenheit" ? "F" : "C";
 
   return (
-    <span className="mt-1 inline-flex items-center gap-0.5 text-[0.65rem] text-muted-foreground" aria-label={`${label}, ${high}/${low}°${unit}`}>
+    <span
+      className="mt-1 inline-flex items-center gap-0.5 text-[0.65rem] text-muted-foreground"
+      aria-label={`${label}, ${high}/${low}°${unit}`}
+    >
       <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
       <span className="tabular-nums">
         {high}/{low}&deg;{unit}

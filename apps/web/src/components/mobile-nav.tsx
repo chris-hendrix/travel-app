@@ -55,9 +55,7 @@ export function MobileNav({
                     alt={user.displayName}
                   />
                 )}
-                <AvatarFallback>
-                  {getInitials(user.displayName)}
-                </AvatarFallback>
+                <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
               </Avatar>
               <div className="min-w-0">
                 <p className="text-sm font-medium truncate font-accent">

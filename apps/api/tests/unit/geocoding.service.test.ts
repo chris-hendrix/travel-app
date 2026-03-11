@@ -26,11 +26,18 @@ describe("NominatimGeocodingService", () => {
       vi.stubGlobal("fetch", mockFetch);
 
       const result = await service.geocode("Sydney Australia");
-      expect(result).toEqual({ lat: -33.8679, lon: 151.2073, displayName: "Sydney" });
+      expect(result).toEqual({
+        lat: -33.8679,
+        lon: 151.2073,
+        displayName: "Sydney",
+      });
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining("nominatim.openstreetmap.org"),
         expect.objectContaining({
-          headers: { "User-Agent": "tripful-app (https://github.com/chris-hendrix/tripful)" },
+          headers: {
+            "User-Agent":
+              "tripful-app (https://github.com/chris-hendrix/tripful)",
+          },
         }),
       );
     });
@@ -77,7 +84,13 @@ describe("NominatimGeocodingService", () => {
       const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
         json: () =>
-          Promise.resolve([{ lat: "9.9281", lon: "-84.0907", display_name: "San José, Costa Rica" }]),
+          Promise.resolve([
+            {
+              lat: "9.9281",
+              lon: "-84.0907",
+              display_name: "San José, Costa Rica",
+            },
+          ]),
       });
       vi.stubGlobal("fetch", mockFetch);
 
@@ -112,12 +125,22 @@ describe("NominatimGeocodingService", () => {
         vi.fn().mockResolvedValue({
           ok: true,
           json: () =>
-            Promise.resolve([{ lat: "25.7907", lon: "-80.1300", display_name: "Miami Beach, Florida, United States" }]),
+            Promise.resolve([
+              {
+                lat: "25.7907",
+                lon: "-80.1300",
+                display_name: "Miami Beach, Florida, United States",
+              },
+            ]),
         }),
       );
 
       const result = await service.geocode("Miami Beach FL");
-      expect(result).toEqual({ lat: 25.7907, lon: -80.13, displayName: "Miami Beach, Florida, United States" });
+      expect(result).toEqual({
+        lat: 25.7907,
+        lon: -80.13,
+        displayName: "Miami Beach, Florida, United States",
+      });
       expect(typeof result!.lat).toBe("number");
       expect(typeof result!.lon).toBe("number");
     });

@@ -9,7 +9,10 @@ import {
   calendarStatusResponseSchema,
   calendarSuccessResponseSchema,
 } from "@tripful/shared/schemas";
-import type { CalendarTokenParams, CalendarExcludedInput } from "@tripful/shared/schemas";
+import type {
+  CalendarTokenParams,
+  CalendarExcludedInput,
+} from "@tripful/shared/schemas";
 
 export async function calendarRoutes(fastify: FastifyInstance) {
   // Public: GET /calendar/:token.ics — ICS feed (token is the auth)

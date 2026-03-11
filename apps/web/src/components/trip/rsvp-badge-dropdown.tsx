@@ -1,7 +1,13 @@
 "use client";
 
 import { toast } from "sonner";
-import { Check, ChevronDown, CircleCheck, CircleHelp, CircleX } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  CircleCheck,
+  CircleHelp,
+  CircleX,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -29,7 +35,13 @@ const options: { value: UpdateRsvpInput["status"]; label: string }[] = [
   { value: "not_going", label: "Not Going" },
 ];
 
-function StatusIcon({ status, className }: { status: RsvpStatus; className?: string }) {
+function StatusIcon({
+  status,
+  className,
+}: {
+  status: RsvpStatus;
+  className?: string;
+}) {
   switch (status) {
     case "going":
       return <CircleCheck className={`${className} text-success`} />;
@@ -51,10 +63,7 @@ interface RsvpBadgeDropdownProps {
   status: RsvpStatus;
 }
 
-export function RsvpBadgeDropdown({
-  tripId,
-  status,
-}: RsvpBadgeDropdownProps) {
+export function RsvpBadgeDropdown({ tripId, status }: RsvpBadgeDropdownProps) {
   const { mutate: updateRsvp } = useUpdateRsvp(tripId);
 
   const handleSelect = (newStatus: UpdateRsvpInput["status"]) => {
@@ -63,7 +72,8 @@ export function RsvpBadgeDropdown({
       { status: newStatus },
       {
         onSuccess: () => {
-          const label = options.find((o) => o.value === newStatus)?.label ?? newStatus;
+          const label =
+            options.find((o) => o.value === newStatus)?.label ?? newStatus;
           toast.success(`RSVP updated to "${label}"`);
         },
         onError: (error) => {

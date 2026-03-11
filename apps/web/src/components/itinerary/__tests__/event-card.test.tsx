@@ -203,9 +203,7 @@ describe("EventCard", () => {
         startTime: new Date("2026-02-10T10:00:00Z"),
         endTime: new Date("2026-02-12T18:00:00Z"),
       };
-      render(
-        <EventCard event={event} timezone="UTC" onClick={onClick} />,
-      );
+      render(<EventCard event={event} timezone="UTC" onClick={onClick} />);
 
       // Should show month in the time display for multi-day events
       expect(screen.getByText(/Feb 10/)).toBeDefined();
@@ -219,9 +217,7 @@ describe("EventCard", () => {
         startTime: new Date("2026-02-10T20:00:00Z"),
         endTime: new Date("2026-02-11T00:00:00Z"),
       };
-      render(
-        <EventCard event={event} timezone="UTC" onClick={onClick} />,
-      );
+      render(<EventCard event={event} timezone="UTC" onClick={onClick} />);
 
       // Should show normal time range, not multi-day format
       expect(screen.getByText(/8:00 PM - 12:00 AM/)).toBeDefined();
@@ -233,9 +229,7 @@ describe("EventCard", () => {
         startTime: new Date("2026-02-10T10:00:00Z"),
         endTime: new Date("2026-02-10T18:00:00Z"),
       };
-      render(
-        <EventCard event={event} timezone="UTC" onClick={onClick} />,
-      );
+      render(<EventCard event={event} timezone="UTC" onClick={onClick} />);
 
       // Should not include month in single-day time display
       expect(screen.getByText(/10:00 AM - 6:00 PM/)).toBeDefined();

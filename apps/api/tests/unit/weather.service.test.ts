@@ -30,7 +30,9 @@ function createMockTripService() {
     removeMember: vi.fn(),
     updateMemberRole: vi.fn(),
     getTripMembers: vi.fn(),
-  } as unknown as ITripService & { getEffectiveDateRange: ReturnType<typeof vi.fn> };
+  } as unknown as ITripService & {
+    getEffectiveDateRange: ReturnType<typeof vi.fn>;
+  };
 }
 
 describe("WeatherService", () => {

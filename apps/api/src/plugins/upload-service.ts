@@ -49,12 +49,12 @@ export default fp(
 
       // Proxy S3 objects through /uploads/:key so Next.js image optimizer
       // can fetch them directly (it can't follow 302 redirects to signed URLs)
-      fastify.get<{ Params: { key: string } }>(
-        "/uploads/:key",
+      fastify.get<{ Params: { "*": string } }>(
+        "/uploads/*",
         async (request, reply) => {
           try {
             const { body, contentType } = await s3Storage.getObject(
-              request.params.key,
+              request.params["*"],
             );
             return reply
               .header("Content-Type", contentType ?? "application/octet-stream")
@@ -79,6 +79,7 @@ export default fp(
     }
 
     const uploadService = new UploadService(storage);
+    fastify.decorate("storage", storage);
     fastify.decorate("uploadService", uploadService);
   },
   {

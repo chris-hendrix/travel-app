@@ -107,10 +107,7 @@ export class WeatherService implements IWeatherService {
       .where(
         and(
           eq(weatherCache.tripId, tripId),
-          gt(
-            weatherCache.fetchedAt,
-            new Date(Date.now() - CACHE_MAX_AGE_MS),
-          ),
+          gt(weatherCache.fetchedAt, new Date(Date.now() - CACHE_MAX_AGE_MS)),
         ),
       );
 
@@ -119,7 +116,9 @@ export class WeatherService implements IWeatherService {
       const forecasts = this.parseForecasts(cached.response);
       return {
         available: true,
-        ...(trip.destinationDisplayName ? { location: trip.destinationDisplayName } : {}),
+        ...(trip.destinationDisplayName
+          ? { location: trip.destinationDisplayName }
+          : {}),
         forecasts: this.filterToDateRange(forecasts, start, end),
         fetchedAt: cached.fetchedAt.toISOString(),
       };
@@ -169,7 +168,9 @@ export class WeatherService implements IWeatherService {
 
     return {
       available: true,
-      ...(trip.destinationDisplayName ? { location: trip.destinationDisplayName } : {}),
+      ...(trip.destinationDisplayName
+        ? { location: trip.destinationDisplayName }
+        : {}),
       forecasts: this.filterToDateRange(forecasts, start, end),
       fetchedAt: now.toISOString(),
     };

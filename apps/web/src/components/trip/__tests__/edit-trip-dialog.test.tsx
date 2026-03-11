@@ -782,9 +782,7 @@ describe("EditTripDialog", () => {
       );
 
       const title = screen.getByText("Edit trip");
-      expect(title.className).toContain(
-        "font-playfair",
-      );
+      expect(title.className).toContain("font-playfair");
     });
 
     it("applies gradient styling to Update button", () => {

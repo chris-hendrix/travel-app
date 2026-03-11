@@ -22,9 +22,7 @@ export function createPgRateLimitStoreClass(db: AppDatabase) {
       // The safest approach is to use the numeric default since the actual
       // resolved timeWindow is passed as the 3rd arg to incr().
       this.#timeWindow =
-        typeof options.timeWindow === "number"
-          ? options.timeWindow
-          : 900000; // 15 min default
+        typeof options.timeWindow === "number" ? options.timeWindow : 900000; // 15 min default
     }
 
     /**
@@ -48,7 +46,8 @@ export function createPgRateLimitStoreClass(db: AppDatabase) {
       const now = new Date();
       const windowEnd = new Date(now.getTime() + windowMs);
 
-      db.execute<{ count: number; ttl: number }>(sql`
+      db.execute<{ count: number; ttl: number }>(
+        sql`
         INSERT INTO rate_limit_entries (key, count, expires_at)
         VALUES (${key}, 1, ${windowEnd})
         ON CONFLICT (key) DO UPDATE SET
@@ -61,7 +60,8 @@ export function createPgRateLimitStoreClass(db: AppDatabase) {
             ELSE rate_limit_entries.expires_at
           END
         RETURNING count, EXTRACT(EPOCH FROM (expires_at - ${now}::timestamptz)) * 1000 AS ttl
-      `)
+      `,
+      )
         .then((result) => {
           const row = result.rows[0] as { count: number; ttl: number };
           callback(null, {

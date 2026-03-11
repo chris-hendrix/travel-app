@@ -24,15 +24,19 @@ describe("PG Rate Limit Store Integration", () => {
       store: PgStore,
     });
 
-    app.get("/test", {
-      config: {
-        rateLimit: {
-          max: 3,
-          timeWindow: 60000,
-          keyGenerator: () => `${testKeyPrefix}-test`,
+    app.get(
+      "/test",
+      {
+        config: {
+          rateLimit: {
+            max: 3,
+            timeWindow: 60000,
+            keyGenerator: () => `${testKeyPrefix}-test`,
+          },
         },
       },
-    }, async () => ({ ok: true }));
+      async () => ({ ok: true }),
+    );
 
     await app.ready();
   });

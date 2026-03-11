@@ -17,10 +17,8 @@ import type {
 export const notificationKeys = {
   all: ["notifications"] as const,
   lists: () => ["notifications", "list"] as const,
-  list: (params?: {
-    tripId?: string;
-    unreadOnly?: boolean;
-  }) => ["notifications", "list", params] as const,
+  list: (params?: { tripId?: string; unreadOnly?: boolean }) =>
+    ["notifications", "list", params] as const,
   unreadCount: () => ["notifications", "unread-count"] as const,
   tripUnreadCount: (tripId: string) =>
     ["notifications", "unread-count", tripId] as const,

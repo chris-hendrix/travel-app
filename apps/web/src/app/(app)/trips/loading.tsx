@@ -2,7 +2,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 function SkeletonCard() {
   return (
-    <div className="postcard-mat" style={{ background: "var(--color-secondary)" }}>
+    <div
+      className="postcard-mat"
+      style={{ background: "var(--color-secondary)" }}
+    >
       <div className="postcard-image">
         <Skeleton className="absolute inset-0 rounded-none" />
       </div>

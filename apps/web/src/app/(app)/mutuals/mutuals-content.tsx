@@ -71,7 +71,9 @@ export function MutualsContent() {
   const { data: tripsData } = useInfiniteQuery({
     ...tripsQueryOptions,
     select: (data) =>
-      data.pages.flatMap((p) => p.data.map((t) => ({ id: t.id, name: t.name }))),
+      data.pages.flatMap((p) =>
+        p.data.map((t) => ({ id: t.id, name: t.name })),
+      ),
   });
 
   // Infinite scroll via IntersectionObserver

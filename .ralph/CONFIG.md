@@ -1,4 +1,4 @@
 # Ralph Config
 
-- description: weather-feature
+- description: trip-photos
 - mode: branch

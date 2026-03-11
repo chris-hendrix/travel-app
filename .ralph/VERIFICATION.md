@@ -1,120 +1,113 @@
-# Verification: Weather Feature
+# Verification: Trip Photo Upload Service
 
 ## Environment Setup
 
-All tests run inside the devcontainer. Start it first:
+All commands run inside the devcontainer via `make test-exec CMD="..."`.
 
 ```bash
-make test-up          # Start container + auto-setup (deps, migrations, env)
-make test-status      # Verify container is running
+# Start container (auto-installs deps, runs migrations, sets up env)
+make test-up
+
+# Verify container is running
+make test-status
 ```
 
 ## Test Commands
 
-All commands via `make test-exec CMD="..."`:
-
-### Type Check
 ```bash
-make test-exec CMD="pnpm typecheck"
-```
-
-### Lint
-```bash
-make test-exec CMD="pnpm lint"
-```
-
-### Unit & Integration Tests
-```bash
-# All tests
+# Full test suite (unit + integration)
 make test-exec CMD="pnpm test"
 
-# API tests only
-make test-exec CMD="pnpm --filter @tripful/api test"
+# Unit tests only (API)
+make test-exec CMD="cd apps/api && pnpm vitest run tests/unit"
 
-# Web tests only
-make test-exec CMD="pnpm --filter @tripful/web test"
+# Integration tests only (API)
+make test-exec CMD="cd apps/api && pnpm vitest run tests/integration"
 
-# Shared tests only
-make test-exec CMD="pnpm --filter @tripful/shared test"
+# Frontend tests
+make test-exec CMD="cd apps/web && pnpm vitest run"
 
-# Specific test file
-make test-exec CMD="pnpm --filter @tripful/api test -- src/services/__tests__/weather.service.test.ts"
-```
-
-### E2E Tests
-```bash
+# E2E tests (Playwright)
 make test-exec CMD="pnpm test:e2e"
-```
 
-### Full Suite
-```bash
-make test-run    # Runs unit + E2E
-```
+# Linting
+make test-exec CMD="pnpm lint"
 
-### Format
-```bash
+# Type checking
+make test-exec CMD="pnpm typecheck"
+
+# Format check
 make test-exec CMD="pnpm format"
 ```
 
 ## Database
 
-Migrations run automatically during `make test-up` setup. For manual migration:
-
 ```bash
+# Generate migration after schema changes
 make test-exec CMD="cd apps/api && pnpm db:generate"
+
+# Apply migrations
 make test-exec CMD="cd apps/api && pnpm db:migrate"
+
+# Visual DB browser
+make test-exec CMD="cd apps/api && pnpm db:studio"
 ```
 
-## Manual Testing (Playwright CLI)
+## Manual Testing
 
-Start dev servers inside the container, then use playwright-cli:
+Start dev servers inside container, then use Playwright CLI:
 
 ```bash
-# Start servers
+# Start dev servers (background)
 make test-exec CMD="bash -c 'pnpm --filter @tripful/api dev & pnpm --filter @tripful/web dev & wait'"
 
-# Navigate and interact
+# Playwright CLI shorthand
 PW_CLI="playwright-cli --config .devcontainer/playwright-cli.config.json"
+
+# Open browser
 make test-exec CMD="$PW_CLI open http://localhost:3000"
+
+# Take snapshot (accessibility tree with element refs)
 make test-exec CMD="$PW_CLI snapshot"
+
+# Interact
+make test-exec CMD="$PW_CLI click e5"
+make test-exec CMD="$PW_CLI fill e1 'text'"
+make test-exec CMD="$PW_CLI press Enter"
+
+# Screenshot (saves to .playwright-cli/)
 make test-exec CMD="$PW_CLI screenshot"
 
-# Save/restore auth
+# Auth: save/load state
 make test-exec CMD="$PW_CLI state-save auth.json"
 make test-exec CMD="$PW_CLI state-load auth.json"
 ```
 
 ## Ports
 
-| Service | Port |
-|---------|------|
-| Frontend (Next.js) | 3000 |
-| Backend (Fastify) | 8000 |
-| PostgreSQL | 5432 (inside container) |
-| MinIO | 9000 |
+| Service            | Port                           |
+| ------------------ | ------------------------------ |
+| Frontend (Next.js) | 3000                           |
+| Backend (Fastify)  | 8000                           |
+| PostgreSQL         | 5433 (host) → 5432 (container) |
+| MinIO API          | 9000                           |
+| MinIO Console      | 9001                           |
+
+## Test Credentials
+
+Auth is handled by navigating the UI (phone number login). No hardcoded tokens. Use `state-save`/`state-load` to persist auth across sessions.
 
 ## Feature Flags
 
-None — this feature has no feature flags. Weather is visible to all trip members once a trip has coordinates and dates.
+None — no feature flags for this feature.
 
-## Third-Party Services
+## Key Verification Points
 
-**Open-Meteo** (no API key required):
-- Geocoding: `https://geocoding-api.open-meteo.com/v1/search`
-- Forecast: `https://api.open-meteo.com/v1/forecast`
-
-Both are free, public APIs. No setup or credentials needed. The devcontainer has internet access for these calls.
-
-## Test Data
-
-For manual testing, create a trip via the UI:
-- Destination: "San Diego, CA" (or any real location)
-- Start date: within 16 days of today
-- End date: a few days after start
-
-Verify:
-1. Weather forecast card appears above itinerary
-2. Day badges show in day-by-day view headers
-3. Changing destination updates weather
-4. Setting dates >16 days shows "available closer to trip" message
-5. °C/°F toggle in profile settings changes temperature display
+1. **Upload flow**: Upload a photo via the trip detail page dropzone, verify it appears in the grid with a processing skeleton, then transitions to the actual image once pg-boss processes it
+2. **Multi-file**: Upload 3+ photos at once, verify all appear and process
+3. **Lightbox**: Click a photo, verify full-size display, test arrow navigation and swipe
+4. **Caption**: Edit a caption inline, verify it persists after page refresh
+5. **Delete**: Delete a photo, verify it disappears from grid and S3 objects are cleaned up
+6. **Limit**: Upload 20 photos, verify the dropzone disables and shows "0 remaining"
+7. **Permissions**: Non-uploaders (non-organizers) cannot edit/delete others' photos
+8. **Storage**: Verify both local storage (dev) and S3/MinIO backends work

@@ -88,9 +88,7 @@ test.describe("Messaging Journey", () => {
       });
 
       await test.step("verify empty state", async () => {
-        await expect(
-          page.getByText("No messages yet"),
-        ).toBeVisible();
+        await expect(page.getByText("No messages yet")).toBeVisible();
       });
 
       await test.step("post a message and verify it appears", async () => {
@@ -104,9 +102,7 @@ test.describe("Messaging Journey", () => {
           timeout: ELEMENT_TIMEOUT,
         });
         // Empty state should be gone
-        await expect(
-          page.getByText("No messages yet"),
-        ).not.toBeVisible();
+        await expect(page.getByText("No messages yet")).not.toBeVisible();
         // Feed container should exist
         await expect(page.getByRole("feed")).toBeVisible();
       });

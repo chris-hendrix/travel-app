@@ -34,9 +34,7 @@ describe("account-lockout", () => {
   afterEach(async () => {
     // Clean up auth attempts for test phones
     for (const phone of testPhones) {
-      await db
-        .delete(authAttempts)
-        .where(eq(authAttempts.phoneNumber, phone));
+      await db.delete(authAttempts).where(eq(authAttempts.phoneNumber, phone));
     }
     testPhones.length = 0;
     if (app) {
@@ -79,12 +77,12 @@ describe("account-lockout", () => {
         lockedUntil: new Date(Date.now() + 15 * 60 * 1000),
       });
 
-      await expect(
-        authService.checkAccountLocked(phone),
-      ).rejects.toMatchObject({
-        statusCode: 429,
-        message: expect.stringContaining("Account is locked"),
-      });
+      await expect(authService.checkAccountLocked(phone)).rejects.toMatchObject(
+        {
+          statusCode: 429,
+          message: expect.stringContaining("Account is locked"),
+        },
+      );
     });
   });
 

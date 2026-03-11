@@ -15,6 +15,7 @@ import {
   sentReminders,
   blacklistedTokens,
   weatherCache,
+  tripPhotos,
 } from "./index.js";
 
 export const usersRelations = relations(users, ({ many }) => ({
@@ -28,6 +29,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   notifications: many(notifications),
   notificationPreferences: many(notificationPreferences),
   blacklistedTokens: many(blacklistedTokens),
+  uploadedPhotos: many(tripPhotos),
 }));
 
 export const tripsRelations = relations(trips, ({ one, many }) => ({
@@ -42,6 +44,7 @@ export const tripsRelations = relations(trips, ({ one, many }) => ({
   notificationPreferences: many(notificationPreferences),
   mutedMembers: many(mutedMembers),
   weatherCache: one(weatherCache),
+  photos: many(tripPhotos),
 }));
 
 export const membersRelations = relations(members, ({ one, many }) => ({
@@ -177,5 +180,16 @@ export const weatherCacheRelations = relations(weatherCache, ({ one }) => ({
   trip: one(trips, {
     fields: [weatherCache.tripId],
     references: [trips.id],
+  }),
+}));
+
+export const tripPhotosRelations = relations(tripPhotos, ({ one }) => ({
+  trip: one(trips, {
+    fields: [tripPhotos.tripId],
+    references: [trips.id],
+  }),
+  uploader: one(users, {
+    fields: [tripPhotos.uploadedBy],
+    references: [users.id],
   }),
 }));

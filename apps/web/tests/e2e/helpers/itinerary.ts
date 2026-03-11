@@ -2,10 +2,7 @@ import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { dismissToast } from "./toast";
 import { pickDateTime } from "./date-pickers";
-import {
-  ELEMENT_TIMEOUT,
-  SLOW_NAVIGATION_TIMEOUT,
-} from "./timeouts";
+import { ELEMENT_TIMEOUT, SLOW_NAVIGATION_TIMEOUT } from "./timeouts";
 
 /**
  * Hide toast DOM elements so they don't intercept clicks.

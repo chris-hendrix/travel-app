@@ -8,7 +8,11 @@ import { TripService } from "@/services/trip.service.js";
  */
 export default fp(
   async function tripServicePlugin(fastify: FastifyInstance) {
-    const tripService = new TripService(fastify.db, fastify.permissionsService, fastify.geocodingService);
+    const tripService = new TripService(
+      fastify.db,
+      fastify.permissionsService,
+      fastify.geocodingService,
+    );
     fastify.decorate("tripService", tripService);
   },
   {

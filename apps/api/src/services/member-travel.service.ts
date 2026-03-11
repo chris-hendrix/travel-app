@@ -436,7 +436,11 @@ export class MemberTravelService implements IMemberTravelService {
   ): Promise<MemberTravel> {
     // Load member travel to get tripId
     const [travel] = await this.db
-      .select({ id: memberTravel.id, tripId: memberTravel.tripId, memberId: memberTravel.memberId })
+      .select({
+        id: memberTravel.id,
+        tripId: memberTravel.tripId,
+        memberId: memberTravel.memberId,
+      })
       .from(memberTravel)
       .where(eq(memberTravel.id, memberTravelId))
       .limit(1);

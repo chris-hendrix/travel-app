@@ -487,9 +487,7 @@ describe("CreateEventDialog", () => {
       );
 
       const title = screen.getByText("Create a new event");
-      expect(title.className).toContain(
-        "font-playfair",
-      );
+      expect(title.className).toContain("font-playfair");
     });
 
     it("applies h-12 height to inputs", () => {

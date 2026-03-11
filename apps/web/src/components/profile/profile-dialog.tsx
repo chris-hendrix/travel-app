@@ -87,7 +87,8 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
       form.reset({
         displayName: user.displayName,
         timezone: user.timezone,
-        temperatureUnit: (user.temperatureUnit as "celsius" | "fahrenheit") || "fahrenheit",
+        temperatureUnit:
+          (user.temperatureUnit as "celsius" | "fahrenheit") || "fahrenheit",
         handles: {
           venmo: user.handles?.venmo ?? "",
           instagram: user.handles?.instagram ?? "",
@@ -396,9 +397,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="celsius">
-                              °C Celsius
-                            </SelectItem>
+                            <SelectItem value="celsius">°C Celsius</SelectItem>
                             <SelectItem value="fahrenheit">
                               °F Fahrenheit
                             </SelectItem>
@@ -417,10 +416,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
                     <label className="text-base font-semibold text-foreground">
                       Appearance
                     </label>
-                    <Select
-                      onValueChange={setTheme}
-                      value={theme ?? "light"}
-                    >
+                    <Select onValueChange={setTheme} value={theme ?? "light"}>
                       <SelectTrigger
                         className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                         data-testid="appearance-select"

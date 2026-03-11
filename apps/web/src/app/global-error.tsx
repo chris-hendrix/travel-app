@@ -15,7 +15,11 @@ export default function GlobalError({
     <html
       lang="en"
       suppressHydrationWarning
-      className={cn(playfairDisplay.variable, plusJakartaSans.variable, spaceGrotesk.variable)}
+      className={cn(
+        playfairDisplay.variable,
+        plusJakartaSans.variable,
+        spaceGrotesk.variable,
+      )}
     >
       <body className="bg-background text-foreground antialiased">
         <div className="flex min-h-screen items-center justify-center">

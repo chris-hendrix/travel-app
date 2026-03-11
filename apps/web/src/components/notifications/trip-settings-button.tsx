@@ -19,7 +19,10 @@ interface TripSettingsButtonProps {
   className?: string;
 }
 
-export function TripSettingsButton({ tripId, className }: TripSettingsButtonProps) {
+export function TripSettingsButton({
+  tripId,
+  className,
+}: TripSettingsButtonProps) {
   const [open, setOpen] = useState(false);
 
   return (

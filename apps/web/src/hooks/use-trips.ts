@@ -154,8 +154,9 @@ export function useCreateTrip() {
       await queryClient.cancelQueries({ queryKey: tripKeys.all });
 
       // Snapshot the previous value for rollback
-      const previousTrips =
-        queryClient.getQueryData<InfiniteData<GetTripsResponse>>(tripKeys.all);
+      const previousTrips = queryClient.getQueryData<
+        InfiniteData<GetTripsResponse>
+      >(tripKeys.all);
 
       // Optimistically update the cache with a temporary trip
       // Note: We create a temporary ID and placeholder data since we don't have the real ID yet
@@ -182,22 +183,19 @@ export function useCreateTrip() {
 
       // Add optimistic trip to the first page if trips list exists
       if (previousTrips) {
-        queryClient.setQueryData<InfiniteData<GetTripsResponse>>(
-          tripKeys.all,
-          {
-            ...previousTrips,
-            pages: previousTrips.pages.map((page, i) => {
-              if (i === 0) {
-                return {
-                  ...page,
-                  data: [optimisticTrip as unknown as TripSummary, ...page.data],
-                  meta: { ...page.meta, total: page.meta.total + 1 },
-                };
-              }
-              return page;
-            }),
-          },
-        );
+        queryClient.setQueryData<InfiniteData<GetTripsResponse>>(tripKeys.all, {
+          ...previousTrips,
+          pages: previousTrips.pages.map((page, i) => {
+            if (i === 0) {
+              return {
+                ...page,
+                data: [optimisticTrip as unknown as TripSummary, ...page.data],
+                meta: { ...page.meta, total: page.meta.total + 1 },
+              };
+            }
+            return page;
+          }),
+        });
       }
 
       // Return context with previous data for rollback
@@ -319,8 +317,9 @@ export function useUpdateTrip() {
       await queryClient.cancelQueries({ queryKey: tripKeys.detail(tripId) });
 
       // Snapshot the previous values for rollback
-      const previousTrips =
-        queryClient.getQueryData<InfiniteData<GetTripsResponse>>(tripKeys.all);
+      const previousTrips = queryClient.getQueryData<
+        InfiniteData<GetTripsResponse>
+      >(tripKeys.all);
       const previousTrip = queryClient.getQueryData<Trip>(
         tripKeys.detail(tripId),
       );
@@ -490,22 +489,20 @@ export function useCancelTrip() {
       await queryClient.cancelQueries({ queryKey: tripKeys.all });
 
       // Snapshot the previous value for rollback
-      const previousTrips =
-        queryClient.getQueryData<InfiniteData<GetTripsResponse>>(tripKeys.all);
+      const previousTrips = queryClient.getQueryData<
+        InfiniteData<GetTripsResponse>
+      >(tripKeys.all);
 
       // Optimistically remove the trip from the cache (across all pages)
       if (previousTrips) {
-        queryClient.setQueryData<InfiniteData<GetTripsResponse>>(
-          tripKeys.all,
-          {
-            ...previousTrips,
-            pages: previousTrips.pages.map((page) => ({
-              ...page,
-              data: page.data.filter((trip) => trip.id !== tripId),
-              meta: { ...page.meta, total: Math.max(0, page.meta.total - 1) },
-            })),
-          },
-        );
+        queryClient.setQueryData<InfiniteData<GetTripsResponse>>(tripKeys.all, {
+          ...previousTrips,
+          pages: previousTrips.pages.map((page) => ({
+            ...page,
+            data: page.data.filter((trip) => trip.id !== tripId),
+            meta: { ...page.meta, total: Math.max(0, page.meta.total - 1) },
+          })),
+        });
       }
 
       // Return context with previous data for rollback

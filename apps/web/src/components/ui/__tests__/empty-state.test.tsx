@@ -39,9 +39,7 @@ describe("EmptyState", () => {
       <EmptyState icon={Search} title="Empty" description="Nothing here" />,
     );
 
-    expect(
-      container.querySelector('[data-slot="empty-state"]'),
-    ).not.toBeNull();
+    expect(container.querySelector('[data-slot="empty-state"]')).not.toBeNull();
   });
 
   it("renders card variant by default with TopoPattern", () => {
@@ -69,7 +67,9 @@ describe("EmptyState", () => {
   });
 
   it("does not render description paragraph when description is omitted", () => {
-    render(<EmptyState variant="inline" icon={Bell} title="No notifications" />);
+    render(
+      <EmptyState variant="inline" icon={Bell} title="No notifications" />,
+    );
 
     // Only the title should be rendered as text
     expect(screen.getByText("No notifications")).toBeDefined();
@@ -111,11 +111,7 @@ describe("EmptyState", () => {
 
   it("renders children for custom action areas", () => {
     render(
-      <EmptyState
-        icon={Search}
-        title="No items"
-        description="Add some items"
-      >
+      <EmptyState icon={Search} title="No items" description="Add some items">
         <button type="button">Custom action</button>
       </EmptyState>,
     );

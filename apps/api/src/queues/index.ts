@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import fp from "fastify-plugin";
 import type { FastifyInstance } from "fastify";
 import { sql } from "drizzle-orm";
@@ -7,17 +9,25 @@ import {
   type NotificationDeliverPayload,
   type InvitationSendPayload,
   type NotificationBatchPayload,
+  type PhotoProcessingPayload,
 } from "./types.js";
 import { handleNotificationDeliver } from "./workers/notification-deliver.worker.js";
 import { handleInvitationSend } from "./workers/invitation-send.worker.js";
 import { handleNotificationBatch } from "./workers/notification-batch.worker.js";
 import { handleDailyItineraries } from "./workers/daily-itineraries.worker.js";
+import type { JobWithMetadata } from "pg-boss";
+import {
+  handlePhotoProcessing,
+  type PhotoProcessingDeps,
+} from "./workers/photo-processing.worker.js";
 import { handleDlq } from "./workers/dlq.worker.js";
+import { S3StorageService } from "@/services/storage.service.js";
 
 /**
  * Queue workers plugin
  * Creates queues, registers workers, and sets up cron schedules for pg-boss.
  * Skipped in test environment to avoid interference with test execution.
+ * Set ENABLE_QUEUE_WORKERS=true to override this (e.g. for E2E tests).
  *
  * @depends queue - pg-boss instance
  * @depends database - Drizzle ORM instance
@@ -25,7 +35,10 @@ import { handleDlq } from "./workers/dlq.worker.js";
  */
 export default fp(
   async function queueWorkersPlugin(fastify: FastifyInstance) {
-    if (fastify.config.NODE_ENV === "test") {
+    if (
+      fastify.config.NODE_ENV === "test" &&
+      !process.env.ENABLE_QUEUE_WORKERS
+    ) {
       fastify.log.debug("queue workers skipped in test environment");
       return;
     }
@@ -79,6 +92,16 @@ export default fp(
       deleteAfterSeconds: 3600,
     });
 
+    await boss.createQueue(QUEUE.PHOTO_PROCESSING_DLQ);
+    await boss.createQueue(QUEUE.PHOTO_PROCESSING, {
+      retryLimit: 3,
+      retryDelay: 10,
+      retryBackoff: true,
+      expireInSeconds: 300,
+      deadLetter: QUEUE.PHOTO_PROCESSING_DLQ,
+      deleteAfterSeconds: 604800,
+    });
+
     // --- Cron schedules ---
 
     await boss.schedule(QUEUE.DAILY_ITINERARIES, "*/15 * * * *");
@@ -125,6 +148,48 @@ export default fp(
       },
     );
 
+    // --- Photo processing worker ---
+
+    const downloadBuffer = async (key: string): Promise<Buffer> => {
+      const cleanKey = key.replace(/^\/uploads\//, "");
+      if (fastify.storage instanceof S3StorageService) {
+        const { body } = await fastify.storage.getObject(cleanKey);
+        const chunks: Buffer[] = [];
+        for await (const chunk of body as AsyncIterable<Buffer>) {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        }
+        return Buffer.concat(chunks);
+      }
+      // Local storage: read file from disk
+      const filePath = resolve(
+        import.meta.dirname,
+        "..",
+        "..",
+        fastify.config.UPLOAD_DIR,
+        cleanKey,
+      );
+      return readFile(filePath);
+    };
+
+    const photoDeps: PhotoProcessingDeps = {
+      imageProcessingService: fastify.imageProcessingService,
+      photoService: fastify.photoService,
+      storage: fastify.storage,
+      downloadBuffer,
+      logger: fastify.log,
+    };
+
+    await boss.work<PhotoProcessingPayload>(
+      QUEUE.PHOTO_PROCESSING,
+      async (jobs) => {
+        // pg-boss provides full metadata at runtime; cast from Job to JobWithMetadata
+        await handlePhotoProcessing(
+          jobs[0]! as unknown as JobWithMetadata<PhotoProcessingPayload>,
+          photoDeps,
+        );
+      },
+    );
+
     // --- DLQ workers ---
 
     await boss.work<unknown>(QUEUE.NOTIFICATION_DELIVER_DLQ, async (jobs) => {
@@ -140,6 +205,10 @@ export default fp(
     });
 
     await boss.work<unknown>(QUEUE.DAILY_ITINERARIES_DLQ, async (jobs) => {
+      await handleDlq(jobs[0]!, deps);
+    });
+
+    await boss.work<unknown>(QUEUE.PHOTO_PROCESSING_DLQ, async (jobs) => {
       await handleDlq(jobs[0]!, deps);
     });
 
@@ -189,6 +258,13 @@ export default fp(
   {
     name: "queue-workers",
     fastify: "5.x",
-    dependencies: ["queue", "database", "sms-service"],
+    dependencies: [
+      "queue",
+      "database",
+      "sms-service",
+      "upload-service",
+      "image-processing-service",
+      "photo-service",
+    ],
   },
 );
