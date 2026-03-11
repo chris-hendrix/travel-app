@@ -28,6 +28,12 @@ export function usePhotos(tripId: string) {
   return useQuery({
     ...photosQueryOptions(tripId),
     enabled: !!tripId,
+    // Poll every 2s while any photos are still processing
+    refetchInterval: (query) => {
+      const photos = query.state.data;
+      if (photos?.some((p) => p.status === "processing")) return 2000;
+      return false;
+    },
   });
 }
 

@@ -26,7 +26,7 @@ export function PhotoCard({
     return (
       <div
         className={cn(
-          "relative aspect-square overflow-hidden rounded-lg",
+          "relative aspect-[4/3] sm:aspect-square overflow-hidden rounded-lg",
           className,
         )}
       >
@@ -39,7 +39,7 @@ export function PhotoCard({
     return (
       <div
         className={cn(
-          "relative aspect-square overflow-hidden rounded-lg bg-muted flex flex-col items-center justify-center gap-2",
+          "relative aspect-[4/3] sm:aspect-square overflow-hidden rounded-lg bg-muted flex flex-col items-center justify-center gap-2",
           className,
         )}
       >
@@ -63,7 +63,7 @@ export function PhotoCard({
         }
       }}
       className={cn(
-        "group relative aspect-square overflow-hidden rounded-lg cursor-pointer focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2",
+        "group relative aspect-[4/3] sm:aspect-square overflow-hidden rounded-lg cursor-pointer focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2",
         className,
       )}
     >
@@ -72,7 +72,7 @@ export function PhotoCard({
           src={imageUrl}
           alt={photo.caption || "Trip photo"}
           fill
-          sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
+          sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 100vw"
           className="object-cover"
         />
       )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -103,6 +103,19 @@ export function MobileTripLayout({
   // Hero collapse: 0 on Info panel, 1 on all other panels
   // CSS transition handles the smooth animation
   const collapseT = activeIndex === 0 ? 0 : 1;
+
+  // Scroll itinerary to today's date when switching to itinerary panel
+  useEffect(() => {
+    if (activeIndex !== 1) return;
+    // Small delay to let swiper transition finish
+    const timer = setTimeout(() => {
+      const todayEl = document.getElementById("day-today");
+      if (todayEl) {
+        todayEl.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [activeIndex]);
 
   const handleIconClick = useCallback((index: number) => {
     swiperRef.current?.slideTo(index);
