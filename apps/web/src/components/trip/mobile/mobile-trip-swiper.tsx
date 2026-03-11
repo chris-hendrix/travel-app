@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useRef, useCallback, useImperativeHandle, forwardRef } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { HashNavigation, A11y } from "swiper/modules";
@@ -16,7 +17,7 @@ export interface MobileTripSwiperRef {
 interface MobileTripSwiperProps {
   onSlideChange: (index: number) => void;
   onProgress: (progress: number) => void;
-  children: [React.ReactNode, React.ReactNode, React.ReactNode, React.ReactNode];
+  children: [ReactNode, ReactNode, ReactNode, ReactNode];
 }
 
 export const MobileTripSwiper = forwardRef<
