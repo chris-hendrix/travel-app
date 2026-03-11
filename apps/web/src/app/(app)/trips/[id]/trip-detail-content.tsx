@@ -29,6 +29,8 @@ import { membersQueryOptions } from "@/hooks/invitation-queries";
 import { useQuery } from "@tanstack/react-query";
 import type { MemberWithProfile } from "@/hooks/use-invitations";
 import { useAuth } from "@/app/providers/auth-provider";
+import { useIsMobile } from "@/hooks/use-is-mobile";
+import { MobileTripLayout } from "@/components/trip/mobile/mobile-trip-layout";
 import { Button } from "@/components/ui/button";
 import { RsvpBadgeDropdown } from "@/components/trip/rsvp-badge-dropdown";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -149,6 +151,7 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
       data.map((m) => ({ id: m.id, userId: m.userId, isMuted: m.isMuted })),
   });
   const currentMember = members?.find((m) => m.userId === user?.id);
+  const isMobile = useIsMobile();
   const { ref: itineraryRef } = useScrollReveal();
   const { data: weather, isLoading: weatherLoading } =
     useWeatherForecast(tripId);
@@ -235,6 +238,25 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
         trip={trip}
         tripId={tripId}
         onGoingSuccess={() => setShowOnboarding(true)}
+      />
+    );
+  }
+
+  if (isMobile) {
+    return (
+      <MobileTripLayout
+        trip={trip}
+        tripId={tripId}
+        isOrganizer={isOrganizer}
+        isLocked={isLocked}
+        activeEventCount={activeEventCount}
+        weather={weather}
+        weatherLoading={weatherLoading}
+        temperatureUnit={temperatureUnit}
+        currentMember={currentMember}
+        user={user}
+        removeMember={removeMember}
+        handleUpdateRole={handleUpdateRole}
       />
     );
   }

@@ -38,7 +38,7 @@ interface InfoPanelProps {
   weather: TripWeatherResponse | undefined;
   weatherLoading: boolean;
   temperatureUnit: TemperatureUnit;
-  currentMember: { id: string; userId: string; isMuted?: boolean } | undefined;
+  currentMember: { id: string; userId: string; isMuted: boolean | undefined } | undefined;
   onOpenInvite: () => void;
   onOpenEdit: () => void;
   onOpenSettings: () => void;
