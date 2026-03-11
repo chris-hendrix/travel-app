@@ -87,7 +87,6 @@ export function MobileTripLayout({
   handleUpdateRole,
 }: MobileTripLayoutProps) {
   const [activeIndex, setActiveIndex] = useState(0);
-  const [swipeProgress, setSwipeProgress] = useState(0);
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
@@ -101,8 +100,9 @@ export function MobileTripLayout({
 
   const swiperRef = useRef<MobileTripSwiperRef>(null);
 
-  // Hero collapse: progress is 0→1 across all slides. Collapse during first transition.
-  const collapseT = Math.min(swipeProgress * 3, 1);
+  // Hero collapse: 0 on Info panel, 1 on all other panels
+  // CSS transition handles the smooth animation
+  const collapseT = activeIndex === 0 ? 0 : 1;
 
   const handleIconClick = useCallback((index: number) => {
     swiperRef.current?.slideTo(index);
@@ -118,7 +118,7 @@ export function MobileTripLayout({
       themeFont={trip.themeFont}
       scope="page"
     >
-      <div className="fixed inset-0 z-50 flex flex-col bg-background overflow-hidden">
+      <div className="h-[calc(100dvh-3.5rem)] flex flex-col bg-background overflow-hidden">
         <IconStrip activeIndex={activeIndex} onIconClick={handleIconClick} />
 
         <AnimatedHero
@@ -132,7 +132,7 @@ export function MobileTripLayout({
           <MobileTripSwiper
             ref={swiperRef}
             onSlideChange={setActiveIndex}
-            onProgress={setSwipeProgress}
+            onProgress={() => {}}
           >
             <InfoPanel
               trip={trip}

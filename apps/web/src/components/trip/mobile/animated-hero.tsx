@@ -43,12 +43,12 @@ export function AnimatedHero({
 
   return (
     <div
-      className="relative w-full overflow-hidden shrink-0"
+      className="relative w-full overflow-hidden shrink-0 transition-[height] duration-300 ease-out"
       style={{ height: `${heroHeight}px` }}
     >
       {/* Full-height inner that slides upward as container shrinks */}
       <div
-        className="relative w-full"
+        className="relative w-full transition-transform duration-300 ease-out"
         style={{
           height: `${HERO_FULL}px`,
           transform: `translateY(${translateY}px)`,
@@ -133,7 +133,7 @@ export function AnimatedHero({
             {isOrganizer && (
               <button
                 onClick={onCustomize}
-                className={`shrink-0 ml-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium backdrop-blur-sm transition-colors cursor-pointer ${
+                className={`shrink-0 ml-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium backdrop-blur-sm transition-all duration-300 cursor-pointer ${
                   heroTextLight
                     ? "bg-white/20 text-white hover:bg-white/30"
                     : "bg-black/10 text-foreground hover:bg-black/20"
