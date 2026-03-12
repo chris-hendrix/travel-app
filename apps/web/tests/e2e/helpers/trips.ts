@@ -3,11 +3,7 @@ import type { Page } from "@playwright/test";
 import { TripsPage, TripDetailPage } from "./pages";
 import { pickDate } from "./date-pickers";
 import { dismissToast } from "./toast";
-import {
-  ELEMENT_TIMEOUT,
-  NAVIGATION_TIMEOUT,
-  RETRY_INTERVAL,
-} from "./timeouts";
+import { NAVIGATION_TIMEOUT, RETRY_INTERVAL } from "./timeouts";
 
 /** Create a trip via the UI and land on the trip detail page. */
 export async function createTrip(
