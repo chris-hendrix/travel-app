@@ -27,7 +27,7 @@ export const WeatherDayBadge = memo(function WeatherDayBadge({
     >
       <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
       <span className="tabular-nums">
-        {high}/{low}&deg;
+        {high}/{low}&deg;{unit}
       </span>
     </span>
   );

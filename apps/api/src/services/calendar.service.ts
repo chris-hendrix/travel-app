@@ -17,7 +17,7 @@ import {
 } from "@/db/schema/index.js";
 import type { AppDatabase } from "@/types/index.js";
 
-interface TripWithEvents {
+interface TripCalendarData {
   trip: Trip;
   events: Event[];
   accommodations: Accommodation[];
@@ -25,8 +25,8 @@ interface TripWithEvents {
 
 export interface ICalendarService {
   getUserByCalendarToken(token: string): Promise<User | null>;
-  getCalendarTripsAndEvents(userId: string): Promise<TripWithEvents[]>;
-  generateIcsFeed(tripsWithEvents: TripWithEvents[]): string;
+  getCalendarTripsAndEvents(userId: string): Promise<TripCalendarData[]>;
+  generateIcsFeed(tripsWithEvents: TripCalendarData[]): string;
   enableCalendar(userId: string): Promise<string>;
   disableCalendar(userId: string): Promise<void>;
   regenerateCalendar(userId: string): Promise<string>;
@@ -60,7 +60,7 @@ export class CalendarService implements ICalendarService {
     return user ?? null;
   }
 
-  async getCalendarTripsAndEvents(userId: string): Promise<TripWithEvents[]> {
+  async getCalendarTripsAndEvents(userId: string): Promise<TripCalendarData[]> {
     // Get all trips where user is a member, not excluded from calendar, and not "not_going"
     const memberRows = await this.db
       .select({
@@ -131,7 +131,7 @@ export class CalendarService implements ICalendarService {
     }));
   }
 
-  generateIcsFeed(tripsWithEvents: TripWithEvents[]): string {
+  generateIcsFeed(tripsWithEvents: TripCalendarData[]): string {
     const calendar = ical({
       name: "Tripful",
       method: ICalCalendarMethod.PUBLISH,
@@ -275,7 +275,7 @@ export class CalendarService implements ICalendarService {
           id: `accommodation-${acc.id}@tripful.app`,
           summary: `🏨 ${acc.name}`,
           description,
-          location: acc.address || null,
+          location: acc.address,
           start: toTimezoneDate(acc.checkIn, timezone),
           end: toTimezoneDate(acc.checkOut, timezone),
           timezone,
