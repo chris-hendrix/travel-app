@@ -368,7 +368,7 @@ export function DayByDayView({
             key={day.date}
             id={isToday ? "day-today" : undefined}
             className={cn(
-              "grid grid-cols-[4.5rem_1fr] sm:grid-cols-[5rem_1fr] gap-x-3 py-4",
+              "grid grid-cols-[3.5rem_1fr] sm:grid-cols-[4.5rem_1fr] gap-x-2 sm:gap-x-3 py-4",
               isToday && "scroll-mt-28",
             )}
           >
@@ -385,7 +385,7 @@ export function DayByDayView({
                 </span>
                 <span
                   className={cn(
-                    "flex h-10 w-10 items-center justify-center rounded-full text-2xl font-bold leading-none",
+                    "flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-full text-xl sm:text-2xl font-bold leading-none",
                     isToday
                       ? "bg-primary text-primary-foreground"
                       : "text-foreground",

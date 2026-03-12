@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { CalendarService } from "@/services/calendar.service.js";
-import type { Trip, Event } from "@/db/schema/index.js";
+import type { Trip, Event, Accommodation } from "@/db/schema/index.js";
 import type { AppDatabase } from "@/types/index.js";
 
 // generateIcsFeed is a pure function that does not use the database,
@@ -57,6 +57,27 @@ function makeEvent(overrides: Partial<Event> = {}): Event {
   };
 }
 
+function makeAccommodation(
+  overrides: Partial<Accommodation> = {},
+): Accommodation {
+  return {
+    id: "dddddddd-dddd-dddd-dddd-dddddddddddd",
+    tripId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    createdBy: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    name: "Seaside Resort",
+    address: "123 Beach Rd, Cancun",
+    description: "Oceanfront hotel with pool",
+    checkIn: new Date("2026-07-01T15:00:00Z"),
+    checkOut: new Date("2026-07-05T11:00:00Z"),
+    links: ["https://seaside-resort.example.com"],
+    deletedAt: null,
+    deletedBy: null,
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+    updatedAt: new Date("2026-01-01T00:00:00Z"),
+    ...overrides,
+  };
+}
+
 // ICS format uses line folding (RFC 5545 Section 3.1): long lines are broken
 // at 75 octets with a CRLF followed by a single whitespace character.
 // This helper unfolds the ICS string so we can do simple substring checks.
@@ -95,7 +116,7 @@ describe("CalendarService.generateIcsFeed", () => {
   describe("trip overview event", () => {
     it("should generate all-day transparent event when trip has startDate", () => {
       const trip = makeTrip();
-      const ics = service.generateIcsFeed([{ trip, events: [] }]);
+      const ics = service.generateIcsFeed([{ trip, events: [], accommodations: [] }]);
 
       expect(ics).toContain("BEGIN:VEVENT");
       expect(ics).toContain(`SUMMARY:${trip.name}`);
@@ -107,7 +128,7 @@ describe("CalendarService.generateIcsFeed", () => {
 
     it("should use exclusive end date (+1 day) per ICS spec", () => {
       const trip = makeTrip({ startDate: "2026-07-01", endDate: "2026-07-05" });
-      const ics = service.generateIcsFeed([{ trip, events: [] }]);
+      const ics = service.generateIcsFeed([{ trip, events: [], accommodations: [] }]);
 
       // endDate is July 5, exclusive end should be July 6
       expect(ics).toContain("DTEND;VALUE=DATE:20260706");
@@ -115,7 +136,7 @@ describe("CalendarService.generateIcsFeed", () => {
 
     it("should use startDate +1 day as end when endDate is null", () => {
       const trip = makeTrip({ startDate: "2026-07-01", endDate: null });
-      const ics = service.generateIcsFeed([{ trip, events: [] }]);
+      const ics = service.generateIcsFeed([{ trip, events: [], accommodations: [] }]);
 
       // Single-day trip: start July 1, exclusive end July 2
       expect(ics).toContain("DTSTART;VALUE=DATE:20260701");
@@ -124,7 +145,7 @@ describe("CalendarService.generateIcsFeed", () => {
 
     it("should skip trip overview event when startDate is null", () => {
       const trip = makeTrip({ startDate: null, endDate: null });
-      const ics = service.generateIcsFeed([{ trip, events: [] }]);
+      const ics = service.generateIcsFeed([{ trip, events: [], accommodations: [] }]);
 
       expect(ics).not.toContain(`UID:trip-${trip.id}@tripful.app`);
       expect(ics).not.toContain("BEGIN:VEVENT");
@@ -132,7 +153,7 @@ describe("CalendarService.generateIcsFeed", () => {
 
     it("should include trip description and link in description", () => {
       const trip = makeTrip({ description: "Sun and sand" });
-      const ics = unfold(service.generateIcsFeed([{ trip, events: [] }]));
+      const ics = unfold(service.generateIcsFeed([{ trip, events: [], accommodations: [] }]));
 
       expect(ics).toContain("Sun and sand");
       expect(ics).toContain(`https://tripful.app/trips/${trip.id}`);
@@ -140,14 +161,14 @@ describe("CalendarService.generateIcsFeed", () => {
 
     it("should include link even when trip description is null", () => {
       const trip = makeTrip({ description: null });
-      const ics = unfold(service.generateIcsFeed([{ trip, events: [] }]));
+      const ics = unfold(service.generateIcsFeed([{ trip, events: [], accommodations: [] }]));
 
       expect(ics).toContain(`https://tripful.app/trips/${trip.id}`);
     });
 
     it("should set destination as location", () => {
       const trip = makeTrip({ destination: "Cancun, Mexico" });
-      const ics = service.generateIcsFeed([{ trip, events: [] }]);
+      const ics = service.generateIcsFeed([{ trip, events: [], accommodations: [] }]);
 
       expect(ics).toContain("LOCATION:Cancun\\, Mexico");
     });
@@ -161,7 +182,7 @@ describe("CalendarService.generateIcsFeed", () => {
         endTime: new Date("2026-07-02T12:00:00Z"),
         allDay: false,
       });
-      const ics = service.generateIcsFeed([{ trip, events: [event] }]);
+      const ics = service.generateIcsFeed([{ trip, events: [event], accommodations: [] }]);
 
       expect(ics).toContain(`UID:event-${event.id}@tripful.app`);
       expect(ics).toContain("SUMMARY:Snorkeling Tour");
@@ -178,7 +199,7 @@ describe("CalendarService.generateIcsFeed", () => {
         endTime: null,
         allDay: false,
       });
-      const ics = service.generateIcsFeed([{ trip, events: [event] }]);
+      const ics = service.generateIcsFeed([{ trip, events: [event], accommodations: [] }]);
 
       // The ICS should have a DTEND — we verify by checking it contains VEVENT
       // and does not use all-day format
@@ -199,7 +220,7 @@ describe("CalendarService.generateIcsFeed", () => {
         endTime: new Date("2026-07-03T02:00:00Z"),
         allDay: false,
       });
-      const ics = unfold(service.generateIcsFeed([{ trip, events: [event] }]));
+      const ics = unfold(service.generateIcsFeed([{ trip, events: [event], accommodations: [] }]));
 
       // Should contain 18:00 (6pm local), NOT 23:00 (UTC)
       expect(ics).toContain("DTSTART;TZID=America/Cancun:20260702T180000");
@@ -210,7 +231,7 @@ describe("CalendarService.generateIcsFeed", () => {
     it("should include X-TRIPFUL-TRIP custom property with trip name", () => {
       const trip = makeTrip({ startDate: null, name: "Beach Vacation" });
       const event = makeEvent({ allDay: false });
-      const ics = service.generateIcsFeed([{ trip, events: [event] }]);
+      const ics = service.generateIcsFeed([{ trip, events: [event], accommodations: [] }]);
 
       expect(ics).toContain("X-TRIPFUL-TRIP:Beach Vacation");
     });
@@ -218,7 +239,7 @@ describe("CalendarService.generateIcsFeed", () => {
     it("should include event type as category", () => {
       const trip = makeTrip({ startDate: null });
       const event = makeEvent({ eventType: "meal", allDay: false });
-      const ics = service.generateIcsFeed([{ trip, events: [event] }]);
+      const ics = service.generateIcsFeed([{ trip, events: [event], accommodations: [] }]);
 
       expect(ics).toContain("CATEGORIES:meal");
     });
@@ -232,7 +253,7 @@ describe("CalendarService.generateIcsFeed", () => {
         startTime: new Date("2026-07-03T00:00:00Z"),
         endTime: new Date("2026-07-03T00:00:00Z"),
       });
-      const ics = service.generateIcsFeed([{ trip, events: [event] }]);
+      const ics = service.generateIcsFeed([{ trip, events: [event], accommodations: [] }]);
 
       expect(ics).toContain(`UID:event-${event.id}@tripful.app`);
       expect(ics).toContain("DTSTART;VALUE=DATE:");
@@ -249,7 +270,7 @@ describe("CalendarService.generateIcsFeed", () => {
         links: ["https://reef-tours.example.com", "https://maps.example.com"],
         allDay: false,
       });
-      const ics = service.generateIcsFeed([{ trip, events: [event] }]);
+      const ics = service.generateIcsFeed([{ trip, events: [event], accommodations: [] }]);
 
       expect(ics).toContain("Meetup:");
       expect(ics).toContain("Hotel Lobby");
@@ -268,7 +289,7 @@ describe("CalendarService.generateIcsFeed", () => {
         links: null,
         allDay: false,
       });
-      const ics = service.generateIcsFeed([{ trip, events: [event] }]);
+      const ics = service.generateIcsFeed([{ trip, events: [event], accommodations: [] }]);
 
       // Should still produce a valid VEVENT
       expect(ics).toContain("BEGIN:VEVENT");
@@ -287,7 +308,7 @@ describe("CalendarService.generateIcsFeed", () => {
         links: [],
         allDay: false,
       });
-      const ics = service.generateIcsFeed([{ trip, events: [event] }]);
+      const ics = service.generateIcsFeed([{ trip, events: [event], accommodations: [] }]);
 
       expect(ics).toContain("Just a description");
       expect(ics).not.toContain("Links:");
@@ -302,7 +323,7 @@ describe("CalendarService.generateIcsFeed", () => {
         links: null,
         allDay: false,
       });
-      const ics = service.generateIcsFeed([{ trip, events: [event] }]);
+      const ics = service.generateIcsFeed([{ trip, events: [event], accommodations: [] }]);
 
       expect(ics).toContain("Meetup:");
       expect(ics).not.toContain("at ");
@@ -317,7 +338,7 @@ describe("CalendarService.generateIcsFeed", () => {
         links: null,
         allDay: false,
       });
-      const ics = service.generateIcsFeed([{ trip, events: [event] }]);
+      const ics = service.generateIcsFeed([{ trip, events: [event], accommodations: [] }]);
 
       expect(ics).toContain("Meetup: at Hotel Lobby");
     });
@@ -351,8 +372,8 @@ describe("CalendarService.generateIcsFeed", () => {
       });
 
       const ics = service.generateIcsFeed([
-        { trip: trip1, events: [event1] },
-        { trip: trip2, events: [event2] },
+        { trip: trip1, events: [event1], accommodations: [] },
+        { trip: trip2, events: [event2], accommodations: [] },
       ]);
 
       // 2 trip overview events + 2 individual events = 4 VEVENTs
@@ -363,6 +384,104 @@ describe("CalendarService.generateIcsFeed", () => {
       expect(ics).toContain("SUMMARY:Trip Two");
       expect(ics).toContain("SUMMARY:Event One");
       expect(ics).toContain("SUMMARY:Event Two");
+    });
+  });
+
+  describe("accommodation events", () => {
+    it("should generate VEVENT with correct UID, summary, dates, and location", () => {
+      const trip = makeTrip({ startDate: null });
+      const acc = makeAccommodation();
+      const ics = unfold(
+        service.generateIcsFeed([
+          { trip, events: [], accommodations: [acc] },
+        ]),
+      );
+
+      expect(ics).toContain(`UID:accommodation-${acc.id}@tripful.app`);
+      expect(ics).toContain("SUMMARY:🏨 Seaside Resort");
+      expect(ics).toContain("LOCATION:123 Beach Rd\\, Cancun");
+      expect(ics).toContain("TRANSP:TRANSPARENT");
+      expect(ics).toContain("CATEGORIES:accommodation");
+      expect(ics).toContain("X-TRIPFUL-TRIP:Beach Vacation");
+      expect(ics).toContain("DTSTART");
+      expect(ics).toContain("DTEND");
+    });
+
+    it("should handle accommodation with no address, description, or links", () => {
+      const trip = makeTrip({ startDate: null });
+      const acc = makeAccommodation({
+        address: null,
+        description: null,
+        links: null,
+      });
+      const ics = unfold(
+        service.generateIcsFeed([
+          { trip, events: [], accommodations: [acc] },
+        ]),
+      );
+
+      expect(ics).toContain(`UID:accommodation-${acc.id}@tripful.app`);
+      expect(ics).toContain("SUMMARY:🏨 Seaside Resort");
+      // Should not contain LOCATION when address is null
+      expect(ics).not.toContain("LOCATION:");
+      expect(ics).not.toContain("Links:");
+      // Should still have trip link
+      expect(ics).toContain(`https://tripful.app/trips/${trip.id}`);
+    });
+
+    it("should include accommodations alongside trip and event VEVENTs", () => {
+      const trip = makeTrip(); // has startDate so trip overview is generated
+      const event = makeEvent({ allDay: false });
+      const acc = makeAccommodation();
+      const ics = service.generateIcsFeed([
+        { trip, events: [event], accommodations: [acc] },
+      ]);
+
+      // 1 trip overview + 1 event + 1 accommodation = 3 VEVENTs
+      const veventCount = (ics.match(/BEGIN:VEVENT/g) || []).length;
+      expect(veventCount).toBe(3);
+    });
+
+    it("should apply timezone conversion to checkIn/checkOut", () => {
+      // checkIn 2026-07-01T15:00:00Z with America/Cancun (UTC-5) = 10:00 AM local
+      const trip = makeTrip({
+        startDate: null,
+        preferredTimezone: "America/Cancun",
+      });
+      const acc = makeAccommodation({
+        checkIn: new Date("2026-07-01T15:00:00Z"),
+        checkOut: new Date("2026-07-05T16:00:00Z"),
+      });
+      const ics = unfold(
+        service.generateIcsFeed([
+          { trip, events: [], accommodations: [acc] },
+        ]),
+      );
+
+      expect(ics).toContain(
+        "DTSTART;TZID=America/Cancun:20260701T100000",
+      );
+      // checkOut 16:00 UTC = 11:00 AM local
+      expect(ics).toContain(
+        "DTEND;TZID=America/Cancun:20260705T110000",
+      );
+    });
+
+    it("should include description and links in description field", () => {
+      const trip = makeTrip({ startDate: null });
+      const acc = makeAccommodation({
+        description: "Oceanfront hotel with pool",
+        links: ["https://seaside-resort.example.com"],
+      });
+      const ics = unfold(
+        service.generateIcsFeed([
+          { trip, events: [], accommodations: [acc] },
+        ]),
+      );
+
+      expect(ics).toContain("Oceanfront hotel with pool");
+      expect(ics).toContain("Links:");
+      expect(ics).toContain("https://seaside-resort.example.com");
     });
   });
 });

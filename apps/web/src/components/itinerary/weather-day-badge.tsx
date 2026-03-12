@@ -22,7 +22,7 @@ export const WeatherDayBadge = memo(function WeatherDayBadge({
 
   return (
     <span
-      className="mt-1 inline-flex items-center gap-0.5 text-[0.65rem] text-muted-foreground"
+      className="mt-1 inline-flex flex-col items-center text-[0.65rem] text-muted-foreground"
       aria-label={`${label}, ${high}/${low}°${unit}`}
     >
       <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />

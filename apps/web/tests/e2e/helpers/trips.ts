@@ -3,7 +3,7 @@ import type { Page } from "@playwright/test";
 import { TripsPage, TripDetailPage } from "./pages";
 import { pickDate } from "./date-pickers";
 import { dismissToast } from "./toast";
-import { ELEMENT_TIMEOUT, RETRY_INTERVAL } from "./timeouts";
+import { NAVIGATION_TIMEOUT, RETRY_INTERVAL } from "./timeouts";
 
 /** Create a trip via the UI and land on the trip detail page. */
 export async function createTrip(
@@ -25,7 +25,7 @@ export async function createTrip(
     await expect(tripDetail.createDialogHeading).toBeVisible({
       timeout: RETRY_INTERVAL,
     });
-  }).toPass({ timeout: ELEMENT_TIMEOUT });
+  }).toPass({ timeout: NAVIGATION_TIMEOUT });
   await tripDetail.nameInput.fill(tripName);
   await tripDetail.destinationInput.fill(destination);
   await pickDate(page, tripDetail.startDateButton, startDate);
@@ -36,5 +36,5 @@ export async function createTrip(
   await page.waitForURL("**/trips/**");
   await expect(
     page.getByRole("heading", { level: 1, name: tripName }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
 }

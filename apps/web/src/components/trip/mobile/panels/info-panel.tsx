@@ -6,15 +6,9 @@ import {
   ClipboardList,
   UserPlus,
   Pencil,
-  ChevronDown,
   Settings,
 } from "lucide-react";
 import { RsvpBadgeDropdown } from "@/components/trip/rsvp-badge-dropdown";
-import {
-  Collapsible,
-  CollapsibleTrigger,
-  CollapsibleContent,
-} from "@/components/ui/collapsible";
 import { WeatherForecastCard } from "@/components/itinerary/weather-forecast-card";
 import { MessageCountIndicator } from "@/components/messaging";
 import { getUploadUrl } from "@/lib/api";
@@ -174,35 +168,21 @@ export function InfoPanel({
         </div>
 
         {/* About this trip */}
-        <Collapsible defaultOpen className="mb-2">
-          <CollapsibleTrigger className="flex items-center gap-2 px-0 text-sm font-semibold text-foreground hover:text-foreground/80 min-h-[44px] cursor-pointer">
-            <ChevronDown
-              className="w-4 h-4 transition-transform duration-200 [[data-state=closed]_&]:-rotate-90"
-              aria-hidden="true"
-            />
-            About this trip
-          </CollapsibleTrigger>
-          <CollapsibleContent
-            forceMount
-            className="overflow-hidden data-[state=open]:animate-[collapsible-down_200ms_ease-out] data-[state=closed]:animate-[collapsible-up_200ms_ease-out] data-[state=closed]:h-0"
-          >
-            <div className="mt-3 space-y-3">
-              {trip.description && (
-                <div className="bg-card rounded-md border border-border p-6 linen-texture">
-                  <p className="text-muted-foreground whitespace-pre-wrap">
-                    {trip.description}
-                  </p>
-                </div>
-              )}
-              <WeatherForecastCard
-                weather={weather}
-                isLoading={weatherLoading}
-                temperatureUnit={temperatureUnit}
-                isDark={preset?.background.isDark ?? false}
-              />
+        <div className="mb-2 space-y-3">
+          {trip.description && (
+            <div className="bg-card rounded-md border border-border p-6 linen-texture">
+              <p className="text-muted-foreground whitespace-pre-wrap">
+                {trip.description}
+              </p>
             </div>
-          </CollapsibleContent>
-        </Collapsible>
+          )}
+          <WeatherForecastCard
+            weather={weather}
+            isLoading={weatherLoading}
+            temperatureUnit={temperatureUnit}
+            isDark={preset?.background.isDark ?? false}
+          />
+        </div>
       </div>
     </div>
   );

@@ -126,7 +126,7 @@ export const WeatherForecastCard = memo(function WeatherForecastCard({
   return (
     <div className="space-y-1.5">
       <div
-        className="flex gap-1.5 overflow-x-auto pb-0.5"
+        className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none"
         role="region"
         aria-label="Weather forecast"
         tabIndex={0}
@@ -142,7 +142,7 @@ export const WeatherForecastCard = memo(function WeatherForecastCard({
           return (
             <div
               key={day.date}
-              className={`flex min-w-[6rem] flex-1 flex-col items-center rounded-md px-1.5 py-2 ${tileBg}`}
+              className={`flex min-w-[4.5rem] flex-1 flex-col items-center rounded-md px-1 py-2 ${tileBg}`}
               title={label}
               aria-label={`${formatDayOfWeek(day.date)}: ${label}, high ${high}, low ${low}${day.precipitationProbability > 5 ? `, ${day.precipitationProbability}% rain` : ""}`}
             >

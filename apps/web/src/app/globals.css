@@ -493,6 +493,13 @@
   bottom: calc(2rem + env(safe-area-inset-bottom));
 }
 
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 /* Postcard card style — vintage with rounded corners */
 .postcard {
   display: block;

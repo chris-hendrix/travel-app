@@ -9,21 +9,24 @@ import {
   members,
   trips,
   events,
+  accommodations,
   type User,
   type Trip,
   type Event,
+  type Accommodation,
 } from "@/db/schema/index.js";
 import type { AppDatabase } from "@/types/index.js";
 
-interface TripWithEvents {
+interface TripCalendarData {
   trip: Trip;
   events: Event[];
+  accommodations: Accommodation[];
 }
 
 export interface ICalendarService {
   getUserByCalendarToken(token: string): Promise<User | null>;
-  getCalendarTripsAndEvents(userId: string): Promise<TripWithEvents[]>;
-  generateIcsFeed(tripsWithEvents: TripWithEvents[]): string;
+  getCalendarTripsAndEvents(userId: string): Promise<TripCalendarData[]>;
+  generateIcsFeed(tripsWithEvents: TripCalendarData[]): string;
   enableCalendar(userId: string): Promise<string>;
   disableCalendar(userId: string): Promise<void>;
   regenerateCalendar(userId: string): Promise<string>;
@@ -57,7 +60,7 @@ export class CalendarService implements ICalendarService {
     return user ?? null;
   }
 
-  async getCalendarTripsAndEvents(userId: string): Promise<TripWithEvents[]> {
+  async getCalendarTripsAndEvents(userId: string): Promise<TripCalendarData[]> {
     // Get all trips where user is a member, not excluded from calendar, and not "not_going"
     const memberRows = await this.db
       .select({
@@ -94,6 +97,17 @@ export class CalendarService implements ICalendarService {
         and(inArray(events.tripId, activeTripIds), isNull(events.deletedAt)),
       );
 
+    // Batch-fetch all non-deleted accommodations for those trips
+    const accommodationRows = await this.db
+      .select()
+      .from(accommodations)
+      .where(
+        and(
+          inArray(accommodations.tripId, activeTripIds),
+          isNull(accommodations.deletedAt),
+        ),
+      );
+
     // Group events by tripId
     const eventsByTrip = new Map<string, Event[]>();
     for (const event of eventRows) {
@@ -102,13 +116,22 @@ export class CalendarService implements ICalendarService {
       eventsByTrip.set(event.tripId, list);
     }
 
+    // Group accommodations by tripId
+    const accommodationsByTrip = new Map<string, Accommodation[]>();
+    for (const acc of accommodationRows) {
+      const list = accommodationsByTrip.get(acc.tripId) ?? [];
+      list.push(acc);
+      accommodationsByTrip.set(acc.tripId, list);
+    }
+
     return tripRows.map((trip) => ({
       trip,
       events: eventsByTrip.get(trip.id) ?? [],
+      accommodations: accommodationsByTrip.get(trip.id) ?? [],
     }));
   }
 
-  generateIcsFeed(tripsWithEvents: TripWithEvents[]): string {
+  generateIcsFeed(tripsWithEvents: TripCalendarData[]): string {
     const calendar = ical({
       name: "Tripful",
       method: ICalCalendarMethod.PUBLISH,
@@ -122,7 +145,11 @@ export class CalendarService implements ICalendarService {
       ],
     });
 
-    for (const { trip, events: tripEvents } of tripsWithEvents) {
+    for (const {
+      trip,
+      events: tripEvents,
+      accommodations: tripAccommodations,
+    } of tripsWithEvents) {
       const timezone = trip.preferredTimezone || "UTC";
 
       // Trip overview event (all-day, multi-day) — skip if no startDate
@@ -222,6 +249,40 @@ export class CalendarService implements ICalendarService {
             x: [{ key: "X-TRIPFUL-TRIP", value: trip.name }],
           });
         }
+      }
+
+      // Accommodation events
+      for (const acc of tripAccommodations) {
+        const descriptionParts: string[] = [];
+
+        if (acc.description) {
+          descriptionParts.push(acc.description);
+        }
+
+        if (acc.links && acc.links.length > 0) {
+          descriptionParts.push(
+            "Links:\n" + acc.links.map((l) => `- ${l}`).join("\n"),
+          );
+        }
+
+        descriptionParts.push(
+          `View trip: https://tripful.app/trips/${trip.id}`,
+        );
+
+        const description = descriptionParts.join("\n\n");
+
+        calendar.createEvent({
+          id: `accommodation-${acc.id}@tripful.app`,
+          summary: `🏨 ${acc.name}`,
+          description,
+          location: acc.address,
+          start: toTimezoneDate(acc.checkIn, timezone),
+          end: toTimezoneDate(acc.checkOut, timezone),
+          timezone,
+          transparency: ICalEventTransparency.TRANSPARENT,
+          categories: [{ name: "accommodation" }],
+          x: [{ key: "X-TRIPFUL-TRIP", value: trip.name }],
+        });
       }
     }
 

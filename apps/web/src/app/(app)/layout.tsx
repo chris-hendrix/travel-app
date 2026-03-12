@@ -23,7 +23,7 @@ export default async function ProtectedLayout({
       <AppHeader />
       <main
         id="main-content"
-        className="bg-gradient-to-b from-background via-background to-secondary/30 min-h-screen"
+        className="bg-gradient-to-b from-background via-background to-secondary/30 min-h-[calc(100dvh-3.5rem)]"
       >
         <QueryErrorBoundaryWrapper>{children}</QueryErrorBoundaryWrapper>
       </main>
