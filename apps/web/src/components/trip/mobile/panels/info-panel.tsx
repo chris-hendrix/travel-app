@@ -11,6 +11,8 @@ import {
 import { RsvpBadgeDropdown } from "@/components/trip/rsvp-badge-dropdown";
 import { WeatherForecastCard } from "@/components/itinerary/weather-forecast-card";
 import { MessageCountIndicator } from "@/components/messaging";
+import { TodaySection } from "./today-section";
+import { linkifyText } from "@/utils/linkify";
 import { getUploadUrl } from "@/lib/api";
 import { getInitials } from "@/lib/format";
 import { supportsHover } from "@/lib/supports-hover";
@@ -167,12 +169,19 @@ export function InfoPanel({
           <MessageCountIndicator tripId={tripId} />
         </div>
 
+        {/* Today's schedule */}
+        <TodaySection
+          tripId={tripId}
+          timezone={trip.preferredTimezone || "UTC"}
+          onNavigateToItinerary={onNavigateToItinerary}
+        />
+
         {/* About this trip */}
         <div className="mb-2 space-y-3">
           {trip.description && (
             <div className="bg-card rounded-md border border-border p-6 linen-texture">
-              <p className="text-muted-foreground whitespace-pre-wrap">
-                {trip.description}
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                {linkifyText(trip.description)}
               </p>
             </div>
           )}

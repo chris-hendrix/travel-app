@@ -32,6 +32,8 @@ export function TripsContent() {
   const searchParams = useSearchParams();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState(searchParams.get("q") ?? "");
+  const { ref: currentSectionRef, isRevealed: currentRevealed } =
+    useScrollReveal();
   const { ref: upcomingSectionRef, isRevealed: upcomingRevealed } =
     useScrollReveal();
   const { ref: pastSectionRef, isRevealed: pastRevealed } = useScrollReveal();
@@ -90,11 +92,14 @@ export function TripsContent() {
     );
   }, [trips, searchQuery]);
 
-  // Split trips into upcoming and past based on end date (or start date)
-  // Trips stay "upcoming" until one day after their end date
-  const { upcomingTrips, pastTrips } = useMemo(() => {
+  // Split trips into current, upcoming, and past
+  // Current: startDate <= today <= effectiveEnd (trips happening now)
+  // Upcoming: startDate > today (trips that haven't started yet)
+  // Past: effectiveEnd < today
+  const { currentTrips, upcomingTrips, pastTrips } = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const current: TripSummary[] = [];
     const upcoming: TripSummary[] = [];
     const past: TripSummary[] = [];
     for (const trip of filteredTrips) {
@@ -102,16 +107,20 @@ export function TripsContent() {
         upcoming.push(trip);
         continue;
       }
+      const startDate = new Date(trip.startDate);
+      startDate.setHours(0, 0, 0, 0);
       const effectiveEnd = new Date(trip.endDate ?? trip.startDate);
       effectiveEnd.setDate(effectiveEnd.getDate() + 1);
       effectiveEnd.setHours(23, 59, 59, 999);
-      if (effectiveEnd >= today) {
+      if (startDate <= today && effectiveEnd >= today) {
+        current.push(trip);
+      } else if (startDate > today) {
         upcoming.push(trip);
       } else {
         past.push(trip);
       }
     }
-    return { upcomingTrips: upcoming, pastTrips: past };
+    return { currentTrips: current, upcomingTrips: upcoming, pastTrips: past };
   }, [filteredTrips]);
 
   const tripCount = data?.pages[0]?.meta?.total ?? trips.length;
@@ -227,6 +236,26 @@ export function TripsContent() {
         {/* Trips Sections */}
         {!isPending && !isError && !isEmpty && !noResults && (
           <div aria-live="polite">
+            {/* Current Trips */}
+            {currentTrips.length > 0 && (
+              <section
+                ref={currentSectionRef}
+                className={`mb-12 ${currentRevealed ? "motion-safe:animate-[revealUp_400ms_ease-out_both]" : "motion-safe:opacity-0"}`}
+              >
+                <h2 className="text-xl sm:text-2xl font-semibold text-foreground mb-4 font-playfair">
+                  Current trips
+                  <span className="block text-xs font-normal text-muted-foreground font-accent tracking-wider uppercase mt-1">
+                    In progress
+                  </span>
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {currentTrips.map((trip, index) => (
+                    <TripCard key={trip.id} trip={trip} index={index} />
+                  ))}
+                </div>
+              </section>
+            )}
+
             {/* Upcoming Trips */}
             {upcomingTrips.length > 0 && (
               <section
