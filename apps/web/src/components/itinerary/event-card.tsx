@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { Calendar, Car, ExternalLink, MapPin, Utensils } from "lucide-react";
+import { Calendar, Car, MapPin, Utensils } from "lucide-react";
 import type { Event } from "@tripful/shared/types";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -119,22 +119,19 @@ export const EventCard = memo(function EventCard({
         )}
       </div>
 
-      {/* Line 3: Location with link icon */}
+      {/* Line 3: Location as map link */}
       {event.location && (
-        <div className="flex items-center gap-1 text-xs text-muted-foreground truncate">
+        <a
+          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors truncate"
+          onClick={(e) => e.stopPropagation()}
+          aria-label={`${event.location} on Google Maps`}
+        >
           <MapPin className="w-3 h-3 shrink-0" />
           <span className="truncate">{event.location}</span>
-          <a
-            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-primary transition-colors shrink-0"
-            onClick={(e) => e.stopPropagation()}
-            aria-label={`${event.location} on Google Maps`}
-          >
-            <ExternalLink className="w-3 h-3" />
-          </a>
-        </div>
+        </a>
       )}
     </div>
   );
