@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { Building2, MapPin } from "lucide-react";
+import { Building2 } from "lucide-react";
 import type { Accommodation } from "@tripful/shared/types";
 
 interface AccommodationLineItemProps {
@@ -31,17 +31,9 @@ export const AccommodationLineItem = memo(function AccommodationLineItem({
         {accommodation.name}
       </span>
       {accommodation.address && (
-        <a
-          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(accommodation.address)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary transition-colors min-w-0"
-          onClick={(e) => e.stopPropagation()}
-          aria-label={`${accommodation.name} on Google Maps`}
-        >
-          <MapPin className="w-3 h-3 shrink-0" />
-          <span className="truncate">{accommodation.address}</span>
-        </a>
+        <span className="text-xs text-muted-foreground truncate">
+          {accommodation.address}
+        </span>
       )}
     </div>
   );

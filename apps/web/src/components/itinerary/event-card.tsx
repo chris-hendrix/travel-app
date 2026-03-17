@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { Calendar, Car, MapPin, Utensils } from "lucide-react";
+import { Calendar, Car, Utensils } from "lucide-react";
 import type { Event } from "@tripful/shared/types";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -119,19 +119,11 @@ export const EventCard = memo(function EventCard({
         )}
       </div>
 
-      {/* Line 3: Location as map link */}
+      {/* Line 3: Location */}
       {event.location && (
-        <a
-          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors truncate"
-          onClick={(e) => e.stopPropagation()}
-          aria-label={`${event.location} on Google Maps`}
-        >
-          <MapPin className="w-3 h-3 shrink-0" />
-          <span className="truncate">{event.location}</span>
-        </a>
+        <span className="text-xs text-muted-foreground truncate">
+          {event.location}
+        </span>
       )}
     </div>
   );
