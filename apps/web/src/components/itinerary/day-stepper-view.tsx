@@ -267,7 +267,10 @@ export function DayStepperView({
   return (
     <>
       {/* Day navigation header */}
-      <div className="flex items-center justify-between gap-2 py-2">
+      <nav
+        aria-label="Day navigation"
+        className="flex items-center justify-between gap-2 py-2"
+      >
         <Button
           variant="ghost"
           size="icon"
@@ -321,7 +324,7 @@ export function DayStepperView({
         >
           <ChevronRight className="h-5 w-5" />
         </Button>
-      </div>
+      </nav>
 
       {/* Day content with swipe support */}
       <div
