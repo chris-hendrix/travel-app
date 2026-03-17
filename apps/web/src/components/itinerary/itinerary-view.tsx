@@ -17,8 +17,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useTripDetail } from "@/hooks/use-trips";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { ItineraryHeader } from "./itinerary-header";
 import { DayByDayView } from "./day-by-day-view";
+import { DayStepperView } from "./day-stepper-view";
 import { GroupByTypeView } from "./group-by-type-view";
 import { CreateEventDialog } from "./create-event-dialog";
 import { CreateAccommodationDialog } from "./create-accommodation-dialog";
@@ -90,6 +92,7 @@ export function ItineraryView({
     allMemberTravels.some((t) => t.deletedAt !== null);
 
   // View state
+  const isMobile = useIsMobile();
   const [viewMode, setViewMode] = useState<"day-by-day" | "group-by-type">(
     "day-by-day",
   );
@@ -294,6 +297,7 @@ export function ItineraryView({
         {...(hideFab != null ? { hideFab } : {})}
         tripStartDate={trip?.startDate || null}
         tripEndDate={trip?.endDate || null}
+        isMobile={isMobile}
       />
 
       {/* Content */}
@@ -315,20 +319,38 @@ export function ItineraryView({
           </div>
         )}
         {viewMode === "day-by-day" ? (
-          <DayByDayView
-            events={events}
-            accommodations={accommodations}
-            memberTravels={memberTravels}
-            timezone={timezone}
-            tripStartDate={trip?.startDate || null}
-            tripEndDate={trip?.endDate || null}
-            isOrganizer={!!isOrganizer}
-            userId={user?.id || ""}
-            userNameMap={userNameMap}
-            isLocked={isLocked}
-            forecasts={forecasts ?? []}
-            temperatureUnit={temperatureUnit ?? "fahrenheit"}
-          />
+          isMobile ? (
+            <DayStepperView
+              events={events}
+              accommodations={accommodations}
+              memberTravels={memberTravels}
+              timezone={timezone}
+              tripStartDate={trip?.startDate || null}
+              tripEndDate={trip?.endDate || null}
+              isOrganizer={!!isOrganizer}
+              userId={user?.id || ""}
+              userNameMap={userNameMap}
+              isLocked={isLocked}
+              forecasts={forecasts ?? []}
+              temperatureUnit={temperatureUnit ?? "fahrenheit"}
+              onCreateEvent={() => setIsCreateEventOpen(true)}
+            />
+          ) : (
+            <DayByDayView
+              events={events}
+              accommodations={accommodations}
+              memberTravels={memberTravels}
+              timezone={timezone}
+              tripStartDate={trip?.startDate || null}
+              tripEndDate={trip?.endDate || null}
+              isOrganizer={!!isOrganizer}
+              userId={user?.id || ""}
+              userNameMap={userNameMap}
+              isLocked={isLocked}
+              forecasts={forecasts ?? []}
+              temperatureUnit={temperatureUnit ?? "fahrenheit"}
+            />
+          )
         ) : (
           <GroupByTypeView
             events={events}

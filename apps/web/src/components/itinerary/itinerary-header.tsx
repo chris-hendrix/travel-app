@@ -55,6 +55,7 @@ interface ItineraryHeaderProps {
   hideFab?: boolean;
   tripStartDate?: string | null | undefined;
   tripEndDate?: string | null | undefined;
+  isMobile?: boolean;
 }
 
 export function ItineraryHeader({
@@ -72,6 +73,7 @@ export function ItineraryHeader({
   hideFab,
   tripStartDate,
   tripEndDate,
+  isMobile,
 }: ItineraryHeaderProps) {
   const [isCreateEventOpen, setIsCreateEventOpen] = useState(false);
   const [isCreateAccommodationOpen, setIsCreateAccommodationOpen] =
@@ -104,32 +106,34 @@ export function ItineraryHeader({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
-                      size="icon-xs"
+                      size={isMobile ? "sm" : "icon-xs"}
                       variant={viewMode === "day-by-day" ? "default" : "ghost"}
                       onClick={() => onViewModeChange("day-by-day")}
                       className="relative after:absolute after:content-[''] after:-inset-[4px] rounded-lg"
-                      aria-label="Day by Day"
+                      aria-label={isMobile ? "Day" : "Day by Day"}
                     >
                       <Calendar className="w-4 h-4" />
+                      {isMobile && <span className="text-xs">Day</span>}
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Day by Day</TooltipContent>
+                  {!isMobile && <TooltipContent>Day by Day</TooltipContent>}
                 </Tooltip>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
-                      size="icon-xs"
+                      size={isMobile ? "sm" : "icon-xs"}
                       variant={
                         viewMode === "group-by-type" ? "default" : "ghost"
                       }
                       onClick={() => onViewModeChange("group-by-type")}
                       className="relative after:absolute after:content-[''] after:-inset-[4px] rounded-lg"
-                      aria-label="Group by Type"
+                      aria-label={isMobile ? "Type" : "Group by Type"}
                     >
                       <List className="w-4 h-4" />
+                      {isMobile && <span className="text-xs">Type</span>}
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Group by Type</TooltipContent>
+                  {!isMobile && <TooltipContent>Group by Type</TooltipContent>}
                 </Tooltip>
               </div>
             </TooltipProvider>

@@ -1,7 +1,13 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useRef, useCallback, useImperativeHandle, forwardRef } from "react";
+import {
+  useRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  forwardRef,
+} from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { HashNavigation, A11y } from "swiper/modules";
 import type { Swiper as SwiperType } from "swiper";
@@ -15,6 +21,7 @@ export interface MobileTripSwiperRef {
 }
 
 interface MobileTripSwiperProps {
+  activeIndex: number;
   onSlideChange: (index: number) => void;
   onProgress: (progress: number) => void;
   children: [ReactNode, ReactNode, ReactNode, ReactNode];
@@ -23,7 +30,10 @@ interface MobileTripSwiperProps {
 export const MobileTripSwiper = forwardRef<
   MobileTripSwiperRef,
   MobileTripSwiperProps
->(function MobileTripSwiper({ onSlideChange, onProgress, children }, ref) {
+>(function MobileTripSwiper(
+  { activeIndex, onSlideChange, onProgress, children },
+  ref,
+) {
   const swiperRef = useRef<SwiperType | null>(null);
 
   useImperativeHandle(ref, () => ({
@@ -31,6 +41,14 @@ export const MobileTripSwiper = forwardRef<
       swiperRef.current?.slideTo(index);
     },
   }));
+
+  // Disable touch swiping when on the itinerary slide (index 1)
+  // to avoid conflicts with the day stepper swipe gestures
+  useEffect(() => {
+    const swiper = swiperRef.current;
+    if (!swiper) return;
+    swiper.allowTouchMove = activeIndex !== 1;
+  }, [activeIndex]);
 
   const handleSwiper = useCallback((swiper: SwiperType) => {
     swiperRef.current = swiper;
