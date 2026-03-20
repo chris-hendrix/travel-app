@@ -36,7 +36,7 @@ describe("NominatimGeocodingService", () => {
         expect.objectContaining({
           headers: {
             "User-Agent":
-              "tripful-app (https://github.com/chris-hendrix/tripful)",
+              "journiful-app (https://github.com/chris-hendrix/tripful)",
           },
         }),
       );

@@ -446,7 +446,7 @@ export class InvitationService implements IInvitationService {
         newPhones.map((phone) => ({
           data: {
             phoneNumber: phone,
-            message: "You've been invited to a trip on Tripful!",
+            message: "You've been invited to a trip on Journiful!",
           } as InvitationSendPayload,
         })),
       );
@@ -454,7 +454,7 @@ export class InvitationService implements IInvitationService {
       for (const phone of newPhones) {
         await this.smsService.sendMessage(
           phone,
-          "You've been invited to a trip on Tripful!",
+          "You've been invited to a trip on Journiful!",
         );
       }
     }

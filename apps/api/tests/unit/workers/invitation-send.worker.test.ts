@@ -28,7 +28,7 @@ describe("invitation-send.worker", () => {
       name: "invitation/send",
       data: {
         phoneNumber: "+15559876543",
-        message: "You've been invited to a trip on Tripful!",
+        message: "You've been invited to a trip on Journiful!",
       },
       expireInSeconds: 300,
       heartbeatSeconds: null,
@@ -40,7 +40,7 @@ describe("invitation-send.worker", () => {
     expect(mockDeps.smsService.sendMessage).toHaveBeenCalledTimes(1);
     expect(mockDeps.smsService.sendMessage).toHaveBeenCalledWith(
       "+15559876543",
-      "You've been invited to a trip on Tripful!",
+      "You've been invited to a trip on Journiful!",
     );
   });
 
@@ -50,7 +50,7 @@ describe("invitation-send.worker", () => {
       name: "invitation/send",
       data: {
         phoneNumber: "+15559876543",
-        message: "You've been invited to a trip on Tripful!",
+        message: "You've been invited to a trip on Journiful!",
       },
       expireInSeconds: 300,
       heartbeatSeconds: null,

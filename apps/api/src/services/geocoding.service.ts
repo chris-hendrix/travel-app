@@ -40,7 +40,7 @@ export class NominatimGeocodingService implements IGeocodingService {
       const response = await fetch(url, {
         headers: {
           "User-Agent":
-            "tripful-app (https://github.com/chris-hendrix/tripful)",
+            "journiful-app (https://github.com/chris-hendrix/tripful)",
         },
       });
 

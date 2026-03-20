@@ -92,7 +92,7 @@ describe("DLQ Worker Integration", () => {
       name: QUEUE.INVITATION_SEND_DLQ,
       data: {
         phoneNumber: "+15559876543",
-        message: "You've been invited to join Tokyo Trip on Tripful!",
+        message: "You've been invited to join Tokyo Trip on Journiful!",
       },
       expireInSeconds: 300,
       heartbeatSeconds: null,
@@ -107,7 +107,7 @@ describe("DLQ Worker Integration", () => {
         jobId: "failed-invite-003",
         data: {
           phoneNumber: "+15559876543",
-          message: "You've been invited to join Tokyo Trip on Tripful!",
+          message: "You've been invited to join Tokyo Trip on Journiful!",
         },
       },
       "Job moved to dead letter queue",

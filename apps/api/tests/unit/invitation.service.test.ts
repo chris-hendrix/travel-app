@@ -1350,13 +1350,13 @@ describe("invitation.service", () => {
           expect.objectContaining({
             data: {
               phoneNumber: phone1,
-              message: "You've been invited to a trip on Tripful!",
+              message: "You've been invited to a trip on Journiful!",
             },
           }),
           expect.objectContaining({
             data: {
               phoneNumber: phone2,
-              message: "You've been invited to a trip on Tripful!",
+              message: "You've been invited to a trip on Journiful!",
             },
           }),
         ]),
@@ -1422,7 +1422,7 @@ describe("invitation.service", () => {
       // Inline SMS should be called
       expect(sendMessageSpy).toHaveBeenCalledWith(
         phone,
-        "You've been invited to a trip on Tripful!",
+        "You've been invited to a trip on Journiful!",
       );
 
       sendMessageSpy.mockRestore();

@@ -4,7 +4,7 @@ import { MockSMSService } from "@/services/sms.service.js";
 describe("sms.service", () => {
   describe("sendMessage", () => {
     const testPhone = "+14155552671";
-    const testMessage = "Your Tripful verification code is: 123456";
+    const testMessage = "Your Journiful verification code is: 123456";
 
     it("should exist and be callable", async () => {
       const service = new MockSMSService();
@@ -73,7 +73,7 @@ describe("sms.service", () => {
       };
 
       const service = new MockSMSService(mockLogger);
-      const customMessage = "You've been invited to a trip on Tripful!";
+      const customMessage = "You've been invited to a trip on Journiful!";
       await service.sendMessage(testPhone, customMessage);
 
       const logData = mockLogger.info.mock.calls[0][0] as Record<

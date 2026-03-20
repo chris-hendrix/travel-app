@@ -99,7 +99,7 @@ test.describe("Trip Journey", () => {
       await page.waitForURL("**/trips/**");
       await expect(
         page.getByRole("heading", { level: 1, name: tripName }),
-      ).toBeVisible();
+      ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
     });
 
     const updatedName = `Updated Trip ${Date.now()}`;

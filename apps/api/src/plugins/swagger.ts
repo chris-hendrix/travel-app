@@ -14,7 +14,7 @@ export default fp(
     await fastify.register(swagger, {
       openapi: {
         info: {
-          title: "Tripful API",
+          title: "Journiful API",
           version: "1.0.0",
           description: "Collaborative trip planning API",
         },

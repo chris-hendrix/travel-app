@@ -187,7 +187,7 @@ describe("notification.service", () => {
         userId: testMemberId,
         type: "trip_update",
         title: "Welcome",
-        body: "Welcome to Tripful!",
+        body: "Welcome to Journiful!",
       });
 
       expect(result.tripId).toBeNull();

@@ -39,7 +39,7 @@ describe("Swagger/OpenAPI Endpoints", () => {
     expect(spec.openapi).toBeDefined();
     expect(spec.openapi).toMatch(/^3\./);
     expect(spec.info).toBeDefined();
-    expect(spec.info.title).toBe("Tripful API");
+    expect(spec.info.title).toBe("Journiful API");
     expect(spec.info.version).toBe("1.0.0");
 
     // Verify paths are populated with registered routes
