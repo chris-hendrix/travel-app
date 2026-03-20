@@ -1,5 +1,5 @@
 {
-  "name": "@tripful/web",
+  "name": "@journiful/web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -20,7 +20,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@tanstack/react-query": "^5.90.21",
-    "@tripful/shared": "workspace:*",
+    "@journiful/shared": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

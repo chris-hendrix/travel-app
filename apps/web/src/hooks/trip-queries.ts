@@ -8,7 +8,7 @@ import type {
   GetTripsResponse,
   GetTripResponse,
   TripDetail,
-} from "@tripful/shared/types";
+} from "@journiful/shared/types";
 
 /**
  * Extended trip detail with metadata from the API response envelope

@@ -12,7 +12,7 @@ interface TravelReminderBannerProps {
 }
 
 function getDismissKey(tripId: string): string {
-  return `tripful:onboarding-dismissed:${tripId}`;
+  return `journiful:onboarding-dismissed:${tripId}`;
 }
 
 export function TravelReminderBanner({

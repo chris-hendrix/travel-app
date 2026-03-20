@@ -2,7 +2,7 @@
 
 import React, { memo, useCallback } from "react";
 import { MapPin, PlaneLanding, PlaneTakeoff } from "lucide-react";
-import type { MemberTravel } from "@tripful/shared/types";
+import type { MemberTravel } from "@journiful/shared/types";
 import { formatInTimezone } from "@/lib/utils/timezone";
 
 interface MemberTravelLineItemProps {

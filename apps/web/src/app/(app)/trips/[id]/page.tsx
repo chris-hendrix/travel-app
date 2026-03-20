@@ -4,7 +4,7 @@ import { getQueryClient } from "@/lib/get-query-client";
 import { tripKeys } from "@/hooks/trip-queries";
 import { serverApiRequest } from "@/lib/server-api";
 import { TripDetailContent } from "./trip-detail-content";
-import type { GetTripResponse } from "@tripful/shared/types";
+import type { GetTripResponse } from "@journiful/shared/types";
 
 type Props = {
   params: Promise<{ id: string }>;

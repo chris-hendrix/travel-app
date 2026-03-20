@@ -15,9 +15,9 @@ import { SkipLink } from "@/components/skip-link";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL || "https://tripful.me",
+    process.env.NEXT_PUBLIC_SITE_URL || "https://journiful.app",
   ),
-  title: { default: "Tripful - Group Trip Planner", template: "%s | Tripful" },
+  title: { default: "Journiful - Group Trip Planner", template: "%s | Journiful" },
   description:
     "Plan group trips together. Coordinate itineraries, accommodations, and events with your travel companions in one place.",
   keywords: [
@@ -27,19 +27,19 @@ export const metadata: Metadata = {
     "plan trip with friends",
     "group vacation planner",
   ],
-  authors: [{ name: "Tripful" }],
-  creator: "Tripful",
+  authors: [{ name: "Journiful" }],
+  creator: "Journiful",
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
-    siteName: "Tripful",
-    title: "Tripful - Group Trip Planner",
+    siteName: "Journiful",
+    title: "Journiful - Group Trip Planner",
     description:
       "Plan group trips together. Coordinate itineraries, accommodations, and events with your travel companions in one place.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Tripful - Group Trip Planner",
+    title: "Journiful - Group Trip Planner",
     description:
       "Plan group trips together. Coordinate itineraries, accommodations, and events with your travel companions in one place.",
   },
@@ -47,7 +47,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Tripful",
+    title: "Journiful",
   },
 };
 
@@ -86,7 +86,7 @@ export default function RootLayout({
               fontFamily: "system-ui, sans-serif",
             }}
           >
-            Tripful requires JavaScript to run. Please enable JavaScript in your
+            Journiful requires JavaScript to run. Please enable JavaScript in your
             browser settings.
           </div>
         </noscript>

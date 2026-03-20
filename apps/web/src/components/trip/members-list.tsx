@@ -22,7 +22,7 @@ import {
   getRevokeInvitationErrorMessage,
 } from "@/hooks/use-invitations";
 import type { MemberWithProfile } from "@/hooks/use-invitations";
-import type { Invitation } from "@tripful/shared/types";
+import type { Invitation } from "@journiful/shared/types";
 import {
   useMuteMember,
   useUnmuteMember,

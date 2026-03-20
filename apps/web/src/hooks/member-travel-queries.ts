@@ -3,7 +3,7 @@ import { apiRequest } from "@/lib/api";
 import type {
   GetMemberTravelsResponse,
   GetMemberTravelResponse,
-} from "@tripful/shared/types";
+} from "@journiful/shared/types";
 
 /**
  * Query key factory for member travel-related queries

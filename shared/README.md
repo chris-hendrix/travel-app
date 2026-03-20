@@ -1,6 +1,6 @@
-# @tripful/shared
+# @journiful/shared
 
-Shared TypeScript types, Zod schemas, and utilities used across the Tripful monorepo.
+Shared TypeScript types, Zod schemas, and utilities used across the Journiful monorepo.
 
 ## Package Structure
 
@@ -30,7 +30,7 @@ shared/
 Import from the package root:
 
 ```typescript
-import { User, phoneNumberSchema } from "@tripful/shared";
+import { User, phoneNumberSchema } from "@journiful/shared";
 ```
 
 Or import from specific subpaths:
@@ -42,13 +42,13 @@ import {
   Event,
   Accommodation,
   MemberTravel,
-} from "@tripful/shared/types";
+} from "@journiful/shared/types";
 import {
   phoneNumberSchema,
   createEventSchema,
   createTripSchema,
-} from "@tripful/shared/schemas";
-import { convertToUTC } from "@tripful/shared/utils";
+} from "@journiful/shared/schemas";
+import { convertToUTC } from "@journiful/shared/utils";
 ```
 
 ## Development Notes

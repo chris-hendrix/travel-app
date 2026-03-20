@@ -30,7 +30,7 @@ import {
   getRestoreMemberTravelErrorMessage,
 } from "@/hooks/use-member-travel";
 import { formatInTimezone } from "@/lib/utils/timezone";
-import type { Event, Accommodation, MemberTravel } from "@tripful/shared/types";
+import type { Event, Accommodation, MemberTravel } from "@journiful/shared/types";
 
 interface DeletedItemsDialogProps {
   open: boolean;

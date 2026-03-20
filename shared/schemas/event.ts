@@ -1,4 +1,4 @@
-// Event validation schemas for the Tripful platform
+// Event validation schemas for the Journiful platform
 
 import { z } from "zod";
 import { stripControlChars } from "../utils/sanitize";

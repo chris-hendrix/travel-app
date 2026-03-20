@@ -9,8 +9,8 @@ import { parse } from "date-fns";
 import {
   updateMemberTravelSchema,
   type UpdateMemberTravelInput,
-} from "@tripful/shared/schemas";
-import type { MemberTravel } from "@tripful/shared/types";
+} from "@journiful/shared/schemas";
+import type { MemberTravel } from "@journiful/shared/types";
 import {
   Sheet,
   SheetBody,

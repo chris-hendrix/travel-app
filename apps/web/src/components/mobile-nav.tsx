@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Compass, LogOut, User as UserIcon, Users } from "lucide-react";
-import type { User } from "@tripful/shared";
+import type { User } from "@journiful/shared";
 import { getInitials } from "@/lib/format";
 import { getUploadUrl } from "@/lib/api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";

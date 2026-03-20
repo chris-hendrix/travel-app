@@ -9,7 +9,7 @@ import { parse, addDays } from "date-fns";
 import {
   createAccommodationSchema,
   type CreateAccommodationInput,
-} from "@tripful/shared/schemas";
+} from "@journiful/shared/schemas";
 import {
   Sheet,
   SheetBody,

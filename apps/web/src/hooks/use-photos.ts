@@ -2,12 +2,12 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, API_URL, APIError } from "@/lib/api";
-import type { UpdatePhotoCaptionInput } from "@tripful/shared/schemas";
+import type { UpdatePhotoCaptionInput } from "@journiful/shared/schemas";
 import type {
   Photo,
   UploadPhotosResponse,
   UpdatePhotoResponse,
-} from "@tripful/shared/types";
+} from "@journiful/shared/types";
 
 // Import query keys and options from server-safe module for use in hooks
 import { photoKeys, photosQueryOptions } from "./photo-queries";

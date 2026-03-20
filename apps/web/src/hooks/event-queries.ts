@@ -3,7 +3,7 @@ import { apiRequest } from "@/lib/api";
 import type {
   GetEventsResponse,
   GetEventResponse,
-} from "@tripful/shared/types";
+} from "@journiful/shared/types";
 
 /**
  * Query key factory for event-related queries

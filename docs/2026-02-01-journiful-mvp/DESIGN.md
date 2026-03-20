@@ -1,10 +1,10 @@
 ---
 date: 2026-02-01
-topic: Tripful - UI/UX Design Documentation
+topic: Journiful - UI/UX Design Documentation
 last_updated: 2026-02-14
 ---
 
-# Tripful - Design System & Page Overview
+# Journiful - Design System & Page Overview
 
 ## Design Philosophy
 
@@ -70,7 +70,7 @@ last_updated: 2026-02-14
 │     [Warm cream background]         │
 │     [Gradient overlay]              │
 │                                     │
-│         ✦ Tripful                   │
+│         ✦ Journiful                   │
 │   Plan and share your adventures    │
 │                                     │
 │       [Get Started →]               │
@@ -104,7 +104,7 @@ last_updated: 2026-02-14
 │     [Warm cream background]         │
 │     [Compass rose SVG pattern]      │
 │                                     │
-│         ✦ Tripful                   │
+│         ✦ Journiful                   │
 │                                     │
 │ ┌─────────────────────────────┐    │
 │ │  Get started                │    │
@@ -130,7 +130,7 @@ last_updated: 2026-02-14
 
 - White `bg-card` rounded-2xl with `shadow-sm` and `border-border`
 - Padding: 24-32px (responsive)
-- Centered in viewport with Tripful wordmark above
+- Centered in viewport with Journiful wordmark above
 
 **Step 1 - Phone Entry** (`/login`):
 
@@ -205,7 +205,7 @@ last_updated: 2026-02-14
 
 **App Header** (sticky, via `app-header.tsx`):
 
-- Tripful wordmark (Playfair Display) linking to `/dashboard`
+- Journiful wordmark (Playfair Display) linking to `/dashboard`
 - "Dashboard" nav link with active state based on `usePathname()`
 - User avatar dropdown (DropdownMenu): Profile, Log out
 - Uses `useAuth()` hook for user data
@@ -1163,4 +1163,4 @@ rsvp: {
 - Itinerary components: `apps/web/src/components/itinerary/`
 - Deleted items section: `apps/web/src/components/itinerary/deleted-items-section.tsx`
 - Pages: `apps/web/src/app/*/page.tsx`
-- PRD: `docs/2026-02-01-tripful-mvp/PRD.md`
+- PRD: `docs/2026-02-01-journiful-mvp/PRD.md`

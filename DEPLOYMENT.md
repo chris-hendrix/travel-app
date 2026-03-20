@@ -1,6 +1,6 @@
 # Railway Deployment
 
-Tripful runs on [Railway](https://railway.app) as two services from this monorepo.
+Journiful runs on [Railway](https://railway.app) as two services from this monorepo.
 
 ## Project Topology
 
@@ -54,7 +54,7 @@ The `build:web` script includes copying static assets into the Next.js standalon
 | `NODE_ENV`     | `production`                 |                                      |
 | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` | Railway reference variable           |
 | `JWT_SECRET`   | (generated)                  | Min 32 characters                    |
-| `FRONTEND_URL` | `https://tripful.me`         | Comma-separated for multiple origins |
+| `FRONTEND_URL` | `https://journiful.app`         | Comma-separated for multiple origins |
 
 #### Twilio Verify (production SMS auth)
 
@@ -82,7 +82,7 @@ The `build:web` script includes copying static assets into the Next.js standalon
 | ---------------------- | -------------- | ------------------------------------------- |
 | `TRUST_PROXY`          | `false`        | Set `true` behind Railway's proxy           |
 | `COOKIE_SECURE`        | `true` (prod)  |                                             |
-| `COOKIE_DOMAIN`        | —              | e.g. `.tripful.me` for cross-subdomain auth |
+| `COOKIE_DOMAIN`        | —              | e.g. `.journiful.app` for cross-subdomain auth |
 | `EXPOSE_ERROR_DETAILS` | `false` (prod) |                                             |
 | `LOG_LEVEL`            | `info`         |                                             |
 
@@ -90,9 +90,9 @@ The `build:web` script includes copying static assets into the Next.js standalon
 
 | Variable                     | Example                                | Notes                                                   |
 | ---------------------------- | -------------------------------------- | ------------------------------------------------------- |
-| `NEXT_PUBLIC_API_URL`        | `https://api.tripful.me/api`           | Browser-side API URL                                    |
+| `NEXT_PUBLIC_API_URL`        | `https://api.journiful.app/api`           | Browser-side API URL                                    |
 | `API_URL`                    | `http://api.railway.internal:8000/api` | Server-side (RSC) — use Railway private networking      |
-| `NEXT_PUBLIC_SITE_URL`       | `https://tripful.me`                   | For SEO (robots.txt, sitemap)                           |
+| `NEXT_PUBLIC_SITE_URL`       | `https://journiful.app`                   | For SEO (robots.txt, sitemap)                           |
 | `NEXT_PUBLIC_ENABLE_POLLING` | `false`                                | Disable TanStack Query polling to prevent rate limiting |
 | `PORT`                       | `3000`                                 | Railway sets this automatically                         |
 

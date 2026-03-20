@@ -8,7 +8,7 @@ import type {
   CalendarStatusResponse,
   CalendarEnableResponse,
   CalendarSuccessResponse,
-} from "@tripful/shared/schemas";
+} from "@journiful/shared/schemas";
 
 export function useCalendarStatus() {
   return useQuery<CalendarStatusResponse, APIError>({

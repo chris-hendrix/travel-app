@@ -1,6 +1,6 @@
 # Development Scripts
 
-This directory contains scripts for testing and verifying the Tripful development environment.
+This directory contains scripts for testing and verifying the Journiful development environment.
 
 ## Available Scripts
 
@@ -112,7 +112,7 @@ Tests complete workflow:
 7. **Typecheck**: Runs `pnpm typecheck` and verifies no TypeScript errors
 8. **Build**: Runs first `pnpm build` and verifies outputs
 9. **Turbo Cache**: Runs second build and verifies cache hits (FULL TURBO)
-10. **Cross-Package Imports**: Verifies @tripful/shared resolves correctly
+10. **Cross-Package Imports**: Verifies @journiful/shared resolves correctly
 11. **Workspace Commands**: Verifies all workspace commands work
 
 This is the most comprehensive test that validates:

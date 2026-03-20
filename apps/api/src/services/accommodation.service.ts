@@ -7,7 +7,7 @@ import { eq, and, isNull, count, getTableColumns } from "drizzle-orm";
 import type {
   CreateAccommodationInput,
   UpdateAccommodationInput,
-} from "@tripful/shared/schemas";
+} from "@journiful/shared/schemas";
 import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
 import {

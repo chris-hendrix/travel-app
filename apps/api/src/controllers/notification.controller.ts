@@ -1,5 +1,5 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
-import type { NotificationPreferencesInput } from "@tripful/shared/schemas";
+import type { NotificationPreferencesInput } from "@journiful/shared/schemas";
 
 /**
  * Notification Controller

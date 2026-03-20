@@ -1,5 +1,5 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
-import type { UpdateProfileInput } from "@tripful/shared/schemas";
+import type { UpdateProfileInput } from "@journiful/shared/schemas";
 import { InvalidFileTypeError, FileTooLargeError } from "../errors.js";
 
 /**

@@ -14,12 +14,12 @@ import {
   completeProfileResponseSchema,
   getMeResponseSchema,
   logoutResponseSchema,
-} from "@tripful/shared/schemas";
+} from "@journiful/shared/schemas";
 import type {
   RequestCodeInput,
   VerifyCodeInput,
   CompleteProfileInput,
-} from "@tripful/shared/schemas";
+} from "@journiful/shared/schemas";
 
 /**
  * Authentication Routes

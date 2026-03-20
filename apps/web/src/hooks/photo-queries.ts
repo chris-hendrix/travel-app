@@ -1,6 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
-import type { GetPhotosResponse } from "@tripful/shared/types";
+import type { GetPhotosResponse } from "@journiful/shared/types";
 
 /**
  * Query key factory for photo-related queries

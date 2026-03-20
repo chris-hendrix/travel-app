@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { Suspense } from "react";
 import { TripDetailContent } from "./trip-detail-content";
 import type { TripDetailWithMeta } from "@/hooks/use-trips";
-import type { User } from "@tripful/shared";
+import type { User } from "@journiful/shared";
 
 // Mock sonner
 const mockToast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));

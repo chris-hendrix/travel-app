@@ -7,7 +7,7 @@ import type {
   MemberTravel,
   DailyForecast,
   TemperatureUnit,
-} from "@tripful/shared/types";
+} from "@journiful/shared/types";
 import { WeatherDayBadge } from "./weather-day-badge";
 import { EventCard } from "./event-card";
 import { AccommodationLineItem } from "./accommodation-line-item";

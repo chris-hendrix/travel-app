@@ -2,7 +2,7 @@ import type { FastifyRequest, FastifyReply } from "fastify";
 import type {
   GetMutualsQueryInput,
   GetMutualSuggestionsQueryInput,
-} from "@tripful/shared/schemas";
+} from "@journiful/shared/schemas";
 
 /**
  * Mutuals Controller

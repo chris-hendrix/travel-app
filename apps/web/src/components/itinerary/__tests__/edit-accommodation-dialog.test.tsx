@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { EditAccommodationDialog } from "../edit-accommodation-dialog";
-import type { Accommodation } from "@tripful/shared/types";
+import type { Accommodation } from "@journiful/shared/types";
 
 // Mock sonner
 const mockToast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));

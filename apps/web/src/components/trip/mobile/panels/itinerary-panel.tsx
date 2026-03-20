@@ -1,7 +1,7 @@
 "use client";
 
 import { ItineraryView } from "@/components/itinerary/itinerary-view";
-import type { DailyForecast, TemperatureUnit } from "@tripful/shared/types";
+import type { DailyForecast, TemperatureUnit } from "@journiful/shared/types";
 
 interface ItineraryPanelProps {
   tripId: string;

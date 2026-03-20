@@ -20,7 +20,7 @@ import {
   getUpdateRsvpErrorMessage,
 } from "@/hooks/use-invitations";
 import type { TripDetailWithMeta } from "@/hooks/use-trips";
-import type { UpdateRsvpInput } from "@tripful/shared/schemas";
+import type { UpdateRsvpInput } from "@journiful/shared/schemas";
 
 interface TripPreviewProps {
   trip: TripDetailWithMeta;

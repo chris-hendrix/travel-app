@@ -8,7 +8,7 @@ import {
   PhotoGrid,
   PhotoLightbox,
 } from "@/components/photos";
-import type { Photo } from "@tripful/shared/types";
+import type { Photo } from "@journiful/shared/types";
 
 interface PhotosPanelProps {
   tripId: string;

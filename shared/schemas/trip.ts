@@ -1,4 +1,4 @@
-// Trip validation schemas for the Tripful platform
+// Trip validation schemas for the Journiful platform
 
 import { z } from "zod";
 import { phoneNumberSchema } from "./phone";

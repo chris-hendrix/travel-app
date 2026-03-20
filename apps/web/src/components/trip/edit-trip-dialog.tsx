@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { updateTripSchema, type UpdateTripInput } from "@tripful/shared";
+import { updateTripSchema, type UpdateTripInput } from "@journiful/shared";
 import { toast } from "sonner";
 import {
   useUpdateTrip,

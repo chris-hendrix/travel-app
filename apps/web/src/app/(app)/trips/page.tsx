@@ -4,7 +4,7 @@ import { getQueryClient } from "@/lib/get-query-client";
 import { tripKeys } from "@/hooks/trip-queries";
 import { serverApiRequest } from "@/lib/server-api";
 import { TripsContent } from "./trips-content";
-import type { GetTripsResponse } from "@tripful/shared/types";
+import type { GetTripsResponse } from "@journiful/shared/types";
 
 export const metadata = { title: "My Trips" };
 

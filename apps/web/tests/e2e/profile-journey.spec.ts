@@ -151,7 +151,7 @@ test.describe("Profile Journey", () => {
 
       await test.step("upload a profile photo", async () => {
         // Create a test image file
-        const tmpDir = path.join("/tmp", `tripful-test-${Date.now()}`);
+        const tmpDir = path.join("/tmp", `journiful-test-${Date.now()}`);
         fs.mkdirSync(tmpDir, { recursive: true });
         const testImagePath = createTestImage(tmpDir);
 

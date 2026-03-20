@@ -2,7 +2,7 @@ import { eq, gt, and } from "drizzle-orm";
 import { trips, weatherCache } from "@/db/schema/index.js";
 import type { AppDatabase } from "@/types/index.js";
 import type { ITripService } from "@/services/trip.service.js";
-import type { TripWeatherResponse, DailyForecast } from "@tripful/shared/types";
+import type { TripWeatherResponse, DailyForecast } from "@journiful/shared/types";
 
 const FORECAST_API_BASE = "https://api.open-meteo.com/v1/forecast";
 const CACHE_MAX_AGE_MS = 3 * 60 * 60 * 1000; // 3 hours

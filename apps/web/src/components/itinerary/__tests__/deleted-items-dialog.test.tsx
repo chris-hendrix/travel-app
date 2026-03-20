@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { DeletedItemsDialog } from "../deleted-items-dialog";
-import type { Event, Accommodation, MemberTravel } from "@tripful/shared/types";
+import type { Event, Accommodation, MemberTravel } from "@journiful/shared/types";
 
 // Mock data
 const mockDeletedEvent: Event = {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, type KeyboardEvent } from "react";
 import { Search, Users, AlertCircle, Loader2 } from "lucide-react";
-import type { Mutual } from "@tripful/shared/types";
+import type { Mutual } from "@journiful/shared/types";
 import { useMutuals } from "@/hooks/use-mutuals";
 import { tripsQueryOptions } from "@/hooks/use-trips";
 import { useInfiniteQuery } from "@tanstack/react-query";

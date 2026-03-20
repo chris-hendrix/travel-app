@@ -1,4 +1,4 @@
-// User profile validation schemas for the Tripful platform
+// User profile validation schemas for the Journiful platform
 
 import { z } from "zod";
 import { stripControlChars } from "../utils/sanitize";

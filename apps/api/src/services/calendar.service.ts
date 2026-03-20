@@ -133,9 +133,9 @@ export class CalendarService implements ICalendarService {
 
   generateIcsFeed(tripsWithEvents: TripCalendarData[]): string {
     const calendar = ical({
-      name: "Tripful",
+      name: "Journiful",
       method: ICalCalendarMethod.PUBLISH,
-      prodId: { company: "tripful", product: "calendar", language: "EN" },
+      prodId: { company: "journiful", product: "calendar", language: "EN" },
       x: [
         { key: "X-PUBLISHED-TTL", value: "PT15M" },
         {
@@ -164,13 +164,13 @@ export class CalendarService implements ICalendarService {
 
         const description = [
           trip.description,
-          `\nView trip: https://tripful.app/trips/${trip.id}`,
+          `\nView trip: https://journiful.app/trips/${trip.id}`,
         ]
           .filter(Boolean)
           .join("\n");
 
         calendar.createEvent({
-          id: `trip-${trip.id}@tripful.app`,
+          id: `trip-${trip.id}@journiful.app`,
           summary: trip.name,
           description,
           location: trip.destination,
@@ -178,7 +178,7 @@ export class CalendarService implements ICalendarService {
           end: exclusiveEnd,
           allDay: true,
           transparency: ICalEventTransparency.TRANSPARENT,
-          url: `https://tripful.app/trips/${trip.id}`,
+          url: `https://journiful.app/trips/${trip.id}`,
         });
       }
 
@@ -221,7 +221,7 @@ export class CalendarService implements ICalendarService {
 
         if (event.allDay) {
           calendar.createEvent({
-            id: `event-${event.id}@tripful.app`,
+            id: `event-${event.id}@journiful.app`,
             summary: event.name,
             description,
             location,
@@ -230,14 +230,14 @@ export class CalendarService implements ICalendarService {
             allDay: true,
             lastModified: event.updatedAt,
             categories: [{ name: event.eventType }],
-            x: [{ key: "X-TRIPFUL-TRIP", value: trip.name }],
+            x: [{ key: "X-JOURNIFUL-TRIP", value: trip.name }],
           });
         } else {
           const endTime =
             event.endTime ||
             new Date(event.startTime.getTime() + 60 * 60 * 1000);
           calendar.createEvent({
-            id: `event-${event.id}@tripful.app`,
+            id: `event-${event.id}@journiful.app`,
             summary: event.name,
             description,
             location,
@@ -246,7 +246,7 @@ export class CalendarService implements ICalendarService {
             timezone,
             lastModified: event.updatedAt,
             categories: [{ name: event.eventType }],
-            x: [{ key: "X-TRIPFUL-TRIP", value: trip.name }],
+            x: [{ key: "X-JOURNIFUL-TRIP", value: trip.name }],
           });
         }
       }
@@ -266,13 +266,13 @@ export class CalendarService implements ICalendarService {
         }
 
         descriptionParts.push(
-          `View trip: https://tripful.app/trips/${trip.id}`,
+          `View trip: https://journiful.app/trips/${trip.id}`,
         );
 
         const description = descriptionParts.join("\n\n");
 
         calendar.createEvent({
-          id: `accommodation-${acc.id}@tripful.app`,
+          id: `accommodation-${acc.id}@journiful.app`,
           summary: `🏨 ${acc.name}`,
           description,
           location: acc.address,
@@ -281,7 +281,7 @@ export class CalendarService implements ICalendarService {
           timezone,
           transparency: ICalEventTransparency.TRANSPARENT,
           categories: [{ name: "accommodation" }],
-          x: [{ key: "X-TRIPFUL-TRIP", value: trip.name }],
+          x: [{ key: "X-JOURNIFUL-TRIP", value: trip.name }],
         });
       }
     }

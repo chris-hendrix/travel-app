@@ -1,4 +1,4 @@
-// User-related types for the Tripful platform
+// User-related types for the Journiful platform
 
 import type { TemperatureUnit } from "./weather";
 

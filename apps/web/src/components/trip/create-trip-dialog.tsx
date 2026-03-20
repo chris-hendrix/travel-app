@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { createTripSchema, type CreateTripInput } from "@tripful/shared";
-import { THEME_PRESETS } from "@tripful/shared/config";
+import { createTripSchema, type CreateTripInput } from "@journiful/shared";
+import { THEME_PRESETS } from "@journiful/shared/config";
 import { toast } from "sonner";
 import { useCreateTrip, getCreateTripErrorMessage } from "@/hooks/use-trips";
 import { mapServerErrors } from "@/lib/form-errors";

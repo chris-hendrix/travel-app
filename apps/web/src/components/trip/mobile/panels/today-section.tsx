@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Calendar } from "lucide-react";
-import type { Accommodation, Event } from "@tripful/shared/types";
+import type { Accommodation, Event } from "@journiful/shared/types";
 import { useAccommodations } from "@/hooks/use-accommodations";
 import { useEvents } from "@/hooks/use-events";
 import { getDayInTimezone, utcToLocalParts } from "@/lib/utils/timezone";

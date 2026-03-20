@@ -43,7 +43,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { MessageReactions } from "./message-reactions";
 import { MessageReplies } from "./message-replies";
-import type { MessageWithReplies } from "@tripful/shared/types";
+import type { MessageWithReplies } from "@journiful/shared/types";
 
 const MAX_LENGTH = 2000;
 const CHAR_COUNT_THRESHOLD = 1800;

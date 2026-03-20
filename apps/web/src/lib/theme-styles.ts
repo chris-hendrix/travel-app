@@ -1,8 +1,8 @@
-import type { ThemePreset, ThemeBackground } from "@tripful/shared/types";
+import type { ThemePreset, ThemeBackground } from "@journiful/shared/types";
 import {
   derivePaletteVariants,
   deriveDarkPaletteVariants,
-} from "@tripful/shared/utils";
+} from "@journiful/shared/utils";
 
 /**
  * Extract the base solid color from a ThemeBackground (first stop or solid).

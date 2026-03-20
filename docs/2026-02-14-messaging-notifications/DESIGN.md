@@ -1,6 +1,6 @@
 ---
 date: 2026-02-14
-topic: Tripful - Messaging & Notifications Design
+topic: Journiful - Messaging & Notifications Design
 last_updated: 2026-02-14
 ---
 
@@ -8,7 +8,7 @@ last_updated: 2026-02-14
 
 ## Design Philosophy
 
-The messaging and notification system extends Tripful's Mediterranean (Vivid Capri) design language. Discussion feeds feel warm and conversational, like postcards exchanged between friends. Notifications are calm and informative, never intrusive. The system respects the existing visual hierarchy: itinerary content comes first, discussion complements it below.
+The messaging and notification system extends Journiful's Mediterranean (Vivid Capri) design language. Discussion feeds feel warm and conversational, like postcards exchanged between friends. Notifications are calm and informative, never intrusive. The system respects the existing visual hierarchy: itinerary content comes first, discussion complements it below.
 
 ### Core Principles
 
@@ -220,7 +220,7 @@ The messaging and notification system extends Tripful's Mediterranean (Vivid Cap
 
 ```
 ┌─────────────────────────────────────┐
-│ ✦ Tripful   Dashboard   [🔔3] [👤] │
+│ ✦ Journiful   Dashboard   [🔔3] [👤] │
 └─────────────────────────────────────┘
           │
           ▼

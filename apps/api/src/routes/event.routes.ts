@@ -15,11 +15,11 @@ import {
   eventListResponseSchema,
   eventResponseSchema,
   successResponseSchema,
-} from "@tripful/shared/schemas";
+} from "@journiful/shared/schemas";
 import type {
   CreateEventInput,
   UpdateEventInput,
-} from "@tripful/shared/schemas";
+} from "@journiful/shared/schemas";
 
 // Reusable param schemas
 const tripIdParamsSchema = z.object({

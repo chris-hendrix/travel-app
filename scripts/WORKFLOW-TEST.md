@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `test-workflow.sh` script provides comprehensive end-to-end testing of the complete Tripful monorepo workflow, from clean state through build verification and Turbo caching.
+The `test-workflow.sh` script provides comprehensive end-to-end testing of the complete Journiful monorepo workflow, from clean state through build verification and Turbo caching.
 
 ## Purpose
 
@@ -37,7 +37,7 @@ This script validates Task 7.1: "Test complete monorepo workflow" from TASKS.md,
 8. Runs `pnpm typecheck` (all packages)
 9. Runs first `pnpm build` (cold cache)
 10. Runs second `pnpm build` (warm cache, verifies FULL TURBO)
-11. Verifies cross-package imports (@tripful/shared)
+11. Verifies cross-package imports (@journiful/shared)
 12. Validates all workspace commands exist
 
 ### Quick Test (Development)
@@ -148,7 +148,7 @@ Verifies workspace commands exist:
 - Verifies `shared/types/index.ts` exists
 - Verifies `shared/schemas/index.ts` exists
 - Runs typecheck on API (potential types consumer)
-- Runs typecheck on Web (uses @tripful/shared)
+- Runs typecheck on Web (uses @journiful/shared)
 - Checks for "Cannot find module" errors
 
 ## Exit Codes
@@ -170,15 +170,15 @@ Cleanup runs via `trap cleanup EXIT`, ensuring it happens even if the script is 
 
 The script creates temporary files in `/tmp/`:
 
-- `/tmp/tripful-install.log` - Install output
-- `/tmp/tripful-dev.log` - Dev servers output
-- `/tmp/tripful-test.log` - Test output
-- `/tmp/tripful-lint.log` - Lint output
-- `/tmp/tripful-typecheck.log` - Typecheck output
-- `/tmp/tripful-build-1.log` - First build output
-- `/tmp/tripful-build-2.log` - Second build output
-- `/tmp/tripful-api-typecheck.log` - API typecheck
-- `/tmp/tripful-web-typecheck.log` - Web typecheck
+- `/tmp/journiful-install.log` - Install output
+- `/tmp/journiful-dev.log` - Dev servers output
+- `/tmp/journiful-test.log` - Test output
+- `/tmp/journiful-lint.log` - Lint output
+- `/tmp/journiful-typecheck.log` - Typecheck output
+- `/tmp/journiful-build-1.log` - First build output
+- `/tmp/journiful-build-2.log` - Second build output
+- `/tmp/journiful-api-typecheck.log` - API typecheck
+- `/tmp/journiful-web-typecheck.log` - Web typecheck
 
 All files are automatically removed on script exit.
 
@@ -198,7 +198,7 @@ All files are automatically removed on script exit.
 The script waits up to 45 seconds for each server. If they don't start:
 
 1. Check ports 3000 and 8000 are not in use
-2. Review `/tmp/tripful-dev.log` for errors
+2. Review `/tmp/journiful-dev.log` for errors
 3. Ensure `.env` files exist in `apps/api/` and `apps/web/`
 
 ### PostgreSQL health check fails
@@ -216,7 +216,7 @@ Check:
 
 1. All dependencies installed (`pnpm install` succeeded)
 2. TypeScript configuration is valid
-3. Review build logs in `/tmp/tripful-build-1.log`
+3. Review build logs in `/tmp/journiful-build-1.log`
 
 ### No cache hits on second build
 
@@ -234,7 +234,7 @@ Common issues:
 1. Database not running (check PostgreSQL health)
 2. Port conflicts (8000 or 3000 in use)
 3. Missing environment variables
-4. Review test output in `/tmp/tripful-test.log`
+4. Review test output in `/tmp/journiful-test.log`
 
 ## Integration with CI/CD
 

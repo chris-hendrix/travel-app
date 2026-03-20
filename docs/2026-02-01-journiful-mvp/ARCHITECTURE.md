@@ -1,11 +1,11 @@
 ---
 date: 2026-02-01
-topic: Tripful - High-Level Architecture Document (v1)
+topic: Journiful - High-Level Architecture Document (v1)
 status: Phase 1-7 Implemented | Frontend Design Overhaul Complete | Mobile UX Fixes Complete
 last_updated: 2026-02-14
 ---
 
-# Tripful - High-Level Architecture
+# Journiful - High-Level Architecture
 
 > **Implementation Status**:
 >
@@ -27,7 +27,7 @@ last_updated: 2026-02-14
 
 **Git Commit**: `faeb16c - Phase 1: Monorepo Setup with pnpm + Turbo + TypeScript`
 
-- [x] pnpm workspace configuration with 3 packages (@tripful/api, @tripful/web, @tripful/shared)
+- [x] pnpm workspace configuration with 3 packages (@journiful/api, @journiful/web, @journiful/shared)
 - [x] Turbo build orchestration with parallel task execution
 - [x] TypeScript 5.7.3 strict mode across all workspaces
 - [x] Shared tsconfig.base.json for consistent configuration
@@ -507,7 +507,7 @@ Complete implementation of advanced itinerary features including meetup coordina
 
 ## System Overview
 
-Tripful is a collaborative trip planning platform that enables group travel coordination through shared itineraries. The system follows a modern client-server architecture with a **Next.js frontend** and a **Fastify backend API**, backed by **PostgreSQL** with **Drizzle ORM**.
+Journiful is a collaborative trip planning platform that enables group travel coordination through shared itineraries. The system follows a modern client-server architecture with a **Next.js frontend** and a **Fastify backend API**, backed by **PostgreSQL** with **Drizzle ORM**.
 
 ### Architecture Style
 
@@ -738,7 +738,7 @@ npx shadcn@latest add popover
 }
 ```
 
-**Key Components for Tripful:**
+**Key Components for Journiful:**
 
 - `Dialog` - Event creation, trip settings
 - `Form` - All forms with React Hook Form integration
@@ -3007,9 +3007,9 @@ function groupEventsByDay(events: Event[]) {
 **Current Structure:**
 
 ```
-tripful/
+journiful/
 ├── apps/
-│   ├── api/              (@tripful/api) - Fastify backend server
+│   ├── api/              (@journiful/api) - Fastify backend server
 │   │   ├── src/
 │   │   │   ├── server.ts             # Entry point, Fastify app setup
 │   │   │   ├── config/
@@ -3039,7 +3039,7 @@ tripful/
 │   │   ├── drizzle.config.ts
 │   │   ├── vitest.config.ts
 │   │   └── package.json
-│   └── web/              (@tripful/web) - Next.js 16 frontend
+│   └── web/              (@journiful/web) - Next.js 16 frontend
 │       ├── src/
 │       │   ├── app/
 │       │   │   ├── (auth)/             # Auth route group
@@ -3064,7 +3064,7 @@ tripful/
 │       │   └── auth-flow.spec.ts       # 4 E2E test scenarios
 │       ├── playwright.config.ts
 │       └── package.json
-├── shared/               (@tripful/shared) - Shared types & schemas
+├── shared/               (@journiful/shared) - Shared types & schemas
 │   ├── schemas/
 │   │   ├── auth.ts                 # Zod schemas for auth endpoints
 │   │   └── index.ts
@@ -3073,7 +3073,7 @@ tripful/
 │   │   └── index.ts                # ApiResponse, ErrorResponse types
 │   └── package.json
 ├── docs/
-│   └── 2026-02-01-tripful-mvp/
+│   └── 2026-02-01-journiful-mvp/
 │       ├── PRD.md
 │       ├── DESIGN.md
 │       └── ARCHITECTURE.md (this file)
@@ -3088,9 +3088,9 @@ tripful/
 
 | Package         | Version | Description                              |
 | --------------- | ------- | ---------------------------------------- |
-| @tripful/api    | private | Fastify backend with auth implementation |
-| @tripful/web    | private | Next.js 16 frontend with Radix UI        |
-| @tripful/shared | private | Shared Zod schemas and TypeScript types  |
+| @journiful/api    | private | Fastify backend with auth implementation |
+| @journiful/web    | private | Next.js 16 frontend with Radix UI        |
+| @journiful/shared | private | Shared Zod schemas and TypeScript types  |
 
 **Note:** All packages are private (not published). Shared package uses root-level structure (not nested under `packages/`).
 
@@ -3108,7 +3108,7 @@ HOST=0.0.0.0                      # Default: 0.0.0.0
 LOG_LEVEL=info                    # fatal | error | warn | info | debug | trace
 
 # Database (Required)
-DATABASE_URL=postgresql://tripful:tripful_dev@localhost:5433/tripful
+DATABASE_URL=postgresql://journiful:journiful_dev@localhost:5433/journiful
 
 # JWT Authentication (Required in production, auto-generated in dev)
 JWT_SECRET=your-secret-key-min-32-characters-for-security
@@ -3144,9 +3144,9 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: tripful
-      POSTGRES_PASSWORD: tripful_dev
-      POSTGRES_DB: tripful
+      POSTGRES_USER: journiful
+      POSTGRES_PASSWORD: journiful_dev
+      POSTGRES_DB: journiful
     ports:
       - "5433:5432" # External:Internal (avoids conflict with local PostgreSQL)
 ```
@@ -3184,12 +3184,12 @@ pnpm dev
 # API only
 pnpm dev:api
 # or
-pnpm --filter @tripful/api dev
+pnpm --filter @journiful/api dev
 
 # Web only
 pnpm dev:web
 # or
-pnpm --filter @tripful/web dev
+pnpm --filter @journiful/web dev
 ```
 
 **4. Run Tests**
@@ -3205,7 +3205,7 @@ pnpm test:e2e
 pnpm test:watch
 
 # API tests only
-pnpm --filter @tripful/api test
+pnpm --filter @journiful/api test
 ```
 
 **5. Database Management**
@@ -3642,7 +3642,7 @@ apps/web/
 ### 3. Input Validation
 
 - **Zod Route Schemas**: Routes use `fastify-type-provider-zod` for schema validation at the route level
-- **Shared Schemas**: Zod schemas shared between frontend and backend (`@tripful/shared/schemas`)
+- **Shared Schemas**: Zod schemas shared between frontend and backend (`@journiful/shared/schemas`)
 - **Typed Errors**: All API errors use `@fastify/error` with specific error codes and HTTP status codes
 - **File Uploads**: Validate MIME types, file size limits (configurable via `MAX_FILE_SIZE`)
 
@@ -4078,4 +4078,4 @@ fastify.register(compress, {
 - `2c31b4f` - Ralph: Task 30 - Task 7.3: Code review and cleanup (Phase 3)
 - `1fe5e5e` - Phase 2: SMS Authentication with E2E Testing
 - `faeb16c` - Phase 1: Monorepo Setup with pnpm + Turbo + TypeScript
-- `2c8a3eb` - MVP Demo: Tripful Core Features Implementation
+- `2c8a3eb` - MVP Demo: Journiful Core Features Implementation

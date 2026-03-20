@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { Mutual } from "@tripful/shared/types";
+import type { Mutual } from "@journiful/shared/types";
 import { getUploadUrl } from "@/lib/api";
 import { getInitials } from "@/lib/format";
 import { cn } from "@/lib/utils";

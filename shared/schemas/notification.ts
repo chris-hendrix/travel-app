@@ -1,4 +1,4 @@
-// Notification validation schemas for the Tripful platform
+// Notification validation schemas for the Journiful platform
 
 import { z } from "zod";
 

@@ -1,4 +1,4 @@
-// Member travel validation schemas for the Tripful platform
+// Member travel validation schemas for the Journiful platform
 
 import { z } from "zod";
 

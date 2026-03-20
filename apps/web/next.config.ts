@@ -9,7 +9,7 @@ const isDev = process.env.NODE_ENV === "development";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  transpilePackages: ["@tripful/shared"],
+  transpilePackages: ["@journiful/shared"],
   reactStrictMode: true,
   experimental: {
     viewTransition: true,

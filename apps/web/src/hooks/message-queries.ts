@@ -8,7 +8,7 @@ import type {
   GetMessagesResponse,
   GetMessageCountResponse,
   GetLatestMessageResponse,
-} from "@tripful/shared/types";
+} from "@journiful/shared/types";
 
 /**
  * Query key factory for message-related queries

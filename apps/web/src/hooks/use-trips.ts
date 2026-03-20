@@ -10,7 +10,7 @@ import {
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { apiRequest, APIError } from "@/lib/api";
-import type { CreateTripInput, UpdateTripInput } from "@tripful/shared/schemas";
+import type { CreateTripInput, UpdateTripInput } from "@journiful/shared/schemas";
 import type {
   Trip,
   TripSummary,
@@ -18,7 +18,7 @@ import type {
   GetTripsResponse,
   CreateTripResponse,
   UpdateTripResponse,
-} from "@tripful/shared/types";
+} from "@journiful/shared/types";
 
 // Import query keys and options from server-safe module for use in hooks
 import {

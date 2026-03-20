@@ -1,4 +1,4 @@
-// Trip-related types for the Tripful platform
+// Trip-related types for the Journiful platform
 
 /**
  * Trip type from database schema

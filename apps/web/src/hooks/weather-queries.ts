@@ -1,5 +1,5 @@
 import { queryOptions } from "@tanstack/react-query";
-import type { TripWeatherResponse } from "@tripful/shared/types";
+import type { TripWeatherResponse } from "@journiful/shared/types";
 import { apiRequest } from "@/lib/api";
 
 /**

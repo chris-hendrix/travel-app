@@ -16,8 +16,8 @@ import {
   type TripDetail,
 } from "../use-trips";
 import { APIError } from "@/lib/api";
-import type { CreateTripInput } from "@tripful/shared/schemas";
-import type { GetTripsResponse } from "@tripful/shared/types";
+import type { CreateTripInput } from "@journiful/shared/schemas";
+import type { GetTripsResponse } from "@journiful/shared/types";
 
 // Mock the API module
 vi.mock("@/lib/api", () => ({

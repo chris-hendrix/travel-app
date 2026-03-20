@@ -10,13 +10,13 @@ import {
 import { apiRequest, APIError } from "@/lib/api";
 
 const POLLING_ENABLED = process.env.NEXT_PUBLIC_ENABLE_POLLING !== "false";
-import type { NotificationPreferencesInput } from "@tripful/shared/schemas";
+import type { NotificationPreferencesInput } from "@journiful/shared/schemas";
 import type {
   GetNotificationsResponse,
   Notification,
   NotificationPreferences,
   UpdateNotificationPreferencesResponse,
-} from "@tripful/shared/types";
+} from "@journiful/shared/types";
 
 // Import query keys and options from server-safe module for use in hooks
 import {
@@ -38,7 +38,7 @@ export {
 
 // Re-export types for backward compatibility with existing imports
 export type { Notification, NotificationPreferences };
-export type { NotificationType } from "@tripful/shared/types";
+export type { NotificationType } from "@journiful/shared/types";
 
 // ---------------------------------------------------------------------------
 // Query Hooks

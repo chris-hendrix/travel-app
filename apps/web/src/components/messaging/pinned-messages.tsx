@@ -5,7 +5,7 @@ import { Pin, ChevronDown, ChevronUp } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getUploadUrl } from "@/lib/api";
 import { getInitials } from "@/lib/format";
-import type { MessageWithReplies } from "@tripful/shared/types";
+import type { MessageWithReplies } from "@journiful/shared/types";
 
 interface PinnedMessagesProps {
   messages: MessageWithReplies[];

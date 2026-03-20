@@ -2,7 +2,7 @@ import type { FastifyRequest, FastifyReply } from "fastify";
 import type {
   CalendarTokenParams,
   CalendarExcludedInput,
-} from "@tripful/shared/schemas";
+} from "@journiful/shared/schemas";
 
 function buildWebcalUrl(request: FastifyRequest, token: string): string {
   const host = request.hostname;

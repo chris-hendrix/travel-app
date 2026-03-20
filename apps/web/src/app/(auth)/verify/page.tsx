@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { verifyCodeSchema, type VerifyCodeInput } from "@tripful/shared";
+import { verifyCodeSchema, type VerifyCodeInput } from "@journiful/shared";
 import { useAuth } from "@/app/providers/auth-provider";
 import { formatPhoneNumber } from "@/lib/format";
 import { Button } from "@/components/ui/button";

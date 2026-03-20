@@ -1,6 +1,6 @@
 # Development Setup
 
-This document describes how to set up and run the Tripful development environment.
+This document describes how to set up and run the Journiful development environment.
 
 ## Prerequisites
 
@@ -145,14 +145,14 @@ Test it by:
 
 - Host: localhost
 - Port: 5433 (maps to container's 5432)
-- Database: tripful
-- User: tripful
-- Password: tripful_dev
+- Database: journiful
+- User: journiful
+- Password: journiful_dev
 
 ### Connection URL
 
 ```
-postgresql://tripful:tripful_dev@localhost:5433/tripful
+postgresql://journiful:journiful_dev@localhost:5433/journiful
 ```
 
 ### Drizzle ORM Commands
@@ -189,11 +189,11 @@ Automated test scripts are available in the `scripts/` directory:
 The project is a monorepo with the following structure:
 
 ```
-tripful/
+journiful/
 ├── apps/
 │   ├── api/          # Fastify backend (port 8000) - plugin architecture with buildApp()
 │   └── web/          # Next.js frontend (port 3000)
-├── shared/           # Shared types, Zod schemas, and utilities (@tripful/shared)
+├── shared/           # Shared types, Zod schemas, and utilities (@journiful/shared)
 ├── docker-compose.yml
 └── turbo.json        # Turborepo configuration
 ```
@@ -218,7 +218,7 @@ tripful/
 ### Database
 
 - **Engine:** PostgreSQL 16 (Alpine)
-- **Container:** tripful-postgres
+- **Container:** journiful-postgres
 - **Port:** 5433 (external) → 5432 (internal)
 - **Volume:** Persistent storage with postgres_data
 
@@ -292,7 +292,7 @@ Expected response for `/api/health`:
 ### PostgreSQL Health
 
 ```bash
-docker compose exec postgres pg_isready -U tripful
+docker compose exec postgres pg_isready -U journiful
 ```
 
 Expected: `localhost:5432 - accepting connections`
@@ -303,7 +303,7 @@ Expected: `localhost:5432 - accepting connections`
 2. Explore the web pages in `apps/web/src/app/`
 3. Check shared utilities in `shared/`
 4. Set up database migrations with Drizzle
-5. See `docs/2026-02-01-tripful-mvp/PHASES.md` for implementation status
+5. See `docs/2026-02-01-journiful-mvp/PHASES.md` for implementation status
 
 ## Support
 

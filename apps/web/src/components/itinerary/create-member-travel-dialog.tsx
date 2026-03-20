@@ -9,7 +9,7 @@ import { parse } from "date-fns";
 import {
   createMemberTravelSchema,
   type CreateMemberTravelInput,
-} from "@tripful/shared/schemas";
+} from "@journiful/shared/schemas";
 import {
   Sheet,
   SheetBody,

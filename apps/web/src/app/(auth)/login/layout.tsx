@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 export const metadata: Metadata = {
   title: "Sign In",
   description:
-    "Sign in to Tripful to start planning your next group trip. Coordinate travel plans with friends and family.",
+    "Sign in to Journiful to start planning your next group trip. Coordinate travel plans with friends and family.",
   alternates: { canonical: "/login" },
 };
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import type { DailyForecast, TemperatureUnit } from "@tripful/shared/types";
+import type { DailyForecast, TemperatureUnit } from "@journiful/shared/types";
 import { getWeatherInfo, toDisplayTemp } from "@/lib/weather-codes";
 
 interface WeatherDayBadgeProps {

@@ -12,8 +12,8 @@ import { usePhotos, useDeletePhoto } from "@/hooks/use-photos";
 import { PhotoUploadDropzone } from "./photo-upload-dropzone";
 import { PhotoGrid } from "./photo-grid";
 import { PhotoLightbox } from "./photo-lightbox";
-import type { Photo } from "@tripful/shared/types";
-import { MAX_PHOTOS_PER_TRIP } from "@tripful/shared/config";
+import type { Photo } from "@journiful/shared/types";
+import { MAX_PHOTOS_PER_TRIP } from "@journiful/shared/config";
 
 interface PhotosSectionProps {
   tripId: string;

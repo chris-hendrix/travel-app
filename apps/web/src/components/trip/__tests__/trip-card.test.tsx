@@ -60,7 +60,7 @@ vi.mock("@/lib/theme-styles", () => ({
 }));
 
 // Mock shared config
-vi.mock("@tripful/shared/config", () => ({
+vi.mock("@journiful/shared/config", () => ({
   THEME_PRESETS: [],
   THEME_FONTS: {},
 }));

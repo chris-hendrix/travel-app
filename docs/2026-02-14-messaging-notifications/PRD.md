@@ -1,13 +1,13 @@
 ---
 date: 2026-02-14
-topic: Tripful - Messaging & Notifications PRD
+topic: Journiful - Messaging & Notifications PRD
 ---
 
-# Tripful - Messaging & Notifications
+# Journiful - Messaging & Notifications
 
 ## Overview
 
-A messaging and notification system for Tripful that enables trip members to communicate within trips and stay informed about important updates. The messaging service provides a Partiful-style discussion feed on each trip page where going members can post, reply, and react. The notification service delivers in-app and SMS alerts for event reminders, daily itineraries, and trip messages.
+A messaging and notification system for Journiful that enables trip members to communicate within trips and stay informed about important updates. The messaging service provides a Partiful-style discussion feed on each trip page where going members can post, reply, and react. The notification service delivers in-app and SMS alerts for event reminders, daily itineraries, and trip messages.
 
 ## Goals
 

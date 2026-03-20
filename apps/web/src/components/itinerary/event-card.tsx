@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import { Calendar, Car, MapPin, Utensils } from "lucide-react";
-import type { Event } from "@tripful/shared/types";
+import type { Event } from "@journiful/shared/types";
 import { Badge } from "@/components/ui/badge";
 import {
   formatInTimezone,

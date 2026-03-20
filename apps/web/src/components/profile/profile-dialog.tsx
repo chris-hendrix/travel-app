@@ -11,8 +11,8 @@ import {
   useUploadProfilePhoto,
   useRemoveProfilePhoto,
 } from "@/hooks/use-user";
-import { updateProfileSchema } from "@tripful/shared/schemas";
-import type { UpdateProfileInput } from "@tripful/shared/schemas";
+import { updateProfileSchema } from "@journiful/shared/schemas";
+import type { UpdateProfileInput } from "@journiful/shared/schemas";
 import {
   TIMEZONES,
   TIMEZONE_AUTO_DETECT,
@@ -430,7 +430,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
                       </SelectContent>
                     </Select>
                     <p className="text-sm text-muted-foreground">
-                      Choose how Tripful looks for you
+                      Choose how Journiful looks for you
                     </p>
                   </div>
 

@@ -1,4 +1,4 @@
-// Accommodation validation schemas for the Tripful platform
+// Accommodation validation schemas for the Journiful platform
 
 import { z } from "zod";
 import { stripControlChars } from "../utils/sanitize";

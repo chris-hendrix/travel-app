@@ -2,7 +2,7 @@
 
 import type { ElementType } from "react";
 import { Bell, Calendar, MessageCircle, UserPlus } from "lucide-react";
-import type { Notification, NotificationType } from "@tripful/shared/types";
+import type { Notification, NotificationType } from "@journiful/shared/types";
 import { formatRelativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 

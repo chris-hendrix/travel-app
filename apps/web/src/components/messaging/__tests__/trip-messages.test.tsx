@@ -4,7 +4,7 @@ import { TripMessages } from "../trip-messages";
 import type {
   MessageWithReplies,
   GetMessagesResponse,
-} from "@tripful/shared/types";
+} from "@journiful/shared/types";
 
 // Mock IntersectionObserver
 const mockObserve = vi.fn();

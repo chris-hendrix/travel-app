@@ -1,9 +1,9 @@
 ---
 date: 2026-02-01
-topic: Tripful - Collaborative Trip Itinerary Platform PRD (v2)
+topic: Journiful - Collaborative Trip Itinerary Platform PRD (v2)
 ---
 
-# Tripful - Collaborative Trip Itinerary Platform
+# Journiful - Collaborative Trip Itinerary Platform
 
 ## Overview
 
@@ -37,7 +37,7 @@ A collaborative trip planning platform that makes group travel itineraries simpl
 
 ### Multi-City Trips & Location Changes
 
-Trips often involve multiple destinations (e.g., "Paris → Amsterdam → London" or "Miami → Key West → Miami"). Tripful handles this through **Travel events**:
+Trips often involve multiple destinations (e.g., "Paris → Amsterdam → London" or "Miami → Key West → Miami"). Journiful handles this through **Travel events**:
 
 - **Travel events** (flights, trains, drives, ferries, etc.) represent transitions between locations
 - The `location` field on Travel events uses arrow notation to show the transition: "Miami → Key West"
@@ -1184,7 +1184,7 @@ This is an MVP scoped for 6-8 week development cycle with a single full-stack en
 
 ## Key Differences from Partiful
 
-| Feature               | Partiful           | Tripful                                              |
+| Feature               | Partiful           | Journiful                                              |
 | --------------------- | ------------------ | ---------------------------------------------------- |
 | Main entity           | Event (party)      | Trip (group travel)                                  |
 | Sub-items             | N/A                | Events (itinerary items)                             |

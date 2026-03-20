@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { PhotoCard } from "../photo-card";
-import type { Photo } from "@tripful/shared/types";
+import type { Photo } from "@journiful/shared/types";
 
 vi.mock("next/image", () => ({
   default: (props: Record<string, unknown>) => <img {...props} />,

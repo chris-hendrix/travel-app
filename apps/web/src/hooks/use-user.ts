@@ -4,8 +4,8 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest, API_URL, APIError } from "@/lib/api";
 import { useAuth } from "@/app/providers/auth-provider";
 import { toast } from "sonner";
-import type { User } from "@tripful/shared/types";
-import type { UpdateProfileInput } from "@tripful/shared/schemas";
+import type { User } from "@journiful/shared/types";
+import type { UpdateProfileInput } from "@journiful/shared/schemas";
 
 /**
  * API response type for user profile endpoints

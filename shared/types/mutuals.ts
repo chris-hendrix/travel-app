@@ -1,4 +1,4 @@
-// Mutuals types for the Tripful platform
+// Mutuals types for the Journiful platform
 
 /**
  * A user who shares at least one trip with the current user

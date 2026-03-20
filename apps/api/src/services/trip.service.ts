@@ -23,7 +23,7 @@ import {
   min,
   max,
 } from "drizzle-orm";
-import type { CreateTripInput, UpdateTripInput } from "@tripful/shared/schemas";
+import type { CreateTripInput, UpdateTripInput } from "@journiful/shared/schemas";
 import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
 import type { IGeocodingService } from "@/services/geocoding.service.js";

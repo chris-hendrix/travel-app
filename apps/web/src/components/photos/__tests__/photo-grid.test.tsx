@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { PhotoGrid } from "../photo-grid";
-import type { Photo } from "@tripful/shared/types";
+import type { Photo } from "@journiful/shared/types";
 
 vi.mock("../photo-card", () => ({
   PhotoCard: ({

@@ -13,7 +13,7 @@ import { TripService, type TripSummary } from "@/services/trip.service.js";
 import { PermissionsService } from "@/services/permissions.service.js";
 import type { IGeocodingService } from "@/services/geocoding.service.js";
 import { generateUniquePhone } from "../test-utils.js";
-import type { CreateTripInput } from "@tripful/shared/schemas";
+import type { CreateTripInput } from "@journiful/shared/schemas";
 
 // Create mock geocoding service
 const mockGeocodingService: IGeocodingService = {

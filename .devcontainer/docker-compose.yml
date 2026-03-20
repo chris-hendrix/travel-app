@@ -5,7 +5,7 @@ services:
       dockerfile: .devcontainer/Dockerfile
     environment:
       # Override .env DATABASE_URL — host uses localhost:5433, container uses db:5432
-      DATABASE_URL: postgresql://tripful:tripful_dev@db:5432/tripful
+      DATABASE_URL: postgresql://journiful:journiful_dev@db:5432/journiful
       # Override S3 endpoint — host uses localhost:9000, container uses minio:9000
       AWS_ENDPOINT_URL: http://minio:9000
     volumes:
@@ -32,13 +32,13 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: tripful
-      POSTGRES_PASSWORD: tripful_dev
-      POSTGRES_DB: tripful
+      POSTGRES_USER: journiful
+      POSTGRES_PASSWORD: journiful_dev
+      POSTGRES_DB: journiful
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tripful"]
+      test: ["CMD-SHELL", "pg_isready -U journiful"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -65,8 +65,8 @@ services:
     entrypoint: >
       /bin/sh -c "
       mc alias set local http://minio:9000 minioadmin minioadmin &&
-      mc mb --ignore-existing local/tripful-uploads &&
-      mc anonymous set download local/tripful-uploads &&
+      mc mb --ignore-existing local/journiful-uploads &&
+      mc anonymous set download local/journiful-uploads &&
       echo 'Bucket ready'
       "
 

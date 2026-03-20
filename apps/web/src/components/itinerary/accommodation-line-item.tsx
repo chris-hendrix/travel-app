@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import { Building2, MapPin } from "lucide-react";
-import type { Accommodation } from "@tripful/shared/types";
+import type { Accommodation } from "@journiful/shared/types";
 
 interface AccommodationLineItemProps {
   accommodation: Accommodation;

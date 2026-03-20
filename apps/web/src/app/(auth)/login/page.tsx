@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { requestCodeSchema, type RequestCodeInput } from "@tripful/shared";
+import { requestCodeSchema, type RequestCodeInput } from "@journiful/shared";
 import { useAuth } from "@/app/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { PhoneInput } from "@/components/ui/phone-input";

@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import type { User } from "@tripful/shared";
+import type { User } from "@journiful/shared";
 import { API_URL } from "@/lib/api";
 
 interface AuthContextType {

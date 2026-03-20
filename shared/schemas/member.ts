@@ -1,4 +1,4 @@
-// Member validation schemas for the Tripful platform
+// Member validation schemas for the Journiful platform
 
 import { z } from "zod";
 

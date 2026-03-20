@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { VisuallyHidden } from "radix-ui";
-import type { MemberTravel } from "@tripful/shared/types";
+import type { MemberTravel } from "@journiful/shared/types";
 import {
   Sheet,
   SheetBody,

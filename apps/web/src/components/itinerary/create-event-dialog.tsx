@@ -9,7 +9,7 @@ import { parse, addHours } from "date-fns";
 import {
   createEventSchema,
   type CreateEventInput,
-} from "@tripful/shared/schemas";
+} from "@journiful/shared/schemas";
 import {
   Sheet,
   SheetBody,

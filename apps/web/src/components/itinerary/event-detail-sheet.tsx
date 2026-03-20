@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { VisuallyHidden } from "radix-ui";
 import { toast } from "sonner";
-import type { Event } from "@tripful/shared/types";
+import type { Event } from "@journiful/shared/types";
 import {
   Sheet,
   SheetBody,

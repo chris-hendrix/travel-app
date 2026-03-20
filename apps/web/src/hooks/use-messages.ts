@@ -15,7 +15,7 @@ import type {
   UpdateMessageInput,
   ToggleReactionInput,
   PinMessageInput,
-} from "@tripful/shared/schemas";
+} from "@journiful/shared/schemas";
 import type {
   Message,
   MessageWithReplies,
@@ -24,7 +24,7 @@ import type {
   CreateMessageResponse,
   UpdateMessageResponse,
   ToggleReactionResponse,
-} from "@tripful/shared/types";
+} from "@journiful/shared/types";
 
 // Import query keys and options from server-safe module for use in hooks
 import {

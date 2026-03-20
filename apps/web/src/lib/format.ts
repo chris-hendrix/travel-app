@@ -1,5 +1,5 @@
 /**
- * Shared formatting utilities for the Tripful web app
+ * Shared formatting utilities for the Journiful web app
  */
 
 import { parsePhoneNumber } from "react-phone-number-input";

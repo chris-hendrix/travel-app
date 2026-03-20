@@ -2,7 +2,7 @@ import { beforeEach, describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { EventCard } from "../event-card";
-import type { Event } from "@tripful/shared/types";
+import type { Event } from "@journiful/shared/types";
 
 describe("EventCard", () => {
   const baseEvent: Event = {

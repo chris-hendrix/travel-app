@@ -5,7 +5,7 @@ import { Trash2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getUploadUrl } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Photo } from "@tripful/shared/types";
+import type { Photo } from "@journiful/shared/types";
 
 interface PhotoCardProps {
   photo: Photo;

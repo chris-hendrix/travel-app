@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
 import type { Logger } from "@/types/logger.js";
-import type { Mutual } from "@tripful/shared/types";
+import type { Mutual } from "@journiful/shared/types";
 import { PermissionDeniedError } from "../errors.js";
 import { z } from "zod";
 import { encodeCursor, decodeCursorAs } from "@/utils/pagination.js";

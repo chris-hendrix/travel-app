@@ -133,13 +133,13 @@ describe("TravelReminderBanner", () => {
 
     await user.click(screen.getByText("Dismiss"));
 
-    expect(localStorage.getItem("tripful:onboarding-dismissed:trip-1")).toBe(
+    expect(localStorage.getItem("journiful:onboarding-dismissed:trip-1")).toBe(
       "true",
     );
   });
 
   it("does not render when localStorage has dismiss flag", () => {
-    localStorage.setItem("tripful:onboarding-dismissed:trip-1", "true");
+    localStorage.setItem("journiful:onboarding-dismissed:trip-1", "true");
     render(<TravelReminderBanner {...defaultProps} />);
     expect(screen.queryByTestId("travel-reminder-banner")).toBeNull();
   });
@@ -151,7 +151,7 @@ describe("TravelReminderBanner", () => {
     await user.click(screen.getByLabelText("Dismiss banner"));
 
     expect(screen.queryByTestId("travel-reminder-banner")).toBeNull();
-    expect(localStorage.getItem("tripful:onboarding-dismissed:trip-1")).toBe(
+    expect(localStorage.getItem("journiful:onboarding-dismissed:trip-1")).toBe(
       "true",
     );
   });
@@ -174,11 +174,11 @@ describe("TravelReminderBanner", () => {
 
     await user.click(screen.getByText("Dismiss"));
 
-    expect(localStorage.getItem("tripful:onboarding-dismissed:trip-abc")).toBe(
+    expect(localStorage.getItem("journiful:onboarding-dismissed:trip-abc")).toBe(
       "true",
     );
     expect(
-      localStorage.getItem("tripful:onboarding-dismissed:trip-1"),
+      localStorage.getItem("journiful:onboarding-dismissed:trip-1"),
     ).toBeNull();
   });
 });

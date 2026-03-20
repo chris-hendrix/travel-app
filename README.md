@@ -1,4 +1,4 @@
-# Tripful
+# Journiful
 
 Itineraries in 2 minutes.
 
@@ -18,7 +18,7 @@ Itineraries in 2 minutes.
 
 ## Project Overview
 
-Tripful is a modern travel itinerary planning application built as a full-stack monorepo. This repository contains Phases 1-6 plus a frontend design overhaul:
+Journiful is a modern travel itinerary planning application built as a full-stack monorepo. This repository contains Phases 1-6 plus a frontend design overhaul:
 
 - **Frontend**: Next.js 16 web application with React 19, Tailwind CSS 4, and a Mediterranean-inspired design system
 - **Backend**: Fastify REST API with PostgreSQL database (plugin architecture)
@@ -105,7 +105,7 @@ Follow these steps to set up the project from scratch:
 
 ```bash
 git clone <repository-url>
-cd tripful
+cd journiful
 ```
 
 ### 2. Install Dependencies
@@ -157,9 +157,9 @@ pnpm docker:up
 This starts PostgreSQL 16 in a Docker container with:
 
 - External port: 5433 (mapped to internal 5432)
-- Database name: `tripful`
-- Username: `tripful`
-- Password: `tripful_dev`
+- Database name: `journiful`
+- Username: `journiful`
+- Password: `journiful_dev`
 - Persistent data volume: `postgres_data`
 
 Verify the database is running:
@@ -169,7 +169,7 @@ Verify the database is running:
 docker compose ps
 
 # Check database health
-docker compose exec postgres pg_isready -U tripful
+docker compose exec postgres pg_isready -U journiful
 ```
 
 You should see: `localhost:5432 - accepting connections`
@@ -287,10 +287,10 @@ Database connection details:
 
 - **Host**: localhost
 - **Port**: 5433
-- **Database**: tripful
-- **User**: tripful
-- **Password**: tripful_dev
-- **Connection URL**: `postgresql://tripful:tripful_dev@localhost:5433/tripful`
+- **Database**: journiful
+- **User**: journiful
+- **Password**: journiful_dev
+- **Connection URL**: `postgresql://journiful:journiful_dev@localhost:5433/journiful`
 
 ### Docker Commands
 
@@ -312,7 +312,7 @@ pnpm docker:logs
 The monorepo is organized as follows:
 
 ```
-tripful/
+journiful/
 ├── apps/                      # Application packages
 │   ├── api/                   # Fastify backend API
 │   │   ├── src/
@@ -358,7 +358,7 @@ tripful/
 │
 ├── docs/                      # Additional documentation
 │   ├── GIT_HOOKS.md           # Git hooks setup guide
-│   └── 2026-02-01-tripful-mvp/  # MVP documentation
+│   └── 2026-02-01-journiful-mvp/  # MVP documentation
 │       ├── ARCHITECTURE.md    # High-level architecture (implementation progress)
 │       ├── PHASES.md          # Implementation phases and status
 │       ├── DESIGN.md          # UI/UX design system documentation
@@ -382,7 +382,7 @@ tripful/
 
 - **apps/api**: Fastify backend with REST API endpoints, database integration via Drizzle ORM, and health checks
 - **apps/web**: Next.js 16 frontend with React 19, Tailwind CSS 4, and shadcn/ui components
-- **shared**: Shared code imported as `@tripful/shared` in both frontend and backend
+- **shared**: Shared code imported as `@journiful/shared` in both frontend and backend
 - **scripts**: Bash scripts for testing, verification, and automation
 - **docs**: Additional documentation for specific topics
 
@@ -499,7 +499,7 @@ postgresql://[user]:[password]@[host]:[port]/[database]
 **Default Database URL**:
 
 ```
-postgresql://tripful:tripful_dev@localhost:5433/tripful
+postgresql://journiful:journiful_dev@localhost:5433/journiful
 ```
 
 **Security Note**: The `JWT_SECRET` in `.env.example` is a placeholder. For production, generate a secure secret:
@@ -597,7 +597,7 @@ Comprehensive integration tests are available as bash scripts:
    - Complete development workflow
    - Build process and caching (Turbo)
    - Git hooks and code quality checks
-   - Cross-package imports (`@tripful/shared`)
+   - Cross-package imports (`@journiful/shared`)
 
 ## Troubleshooting
 
@@ -632,13 +632,13 @@ pnpm docker:down
 
 ```bash
 docker compose ps
-# Should show tripful-postgres as "running"
+# Should show journiful-postgres as "running"
 ```
 
 2. **Check database health**:
 
 ```bash
-docker compose exec postgres pg_isready -U tripful
+docker compose exec postgres pg_isready -U journiful
 # Should show: localhost:5432 - accepting connections
 ```
 
@@ -659,7 +659,7 @@ pnpm docker:up
 
 ```bash
 cat apps/api/.env | grep DATABASE_URL
-# Should be: postgresql://tripful:tripful_dev@localhost:5433/tripful
+# Should be: postgresql://journiful:journiful_dev@localhost:5433/journiful
 ```
 
 #### Environment Variable Validation Errors
@@ -774,7 +774,7 @@ pnpm prepare
 
 #### TypeScript Errors After Install
 
-**Problem**: TypeScript shows errors for imports from `@tripful/shared`
+**Problem**: TypeScript shows errors for imports from `@journiful/shared`
 
 **Solutions**:
 
@@ -793,7 +793,7 @@ cd ..
 3. **Verify workspace resolution**:
 
 ```bash
-pnpm why @tripful/shared
+pnpm why @journiful/shared
 ```
 
 #### Docker Container Won't Start
@@ -825,7 +825,7 @@ docker compose logs postgres
 
 ```bash
 pnpm docker:down
-docker volume rm tripful_postgres_data  # Warning: deletes data
+docker volume rm journiful_postgres_data  # Warning: deletes data
 pnpm docker:up
 ```
 

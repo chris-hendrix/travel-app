@@ -3,7 +3,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { useMutuals, useMutualSuggestions } from "../use-mutuals";
-import type { Mutual, GetMutualsResponse } from "@tripful/shared/types";
+import type { Mutual, GetMutualsResponse } from "@journiful/shared/types";
 
 // Mock the API module
 vi.mock("@/lib/api", () => ({

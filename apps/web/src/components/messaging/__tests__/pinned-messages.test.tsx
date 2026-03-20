@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PinnedMessages } from "../pinned-messages";
-import type { MessageWithReplies } from "@tripful/shared/types";
+import type { MessageWithReplies } from "@journiful/shared/types";
 
 describe("PinnedMessages", () => {
   const makeMessage = (

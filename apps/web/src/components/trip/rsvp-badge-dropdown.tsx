@@ -18,7 +18,7 @@ import {
   useUpdateRsvp,
   getUpdateRsvpErrorMessage,
 } from "@/hooks/use-invitations";
-import type { UpdateRsvpInput } from "@tripful/shared/schemas";
+import type { UpdateRsvpInput } from "@journiful/shared/schemas";
 
 type RsvpStatus = "going" | "maybe" | "not_going" | "no_response";
 

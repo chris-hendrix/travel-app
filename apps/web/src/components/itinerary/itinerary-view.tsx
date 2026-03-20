@@ -25,7 +25,7 @@ import { CreateAccommodationDialog } from "./create-accommodation-dialog";
 import { DeletedItemsDialog } from "./deleted-items-dialog";
 import { TravelReminderBanner } from "@/components/trip/travel-reminder-banner";
 import { EmptyState } from "@/components/ui/empty-state";
-import type { DailyForecast, TemperatureUnit } from "@tripful/shared/types";
+import type { DailyForecast, TemperatureUnit } from "@journiful/shared/types";
 
 interface ItineraryViewProps {
   tripId: string;

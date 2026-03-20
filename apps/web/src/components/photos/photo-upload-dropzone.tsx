@@ -11,7 +11,7 @@ import {
 import { Upload, AlertCircle, Loader2, X, ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUploadPhotos } from "@/hooks/use-photos";
-import { MAX_PHOTOS_PER_TRIP } from "@tripful/shared/config";
+import { MAX_PHOTOS_PER_TRIP } from "@journiful/shared/config";
 
 interface PhotoUploadDropzoneProps {
   tripId: string;

@@ -1,6 +1,6 @@
 ---
 date: 2026-02-14
-topic: Tripful - Messaging & Notifications Architecture
+topic: Journiful - Messaging & Notifications Architecture
 status: planned
 last_updated: 2026-02-14
 ---

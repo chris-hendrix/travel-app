@@ -12,7 +12,7 @@ import {
   getMutualsResponseSchema,
   type GetMutualsQueryInput,
   type GetMutualSuggestionsQueryInput,
-} from "@tripful/shared/schemas";
+} from "@journiful/shared/schemas";
 
 /**
  * Mutuals Routes

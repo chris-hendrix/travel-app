@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { MapPin, Calendar, Paintbrush } from "lucide-react";
-import { THEME_PRESETS, THEME_FONTS } from "@tripful/shared/config";
+import { THEME_PRESETS, THEME_FONTS } from "@journiful/shared/config";
 import { TopoPattern } from "@/components/ui/topo-pattern";
 import { formatDateRange } from "@/lib/format";
 import { getUploadUrl } from "@/lib/api";

@@ -12,7 +12,7 @@ import type { IPermissionsService } from "./permissions.service.js";
 import type { ISMSService } from "./sms.service.js";
 import type { INotificationService } from "./notification.service.js";
 import type { Logger } from "@/types/logger.js";
-import type { MemberWithProfile } from "@tripful/shared/types";
+import type { MemberWithProfile } from "@journiful/shared/types";
 import type { PgBoss } from "pg-boss";
 import { QUEUE } from "@/queues/types.js";
 import type { InvitationSendPayload } from "@/queues/types.js";

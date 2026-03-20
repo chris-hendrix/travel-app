@@ -15,8 +15,8 @@ import {
   notificationPreferencesResponseSchema,
   notificationPreferencesSchema,
   successResponseSchema,
-} from "@tripful/shared/schemas";
-import type { NotificationPreferencesInput } from "@tripful/shared/schemas";
+} from "@journiful/shared/schemas";
+import type { NotificationPreferencesInput } from "@journiful/shared/schemas";
 
 // Reusable param schemas
 const tripIdParamsSchema = z.object({

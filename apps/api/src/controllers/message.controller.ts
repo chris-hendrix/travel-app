@@ -4,7 +4,7 @@ import type {
   UpdateMessageInput,
   ToggleReactionInput,
   PinMessageInput,
-} from "@tripful/shared/schemas";
+} from "@journiful/shared/schemas";
 
 /**
  * Message Controller

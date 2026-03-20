@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MessageCard } from "../message-card";
-import type { MessageWithReplies } from "@tripful/shared/types";
+import type { MessageWithReplies } from "@journiful/shared/types";
 
 // Mock hooks
 const mockEditMutate = vi.fn();

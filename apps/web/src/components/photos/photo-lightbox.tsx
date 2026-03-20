@@ -21,7 +21,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import type { Photo } from "@tripful/shared/types";
+import type { Photo } from "@journiful/shared/types";
 
 interface PhotoLightboxProps {
   photos: Photo[];

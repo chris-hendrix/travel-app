@@ -19,7 +19,7 @@ vi.mock("next/link", () => ({
 }));
 
 import { MutualProfileSheet } from "../mutual-profile-sheet";
-import type { Mutual } from "@tripful/shared/types";
+import type { Mutual } from "@journiful/shared/types";
 
 const mockMutual: Mutual = {
   id: "user-1",

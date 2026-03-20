@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ItineraryView } from "../itinerary-view";
-import type { Event, Accommodation } from "@tripful/shared/types";
+import type { Event, Accommodation } from "@journiful/shared/types";
 
 // Mock hooks
 const mockUseAuth = vi.fn();

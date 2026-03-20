@@ -19,7 +19,7 @@ import { APIError } from "@/lib/api";
 import type {
   CreateAccommodationInput,
   UpdateAccommodationInput,
-} from "@tripful/shared/schemas";
+} from "@journiful/shared/schemas";
 
 // Mock the API module
 vi.mock("@/lib/api", () => ({

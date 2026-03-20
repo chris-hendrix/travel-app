@@ -1,4 +1,4 @@
-// Mutuals validation schemas for the Tripful platform
+// Mutuals validation schemas for the Journiful platform
 
 import { z } from "zod";
 

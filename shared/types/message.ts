@@ -1,4 +1,4 @@
-// Message types for the Tripful platform
+// Message types for the Journiful platform
 
 /**
  * Allowed reaction identifiers for messages

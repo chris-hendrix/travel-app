@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import type {
   Notification,
   GetNotificationsResponse,
-} from "@tripful/shared/types";
+} from "@journiful/shared/types";
 
 // Mocks
 const mockPush = vi.fn();

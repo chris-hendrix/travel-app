@@ -5,7 +5,7 @@ import type {
   AddCoOrganizerInput,
   CursorPaginationInput,
   UpdateMemberRoleInput,
-} from "@tripful/shared/schemas";
+} from "@journiful/shared/schemas";
 import { TripNotFoundError, PermissionDeniedError } from "../errors.js";
 import { auditLog } from "@/utils/audit.js";
 

@@ -2,7 +2,7 @@ import type { FastifyRequest, FastifyReply } from "fastify";
 import type {
   CreateMemberTravelInput,
   UpdateMemberTravelInput,
-} from "@tripful/shared/schemas";
+} from "@journiful/shared/schemas";
 import { MemberTravelNotFoundError, TripNotFoundError } from "../errors.js";
 
 /**

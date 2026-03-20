@@ -28,7 +28,7 @@ import { PhotosPanel } from "./panels/photos-panel";
 import type { TripDetailWithMeta } from "@/hooks/trip-queries";
 import type { MemberWithProfile } from "@/hooks/use-invitations";
 import { getRemoveMemberErrorMessage } from "@/hooks/use-invitations";
-import type { TripWeatherResponse, TemperatureUnit } from "@tripful/shared/types";
+import type { TripWeatherResponse, TemperatureUnit } from "@journiful/shared/types";
 
 const EditTripDialog = dynamic(() =>
   import("@/components/trip/edit-trip-dialog").then((mod) => ({

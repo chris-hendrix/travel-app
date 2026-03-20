@@ -77,7 +77,7 @@ export function AppHeader() {
               href="/trips"
               className="font-display text-xl font-bold tracking-tight"
             >
-              Tripful
+              Journiful
             </Link>
           </div>
 

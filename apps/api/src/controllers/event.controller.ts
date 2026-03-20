@@ -2,7 +2,7 @@ import type { FastifyRequest, FastifyReply } from "fastify";
 import type {
   CreateEventInput,
   UpdateEventInput,
-} from "@tripful/shared/schemas";
+} from "@journiful/shared/schemas";
 import { EventNotFoundError, TripNotFoundError } from "../errors.js";
 import { auditLog } from "@/utils/audit.js";
 

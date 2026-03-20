@@ -4,7 +4,7 @@ import { buildApp } from "../helpers.js";
 import { db } from "@/config/database.js";
 import { users, members, trips, tripPhotos } from "@/db/schema/index.js";
 import { eq, sql } from "drizzle-orm";
-import { MAX_PHOTOS_PER_TRIP } from "@tripful/shared/config";
+import { MAX_PHOTOS_PER_TRIP } from "@journiful/shared/config";
 import { generateUniquePhone } from "../test-utils.js";
 import FormData from "form-data";
 

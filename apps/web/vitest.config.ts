@@ -19,7 +19,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "@tripful/shared": path.resolve(__dirname, "../../shared"),
+      "@journiful/shared": path.resolve(__dirname, "../../shared"),
     },
   },
 });

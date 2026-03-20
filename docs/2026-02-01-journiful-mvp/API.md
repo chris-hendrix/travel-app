@@ -1,4 +1,4 @@
-# Tripful API Reference
+# Journiful API Reference
 
 > Base URL: `http://localhost:8000` (development)
 >

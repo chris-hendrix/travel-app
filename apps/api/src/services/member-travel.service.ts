@@ -9,7 +9,7 @@ import { eq, and, isNull, getTableColumns, count } from "drizzle-orm";
 import type {
   CreateMemberTravelInput,
   UpdateMemberTravelInput,
-} from "@tripful/shared/schemas";
+} from "@journiful/shared/schemas";
 import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
 import {

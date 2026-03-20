@@ -6,13 +6,13 @@ import type {
   CreateInvitationsInput,
   UpdateRsvpInput,
   UpdateMySettingsInput,
-} from "@tripful/shared/schemas";
+} from "@journiful/shared/schemas";
 import type {
   Invitation,
   MemberWithProfile,
   CreateInvitationsResponse,
   UpdateRsvpResponse,
-} from "@tripful/shared/types";
+} from "@journiful/shared/types";
 
 // Import query keys and options from server-safe module for use in hooks
 import {

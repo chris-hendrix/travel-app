@@ -1,5 +1,5 @@
 /**
- * API client for communicating with the Tripful backend
+ * API client for communicating with the Journiful backend
  */
 
 export const API_URL =

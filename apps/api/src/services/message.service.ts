@@ -17,7 +17,7 @@ import {
   lt,
   or,
 } from "drizzle-orm";
-import type { CreateMessageInput } from "@tripful/shared/schemas";
+import type { CreateMessageInput } from "@journiful/shared/schemas";
 import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
 import type { INotificationService } from "./notification.service.js";

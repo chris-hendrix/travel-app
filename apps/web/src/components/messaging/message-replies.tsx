@@ -8,7 +8,7 @@ import { getUploadUrl } from "@/lib/api";
 import { getInitials, formatRelativeTime } from "@/lib/format";
 import { MessageInput } from "./message-input";
 import { MessageReactions } from "./message-reactions";
-import type { Message, MessageWithReplies } from "@tripful/shared/types";
+import type { Message, MessageWithReplies } from "@journiful/shared/types";
 
 interface MessageRepliesProps {
   message: MessageWithReplies;

@@ -1,5 +1,5 @@
 /**
- * Shared constants for the Tripful web app
+ * Shared constants for the Journiful web app
  */
 
 /**

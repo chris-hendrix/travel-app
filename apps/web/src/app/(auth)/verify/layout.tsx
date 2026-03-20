@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 export const metadata: Metadata = {
   title: "Verify",
-  description: "Verify your email to access Tripful.",
+  description: "Verify your email to access Journiful.",
   robots: { index: false, follow: false },
 };
 

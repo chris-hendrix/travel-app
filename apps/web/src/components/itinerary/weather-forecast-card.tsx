@@ -5,7 +5,7 @@ import { Droplets } from "lucide-react";
 import type {
   TripWeatherResponse,
   TemperatureUnit,
-} from "@tripful/shared/types";
+} from "@journiful/shared/types";
 import {
   getWeatherInfo,
   toDisplayTemp,

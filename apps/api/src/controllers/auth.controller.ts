@@ -3,7 +3,7 @@ import type {
   RequestCodeInput,
   VerifyCodeInput,
   CompleteProfileInput,
-} from "@tripful/shared/schemas";
+} from "@journiful/shared/schemas";
 import { validatePhoneNumber } from "@/utils/phone.js";
 import { auditLog } from "@/utils/audit.js";
 import { InvalidCodeError, AccountLockedError } from "../errors.js";

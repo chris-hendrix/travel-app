@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { VisuallyHidden } from "radix-ui";
 import { toast } from "sonner";
-import type { Accommodation } from "@tripful/shared/types";
+import type { Accommodation } from "@journiful/shared/types";
 import {
   Sheet,
   SheetBody,

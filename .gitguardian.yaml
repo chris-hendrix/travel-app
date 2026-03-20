@@ -30,6 +30,6 @@ paths-ignore:
 # Allow specific patterns that are safe in test contexts
 matches-ignore:
   - name: Test database credentials
-    match: tripful123
+    match: journiful123
   - name: Test JWT secrets
     match: test-jwt-secret-minimum-32-characters-long-for-testing-purposes-only

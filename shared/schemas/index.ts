@@ -1,4 +1,4 @@
-// Shared Zod validation schemas for the Tripful platform
+// Shared Zod validation schemas for the Journiful platform
 
 import { z } from "zod";
 

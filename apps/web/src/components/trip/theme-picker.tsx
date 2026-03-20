@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { THEME_PRESETS } from "@tripful/shared/config";
+import { THEME_PRESETS } from "@journiful/shared/config";
 import { buildBackground } from "@/lib/theme-styles";
 import { cn } from "@/lib/utils";
 import { Check, X } from "lucide-react";

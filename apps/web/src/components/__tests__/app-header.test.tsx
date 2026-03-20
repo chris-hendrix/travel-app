@@ -86,24 +86,24 @@ describe("AppHeader", () => {
     });
   });
 
-  it("renders the Tripful wordmark", () => {
+  it("renders the Journiful wordmark", () => {
     render(<AppHeader />);
 
-    const wordmark = screen.getByText("Tripful");
+    const wordmark = screen.getByText("Journiful");
     expect(wordmark).toBeDefined();
   });
 
   it("renders the wordmark as a link to /trips", () => {
     render(<AppHeader />);
 
-    const wordmark = screen.getByText("Tripful");
+    const wordmark = screen.getByText("Journiful");
     expect(wordmark.closest("a")?.getAttribute("href")).toBe("/trips");
   });
 
   it("renders the wordmark in display font", () => {
     render(<AppHeader />);
 
-    const wordmark = screen.getByText("Tripful");
+    const wordmark = screen.getByText("Journiful");
     expect(wordmark.className).toContain("font-display");
   });
 

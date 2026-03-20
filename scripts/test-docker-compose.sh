@@ -76,8 +76,8 @@ else
 fi
 
 # Test: Container name is set
-log_test "Container name is tripful-postgres"
-if grep -q "container_name: tripful-postgres" docker-compose.yml; then
+log_test "Container name is journiful-postgres"
+if grep -q "container_name: journiful-postgres" docker-compose.yml; then
     log_pass
 else
     log_fail "Container name not set correctly"
@@ -123,7 +123,7 @@ fi
 
 # Test: Health check has correct user
 log_test "Health check uses correct PostgreSQL user"
-if grep -q "pg_isready -U tripful" docker-compose.yml; then
+if grep -q "pg_isready -U journiful" docker-compose.yml; then
     log_pass
 else
     log_fail "Health check user incorrect"

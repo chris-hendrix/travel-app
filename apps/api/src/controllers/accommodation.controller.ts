@@ -2,7 +2,7 @@ import type { FastifyRequest, FastifyReply } from "fastify";
 import type {
   CreateAccommodationInput,
   UpdateAccommodationInput,
-} from "@tripful/shared/schemas";
+} from "@journiful/shared/schemas";
 import { AccommodationNotFoundError, TripNotFoundError } from "../errors.js";
 import { auditLog } from "@/utils/audit.js";
 

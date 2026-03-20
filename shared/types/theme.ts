@@ -1,4 +1,4 @@
-// Theme-related types for the Tripful platform
+// Theme-related types for the Journiful platform
 
 /**
  * Available font options for trip themes.

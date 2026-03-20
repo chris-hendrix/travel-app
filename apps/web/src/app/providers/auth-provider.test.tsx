@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { renderHook, act } from "@testing-library/react";
 import { AuthProvider, useAuth } from "./auth-provider";
-import type { User } from "@tripful/shared";
+import type { User } from "@journiful/shared";
 
 // Mock Next.js router
 vi.mock("next/navigation", () => ({

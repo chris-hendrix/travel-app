@@ -9,7 +9,7 @@ import type {
   GetUnreadCountResponse,
   GetNotificationPreferencesResponse,
   NotificationPreferences,
-} from "@tripful/shared/types";
+} from "@journiful/shared/types";
 
 /**
  * Query key factory for notification-related queries

@@ -1,4 +1,4 @@
-// Notification types for the Tripful platform
+// Notification types for the Journiful platform
 
 /**
  * Supported notification types

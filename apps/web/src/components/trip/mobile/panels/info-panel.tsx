@@ -17,8 +17,8 @@ import { getUploadUrl } from "@/lib/api";
 import { getInitials } from "@/lib/format";
 import { supportsHover } from "@/lib/supports-hover";
 import type { TripDetailWithMeta } from "@/hooks/trip-queries";
-import type { TripWeatherResponse, TemperatureUnit } from "@tripful/shared/types";
-import { THEME_PRESETS } from "@tripful/shared/config";
+import type { TripWeatherResponse, TemperatureUnit } from "@journiful/shared/types";
+import { THEME_PRESETS } from "@journiful/shared/config";
 
 const preloadInviteMembersDialog = () =>
   void import("@/components/trip/invite-members-dialog");

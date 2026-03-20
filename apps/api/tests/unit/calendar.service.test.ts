@@ -96,7 +96,7 @@ describe("CalendarService.generateIcsFeed", () => {
 
       expect(ics).toContain("BEGIN:VCALENDAR");
       expect(ics).toContain("END:VCALENDAR");
-      expect(ics).toContain("X-WR-CALNAME:Tripful");
+      expect(ics).toContain("X-WR-CALNAME:Journiful");
       expect(ics).toContain("METHOD:PUBLISH");
       expect(ics).toContain("X-PUBLISHED-TTL:PT15M");
       expect(ics).toContain("X-REFRESH-INTERVAL;VALUE=DURATION:PT15M");
@@ -120,7 +120,7 @@ describe("CalendarService.generateIcsFeed", () => {
 
       expect(ics).toContain("BEGIN:VEVENT");
       expect(ics).toContain(`SUMMARY:${trip.name}`);
-      expect(ics).toContain(`UID:trip-${trip.id}@tripful.app`);
+      expect(ics).toContain(`UID:trip-${trip.id}@journiful.app`);
       expect(ics).toContain("TRANSP:TRANSPARENT");
       // All-day events use DATE (not DATE-TIME)
       expect(ics).toContain("DTSTART;VALUE=DATE:20260701");
@@ -147,7 +147,7 @@ describe("CalendarService.generateIcsFeed", () => {
       const trip = makeTrip({ startDate: null, endDate: null });
       const ics = service.generateIcsFeed([{ trip, events: [], accommodations: [] }]);
 
-      expect(ics).not.toContain(`UID:trip-${trip.id}@tripful.app`);
+      expect(ics).not.toContain(`UID:trip-${trip.id}@journiful.app`);
       expect(ics).not.toContain("BEGIN:VEVENT");
     });
 
@@ -156,14 +156,14 @@ describe("CalendarService.generateIcsFeed", () => {
       const ics = unfold(service.generateIcsFeed([{ trip, events: [], accommodations: [] }]));
 
       expect(ics).toContain("Sun and sand");
-      expect(ics).toContain(`https://tripful.app/trips/${trip.id}`);
+      expect(ics).toContain(`https://journiful.app/trips/${trip.id}`);
     });
 
     it("should include link even when trip description is null", () => {
       const trip = makeTrip({ description: null });
       const ics = unfold(service.generateIcsFeed([{ trip, events: [], accommodations: [] }]));
 
-      expect(ics).toContain(`https://tripful.app/trips/${trip.id}`);
+      expect(ics).toContain(`https://journiful.app/trips/${trip.id}`);
     });
 
     it("should set destination as location", () => {
@@ -184,7 +184,7 @@ describe("CalendarService.generateIcsFeed", () => {
       });
       const ics = service.generateIcsFeed([{ trip, events: [event], accommodations: [] }]);
 
-      expect(ics).toContain(`UID:event-${event.id}@tripful.app`);
+      expect(ics).toContain(`UID:event-${event.id}@journiful.app`);
       expect(ics).toContain("SUMMARY:Snorkeling Tour");
       // Should contain a DTSTART with timezone
       expect(ics).toContain("DTSTART");
@@ -228,12 +228,12 @@ describe("CalendarService.generateIcsFeed", () => {
       expect(ics).toContain("DTEND;TZID=America/Cancun:20260702T210000");
     });
 
-    it("should include X-TRIPFUL-TRIP custom property with trip name", () => {
+    it("should include X-JOURNIFUL-TRIP custom property with trip name", () => {
       const trip = makeTrip({ startDate: null, name: "Beach Vacation" });
       const event = makeEvent({ allDay: false });
       const ics = service.generateIcsFeed([{ trip, events: [event], accommodations: [] }]);
 
-      expect(ics).toContain("X-TRIPFUL-TRIP:Beach Vacation");
+      expect(ics).toContain("X-JOURNIFUL-TRIP:Beach Vacation");
     });
 
     it("should include event type as category", () => {
@@ -255,7 +255,7 @@ describe("CalendarService.generateIcsFeed", () => {
       });
       const ics = service.generateIcsFeed([{ trip, events: [event], accommodations: [] }]);
 
-      expect(ics).toContain(`UID:event-${event.id}@tripful.app`);
+      expect(ics).toContain(`UID:event-${event.id}@journiful.app`);
       expect(ics).toContain("DTSTART;VALUE=DATE:");
     });
   });
@@ -397,12 +397,12 @@ describe("CalendarService.generateIcsFeed", () => {
         ]),
       );
 
-      expect(ics).toContain(`UID:accommodation-${acc.id}@tripful.app`);
+      expect(ics).toContain(`UID:accommodation-${acc.id}@journiful.app`);
       expect(ics).toContain("SUMMARY:🏨 Seaside Resort");
       expect(ics).toContain("LOCATION:123 Beach Rd\\, Cancun");
       expect(ics).toContain("TRANSP:TRANSPARENT");
       expect(ics).toContain("CATEGORIES:accommodation");
-      expect(ics).toContain("X-TRIPFUL-TRIP:Beach Vacation");
+      expect(ics).toContain("X-JOURNIFUL-TRIP:Beach Vacation");
       expect(ics).toContain("DTSTART");
       expect(ics).toContain("DTEND");
     });
@@ -420,13 +420,13 @@ describe("CalendarService.generateIcsFeed", () => {
         ]),
       );
 
-      expect(ics).toContain(`UID:accommodation-${acc.id}@tripful.app`);
+      expect(ics).toContain(`UID:accommodation-${acc.id}@journiful.app`);
       expect(ics).toContain("SUMMARY:🏨 Seaside Resort");
       // Should not contain LOCATION when address is null
       expect(ics).not.toContain("LOCATION:");
       expect(ics).not.toContain("Links:");
       // Should still have trip link
-      expect(ics).toContain(`https://tripful.app/trips/${trip.id}`);
+      expect(ics).toContain(`https://journiful.app/trips/${trip.id}`);
     });
 
     it("should include accommodations alongside trip and event VEVENTs", () => {

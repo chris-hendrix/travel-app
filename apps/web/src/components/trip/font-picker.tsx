@@ -1,7 +1,7 @@
 "use client";
 
-import { THEME_FONT_VALUES } from "@tripful/shared/types";
-import { THEME_FONTS, FONT_DISPLAY_NAMES } from "@tripful/shared/config";
+import { THEME_FONT_VALUES } from "@journiful/shared/types";
+import { THEME_FONTS, FONT_DISPLAY_NAMES } from "@journiful/shared/config";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
 

@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { THEME_PRESETS } from "@tripful/shared/config";
-import type { ThemeFont } from "@tripful/shared/types";
+import { THEME_PRESETS } from "@journiful/shared/config";
+import type { ThemeFont } from "@journiful/shared/types";
 import { toast } from "sonner";
 import {
   useUpdateTrip,

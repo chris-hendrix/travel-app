@@ -7,8 +7,8 @@ import {
 } from "@/hooks/use-messages";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import type { ReactionSummary, AllowedReaction } from "@tripful/shared/types";
-import { REACTION_EMOJI_MAP } from "@tripful/shared/types";
+import type { ReactionSummary, AllowedReaction } from "@journiful/shared/types";
+import { REACTION_EMOJI_MAP } from "@journiful/shared/types";
 import {
   Tooltip,
   TooltipContent,

@@ -116,7 +116,7 @@ test.describe("Photos Journey", () => {
     async ({ page, request }) => {
       test.slow(); // Photo processing via pg-boss worker requires extended waits
 
-      const tmpDir = path.join("/tmp", `tripful-test-photos-${Date.now()}`);
+      const tmpDir = path.join("/tmp", `journiful-test-photos-${Date.now()}`);
       fs.mkdirSync(tmpDir, { recursive: true });
       // Mobile Photos panel has no "Photos (n/20)" header — only desktop uses PhotosSection
       const vp = page.viewportSize();

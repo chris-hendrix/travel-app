@@ -1,25 +1,25 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: tripful-postgres
+    container_name: journiful-postgres
     environment:
-      POSTGRES_USER: tripful
-      POSTGRES_PASSWORD: tripful_dev
-      POSTGRES_DB: tripful
+      POSTGRES_USER: journiful
+      POSTGRES_PASSWORD: journiful_dev
+      POSTGRES_DB: journiful
       POSTGRES_HOST_AUTH_METHOD: trust
     ports:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tripful"]
+      test: ["CMD-SHELL", "pg_isready -U journiful"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   minio:
     image: minio/minio:latest
-    container_name: tripful-minio
+    container_name: journiful-minio
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin
@@ -37,15 +37,15 @@ services:
 
   minio-init:
     image: minio/mc:latest
-    container_name: tripful-minio-init
+    container_name: journiful-minio-init
     depends_on:
       minio:
         condition: service_healthy
     entrypoint: >
       /bin/sh -c "
       mc alias set local http://minio:9000 minioadmin minioadmin &&
-      mc mb --ignore-existing local/tripful-uploads &&
-      mc anonymous set download local/tripful-uploads &&
+      mc mb --ignore-existing local/journiful-uploads &&
+      mc anonymous set download local/journiful-uploads &&
       echo 'NOTE: Production buckets should NOT be public — the API proxies all reads' &&
       echo 'Bucket ready'
       "

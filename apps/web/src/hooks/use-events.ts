@@ -6,13 +6,13 @@ import { apiRequest, APIError } from "@/lib/api";
 import type {
   CreateEventInput,
   UpdateEventInput,
-} from "@tripful/shared/schemas";
+} from "@journiful/shared/schemas";
 import type {
   Event,
   CreateEventResponse,
   UpdateEventResponse,
   RestoreEventResponse,
-} from "@tripful/shared/types";
+} from "@journiful/shared/types";
 
 // Import query keys and options from server-safe module for use in hooks
 import {

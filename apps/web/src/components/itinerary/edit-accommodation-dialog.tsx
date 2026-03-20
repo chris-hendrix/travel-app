@@ -9,8 +9,8 @@ import { parse, addDays } from "date-fns";
 import {
   updateAccommodationSchema,
   type UpdateAccommodationInput,
-} from "@tripful/shared/schemas";
-import type { Accommodation } from "@tripful/shared/types";
+} from "@journiful/shared/schemas";
+import type { Accommodation } from "@journiful/shared/types";
 import {
   Sheet,
   SheetBody,

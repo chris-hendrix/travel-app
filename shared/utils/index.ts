@@ -1,4 +1,4 @@
-// Shared utility functions for the Tripful platform
+// Shared utility functions for the Journiful platform
 
 import { fromZonedTime, formatInTimeZone as formatInTz } from "date-fns-tz";
 

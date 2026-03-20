@@ -53,15 +53,15 @@ import {
 import { ItineraryView } from "@/components/itinerary/itinerary-view";
 import { WeatherForecastCard } from "@/components/itinerary/weather-forecast-card";
 import { useWeatherForecast } from "@/hooks/use-weather";
-import type { TemperatureUnit } from "@tripful/shared/types";
+import type { TemperatureUnit } from "@journiful/shared/types";
 import { TripMessages, MessageCountIndicator } from "@/components/messaging";
 import { NotificationPreferences } from "@/components/notifications/notification-preferences";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { MembersList } from "@/components/trip/members-list";
 import { TripPreview } from "@/components/trip/trip-preview";
 import { TripThemeProvider } from "@/components/trip/trip-theme-provider";
-import { THEME_PRESETS } from "@tripful/shared/config";
-import { THEME_FONTS } from "@tripful/shared/config";
+import { THEME_PRESETS } from "@journiful/shared/config";
+import { THEME_FONTS } from "@journiful/shared/config";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
 import { supportsHover } from "@/lib/supports-hover";
 

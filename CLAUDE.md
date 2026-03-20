@@ -1,4 +1,4 @@
-# Tripful
+# Journiful
 
 A collaborative trip planning platform enabling groups to organize travel together.
 
@@ -20,13 +20,13 @@ A collaborative trip planning platform enabling groups to organize travel togeth
 
 ## Why (Project Purpose)
 
-Tripful helps groups plan trips together by coordinating:
+Journiful helps groups plan trips together by coordinating:
 
 - Group travel itineraries and accommodations
 - Event scheduling with RSVP tracking
 - Member availability and travel logistics
 
-**Current Status**: Phase 6 (Advanced Itinerary) complete. See `docs/2026-02-01-tripful-mvp/ARCHITECTURE.md` for implementation progress.
+**Current Status**: Phase 6 (Advanced Itinerary) complete. See `docs/2026-02-01-journiful-mvp/ARCHITECTURE.md` for implementation progress.
 
 ## How (Development Workflow)
 
@@ -108,7 +108,7 @@ The devcontainer includes `playwright-cli` for interactive browser testing. Star
 
 ```bash
 # Start dev servers inside container (background)
-make test-exec CMD="bash -c 'pnpm --filter @tripful/api dev & pnpm --filter @tripful/web dev & wait'"
+make test-exec CMD="bash -c 'pnpm --filter @journiful/api dev & pnpm --filter @journiful/web dev & wait'"
 
 # Open browser and navigate (PW_CLI is a shorthand for the full command)
 PW_CLI="playwright-cli --config .devcontainer/playwright-cli.config.json"
@@ -144,9 +144,9 @@ Always export through barrel files (`index.ts`).
 
 **Importing from shared package:**
 
-- ✅ Use workspace package: `import { ... } from '@tripful/shared/schemas'`
+- ✅ Use workspace package: `import { ... } from '@journiful/shared/schemas'`
 - ❌ Never use relative paths: `import { ... } from '../../../../shared/schemas/index.js'`
-- Available exports: `@tripful/shared`, `@tripful/shared/types`, `@tripful/shared/schemas`, `@tripful/shared/utils`
+- Available exports: `@journiful/shared`, `@journiful/shared/types`, `@journiful/shared/schemas`, `@journiful/shared/utils`
 
 ### Database Changes
 
@@ -157,7 +157,7 @@ Always export through barrel files (`index.ts`).
 
 ### Documentation
 
-- **API Architecture**: See `docs/2026-02-01-tripful-mvp/ARCHITECTURE.md`
+- **API Architecture**: See `docs/2026-02-01-journiful-mvp/ARCHITECTURE.md`
 - **Setup Guide**: See `README.md` and `DEVELOPMENT.md`
 - **Test Scripts**: See `scripts/README.md` for verification utilities
 

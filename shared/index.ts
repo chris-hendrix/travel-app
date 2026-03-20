@@ -1,4 +1,4 @@
-// Barrel exports for @tripful/shared package
+// Barrel exports for @journiful/shared package
 
 // Types
 export type {

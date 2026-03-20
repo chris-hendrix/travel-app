@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MembersList } from "../members-list";
 import type { MemberWithProfile } from "@/hooks/use-invitations";
-import type { Invitation } from "@tripful/shared/types";
+import type { Invitation } from "@journiful/shared/types";
 
 // Mock format
 vi.mock("@/lib/format", () => ({

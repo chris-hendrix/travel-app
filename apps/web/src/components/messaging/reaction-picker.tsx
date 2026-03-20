@@ -7,8 +7,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import type { AllowedReaction } from "@tripful/shared/types";
-import { ALLOWED_REACTIONS, REACTION_EMOJI_MAP } from "@tripful/shared/types";
+import type { AllowedReaction } from "@journiful/shared/types";
+import { ALLOWED_REACTIONS, REACTION_EMOJI_MAP } from "@journiful/shared/types";
 
 interface ReactionPickerProps {
   onSelect: (emoji: AllowedReaction) => void;

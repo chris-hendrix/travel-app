@@ -1,7 +1,7 @@
 "use client";
 
 import { useLayoutEffect, type ReactNode } from "react";
-import { THEME_PRESETS, THEME_FONTS } from "@tripful/shared/config";
+import { THEME_PRESETS, THEME_FONTS } from "@journiful/shared/config";
 import { resolveThemeStyles, resolvePaletteStyles } from "@/lib/theme-styles";
 
 interface TripThemeProviderProps {

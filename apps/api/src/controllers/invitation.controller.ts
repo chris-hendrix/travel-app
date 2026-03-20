@@ -3,7 +3,7 @@ import type {
   CreateInvitationsInput,
   UpdateRsvpInput,
   UpdateMySettingsInput,
-} from "@tripful/shared/schemas";
+} from "@journiful/shared/schemas";
 import { PermissionDeniedError } from "../errors.js";
 import { auditLog } from "@/utils/audit.js";
 

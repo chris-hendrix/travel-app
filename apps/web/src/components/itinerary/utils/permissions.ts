@@ -1,4 +1,4 @@
-import type { Event, Accommodation, MemberTravel } from "@tripful/shared/types";
+import type { Event, Accommodation, MemberTravel } from "@journiful/shared/types";
 
 export function canModifyEvent(
   event: Event,

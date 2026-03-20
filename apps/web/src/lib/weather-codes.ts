@@ -1,4 +1,4 @@
-import type { TemperatureUnit } from "@tripful/shared/types";
+import type { TemperatureUnit } from "@journiful/shared/types";
 import type { LucideIcon } from "lucide-react";
 import {
   Sun,

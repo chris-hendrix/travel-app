@@ -1,11 +1,11 @@
-# Tripful MVP - Implementation Phases
+# Journiful MVP - Implementation Phases
 
 > **Status**: Phases 1-6 complete | Phase 7 pending
 > **Last Updated**: 2026-02-14
 
 ## ✅ Phase 1: Monorepo Setup
 
-- [x] pnpm workspace with 3 packages (@tripful/api, @tripful/web, @tripful/shared)
+- [x] pnpm workspace with 3 packages (@journiful/api, @journiful/web, @journiful/shared)
 - [x] Turbo build orchestration with parallel task execution
 - [x] TypeScript 5.7.3 strict mode across all workspaces
 - [x] PostgreSQL 16 via Docker Compose (port 5433)

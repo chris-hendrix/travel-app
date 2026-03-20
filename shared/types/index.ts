@@ -1,4 +1,4 @@
-// Shared TypeScript types for the Tripful platform
+// Shared TypeScript types for the Journiful platform
 
 /**
  * Standardized API response wrapper with discriminated union pattern

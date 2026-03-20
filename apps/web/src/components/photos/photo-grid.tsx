@@ -3,7 +3,7 @@
 import { Camera } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PhotoCard } from "./photo-card";
-import type { Photo } from "@tripful/shared/types";
+import type { Photo } from "@journiful/shared/types";
 
 interface PhotoGridProps {
   photos: Photo[];

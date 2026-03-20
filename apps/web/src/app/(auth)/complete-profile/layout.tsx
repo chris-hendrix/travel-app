@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 export const metadata: Metadata = {
   title: "Complete Profile",
-  description: "Complete your Tripful profile to start planning trips.",
+  description: "Complete your Journiful profile to start planning trips.",
   robots: { index: false, follow: false },
 };
 

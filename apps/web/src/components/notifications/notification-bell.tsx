@@ -27,7 +27,7 @@ import {
   useMarkAllAsRead,
 } from "@/hooks/use-notifications";
 import { ErrorBoundary } from "@/components/error-boundary";
-import type { Notification } from "@tripful/shared/types";
+import type { Notification } from "@journiful/shared/types";
 import { NotificationItem } from "./notification-item";
 
 export function NotificationBell() {

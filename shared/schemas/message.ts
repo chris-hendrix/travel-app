@@ -1,4 +1,4 @@
-// Message validation schemas for the Tripful platform
+// Message validation schemas for the Journiful platform
 
 import { z } from "zod";
 import { stripControlChars } from "../utils/sanitize";

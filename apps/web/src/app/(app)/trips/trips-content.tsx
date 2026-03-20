@@ -200,7 +200,7 @@ export function TripsContent() {
         {isEmpty && (
           <div className="relative overflow-hidden bg-card rounded-md border border-border p-12 text-center linen-texture">
             <div className="absolute top-4 right-4 opacity-50">
-              <PostmarkStamp date="2026" city="TRIPFUL" size="lg" />
+              <PostmarkStamp date="2026" city="JOURNIFUL" size="lg" />
             </div>
             <div className="relative max-w-md mx-auto">
               <p className="text-2xl text-accent mb-2 font-script">

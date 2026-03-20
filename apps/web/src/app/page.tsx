@@ -8,13 +8,13 @@ import { PostmarkStamp } from "@/components/ui/postmark-stamp";
 import { JsonLd } from "@/components/json-ld";
 
 export const metadata: Metadata = {
-  title: "Tripful - Group Trip Planner | Plan Travel Together",
+  title: "Journiful - Group Trip Planner | Plan Travel Together",
   description:
     "The group trip planner that makes collaborative travel planning easy. Coordinate itineraries, accommodations, events, and member logistics all in one place.",
   alternates: { canonical: "/" },
 };
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://tripful.me";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://journiful.app";
 
 const features = [
   {
@@ -76,7 +76,7 @@ export default async function Home() {
         <section className="relative flex flex-col items-center justify-center px-4 pt-24 pb-20 text-center sm:pt-32 sm:pb-28">
           {/* Postmark decoration */}
           <div className="absolute top-8 right-8 sm:top-12 sm:right-16 hidden sm:block">
-            <PostmarkStamp date="EST. 2026" city="TRIPFUL" size="lg" />
+            <PostmarkStamp date="EST. 2026" city="JOURNIFUL" size="lg" />
           </div>
           <h1 className="mb-4 max-w-2xl text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl font-display">
             Plan Group Trips Together
@@ -127,7 +127,7 @@ export default async function Home() {
         <section className="px-4 py-20 sm:py-28">
           <div className="mx-auto max-w-3xl">
             <h2 className="mb-12 text-center text-3xl font-bold tracking-tight text-foreground sm:text-4xl font-playfair">
-              How Tripful works
+              How Journiful works
             </h2>
             <div className="grid gap-8 sm:grid-cols-3">
               {steps.map((step) => (
@@ -171,7 +171,7 @@ export default async function Home() {
         data={{
           "@context": "https://schema.org",
           "@type": "WebSite",
-          name: "Tripful",
+          name: "Journiful",
           url: siteUrl,
           description:
             "Plan group trips together. Coordinate itineraries, accommodations, and events with your travel companions in one place.",
@@ -181,7 +181,7 @@ export default async function Home() {
         data={{
           "@context": "https://schema.org",
           "@type": "WebApplication",
-          name: "Tripful",
+          name: "Journiful",
           url: siteUrl,
           applicationCategory: "TravelApplication",
           operatingSystem: "Web",

@@ -6,8 +6,8 @@ import { writeRateLimitConfig } from "@/middleware/rate-limit.middleware.js";
 import {
   updateProfileSchema,
   userResponseSchema,
-} from "@tripful/shared/schemas";
-import type { UpdateProfileInput } from "@tripful/shared/schemas";
+} from "@journiful/shared/schemas";
+import type { UpdateProfileInput } from "@journiful/shared/schemas";
 
 // Response schema for user profile endpoints
 const userProfileResponseSchema = z.object({

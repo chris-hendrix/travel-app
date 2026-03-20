@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyRequest, FastifyReply } from "fastify";
-import type { UpdatePhotoCaptionInput } from "@tripful/shared/schemas";
-import { MAX_PHOTOS_PER_TRIP } from "@tripful/shared/config";
+import type { UpdatePhotoCaptionInput } from "@journiful/shared/schemas";
+import { MAX_PHOTOS_PER_TRIP } from "@journiful/shared/config";
 import { eq, sql } from "drizzle-orm";
 import { tripPhotos } from "@/db/schema/index.js";
 import {

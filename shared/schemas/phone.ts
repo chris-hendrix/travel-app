@@ -1,4 +1,4 @@
-// Phone number validation for the Tripful platform
+// Phone number validation for the Journiful platform
 
 import { z } from "zod";
 

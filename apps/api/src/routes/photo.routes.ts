@@ -9,8 +9,8 @@ import {
   defaultRateLimitConfig,
   writeRateLimitConfig,
 } from "@/middleware/rate-limit.middleware.js";
-import { updatePhotoCaptionSchema } from "@tripful/shared/schemas";
-import type { UpdatePhotoCaptionInput } from "@tripful/shared/schemas";
+import { updatePhotoCaptionSchema } from "@journiful/shared/schemas";
+import type { UpdatePhotoCaptionInput } from "@journiful/shared/schemas";
 
 // Reusable param schemas
 const tripIdParamsSchema = z.object({

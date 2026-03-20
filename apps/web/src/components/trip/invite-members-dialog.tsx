@@ -7,8 +7,8 @@ import {
   createInvitationsSchema,
   PHONE_REGEX,
   type CreateInvitationsInput,
-} from "@tripful/shared/schemas";
-import type { Mutual } from "@tripful/shared/types";
+} from "@journiful/shared/schemas";
+import type { Mutual } from "@journiful/shared/types";
 import {
   useInviteMembers,
   getInviteMembersErrorMessage,

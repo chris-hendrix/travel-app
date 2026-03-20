@@ -8,7 +8,7 @@ import { Camera, Trash2 } from "lucide-react";
 import {
   completeProfileSchema,
   type CompleteProfileInput,
-} from "@tripful/shared";
+} from "@journiful/shared";
 import { useAuth } from "@/app/providers/auth-provider";
 import { useUploadProfilePhoto } from "@/hooks/use-user";
 import { Button } from "@/components/ui/button";

@@ -20,14 +20,14 @@ import {
   tripResponseSchema,
   successResponseSchema,
   updateRsvpResponseSchema,
-} from "@tripful/shared/schemas";
+} from "@journiful/shared/schemas";
 import type {
   CursorPaginationInput,
   CreateTripInput,
   UpdateTripInput,
   AddCoOrganizerInput,
   UpdateMemberRoleInput,
-} from "@tripful/shared/schemas";
+} from "@journiful/shared/schemas";
 
 // Reusable param schemas
 const tripIdParamsSchema = z.object({

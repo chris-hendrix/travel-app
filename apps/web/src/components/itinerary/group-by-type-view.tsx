@@ -9,7 +9,7 @@ import {
   PlaneLanding,
   PlaneTakeoff,
 } from "lucide-react";
-import type { Event, Accommodation, MemberTravel } from "@tripful/shared/types";
+import type { Event, Accommodation, MemberTravel } from "@journiful/shared/types";
 import { EventCard } from "./event-card";
 import { AccommodationLineItem } from "./accommodation-line-item";
 import { MemberTravelLineItem } from "./member-travel-line-item";
