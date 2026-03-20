@@ -225,7 +225,7 @@ fi
 
 log_test "setup.sh builds shared package before migrations"
 INSTALL_LINE=$(grep -n "pnpm install" "$PROJECT_ROOT/.devcontainer/setup.sh" | head -1 | cut -d: -f1)
-SHARED_LINE=$(grep -n "@tripful/shared build" "$PROJECT_ROOT/.devcontainer/setup.sh" | head -1 | cut -d: -f1)
+SHARED_LINE=$(grep -n "@journiful/shared build" "$PROJECT_ROOT/.devcontainer/setup.sh" | head -1 | cut -d: -f1)
 MIGRATE_LINE=$(grep -n "db:migrate" "$PROJECT_ROOT/.devcontainer/setup.sh" | head -1 | cut -d: -f1)
 if [ -n "$INSTALL_LINE" ] && [ -n "$SHARED_LINE" ] && [ -n "$MIGRATE_LINE" ] \
    && [ "$INSTALL_LINE" -lt "$SHARED_LINE" ] && [ "$SHARED_LINE" -lt "$MIGRATE_LINE" ]; then

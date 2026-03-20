@@ -6,15 +6,22 @@ import { trips, users, weatherCache, members } from "@/db/schema/index.js";
 import { eq } from "drizzle-orm";
 import { generateUniquePhone } from "../test-utils.js";
 
-// Mock Open-Meteo response
-const mockOpenMeteoResponse = {
+// Helper to generate future dates relative to today
+function futureDateStr(daysFromNow: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + daysFromNow);
+  return d.toISOString().slice(0, 10);
+}
+
+// Mock Open-Meteo response (dates set dynamically in beforeEach)
+let mockOpenMeteoResponse: {
   daily: {
-    time: ["2026-03-10", "2026-03-11", "2026-03-12"],
-    weather_code: [0, 1, 61],
-    temperature_2m_max: [22.5, 21.0, 18.3],
-    temperature_2m_min: [14.2, 13.5, 12.1],
-    precipitation_probability_max: [0, 10, 80],
-  },
+    time: string[];
+    weather_code: number[];
+    temperature_2m_max: number[];
+    temperature_2m_min: number[];
+    precipitation_probability_max: number[];
+  };
 };
 
 // Create a mock ITripService with controllable getEffectiveDateRange
@@ -58,6 +65,17 @@ describe("WeatherService", () => {
     mockTripService = createMockTripService();
     service = new WeatherService(db, mockTripService);
 
+    // Set up mock response with future dates
+    mockOpenMeteoResponse = {
+      daily: {
+        time: [futureDateStr(1), futureDateStr(2), futureDateStr(3)],
+        weather_code: [0, 1, 61],
+        temperature_2m_max: [22.5, 21.0, 18.3],
+        temperature_2m_min: [14.2, 13.5, 12.1],
+        precipitation_probability_max: [0, 10, 80],
+      },
+    };
+
     await cleanup();
 
     // Create test user
@@ -71,7 +89,7 @@ describe("WeatherService", () => {
       .returning();
     testUserId = user.id;
 
-    // Create test trip with coordinates
+    // Create test trip with coordinates (dates in the future)
     const [trip] = await db
       .insert(trips)
       .values({
@@ -79,8 +97,8 @@ describe("WeatherService", () => {
         destination: "San Diego, CA",
         destinationLat: 32.7157,
         destinationLon: -117.1611,
-        startDate: "2026-03-10",
-        endDate: "2026-03-12",
+        startDate: futureDateStr(1),
+        endDate: futureDateStr(3),
         preferredTimezone: "America/Los_Angeles",
         createdBy: testUserId,
       })
@@ -102,11 +120,12 @@ describe("WeatherService", () => {
   });
 
   it("should return cached data when cache is fresh", async () => {
-    // Set up date range within forecast window
-    mockTripService.getEffectiveDateRange.mockResolvedValue({
-      start: new Date("2026-03-10"),
-      end: new Date("2026-03-12"),
-    });
+    // Set up date range within forecast window (future dates)
+    const start = new Date();
+    start.setDate(start.getDate() + 1);
+    const end = new Date();
+    end.setDate(end.getDate() + 3);
+    mockTripService.getEffectiveDateRange.mockResolvedValue({ start, end });
 
     // Insert fresh cache
     await db.insert(weatherCache).values({
