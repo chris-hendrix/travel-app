@@ -11,15 +11,13 @@ import { supportsHover } from "@/lib/supports-hover";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/notifications";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
 import {
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const ProfileDialog = dynamic(() =>
   import("@/components/profile/profile-dialog").then((mod) => ({
@@ -55,7 +53,6 @@ function UserAvatar({
 export function AppHeader() {
   const { user, logout } = useAuth();
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <>
@@ -71,91 +68,58 @@ export function AppHeader() {
           <div className="flex items-center gap-2">
             <NotificationBell />
 
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-full"
-              aria-label="User menu"
-              onClick={() => setMenuOpen(true)}
-              onMouseEnter={
-                supportsHover ? preloadProfileDialog : undefined
-              }
-              onTouchStart={preloadProfileDialog}
-              onFocus={preloadProfileDialog}
-            >
-              <UserAvatar user={user} />
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full"
+                  aria-label="User menu"
+                  onMouseEnter={
+                    supportsHover ? preloadProfileDialog : undefined
+                  }
+                  onTouchStart={preloadProfileDialog}
+                  onFocus={preloadProfileDialog}
+                >
+                  <UserAvatar user={user} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                {user && (
+                  <>
+                    <DropdownMenuItem
+                      onSelect={() => setProfileDialogOpen(true)}
+                      onMouseEnter={
+                        supportsHover ? preloadProfileDialog : undefined
+                      }
+                      onTouchStart={preloadProfileDialog}
+                      onFocus={preloadProfileDialog}
+                      className="flex flex-col items-start gap-0"
+                      data-testid="profile-menu-item"
+                    >
+                      <p className="text-sm font-medium">{user.displayName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {user.phoneNumber}
+                      </p>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild data-testid="mutuals-menu-item">
+                      <Link href="/mutuals">
+                        <Users />
+                        My Mutuals
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+                <DropdownMenuItem onClick={logout}>
+                  <LogOut />
+                  Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
-
-      <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-        <SheetContent side="right" showCloseButton={true}>
-          <SheetHeader>
-            <SheetTitle className="sr-only">User menu</SheetTitle>
-            <SheetDescription className="sr-only">
-              Account and navigation options
-            </SheetDescription>
-          </SheetHeader>
-
-          <SheetBody>
-            {user && (
-              <div className="flex items-center gap-3 mb-4">
-                <UserAvatar user={user} size="default" />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">
-                    {user.displayName}
-                  </p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {user.phoneNumber}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <Separator />
-
-            <nav className="flex flex-col gap-1 py-4">
-              <button
-                onClick={() => {
-                  setMenuOpen(false);
-                  setProfileDialogOpen(true);
-                }}
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors cursor-pointer"
-                data-testid="profile-menu-item"
-              >
-                <UserAvatar user={user} size="sm" />
-                Profile
-              </button>
-              <Link
-                href="/mutuals"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors"
-                data-testid="mutuals-menu-item"
-              >
-                <Users className="size-5" />
-                My Mutuals
-              </Link>
-            </nav>
-
-            <Separator />
-
-            <div className="flex flex-col gap-1 py-4">
-              <button
-                onClick={() => {
-                  setMenuOpen(false);
-                  logout();
-                }}
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors cursor-pointer"
-                data-testid="mobile-menu-logout-button"
-              >
-                <LogOut className="size-5" />
-                Log out
-              </button>
-            </div>
-          </SheetBody>
-        </SheetContent>
-      </Sheet>
 
       <ProfileDialog
         open={profileDialogOpen}
