@@ -72,18 +72,23 @@ export default async function Home() {
   return (
     <>
       <main className="flex min-h-screen flex-col bg-background linen-texture">
+        {/* Header */}
+        <header className="flex items-center justify-between px-6 py-5 sm:px-10">
+          <span className="font-script text-2xl text-foreground">Journiful</span>
+          <Link
+            href="/login"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Sign in
+          </Link>
+        </header>
+
         {/* Hero Section */}
-        <section className="relative flex flex-col items-center justify-center px-4 pt-24 pb-20 text-center sm:pt-32 sm:pb-28">
+        <section className="relative flex flex-col items-center justify-center px-4 pt-12 pb-20 text-center sm:pt-20 sm:pb-28">
           {/* Postmark decoration */}
           <div className="absolute top-8 right-8 sm:top-12 sm:right-16 hidden sm:block">
             <PostmarkStamp date="EST. 2026" city="JOURNIFUL" size="lg" />
           </div>
-          <p className="text-xs sm:text-sm tracking-widest uppercase text-muted-foreground mb-1">
-            Journiful
-          </p>
-          <p className="text-[10px] sm:text-xs tracking-widest uppercase text-muted-foreground/70 mb-8">
-            Memories & Itineraries
-          </p>
           <h1 className="mb-4 max-w-2xl text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl font-display">
             Plan Group Trips Together
           </h1>
