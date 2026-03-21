@@ -78,10 +78,10 @@ export default async function Home() {
           <div className="absolute top-8 right-8 sm:top-12 sm:right-16 hidden sm:block">
             <PostmarkStamp date="EST. 2026" city="JOURNIFUL" size="lg" />
           </div>
-          <p className="font-script text-5xl sm:text-6xl lg:text-7xl text-foreground mb-2">
+          <p className="text-xs sm:text-sm tracking-widest uppercase text-muted-foreground mb-1">
             Journiful
           </p>
-          <p className="text-sm sm:text-base tracking-widest uppercase text-muted-foreground mb-8">
+          <p className="text-[10px] sm:text-xs tracking-widest uppercase text-muted-foreground/70 mb-8">
             Memories & Itineraries
           </p>
           <h1 className="mb-4 max-w-2xl text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl font-display">
