@@ -74,7 +74,7 @@ export default async function Home() {
       <main className="flex min-h-screen flex-col bg-background linen-texture">
         {/* Header */}
         <header className="flex items-center justify-between px-6 py-5 sm:px-10">
-          <span className="font-script text-2xl text-foreground">Journiful</span>
+          <span className="font-display text-xl font-bold tracking-tight">Journiful</span>
           <Link
             href="/login"
             className="text-sm text-muted-foreground hover:text-foreground transition-colors"
