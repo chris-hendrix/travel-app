@@ -391,163 +391,169 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
         </div>
 
         {/* Content */}
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-2">
-          <div className="mb-8 space-y-5">
-            {/* Action bar: RsvpPills (left) + buttons (right) */}
-            <div className="flex items-center">
-              <RsvpPills
-                tripId={trip.id}
-                status={trip.userRsvpStatus}
-              />
-              <span className="flex-1" aria-hidden="true" />
-              <div className="flex items-center gap-3">
-                {isOrganizer && (
-                  <>
-                    <Button
-                      onClick={() => setIsInviteOpen(true)}
-                      onMouseEnter={
-                        supportsHover ? preloadInviteMembersDialog : undefined
-                      }
-                      onTouchStart={preloadInviteMembersDialog}
-                      onFocus={preloadInviteMembersDialog}
-                      variant="outline"
-                      size="icon"
-                      aria-label="Invite members"
-                    >
-                      <UserPlus />
-                    </Button>
-                    <Button
-                      onClick={() => setIsEditOpen(true)}
-                      onMouseEnter={
-                        supportsHover ? preloadEditTripDialog : undefined
-                      }
-                      onTouchStart={preloadEditTripDialog}
-                      onFocus={preloadEditTripDialog}
-                      variant="outline"
-                      size="icon"
-                      aria-label="Edit trip"
-                    >
-                      <Pencil />
-                    </Button>
-                  </>
-                )}
-                <Button
-                  onClick={() => setIsSettingsOpen(true)}
-                  variant="outline"
-                  size="icon"
-                  aria-label="Settings"
-                >
-                  <Settings />
-                </Button>
-              </div>
-            </div>
-
-            {/* Summary: avatar stack + going count + organized by */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-2">
+          {/* Action bar: RsvpPills (left) + buttons (right) */}
+          <div className="flex items-center mb-5">
+            <RsvpPills
+              tripId={trip.id}
+              status={trip.userRsvpStatus}
+            />
+            <span className="flex-1" aria-hidden="true" />
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => setIsMembersOpen(true)}
-                className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer"
-              >
-                <div className="flex -space-x-2">
-                  {trip.organizers.slice(0, 5).map((org) =>
-                    org.profilePhotoUrl ? (
-                      <Image
-                        key={org.id}
-                        src={getUploadUrl(org.profilePhotoUrl)!}
-                        alt={org.displayName}
-                        width={28}
-                        height={28}
-                        className="w-7 h-7 rounded-full ring-2 ring-background object-cover"
-                      />
-                    ) : (
-                      <div
-                        key={org.id}
-                        className="w-7 h-7 rounded-full ring-2 ring-background bg-muted flex items-center justify-center text-xs font-medium text-foreground"
-                      >
-                        {getInitials(org.displayName)}
-                      </div>
-                    ),
-                  )}
-                </div>
-                <span className="text-sm text-muted-foreground">
-                  +{trip.memberCount} going
-                </span>
-              </button>
-              {trip.organizers.length > 0 && (
+              {isOrganizer && (
                 <>
-                  <span className="text-muted-foreground" aria-hidden="true">
-                    &middot;
-                  </span>
-                  <span className="text-sm text-muted-foreground truncate">
-                    Organized by{" "}
-                    {trip.organizers.map((org) => org.displayName).join(", ")}
-                  </span>
+                  <Button
+                    onClick={() => setIsInviteOpen(true)}
+                    onMouseEnter={
+                      supportsHover ? preloadInviteMembersDialog : undefined
+                    }
+                    onTouchStart={preloadInviteMembersDialog}
+                    onFocus={preloadInviteMembersDialog}
+                    variant="outline"
+                    size="icon"
+                    aria-label="Invite members"
+                  >
+                    <UserPlus />
+                  </Button>
+                  <Button
+                    onClick={() => setIsEditOpen(true)}
+                    onMouseEnter={
+                      supportsHover ? preloadEditTripDialog : undefined
+                    }
+                    onTouchStart={preloadEditTripDialog}
+                    onFocus={preloadEditTripDialog}
+                    variant="outline"
+                    size="icon"
+                    aria-label="Edit trip"
+                  >
+                    <Pencil />
+                  </Button>
                 </>
               )}
-            </div>
-
-            {/* Accommodations: compact always-visible cards */}
-            {accommodations && accommodations.length > 0 && (
-              <div className="space-y-2">
-                {accommodations.map((acc) => (
-                  <button
-                    key={acc.id}
-                    onClick={() => setSelectedAccommodation(acc)}
-                    className="w-full text-left border border-border rounded-md p-3 hover:bg-muted/50 transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2 font-medium">
-                      <Building2 className="w-4 h-4 shrink-0 text-muted-foreground" />
-                      {acc.name}
-                    </div>
-                    <p className="text-sm text-muted-foreground truncate mt-0.5">
-                      {formatInTimezone(acc.checkIn, trip.preferredTimezone, "short-date")}
-                      {" \u2013 "}
-                      {formatInTimezone(acc.checkOut, trip.preferredTimezone, "short-date")}
-                      {acc.address && ` \u00B7 ${acc.address}`}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* About this trip + Weather */}
-            {(trip.description || weather) && (
-              <CollapsibleSection
-                label="About this trip"
-                defaultOpen={tripPhase === "before"}
+              <Button
+                onClick={() => setIsSettingsOpen(true)}
+                variant="outline"
+                size="icon"
+                aria-label="Settings"
               >
-                <div className="space-y-3">
-                  {trip.description && (
-                    <div className="bg-card rounded-md border border-border p-6 linen-texture">
-                      <p className="text-muted-foreground whitespace-pre-wrap">
+                <Settings />
+              </Button>
+            </div>
+          </div>
+
+          {/* Summary: avatar stack + going count + organized by */}
+          <div className="flex items-center gap-3 mb-6">
+            <button
+              onClick={() => setIsMembersOpen(true)}
+              className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer"
+            >
+              <div className="flex -space-x-2">
+                {trip.organizers.slice(0, 5).map((org) =>
+                  org.profilePhotoUrl ? (
+                    <Image
+                      key={org.id}
+                      src={getUploadUrl(org.profilePhotoUrl)!}
+                      alt={org.displayName}
+                      width={28}
+                      height={28}
+                      className="w-7 h-7 rounded-full ring-2 ring-background object-cover"
+                    />
+                  ) : (
+                    <div
+                      key={org.id}
+                      className="w-7 h-7 rounded-full ring-2 ring-background bg-muted flex items-center justify-center text-xs font-medium text-foreground"
+                    >
+                      {getInitials(org.displayName)}
+                    </div>
+                  ),
+                )}
+              </div>
+              <span className="text-sm text-muted-foreground">
+                +{trip.memberCount} going
+              </span>
+            </button>
+            {trip.organizers.length > 0 && (
+              <>
+                <span className="text-muted-foreground" aria-hidden="true">
+                  &middot;
+                </span>
+                <span className="text-sm text-muted-foreground truncate">
+                  Organized by{" "}
+                  {trip.organizers.map((org) => org.displayName).join(", ")}
+                </span>
+              </>
+            )}
+          </div>
+
+          {/* Two-column layout on lg+ */}
+          <div className="lg:flex lg:gap-8">
+            {/* Sidebar — sticky on lg+ */}
+            <aside className="lg:w-[340px] lg:shrink-0 mb-6 lg:mb-0">
+              <div className="lg:sticky lg:top-20 space-y-4">
+                {/* Accommodations */}
+                {accommodations && accommodations.length > 0 && (
+                  <div className="space-y-2">
+                    {accommodations.map((acc) => (
+                      <button
+                        key={acc.id}
+                        onClick={() => setSelectedAccommodation(acc)}
+                        className="w-full text-left border border-border rounded-md p-3 hover:bg-muted/50 transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2 font-medium">
+                          <Building2 className="w-4 h-4 shrink-0 text-muted-foreground" />
+                          {acc.name}
+                        </div>
+                        <p className="text-sm text-muted-foreground truncate mt-0.5">
+                          {formatInTimezone(acc.checkIn, trip.preferredTimezone, "short-date")}
+                          {" \u2013 "}
+                          {formatInTimezone(acc.checkOut, trip.preferredTimezone, "short-date")}
+                          {acc.address && ` \u00B7 ${acc.address}`}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* About this trip */}
+                {trip.description && (
+                  <CollapsibleSection
+                    label="About this trip"
+                    defaultOpen={tripPhase === "before"}
+                  >
+                    <div className="bg-card rounded-md border border-border p-4 linen-texture">
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                         {trip.description}
                       </p>
                     </div>
-                  )}
-                  <WeatherForecastCard
-                    weather={weather}
-                    isLoading={weatherLoading}
-                    temperatureUnit={temperatureUnit}
-                    isDark={preset?.background.isDark ?? false}
-                  />
-                </div>
-              </CollapsibleSection>
-            )}
+                  </CollapsibleSection>
+                )}
+
+                {/* Weather */}
+                <WeatherForecastCard
+                  weather={weather}
+                  isLoading={weatherLoading}
+                  temperatureUnit={temperatureUnit}
+                  isDark={preset?.background.isDark ?? false}
+                />
+              </div>
+            </aside>
+
+            {/* Main content — itinerary */}
+            <div className="lg:flex-1 lg:min-w-0">
+              <div id="itinerary" ref={itineraryRef} className="scroll-mt-14">
+                <ItineraryView
+                  tripId={tripId}
+                  onAddTravel={() => setShowOnboarding(true)}
+                  forecasts={weather?.forecasts}
+                  temperatureUnit={temperatureUnit}
+                />
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Itinerary — outside padded container so sticky header works */}
-        <div id="itinerary" ref={itineraryRef} className="scroll-mt-14">
-          <ItineraryView
-            tripId={tripId}
-            onAddTravel={() => setShowOnboarding(true)}
-            forecasts={weather?.forecasts}
-            temperatureUnit={temperatureUnit}
-          />
-        </div>
-
         {/* Photos Section */}
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="border-t border-border mt-6 pt-6">
             <PhotosSection
               tripId={trip.id}
@@ -558,7 +564,7 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
         </div>
 
         {/* Discussion */}
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
           <div className="border-t border-border mt-6 pt-6">
             <ErrorBoundary>
               <TripMessages
