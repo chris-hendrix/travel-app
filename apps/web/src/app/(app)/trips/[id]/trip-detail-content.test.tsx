@@ -97,6 +97,11 @@ vi.mock("@/hooks/use-events", () => ({
   useEvents: (tripId: string) => mockUseEvents(tripId),
 }));
 
+// Mock useIsMobile — always return false for desktop tests
+vi.mock("@/hooks/use-is-mobile", () => ({
+  useIsMobile: () => false,
+}));
+
 // Mock ItineraryView component
 vi.mock("@/components/itinerary/itinerary-view", () => ({
   ItineraryView: ({ tripId }: { tripId: string }) => (
@@ -104,17 +109,40 @@ vi.mock("@/components/itinerary/itinerary-view", () => ({
   ),
 }));
 
+// Mock WeatherForecastCard component
+vi.mock("@/components/itinerary/weather-forecast-card", () => ({
+  WeatherForecastCard: () => (
+    <div data-testid="weather-forecast-card">Weather Forecast</div>
+  ),
+}));
+
+// Mock AccommodationDetailSheet component
+vi.mock("@/components/itinerary/accommodation-detail-sheet", () => ({
+  AccommodationDetailSheet: () => (
+    <div data-testid="accommodation-detail-sheet" />
+  ),
+}));
+
+// Mock canModifyAccommodation
+vi.mock("@/components/itinerary/utils/permissions", () => ({
+  canModifyAccommodation: () => false,
+}));
+
 // Mock PhotosSection component to avoid QueryClientProvider requirement
 vi.mock("@/components/photos/photos-section", () => ({
   PhotosSection: () => <div data-testid="photos-section">Photos Section</div>,
 }));
 
-// Mock useRemoveMember, useUpdateMemberRole hooks
+// Mock useRemoveMember, useUpdateMemberRole, useUpdateRsvp hooks
 const mockRemoveMember = vi.hoisted(() => ({
   mutate: vi.fn(),
   isPending: false,
 }));
 const mockUpdateRole = vi.hoisted(() => ({
+  mutate: vi.fn(),
+  isPending: false,
+}));
+const mockUpdateRsvp = vi.hoisted(() => ({
   mutate: vi.fn(),
   isPending: false,
 }));
@@ -124,6 +152,8 @@ vi.mock("@/hooks/use-invitations", () => ({
   getRemoveMemberErrorMessage: () => null,
   useUpdateMemberRole: () => mockUpdateRole,
   getUpdateMemberRoleErrorMessage: () => null,
+  useUpdateRsvp: () => mockUpdateRsvp,
+  getUpdateRsvpErrorMessage: () => null,
 }));
 
 // Mock useScrollReveal — always return revealed for test simplicity
@@ -132,6 +162,17 @@ vi.mock("@/hooks/use-scroll-reveal", () => ({
     ref: { current: null },
     isRevealed: true,
   }),
+}));
+
+// Mock useWeatherForecast
+vi.mock("@/hooks/use-weather", () => ({
+  useWeatherForecast: () => ({ data: undefined, isLoading: false }),
+}));
+
+// Mock useAccommodations
+const mockUseAccommodations = vi.fn();
+vi.mock("@/hooks/use-accommodations", () => ({
+  useAccommodations: (tripId: string) => mockUseAccommodations(tripId),
 }));
 
 // Mock invitation-queries for membersQueryOptions used directly by the component
@@ -233,11 +274,6 @@ vi.mock("@/components/messaging", () => ({
       Trip Messages
     </div>
   ),
-  MessageCountIndicator: ({ tripId }: Record<string, unknown>) => (
-    <div data-testid="message-count-indicator" data-trip-id={tripId}>
-      Message Count
-    </div>
-  ),
 }));
 
 // Mock TripPreview component
@@ -254,27 +290,10 @@ vi.mock("@/components/trip/trip-preview", () => ({
   ),
 }));
 
-// Mock TravelReminderBanner component
-vi.mock("@/components/trip/travel-reminder-banner", () => ({
-  TravelReminderBanner: ({
-    tripId,
-    memberId,
-    onAddTravel,
-  }: {
-    tripId: string;
-    memberId: string | undefined;
-    onAddTravel: () => void;
-  }) => (
-    <div
-      data-testid="travel-reminder-banner"
-      data-trip-id={tripId}
-      data-member-id={memberId}
-    >
-      Travel Reminder Banner
-      <button data-testid="banner-add-travel" onClick={onAddTravel}>
-        Add Travel Details
-      </button>
-    </div>
+// Mock MobileTripLayout component
+vi.mock("@/components/trip/mobile/mobile-trip-layout", () => ({
+  MobileTripLayout: () => (
+    <div data-testid="mobile-trip-layout">Mobile Layout</div>
   ),
 }));
 
@@ -284,7 +303,6 @@ vi.mock("@/components/trip/member-onboarding-wizard", () => ({
     open,
     onOpenChange,
     tripId,
-    trip,
   }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -339,7 +357,7 @@ vi.mock("@/components/trip/edit-trip-dialog", () => ({
   }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    trip: TripDetail;
+    trip: any;
     onSuccess?: () => void;
   }) => (
     <div
@@ -364,11 +382,84 @@ vi.mock("@/components/trip/edit-trip-dialog", () => ({
   ),
 }));
 
+// Mock EditAccommodationDialog
+vi.mock("@/components/itinerary/edit-accommodation-dialog", () => ({
+  EditAccommodationDialog: () => (
+    <div data-testid="edit-accommodation-dialog" />
+  ),
+}));
+
+// Mock TripThemeProvider — pass through children
+vi.mock("@/components/trip/trip-theme-provider", () => ({
+  TripThemeProvider: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="trip-theme-provider">{children}</div>
+  ),
+}));
+
+// Mock ErrorBoundary — pass through children
+vi.mock("@/components/error-boundary", () => ({
+  ErrorBoundary: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
+}));
+
+// Mock supportsHover
+vi.mock("@/lib/supports-hover", () => ({
+  supportsHover: false,
+}));
+
+// Mock formatInTimezone
+vi.mock("@/lib/utils/timezone", () => ({
+  formatInTimezone: (date: string) => date,
+}));
+
+// Mock THEME_PRESETS and THEME_FONTS from shared config
+vi.mock("@journiful/shared/config", () => ({
+  THEME_PRESETS: [],
+  THEME_FONTS: {},
+}));
+
+// Mock getUploadUrl
+vi.mock("@/lib/api", () => ({
+  getUploadUrl: (path: string | null | undefined) => {
+    if (!path) return undefined;
+    if (path.startsWith("http") || path.startsWith("blob:")) return path;
+    return `http://localhost:8000${path}`;
+  },
+}));
+
+// Mock CollapsibleSection — render children directly for testability
+vi.mock("@/components/ui/collapsible-section", () => ({
+  CollapsibleSection: ({
+    label,
+    children,
+    defaultOpen,
+  }: {
+    label: string;
+    children: React.ReactNode;
+    defaultOpen?: boolean;
+  }) => (
+    <div data-testid="collapsible-section" data-label={label}>
+      <button aria-label={label}>{label}</button>
+      <div>{children}</div>
+    </div>
+  ),
+}));
+
+// Mock TopoPattern
+vi.mock("@/components/ui/topo-pattern", () => ({
+  TopoPattern: ({ className }: { className?: string }) => (
+    <div data-testid="topo-pattern" className={className} />
+  ),
+}));
+
 describe("TripDetailContent", () => {
   const mockTripDetail: TripDetailWithMeta = {
     id: "trip-123",
     name: "Bachelor Party in Miami",
     destination: "Miami Beach, FL",
+    destinationLat: null,
+    destinationLon: null,
     startDate: "2026-06-01",
     endDate: "2026-06-05",
     preferredTimezone: "America/New_York",
@@ -376,6 +467,9 @@ describe("TripDetailContent", () => {
     coverImageUrl: "https://example.com/cover.jpg",
     createdBy: "user-123",
     allowMembersToAddEvents: true,
+    showAllMembers: true,
+    themeId: null,
+    themeFont: null,
     cancelled: false,
     createdAt: new Date("2026-02-06T12:00:00Z"),
     updatedAt: new Date("2026-02-06T12:00:00Z"),
@@ -405,6 +499,7 @@ describe("TripDetailContent", () => {
     vi.clearAllMocks();
     mockUseAuth.mockReturnValue({ user: mockUser });
     mockUseEvents.mockReturnValue({ data: [], isLoading: false });
+    mockUseAccommodations.mockReturnValue({ data: undefined });
     mockUseMembers.mockReturnValue({
       data: [
         {
@@ -468,8 +563,6 @@ describe("TripDetailContent", () => {
 
       expect(screen.getByText("Miami Beach, FL")).toBeDefined();
       expect(screen.getByText("Jun 1 - 5, 2026")).toBeDefined();
-      expect(screen.getByText("8 members")).toBeDefined();
-      expect(screen.getByText("No events yet")).toBeDefined();
     });
 
     it("shows cover image when available", async () => {
@@ -518,11 +611,8 @@ describe("TripDetailContent", () => {
         ).toBeDefined();
       });
 
-      // Check for gradient placeholder
-      const placeholder = document.querySelector(
-        ".bg-gradient-to-br.from-primary\\/20.via-accent\\/15.to-secondary\\/20",
-      );
-      expect(placeholder).toBeDefined();
+      // Check for topo pattern in the gradient placeholder
+      expect(screen.getByTestId("topo-pattern")).toBeDefined();
     });
 
     it("displays trip name, destination, dates", async () => {
@@ -549,7 +639,7 @@ describe("TripDetailContent", () => {
       });
     });
 
-    it("shows organizer information", async () => {
+    it("shows organizer information in summary line", async () => {
       mockUseTripDetail.mockReturnValue({
         data: mockTripDetail,
         isPending: false,
@@ -565,11 +655,13 @@ describe("TripDetailContent", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText("Organizers")).toBeDefined();
-        expect(screen.getByText("John Doe, Jane Smith")).toBeDefined();
+        // New layout shows "Organized by" in summary line instead of separate section
+        expect(
+          screen.getByText(/Organized by.*John Doe, Jane Smith/),
+        ).toBeDefined();
       });
 
-      // Check for organizer avatars
+      // Check for organizer avatars in avatar stack
       const johnAvatar = screen.getByAltText("John Doe");
       expect(johnAvatar).toBeDefined();
       expect(johnAvatar.getAttribute("src")).toBe(
@@ -580,7 +672,7 @@ describe("TripDetailContent", () => {
       expect(screen.getByText("JS")).toBeDefined();
     });
 
-    it("displays member count and event count", async () => {
+    it("displays going count in summary", async () => {
       mockUseTripDetail.mockReturnValue({
         data: mockTripDetail,
         isPending: false,
@@ -596,92 +688,11 @@ describe("TripDetailContent", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText("8 members")).toBeDefined();
-        expect(screen.getByText("No events yet")).toBeDefined();
+        expect(screen.getByText("+8 going")).toBeDefined();
       });
     });
 
-    it("displays correct event count when events exist", async () => {
-      mockUseTripDetail.mockReturnValue({
-        data: mockTripDetail,
-        isPending: false,
-        isError: false,
-        error: null,
-        refetch: vi.fn(),
-      });
-      mockUseEvents.mockReturnValue({
-        data: [
-          { id: "e1", deletedAt: null },
-          { id: "e2", deletedAt: null },
-          { id: "e3", deletedAt: null },
-        ],
-        isLoading: false,
-      });
-
-      render(
-        <Suspense fallback={null}>
-          <TripDetailContent tripId="trip-123" />
-        </Suspense>,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByText("3 events")).toBeDefined();
-      });
-    });
-
-    it("displays singular event when count is 1", async () => {
-      mockUseTripDetail.mockReturnValue({
-        data: mockTripDetail,
-        isPending: false,
-        isError: false,
-        error: null,
-        refetch: vi.fn(),
-      });
-      mockUseEvents.mockReturnValue({
-        data: [{ id: "e1", deletedAt: null }],
-        isLoading: false,
-      });
-
-      render(
-        <Suspense fallback={null}>
-          <TripDetailContent tripId="trip-123" />
-        </Suspense>,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByText("1 event")).toBeDefined();
-      });
-    });
-
-    it("excludes soft-deleted events from count", async () => {
-      mockUseTripDetail.mockReturnValue({
-        data: mockTripDetail,
-        isPending: false,
-        isError: false,
-        error: null,
-        refetch: vi.fn(),
-      });
-      mockUseEvents.mockReturnValue({
-        data: [
-          { id: "e1", deletedAt: null },
-          { id: "e2", deletedAt: new Date("2026-01-15T00:00:00Z") },
-          { id: "e3", deletedAt: null },
-        ],
-        isLoading: false,
-      });
-
-      render(
-        <Suspense fallback={null}>
-          <TripDetailContent tripId="trip-123" />
-        </Suspense>,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByText("2 events")).toBeDefined();
-      });
-    });
-
-    it("shows RSVP badge", async () => {
+    it("shows RSVP pills", async () => {
       mockUseTripDetail.mockReturnValue({
         data: mockTripDetail,
         isPending: false,
@@ -697,37 +708,14 @@ describe("TripDetailContent", () => {
       );
 
       await waitFor(() => {
+        // RsvpPills renders Going/Maybe/Not Going buttons
         expect(screen.getByText("Going")).toBeDefined();
+        expect(screen.getByText("Maybe")).toBeDefined();
+        expect(screen.getByText("Not Going")).toBeDefined();
       });
-    });
-
-    it("badge container has items-center for vertical alignment", async () => {
-      mockUseTripDetail.mockReturnValue({
-        data: mockTripDetail,
-        isPending: false,
-        isError: false,
-        error: null,
-        refetch: vi.fn(),
-      });
-
-      render(
-        <Suspense fallback={null}>
-          <TripDetailContent tripId="trip-123" />
-        </Suspense>,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByText("Going")).toBeDefined();
-      });
-
-      const goingBadge = screen.getByText("Going");
-      const badgeContainer = goingBadge.closest("div.flex");
-      expect(badgeContainer).not.toBeNull();
-      expect(badgeContainer!.className).toContain("items-center");
     });
 
     it("shows description in collapsible when available", async () => {
-      const user = userEvent.setup();
       mockUseTripDetail.mockReturnValue({
         data: mockTripDetail,
         isPending: false,
@@ -742,21 +730,19 @@ describe("TripDetailContent", () => {
         </Suspense>,
       );
 
-      // Collapsible trigger should be visible (rendered as native button by CollapsibleTrigger)
-      const trigger = screen.getByRole("button", { name: /about this trip/i });
-      expect(trigger).toBeDefined();
-
-      // Click to expand
-      await user.click(trigger);
-
+      // CollapsibleSection mock renders children directly
       await waitFor(() => {
         expect(
           screen.getByText("Epic bachelor party weekend with the crew!"),
         ).toBeDefined();
       });
+
+      // Check that the section has the correct label
+      const section = screen.getByTestId("collapsible-section");
+      expect(section.getAttribute("data-label")).toBe("About this trip");
     });
 
-    it("hides description text when description is null", async () => {
+    it("hides About section when no description and no weather", async () => {
       const tripWithoutDescription = { ...mockTripDetail, description: null };
       mockUseTripDetail.mockReturnValue({
         data: tripWithoutDescription,
@@ -778,8 +764,8 @@ describe("TripDetailContent", () => {
         ).toBeDefined();
       });
 
-      // "About this trip" section still renders (contains weather), but description text is absent
-      expect(screen.getByText("About this trip")).toBeDefined();
+      // With no description and no weather, the About section is not rendered
+      expect(screen.queryByTestId("collapsible-section")).toBeNull();
       expect(
         screen.queryByText("Epic bachelor party weekend with the crew!"),
       ).toBeNull();
@@ -958,6 +944,30 @@ describe("TripDetailContent", () => {
       expect(
         screen.queryByRole("button", { name: "Invite members" }),
       ).toBeNull();
+    });
+
+    it("shows Settings button for all users", async () => {
+      const regularUser = { ...mockUser, id: "user-789" };
+      mockUseAuth.mockReturnValue({ user: regularUser });
+      mockUseTripDetail.mockReturnValue({
+        data: { ...mockTripDetail, isOrganizer: false },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+
+      render(
+        <Suspense fallback={null}>
+          <TripDetailContent tripId="trip-123" />
+        </Suspense>,
+      );
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: "Settings" }),
+        ).toBeDefined();
+      });
     });
   });
 
@@ -1204,6 +1214,48 @@ describe("TripDetailContent", () => {
       // Date range should be rendered (formatted — Jun 1-5, 2026)
       expect(screen.getByText(/Jun/)).toBeDefined();
     });
+
+    it("shows customize button for organizers", () => {
+      mockUseAuth.mockReturnValue({ user: mockUser });
+      mockUseTripDetail.mockReturnValue({
+        data: mockTripDetail,
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+
+      render(
+        <Suspense fallback={null}>
+          <TripDetailContent tripId="trip-123" />
+        </Suspense>,
+      );
+
+      expect(
+        screen.getByRole("button", { name: "Customize theme" }),
+      ).toBeDefined();
+    });
+
+    it("hides customize button for non-organizers", () => {
+      mockUseAuth.mockReturnValue({ user: mockUser });
+      mockUseTripDetail.mockReturnValue({
+        data: { ...mockTripDetail, isOrganizer: false },
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+
+      render(
+        <Suspense fallback={null}>
+          <TripDetailContent tripId="trip-123" />
+        </Suspense>,
+      );
+
+      expect(
+        screen.queryByRole("button", { name: "Customize theme" }),
+      ).toBeNull();
+    });
   });
 
   describe("edge cases", () => {
@@ -1232,7 +1284,7 @@ describe("TripDetailContent", () => {
       });
     });
 
-    it("handles null description (section renders without description text)", async () => {
+    it("handles null description (About section hidden without weather)", async () => {
       const tripWithoutDescription = { ...mockTripDetail, description: null };
       mockUseTripDetail.mockReturnValue({
         data: tripWithoutDescription,
@@ -1254,8 +1306,8 @@ describe("TripDetailContent", () => {
         ).toBeDefined();
       });
 
-      // "About this trip" section still renders (contains weather), but description text is absent
-      expect(screen.getByText("About this trip")).toBeDefined();
+      // No weather and no description means the About section is not rendered
+      expect(screen.queryByTestId("collapsible-section")).toBeNull();
       expect(
         screen.queryByText("Epic bachelor party weekend with the crew!"),
       ).toBeNull();
@@ -1283,50 +1335,8 @@ describe("TripDetailContent", () => {
         ).toBeDefined();
       });
 
-      // Organizers section should not be rendered
-      expect(screen.queryByText("Organizers")).toBeNull();
-    });
-
-    it("handles 0 members", async () => {
-      const tripWithNoMembers = { ...mockTripDetail, memberCount: 0 };
-      mockUseTripDetail.mockReturnValue({
-        data: tripWithNoMembers,
-        isPending: false,
-        isError: false,
-        error: null,
-        refetch: vi.fn(),
-      });
-
-      render(
-        <Suspense fallback={null}>
-          <TripDetailContent tripId="trip-123" />
-        </Suspense>,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByText("0 members")).toBeDefined();
-      });
-    });
-
-    it("handles 1 member (singular)", async () => {
-      const tripWithOneMember = { ...mockTripDetail, memberCount: 1 };
-      mockUseTripDetail.mockReturnValue({
-        data: tripWithOneMember,
-        isPending: false,
-        isError: false,
-        error: null,
-        refetch: vi.fn(),
-      });
-
-      render(
-        <Suspense fallback={null}>
-          <TripDetailContent tripId="trip-123" />
-        </Suspense>,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByText("1 member")).toBeDefined();
-      });
+      // "Organized by" line should not be rendered with empty organizers
+      expect(screen.queryByText(/Organized by/)).toBeNull();
     });
 
     it("handles dates spanning different months", async () => {
@@ -1509,7 +1519,7 @@ describe("TripDetailContent", () => {
       expect(screen.queryByRole("tablist")).toBeNull();
     });
 
-    it("members stat is a clickable button", async () => {
+    it("avatar stack summary is a clickable button", async () => {
       mockUseTripDetail.mockReturnValue({
         data: mockTripDetail,
         isPending: false,
@@ -1525,14 +1535,15 @@ describe("TripDetailContent", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText("8 members")).toBeDefined();
+        expect(screen.getByText("+8 going")).toBeDefined();
       });
 
-      const membersButton = screen.getByText("8 members").closest("button");
-      expect(membersButton).not.toBeNull();
+      const goingText = screen.getByText("+8 going");
+      const button = goingText.closest("button");
+      expect(button).not.toBeNull();
     });
 
-    it("clicking members stat opens members dialog", async () => {
+    it("clicking avatar stack opens members dialog", async () => {
       mockUseTripDetail.mockReturnValue({
         data: mockTripDetail,
         isPending: false,
@@ -1549,11 +1560,11 @@ describe("TripDetailContent", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText("8 members")).toBeDefined();
+        expect(screen.getByText("+8 going")).toBeDefined();
       });
 
-      const membersButton = screen.getByText("8 members").closest("button")!;
-      await user.click(membersButton);
+      const goingButton = screen.getByText("+8 going").closest("button")!;
+      await user.click(goingButton);
 
       await waitFor(() => {
         expect(screen.getByTestId("members-list")).toBeDefined();
@@ -1580,11 +1591,11 @@ describe("TripDetailContent", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText("8 members")).toBeDefined();
+        expect(screen.getByText("+8 going")).toBeDefined();
       });
 
-      const membersButton = screen.getByText("8 members").closest("button")!;
-      await user.click(membersButton);
+      const goingButton = screen.getByText("+8 going").closest("button")!;
+      await user.click(goingButton);
 
       await waitFor(() => {
         const membersList = screen.getByTestId("members-list");
@@ -1610,11 +1621,11 @@ describe("TripDetailContent", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText("8 members")).toBeDefined();
+        expect(screen.getByText("+8 going")).toBeDefined();
       });
 
-      const membersButton = screen.getByText("8 members").closest("button")!;
-      await user.click(membersButton);
+      const goingButton = screen.getByText("+8 going").closest("button")!;
+      await user.click(goingButton);
 
       await waitFor(() => {
         expect(screen.getByTestId("members-invite-btn")).toBeDefined();
@@ -1645,12 +1656,12 @@ describe("TripDetailContent", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText("8 members")).toBeDefined();
+        expect(screen.getByText("+8 going")).toBeDefined();
       });
 
       // Open members dialog
-      const membersButton = screen.getByText("8 members").closest("button")!;
-      await user.click(membersButton);
+      const goingButton = screen.getByText("+8 going").closest("button")!;
+      await user.click(goingButton);
 
       await waitFor(() => {
         expect(screen.getByTestId("members-remove-btn")).toBeDefined();
@@ -1688,12 +1699,12 @@ describe("TripDetailContent", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText("8 members")).toBeDefined();
+        expect(screen.getByText("+8 going")).toBeDefined();
       });
 
       // Open dialog and go to confirmation
-      const membersButton = screen.getByText("8 members").closest("button")!;
-      await user.click(membersButton);
+      const goingButton = screen.getByText("+8 going").closest("button")!;
+      await user.click(goingButton);
 
       await waitFor(() => {
         expect(screen.getByTestId("members-remove-btn")).toBeDefined();
@@ -1713,6 +1724,64 @@ describe("TripDetailContent", () => {
       await waitFor(() => {
         expect(screen.getByTestId("members-list")).toBeDefined();
       });
+    });
+  });
+
+  describe("accommodations", () => {
+    it("renders accommodation cards when data available", async () => {
+      mockUseTripDetail.mockReturnValue({
+        data: mockTripDetail,
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+      mockUseAccommodations.mockReturnValue({
+        data: [
+          {
+            id: "acc-1",
+            name: "Beach Hotel",
+            checkIn: "2026-06-01T15:00:00Z",
+            checkOut: "2026-06-05T11:00:00Z",
+            address: "123 Ocean Dr",
+          },
+        ],
+      });
+
+      render(
+        <Suspense fallback={null}>
+          <TripDetailContent tripId="trip-123" />
+        </Suspense>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("Beach Hotel")).toBeDefined();
+      });
+    });
+
+    it("does not render accommodation section when no accommodations", async () => {
+      mockUseTripDetail.mockReturnValue({
+        data: mockTripDetail,
+        isPending: false,
+        isError: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+      mockUseAccommodations.mockReturnValue({ data: [] });
+
+      render(
+        <Suspense fallback={null}>
+          <TripDetailContent tripId="trip-123" />
+        </Suspense>,
+      );
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole("heading", { name: "Bachelor Party in Miami" }),
+        ).toBeDefined();
+      });
+
+      expect(screen.queryByText("Beach Hotel")).toBeNull();
     });
   });
 
@@ -1824,28 +1893,6 @@ describe("TripDetailContent", () => {
       });
     });
 
-    it("renders MessageCountIndicator in stats section with correct tripId", async () => {
-      mockUseTripDetail.mockReturnValue({
-        data: mockTripDetail,
-        isPending: false,
-        isError: false,
-        error: null,
-        refetch: vi.fn(),
-      });
-
-      render(
-        <Suspense fallback={null}>
-          <TripDetailContent tripId="trip-123" />
-        </Suspense>,
-      );
-
-      await waitFor(() => {
-        const indicator = screen.getByTestId("message-count-indicator");
-        expect(indicator).toBeDefined();
-        expect(indicator.getAttribute("data-trip-id")).toBe("trip-123");
-      });
-    });
-
     it("does not render TripMessages in preview mode", async () => {
       const previewTrip = {
         ...mockTripDetail,
@@ -1872,7 +1919,6 @@ describe("TripDetailContent", () => {
       });
 
       expect(screen.queryByTestId("trip-messages")).toBeNull();
-      expect(screen.queryByTestId("message-count-indicator")).toBeNull();
     });
 
     it("does not render TripMessages in error state", async () => {
@@ -1895,7 +1941,6 @@ describe("TripDetailContent", () => {
       });
 
       expect(screen.queryByTestId("trip-messages")).toBeNull();
-      expect(screen.queryByTestId("message-count-indicator")).toBeNull();
     });
 
     it("does not render TripMessages in loading state", () => {
@@ -1914,7 +1959,6 @@ describe("TripDetailContent", () => {
       );
 
       expect(screen.queryByTestId("trip-messages")).toBeNull();
-      expect(screen.queryByTestId("message-count-indicator")).toBeNull();
     });
 
     it("passes isMuted=true to TripMessages when current member is muted", async () => {
