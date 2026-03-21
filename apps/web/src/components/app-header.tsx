@@ -73,7 +73,7 @@ export function AppHeader() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="rounded-full"
+                  className="rounded-full hover:bg-transparent text-muted-foreground hover:text-foreground"
                   aria-label="User menu"
                   onMouseEnter={
                     supportsHover ? preloadProfileDialog : undefined

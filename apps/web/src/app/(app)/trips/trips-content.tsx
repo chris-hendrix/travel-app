@@ -164,7 +164,7 @@ export function TripsContent() {
               size="icon"
               aria-label={searchOpen ? "Close search" : "Search trips"}
             >
-              <Search className="w-4 h-4" />
+              <Search />
             </Button>
             <Button
               onClick={() => setCreateDialogOpen(true)}

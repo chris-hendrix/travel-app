@@ -195,7 +195,7 @@ function MemberRow({
               className="text-muted-foreground"
               aria-label={`Actions for ${member.displayName}`}
             >
-              <EllipsisVertical className="w-4 h-4" />
+              <EllipsisVertical />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -290,7 +290,7 @@ function PendingInvitationRow({
         disabled={isRevoking}
         aria-label={`Revoke invitation to ${invitation.inviteePhone}`}
       >
-        <X className="w-4 h-4" />
+        <X />
       </Button>
     </div>
   );

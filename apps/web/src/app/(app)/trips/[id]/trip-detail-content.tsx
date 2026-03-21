@@ -392,12 +392,11 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
                       }
                       onTouchStart={preloadInviteMembersDialog}
                       onFocus={preloadInviteMembersDialog}
-                      variant="ghost"
+                      variant="outline"
                       size="icon"
-                      className="text-muted-foreground hover:text-foreground hover:bg-transparent"
                       aria-label="Invite members"
                     >
-                      <UserPlus className="w-5 h-5" />
+                      <UserPlus />
                     </Button>
                     <Button
                       onClick={() => setIsEditOpen(true)}
@@ -406,23 +405,21 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
                       }
                       onTouchStart={preloadEditTripDialog}
                       onFocus={preloadEditTripDialog}
-                      variant="ghost"
+                      variant="outline"
                       size="icon"
-                      className="text-muted-foreground hover:text-foreground hover:bg-transparent"
                       aria-label="Edit trip"
                     >
-                      <Pencil className="w-5 h-5" />
+                      <Pencil />
                     </Button>
                   </>
                 )}
                 <Button
                   onClick={() => setIsSettingsOpen(true)}
-                  variant="ghost"
+                  variant="outline"
                   size="icon"
-                  className="text-muted-foreground hover:text-foreground hover:bg-transparent"
                   aria-label="Settings"
                 >
-                  <Settings className="w-5 h-5" />
+                  <Settings />
                 </Button>
               </div>
             </div>
