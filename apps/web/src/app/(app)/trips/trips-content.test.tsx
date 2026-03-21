@@ -287,7 +287,7 @@ describe("TripsContent", () => {
       expect(screen.getByText("Your adventures await")).toBeDefined();
       expect(
         screen.getByText(
-          "Start planning your next adventure by creating your first trip.",
+          "Invite friends, plan together, and keep everything in one place.",
         ),
       ).toBeDefined();
       expect(screen.getByText("Create your first trip")).toBeDefined();
@@ -394,7 +394,7 @@ describe("TripsContent", () => {
 
       renderWithClient(<TripsContent />);
 
-      const searchInput = screen.getByPlaceholderText("Search trips...");
+      const searchInput = screen.getByPlaceholderText("Search by name or destination...");
       await user.type(searchInput, "Summer");
 
       await waitFor(() => {
@@ -416,7 +416,7 @@ describe("TripsContent", () => {
 
       renderWithClient(<TripsContent />);
 
-      const searchInput = screen.getByPlaceholderText("Search trips...");
+      const searchInput = screen.getByPlaceholderText("Search by name or destination...");
       await user.type(searchInput, "Aspen");
 
       await waitFor(() => {
@@ -437,7 +437,7 @@ describe("TripsContent", () => {
 
       renderWithClient(<TripsContent />);
 
-      const searchInput = screen.getByPlaceholderText("Search trips...");
+      const searchInput = screen.getByPlaceholderText("Search by name or destination...");
       await user.type(searchInput, "hawaii");
 
       await waitFor(() => {
@@ -457,7 +457,7 @@ describe("TripsContent", () => {
 
       renderWithClient(<TripsContent />);
 
-      const searchInput = screen.getByPlaceholderText("Search trips...");
+      const searchInput = screen.getByPlaceholderText("Search by name or destination...");
       await user.type(searchInput, "xyz123");
 
       await waitFor(() => {
@@ -480,7 +480,7 @@ describe("TripsContent", () => {
 
       renderWithClient(<TripsContent />);
 
-      const searchInput = screen.getByPlaceholderText("Search trips...");
+      const searchInput = screen.getByPlaceholderText("Search by name or destination...");
       await user.type(searchInput, "Summer");
 
       await waitFor(() => {
@@ -510,7 +510,7 @@ describe("TripsContent", () => {
       renderWithClient(<TripsContent />);
 
       const searchInput =
-        screen.getByPlaceholderText<HTMLInputElement>("Search trips...");
+        screen.getByPlaceholderText<HTMLInputElement>("Search by name or destination...");
       expect(searchInput.value).toBe("Summer");
 
       // Should filter to show only matching trips
@@ -533,7 +533,7 @@ describe("TripsContent", () => {
 
       renderWithClient(<TripsContent />);
 
-      const searchInput = screen.getByPlaceholderText("Search trips...");
+      const searchInput = screen.getByPlaceholderText("Search by name or destination...");
       await user.type(searchInput, "Hawaii");
 
       // Advance past the 300ms debounce
@@ -565,7 +565,7 @@ describe("TripsContent", () => {
 
       renderWithClient(<TripsContent />);
 
-      const searchInput = screen.getByPlaceholderText("Search trips...");
+      const searchInput = screen.getByPlaceholderText("Search by name or destination...");
       await user.clear(searchInput);
 
       // Advance past the 300ms debounce
