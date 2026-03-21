@@ -164,9 +164,6 @@ export default async function Home() {
 
         {/* Bottom CTA Section */}
         <section className="flex flex-col items-center px-4 pt-12 pb-24 text-center sm:pb-32">
-          <p className="mb-2 text-lg text-accent font-script">
-            Wish you were here?
-          </p>
           <h2 className="mb-6 text-2xl font-bold tracking-tight text-foreground sm:text-3xl font-playfair">
             Ready to plan your next adventure?
           </h2>
