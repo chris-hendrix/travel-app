@@ -160,9 +160,9 @@ export function TripsContent() {
           <div className="flex items-center gap-2">
             <Button
               onClick={toggleSearch}
-              variant="ghost"
+              variant="outline"
               size="icon"
-              className="h-10 w-10 rounded-md text-muted-foreground hover:text-foreground hover:bg-transparent"
+              className="h-10 w-10 rounded-md"
               aria-label={searchOpen ? "Close search" : "Search trips"}
             >
               <Search className="w-4 h-4" />
