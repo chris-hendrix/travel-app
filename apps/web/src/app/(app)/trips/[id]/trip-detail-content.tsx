@@ -6,14 +6,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { toast } from "sonner";
 import {
-  Building2,
   Calendar,
   MapPin,
   AlertCircle,
-  UserPlus,
-  Pencil,
   Paintbrush,
-  Settings,
 } from "lucide-react";
 import { useTripDetail } from "@/hooks/use-trips";
 import { useEvents } from "@/hooks/use-events";
@@ -29,12 +25,11 @@ import type { MemberWithProfile } from "@/hooks/use-invitations";
 import { useAuth } from "@/app/providers/auth-provider";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { MobileTripLayout } from "@/components/trip/mobile/mobile-trip-layout";
+import { InfoPanel } from "@/components/trip/mobile/panels/info-panel";
 import { Button } from "@/components/ui/button";
-import { RsvpPills } from "@/components/trip/rsvp-pills";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { TopoPattern } from "@/components/ui/topo-pattern";
-import { formatDateRange, getInitials } from "@/lib/format";
+import { formatDateRange } from "@/lib/format";
 import { getUploadUrl } from "@/lib/api";
 import {
   Sheet,
@@ -45,9 +40,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { ItineraryView } from "@/components/itinerary/itinerary-view";
-import { WeatherForecastCard } from "@/components/itinerary/weather-forecast-card";
 import { AccommodationDetailSheet } from "@/components/itinerary/accommodation-detail-sheet";
-import { useAccommodations } from "@/hooks/use-accommodations";
 import { canModifyAccommodation } from "@/components/itinerary/utils/permissions";
 import { useWeatherForecast } from "@/hooks/use-weather";
 import type { TemperatureUnit } from "@journiful/shared/types";
@@ -62,16 +55,12 @@ import { THEME_PRESETS } from "@journiful/shared/config";
 import { THEME_FONTS } from "@journiful/shared/config";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
 import { supportsHover } from "@/lib/supports-hover";
-import { formatInTimezone } from "@/lib/utils/timezone";
 
 const EditTripDialog = dynamic(() =>
   import("@/components/trip/edit-trip-dialog").then((mod) => ({
     default: mod.EditTripDialog,
   })),
 );
-
-const preloadEditTripDialog = () =>
-  void import("@/components/trip/edit-trip-dialog");
 
 const CustomizeThemeSheet = dynamic(() =>
   import("@/components/trip/customize-theme-sheet").then((mod) => ({
@@ -87,9 +76,6 @@ const InviteMembersDialog = dynamic(() =>
     default: mod.InviteMembersDialog,
   })),
 );
-
-const preloadInviteMembersDialog = () =>
-  void import("@/components/trip/invite-members-dialog");
 
 const MemberOnboardingWizard = dynamic(() =>
   import("@/components/trip/member-onboarding-wizard").then((mod) => ({
@@ -166,7 +152,6 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
     useWeatherForecast(tripId);
   const temperatureUnit: TemperatureUnit =
     user?.temperatureUnit === "celsius" ? "celsius" : "fahrenheit";
-  const { data: accommodations } = useAccommodations(tripId);
 
   const handleUpdateRole = (
     member: MemberWithProfile,
@@ -206,14 +191,6 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
   }, [trip?.endDate]);
 
   const dateRange = trip ? formatDateRange(trip.startDate, trip.endDate) : "";
-
-  // Trip phase logic
-  const tripPhase = useMemo(() => {
-    const now = new Date();
-    if (!trip?.startDate || now < new Date(trip.startDate)) return "before";
-    if (!trip?.endDate || now <= new Date(trip.endDate)) return "during";
-    return "after";
-  }, [trip?.startDate, trip?.endDate]);
 
   const preset = trip?.themeId
     ? (THEME_PRESETS.find((p) => p.id === trip.themeId) ?? null)
@@ -390,183 +367,52 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
           </div>
         </div>
 
-        {/* Content */}
+        {/* Content — two-column on lg+ */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-2">
-          {/* Compact action row: RSVP + summary + buttons */}
-          <div className="flex items-center gap-4 mb-4">
-            <RsvpPills
-              tripId={trip.id}
-              status={trip.userRsvpStatus}
-            />
-            <span className="hidden lg:inline text-muted-foreground" aria-hidden="true">&middot;</span>
-            <button
-              onClick={() => setIsMembersOpen(true)}
-              className="hidden lg:flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer"
-            >
-              <div className="flex -space-x-2">
-                {trip.organizers.slice(0, 5).map((org) =>
-                  org.profilePhotoUrl ? (
-                    <Image
-                      key={org.id}
-                      src={getUploadUrl(org.profilePhotoUrl)!}
-                      alt={org.displayName}
-                      width={24}
-                      height={24}
-                      className="w-6 h-6 rounded-full ring-2 ring-background object-cover"
-                    />
-                  ) : (
-                    <div
-                      key={org.id}
-                      className="w-6 h-6 rounded-full ring-2 ring-background bg-muted flex items-center justify-center text-[10px] font-medium text-foreground"
-                    >
-                      {getInitials(org.displayName)}
-                    </div>
-                  ),
-                )}
-              </div>
-              <span className="text-sm text-muted-foreground">
-                +{trip.memberCount} going
-              </span>
-            </button>
-            {/* Mobile-only: summary below */}
-            <span className="flex-1" aria-hidden="true" />
-            <div className="flex items-center gap-2">
-              {isOrganizer && (
-                <>
-                  <Button
-                    onClick={() => setIsInviteOpen(true)}
-                    onMouseEnter={
-                      supportsHover ? preloadInviteMembersDialog : undefined
-                    }
-                    onTouchStart={preloadInviteMembersDialog}
-                    onFocus={preloadInviteMembersDialog}
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Invite members"
-                  >
-                    <UserPlus className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    onClick={() => setIsEditOpen(true)}
-                    onMouseEnter={
-                      supportsHover ? preloadEditTripDialog : undefined
-                    }
-                    onTouchStart={preloadEditTripDialog}
-                    onFocus={preloadEditTripDialog}
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Edit trip"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </Button>
-                </>
-              )}
-              <Button
-                onClick={() => setIsSettingsOpen(true)}
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Settings"
-              >
-                <Settings className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-          {/* Mobile summary row (hidden on lg+) */}
-          <div className="flex items-center gap-3 mb-4 lg:hidden">
-            <button
-              onClick={() => setIsMembersOpen(true)}
-              className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer"
-            >
-              <div className="flex -space-x-2">
-                {trip.organizers.slice(0, 5).map((org) =>
-                  org.profilePhotoUrl ? (
-                    <Image
-                      key={org.id}
-                      src={getUploadUrl(org.profilePhotoUrl)!}
-                      alt={org.displayName}
-                      width={28}
-                      height={28}
-                      className="w-7 h-7 rounded-full ring-2 ring-background object-cover"
-                    />
-                  ) : (
-                    <div
-                      key={org.id}
-                      className="w-7 h-7 rounded-full ring-2 ring-background bg-muted flex items-center justify-center text-xs font-medium text-foreground"
-                    >
-                      {getInitials(org.displayName)}
-                    </div>
-                  ),
-                )}
-              </div>
-              <span className="text-sm text-muted-foreground">
-                +{trip.memberCount} going
-              </span>
-            </button>
-            {trip.organizers.length > 0 && (
-              <>
-                <span className="text-muted-foreground" aria-hidden="true">
-                  &middot;
-                </span>
-                <span className="text-sm text-muted-foreground truncate">
-                  Organized by{" "}
-                  {trip.organizers.map((org) => org.displayName).join(", ")}
-                </span>
-              </>
-            )}
-          </div>
-
-          {/* Two-column layout on lg+ */}
           <div className="lg:flex lg:gap-8">
-            {/* Sidebar — sticky on lg+ */}
-            <aside className="lg:w-[340px] lg:shrink-0 mb-6 lg:mb-0">
-              <div className="lg:sticky lg:top-20 space-y-4">
-                {/* Accommodations */}
-                {accommodations && accommodations.length > 0 && (
-                  <div className="space-y-2">
-                    {accommodations.map((acc) => (
-                      <button
-                        key={acc.id}
-                        onClick={() => setSelectedAccommodation(acc)}
-                        className="w-full text-left border border-border rounded-md p-3 hover:bg-muted/50 transition-colors cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2 font-medium">
-                          <Building2 className="w-4 h-4 shrink-0 text-muted-foreground" />
-                          {acc.name}
-                        </div>
-                        <p className="text-sm text-muted-foreground truncate mt-0.5">
-                          {formatInTimezone(acc.checkIn, trip.preferredTimezone, "short-date")}
-                          {" \u2013 "}
-                          {formatInTimezone(acc.checkOut, trip.preferredTimezone, "short-date")}
-                          {acc.address && ` \u00B7 ${acc.address}`}
-                        </p>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* About this trip */}
-                {trip.description && (
-                  <CollapsibleSection
-                    label="About this trip"
-                    defaultOpen={tripPhase === "before"}
-                  >
-                    <div className="bg-card rounded-md border border-border p-4 linen-texture">
-                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                        {trip.description}
-                      </p>
-                    </div>
-                  </CollapsibleSection>
-                )}
-
-                {/* Weather */}
-                <WeatherForecastCard
+            {/* Sidebar — reuses mobile InfoPanel */}
+            <aside className="hidden lg:block lg:w-[340px] lg:shrink-0">
+              <div className="lg:sticky lg:top-16">
+                <InfoPanel
+                  trip={trip}
+                  tripId={tripId}
+                  isOrganizer={isOrganizer}
+                  activeEventCount={0}
                   weather={weather}
-                  isLoading={weatherLoading}
+                  weatherLoading={weatherLoading}
                   temperatureUnit={temperatureUnit}
-                  isDark={preset?.background.isDark ?? false}
+                  currentMember={currentMember}
+                  onOpenInvite={() => setIsInviteOpen(true)}
+                  onOpenEdit={() => setIsEditOpen(true)}
+                  onOpenSettings={() => setIsSettingsOpen(true)}
+                  onOpenMembers={() => setIsMembersOpen(true)}
+                  onNavigateToItinerary={() =>
+                    document.getElementById("itinerary")?.scrollIntoView({ behavior: "smooth" })
+                  }
                 />
               </div>
             </aside>
+
+            {/* Non-lg: inline info above itinerary */}
+            <div className="lg:hidden mb-6">
+              <InfoPanel
+                trip={trip}
+                tripId={tripId}
+                isOrganizer={isOrganizer}
+                activeEventCount={0}
+                weather={weather}
+                weatherLoading={weatherLoading}
+                temperatureUnit={temperatureUnit}
+                currentMember={currentMember}
+                onOpenInvite={() => setIsInviteOpen(true)}
+                onOpenEdit={() => setIsEditOpen(true)}
+                onOpenSettings={() => setIsSettingsOpen(true)}
+                onOpenMembers={() => setIsMembersOpen(true)}
+                onNavigateToItinerary={() =>
+                  document.getElementById("itinerary")?.scrollIntoView({ behavior: "smooth" })
+                }
+              />
+            </div>
 
             {/* Main content — itinerary */}
             <div className="lg:flex-1 lg:min-w-0">
