@@ -391,15 +391,46 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
         </div>
 
         {/* Content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-2">
-          {/* Action bar: RsvpPills (left) + buttons (right) */}
-          <div className="flex items-center mb-5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-2">
+          {/* Compact action row: RSVP + summary + buttons */}
+          <div className="flex items-center gap-4 mb-4">
             <RsvpPills
               tripId={trip.id}
               status={trip.userRsvpStatus}
             />
+            <span className="hidden lg:inline text-muted-foreground" aria-hidden="true">&middot;</span>
+            <button
+              onClick={() => setIsMembersOpen(true)}
+              className="hidden lg:flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer"
+            >
+              <div className="flex -space-x-2">
+                {trip.organizers.slice(0, 5).map((org) =>
+                  org.profilePhotoUrl ? (
+                    <Image
+                      key={org.id}
+                      src={getUploadUrl(org.profilePhotoUrl)!}
+                      alt={org.displayName}
+                      width={24}
+                      height={24}
+                      className="w-6 h-6 rounded-full ring-2 ring-background object-cover"
+                    />
+                  ) : (
+                    <div
+                      key={org.id}
+                      className="w-6 h-6 rounded-full ring-2 ring-background bg-muted flex items-center justify-center text-[10px] font-medium text-foreground"
+                    >
+                      {getInitials(org.displayName)}
+                    </div>
+                  ),
+                )}
+              </div>
+              <span className="text-sm text-muted-foreground">
+                +{trip.memberCount} going
+              </span>
+            </button>
+            {/* Mobile-only: summary below */}
             <span className="flex-1" aria-hidden="true" />
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               {isOrganizer && (
                 <>
                   <Button
@@ -409,11 +440,11 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
                     }
                     onTouchStart={preloadInviteMembersDialog}
                     onFocus={preloadInviteMembersDialog}
-                    variant="outline"
-                    size="icon"
+                    variant="ghost"
+                    size="icon-sm"
                     aria-label="Invite members"
                   >
-                    <UserPlus />
+                    <UserPlus className="w-4 h-4" />
                   </Button>
                   <Button
                     onClick={() => setIsEditOpen(true)}
@@ -422,30 +453,29 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
                     }
                     onTouchStart={preloadEditTripDialog}
                     onFocus={preloadEditTripDialog}
-                    variant="outline"
-                    size="icon"
+                    variant="ghost"
+                    size="icon-sm"
                     aria-label="Edit trip"
                   >
-                    <Pencil />
+                    <Pencil className="w-4 h-4" />
                   </Button>
                 </>
               )}
               <Button
                 onClick={() => setIsSettingsOpen(true)}
-                variant="outline"
-                size="icon"
+                variant="ghost"
+                size="icon-sm"
                 aria-label="Settings"
               >
-                <Settings />
+                <Settings className="w-4 h-4" />
               </Button>
             </div>
           </div>
-
-          {/* Summary: avatar stack + going count + organized by */}
-          <div className="flex items-center gap-3 mb-6">
+          {/* Mobile summary row (hidden on lg+) */}
+          <div className="flex items-center gap-3 mb-4 lg:hidden">
             <button
               onClick={() => setIsMembersOpen(true)}
-              className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer"
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer"
             >
               <div className="flex -space-x-2">
                 {trip.organizers.slice(0, 5).map((org) =>
