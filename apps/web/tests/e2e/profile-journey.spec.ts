@@ -77,13 +77,8 @@ test.describe("Profile Journey", () => {
 
       await test.step("navigate to profile from header menu", async () => {
         await trips.openUserMenu();
-        // After openUserMenu(), check the actual menu content (not the hamburger button,
-        // which may be hidden behind the Sheet overlay on mobile)
-        const profileButton = (await trips.mobileProfileButton.isVisible())
-          ? trips.mobileProfileButton
-          : trips.profileItem;
-        await expect(profileButton).toBeVisible({ timeout: ELEMENT_TIMEOUT });
-        await profileButton.click();
+        await expect(trips.profileItem).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+        await trips.profileItem.click();
         await expect(profile.heading).toBeVisible({ timeout: ELEMENT_TIMEOUT });
       });
 

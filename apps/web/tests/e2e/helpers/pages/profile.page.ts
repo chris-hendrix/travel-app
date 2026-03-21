@@ -39,28 +39,18 @@ export class ProfilePage {
     await this.openDialog();
   }
 
-  /** Returns true if the mobile hamburger menu is visible (small viewport). */
-  private async isMobileViewport(): Promise<boolean> {
-    return this.page.getByRole("button", { name: "Open menu" }).isVisible();
-  }
-
-  /** Open the profile dialog from the header dropdown or mobile nav (adapts to viewport) */
+  /** Open the profile dialog from the header dropdown */
   async openDialog() {
     await this.page.waitForLoadState("networkidle");
-    if (await this.isMobileViewport()) {
-      await this.page.getByRole("button", { name: "Open menu" }).click();
-      await this.page.getByTestId("mobile-menu-profile-button").click();
-    } else {
-      const userMenuBtn = this.page.getByRole("button", {
-        name: "User menu",
-      });
-      await userMenuBtn.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
-      await userMenuBtn.click();
-      await this.page
-        .getByTestId("profile-menu-item")
-        .waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
-      await this.page.getByTestId("profile-menu-item").click();
-    }
+    const userMenuBtn = this.page.getByRole("button", {
+      name: "User menu",
+    });
+    await userMenuBtn.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+    await userMenuBtn.click();
+    await this.page
+      .getByTestId("profile-menu-item")
+      .waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+    await this.page.getByTestId("profile-menu-item").click();
     await this.heading.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
   }
 }

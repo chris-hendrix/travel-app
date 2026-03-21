@@ -136,19 +136,10 @@ export async function authenticateViaAPIWithPhone(
   await page.waitForURL("**/trips", { timeout: NAVIGATION_TIMEOUT });
   // Ensure page is fully interactive — wait for client-rendered navigation
   // which confirms React hydration and auth context are complete.
-  // On mobile viewports (< 768px / md breakpoint), the desktop "User menu"
-  // button is hidden and the hamburger menu button is shown instead.
-  const viewportSize = page.viewportSize();
-  const isMobile = viewportSize ? viewportSize.width < 768 : false;
-  if (isMobile) {
-    await page
-      .getByRole("button", { name: "Open menu" })
-      .waitFor({ timeout: ELEMENT_TIMEOUT });
-  } else {
-    await page
-      .getByRole("button", { name: "User menu" })
-      .waitFor({ timeout: ELEMENT_TIMEOUT });
-  }
+  // The "User menu" avatar button is visible on all viewport sizes.
+  await page
+    .getByRole("button", { name: "User menu" })
+    .waitFor({ timeout: ELEMENT_TIMEOUT });
 }
 
 /**
