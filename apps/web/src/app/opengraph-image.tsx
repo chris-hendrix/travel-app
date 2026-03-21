@@ -57,6 +57,19 @@ export default async function OGImage() {
       {/* Tagline */}
       <div
         style={{
+          fontSize: 32,
+          fontFamily: "DM Sans",
+          color: "#a09080",
+          display: "flex",
+          marginBottom: 12,
+        }}
+      >
+        Memories & Itineraries
+      </div>
+
+      {/* Subtitle */}
+      <div
+        style={{
           fontSize: 28,
           fontFamily: "DM Sans",
           color: "#8c8173",

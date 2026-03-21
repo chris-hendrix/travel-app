@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   ),
   title: { default: "Journiful - Group Trip Planner", template: "%s | Journiful" },
   description:
-    "Plan group trips together. Coordinate itineraries, accommodations, and events with your travel companions in one place.",
+    "Journiful — memories & itineraries. Plan group trips together. Coordinate itineraries, accommodations, and events with your travel companions in one place.",
   keywords: [
     "group trip planner",
     "trip planning app",
@@ -35,13 +35,13 @@ export const metadata: Metadata = {
     siteName: "Journiful",
     title: "Journiful - Group Trip Planner",
     description:
-      "Plan group trips together. Coordinate itineraries, accommodations, and events with your travel companions in one place.",
+      "Journiful — memories & itineraries. Plan group trips together. Coordinate itineraries, accommodations, and events with your travel companions in one place.",
   },
   twitter: {
     card: "summary_large_image",
     title: "Journiful - Group Trip Planner",
     description:
-      "Plan group trips together. Coordinate itineraries, accommodations, and events with your travel companions in one place.",
+      "Journiful — memories & itineraries. Plan group trips together. Coordinate itineraries, accommodations, and events with your travel companions in one place.",
   },
   robots: { index: true, follow: true },
   appleWebApp: {

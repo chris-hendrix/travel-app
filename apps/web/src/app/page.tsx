@@ -10,7 +10,7 @@ import { JsonLd } from "@/components/json-ld";
 export const metadata: Metadata = {
   title: "Journiful - Group Trip Planner | Plan Travel Together",
   description:
-    "The group trip planner that makes collaborative travel planning easy. Coordinate itineraries, accommodations, events, and member logistics all in one place.",
+    "Journiful — memories & itineraries. The group trip planner that makes collaborative travel planning easy. Coordinate itineraries, accommodations, events, and member logistics all in one place.",
   alternates: { canonical: "/" },
 };
 
@@ -78,6 +78,12 @@ export default async function Home() {
           <div className="absolute top-8 right-8 sm:top-12 sm:right-16 hidden sm:block">
             <PostmarkStamp date="EST. 2026" city="JOURNIFUL" size="lg" />
           </div>
+          <p className="font-script text-5xl sm:text-6xl lg:text-7xl text-foreground mb-2">
+            Journiful
+          </p>
+          <p className="font-script text-lg sm:text-xl text-muted-foreground mb-8">
+            Memories & Itineraries
+          </p>
           <h1 className="mb-4 max-w-2xl text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl font-display">
             Plan Group Trips Together
           </h1>
