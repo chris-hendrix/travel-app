@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ItineraryView } from "../itinerary-view";
 import type { Event, Accommodation } from "@journiful/shared/types";
@@ -262,8 +261,8 @@ describe("ItineraryView", () => {
     });
   });
 
-  describe("View mode toggle", () => {
-    it("defaults to day-by-day view", () => {
+  describe("Filter pills", () => {
+    it("defaults to 'All' filter", () => {
       mockUseEvents.mockReturnValue({
         data: [mockEvent],
         isPending: false,
@@ -277,36 +276,13 @@ describe("ItineraryView", () => {
         </Wrapper>,
       );
 
-      const dayByDayButton = screen.getByLabelText("Day by Day");
-      expect(dayByDayButton.dataset.variant).toBe("default");
-    });
-
-    it("switches to group-by-type view when clicked", async () => {
-      const user = userEvent.setup();
-      mockUseEvents.mockReturnValue({
-        data: [mockEvent],
-        isPending: false,
-        isError: false,
-        refetch: vi.fn(),
-      });
-
-      render(
-        <Wrapper>
-          <ItineraryView tripId="trip-123" />
-        </Wrapper>,
-      );
-
-      const groupByTypeButton = screen.getByLabelText("Group by Type");
-      await user.click(groupByTypeButton);
-
-      await waitFor(() => {
-        expect(groupByTypeButton.dataset.variant).toBe("default");
-      });
+      const allPill = screen.getByText("All");
+      expect(allPill.className).toContain("bg-primary");
     });
   });
 
-  describe("Timezone toggle", () => {
-    it("defaults to trip timezone", () => {
+  describe("Timezone settings", () => {
+    it("renders timezone settings button", () => {
       mockUseEvents.mockReturnValue({
         data: [mockEvent],
         isPending: false,
@@ -320,30 +296,10 @@ describe("ItineraryView", () => {
         </Wrapper>,
       );
 
-      // The timezone selector defaults to trip timezone and shows its label
-      const timezoneTrigger = screen.getByLabelText("Timezone");
-      expect(timezoneTrigger).toBeDefined();
-      // The selected value should show trip timezone label with "(Trip)" suffix
-      expect(screen.getByText(/Pacific Time \(PT\).*\(Trip\)/)).toBeDefined();
-    });
-
-    it("renders timezone selector trigger", () => {
-      mockUseEvents.mockReturnValue({
-        data: [mockEvent],
-        isPending: false,
-        isError: false,
-        refetch: vi.fn(),
+      const settingsButton = screen.getByRole("button", {
+        name: "Timezone settings",
       });
-
-      render(
-        <Wrapper>
-          <ItineraryView tripId="trip-123" />
-        </Wrapper>,
-      );
-
-      // The timezone selector should be rendered and accessible
-      const timezoneTrigger = screen.getByLabelText("Timezone");
-      expect(timezoneTrigger).toBeDefined();
+      expect(settingsButton).toBeDefined();
     });
   });
 
@@ -365,7 +321,7 @@ describe("ItineraryView", () => {
       expect(screen.getByText("Beach Lunch")).toBeDefined();
     });
 
-    it("displays accommodations when present", () => {
+    it("does not display accommodations in the itinerary (moved to info panel)", () => {
       mockUseAccommodations.mockReturnValue({
         data: [mockAccommodation],
         isPending: false,
@@ -379,30 +335,9 @@ describe("ItineraryView", () => {
         </Wrapper>,
       );
 
-      // Accommodation spans multiple days, so it appears more than once
-      const beachHouseElements = screen.getAllByText("Beach House");
-      expect(beachHouseElements.length).toBeGreaterThan(0);
-    });
-
-    it("shows accommodation on all spanned days (check-in through day before check-out)", () => {
-      mockUseAccommodations.mockReturnValue({
-        data: [mockAccommodation],
-        isPending: false,
-        isError: false,
-        refetch: vi.fn(),
-      });
-
-      render(
-        <Wrapper>
-          <ItineraryView tripId="trip-123" />
-        </Wrapper>,
-      );
-
-      // mockAccommodation spans Jul 15 (check-in at 14:00 UTC) to Jul 20 (check-out at 11:00 UTC)
-      // In America/Los_Angeles timezone (UTC-7), check-in is Jul 15, check-out is Jul 20
-      // Accommodation should appear on days 15, 16, 17, 18, 19 (5 days, excluding check-out day)
-      const beachHouseElements = screen.getAllByText("Beach House");
-      expect(beachHouseElements).toHaveLength(5);
+      // Accommodations are no longer shown in the itinerary — they live on the info panel
+      const beachHouseElements = screen.queryAllByText("Beach House");
+      expect(beachHouseElements).toHaveLength(0);
     });
   });
 });

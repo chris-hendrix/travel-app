@@ -52,8 +52,8 @@ describe("ItineraryHeader", () => {
   let queryClient: QueryClient;
 
   const defaultProps = {
-    viewMode: "day-by-day" as const,
-    onViewModeChange: vi.fn(),
+    filter: "all" as const,
+    onFilterChange: vi.fn(),
     selectedTimezone: "America/Los_Angeles",
     onTimezoneChange: vi.fn(),
     tripTimezone: "America/Los_Angeles",
@@ -80,97 +80,50 @@ describe("ItineraryHeader", () => {
   };
 
   describe("Rendering", () => {
-    it("renders view mode toggle buttons", () => {
+    it("renders filter pills", () => {
       renderWithQueryClient(<ItineraryHeader {...defaultProps} />);
 
-      expect(screen.getByRole("button", { name: "Day by Day" })).toBeDefined();
+      expect(screen.getByText("All")).toBeDefined();
+    });
+
+    it("renders timezone settings button", () => {
+      renderWithQueryClient(<ItineraryHeader {...defaultProps} />);
+
       expect(
-        screen.getByRole("button", { name: "Group by Type" }),
+        screen.getByRole("button", { name: "Timezone settings" }),
       ).toBeDefined();
     });
-
-    it("renders timezone selector", () => {
-      renderWithQueryClient(<ItineraryHeader {...defaultProps} />);
-
-      expect(screen.getByRole("combobox", { name: "Timezone" })).toBeDefined();
-    });
   });
 
-  describe("View mode toggle", () => {
-    it("highlights day-by-day button when selected", () => {
+  describe("Filter pills", () => {
+    it("highlights 'All' pill when selected", () => {
       renderWithQueryClient(
-        <ItineraryHeader {...defaultProps} viewMode="day-by-day" />,
+        <ItineraryHeader {...defaultProps} filter="all" />,
       );
 
-      const button = screen.getByRole("button", { name: "Day by Day" });
-      expect(button?.dataset.variant).toBe("default");
+      const allButton = screen.getByText("All");
+      expect(allButton.className).toContain("bg-primary");
     });
 
-    it("highlights group-by-type button when selected", () => {
-      renderWithQueryClient(
-        <ItineraryHeader {...defaultProps} viewMode="group-by-type" />,
-      );
-
-      const button = screen.getByRole("button", { name: "Group by Type" });
-      expect(button?.dataset.variant).toBe("default");
-    });
-
-    it("calls onViewModeChange when day-by-day is clicked", async () => {
+    it("calls onFilterChange when a filter pill is clicked", async () => {
       const user = userEvent.setup({ pointerEventsCheck: 0 });
-      const onViewModeChange = vi.fn();
+      const onFilterChange = vi.fn();
 
       renderWithQueryClient(
         <ItineraryHeader
           {...defaultProps}
-          viewMode="group-by-type"
-          onViewModeChange={onViewModeChange}
+          onFilterChange={onFilterChange}
         />,
       );
 
-      const button = screen.getByRole("button", { name: "Day by Day" });
-      await user.click(button);
+      // Click the Activity filter pill (🎯 emoji)
+      const buttons = screen.getAllByRole("button");
+      // Filter pills are the first buttons in the header
+      const activityPill = buttons.find((b) => b.textContent?.includes("\uD83C\uDFAF"));
+      expect(activityPill).toBeDefined();
+      await user.click(activityPill!);
 
-      expect(onViewModeChange).toHaveBeenCalledWith("day-by-day");
-    });
-
-    it("calls onViewModeChange when group-by-type is clicked", async () => {
-      const user = userEvent.setup({ pointerEventsCheck: 0 });
-      const onViewModeChange = vi.fn();
-
-      renderWithQueryClient(
-        <ItineraryHeader
-          {...defaultProps}
-          onViewModeChange={onViewModeChange}
-        />,
-      );
-
-      const button = screen.getByRole("button", { name: "Group by Type" });
-      await user.click(button);
-
-      expect(onViewModeChange).toHaveBeenCalledWith("group-by-type");
-    });
-  });
-
-  describe("Timezone selector", () => {
-    it("renders timezone select with trip timezone selected", () => {
-      renderWithQueryClient(<ItineraryHeader {...defaultProps} />);
-
-      const trigger = screen.getByRole("combobox", { name: "Timezone" });
-      expect(trigger).toBeDefined();
-      // Trip timezone should be shown with "(Trip)" label
-      expect(trigger.textContent).toContain("Trip");
-    });
-
-    it("renders timezone select with user timezone when selected", () => {
-      renderWithQueryClient(
-        <ItineraryHeader
-          {...defaultProps}
-          selectedTimezone="America/New_York"
-        />,
-      );
-
-      const trigger = screen.getByRole("combobox", { name: "Timezone" });
-      expect(trigger.textContent).toContain("Current");
+      expect(onFilterChange).toHaveBeenCalledWith("activity");
     });
   });
 

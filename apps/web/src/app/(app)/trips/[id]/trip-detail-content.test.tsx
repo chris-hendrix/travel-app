@@ -161,27 +161,6 @@ vi.mock("@tanstack/react-query", async () => {
   };
 });
 
-// Mock RsvpBadgeDropdown component
-const rsvpLabels: Record<string, string> = {
-  going: "Going",
-  maybe: "Maybe",
-  not_going: "Not Going",
-  no_response: "No Response",
-};
-vi.mock("@/components/trip/rsvp-badge-dropdown", () => ({
-  RsvpBadgeDropdown: ({
-    tripId,
-    status,
-  }: {
-    tripId: string;
-    status: string;
-  }) => (
-    <div data-testid="rsvp-badge-dropdown" data-trip-id={tripId}>
-      {rsvpLabels[status] ?? status}
-    </div>
-  ),
-}));
-
 // Mock MembersList component
 vi.mock("@/components/trip/members-list", () => ({
   MembersList: ({
