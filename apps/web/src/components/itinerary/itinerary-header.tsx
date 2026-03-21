@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { Plus, Building2, Plane, Settings } from "lucide-react";
+import { Calendar, Car, Plus, Building2, Plane, Settings, Users, Utensils, type LucideIcon } from "lucide-react";
 import { useMounted } from "@/hooks/use-mounted";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,12 +42,12 @@ function getTimezoneLabel(tz: string): string {
   return lastPart ? lastPart.replace(/_/g, " ") : tz;
 }
 
-const FILTER_OPTIONS: { value: ItineraryFilter; label: string; icon?: string }[] = [
+const FILTER_OPTIONS: { value: ItineraryFilter; label: string; icon?: LucideIcon }[] = [
   { value: "all", label: "All" },
-  { value: "activity", label: "Activity", icon: "\uD83C\uDFAF" },
-  { value: "meal", label: "Meal", icon: "\uD83C\uDF7D" },
-  { value: "travel", label: "Travel", icon: "\u2708\uFE0F" },
-  { value: "members", label: "Members", icon: "\uD83D\uDC64" },
+  { value: "activity", label: "Activity", icon: Calendar },
+  { value: "meal", label: "Meal", icon: Utensils },
+  { value: "travel", label: "Travel", icon: Car },
+  { value: "members", label: "Members", icon: Users },
 ];
 
 interface ItineraryHeaderProps {
@@ -123,7 +123,7 @@ export function ItineraryHeader({
                   )}
                 >
                   {opt.icon ? (
-                    <span className="text-sm leading-none">{opt.icon}</span>
+                    <opt.icon className="w-3.5 h-3.5" />
                   ) : (
                     opt.label
                   )}

@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Plus, X } from "lucide-react";
+import { Calendar, Car, Loader2, Plus, Utensils, X } from "lucide-react";
 import { toast } from "sonner";
 import { parse, addHours } from "date-fns";
 import {
@@ -44,9 +44,9 @@ import { mapServerErrors } from "@/lib/form-errors";
 import { TIMEZONES } from "@/lib/constants";
 
 const EVENT_TYPES = [
-  { value: "activity", label: "Activity", icon: "🎯" },
-  { value: "meal", label: "Meal", icon: "🍽" },
-  { value: "travel", label: "Travel", icon: "✈️" },
+  { value: "activity", label: "Activity", icon: Calendar },
+  { value: "meal", label: "Meal", icon: Utensils },
+  { value: "travel", label: "Travel", icon: Car },
 ] as const;
 
 interface CreateEventDialogProps {
@@ -269,7 +269,7 @@ export function CreateEventDialog({
                               : "border-border hover:border-muted-foreground"
                           }`}
                         >
-                          <div className="text-xl">{type.icon}</div>
+                          <type.icon className="w-5 h-5" />
                           <div className="text-sm font-medium mt-1">
                             {type.label}
                           </div>
