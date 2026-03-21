@@ -89,7 +89,7 @@ export default async function Home() {
           <div className="absolute top-8 right-8 sm:top-12 sm:right-16 hidden sm:block">
             <PostmarkStamp date="EST. 2026" city="JOURNIFUL" size="lg" />
           </div>
-          <h1 className="mb-4 max-w-2xl text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl font-display">
+          <h1 className="mb-4 max-w-2xl text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl font-playfair">
             Plan Group Trips Together
           </h1>
           <p className="mb-3 max-w-lg text-center text-lg text-muted-foreground sm:text-xl">
