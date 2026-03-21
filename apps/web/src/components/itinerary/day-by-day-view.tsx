@@ -370,7 +370,7 @@ export function DayByDayView({
             {/* Sticky date header */}
             <div
               className={cn(
-                "sticky top-14 z-10 flex items-center gap-1.5 px-1 py-2 bg-background border-b border-border",
+                "sticky top-14 z-10 flex items-center gap-1.5 py-2 bg-background border-b border-border",
                 isToday && "scroll-mt-28",
               )}
             >
