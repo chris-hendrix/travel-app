@@ -223,7 +223,7 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
           <p className="text-muted-foreground mb-6">
             This trip doesn't exist or you don't have access to it.
           </p>
-          <Button variant="gradient" asChild className="h-12 px-8 rounded-md">
+          <Button variant="gradient" size="lg" asChild>
             <Link href="/trips">Return to trips</Link>
           </Button>
         </div>
@@ -385,39 +385,45 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
               <div className="flex items-center gap-3">
                 {isOrganizer && (
                   <>
-                    <button
+                    <Button
                       onClick={() => setIsInviteOpen(true)}
                       onMouseEnter={
                         supportsHover ? preloadInviteMembersDialog : undefined
                       }
                       onTouchStart={preloadInviteMembersDialog}
                       onFocus={preloadInviteMembersDialog}
-                      className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-foreground hover:bg-transparent"
                       aria-label="Invite members"
                     >
                       <UserPlus className="w-5 h-5" />
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={() => setIsEditOpen(true)}
                       onMouseEnter={
                         supportsHover ? preloadEditTripDialog : undefined
                       }
                       onTouchStart={preloadEditTripDialog}
                       onFocus={preloadEditTripDialog}
-                      className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-foreground hover:bg-transparent"
                       aria-label="Edit trip"
                     >
                       <Pencil className="w-5 h-5" />
-                    </button>
+                    </Button>
                   </>
                 )}
-                <button
+                <Button
                   onClick={() => setIsSettingsOpen(true)}
-                  className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  variant="ghost"
+                  size="icon"
+                  className="text-muted-foreground hover:text-foreground hover:bg-transparent"
                   aria-label="Settings"
                 >
                   <Settings className="w-5 h-5" />
-                </button>
+                </Button>
               </div>
             </div>
 

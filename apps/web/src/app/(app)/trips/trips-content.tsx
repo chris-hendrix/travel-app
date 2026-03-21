@@ -162,7 +162,6 @@ export function TripsContent() {
               onClick={toggleSearch}
               variant="outline"
               size="icon"
-              className="h-10 w-10 rounded-md"
               aria-label={searchOpen ? "Close search" : "Search trips"}
             >
               <Search className="w-4 h-4" />
@@ -170,7 +169,6 @@ export function TripsContent() {
             <Button
               onClick={() => setCreateDialogOpen(true)}
               variant="outline"
-              className="h-10 px-4 rounded-md"
             >
               <Plus className="w-4 h-4" strokeWidth={2.5} />
               New Trip
@@ -220,7 +218,7 @@ export function TripsContent() {
               onClick={() => refetch()}
               disabled={isFetching}
               variant="gradient"
-              className="h-12 px-8 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+              size="lg"
             >
               {isFetching && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               {isFetching ? "Loading..." : "Try again"}
@@ -247,7 +245,7 @@ export function TripsContent() {
               <Button
                 onClick={() => setCreateDialogOpen(true)}
                 variant="gradient"
-                className="h-12 px-8"
+                size="lg"
               >
                 <Plus className="w-5 h-5 mr-2" strokeWidth={2.5} />
                 Create your first trip

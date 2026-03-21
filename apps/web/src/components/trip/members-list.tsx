@@ -368,7 +368,6 @@ export function MembersList({
               onClick={onInvite}
               variant="outline"
               size="sm"
-              className="h-10 px-4 rounded-md border-input hover:bg-secondary"
             >
               <UserPlus className="w-4 h-4 mr-2" />
               Invite members
@@ -511,7 +510,6 @@ export function MembersList({
             onClick={onInvite}
             variant="outline"
             size="sm"
-            className="h-10 px-4 rounded-md border-input hover:bg-secondary"
           >
             <UserPlus className="w-4 h-4 mr-2" />
             Invite

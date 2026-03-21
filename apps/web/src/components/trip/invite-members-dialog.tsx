@@ -386,7 +386,7 @@ export function InviteMembersDialog({
                           onClick={handleAddPhone}
                           disabled={isPending}
                           variant="outline"
-                          className="h-12 px-4 rounded-md"
+                          size="lg"
                         >
                           <UserPlus className="w-5 h-5" />
                           Add
@@ -421,7 +421,8 @@ export function InviteMembersDialog({
                   variant="outline"
                   onClick={() => onOpenChange(false)}
                   disabled={isPending}
-                  className="flex-1 h-12 rounded-md border-input"
+                  size="lg"
+                  className="flex-1"
                 >
                   Cancel
                 </Button>
@@ -432,7 +433,8 @@ export function InviteMembersDialog({
                     (phoneNumbers.length === 0 && userIds.length === 0)
                   }
                   variant="gradient"
-                  className="flex-1 h-12 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  size="lg"
+                  className="flex-1"
                 >
                   {isPending && (
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />
