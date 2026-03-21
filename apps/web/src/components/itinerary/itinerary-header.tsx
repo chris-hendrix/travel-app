@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { Calendar, Car, Plus, Building2, Plane, Settings, Users, Utensils, type LucideIcon } from "lucide-react";
+import { Calendar, Car, PlaneLanding, Plus, Building2, Plane, Settings, Utensils, type LucideIcon } from "lucide-react";
 import { useMounted } from "@/hooks/use-mounted";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,7 +47,7 @@ const FILTER_OPTIONS: { value: ItineraryFilter; label: string; icon?: LucideIcon
   { value: "activity", label: "Activity", icon: Calendar },
   { value: "meal", label: "Meal", icon: Utensils },
   { value: "travel", label: "Travel", icon: Car },
-  { value: "members", label: "Members", icon: Users },
+  { value: "members", label: "Members", icon: PlaneLanding },
 ];
 
 interface ItineraryHeaderProps {
