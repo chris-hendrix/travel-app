@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Plus, Search, AlertCircle, Loader2 } from "lucide-react";
 import { useTrips, type TripSummary } from "@/hooks/use-trips";
@@ -31,7 +31,10 @@ export function TripsContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState(searchParams.get("q") ?? "");
+  const initialQuery = searchParams.get("q") ?? "";
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
+  const [searchOpen, setSearchOpen] = useState(initialQuery.length > 0);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const { ref: currentSectionRef, isRevealed: currentRevealed } =
     useScrollReveal();
   const { ref: upcomingSectionRef, isRevealed: upcomingRevealed } =
@@ -123,6 +126,17 @@ export function TripsContent() {
     return { currentTrips: current, upcomingTrips: upcoming, pastTrips: past };
   }, [filteredTrips]);
 
+  const toggleSearch = useCallback(() => {
+    setSearchOpen((prev) => {
+      if (prev) {
+        setSearchQuery("");
+      } else {
+        requestAnimationFrame(() => searchInputRef.current?.focus());
+      }
+      return !prev;
+    });
+  }, []);
+
   const tripCount = data?.pages[0]?.meta?.total ?? trips.length;
   const hasSearchQuery = searchQuery.trim().length > 0;
   const noResults = filteredTrips.length === 0 && hasSearchQuery;
@@ -143,26 +157,44 @@ export function TripsContent() {
               </p>
             )}
           </div>
-          <Button
-            onClick={() => setCreateDialogOpen(true)}
-            variant="outline"
-            className="h-10 px-4 rounded-md"
-          >
-            <Plus className="w-4 h-4" strokeWidth={2.5} />
-            New Trip
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={toggleSearch}
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 rounded-md text-muted-foreground hover:text-foreground"
+              aria-label={searchOpen ? "Close search" : "Search trips"}
+            >
+              <Search className="w-4 h-4" />
+            </Button>
+            <Button
+              onClick={() => setCreateDialogOpen(true)}
+              variant="outline"
+              className="h-10 px-4 rounded-md"
+            >
+              <Plus className="w-4 h-4" strokeWidth={2.5} />
+              New Trip
+            </Button>
+          </div>
         </header>
 
         {/* Search Bar */}
-        <div className="relative mb-8">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Search by name or destination..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-12 pl-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
-          />
+        <div
+          className={`grid transition-all duration-200 ease-out ${searchOpen ? "grid-rows-[1fr] opacity-100 mb-8" : "grid-rows-[0fr] opacity-0 mb-0"}`}
+        >
+          <div className="overflow-hidden">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <Input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Search by name or destination..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-12 pl-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Loading State */}
