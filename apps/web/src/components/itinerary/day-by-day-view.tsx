@@ -370,41 +370,40 @@ export function DayByDayView({
             {/* Sticky date header */}
             <div
               className={cn(
-                "sticky top-0 z-10 flex items-center justify-between gap-2 px-1 py-2 bg-background/95 backdrop-blur-sm border-b border-border",
+                "sticky top-0 z-10 flex items-center gap-1.5 px-1 py-2 bg-background/95 backdrop-blur-sm border-b border-border",
                 isToday && "scroll-mt-28",
               )}
             >
-              <div className="flex items-center gap-2 min-w-0">
-                {isToday && (
-                  <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
+              {isToday && (
+                <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
+              )}
+              <span
+                className={cn(
+                  "text-sm font-semibold",
+                  isToday ? "text-primary" : "text-foreground",
                 )}
-                <span
-                  className={cn(
-                    "text-sm font-semibold",
-                    isToday ? "text-primary" : "text-foreground",
-                  )}
-                >
-                  {day.label}
-                </span>
-              </div>
+              >
+                {day.label}
+              </span>
               {forecast && (
                 <Popover>
                   <PopoverTrigger asChild>
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                      className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                       aria-label={`Weather for ${day.label}`}
                     >
+                      <span className="text-muted-foreground" aria-hidden="true">&middot;</span>
                       {(() => {
                         const { icon: Icon } = getWeatherInfo(forecast.weatherCode);
-                        return <Icon className="h-4 w-4" aria-hidden="true" />;
+                        return <Icon className="h-3.5 w-3.5" aria-hidden="true" />;
                       })()}
                       <span className="text-xs tabular-nums">
                         {toDisplayTemp(forecast.temperatureMax, temperatureUnit || "fahrenheit")}&deg;
                       </span>
                     </button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-48 p-3" align="end">
+                  <PopoverContent className="w-48 p-3" align="start">
                     {(() => {
                       const { icon: Icon, label } = getWeatherInfo(forecast.weatherCode);
                       const high = toDisplayTemp(forecast.temperatureMax, temperatureUnit || "fahrenheit");

@@ -10,6 +10,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { RsvpPills } from "@/components/trip/rsvp-pills";
 import { WeatherForecastCard } from "@/components/itinerary/weather-forecast-card";
 import { AccommodationDetailSheet } from "@/components/itinerary/accommodation-detail-sheet";
@@ -53,14 +54,6 @@ function formatDateRange(checkIn: string, checkOut: string, timezone: string): s
   return `${fmt.format(new Date(checkIn))} – ${fmt.format(new Date(checkOut))}`;
 }
 
-/** Consistent section header used across all info panel sections */
-function SectionHeader({ children }: { children: React.ReactNode }) {
-  return (
-    <h3 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5">
-      {children}
-    </h3>
-  );
-}
 
 interface InfoPanelProps {
   trip: TripDetailWithMeta;
@@ -217,8 +210,7 @@ export function InfoPanel({
 
         {/* 3. Accommodations */}
         {accommodations && accommodations.length > 0 && (
-          <div>
-            <SectionHeader>Accommodations</SectionHeader>
+          <CollapsibleSection label="Accommodations" defaultOpen>
             <div className="space-y-2">
               {accommodations.map((acc) => (
                 <button
@@ -237,7 +229,7 @@ export function InfoPanel({
                 </button>
               ))}
             </div>
-          </div>
+          </CollapsibleSection>
         )}
 
         {/* 4. Today section (only during trip) */}
@@ -253,26 +245,24 @@ export function InfoPanel({
 
         {/* 5. About this trip */}
         {trip.description && (
-          <div>
-            <SectionHeader>About this trip</SectionHeader>
+          <CollapsibleSection label="About this trip" defaultOpen>
             <div className="bg-card rounded-md border border-border p-4 linen-texture">
               <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                 {linkifyText(trip.description)}
               </p>
             </div>
-          </div>
+          </CollapsibleSection>
         )}
 
         {/* 6. Weather */}
-        <div>
-          <SectionHeader>Weather</SectionHeader>
+        <CollapsibleSection label="Weather" defaultOpen>
           <WeatherForecastCard
             weather={weather}
             isLoading={weatherLoading}
             temperatureUnit={temperatureUnit}
             isDark={preset?.background.isDark ?? false}
           />
-        </div>
+        </CollapsibleSection>
       </div>
 
       {/* Accommodation detail sheet */}
