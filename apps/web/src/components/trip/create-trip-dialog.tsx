@@ -40,6 +40,7 @@ import { ImageUpload } from "@/components/trip/image-upload";
 import { ThemePicker } from "@/components/trip/theme-picker";
 import { FontPicker } from "@/components/trip/font-picker";
 import { useThemePreview } from "@/hooks/use-theme-preview";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Loader2 } from "lucide-react";
 import { TIMEZONES } from "@/lib/constants";
@@ -152,12 +153,9 @@ export function CreateTripDialog({
         <SheetBody>
           {/* Progress indicator */}
           <div className="mb-4">
-            <div className="flex items-center justify-between mb-3">
+            <div className="mb-3">
               <span className="text-sm font-medium text-foreground">
                 {currentStep === 1 ? "Trip details" : "Customize"}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                Step {currentStep} of 2
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -220,9 +218,6 @@ export function CreateTripDialog({
                             {...field}
                           />
                         </FormControl>
-                        <FormDescription className="text-sm text-muted-foreground">
-                          Choose something memorable (3-100 characters)
-                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -302,111 +297,104 @@ export function CreateTripDialog({
                     />
                   </div>
 
-                  {/* Timezone */}
-                  <FormField
-                    control={form.control}
-                    name="timezone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-base font-semibold text-foreground">
-                          Trip timezone
-                          <span className="text-destructive ml-1">*</span>
-                        </FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger
-                              ref={field.ref}
-                              onBlur={field.onBlur}
-                              className="h-12 text-base rounded-md"
-                              aria-required="true"
+                  {/* More options (collapsed by default) */}
+                  <CollapsibleSection label="More options">
+                    <div className="space-y-4">
+                      {/* Timezone */}
+                      <FormField
+                        control={form.control}
+                        name="timezone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-base font-semibold text-foreground">
+                              Trip timezone
+                              <span className="text-destructive ml-1">*</span>
+                            </FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={field.value}
                             >
-                              <SelectValue />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {TIMEZONES.map((tz) => (
-                              <SelectItem key={tz.value} value={tz.value}>
-                                {tz.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormDescription className="text-sm text-muted-foreground">
-                          All trip times will be shown in this timezone
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                              <FormControl>
+                                <SelectTrigger
+                                  ref={field.ref}
+                                  onBlur={field.onBlur}
+                                  className="h-12 text-base rounded-md"
+                                  aria-required="true"
+                                >
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {TIMEZONES.map((tz) => (
+                                  <SelectItem key={tz.value} value={tz.value}>
+                                    {tz.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                  {/* Description */}
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => {
-                      const charCount = field.value?.length || 0;
-                      const showCounter = charCount >= 1600;
+                      {/* Description */}
+                      <FormField
+                        control={form.control}
+                        name="description"
+                        render={({ field }) => {
+                          const charCount = field.value?.length || 0;
+                          const showCounter = charCount >= 1600;
 
-                      return (
-                        <FormItem>
-                          <FormLabel className="text-base font-semibold text-foreground">
-                            Description
-                          </FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Tell your group about this trip..."
-                              className="h-32 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md resize-none"
-                              disabled={isPending}
-                              {...field}
-                              value={field.value || ""}
-                            />
-                          </FormControl>
-                          {showCounter && (
-                            <div className="text-xs text-muted-foreground text-right">
-                              {charCount} / 2000 characters
-                            </div>
-                          )}
-                          <FormDescription className="text-sm text-muted-foreground">
-                            Optional: Share details about the trip
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      );
-                    }}
-                  />
+                          return (
+                            <FormItem>
+                              <FormLabel className="text-base font-semibold text-foreground">
+                                Description
+                              </FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  placeholder="Tell your group about this trip..."
+                                  className="h-32 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md resize-none"
+                                  disabled={isPending}
+                                  {...field}
+                                  value={field.value || ""}
+                                />
+                              </FormControl>
+                              {showCounter && (
+                                <div className="text-xs text-muted-foreground text-right">
+                                  {charCount} / 2000 characters
+                                </div>
+                              )}
+                              <FormMessage />
+                            </FormItem>
+                          );
+                        }}
+                      />
 
-                  {/* Allow Members to Add Events */}
-                  <FormField
-                    control={form.control}
-                    name="allowMembersToAddEvents"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-border p-4">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value ?? true}
-                            onCheckedChange={field.onChange}
-                            ref={field.ref}
-                            onBlur={field.onBlur}
-                            name={field.name}
-                            disabled={isPending}
-                            aria-label="Allow members to add events"
-                          />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel className="text-base font-semibold text-foreground cursor-pointer">
-                            Allow members to add events
-                          </FormLabel>
-                          <FormDescription className="text-sm text-muted-foreground">
-                            Let trip members create and propose events for the
-                            itinerary
-                          </FormDescription>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
+                      {/* Allow Members to Add Events */}
+                      <FormField
+                        control={form.control}
+                        name="allowMembersToAddEvents"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value ?? true}
+                                onCheckedChange={field.onChange}
+                                ref={field.ref}
+                                onBlur={field.onBlur}
+                                name={field.name}
+                                disabled={isPending}
+                                aria-label="Allow members to add events"
+                              />
+                            </FormControl>
+                            <FormLabel className="text-base font-semibold text-foreground cursor-pointer">
+                              Allow members to add events
+                            </FormLabel>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </CollapsibleSection>
 
                   {/* Continue Button */}
                   <div className="flex justify-end pt-4">
