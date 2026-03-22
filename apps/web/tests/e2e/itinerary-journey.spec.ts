@@ -55,15 +55,18 @@ test.describe("Itinerary Journey", () => {
         await expect(page.getByText(/Dinner at Harbor/)).toBeVisible();
         await expect.soft(page.getByText(/6:30 PM/)).toBeVisible();
 
-        // Location text visible with link icon to Google Maps
-        await expect.soft(page.getByText("Harbor Drive Seafood")).toBeVisible();
+        // Location details are in the detail sheet (decluttered card view)
+        await page.getByText(/Dinner at Harbor/).first().click();
         const locationLink = page.getByRole("link", {
           name: /Harbor Drive Seafood.*Google Maps/,
         });
+        await expect.soft(page.getByText("Harbor Drive Seafood")).toBeVisible();
         await expect.soft(locationLink).toBeVisible();
         await expect
           .soft(locationLink)
           .toHaveAttribute("href", /google\.com\/maps\/search/);
+        // Close the detail sheet
+        await page.keyboard.press("Escape");
       });
 
       await test.step("create accommodation", async () => {
@@ -102,26 +105,20 @@ test.describe("Itinerary Journey", () => {
           .getByRole("button", { name: "Create accommodation" })
           .click();
 
-        // Address link is visible in the compact line-item (click opens detail sheet)
-        const accommodationCard = page
-          .locator('[role="button"]')
+        // Accommodation appears in the InfoPanel sidebar (not the day-by-day itinerary)
+        await expect(page.getByText("Accommodation created successfully")).toBeVisible({
+          timeout: TOAST_TIMEOUT,
+        });
+        // Verify the accommodation name appears in the Accommodations section
+        const accommodationButton = page
+          .getByRole("button")
           .filter({
             hasText: new RegExp(accommodationName.replace(/\d+/g, "\\d+")),
           })
           .first();
-        await expect(accommodationCard).toBeVisible({
+        await expect(accommodationButton).toBeVisible({
           timeout: ELEMENT_TIMEOUT,
         });
-
-        // Location pin + link icon visible (address details in detail sheet)
-        const addressLink = accommodationCard.getByRole("link", {
-          name: /Google Maps/,
-        });
-        await expect(addressLink).toBeVisible();
-        await expect(addressLink).toHaveAttribute(
-          "href",
-          /google\.com\/maps\/search/,
-        );
       });
 
       await snap(page, "09-itinerary-with-events");
@@ -145,18 +142,22 @@ test.describe("Itinerary Journey", () => {
           .fill("Arriving from Chicago");
         await page.locator('button[type="submit"]', { hasText: "Add travel details" }).click();
 
-        // Travel card shows member name (location details in detail sheet)
+        // Travel card shows member name (location is in the detail sheet)
         await expect(page.getByText(/Itinerary Tester/).first()).toBeVisible();
 
-        // Expand travel card to see details — use getByRole to target
-        // the travel card button, not the "Itinerary Tester" text in Organizers
-        const travelCard = page.getByRole("button", {
-          name: /Itinerary Tester.*San Diego Airport/,
-        });
+        // Click the travel line-item card to open the detail sheet
+        // The card only shows member name, so match on that
+        const travelCard = page
+          .locator('[role="button"]')
+          .filter({ hasText: /Itinerary Tester/ })
+          .first();
         await travelCard.click();
+
+        // Verify location and details in the detail sheet
+        await expect(page.getByText("San Diego Airport")).toBeVisible();
         await expect(page.getByText("Arriving from Chicago")).toBeVisible();
 
-        // Close the edit travel dialog so it doesn't block subsequent steps
+        // Close the detail sheet so it doesn't block subsequent steps
         await page.keyboard.press("Escape");
       });
 
@@ -187,17 +188,21 @@ test.describe("Itinerary Journey", () => {
         ).not.toBeVisible();
 
         await expect(page.getByText(/Updated Dinner/)).toBeVisible();
-        // Updated location text visible with link icon
-        await expect(page.getByText("Gaslamp Quarter")).toBeVisible();
+        await expect(page.getByText(/Dinner at Harbor/)).not.toBeVisible();
+
+        // Verify updated location in detail sheet
+        await page.getByText(/Updated Dinner/).first().click();
         const updatedLocationLink = page.getByRole("link", {
           name: /Gaslamp Quarter.*Google Maps/,
         });
+        await expect(page.getByText("Gaslamp Quarter")).toBeVisible();
         await expect(updatedLocationLink).toBeVisible();
         await expect(updatedLocationLink).toHaveAttribute(
           "href",
           /google\.com\/maps\/search/,
         );
-        await expect(page.getByText(/Dinner at Harbor/)).not.toBeVisible();
+        // Close detail sheet
+        await page.keyboard.press("Escape");
       });
 
       await test.step("delete event with cancel then confirm", async () => {
@@ -294,7 +299,12 @@ test.describe("Itinerary Journey", () => {
           timeout: NAVIGATION_TIMEOUT,
         });
 
-        // Location text visible with link icon
+        // Location details are in the detail sheet (decluttered card view)
+        const travelCard = page
+          .locator('[role="button"]')
+          .filter({ hasText: /View Mode User/ })
+          .first();
+        await travelCard.click();
         await expect(page.getByText("Las Vegas Airport")).toBeVisible();
         const airportLink = page.getByRole("link", {
           name: /Las Vegas Airport.*Google Maps/,
@@ -304,6 +314,8 @@ test.describe("Itinerary Journey", () => {
           "href",
           /google\.com\/maps\/search/,
         );
+        // Close the detail sheet
+        await page.keyboard.press("Escape");
       });
 
       await test.step("verify date gutter in day-by-day view", async () => {
