@@ -13,5 +13,6 @@ export { CreateAccommodationDialog } from "./create-accommodation-dialog";
 export { EditAccommodationDialog } from "./edit-accommodation-dialog";
 export { CreateMemberTravelDialog } from "./create-member-travel-dialog";
 export { EditMemberTravelDialog } from "./edit-member-travel-dialog";
+export { FlightLookupInput } from "./flight-lookup-input";
 export { WeatherDayBadge } from "./weather-day-badge";
 export { WeatherForecastCard } from "./weather-forecast-card";

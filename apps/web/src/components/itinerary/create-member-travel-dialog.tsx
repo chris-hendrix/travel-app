@@ -50,6 +50,8 @@ import { useMembers } from "@/hooks/use-invitations";
 import { getInitials } from "@/lib/format";
 import { getUploadUrl } from "@/lib/api";
 import { TIMEZONES } from "@/lib/constants";
+import { FlightLookupInput } from "@/components/itinerary/flight-lookup-input";
+import type { FlightLookupResult } from "@journiful/shared/types";
 
 interface CreateMemberTravelDialogProps {
   open: boolean;
@@ -88,11 +90,39 @@ export function CreateMemberTravelDialog({
       time: "",
       location: "",
       details: "",
+      flightNumber: "",
     },
   });
 
   const travelType = form.watch("travelType");
   const travelTypeLabel = travelType === "departure" ? "Departure" : "Arrival";
+  const timeValue = form.watch("time");
+
+  // Date for flight lookup: from form time, or trip start/end date as fallback
+  const flightLookupDate = useMemo(() => {
+    if (timeValue) {
+      try {
+        return new Date(timeValue).toISOString().slice(0, 10);
+      } catch {
+        // fall through
+      }
+    }
+    if (travelType === "departure" && tripEndDate) return tripEndDate;
+    if (tripStartDate) return tripStartDate;
+    return undefined;
+  }, [timeValue, travelType, tripStartDate, tripEndDate]);
+
+  const handleFlightResult = (result: FlightLookupResult, flightNumber: string) => {
+    const isArrival = travelType === "arrival";
+    const airport = isArrival ? result.arrivalAirport : result.departureAirport;
+    const time = isArrival ? result.arrivalTime : result.departureTime;
+    const locationStr = airport.iata
+      ? `${airport.name} (${airport.iata})`
+      : airport.name;
+    form.setValue("location", locationStr);
+    form.setValue("time", time);
+    form.setValue("flightNumber", flightNumber);
+  };
 
   // Reset form when dialog closes
   useEffect(() => {
@@ -308,6 +338,13 @@ export function CreateMemberTravelDialog({
                   </SelectContent>
                 </Select>
               </FormItem>
+
+              {/* Flight Lookup */}
+              <FlightLookupInput
+                date={flightLookupDate}
+                onResult={handleFlightResult}
+                disabled={isPending}
+              />
 
               {/* Time */}
               <FormField

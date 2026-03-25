@@ -57,6 +57,8 @@ import {
   getDeleteMemberTravelErrorMessage,
 } from "@/hooks/use-member-travel";
 import { TIMEZONES } from "@/lib/constants";
+import { FlightLookupInput } from "@/components/itinerary/flight-lookup-input";
+import type { FlightLookupResult } from "@journiful/shared/types";
 
 interface EditMemberTravelDialogProps {
   open: boolean;
@@ -89,11 +91,40 @@ export function EditMemberTravelDialog({
       time: "",
       location: "",
       details: "",
+      flightNumber: "",
     },
   });
 
   const travelType = form.watch("travelType");
   const travelTypeLabel = travelType === "departure" ? "Departure" : "Arrival";
+  const timeValue = form.watch("time");
+
+  // Date for flight lookup: from form time, or existing travel time
+  const flightLookupDate = useMemo(() => {
+    if (timeValue) {
+      try {
+        return new Date(timeValue).toISOString().slice(0, 10);
+      } catch {
+        // fall through
+      }
+    }
+    if (memberTravel.time) {
+      return new Date(memberTravel.time).toISOString().slice(0, 10);
+    }
+    return undefined;
+  }, [timeValue, memberTravel.time]);
+
+  const handleFlightResult = (result: FlightLookupResult, flightNumber: string) => {
+    const isArrival = travelType === "arrival";
+    const airport = isArrival ? result.arrivalAirport : result.departureAirport;
+    const time = isArrival ? result.arrivalTime : result.departureTime;
+    const locationStr = airport.iata
+      ? `${airport.name} (${airport.iata})`
+      : airport.name;
+    form.setValue("location", locationStr);
+    form.setValue("time", time);
+    form.setValue("flightNumber", flightNumber);
+  };
 
   // Pre-populate form with existing member travel data when dialog opens
   useEffect(() => {
@@ -105,6 +136,7 @@ export function EditMemberTravelDialog({
           : "",
         location: memberTravel.location || "",
         details: memberTravel.details || "",
+        flightNumber: memberTravel.flightNumber || "",
       });
       setSelectedTimezone(timezone);
     }
@@ -247,6 +279,14 @@ export function EditMemberTravelDialog({
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Flight Lookup */}
+              <FlightLookupInput
+                date={flightLookupDate}
+                onResult={handleFlightResult}
+                defaultValue={memberTravel.flightNumber || undefined}
+                disabled={isPending || isDeleting}
+              />
 
               {/* Time */}
               <FormField
