@@ -21,6 +21,7 @@ import type { IMutualsService } from "@/services/mutuals.service.js";
 import type { ICalendarService } from "@/services/calendar.service.js";
 import type { IGeocodingService } from "@/services/geocoding.service.js";
 import type { IWeatherService } from "@/services/weather.service.js";
+import type { IFlightService } from "@/services/flight.service.js";
 import type { IPhotoService } from "@/services/photo.service.js";
 import type { IImageProcessingService } from "@/services/image-processing.service.js";
 import type { IStorageService } from "@/services/storage.service.js";
@@ -74,6 +75,7 @@ declare module "fastify" {
     calendarService: ICalendarService;
     geocodingService: IGeocodingService;
     weatherService: IWeatherService;
+    flightService: IFlightService;
     photoService: IPhotoService;
     imageProcessingService: IImageProcessingService;
     storage: IStorageService;
