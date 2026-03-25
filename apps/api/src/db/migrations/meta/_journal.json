@@ -169,6 +169,13 @@
       "when": 1773032304908,
       "tag": "0023_icy_genesis",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1774477047713,
+      "tag": "0024_wandering_vapor",
+      "breakpoints": true
     }
   ]
 }

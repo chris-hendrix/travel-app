@@ -86,6 +86,9 @@ const envSchema = z.object({
     .transform(Number)
     .refine((n) => n > 0, "MAX_FILE_SIZE must be positive")
     .default(5242880),
+  // AeroDataBox Flight Lookup (optional)
+  AERODATABOX_API_KEY: z.string().default(""),
+
   ALLOWED_MIME_TYPES: z
     .string()
     .transform((val) => val.split(",").map((type) => type.trim()))

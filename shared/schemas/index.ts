@@ -167,3 +167,13 @@ export {
   updatePhotoCaptionSchema,
   type UpdatePhotoCaptionInput,
 } from "./photo";
+
+// Re-export flight schemas
+export {
+  flightLookupRequestSchema,
+  flightLookupResultSchema,
+  flightLookupResponseSchema,
+  type FlightLookupRequest,
+  type FlightLookupResult,
+  type FlightLookupResponse,
+} from "./flight";
