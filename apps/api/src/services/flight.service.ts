@@ -112,7 +112,7 @@ export class FlightService implements IFlightService {
         error instanceof DOMException ||
         (error instanceof Error && error.name === "AbortError")
       ) {
-        throw new Error("Flight lookup timed out");
+        throw new Error("Flight lookup timed out", { cause: error });
       }
       throw error;
     }
