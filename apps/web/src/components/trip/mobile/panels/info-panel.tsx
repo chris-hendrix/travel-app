@@ -15,6 +15,8 @@ import { RsvpPills } from "@/components/trip/rsvp-pills";
 import { WeatherForecastCard } from "@/components/itinerary/weather-forecast-card";
 import { AccommodationDetailSheet } from "@/components/itinerary/accommodation-detail-sheet";
 import { EditAccommodationDialog } from "@/components/itinerary/edit-accommodation-dialog";
+import { CreateAccommodationDialog } from "@/components/itinerary/create-accommodation-dialog";
+import { CreateEventDialog } from "@/components/itinerary/create-event-dialog";
 import { canModifyAccommodation } from "@/components/itinerary/utils/permissions";
 import { useAccommodations } from "@/hooks/use-accommodations";
 import { useAuth } from "@/app/providers/auth-provider";
@@ -108,6 +110,8 @@ export function InfoPanel({
   const { data: accommodations } = useAccommodations(tripId);
   const [selectedAccommodation, setSelectedAccommodation] = useState<Accommodation | null>(null);
   const [editingAccommodation, setEditingAccommodation] = useState<Accommodation | null>(null);
+  const [isCreateAccommodationOpen, setIsCreateAccommodationOpen] = useState(false);
+  const [isCreateEventOpen, setIsCreateEventOpen] = useState(false);
 
   // Trip is locked one day after end date
   const isLocked = useMemo(() => {
@@ -280,7 +284,7 @@ export function InfoPanel({
             </div>
           ) : (
             <button
-              onClick={onNavigateToItinerary}
+              onClick={() => setIsCreateAccommodationOpen(true)}
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               + Add accommodation
@@ -298,7 +302,7 @@ export function InfoPanel({
               isLocked={isLocked}
               tripStartDate={trip.startDate}
               tripEndDate={trip.endDate}
-              onAddEvent={onNavigateToItinerary}
+              onAddEvent={() => setIsCreateEventOpen(true)}
             />
           </CollapsibleSection>
         )}
@@ -361,6 +365,26 @@ export function InfoPanel({
           timezone={timezone}
         />
       )}
+
+      {/* Create accommodation dialog */}
+      <CreateAccommodationDialog
+        open={isCreateAccommodationOpen}
+        onOpenChange={setIsCreateAccommodationOpen}
+        tripId={tripId}
+        timezone={timezone}
+        tripStartDate={trip.startDate}
+        tripEndDate={trip.endDate}
+      />
+
+      {/* Create event dialog */}
+      <CreateEventDialog
+        open={isCreateEventOpen}
+        onOpenChange={setIsCreateEventOpen}
+        tripId={tripId}
+        timezone={timezone}
+        tripStartDate={trip.startDate}
+        tripEndDate={trip.endDate}
+      />
     </div>
   );
 }
