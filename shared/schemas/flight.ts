@@ -6,8 +6,8 @@ export const flightLookupRequestSchema = z.object({
     .min(3)
     .max(10)
     .regex(
-      /^[A-Z]{2,3}\d{1,4}$/i,
-      "Format: airline code + number (e.g., UA123)",
+      /^[A-Z\d]{2,3}\d{1,4}$/i,
+      "Format: airline code + number (e.g., UA123, G4123)",
     ),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format: YYYY-MM-DD"),
 });

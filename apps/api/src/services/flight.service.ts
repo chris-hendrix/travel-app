@@ -7,7 +7,7 @@ import type {
 } from "@journiful/shared/types";
 
 const CACHE_MAX_AGE_MS = 3 * 60 * 60 * 1000; // 3 hours
-const FLIGHT_NUMBER_REGEX = /^[A-Z]{2,3}\d{1,4}$/i;
+const FLIGHT_NUMBER_REGEX = /^[A-Z\d]{2,3}\d{1,4}$/i;
 
 export interface IFlightService {
   lookupFlight(

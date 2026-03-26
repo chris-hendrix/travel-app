@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useFlightLookup } from "@/hooks/flight-queries";
 
-const FLIGHT_NUMBER_REGEX = /^[A-Z]{2,3}\d{1,4}$/i;
+const FLIGHT_NUMBER_REGEX = /^[A-Z\d]{2,3}\d{1,4}$/i;
 
 interface FlightLookupInputProps {
   date: string | undefined;
