@@ -14,7 +14,10 @@ import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { RsvpPills } from "@/components/trip/rsvp-pills";
 import { WeatherForecastCard } from "@/components/itinerary/weather-forecast-card";
 import { AccommodationDetailSheet } from "@/components/itinerary/accommodation-detail-sheet";
+import { EditAccommodationDialog } from "@/components/itinerary/edit-accommodation-dialog";
+import { canModifyAccommodation } from "@/components/itinerary/utils/permissions";
 import { useAccommodations } from "@/hooks/use-accommodations";
+import { useAuth } from "@/app/providers/auth-provider";
 import { TodaySection } from "./today-section";
 import { linkifyText } from "@/utils/linkify";
 import { getUploadUrl } from "@/lib/api";
@@ -101,8 +104,18 @@ export function InfoPanel({
     [trip.startDate, trip.endDate, timezone],
   );
 
+  const { user } = useAuth();
   const { data: accommodations } = useAccommodations(tripId);
   const [selectedAccommodation, setSelectedAccommodation] = useState<Accommodation | null>(null);
+  const [editingAccommodation, setEditingAccommodation] = useState<Accommodation | null>(null);
+
+  // Trip is locked one day after end date
+  const isLocked = useMemo(() => {
+    if (!trip.endDate) return false;
+    const end = new Date(trip.endDate);
+    end.setDate(end.getDate() + 1);
+    return new Date() > end;
+  }, [trip.endDate]);
 
   // Summary line: "+N going · Organized by X, Y"
   const goingCount = trip.memberCount;
@@ -316,11 +329,34 @@ export function InfoPanel({
           if (!open) setSelectedAccommodation(null);
         }}
         timezone={timezone}
-        canEdit={false}
-        canDelete={false}
-        onEdit={() => {}}
+        canEdit={
+          selectedAccommodation
+            ? canModifyAccommodation(selectedAccommodation, user?.id ?? "", isOrganizer, isLocked)
+            : false
+        }
+        canDelete={
+          selectedAccommodation
+            ? canModifyAccommodation(selectedAccommodation, user?.id ?? "", isOrganizer, isLocked)
+            : false
+        }
+        onEdit={(acc) => {
+          setSelectedAccommodation(null);
+          setEditingAccommodation(acc);
+        }}
         onDelete={() => setSelectedAccommodation(null)}
       />
+
+      {/* Edit accommodation dialog */}
+      {editingAccommodation && (
+        <EditAccommodationDialog
+          open={!!editingAccommodation}
+          onOpenChange={(open) => {
+            if (!open) setEditingAccommodation(null);
+          }}
+          accommodation={editingAccommodation}
+          timezone={timezone}
+        />
+      )}
     </div>
   );
 }
