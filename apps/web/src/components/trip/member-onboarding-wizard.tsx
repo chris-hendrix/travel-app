@@ -451,7 +451,7 @@ export function MemberOnboardingWizard({
           {step === 1 && (
             <div className="space-y-4">
               <FlightLookupInput
-                date={arrivalLookupDate}
+                defaultDate={arrivalLookupDate}
                 onResult={handleArrivalFlightResult}
                 disabled={isPending}
               />
@@ -488,7 +488,7 @@ export function MemberOnboardingWizard({
           {step === 2 && (
             <div className="space-y-4">
               <FlightLookupInput
-                date={departureLookupDate}
+                defaultDate={departureLookupDate}
                 onResult={handleDepartureFlightResult}
                 disabled={isPending}
               />

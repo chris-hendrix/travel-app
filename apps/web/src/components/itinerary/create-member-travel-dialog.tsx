@@ -96,21 +96,10 @@ export function CreateMemberTravelDialog({
 
   const travelType = form.watch("travelType");
   const travelTypeLabel = travelType === "departure" ? "Departure" : "Arrival";
-  const timeValue = form.watch("time");
 
-  // Date for flight lookup: from form time, or trip start/end date as fallback
-  const flightLookupDate = useMemo(() => {
-    if (timeValue) {
-      try {
-        return new Date(timeValue).toISOString().slice(0, 10);
-      } catch {
-        // fall through
-      }
-    }
-    if (travelType === "departure" && tripEndDate) return tripEndDate;
-    if (tripStartDate) return tripStartDate;
-    return undefined;
-  }, [timeValue, travelType, tripStartDate, tripEndDate]);
+  // Default date for flight lookup: trip end date for departures, start date for arrivals
+  const flightLookupDefaultDate =
+    travelType === "departure" ? (tripEndDate ?? undefined) : (tripStartDate ?? undefined);
 
   const handleFlightResult = (result: FlightLookupResult, flightNumber: string) => {
     const isArrival = travelType === "arrival";
@@ -343,7 +332,7 @@ export function CreateMemberTravelDialog({
 
               {/* Flight Lookup */}
               <FlightLookupInput
-                date={flightLookupDate}
+                defaultDate={flightLookupDefaultDate}
                 onResult={handleFlightResult}
                 disabled={isPending}
               />

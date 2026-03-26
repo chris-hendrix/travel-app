@@ -11,19 +11,21 @@ import { useFlightLookup } from "@/hooks/flight-queries";
 const FLIGHT_NUMBER_REGEX = /^[A-Z\d]{2,3}\d{1,4}$/i;
 
 interface FlightLookupInputProps {
-  date: string | undefined;
+  /** Default date for lookup (YYYY-MM-DD), pre-filled from trip start/end date */
+  defaultDate?: string | undefined;
   onResult: (result: FlightLookupResult, flightNumber: string) => void;
   defaultValue?: string | undefined;
   disabled?: boolean | undefined;
 }
 
 export function FlightLookupInput({
-  date,
+  defaultDate,
   onResult,
   defaultValue,
   disabled,
 }: FlightLookupInputProps) {
   const [value, setValue] = useState(defaultValue || "");
+  const [date, setDate] = useState(defaultDate || "");
   const [notConfigured, setNotConfigured] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { mutate, isPending } = useFlightLookup();
@@ -33,12 +35,14 @@ export function FlightLookupInput({
   }
 
   const isValidFormat = FLIGHT_NUMBER_REGEX.test(value.trim());
-  const canLookup = !!date && value.trim().length > 0 && isValidFormat && !isPending && !disabled;
+  const hasDate = date.length === 10;
+  const canLookup =
+    hasDate && value.trim().length > 0 && isValidFormat && !isPending && !disabled;
 
   const handleLookup = () => {
     setErrorMessage(null);
     mutate(
-      { flightNumber: value.trim(), date: date! },
+      { flightNumber: value.trim(), date },
       {
         onSuccess: (response) => {
           if (!response.available) {
@@ -63,8 +67,8 @@ export function FlightLookupInput({
   };
 
   return (
-    <div className="space-y-1.5">
-      <label className="text-sm font-medium">Flight number</label>
+    <div className="space-y-2">
+      <label className="text-sm font-medium">Flight lookup</label>
       <div className="flex gap-2">
         <Input
           type="text"
@@ -76,6 +80,16 @@ export function FlightLookupInput({
           }}
           disabled={isPending || disabled}
           className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md flex-1"
+        />
+        <Input
+          type="date"
+          value={date}
+          onChange={(e) => {
+            setDate(e.target.value);
+            setErrorMessage(null);
+          }}
+          disabled={isPending || disabled}
+          className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md w-[160px]"
         />
         <Button
           type="button"
@@ -91,6 +105,9 @@ export function FlightLookupInput({
           )}
         </Button>
       </div>
+      <p className="text-sm text-muted-foreground">
+        Enter your flight number and travel date to auto-fill details
+      </p>
       {errorMessage && (
         <p className="text-sm text-destructive">{errorMessage}</p>
       )}
