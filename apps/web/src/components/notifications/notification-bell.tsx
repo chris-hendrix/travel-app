@@ -73,7 +73,7 @@ export function NotificationBell() {
               <span
                 aria-live="polite"
                 key={displayCount}
-                className="absolute -top-1 -right-1 flex min-w-[18px] items-center justify-center rounded-full bg-destructive px-1 text-xs font-medium text-destructive-foreground h-[18px] motion-safe:animate-[badgePulse_600ms_ease-in-out]"
+                className="absolute top-0.5 right-0.5 flex min-w-[16px] items-center justify-center rounded-full bg-destructive px-[3px] text-[10px] font-semibold leading-none text-destructive-foreground h-[16px] ring-2 ring-background motion-safe:animate-[badgePulse_600ms_ease-in-out]"
               >
                 {displayCount}
               </span>
