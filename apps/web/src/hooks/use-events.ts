@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
+import { toast } from "sonner";
 import { apiRequest, APIError } from "@/lib/api";
 import type {
   CreateEventInput,
@@ -551,6 +552,12 @@ export function useDeleteEvent() {
 
       // Return context with previous data for rollback
       return { previousEvents, tripId };
+    },
+
+    // On success: show toast (at hook level so it fires even if the calling
+    // component unmounts when the AlertDialog/Sheet closes)
+    onSuccess: () => {
+      toast.success("Event deleted");
     },
 
     // On error: Rollback optimistic update

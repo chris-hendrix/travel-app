@@ -262,7 +262,7 @@ export function InfoPanel({
         </button>
 
         {/* 3. Accommodations */}
-        {((accommodations && accommodations.length > 0) || isOrganizer) && (
+        {((accommodations && accommodations.length > 0) || (isOrganizer && !isLocked)) && (
           <CollapsibleSection label="Accommodations" defaultOpen>
             {accommodations && accommodations.length > 0 ? (
               <div className="space-y-2">

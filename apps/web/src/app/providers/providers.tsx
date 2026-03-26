@@ -9,7 +9,8 @@ import { AuthProvider } from "./auth-provider";
 import { Toaster } from "@/components/ui/sonner";
 
 const ReactQueryDevtools =
-  process.env.NODE_ENV === "development"
+  process.env.NODE_ENV === "development" &&
+  process.env.NEXT_PUBLIC_DISABLE_DEVTOOLS !== "true"
     ? dynamic(
         () =>
           import("@tanstack/react-query-devtools").then(
