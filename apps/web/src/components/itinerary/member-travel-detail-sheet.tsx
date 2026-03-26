@@ -191,10 +191,16 @@ export function MemberTravelDetailSheet({
 
           {/* Flight number */}
           {memberTravel.flightNumber && (
-            <div className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium">
+            <a
+              href={`https://www.flightaware.com/live/flight/${encodeURIComponent(memberTravel.flightNumber)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium hover:text-primary transition-colors"
+            >
               <Plane className="w-3.5 h-3.5 shrink-0" />
               <span>Flight {memberTravel.flightNumber}</span>
-            </div>
+              <span className="text-xs text-muted-foreground opacity-60">FlightAware</span>
+            </a>
           )}
 
           {/* Location */}

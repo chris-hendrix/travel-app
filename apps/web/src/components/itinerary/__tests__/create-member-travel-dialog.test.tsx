@@ -137,7 +137,8 @@ describe("CreateMemberTravelDialog", () => {
         />,
       );
 
-      expect(screen.getByRole("radio", { name: /arrival/i })).toBeDefined();
+      expect(screen.getByText("Arrival")).toBeDefined();
+      expect(screen.getByText("Departure")).toBeDefined();
       expect(
         screen.getByRole("button", { name: /travel time/i }),
       ).toBeDefined();
@@ -154,7 +155,6 @@ describe("CreateMemberTravelDialog", () => {
       );
 
       expect(screen.getByLabelText(/location/i)).toBeDefined();
-      expect(screen.getByRole("textbox", { name: /details/i })).toBeDefined();
     });
 
     it("shows required field indicators", () => {
@@ -183,8 +183,9 @@ describe("CreateMemberTravelDialog", () => {
         />,
       );
 
-      const arrivalRadio = screen.getByRole("radio", { name: /arrival/i });
-      expect(arrivalRadio.getAttribute("data-state")).toBe("checked");
+      // Arrival button should have selected styling (border-primary)
+      const arrivalButton = screen.getByText("Arrival").closest("button")!;
+      expect(arrivalButton.className).toContain("border-primary");
     });
 
     it("allows selecting departure", async () => {
@@ -198,10 +199,10 @@ describe("CreateMemberTravelDialog", () => {
         />,
       );
 
-      const departureRadio = screen.getByRole("radio", { name: /departure/i });
-      await user.click(departureRadio);
+      const departureButton = screen.getByText("Departure").closest("button")!;
+      await user.click(departureButton);
 
-      expect(departureRadio.getAttribute("data-state")).toBe("checked");
+      expect(departureButton.className).toContain("border-primary");
     });
   });
 
@@ -265,7 +266,7 @@ describe("CreateMemberTravelDialog", () => {
   });
 
   describe("Details field", () => {
-    it("allows entering details text", async () => {
+    it("allows entering details text after expanding More details", async () => {
       const user = userEvent.setup();
       renderWithQueryClient(
         <CreateMemberTravelDialog
@@ -276,12 +277,15 @@ describe("CreateMemberTravelDialog", () => {
         />,
       );
 
+      // Expand the collapsible section
+      await user.click(screen.getByText("More details"));
+
       const detailsInput = screen.getByRole("textbox", {
         name: /details/i,
       }) as HTMLTextAreaElement;
-      await user.type(detailsInput, "Flight AA123");
+      await user.type(detailsInput, "Terminal B, Gate 12");
 
-      expect(detailsInput.value).toBe("Flight AA123");
+      expect(detailsInput.value).toBe("Terminal B, Gate 12");
     });
 
     it("shows character counter at 400+ characters", async () => {
@@ -294,6 +298,9 @@ describe("CreateMemberTravelDialog", () => {
           timezone="America/New_York"
         />,
       );
+
+      // Expand the collapsible section
+      await user.click(screen.getByText("More details"));
 
       const detailsInput = screen.getByRole("textbox", {
         name: /details/i,

@@ -3,13 +3,14 @@
 import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
+import { Globe, Loader2, PlaneLanding, PlaneTakeoff } from "lucide-react";
 import { toast } from "sonner";
 import { parse } from "date-fns";
 import {
   createMemberTravelSchema,
   type CreateMemberTravelInput,
 } from "@journiful/shared/schemas";
+import type { MemberTravel } from "@journiful/shared/types";
 import {
   Sheet,
   SheetBody,
@@ -38,9 +39,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import {
   useCreateMemberTravel,
   getCreateMemberTravelErrorMessage,
@@ -49,9 +49,14 @@ import { useAuth } from "@/app/providers/auth-provider";
 import { useMembers } from "@/hooks/use-invitations";
 import { getInitials } from "@/lib/format";
 import { getUploadUrl } from "@/lib/api";
-import { TIMEZONES } from "@/lib/constants";
+import { TIMEZONES, getTimezoneLabel } from "@/lib/constants";
 import { FlightLookupInput } from "@/components/itinerary/flight-lookup-input";
 import type { FlightLookupResult } from "@journiful/shared/types";
+
+const TRAVEL_TYPES = [
+  { value: "arrival", label: "Arrival", icon: PlaneLanding },
+  { value: "departure", label: "Departure", icon: PlaneTakeoff },
+] as const;
 
 interface CreateMemberTravelDialogProps {
   open: boolean;
@@ -62,6 +67,8 @@ interface CreateMemberTravelDialogProps {
   onSuccess?: () => void;
   tripStartDate?: string | null | undefined;
   tripEndDate?: string | null | undefined;
+  /** Existing member travels for smart defaulting */
+  existingTravels?: MemberTravel[];
 }
 
 export function CreateMemberTravelDialog({
@@ -73,6 +80,7 @@ export function CreateMemberTravelDialog({
   onSuccess,
   tripStartDate,
   tripEndDate,
+  existingTravels,
 }: CreateMemberTravelDialogProps) {
   const { mutate: createMemberTravel, isPending } = useCreateMemberTravel();
   const { user } = useAuth();
@@ -83,10 +91,20 @@ export function CreateMemberTravelDialog({
   // Find the current user's member record
   const currentMember = members?.find((m) => m.userId === user?.id);
 
+  // Smart default: if user already has an arrival, default to departure and vice versa
+  const defaultTravelType = useMemo(() => {
+    if (!existingTravels || !user?.id) return "arrival";
+    const userTravels = existingTravels.filter((t) => t.userId === user.id);
+    const hasArrival = userTravels.some((t) => t.travelType === "arrival");
+    const hasDeparture = userTravels.some((t) => t.travelType === "departure");
+    if (hasArrival && !hasDeparture) return "departure";
+    return "arrival";
+  }, [existingTravels, user?.id]);
+
   const form = useForm<CreateMemberTravelInput>({
     resolver: zodResolver(createMemberTravelSchema),
     defaultValues: {
-      travelType: "arrival",
+      travelType: defaultTravelType,
       time: "",
       location: "",
       details: "",
@@ -115,14 +133,14 @@ export function CreateMemberTravelDialog({
     form.setValue("flightNumber", flightNumber);
   };
 
-  // Reset form when dialog closes
+  // Reset form when dialog opens/closes
   useEffect(() => {
     if (!open) {
-      form.reset();
+      form.reset({ travelType: defaultTravelType, time: "", location: "", details: "", flightNumber: "" });
       setSelectedTimezone(timezone);
       setSelectedMemberId("self");
     }
-  }, [open, form, timezone]);
+  }, [open, form, timezone, defaultTravelType]);
 
   // Trip-aware defaults
   const tripStartMonth = useMemo(() => {
@@ -264,77 +282,44 @@ export function CreateMemberTravelDialog({
                 control={form.control}
                 name="travelType"
                 render={({ field }) => (
-                  <FormItem className="space-y-3">
+                  <FormItem>
                     <FormLabel className="text-base font-semibold text-foreground">
                       Travel type
                       <span className="text-destructive ml-1">*</span>
                     </FormLabel>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        value={field.value}
-                        disabled={isPending}
-                        className="flex gap-4"
-                        aria-required="true"
-                      >
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="arrival" id="travel-arrival" />
-                          <Label
-                            htmlFor="travel-arrival"
-                            className="text-sm font-medium cursor-pointer"
-                          >
-                            Arrival
-                          </Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem
-                            value="departure"
-                            id="travel-departure"
-                          />
-                          <Label
-                            htmlFor="travel-departure"
-                            className="text-sm font-medium cursor-pointer"
-                          >
-                            Departure
-                          </Label>
-                        </div>
-                      </RadioGroup>
-                    </FormControl>
+                    <div className="grid grid-cols-2 gap-3">
+                      {TRAVEL_TYPES.map((type) => (
+                        <button
+                          key={type.value}
+                          type="button"
+                          disabled={isPending}
+                          onClick={() => field.onChange(type.value)}
+                          className={`p-3 rounded-lg border-2 flex flex-col items-center cursor-pointer transition-colors ${
+                            field.value === type.value
+                              ? "border-primary bg-primary/10"
+                              : "border-border hover:border-muted-foreground"
+                          }`}
+                        >
+                          <type.icon className="w-5 h-5" />
+                          <div className="text-sm font-medium mt-1">
+                            {type.label}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              {/* Timezone */}
-              <FormItem>
-                <FormLabel className="text-base font-semibold text-foreground">
-                  Timezone
-                </FormLabel>
-                <Select
-                  value={selectedTimezone}
-                  onValueChange={setSelectedTimezone}
-                  disabled={isPending}
-                >
-                  <FormControl>
-                    <SelectTrigger className="h-12 text-base rounded-md">
-                      <SelectValue />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {TIMEZONES.map((tz) => (
-                      <SelectItem key={tz.value} value={tz.value}>
-                        {tz.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormItem>
-
-              {/* Flight Lookup */}
+              {/* Flight Number + Lookup */}
               <FlightLookupInput
                 defaultDate={flightLookupDefaultDate}
                 onResult={handleFlightResult}
+                onFlightNumberChange={(fn) => form.setValue("flightNumber", fn)}
                 disabled={isPending}
+                defaultMonth={travelType === "departure" ? tripEndMonth : tripStartMonth}
+                tripRange={tripRange}
               />
 
               {/* Time */}
@@ -343,10 +328,16 @@ export function CreateMemberTravelDialog({
                 name="time"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-base font-semibold text-foreground">
-                      {travelTypeLabel} time
-                      <span className="text-destructive ml-1">*</span>
-                    </FormLabel>
+                    <div className="flex items-center justify-between">
+                      <FormLabel className="text-base font-semibold text-foreground">
+                        {travelTypeLabel} time
+                        <span className="text-destructive ml-1">*</span>
+                      </FormLabel>
+                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                        <Globe className="w-3 h-3" />
+                        {getTimezoneLabel(selectedTimezone)}
+                      </span>
+                    </div>
                     <FormControl>
                       <DateTimePicker
                         value={field.value || ""}
@@ -394,41 +385,71 @@ export function CreateMemberTravelDialog({
                 )}
               />
 
-              {/* Details */}
-              <FormField
-                control={form.control}
-                name="details"
-                render={({ field }) => {
-                  const charCount = field.value?.length || 0;
-                  const showCounter = charCount >= 400;
-
-                  return (
-                    <FormItem>
-                      <FormLabel className="text-base font-semibold text-foreground">
-                        Details
-                      </FormLabel>
+              {/* More details */}
+              <CollapsibleSection label="More details">
+                <div className="space-y-6">
+                  {/* Timezone */}
+                  <FormItem>
+                    <FormLabel className="text-base font-semibold text-foreground">
+                      Timezone
+                    </FormLabel>
+                    <Select
+                      value={selectedTimezone}
+                      onValueChange={setSelectedTimezone}
+                      disabled={isPending}
+                    >
                       <FormControl>
-                        <Textarea
-                          placeholder="Flight number, terminal, or other relevant details..."
-                          className="h-32 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md resize-none"
-                          disabled={isPending}
-                          {...field}
-                          value={field.value || ""}
-                        />
+                        <SelectTrigger className="h-12 text-base rounded-md">
+                          <SelectValue />
+                        </SelectTrigger>
                       </FormControl>
-                      {showCounter && (
-                        <div className="text-xs text-muted-foreground text-right">
-                          {charCount} / 500 characters
-                        </div>
-                      )}
-                      <FormDescription className="text-sm text-muted-foreground">
-                        Optional: Share additional travel details
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  );
-                }}
-              />
+                      <SelectContent>
+                        {TIMEZONES.map((tz) => (
+                          <SelectItem key={tz.value} value={tz.value}>
+                            {tz.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+
+                  {/* Details */}
+                  <FormField
+                    control={form.control}
+                    name="details"
+                    render={({ field }) => {
+                      const charCount = field.value?.length || 0;
+                      const showCounter = charCount >= 400;
+
+                      return (
+                        <FormItem>
+                          <FormLabel className="text-base font-semibold text-foreground">
+                            Details
+                          </FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Terminal info, ride arrangements, or other notes..."
+                              className="h-32 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md resize-none"
+                              disabled={isPending}
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          {showCounter && (
+                            <div className="text-xs text-muted-foreground text-right">
+                              {charCount} / 500 characters
+                            </div>
+                          )}
+                          <FormDescription className="text-sm text-muted-foreground">
+                            Optional: Share additional travel details
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
+                  />
+                </div>
+              </CollapsibleSection>
 
               {/* Action Buttons */}
               <div className="flex gap-4 pt-4">

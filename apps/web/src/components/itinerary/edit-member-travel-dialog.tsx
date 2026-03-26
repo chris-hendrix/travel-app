@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Trash2 } from "lucide-react";
+import { Globe, Loader2, PlaneLanding, PlaneTakeoff, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { parse } from "date-fns";
 import {
@@ -50,15 +50,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import {
   useUpdateMemberTravel,
   getUpdateMemberTravelErrorMessage,
   useDeleteMemberTravel,
   getDeleteMemberTravelErrorMessage,
 } from "@/hooks/use-member-travel";
-import { TIMEZONES } from "@/lib/constants";
+import { TIMEZONES, getTimezoneLabel } from "@/lib/constants";
 import { FlightLookupInput } from "@/components/itinerary/flight-lookup-input";
 import type { FlightLookupResult } from "@journiful/shared/types";
+
+const TRAVEL_TYPES = [
+  { value: "arrival", label: "Arrival", icon: PlaneLanding },
+  { value: "departure", label: "Departure", icon: PlaneTakeoff },
+] as const;
 
 interface EditMemberTravelDialogProps {
   open: boolean;
@@ -207,76 +213,45 @@ export function EditMemberTravelDialog({
                 control={form.control}
                 name="travelType"
                 render={({ field }) => (
-                  <FormItem className="space-y-3">
+                  <FormItem>
                     <FormLabel className="text-base font-semibold text-foreground">
                       Travel type
                       <span className="text-destructive ml-1">*</span>
                     </FormLabel>
-                    <FormControl>
-                      <div
-                        className="flex gap-4"
-                        role="radiogroup"
-                        aria-label="Travel type"
-                        aria-required="true"
-                      >
-                        <label className="flex items-center space-x-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            value="arrival"
-                            checked={field.value === "arrival"}
-                            onChange={() => field.onChange("arrival")}
-                            disabled={isPending || isDeleting}
-                            className="w-4 h-4"
-                          />
-                          <span className="text-sm font-medium">Arrival</span>
-                        </label>
-                        <label className="flex items-center space-x-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            value="departure"
-                            checked={field.value === "departure"}
-                            onChange={() => field.onChange("departure")}
-                            disabled={isPending || isDeleting}
-                            className="w-4 h-4"
-                          />
-                          <span className="text-sm font-medium">Departure</span>
-                        </label>
-                      </div>
-                    </FormControl>
+                    <div className="grid grid-cols-2 gap-3">
+                      {TRAVEL_TYPES.map((type) => (
+                        <button
+                          key={type.value}
+                          type="button"
+                          disabled={isPending || isDeleting}
+                          onClick={() => field.onChange(type.value)}
+                          className={`p-3 rounded-lg border-2 flex flex-col items-center cursor-pointer transition-colors ${
+                            field.value === type.value
+                              ? "border-primary bg-primary/10"
+                              : "border-border hover:border-muted-foreground"
+                          }`}
+                        >
+                          <type.icon className="w-5 h-5" />
+                          <div className="text-sm font-medium mt-1">
+                            {type.label}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              {/* Timezone */}
-              <div>
-                <label className="text-base font-semibold text-foreground">
-                  Timezone
-                </label>
-                <Select
-                  value={selectedTimezone}
-                  onValueChange={setSelectedTimezone}
-                  disabled={isPending || isDeleting}
-                >
-                  <SelectTrigger className="h-12 text-base rounded-md mt-2">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIMEZONES.map((tz) => (
-                      <SelectItem key={tz.value} value={tz.value}>
-                        {tz.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Flight Lookup */}
+              {/* Flight Number + Lookup */}
               <FlightLookupInput
                 defaultDate={flightLookupDefaultDate}
                 onResult={handleFlightResult}
+                onFlightNumberChange={(fn) => form.setValue("flightNumber", fn)}
                 defaultValue={memberTravel.flightNumber || undefined}
                 disabled={isPending || isDeleting}
+                defaultMonth={travelType === "departure" ? tripEndMonth : tripStartMonth}
+                tripRange={tripRange}
               />
 
               {/* Time */}
@@ -285,10 +260,16 @@ export function EditMemberTravelDialog({
                 name="time"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-base font-semibold text-foreground">
-                      {travelTypeLabel} time
-                      <span className="text-destructive ml-1">*</span>
-                    </FormLabel>
+                    <div className="flex items-center justify-between">
+                      <FormLabel className="text-base font-semibold text-foreground">
+                        {travelTypeLabel} time
+                        <span className="text-destructive ml-1">*</span>
+                      </FormLabel>
+                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                        <Globe className="w-3 h-3" />
+                        {getTimezoneLabel(selectedTimezone)}
+                      </span>
+                    </div>
                     <FormControl>
                       <DateTimePicker
                         value={field.value || ""}
@@ -336,41 +317,71 @@ export function EditMemberTravelDialog({
                 )}
               />
 
-              {/* Details */}
-              <FormField
-                control={form.control}
-                name="details"
-                render={({ field }) => {
-                  const charCount = field.value?.length || 0;
-                  const showCounter = charCount >= 400;
-
-                  return (
-                    <FormItem>
-                      <FormLabel className="text-base font-semibold text-foreground">
-                        Details
-                      </FormLabel>
+              {/* More details */}
+              <CollapsibleSection label="More details" defaultOpen={!!memberTravel.details}>
+                <div className="space-y-6">
+                  {/* Timezone */}
+                  <FormItem>
+                    <FormLabel className="text-base font-semibold text-foreground">
+                      Timezone
+                    </FormLabel>
+                    <Select
+                      value={selectedTimezone}
+                      onValueChange={setSelectedTimezone}
+                      disabled={isPending || isDeleting}
+                    >
                       <FormControl>
-                        <Textarea
-                          placeholder="Flight number, terminal, or other relevant details..."
-                          className="h-32 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md resize-none"
-                          disabled={isPending || isDeleting}
-                          {...field}
-                          value={field.value || ""}
-                        />
+                        <SelectTrigger className="h-12 text-base rounded-md">
+                          <SelectValue />
+                        </SelectTrigger>
                       </FormControl>
-                      {showCounter && (
-                        <div className="text-xs text-muted-foreground text-right">
-                          {charCount} / 500 characters
-                        </div>
-                      )}
-                      <FormDescription className="text-sm text-muted-foreground">
-                        Optional: Share additional travel details
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  );
-                }}
-              />
+                      <SelectContent>
+                        {TIMEZONES.map((tz) => (
+                          <SelectItem key={tz.value} value={tz.value}>
+                            {tz.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+
+                  {/* Details */}
+                  <FormField
+                    control={form.control}
+                    name="details"
+                    render={({ field }) => {
+                      const charCount = field.value?.length || 0;
+                      const showCounter = charCount >= 400;
+
+                      return (
+                        <FormItem>
+                          <FormLabel className="text-base font-semibold text-foreground">
+                            Details
+                          </FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Terminal info, ride arrangements, or other notes..."
+                              className="h-32 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md resize-none"
+                              disabled={isPending || isDeleting}
+                              {...field}
+                              value={field.value || ""}
+                            />
+                          </FormControl>
+                          {showCounter && (
+                            <div className="text-xs text-muted-foreground text-right">
+                              {charCount} / 500 characters
+                            </div>
+                          )}
+                          <FormDescription className="text-sm text-muted-foreground">
+                            Optional: Share additional travel details
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
+                  />
+                </div>
+              </CollapsibleSection>
 
               {/* Action Buttons */}
               <div className="flex gap-4 pt-4">
