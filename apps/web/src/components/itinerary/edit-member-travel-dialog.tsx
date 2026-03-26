@@ -122,7 +122,9 @@ export function EditMemberTravelDialog({
       ? `${airport.name} (${airport.iata})`
       : airport.name;
     form.setValue("location", locationStr);
-    form.setValue("time", time);
+    // Convert to full UTC ISO string for Zod .datetime() validation and DateTimePicker
+    const utcIso = new Date(time).toISOString();
+    form.setValue("time", utcIso);
     form.setValue("flightNumber", flightNumber);
   };
 

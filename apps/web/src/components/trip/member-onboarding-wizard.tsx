@@ -154,7 +154,7 @@ export function MemberOnboardingWizard({
       ? `${airport.name} (${airport.iata})`
       : airport.name;
     setArrivalLocationValue(locationStr);
-    setArrivalDateValue(result.arrivalTime);
+    setArrivalDateValue(new Date(result.arrivalTime).toISOString());
     setArrivalFlightNumber(flightNumber);
   };
 
@@ -164,7 +164,7 @@ export function MemberOnboardingWizard({
       ? `${airport.name} (${airport.iata})`
       : airport.name;
     setDepartureLocationValue(locationStr);
-    setDepartureDateValue(result.departureTime);
+    setDepartureDateValue(new Date(result.departureTime).toISOString());
     setDepartureFlightNumber(flightNumber);
   };
 
