@@ -262,35 +262,37 @@ export function InfoPanel({
         </button>
 
         {/* 3. Accommodations */}
-        <CollapsibleSection label="Accommodations" defaultOpen>
-          {accommodations && accommodations.length > 0 ? (
-            <div className="space-y-2">
-              {accommodations.map((acc) => (
-                <button
-                  key={acc.id}
-                  onClick={() => setSelectedAccommodation(acc)}
-                  className="w-full text-left bg-card linen-texture border border-border rounded-md p-3 hover:bg-accent/50 transition-colors cursor-pointer"
-                >
-                  <div className="flex items-center gap-2">
-                    <Building2 className="size-4 text-muted-foreground shrink-0" />
-                    <span className="font-medium text-sm truncate">{acc.name}</span>
-                  </div>
-                  <div className="text-sm text-muted-foreground truncate mt-0.5 pl-6">
-                    {formatDateRange(acc.checkIn, acc.checkOut, timezone)}
-                    {acc.address ? ` · ${acc.address}` : ""}
-                  </div>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <button
-              onClick={() => setIsCreateAccommodationOpen(true)}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              + Add accommodation
-            </button>
-          )}
-        </CollapsibleSection>
+        {((accommodations && accommodations.length > 0) || isOrganizer) && (
+          <CollapsibleSection label="Accommodations" defaultOpen>
+            {accommodations && accommodations.length > 0 ? (
+              <div className="space-y-2">
+                {accommodations.map((acc) => (
+                  <button
+                    key={acc.id}
+                    onClick={() => setSelectedAccommodation(acc)}
+                    className="w-full text-left bg-card linen-texture border border-border rounded-md p-3 hover:bg-accent/50 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Building2 className="size-4 text-muted-foreground shrink-0" />
+                      <span className="font-medium text-sm truncate">{acc.name}</span>
+                    </div>
+                    <div className="text-sm text-muted-foreground truncate mt-0.5 pl-6">
+                      {formatDateRange(acc.checkIn, acc.checkOut, timezone)}
+                      {acc.address ? ` · ${acc.address}` : ""}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsCreateAccommodationOpen(true)}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                + Add accommodation
+              </button>
+            )}
+          </CollapsibleSection>
+        )}
 
         {/* 4. Today section (only during trip) */}
         {phase === "duringTrip" && (
@@ -302,7 +304,9 @@ export function InfoPanel({
               isLocked={isLocked}
               tripStartDate={trip.startDate}
               tripEndDate={trip.endDate}
-              onAddEvent={() => setIsCreateEventOpen(true)}
+              {...(isOrganizer || trip.allowMembersToAddEvents
+                ? { onAddEvent: () => setIsCreateEventOpen(true) }
+                : {})}
             />
           </CollapsibleSection>
         )}
