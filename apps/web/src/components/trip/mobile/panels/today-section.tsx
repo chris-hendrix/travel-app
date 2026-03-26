@@ -11,11 +11,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 interface TodaySectionProps {
   tripId: string;
   timezone: string;
+  onAddEvent?: () => void;
 }
 
 export function TodaySection({
   tripId,
   timezone,
+  onAddEvent,
 }: TodaySectionProps) {
   const { data: events, isPending: eventsLoading } = useEvents(tripId);
 
@@ -77,8 +79,17 @@ export function TodaySection({
   const isLoading = eventsLoading;
   const isEmpty = !isLoading && sortedEvents.length === 0;
 
-  // Return null if no events today (parent handles conditional rendering)
-  if (!isLoading && isEmpty) return null;
+  // Show "add event" link if no events today
+  if (!isLoading && isEmpty) {
+    return onAddEvent ? (
+      <button
+        onClick={onAddEvent}
+        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        + Add an event
+      </button>
+    ) : null;
+  }
 
   return (
     <div>

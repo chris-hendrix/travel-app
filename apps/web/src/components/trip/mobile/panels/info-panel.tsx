@@ -245,8 +245,8 @@ export function InfoPanel({
         </button>
 
         {/* 3. Accommodations */}
-        {accommodations && accommodations.length > 0 && (
-          <CollapsibleSection label="Accommodations" defaultOpen>
+        <CollapsibleSection label="Accommodations" defaultOpen>
+          {accommodations && accommodations.length > 0 ? (
             <div className="space-y-2">
               {accommodations.map((acc) => (
                 <button
@@ -265,8 +265,15 @@ export function InfoPanel({
                 </button>
               ))}
             </div>
-          </CollapsibleSection>
-        )}
+          ) : (
+            <button
+              onClick={onNavigateToItinerary}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              + Add accommodation
+            </button>
+          )}
+        </CollapsibleSection>
 
         {/* 4. Today section (only during trip) */}
         {phase === "duringTrip" && (
@@ -274,6 +281,7 @@ export function InfoPanel({
             <TodaySection
               tripId={tripId}
               timezone={timezone}
+              onAddEvent={onNavigateToItinerary}
             />
           </CollapsibleSection>
         )}
