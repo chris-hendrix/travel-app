@@ -141,14 +141,18 @@ export function ItineraryHeader({
       {mounted &&
         hasAnyAction &&
         !isLocked &&
-        !hideFab &&
         createPortal(
           <DropdownMenu open={fabOpen} onOpenChange={setFabOpen}>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="gradient"
-                className="fixed bottom-safe-6 right-6 sm:bottom-safe-8 sm:right-8 z-50 rounded-full w-14 h-14 shadow-lg"
+                className={`fixed bottom-16 right-6 sm:bottom-safe-8 sm:right-8 z-50 rounded-full w-14 h-14 shadow-lg transition-all duration-300 ease-out ${
+                  hideFab
+                    ? "opacity-0 scale-75 pointer-events-none"
+                    : "opacity-100 scale-100"
+                }`}
                 aria-label="Add to itinerary"
+                tabIndex={hideFab ? -1 : undefined}
               >
                 <Plus
                   className={`w-6 h-6 transition-transform duration-200 ${fabOpen ? "rotate-45" : ""}`}
