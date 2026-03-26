@@ -284,12 +284,15 @@ export function InfoPanel({
                 ))}
               </div>
             ) : (
-              <button
-                onClick={() => setIsCreateAccommodationOpen(true)}
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                + Add accommodation
-              </button>
+              <p className="text-sm text-muted-foreground">
+                No accommodations.{" "}
+                <button
+                  onClick={() => setIsCreateAccommodationOpen(true)}
+                  className="text-primary hover:underline transition-colors"
+                >
+                  Add one
+                </button>
+              </p>
             )}
           </CollapsibleSection>
         )}
@@ -304,7 +307,7 @@ export function InfoPanel({
               isLocked={isLocked}
               tripStartDate={trip.startDate}
               tripEndDate={trip.endDate}
-              {...(isOrganizer || trip.allowMembersToAddEvents
+              {...(isOrganizer
                 ? { onAddEvent: () => setIsCreateEventOpen(true) }
                 : {})}
             />

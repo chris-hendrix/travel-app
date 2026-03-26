@@ -94,12 +94,15 @@ export function TodaySection({
   // Show "add event" link if no events today
   if (!isLoading && isEmpty) {
     return onAddEvent ? (
-      <button
-        onClick={onAddEvent}
-        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        + Add an event
-      </button>
+      <p className="text-sm text-muted-foreground">
+        No events today.{" "}
+        <button
+          onClick={onAddEvent}
+          className="text-primary hover:underline transition-colors"
+        >
+          Add one
+        </button>
+      </p>
     ) : null;
   }
 
