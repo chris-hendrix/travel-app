@@ -90,7 +90,7 @@ export function TodaySection({
       )}
 
       {!isLoading && !isEmpty && (
-        <div className="rounded-md border border-border divide-y divide-border">
+        <div className="bg-card linen-texture rounded-md border border-border divide-y divide-border">
           {sortedEvents.map((event) => {
             const config = EVENT_TYPE_CONFIG[event.eventType];
             const Icon = config.icon;

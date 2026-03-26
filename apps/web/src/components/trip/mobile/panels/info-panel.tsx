@@ -252,7 +252,7 @@ export function InfoPanel({
                 <button
                   key={acc.id}
                   onClick={() => setSelectedAccommodation(acc)}
-                  className="w-full text-left border border-border rounded-md p-3 hover:bg-accent/50 transition-colors cursor-pointer"
+                  className="w-full text-left bg-card linen-texture border border-border rounded-md p-3 hover:bg-accent/50 transition-colors cursor-pointer"
                 >
                   <div className="flex items-center gap-2">
                     <Building2 className="size-4 text-muted-foreground shrink-0" />
