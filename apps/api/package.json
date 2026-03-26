@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsup",
-    "start": "drizzle-kit migrate && node dist/server.js",
+    "start": "node dist/server.js",
     "lint": "eslint --config ../../eslint.config.js .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
