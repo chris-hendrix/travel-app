@@ -506,11 +506,25 @@ export function useDeleteAccommodation() {
       // Cancel any outgoing refetches to avoid overwriting our optimistic update
       await queryClient.cancelQueries({ queryKey: accommodationKeys.lists() });
 
-      // Get the accommodation to find its tripId
-      const accommodation = queryClient.getQueryData<Accommodation>(
+      // Get the accommodation to find its tripId (check detail cache first, then list caches)
+      let tripId: string | undefined;
+      const cached = queryClient.getQueryData<Accommodation>(
         accommodationKeys.detail(accommodationId),
       );
-      const tripId = accommodation?.tripId;
+      if (cached) {
+        tripId = cached.tripId;
+      } else {
+        const listQueries = queryClient.getQueriesData<Accommodation[]>({
+          queryKey: accommodationKeys.lists(),
+        });
+        for (const [, list] of listQueries) {
+          const found = list?.find((a) => a.id === accommodationId);
+          if (found) {
+            tripId = found.tripId;
+            break;
+          }
+        }
+      }
 
       // Snapshot the previous value for rollback
       let previousAccommodations: Accommodation[] | undefined;
@@ -647,11 +661,25 @@ export function useRestoreAccommodation() {
         queryKey: accommodationKeys.lists(),
       });
 
-      // Get the accommodation to find its tripId
-      const accommodation = queryClient.getQueryData<Accommodation>(
+      // Get the accommodation to find its tripId (check detail cache first, then list caches)
+      let tripId: string | undefined;
+      const cached = queryClient.getQueryData<Accommodation>(
         accommodationKeys.detail(accommodationId),
       );
-      const tripId = accommodation?.tripId;
+      if (cached) {
+        tripId = cached.tripId;
+      } else {
+        const listQueries = queryClient.getQueriesData<Accommodation[]>({
+          queryKey: accommodationKeys.lists(),
+        });
+        for (const [, list] of listQueries) {
+          const found = list?.find((a) => a.id === accommodationId);
+          if (found) {
+            tripId = found.tripId;
+            break;
+          }
+        }
+      }
 
       // Snapshot the previous value for rollback
       let previousAccommodations: Accommodation[] | undefined;

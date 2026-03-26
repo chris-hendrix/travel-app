@@ -139,8 +139,6 @@ export function MobileTripLayout({
       scope="page"
     >
       <div className="h-[calc(100dvh-3.5rem)] flex flex-col bg-background overflow-hidden">
-        <IconStrip activeIndex={activeIndex} onIconClick={handleIconClick} />
-
         <AnimatedHero
           trip={trip}
           collapseProgress={collapseT}
@@ -191,6 +189,8 @@ export function MobileTripLayout({
             />
           </MobileTripSwiper>
         </div>
+
+        <IconStrip activeIndex={activeIndex} onIconClick={handleIconClick} />
 
         {/* Modals/Sheets — same as desktop, portaled */}
         {isOrganizer && trip && (

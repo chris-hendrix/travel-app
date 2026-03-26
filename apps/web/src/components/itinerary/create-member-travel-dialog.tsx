@@ -50,6 +50,8 @@ import { useMembers } from "@/hooks/use-invitations";
 import { getInitials } from "@/lib/format";
 import { getUploadUrl } from "@/lib/api";
 import { TIMEZONES } from "@/lib/constants";
+import { FlightLookupInput } from "@/components/itinerary/flight-lookup-input";
+import type { FlightLookupResult } from "@journiful/shared/types";
 
 interface CreateMemberTravelDialogProps {
   open: boolean;
@@ -88,11 +90,30 @@ export function CreateMemberTravelDialog({
       time: "",
       location: "",
       details: "",
+      flightNumber: "",
     },
   });
 
   const travelType = form.watch("travelType");
   const travelTypeLabel = travelType === "departure" ? "Departure" : "Arrival";
+
+  // Default date for flight lookup: trip end date for departures, start date for arrivals
+  const flightLookupDefaultDate =
+    travelType === "departure" ? (tripEndDate ?? undefined) : (tripStartDate ?? undefined);
+
+  const handleFlightResult = (result: FlightLookupResult, flightNumber: string) => {
+    const isArrival = travelType === "arrival";
+    const airport = isArrival ? result.arrivalAirport : result.departureAirport;
+    const time = isArrival ? result.arrivalTime : result.departureTime;
+    const locationStr = airport.iata
+      ? `${airport.name} (${airport.iata})`
+      : airport.name;
+    form.setValue("location", locationStr);
+    // Convert to full UTC ISO string for Zod .datetime() validation and DateTimePicker
+    const utcIso = new Date(time).toISOString();
+    form.setValue("time", utcIso);
+    form.setValue("flightNumber", flightNumber);
+  };
 
   // Reset form when dialog closes
   useEffect(() => {
@@ -308,6 +329,13 @@ export function CreateMemberTravelDialog({
                   </SelectContent>
                 </Select>
               </FormItem>
+
+              {/* Flight Lookup */}
+              <FlightLookupInput
+                defaultDate={flightLookupDefaultDate}
+                onResult={handleFlightResult}
+                disabled={isPending}
+              />
 
               {/* Time */}
               <FormField

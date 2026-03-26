@@ -292,6 +292,7 @@ export const memberTravel = pgTable(
     time: timestamp("time", { withTimezone: true }).notNull(),
     location: text("location"),
     details: text("details"),
+    flightNumber: text("flight_number"),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     deletedBy: uuid("deleted_by").references(() => users.id),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -581,6 +582,29 @@ export const weatherCache = pgTable("weather_cache", {
 
 export type WeatherCache = typeof weatherCache.$inferSelect;
 export type NewWeatherCache = typeof weatherCache.$inferInsert;
+
+// Flight Cache
+export const flightCache = pgTable(
+  "flight_cache",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    flightNumber: text("flight_number").notNull(),
+    date: date("date").notNull(),
+    response: jsonb("response"),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    unique("flight_cache_flight_number_date_unique").on(
+      table.flightNumber,
+      table.date,
+    ),
+  ],
+);
+
+export type FlightCache = typeof flightCache.$inferSelect;
+export type NewFlightCache = typeof flightCache.$inferInsert;
 
 // Trip Photos
 export const photoStatusEnum = pgEnum("photo_status", [

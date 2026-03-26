@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
+import { toast } from "sonner";
 import { apiRequest, APIError } from "@/lib/api";
 import type {
   CreateEventInput,
@@ -515,9 +516,23 @@ export function useDeleteEvent() {
       // Cancel any outgoing refetches to avoid overwriting our optimistic update
       await queryClient.cancelQueries({ queryKey: eventKeys.lists() });
 
-      // Get the event to find its tripId
-      const event = queryClient.getQueryData<Event>(eventKeys.detail(eventId));
-      const tripId = event?.tripId;
+      // Get the event to find its tripId (check detail cache first, then list caches)
+      let tripId: string | undefined;
+      const cached = queryClient.getQueryData<Event>(eventKeys.detail(eventId));
+      if (cached) {
+        tripId = cached.tripId;
+      } else {
+        const listQueries = queryClient.getQueriesData<Event[]>({
+          queryKey: eventKeys.lists(),
+        });
+        for (const [, list] of listQueries) {
+          const found = list?.find((e) => e.id === eventId);
+          if (found) {
+            tripId = found.tripId;
+            break;
+          }
+        }
+      }
 
       // Snapshot the previous value for rollback
       let previousEvents: Event[] | undefined;
@@ -537,6 +552,12 @@ export function useDeleteEvent() {
 
       // Return context with previous data for rollback
       return { previousEvents, tripId };
+    },
+
+    // On success: show toast (at hook level so it fires even if the calling
+    // component unmounts when the AlertDialog/Sheet closes)
+    onSuccess: () => {
+      toast.success("Event deleted");
     },
 
     // On error: Rollback optimistic update
@@ -645,9 +666,23 @@ export function useRestoreEvent() {
       // Cancel any outgoing refetches to avoid overwriting our optimistic update
       await queryClient.cancelQueries({ queryKey: eventKeys.lists() });
 
-      // Get the event to find its tripId
-      const event = queryClient.getQueryData<Event>(eventKeys.detail(eventId));
-      const tripId = event?.tripId;
+      // Get the event to find its tripId (check detail cache first, then list caches)
+      let tripId: string | undefined;
+      const cached = queryClient.getQueryData<Event>(eventKeys.detail(eventId));
+      if (cached) {
+        tripId = cached.tripId;
+      } else {
+        const listQueries = queryClient.getQueriesData<Event[]>({
+          queryKey: eventKeys.lists(),
+        });
+        for (const [, list] of listQueries) {
+          const found = list?.find((e) => e.id === eventId);
+          if (found) {
+            tripId = found.tripId;
+            break;
+          }
+        }
+      }
 
       // Snapshot the previous value for rollback
       let previousEvents: Event[] | undefined;

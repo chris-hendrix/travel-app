@@ -57,6 +57,8 @@ import {
   getDeleteMemberTravelErrorMessage,
 } from "@/hooks/use-member-travel";
 import { TIMEZONES } from "@/lib/constants";
+import { FlightLookupInput } from "@/components/itinerary/flight-lookup-input";
+import type { FlightLookupResult } from "@journiful/shared/types";
 
 interface EditMemberTravelDialogProps {
   open: boolean;
@@ -89,11 +91,31 @@ export function EditMemberTravelDialog({
       time: "",
       location: "",
       details: "",
+      flightNumber: "",
     },
   });
 
   const travelType = form.watch("travelType");
   const travelTypeLabel = travelType === "departure" ? "Departure" : "Arrival";
+
+  // Default date for flight lookup: from existing travel record
+  const flightLookupDefaultDate = memberTravel.time
+    ? new Date(memberTravel.time).toISOString().slice(0, 10)
+    : undefined;
+
+  const handleFlightResult = (result: FlightLookupResult, flightNumber: string) => {
+    const isArrival = travelType === "arrival";
+    const airport = isArrival ? result.arrivalAirport : result.departureAirport;
+    const time = isArrival ? result.arrivalTime : result.departureTime;
+    const locationStr = airport.iata
+      ? `${airport.name} (${airport.iata})`
+      : airport.name;
+    form.setValue("location", locationStr);
+    // Convert to full UTC ISO string for Zod .datetime() validation and DateTimePicker
+    const utcIso = new Date(time).toISOString();
+    form.setValue("time", utcIso);
+    form.setValue("flightNumber", flightNumber);
+  };
 
   // Pre-populate form with existing member travel data when dialog opens
   useEffect(() => {
@@ -105,6 +127,7 @@ export function EditMemberTravelDialog({
           : "",
         location: memberTravel.location || "",
         details: memberTravel.details || "",
+        flightNumber: memberTravel.flightNumber || "",
       });
       setSelectedTimezone(timezone);
     }
@@ -247,6 +270,14 @@ export function EditMemberTravelDialog({
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Flight Lookup */}
+              <FlightLookupInput
+                defaultDate={flightLookupDefaultDate}
+                onResult={handleFlightResult}
+                defaultValue={memberTravel.flightNumber || undefined}
+                disabled={isPending || isDeleting}
+              />
 
               {/* Time */}
               <FormField

@@ -28,6 +28,8 @@ import { toast } from "sonner";
 import { parse } from "date-fns";
 import type { TripDetailWithMeta } from "@/hooks/trip-queries";
 import { Loader2, X, Check, Plane, MapPin, Calendar } from "lucide-react";
+import { FlightLookupInput } from "@/components/itinerary/flight-lookup-input";
+import type { FlightLookupResult } from "@journiful/shared/types";
 
 interface MemberOnboardingWizardProps {
   open: boolean;
@@ -47,6 +49,8 @@ export function MemberOnboardingWizard({
   const [arrivalLocation, setArrivalLocation] = useState("");
   const [arrivalTime, setArrivalTime] = useState("");
   const [departureTime, setDepartureTime] = useState("");
+  const [arrivalFlightNumber, setArrivalFlightNumber] = useState("");
+  const [departureFlightNumber, setDepartureFlightNumber] = useState("");
   const [addedEvents, setAddedEvents] = useState<
     Array<{ name: string; startTime: string }>
   >([]);
@@ -109,6 +113,8 @@ export function MemberOnboardingWizard({
       setAddedEvents([]);
       setEventName("");
       setEventStartTime("");
+      setArrivalFlightNumber("");
+      setDepartureFlightNumber("");
 
       if (existingArrival) {
         const arrivalISO = new Date(existingArrival.time).toISOString();
@@ -137,6 +143,30 @@ export function MemberOnboardingWizard({
       }
     }
   }, [open]);
+
+  // Flight lookup dates from trip dates
+  const arrivalLookupDate = trip.startDate || undefined;
+  const departureLookupDate = trip.endDate || undefined;
+
+  const handleArrivalFlightResult = (result: FlightLookupResult, flightNumber: string) => {
+    const airport = result.arrivalAirport;
+    const locationStr = airport.iata
+      ? `${airport.name} (${airport.iata})`
+      : airport.name;
+    setArrivalLocationValue(locationStr);
+    setArrivalDateValue(new Date(result.arrivalTime).toISOString());
+    setArrivalFlightNumber(flightNumber);
+  };
+
+  const handleDepartureFlightResult = (result: FlightLookupResult, flightNumber: string) => {
+    const airport = result.departureAirport;
+    const locationStr = airport.iata
+      ? `${airport.name} (${airport.iata})`
+      : airport.name;
+    setDepartureLocationValue(locationStr);
+    setDepartureDateValue(new Date(result.departureTime).toISOString());
+    setDepartureFlightNumber(flightNumber);
+  };
 
   const doneStepIndex = totalSteps - 1;
   const eventsStepIndex = canAddEvents ? 3 : -1;
@@ -178,6 +208,7 @@ export function MemberOnboardingWizard({
               travelType: "arrival",
               time: arrivalDateValue,
               location: arrivalLocationValue || undefined,
+              flightNumber: arrivalFlightNumber || undefined,
             },
           },
           { onSuccess, onError },
@@ -190,6 +221,7 @@ export function MemberOnboardingWizard({
               travelType: "arrival",
               time: arrivalDateValue,
               location: arrivalLocationValue || undefined,
+              flightNumber: arrivalFlightNumber || undefined,
             },
           },
           { onSuccess, onError },
@@ -218,6 +250,7 @@ export function MemberOnboardingWizard({
               travelType: "departure",
               time: departureDateValue,
               location: departureLocationValue || undefined,
+              flightNumber: departureFlightNumber || undefined,
             },
           },
           { onSuccess, onError },
@@ -230,6 +263,7 @@ export function MemberOnboardingWizard({
               travelType: "departure",
               time: departureDateValue,
               location: departureLocationValue || undefined,
+              flightNumber: departureFlightNumber || undefined,
             },
           },
           { onSuccess, onError },
@@ -416,6 +450,11 @@ export function MemberOnboardingWizard({
 
           {step === 1 && (
             <div className="space-y-4">
+              <FlightLookupInput
+                defaultDate={arrivalLookupDate}
+                onResult={handleArrivalFlightResult}
+                disabled={isPending}
+              />
               <div className="space-y-2">
                 <label className="text-sm font-medium">Date & Time</label>
                 <DateTimePicker
@@ -448,6 +487,11 @@ export function MemberOnboardingWizard({
 
           {step === 2 && (
             <div className="space-y-4">
+              <FlightLookupInput
+                defaultDate={departureLookupDate}
+                onResult={handleDepartureFlightResult}
+                disabled={isPending}
+              />
               <div className="space-y-2">
                 <label className="text-sm font-medium">Date & Time</label>
                 <DateTimePicker

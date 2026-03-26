@@ -183,6 +183,7 @@ export function useCreateMemberTravel() {
         time: new Date(data.time),
         location: data.location || null,
         details: data.details || null,
+        flightNumber: data.flightNumber || null,
         deletedAt: null,
         deletedBy: null,
         createdAt: new Date(),

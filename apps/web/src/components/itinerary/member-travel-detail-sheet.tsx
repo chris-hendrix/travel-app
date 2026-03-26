@@ -4,6 +4,7 @@ import {
   Loader2,
   MapPin,
   Pencil,
+  Plane,
   PlaneLanding,
   PlaneTakeoff,
   Trash2,
@@ -187,6 +188,14 @@ export function MemberTravelDetailSheet({
           <p className="text-sm text-muted-foreground mt-1">
             {formattedDateTime}
           </p>
+
+          {/* Flight number */}
+          {memberTravel.flightNumber && (
+            <div className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium">
+              <Plane className="w-3.5 h-3.5 shrink-0" />
+              <span>Flight {memberTravel.flightNumber}</span>
+            </div>
+          )}
 
           {/* Location */}
           {memberTravel.location && (

@@ -14,7 +14,12 @@ import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { RsvpPills } from "@/components/trip/rsvp-pills";
 import { WeatherForecastCard } from "@/components/itinerary/weather-forecast-card";
 import { AccommodationDetailSheet } from "@/components/itinerary/accommodation-detail-sheet";
+import { EditAccommodationDialog } from "@/components/itinerary/edit-accommodation-dialog";
+import { CreateAccommodationDialog } from "@/components/itinerary/create-accommodation-dialog";
+import { CreateEventDialog } from "@/components/itinerary/create-event-dialog";
+import { canModifyAccommodation } from "@/components/itinerary/utils/permissions";
 import { useAccommodations } from "@/hooks/use-accommodations";
+import { useAuth } from "@/app/providers/auth-provider";
 import { TodaySection } from "./today-section";
 import { linkifyText } from "@/utils/linkify";
 import { getUploadUrl } from "@/lib/api";
@@ -101,8 +106,20 @@ export function InfoPanel({
     [trip.startDate, trip.endDate, timezone],
   );
 
+  const { user } = useAuth();
   const { data: accommodations } = useAccommodations(tripId);
   const [selectedAccommodation, setSelectedAccommodation] = useState<Accommodation | null>(null);
+  const [editingAccommodation, setEditingAccommodation] = useState<Accommodation | null>(null);
+  const [isCreateAccommodationOpen, setIsCreateAccommodationOpen] = useState(false);
+  const [isCreateEventOpen, setIsCreateEventOpen] = useState(false);
+
+  // Trip is locked one day after end date
+  const isLocked = useMemo(() => {
+    if (!trip.endDate) return false;
+    const end = new Date(trip.endDate);
+    end.setDate(end.getDate() + 1);
+    return new Date() > end;
+  }, [trip.endDate]);
 
   // Summary line: "+N going · Organized by X, Y"
   const goingCount = trip.memberCount;
@@ -245,26 +262,35 @@ export function InfoPanel({
         </button>
 
         {/* 3. Accommodations */}
-        {accommodations && accommodations.length > 0 && (
+        {((accommodations && accommodations.length > 0) || (isOrganizer && !isLocked)) && (
           <CollapsibleSection label="Accommodations" defaultOpen>
-            <div className="space-y-2">
-              {accommodations.map((acc) => (
-                <button
-                  key={acc.id}
-                  onClick={() => setSelectedAccommodation(acc)}
-                  className="w-full text-left border border-border rounded-md p-3 hover:bg-accent/50 transition-colors cursor-pointer"
-                >
-                  <div className="flex items-center gap-2">
-                    <Building2 className="size-4 text-muted-foreground shrink-0" />
-                    <span className="font-medium text-sm truncate">{acc.name}</span>
-                  </div>
-                  <div className="text-sm text-muted-foreground truncate mt-0.5 pl-6">
-                    {formatDateRange(acc.checkIn, acc.checkOut, timezone)}
-                    {acc.address ? ` · ${acc.address}` : ""}
-                  </div>
-                </button>
-              ))}
-            </div>
+            {accommodations && accommodations.length > 0 ? (
+              <div className="space-y-2">
+                {accommodations.map((acc) => (
+                  <button
+                    key={acc.id}
+                    onClick={() => setSelectedAccommodation(acc)}
+                    className="w-full text-left bg-card linen-texture border border-border rounded-md p-3 hover:bg-accent/50 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Building2 className="size-4 text-muted-foreground shrink-0" />
+                      <span className="font-medium text-sm truncate">{acc.name}</span>
+                    </div>
+                    <div className="text-sm text-muted-foreground truncate mt-0.5 pl-6">
+                      {formatDateRange(acc.checkIn, acc.checkOut, timezone)}
+                      {acc.address ? ` · ${acc.address}` : ""}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsCreateAccommodationOpen(true)}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                + Add accommodation
+              </button>
+            )}
           </CollapsibleSection>
         )}
 
@@ -274,6 +300,13 @@ export function InfoPanel({
             <TodaySection
               tripId={tripId}
               timezone={timezone}
+              isOrganizer={isOrganizer}
+              isLocked={isLocked}
+              tripStartDate={trip.startDate}
+              tripEndDate={trip.endDate}
+              {...(isOrganizer || trip.allowMembersToAddEvents
+                ? { onAddEvent: () => setIsCreateEventOpen(true) }
+                : {})}
             />
           </CollapsibleSection>
         )}
@@ -308,10 +341,53 @@ export function InfoPanel({
           if (!open) setSelectedAccommodation(null);
         }}
         timezone={timezone}
-        canEdit={false}
-        canDelete={false}
-        onEdit={() => {}}
+        canEdit={
+          selectedAccommodation
+            ? canModifyAccommodation(selectedAccommodation, user?.id ?? "", isOrganizer, isLocked)
+            : false
+        }
+        canDelete={
+          selectedAccommodation
+            ? canModifyAccommodation(selectedAccommodation, user?.id ?? "", isOrganizer, isLocked)
+            : false
+        }
+        onEdit={(acc) => {
+          setSelectedAccommodation(null);
+          setEditingAccommodation(acc);
+        }}
         onDelete={() => setSelectedAccommodation(null)}
+      />
+
+      {/* Edit accommodation dialog */}
+      {editingAccommodation && (
+        <EditAccommodationDialog
+          open={!!editingAccommodation}
+          onOpenChange={(open) => {
+            if (!open) setEditingAccommodation(null);
+          }}
+          accommodation={editingAccommodation}
+          timezone={timezone}
+        />
+      )}
+
+      {/* Create accommodation dialog */}
+      <CreateAccommodationDialog
+        open={isCreateAccommodationOpen}
+        onOpenChange={setIsCreateAccommodationOpen}
+        tripId={tripId}
+        timezone={timezone}
+        tripStartDate={trip.startDate}
+        tripEndDate={trip.endDate}
+      />
+
+      {/* Create event dialog */}
+      <CreateEventDialog
+        open={isCreateEventOpen}
+        onOpenChange={setIsCreateEventOpen}
+        tripId={tripId}
+        timezone={timezone}
+        tripStartDate={trip.startDate}
+        tripEndDate={trip.endDate}
       />
     </div>
   );

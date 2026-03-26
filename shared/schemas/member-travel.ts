@@ -18,6 +18,7 @@ const baseMemberTravelSchema = z.object({
       error: "Details must not exceed 500 characters",
     })
     .optional(),
+  flightNumber: z.string().max(10).optional(),
 });
 
 /**
@@ -50,6 +51,7 @@ const memberTravelEntitySchema = z.object({
   time: z.date(),
   location: z.string().nullable(),
   details: z.string().nullable(),
+  flightNumber: z.string().nullable(),
   deletedAt: z.date().nullable(),
   deletedBy: z.string().nullable(),
   createdAt: z.date(),

@@ -140,3 +140,10 @@ export type {
   UploadPhotosResponse,
   UpdatePhotoResponse,
 } from "./photo";
+
+// Re-export flight types
+export type {
+  FlightLookupRequest,
+  FlightLookupResult,
+  FlightLookupResponse,
+} from "./flight";

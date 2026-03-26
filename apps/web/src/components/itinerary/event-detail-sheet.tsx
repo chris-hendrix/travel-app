@@ -67,7 +67,6 @@ export function EventDetailSheet({
     if (!event) return;
     deleteEvent(event.id, {
       onSuccess: () => {
-        toast.success("Event deleted");
         onOpenChange(false);
       },
       onError: (error) => {

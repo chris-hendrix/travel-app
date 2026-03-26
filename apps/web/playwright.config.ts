@@ -66,7 +66,7 @@ export default defineConfig({
       stderr: "pipe",
     },
     {
-      command: "pnpm dev",
+      command: "NEXT_PUBLIC_DISABLE_DEVTOOLS=true pnpm dev",
       url: "http://localhost:3000",
       timeout: 120 * 1000,
       reuseExistingServer: !process.env.CI,

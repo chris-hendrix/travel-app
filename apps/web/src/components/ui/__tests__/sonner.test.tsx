@@ -33,7 +33,7 @@ describe("Toaster", () => {
     );
   });
 
-  it("renders toaster with bottom-right position and z-[60] class when a toast is shown", async () => {
+  it("renders toaster with top-right position and z-[60] class when a toast is shown", async () => {
     const { container } = render(<Toaster />);
 
     act(() => {
@@ -48,7 +48,7 @@ describe("Toaster", () => {
 
     const toasterEl = container.querySelector("[data-sonner-toaster]");
     expect(toasterEl?.getAttribute("data-x-position")).toBe("right");
-    expect(toasterEl?.getAttribute("data-y-position")).toBe("bottom");
+    expect(toasterEl?.getAttribute("data-y-position")).toBe("top");
     expect(toasterEl?.className).toContain("z-[60]");
   });
 });

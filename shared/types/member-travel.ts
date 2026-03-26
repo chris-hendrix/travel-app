@@ -15,6 +15,7 @@ export interface MemberTravel {
   time: Date;
   location: string | null;
   details: string | null;
+  flightNumber: string | null;
   deletedAt: Date | null;
   deletedBy: string | null;
   createdAt: Date;
