@@ -3,22 +3,34 @@
 import { useMemo, useState } from "react";
 import type { Event } from "@journiful/shared/types";
 import { useEvents } from "@/hooks/use-events";
+import { useAuth } from "@/app/providers/auth-provider";
 import { getDayInTimezone, formatInTimezone, utcToLocalParts } from "@/lib/utils/timezone";
 import { EVENT_TYPE_CONFIG } from "@/components/itinerary/event-card";
 import { EventDetailSheet } from "@/components/itinerary/event-detail-sheet";
+import { EditEventDialog } from "@/components/itinerary/edit-event-dialog";
+import { canModifyEvent } from "@/components/itinerary/utils/permissions";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface TodaySectionProps {
   tripId: string;
   timezone: string;
+  isOrganizer?: boolean;
+  isLocked?: boolean;
+  tripStartDate?: string | null;
+  tripEndDate?: string | null;
   onAddEvent?: () => void;
 }
 
 export function TodaySection({
   tripId,
   timezone,
+  isOrganizer = false,
+  isLocked = false,
+  tripStartDate,
+  tripEndDate,
   onAddEvent,
 }: TodaySectionProps) {
+  const { user } = useAuth();
   const { data: events, isPending: eventsLoading } = useEvents(tripId);
 
   const todayString = useMemo(
@@ -72,9 +84,9 @@ export function TodaySection({
     });
   }, [todayEvents]);
 
-
-  // Detail sheet state
+  // Detail sheet and edit dialog state
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
 
   const isLoading = eventsLoading;
   const isEmpty = !isLoading && sortedEvents.length === 0;
@@ -135,10 +147,35 @@ export function TodaySection({
           if (!open) setSelectedEvent(null);
         }}
         timezone={timezone}
-        canEdit={false}
-        canDelete={false}
-        onEdit={() => {}}
+        canEdit={
+          selectedEvent
+            ? canModifyEvent(selectedEvent, user?.id ?? "", isOrganizer, isLocked)
+            : false
+        }
+        canDelete={
+          selectedEvent
+            ? canModifyEvent(selectedEvent, user?.id ?? "", isOrganizer, isLocked)
+            : false
+        }
+        onEdit={(event) => {
+          setSelectedEvent(null);
+          setEditingEvent(event);
+        }}
       />
+
+      {/* Edit event dialog */}
+      {editingEvent && (
+        <EditEventDialog
+          open={!!editingEvent}
+          onOpenChange={(open) => {
+            if (!open) setEditingEvent(null);
+          }}
+          event={editingEvent}
+          timezone={timezone}
+          tripStartDate={tripStartDate ?? undefined}
+          tripEndDate={tripEndDate ?? undefined}
+        />
+      )}
     </div>
   );
 }

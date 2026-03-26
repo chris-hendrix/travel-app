@@ -294,6 +294,10 @@ export function InfoPanel({
             <TodaySection
               tripId={tripId}
               timezone={timezone}
+              isOrganizer={isOrganizer}
+              isLocked={isLocked}
+              tripStartDate={trip.startDate}
+              tripEndDate={trip.endDate}
               onAddEvent={onNavigateToItinerary}
             />
           </CollapsibleSection>
