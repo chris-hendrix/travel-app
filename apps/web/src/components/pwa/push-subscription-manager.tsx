@@ -90,7 +90,6 @@ export function PushSubscriptionManager() {
     }
 
     prevUserId.current = currentUserId;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, vapidPublicKey]);
 
   return null;

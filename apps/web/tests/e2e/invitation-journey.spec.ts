@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { authenticateViaAPIWithPhone, createUserViaAPI } from "./helpers/auth";
-import { removeNextjsDevOverlay } from "./helpers/nextjs-dev";
+import { removeNextjsDevOverlay, dismissPwaPrompts } from "./helpers/nextjs-dev";
 import { fillPhoneInput } from "./helpers/phone-input";
 import { snap } from "./helpers/screenshots";
 import {
@@ -30,6 +30,7 @@ import { dismissToast } from "./helpers/toast";
 test.describe("Invitation Journey", () => {
   test.beforeEach(async ({ page }) => {
     await removeNextjsDevOverlay(page);
+    await dismissPwaPrompts(page);
     await page.context().clearCookies();
   });
 

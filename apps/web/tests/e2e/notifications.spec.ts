@@ -9,7 +9,7 @@ import {
   inviteViaAPI,
   rsvpViaAPI,
 } from "./helpers/invitations";
-import { removeNextjsDevOverlay } from "./helpers/nextjs-dev";
+import { removeNextjsDevOverlay, dismissPwaPrompts } from "./helpers/nextjs-dev";
 import { snap } from "./helpers/screenshots";
 import {
   API_BASE,
@@ -30,6 +30,7 @@ import {
 test.describe("Notification Journey", () => {
   test.beforeEach(async ({ page }) => {
     await removeNextjsDevOverlay(page);
+    await dismissPwaPrompts(page);
     await page.context().clearCookies();
   });
 

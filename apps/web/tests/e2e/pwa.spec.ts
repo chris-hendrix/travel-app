@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { createUserViaAPI, generateUniquePhone } from "./helpers/auth";
 import { API_BASE, ELEMENT_TIMEOUT } from "./helpers/timeouts";
-import { removeNextjsDevOverlay } from "./helpers/nextjs-dev";
+import { removeNextjsDevOverlay, dismissPwaPrompts } from "./helpers/nextjs-dev";
 
 /**
  * E2E: PWA — offline page, manifest, push API, install prompts
@@ -14,6 +14,7 @@ import { removeNextjsDevOverlay } from "./helpers/nextjs-dev";
 test.describe("PWA", () => {
   test.beforeEach(async ({ page }) => {
     await removeNextjsDevOverlay(page);
+    await dismissPwaPrompts(page);
   });
 
   test("offline page renders", async ({ page }) => {

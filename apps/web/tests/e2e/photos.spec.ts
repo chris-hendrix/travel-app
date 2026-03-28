@@ -3,7 +3,7 @@ import path from "path";
 import fs from "fs";
 import { authenticateViaAPI } from "./helpers/auth";
 import { createTrip } from "./helpers/trips";
-import { removeNextjsDevOverlay } from "./helpers/nextjs-dev";
+import { removeNextjsDevOverlay, dismissPwaPrompts } from "./helpers/nextjs-dev";
 import { navigateToMobilePanel } from "./helpers/mobile-panels";
 import { dismissToast } from "./helpers/toast";
 import { snap } from "./helpers/screenshots";
@@ -107,6 +107,7 @@ function readyPhotoCards(page: import("@playwright/test").Page) {
 test.describe("Photos Journey", () => {
   test.beforeEach(async ({ page }) => {
     await removeNextjsDevOverlay(page);
+    await dismissPwaPrompts(page);
     await page.context().clearCookies();
   });
 

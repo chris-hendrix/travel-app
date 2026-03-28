@@ -3,7 +3,7 @@ import path from "path";
 import fs from "fs";
 import { authenticateViaAPI } from "./helpers/auth";
 import { TripsPage, ProfilePage } from "./helpers/pages";
-import { removeNextjsDevOverlay } from "./helpers/nextjs-dev";
+import { removeNextjsDevOverlay, dismissPwaPrompts } from "./helpers/nextjs-dev";
 import {
   NAVIGATION_TIMEOUT,
   ELEMENT_TIMEOUT,
@@ -63,6 +63,7 @@ function createTestImage(dir: string): string {
 test.describe("Profile Journey", () => {
   test.beforeEach(async ({ page }) => {
     await removeNextjsDevOverlay(page);
+    await dismissPwaPrompts(page);
     await page.context().clearCookies();
   });
 

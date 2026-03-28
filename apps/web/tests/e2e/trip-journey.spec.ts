@@ -6,7 +6,7 @@ import {
 } from "./helpers/auth";
 import { TripsPage, TripDetailPage } from "./helpers/pages";
 import { snap } from "./helpers/screenshots";
-import { removeNextjsDevOverlay } from "./helpers/nextjs-dev";
+import { removeNextjsDevOverlay, dismissPwaPrompts } from "./helpers/nextjs-dev";
 import { pickDate, pickDateTime } from "./helpers/date-pickers";
 import { createTripViaAPI, inviteAndAcceptViaAPI } from "./helpers/invitations";
 import { navigateToMobilePanel } from "./helpers/mobile-panels";
@@ -30,6 +30,7 @@ import {
 test.describe("Trip Journey", () => {
   test.beforeEach(async ({ page }) => {
     await removeNextjsDevOverlay(page);
+    await dismissPwaPrompts(page);
     await page.context().clearCookies();
   });
 

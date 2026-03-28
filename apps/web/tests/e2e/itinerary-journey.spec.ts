@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { authenticateViaAPI } from "./helpers/auth";
 import { snap } from "./helpers/screenshots";
-import { removeNextjsDevOverlay } from "./helpers/nextjs-dev";
+import { removeNextjsDevOverlay, dismissPwaPrompts } from "./helpers/nextjs-dev";
 import { pickDateTime } from "./helpers/date-pickers";
 import { createTrip } from "./helpers/trips";
 import { clickFabAction, createEvent } from "./helpers/itinerary";
@@ -22,6 +22,7 @@ import {
 test.describe("Itinerary Journey", () => {
   test.beforeEach(async ({ page }) => {
     await removeNextjsDevOverlay(page);
+    await dismissPwaPrompts(page);
     await page.context().clearCookies();
   });
 
