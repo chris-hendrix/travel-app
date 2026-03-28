@@ -40,6 +40,7 @@ import weatherServicePlugin from "./plugins/weather-service.js";
 import flightServicePlugin from "./plugins/flight-service.js";
 import imageProcessingServicePlugin from "./plugins/image-processing-service.js";
 import photoServicePlugin from "./plugins/photo-service.js";
+import pushServicePlugin from "./plugins/push-service.js";
 import queueWorkersPlugin from "./queues/index.js";
 
 // Middleware
@@ -61,6 +62,7 @@ import { calendarRoutes } from "./routes/calendar.routes.js";
 import { weatherRoutes } from "./routes/weather.routes.js";
 import { flightRoutes } from "./routes/flight.routes.js";
 import { photoRoutes } from "./routes/photo.routes.js";
+import { pushRoutes } from "./routes/push.routes.js";
 
 // Config
 import { env } from "./config/env.js";
@@ -219,6 +221,7 @@ export async function buildApp(
   await app.register(flightServicePlugin);
   await app.register(imageProcessingServicePlugin);
   await app.register(photoServicePlugin);
+  await app.register(pushServicePlugin);
   await app.register(queueWorkersPlugin);
 
   // Register Swagger/OpenAPI documentation (non-production only)
@@ -245,6 +248,7 @@ export async function buildApp(
   await app.register(weatherRoutes, { prefix: "/api" });
   await app.register(flightRoutes, { prefix: "/api" });
   await app.register(photoRoutes, { prefix: "/api/trips/:id/photos" });
+  await app.register(pushRoutes, { prefix: "/api" });
 
   // Not-found handler for unmatched routes
   app.setNotFoundHandler((request, reply) => {

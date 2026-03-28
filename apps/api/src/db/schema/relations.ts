@@ -16,6 +16,7 @@ import {
   blacklistedTokens,
   weatherCache,
   tripPhotos,
+  pushSubscriptions,
 } from "./index.js";
 
 export const usersRelations = relations(users, ({ many }) => ({
@@ -30,6 +31,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   notificationPreferences: many(notificationPreferences),
   blacklistedTokens: many(blacklistedTokens),
   uploadedPhotos: many(tripPhotos),
+  pushSubscriptions: many(pushSubscriptions),
 }));
 
 export const tripsRelations = relations(trips, ({ one, many }) => ({
@@ -182,6 +184,16 @@ export const weatherCacheRelations = relations(weatherCache, ({ one }) => ({
     references: [trips.id],
   }),
 }));
+
+export const pushSubscriptionsRelations = relations(
+  pushSubscriptions,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [pushSubscriptions.userId],
+      references: [users.id],
+    }),
+  }),
+);
 
 export const tripPhotosRelations = relations(tripPhotos, ({ one }) => ({
   trip: one(trips, {

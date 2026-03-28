@@ -9,6 +9,7 @@ import {
   notificationPreferences,
   sentReminders,
 } from "@/db/schema/index.js";
+import { buildPushPayload } from "@/services/push-payload.builder.js";
 
 /**
  * Maps a notification type to its corresponding preference field
@@ -144,6 +145,15 @@ export async function handleNotificationBatch(
   }[] = [];
 
   const smsJobs: { data: { phoneNumber: string; message: string } }[] = [];
+  const pushJobs: {
+    data: {
+      userId: string;
+      title: string;
+      body: string;
+      url: string;
+      tag: string;
+    };
+  }[] = [];
   const reminderUserIds: string[] = [];
 
   for (const member of targetMembers) {
@@ -167,13 +177,24 @@ export async function handleNotificationBatch(
       reminderUserIds.push(member.userId);
     }
 
-    // Check if SMS should be sent
+    // Check preferences for this notification type
     const userPrefs = prefsMap.get(member.userId) ?? defaultPrefs;
-    if (shouldSendSms(type, userPrefs)) {
+    const shouldSend = shouldSendSms(type, userPrefs);
+
+    if (shouldSend) {
       smsJobs.push({
         data: {
           phoneNumber: member.phoneNumber,
           message: `${title}: ${body}`,
+        },
+      });
+
+      // Build push payload using the same preference gate
+      const pushPayload = buildPushPayload(type, title, body, data);
+      pushJobs.push({
+        data: {
+          userId: member.userId,
+          ...pushPayload,
         },
       });
     }
@@ -201,5 +222,10 @@ export async function handleNotificationBatch(
   // 8. Enqueue SMS delivery jobs
   if (smsJobs.length > 0) {
     await deps.boss.insert(QUEUE.NOTIFICATION_DELIVER, smsJobs);
+  }
+
+  // 9. Enqueue push delivery jobs
+  if (pushJobs.length > 0) {
+    await deps.boss.insert(QUEUE.PUSH_DELIVER, pushJobs);
   }
 }

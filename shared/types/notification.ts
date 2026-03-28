@@ -71,3 +71,25 @@ export interface UpdateNotificationPreferencesResponse {
   success: true;
   preferences: NotificationPreferences;
 }
+
+/**
+ * Input for subscribing to push notifications
+ */
+export interface PushSubscriptionInput {
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+  userAgent?: string;
+}
+
+/**
+ * Payload sent to the push service worker
+ */
+export interface PushPayload {
+  title: string;
+  body: string;
+  url: string;
+  tag: string;
+}

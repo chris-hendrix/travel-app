@@ -162,6 +162,12 @@ describe("notification-batch.worker", () => {
         insert: vi.fn().mockResolvedValue(undefined),
       } as unknown as WorkerDeps["boss"],
       smsService: new MockSMSService(),
+      pushService: {
+        addSubscription: vi.fn(),
+        removeSubscription: vi.fn(),
+        getUserSubscriptions: vi.fn().mockResolvedValue([]),
+        sendToUser: vi.fn(),
+      } as unknown as WorkerDeps["pushService"],
       logger: {
         info: vi.fn(),
         error: vi.fn(),
@@ -336,7 +342,8 @@ describe("notification-batch.worker", () => {
 
       await handleNotificationBatch(job, mockDeps);
 
-      expect(mockDeps.boss.insert).toHaveBeenCalledTimes(1);
+      // SMS + push deliver = 2 calls
+      expect(mockDeps.boss.insert).toHaveBeenCalledTimes(2);
       expect(mockDeps.boss.insert).toHaveBeenCalledWith(
         QUEUE.NOTIFICATION_DELIVER,
         expect.arrayContaining([
@@ -357,6 +364,14 @@ describe("notification-batch.worker", () => {
               phoneNumber: testMember2Phone,
               message: "Test Title: Test Body",
             },
+          }),
+        ]),
+      );
+      expect(mockDeps.boss.insert).toHaveBeenCalledWith(
+        QUEUE.PUSH_DELIVER,
+        expect.arrayContaining([
+          expect.objectContaining({
+            data: expect.objectContaining({ userId: testOrganizerId }),
           }),
         ]),
       );
@@ -386,8 +401,10 @@ describe("notification-batch.worker", () => {
       expect(memNotifs).toHaveLength(1);
 
       // SMS jobs should not include testMemberPhone
-      const bossInsertCall = vi.mocked(mockDeps.boss.insert).mock.calls[0];
-      const smsJobs = bossInsertCall[1] as { data: { phoneNumber: string } }[];
+      const smsInsertCall = vi
+        .mocked(mockDeps.boss.insert)
+        .mock.calls.find((c) => c[0] === QUEUE.NOTIFICATION_DELIVER)!;
+      const smsJobs = smsInsertCall[1] as { data: { phoneNumber: string } }[];
       const smsPhones = smsJobs.map((j) => j.data.phoneNumber);
 
       expect(smsPhones).not.toContain(testMemberPhone);
@@ -413,8 +430,10 @@ describe("notification-batch.worker", () => {
       await handleNotificationBatch(job, mockDeps);
 
       // SMS should still be enqueued for all members including testMemberId
-      const bossInsertCall = vi.mocked(mockDeps.boss.insert).mock.calls[0];
-      const smsJobs = bossInsertCall[1] as { data: { phoneNumber: string } }[];
+      const smsInsertCall = vi
+        .mocked(mockDeps.boss.insert)
+        .mock.calls.find((c) => c[0] === QUEUE.NOTIFICATION_DELIVER)!;
+      const smsJobs = smsInsertCall[1] as { data: { phoneNumber: string } }[];
       const smsPhones = smsJobs.map((j) => j.data.phoneNumber);
 
       expect(smsPhones).toContain(testMemberPhone);
