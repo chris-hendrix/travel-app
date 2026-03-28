@@ -36,6 +36,7 @@ describe("EditMemberTravelDialog", () => {
     time: new Date("2026-07-15T14:00:00.000Z"),
     location: "Miami Airport",
     details: "Flight AA123",
+    flightNumber: "AA123",
     deletedAt: null,
     deletedBy: null,
     createdAt: new Date(),
@@ -119,6 +120,7 @@ describe("EditMemberTravelDialog", () => {
       ) as HTMLInputElement;
       expect(locationInput.value).toBe("Miami Airport");
 
+      // Details is in "More details" collapsible section, which auto-opens when details exist
       const detailsInput = screen.getByRole("textbox", {
         name: /details/i,
       }) as HTMLTextAreaElement;
@@ -150,8 +152,9 @@ describe("EditMemberTravelDialog", () => {
         />,
       );
 
-      const arrivalRadio = screen.getByRole("radio", { name: /arrival/i });
-      expect((arrivalRadio as HTMLInputElement).checked).toBe(true);
+      // Arrival button should have selected styling (border-primary)
+      const arrivalButton = screen.getByText("Arrival").closest("button")!;
+      expect(arrivalButton.className).toContain("border-primary");
     });
 
     it("pre-populates departure travel type", () => {
@@ -169,8 +172,9 @@ describe("EditMemberTravelDialog", () => {
         />,
       );
 
-      const departureRadio = screen.getByRole("radio", { name: /departure/i });
-      expect((departureRadio as HTMLInputElement).checked).toBe(true);
+      // Departure button should have selected styling (border-primary)
+      const departureButton = screen.getByText("Departure").closest("button")!;
+      expect(departureButton.className).toContain("border-primary");
     });
   });
 

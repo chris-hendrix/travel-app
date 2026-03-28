@@ -500,10 +500,24 @@ export function useDeleteMemberTravel() {
       // Cancel any outgoing refetches to avoid overwriting our optimistic update
       await queryClient.cancelQueries({ queryKey: memberTravelKeys.lists() });
 
-      // Get the member travel to find its tripId
-      const memberTravel = queryClient.getQueryData<MemberTravel>(
+      // Get the member travel to find its tripId — check detail cache first,
+      // then fall back to searching list caches (detail may not be cached if
+      // the user opened the edit dialog directly from the list view)
+      let memberTravel = queryClient.getQueryData<MemberTravel>(
         memberTravelKeys.detail(memberTravelId),
       );
+      if (!memberTravel) {
+        const listQueries = queryClient.getQueriesData<MemberTravel[]>({
+          queryKey: memberTravelKeys.lists(),
+        });
+        for (const [, list] of listQueries) {
+          const found = list?.find((mt) => mt.id === memberTravelId);
+          if (found) {
+            memberTravel = found;
+            break;
+          }
+        }
+      }
       const tripId = memberTravel?.tripId;
 
       // Snapshot the previous value for rollback

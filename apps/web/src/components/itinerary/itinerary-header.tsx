@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Calendar, Car, Globe, PlaneLanding, Plus, Building2, Plane, Utensils, type LucideIcon } from "lucide-react";
 import { useMounted } from "@/hooks/use-mounted";
+import { useMemberTravels } from "@/hooks/use-member-travel";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -76,6 +77,7 @@ export function ItineraryHeader({
     useState(false);
   const [isCreateMemberTravelOpen, setIsCreateMemberTravelOpen] =
     useState(false);
+  const { data: memberTravels } = useMemberTravels(tripId);
 
   const [fabOpen, setFabOpen] = useState(false);
   const mounted = useMounted();
@@ -212,6 +214,7 @@ export function ItineraryHeader({
         isOrganizer={isOrganizer}
         tripStartDate={tripStartDate}
         tripEndDate={tripEndDate}
+        existingTravels={memberTravels}
       />
     </>
   );

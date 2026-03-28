@@ -33,6 +33,11 @@ vi.mock("@/hooks/use-invitations", () => ({
   }),
 }));
 
+// Mock useMemberTravels (required by ItineraryHeader for smart defaulting)
+vi.mock("@/hooks/use-member-travel", () => ({
+  useMemberTravels: () => ({ data: [] }),
+}));
+
 // Mock getUploadUrl (required by CreateMemberTravelDialog)
 vi.mock("@/lib/api", () => ({
   apiRequest: vi.fn(),

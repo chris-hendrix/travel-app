@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
 import { MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -38,6 +38,8 @@ function MessageSkeleton() {
   );
 }
 
+const NEAR_BOTTOM_THRESHOLD = 150;
+
 export function MessagesPanel({
   tripId,
   isOrganizer,
@@ -45,7 +47,10 @@ export function MessagesPanel({
   isMuted,
 }: MessagesPanelProps) {
   const sectionRef = useRef<HTMLElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [isInView, setIsInView] = useState(true);
+  const hasScrolledToBottom = useRef(false);
+  const prevMessageCount = useRef(0);
 
   useEffect(() => {
     const el = sectionRef.current;
@@ -68,8 +73,38 @@ export function MessagesPanel({
   const { data, isPending, hasNextPage, fetchNextPage, isFetchingNextPage } =
     useMessages(tripId, isInView);
 
-  const messages = data?.pages.flatMap((p) => p.messages) ?? [];
+  const messages = (data?.pages.flatMap((p) => p.messages) ?? []).toReversed();
   const hasMore = hasNextPage ?? false;
+
+  const isNearBottom = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_THRESHOLD;
+  }, []);
+
+  // Scroll to bottom on initial load
+  useLayoutEffect(() => {
+    if (!isPending && messages.length > 0 && !hasScrolledToBottom.current) {
+      const el = scrollRef.current;
+      if (el) {
+        el.scrollTop = el.scrollHeight;
+        hasScrolledToBottom.current = true;
+      }
+    }
+  }, [isPending, messages.length]);
+
+  // Auto-scroll when new messages arrive (if near bottom)
+  useEffect(() => {
+    if (messages.length > prevMessageCount.current && hasScrolledToBottom.current) {
+      if (isNearBottom()) {
+        const el = scrollRef.current;
+        if (el) {
+          el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+        }
+      }
+    }
+    prevMessageCount.current = messages.length;
+  }, [messages.length, isNearBottom]);
 
   const inputDisabled = disabled === true || isMuted === true;
   const inputDisabledMessage = isMuted
@@ -81,53 +116,59 @@ export function MessagesPanel({
   return (
     <section
       ref={sectionRef}
-      className="space-y-4 px-4 pt-4 pb-safe"
+      className="flex flex-col h-full"
       aria-label="Trip discussion"
     >
       <PinnedMessages messages={messages} />
 
-      <MessageInput
-        tripId={tripId}
-        disabled={inputDisabled}
-        disabledMessage={inputDisabledMessage}
-      />
+      {/* Scrollable messages area */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 pt-4 space-y-3">
+        {isPending ? (
+          <MessageSkeleton />
+        ) : messages.length === 0 ? (
+          <EmptyState
+            icon={MessageCircle}
+            title="No messages yet"
+            description="Start the conversation!"
+            className="rounded-lg"
+          />
+        ) : (
+          <div role="feed" aria-busy={isPending} className="space-y-3">
+            {hasMore && (
+              <div className="flex justify-center py-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-sm text-muted-foreground"
+                  onClick={() => fetchNextPage()}
+                  disabled={isFetchingNextPage}
+                >
+                  {isFetchingNextPage ? "Loading..." : "Load earlier messages"}
+                </Button>
+              </div>
+            )}
+            {messages.map((message) => (
+              <MessageCard
+                key={message.id}
+                message={message}
+                tripId={tripId}
+                isOrganizer={isOrganizer}
+                disabled={disabled}
+                disabledMessage={inputDisabledMessage}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
-      {isPending ? (
-        <MessageSkeleton />
-      ) : messages.length === 0 ? (
-        <EmptyState
-          icon={MessageCircle}
-          title="No messages yet"
-          description="Start the conversation!"
-          className="rounded-lg"
+      {/* Input pinned at bottom */}
+      <div className="shrink-0 border-t border-border px-4 py-2 pb-safe bg-background">
+        <MessageInput
+          tripId={tripId}
+          disabled={inputDisabled}
+          disabledMessage={inputDisabledMessage}
         />
-      ) : (
-        <div role="feed" aria-busy={isPending} className="space-y-3">
-          {messages.map((message) => (
-            <MessageCard
-              key={message.id}
-              message={message}
-              tripId={tripId}
-              isOrganizer={isOrganizer}
-              disabled={disabled}
-              disabledMessage={inputDisabledMessage}
-            />
-          ))}
-          {hasMore && (
-            <div className="flex justify-center py-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-sm text-muted-foreground"
-                onClick={() => fetchNextPage()}
-                disabled={isFetchingNextPage}
-              >
-                {isFetchingNextPage ? "Loading..." : "Load earlier messages"}
-              </Button>
-            </div>
-          )}
-        </div>
-      )}
+      </div>
     </section>
   );
 }

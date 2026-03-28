@@ -862,7 +862,7 @@ test.describe("Trip Journey", () => {
       });
 
       await test.step("fill in travel details and submit", async () => {
-        await page.getByRole("radio", { name: "Arrival" }).click();
+        await page.getByRole("button", { name: "Arrival" }).click();
 
         const travelTimeTrigger = page.getByRole("button", {
           name: "Travel time",
@@ -872,6 +872,8 @@ test.describe("Trip Journey", () => {
         await page
           .locator('input[name="location"]')
           .fill("Seattle-Tacoma Airport");
+        // Expand the collapsed "More details" section to reveal the details textarea
+        await page.getByRole("button", { name: "More details" }).click();
         await page
           .locator('textarea[name="details"]')
           .fill("Arriving on behalf of member");

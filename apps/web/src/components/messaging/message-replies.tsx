@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -85,8 +85,15 @@ export function MessageReplies({
   disabled,
   disabledMessage,
 }: MessageRepliesProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showReplyInput, setShowReplyInput] = useState(false);
+
+  const scrollIntoView = () => {
+    requestAnimationFrame(() => {
+      containerRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    });
+  };
 
   const { replies, replyCount } = message;
   const hiddenCount = replyCount - 2;
@@ -97,11 +104,11 @@ export function MessageReplies({
   }
 
   return (
-    <div className="ml-4 pl-3 sm:ml-6 sm:pl-4 border-l-2 border-border">
+    <div ref={containerRef} className="ml-4 pl-3 sm:ml-6 sm:pl-4 border-l-2 border-border">
       {hiddenCount > 0 && !isExpanded && (
         <button
           type="button"
-          onClick={() => setIsExpanded(true)}
+          onClick={() => { setIsExpanded(true); scrollIntoView(); }}
           className="text-sm text-primary hover:underline mb-2 inline-flex items-center gap-1"
           aria-expanded={false}
           aria-label="Show more replies"
@@ -142,7 +149,7 @@ export function MessageReplies({
               variant="ghost"
               size="xs"
               className="text-muted-foreground mt-1"
-              onClick={() => setShowReplyInput(true)}
+              onClick={() => { setShowReplyInput(true); scrollIntoView(); }}
             >
               Reply
             </Button>

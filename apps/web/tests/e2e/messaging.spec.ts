@@ -40,9 +40,9 @@ test.describe("Messaging Journey", () => {
     async ({ page, request }) => {
       test.slow(); // Multiple auth cycles and polling waits
 
-      // NOTE: The message feed renders newest-first (API returns messages ordered by
-      // createdAt DESC). Tests that use .first() on action buttons rely on the most
-      // recently posted message appearing at the top of the feed.
+      // NOTE: Desktop renders messages newest-first (API returns createdAt DESC).
+      // Mobile uses chat-style layout with oldest-first (newest at bottom).
+      // The ordering assertion below handles both viewports.
 
       const timestamp = Date.now();
       const organizerPhone = generateUniquePhone();
@@ -120,16 +120,23 @@ test.describe("Messaging Journey", () => {
         ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
       });
 
-      await test.step("verify feed ordering: newest message appears first", async () => {
-        // The feed renders newest-first (API: ORDER BY created_at DESC).
-        // Verify the second-posted message appears before the first-posted message.
+      await test.step("verify feed ordering", async () => {
+        // Desktop renders newest-first (API returns createdAt DESC).
+        // Mobile reverses to chat-style: oldest-first (newest at bottom).
         const articles = page.getByRole("feed").getByRole("article");
-        await expect(articles.first()).toContainText(
-          "This message will be edited then deleted",
-        );
-        await expect(articles.last()).toContainText(
-          "Hello from the organizer!",
-        );
+        const isMobile = await page.getByRole("button", { name: "Messages", exact: true })
+          .isVisible()
+          .catch(() => false);
+
+        if (isMobile) {
+          // Chat-style: oldest first, newest last
+          await expect(articles.first()).toContainText("Hello from the organizer!");
+          await expect(articles.last()).toContainText("This message will be edited then deleted");
+        } else {
+          // Feed-style: newest first, oldest last
+          await expect(articles.first()).toContainText("This message will be edited then deleted");
+          await expect(articles.last()).toContainText("Hello from the organizer!");
+        }
       });
 
       await snap(page, "40-messaging-two-messages");
@@ -241,9 +248,8 @@ test.describe("Messaging Journey", () => {
         await expect(replyInput).toBeVisible();
 
         await replyInput.fill("This is a reply to the first message");
-        // Find the send button within the reply area (icon button)
-        const sendButtons = page.getByRole("button", { name: "Send message" });
-        await sendButtons.last().click();
+        // Press Enter to send the reply (Enter triggers handleKeyDown which calls handleSend)
+        await replyInput.press("Enter");
 
         // Verify the reply text appears in a rendered paragraph (not the textarea)
         await expect(
