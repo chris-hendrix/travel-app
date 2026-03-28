@@ -27,11 +27,11 @@ export async function createUserViaAPI(
   displayName: string = "Test User",
 ): Promise<string> {
   await request.post(`${API_BASE}/auth/request-code`, {
-    data: { phoneNumber: phone },
+    data: { phoneNumber: phone, smsConsent: true },
   });
 
   const verifyResponse = await request.post(`${API_BASE}/auth/verify-code`, {
-    data: { phoneNumber: phone, code: "123456" },
+    data: { phoneNumber: phone, code: "123456", smsConsent: true },
   });
 
   const cookies = verifyResponse.headers()["set-cookie"];
@@ -57,6 +57,7 @@ export async function loginViaBrowser(
 
   const phoneInput = page.getByRole("textbox", { name: /phone/i });
   await fillPhoneInput(phoneInput, phone);
+  await page.getByRole("checkbox", { name: /I agree to receive text messages/i }).check();
   await page.getByRole("button", { name: "Continue" }).click();
 
   await page.waitForURL("**/verify**");
@@ -169,6 +170,7 @@ export async function authenticateUserViaBrowserWithPhone(
 
   const phoneInput = page.getByRole("textbox", { name: /phone/i });
   await fillPhoneInput(phoneInput, phone);
+  await page.getByRole("checkbox", { name: /I agree to receive text messages/i }).check();
   await page.getByRole("button", { name: "Continue" }).click();
 
   await page.waitForURL("**/verify**");
