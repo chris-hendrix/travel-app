@@ -1,4 +1,4 @@
-/* global document, MutationObserver, localStorage */
+/* global document, MutationObserver */
 import type { Page } from "@playwright/test";
 
 /**

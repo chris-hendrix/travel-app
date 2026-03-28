@@ -99,13 +99,15 @@ test.describe("Trip Journey", () => {
 
     await test.step("trip appears in trips list", async () => {
       await trips.goto();
-      await expect(page.getByText(tripName)).toBeVisible();
-      await expect(page.getByText(tripDestination)).toBeVisible();
+      // Use .first() to avoid strict mode violations when the trip name
+      // appears in both visible and hidden DOM elements (e.g. mobile layout).
+      await expect(page.getByText(tripName).first()).toBeVisible();
+      await expect(page.getByText(tripDestination).first()).toBeVisible();
       await expect(trips.upcomingTripsHeading).toBeVisible();
       await snap(page, "08-trips-list");
 
       await dismissToast(page);
-      await page.getByText(tripName).click();
+      await page.getByText(tripName).first().click();
       await page.waitForURL("**/trips/**");
       await expect(
         page.getByRole("heading", { level: 1, name: tripName }),
