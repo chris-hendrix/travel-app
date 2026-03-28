@@ -68,7 +68,7 @@ interface CreateMemberTravelDialogProps {
   tripStartDate?: string | null | undefined;
   tripEndDate?: string | null | undefined;
   /** Existing member travels for smart defaulting */
-  existingTravels?: MemberTravel[];
+  existingTravels?: MemberTravel[] | undefined;
 }
 
 export function CreateMemberTravelDialog({

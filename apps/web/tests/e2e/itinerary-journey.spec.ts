@@ -129,7 +129,7 @@ test.describe("Itinerary Journey", () => {
           page.getByRole("heading", { name: "Add your travel details" }),
         ).toBeVisible();
 
-        await page.getByRole("radio", { name: "Arrival" }).click();
+        await page.getByRole("button", { name: "Arrival" }).click();
 
         const travelTimeTrigger = page.getByRole("button", {
           name: "Travel time",
@@ -277,7 +277,7 @@ test.describe("Itinerary Journey", () => {
           page.getByRole("heading", { name: "Add your travel details" }),
         ).toBeVisible();
 
-        await page.getByRole("radio", { name: "Arrival" }).click();
+        await page.getByRole("button", { name: "Arrival" }).click();
 
         const travelTimeTrigger = page.getByRole("button", {
           name: "Travel time",
