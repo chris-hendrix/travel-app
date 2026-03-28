@@ -40,9 +40,9 @@ test.describe("Messaging Journey", () => {
     async ({ page, request }) => {
       test.slow(); // Multiple auth cycles and polling waits
 
-      // NOTE: The message feed renders oldest-first (chat-style, newest at bottom).
-      // Tests that use .last() on action buttons target the most recently posted
-      // message appearing at the bottom of the feed.
+      // NOTE: The message feed renders newest-first (most recent at top).
+      // Tests that use .first() on articles target the most recently posted
+      // message appearing at the top of the feed.
 
       const timestamp = Date.now();
       const organizerPhone = generateUniquePhone();
@@ -120,15 +120,15 @@ test.describe("Messaging Journey", () => {
         ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
       });
 
-      await test.step("verify feed ordering: oldest message appears first (chat-style)", async () => {
-        // The feed renders oldest-first (chat-style: newest at bottom).
-        // Verify the first-posted message appears before the second-posted message.
+      await test.step("verify feed ordering: newest message appears first", async () => {
+        // The feed renders newest-first (most recent at top).
+        // Verify the second-posted (newest) message appears first.
         const articles = page.getByRole("feed").getByRole("article");
         await expect(articles.first()).toContainText(
-          "Hello from the organizer!",
+          "This message will be edited then deleted",
         );
         await expect(articles.last()).toContainText(
-          "This message will be edited then deleted",
+          "Hello from the organizer!",
         );
       });
 
@@ -241,9 +241,8 @@ test.describe("Messaging Journey", () => {
         await expect(replyInput).toBeVisible();
 
         await replyInput.fill("This is a reply to the first message");
-        // Find the send button within the reply area (icon button)
-        const sendButtons = page.getByRole("button", { name: "Send message" });
-        await sendButtons.last().click();
+        // Press Enter to send the reply (Enter triggers handleKeyDown which calls handleSend)
+        await replyInput.press("Enter");
 
         // Verify the reply text appears in a rendered paragraph (not the textarea)
         await expect(

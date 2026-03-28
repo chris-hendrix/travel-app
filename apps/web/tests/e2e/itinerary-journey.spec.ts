@@ -137,6 +137,8 @@ test.describe("Itinerary Journey", () => {
         await pickDateTime(page, travelTimeTrigger, "2026-10-01T14:30");
 
         await page.locator('input[name="location"]').fill("San Diego Airport");
+        // Expand the collapsed "More details" section to reveal the details textarea
+        await page.getByRole("button", { name: "More details" }).click();
         await page
           .locator('textarea[name="details"]')
           .fill("Arriving from Chicago");
