@@ -93,7 +93,7 @@ export const authController = {
     reply: FastifyReply,
   ) {
     // Body is validated by Fastify route schema
-    const { phoneNumber, code } = request.body;
+    const { phoneNumber, code, smsConsent } = request.body;
 
     // Validate phone number format and get E.164 format
     const phoneValidation = validatePhoneNumber(phoneNumber);
@@ -154,6 +154,11 @@ export const authController = {
 
       // Get existing user or create new one
       const user = await authService.getOrCreateUser(e164PhoneNumber);
+
+      // Record SMS consent if provided
+      if (smsConsent) {
+        await authService.recordSmsConsent(user.id, "1.0");
+      }
 
       // Process any pending invitations for this phone number (fault-tolerant: awaited but wrapped in try/catch so failures don't break auth)
       try {

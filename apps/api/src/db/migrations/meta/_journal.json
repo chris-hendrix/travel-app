@@ -176,6 +176,13 @@
       "when": 1774477047713,
       "tag": "0024_wandering_vapor",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1774721830963,
+      "tag": "0025_jazzy_echo",
+      "breakpoints": true
     }
   ]
 }

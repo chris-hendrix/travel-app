@@ -168,6 +168,24 @@ export default async function Home() {
             <Link href="/login">Start planning</Link>
           </Button>
         </section>
+
+        {/* Footer */}
+        <footer className="flex flex-col items-center gap-2 px-4 pb-8 text-center text-xs text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <Link href="/terms" className="hover:text-foreground">
+              Terms of Service
+            </Link>
+            <span aria-hidden="true">&middot;</span>
+            <Link href="/privacy" className="hover:text-foreground">
+              Privacy Policy
+            </Link>
+            <span aria-hidden="true">&middot;</span>
+            <Link href="/sms-terms" className="hover:text-foreground">
+              SMS Terms
+            </Link>
+          </div>
+          <p>&copy; 2026 Journiful. All rights reserved.</p>
+        </footer>
       </main>
 
       {/* Structured Data */}
