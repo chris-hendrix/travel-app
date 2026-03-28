@@ -143,7 +143,7 @@ describe("Security & Schema Validation", () => {
       const response = await app.inject({
         method: "POST",
         url: "/api/auth/request-code",
-        payload: { phoneNumber: newPhone() },
+        payload: { phoneNumber: newPhone(), smsConsent: true },
       });
 
       expect(response.headers["cache-control"]).toBe(
@@ -217,7 +217,7 @@ describe("Security & Schema Validation", () => {
           await rateLimitApp.inject({
             method: "POST",
             url: "/api/auth/verify-code",
-            payload: { phoneNumber: rateLimitPhone, code: "000000" },
+            payload: { phoneNumber: rateLimitPhone, code: "000000", smsConsent: true },
           });
         }
 
@@ -225,7 +225,7 @@ describe("Security & Schema Validation", () => {
         const response = await rateLimitApp.inject({
           method: "POST",
           url: "/api/auth/verify-code",
-          payload: { phoneNumber: rateLimitPhone, code: "000000" },
+          payload: { phoneNumber: rateLimitPhone, code: "000000", smsConsent: true },
         });
 
         expect(response.statusCode).toBe(429);
