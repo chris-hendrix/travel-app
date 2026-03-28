@@ -1,24 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#1a5c9e"/>
-      <stop offset="100%" stop-color="#d1643d"/>
-    </linearGradient>
-  </defs>
-  <g transform="rotate(-6 16 16)">
-    <!-- Card body -->
-    <rect x="3" y="6" width="26" height="20" rx="2" fill="url(#g)"/>
-    <!-- Divider line -->
-    <line x1="16" y1="9" x2="16" y2="23" stroke="#fff" stroke-opacity="0.5" stroke-width="0.8"/>
-    <!-- Stamp -->
-    <rect x="21" y="8.5" width="5.5" height="5" rx="0.5" fill="#fff" fill-opacity="0.3"/>
-    <circle cx="23.75" cy="11" r="1.5" fill="#fff" fill-opacity="0.5"/>
-    <!-- Address lines -->
-    <line x1="18.5" y1="16" x2="26" y2="16" stroke="#fff" stroke-opacity="0.6" stroke-width="0.8" stroke-linecap="round"/>
-    <line x1="18.5" y1="18.5" x2="26" y2="18.5" stroke="#fff" stroke-opacity="0.6" stroke-width="0.8" stroke-linecap="round"/>
-    <line x1="18.5" y1="21" x2="24" y2="21" stroke="#fff" stroke-opacity="0.6" stroke-width="0.8" stroke-linecap="round"/>
-    <!-- Landscape illustration (left side) -->
-    <circle cx="8" cy="12" r="1.5" fill="#fff" fill-opacity="0.4"/>
-    <path d="M5 21 L8.5 15 L11 19 L12.5 16.5 L14.5 21 Z" fill="#fff" fill-opacity="0.35"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 73.201 86.401">
+  <!-- Shadow layer (dark brown) -->
+  <path d="M 0 62.001 L 0 48.801 Q 0 46.201 1.3 45.101 L 14.3 34.201 Q 15.4 33.301 17.5 33.301 L 32 33.301 Q 34.3 33.301 35.4 34.301 L 35.4 15.501 Q 35.4 13.001 36.8 11.801 L 49.7 0.901 Q 50.8 0.001 52.9 0.001 L 68.6 0.001 Q 73.2 0.001 73.2 4.601 L 73.2 54.101 Q 73.2 58.801 71.9 62.751 Q 70.6 66.701 67.1 69.501 L 54.2 80.401 Q 50.8 83.201 45 84.801 Q 39.2 86.401 30 86.401 Q 20.9 86.401 15 84.401 Q 9.1 82.401 5.85 78.951 Q 2.6 75.501 1.3 71.101 Q 0 66.701 0 62.001 Z" fill="#2c2217"/>
+  <!-- Main letter body (cream with dark brown outline) -->
+  <path d="M 72.2 54.101 Q 72.2 60.201 69.75 64.801 Q 67.3 69.401 61 71.951 Q 54.7 74.501 42.9 74.501 Q 31.3 74.501 25 71.951 Q 18.7 69.401 16.3 64.801 Q 13.9 60.201 13.9 54.101 L 13.9 37.901 Q 13.9 34.301 17.5 34.301 L 32 34.301 Q 35.6 34.301 35.6 37.901 L 35.6 50.101 Q 35.6 52.101 36.85 53.451 Q 38.1 54.801 42.7 54.801 Q 47.1 54.801 48.2 53.451 Q 49.3 52.101 49.3 50.101 L 49.3 4.601 Q 49.3 1.001 52.9 1.001 L 68.6 1.001 Q 72.2 1.001 72.2 4.601 L 72.2 54.101 Z" fill="#f5edd6" stroke="#2c2217" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Inline detail lines (dark brown) -->
+  <path d="M 60.2 10.001 L 61.2 10.001 L 61.2 51.701 Q 61.2 55.601 59.65 58.651 Q 58.1 61.701 54.15 63.451 Q 50.2 65.201 43.1 65.201 Q 35.6 65.201 31.5 63.501 Q 27.4 61.801 25.85 58.751 Q 24.3 55.701 24.3 51.701 L 24.3 43.801 L 25.3 43.801 L 25.3 51.701 Q 25.3 55.501 26.85 58.301 Q 28.4 61.101 32.3 62.651 Q 36.2 64.201 43.1 64.201 Q 49.7 64.201 53.45 62.651 Q 57.2 61.101 58.7 58.251 Q 60.2 55.401 60.2 51.701 L 60.2 10.001 Z" fill="#2c2217"/>
 </svg>
