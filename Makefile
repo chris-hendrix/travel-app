@@ -1,4 +1,4 @@
-.PHONY: help install dev dev-web dev-api migrate seed studio generate up down clean reset-db test-up test-down test-exec test-run test-status test-setup test-clean
+.PHONY: help install dev dev-web dev-api pwa migrate seed studio generate up down clean reset-db test-up test-down test-exec test-run test-status test-setup test-clean
 
 .DEFAULT_GOAL := help
 
@@ -32,6 +32,9 @@ studio: ## Open Drizzle Studio
 
 generate: ## Generate migration from schema changes
 	cd apps/api && pnpm db:generate
+
+pwa: ## Build + serve web in production mode for PWA testing (api:8000, web:3000)
+	pnpm docker:up && cd apps/web && pnpm build && cd ../.. && pnpm dev:api & cd apps/web && pnpm start
 
 # --- Infrastructure ---
 
@@ -70,9 +73,17 @@ test-down: ## Tear down devcontainer
 test-exec: ## Run command in devcontainer (CMD="...")
 	@docker compose -p $(PROJECT) exec -u node -w /workspace app bash -c "$(CMD)"
 
+pwa: ## Start production build for PWA testing (api:8000, web:3000)
+	pnpm docker:up
+	cd apps/web && pnpm build && pnpm start &
+	cd apps/api && pnpm dev
+
 test-run: ## Run full test suite (unit + E2E)
 	$(MAKE) test-exec CMD="pnpm test"
 	$(MAKE) test-exec CMD="pnpm test:e2e"
+
+test-pwa: ## Run PWA e2e tests (offline, manifest, push API, install prompts)
+	$(MAKE) test-exec CMD="cd apps/web && pnpm exec playwright test tests/e2e/pwa.spec.ts --reporter=list"
 
 test-clean: ## Remove build caches in devcontainer
 	@docker compose -p $(PROJECT) exec -u node -w /workspace app bash -c '\
