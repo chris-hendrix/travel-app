@@ -186,6 +186,7 @@ export function MobileTripLayout({
               tripId={tripId}
               isOrganizer={isOrganizer}
               disabled={isLocked}
+              hideFab={activeIndex !== 3}
             />
           </MobileTripSwiper>
         </div>
