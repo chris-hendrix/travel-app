@@ -110,9 +110,9 @@ test.describe("Install prompts", () => {
     await removeNextjsDevOverlay(page);
     await page.goto("/");
 
-    // iOS coaching should appear (share icon instructions)
+    // iOS coaching should appear with the "Install Journiful" heading
     await expect(
-      page.getByText(/add.*home screen|install.*journiful/i),
+      page.getByRole("heading", { name: "Install Journiful" }),
     ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
 
     await context.close();
