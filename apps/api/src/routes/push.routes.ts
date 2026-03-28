@@ -74,7 +74,7 @@ export async function pushRoutes(fastify: FastifyInstance) {
     },
     async (request) => {
       const { endpoint } = request.body;
-      await fastify.pushService.removeSubscription(endpoint);
+      await fastify.pushService.removeSubscription(endpoint, request.user.sub);
       return { success: true };
     },
   );

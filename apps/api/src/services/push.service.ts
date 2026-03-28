@@ -1,5 +1,5 @@
 import webpush from "web-push";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { pushSubscriptions } from "@/db/schema/index.js";
 import type { AppDatabase } from "@/types/index.js";
 import type { PushPayload } from "@journiful/shared/types";
@@ -15,7 +15,7 @@ export interface IPushService {
     sub: { endpoint: string; keys: { p256dh: string; auth: string } },
     userAgent?: string,
   ): Promise<void>;
-  removeSubscription(endpoint: string): Promise<void>;
+  removeSubscription(endpoint: string, userId?: string): Promise<void>;
   getUserSubscriptions(
     userId: string,
   ): Promise<{ endpoint: string; p256dh: string; auth: string }[]>;
@@ -59,18 +59,22 @@ export class PushService implements IPushService {
       .onConflictDoUpdate({
         target: pushSubscriptions.endpoint,
         set: {
-          userId,
           p256dh: sub.keys.p256dh,
           auth: sub.keys.auth,
           userAgent: userAgent ?? null,
         },
+        setWhere: eq(pushSubscriptions.userId, userId),
       });
   }
 
-  async removeSubscription(endpoint: string): Promise<void> {
+  async removeSubscription(endpoint: string, userId?: string): Promise<void> {
+    const conditions = [eq(pushSubscriptions.endpoint, endpoint)];
+    if (userId) {
+      conditions.push(eq(pushSubscriptions.userId, userId));
+    }
     await this.db
       .delete(pushSubscriptions)
-      .where(eq(pushSubscriptions.endpoint, endpoint));
+      .where(and(...conditions));
   }
 
   async getUserSubscriptions(
