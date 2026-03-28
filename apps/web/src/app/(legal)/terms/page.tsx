@@ -10,16 +10,16 @@ export const metadata: Metadata = {
 export default function TermsOfServicePage() {
   return (
     <article>
-      <header className="mb-12">
+      <header className="mb-10">
         <h1 className="font-playfair text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
           Terms of Service
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-3 text-sm text-muted-foreground">
           Last updated: March 28, 2026 &middot; Effective: March 28, 2026
         </p>
       </header>
 
-      <div className="space-y-10 text-[15px] leading-relaxed text-foreground/90">
+      <div className="space-y-8 text-[15px] leading-relaxed text-foreground/90">
         <p>
           These Terms of Service (&ldquo;Terms&rdquo;) govern your use of the
           Journiful application and related services (&ldquo;Service&rdquo;)
@@ -28,10 +28,8 @@ export default function TermsOfServicePage() {
           purposes and does not constitute legal advice.
         </p>
 
-        <div className="border-t border-border" />
-
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-foreground/60">
+          <h2 className="font-accent text-lg font-semibold text-foreground mb-2">
             Acceptance of Terms
           </h2>
           <p>
@@ -41,7 +39,7 @@ export default function TermsOfServicePage() {
         </section>
 
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-foreground/60">
+          <h2 className="font-accent text-lg font-semibold text-foreground mb-2">
             Account Registration
           </h2>
           <p>
@@ -53,10 +51,8 @@ export default function TermsOfServicePage() {
           </p>
         </section>
 
-        <div className="border-t border-border" />
-
         <section>
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-foreground/60">
+          <h2 className="font-accent text-lg font-semibold text-foreground mb-3">
             User Responsibilities
           </h2>
           <p className="mb-3">When using Journiful, you agree to:</p>
@@ -77,7 +73,7 @@ export default function TermsOfServicePage() {
         </section>
 
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-foreground/60">
+          <h2 className="font-accent text-lg font-semibold text-foreground mb-2">
             Trip Content and User-Generated Content
           </h2>
           <p className="mb-3">
@@ -95,10 +91,8 @@ export default function TermsOfServicePage() {
           </p>
         </section>
 
-        <div className="border-t border-border" />
-
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-foreground/60">
+          <h2 className="font-accent text-lg font-semibold text-foreground mb-2">
             SMS Communications
           </h2>
           <p>
@@ -117,7 +111,7 @@ export default function TermsOfServicePage() {
         </section>
 
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-foreground/60">
+          <h2 className="font-accent text-lg font-semibold text-foreground mb-2">
             Intellectual Property
           </h2>
           <p>
@@ -129,10 +123,8 @@ export default function TermsOfServicePage() {
           </p>
         </section>
 
-        <div className="border-t border-border" />
-
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-foreground/60">
+          <h2 className="font-accent text-lg font-semibold text-foreground mb-2">
             Limitation of Liability
           </h2>
           <p>
@@ -145,7 +137,7 @@ export default function TermsOfServicePage() {
         </section>
 
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-foreground/60">
+          <h2 className="font-accent text-lg font-semibold text-foreground mb-2">
             Termination
           </h2>
           <p>
@@ -164,7 +156,7 @@ export default function TermsOfServicePage() {
         </section>
 
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-foreground/60">
+          <h2 className="font-accent text-lg font-semibold text-foreground mb-2">
             Governing Law
           </h2>
           <p>
@@ -175,10 +167,8 @@ export default function TermsOfServicePage() {
           </p>
         </section>
 
-        <div className="border-t border-border" />
-
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-foreground/60">
+          <h2 className="font-accent text-lg font-semibold text-foreground mb-2">
             Contact Us
           </h2>
           <p>

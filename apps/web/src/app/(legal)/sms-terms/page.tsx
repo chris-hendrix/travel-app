@@ -10,16 +10,16 @@ export const metadata: Metadata = {
 export default function SmsTermsPage() {
   return (
     <article>
-      <header className="mb-12">
+      <header className="mb-10">
         <h1 className="font-playfair text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
           SMS Terms &amp; Conditions
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-3 text-sm text-muted-foreground">
           Last updated: March 28, 2026
         </p>
       </header>
 
-      <div className="space-y-10 text-[15px] leading-relaxed text-foreground/90">
+      <div className="space-y-8 text-[15px] leading-relaxed text-foreground/90">
         <section>
           <p>
             Journiful Trip Notifications is an SMS program operated by Journiful.
@@ -34,10 +34,8 @@ export default function SmsTermsPage() {
           </ul>
         </section>
 
-        <div className="border-t border-border" />
-
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-foreground/60">
+          <h2 className="font-accent text-lg font-semibold text-foreground mb-2">
             Message Frequency
           </h2>
           <p>
@@ -47,7 +45,7 @@ export default function SmsTermsPage() {
         </section>
 
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-foreground/60">
+          <h2 className="font-accent text-lg font-semibold text-foreground mb-2">
             Fees
           </h2>
           <p>
@@ -56,27 +54,23 @@ export default function SmsTermsPage() {
           </p>
         </section>
 
-        <div className="border-t border-border" />
-
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-foreground/60">
+          <h2 className="font-accent text-lg font-semibold text-foreground mb-2">
             Opt-Out
           </h2>
           <p>
-            Reply <strong className="text-foreground">STOP</strong> to any
-            message to unsubscribe. You will receive a single confirmation
-            message. After opting out, you will no longer receive text messages
-            from Journiful unless you opt in again.
+            Reply <strong>STOP</strong> to any message to unsubscribe. You will
+            receive a single confirmation message. After opting out, you will no
+            longer receive text messages from Journiful unless you opt in again.
           </p>
         </section>
 
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-foreground/60">
+          <h2 className="font-accent text-lg font-semibold text-foreground mb-2">
             Help
           </h2>
           <p>
-            Reply <strong className="text-foreground">HELP</strong> for help, or
-            contact{" "}
+            Reply <strong>HELP</strong> for help, or contact{" "}
             <a
               href="mailto:support@journiful.com"
               className="text-primary underline underline-offset-2 hover:text-primary/80"
@@ -87,10 +81,8 @@ export default function SmsTermsPage() {
           </p>
         </section>
 
-        <div className="border-t border-border" />
-
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-foreground/60">
+          <h2 className="font-accent text-lg font-semibold text-foreground mb-2">
             Carrier Information
           </h2>
           <p>
@@ -100,7 +92,7 @@ export default function SmsTermsPage() {
         </section>
 
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-foreground/60">
+          <h2 className="font-accent text-lg font-semibold text-foreground mb-2">
             Privacy
           </h2>
           <p>
@@ -118,7 +110,7 @@ export default function SmsTermsPage() {
         </section>
 
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-foreground/60">
+          <h2 className="font-accent text-lg font-semibold text-foreground mb-2">
             Customer Care
           </h2>
           <p>
