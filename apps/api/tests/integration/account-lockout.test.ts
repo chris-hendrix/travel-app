@@ -20,7 +20,7 @@ describe("Account Lockout Integration", () => {
     await app.inject({
       method: "POST",
       url: "/api/auth/request-code",
-      payload: { phoneNumber },
+      payload: { phoneNumber, smsConsent: true },
     });
   }
 
@@ -28,7 +28,7 @@ describe("Account Lockout Integration", () => {
     return app.inject({
       method: "POST",
       url: "/api/auth/verify-code",
-      payload: { phoneNumber, code },
+      payload: { phoneNumber, code, smsConsent: true },
     });
   }
 

@@ -98,6 +98,13 @@ export interface IAuthService {
    * @param phoneNumber - The phone number to reset (E.164 format)
    */
   resetFailedAttempts(phoneNumber: string): Promise<void>;
+
+  /**
+   * Records SMS consent timestamp and disclosure version on a user record
+   * @param userId - The UUID of the user
+   * @param version - The disclosure version shown (e.g., "1.0")
+   */
+  recordSmsConsent(userId: string, version: string): Promise<void>;
 }
 
 /** Maximum number of failed verification attempts before lockout */
@@ -362,5 +369,16 @@ export class AuthService implements IAuthService {
     await this.db
       .delete(authAttempts)
       .where(eq(authAttempts.phoneNumber, phoneNumber));
+  }
+
+  async recordSmsConsent(userId: string, version: string): Promise<void> {
+    await this.db
+      .update(users)
+      .set({
+        smsConsentAt: new Date(),
+        smsConsentVersion: version,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId));
   }
 }

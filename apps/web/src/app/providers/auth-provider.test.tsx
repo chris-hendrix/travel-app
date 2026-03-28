@@ -123,7 +123,7 @@ describe("AuthProvider", () => {
         expect.objectContaining({
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phoneNumber: "+15551234567" }),
+          body: JSON.stringify({ phoneNumber: "+15551234567", smsConsent: true }),
         }),
       );
     });
@@ -192,7 +192,7 @@ describe("AuthProvider", () => {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phoneNumber: "+15551234567", code: "123456" }),
+          body: JSON.stringify({ phoneNumber: "+15551234567", code: "123456", smsConsent: true }),
         }),
       );
     });

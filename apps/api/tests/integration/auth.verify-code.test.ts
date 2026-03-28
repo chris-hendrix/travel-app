@@ -24,7 +24,7 @@ describe("POST /api/auth/verify-code", () => {
     await app.inject({
       method: "POST",
       url: "/api/auth/request-code",
-      payload: { phoneNumber },
+      payload: { phoneNumber, smsConsent: true },
     });
   }
 
@@ -42,6 +42,7 @@ describe("POST /api/auth/verify-code", () => {
         payload: {
           phoneNumber,
           code: "123456",
+          smsConsent: true,
         },
       });
 
@@ -80,6 +81,7 @@ describe("POST /api/auth/verify-code", () => {
         payload: {
           phoneNumber,
           code: "123456",
+          smsConsent: true,
         },
       });
 
@@ -112,6 +114,7 @@ describe("POST /api/auth/verify-code", () => {
         payload: {
           phoneNumber,
           code: "123456",
+          smsConsent: true,
         },
       });
 
@@ -136,6 +139,7 @@ describe("POST /api/auth/verify-code", () => {
         payload: {
           phoneNumber,
           code: "123456",
+          smsConsent: true,
         },
       });
 
@@ -166,6 +170,7 @@ describe("POST /api/auth/verify-code", () => {
         payload: {
           phoneNumber,
           code: "123456",
+          smsConsent: true,
         },
       });
 
@@ -191,6 +196,7 @@ describe("POST /api/auth/verify-code", () => {
         url: "/api/auth/verify-code",
         payload: {
           code: "123456",
+          smsConsent: true,
         },
       });
 
@@ -215,6 +221,7 @@ describe("POST /api/auth/verify-code", () => {
         url: "/api/auth/verify-code",
         payload: {
           phoneNumber: generateUniquePhone(),
+          smsConsent: true,
         },
       });
 
@@ -247,6 +254,7 @@ describe("POST /api/auth/verify-code", () => {
           payload: {
             phoneNumber,
             code: "123456",
+            smsConsent: true,
           },
         });
 
@@ -276,6 +284,7 @@ describe("POST /api/auth/verify-code", () => {
           payload: {
             phoneNumber,
             code,
+            smsConsent: true,
           },
         });
 
@@ -302,6 +311,7 @@ describe("POST /api/auth/verify-code", () => {
         payload: {
           phoneNumber,
           code: "654321",
+          smsConsent: true,
         },
       });
 
@@ -332,6 +342,7 @@ describe("POST /api/auth/verify-code", () => {
         payload: {
           phoneNumber,
           code: "123456",
+          smsConsent: true,
         },
       });
 
@@ -375,7 +386,7 @@ describe("POST /api/auth/verify-code", () => {
       const response1 = await app.inject({
         method: "POST",
         url: "/api/auth/verify-code",
-        payload: { phoneNumber, code: "123456" },
+        payload: { phoneNumber, code: "123456", smsConsent: true },
       });
 
       expect(response1.statusCode).toBe(200);
@@ -385,7 +396,7 @@ describe("POST /api/auth/verify-code", () => {
       const response2 = await app.inject({
         method: "POST",
         url: "/api/auth/verify-code",
-        payload: { phoneNumber, code: "123456" },
+        payload: { phoneNumber, code: "123456", smsConsent: true },
       });
 
       expect(response2.statusCode).toBe(200);
@@ -454,6 +465,7 @@ describe("POST /api/auth/verify-code", () => {
         payload: {
           phoneNumber: inviteePhone,
           code: "123456",
+          smsConsent: true,
         },
       });
 

@@ -37,6 +37,7 @@ describe("POST /api/auth/request-code", () => {
         url: "/api/auth/request-code",
         payload: {
           phoneNumber: newPhone(),
+          smsConsent: true,
         },
       });
 
@@ -60,6 +61,7 @@ describe("POST /api/auth/request-code", () => {
           url: "/api/auth/request-code",
           payload: {
             phoneNumber,
+            smsConsent: true,
           },
         });
 
@@ -78,7 +80,7 @@ describe("POST /api/auth/request-code", () => {
       const response1 = await app.inject({
         method: "POST",
         url: "/api/auth/request-code",
-        payload: { phoneNumber },
+        payload: { phoneNumber, smsConsent: true },
       });
 
       expect(response1.statusCode).toBe(200);
@@ -86,7 +88,7 @@ describe("POST /api/auth/request-code", () => {
       const response2 = await app.inject({
         method: "POST",
         url: "/api/auth/request-code",
-        payload: { phoneNumber },
+        payload: { phoneNumber, smsConsent: true },
       });
 
       expect(response2.statusCode).toBe(200);
@@ -124,6 +126,7 @@ describe("POST /api/auth/request-code", () => {
         url: "/api/auth/request-code",
         payload: {
           phoneNumber: "+123",
+          smsConsent: true,
         },
       });
 
@@ -142,6 +145,7 @@ describe("POST /api/auth/request-code", () => {
         url: "/api/auth/request-code",
         payload: {
           phoneNumber: "+123456789012345678901",
+          smsConsent: true,
         },
       });
 
@@ -168,6 +172,7 @@ describe("POST /api/auth/request-code", () => {
           url: "/api/auth/request-code",
           payload: {
             phoneNumber,
+            smsConsent: true,
           },
         });
 
@@ -192,6 +197,7 @@ describe("POST /api/auth/request-code", () => {
         url: "/api/auth/request-code",
         payload: {
           phoneNumber: "invalid",
+          smsConsent: true,
         },
       });
 
@@ -218,7 +224,7 @@ describe("POST /api/auth/request-code", () => {
         const response = await app.inject({
           method: "POST",
           url: "/api/auth/request-code",
-          payload: { phoneNumber },
+          payload: { phoneNumber, smsConsent: true },
         });
 
         expect(response.statusCode).toBe(200);
@@ -235,14 +241,14 @@ describe("POST /api/auth/request-code", () => {
         await app.inject({
           method: "POST",
           url: "/api/auth/request-code",
-          payload: { phoneNumber },
+          payload: { phoneNumber, smsConsent: true },
         });
       }
 
       const response = await app.inject({
         method: "POST",
         url: "/api/auth/request-code",
-        payload: { phoneNumber },
+        payload: { phoneNumber, smsConsent: true },
       });
 
       expect(response.statusCode).toBe(429);
@@ -268,14 +274,14 @@ describe("POST /api/auth/request-code", () => {
         await app.inject({
           method: "POST",
           url: "/api/auth/request-code",
-          payload: { phoneNumber: phoneNumber1 },
+          payload: { phoneNumber: phoneNumber1, smsConsent: true },
         });
       }
 
       const response1 = await app.inject({
         method: "POST",
         url: "/api/auth/request-code",
-        payload: { phoneNumber: phoneNumber1 },
+        payload: { phoneNumber: phoneNumber1, smsConsent: true },
       });
 
       expect(response1.statusCode).toBe(429);
@@ -283,7 +289,7 @@ describe("POST /api/auth/request-code", () => {
       const response2 = await app.inject({
         method: "POST",
         url: "/api/auth/request-code",
-        payload: { phoneNumber: phoneNumber2 },
+        payload: { phoneNumber: phoneNumber2, smsConsent: true },
       });
 
       expect(response2.statusCode).toBe(200);

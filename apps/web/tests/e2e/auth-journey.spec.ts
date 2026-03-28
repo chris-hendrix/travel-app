@@ -40,6 +40,7 @@ test.describe("Auth Journey", () => {
       // library processes input character-by-character. fill() desynchronizes
       // the internal state from react-hook-form, silently breaking submission.
       await fillPhoneInput(loginPage.phoneInput, phone);
+      await loginPage.smsConsentCheckbox.check();
       await loginPage.continueButton.click();
       await expect(page).toHaveURL(/verify/, {
         timeout: SLOW_NAVIGATION_TIMEOUT,

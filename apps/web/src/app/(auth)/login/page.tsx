@@ -6,7 +6,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { requestCodeSchema, type RequestCodeInput } from "@journiful/shared";
 import { useAuth } from "@/app/providers/auth-provider";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { PhoneInput } from "@/components/ui/phone-input";
 import {
   Form,
@@ -27,14 +29,15 @@ export default function LoginPage() {
     resolver: zodResolver(requestCodeSchema),
     defaultValues: {
       phoneNumber: "",
+      smsConsent: false,
     },
   });
 
   async function onSubmit(data: RequestCodeInput) {
     try {
       setIsSubmitting(true);
-      await login(data.phoneNumber);
-      router.push(`/verify?phone=${encodeURIComponent(data.phoneNumber)}`);
+      await login(data.phoneNumber, data.smsConsent);
+      router.push(`/verify?phone=${encodeURIComponent(data.phoneNumber)}&smsConsent=true`);
     } catch (error) {
       form.setError("phoneNumber", {
         message: error instanceof Error ? error.message : "Request failed",
@@ -92,9 +95,42 @@ export default function LoginPage() {
                 )}
               />
 
+              <div className="flex items-start gap-2">
+                <Checkbox
+                  id="smsConsent"
+                  checked={form.watch("smsConsent")}
+                  onCheckedChange={(checked) =>
+                    form.setValue("smsConsent", checked === true)
+                  }
+                  disabled={isSubmitting}
+                />
+                <label
+                  htmlFor="smsConsent"
+                  className="text-xs text-muted-foreground leading-relaxed"
+                >
+                  I agree to receive text messages from Journiful, including
+                  trip updates, event reminders, and verification codes. Msg
+                  frequency varies. Msg &amp; data rates may apply. Reply STOP
+                  to opt out. Consent is not required to use Journiful.{" "}
+                  <Link
+                    href="/sms-terms"
+                    className="text-primary underline hover:text-primary/80"
+                  >
+                    SMS Terms
+                  </Link>{" "}
+                  &amp;{" "}
+                  <Link
+                    href="/privacy"
+                    className="text-primary underline hover:text-primary/80"
+                  >
+                    Privacy Policy
+                  </Link>
+                </label>
+              </div>
+
               <Button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !form.watch("smsConsent")}
                 variant="gradient"
                 className="w-full h-12"
               >
@@ -104,7 +140,21 @@ export default function LoginPage() {
           </Form>
 
           <p className="text-xs text-center text-muted-foreground">
-            By continuing, you agree to our Terms of Service and Privacy Policy
+            By continuing, you agree to our{" "}
+            <Link
+              href="/terms"
+              className="text-primary underline hover:text-primary/80"
+            >
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link
+              href="/privacy"
+              className="text-primary underline hover:text-primary/80"
+            >
+              Privacy Policy
+            </Link>
+            .
           </p>
         </div>
       </div>

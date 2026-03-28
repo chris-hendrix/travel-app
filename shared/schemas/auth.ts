@@ -17,6 +17,9 @@ export const requestCodeSchema = z.object({
     .max(20, {
       error: "Phone number must not exceed 20 characters",
     }),
+  smsConsent: z.boolean().refine((v) => v === true, {
+    error: "SMS consent is required",
+  }),
 });
 
 /**
@@ -41,6 +44,9 @@ export const verifyCodeSchema = z.object({
     .regex(/^\d{6}$/, {
       error: "Verification code must contain only digits",
     }),
+  smsConsent: z.boolean().refine((v) => v === true, {
+    error: "SMS consent is required",
+  }),
 });
 
 /**
@@ -72,6 +78,7 @@ export const userResponseSchema = z.object({
   timezone: z.string().nullable(),
   handles: z.record(z.string(), z.string()).nullable().optional(),
   temperatureUnit: z.enum(["celsius", "fahrenheit"]).nullable().optional(),
+  smsConsentAt: z.date().nullable().optional(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });

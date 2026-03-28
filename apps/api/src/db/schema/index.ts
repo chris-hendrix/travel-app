@@ -33,6 +33,8 @@ export const users = pgTable(
       .notNull()
       .defaultNow(),
     calendarToken: uuid("calendar_token").unique(),
+    smsConsentAt: timestamp("sms_consent_at", { withTimezone: true }),
+    smsConsentVersion: varchar("sms_consent_version", { length: 20 }),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

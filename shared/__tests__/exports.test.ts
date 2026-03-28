@@ -131,12 +131,14 @@ describe("Package Exports", () => {
 
     const requestInput: RequestCodeInput = {
       phoneNumber: "+14155552671",
+      smsConsent: true,
     };
     expect(requestInput).toBeDefined();
 
     const verifyInput: VerifyCodeInput = {
       phoneNumber: "+14155552671",
       code: "123456",
+      smsConsent: true,
     };
     expect(verifyInput).toBeDefined();
 
@@ -222,6 +224,7 @@ describe("Package Exports", () => {
   it("should validate schemas with inferred types", () => {
     const requestInput: RequestCodeInput = {
       phoneNumber: "+14155552671",
+      smsConsent: true,
     };
     const validated = requestCodeSchema.parse(requestInput);
     expect(validated.phoneNumber).toBe("+14155552671");
@@ -229,6 +232,7 @@ describe("Package Exports", () => {
     const verifyInput: VerifyCodeInput = {
       phoneNumber: "+14155552671",
       code: "123456",
+      smsConsent: true,
     };
     const validatedVerify = verifyCodeSchema.parse(verifyInput);
     expect(validatedVerify.code).toBe("123456");

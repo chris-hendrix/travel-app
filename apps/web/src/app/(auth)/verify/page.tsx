@@ -25,6 +25,7 @@ function VerifyPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const phoneNumber = searchParams.get("phone") || "";
+  const smsConsent = searchParams.get("smsConsent") === "true";
   const { verify, login } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResending, setIsResending] = useState(false);
@@ -36,6 +37,7 @@ function VerifyPageContent() {
     defaultValues: {
       phoneNumber,
       code: "",
+      smsConsent,
     },
   });
 
@@ -49,7 +51,7 @@ function VerifyPageContent() {
   async function onSubmit(data: VerifyCodeInput) {
     try {
       setIsSubmitting(true);
-      const result = await verify(data.phoneNumber, data.code);
+      const result = await verify(data.phoneNumber, data.code, data.smsConsent);
 
       if (result.requiresProfile) {
         router.push("/complete-profile");
@@ -68,7 +70,7 @@ function VerifyPageContent() {
     try {
       setIsResending(true);
       setResendSuccess(null);
-      await login(phoneNumber);
+      await login(phoneNumber, smsConsent);
       setResendSuccess("A new code has been sent to your phone");
       form.setValue("code", "");
     } catch (error) {

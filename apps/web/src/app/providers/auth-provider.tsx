@@ -16,10 +16,11 @@ import { API_URL } from "@/lib/api";
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (phoneNumber: string) => Promise<void>;
+  login: (phoneNumber: string, smsConsent?: boolean) => Promise<void>;
   verify: (
     phoneNumber: string,
     code: string,
+    smsConsent?: boolean,
   ) => Promise<{ requiresProfile: boolean }>;
   completeProfile: (data: {
     displayName: string;
@@ -60,11 +61,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     fetchUser();
   }, [fetchUser]);
 
-  const login = useCallback(async (phoneNumber: string) => {
+  const login = useCallback(async (phoneNumber: string, smsConsent?: boolean) => {
     const response = await fetch(`${API_URL}/auth/request-code`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phoneNumber }),
+      body: JSON.stringify({ phoneNumber, smsConsent: smsConsent ?? true }),
     });
 
     if (!response.ok) {
@@ -73,12 +74,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const verify = useCallback(async (phoneNumber: string, code: string) => {
+  const verify = useCallback(async (phoneNumber: string, code: string, smsConsent?: boolean) => {
     const response = await fetch(`${API_URL}/auth/verify-code`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ phoneNumber, code }),
+      body: JSON.stringify({ phoneNumber, code, smsConsent: smsConsent ?? true }),
     });
 
     if (!response.ok) {
