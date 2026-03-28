@@ -83,6 +83,7 @@ const nextConfig: NextConfig = {
   output: "standalone",
   transpilePackages: ["@journiful/shared"],
   reactStrictMode: true,
+  turbopack: {},
   experimental: {
     viewTransition: true,
     optimizePackageImports: ["lucide-react", "date-fns"],
