@@ -4,30 +4,43 @@ import Link from "next/link";
 export default function LegalLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background linen-texture">
-      <header className="w-full border-b border-border bg-background linen-texture">
-        <div className="mx-auto flex h-14 max-w-3xl items-center px-4">
+      <header className="sticky top-0 z-40 w-full border-b border-border bg-background linen-texture">
+        <div className="mx-auto flex h-14 max-w-2xl items-center justify-between px-6">
           <Link
             href="/"
             className="font-display text-2xl font-bold tracking-tight text-foreground"
           >
             Journiful
           </Link>
+          <Link
+            href="/login"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Sign in
+          </Link>
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 py-12">{children}</main>
+      <main className="mx-auto max-w-2xl px-6 py-16">{children}</main>
 
-      <footer className="border-t border-border bg-background linen-texture">
-        <div className="mx-auto flex max-w-3xl items-center justify-center gap-4 px-4 py-6 text-xs text-muted-foreground">
-          <Link href="/terms" className="hover:text-foreground">
+      <footer className="border-t border-border">
+        <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-center gap-x-6 gap-y-2 px-6 py-8 text-sm text-muted-foreground">
+          <Link
+            href="/terms"
+            className="hover:text-foreground transition-colors"
+          >
             Terms of Service
           </Link>
-          <span aria-hidden="true">&middot;</span>
-          <Link href="/privacy" className="hover:text-foreground">
+          <Link
+            href="/privacy"
+            className="hover:text-foreground transition-colors"
+          >
             Privacy Policy
           </Link>
-          <span aria-hidden="true">&middot;</span>
-          <Link href="/sms-terms" className="hover:text-foreground">
+          <Link
+            href="/sms-terms"
+            className="hover:text-foreground transition-colors"
+          >
             SMS Terms
           </Link>
         </div>
