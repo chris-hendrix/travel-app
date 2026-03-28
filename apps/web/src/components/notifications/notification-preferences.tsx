@@ -19,6 +19,11 @@ import {
   useCalendarStatus,
   useUpdateTripCalendarExclusion,
 } from "@/hooks/use-calendar";
+import { isPushSupported } from "@/lib/push-notifications";
+import {
+  usePushPermission,
+  useSubscribeToPush,
+} from "@/hooks/use-push-notifications";
 
 function CalendarTripSection({
   tripId,
@@ -55,6 +60,51 @@ function CalendarTripSection({
           disabled={updateExclusion.isPending}
           aria-label="Include in calendar"
         />
+      </div>
+    </>
+  );
+}
+
+function PushNotificationSection() {
+  const { permission } = usePushPermission();
+  const subscribeToPush = useSubscribeToPush();
+  const pushSupported = typeof window !== "undefined" && isPushSupported();
+
+  if (!pushSupported) return null;
+
+  const handleEnable = async () => {
+    await subscribeToPush();
+  };
+
+  return (
+    <>
+      <Separator className="my-4" />
+      <p className="text-sm font-medium mt-4 mb-2">Push Notifications</p>
+      <div className="flex items-center justify-between py-3">
+        <div className="space-y-0.5">
+          <Label className="text-sm font-medium">Browser push</Label>
+          <p className="text-xs text-muted-foreground">
+            {permission === "granted"
+              ? "Push notifications are enabled."
+              : permission === "denied"
+                ? "Push notifications are blocked. Enable them in your browser settings."
+                : "Receive push notifications in this browser."}
+          </p>
+        </div>
+        {permission === "default" && (
+          <button
+            onClick={handleEnable}
+            className="text-xs font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            Enable
+          </button>
+        )}
+        {permission === "granted" && (
+          <span className="text-xs font-medium text-success">Enabled</span>
+        )}
+        {permission === "denied" && (
+          <span className="text-xs font-medium text-destructive">Blocked</span>
+        )}
       </div>
     </>
   );
@@ -193,8 +243,10 @@ export function NotificationPreferences({
           />
         </div>
       )}
+      <PushNotificationSection />
       <p className="mt-4 text-xs text-muted-foreground">
-        Notifications are sent in-app and via SMS to your phone number.
+        Notifications are sent in-app, via push, and via SMS to your phone
+        number.
       </p>
       <CalendarTripSection
         tripId={tripId}

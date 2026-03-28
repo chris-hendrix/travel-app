@@ -13,6 +13,7 @@ const withPWA = withPWAInit({
   disable: isDev,
   cacheStartUrl: true,
   dynamicStartUrl: true,
+  customWorkerSrc: "worker",
   fallbacks: {
     document: "/~offline",
   },

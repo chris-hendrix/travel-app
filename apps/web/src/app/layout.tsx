@@ -14,6 +14,9 @@ import { cn } from "@/lib/utils";
 import { SkipLink } from "@/components/skip-link";
 import { InstallPrompt } from "@/components/pwa/install-prompt";
 import { IosInstallGuide } from "@/components/pwa/ios-install-guide";
+import { NotificationPrompt } from "@/components/pwa/notification-prompt";
+import { SwUpdatePrompt } from "@/components/pwa/sw-update-prompt";
+import { PushSubscriptionManager } from "@/components/pwa/push-subscription-manager";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -96,9 +99,14 @@ export default function RootLayout({
           </div>
         </noscript>
         <SkipLink />
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <NotificationPrompt />
+          <PushSubscriptionManager />
+        </Providers>
         <InstallPrompt />
         <IosInstallGuide />
+        <SwUpdatePrompt />
       </body>
     </html>
   );
