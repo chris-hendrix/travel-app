@@ -40,9 +40,9 @@ test.describe("Messaging Journey", () => {
     async ({ page, request }) => {
       test.slow(); // Multiple auth cycles and polling waits
 
-      // NOTE: The message feed renders newest-first (most recent at top).
-      // Tests that use .first() on articles target the most recently posted
-      // message appearing at the top of the feed.
+      // NOTE: The message feed renders oldest-first / newest-last (chat-style).
+      // Tests that use .first() on articles target the oldest message,
+      // and .last() targets the most recently posted message at the bottom.
 
       const timestamp = Date.now();
       const organizerPhone = generateUniquePhone();
@@ -120,15 +120,14 @@ test.describe("Messaging Journey", () => {
         ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
       });
 
-      await test.step("verify feed ordering: newest message appears first", async () => {
-        // The feed renders newest-first (most recent at top).
-        // Verify the second-posted (newest) message appears first.
+      await test.step("verify feed ordering: newest message appears last (chat-style)", async () => {
+        // The feed renders oldest-first / newest-last (chat-style, newest at bottom).
         const articles = page.getByRole("feed").getByRole("article");
         await expect(articles.first()).toContainText(
-          "This message will be edited then deleted",
+          "Hello from the organizer!",
         );
         await expect(articles.last()).toContainText(
-          "Hello from the organizer!",
+          "This message will be edited then deleted",
         );
       });
 
