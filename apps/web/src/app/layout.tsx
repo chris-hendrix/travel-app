@@ -12,6 +12,8 @@ import {
 } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
 import { SkipLink } from "@/components/skip-link";
+import { InstallPrompt } from "@/components/pwa/install-prompt";
+import { IosInstallGuide } from "@/components/pwa/ios-install-guide";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -44,6 +46,9 @@ export const metadata: Metadata = {
       "Journiful — memories & itineraries. Plan group trips together. Coordinate itineraries, accommodations, and events with your travel companions in one place.",
   },
   robots: { index: true, follow: true },
+  icons: {
+    apple: "/icons/apple-touch-icon.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -92,6 +97,8 @@ export default function RootLayout({
         </noscript>
         <SkipLink />
         <Providers>{children}</Providers>
+        <InstallPrompt />
+        <IosInstallGuide />
       </body>
     </html>
   );
