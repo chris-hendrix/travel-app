@@ -5,6 +5,7 @@ export class LoginPage {
   readonly page: Page;
   readonly heading: Locator;
   readonly phoneInput: Locator;
+  readonly smsConsentCheckbox: Locator;
   readonly continueButton: Locator;
   readonly verifyHeading: Locator;
   readonly codeInput: Locator;
@@ -17,6 +18,7 @@ export class LoginPage {
     this.page = page;
     this.heading = page.getByRole("heading", { name: "Get started" });
     this.phoneInput = page.getByRole("textbox", { name: /phone/i });
+    this.smsConsentCheckbox = page.getByRole("checkbox", { name: /I agree to receive text messages/i });
     this.continueButton = page.getByRole("button", { name: "Continue" });
     this.verifyHeading = page.getByRole("heading", {
       name: "Verify your number",
@@ -40,6 +42,7 @@ export class LoginPage {
 
   async login(phone: string) {
     await fillPhoneInput(this.phoneInput, phone);
+    await this.smsConsentCheckbox.check();
     await this.continueButton.click();
     await this.page.waitForURL("**/verify**");
     await this.codeInput.fill("123456");

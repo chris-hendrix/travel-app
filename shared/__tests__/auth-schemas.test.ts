@@ -18,7 +18,9 @@ describe("requestCodeSchema", () => {
     ];
 
     validPhoneNumbers.forEach((phoneNumber) => {
-      expect(() => requestCodeSchema.parse({ phoneNumber })).not.toThrow();
+      expect(() =>
+        requestCodeSchema.parse({ phoneNumber, smsConsent: true }),
+      ).not.toThrow();
     });
   });
 
@@ -31,7 +33,10 @@ describe("requestCodeSchema", () => {
     ];
 
     shortPhoneNumbers.forEach((phoneNumber) => {
-      const result = requestCodeSchema.safeParse({ phoneNumber });
+      const result = requestCodeSchema.safeParse({
+        phoneNumber,
+        smsConsent: true,
+      });
       expect(result.success).toBe(false);
     });
   });
@@ -43,13 +48,19 @@ describe("requestCodeSchema", () => {
     ];
 
     longPhoneNumbers.forEach((phoneNumber) => {
-      const result = requestCodeSchema.safeParse({ phoneNumber });
+      const result = requestCodeSchema.safeParse({
+        phoneNumber,
+        smsConsent: true,
+      });
       expect(result.success).toBe(false);
     });
   });
 
   it("should provide helpful error messages for short phone numbers", () => {
-    const result = requestCodeSchema.safeParse({ phoneNumber: "123" });
+    const result = requestCodeSchema.safeParse({
+      phoneNumber: "123",
+      smsConsent: true,
+    });
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.issues[0]?.message).toContain(
@@ -61,6 +72,7 @@ describe("requestCodeSchema", () => {
   it("should provide helpful error messages for long phone numbers", () => {
     const result = requestCodeSchema.safeParse({
       phoneNumber: "123456789012345678901",
+      smsConsent: true,
     });
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -71,7 +83,22 @@ describe("requestCodeSchema", () => {
   });
 
   it("should reject missing phoneNumber field", () => {
-    const result = requestCodeSchema.safeParse({});
+    const result = requestCodeSchema.safeParse({ smsConsent: true });
+    expect(result.success).toBe(false);
+  });
+
+  it("should reject missing smsConsent", () => {
+    const result = requestCodeSchema.safeParse({
+      phoneNumber: "+14155552671",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("should reject smsConsent set to false", () => {
+    const result = requestCodeSchema.safeParse({
+      phoneNumber: "+14155552671",
+      smsConsent: false,
+    });
     expect(result.success).toBe(false);
   });
 });
@@ -79,10 +106,10 @@ describe("requestCodeSchema", () => {
 describe("verifyCodeSchema", () => {
   it("should accept valid phone number and code combinations", () => {
     const validInputs = [
-      { phoneNumber: "+14155552671", code: "123456" },
-      { phoneNumber: "4155552671", code: "000000" },
-      { phoneNumber: "+442071838750", code: "999999" },
-      { phoneNumber: "1234567890", code: "123456" },
+      { phoneNumber: "+14155552671", code: "123456", smsConsent: true },
+      { phoneNumber: "4155552671", code: "000000", smsConsent: true },
+      { phoneNumber: "+442071838750", code: "999999", smsConsent: true },
+      { phoneNumber: "1234567890", code: "123456", smsConsent: true },
     ];
 
     validInputs.forEach((input) => {
@@ -92,10 +119,10 @@ describe("verifyCodeSchema", () => {
 
   it("should reject codes that are not exactly 6 digits", () => {
     const invalidCodes = [
-      { phoneNumber: "1234567890", code: "12345" }, // Too short
-      { phoneNumber: "1234567890", code: "1234567" }, // Too long
-      { phoneNumber: "1234567890", code: "" }, // Empty
-      { phoneNumber: "1234567890", code: "1" }, // Way too short
+      { phoneNumber: "1234567890", code: "12345", smsConsent: true },
+      { phoneNumber: "1234567890", code: "1234567", smsConsent: true },
+      { phoneNumber: "1234567890", code: "", smsConsent: true },
+      { phoneNumber: "1234567890", code: "1", smsConsent: true },
     ];
 
     invalidCodes.forEach((input) => {
@@ -106,11 +133,11 @@ describe("verifyCodeSchema", () => {
 
   it("should reject codes that contain non-digit characters", () => {
     const invalidCodes = [
-      { phoneNumber: "1234567890", code: "12345a" }, // Contains letter
-      { phoneNumber: "1234567890", code: "12-456" }, // Contains hyphen
-      { phoneNumber: "1234567890", code: "12 456" }, // Contains space
-      { phoneNumber: "1234567890", code: "123.56" }, // Contains period
-      { phoneNumber: "1234567890", code: "abcdef" }, // All letters
+      { phoneNumber: "1234567890", code: "12345a", smsConsent: true },
+      { phoneNumber: "1234567890", code: "12-456", smsConsent: true },
+      { phoneNumber: "1234567890", code: "12 456", smsConsent: true },
+      { phoneNumber: "1234567890", code: "123.56", smsConsent: true },
+      { phoneNumber: "1234567890", code: "abcdef", smsConsent: true },
     ];
 
     invalidCodes.forEach((input) => {
@@ -121,9 +148,9 @@ describe("verifyCodeSchema", () => {
 
   it("should reject invalid phone numbers", () => {
     const invalidPhoneNumbers = [
-      { phoneNumber: "123", code: "123456" }, // Too short
-      { phoneNumber: "123456789012345678901", code: "123456" }, // Too long
-      { phoneNumber: "", code: "123456" }, // Empty
+      { phoneNumber: "123", code: "123456", smsConsent: true },
+      { phoneNumber: "123456789012345678901", code: "123456", smsConsent: true },
+      { phoneNumber: "", code: "123456", smsConsent: true },
     ];
 
     invalidPhoneNumbers.forEach((input) => {
@@ -136,6 +163,7 @@ describe("verifyCodeSchema", () => {
     const result = verifyCodeSchema.safeParse({
       phoneNumber: "1234567890",
       code: "12345",
+      smsConsent: true,
     });
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -147,6 +175,7 @@ describe("verifyCodeSchema", () => {
     const result = verifyCodeSchema.safeParse({
       phoneNumber: "1234567890",
       code: "12345a",
+      smsConsent: true,
     });
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -158,10 +187,16 @@ describe("verifyCodeSchema", () => {
   });
 
   it("should reject missing required fields", () => {
-    const result1 = verifyCodeSchema.safeParse({ phoneNumber: "1234567890" });
+    const result1 = verifyCodeSchema.safeParse({
+      phoneNumber: "1234567890",
+      smsConsent: true,
+    });
     expect(result1.success).toBe(false);
 
-    const result2 = verifyCodeSchema.safeParse({ code: "123456" });
+    const result2 = verifyCodeSchema.safeParse({
+      code: "123456",
+      smsConsent: true,
+    });
     expect(result2.success).toBe(false);
 
     const result3 = verifyCodeSchema.safeParse({});
