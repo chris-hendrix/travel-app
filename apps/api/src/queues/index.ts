@@ -9,12 +9,14 @@ import {
   type NotificationDeliverPayload,
   type InvitationSendPayload,
   type NotificationBatchPayload,
+  type PushDeliverPayload,
   type PhotoProcessingPayload,
 } from "./types.js";
 import { handleNotificationDeliver } from "./workers/notification-deliver.worker.js";
 import { handleInvitationSend } from "./workers/invitation-send.worker.js";
 import { handleNotificationBatch } from "./workers/notification-batch.worker.js";
 import { handleDailyItineraries } from "./workers/daily-itineraries.worker.js";
+import { handlePushDeliver } from "./workers/push-deliver.worker.js";
 import type { JobWithMetadata } from "pg-boss";
 import {
   handlePhotoProcessing,
@@ -59,6 +61,16 @@ export default fp(
       retryBackoff: true,
       expireInSeconds: 300,
       deadLetter: QUEUE.NOTIFICATION_DELIVER_DLQ,
+      deleteAfterSeconds: 604800,
+    });
+
+    await boss.createQueue(QUEUE.PUSH_DELIVER_DLQ);
+    await boss.createQueue(QUEUE.PUSH_DELIVER, {
+      retryLimit: 3,
+      retryDelay: 10,
+      retryBackoff: true,
+      expireInSeconds: 300,
+      deadLetter: QUEUE.PUSH_DELIVER_DLQ,
       deleteAfterSeconds: 604800,
     });
 
@@ -112,6 +124,7 @@ export default fp(
       db: fastify.db,
       boss,
       smsService: fastify.smsService,
+      pushService: fastify.pushService,
       logger: fastify.log,
     };
 
@@ -137,6 +150,14 @@ export default fp(
       QUEUE.NOTIFICATION_BATCH,
       async (jobs) => {
         await handleNotificationBatch(jobs[0]!, deps);
+      },
+    );
+
+    await boss.work<PushDeliverPayload>(
+      QUEUE.PUSH_DELIVER,
+      { localConcurrency: 3 },
+      async (jobs) => {
+        await handlePushDeliver(jobs[0]!, deps);
       },
     );
 
@@ -197,6 +218,10 @@ export default fp(
     });
 
     await boss.work<unknown>(QUEUE.INVITATION_SEND_DLQ, async (jobs) => {
+      await handleDlq(jobs[0]!, deps);
+    });
+
+    await boss.work<unknown>(QUEUE.PUSH_DELIVER_DLQ, async (jobs) => {
       await handleDlq(jobs[0]!, deps);
     });
 
@@ -262,6 +287,7 @@ export default fp(
       "queue",
       "database",
       "sms-service",
+      "push-service",
       "upload-service",
       "image-processing-service",
       "photo-service",

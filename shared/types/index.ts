@@ -116,6 +116,8 @@ export type {
   GetUnreadCountResponse,
   GetNotificationPreferencesResponse,
   UpdateNotificationPreferencesResponse,
+  PushSubscriptionInput,
+  PushPayload,
 } from "./notification";
 
 // Re-export mutuals types

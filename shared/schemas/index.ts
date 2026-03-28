@@ -127,7 +127,12 @@ export {
   notificationListResponseSchema,
   unreadCountResponseSchema,
   notificationPreferencesResponseSchema,
+  pushSubscribeSchema,
+  pushUnsubscribeSchema,
+  vapidPublicKeyResponseSchema,
   type NotificationPreferencesInput,
+  type PushSubscribeInput,
+  type PushUnsubscribeInput,
 } from "./notification";
 
 // Re-export calendar schemas

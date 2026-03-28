@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { authenticateUser, generateUniquePhone } from "./helpers/auth";
 import { LoginPage, TripsPage } from "./helpers/pages";
 import { snap } from "./helpers/screenshots";
-import { removeNextjsDevOverlay } from "./helpers/nextjs-dev";
+import { removeNextjsDevOverlay, dismissPwaPrompts } from "./helpers/nextjs-dev";
 import { fillPhoneInput } from "./helpers/phone-input";
 import {
   NAVIGATION_TIMEOUT,
@@ -20,6 +20,7 @@ import { formatPhoneNumber } from "../../src/lib/format";
 test.describe("Auth Journey", () => {
   test.beforeEach(async ({ page }) => {
     await removeNextjsDevOverlay(page);
+    await dismissPwaPrompts(page);
     await page.context().clearCookies();
   });
 

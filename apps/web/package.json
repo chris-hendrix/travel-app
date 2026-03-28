@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "postbuild": "cp -r public .next/standalone/apps/web/public && cp -r .next/static .next/standalone/apps/web/.next/static",
     "start": "next start",
     "lint": "eslint . --ignore-pattern '**/*.test.tsx' --ignore-pattern '**/*.test.ts' --ignore-pattern '**/*.spec.tsx' --ignore-pattern '**/*.spec.ts'",
@@ -18,9 +18,10 @@
     "clean": "rm -rf .next .turbo node_modules"
   },
   "dependencies": {
+    "@ducanh2912/next-pwa": "^10.2.9",
     "@hookform/resolvers": "^5.2.2",
-    "@tanstack/react-query": "^5.91.2",
     "@journiful/shared": "workspace:*",
+    "@tanstack/react-query": "^5.91.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

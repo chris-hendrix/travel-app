@@ -86,6 +86,11 @@ const envSchema = z.object({
     .transform(Number)
     .refine((n) => n > 0, "MAX_FILE_SIZE must be positive")
     .default(5242880),
+  // VAPID Keys for Web Push Notifications (optional — push disabled if not set)
+  VAPID_PUBLIC_KEY: z.string().default(""),
+  VAPID_PRIVATE_KEY: z.string().default(""),
+  VAPID_SUBJECT: z.string().default("mailto:hello@journiful.app"),
+
   // AeroDataBox Flight Lookup (optional)
   AERODATABOX_API_KEY: z.string().default(""),
 

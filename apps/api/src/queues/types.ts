@@ -1,6 +1,7 @@
 import type { PgBoss } from "pg-boss";
 import type { AppDatabase } from "@/types/index.js";
 import type { ISMSService } from "@/services/sms.service.js";
+import type { IPushService } from "@/services/push.service.js";
 import type { Logger } from "@/types/logger.js";
 
 export const QUEUE = {
@@ -12,6 +13,8 @@ export const QUEUE = {
   INVITATION_SEND_DLQ: "invitation/send/dlq",
   DAILY_ITINERARIES: "daily-itineraries",
   DAILY_ITINERARIES_DLQ: "daily-itineraries/dlq",
+  PUSH_DELIVER: "push/deliver",
+  PUSH_DELIVER_DLQ: "push/deliver/dlq",
   PHOTO_PROCESSING: "photo/process",
   PHOTO_PROCESSING_DLQ: "photo/process/dlq",
   RATE_LIMIT_CLEANUP: "rate-limit/cleanup",
@@ -38,6 +41,15 @@ export interface InvitationSendPayload {
   message: string;
 }
 
+export interface PushDeliverPayload {
+  userId: string;
+  notificationId?: string;
+  title: string;
+  body: string;
+  url: string;
+  tag: string;
+}
+
 export interface PhotoProcessingPayload {
   photoId: string;
   tripId: string;
@@ -48,5 +60,6 @@ export interface WorkerDeps {
   db: AppDatabase;
   boss: PgBoss;
   smsService: ISMSService;
+  pushService: IPushService;
   logger: Logger;
 }

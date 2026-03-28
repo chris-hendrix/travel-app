@@ -61,7 +61,31 @@ export const notificationPreferencesResponseSchema = z.object({
   }),
 });
 
+// --- Push subscription schemas ---
+
+/** POST /api/push/subscribe - Subscribe to push notifications */
+export const pushSubscribeSchema = z.object({
+  endpoint: z.string().url(),
+  keys: z.object({
+    p256dh: z.string().min(1),
+    auth: z.string().min(1),
+  }),
+  userAgent: z.string().optional(),
+});
+
+/** DELETE /api/push/subscribe - Unsubscribe from push notifications */
+export const pushUnsubscribeSchema = z.object({
+  endpoint: z.string().url(),
+});
+
+/** GET /api/push/vapid-public-key response */
+export const vapidPublicKeyResponseSchema = z.object({
+  publicKey: z.string(),
+});
+
 // Inferred TypeScript types from schemas
 export type NotificationPreferencesInput = z.infer<
   typeof notificationPreferencesSchema
 >;
+export type PushSubscribeInput = z.infer<typeof pushSubscribeSchema>;
+export type PushUnsubscribeInput = z.infer<typeof pushUnsubscribeSchema>;

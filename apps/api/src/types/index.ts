@@ -25,6 +25,7 @@ import type { IFlightService } from "@/services/flight.service.js";
 import type { IPhotoService } from "@/services/photo.service.js";
 import type { IImageProcessingService } from "@/services/image-processing.service.js";
 import type { IStorageService } from "@/services/storage.service.js";
+import type { IPushService } from "@/services/push.service.js";
 
 export type FullSchema = typeof schema & typeof relations;
 export type AppDatabase = NodePgDatabase<FullSchema>;
@@ -79,6 +80,7 @@ declare module "fastify" {
     photoService: IPhotoService;
     imageProcessingService: IImageProcessingService;
     storage: IStorageService;
+    pushService: IPushService;
     healthService: { getStatus(): Promise<HealthCheckResponse> };
   }
 }

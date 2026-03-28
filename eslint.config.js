@@ -22,6 +22,10 @@ export default [
       "**/vitest.config.ts",
       "**/playwright-report/**",
       "**/test-results/**",
+      "**/public/fallback-*.js",
+      "**/public/sw.js",
+      "**/public/workbox-*.js",
+      "**/scripts/**/*.mjs",
     ],
   },
 
