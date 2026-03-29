@@ -390,9 +390,6 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
                   onNavigateToItinerary={() =>
                     document.getElementById("itinerary")?.scrollIntoView({ behavior: "smooth" })
                   }
-                  onNavigateToSettle={() =>
-                    document.getElementById("settle")?.scrollIntoView({ behavior: "smooth" })
-                  }
                   className="px-0 pt-0"
                 />
               </div>
@@ -415,9 +412,6 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
                 onOpenMembers={() => setIsMembersOpen(true)}
                 onNavigateToItinerary={() =>
                   document.getElementById("itinerary")?.scrollIntoView({ behavior: "smooth" })
-                }
-                onNavigateToSettle={() =>
-                  document.getElementById("settle")?.scrollIntoView({ behavior: "smooth" })
                 }
               />
             </div>

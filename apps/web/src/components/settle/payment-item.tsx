@@ -32,10 +32,10 @@ export function PaymentItem({ payment, onClick }: PaymentItemProps) {
     return (
       <button
         onClick={onClick ? () => onClick(payment) : undefined}
-        className="flex items-center gap-3 rounded-md bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900 p-3 w-full text-left hover:bg-green-100/50 dark:hover:bg-green-950/30 transition-colors cursor-pointer"
+        className="flex items-center gap-3 rounded-md bg-card linen-texture border border-border border-dashed p-3 w-full text-left hover:bg-accent/50 transition-colors cursor-pointer"
       >
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30 shrink-0">
-          <Handshake className="h-4 w-4 text-green-600 dark:text-green-400" />
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 shrink-0">
+          <Handshake className="h-4 w-4 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">
@@ -46,7 +46,7 @@ export function PaymentItem({ payment, onClick }: PaymentItemProps) {
           )}
         </div>
         <div className="text-right shrink-0">
-          <p className="text-sm font-semibold text-green-600 dark:text-green-400">
+          <p className="text-sm font-semibold text-primary">
             {formatCents(payment.amount)}
           </p>
           <p className="text-xs text-muted-foreground">

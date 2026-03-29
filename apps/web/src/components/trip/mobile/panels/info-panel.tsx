@@ -21,7 +21,7 @@ import { canModifyAccommodation } from "@/components/itinerary/utils/permissions
 import { useAccommodations } from "@/hooks/use-accommodations";
 import { useAuth } from "@/app/providers/auth-provider";
 import { TodaySection } from "./today-section";
-import { SettleSummaryCard } from "@/components/settle/settle-summary-card";
+
 import { linkifyText } from "@/utils/linkify";
 import { getUploadUrl } from "@/lib/api";
 import { getInitials } from "@/lib/format";
@@ -77,7 +77,6 @@ interface InfoPanelProps {
   onOpenSettings: () => void;
   onOpenMembers: () => void;
   onNavigateToItinerary: () => void;
-  onNavigateToSettle?: () => void;
   onScroll?: (scrollTop: number) => void;
   className?: string;
 }
@@ -94,7 +93,6 @@ export function InfoPanel({
   onOpenSettings,
   onOpenMembers,
   onNavigateToItinerary,
-  onNavigateToSettle,
   onScroll,
   className,
 }: InfoPanelProps) {
@@ -300,12 +298,7 @@ export function InfoPanel({
           </CollapsibleSection>
         )}
 
-        {/* 4. Settle summary */}
-        <CollapsibleSection label="Settle" defaultOpen>
-          <SettleSummaryCard tripId={tripId} {...(onNavigateToSettle ? { onNavigateToSettle } : {})} />
-        </CollapsibleSection>
-
-        {/* 5. Today section (only during trip) */}
+        {/* 4. Today section (only during trip) */}
         {phase === "duringTrip" && (
           <CollapsibleSection label={todayLabelNode} defaultOpen>
             <TodaySection

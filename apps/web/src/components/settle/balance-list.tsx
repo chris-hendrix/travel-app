@@ -1,7 +1,9 @@
 "use client";
 
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2 } from "lucide-react";
+import { useAuth } from "@/app/providers/auth-provider";
 import { tripBalancesQueryOptions } from "@/hooks/balance-queries";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BalanceItem } from "./balance-item";
@@ -13,10 +15,27 @@ interface BalanceListProps {
 }
 
 export function BalanceList({ tripId, onSettleUp }: BalanceListProps) {
+  const { user } = useAuth();
   const { data: balances, isPending } = useQuery({
     ...tripBalancesQueryOptions(tripId),
     enabled: !!tripId,
   });
+
+  // Sort: current user's balances first
+  const sorted = useMemo(() => {
+    if (!balances || !user) return balances;
+    return [...balances].sort((a, b) => {
+      const aIsMe =
+        (!a.from.isGuest && a.from.id === user.id) ||
+        (!a.to.isGuest && a.to.id === user.id);
+      const bIsMe =
+        (!b.from.isGuest && b.from.id === user.id) ||
+        (!b.to.isGuest && b.to.id === user.id);
+      if (aIsMe && !bIsMe) return -1;
+      if (!aIsMe && bIsMe) return 1;
+      return 0;
+    });
+  }, [balances, user]);
 
   if (isPending) {
     return (
@@ -28,7 +47,7 @@ export function BalanceList({ tripId, onSettleUp }: BalanceListProps) {
     );
   }
 
-  if (!balances || balances.length === 0) {
+  if (!sorted || sorted.length === 0) {
     return (
       <div className="flex items-center gap-2 rounded-md bg-card linen-texture border border-border p-4 text-center justify-center">
         <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
@@ -41,9 +60,21 @@ export function BalanceList({ tripId, onSettleUp }: BalanceListProps) {
 
   return (
     <div className="space-y-2">
-      {balances.map((entry, i) => (
-        <BalanceItem key={i} entry={entry} {...(onSettleUp ? { onSettleUp } : {})} />
-      ))}
+      {sorted.map((entry, i) => {
+        const isCurrentUser =
+          !!user &&
+          ((!entry.from.isGuest && entry.from.id === user.id) ||
+            (!entry.to.isGuest && entry.to.id === user.id));
+        return (
+          <BalanceItem
+            key={i}
+            entry={entry}
+            highlighted={isCurrentUser}
+            {...(user ? { currentUserId: user.id } : {})}
+            {...(onSettleUp ? { onSettleUp } : {})}
+          />
+        );
+      })}
     </div>
   );
 }

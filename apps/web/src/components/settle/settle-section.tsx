@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
 import { BalanceList } from "./balance-list";
 import { PaymentList } from "./payment-list";
 import { PaymentForm } from "./payment-form";
@@ -52,38 +51,28 @@ export function SettleSection({
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold font-playfair">Settle</h2>
-      </div>
+      <h2 className="text-xl font-semibold font-playfair">Settle</h2>
 
-      {/* Filter pills */}
-      <div className="flex items-center gap-1.5">
+      {/* Underlined tabs */}
+      <div className="flex border-b border-border">
         {TABS.map((tab) => (
           <button
             key={tab}
             type="button"
             onClick={() => setActiveTab(tab)}
             className={cn(
-              "inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium transition-colors shrink-0 cursor-pointer",
+              "px-4 py-2 text-sm font-medium transition-colors relative cursor-pointer",
               activeTab === tab
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground",
+                ? "text-foreground"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             {tab}
+            {activeTab === tab && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+            )}
           </button>
         ))}
-        {!disabled && (
-          <button
-            type="button"
-            onClick={handleAddExpense}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors shrink-0 cursor-pointer bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground ml-auto"
-          >
-            <Plus className="h-3 w-3" />
-            Add Expense
-          </button>
-        )}
       </div>
 
       {/* Tab content */}
@@ -103,7 +92,7 @@ export function SettleSection({
       )}
 
       {activeTab === "Guests" && (
-        <GuestManager tripId={tripId} />
+        <GuestManager tripId={tripId} {...(disabled ? { disabled } : {})} />
       )}
 
       {/* Payment form sheet */}

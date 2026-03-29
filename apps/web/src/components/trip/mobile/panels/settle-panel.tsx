@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
 import { BalanceList } from "@/components/settle/balance-list";
 import { PaymentList } from "@/components/settle/payment-list";
 import { PaymentForm } from "@/components/settle/payment-form";
@@ -48,39 +47,32 @@ export function SettlePanel({ tripId, isOrganizer, disabled }: SettlePanelProps)
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      {/* Filter pills */}
-      <div className="shrink-0 px-4 pt-4 pb-2">
-        <div className="flex items-center gap-1.5 overflow-x-auto">
+      {/* Underlined tabs */}
+      <div className="shrink-0 px-4 pt-4 pb-0">
+        <div className="flex border-b border-border">
           {TABS.map((tab) => (
             <button
               key={tab}
               type="button"
               onClick={() => setActiveTab(tab)}
               className={cn(
-                "inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium transition-colors shrink-0 cursor-pointer",
+                "px-4 py-2 text-sm font-medium transition-colors relative cursor-pointer",
                 activeTab === tab
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground",
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               {tab}
+              {activeTab === tab && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+              )}
             </button>
           ))}
-          {!disabled && (
-            <button
-              type="button"
-              onClick={handleAddExpense}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors shrink-0 cursor-pointer bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground ml-auto"
-            >
-              <Plus className="h-3 w-3" />
-              Add
-            </button>
-          )}
         </div>
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-4">
+      <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-2">
         {activeTab === "Expenses" && (
           <PaymentList
             tripId={tripId}
@@ -97,7 +89,7 @@ export function SettlePanel({ tripId, isOrganizer, disabled }: SettlePanelProps)
         )}
 
         {activeTab === "Guests" && (
-          <GuestManager tripId={tripId} />
+          <GuestManager tripId={tripId} {...(disabled ? { disabled } : {})} />
         )}
       </div>
 
