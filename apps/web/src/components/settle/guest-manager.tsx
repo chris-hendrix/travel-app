@@ -95,7 +95,7 @@ export function GuestManager({ tripId, disabled }: GuestManagerProps) {
           ))}
         </div>
       ) : (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
           {guests?.map((guest) =>
             editingId === guest.id ? (
               <div key={guest.id} className="flex items-center gap-1">
@@ -157,48 +157,47 @@ export function GuestManager({ tripId, disabled }: GuestManagerProps) {
               </button>
             ),
           )}
+
+          {/* Add guest — inline with chips */}
+          {!disabled &&
+            (isAddingGuest ? (
+              <div className="flex items-center gap-1">
+                <Input
+                  placeholder="Name"
+                  value={newGuestName}
+                  onChange={(e) => setNewGuestName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleAddGuest();
+                    if (e.key === "Escape") {
+                      setIsAddingGuest(false);
+                      setNewGuestName("");
+                    }
+                  }}
+                  className="h-7 w-28 text-sm"
+                  autoFocus
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 shrink-0"
+                  onClick={handleAddGuest}
+                  disabled={!newGuestName.trim() || createGuest.isPending}
+                >
+                  <Check className="h-3 w-3" />
+                </Button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsAddingGuest(true)}
+                className="inline-flex items-center gap-1 rounded-full border border-dashed border-border px-3 py-1 text-sm text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors cursor-pointer"
+              >
+                <UserPlus className="h-3.5 w-3.5" />
+                <span>Add</span>
+              </button>
+            ))}
         </div>
       )}
-
-      {/* Add guest — inline input or button */}
-      {!disabled &&
-        (isAddingGuest ? (
-          <div className="flex items-center gap-2">
-            <Input
-              placeholder="Guest name"
-              value={newGuestName}
-              onChange={(e) => setNewGuestName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleAddGuest();
-                if (e.key === "Escape") {
-                  setIsAddingGuest(false);
-                  setNewGuestName("");
-                }
-              }}
-              className="h-8 text-sm"
-              autoFocus
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 shrink-0"
-              onClick={handleAddGuest}
-              disabled={!newGuestName.trim() || createGuest.isPending}
-            >
-              <UserPlus className="mr-1.5 h-3.5 w-3.5" />
-              Add
-            </Button>
-          </div>
-        ) : (
-          <Button
-            variant="outline"
-            className="w-full mt-1"
-            onClick={() => setIsAddingGuest(true)}
-          >
-            <UserPlus className="h-4 w-4 mr-2" />
-            Add Guest
-          </Button>
-        ))}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
