@@ -136,17 +136,9 @@ export function GuestManager({ tripId, disabled }: GuestManagerProps) {
                 <span>{guest.name}</span>
                 {!disabled && (
                   <span
-                    role="button"
-                    tabIndex={0}
                     onClick={(e) => {
                       e.stopPropagation();
                       setRemovingGuest(guest);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.stopPropagation();
-                        setRemovingGuest(guest);
-                      }
                     }}
                     className="rounded-full p-0.5 hover:bg-destructive/10 hover:text-destructive transition-colors cursor-pointer"
                     aria-label={`Remove ${guest.name}`}

@@ -135,7 +135,7 @@ test.describe("Settle Journey", () => {
         await page.getByPlaceholder("Name").press("Enter");
 
         // Verify guest chip appears
-        await expect(page.getByRole("button", { name: /Tomislav/ })).toBeVisible({
+        await expect(page.getByText("Tomislav", { exact: true })).toBeVisible({
           timeout: ELEMENT_TIMEOUT,
         });
       });
@@ -192,7 +192,7 @@ test.describe("Settle Journey", () => {
         await page.getByRole("button", { name: "Guests" }).click();
 
         // Click the X on the Tomislav chip
-        await page.getByLabel("Remove Tomislav").click();
+        await page.locator('[aria-label="Remove Tomislav"]').click();
 
         // Confirm removal in the alert dialog
         const dialog = page.getByRole("alertdialog");
@@ -202,7 +202,7 @@ test.describe("Settle Journey", () => {
         await dialog.getByRole("button", { name: "Remove" }).click();
 
         // Guest should be gone
-        await expect(page.getByRole("button", { name: /Tomislav/ })).not.toBeVisible({
+        await expect(page.getByText("Tomislav", { exact: true })).not.toBeVisible({
           timeout: ELEMENT_TIMEOUT,
         });
       });
