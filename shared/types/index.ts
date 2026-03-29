@@ -149,3 +149,23 @@ export type {
   FlightLookupResult,
   FlightLookupResponse,
 } from "./flight";
+
+// Re-export guest types
+export type { Guest, GetGuestsResponse, GuestResponse } from "./guest";
+
+// Re-export payment types
+export type {
+  Payment,
+  PaymentParticipant,
+  GetPaymentsResponse,
+  PaymentResponse,
+} from "./payment";
+
+// Re-export balance types
+export type {
+  BalancePerson,
+  BalanceEntry,
+  MyBalanceDetail,
+  GetBalancesResponse,
+  GetMyBalanceResponse,
+} from "./balance";
