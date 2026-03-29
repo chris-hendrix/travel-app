@@ -163,11 +163,18 @@ export async function buildApp(
   });
 
   // Register rate limit plugin with PostgreSQL-backed store
+  // Global limit is a safety net against abuse — per-route configs handle
+  // fine-grained limits (see defaultRateLimitConfig / writeRateLimitConfig).
+  // A single trip page load fires ~15 parallel requests, so the global limit
+  // must be high enough to not punish normal browsing.
   const PgRateLimitStore = createPgRateLimitStoreClass(app.db);
   await app.register(rateLimit, {
     global: opts.rateLimit?.global ?? true,
-    max: 100,
-    timeWindow: "15 minutes",
+    max: 300,
+    timeWindow: "1 minute",
+    keyGenerator: (request) =>
+      (request as typeof request & { user?: { sub: string } }).user?.sub ||
+      request.ip,
     allowList: ["127.0.0.1"],
     skipOnError: false,
     store: PgRateLimitStore,
