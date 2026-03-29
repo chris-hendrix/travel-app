@@ -47,6 +47,10 @@ export function SettleSection({
 
   return (
     <div className="space-y-6 relative pb-16">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold font-playfair">Settle</h2>
+      </div>
+
       {/* Balances */}
       <div>
         <h3 className="text-sm font-semibold text-foreground mb-3">Balances</h3>

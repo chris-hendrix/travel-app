@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { getQueryClient } from "@/lib/get-query-client";
 import { tripKeys } from "@/hooks/trip-queries";
@@ -8,7 +9,7 @@ import type { GetTripResponse } from "@journiful/shared/types";
 
 type Props = {
   params: Promise<{ id: string }>;
-  children: React.ReactNode;
+  children: ReactNode;
 };
 
 export async function generateMetadata({

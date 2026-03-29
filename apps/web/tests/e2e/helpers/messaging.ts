@@ -4,23 +4,25 @@ import { navigateToMobilePanel } from "./mobile-panels";
 import { NAVIGATION_TIMEOUT, ELEMENT_TIMEOUT } from "./timeouts";
 
 /**
- * Helper: scroll to the discussion section and wait for it to be visible.
+ * Helper: navigate to the messages/discussion section and wait for it to be visible.
  *
- * On desktop the discussion section is below the fold with a "Discussion"
- * heading. On mobile it lives in the Messages panel (no heading — the icon
- * strip already labels the panel). This helper handles both layouts.
+ * On desktop the tabbed layout navigates to /trips/{id}/messages via
+ * `navigateToMobilePanel` (which clicks the tab link). On mobile it swipes
+ * to the Messages panel.
  */
 export async function scrollToDiscussion(page: Page) {
-  // On mobile the discussion section lives in the Messages panel.
+  // On mobile this swipes to Messages panel; on desktop it clicks the Messages tab.
   await navigateToMobilePanel(page, "Messages");
 
   // Wait for network to settle so React re-renders from data fetching are done,
   // preventing "Element is not attached to the DOM" errors during scroll.
   await page.waitForLoadState("networkidle");
 
-  // Desktop has a visible "Discussion" heading; mobile uses an aria-labelled
-  // section without a heading. Try the heading first, fall back to the section.
-  const heading = page.getByRole("heading", { name: "Discussion" });
+  // The section has heading "Messages" (or "Discussion" in older layouts) and
+  // an aria-labelled region. Try all variants.
+  const heading = page
+    .getByRole("heading", { name: "Messages" })
+    .or(page.getByRole("heading", { name: "Discussion" }));
   const section = page.getByRole("region", { name: "Trip discussion" });
 
   const target = heading.or(section);

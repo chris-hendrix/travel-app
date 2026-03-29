@@ -47,7 +47,6 @@ interface TripPageProviderProps extends TripPageContextValue {
 export function TripPageProvider({ children, ...value }: TripPageProviderProps) {
   const contextValue = useMemo(
     () => value,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       value.tripId,
       value.trip,

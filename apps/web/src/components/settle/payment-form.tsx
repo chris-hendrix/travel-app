@@ -145,7 +145,6 @@ export function PaymentForm({
         setInitialized(people.length > 0);
       }
     }
-  // eslint-disable-next-line -- intentionally only reset on open/payment change
   }, [open, payment]);
 
   // When people list loads and we have no participants yet (initial add), select all
