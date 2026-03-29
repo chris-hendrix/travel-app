@@ -60,21 +60,14 @@ export function BalanceList({ tripId, onSettleUp }: BalanceListProps) {
 
   return (
     <div className="space-y-2">
-      {sorted.map((entry, i) => {
-        const isCurrentUser =
-          !!user &&
-          ((!entry.from.isGuest && entry.from.id === user.id) ||
-            (!entry.to.isGuest && entry.to.id === user.id));
-        return (
-          <BalanceItem
-            key={i}
-            entry={entry}
-            highlighted={isCurrentUser}
-            {...(user ? { currentUserId: user.id } : {})}
-            {...(onSettleUp ? { onSettleUp } : {})}
-          />
-        );
-      })}
+      {sorted.map((entry, i) => (
+        <BalanceItem
+          key={i}
+          entry={entry}
+          {...(user ? { currentUserId: user.id } : {})}
+          {...(onSettleUp ? { onSettleUp } : {})}
+        />
+      ))}
     </div>
   );
 }

@@ -23,9 +23,7 @@ export function PaymentItem({ payment, onClick, currentUserId }: PaymentItemProp
   const date = new Date(payment.date);
   const isSettlement = participantCount === 1;
 
-  const highlightClass = isCurrentUserPayer
-    ? "border-primary/40 bg-primary/5 ring-1 ring-primary/20"
-    : "border-border";
+  const highlightClass = "border-border";
 
   // Settlement card — different style
   if (isSettlement) {
@@ -38,10 +36,7 @@ export function PaymentItem({ payment, onClick, currentUserId }: PaymentItemProp
       ? payment.description.replace(/^Settled up\s*—?\s*/, "").trim()
       : payment.description;
 
-    const settlementHighlight =
-      isCurrentUserPayer || isRecipientCurrentUser
-        ? "border-primary/40 bg-primary/5 ring-1 ring-primary/20"
-        : "border-border";
+    const settlementHighlight = "border-border";
 
     return (
       <button

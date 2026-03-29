@@ -6,7 +6,6 @@ import type { BalanceEntry } from "@journiful/shared/types";
 interface BalanceItemProps {
   entry: BalanceEntry;
   onSettleUp?: (entry: BalanceEntry) => void;
-  highlighted?: boolean;
   currentUserId?: string;
 }
 
@@ -27,12 +26,14 @@ function personName(
 export function BalanceItem({
   entry,
   onSettleUp,
-  highlighted,
   currentUserId,
 }: BalanceItemProps) {
   const fromName = personName(entry.from, currentUserId);
   const toName = personName(entry.to, currentUserId);
   const verb = fromName === "You" ? "owe" : "owes";
+
+  // Only highlight when the current user owes someone (actionable)
+  const youOwe = fromName === "You";
 
   const Wrapper = onSettleUp ? "button" : "div";
 
@@ -40,7 +41,7 @@ export function BalanceItem({
     <Wrapper
       {...(onSettleUp ? { onClick: () => onSettleUp(entry) } : {})}
       className={`group flex items-center gap-3 rounded-md bg-card linen-texture border p-3 w-full text-left transition-colors ${
-        highlighted
+        youOwe
           ? "border-primary/40 bg-primary/5 ring-1 ring-primary/20"
           : "border-border"
       } ${onSettleUp ? "hover:bg-accent/50 cursor-pointer" : ""}`}
