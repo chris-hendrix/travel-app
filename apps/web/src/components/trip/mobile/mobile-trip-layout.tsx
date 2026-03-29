@@ -129,11 +129,6 @@ export function MobileTripLayout({
     swiperRef.current?.slideTo(index);
   }, []);
 
-  const handleNavigateToItinerary = useCallback(() => {
-    swiperRef.current?.slideTo(1);
-  }, []);
-
-
   return (
     <TripThemeProvider
       themeId={trip.themeId}
@@ -168,7 +163,6 @@ export function MobileTripLayout({
               onOpenEdit={() => setIsEditOpen(true)}
               onOpenSettings={() => setIsSettingsOpen(true)}
               onOpenMembers={() => setIsMembersOpen(true)}
-              onNavigateToItinerary={handleNavigateToItinerary}
               onScroll={handleInfoScroll}
             />
             <ItineraryPanel

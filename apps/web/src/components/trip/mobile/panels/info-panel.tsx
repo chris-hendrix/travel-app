@@ -76,7 +76,6 @@ interface InfoPanelProps {
   onOpenEdit: () => void;
   onOpenSettings: () => void;
   onOpenMembers: () => void;
-  onNavigateToItinerary: () => void;
   onScroll?: (scrollTop: number) => void;
   className?: string;
 }
@@ -92,7 +91,6 @@ export function InfoPanel({
   onOpenEdit,
   onOpenSettings,
   onOpenMembers,
-  onNavigateToItinerary,
   onScroll,
   className,
 }: InfoPanelProps) {
@@ -186,7 +184,7 @@ export function InfoPanel({
               variant="outline"
               size="sm"
               className="flex-1 h-9"
-              onClick={onNavigateToItinerary}
+              onClick={() => setIsCreateEventOpen(true)}
             >
               <CalendarPlus className="size-4" />
               Add Event

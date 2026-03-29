@@ -381,9 +381,6 @@ export function TripDetailShell({
                   onOpenEdit={() => setIsEditOpen(true)}
                   onOpenSettings={() => setIsSettingsOpen(true)}
                   onOpenMembers={() => setIsMembersOpen(true)}
-                  onNavigateToItinerary={() =>
-                    document.getElementById("itinerary")?.scrollIntoView({ behavior: "smooth" })
-                  }
                   className="px-0 pt-0"
                 />
               </div>
@@ -404,9 +401,6 @@ export function TripDetailShell({
                 onOpenEdit={() => setIsEditOpen(true)}
                 onOpenSettings={() => setIsSettingsOpen(true)}
                 onOpenMembers={() => setIsMembersOpen(true)}
-                onNavigateToItinerary={() =>
-                  document.getElementById("itinerary")?.scrollIntoView({ behavior: "smooth" })
-                }
               />
             </div>
 
