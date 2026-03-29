@@ -41,6 +41,9 @@ import flightServicePlugin from "./plugins/flight-service.js";
 import imageProcessingServicePlugin from "./plugins/image-processing-service.js";
 import photoServicePlugin from "./plugins/photo-service.js";
 import pushServicePlugin from "./plugins/push-service.js";
+import guestServicePlugin from "./plugins/guest-service.js";
+import paymentServicePlugin from "./plugins/payment-service.js";
+import balanceServicePlugin from "./plugins/balance-service.js";
 import queueWorkersPlugin from "./queues/index.js";
 
 // Middleware
@@ -63,6 +66,9 @@ import { weatherRoutes } from "./routes/weather.routes.js";
 import { flightRoutes } from "./routes/flight.routes.js";
 import { photoRoutes } from "./routes/photo.routes.js";
 import { pushRoutes } from "./routes/push.routes.js";
+import { guestRoutes } from "./routes/guest.routes.js";
+import { paymentRoutes } from "./routes/payment.routes.js";
+import { balanceRoutes } from "./routes/balance.routes.js";
 
 // Config
 import { env } from "./config/env.js";
@@ -222,6 +228,9 @@ export async function buildApp(
   await app.register(imageProcessingServicePlugin);
   await app.register(photoServicePlugin);
   await app.register(pushServicePlugin);
+  await app.register(guestServicePlugin);
+  await app.register(paymentServicePlugin);
+  await app.register(balanceServicePlugin);
   await app.register(queueWorkersPlugin);
 
   // Register Swagger/OpenAPI documentation (non-production only)
@@ -249,6 +258,9 @@ export async function buildApp(
   await app.register(flightRoutes, { prefix: "/api" });
   await app.register(photoRoutes, { prefix: "/api/trips/:id/photos" });
   await app.register(pushRoutes, { prefix: "/api" });
+  await app.register(guestRoutes, { prefix: "/api" });
+  await app.register(paymentRoutes, { prefix: "/api" });
+  await app.register(balanceRoutes, { prefix: "/api" });
 
   // Not-found handler for unmatched routes
   app.setNotFoundHandler((request, reply) => {
