@@ -6,8 +6,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const TABS = [
   { value: "itinerary", label: "Itinerary" },
-  { value: "photos", label: "Photos" },
   { value: "messages", label: "Messages" },
+  { value: "photos", label: "Photos" },
   { value: "settle", label: "Settle" },
 ] as const;
 

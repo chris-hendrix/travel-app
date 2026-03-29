@@ -5,6 +5,7 @@ import Image from "next/image";
 import {
   Building2,
   CalendarPlus,
+  ChevronRight,
   Pencil,
   Settings,
   UserPlus,
@@ -232,7 +233,7 @@ export function InfoPanel({
         {/* 2. Summary: Avatar stack + "+N going · Organized by X, Y" */}
         <button
           onClick={onOpenMembers}
-          className="flex items-center gap-3 w-full text-left cursor-pointer"
+          className="group flex items-center gap-3 w-full text-left rounded-md px-2 py-1.5 -mx-2 hover:bg-muted/50 transition-colors"
         >
           <div className="flex -space-x-2 shrink-0">
             {trip.organizers.slice(0, 4).map((org) =>
@@ -255,9 +256,10 @@ export function InfoPanel({
               ),
             )}
           </div>
-          <span className="text-sm text-muted-foreground truncate">
+          <span className="flex-1 text-sm text-muted-foreground truncate">
             {goingCount} going{organizerNames ? ` · Organized by ${organizerNames}` : ""}
           </span>
+          <ChevronRight className="size-4 text-muted-foreground/50 shrink-0 group-hover:text-muted-foreground transition-colors" />
         </button>
 
         {/* 3. Accommodations */}
