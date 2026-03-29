@@ -47,8 +47,11 @@ export function SettlePanel({ tripId, isOrganizer, disabled }: SettlePanelProps)
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
+      {/* Section heading (matches desktop SettleSection) */}
+      <h2 className="text-xl font-semibold font-playfair shrink-0 px-4 pt-4">Settle</h2>
+
       {/* Underlined tabs */}
-      <div className="shrink-0 px-4 pt-4 pb-0">
+      <div className="shrink-0 px-4 pt-2 pb-0">
         <div className="flex border-b border-border">
           {TABS.map((tab) => (
             <button

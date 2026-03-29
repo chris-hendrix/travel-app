@@ -125,8 +125,8 @@ test.describe("Settle Journey", () => {
       await test.step("add guest via Guests tab", async () => {
         await page.getByRole("button", { name: "Guests" }).click();
 
-        // Click the Add chip
-        await page.getByRole("button", { name: "Add" }).click();
+        // Click the Add Guest chip
+        await page.getByRole("button", { name: "Add Guest" }).click();
         await page.getByPlaceholder("Name").fill("Tom");
         // Submit via the check button
         await page.locator("button:has(svg.lucide-check)").click();

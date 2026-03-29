@@ -190,6 +190,7 @@ export function GuestManager({ tripId, disabled }: GuestManagerProps) {
               <button
                 type="button"
                 onClick={() => setIsAddingGuest(true)}
+                aria-label="Add Guest"
                 className="inline-flex items-center gap-1 rounded-full border border-dashed border-border px-3 py-1 text-sm text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors cursor-pointer"
               >
                 <UserPlus className="h-3.5 w-3.5" />
