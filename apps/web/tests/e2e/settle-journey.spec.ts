@@ -181,8 +181,8 @@ test.describe("Settle Journey", () => {
 
         await sheet.getByRole("button", { name: /Delete Expense/ }).click();
 
-        // Wait for toast confirmation — match "Expense deleted" specifically
-        await expect(page.getByText("Expense deleted")).toBeVisible({
+        // Wait for toast confirmation (use .first() — Sonner can render duplicate toasts)
+        await expect(page.getByText("Expense deleted").first()).toBeVisible({
           timeout: TOAST_TIMEOUT,
         });
         await dismissToast(page);
