@@ -123,6 +123,11 @@ export class FlightService implements IFlightService {
       return { available: true, flight: null };
     }
 
+    // Handle 429 — rate limited by AeroDataBox/RapidAPI
+    if (response.status === 429) {
+      return { available: false };
+    }
+
     // 15. Handle non-200/204
     if (!response.ok) {
       const errorBody = await response
