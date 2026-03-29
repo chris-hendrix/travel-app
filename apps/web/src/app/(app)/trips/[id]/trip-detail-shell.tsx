@@ -46,6 +46,7 @@ import type { TemperatureUnit } from "@journiful/shared/types";
 import type { Accommodation } from "@journiful/shared/types";
 import { NotificationPreferences } from "@/components/notifications/notification-preferences";
 import { MembersList } from "@/components/trip/members-list";
+import { MemberProfileSheet } from "@/components/trip/member-profile-sheet";
 import { TripPreview } from "@/components/trip/trip-preview";
 import { TripThemeProvider } from "@/components/trip/trip-theme-provider";
 import { THEME_PRESETS } from "@journiful/shared/config";
@@ -127,6 +128,7 @@ export function TripDetailShell({
     member: MemberWithProfile;
   } | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [profileMember, setProfileMember] = useState<MemberWithProfile | null>(null);
   const [selectedAccommodation, setSelectedAccommodation] =
     useState<Accommodation | null>(null);
   const [editingAccommodation, setEditingAccommodation] =
@@ -554,6 +556,7 @@ export function TripDetailShell({
                   }}
                   onRemove={(member) => setRemovingMember({ member })}
                   onUpdateRole={handleUpdateRole}
+                  onMemberClick={(member) => setProfileMember(member)}
                 />
               )}
             </SheetBody>
@@ -615,6 +618,15 @@ export function TripDetailShell({
             trip={trip}
           />
         )}
+
+        {/* Member profile sheet */}
+        <MemberProfileSheet
+          member={profileMember}
+          open={!!profileMember}
+          onOpenChange={(open) => {
+            if (!open) setProfileMember(null);
+          }}
+        />
       </div>
     </TripThemeProvider>
   );

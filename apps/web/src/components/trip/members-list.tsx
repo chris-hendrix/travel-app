@@ -69,6 +69,7 @@ interface MembersListProps {
   onInvite?: () => void;
   onRemove?: (member: MemberWithProfile) => void;
   onUpdateRole?: (member: MemberWithProfile, isOrganizer: boolean) => void;
+  onMemberClick?: (member: MemberWithProfile) => void;
 }
 
 function MembersListSkeleton() {
@@ -97,6 +98,7 @@ interface MemberRowProps {
   onUpdateRole?:
     | ((member: MemberWithProfile, isOrganizer: boolean) => void)
     | undefined;
+  onMemberClick?: ((member: MemberWithProfile) => void) | undefined;
   onMute: (member: MemberWithProfile) => void;
   onUnmute: (member: MemberWithProfile) => void;
 }
@@ -109,6 +111,7 @@ function MemberRow({
   currentUserId,
   onRemove,
   onUpdateRole,
+  onMemberClick,
   onMute,
   onUnmute,
 }: MemberRowProps) {
@@ -129,19 +132,23 @@ function MemberRow({
       className="flex items-center gap-3 py-3 motion-safe:animate-[slideUp_400ms_ease-out_both]"
       style={{ animationDelay: `${index * 50}ms` }}
     >
-      <Avatar size="default">
-        <AvatarImage
-          src={getUploadUrl(member.profilePhotoUrl)}
-          alt={member.displayName}
-        />
-        <AvatarFallback>{getInitials(member.displayName)}</AvatarFallback>
-      </Avatar>
+      <button
+        className="flex items-center gap-3 flex-1 min-w-0 text-left hover:bg-muted/50 -ml-2 pl-2 -my-1 py-1 rounded-md transition-colors"
+        onClick={() => onMemberClick?.(member)}
+      >
+        <Avatar size="default">
+          <AvatarImage
+            src={getUploadUrl(member.profilePhotoUrl)}
+            alt={member.displayName}
+          />
+          <AvatarFallback>{getInitials(member.displayName)}</AvatarFallback>
+        </Avatar>
 
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-medium text-foreground truncate">
-            {member.displayName}
-          </span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-medium text-foreground truncate">
+              {member.displayName}
+            </span>
           {member.isOrganizer && (
             <Badge className="bg-gradient-to-r from-primary to-accent text-white">
               Organizer
@@ -184,7 +191,8 @@ function MemberRow({
             </span>
           </div>
         )}
-      </div>
+        </div>
+      </button>
 
       {showActions && (
         <DropdownMenu>
@@ -304,6 +312,7 @@ export function MembersList({
   onInvite,
   onRemove,
   onUpdateRole,
+  onMemberClick,
 }: MembersListProps) {
   const { data: members, isPending } = useMembers(tripId);
   const { data: invitations } = useInvitations(tripId, {
@@ -398,6 +407,7 @@ export function MembersList({
     currentUserId,
     onRemove,
     onUpdateRole,
+    onMemberClick,
     onMute: setMutingMember,
     onUnmute: handleUnmute,
   };
