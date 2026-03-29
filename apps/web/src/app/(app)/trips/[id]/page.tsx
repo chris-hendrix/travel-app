@@ -1,10 +1,17 @@
-import { redirect } from "next/navigation";
+"use client";
 
-type Props = {
-  params: Promise<{ id: string }>;
-};
+import { useTripPage } from "./trip-page-context";
+import { ItineraryView } from "@/components/itinerary/itinerary-view";
 
-export default async function TripDetailPage({ params }: Props) {
-  const { id } = await params;
-  redirect(`/trips/${id}/itinerary`);
+export default function TripDefaultPage() {
+  const { tripId, weather, temperatureUnit, setShowOnboarding } = useTripPage();
+
+  return (
+    <ItineraryView
+      tripId={tripId}
+      onAddTravel={() => setShowOnboarding(true)}
+      forecasts={weather?.forecasts}
+      temperatureUnit={temperatureUnit}
+    />
+  );
 }
