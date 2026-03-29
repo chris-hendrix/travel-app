@@ -10,7 +10,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CollapsibleSection } from "@/components/ui/collapsible-section";
+
 import { RsvpPills } from "@/components/trip/rsvp-pills";
 import { WeatherForecastCard } from "@/components/itinerary/weather-forecast-card";
 import { AccommodationDetailSheet } from "@/components/itinerary/accommodation-detail-sheet";
@@ -18,8 +18,12 @@ import { EditAccommodationDialog } from "@/components/itinerary/edit-accommodati
 import { CreateAccommodationDialog } from "@/components/itinerary/create-accommodation-dialog";
 import { CreateEventDialog } from "@/components/itinerary/create-event-dialog";
 import { canModifyAccommodation } from "@/components/itinerary/utils/permissions";
+import { MemberProfileSheet } from "@/components/trip/member-profile-sheet";
 import { useAccommodations } from "@/hooks/use-accommodations";
+import { membersQueryOptions } from "@/hooks/invitation-queries";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/app/providers/auth-provider";
+import type { MemberWithProfile } from "@journiful/shared/types";
 import { TodaySection } from "./today-section";
 
 import { linkifyText } from "@/utils/linkify";
@@ -76,7 +80,6 @@ interface InfoPanelProps {
   onOpenEdit: () => void;
   onOpenSettings: () => void;
   onOpenMembers: () => void;
-  onNavigateToItinerary: () => void;
   onScroll?: (scrollTop: number) => void;
   className?: string;
 }
@@ -92,7 +95,6 @@ export function InfoPanel({
   onOpenEdit,
   onOpenSettings,
   onOpenMembers,
-  onNavigateToItinerary,
   onScroll,
   className,
 }: InfoPanelProps) {
@@ -113,6 +115,12 @@ export function InfoPanel({
   const [editingAccommodation, setEditingAccommodation] = useState<Accommodation | null>(null);
   const [isCreateAccommodationOpen, setIsCreateAccommodationOpen] = useState(false);
   const [isCreateEventOpen, setIsCreateEventOpen] = useState(false);
+  const [profileMember, setProfileMember] = useState<MemberWithProfile | null>(null);
+
+  const { data: members } = useQuery({
+    ...membersQueryOptions(tripId),
+    enabled: !!tripId,
+  });
 
   // Trip is locked one day after end date
   const isLocked = useMemo(() => {
@@ -124,7 +132,7 @@ export function InfoPanel({
 
   // Summary line: "+N going · Organized by X, Y"
   const goingCount = trip.memberCount;
-  const organizerNames = trip.organizers.map((o) => o.displayName).join(", ");
+
 
   // Today's forecast for inline label
   const todayString = useMemo(
@@ -186,7 +194,7 @@ export function InfoPanel({
               variant="outline"
               size="sm"
               className="flex-1 h-9"
-              onClick={onNavigateToItinerary}
+              onClick={() => setIsCreateEventOpen(true)}
             >
               <CalendarPlus className="size-4" />
               Add Event
@@ -232,10 +240,7 @@ export function InfoPanel({
         </div>
 
         {/* 2. Summary: Avatar stack + "+N going · Organized by X, Y" */}
-        <button
-          onClick={onOpenMembers}
-          className="flex items-center gap-3 w-full text-left cursor-pointer"
-        >
+        <div className="flex items-center gap-3">
           <div className="flex -space-x-2 shrink-0">
             {trip.organizers.slice(0, 4).map((org) =>
               org.profilePhotoUrl ? (
@@ -258,13 +263,35 @@ export function InfoPanel({
             )}
           </div>
           <span className="text-sm text-muted-foreground truncate">
-            {goingCount} going{organizerNames ? ` · Organized by ${organizerNames}` : ""}
+            <button onClick={onOpenMembers} className="text-primary hover:underline transition-colors">
+              {goingCount} going
+            </button>
+            {trip.organizers.length > 0 && (
+              <>
+                {" · Organized by "}
+                {trip.organizers.map((org, i) => {
+                  const member = members?.find((m) => m.userId === org.id);
+                  return (
+                    <span key={org.id}>
+                      {i > 0 && ", "}
+                      <button
+                        onClick={() => member && setProfileMember(member)}
+                        className="text-primary hover:underline transition-colors"
+                      >
+                        {org.displayName}
+                      </button>
+                    </span>
+                  );
+                })}
+              </>
+            )}
           </span>
-        </button>
+        </div>
 
         {/* 3. Accommodations */}
         {((accommodations && accommodations.length > 0) || (isOrganizer && !isLocked)) && (
-          <CollapsibleSection label="Accommodations" defaultOpen>
+          <div>
+            <h3 className="text-sm font-semibold text-foreground mb-3">Accommodations</h3>
             {accommodations && accommodations.length > 0 ? (
               <div className="space-y-2">
                 {accommodations.map((acc) => (
@@ -295,12 +322,13 @@ export function InfoPanel({
                 </button>
               </p>
             )}
-          </CollapsibleSection>
+          </div>
         )}
 
         {/* 4. Today section (only during trip) */}
         {phase === "duringTrip" && (
-          <CollapsibleSection label={todayLabelNode} defaultOpen>
+          <div>
+            <h3 className="text-sm font-semibold text-foreground mb-3">{todayLabelNode}</h3>
             <TodaySection
               tripId={tripId}
               timezone={timezone}
@@ -312,29 +340,31 @@ export function InfoPanel({
                 ? { onAddEvent: () => setIsCreateEventOpen(true) }
                 : {})}
             />
-          </CollapsibleSection>
+          </div>
         )}
 
         {/* 6. About this trip */}
         {trip.description && (
-          <CollapsibleSection label="About this trip" defaultOpen>
+          <div>
+            <h3 className="text-sm font-semibold text-foreground mb-3">About this trip</h3>
             <div className="bg-card rounded-md border border-border p-4 linen-texture">
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">
                 {linkifyText(trip.description)}
               </p>
             </div>
-          </CollapsibleSection>
+          </div>
         )}
 
         {/* 7. Weather */}
-        <CollapsibleSection label="Weather" defaultOpen>
+        <div>
+          <h3 className="text-sm font-semibold text-foreground mb-3">Weather</h3>
           <WeatherForecastCard
             weather={weather}
             isLoading={weatherLoading}
             temperatureUnit={temperatureUnit}
             isDark={preset?.background.isDark ?? false}
           />
-        </CollapsibleSection>
+        </div>
       </div>
 
       {/* Accommodation detail sheet */}
@@ -392,6 +422,15 @@ export function InfoPanel({
         timezone={timezone}
         tripStartDate={trip.startDate}
         tripEndDate={trip.endDate}
+      />
+
+      {/* Member profile sheet */}
+      <MemberProfileSheet
+        member={profileMember}
+        open={!!profileMember}
+        onOpenChange={(open) => {
+          if (!open) setProfileMember(null);
+        }}
       />
     </div>
   );

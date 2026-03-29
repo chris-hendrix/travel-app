@@ -12,9 +12,10 @@ import {
 } from "./helpers/timeouts";
 
 /**
- * E2E Journey: Settle (Expenses, Balances, Guests)
+ * E2E Journey: Settle (Expenses & Balances)
  *
- * Tests the core settle flow: add expense, check balances, manage guests.
+ * Tests the core settle flow: add expense, check balances, inline guest creation.
+ * The settle section is a single view with balances on top and expenses below.
  */
 
 test.describe("Settle Journey", () => {
@@ -42,22 +43,12 @@ test.describe("Settle Journey", () => {
         );
       });
 
-      // Navigate to Settle — on mobile it's a tab, on desktop scroll down
+      // Navigate to Settle — on mobile it's a tab, on desktop it's a tab link
       await test.step("navigate to settle section", async () => {
-        // Try mobile panel first, falls back silently on desktop
         await navigateToMobilePanel(page, "Settle");
 
-        // On desktop, scroll to the settle section
+        // Verify settle section loaded
         const settleHeading = page.getByRole("heading", { name: "Settle", exact: true });
-        const visible = await settleHeading
-          .waitFor({ state: "visible", timeout: 3_000 })
-          .then(() => true)
-          .catch(() => false);
-        if (!visible) {
-          await page.evaluate(() =>
-            document.getElementById("settle")?.scrollIntoView({ behavior: "instant" }),
-          );
-        }
         await expect(settleHeading).toBeVisible({ timeout: ELEMENT_TIMEOUT });
       });
 
@@ -68,7 +59,8 @@ test.describe("Settle Journey", () => {
       });
 
       await test.step("add first expense", async () => {
-        await page.getByRole("button", { name: "Add Expense" }).first().click();
+        // Click the FAB (floating action button) to add an expense
+        await page.getByRole("button", { name: /add expense/i }).first().click();
 
         // Fill the expense form in the sheet dialog
         const sheet = page.getByRole("dialog");
@@ -82,7 +74,10 @@ test.describe("Settle Journey", () => {
         // Submit
         await sheet.getByRole("button", { name: "Add Expense" }).click();
 
-        // Verify expense appears
+        // Wait for the dialog to close
+        await expect(sheet).toBeHidden({ timeout: DIALOG_TIMEOUT });
+
+        // Verify expense appears in the list
         await expect(page.getByText("Dinner at restaurant")).toBeVisible({
           timeout: ELEMENT_TIMEOUT,
         });
@@ -109,60 +104,58 @@ test.describe("Settle Journey", () => {
 
         await sheet.getByRole("button", { name: "Save Changes" }).click();
 
+        // Wait for the dialog to close
+        await expect(sheet).toBeHidden({ timeout: DIALOG_TIMEOUT });
+
         // Verify updated
         await expect(page.getByText("Dinner at steakhouse")).toBeVisible({
           timeout: ELEMENT_TIMEOUT,
         });
       });
 
-      await test.step("check balances tab", async () => {
-        await page.getByRole("button", { name: "Balances" }).click();
-
+      await test.step("check balances visible", async () => {
+        // Balances section is always visible (no tab to click)
         // With only one member (self), there should be no balances
         await expect(page.getByText("All settled up!")).toBeVisible({
           timeout: ELEMENT_TIMEOUT,
         });
       });
 
-      await test.step("add guest via Guests tab", async () => {
-        await page.getByRole("button", { name: "Guests" }).click();
-
-        // Click the Add Guest chip
-        await page.getByRole("button", { name: "Add Guest" }).click();
-        await page.getByPlaceholder("Name").fill("Tomislav");
-
-        // Submit via the check/confirm button next to the input
-        await page.getByPlaceholder("Name").press("Enter");
-
-        // Verify guest chip appears
-        await expect(page.getByText("Tomislav", { exact: true })).toBeVisible({
-          timeout: ELEMENT_TIMEOUT,
-        });
-      });
-
-      await snap(page, "31-settle-guest-added");
-
-      await test.step("add expense split with guest", async () => {
-        await page.getByRole("button", { name: "Expenses" }).click();
-
-        // Use the Add Expense button at the bottom of the list
-        await page.getByRole("button", { name: "Add Expense" }).first().click();
+      await test.step("add expense with inline guest", async () => {
+        // Open the add expense form via FAB
+        await page.getByRole("button", { name: /add expense/i }).first().click();
 
         const sheet = page.getByRole("dialog");
+        await expect(
+          sheet.getByRole("heading", { name: "Add Expense" }),
+        ).toBeVisible({ timeout: DIALOG_TIMEOUT });
+
         await sheet.getByLabel(/description/i).fill("Taxi ride");
         await sheet.getByLabel(/amount/i).fill("30.00");
 
+        // Add a guest inline in the expense form
+        await sheet.getByPlaceholder("Add guest...").fill("Tomislav");
+        await sheet.getByPlaceholder("Add guest...").press("Enter");
+
+        // Wait for the guest to appear in the participant list
+        await expect(sheet.getByText("Tomislav (guest)")).toBeVisible({
+          timeout: ELEMENT_TIMEOUT,
+        });
+
         await sheet.getByRole("button", { name: "Add Expense" }).click();
+
+        // Wait for the dialog to close
+        await expect(sheet).toBeHidden({ timeout: DIALOG_TIMEOUT });
 
         await expect(page.getByText("Taxi ride")).toBeVisible({
           timeout: ELEMENT_TIMEOUT,
         });
       });
 
-      await test.step("verify balances with guest", async () => {
-        await page.getByRole("button", { name: "Balances" }).click();
+      await snap(page, "31-settle-expense-with-guest");
 
-        // Now there should be a balance since the guest owes money
+      await test.step("verify balances with guest", async () => {
+        // Balances section is always visible — now there should be a balance
         await expect(page.getByText(/owes/)).toBeVisible({
           timeout: ELEMENT_TIMEOUT,
         });
@@ -171,7 +164,7 @@ test.describe("Settle Journey", () => {
       await snap(page, "32-settle-balances-with-guest");
 
       await test.step("delete expense", async () => {
-        await page.getByRole("button", { name: "Expenses" }).click();
+        // Click the expense to open edit form
         await page.getByText("Taxi ride").click();
 
         const sheet = page.getByRole("dialog");

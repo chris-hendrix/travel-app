@@ -119,6 +119,13 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  button,
+  [role="button"],
+  a[href],
+  summary {
+    cursor: pointer;
+  }
 }
 
 @keyframes badgePulse {

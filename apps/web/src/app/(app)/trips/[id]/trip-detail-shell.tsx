@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import Image from "next/image";
@@ -39,23 +39,21 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { ItineraryView } from "@/components/itinerary/itinerary-view";
 import { AccommodationDetailSheet } from "@/components/itinerary/accommodation-detail-sheet";
 import { canModifyAccommodation } from "@/components/itinerary/utils/permissions";
 import { useWeatherForecast } from "@/hooks/use-weather";
 import type { TemperatureUnit } from "@journiful/shared/types";
 import type { Accommodation } from "@journiful/shared/types";
-import { TripMessages } from "@/components/messaging";
-import { SettleSection } from "@/components/settle/settle-section";
 import { NotificationPreferences } from "@/components/notifications/notification-preferences";
-import { ErrorBoundary } from "@/components/error-boundary";
 import { MembersList } from "@/components/trip/members-list";
+import { MemberProfileSheet } from "@/components/trip/member-profile-sheet";
 import { TripPreview } from "@/components/trip/trip-preview";
 import { TripThemeProvider } from "@/components/trip/trip-theme-provider";
 import { THEME_PRESETS } from "@journiful/shared/config";
 import { THEME_FONTS } from "@journiful/shared/config";
-import { useScrollReveal } from "@/hooks/use-scroll-reveal";
 import { supportsHover } from "@/lib/supports-hover";
+import { TripPageProvider } from "./trip-page-context";
+import { TripTabNav } from "./trip-tab-nav";
 
 const EditTripDialog = dynamic(() =>
   import("@/components/trip/edit-trip-dialog").then((mod) => ({
@@ -90,14 +88,6 @@ const EditAccommodationDialog = dynamic(() =>
   })),
 );
 
-const PhotosSection = dynamic(
-  () =>
-    import("@/components/photos/photos-section").then((mod) => ({
-      default: mod.PhotosSection,
-    })),
-  { ssr: false },
-);
-
 function SkeletonDetail() {
   return (
     <div>
@@ -119,7 +109,13 @@ function SkeletonDetail() {
   );
 }
 
-export function TripDetailContent({ tripId }: { tripId: string }) {
+export function TripDetailShell({
+  tripId,
+  children,
+}: {
+  tripId: string;
+  children: ReactNode;
+}) {
   const { data: trip, isPending, isError } = useTripDetail(tripId);
   const { data: events } = useEvents(tripId);
 
@@ -132,6 +128,7 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
     member: MemberWithProfile;
   } | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [profileMember, setProfileMember] = useState<MemberWithProfile | null>(null);
   const [selectedAccommodation, setSelectedAccommodation] =
     useState<Accommodation | null>(null);
   const [editingAccommodation, setEditingAccommodation] =
@@ -148,7 +145,6 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
   });
   const currentMember = members?.find((m) => m.userId === user?.id);
   const isMobile = useIsMobile();
-  const { ref: itineraryRef } = useScrollReveal();
   const { data: weather, isLoading: weatherLoading } =
     useWeatherForecast(tripId);
   const temperatureUnit: TemperatureUnit =
@@ -387,15 +383,12 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
                   onOpenEdit={() => setIsEditOpen(true)}
                   onOpenSettings={() => setIsSettingsOpen(true)}
                   onOpenMembers={() => setIsMembersOpen(true)}
-                  onNavigateToItinerary={() =>
-                    document.getElementById("itinerary")?.scrollIntoView({ behavior: "smooth" })
-                  }
                   className="px-0 pt-0"
                 />
               </div>
             </aside>
 
-            {/* Non-lg: inline info above itinerary */}
+            {/* Non-lg: inline info above content */}
             <div className="lg:hidden mb-6">
               <InfoPanel
                 trip={trip}
@@ -410,54 +403,31 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
                 onOpenEdit={() => setIsEditOpen(true)}
                 onOpenSettings={() => setIsSettingsOpen(true)}
                 onOpenMembers={() => setIsMembersOpen(true)}
-                onNavigateToItinerary={() =>
-                  document.getElementById("itinerary")?.scrollIntoView({ behavior: "smooth" })
-                }
               />
             </div>
 
-            {/* Main content — itinerary, photos, discussion */}
+            {/* Right pane: tabs + content */}
             <div className="lg:flex-1 lg:min-w-0 pb-16">
-              <div id="itinerary" ref={itineraryRef} className="scroll-mt-14">
-                <ItineraryView
-                  tripId={tripId}
-                  onAddTravel={() => setShowOnboarding(true)}
-                  forecasts={weather?.forecasts}
-                  temperatureUnit={temperatureUnit}
-                />
-              </div>
-
-              {/* Settle */}
-              <div id="settle" className="border-t border-border mt-4 pt-4 px-4 sm:px-6 lg:px-0 scroll-mt-14">
-                <ErrorBoundary>
-                  <SettleSection
-                    tripId={tripId}
-                    isOrganizer={isOrganizer}
-                    disabled={isLocked}
-                  />
-                </ErrorBoundary>
-              </div>
-
-              {/* Photos */}
-              <div className="border-t border-border mt-4 pt-4 px-4 sm:px-6 lg:px-0">
-                <PhotosSection
-                  tripId={trip.id}
-                  isOrganizer={isOrganizer}
-                  disabled={isLocked}
-                />
-              </div>
-
-              {/* Discussion */}
-              <div className="border-t border-border mt-4 pt-4 px-4 sm:px-6 lg:px-0">
-                <ErrorBoundary>
-                  <TripMessages
-                    tripId={tripId}
-                    isOrganizer={isOrganizer}
-                    disabled={isLocked}
-                    isMuted={currentMember?.isMuted}
-                  />
-                </ErrorBoundary>
-              </div>
+              <TripTabNav tripId={tripId} />
+              <TripPageProvider
+                tripId={tripId}
+                trip={trip}
+                isOrganizer={isOrganizer}
+                isLocked={isLocked}
+                weather={weather}
+                weatherLoading={weatherLoading}
+                temperatureUnit={temperatureUnit}
+                currentMember={currentMember}
+                user={user}
+                events={events}
+                openEdit={() => setIsEditOpen(true)}
+                openInvite={() => setIsInviteOpen(true)}
+                openSettings={() => setIsSettingsOpen(true)}
+                openMembers={() => setIsMembersOpen(true)}
+                setShowOnboarding={setShowOnboarding}
+              >
+                {children}
+              </TripPageProvider>
             </div>
           </div>
         </div>
@@ -586,6 +556,7 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
                   }}
                   onRemove={(member) => setRemovingMember({ member })}
                   onUpdateRole={handleUpdateRole}
+                  onMemberClick={(member) => setProfileMember(member)}
                 />
               )}
             </SheetBody>
@@ -647,6 +618,15 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
             trip={trip}
           />
         )}
+
+        {/* Member profile sheet */}
+        <MemberProfileSheet
+          member={profileMember}
+          open={!!profileMember}
+          onOpenChange={(open) => {
+            if (!open) setProfileMember(null);
+          }}
+        />
       </div>
     </TripThemeProvider>
   );
