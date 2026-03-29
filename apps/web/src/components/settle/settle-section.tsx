@@ -5,11 +5,10 @@ import { BalanceList } from "./balance-list";
 import { PaymentList } from "./payment-list";
 import { PaymentForm } from "./payment-form";
 import { SettlementForm } from "./settlement-form";
-import { GuestManager } from "./guest-manager";
 import { cn } from "@/lib/utils";
 import type { BalanceEntry, Payment } from "@journiful/shared/types";
 
-const TABS = ["Expenses", "Balances", "Guests"] as const;
+const TABS = ["Expenses", "Balances"] as const;
 type Tab = (typeof TABS)[number];
 
 interface SettleSectionProps {
@@ -89,10 +88,6 @@ export function SettleSection({
           tripId={tripId}
           {...(disabled ? {} : { onSettleUp: handleSettleUp })}
         />
-      )}
-
-      {activeTab === "Guests" && (
-        <GuestManager tripId={tripId} {...(disabled ? { disabled } : {})} />
       )}
 
       {/* Payment form sheet */}

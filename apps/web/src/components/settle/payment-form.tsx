@@ -3,11 +3,11 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
-import { DollarSign, Trash2 } from "lucide-react";
+import { DollarSign, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/app/providers/auth-provider";
 import { membersQueryOptions } from "@/hooks/invitation-queries";
-import { useGuests } from "@/hooks/use-guests";
+import { useGuests, useCreateGuest } from "@/hooks/use-guests";
 import {
   useCreatePayment,
   useUpdatePayment,
@@ -74,6 +74,8 @@ export function PaymentForm({
   const createPayment = useCreatePayment();
   const updatePayment = useUpdatePayment();
   const deletePayment = useDeletePayment();
+  const createGuest = useCreateGuest();
+  const [newGuestName, setNewGuestName] = useState("");
 
   // Build payer/participant options
   const people = useMemo<PayerOption[]>(() => {
@@ -124,6 +126,7 @@ export function PaymentForm({
   // Reset form when payment prop changes (opening a different expense or creating new)
   useEffect(() => {
     if (open) {
+      setNewGuestName("");
       setDescription(payment?.description ?? "");
       setAmountStr(payment ? (payment.amount / 100).toFixed(2) : "");
       setPayerId(payment?.userId ?? payment?.guestId ?? user?.id ?? "");
@@ -182,6 +185,26 @@ export function PaymentForm({
   const selectNone = useCallback(() => {
     setSelectedParticipants(new Set());
   }, []);
+
+  const handleAddGuest = () => {
+    const trimmed = newGuestName.trim();
+    if (!trimmed) return;
+    createGuest.mutate(
+      { tripId, data: { name: trimmed } },
+      {
+        onSuccess: (guest) => {
+          setNewGuestName("");
+          // Auto-select the new guest as a participant
+          setSelectedParticipants((prev) => new Set([...prev, guest.id]));
+        },
+        onError: (error) => {
+          toast.error(
+            error instanceof Error ? error.message : "Failed to add guest",
+          );
+        },
+      },
+    );
+  };
 
   // Validation
   const amountCents = Math.round(parseFloat(amountStr || "0") * 100);
@@ -356,6 +379,22 @@ export function PaymentForm({
                     No members or guests available.
                   </p>
                 )}
+                {/* Inline add guest */}
+                <div className="flex items-center gap-2 px-2 pt-1.5 border-t border-border mt-1">
+                  <UserPlus className="size-4 text-muted-foreground shrink-0" />
+                  <Input
+                    placeholder="Add guest..."
+                    value={newGuestName}
+                    onChange={(e) => setNewGuestName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddGuest();
+                      }
+                    }}
+                    className="h-7 text-sm border-0 shadow-none px-0 focus-visible:ring-0"
+                  />
+                </div>
               </div>
               {payerPerson && selectedParticipants.has(payerId) && (
                 <p className="text-xs text-muted-foreground">
