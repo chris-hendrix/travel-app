@@ -84,11 +84,13 @@ export function TripMessages({
       className="space-y-4"
       aria-label="Trip discussion"
     >
-      <div className="flex items-center gap-3">
-        <h2 className="text-2xl font-semibold font-playfair">Discussion</h2>
-        {total > 0 && (
-          <span className="text-muted-foreground text-sm mt-1">{total}</span>
-        )}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-semibold font-playfair">Messages</h2>
+          {total > 0 && (
+            <span className="text-muted-foreground text-sm">{total}</span>
+          )}
+        </div>
       </div>
 
       <PinnedMessages messages={messages} />

@@ -1,12 +1,6 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { ChevronDown } from "lucide-react";
-import {
-  Collapsible,
-  CollapsibleTrigger,
-  CollapsibleContent,
-} from "@/components/ui/collapsible";
 import { useAuth } from "@/app/providers/auth-provider";
 import { usePhotos, useDeletePhoto } from "@/hooks/use-photos";
 import { PhotoUploadDropzone } from "./photo-upload-dropzone";
@@ -58,34 +52,23 @@ export function PhotosSection({
 
   return (
     <>
-      <Collapsible defaultOpen>
-        <CollapsibleTrigger className="flex items-center gap-2 px-0 text-2xl font-semibold font-playfair text-foreground hover:text-foreground/80 cursor-pointer">
-          <ChevronDown
-            className="w-5 h-5 transition-transform duration-200 [[data-state=closed]_&]:-rotate-90"
-            aria-hidden="true"
-          />
-          Photos
-          <span className="text-base font-normal text-muted-foreground">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold font-playfair">Photos</h2>
+          <span className="text-sm text-muted-foreground">
             {photos.length}/{MAX_PHOTOS_PER_TRIP}
           </span>
-        </CollapsibleTrigger>
-        <CollapsibleContent
-          forceMount
-          className="overflow-hidden data-[state=open]:animate-[collapsible-down_200ms_ease-out] data-[state=closed]:animate-[collapsible-up_200ms_ease-out] data-[state=closed]:h-0"
-        >
-          <div className="space-y-4 pt-2">
-            {!disabled && (
-              <PhotoUploadDropzone tripId={tripId} currentCount={photos.length} />
-            )}
-            <PhotoGrid
-              photos={photos}
-              onPhotoClick={handlePhotoClick}
-              canModify={canModify}
-              onDelete={handleDelete}
-            />
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
+        </div>
+        {!disabled && (
+          <PhotoUploadDropzone tripId={tripId} currentCount={photos.length} />
+        )}
+        <PhotoGrid
+          photos={photos}
+          onPhotoClick={handlePhotoClick}
+          canModify={canModify}
+          onDelete={handleDelete}
+        />
+      </div>
       {selectedPhotoIndex !== null && readyPhotos.length > 0 && (
         <PhotoLightbox
           photos={readyPhotos}
