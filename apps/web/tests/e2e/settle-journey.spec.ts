@@ -70,16 +70,17 @@ test.describe("Settle Journey", () => {
       await test.step("add first expense", async () => {
         await page.getByRole("button", { name: "Add Expense" }).first().click();
 
-        // Fill the expense form
+        // Fill the expense form in the sheet dialog
+        const sheet = page.getByRole("dialog");
         await expect(
-          page.getByRole("heading", { name: "Add Expense" }),
+          sheet.getByRole("heading", { name: "Add Expense" }),
         ).toBeVisible({ timeout: DIALOG_TIMEOUT });
 
-        await page.getByLabel(/description/i).fill("Dinner at restaurant");
-        await page.getByLabel(/amount/i).fill("50.00");
+        await sheet.getByLabel(/description/i).fill("Dinner at restaurant");
+        await sheet.getByLabel(/amount/i).fill("50.00");
 
         // Submit
-        await page.getByRole("button", { name: "Add Expense" }).last().click();
+        await sheet.getByRole("button", { name: "Add Expense" }).click();
 
         // Verify expense appears
         await expect(page.getByText("Dinner at restaurant")).toBeVisible({
@@ -93,19 +94,20 @@ test.describe("Settle Journey", () => {
       await test.step("edit expense", async () => {
         await page.getByText("Dinner at restaurant").click();
 
+        const sheet = page.getByRole("dialog");
         await expect(
-          page.getByRole("heading", { name: "Edit Expense" }),
+          sheet.getByRole("heading", { name: "Edit Expense" }),
         ).toBeVisible({ timeout: DIALOG_TIMEOUT });
 
         // Verify fields are pre-filled
-        const descInput = page.getByLabel(/description/i);
+        const descInput = sheet.getByLabel(/description/i);
         await expect(descInput).toHaveValue("Dinner at restaurant");
 
         // Update description
         await descInput.clear();
         await descInput.fill("Dinner at steakhouse");
 
-        await page.getByRole("button", { name: "Save Changes" }).click();
+        await sheet.getByRole("button", { name: "Save Changes" }).click();
 
         // Verify updated
         await expect(page.getByText("Dinner at steakhouse")).toBeVisible({
@@ -127,12 +129,13 @@ test.describe("Settle Journey", () => {
 
         // Click the Add Guest chip
         await page.getByRole("button", { name: "Add Guest" }).click();
-        await page.getByPlaceholder("Name").fill("Tom");
-        // Submit via the check button
-        await page.locator("button:has(svg.lucide-check)").click();
+        await page.getByPlaceholder("Name").fill("Tomislav");
+
+        // Submit via the check/confirm button next to the input
+        await page.getByPlaceholder("Name").press("Enter");
 
         // Verify guest chip appears
-        await expect(page.getByText("Tom")).toBeVisible({
+        await expect(page.getByRole("button", { name: /Tomislav/ })).toBeVisible({
           timeout: ELEMENT_TIMEOUT,
         });
       });
@@ -145,10 +148,11 @@ test.describe("Settle Journey", () => {
         // Use the Add Expense button at the bottom of the list
         await page.getByRole("button", { name: "Add Expense" }).first().click();
 
-        await page.getByLabel(/description/i).fill("Taxi ride");
-        await page.getByLabel(/amount/i).fill("30.00");
+        const sheet = page.getByRole("dialog");
+        await sheet.getByLabel(/description/i).fill("Taxi ride");
+        await sheet.getByLabel(/amount/i).fill("30.00");
 
-        await page.getByRole("button", { name: "Add Expense" }).last().click();
+        await sheet.getByRole("button", { name: "Add Expense" }).click();
 
         await expect(page.getByText("Taxi ride")).toBeVisible({
           timeout: ELEMENT_TIMEOUT,
@@ -170,13 +174,15 @@ test.describe("Settle Journey", () => {
         await page.getByRole("button", { name: "Expenses" }).click();
         await page.getByText("Taxi ride").click();
 
+        const sheet = page.getByRole("dialog");
         await expect(
-          page.getByRole("heading", { name: "Edit Expense" }),
+          sheet.getByRole("heading", { name: "Edit Expense" }),
         ).toBeVisible({ timeout: DIALOG_TIMEOUT });
 
-        await page.getByRole("button", { name: /Delete Expense/ }).click();
+        await sheet.getByRole("button", { name: /Delete Expense/ }).click();
 
-        await expect(page.getByText(/deleted/i)).toBeVisible({
+        // Wait for toast confirmation — match "Expense deleted" specifically
+        await expect(page.getByText("Expense deleted")).toBeVisible({
           timeout: TOAST_TIMEOUT,
         });
         await dismissToast(page);
@@ -185,17 +191,18 @@ test.describe("Settle Journey", () => {
       await test.step("remove guest", async () => {
         await page.getByRole("button", { name: "Guests" }).click();
 
-        // Click the X on the Tom chip
-        await page.getByLabel("Remove Tom").click();
+        // Click the X on the Tomislav chip
+        await page.getByLabel("Remove Tomislav").click();
 
-        // Confirm removal
+        // Confirm removal in the alert dialog
+        const dialog = page.getByRole("alertdialog");
         await expect(
-          page.getByRole("heading", { name: "Remove guest" }),
+          dialog.getByRole("heading", { name: "Remove guest" }),
         ).toBeVisible({ timeout: DIALOG_TIMEOUT });
-        await page.getByRole("button", { name: "Remove" }).click();
+        await dialog.getByRole("button", { name: "Remove" }).click();
 
         // Guest should be gone
-        await expect(page.getByText("Tom")).not.toBeVisible({
+        await expect(page.getByRole("button", { name: /Tomislav/ })).not.toBeVisible({
           timeout: ELEMENT_TIMEOUT,
         });
       });
