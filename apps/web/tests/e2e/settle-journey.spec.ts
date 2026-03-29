@@ -48,7 +48,7 @@ test.describe("Settle Journey", () => {
         await navigateToMobilePanel(page, "Settle");
 
         // On desktop, scroll to the settle section
-        const settleHeading = page.getByRole("heading", { name: "Settle" });
+        const settleHeading = page.getByRole("heading", { name: "Settle", exact: true });
         const visible = await settleHeading
           .waitFor({ state: "visible", timeout: 3_000 })
           .then(() => true)
