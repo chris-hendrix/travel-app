@@ -256,7 +256,14 @@ export function InfoPanel({
             <button onClick={onOpenMembers} className="text-primary hover:underline transition-colors">
               {goingCount} going
             </button>
-            {organizerNames ? ` · Organized by ${organizerNames}` : ""}
+            {organizerNames && (
+              <>
+                {" · Organized by "}
+                <button onClick={onOpenMembers} className="text-primary hover:underline transition-colors">
+                  {organizerNames}
+                </button>
+              </>
+            )}
           </span>
         </div>
 

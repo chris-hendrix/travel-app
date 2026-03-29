@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { Handshake } from "lucide-react";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
+import { membersQueryOptions } from "@/hooks/invitation-queries";
 import { useCreatePayment, getPaymentErrorMessage } from "@/hooks/use-payments";
+import { VenmoIcon } from "@/components/icons/venmo-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,6 +41,10 @@ export function SettlementForm({
   entry,
 }: SettlementFormProps) {
   const createPayment = useCreatePayment();
+  const { data: members } = useQuery({
+    ...membersQueryOptions(tripId),
+    enabled: !!tripId,
+  });
 
   const [amount, setAmount] = useState(formatCents(entry.amount));
   const [note, setNote] = useState("");
@@ -49,6 +56,12 @@ export function SettlementForm({
   // entry.from owes entry.to — so from is paying to
   const fromPerson = entry.from;
   const toPerson = entry.to;
+
+  // Look up recipient's venmo handle from members data
+  const recipientMember = !toPerson.isGuest
+    ? members?.find((m) => m.userId === toPerson.id)
+    : undefined;
+  const venmoHandle = recipientMember?.handles?.venmo;
 
   const handleSubmit = () => {
     if (!isValid) return;
@@ -111,6 +124,19 @@ export function SettlementForm({
                 <p className="text-base font-semibold">{toPerson.name}</p>
               </div>
             </div>
+
+            {/* Venmo quick link */}
+            {venmoHandle && (
+              <a
+                href={`https://venmo.com/${venmoHandle.replace(/^@/, "")}?txn=pay&amount=${formatCents(entry.amount)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 rounded-lg border border-border p-3 text-sm font-medium text-primary hover:bg-muted/50 transition-colors"
+              >
+                <VenmoIcon className="w-4 h-4" />
+                Pay {toPerson.name} on Venmo
+              </a>
+            )}
 
             {/* Amount */}
             <div className="space-y-2">
