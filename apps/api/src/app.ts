@@ -172,6 +172,9 @@ export async function buildApp(
     global: opts.rateLimit?.global ?? true,
     max: 300,
     timeWindow: "1 minute",
+    keyGenerator: (request) =>
+      (request as typeof request & { user?: { sub: string } }).user?.sub ||
+      request.ip,
     allowList: ["127.0.0.1"],
     skipOnError: false,
     store: PgRateLimitStore,
