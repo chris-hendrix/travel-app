@@ -21,6 +21,7 @@ import { canModifyAccommodation } from "@/components/itinerary/utils/permissions
 import { useAccommodations } from "@/hooks/use-accommodations";
 import { useAuth } from "@/app/providers/auth-provider";
 import { TodaySection } from "./today-section";
+
 import { linkifyText } from "@/utils/linkify";
 import { getUploadUrl } from "@/lib/api";
 import { getInitials } from "@/lib/format";
@@ -314,7 +315,7 @@ export function InfoPanel({
           </CollapsibleSection>
         )}
 
-        {/* 5. About this trip */}
+        {/* 6. About this trip */}
         {trip.description && (
           <CollapsibleSection label="About this trip" defaultOpen>
             <div className="bg-card rounded-md border border-border p-4 linen-texture">
@@ -325,7 +326,7 @@ export function InfoPanel({
           </CollapsibleSection>
         )}
 
-        {/* 6. Weather */}
+        {/* 7. Weather */}
         <CollapsibleSection label="Weather" defaultOpen>
           <WeatherForecastCard
             weather={weather}

@@ -190,6 +190,13 @@
       "when": 1774729113704,
       "tag": "0026_flawless_colossus",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1774744683800,
+      "tag": "0027_dusty_namora",
+      "breakpoints": true
     }
   ]
 }

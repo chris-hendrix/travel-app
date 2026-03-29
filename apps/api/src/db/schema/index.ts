@@ -666,3 +666,92 @@ export const pushSubscriptions = pgTable(
 
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 export type NewPushSubscription = typeof pushSubscriptions.$inferInsert;
+
+// Trip Guests (non-member participants for expense splitting)
+export const tripGuests = pgTable(
+  "trip_guests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tripId: uuid("trip_id")
+      .notNull()
+      .references(() => trips.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 100 }).notNull(),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("trip_guests_trip_id_idx").on(table.tripId)],
+);
+
+export type TripGuest = typeof tripGuests.$inferSelect;
+export type NewTripGuest = typeof tripGuests.$inferInsert;
+
+// Payments (expenses and settlements)
+export const payments = pgTable(
+  "payments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tripId: uuid("trip_id")
+      .notNull()
+      .references(() => trips.id, { onDelete: "cascade" }),
+    description: text("description").notNull(),
+    amount: integer("amount").notNull(), // cents to avoid floating point
+    // Payer — exactly one is non-null (enforced by CHECK constraint in migration)
+    userId: uuid("user_id").references(() => users.id),
+    guestId: uuid("guest_id").references(() => tripGuests.id),
+    date: timestamp("date", { withTimezone: true }).notNull().defaultNow(),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    deletedBy: uuid("deleted_by"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("payments_trip_id_not_deleted_idx")
+      .on(table.tripId)
+      .where(sql`${table.deletedAt} IS NULL`),
+    index("payments_user_id_idx").on(table.userId),
+    index("payments_guest_id_idx").on(table.guestId),
+  ],
+);
+
+export type Payment = typeof payments.$inferSelect;
+export type NewPayment = typeof payments.$inferInsert;
+
+// Payment Participants (who owes for a payment)
+export const paymentParticipants = pgTable(
+  "payment_participants",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    paymentId: uuid("payment_id")
+      .notNull()
+      .references(() => payments.id, { onDelete: "cascade" }),
+    // Participant — exactly one is non-null (enforced by CHECK constraint in migration)
+    userId: uuid("user_id").references(() => users.id),
+    guestId: uuid("guest_id").references(() => tripGuests.id),
+    shareAmount: integer("share_amount").notNull(), // cents — computed at write time
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("payment_participants_payment_id_idx").on(table.paymentId),
+    index("payment_participants_user_id_idx").on(table.userId),
+    index("payment_participants_guest_id_idx").on(table.guestId),
+  ],
+);
+
+export type PaymentParticipant = typeof paymentParticipants.$inferSelect;
+export type NewPaymentParticipant = typeof paymentParticipants.$inferInsert;

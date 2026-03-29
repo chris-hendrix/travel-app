@@ -8,7 +8,7 @@ import type { Swiper as SwiperType } from "swiper";
 
 import "swiper/css";
 
-const SLIDE_HASHES = ["info", "itinerary", "messages", "photos"] as const;
+const SLIDE_HASHES = ["info", "itinerary", "messages", "photos", "settle"] as const;
 
 export interface MobileTripSwiperRef {
   slideTo: (index: number) => void;
@@ -17,7 +17,7 @@ export interface MobileTripSwiperRef {
 interface MobileTripSwiperProps {
   onSlideChange: (index: number) => void;
   onProgress: (progress: number) => void;
-  children: [ReactNode, ReactNode, ReactNode, ReactNode];
+  children: [ReactNode, ReactNode, ReactNode, ReactNode, ReactNode];
 }
 
 export const MobileTripSwiper = forwardRef<

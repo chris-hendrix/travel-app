@@ -189,6 +189,25 @@ export const NotificationNotFoundError = createError(
   404,
 );
 
+// Guest errors
+export const GuestNotFoundError = createError(
+  "GUEST_NOT_FOUND",
+  "Guest not found",
+  404,
+);
+export const GuestHasPaymentsError = createError(
+  "GUEST_HAS_PAYMENTS",
+  "Cannot delete guest with existing payments",
+  409,
+);
+
+// Payment errors
+export const PaymentNotFoundError = createError(
+  "PAYMENT_NOT_FOUND",
+  "Payment not found",
+  404,
+);
+
 // Generic
 export const InvalidCodeError = createError("INVALID_CODE", "%s", 400);
 export const AccountLockedError = createError("ACCOUNT_LOCKED", "%s", 429);

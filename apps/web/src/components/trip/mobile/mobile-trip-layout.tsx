@@ -25,6 +25,7 @@ import { InfoPanel } from "./panels/info-panel";
 import { ItineraryPanel } from "./panels/itinerary-panel";
 import { MessagesPanel } from "./panels/messages-panel";
 import { PhotosPanel } from "./panels/photos-panel";
+import { SettlePanel } from "./panels/settle-panel";
 import type { TripDetailWithMeta } from "@/hooks/trip-queries";
 import type { MemberWithProfile } from "@/hooks/use-invitations";
 import { getRemoveMemberErrorMessage } from "@/hooks/use-invitations";
@@ -132,6 +133,7 @@ export function MobileTripLayout({
     swiperRef.current?.slideTo(1);
   }, []);
 
+
   return (
     <TripThemeProvider
       themeId={trip.themeId}
@@ -187,6 +189,11 @@ export function MobileTripLayout({
               isOrganizer={isOrganizer}
               disabled={isLocked}
               hideFab={activeIndex !== 3}
+            />
+            <SettlePanel
+              tripId={tripId}
+              isOrganizer={isOrganizer}
+              disabled={isLocked}
             />
           </MobileTripSwiper>
         </div>

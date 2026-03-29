@@ -46,6 +46,7 @@ import { useWeatherForecast } from "@/hooks/use-weather";
 import type { TemperatureUnit } from "@journiful/shared/types";
 import type { Accommodation } from "@journiful/shared/types";
 import { TripMessages } from "@/components/messaging";
+import { SettleSection } from "@/components/settle/settle-section";
 import { NotificationPreferences } from "@/components/notifications/notification-preferences";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { MembersList } from "@/components/trip/members-list";
@@ -424,6 +425,17 @@ export function TripDetailContent({ tripId }: { tripId: string }) {
                   forecasts={weather?.forecasts}
                   temperatureUnit={temperatureUnit}
                 />
+              </div>
+
+              {/* Settle */}
+              <div id="settle" className="border-t border-border mt-4 pt-4 px-4 sm:px-6 lg:px-0 scroll-mt-14">
+                <ErrorBoundary>
+                  <SettleSection
+                    tripId={tripId}
+                    isOrganizer={isOrganizer}
+                    disabled={isLocked}
+                  />
+                </ErrorBoundary>
               </div>
 
               {/* Photos */}

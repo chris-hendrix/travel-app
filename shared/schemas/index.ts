@@ -182,3 +182,31 @@ export {
   type FlightLookupResult,
   type FlightLookupResponse,
 } from "./flight";
+
+// Re-export guest schemas
+export {
+  createGuestSchema,
+  updateGuestSchema,
+  guestListResponseSchema,
+  guestResponseSchema,
+  type CreateGuestInput,
+  type UpdateGuestInput,
+} from "./guest";
+
+// Re-export payment schemas
+export {
+  createPaymentSchema,
+  updatePaymentSchema,
+  paymentListResponseSchema,
+  paymentResponseSchema,
+  type CreatePaymentInput,
+  type UpdatePaymentInput,
+} from "./payment";
+
+// Re-export balance schemas
+export {
+  balanceResponseSchema,
+  myBalanceResponseSchema,
+  type BalanceResponse,
+  type MyBalanceResponse,
+} from "./balance";
