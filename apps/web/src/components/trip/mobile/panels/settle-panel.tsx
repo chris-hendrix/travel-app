@@ -1,9 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import Link from "next/link";
-import { ArrowLeft, Plus, Users } from "lucide-react";
-import { useTripDetail } from "@/hooks/use-trips";
+import { useState } from "react";
+import { Plus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { BalanceList } from "@/components/settle/balance-list";
@@ -12,30 +10,24 @@ import { PaymentForm } from "@/components/settle/payment-form";
 import { GuestManager } from "@/components/settle/guest-manager";
 import type { BalanceEntry, Payment } from "@journiful/shared/types";
 
-interface SettleContentProps {
+interface SettlePanelProps {
   tripId: string;
+  isOrganizer: boolean;
+  disabled?: boolean;
 }
 
-export function SettleContent({ tripId }: SettleContentProps) {
-  const { data: trip } = useTripDetail(tripId);
+export function SettlePanel({ tripId, isOrganizer, disabled }: SettlePanelProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<Payment | undefined>();
-  const [settlement, setSettlement] = useState<{
-    fromId: string;
-    fromType: "user" | "guest";
-    toId: string;
-    toType: "user" | "guest";
-  } | undefined>();
-
-  const isOrganizer = trip?.isOrganizer ?? false;
-
-  const isLocked = useMemo(() => {
-    if (!trip?.endDate) return false;
-    const end = new Date(trip.endDate);
-    end.setDate(end.getDate() + 1);
-    end.setHours(23, 59, 59, 999);
-    return end < new Date();
-  }, [trip?.endDate]);
+  const [settlement, setSettlement] = useState<
+    | {
+        fromId: string;
+        fromType: "user" | "guest";
+        toId: string;
+        toType: "user" | "guest";
+      }
+    | undefined
+  >();
 
   const handleAddExpense = () => {
     setEditingPayment(undefined);
@@ -69,26 +61,12 @@ export function SettleContent({ tripId }: SettleContentProps) {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border">
-        <div className="flex items-center gap-3 px-4 py-3">
-          <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-            <Link href={`/trips/${tripId}`}>
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-semibold font-playfair truncate">
-              Settle
-            </h1>
-            {trip && (
-              <p className="text-xs text-muted-foreground truncate">
-                {trip.name}
-              </p>
-            )}
-          </div>
-          {!isLocked && (
+    <div className="h-full overflow-y-auto overscroll-contain">
+      <div className="px-4 py-4 space-y-5">
+        {/* Header with add button */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold font-playfair">Settle</h2>
+          {!disabled && (
             <Button
               variant="gradient"
               size="sm"
@@ -100,35 +78,32 @@ export function SettleContent({ tripId }: SettleContentProps) {
             </Button>
           )}
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="px-4 py-4 space-y-5 max-w-2xl mx-auto">
         {/* Balances */}
         <section>
-          <h2 className="text-sm font-medium text-muted-foreground mb-2">
+          <h3 className="text-sm font-medium text-muted-foreground mb-2">
             Balances
-          </h2>
+          </h3>
           <BalanceList
             tripId={tripId}
-            {...(isLocked ? {} : { onSettleUp: handleSettleUp })}
+            {...(disabled ? {} : { onSettleUp: handleSettleUp })}
           />
         </section>
 
         {/* Expenses */}
         <section>
-          <h2 className="text-sm font-medium text-muted-foreground mb-2">
+          <h3 className="text-sm font-medium text-muted-foreground mb-2">
             Expenses
-          </h2>
+          </h3>
           <PaymentList
             tripId={tripId}
-            {...(isLocked ? {} : { onPaymentClick: handleEditPayment, onAddExpense: handleAddExpense })}
+            {...(disabled ? {} : { onPaymentClick: handleEditPayment, onAddExpense: handleAddExpense })}
             {...(isOrganizer ? { isOrganizer } : {})}
           />
         </section>
 
         {/* Guests */}
-        {!isLocked && (
+        {!disabled && (
           <CollapsibleSection
             label={
               <span className="flex items-center gap-1.5">
@@ -143,7 +118,7 @@ export function SettleContent({ tripId }: SettleContentProps) {
       </div>
 
       {/* Payment form sheet */}
-      {!isLocked && (
+      {!disabled && (
         <PaymentForm
           tripId={tripId}
           open={isFormOpen}

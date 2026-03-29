@@ -1,12 +1,13 @@
 "use client";
 
-import { Home, CalendarDays, MessageCircle, Camera } from "lucide-react";
+import { Home, CalendarDays, MessageCircle, Camera, DollarSign } from "lucide-react";
 
 const ICONS = [
   { icon: Home, label: "Home" },
   { icon: CalendarDays, label: "Itinerary" },
   { icon: MessageCircle, label: "Messages" },
   { icon: Camera, label: "Photos" },
+  { icon: DollarSign, label: "Settle" },
 ] as const;
 
 interface IconStripProps {
