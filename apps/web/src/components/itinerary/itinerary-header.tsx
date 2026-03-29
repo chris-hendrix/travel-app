@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Calendar, Car, Globe, PlaneLanding, Plus, Building2, Plane, Utensils, type LucideIcon } from "lucide-react";
+import { Calendar, Car, Globe, PlaneLanding, Plus, Building2, Utensils, type LucideIcon } from "lucide-react";
 import { useMounted } from "@/hooks/use-mounted";
 import { useMemberTravels } from "@/hooks/use-member-travel";
 import { Button } from "@/components/ui/button";
@@ -164,7 +164,7 @@ export function ItineraryHeader({
             <DropdownMenuContent side="top" align="end" className="w-48">
               {canAddEvent && (
                 <DropdownMenuItem onSelect={() => setIsCreateEventOpen(true)}>
-                  <Plus className="w-4 h-4" />
+                  <Calendar className="w-4 h-4" />
                   Event
                 </DropdownMenuItem>
               )}
@@ -180,7 +180,7 @@ export function ItineraryHeader({
                 <DropdownMenuItem
                   onSelect={() => setIsCreateMemberTravelOpen(true)}
                 >
-                  <Plane className="w-4 h-4" />
+                  <PlaneLanding className="w-4 h-4" />
                   My Travel
                 </DropdownMenuItem>
               )}

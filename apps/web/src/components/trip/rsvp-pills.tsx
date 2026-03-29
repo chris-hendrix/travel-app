@@ -17,18 +17,21 @@ const pills: {
   label: string;
   icon: typeof CircleCheck;
   activeClass: string;
+  hoverClass: string;
 }[] = [
   {
     value: "going",
     label: "Going",
     icon: CircleCheck,
     activeClass: "bg-success text-success-foreground hover:bg-success/90",
+    hoverClass: "hover:bg-success/10 hover:text-success hover:border-success/30",
   },
   {
     value: "maybe",
     label: "Maybe",
     icon: CircleHelp,
     activeClass: "bg-warning text-warning-foreground hover:bg-warning/90",
+    hoverClass: "hover:bg-warning/10 hover:text-warning hover:border-warning/30",
   },
   {
     value: "not_going",
@@ -36,6 +39,7 @@ const pills: {
     icon: CircleX,
     activeClass:
       "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+    hoverClass: "hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30",
   },
 ];
 
@@ -81,8 +85,9 @@ export function RsvpPills({ tripId, status }: RsvpPillsProps) {
             onClick={() => handleClick(pill.value)}
             className={cn(
               "h-10",
-              isActive && pill.activeClass,
-              isActive && "border-transparent",
+              isActive
+                ? cn(pill.activeClass, "border-transparent")
+                : pill.hoverClass,
             )}
           >
             <Icon className="size-4" />
