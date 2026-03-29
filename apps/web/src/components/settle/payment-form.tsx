@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { DollarSign, Trash2 } from "lucide-react";
@@ -120,6 +120,29 @@ export function PaymentForm({
       return new Set(people.map((p) => p.id));
     },
   );
+
+  // Reset form when payment prop changes (opening a different expense or creating new)
+  useEffect(() => {
+    if (open) {
+      setDescription(payment?.description ?? "");
+      setAmountStr(payment ? (payment.amount / 100).toFixed(2) : "");
+      setPayerId(payment?.userId ?? payment?.guestId ?? user?.id ?? "");
+      setDate(
+        payment
+          ? format(new Date(payment.date), "yyyy-MM-dd")
+          : format(new Date(), "yyyy-MM-dd"),
+      );
+      if (payment) {
+        setSelectedParticipants(
+          new Set(payment.participants.map((p) => p.userId ?? p.guestId ?? "")),
+        );
+        setInitialized(true);
+      } else {
+        setSelectedParticipants(new Set(people.map((p) => p.id)));
+        setInitialized(people.length > 0);
+      }
+    }
+  }, [open, payment]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // When people list loads and we have no participants yet (initial add), select all
   const [initialized, setInitialized] = useState(!!payment);
@@ -345,7 +368,7 @@ export function PaymentForm({
           </div>
         </SheetBody>
 
-        <SheetFooter className="flex-col gap-2">
+        <SheetFooter className="flex-col! gap-2">
           <Button
             variant="gradient"
             className="w-full h-12"

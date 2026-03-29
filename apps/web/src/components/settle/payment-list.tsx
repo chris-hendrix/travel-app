@@ -1,6 +1,7 @@
 "use client";
 
 import { Wallet, RotateCcw, Plus } from "lucide-react";
+import { useAuth } from "@/app/providers/auth-provider";
 import { usePayments, useRestorePayment } from "@/hooks/use-payments";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -22,6 +23,7 @@ export function PaymentList({
   onAddExpense,
   isOrganizer,
 }: PaymentListProps) {
+  const { user } = useAuth();
   const { data: payments, isPending } = usePayments(tripId);
   const restorePayment = useRestorePayment();
 
@@ -64,6 +66,7 @@ export function PaymentList({
           key={payment.id}
           payment={payment}
           {...(onPaymentClick ? { onClick: onPaymentClick } : {})}
+          {...(user ? { currentUserId: user.id } : {})}
         />
       ))}
 
