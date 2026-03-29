@@ -21,7 +21,8 @@ export function PaymentItem({ payment, onClick, currentUserId }: PaymentItemProp
   const isGuest = payment.payerIsGuest ?? false;
   const participantCount = payment.participants.length;
   const date = new Date(payment.date);
-  const isSettlement = participantCount === 1;
+  const isSettlement =
+    participantCount === 1 && payment.description.startsWith("Settled up");
 
   const highlightClass = "border-border";
 
