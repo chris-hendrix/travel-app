@@ -3,12 +3,15 @@
 import { useState, useMemo, useCallback } from "react";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
-import { DollarSign } from "lucide-react";
+import { DollarSign, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { useAuth } from "@/app/providers/auth-provider";
 import { membersQueryOptions } from "@/hooks/invitation-queries";
 import { useGuests } from "@/hooks/use-guests";
 import {
   useCreatePayment,
   useUpdatePayment,
+  useDeletePayment,
   getPaymentErrorMessage,
 } from "@/hooks/use-payments";
 import { Button } from "@/components/ui/button";
@@ -64,6 +67,7 @@ export function PaymentForm({
   settlement,
 }: PaymentFormProps) {
   const isEditing = !!payment;
+  const { user } = useAuth();
 
   const { data: members } = useQuery({
     ...membersQueryOptions(tripId),
@@ -72,6 +76,7 @@ export function PaymentForm({
   const { data: guests } = useGuests(tripId);
   const createPayment = useCreatePayment();
   const updatePayment = useUpdatePayment();
+  const deletePayment = useDeletePayment();
 
   // Build payer/participant options
   const people = useMemo<PayerOption[]>(() => {
@@ -101,7 +106,7 @@ export function PaymentForm({
       return payment.userId ?? payment.guestId ?? "";
     }
     if (settlement) return settlement.fromId;
-    return "";
+    return user?.id ?? "";
   });
   const [date, setDate] = useState(
     payment
@@ -202,7 +207,17 @@ export function PaymentForm({
     }
   };
 
-  const isPending = createPayment.isPending || updatePayment.isPending;
+  const handleDelete = () => {
+    if (!payment) return;
+    deletePayment.mutate(payment.id, {
+      onSuccess: () => {
+        toast.success("Expense deleted");
+        onOpenChange(false);
+      },
+    });
+  };
+
+  const isPending = createPayment.isPending || updatePayment.isPending || deletePayment.isPending;
   const error =
     getPaymentErrorMessage(createPayment.error) ||
     getPaymentErrorMessage(updatePayment.error);
@@ -337,14 +352,14 @@ export function PaymentForm({
           </div>
         </SheetBody>
 
-        <SheetFooter>
+        <SheetFooter className="flex-col gap-2">
           <Button
             variant="gradient"
             className="w-full h-12"
             disabled={!isValid || isPending}
             onClick={handleSubmit}
           >
-            {isPending
+            {isPending && !deletePayment.isPending
               ? isEditing
                 ? "Saving..."
                 : "Adding..."
@@ -354,6 +369,17 @@ export function PaymentForm({
                   ? "Record Settlement"
                   : "Add Expense"}
           </Button>
+          {isEditing && (
+            <Button
+              variant="ghost"
+              className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+              disabled={isPending}
+              onClick={handleDelete}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              {deletePayment.isPending ? "Deleting..." : "Delete Expense"}
+            </Button>
+          )}
         </SheetFooter>
       </SheetContent>
     </Sheet>

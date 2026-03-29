@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Users } from "lucide-react";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { BalanceList } from "@/components/settle/balance-list";
 import { PaymentList } from "@/components/settle/payment-list";
@@ -63,21 +62,8 @@ export function SettlePanel({ tripId, isOrganizer, disabled }: SettlePanelProps)
   return (
     <div className="h-full overflow-y-auto overscroll-contain">
       <div className="px-4 py-4 space-y-5">
-        {/* Header with add button */}
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold font-playfair">Settle</h2>
-          {!disabled && (
-            <Button
-              variant="gradient"
-              size="sm"
-              className="h-8 shrink-0"
-              onClick={handleAddExpense}
-            >
-              <Plus className="h-3.5 w-3.5 mr-1" />
-              Add Expense
-            </Button>
-          )}
-        </div>
+        {/* Header */}
+        <h2 className="text-lg font-semibold font-playfair">Settle</h2>
 
         {/* Balances */}
         <section>

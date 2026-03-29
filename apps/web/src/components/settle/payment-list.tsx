@@ -1,6 +1,6 @@
 "use client";
 
-import { Wallet, RotateCcw } from "lucide-react";
+import { Wallet, RotateCcw, Plus } from "lucide-react";
 import { usePayments, useRestorePayment } from "@/hooks/use-payments";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -66,6 +66,17 @@ export function PaymentList({
           {...(onPaymentClick ? { onClick: onPaymentClick } : {})}
         />
       ))}
+
+      {onAddExpense && (
+        <Button
+          variant="outline"
+          className="w-full mt-1"
+          onClick={onAddExpense}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add Expense
+        </Button>
+      )}
 
       {deleted.length > 0 && (
         <div className="pt-3 space-y-2">
