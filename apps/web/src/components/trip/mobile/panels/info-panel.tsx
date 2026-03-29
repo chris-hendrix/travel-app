@@ -77,6 +77,7 @@ interface InfoPanelProps {
   onOpenSettings: () => void;
   onOpenMembers: () => void;
   onNavigateToItinerary: () => void;
+  onNavigateToSettle?: () => void;
   onScroll?: (scrollTop: number) => void;
   className?: string;
 }
@@ -93,6 +94,7 @@ export function InfoPanel({
   onOpenSettings,
   onOpenMembers,
   onNavigateToItinerary,
+  onNavigateToSettle,
   onScroll,
   className,
 }: InfoPanelProps) {
@@ -300,7 +302,7 @@ export function InfoPanel({
 
         {/* 4. Settle summary */}
         <CollapsibleSection label="Settle" defaultOpen>
-          <SettleSummaryCard tripId={tripId} />
+          <SettleSummaryCard tripId={tripId} {...(onNavigateToSettle ? { onNavigateToSettle } : {})} />
         </CollapsibleSection>
 
         {/* 5. Today section (only during trip) */}

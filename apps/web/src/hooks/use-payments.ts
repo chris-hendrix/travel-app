@@ -276,6 +276,78 @@ export function useDeletePayment() {
   });
 }
 
+interface RestorePaymentContext {
+  previousPayments: Payment[] | undefined;
+  tripId: string | undefined;
+}
+
+/**
+ * Hook for restoring a soft-deleted payment
+ */
+export function useRestorePayment() {
+  const queryClient = useQueryClient();
+
+  return useMutation<Payment, APIError, string, RestorePaymentContext>({
+    mutationKey: ["payments", "restore"],
+    mutationFn: async (paymentId: string) => {
+      const response = await apiRequest<PaymentResponse>(
+        `/payments/${paymentId}/restore`,
+        { method: "POST" },
+      );
+      return response.payment;
+    },
+
+    onMutate: async (paymentId) => {
+      await queryClient.cancelQueries({ queryKey: paymentKeys.lists() });
+
+      let previousPayments: Payment[] | undefined;
+      let tripId: string | undefined;
+
+      const listQueries = queryClient.getQueriesData<Payment[]>({
+        queryKey: paymentKeys.lists(),
+      });
+      for (const [, list] of listQueries) {
+        const found = list?.find((p) => p.id === paymentId);
+        if (found) {
+          tripId = found.tripId;
+          previousPayments = list;
+          break;
+        }
+      }
+
+      return { previousPayments, tripId };
+    },
+
+    onSuccess: () => {
+      toast.success("Expense restored");
+    },
+
+    onError: (_error, _paymentId, context) => {
+      if (context?.previousPayments && context.tripId) {
+        queryClient.setQueryData(
+          paymentKeys.list(context.tripId),
+          context.previousPayments,
+        );
+      }
+    },
+
+    onSettled: (data, _error, _paymentId, context) => {
+      const tripId = data?.tripId ?? context?.tripId;
+      if (tripId) {
+        queryClient.invalidateQueries({
+          queryKey: paymentKeys.list(tripId),
+        });
+        queryClient.invalidateQueries({
+          queryKey: balanceKeys.trip(tripId),
+        });
+        queryClient.invalidateQueries({
+          queryKey: balanceKeys.me(tripId),
+        });
+      }
+    },
+  });
+}
+
 /**
  * Get user-friendly error message from payment mutation error
  */

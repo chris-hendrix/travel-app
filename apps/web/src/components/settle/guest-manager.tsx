@@ -26,9 +26,10 @@ import type { Guest } from "@journiful/shared/types";
 
 interface GuestManagerProps {
   tripId: string;
+  disabled?: boolean;
 }
 
-export function GuestManager({ tripId }: GuestManagerProps) {
+export function GuestManager({ tripId, disabled }: GuestManagerProps) {
   const { data: guests, isPending } = useGuests(tripId);
   const createGuest = useCreateGuest();
   const updateGuest = useUpdateGuest();
@@ -135,42 +136,46 @@ export function GuestManager({ tripId }: GuestManagerProps) {
               ) : (
                 <>
                   <span className="flex-1 truncate text-sm">{guest.name}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 hover:opacity-100 focus:opacity-100"
-                    onClick={() => handleStartEdit(guest)}
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
+                  {!disabled && (
+                    <>
                       <Button
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 hover:opacity-100 focus:opacity-100"
+                        onClick={() => handleStartEdit(guest)}
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Remove guest</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to remove {guest.name}? If this
-                          guest has payments, the request will be rejected.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleDelete(guest.id)}
-                        >
-                          Remove
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 hover:opacity-100 focus:opacity-100"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Remove guest</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to remove {guest.name}? If this
+                              guest has payments, the request will be rejected.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDelete(guest.id)}
+                            >
+                              Remove
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </>
+                  )}
                 </>
               )}
             </li>
@@ -183,27 +188,29 @@ export function GuestManager({ tripId }: GuestManagerProps) {
       )}
 
       {/* Add guest input */}
-      <div className="flex items-center gap-2">
-        <Input
-          placeholder="Guest name"
-          value={newGuestName}
-          onChange={(e) => setNewGuestName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleAddGuest();
-          }}
-          className="h-8 text-sm"
-        />
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 shrink-0"
-          onClick={handleAddGuest}
-          disabled={!newGuestName.trim() || createGuest.isPending}
-        >
-          <UserPlus className="mr-1.5 h-3.5 w-3.5" />
-          Add
-        </Button>
-      </div>
+      {!disabled && (
+        <div className="flex items-center gap-2">
+          <Input
+            placeholder="Guest name"
+            value={newGuestName}
+            onChange={(e) => setNewGuestName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleAddGuest();
+            }}
+            className="h-8 text-sm"
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 shrink-0"
+            onClick={handleAddGuest}
+            disabled={!newGuestName.trim() || createGuest.isPending}
+          >
+            <UserPlus className="mr-1.5 h-3.5 w-3.5" />
+            Add
+          </Button>
+        </div>
+      )}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
     </div>

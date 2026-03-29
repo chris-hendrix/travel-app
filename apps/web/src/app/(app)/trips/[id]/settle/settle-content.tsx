@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { ArrowLeft, Plus, Users } from "lucide-react";
 import { useTripDetail } from "@/hooks/use-trips";
@@ -26,6 +26,16 @@ export function SettleContent({ tripId }: SettleContentProps) {
     toId: string;
     toType: "user" | "guest";
   } | undefined>();
+
+  const isOrganizer = trip?.isOrganizer ?? false;
+
+  const isLocked = useMemo(() => {
+    if (!trip?.endDate) return false;
+    const end = new Date(trip.endDate);
+    end.setDate(end.getDate() + 1);
+    end.setHours(23, 59, 59, 999);
+    return end < new Date();
+  }, [trip?.endDate]);
 
   const handleAddExpense = () => {
     setEditingPayment(undefined);
@@ -78,15 +88,17 @@ export function SettleContent({ tripId }: SettleContentProps) {
               </p>
             )}
           </div>
-          <Button
-            variant="gradient"
-            size="sm"
-            className="h-8 shrink-0"
-            onClick={handleAddExpense}
-          >
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            Add Expense
-          </Button>
+          {!isLocked && (
+            <Button
+              variant="gradient"
+              size="sm"
+              className="h-8 shrink-0"
+              onClick={handleAddExpense}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Add Expense
+            </Button>
+          )}
         </div>
       </div>
 
@@ -97,7 +109,10 @@ export function SettleContent({ tripId }: SettleContentProps) {
           <h2 className="text-sm font-medium text-muted-foreground mb-2">
             Balances
           </h2>
-          <BalanceList tripId={tripId} onSettleUp={handleSettleUp} />
+          <BalanceList
+            tripId={tripId}
+            {...(isLocked ? {} : { onSettleUp: handleSettleUp })}
+          />
         </section>
 
         {/* Expenses */}
@@ -107,32 +122,36 @@ export function SettleContent({ tripId }: SettleContentProps) {
           </h2>
           <PaymentList
             tripId={tripId}
-            onPaymentClick={handleEditPayment}
-            onAddExpense={handleAddExpense}
+            {...(isLocked ? {} : { onPaymentClick: handleEditPayment, onAddExpense: handleAddExpense })}
+            {...(isOrganizer ? { isOrganizer } : {})}
           />
         </section>
 
         {/* Guests */}
-        <CollapsibleSection
-          label={
-            <span className="flex items-center gap-1.5">
-              <Users className="h-3.5 w-3.5" />
-              Guests
-            </span>
-          }
-        >
-          <GuestManager tripId={tripId} />
-        </CollapsibleSection>
+        {!isLocked && (
+          <CollapsibleSection
+            label={
+              <span className="flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5" />
+                Guests
+              </span>
+            }
+          >
+            <GuestManager tripId={tripId} />
+          </CollapsibleSection>
+        )}
       </div>
 
       {/* Payment form sheet */}
-      <PaymentForm
-        tripId={tripId}
-        open={isFormOpen}
-        onOpenChange={handleFormClose}
-        {...(editingPayment ? { payment: editingPayment } : {})}
-        {...(settlement ? { settlement } : {})}
-      />
+      {!isLocked && (
+        <PaymentForm
+          tripId={tripId}
+          open={isFormOpen}
+          onOpenChange={handleFormClose}
+          {...(editingPayment ? { payment: editingPayment } : {})}
+          {...(settlement ? { settlement } : {})}
+        />
+      )}
     </div>
   );
 }

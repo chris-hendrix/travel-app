@@ -1,9 +1,10 @@
 "use client";
 
-import { Wallet } from "lucide-react";
-import { usePayments } from "@/hooks/use-payments";
+import { Wallet, RotateCcw } from "lucide-react";
+import { usePayments, useRestorePayment } from "@/hooks/use-payments";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Button } from "@/components/ui/button";
 import { PaymentItem } from "./payment-item";
 import type { Payment } from "@journiful/shared/types";
 
@@ -11,14 +12,18 @@ interface PaymentListProps {
   tripId: string;
   onPaymentClick?: (payment: Payment) => void;
   onAddExpense?: () => void;
+  /** When true, show soft-deleted payments with restore option */
+  isOrganizer?: boolean;
 }
 
 export function PaymentList({
   tripId,
   onPaymentClick,
   onAddExpense,
+  isOrganizer,
 }: PaymentListProps) {
   const { data: payments, isPending } = usePayments(tripId);
+  const restorePayment = useRestorePayment();
 
   if (isPending) {
     return (
@@ -41,20 +46,51 @@ export function PaymentList({
     );
   }
 
-  // Sort by date descending
-  const sorted = [...payments].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-  );
+  // Split active vs deleted
+  const active = payments
+    .filter((p) => !p.deletedAt)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const deleted = isOrganizer
+    ? payments
+        .filter((p) => !!p.deletedAt)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    : [];
 
   return (
     <div className="space-y-2">
-      {sorted.map((payment) => (
+      {active.map((payment) => (
         <PaymentItem
           key={payment.id}
           payment={payment}
           {...(onPaymentClick ? { onClick: onPaymentClick } : {})}
         />
       ))}
+
+      {deleted.length > 0 && (
+        <div className="pt-3 space-y-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Deleted
+          </p>
+          {deleted.map((payment) => (
+            <div key={payment.id} className="relative opacity-60">
+              <PaymentItem payment={payment} />
+              <div className="absolute inset-y-0 right-2 flex items-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => restorePayment.mutate(payment.id)}
+                  disabled={restorePayment.isPending}
+                >
+                  <RotateCcw className="h-3 w-3 mr-1" />
+                  Restore
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
