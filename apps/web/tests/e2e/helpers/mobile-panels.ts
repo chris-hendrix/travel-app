@@ -7,8 +7,9 @@ import type { Page } from "@playwright/test";
  * - 1 = Itinerary
  * - 2 = Messages
  * - 3 = Photos
+ * - 4 = Settle
  */
-export type MobilePanel = "Home" | "Itinerary" | "Messages" | "Photos";
+export type MobilePanel = "Home" | "Itinerary" | "Messages" | "Photos" | "Settle";
 
 /**
  * Navigate to a specific panel in the mobile trip layout.
