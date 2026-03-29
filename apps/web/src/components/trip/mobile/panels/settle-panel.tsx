@@ -5,11 +5,10 @@ import { BalanceList } from "@/components/settle/balance-list";
 import { PaymentList } from "@/components/settle/payment-list";
 import { PaymentForm } from "@/components/settle/payment-form";
 import { SettlementForm } from "@/components/settle/settlement-form";
-import { GuestManager } from "@/components/settle/guest-manager";
 import { cn } from "@/lib/utils";
 import type { BalanceEntry, Payment } from "@journiful/shared/types";
 
-const TABS = ["Expenses", "Balances", "Guests"] as const;
+const TABS = ["Expenses", "Balances"] as const;
 type Tab = (typeof TABS)[number];
 
 interface SettlePanelProps {
@@ -91,9 +90,6 @@ export function SettlePanel({ tripId, isOrganizer, disabled }: SettlePanelProps)
           />
         )}
 
-        {activeTab === "Guests" && (
-          <GuestManager tripId={tripId} {...(disabled ? { disabled } : {})} />
-        )}
       </div>
 
       {/* Payment form sheet */}
