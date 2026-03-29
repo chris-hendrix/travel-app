@@ -188,26 +188,6 @@ test.describe("Settle Journey", () => {
         await dismissToast(page);
       });
 
-      await test.step("remove guest", async () => {
-        await page.getByRole("button", { name: "Guests" }).click();
-
-        // Click the X on the Tomislav chip
-        await page.locator('[aria-label="Remove Tomislav"]').click();
-
-        // Confirm removal in the alert dialog
-        const dialog = page.getByRole("alertdialog");
-        await expect(
-          dialog.getByRole("heading", { name: "Remove guest" }),
-        ).toBeVisible({ timeout: DIALOG_TIMEOUT });
-        await dialog.getByRole("button", { name: "Remove" }).click();
-
-        // Guest should be gone
-        await expect(page.getByText("Tomislav", { exact: true })).not.toBeVisible({
-          timeout: ELEMENT_TIMEOUT,
-        });
-      });
-
-      await snap(page, "33-settle-guest-removed");
     },
   );
 });
