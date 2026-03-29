@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Users } from "lucide-react";
-import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { BalanceList } from "@/components/settle/balance-list";
 import { PaymentList } from "@/components/settle/payment-list";
 import { PaymentForm } from "@/components/settle/payment-form";
 import { GuestManager } from "@/components/settle/guest-manager";
+import { cn } from "@/lib/utils";
 import type { BalanceEntry, Payment } from "@journiful/shared/types";
+
+const TABS = ["Expenses", "Balances", "Guests"] as const;
+type Tab = (typeof TABS)[number];
 
 interface SettlePanelProps {
   tripId: string;
@@ -16,6 +18,7 @@ interface SettlePanelProps {
 }
 
 export function SettlePanel({ tripId, isOrganizer, disabled }: SettlePanelProps) {
+  const [activeTab, setActiveTab] = useState<Tab>("Expenses");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<Payment | undefined>();
   const [settlement, setSettlement] = useState<
@@ -60,46 +63,47 @@ export function SettlePanel({ tripId, isOrganizer, disabled }: SettlePanelProps)
   };
 
   return (
-    <div className="h-full overflow-y-auto overscroll-contain">
-      <div className="px-4 py-4 space-y-5">
-        {/* Header */}
-        <h2 className="text-lg font-semibold font-playfair">Settle</h2>
+    <div className="h-full flex flex-col overflow-hidden">
+      {/* Tab bar */}
+      <div className="shrink-0 px-4 pt-4 pb-2">
+        <div className="flex gap-1 rounded-lg bg-muted p-1">
+          {TABS.map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setActiveTab(tab)}
+              className={cn(
+                "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                activeTab === tab
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+      </div>
 
-        {/* Balances */}
-        <section>
-          <h3 className="text-sm font-medium text-muted-foreground mb-2">
-            Balances
-          </h3>
-          <BalanceList
-            tripId={tripId}
-            {...(disabled ? {} : { onSettleUp: handleSettleUp })}
-          />
-        </section>
-
-        {/* Expenses */}
-        <section>
-          <h3 className="text-sm font-medium text-muted-foreground mb-2">
-            Expenses
-          </h3>
+      {/* Tab content */}
+      <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-4">
+        {activeTab === "Expenses" && (
           <PaymentList
             tripId={tripId}
             {...(disabled ? {} : { onPaymentClick: handleEditPayment, onAddExpense: handleAddExpense })}
             {...(isOrganizer ? { isOrganizer } : {})}
           />
-        </section>
+        )}
 
-        {/* Guests */}
-        {!disabled && (
-          <CollapsibleSection
-            label={
-              <span className="flex items-center gap-1.5">
-                <Users className="h-3.5 w-3.5" />
-                Guests
-              </span>
-            }
-          >
-            <GuestManager tripId={tripId} />
-          </CollapsibleSection>
+        {activeTab === "Balances" && (
+          <BalanceList
+            tripId={tripId}
+            {...(disabled ? {} : { onSettleUp: handleSettleUp })}
+          />
+        )}
+
+        {activeTab === "Guests" && (
+          <GuestManager tripId={tripId} />
         )}
       </div>
 
