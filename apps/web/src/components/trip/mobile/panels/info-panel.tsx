@@ -10,7 +10,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CollapsibleSection } from "@/components/ui/collapsible-section";
+
 import { RsvpPills } from "@/components/trip/rsvp-pills";
 import { WeatherForecastCard } from "@/components/itinerary/weather-forecast-card";
 import { AccommodationDetailSheet } from "@/components/itinerary/accommodation-detail-sheet";
@@ -264,7 +264,8 @@ export function InfoPanel({
 
         {/* 3. Accommodations */}
         {((accommodations && accommodations.length > 0) || (isOrganizer && !isLocked)) && (
-          <CollapsibleSection label="Accommodations" defaultOpen>
+          <div>
+            <h3 className="text-sm font-semibold text-foreground mb-3">Accommodations</h3>
             {accommodations && accommodations.length > 0 ? (
               <div className="space-y-2">
                 {accommodations.map((acc) => (
@@ -295,12 +296,13 @@ export function InfoPanel({
                 </button>
               </p>
             )}
-          </CollapsibleSection>
+          </div>
         )}
 
         {/* 4. Today section (only during trip) */}
         {phase === "duringTrip" && (
-          <CollapsibleSection label={todayLabelNode} defaultOpen>
+          <div>
+            <h3 className="text-sm font-semibold text-foreground mb-3">{todayLabelNode}</h3>
             <TodaySection
               tripId={tripId}
               timezone={timezone}
@@ -312,29 +314,31 @@ export function InfoPanel({
                 ? { onAddEvent: () => setIsCreateEventOpen(true) }
                 : {})}
             />
-          </CollapsibleSection>
+          </div>
         )}
 
         {/* 6. About this trip */}
         {trip.description && (
-          <CollapsibleSection label="About this trip" defaultOpen>
+          <div>
+            <h3 className="text-sm font-semibold text-foreground mb-3">About this trip</h3>
             <div className="bg-card rounded-md border border-border p-4 linen-texture">
               <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                 {linkifyText(trip.description)}
               </p>
             </div>
-          </CollapsibleSection>
+          </div>
         )}
 
         {/* 7. Weather */}
-        <CollapsibleSection label="Weather" defaultOpen>
+        <div>
+          <h3 className="text-sm font-semibold text-foreground mb-3">Weather</h3>
           <WeatherForecastCard
             weather={weather}
             isLoading={weatherLoading}
             temperatureUnit={temperatureUnit}
             isDark={preset?.background.isDark ?? false}
           />
-        </CollapsibleSection>
+        </div>
       </div>
 
       {/* Accommodation detail sheet */}
