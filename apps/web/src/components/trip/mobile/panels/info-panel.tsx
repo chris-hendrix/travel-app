@@ -18,8 +18,12 @@ import { EditAccommodationDialog } from "@/components/itinerary/edit-accommodati
 import { CreateAccommodationDialog } from "@/components/itinerary/create-accommodation-dialog";
 import { CreateEventDialog } from "@/components/itinerary/create-event-dialog";
 import { canModifyAccommodation } from "@/components/itinerary/utils/permissions";
+import { MemberProfileSheet } from "@/components/trip/member-profile-sheet";
 import { useAccommodations } from "@/hooks/use-accommodations";
+import { membersQueryOptions } from "@/hooks/invitation-queries";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/app/providers/auth-provider";
+import type { MemberWithProfile } from "@journiful/shared/types";
 import { TodaySection } from "./today-section";
 
 import { linkifyText } from "@/utils/linkify";
@@ -111,6 +115,12 @@ export function InfoPanel({
   const [editingAccommodation, setEditingAccommodation] = useState<Accommodation | null>(null);
   const [isCreateAccommodationOpen, setIsCreateAccommodationOpen] = useState(false);
   const [isCreateEventOpen, setIsCreateEventOpen] = useState(false);
+  const [profileMember, setProfileMember] = useState<MemberWithProfile | null>(null);
+
+  const { data: members } = useQuery({
+    ...membersQueryOptions(tripId),
+    enabled: !!tripId,
+  });
 
   // Trip is locked one day after end date
   const isLocked = useMemo(() => {
@@ -122,7 +132,7 @@ export function InfoPanel({
 
   // Summary line: "+N going · Organized by X, Y"
   const goingCount = trip.memberCount;
-  const organizerNames = trip.organizers.map((o) => o.displayName).join(", ");
+
 
   // Today's forecast for inline label
   const todayString = useMemo(
@@ -256,12 +266,23 @@ export function InfoPanel({
             <button onClick={onOpenMembers} className="text-primary hover:underline transition-colors">
               {goingCount} going
             </button>
-            {organizerNames && (
+            {trip.organizers.length > 0 && (
               <>
                 {" · Organized by "}
-                <button onClick={onOpenMembers} className="text-primary hover:underline transition-colors">
-                  {organizerNames}
-                </button>
+                {trip.organizers.map((org, i) => {
+                  const member = members?.find((m) => m.userId === org.id);
+                  return (
+                    <span key={org.id}>
+                      {i > 0 && ", "}
+                      <button
+                        onClick={() => member && setProfileMember(member)}
+                        className="text-primary hover:underline transition-colors"
+                      >
+                        {org.displayName}
+                      </button>
+                    </span>
+                  );
+                })}
               </>
             )}
           </span>
@@ -401,6 +422,15 @@ export function InfoPanel({
         timezone={timezone}
         tripStartDate={trip.startDate}
         tripEndDate={trip.endDate}
+      />
+
+      {/* Member profile sheet */}
+      <MemberProfileSheet
+        member={profileMember}
+        open={!!profileMember}
+        onOpenChange={(open) => {
+          if (!open) setProfileMember(null);
+        }}
       />
     </div>
   );
