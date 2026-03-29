@@ -322,7 +322,7 @@ export function InfoPanel({
           <div>
             <h3 className="text-sm font-semibold text-foreground mb-3">About this trip</h3>
             <div className="bg-card rounded-md border border-border p-4 linen-texture">
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">
                 {linkifyText(trip.description)}
               </p>
             </div>
