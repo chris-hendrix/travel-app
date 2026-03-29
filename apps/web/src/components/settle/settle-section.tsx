@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { Plus } from "lucide-react";
 import { BalanceList } from "./balance-list";
 import { PaymentList } from "./payment-list";
 import { PaymentForm } from "./payment-form";
+import { SettlementForm } from "./settlement-form";
 import { GuestManager } from "./guest-manager";
 import { cn } from "@/lib/utils";
 import type { BalanceEntry, Payment } from "@journiful/shared/types";
@@ -25,67 +27,63 @@ export function SettleSection({
   const [activeTab, setActiveTab] = useState<Tab>("Expenses");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<Payment | undefined>();
-  const [settlement, setSettlement] = useState<{
-    fromId: string;
-    fromType: "user" | "guest";
-    toId: string;
-    toType: "user" | "guest";
-  } | undefined>();
+  const [settleEntry, setSettleEntry] = useState<BalanceEntry | undefined>();
 
   const handleAddExpense = () => {
     setEditingPayment(undefined);
-    setSettlement(undefined);
     setIsFormOpen(true);
   };
 
   const handleEditPayment = (payment: Payment) => {
     setEditingPayment(payment);
-    setSettlement(undefined);
     setIsFormOpen(true);
   };
 
   const handleSettleUp = (entry: BalanceEntry) => {
-    setEditingPayment(undefined);
-    setSettlement({
-      fromId: entry.from.id,
-      fromType: entry.from.isGuest ? "guest" : "user",
-      toId: entry.to.id,
-      toType: entry.to.isGuest ? "guest" : "user",
-    });
-    setIsFormOpen(true);
+    setSettleEntry(entry);
   };
 
   const handleFormClose = (open: boolean) => {
     setIsFormOpen(open);
     if (!open) {
       setEditingPayment(undefined);
-      setSettlement(undefined);
     }
   };
 
   return (
     <div className="space-y-4">
-      {/* Header + tab bar */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold font-playfair">Settle</h2>
       </div>
 
-      <div className="flex gap-1 rounded-lg bg-muted p-1">
+      {/* Filter pills */}
+      <div className="flex items-center gap-1.5">
         {TABS.map((tab) => (
           <button
             key={tab}
             type="button"
             onClick={() => setActiveTab(tab)}
             className={cn(
-              "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+              "inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium transition-colors shrink-0 cursor-pointer",
               activeTab === tab
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground",
             )}
           >
             {tab}
           </button>
         ))}
+        {!disabled && (
+          <button
+            type="button"
+            onClick={handleAddExpense}
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors shrink-0 cursor-pointer bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground ml-auto"
+          >
+            <Plus className="h-3 w-3" />
+            Add Expense
+          </button>
+        )}
       </div>
 
       {/* Tab content */}
@@ -115,7 +113,18 @@ export function SettleSection({
           open={isFormOpen}
           onOpenChange={handleFormClose}
           {...(editingPayment ? { payment: editingPayment } : {})}
-          {...(settlement ? { settlement } : {})}
+        />
+      )}
+
+      {/* Settlement form sheet */}
+      {!disabled && settleEntry && (
+        <SettlementForm
+          tripId={tripId}
+          open={!!settleEntry}
+          onOpenChange={(open) => {
+            if (!open) setSettleEntry(undefined);
+          }}
+          entry={settleEntry}
         />
       )}
     </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { Receipt, UserCircle } from "lucide-react";
+import { Receipt, Handshake, UserCircle } from "lucide-react";
 import type { Payment } from "@journiful/shared/types";
 
 interface PaymentItemProps {
@@ -18,7 +18,46 @@ export function PaymentItem({ payment, onClick }: PaymentItemProps) {
   const isGuest = payment.payerIsGuest ?? false;
   const participantCount = payment.participants.length;
   const date = new Date(payment.date);
+  const isSettlement = participantCount === 1;
 
+  // Settlement card — different style
+  if (isSettlement) {
+    const recipient = payment.participants[0];
+    const recipientName = recipient?.name ?? "Someone";
+    const isNote = payment.description.startsWith("Settled up");
+    const note = isNote
+      ? payment.description.replace(/^Settled up\s*—?\s*/, "").trim()
+      : payment.description;
+
+    return (
+      <button
+        onClick={onClick ? () => onClick(payment) : undefined}
+        className="flex items-center gap-3 rounded-md bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900 p-3 w-full text-left hover:bg-green-100/50 dark:hover:bg-green-950/30 transition-colors cursor-pointer"
+      >
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30 shrink-0">
+          <Handshake className="h-4 w-4 text-green-600 dark:text-green-400" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate">
+            {payerName} paid {recipientName}
+          </p>
+          {note && (
+            <p className="text-xs text-muted-foreground truncate">{note}</p>
+          )}
+        </div>
+        <div className="text-right shrink-0">
+          <p className="text-sm font-semibold text-green-600 dark:text-green-400">
+            {formatCents(payment.amount)}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {format(date, "MMM d")}
+          </p>
+        </div>
+      </button>
+    );
+  }
+
+  // Regular expense card
   return (
     <button
       onClick={onClick ? () => onClick(payment) : undefined}

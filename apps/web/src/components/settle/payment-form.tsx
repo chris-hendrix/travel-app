@@ -55,8 +55,6 @@ interface PaymentFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   payment?: Payment;
-  /** Pre-fill as a settlement between two people */
-  settlement?: { fromId: string; fromType: "user" | "guest"; toId: string; toType: "user" | "guest" };
 }
 
 export function PaymentForm({
@@ -64,7 +62,6 @@ export function PaymentForm({
   open,
   onOpenChange,
   payment,
-  settlement,
 }: PaymentFormProps) {
   const isEditing = !!payment;
   const { user } = useAuth();
@@ -96,7 +93,7 @@ export function PaymentForm({
 
   // Form state
   const [description, setDescription] = useState(
-    payment?.description ?? (settlement ? "Settlement" : ""),
+    payment?.description ?? "",
   );
   const [amountStr, setAmountStr] = useState(
     payment ? (payment.amount / 100).toFixed(2) : "",
@@ -105,7 +102,6 @@ export function PaymentForm({
     if (payment) {
       return payment.userId ?? payment.guestId ?? "";
     }
-    if (settlement) return settlement.fromId;
     return user?.id ?? "";
   });
   const [date, setDate] = useState(
@@ -120,16 +116,13 @@ export function PaymentForm({
           payment.participants.map((p) => p.userId ?? p.guestId ?? ""),
         );
       }
-      if (settlement) {
-        return new Set([settlement.toId]);
-      }
       // Default: all people selected
       return new Set(people.map((p) => p.id));
     },
   );
 
   // When people list loads and we have no participants yet (initial add), select all
-  const [initialized, setInitialized] = useState(!!payment || !!settlement);
+  const [initialized, setInitialized] = useState(!!payment);
   if (!initialized && people.length > 0 && selectedParticipants.size === 0) {
     setSelectedParticipants(new Set(people.map((p) => p.id)));
     setInitialized(true);
@@ -227,7 +220,7 @@ export function PaymentForm({
       <SheetContent>
         <SheetHeader>
           <SheetTitle className="text-2xl font-playfair tracking-tight">
-            {isEditing ? "Edit Expense" : settlement ? "Settle Up" : "Add Expense"}
+            {isEditing ? "Edit Expense" : "Add Expense"}
           </SheetTitle>
           <SheetDescription className="sr-only">
             {isEditing
@@ -365,9 +358,7 @@ export function PaymentForm({
                 : "Adding..."
               : isEditing
                 ? "Save Changes"
-                : settlement
-                  ? "Record Settlement"
-                  : "Add Expense"}
+                : "Add Expense"}
           </Button>
           {isEditing && (
             <Button

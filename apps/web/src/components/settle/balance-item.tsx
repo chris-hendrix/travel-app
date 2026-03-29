@@ -1,7 +1,6 @@
 "use client";
 
 import { ArrowRight, UserCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import type { BalanceEntry } from "@journiful/shared/types";
 
 interface BalanceItemProps {
@@ -14,8 +13,15 @@ function formatCents(cents: number): string {
 }
 
 export function BalanceItem({ entry, onSettleUp }: BalanceItemProps) {
+  const Wrapper = onSettleUp ? "button" : "div";
+
   return (
-    <div className="flex items-center gap-2 rounded-md bg-card linen-texture border border-border p-3">
+    <Wrapper
+      {...(onSettleUp ? { onClick: () => onSettleUp(entry) } : {})}
+      className={`flex items-center gap-2 rounded-md bg-card linen-texture border border-border p-3 w-full text-left ${
+        onSettleUp ? "hover:bg-accent/50 transition-colors cursor-pointer" : ""
+      }`}
+    >
       <div className="flex flex-1 items-center gap-2 min-w-0">
         <div className="flex items-center gap-1 min-w-0 flex-1">
           <span className="text-sm font-medium truncate">{entry.from.name}</span>
@@ -40,20 +46,11 @@ export function BalanceItem({ entry, onSettleUp }: BalanceItemProps) {
         </div>
       </div>
 
-      {(entry.from.isGuest || entry.to.isGuest) ? (
-        <span className="text-xs text-muted-foreground shrink-0 ml-1">
-          settle outside app
+      {onSettleUp && (
+        <span className="text-xs text-primary shrink-0 ml-1">
+          Settle
         </span>
-      ) : onSettleUp ? (
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-7 text-xs shrink-0 ml-1"
-          onClick={() => onSettleUp(entry)}
-        >
-          Settle Up
-        </Button>
-      ) : null}
-    </div>
+      )}
+    </Wrapper>
   );
 }
