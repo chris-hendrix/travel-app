@@ -145,7 +145,7 @@ export function PhotosPanel({
         createPortal(
           <Button
             variant="gradient"
-            className={`fixed bottom-16 right-6 z-50 rounded-full w-14 h-14 shadow-lg transition-all duration-300 ease-out ${
+            className={`fixed bottom-20 right-6 z-50 rounded-full w-14 h-14 shadow-lg transition-all duration-300 ease-out ${
               hideFab
                 ? "opacity-0 scale-75 pointer-events-none"
                 : "opacity-100 scale-100"

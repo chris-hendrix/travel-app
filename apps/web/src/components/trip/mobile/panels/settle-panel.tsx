@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { Plus } from "lucide-react";
+import { useMounted } from "@/hooks/use-mounted";
 import { BalanceList } from "@/components/settle/balance-list";
 import { PaymentList } from "@/components/settle/payment-list";
 import { PaymentForm } from "@/components/settle/payment-form";
@@ -13,10 +15,12 @@ interface SettlePanelProps {
   tripId: string;
   isOrganizer: boolean;
   disabled?: boolean;
+  hideFab?: boolean;
 }
 
-export function SettlePanel({ tripId, isOrganizer, disabled }: SettlePanelProps) {
+export function SettlePanel({ tripId, isOrganizer, disabled, hideFab }: SettlePanelProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const mounted = useMounted();
   const [editingPayment, setEditingPayment] = useState<Payment | undefined>();
   const [settleEntry, setSettleEntry] = useState<BalanceEntry | undefined>();
 
@@ -42,7 +46,7 @@ export function SettlePanel({ tripId, isOrganizer, disabled }: SettlePanelProps)
   };
 
   return (
-    <div className="h-full flex flex-col overflow-hidden relative">
+    <div className="h-full flex flex-col overflow-hidden">
       {/* Section heading */}
       <h2 className="text-xl font-semibold font-playfair shrink-0 px-4 pt-4">Settle</h2>
 
@@ -68,18 +72,26 @@ export function SettlePanel({ tripId, isOrganizer, disabled }: SettlePanelProps)
         </div>
       </div>
 
-      {/* FAB */}
-      {!disabled && (
-        <Button
-          variant="gradient"
-          size="icon"
-          className="absolute bottom-6 right-6 z-40 h-14 w-14 rounded-full shadow-lg"
-          onClick={handleAddExpense}
-          aria-label="Add expense"
-        >
-          <Plus className="h-6 w-6" />
-        </Button>
-      )}
+      {/* FAB — portaled to body like other panel FABs */}
+      {!disabled &&
+        mounted &&
+        createPortal(
+          <Button
+            variant="gradient"
+            size="icon"
+            className={`fixed bottom-20 right-6 z-50 h-14 w-14 rounded-full shadow-lg transition-all duration-300 ease-out ${
+              hideFab
+                ? "opacity-0 scale-75 pointer-events-none"
+                : "opacity-100 scale-100"
+            }`}
+            onClick={handleAddExpense}
+            aria-label="Add expense"
+            tabIndex={hideFab ? -1 : undefined}
+          >
+            <Plus className="h-6 w-6" />
+          </Button>,
+          document.body,
+        )}
 
       {/* Payment form sheet */}
       {!disabled && (

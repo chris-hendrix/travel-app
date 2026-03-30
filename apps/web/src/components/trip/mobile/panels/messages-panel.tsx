@@ -162,7 +162,7 @@ export function MessagesPanel({
       </div>
 
       {/* Input pinned at bottom */}
-      <div className="shrink-0 border-t border-border px-4 py-2 pb-safe bg-background">
+      <div className="shrink-0 border-t border-border px-4 py-2 pb-3 bg-background">
         <MessageInput
           tripId={tripId}
           disabled={inputDisabled}

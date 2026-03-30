@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useRef, useCallback, useImperativeHandle, forwardRef } from "react";
+import { useRef, useCallback, useEffect, useImperativeHandle, forwardRef } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { HashNavigation, A11y } from "swiper/modules";
 import type { Swiper as SwiperType } from "swiper";
@@ -17,13 +17,14 @@ export interface MobileTripSwiperRef {
 interface MobileTripSwiperProps {
   onSlideChange: (index: number) => void;
   onProgress: (progress: number) => void;
+  allowTouchMove?: boolean;
   children: [ReactNode, ReactNode, ReactNode, ReactNode, ReactNode];
 }
 
 export const MobileTripSwiper = forwardRef<
   MobileTripSwiperRef,
   MobileTripSwiperProps
->(function MobileTripSwiper({ onSlideChange, onProgress, children }, ref) {
+>(function MobileTripSwiper({ onSlideChange, onProgress, allowTouchMove = true, children }, ref) {
   const swiperRef = useRef<SwiperType | null>(null);
 
   useImperativeHandle(ref, () => ({
@@ -35,6 +36,13 @@ export const MobileTripSwiper = forwardRef<
   const handleSwiper = useCallback((swiper: SwiperType) => {
     swiperRef.current = swiper;
   }, []);
+
+  // Dynamically enable/disable touch swiping (e.g. when a dialog is open)
+  useEffect(() => {
+    if (swiperRef.current) {
+      swiperRef.current.allowTouchMove = allowTouchMove;
+    }
+  }, [allowTouchMove]);
 
   const handleSlideChange = useCallback(
     (swiper: SwiperType) => {
@@ -56,6 +64,7 @@ export const MobileTripSwiper = forwardRef<
       slidesPerView={1}
       spaceBetween={0}
       speed={300}
+      allowTouchMove={allowTouchMove}
       hashNavigation={{ replaceState: true, watchState: true }}
       onSwiper={handleSwiper}
       onSlideChange={handleSlideChange}
