@@ -15,6 +15,7 @@ import {
 import { MembersList } from "@/components/trip/members-list";
 import { NotificationPreferences } from "@/components/notifications/notification-preferences";
 import { TripThemeProvider } from "@/components/trip/trip-theme-provider";
+import { useHasOpenDialog } from "@/hooks/use-has-open-dialog";
 import { IconStrip } from "./icon-strip";
 import { AnimatedHero } from "./animated-hero";
 import {
@@ -90,6 +91,7 @@ export function MobileTripLayout({
   initialShowOnboarding,
 }: MobileTripLayoutProps) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const hasOpenDialog = useHasOpenDialog();
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
@@ -103,11 +105,19 @@ export function MobileTripLayout({
 
   const swiperRef = useRef<MobileTripSwiperRef>(null);
 
-  // Hero collapse: scroll-driven on Info panel, fully collapsed on other panels
+  // Hero collapse: scroll-driven on Info panel, fully collapsed on other panels.
+  // `isScrollDriving` disables CSS transitions so scroll feels instant; it is
+  // only true while the user is actively scrolling the info panel, never during
+  // a slide transition (so the hero animates smoothly between panels).
   const [infoScrollCollapse, setInfoScrollCollapse] = useState(0);
+  const [isScrollDriving, setIsScrollDriving] = useState(false);
+  const scrollDrivingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleInfoScroll = useCallback((scrollTop: number) => {
     setInfoScrollCollapse(Math.min(1, scrollTop / 120));
+    setIsScrollDriving(true);
+    if (scrollDrivingTimer.current) clearTimeout(scrollDrivingTimer.current);
+    scrollDrivingTimer.current = setTimeout(() => setIsScrollDriving(false), 150);
   }, []);
 
   const collapseT = activeIndex === 0 ? infoScrollCollapse : 1;
@@ -139,7 +149,7 @@ export function MobileTripLayout({
         <AnimatedHero
           trip={trip}
           collapseProgress={collapseT}
-          disableTransition={activeIndex === 0}
+          disableTransition={isScrollDriving}
           isOrganizer={isOrganizer}
           onCustomize={() => setIsCustomizeOpen(true)}
         />
@@ -149,6 +159,7 @@ export function MobileTripLayout({
             ref={swiperRef}
             onSlideChange={setActiveIndex}
             onProgress={() => {}}
+            allowTouchMove={!hasOpenDialog}
           >
             <InfoPanel
               trip={trip}
@@ -188,6 +199,7 @@ export function MobileTripLayout({
               tripId={tripId}
               isOrganizer={isOrganizer}
               disabled={isLocked}
+              hideFab={activeIndex !== 4}
             />
           </MobileTripSwiper>
         </div>

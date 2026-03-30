@@ -108,7 +108,7 @@ export function MessageInput({
         compact && "p-3",
       )}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-end gap-3">
         {!compact && user && (
           <Avatar size="default">
             <AvatarImage
@@ -119,6 +119,24 @@ export function MessageInput({
           </Avatar>
         )}
         <div className="flex-1 min-w-0">
+          {content.length > CHAR_COUNT_THRESHOLD && (
+            <div
+              id="char-count"
+              className="text-xs text-muted-foreground mb-1"
+              aria-live="polite"
+            >
+              <span
+                className={cn(
+                  content.length >= CHAR_COUNT_WARNING &&
+                    content.length < MAX_LENGTH &&
+                    "text-warning",
+                  content.length >= MAX_LENGTH && "text-destructive",
+                )}
+              >
+                {content.length}/{MAX_LENGTH}
+              </span>
+            </div>
+          )}
           <textarea
             ref={textareaRef}
             value={content}
@@ -132,45 +150,26 @@ export function MessageInput({
             aria-describedby="char-count"
             className={cn(
               "w-full resize-none bg-transparent text-sm placeholder:text-muted-foreground outline-none",
-              compact ? "min-h-[36px]" : "min-h-[44px]",
+              compact ? "min-h-[36px]" : "min-h-[36px]",
             )}
             rows={1}
             disabled={createMessage.isPending}
           />
-          <div className="flex items-center justify-between mt-2">
-            <div
-              id="char-count"
-              className="text-xs text-muted-foreground"
-              aria-live="polite"
-            >
-              {content.length > CHAR_COUNT_THRESHOLD && (
-                <span
-                  className={cn(
-                    content.length >= CHAR_COUNT_WARNING &&
-                      content.length < MAX_LENGTH &&
-                      "text-warning",
-                    content.length >= MAX_LENGTH && "text-destructive",
-                  )}
-                >
-                  {content.length}/{MAX_LENGTH}
-                </span>
-              )}
-            </div>
-            <Button
-              variant="gradient"
-              size={compact ? "icon-xs" : "icon"}
-              onClick={handleSend}
-              disabled={!content.trim() || createMessage.isPending}
-              aria-label="Send message"
-            >
-              {createMessage.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Send className="w-4 h-4" />
-              )}
-            </Button>
-          </div>
         </div>
+        <Button
+          variant="gradient"
+          size={compact ? "icon-xs" : "icon"}
+          className="shrink-0"
+          onClick={handleSend}
+          disabled={!content.trim() || createMessage.isPending}
+          aria-label="Send message"
+        >
+          {createMessage.isPending ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Send className="w-4 h-4" />
+          )}
+        </Button>
       </div>
     </div>
   );
