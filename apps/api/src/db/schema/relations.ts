@@ -20,6 +20,8 @@ import {
   tripGuests,
   payments,
   paymentParticipants,
+  affiliateEvents,
+  affiliateDismissals,
 } from "./index.js";
 
 export const usersRelations = relations(users, ({ many }) => ({
@@ -39,6 +41,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   payments: many(payments, { relationName: "paymentPayer" }),
   createdPayments: many(payments, { relationName: "paymentCreator" }),
   paymentParticipations: many(paymentParticipants),
+  affiliateEvents: many(affiliateEvents),
+  affiliateDismissals: many(affiliateDismissals),
 }));
 
 export const tripsRelations = relations(trips, ({ one, many }) => ({
@@ -56,6 +60,8 @@ export const tripsRelations = relations(trips, ({ one, many }) => ({
   photos: many(tripPhotos),
   guests: many(tripGuests),
   payments: many(payments),
+  affiliateEvents: many(affiliateEvents),
+  affiliateDismissals: many(affiliateDismissals),
 }));
 
 export const membersRelations = relations(members, ({ one, many }) => ({
@@ -264,6 +270,34 @@ export const paymentParticipantsRelations = relations(
     guest: one(tripGuests, {
       fields: [paymentParticipants.guestId],
       references: [tripGuests.id],
+    }),
+  }),
+);
+
+export const affiliateEventsRelations = relations(
+  affiliateEvents,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [affiliateEvents.userId],
+      references: [users.id],
+    }),
+    trip: one(trips, {
+      fields: [affiliateEvents.tripId],
+      references: [trips.id],
+    }),
+  }),
+);
+
+export const affiliateDismissalsRelations = relations(
+  affiliateDismissals,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [affiliateDismissals.userId],
+      references: [users.id],
+    }),
+    trip: one(trips, {
+      fields: [affiliateDismissals.tripId],
+      references: [trips.id],
     }),
   }),
 );

@@ -169,3 +169,14 @@ export type {
   GetBalancesResponse,
   GetMyBalanceResponse,
 } from "./balance";
+
+// Re-export affiliate types
+export type {
+  GapType,
+  SuggestionType,
+  SuggestionPartner,
+  SuggestionCard,
+  TripContext,
+  SuggestionsResponse,
+  DismissSuggestionInput,
+} from "./affiliate";

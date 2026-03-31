@@ -94,6 +94,9 @@ const envSchema = z.object({
   // AeroDataBox Flight Lookup (optional)
   AERODATABOX_API_KEY: z.string().default(""),
 
+  // Booking.com Affiliate (optional — suggestions hidden if not set)
+  BOOKING_AFFILIATE_ID: z.string().default(""),
+
   ALLOWED_MIME_TYPES: z
     .string()
     .transform((val) => val.split(",").map((type) => type.trim()))

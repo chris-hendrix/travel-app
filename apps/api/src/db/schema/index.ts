@@ -7,6 +7,7 @@ import {
   text,
   timestamp,
   index,
+  uniqueIndex,
   date,
   boolean,
   pgEnum,
@@ -755,3 +756,62 @@ export const paymentParticipants = pgTable(
 
 export type PaymentParticipant = typeof paymentParticipants.$inferSelect;
 export type NewPaymentParticipant = typeof paymentParticipants.$inferInsert;
+
+// Affiliate Events (click/impression tracking)
+export const affiliateEvents = pgTable(
+  "affiliate_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    tripId: uuid("trip_id")
+      .notNull()
+      .references(() => trips.id, { onDelete: "cascade" }),
+    partnerSlug: varchar("partner_slug", { length: 50 }).notNull(),
+    suggestionType: varchar("suggestion_type", { length: 50 }).notNull(),
+    eventType: varchar("event_type", { length: 20 }).notNull(),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("affiliate_events_user_trip_idx").on(table.userId, table.tripId),
+    index("affiliate_events_created_at_idx").on(table.createdAt),
+  ],
+);
+
+export type AffiliateEvent = typeof affiliateEvents.$inferSelect;
+export type NewAffiliateEvent = typeof affiliateEvents.$inferInsert;
+
+// Affiliate Dismissals (persistent per-user suggestion dismissals)
+export const affiliateDismissals = pgTable(
+  "affiliate_dismissals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    tripId: uuid("trip_id")
+      .notNull()
+      .references(() => trips.id, { onDelete: "cascade" }),
+    suggestionType: varchar("suggestion_type", { length: 50 }).notNull(),
+    suggestionKey: varchar("suggestion_key", { length: 100 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("affiliate_dismissals_user_trip_idx").on(table.userId, table.tripId),
+    uniqueIndex("affiliate_dismissals_unique_idx").on(
+      table.userId,
+      table.tripId,
+      table.suggestionType,
+      table.suggestionKey,
+    ),
+  ],
+);
+
+export type AffiliateDismissal = typeof affiliateDismissals.$inferSelect;
+export type NewAffiliateDismissal = typeof affiliateDismissals.$inferInsert;
