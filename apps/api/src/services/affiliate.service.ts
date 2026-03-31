@@ -244,20 +244,47 @@ function detectGaps(
   // Rule 3 & 4: Per-day gaps (only if trip has date range)
   if (trip.startDate && trip.endDate) {
     const days = getDateRange(trip.startDate, trip.endDate);
+    const firstDay = days[0];
+    const lastDay = days[days.length - 1];
+
     for (const day of days) {
       const dayEvents = eventRows.filter((e) => isEventOnDay(e, day));
+
+      // Count travel events on this day (arrivals + departures)
+      const travelEventsOnDay = memberTravelRows.filter((t) => {
+        const travelDate = t.time.toISOString().slice(0, 10);
+        return travelDate === day;
+      });
+      const isTravelHeavy = travelEventsOnDay.length >= 2;
+      const isArrivalOrDepartureDay = day === firstDay || day === lastDay;
+
       if (dayEvents.length === 0) {
-        gaps.push({ type: "empty_day", priority: 3, day });
+        // Don't suggest activities on travel-heavy days
+        if (!isTravelHeavy) {
+          gaps.push({ type: "empty_day", priority: 3, day });
+        }
       } else {
         const hasMeal = dayEvents.some((e) => e.eventType === "meal");
-        if (!hasMeal) {
+        // Don't suggest meals on arrival/departure days
+        if (!hasMeal && !isArrivalOrDepartureDay) {
           gaps.push({ type: "missing_meal", priority: 4, day });
         }
       }
     }
   }
 
-  return gaps;
+  // Cap to 1 day-level suggestion per day (highest priority wins)
+  const seenDays = new Set<string>();
+  const dedupedGaps: GapSignal[] = [];
+  for (const gap of gaps) {
+    if (gap.day) {
+      if (seenDays.has(gap.day)) continue;
+      seenDays.add(gap.day);
+    }
+    dedupedGaps.push(gap);
+  }
+
+  return dedupedGaps;
 }
 
 function buildSuggestions(
