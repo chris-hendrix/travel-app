@@ -7,6 +7,7 @@ import {
   memberTravel,
   members,
   affiliateDismissals,
+  affiliateEvents,
 } from "@/db/schema/index.js";
 import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "@/services/permissions.service.js";
@@ -33,6 +34,17 @@ export interface IAffiliateService {
     tripId: string,
     suggestionType: string,
     suggestionKey: string,
+  ): Promise<void>;
+  trackClick(
+    userId: string,
+    tripId: string,
+    partnerSlug: string,
+    suggestionType: string,
+  ): Promise<void>;
+  trackImpressions(
+    userId: string,
+    tripId: string,
+    impressions: Array<{ partnerSlug: string; suggestionType: string }>,
   ): Promise<void>;
 }
 
@@ -168,6 +180,38 @@ export class AffiliateService implements IAffiliateService {
         suggestionKey,
       })
       .onConflictDoNothing();
+  }
+
+  async trackClick(
+    userId: string,
+    tripId: string,
+    partnerSlug: string,
+    suggestionType: string,
+  ): Promise<void> {
+    await this.db.insert(affiliateEvents).values({
+      userId,
+      tripId,
+      partnerSlug,
+      suggestionType,
+      eventType: "click",
+    });
+  }
+
+  async trackImpressions(
+    userId: string,
+    tripId: string,
+    impressions: Array<{ partnerSlug: string; suggestionType: string }>,
+  ): Promise<void> {
+    if (impressions.length === 0) return;
+    await this.db.insert(affiliateEvents).values(
+      impressions.map((imp) => ({
+        userId,
+        tripId,
+        partnerSlug: imp.partnerSlug,
+        suggestionType: imp.suggestionType,
+        eventType: "impression" as const,
+      })),
+    );
   }
 }
 

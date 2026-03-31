@@ -12,8 +12,14 @@ import {
 import {
   suggestionsResponseSchema,
   dismissSuggestionSchema,
+  trackClickSchema,
+  trackImpressionsSchema,
 } from "@journiful/shared/schemas";
-import type { DismissSuggestionInput } from "@journiful/shared/schemas";
+import type {
+  DismissSuggestionInput,
+  TrackClickInput,
+  TrackImpressionsInput,
+} from "@journiful/shared/schemas";
 
 const tripIdParamsSchema = z.object({
   tripId: z.string().uuid({ message: "Invalid trip ID format" }),
@@ -54,5 +60,39 @@ export async function affiliateRoutes(fastify: FastifyInstance) {
       ],
     },
     affiliateController.dismissSuggestion,
+  );
+
+  /**
+   * POST /affiliate/click
+   * Track a click on an affiliate suggestion and return the redirect URL
+   */
+  fastify.post<{ Body: TrackClickInput }>(
+    "/affiliate/click",
+    {
+      schema: {
+        body: trackClickSchema,
+      },
+      preHandler: [fastify.rateLimit(writeRateLimitConfig), authenticate],
+    },
+    affiliateController.trackClick,
+  );
+
+  /**
+   * POST /trips/:tripId/suggestions/impressions
+   * Batch track impressions for displayed suggestions
+   */
+  fastify.post<{
+    Params: { tripId: string };
+    Body: TrackImpressionsInput;
+  }>(
+    "/trips/:tripId/suggestions/impressions",
+    {
+      schema: {
+        params: tripIdParamsSchema,
+        body: trackImpressionsSchema,
+      },
+      preHandler: [fastify.rateLimit(writeRateLimitConfig), authenticate],
+    },
+    affiliateController.trackImpressions,
   );
 }

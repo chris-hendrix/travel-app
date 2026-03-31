@@ -1,20 +1,41 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useCallback } from "react";
 import { ExternalLink, Lightbulb, X } from "lucide-react";
 import type { SuggestionCard as SuggestionCardType } from "@journiful/shared/types";
+import { apiRequest } from "@/lib/api";
 
 interface SuggestionCardProps {
   suggestion: SuggestionCardType;
+  tripId: string;
   onDismiss: (suggestionType: string, suggestionKey: string) => void;
-  onClickLink?: (suggestionId: string) => void;
 }
 
 export const SuggestionCard = memo(function SuggestionCard({
   suggestion,
+  tripId,
   onDismiss,
-  onClickLink,
 }: SuggestionCardProps) {
+  const handleClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      // Fire-and-forget click tracking — don't block the user
+      apiRequest("/affiliate/click", {
+        method: "POST",
+        body: JSON.stringify({
+          partnerSlug: suggestion.partner.slug,
+          tripId,
+          suggestionType: suggestion.gapType,
+          affiliateUrl: suggestion.affiliateUrl,
+        }),
+      }).catch(() => {
+        // Silently ignore tracking failures
+      });
+      window.open(suggestion.affiliateUrl, "_blank", "noopener,noreferrer");
+    },
+    [suggestion, tripId],
+  );
+
   return (
     <div className="flex items-start gap-3 rounded-md border border-dashed border-muted-foreground/25 bg-muted/30 p-3 my-1.5">
       <Lightbulb className="w-4 h-4 shrink-0 text-muted-foreground mt-0.5" />
@@ -27,7 +48,7 @@ export const SuggestionCard = memo(function SuggestionCard({
           href={suggestion.affiliateUrl}
           target="_blank"
           rel="noopener noreferrer"
-          onClick={() => onClickLink?.(suggestion.id)}
+          onClick={handleClick}
           className="inline-flex items-center gap-1 text-xs font-medium text-primary mt-1.5 hover:underline"
         >
           Browse on {suggestion.partner.name}

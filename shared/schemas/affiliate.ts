@@ -34,3 +34,26 @@ export const dismissSuggestionSchema = z.object({
 });
 
 export type DismissSuggestionInput = z.infer<typeof dismissSuggestionSchema>;
+
+export const trackClickSchema = z.object({
+  partnerSlug: z.string().min(1).max(50),
+  tripId: z.string().uuid(),
+  suggestionType: z.string().min(1).max(50),
+  affiliateUrl: z.string().url(),
+});
+
+export type TrackClickInput = z.infer<typeof trackClickSchema>;
+
+export const trackImpressionsSchema = z.object({
+  impressions: z
+    .array(
+      z.object({
+        partnerSlug: z.string().min(1).max(50),
+        suggestionType: z.string().min(1).max(50),
+      }),
+    )
+    .min(1)
+    .max(10),
+});
+
+export type TrackImpressionsInput = z.infer<typeof trackImpressionsSchema>;

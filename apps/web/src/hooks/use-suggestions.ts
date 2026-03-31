@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, APIError } from "@/lib/api";
 import type { SuggestionCard } from "@journiful/shared/types";
@@ -26,6 +27,41 @@ interface DismissContext {
 /**
  * Hook for dismissing a suggestion with optimistic removal
  */
+/**
+ * Fire-and-forget impression tracking when suggestions are first displayed
+ */
+export function useTrackImpressions(
+  tripId: string,
+  suggestions: SuggestionCard[] | undefined,
+) {
+  const trackedRef = useRef(new Set<string>());
+
+  useEffect(() => {
+    if (!suggestions || suggestions.length === 0) return;
+
+    const newImpressions = suggestions.filter(
+      (s) => !trackedRef.current.has(s.id),
+    );
+    if (newImpressions.length === 0) return;
+
+    for (const s of newImpressions) {
+      trackedRef.current.add(s.id);
+    }
+
+    apiRequest(`/trips/${tripId}/suggestions/impressions`, {
+      method: "POST",
+      body: JSON.stringify({
+        impressions: newImpressions.map((s) => ({
+          partnerSlug: s.partner.slug,
+          suggestionType: s.gapType,
+        })),
+      }),
+    }).catch(() => {
+      // Silently ignore impression tracking failures
+    });
+  }, [tripId, suggestions]);
+}
+
 export function useDismissSuggestion(tripId: string) {
   const queryClient = useQueryClient();
 

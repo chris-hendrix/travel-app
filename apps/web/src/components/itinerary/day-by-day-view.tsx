@@ -48,6 +48,7 @@ interface DayByDayViewProps {
   forecasts?: DailyForecast[];
   temperatureUnit?: TemperatureUnit;
   filter?: ItineraryFilter;
+  tripId?: string;
   daySuggestions?: Map<string, SuggestionCardType[]>;
   onDismissSuggestion?: (suggestionType: string, suggestionKey: string) => void;
 }
@@ -82,6 +83,7 @@ export function DayByDayView({
   forecasts,
   temperatureUnit,
   filter = "all",
+  tripId,
   daySuggestions,
   onDismissSuggestion,
 }: DayByDayViewProps) {
@@ -447,6 +449,7 @@ export function DayByDayView({
                   <SuggestionCard
                     key={s.id}
                     suggestion={s}
+                    tripId={tripId || ""}
                     onDismiss={onDismissSuggestion}
                   />
                 ))}

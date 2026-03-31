@@ -217,5 +217,9 @@ export {
   suggestionPartnerSchema,
   suggestionsResponseSchema,
   dismissSuggestionSchema,
+  trackClickSchema,
+  trackImpressionsSchema,
   type DismissSuggestionInput,
+  type TrackClickInput,
+  type TrackImpressionsInput,
 } from "./affiliate";

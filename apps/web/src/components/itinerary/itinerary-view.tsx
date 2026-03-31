@@ -24,7 +24,11 @@ import { CreateAccommodationDialog } from "./create-accommodation-dialog";
 import { DeletedItemsDialog } from "./deleted-items-dialog";
 import { TravelReminderBanner } from "@/components/trip/travel-reminder-banner";
 import { SuggestionCard } from "./suggestion-card";
-import { useSuggestions, useDismissSuggestion } from "@/hooks/use-suggestions";
+import {
+  useSuggestions,
+  useDismissSuggestion,
+  useTrackImpressions,
+} from "@/hooks/use-suggestions";
 import { EmptyState } from "@/components/ui/empty-state";
 import type {
   DailyForecast,
@@ -88,6 +92,7 @@ export function ItineraryView({
   // Fetch suggestions
   const { data: suggestions = [] } = useSuggestions(tripId);
   const dismissSuggestion = useDismissSuggestion(tripId);
+  useTrackImpressions(tripId, suggestions.length > 0 ? suggestions : undefined);
 
   // Separate trip-level vs day-level suggestions
   const tripLevelSuggestions = useMemo(
@@ -344,6 +349,7 @@ export function ItineraryView({
             <SuggestionCard
               key={s.id}
               suggestion={s}
+              tripId={tripId}
               onDismiss={handleDismiss}
             />
           ))}
@@ -366,6 +372,7 @@ export function ItineraryView({
           forecasts={forecasts ?? []}
           temperatureUnit={temperatureUnit ?? "fahrenheit"}
           filter={filter}
+          tripId={tripId}
           daySuggestions={daySuggestions}
           onDismissSuggestion={handleDismiss}
         />
