@@ -379,6 +379,137 @@ async function main() {
     },
   ]);
 
+  // --- Affiliate Suggestions Test Trip ---
+  // Designed to trigger all 4 gap detection rules:
+  //   missing_travel: Alice is "going" but has no memberTravel
+  //   no_accommodation: zero accommodations
+  //   empty_day: days 3 and 4 have no events
+  //   missing_meal: day 2 has activities but no meals
+  const [lisbon] = await db
+    .insert(schema.trips)
+    .values({
+      name: "Lisbon Getaway",
+      destination: "Lisbon, Portugal",
+      destinationLat: 38.7223,
+      destinationLon: -9.1393,
+      startDate: toDateStr(daysFromNow(7)),
+      endDate: toDateStr(daysFromNow(13)),
+      preferredTimezone: "Europe/Lisbon",
+      description: "A week in Lisbon — affiliate suggestions test trip.",
+      createdBy: alice.id,
+    })
+    .returning();
+
+  const lisbonMembers = await db
+    .insert(schema.members)
+    .values([
+      {
+        tripId: lisbon!.id,
+        userId: alice.id,
+        status: "going" as const,
+        isOrganizer: true,
+      },
+      { tripId: lisbon!.id, userId: bob.id, status: "going" as const },
+      { tripId: lisbon!.id, userId: carol.id, status: "maybe" as const },
+    ])
+    .returning();
+
+  // Only Bob has travel — Alice (going) has none → triggers missing_travel
+  const bobMember = lisbonMembers.find((m) => m.userId === bob.id)!;
+  await db.insert(schema.memberTravel).values([
+    {
+      tripId: lisbon!.id,
+      memberId: bobMember.id,
+      travelType: "arrival",
+      time: daysFromNow(7, 10),
+      location: "Lisbon Airport",
+      details: "Flight from LHR",
+    },
+    {
+      tripId: lisbon!.id,
+      memberId: bobMember.id,
+      travelType: "departure",
+      time: daysFromNow(13, 16),
+      location: "Lisbon Airport",
+    },
+  ]);
+
+  // No accommodations → triggers no_accommodation
+
+  // Events: only on days 1, 2, 5 — days 3 & 4 empty → triggers empty_day
+  // Day 2 has only activities (no meals) → triggers missing_meal
+  await db.insert(schema.events).values([
+    // Day 1 (startDay+7): has meals + activities — no gap
+    {
+      tripId: lisbon!.id,
+      createdBy: alice.id,
+      name: "Welcome Dinner",
+      eventType: "meal",
+      location: "Time Out Market",
+      startTime: daysFromNow(7, 19),
+      endTime: daysFromNow(7, 21),
+    },
+    {
+      tripId: lisbon!.id,
+      createdBy: bob.id,
+      name: "Evening Walk in Alfama",
+      eventType: "activity",
+      location: "Alfama District",
+      startTime: daysFromNow(7, 16),
+      endTime: daysFromNow(7, 18),
+    },
+    // Day 2 (startDay+8): activities only, no meals → triggers missing_meal
+    {
+      tripId: lisbon!.id,
+      createdBy: alice.id,
+      name: "Belém Tower Visit",
+      eventType: "activity",
+      location: "Belém Tower",
+      startTime: daysFromNow(8, 10),
+      endTime: daysFromNow(8, 12),
+    },
+    {
+      tripId: lisbon!.id,
+      createdBy: alice.id,
+      name: "Jerónimos Monastery",
+      eventType: "activity",
+      location: "Jerónimos Monastery",
+      startTime: daysFromNow(8, 14),
+      endTime: daysFromNow(8, 16),
+    },
+    // Days 3 & 4 (startDay+9, startDay+10): no events → triggers empty_day
+    // Day 5 (startDay+11): has meals + activities — no gap
+    {
+      tripId: lisbon!.id,
+      createdBy: bob.id,
+      name: "Sintra Day Trip",
+      eventType: "activity",
+      location: "Sintra",
+      startTime: daysFromNow(11, 9),
+      endTime: daysFromNow(11, 17),
+    },
+    {
+      tripId: lisbon!.id,
+      createdBy: alice.id,
+      name: "Seafood Dinner",
+      eventType: "meal",
+      location: "Cervejaria Ramiro",
+      startTime: daysFromNow(11, 19),
+      endTime: daysFromNow(11, 21),
+    },
+  ]);
+
+  await db.insert(schema.messages).values({
+    tripId: lisbon!.id,
+    authorId: alice.id,
+    content:
+      "This trip is set up for testing affiliate suggestions — has gaps for all 4 rules!",
+  });
+
+  console.log(
+    "\n  🧪 Affiliate test trip: 'Lisbon Getaway' (login as Alice to see suggestions)\n",
+  );
+
   // Print login info
   console.log("\nSeed complete! Login with any phone number + code 000000:\n");
   console.log("  Phone Number     Name");
