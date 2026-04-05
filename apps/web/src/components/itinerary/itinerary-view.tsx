@@ -96,7 +96,7 @@ export function ItineraryView({
 
   // Separate trip-level vs day-level suggestions
   const tripLevelSuggestions = useMemo(
-    () => suggestions.filter((s) => s.day === null),
+    () => suggestions.filter((s) => s.day === null && s.gapType !== "no_accommodation"),
     [suggestions],
   );
   const daySuggestions = useMemo(() => {

@@ -6,6 +6,7 @@ import {
   Building2,
   CalendarPlus,
   Pencil,
+  Plus,
   Settings,
   UserPlus,
 } from "lucide-react";
@@ -20,6 +21,8 @@ import { CreateEventDialog } from "@/components/itinerary/create-event-dialog";
 import { canModifyAccommodation } from "@/components/itinerary/utils/permissions";
 import { MemberProfileSheet } from "@/components/trip/member-profile-sheet";
 import { useAccommodations } from "@/hooks/use-accommodations";
+import { useSuggestions, useDismissSuggestion } from "@/hooks/use-suggestions";
+import { SuggestionCard } from "@/components/itinerary/suggestion-card";
 import { membersQueryOptions } from "@/hooks/invitation-queries";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/app/providers/auth-provider";
@@ -111,6 +114,12 @@ export function InfoPanel({
 
   const { user } = useAuth();
   const { data: accommodations } = useAccommodations(tripId);
+  const { data: suggestions = [] } = useSuggestions(tripId);
+  const dismissSuggestion = useDismissSuggestion(tripId);
+  const accommodationSuggestion = useMemo(
+    () => suggestions.find((s) => s.gapType === "no_accommodation"),
+    [suggestions],
+  );
   const [selectedAccommodation, setSelectedAccommodation] = useState<Accommodation | null>(null);
   const [editingAccommodation, setEditingAccommodation] = useState<Accommodation | null>(null);
   const [isCreateAccommodationOpen, setIsCreateAccommodationOpen] = useState(false);
@@ -312,15 +321,36 @@ export function InfoPanel({
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                No accommodations.{" "}
-                <button
-                  onClick={() => setIsCreateAccommodationOpen(true)}
-                  className="text-primary hover:underline transition-colors"
-                >
-                  Add one
-                </button>
-              </p>
+              <>
+                {accommodationSuggestion ? (
+                  <>
+                    <SuggestionCard
+                      suggestion={accommodationSuggestion}
+                      tripId={tripId}
+                      onDismiss={(suggestionType, suggestionKey) =>
+                        dismissSuggestion.mutate({ suggestionType, suggestionKey })
+                      }
+                    />
+                    <button
+                      onClick={() => setIsCreateAccommodationOpen(true)}
+                      className="inline-flex items-center gap-1 text-sm text-muted-foreground mt-1 hover:text-foreground transition-colors"
+                    >
+                      <Plus className="size-3.5" />
+                      Add your own
+                    </button>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No accommodations.{" "}
+                    <button
+                      onClick={() => setIsCreateAccommodationOpen(true)}
+                      className="text-primary hover:underline transition-colors"
+                    >
+                      Add one
+                    </button>
+                  </p>
+                )}
+              </>
             )}
           </div>
         )}
