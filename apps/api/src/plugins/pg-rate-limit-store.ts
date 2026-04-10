@@ -14,14 +14,14 @@ import type { AppDatabase } from "@/types/index.js";
  */
 export function createPgRateLimitStoreClass(db: AppDatabase) {
   return class PgRateLimitStore {
-    // ES private field (required for exported anonymous class — TS4094)
-    #timeWindow: number;
+    /** @internal – not truly private to avoid TS4094 on exported class expressions */
+    _timeWindow: number;
 
     constructor(options: { timeWindow?: number | string }) {
       // timeWindow may be a string like "15 minutes" or number in ms.
       // The safest approach is to use the numeric default since the actual
       // resolved timeWindow is passed as the 3rd arg to incr().
-      this.#timeWindow =
+      this._timeWindow =
         typeof options.timeWindow === "number" ? options.timeWindow : 900000; // 15 min default
     }
 
@@ -42,7 +42,7 @@ export function createPgRateLimitStoreClass(db: AppDatabase) {
       ) => void,
       timeWindow?: number,
     ): void {
-      const windowMs = timeWindow ?? this.#timeWindow;
+      const windowMs = timeWindow ?? this._timeWindow;
       const now = new Date();
       const windowEnd = new Date(now.getTime() + windowMs);
 
@@ -82,7 +82,7 @@ export function createPgRateLimitStoreClass(db: AppDatabase) {
     child(routeOptions: object): InstanceType<typeof PgRateLimitStore> {
       const tw = (routeOptions as { timeWindow?: number | string }).timeWindow;
       return new PgRateLimitStore({
-        timeWindow: tw ?? this.#timeWindow,
+        timeWindow: tw ?? this._timeWindow,
       });
     }
   };
