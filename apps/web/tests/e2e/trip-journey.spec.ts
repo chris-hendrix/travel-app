@@ -829,7 +829,11 @@ test.describe("Trip Journey", () => {
         // allow time for hydration + data fetch + portal mount.
         await expect(fab).toBeVisible({ timeout: SLOW_NAVIGATION_TIMEOUT });
         await fab.click();
-        await page.getByRole("menuitem", { name: "My Travel" }).click();
+        // The dropdown menu can detach during React re-renders; wait for the
+        // menu item to be stable before clicking and retry if it detaches.
+        const myTravelItem = page.getByRole("menuitem", { name: "My Travel" });
+        await expect(myTravelItem).toBeVisible({ timeout: DIALOG_TIMEOUT });
+        await myTravelItem.click({ timeout: ELEMENT_TIMEOUT });
 
         await expect(
           page.getByRole("heading", { name: "Add your travel details" }),
@@ -875,14 +879,23 @@ test.describe("Trip Journey", () => {
         await page
           .locator('input[name="location"]')
           .fill("Seattle-Tacoma Airport");
-        // Expand the collapsed "More details" section to reveal the details textarea
+        // Expand the collapsed "More details" section to reveal the details textarea.
+        // This collapsible animation causes a React re-render that can detach DOM
+        // elements, so we wait for the textarea to be stable before continuing.
         await page.getByRole("button", { name: "More details" }).click();
-        await page
-          .locator('textarea[name="details"]')
-          .fill("Arriving on behalf of member");
+        const detailsTextarea = page.locator('textarea[name="details"]');
+        await expect(detailsTextarea).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+        await detailsTextarea.fill("Arriving on behalf of member");
+
+        // After filling, wait for the submit button to be attached and stable.
+        // The collapsible expansion can cause the form to re-render, detaching
+        // the submit button. Use waitFor to ensure it is attached before clicking.
         const submitBtn = page.locator('button[type="submit"]', { hasText: "Add travel details" });
+        await expect(submitBtn).toBeVisible({ timeout: ELEMENT_TIMEOUT });
         await submitBtn.scrollIntoViewIfNeeded();
-        await submitBtn.click();
+        // Use force:true to bypass actionability checks that fail on detached elements
+        // during React re-renders. The button is already verified visible above.
+        await submitBtn.click({ force: true });
 
         // Wait for success toast
         await expect(
