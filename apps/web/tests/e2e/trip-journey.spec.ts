@@ -880,7 +880,9 @@ test.describe("Trip Journey", () => {
         await page
           .locator('textarea[name="details"]')
           .fill("Arriving on behalf of member");
-        await page.locator('button[type="submit"]', { hasText: "Add travel details" }).click();
+        const submitBtn = page.locator('button[type="submit"]', { hasText: "Add travel details" });
+        await submitBtn.scrollIntoViewIfNeeded();
+        await submitBtn.click();
 
         // Wait for success toast
         await expect(
