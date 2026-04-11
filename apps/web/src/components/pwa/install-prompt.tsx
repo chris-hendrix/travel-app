@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 
 interface BeforeInstallPromptEvent extends Event {
@@ -23,6 +23,7 @@ export function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [visible, setVisible] = useState(false);
+  const dismissedRef = useRef(false);
 
   useEffect(() => {
     if (isDismissed()) return;
@@ -31,6 +32,7 @@ export function InstallPrompt() {
 
     const handler = (e: Event) => {
       e.preventDefault();
+      if (dismissedRef.current || isDismissed()) return;
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       setVisible(true);
     };
@@ -40,6 +42,7 @@ export function InstallPrompt() {
   }, []);
 
   const dismiss = useCallback(() => {
+    dismissedRef.current = true;
     localStorage.setItem(DISMISS_KEY, String(Date.now()));
     setVisible(false);
     setDeferredPrompt(null);
