@@ -11,10 +11,6 @@ export function SwUpdatePrompt() {
     if (typeof window === "undefined" || !("serviceWorker" in navigator))
       return;
 
-    const handleControllerChange = () => {
-      window.location.reload();
-    };
-
     // Check for a waiting SW on load
     navigator.serviceWorker.ready.then((registration) => {
       if (registration.waiting) {
@@ -36,22 +32,14 @@ export function SwUpdatePrompt() {
         });
       });
     });
-
-    navigator.serviceWorker.addEventListener(
-      "controllerchange",
-      handleControllerChange,
-    );
-
-    return () => {
-      navigator.serviceWorker.removeEventListener(
-        "controllerchange",
-        handleControllerChange,
-      );
-    };
   }, []);
 
   const handleUpdate = useCallback(() => {
     if (!waitingWorker) return;
+    // Reload once the new SW takes control
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      window.location.reload();
+    });
     waitingWorker.postMessage({ type: "SKIP_WAITING" });
   }, [waitingWorker]);
 
