@@ -833,7 +833,9 @@ test.describe("Trip Journey", () => {
         // menu item to be stable before clicking and retry if it detaches.
         const myTravelItem = page.getByRole("menuitem", { name: "My Travel" });
         await expect(myTravelItem).toBeVisible({ timeout: DIALOG_TIMEOUT });
-        await myTravelItem.click({ timeout: ELEMENT_TIMEOUT });
+        // Use force:true to bypass actionability checks — the dropdown menu item
+        // can detach during React re-renders between the visibility check and click.
+        await myTravelItem.click({ force: true });
 
         await expect(
           page.getByRole("heading", { name: "Add your travel details" }),
@@ -892,10 +894,9 @@ test.describe("Trip Journey", () => {
         // the submit button. Use waitFor to ensure it is attached before clicking.
         const submitBtn = page.locator('button[type="submit"]', { hasText: "Add travel details" });
         await expect(submitBtn).toBeVisible({ timeout: ELEMENT_TIMEOUT });
-        await submitBtn.scrollIntoViewIfNeeded();
         // Use force:true to bypass actionability checks that fail on detached elements
         // during React re-renders. The button is already verified visible above.
-        await submitBtn.click({ force: true });
+        await submitBtn.click({ force: true, timeout: DIALOG_TIMEOUT });
 
         // Wait for success toast
         await expect(

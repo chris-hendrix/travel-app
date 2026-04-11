@@ -210,3 +210,16 @@ export {
   type BalanceResponse,
   type MyBalanceResponse,
 } from "./balance";
+
+// Re-export affiliate schemas
+export {
+  suggestionCardSchema,
+  suggestionPartnerSchema,
+  suggestionsResponseSchema,
+  dismissSuggestionSchema,
+  trackClickSchema,
+  trackImpressionsSchema,
+  type DismissSuggestionInput,
+  type TrackClickInput,
+  type TrackImpressionsInput,
+} from "./affiliate";

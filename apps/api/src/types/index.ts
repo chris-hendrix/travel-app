@@ -29,6 +29,7 @@ import type { IPushService } from "@/services/push.service.js";
 import type { IGuestService } from "@/services/guest.service.js";
 import type { IPaymentService } from "@/services/payment.service.js";
 import type { IBalanceService } from "@/services/balance.service.js";
+import type { IAffiliateService } from "@/services/affiliate.service.js";
 
 export type FullSchema = typeof schema & typeof relations;
 export type AppDatabase = NodePgDatabase<FullSchema>;
@@ -87,6 +88,7 @@ declare module "fastify" {
     guestService: IGuestService;
     paymentService: IPaymentService;
     balanceService: IBalanceService;
+    affiliateService: IAffiliateService;
     healthService: { getStatus(): Promise<HealthCheckResponse> };
   }
 }

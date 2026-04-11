@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { AlertCircle, CalendarX, Lock, Trash2 } from "lucide-react";
 import { useAuth } from "@/app/providers/auth-provider";
 import { useEvents, useEventsWithDeleted } from "@/hooks/use-events";
@@ -23,8 +23,18 @@ import { CreateEventDialog } from "./create-event-dialog";
 import { CreateAccommodationDialog } from "./create-accommodation-dialog";
 import { DeletedItemsDialog } from "./deleted-items-dialog";
 import { TravelReminderBanner } from "@/components/trip/travel-reminder-banner";
+import { SuggestionCard } from "./suggestion-card";
+import {
+  useSuggestions,
+  useDismissSuggestion,
+  useTrackImpressions,
+} from "@/hooks/use-suggestions";
 import { EmptyState } from "@/components/ui/empty-state";
-import type { DailyForecast, TemperatureUnit } from "@journiful/shared/types";
+import type {
+  DailyForecast,
+  TemperatureUnit,
+  SuggestionCard as SuggestionCardType,
+} from "@journiful/shared/types";
 
 interface ItineraryViewProps {
   tripId: string;
@@ -78,6 +88,35 @@ export function ItineraryView({
         displayName: m.displayName,
       })),
   });
+
+  // Fetch suggestions
+  const { data: suggestions = [] } = useSuggestions(tripId);
+  const dismissSuggestion = useDismissSuggestion(tripId);
+  useTrackImpressions(tripId, suggestions.length > 0 ? suggestions : undefined);
+
+  // Separate trip-level vs day-level suggestions
+  const tripLevelSuggestions = useMemo(
+    () => suggestions.filter((s) => s.day === null && s.gapType !== "no_accommodation"),
+    [suggestions],
+  );
+  const daySuggestions = useMemo(() => {
+    const map = new Map<string, SuggestionCardType[]>();
+    for (const s of suggestions) {
+      if (s.day) {
+        const existing = map.get(s.day) || [];
+        existing.push(s);
+        map.set(s.day, existing);
+      }
+    }
+    return map;
+  }, [suggestions]);
+
+  const handleDismiss = useCallback(
+    (suggestionType: string, suggestionKey: string) => {
+      dismissSuggestion.mutate({ suggestionType, suggestionKey });
+    },
+    [dismissSuggestion],
+  );
 
   // Fetch all items (including deleted) to check if deleted items exist
   const { data: allEvents = [] } = useEventsWithDeleted(tripId);
@@ -305,6 +344,15 @@ export function ItineraryView({
               onAddTravel={onAddTravel}
             />
           )}
+        {!isLocked &&
+          tripLevelSuggestions.map((s) => (
+            <SuggestionCard
+              key={s.id}
+              suggestion={s}
+              tripId={tripId}
+              onDismiss={handleDismiss}
+            />
+          ))}
         {isLocked && (
           <div className="bg-muted/50 border border-border rounded-md p-4 text-center text-sm text-muted-foreground mb-6">
             <Lock className="w-4 h-4 inline mr-2" />
@@ -324,6 +372,9 @@ export function ItineraryView({
           forecasts={forecasts ?? []}
           temperatureUnit={temperatureUnit ?? "fahrenheit"}
           filter={filter}
+          tripId={tripId}
+          daySuggestions={daySuggestions}
+          onDismissSuggestion={handleDismiss}
         />
         {isOrganizer && hasDeletedItems && (
           <Button

@@ -197,6 +197,13 @@
       "when": 1774744683800,
       "tag": "0027_dusty_namora",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1774922028104,
+      "tag": "0028_faithful_gateway",
+      "breakpoints": true
     }
   ]
 }
