@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback } from "react";
+import React, { memo, useCallback } from "react";
 import { ExternalLink, Lightbulb, X } from "lucide-react";
 import type { SuggestionCard as SuggestionCardType } from "@journiful/shared/types";
 import { apiRequest } from "@/lib/api";

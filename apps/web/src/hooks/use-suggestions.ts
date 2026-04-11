@@ -2,7 +2,8 @@
 
 import { useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiRequest, APIError } from "@/lib/api";
+import { apiRequest } from "@/lib/api";
+import type { APIError } from "@/lib/api";
 import type { SuggestionCard } from "@journiful/shared/types";
 import type { DismissSuggestionInput } from "@journiful/shared/schemas";
 

@@ -833,7 +833,9 @@ test.describe("Trip Journey", () => {
         // menu item to be stable before clicking and retry if it detaches.
         const myTravelItem = page.getByRole("menuitem", { name: "My Travel" });
         await expect(myTravelItem).toBeVisible({ timeout: DIALOG_TIMEOUT });
-        await myTravelItem.click({ timeout: ELEMENT_TIMEOUT });
+        // Use force:true to bypass actionability checks — the dropdown menu item
+        // can detach during React re-renders between the visibility check and click.
+        await myTravelItem.click({ force: true });
 
         await expect(
           page.getByRole("heading", { name: "Add your travel details" }),

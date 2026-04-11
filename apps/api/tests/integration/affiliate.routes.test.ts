@@ -10,19 +10,27 @@ import {
   affiliateDismissals,
 } from "@/db/schema/index.js";
 import { eq, and } from "drizzle-orm";
+import { env } from "@/config/env.js";
 import { generateUniquePhone } from "../test-utils.js";
+
+const ORIGINAL_AFFILIATE_ID = env.BOOKING_AFFILIATE_ID;
 
 describe("Affiliate Routes", () => {
   let app: FastifyInstance;
 
   beforeEach(() => {
-    process.env.BOOKING_AFFILIATE_ID = "test-affiliate-123";
+    // Mutate the parsed env singleton directly — setting process.env has no
+    // effect because env is computed once at module load via Zod parse.
+    (env as { BOOKING_AFFILIATE_ID: string }).BOOKING_AFFILIATE_ID =
+      "test-affiliate-123";
   });
 
   afterEach(async () => {
     if (app) {
       await app.close();
     }
+    (env as { BOOKING_AFFILIATE_ID: string }).BOOKING_AFFILIATE_ID =
+      ORIGINAL_AFFILIATE_ID;
   });
 
   // Helper to create a user, trip, and member for tests

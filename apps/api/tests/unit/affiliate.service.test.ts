@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { db } from "@/config/database.js";
 import {
   users,
@@ -10,7 +10,7 @@ import {
   affiliateDismissals,
   affiliateEvents,
 } from "@/db/schema/index.js";
-import { eq, or } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import {
   AffiliateService,
   getDateRange,
@@ -18,51 +18,27 @@ import {
 } from "@/services/affiliate.service.js";
 import { PermissionsService } from "@/services/permissions.service.js";
 import { BOOKING_DEEP_LINKS } from "@/config/affiliates.js";
+import { env } from "@/config/env.js";
 import { generateUniquePhone } from "../test-utils.js";
 
-// Mock env to control BOOKING_AFFILIATE_ID
-vi.mock("@/config/env.js", () => ({
-  env: {
-    BOOKING_AFFILIATE_ID: "test-affiliate-123",
-    // Add other env values the code may reference
-    NODE_ENV: "test",
-    PORT: 8000,
-    HOST: "0.0.0.0",
-    DATABASE_URL: process.env.DATABASE_URL,
-    JWT_SECRET: process.env.JWT_SECRET,
-    FRONTEND_URL: "http://localhost:3000",
-    TRUST_PROXY: false,
-    COOKIE_SECURE: false,
-    EXPOSE_ERROR_DETAILS: true,
-    ENABLE_FIXED_VERIFICATION_CODE: true,
-    LOG_LEVEL: "info",
-    TWILIO_ACCOUNT_SID: "",
-    TWILIO_AUTH_TOKEN: "",
-    TWILIO_VERIFY_SERVICE_SID: "",
-    STORAGE_PROVIDER: "local",
-    AWS_ENDPOINT_URL: "",
-    AWS_S3_BUCKET_NAME: "",
-    AWS_ACCESS_KEY_ID: "",
-    AWS_SECRET_ACCESS_KEY: "",
-    AWS_DEFAULT_REGION: "us-east-1",
-    UPLOAD_DIR: "uploads",
-    MAX_FILE_SIZE: 5242880,
-    VAPID_PUBLIC_KEY: "",
-    VAPID_PRIVATE_KEY: "",
-    VAPID_SUBJECT: "mailto:hello@journiful.app",
-    AERODATABOX_API_KEY: "",
-    ALLOWED_MIME_TYPES: ["image/jpeg", "image/png", "image/webp"],
-    COOKIE_DOMAIN: undefined,
-  },
-}));
-
-// Get a reference to the mocked env so we can modify it per-test
-import { env } from "@/config/env.js";
+// Store original value to restore after tests that mutate env
+const ORIGINAL_AFFILIATE_ID = env.BOOKING_AFFILIATE_ID;
 
 const permissionsService = new PermissionsService(db);
 const affiliateService = new AffiliateService(db, permissionsService);
 
 describe("affiliate.service", () => {
+  // Set affiliate ID for all tests; individual tests can override
+  beforeEach(() => {
+    (env as { BOOKING_AFFILIATE_ID: string }).BOOKING_AFFILIATE_ID =
+      "test-affiliate-123";
+  });
+
+  afterEach(() => {
+    (env as { BOOKING_AFFILIATE_ID: string }).BOOKING_AFFILIATE_ID =
+      ORIGINAL_AFFILIATE_ID;
+  });
+
   // --- Helper function tests (no DB needed) ---
 
   describe("getDateRange", () => {
