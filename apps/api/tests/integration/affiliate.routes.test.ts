@@ -7,7 +7,6 @@ import {
   trips,
   members,
   affiliateEvents,
-  affiliateDismissals,
 } from "@/db/schema/index.js";
 import { eq, and } from "drizzle-orm";
 import { env } from "@/config/env.js";
