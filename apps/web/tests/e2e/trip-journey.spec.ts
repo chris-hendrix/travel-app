@@ -894,10 +894,9 @@ test.describe("Trip Journey", () => {
         // the submit button. Use waitFor to ensure it is attached before clicking.
         const submitBtn = page.locator('button[type="submit"]', { hasText: "Add travel details" });
         await expect(submitBtn).toBeVisible({ timeout: ELEMENT_TIMEOUT });
-        await submitBtn.scrollIntoViewIfNeeded();
         // Use force:true to bypass actionability checks that fail on detached elements
         // during React re-renders. The button is already verified visible above.
-        await submitBtn.click({ force: true });
+        await submitBtn.click({ force: true, timeout: DIALOG_TIMEOUT });
 
         // Wait for success toast
         await expect(
