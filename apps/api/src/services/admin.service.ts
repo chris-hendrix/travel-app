@@ -4,6 +4,11 @@ import type { AppDatabase } from "@/types/index.js";
 import { eq, ilike, count, and } from "drizzle-orm";
 import { auditLog } from "@/utils/audit.js";
 import type { FastifyRequest, FastifyInstance } from "fastify";
+import {
+  AdminNotFoundError,
+  AdminForbiddenError,
+  AdminSelfActionError,
+} from "../errors.js";
 
 export interface AdminUserDetail extends User {
   tripCount: number;
@@ -47,6 +52,13 @@ export interface IAdminService {
 }
 
 export class AdminService implements IAdminService {
+  // Track active impersonation JTIs so revoke can find them
+  // Map<targetUserId, { jti, expiresAt }>
+  private activeImpersonations = new Map<
+    string,
+    { jti: string; expiresAt: Date }
+  >();
+
   constructor(
     private db: AppDatabase,
     private fastify: FastifyInstance,
@@ -128,7 +140,7 @@ export class AdminService implements IAdminService {
 
     const updated = result[0];
     if (!updated) {
-      throw Object.assign(new Error("User not found"), { statusCode: 404 });
+      throw new AdminNotFoundError();
     }
 
     auditLog(request, "admin.user_updated", {
@@ -143,6 +155,10 @@ export class AdminService implements IAdminService {
   async banUser(request: FastifyRequest, userId: string): Promise<void> {
     const adminId = request.user.adminId ?? request.user.sub;
 
+    if (userId === adminId) {
+      throw new AdminSelfActionError("Cannot ban yourself");
+    }
+
     const result = await this.db
       .update(users)
       .set({ status: "banned", updatedAt: new Date() })
@@ -150,7 +166,7 @@ export class AdminService implements IAdminService {
       .returning({ id: users.id });
 
     if (!result[0]) {
-      throw Object.assign(new Error("User not found"), { statusCode: 404 });
+      throw new AdminNotFoundError();
     }
 
     auditLog(request, "admin.user_banned", {
@@ -170,7 +186,7 @@ export class AdminService implements IAdminService {
       .returning({ id: users.id });
 
     if (!result[0]) {
-      throw Object.assign(new Error("User not found"), { statusCode: 404 });
+      throw new AdminNotFoundError();
     }
 
     auditLog(request, "admin.user_unbanned", {
@@ -190,7 +206,7 @@ export class AdminService implements IAdminService {
       .returning({ id: users.id });
 
     if (!result[0]) {
-      throw Object.assign(new Error("User not found"), { statusCode: 404 });
+      throw new AdminNotFoundError();
     }
 
     auditLog(request, "admin.user_promoted", {
@@ -204,9 +220,7 @@ export class AdminService implements IAdminService {
     const adminId = request.user.adminId ?? request.user.sub;
 
     if (userId === adminId) {
-      throw Object.assign(new Error("Cannot demote yourself"), {
-        statusCode: 400,
-      });
+      throw new AdminSelfActionError("Cannot demote yourself");
     }
 
     const result = await this.db
@@ -216,7 +230,7 @@ export class AdminService implements IAdminService {
       .returning({ id: users.id });
 
     if (!result[0]) {
-      throw Object.assign(new Error("User not found"), { statusCode: 404 });
+      throw new AdminNotFoundError();
     }
 
     auditLog(request, "admin.user_demoted", {
@@ -241,14 +255,12 @@ export class AdminService implements IAdminService {
 
     const target = targetResult[0];
     if (!target) {
-      throw Object.assign(new Error("User not found"), { statusCode: 404 });
+      throw new AdminNotFoundError();
     }
 
     // Cannot impersonate another admin
     if (target.role === "admin") {
-      throw Object.assign(new Error("Cannot impersonate an admin user"), {
-        statusCode: 403,
-      });
+      throw new AdminForbiddenError("Cannot impersonate an admin user");
     }
 
     const jti = randomUUID();
@@ -257,6 +269,12 @@ export class AdminService implements IAdminService {
     const payload = { sub: targetUserId, adminId, impersonating: true, jti };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const token = this.fastify.jwt.sign(payload as any, { expiresIn: "1h" });
+
+    // Track for revocation
+    this.activeImpersonations.set(targetUserId, {
+      jti,
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    });
 
     auditLog(request, "impersonation.start", {
       resourceType: "user",
@@ -279,9 +297,7 @@ export class AdminService implements IAdminService {
 
     const admin = adminResult[0];
     if (!admin) {
-      throw Object.assign(new Error("Admin user not found"), {
-        statusCode: 404,
-      });
+      throw new AdminNotFoundError();
     }
 
     const jti = randomUUID();
@@ -290,6 +306,9 @@ export class AdminService implements IAdminService {
     const adminPayload = { sub: admin.id, jti, ...(admin.displayName && { name: admin.displayName }) };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const token = this.fastify.jwt.sign(adminPayload as any);
+
+    // Clean up tracked impersonation
+    this.activeImpersonations.delete(request.user.sub);
 
     auditLog(request, "impersonation.stop", {
       resourceType: "user",
@@ -306,16 +325,18 @@ export class AdminService implements IAdminService {
   ): Promise<void> {
     const adminId = request.user.adminId ?? request.user.sub;
 
-    // Blacklist the current impersonation token if it targets this user
-    if (request.user.jti && request.user.impersonating && request.user.sub === targetUserId) {
+    // Look up tracked impersonation JTI for this target
+    const tracked = this.activeImpersonations.get(targetUserId);
+    if (tracked && tracked.expiresAt > new Date()) {
       await this.db
         .insert(blacklistedTokens)
         .values({
-          jti: request.user.jti,
+          jti: tracked.jti,
           userId: targetUserId,
-          expiresAt: new Date(request.user.exp * 1000),
+          expiresAt: tracked.expiresAt,
         })
         .onConflictDoNothing();
+      this.activeImpersonations.delete(targetUserId);
     }
 
     auditLog(request, "impersonation.revoke", {
