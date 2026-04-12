@@ -9,6 +9,14 @@ export function auditLog(
     metadata?: Record<string, unknown>;
   },
 ) {
+  const impersonationContext = request.user?.impersonating
+    ? {
+        adminId: request.user.adminId,
+        impersonatedUserId: request.user.sub,
+        impersonating: true,
+      }
+    : {};
+
   request.log.info(
     {
       audit: true,
@@ -17,6 +25,7 @@ export function auditLog(
       resourceType: detail?.resourceType,
       resourceId: detail?.resourceId,
       ip: request.ip,
+      ...impersonationContext,
       ...detail?.metadata,
     },
     `audit: ${action}`,

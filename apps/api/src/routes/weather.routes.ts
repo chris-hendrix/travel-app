@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { weatherController } from "@/controllers/weather.controller.js";
 import { authenticate } from "@/middleware/auth.middleware.js";
+import { checkBanned } from "@/middleware/admin.middleware.js";
 import { defaultRateLimitConfig } from "@/middleware/rate-limit.middleware.js";
 import { tripWeatherResponseSchema } from "@journiful/shared/schemas";
 
@@ -24,7 +25,7 @@ export async function weatherRoutes(fastify: FastifyInstance) {
   fastify.get<{ Params: { tripId: string } }>(
     "/trips/:tripId/weather",
     {
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate],
+      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
       schema: {
         params: tripIdParams,
         response: {

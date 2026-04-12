@@ -5,6 +5,7 @@ import {
   authenticate,
   requireCompleteProfile,
 } from "@/middleware/auth.middleware.js";
+import { checkBanned } from "@/middleware/admin.middleware.js";
 import { defaultRateLimitConfig } from "@/middleware/rate-limit.middleware.js";
 import {
   getMutualsQuerySchema,
@@ -34,7 +35,7 @@ export async function mutualsRoutes(fastify: FastifyInstance) {
         querystring: getMutualsQuerySchema,
         response: { 200: getMutualsResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate],
+      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
     },
     mutualsController.getMutuals,
   );
@@ -60,6 +61,7 @@ export async function mutualsRoutes(fastify: FastifyInstance) {
       preHandler: [
         fastify.rateLimit(defaultRateLimitConfig),
         authenticate,
+        checkBanned,
         requireCompleteProfile,
       ],
     },

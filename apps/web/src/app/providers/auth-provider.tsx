@@ -13,9 +13,16 @@ import { useRouter } from "next/navigation";
 import type { User } from "@journiful/shared";
 import { API_URL } from "@/lib/api";
 
+interface ImpersonatingState {
+  active: boolean;
+  user?: { id: string; displayName: string };
+}
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  isAdmin: boolean;
+  impersonating: ImpersonatingState;
   login: (phoneNumber: string, smsConsent?: boolean) => Promise<void>;
   verify: (
     phoneNumber: string,
@@ -28,6 +35,7 @@ interface AuthContextType {
   }) => Promise<void>;
   logout: () => Promise<void>;
   refetch: () => Promise<void>;
+  stopImpersonating: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,6 +43,10 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [impersonating, setImpersonating] = useState<ImpersonatingState>({
+    active: false,
+  });
   const router = useRouter();
 
   const fetchUser = useCallback(async () => {
@@ -46,11 +58,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.ok) {
         const data = await response.json();
         setUser(data.user);
+        setIsAdmin(data.isAdmin === true);
+        setImpersonating(
+          data.impersonating
+            ? { active: true, user: data.impersonatingUser }
+            : { active: false },
+        );
       } else {
         setUser(null);
+        setIsAdmin(false);
+        setImpersonating({ active: false });
       }
     } catch {
       setUser(null);
+      setIsAdmin(false);
+      setImpersonating({ active: false });
     } finally {
       setLoading(false);
     }
@@ -123,20 +145,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     setUser(null);
+    setIsAdmin(false);
+    setImpersonating({ active: false });
     router.push("/login");
   }, [router]);
+
+  const stopImpersonating = useCallback(async () => {
+    const response = await fetch(`${API_URL}/admin/stop-impersonate`, {
+      method: "POST",
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to stop impersonation");
+    }
+
+    await fetchUser();
+    router.push("/admin/users");
+  }, [fetchUser, router]);
 
   const value = useMemo(
     () => ({
       user,
       loading,
+      isAdmin,
+      impersonating,
       login,
       verify,
       completeProfile,
       logout,
       refetch: fetchUser,
+      stopImpersonating,
     }),
-    [user, loading, login, verify, completeProfile, logout, fetchUser],
+    [user, loading, isAdmin, impersonating, login, verify, completeProfile, logout, fetchUser, stopImpersonating],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

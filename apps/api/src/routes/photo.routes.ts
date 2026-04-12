@@ -5,6 +5,7 @@ import {
   authenticate,
   requireCompleteProfile,
 } from "@/middleware/auth.middleware.js";
+import { checkBanned } from "@/middleware/admin.middleware.js";
 import {
   defaultRateLimitConfig,
   writeRateLimitConfig,
@@ -44,7 +45,7 @@ export async function photoRoutes(fastify: FastifyInstance) {
       schema: {
         params: tripIdParamsSchema,
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate],
+      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
     },
     photoController.getPhotos,
   );
@@ -57,6 +58,7 @@ export async function photoRoutes(fastify: FastifyInstance) {
   fastify.register(async (scope) => {
     scope.addHook("preHandler", scope.rateLimit(writeRateLimitConfig));
     scope.addHook("preHandler", authenticate);
+    scope.addHook("preHandler", checkBanned);
     scope.addHook("preHandler", requireCompleteProfile);
 
     /**

@@ -45,6 +45,7 @@ import guestServicePlugin from "./plugins/guest-service.js";
 import paymentServicePlugin from "./plugins/payment-service.js";
 import balanceServicePlugin from "./plugins/balance-service.js";
 import affiliateServicePlugin from "./plugins/affiliate-service.js";
+import adminServicePlugin from "./plugins/admin-service.js";
 import queueWorkersPlugin from "./queues/index.js";
 
 // Middleware
@@ -71,6 +72,7 @@ import { guestRoutes } from "./routes/guest.routes.js";
 import { paymentRoutes } from "./routes/payment.routes.js";
 import { balanceRoutes } from "./routes/balance.routes.js";
 import { affiliateRoutes } from "./routes/affiliate.routes.js";
+import { adminRoutes } from "./routes/admin.routes.js";
 
 // Config
 import { env } from "./config/env.js";
@@ -241,6 +243,7 @@ export async function buildApp(
   await app.register(paymentServicePlugin);
   await app.register(balanceServicePlugin);
   await app.register(affiliateServicePlugin);
+  await app.register(adminServicePlugin);
   await app.register(queueWorkersPlugin);
 
   // Register Swagger/OpenAPI documentation (non-production only)
@@ -272,6 +275,7 @@ export async function buildApp(
   await app.register(paymentRoutes, { prefix: "/api" });
   await app.register(balanceRoutes, { prefix: "/api" });
   await app.register(affiliateRoutes, { prefix: "/api" });
+  await app.register(adminRoutes, { prefix: "/api/admin" });
 
   // Not-found handler for unmatched routes
   app.setNotFoundHandler((request, reply) => {

@@ -208,6 +208,19 @@ export const PaymentNotFoundError = createError(
   404,
 );
 
+// Admin errors
+export const AdminNotFoundError = createError(
+  "ADMIN_NOT_FOUND",
+  "User not found",
+  404,
+);
+export const AdminForbiddenError = createError("ADMIN_FORBIDDEN", "%s", 403);
+export const AdminSelfActionError = createError(
+  "ADMIN_SELF_ACTION",
+  "%s",
+  400,
+);
+
 // Generic
 export const InvalidCodeError = createError("INVALID_CODE", "%s", 400);
 export const AccountLockedError = createError("ACCOUNT_LOCKED", "%s", 429);

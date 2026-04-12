@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { calendarController } from "@/controllers/calendar.controller.js";
 import { authenticate } from "@/middleware/auth.middleware.js";
+import { checkBanned } from "@/middleware/admin.middleware.js";
 import { writeRateLimitConfig } from "@/middleware/rate-limit.middleware.js";
 import {
   calendarTokenParamsSchema,
@@ -38,6 +39,7 @@ export async function calendarRoutes(fastify: FastifyInstance) {
   fastify.register(async (scope) => {
     scope.addHook("preHandler", scope.rateLimit(writeRateLimitConfig));
     scope.addHook("preHandler", authenticate);
+    scope.addHook("preHandler", checkBanned);
 
     // GET /users/me/calendar — Calendar status
     scope.get(

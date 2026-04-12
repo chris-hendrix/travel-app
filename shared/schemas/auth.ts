@@ -102,6 +102,14 @@ export const completeProfileResponseSchema = z.object({
 export const getMeResponseSchema = z.object({
   success: z.literal(true),
   user: userResponseSchema,
+  isAdmin: z.boolean().optional(),
+  impersonating: z.boolean().optional(),
+  impersonatingUser: z
+    .object({
+      id: z.string(),
+      displayName: z.string(),
+    })
+    .optional(),
 });
 
 export const logoutResponseSchema = z.object({

@@ -39,6 +39,8 @@ export const users = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    role: varchar("role", { length: 20 }).notNull().default("user"),
+    status: varchar("status", { length: 20 }).notNull().default("active"),
   },
   (table) => [index("users_phone_number_idx").on(table.phoneNumber)],
 );

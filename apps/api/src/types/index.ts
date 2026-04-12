@@ -30,6 +30,7 @@ import type { IGuestService } from "@/services/guest.service.js";
 import type { IPaymentService } from "@/services/payment.service.js";
 import type { IBalanceService } from "@/services/balance.service.js";
 import type { IAffiliateService } from "@/services/affiliate.service.js";
+import type { IAdminService } from "@/services/admin.service.js";
 
 export type FullSchema = typeof schema & typeof relations;
 export type AppDatabase = NodePgDatabase<FullSchema>;
@@ -48,6 +49,8 @@ export interface JWTPayload {
   jti?: string; // JWT ID for token blacklisting (optional for backward compat)
   iat: number; // Issued at
   exp: number; // Expires at
+  adminId?: string; // Real admin's user ID (only during impersonation)
+  impersonating?: boolean; // True when admin is impersonating a user
 }
 
 // Module augmentation for @fastify/jwt
@@ -89,6 +92,7 @@ declare module "fastify" {
     paymentService: IPaymentService;
     balanceService: IBalanceService;
     affiliateService: IAffiliateService;
+    adminService: IAdminService;
     healthService: { getStatus(): Promise<HealthCheckResponse> };
   }
 }

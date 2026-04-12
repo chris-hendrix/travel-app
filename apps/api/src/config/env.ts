@@ -97,6 +97,18 @@ const envSchema = z.object({
   // Booking.com Affiliate (optional — suggestions hidden if not set)
   BOOKING_AFFILIATE_ID: z.string().default(""),
 
+  ADMIN_PHONE_NUMBERS: z
+    .string()
+    .default("")
+    .transform((val) =>
+      val
+        ? val
+            .split(",")
+            .map((num) => num.trim())
+            .filter(Boolean)
+        : [],
+    ),
+
   ALLOWED_MIME_TYPES: z
     .string()
     .transform((val) => val.split(",").map((type) => type.trim()))

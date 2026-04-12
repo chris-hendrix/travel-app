@@ -8,6 +8,8 @@ import { validatePhoneNumber } from "@/utils/phone.js";
 import { auditLog } from "@/utils/audit.js";
 import { InvalidCodeError, AccountLockedError } from "../errors.js";
 import { LOCKOUT_DURATION_MINUTES } from "@/services/auth.service.js";
+import { users } from "@/db/schema/index.js";
+import { eq } from "drizzle-orm";
 
 /**
  * Authentication Controller
@@ -154,6 +156,23 @@ export const authController = {
 
       // Get existing user or create new one
       const user = await authService.getOrCreateUser(e164PhoneNumber);
+
+      // Auto-promote admin users based on ADMIN_PHONE_NUMBERS env var
+      if (
+        request.server.config.ADMIN_PHONE_NUMBERS.includes(
+          user.phoneNumber,
+        ) &&
+        user.role !== "admin"
+      ) {
+        await request.server.db
+          .update(users)
+          .set({ role: "admin", updatedAt: new Date() })
+          .where(eq(users.id, user.id));
+        user.role = "admin";
+        auditLog(request, "admin.auto_promotion", {
+          metadata: { userId: user.id },
+        });
+      }
 
       // Record SMS consent if provided
       if (smsConsent) {
@@ -332,11 +351,31 @@ export const authController = {
         });
       }
 
-      // Return success response with user data
-      return reply.status(200).send({
+      // Build response with optional admin context
+      const response: Record<string, unknown> = {
         success: true,
         user: result,
-      });
+      };
+
+      // Include isAdmin flag if user is an admin (check real admin identity)
+      const realUserId = request.user.adminId ?? request.user.sub;
+      if (request.user.impersonating) {
+        // During impersonation, look up admin role from adminId
+        const adminUser = await authService.getUserById(realUserId);
+        if (adminUser?.role === "admin") {
+          response.isAdmin = true;
+        }
+        response.impersonating = true;
+        response.impersonatingUser = {
+          id: result.id,
+          displayName: result.displayName,
+        };
+      } else if (result.role === "admin") {
+        response.isAdmin = true;
+      }
+
+      // Return success response with user data
+      return reply.status(200).send(response);
     } catch (error) {
       // Re-throw typed errors for error handler
       if (error && typeof error === "object" && "statusCode" in error) {
