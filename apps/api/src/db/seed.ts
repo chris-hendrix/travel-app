@@ -98,10 +98,10 @@ async function main() {
   const userRows = await db
     .insert(schema.users)
     .values([
-      { phoneNumber: PHONE_NUMBERS[0], displayName: "Alice Johnson" },
+      { phoneNumber: PHONE_NUMBERS[0], displayName: "Alice Johnson", role: "admin" },
       { phoneNumber: PHONE_NUMBERS[1], displayName: "Bob Williams" },
       { phoneNumber: PHONE_NUMBERS[2], displayName: "Carol Martinez" },
-      { phoneNumber: PHONE_NUMBERS[3], displayName: "David Kim" },
+      { phoneNumber: PHONE_NUMBERS[3], displayName: "David Kim", status: "banned" },
       { phoneNumber: PHONE_NUMBERS[4], displayName: "Eve Chen" },
     ])
     .returning();
