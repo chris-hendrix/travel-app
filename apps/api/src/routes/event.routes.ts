@@ -5,6 +5,7 @@ import {
   authenticate,
   requireCompleteProfile,
 } from "@/middleware/auth.middleware.js";
+import { checkBanned } from "@/middleware/admin.middleware.js";
 import {
   defaultRateLimitConfig,
   writeRateLimitConfig,
@@ -67,7 +68,7 @@ export async function eventRoutes(fastify: FastifyInstance) {
         querystring: listEventsQuerySchema,
         response: { 200: eventListResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate],
+      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
     },
     eventController.listEvents,
   );
@@ -84,7 +85,7 @@ export async function eventRoutes(fastify: FastifyInstance) {
         params: eventIdParamsSchema,
         response: { 200: eventResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate],
+      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
     },
     eventController.getEvent,
   );
@@ -97,6 +98,7 @@ export async function eventRoutes(fastify: FastifyInstance) {
   fastify.register(async (scope) => {
     scope.addHook("preHandler", scope.rateLimit(writeRateLimitConfig));
     scope.addHook("preHandler", authenticate);
+    scope.addHook("preHandler", checkBanned);
     scope.addHook("preHandler", requireCompleteProfile);
 
     /**

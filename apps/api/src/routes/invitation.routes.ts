@@ -5,6 +5,7 @@ import {
   authenticate,
   requireCompleteProfile,
 } from "@/middleware/auth.middleware.js";
+import { checkBanned } from "@/middleware/admin.middleware.js";
 import {
   defaultRateLimitConfig,
   writeRateLimitConfig,
@@ -63,7 +64,7 @@ export async function invitationRoutes(fastify: FastifyInstance) {
         params: tripIdParamsSchema,
         response: { 200: getInvitationsResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate],
+      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
     },
     invitationController.getInvitations,
   );
@@ -80,7 +81,7 @@ export async function invitationRoutes(fastify: FastifyInstance) {
         params: tripIdParamsSchema,
         response: { 200: getMembersResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate],
+      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
     },
     invitationController.getMembers,
   );
@@ -97,7 +98,7 @@ export async function invitationRoutes(fastify: FastifyInstance) {
         params: tripIdParamsSchema,
         response: { 200: mySettingsResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate],
+      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
     },
     invitationController.getMySettings,
   );
@@ -110,6 +111,7 @@ export async function invitationRoutes(fastify: FastifyInstance) {
   fastify.register(async (scope) => {
     scope.addHook("preHandler", scope.rateLimit(writeRateLimitConfig));
     scope.addHook("preHandler", authenticate);
+    scope.addHook("preHandler", checkBanned);
     scope.addHook("preHandler", requireCompleteProfile);
 
     /**

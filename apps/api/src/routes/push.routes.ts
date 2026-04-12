@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { authenticate } from "@/middleware/auth.middleware.js";
+import { checkBanned } from "@/middleware/admin.middleware.js";
 import {
   defaultRateLimitConfig,
   writeRateLimitConfig,
@@ -46,7 +47,7 @@ export async function pushRoutes(fastify: FastifyInstance) {
       schema: {
         body: pushSubscribeSchema,
       },
-      preHandler: [fastify.rateLimit(writeRateLimitConfig), authenticate],
+      preHandler: [fastify.rateLimit(writeRateLimitConfig), authenticate, checkBanned],
     },
     async (request, reply) => {
       const userId = request.user.sub;
@@ -70,7 +71,7 @@ export async function pushRoutes(fastify: FastifyInstance) {
       schema: {
         body: pushUnsubscribeSchema,
       },
-      preHandler: [fastify.rateLimit(writeRateLimitConfig), authenticate],
+      preHandler: [fastify.rateLimit(writeRateLimitConfig), authenticate, checkBanned],
     },
     async (request) => {
       const { endpoint } = request.body;

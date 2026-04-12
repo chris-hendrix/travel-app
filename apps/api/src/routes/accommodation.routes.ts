@@ -5,6 +5,7 @@ import {
   authenticate,
   requireCompleteProfile,
 } from "@/middleware/auth.middleware.js";
+import { checkBanned } from "@/middleware/admin.middleware.js";
 import {
   defaultRateLimitConfig,
   writeRateLimitConfig,
@@ -66,7 +67,7 @@ export async function accommodationRoutes(fastify: FastifyInstance) {
         querystring: listAccommodationsQuerySchema,
         response: { 200: accommodationListResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate],
+      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
     },
     accommodationController.listAccommodations,
   );
@@ -83,7 +84,7 @@ export async function accommodationRoutes(fastify: FastifyInstance) {
         params: accommodationIdParamsSchema,
         response: { 200: accommodationResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate],
+      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
     },
     accommodationController.getAccommodation,
   );
@@ -96,6 +97,7 @@ export async function accommodationRoutes(fastify: FastifyInstance) {
   fastify.register(async (scope) => {
     scope.addHook("preHandler", scope.rateLimit(writeRateLimitConfig));
     scope.addHook("preHandler", authenticate);
+    scope.addHook("preHandler", checkBanned);
     scope.addHook("preHandler", requireCompleteProfile);
 
     /**

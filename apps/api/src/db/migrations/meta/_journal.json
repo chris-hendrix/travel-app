@@ -204,6 +204,13 @@
       "when": 1774922028104,
       "tag": "0028_faithful_gateway",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1776010793362,
+      "tag": "0029_daily_boom_boom",
+      "breakpoints": true
     }
   ]
 }

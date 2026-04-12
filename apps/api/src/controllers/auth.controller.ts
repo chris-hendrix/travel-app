@@ -8,6 +8,8 @@ import { validatePhoneNumber } from "@/utils/phone.js";
 import { auditLog } from "@/utils/audit.js";
 import { InvalidCodeError, AccountLockedError } from "../errors.js";
 import { LOCKOUT_DURATION_MINUTES } from "@/services/auth.service.js";
+import { users } from "@/db/schema/index.js";
+import { eq } from "drizzle-orm";
 
 /**
  * Authentication Controller
@@ -154,6 +156,23 @@ export const authController = {
 
       // Get existing user or create new one
       const user = await authService.getOrCreateUser(e164PhoneNumber);
+
+      // Auto-promote admin users based on ADMIN_PHONE_NUMBERS env var
+      if (
+        request.server.config.ADMIN_PHONE_NUMBERS.includes(
+          user.phoneNumber,
+        ) &&
+        user.role !== "admin"
+      ) {
+        await request.server.db
+          .update(users)
+          .set({ role: "admin", updatedAt: new Date() })
+          .where(eq(users.id, user.id));
+        user.role = "admin";
+        auditLog(request, "admin.auto_promotion", {
+          metadata: { userId: user.id },
+        });
+      }
 
       // Record SMS consent if provided
       if (smsConsent) {

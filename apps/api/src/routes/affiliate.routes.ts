@@ -5,6 +5,7 @@ import {
   authenticate,
   requireCompleteProfile,
 } from "@/middleware/auth.middleware.js";
+import { checkBanned } from "@/middleware/admin.middleware.js";
 import {
   defaultRateLimitConfig,
   writeRateLimitConfig,
@@ -37,7 +38,7 @@ export async function affiliateRoutes(fastify: FastifyInstance) {
         params: tripIdParamsSchema,
         response: { 200: suggestionsResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate],
+      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
     },
     affiliateController.getSuggestions,
   );
@@ -56,6 +57,7 @@ export async function affiliateRoutes(fastify: FastifyInstance) {
       preHandler: [
         fastify.rateLimit(writeRateLimitConfig),
         authenticate,
+        checkBanned,
         requireCompleteProfile,
       ],
     },
@@ -72,7 +74,7 @@ export async function affiliateRoutes(fastify: FastifyInstance) {
       schema: {
         body: trackClickSchema,
       },
-      preHandler: [fastify.rateLimit(writeRateLimitConfig), authenticate],
+      preHandler: [fastify.rateLimit(writeRateLimitConfig), authenticate, checkBanned],
     },
     affiliateController.trackClick,
   );
@@ -91,7 +93,7 @@ export async function affiliateRoutes(fastify: FastifyInstance) {
         params: tripIdParamsSchema,
         body: trackImpressionsSchema,
       },
-      preHandler: [fastify.rateLimit(writeRateLimitConfig), authenticate],
+      preHandler: [fastify.rateLimit(writeRateLimitConfig), authenticate, checkBanned],
     },
     affiliateController.trackImpressions,
   );

@@ -5,6 +5,7 @@ import {
   authenticate,
   requireCompleteProfile,
 } from "@/middleware/auth.middleware.js";
+import { checkBanned } from "@/middleware/admin.middleware.js";
 import {
   defaultRateLimitConfig,
   writeRateLimitConfig,
@@ -66,7 +67,7 @@ export async function memberTravelRoutes(fastify: FastifyInstance) {
         querystring: listMemberTravelQuerySchema,
         response: { 200: memberTravelListResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate],
+      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
     },
     memberTravelController.listMemberTravel,
   );
@@ -83,7 +84,7 @@ export async function memberTravelRoutes(fastify: FastifyInstance) {
         params: memberTravelIdParamsSchema,
         response: { 200: memberTravelResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate],
+      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
     },
     memberTravelController.getMemberTravel,
   );
@@ -96,6 +97,7 @@ export async function memberTravelRoutes(fastify: FastifyInstance) {
   fastify.register(async (scope) => {
     scope.addHook("preHandler", scope.rateLimit(writeRateLimitConfig));
     scope.addHook("preHandler", authenticate);
+    scope.addHook("preHandler", checkBanned);
     scope.addHook("preHandler", requireCompleteProfile);
 
     /**

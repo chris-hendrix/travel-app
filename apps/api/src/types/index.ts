@@ -48,6 +48,8 @@ export interface JWTPayload {
   jti?: string; // JWT ID for token blacklisting (optional for backward compat)
   iat: number; // Issued at
   exp: number; // Expires at
+  adminId?: string; // Real admin's user ID (only during impersonation)
+  impersonating?: boolean; // True when admin is impersonating a user
 }
 
 // Module augmentation for @fastify/jwt
