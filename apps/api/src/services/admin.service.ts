@@ -254,13 +254,9 @@ export class AdminService implements IAdminService {
     const jti = randomUUID();
 
     // Generate impersonation JWT with 1-hour expiry
+    const payload = { sub: targetUserId, adminId, impersonating: true, jti };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const token = this.fastify.jwt.sign({
-      sub: targetUserId,
-      adminId,
-      impersonating: true,
-      jti,
-    } as any, { expiresIn: "1h" });
+    const token = this.fastify.jwt.sign(payload as any, { expiresIn: "1h" });
 
     auditLog(request, "impersonation.start", {
       resourceType: "user",
@@ -291,12 +287,9 @@ export class AdminService implements IAdminService {
     const jti = randomUUID();
 
     // Generate standard admin JWT with 7-day expiry (default)
+    const adminPayload = { sub: admin.id, jti, ...(admin.displayName && { name: admin.displayName }) };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const token = this.fastify.jwt.sign({
-      sub: admin.id,
-      jti,
-      ...(admin.displayName && { name: admin.displayName }),
-    } as any);
+    const token = this.fastify.jwt.sign(adminPayload as any);
 
     auditLog(request, "impersonation.stop", {
       resourceType: "user",

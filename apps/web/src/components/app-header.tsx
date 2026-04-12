@@ -3,7 +3,7 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { LogOut, Users } from "lucide-react";
+import { LogOut, Shield, Users } from "lucide-react";
 import { useAuth } from "@/app/providers/auth-provider";
 import { getInitials } from "@/lib/format";
 import { getUploadUrl } from "@/lib/api";
@@ -51,7 +51,7 @@ function UserAvatar({
 }
 
 export function AppHeader() {
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
 
   return (
@@ -108,6 +108,14 @@ export function AppHeader() {
                         My Mutuals
                       </Link>
                     </DropdownMenuItem>
+                    {isAdmin && (
+                      <DropdownMenuItem asChild data-testid="admin-menu-item">
+                        <Link href="/admin/users">
+                          <Shield />
+                          Admin
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                   </>
                 )}
