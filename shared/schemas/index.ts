@@ -234,6 +234,11 @@ export {
   adminUserListResponseSchema,
   adminSuccessResponseSchema,
   adminUpdateUserResponseSchema,
+  adminImpersonateUserIdParamsSchema,
+  adminImpersonateSchema,
+  adminImpersonateResponseSchema,
+  adminMeContextSchema,
   type AdminListUsersQuery,
   type AdminUpdateUserInput,
+  type AdminImpersonateInput,
 } from "./admin";

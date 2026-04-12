@@ -8,7 +8,7 @@ import { AdminService } from "@/services/admin.service.js";
  */
 export default fp(
   async function adminServicePlugin(fastify: FastifyInstance) {
-    const adminService = new AdminService(fastify.db);
+    const adminService = new AdminService(fastify.db, fastify);
     fastify.decorate("adminService", adminService);
   },
   {

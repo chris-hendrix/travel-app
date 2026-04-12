@@ -70,3 +70,39 @@ export const adminUpdateUserResponseSchema = z.object({
   success: z.literal(true),
   user: adminUserResponseSchema,
 });
+
+// User ID param (for impersonation routes using :userId)
+export const adminImpersonateUserIdParamsSchema = z.object({
+  userId: z.string().uuid({ message: "Invalid user ID format" }),
+});
+
+// Impersonation request body (re-auth code)
+export const adminImpersonateSchema = z.object({
+  code: z
+    .string()
+    .length(6, { message: "Verification code must be exactly 6 characters" })
+    .regex(/^\d{6}$/, {
+      message: "Verification code must contain only digits",
+    }),
+});
+
+export type AdminImpersonateInput = z.infer<typeof adminImpersonateSchema>;
+
+// Impersonation success response
+export const adminImpersonateResponseSchema = z.object({
+  success: z.literal(true),
+  message: z.string(),
+});
+
+// Enhanced /auth/me response that includes admin context
+// This extends the base getMeResponse without exposing role/status in the user object
+export const adminMeContextSchema = z.object({
+  isAdmin: z.boolean().optional(),
+  impersonating: z.boolean().optional(),
+  impersonatingUser: z
+    .object({
+      id: z.string().uuid(),
+      displayName: z.string(),
+    })
+    .optional(),
+});

@@ -14,10 +14,14 @@ import {
   adminUserDetailResponseSchema,
   adminUpdateUserResponseSchema,
   adminSuccessResponseSchema,
+  adminImpersonateUserIdParamsSchema,
+  adminImpersonateSchema,
+  adminImpersonateResponseSchema,
 } from "@journiful/shared/schemas";
 import type {
   AdminListUsersQuery,
   AdminUpdateUserInput,
+  AdminImpersonateInput,
 } from "@journiful/shared/schemas";
 
 /**
@@ -144,6 +148,57 @@ export async function adminRoutes(fastify: FastifyInstance) {
         preHandler: [scope.rateLimit(writeRateLimitConfig)],
       },
       adminController.demoteAdmin,
+    );
+
+    /**
+     * POST /impersonate/:userId
+     * Start impersonation (requires re-auth code)
+     */
+    scope.post<{
+      Params: { userId: string };
+      Body: AdminImpersonateInput;
+    }>(
+      "/impersonate/:userId",
+      {
+        schema: {
+          params: adminImpersonateUserIdParamsSchema,
+          body: adminImpersonateSchema,
+          response: { 200: adminImpersonateResponseSchema },
+        },
+        preHandler: [scope.rateLimit(writeRateLimitConfig)],
+      },
+      adminController.startImpersonation,
+    );
+
+    /**
+     * POST /stop-impersonate
+     * Stop impersonation and return to admin identity
+     */
+    scope.post(
+      "/stop-impersonate",
+      {
+        schema: {
+          response: { 200: adminImpersonateResponseSchema },
+        },
+        preHandler: [scope.rateLimit(writeRateLimitConfig)],
+      },
+      adminController.stopImpersonation,
+    );
+
+    /**
+     * POST /revoke-impersonation/:userId
+     * Emergency revoke all impersonation tokens for target user
+     */
+    scope.post<{ Params: { userId: string } }>(
+      "/revoke-impersonation/:userId",
+      {
+        schema: {
+          params: adminImpersonateUserIdParamsSchema,
+          response: { 200: adminImpersonateResponseSchema },
+        },
+        preHandler: [scope.rateLimit(writeRateLimitConfig)],
+      },
+      adminController.revokeImpersonation,
     );
   });
 }

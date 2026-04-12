@@ -2,7 +2,10 @@ import type { FastifyRequest, FastifyReply } from "fastify";
 import type {
   AdminListUsersQuery,
   AdminUpdateUserInput,
+  AdminImpersonateInput,
 } from "@journiful/shared/schemas";
+import { users } from "@/db/schema/index.js";
+import { eq } from "drizzle-orm";
 
 export const adminController = {
   async listUsers(
@@ -200,6 +203,165 @@ export const adminController = {
         error: {
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to demote user",
+        },
+      });
+    }
+  },
+
+  async startImpersonation(
+    request: FastifyRequest<{
+      Params: { userId: string };
+      Body: AdminImpersonateInput;
+    }>,
+    reply: FastifyReply,
+  ) {
+    try {
+      const adminId = request.user.adminId ?? request.user.sub;
+      const { code } = request.body;
+
+      // Fetch admin's phone number for re-auth verification
+      const adminResult = await request.server.db
+        .select({ phoneNumber: users.phoneNumber })
+        .from(users)
+        .where(eq(users.id, adminId))
+        .limit(1);
+
+      const admin = adminResult[0];
+      if (!admin) {
+        return reply.status(404).send({
+          success: false,
+          error: { code: "NOT_FOUND", message: "Admin user not found" },
+        });
+      }
+
+      // Verify re-auth code against admin's phone number
+      const isValid = await request.server.verificationService.checkCode(
+        admin.phoneNumber,
+        code,
+      );
+
+      if (!isValid) {
+        return reply.status(401).send({
+          success: false,
+          error: {
+            code: "INVALID_CODE",
+            message: "Invalid verification code",
+          },
+        });
+      }
+
+      // Start impersonation
+      const token = await request.server.adminService.startImpersonation(
+        request,
+        request.params.userId,
+      );
+
+      // Set impersonation token as cookie
+      reply.setCookie("auth_token", token, {
+        httpOnly: true,
+        secure:
+          request.server.config.NODE_ENV === "production" ||
+          request.server.config.COOKIE_SECURE,
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60, // 1 hour
+        ...(request.server.config.COOKIE_DOMAIN && {
+          domain: request.server.config.COOKIE_DOMAIN,
+        }),
+      });
+
+      return reply.status(200).send({
+        success: true,
+        message: "Impersonation started",
+      });
+    } catch (error) {
+      if (error && typeof error === "object" && "statusCode" in error) {
+        throw error;
+      }
+      request.log.error({ error }, "Failed to start impersonation");
+      return reply.status(500).send({
+        success: false,
+        error: {
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to start impersonation",
+        },
+      });
+    }
+  },
+
+  async stopImpersonation(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      if (!request.user.impersonating) {
+        return reply.status(400).send({
+          success: false,
+          error: {
+            code: "BAD_REQUEST",
+            message: "Not currently impersonating",
+          },
+        });
+      }
+
+      const token = await request.server.adminService.stopImpersonation(
+        request,
+      );
+
+      // Set admin token as cookie with standard 7-day expiry
+      reply.setCookie("auth_token", token, {
+        httpOnly: true,
+        secure:
+          request.server.config.NODE_ENV === "production" ||
+          request.server.config.COOKIE_SECURE,
+        sameSite: "lax",
+        path: "/",
+        maxAge: 7 * 24 * 60 * 60, // 7 days
+        ...(request.server.config.COOKIE_DOMAIN && {
+          domain: request.server.config.COOKIE_DOMAIN,
+        }),
+      });
+
+      return reply.status(200).send({
+        success: true,
+        message: "Impersonation stopped",
+      });
+    } catch (error) {
+      if (error && typeof error === "object" && "statusCode" in error) {
+        throw error;
+      }
+      request.log.error({ error }, "Failed to stop impersonation");
+      return reply.status(500).send({
+        success: false,
+        error: {
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to stop impersonation",
+        },
+      });
+    }
+  },
+
+  async revokeImpersonation(
+    request: FastifyRequest<{ Params: { userId: string } }>,
+    reply: FastifyReply,
+  ) {
+    try {
+      await request.server.adminService.revokeImpersonation(
+        request,
+        request.params.userId,
+      );
+
+      return reply.status(200).send({
+        success: true,
+        message: "Impersonation revoked",
+      });
+    } catch (error) {
+      if (error && typeof error === "object" && "statusCode" in error) {
+        throw error;
+      }
+      request.log.error({ error }, "Failed to revoke impersonation");
+      return reply.status(500).send({
+        success: false,
+        error: {
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to revoke impersonation",
         },
       });
     }

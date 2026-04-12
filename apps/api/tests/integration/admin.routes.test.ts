@@ -363,4 +363,228 @@ describe("Admin Routes", () => {
       expect(response.statusCode).toBe(403);
     });
   });
+
+  describe("POST /api/admin/impersonate/:userId", () => {
+    it("should start impersonation with valid re-auth code", async () => {
+      app = await buildApp();
+      const admin = await createUser({ displayName: "Admin", role: "admin" });
+      const target = await createUser({ displayName: "Target" });
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/admin/impersonate/${target.id}`,
+        cookies: { auth_token: adminToken(app, admin.id) },
+        payload: { code: "123456" },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.success).toBe(true);
+      expect(body.message).toBe("Impersonation started");
+
+      // Verify cookie was set
+      const cookies = response.cookies;
+      const authCookie = cookies.find(
+        (c: { name: string }) => c.name === "auth_token",
+      );
+      expect(authCookie).toBeDefined();
+    });
+
+    it("should return 401 with wrong verification code", async () => {
+      app = await buildApp();
+      const admin = await createUser({ displayName: "Admin", role: "admin" });
+      const target = await createUser({ displayName: "Target" });
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/admin/impersonate/${target.id}`,
+        cookies: { auth_token: adminToken(app, admin.id) },
+        payload: { code: "000000" },
+      });
+
+      expect(response.statusCode).toBe(401);
+      const body = JSON.parse(response.body);
+      expect(body.error.code).toBe("INVALID_CODE");
+    });
+
+    it("should return 403 when trying to impersonate another admin", async () => {
+      app = await buildApp();
+      const admin = await createUser({ displayName: "Admin", role: "admin" });
+      const otherAdmin = await createUser({
+        displayName: "Other Admin",
+        role: "admin",
+      });
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/admin/impersonate/${otherAdmin.id}`,
+        cookies: { auth_token: adminToken(app, admin.id) },
+        payload: { code: "123456" },
+      });
+
+      expect(response.statusCode).toBe(403);
+    });
+
+    it("should return 404 for non-existent target user", async () => {
+      app = await buildApp();
+      const admin = await createUser({ displayName: "Admin", role: "admin" });
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/admin/impersonate/00000000-0000-0000-0000-000000000000",
+        cookies: { auth_token: adminToken(app, admin.id) },
+        payload: { code: "123456" },
+      });
+
+      expect(response.statusCode).toBe(404);
+    });
+
+    it("should allow impersonated requests to use target user identity", async () => {
+      app = await buildApp();
+      const admin = await createUser({ displayName: "Admin", role: "admin" });
+      const target = await createUser({ displayName: "Target User" });
+
+      // Start impersonation
+      const impersonateResponse = await app.inject({
+        method: "POST",
+        url: `/api/admin/impersonate/${target.id}`,
+        cookies: { auth_token: adminToken(app, admin.id) },
+        payload: { code: "123456" },
+      });
+
+      const impersonationCookie = impersonateResponse.cookies.find(
+        (c: { name: string }) => c.name === "auth_token",
+      );
+
+      // Use impersonation token to call /auth/me
+      const meResponse = await app.inject({
+        method: "GET",
+        url: "/api/auth/me",
+        cookies: { auth_token: impersonationCookie!.value },
+      });
+
+      expect(meResponse.statusCode).toBe(200);
+      const meBody = JSON.parse(meResponse.body);
+      expect(meBody.user.id).toBe(target.id);
+      expect(meBody.user.displayName).toBe("Target User");
+      expect(meBody.impersonating).toBe(true);
+      expect(meBody.isAdmin).toBe(true);
+      expect(meBody.impersonatingUser.id).toBe(target.id);
+    });
+  });
+
+  describe("POST /api/admin/stop-impersonate", () => {
+    it("should stop impersonation and return admin token", async () => {
+      app = await buildApp();
+      const admin = await createUser({ displayName: "Admin", role: "admin" });
+      const target = await createUser({ displayName: "Target" });
+
+      // Start impersonation
+      const impersonateResponse = await app.inject({
+        method: "POST",
+        url: `/api/admin/impersonate/${target.id}`,
+        cookies: { auth_token: adminToken(app, admin.id) },
+        payload: { code: "123456" },
+      });
+
+      const impersonationCookie = impersonateResponse.cookies.find(
+        (c: { name: string }) => c.name === "auth_token",
+      );
+
+      // Stop impersonation
+      const stopResponse = await app.inject({
+        method: "POST",
+        url: "/api/admin/stop-impersonate",
+        cookies: { auth_token: impersonationCookie!.value },
+      });
+
+      expect(stopResponse.statusCode).toBe(200);
+      const body = JSON.parse(stopResponse.body);
+      expect(body.success).toBe(true);
+      expect(body.message).toBe("Impersonation stopped");
+
+      // Verify the new token is for the admin, not the target
+      const adminCookie = stopResponse.cookies.find(
+        (c: { name: string }) => c.name === "auth_token",
+      );
+
+      const meResponse = await app.inject({
+        method: "GET",
+        url: "/api/auth/me",
+        cookies: { auth_token: adminCookie!.value },
+      });
+
+      const meBody = JSON.parse(meResponse.body);
+      expect(meBody.user.id).toBe(admin.id);
+      expect(meBody.impersonating).toBeUndefined();
+    });
+
+    it("should return 400 when not impersonating", async () => {
+      app = await buildApp();
+      const admin = await createUser({ displayName: "Admin", role: "admin" });
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/admin/stop-impersonate",
+        cookies: { auth_token: adminToken(app, admin.id) },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body);
+      expect(body.error.code).toBe("BAD_REQUEST");
+    });
+  });
+
+  describe("POST /api/admin/revoke-impersonation/:userId", () => {
+    it("should revoke impersonation for target user", async () => {
+      app = await buildApp();
+      const admin = await createUser({ displayName: "Admin", role: "admin" });
+      const target = await createUser({ displayName: "Target" });
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/admin/revoke-impersonation/${target.id}`,
+        cookies: { auth_token: adminToken(app, admin.id) },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.success).toBe(true);
+      expect(body.message).toBe("Impersonation revoked");
+    });
+  });
+
+  describe("GET /api/auth/me - admin context", () => {
+    it("should return isAdmin for admin users", async () => {
+      app = await buildApp();
+      const admin = await createUser({ displayName: "Admin", role: "admin" });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/auth/me",
+        cookies: { auth_token: adminToken(app, admin.id) },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.isAdmin).toBe(true);
+      expect(body.impersonating).toBeUndefined();
+    });
+
+    it("should not return isAdmin for regular users", async () => {
+      app = await buildApp();
+      const user = await createUser({ displayName: "Regular" });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/auth/me",
+        cookies: { auth_token: adminToken(app, user.id) },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.isAdmin).toBeUndefined();
+      expect(body.impersonating).toBeUndefined();
+    });
+  });
 });
