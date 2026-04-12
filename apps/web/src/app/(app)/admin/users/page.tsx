@@ -71,7 +71,7 @@ export default function AdminUsersPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-      <h1 className="font-display text-2xl font-bold tracking-tight mb-6">
+      <h1 className="text-2xl sm:text-4xl font-bold font-playfair mb-6">
         User Management
       </h1>
 
@@ -114,7 +114,7 @@ export default function AdminUsersPage() {
         </div>
       ) : (
         <>
-          <div className="overflow-x-auto rounded-lg border border-border">
+          <div className="overflow-x-auto bg-card rounded-md border border-border">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/50">
@@ -195,7 +195,7 @@ export default function AdminUsersPage() {
               <div className="flex gap-2">
                 <Button
                   variant="outline"
-                  size="xs"
+                  size="sm"
                   disabled={page <= 1}
                   onClick={() => setPage((p) => p - 1)}
                 >
@@ -204,7 +204,7 @@ export default function AdminUsersPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  size="xs"
+                  size="sm"
                   disabled={page >= totalPages}
                   onClick={() => setPage((p) => p + 1)}
                 >

@@ -186,10 +186,10 @@ export default function AdminUserDetailPage() {
       </Link>
 
       {/* User info header */}
-      <div className="rounded-lg border border-border p-6 mb-6">
+      <div className="bg-card rounded-md border border-border p-6 mb-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="font-display text-2xl font-bold tracking-tight">
+            <h1 className="text-2xl sm:text-4xl font-bold font-playfair">
               {user.displayName || "(no name)"}
             </h1>
             <p className="text-muted-foreground mt-1">{user.phoneNumber}</p>
@@ -212,9 +212,9 @@ export default function AdminUserDetailPage() {
       </div>
 
       {/* Edit form */}
-      <div className="rounded-lg border border-border p-6 mb-6">
+      <div className="bg-card rounded-md border border-border p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Profile</h2>
+          <h2 className="text-xl sm:text-2xl font-semibold font-playfair">Profile</h2>
           {!isEditing && (
             <Button variant="outline" size="xs" onClick={startEdit}>
               Edit
@@ -273,8 +273,8 @@ export default function AdminUserDetailPage() {
       </div>
 
       {/* Actions */}
-      <div className="rounded-lg border border-border p-6">
-        <h2 className="text-lg font-semibold mb-4">Actions</h2>
+      <div className="bg-card rounded-md border border-border p-6">
+        <h2 className="text-xl sm:text-2xl font-semibold font-playfair mb-4">Actions</h2>
         <div className="flex flex-wrap gap-3">
           {user.status === "active" ? (
             <Button
@@ -339,7 +339,7 @@ export default function AdminUserDetailPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
+            <AlertDialogTitle className="font-playfair">
               {confirmAction && confirmLabels[confirmAction]?.title}
             </AlertDialogTitle>
             <AlertDialogDescription>
@@ -362,7 +362,7 @@ export default function AdminUserDetailPage() {
       <Dialog open={impersonateOpen} onOpenChange={setImpersonateOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Impersonate {user.displayName}</DialogTitle>
+            <DialogTitle className="font-playfair">Impersonate {user.displayName}</DialogTitle>
             <DialogDescription>
               Enter your verification code to confirm your identity. A code will
               be sent to your admin phone number.
