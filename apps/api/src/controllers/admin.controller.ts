@@ -13,10 +13,11 @@ export const adminController = {
     reply: FastifyReply,
   ) {
     try {
-      const { search, status, page, limit } = request.query;
+      const { search, status, role, page, limit } = request.query;
       const result = await request.server.adminService.listUsers({
         search,
         status,
+        role,
         page,
         limit,
       });

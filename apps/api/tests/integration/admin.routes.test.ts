@@ -136,6 +136,103 @@ describe("Admin Routes", () => {
         body.users.every((u: { status: string }) => u.status === "banned"),
       ).toBe(true);
     });
+
+    it("should support role filter", async () => {
+      app = await buildApp();
+      const admin = await createUser({
+        displayName: "RoleFilterAdmin",
+        role: "admin",
+      });
+      await createUser({ displayName: "Regular User" });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/admin/users?role=admin",
+        cookies: { auth_token: adminToken(app, admin.id) },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.users.length).toBeGreaterThanOrEqual(1);
+      expect(
+        body.users.every((u: { role: string }) => u.role === "admin"),
+      ).toBe(true);
+    });
+
+    it("should search by phone number", async () => {
+      app = await buildApp();
+      const admin = await createUser({
+        displayName: "PhoneSearchAdmin",
+        role: "admin",
+      });
+      const targetPhone = "+15559876543";
+      await createUser({
+        displayName: "Phone Target",
+        phoneNumber: targetPhone,
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/admin/users?search=9876543",
+        cookies: { auth_token: adminToken(app, admin.id) },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(
+        body.users.some(
+          (u: { phoneNumber: string }) => u.phoneNumber === targetPhone,
+        ),
+      ).toBe(true);
+    });
+
+    it("should search by UUID", async () => {
+      app = await buildApp();
+      const admin = await createUser({
+        displayName: "UUIDSearchAdmin",
+        role: "admin",
+      });
+      const target = await createUser({ displayName: "UUID Target" });
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/api/admin/users?search=${target.id}`,
+        cookies: { auth_token: adminToken(app, admin.id) },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(
+        body.users.some((u: { id: string }) => u.id === target.id),
+      ).toBe(true);
+    });
+
+    it("should sort by newest first", async () => {
+      app = await buildApp();
+      const admin = await createUser({
+        displayName: "SortAdmin",
+        role: "admin",
+      });
+      await createUser({ displayName: "Older User" });
+      await createUser({ displayName: "Newer User" });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/admin/users",
+        cookies: { auth_token: adminToken(app, admin.id) },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      // Verify descending order — each createdAt should be >= the next
+      for (let i = 0; i < body.users.length - 1; i++) {
+        expect(
+          new Date(body.users[i].createdAt).getTime(),
+        ).toBeGreaterThanOrEqual(
+          new Date(body.users[i + 1].createdAt).getTime(),
+        );
+      }
+    });
   });
 
   describe("GET /api/admin/users/:id", () => {

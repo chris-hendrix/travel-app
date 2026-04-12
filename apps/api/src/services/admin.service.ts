@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { users, members, blacklistedTokens, type User } from "@/db/schema/index.js";
 import type { AppDatabase } from "@/types/index.js";
-import { eq, ilike, count, and } from "drizzle-orm";
+import { eq, or, ilike, count, and, desc } from "drizzle-orm";
 import { auditLog } from "@/utils/audit.js";
 import type { FastifyRequest, FastifyInstance } from "fastify";
 import {
@@ -18,6 +18,7 @@ export interface IAdminService {
   listUsers(params: {
     search?: string | undefined;
     status?: string | undefined;
+    role?: string | undefined;
     page: number;
     limit: number;
   }): Promise<{ users: User[]; total: number }>;
@@ -67,18 +68,33 @@ export class AdminService implements IAdminService {
   async listUsers(params: {
     search?: string | undefined;
     status?: string | undefined;
+    role?: string | undefined;
     page: number;
     limit: number;
   }): Promise<{ users: User[]; total: number }> {
-    const { search, status, page, limit } = params;
+    const { search, status, role, page, limit } = params;
     const offset = (page - 1) * limit;
 
     const conditions = [];
     if (search) {
-      conditions.push(ilike(users.displayName, `%${search}%`));
+      // Search by display name, phone number, or exact UUID match
+      const pattern = `%${search}%`;
+      const isUUID =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(search);
+      const searchConditions = [
+        ilike(users.displayName, pattern),
+        ilike(users.phoneNumber, pattern),
+      ];
+      if (isUUID) {
+        searchConditions.push(eq(users.id, search));
+      }
+      conditions.push(or(...searchConditions)!);
     }
     if (status) {
       conditions.push(eq(users.status, status));
+    }
+    if (role) {
+      conditions.push(eq(users.role, role));
     }
 
     const whereClause =
@@ -89,7 +105,7 @@ export class AdminService implements IAdminService {
         .select()
         .from(users)
         .where(whereClause)
-        .orderBy(users.createdAt)
+        .orderBy(desc(users.createdAt))
         .limit(limit)
         .offset(offset),
       this.db

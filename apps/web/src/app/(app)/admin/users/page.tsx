@@ -37,7 +37,7 @@ interface AdminUsersResponse {
 export default function AdminUsersPage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [status, setStatus] = useState<string>("all");
+  const [filter, setFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
   const limit = 20;
 
@@ -57,10 +57,11 @@ export default function AdminUsersPage() {
   queryParams.set("page", String(page));
   queryParams.set("limit", String(limit));
   if (debouncedSearch) queryParams.set("search", debouncedSearch);
-  if (status !== "all") queryParams.set("status", status);
+  if (filter === "active" || filter === "banned") queryParams.set("status", filter);
+  if (filter === "admin") queryParams.set("role", "admin");
 
   const { data, isLoading } = useQuery({
-    queryKey: ["admin", "users", { page, search: debouncedSearch, status }],
+    queryKey: ["admin", "users", { page, search: debouncedSearch, filter }],
     queryFn: () =>
       apiRequest<AdminUsersResponse>(
         `/admin/users?${queryParams.toString()}`,
@@ -79,7 +80,7 @@ export default function AdminUsersPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search by name..."
+            placeholder="Search by name, phone, or ID..."
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -89,19 +90,20 @@ export default function AdminUsersPage() {
           />
         </div>
         <Select
-          value={status}
+          value={filter}
           onValueChange={(value) => {
-            setStatus(value);
+            setFilter(value);
             setPage(1);
           }}
         >
           <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="Status" />
+            <SelectValue placeholder="Filter" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="all">All Users</SelectItem>
             <SelectItem value="active">Active</SelectItem>
             <SelectItem value="banned">Banned</SelectItem>
+            <SelectItem value="admin">Admins</SelectItem>
           </SelectContent>
         </Select>
       </div>

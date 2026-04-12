@@ -4,6 +4,7 @@ import { z } from "zod";
 export const adminListUsersQuerySchema = z.object({
   search: z.string().max(100).optional(),
   status: z.enum(["active", "banned"]).optional(),
+  role: z.enum(["user", "admin"]).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
