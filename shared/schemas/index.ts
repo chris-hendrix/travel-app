@@ -223,3 +223,17 @@ export {
   type TrackClickInput,
   type TrackImpressionsInput,
 } from "./affiliate";
+
+// Re-export admin schemas
+export {
+  adminListUsersQuerySchema,
+  adminUserIdParamsSchema,
+  adminUpdateUserSchema,
+  adminUserResponseSchema,
+  adminUserDetailResponseSchema,
+  adminUserListResponseSchema,
+  adminSuccessResponseSchema,
+  adminUpdateUserResponseSchema,
+  type AdminListUsersQuery,
+  type AdminUpdateUserInput,
+} from "./admin";
