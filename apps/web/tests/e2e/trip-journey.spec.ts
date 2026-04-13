@@ -843,14 +843,15 @@ test.describe("Trip Journey", () => {
       });
 
       await test.step("verify member selector is visible for organizer", async () => {
-        // Organizer should see the member selector
+        // Organizer should see the member selector — requires members data to be fetched,
+        // so use ELEMENT_TIMEOUT to allow for the API round-trip.
         const memberSelector = page.locator('[data-testid="member-selector"]');
-        await expect(memberSelector).toBeVisible();
+        await expect(memberSelector).toBeVisible({ timeout: ELEMENT_TIMEOUT });
 
         // Should show the helper text
         await expect(
           page.getByText("As organizer, you can add travel for any member"),
-        ).toBeVisible();
+        ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
       });
 
       await test.step("select the other member", async () => {
@@ -882,12 +883,15 @@ test.describe("Trip Journey", () => {
           .locator('input[name="location"]')
           .fill("Seattle-Tacoma Airport");
         // Expand the collapsed "More details" section to reveal the details textarea.
-        // This collapsible animation causes a React re-render that can detach DOM
-        // elements, so we wait for the textarea to be stable before continuing.
+        // This collapsible animation (150ms) causes React re-renders that can detach
+        // DOM elements. Use a toPass() retry loop so that if the element is detached
+        // between the visibility check and the fill, we retry until it sticks.
         await page.getByRole("button", { name: "More details" }).click();
         const detailsTextarea = page.locator('textarea[name="details"]');
-        await expect(detailsTextarea).toBeVisible({ timeout: ELEMENT_TIMEOUT });
-        await detailsTextarea.fill("Arriving on behalf of member");
+        await expect(async () => {
+          await expect(detailsTextarea).toBeVisible();
+          await detailsTextarea.fill("Arriving on behalf of member");
+        }).toPass({ timeout: ELEMENT_TIMEOUT });
 
         // After filling, wait for the submit button to be attached and stable.
         // The collapsible expansion can cause the form to re-render, detaching
