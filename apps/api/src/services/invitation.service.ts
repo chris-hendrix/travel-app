@@ -440,7 +440,9 @@ export class InvitationService implements IInvitationService {
     });
 
     // Send invitation SMS via queue or fallback to inline delivery
-    const inviteSmsMessage = `${inviterDisplayName} invited you to "${tripName}" on Journiful! Join at journiful.app`;
+    const safeName = inviterDisplayName.slice(0, 20);
+    const safeTrip = tripName.slice(0, 30);
+    const inviteSmsMessage = `${safeName} invited you to "${safeTrip}" on Journiful! Join at journiful.app`;
     if (this.boss && newPhones.length > 0) {
       await this.boss.insert(
         QUEUE.INVITATION_SEND,
