@@ -66,6 +66,7 @@ const envSchema = z.object({
   TWILIO_ACCOUNT_SID: z.string().default(""),
   TWILIO_AUTH_TOKEN: z.string().default(""),
   TWILIO_VERIFY_SERVICE_SID: z.string().default(""),
+  TWILIO_INVITE_MESSAGING_SERVICE_SID: z.string().default(""),
 
   // Storage Provider
   STORAGE_PROVIDER: z.enum(["local", "s3"]).default("local"),

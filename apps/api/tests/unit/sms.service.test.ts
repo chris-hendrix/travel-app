@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { MockSMSService } from "@/services/sms.service.js";
+import { SMSService } from "@/services/sms.service.js";
 
 describe("sms.service", () => {
   describe("sendMessage", () => {
@@ -7,7 +7,7 @@ describe("sms.service", () => {
     const testMessage = "Your Journiful verification code is: 123456";
 
     it("should exist and be callable", async () => {
-      const service = new MockSMSService();
+      const service = new SMSService();
       expect(service.sendMessage).toBeDefined();
       expect(typeof service.sendMessage).toBe("function");
       await expect(
@@ -16,7 +16,7 @@ describe("sms.service", () => {
     });
 
     it("should not throw when no logger is provided", async () => {
-      const service = new MockSMSService();
+      const service = new SMSService();
       await expect(
         service.sendMessage(testPhone, testMessage),
       ).resolves.toBeUndefined();
@@ -27,12 +27,12 @@ describe("sms.service", () => {
         info: vi.fn(),
       };
 
-      const service = new MockSMSService(mockLogger);
+      const service = new SMSService(mockLogger);
       await service.sendMessage(testPhone, testMessage);
 
       expect(mockLogger.info).toHaveBeenCalledTimes(1);
       expect(mockLogger.info).toHaveBeenCalledWith(
-        { phoneNumber: testPhone, message: testMessage },
+        { phoneNumber: testPhone, message: testMessage, channel: undefined },
         "SMS Message Sent",
       );
     });
@@ -42,7 +42,7 @@ describe("sms.service", () => {
         info: vi.fn(),
       };
 
-      const service = new MockSMSService(mockLogger);
+      const service = new SMSService(mockLogger);
       await service.sendMessage(testPhone, testMessage);
 
       const logData = mockLogger.info.mock.calls[0][0] as Record<
@@ -57,7 +57,7 @@ describe("sms.service", () => {
         info: vi.fn(),
       };
 
-      const service = new MockSMSService(mockLogger);
+      const service = new SMSService(mockLogger);
       await service.sendMessage(testPhone, testMessage);
 
       const logData = mockLogger.info.mock.calls[0][0] as Record<
@@ -72,7 +72,7 @@ describe("sms.service", () => {
         info: vi.fn(),
       };
 
-      const service = new MockSMSService(mockLogger);
+      const service = new SMSService(mockLogger);
       const customMessage = "You've been invited to a trip on Journiful!";
       await service.sendMessage(testPhone, customMessage);
 
@@ -88,7 +88,7 @@ describe("sms.service", () => {
         info: vi.fn(),
       };
 
-      const service = new MockSMSService(mockLogger);
+      const service = new SMSService(mockLogger);
       await service.sendMessage(testPhone, testMessage);
 
       const logMessage = mockLogger.info.mock.calls[0][1];

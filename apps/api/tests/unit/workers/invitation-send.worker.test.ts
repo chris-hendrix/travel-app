@@ -41,6 +41,7 @@ describe("invitation-send.worker", () => {
     expect(mockDeps.smsService.sendMessage).toHaveBeenCalledWith(
       "+15559876543",
       "You've been invited to a trip on Journiful!",
+      "invite",
     );
   });
 

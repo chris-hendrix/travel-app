@@ -4,7 +4,7 @@ import { users, trips, members } from "@/db/schema/index.js";
 import { eq, and, or } from "drizzle-orm";
 import { InvitationService } from "@/services/invitation.service.js";
 import { PermissionsService } from "@/services/permissions.service.js";
-import { MockSMSService } from "@/services/sms.service.js";
+import { SMSService } from "@/services/sms.service.js";
 import { generateUniquePhone } from "../test-utils.js";
 import {
   PermissionDeniedError,
@@ -17,7 +17,7 @@ import {
 
 // Create service instances with db for testing
 const permissionsService = new PermissionsService(db);
-const smsService = new MockSMSService();
+const smsService = new SMSService();
 const invitationService = new InvitationService(
   db,
   permissionsService,

@@ -440,13 +440,14 @@ export class InvitationService implements IInvitationService {
     });
 
     // Send invitation SMS via queue or fallback to inline delivery
+    const inviteSmsMessage = `${inviterDisplayName} invited you to "${tripName}" on Journiful! Join at journiful.app`;
     if (this.boss && newPhones.length > 0) {
       await this.boss.insert(
         QUEUE.INVITATION_SEND,
         newPhones.map((phone) => ({
           data: {
             phoneNumber: phone,
-            message: "You've been invited to a trip on Journiful!",
+            message: inviteSmsMessage,
           } as InvitationSendPayload,
         })),
       );
@@ -454,7 +455,8 @@ export class InvitationService implements IInvitationService {
       for (const phone of newPhones) {
         await this.smsService.sendMessage(
           phone,
-          "You've been invited to a trip on Journiful!",
+          inviteSmsMessage,
+          "invite",
         );
       }
     }
