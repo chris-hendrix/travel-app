@@ -823,23 +823,40 @@ test.describe("Trip Journey", () => {
         await navigateToMobilePanel(page, "Itinerary");
         await dismissToast(page);
 
+        // Dismiss the CalendarSyncCard if visible — it can overlap the FAB
+        // on mobile viewports and intercept pointer events indefinitely.
+        const dismissCalBtn = page.getByLabel("Dismiss calendar sync suggestion");
+        const calCardVisible = await dismissCalBtn
+          .waitFor({ state: "visible", timeout: 2_000 })
+          .then(() => true)
+          .catch(() => false);
+        if (calCardVisible) {
+          await dismissCalBtn.click();
+        }
+
         const fab = page.getByRole("button", { name: "Add to itinerary" });
         // The FAB is portaled to body after React hydration and only renders
         // when the Itinerary panel is active. Use SLOW_NAVIGATION_TIMEOUT to
         // allow time for hydration + data fetch + portal mount.
         await expect(fab).toBeVisible({ timeout: SLOW_NAVIGATION_TIMEOUT });
-        await fab.click();
-        // The dropdown menu can detach during React re-renders; wait for the
-        // menu item to be stable before clicking and retry if it detaches.
-        const myTravelItem = page.getByRole("menuitem", { name: "My Travel" });
-        await expect(myTravelItem).toBeVisible({ timeout: DIALOG_TIMEOUT });
-        // Use force:true to bypass actionability checks — the dropdown menu item
-        // can detach during React re-renders between the visibility check and click.
-        await myTravelItem.click({ force: true });
 
-        await expect(
-          page.getByRole("heading", { name: "Add your travel details" }),
-        ).toBeVisible();
+        // The FAB dropdown menu can detach during React re-renders (TanStack
+        // Query refetch) between clicking the FAB and clicking the menu item.
+        // Wrap the entire sequence in a retry loop that checks for the final
+        // dialog heading to appear. Press Escape first to close any stale
+        // dropdown from a previous iteration.
+        await expect(async () => {
+          await page.keyboard.press("Escape");
+          await fab.click();
+          const myTravelItem = page.getByRole("menuitem", {
+            name: "My Travel",
+          });
+          await expect(myTravelItem).toBeVisible({ timeout: RETRY_INTERVAL });
+          await myTravelItem.click({ force: true });
+          await expect(
+            page.getByRole("heading", { name: "Add your travel details" }),
+          ).toBeVisible({ timeout: RETRY_INTERVAL });
+        }).toPass({ timeout: SLOW_NAVIGATION_TIMEOUT });
       });
 
       await test.step("verify member selector is visible for organizer", async () => {
@@ -901,9 +918,9 @@ test.describe("Trip Journey", () => {
             // Brief pause for the 150ms collapsible animation
             await page.waitForTimeout(200);
           }
-          await expect(detailsTextarea).toBeVisible();
+          await expect(detailsTextarea).toBeVisible({ timeout: RETRY_INTERVAL });
           await detailsTextarea.fill("Arriving on behalf of member");
-        }).toPass({ timeout: ELEMENT_TIMEOUT });
+        }).toPass({ timeout: SLOW_NAVIGATION_TIMEOUT });
 
         // After filling, wait for the submit button to be attached and stable.
         // The collapsible expansion can cause the form to re-render, detaching

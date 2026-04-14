@@ -34,6 +34,17 @@ export async function clickFabAction(page: Page, actionName: string) {
   // Dismiss any Sonner toast so it doesn't intercept the click.
   await dismissToast(page);
 
+  // Dismiss the CalendarSyncCard if visible — it can overlap the FAB
+  // on mobile viewports and intercept pointer events.
+  const dismissCalBtn = page.getByLabel("Dismiss calendar sync suggestion");
+  const calCardVisible = await dismissCalBtn
+    .waitFor({ state: "visible", timeout: 1_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (calCardVisible) {
+    await dismissCalBtn.click();
+  }
+
   const fab = page.getByRole("button", { name: "Add to itinerary" });
 
   // Wait for either the FAB or the itinerary content to load.

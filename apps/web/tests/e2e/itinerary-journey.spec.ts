@@ -376,10 +376,8 @@ test.describe("Itinerary Journey", () => {
         const header = page.getByTestId("itinerary-header");
         await expect(header).toBeVisible();
 
-        // Filter pills should be visible on mobile too
-        await expect(
-          header.locator("button").filter({ hasText: "All" }),
-        ).toBeVisible();
+        // Filter pills should be visible on mobile too (icon-only pills)
+        await expect(header.locator("button").first()).toBeVisible();
         await expect(page.getByText(/Lunch/)).toBeVisible();
         await expect(
           page.getByRole("button", { name: "Add to itinerary" }),

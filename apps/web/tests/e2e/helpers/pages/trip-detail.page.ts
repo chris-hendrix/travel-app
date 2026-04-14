@@ -31,7 +31,9 @@ export class TripDetailPage {
     this.destinationInput = page.getByLabel(/destination/i);
     this.startDateButton = page.getByRole("button", { name: "Start date" });
     this.endDateButton = page.getByRole("button", { name: "End date" });
-    this.descriptionInput = page.getByLabel(/description/i);
+    this.descriptionInput = page
+      .getByRole("dialog")
+      .getByLabel(/description/i);
     this.continueButton = page.getByRole("button", { name: "Continue" });
     this.backButton = page.getByRole("button", { name: "Back" });
     this.createTripButton = page.getByRole("button", { name: "Create trip" });
