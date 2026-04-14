@@ -17,7 +17,9 @@ import { CreateEventDialog } from "./create-event-dialog";
 import { CreateAccommodationDialog } from "./create-accommodation-dialog";
 import { CreateMemberTravelDialog } from "./create-member-travel-dialog";
 
-export type ItineraryFilter = "all" | "activity" | "meal" | "travel" | "members";
+export type ItineraryFilterCategory = "activity" | "meal" | "travel" | "members";
+export type ItineraryFilter = Set<ItineraryFilterCategory>;
+export const ALL_FILTER_CATEGORIES: ItineraryFilterCategory[] = ["activity", "meal", "travel", "members"];
 
 function getTimezoneAbbr(tz: string): string {
   try {
@@ -31,8 +33,7 @@ function getTimezoneAbbr(tz: string): string {
   }
 }
 
-const FILTER_OPTIONS: { value: ItineraryFilter; label: string; icon?: LucideIcon }[] = [
-  { value: "all", label: "All" },
+const FILTER_OPTIONS: { value: ItineraryFilterCategory; label: string; icon: LucideIcon }[] = [
   { value: "activity", label: "Activity", icon: Calendar },
   { value: "meal", label: "Meal", icon: Utensils },
   { value: "travel", label: "Travel", icon: Car },
@@ -41,7 +42,7 @@ const FILTER_OPTIONS: { value: ItineraryFilter; label: string; icon?: LucideIcon
 
 interface ItineraryHeaderProps {
   filter: ItineraryFilter;
-  onFilterChange: (filter: ItineraryFilter) => void;
+  onToggleFilter: (category: ItineraryFilterCategory) => void;
   selectedTimezone: string;
   onTimezoneChange: (tz: string) => void;
   tripTimezone: string;
@@ -58,7 +59,7 @@ interface ItineraryHeaderProps {
 
 export function ItineraryHeader({
   filter,
-  onFilterChange,
+  onToggleFilter,
   selectedTimezone,
   onTimezoneChange,
   tripTimezone,
@@ -104,19 +105,15 @@ export function ItineraryHeader({
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => onFilterChange(opt.value)}
+                  onClick={() => onToggleFilter(opt.value)}
                   className={cn(
                     "inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors shrink-0 cursor-pointer",
-                    filter === opt.value
+                    filter.has(opt.value)
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground",
                   )}
                 >
-                  {opt.icon ? (
-                    <opt.icon className="w-3.5 h-3.5" />
-                  ) : (
-                    opt.label
-                  )}
+                  <opt.icon className="w-3.5 h-3.5" />
                 </button>
               ))}
             </div>

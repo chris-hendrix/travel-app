@@ -17,7 +17,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTripDetail } from "@/hooks/use-trips";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ItineraryHeader } from "./itinerary-header";
+import { ItineraryHeader, ALL_FILTER_CATEGORIES, type ItineraryFilter, type ItineraryFilterCategory } from "./itinerary-header";
 import { DayByDayView } from "./day-by-day-view";
 import { CreateEventDialog } from "./create-event-dialog";
 import { CreateAccommodationDialog } from "./create-accommodation-dialog";
@@ -127,8 +127,22 @@ export function ItineraryView({
     allAccommodations.some((a) => a.deletedAt !== null) ||
     allMemberTravels.some((t) => t.deletedAt !== null);
 
-  // Filter state
-  const [filter, setFilter] = useState<"all" | "activity" | "meal" | "travel" | "members">("all");
+  // Filter state — default all categories active
+  const [filter, setFilter] = useState<ItineraryFilter>(() => new Set(ALL_FILTER_CATEGORIES));
+
+  const handleToggleFilter = useCallback((category: ItineraryFilterCategory) => {
+    setFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) {
+        next.delete(category);
+        // If last one deselected, snap back to all
+        if (next.size === 0) return new Set(ALL_FILTER_CATEGORIES);
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
+  }, []);
   const tripTimezone = trip?.preferredTimezone || "UTC";
   const userTimezone =
     user?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -317,7 +331,7 @@ export function ItineraryView({
       {/* Header with filter pills + timezone */}
       <ItineraryHeader
         filter={filter}
-        onFilterChange={setFilter}
+        onToggleFilter={handleToggleFilter}
         selectedTimezone={selectedTimezone}
         onTimezoneChange={setSelectedTimezone}
         tripTimezone={tripTimezone}
