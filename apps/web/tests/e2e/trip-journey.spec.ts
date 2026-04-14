@@ -823,16 +823,16 @@ test.describe("Trip Journey", () => {
         await navigateToMobilePanel(page, "Itinerary");
         await dismissToast(page);
 
-        // Dismiss the CalendarSyncCard if visible — it can overlap the FAB
-        // on mobile viewports and intercept pointer events indefinitely.
-        const dismissCalBtn = page.getByLabel("Dismiss calendar sync suggestion");
-        const calCardVisible = await dismissCalBtn
-          .waitFor({ state: "visible", timeout: 2_000 })
-          .then(() => true)
-          .catch(() => false);
-        if (calCardVisible) {
-          await dismissCalBtn.click();
-        }
+        // Dismiss the CalendarSyncCard via localStorage — the card lives in
+        // the Info panel (swiper slide 0), so its dismiss button may be in the
+        // DOM but off-screen when the Itinerary panel is active.  Clicking an
+        // off-screen swiper element hangs forever ("waiting for element to be
+        // visible, enabled and stable").  Setting localStorage directly is
+        // reliable regardless of which slide is active.
+        await page.evaluate(() =>
+          localStorage.setItem("calendar-sync-card-dismissed", "true"),
+        );
+        await page.waitForTimeout(200);
 
         const fab = page.getByRole("button", { name: "Add to itinerary" });
         // The FAB is portaled to body after React hydration and only renders
