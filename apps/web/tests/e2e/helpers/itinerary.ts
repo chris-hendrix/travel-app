@@ -34,6 +34,18 @@ export async function clickFabAction(page: Page, actionName: string) {
   // Dismiss any Sonner toast so it doesn't intercept the click.
   await dismissToast(page);
 
+  // Dismiss the CalendarSyncCard via localStorage — the card lives in the
+  // Info panel (swiper slide 0), so its dismiss button may be in the DOM but
+  // off-screen when the Itinerary panel is active.  Clicking an off-screen
+  // swiper element hangs forever ("waiting for element to be visible, enabled
+  // and stable").  Setting localStorage directly is reliable regardless of
+  // which slide is active; the React component re-renders and hides itself.
+  await page.evaluate(() =>
+    localStorage.setItem("calendar-sync-card-dismissed", "true"),
+  );
+  // Give React a tick to re-render and remove the card from the DOM.
+  await page.waitForTimeout(200);
+
   const fab = page.getByRole("button", { name: "Add to itinerary" });
 
   // Wait for either the FAB or the itinerary content to load.
@@ -113,7 +125,8 @@ export async function createEvent(
   }
 
   if (options?.description) {
-    await page.getByLabel(/description/i).fill(options.description);
+    const dialog = page.getByRole("dialog");
+    await dialog.getByLabel(/description/i).fill(options.description);
   }
 
   if (options?.location) {

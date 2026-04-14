@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ItineraryHeader } from "../itinerary-header";
+import { ItineraryHeader, ALL_FILTER_CATEGORIES } from "../itinerary-header";
 
 // Mock useAuth (required by CreateMemberTravelDialog rendered inside ItineraryHeader)
 vi.mock("@/app/providers/auth-provider", () => ({
@@ -57,8 +57,8 @@ describe("ItineraryHeader", () => {
   let queryClient: QueryClient;
 
   const defaultProps = {
-    filter: "all" as const,
-    onFilterChange: vi.fn(),
+    filter: new Set(ALL_FILTER_CATEGORIES),
+    onToggleFilter: vi.fn(),
     selectedTimezone: "America/Los_Angeles",
     onTimezoneChange: vi.fn(),
     tripTimezone: "America/Los_Angeles",
@@ -101,34 +101,35 @@ describe("ItineraryHeader", () => {
   });
 
   describe("Filter pills", () => {
-    it("highlights 'All' pill when selected", () => {
+    it("highlights all pills when all categories are active", () => {
       renderWithQueryClient(
-        <ItineraryHeader {...defaultProps} filter="all" />,
+        <ItineraryHeader {...defaultProps} filter={new Set(ALL_FILTER_CATEGORIES)} />,
       );
 
-      const allButton = screen.getByText("All");
-      expect(allButton.className).toContain("bg-primary");
+      // All 4 category pills should be highlighted
+      const buttons = screen.getAllByRole("button");
+      const pills = buttons.slice(0, 4);
+      pills.forEach((pill) => {
+        expect(pill.className).toContain("bg-primary");
+      });
     });
 
-    it("calls onFilterChange when a filter pill is clicked", async () => {
+    it("calls onToggleFilter when a filter pill is clicked", async () => {
       const user = userEvent.setup({ pointerEventsCheck: 0 });
-      const onFilterChange = vi.fn();
+      const onToggleFilter = vi.fn();
 
       renderWithQueryClient(
         <ItineraryHeader
           {...defaultProps}
-          onFilterChange={onFilterChange}
+          onToggleFilter={onToggleFilter}
         />,
       );
 
-      // Click the Activity filter pill (🎯 emoji)
+      // Click the first filter pill (Activity)
       const buttons = screen.getAllByRole("button");
-      // Filter pills are the first buttons in the header
-      const activityPill = buttons.find((b) => b.textContent?.includes("\uD83C\uDFAF"));
-      expect(activityPill).toBeDefined();
-      await user.click(activityPill!);
+      await user.click(buttons[0]!);
 
-      expect(onFilterChange).toHaveBeenCalledWith("activity");
+      expect(onToggleFilter).toHaveBeenCalledWith("activity");
     });
   });
 

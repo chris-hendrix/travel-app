@@ -17,11 +17,16 @@ export function TripTabNav({ tripId }: { tripId: string }) {
     TABS.find((t) => pathname.endsWith(t.value))?.value ?? "itinerary";
 
   return (
-    <div className="hidden lg:flex mb-4">
+    <div className="hidden lg:flex mb-6 border-b border-border">
       <Tabs value={activeTab}>
         <TabsList variant="line">
           {TABS.map((tab) => (
-            <TabsTrigger key={tab.value} value={tab.value} asChild>
+            <TabsTrigger
+              key={tab.value}
+              value={tab.value}
+              asChild
+              className="text-base tracking-wide px-4 py-2"
+            >
               <Link href={`/trips/${tripId}/${tab.value}`}>{tab.label}</Link>
             </TabsTrigger>
           ))}

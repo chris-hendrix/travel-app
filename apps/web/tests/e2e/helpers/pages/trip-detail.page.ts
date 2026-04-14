@@ -22,7 +22,7 @@ export class TripDetailPage {
   constructor(page: Page) {
     this.page = page;
     this.tripHeading = page.getByRole("heading", { level: 1 });
-    this.editButton = page.getByRole("button", { name: "Edit trip" });
+    this.editButton = page.getByRole("button", { name: "Edit trip", exact: true });
     this.editDialogHeading = page.getByRole("heading", { name: "Edit trip" });
     this.createDialogHeading = page.getByRole("heading", {
       name: "Create a new trip",
@@ -31,7 +31,9 @@ export class TripDetailPage {
     this.destinationInput = page.getByLabel(/destination/i);
     this.startDateButton = page.getByRole("button", { name: "Start date" });
     this.endDateButton = page.getByRole("button", { name: "End date" });
-    this.descriptionInput = page.getByLabel(/description/i);
+    this.descriptionInput = page
+      .getByRole("dialog")
+      .getByLabel(/description/i);
     this.continueButton = page.getByRole("button", { name: "Continue" });
     this.backButton = page.getByRole("button", { name: "Back" });
     this.createTripButton = page.getByRole("button", { name: "Create trip" });

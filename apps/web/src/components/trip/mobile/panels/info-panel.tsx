@@ -23,6 +23,7 @@ import { MemberProfileSheet } from "@/components/trip/member-profile-sheet";
 import { useAccommodations } from "@/hooks/use-accommodations";
 import { useSuggestions, useDismissSuggestion } from "@/hooks/use-suggestions";
 import { SuggestionCard } from "@/components/itinerary/suggestion-card";
+import { CalendarSyncCard } from "@/components/trip/calendar-sync-card";
 import { membersQueryOptions } from "@/hooks/invitation-queries";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/app/providers/auth-provider";
@@ -300,7 +301,19 @@ export function InfoPanel({
         {/* 3. Accommodations */}
         {((accommodations && accommodations.length > 0) || (isOrganizer && !isLocked)) && (
           <div>
-            <h3 className="text-sm font-semibold text-foreground mb-3">Accommodations</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-foreground">Accommodations</h3>
+              {isOrganizer && !isLocked && accommodations && accommodations.length > 0 && (
+                <button
+                  onClick={() => setIsCreateAccommodationOpen(true)}
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  aria-label="Add accommodation"
+                >
+                  <Plus className="size-3.5" />
+                  Add
+                </button>
+              )}
+            </div>
             {accommodations && accommodations.length > 0 ? (
               <div className="space-y-2">
                 {accommodations.map((acc) => (
@@ -358,7 +371,19 @@ export function InfoPanel({
         {/* 4. Today section (only during trip) */}
         {phase === "duringTrip" && (
           <div>
-            <h3 className="text-sm font-semibold text-foreground mb-3">{todayLabelNode}</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-foreground">{todayLabelNode}</h3>
+              {isOrganizer && !isLocked && (
+                <button
+                  onClick={() => setIsCreateEventOpen(true)}
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  aria-label="Add event"
+                >
+                  <Plus className="size-3.5" />
+                  Add
+                </button>
+              )}
+            </div>
             <TodaySection
               tripId={tripId}
               timezone={timezone}
@@ -373,15 +398,42 @@ export function InfoPanel({
           </div>
         )}
 
+        {/* 5b. Calendar sync suggestion */}
+        <CalendarSyncCard />
+
         {/* 6. About this trip */}
-        {trip.description && (
+        {(trip.description || isOrganizer) && (
           <div>
-            <h3 className="text-sm font-semibold text-foreground mb-3">About this trip</h3>
-            <div className="bg-card rounded-md border border-border p-4 linen-texture">
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">
-                {linkifyText(trip.description)}
-              </p>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-foreground">About this trip</h3>
+              {isOrganizer && (
+                <button
+                  onClick={onOpenEdit}
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  aria-label="Edit trip description"
+                >
+                  <Pencil className="size-3" />
+                  Edit
+                </button>
+              )}
             </div>
+            {trip.description ? (
+              <div className="bg-card rounded-md border border-border p-4 linen-texture">
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">
+                  {linkifyText(trip.description)}
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No description.{" "}
+                <button
+                  onClick={onOpenEdit}
+                  className="text-primary hover:underline transition-colors"
+                >
+                  Add one
+                </button>
+              </p>
+            )}
           </div>
         )}
 

@@ -332,14 +332,15 @@ test.describe("Itinerary Journey", () => {
       await snap(page, "10-itinerary-day-by-day");
 
       await test.step("filter by type using pills", async () => {
-        // The itinerary header now uses filter pills instead of view toggle.
-        // Pills: All (text) | Activity (icon) | Meal (icon) | Travel (icon) | Members (icon)
+        // The itinerary header uses multi-select filter pills (icon-only).
+        // Pills: Activity (0) | Meal (1) | Travel (2) | Members (3)
+        // Default state: all selected. Clicking a pill deselects it.
         const header = page.getByTestId("itinerary-header");
         await expect(header).toBeVisible();
 
-        // Click the Meal filter pill (3rd pill, index 2)
+        // Deselect the Activity pill (index 0) to hide activity events
         const pills = header.locator("button");
-        await pills.nth(2).click();
+        await pills.nth(0).click();
 
         // Should still show meal events
         await expect(page.getByText(/Lunch/)).toBeVisible();
@@ -351,8 +352,8 @@ test.describe("Itinerary Journey", () => {
 
       await test.step("reset filter to all", async () => {
         const header = page.getByTestId("itinerary-header");
-        // Click "All" pill (first pill, shows text)
-        await header.locator("button").filter({ hasText: "All" }).click();
+        // Re-select the Activity pill (index 0) to show all categories again
+        await header.locator("button").nth(0).click();
         await expect(page.getByText(/Lunch/)).toBeVisible();
         await expect(page.getByText(/Show/)).toBeVisible();
       });
@@ -375,10 +376,8 @@ test.describe("Itinerary Journey", () => {
         const header = page.getByTestId("itinerary-header");
         await expect(header).toBeVisible();
 
-        // Filter pills should be visible on mobile too
-        await expect(
-          header.locator("button").filter({ hasText: "All" }),
-        ).toBeVisible();
+        // Filter pills should be visible on mobile too (icon-only pills)
+        await expect(header.locator("button").first()).toBeVisible();
         await expect(page.getByText(/Lunch/)).toBeVisible();
         await expect(
           page.getByRole("button", { name: "Add to itinerary" }),

@@ -33,7 +33,7 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 
-export type ItineraryFilter = "all" | "activity" | "meal" | "travel" | "members";
+import type { ItineraryFilter } from "./itinerary-header";
 
 interface DayByDayViewProps {
   events: Event[];
@@ -82,7 +82,7 @@ export function DayByDayView({
   isLocked,
   forecasts,
   temperatureUnit,
-  filter = "all",
+  filter,
   tripId,
   daySuggestions,
   onDismissSuggestion,
@@ -228,35 +228,29 @@ export function DayByDayView({
   ]);
 
   // Apply filter to day data
+  const allActive = !filter || filter.size === 4;
   const filteredDayData = useMemo(() => {
-    if (filter === "all") return dayData;
+    if (allActive) return dayData;
+
+    const showMembers = filter!.has("members");
+    const eventTypes = new Set(
+      (["activity", "meal", "travel"] as const).filter((t) => filter!.has(t)),
+    );
 
     return dayData
-      .map((day) => {
-        if (filter === "members") {
-          // Show only member travels
-          return {
-            ...day,
-            events: [],
-            arrivals: day.arrivals,
-            departures: day.departures,
-          };
-        }
-        // Filter events by type, hide member travels
-        return {
-          ...day,
-          events: day.events.filter((e) => e.eventType === filter),
-          arrivals: [],
-          departures: [],
-        };
-      })
+      .map((day) => ({
+        ...day,
+        events: day.events.filter((e) => eventTypes.has(e.eventType as "activity" | "meal" | "travel")),
+        arrivals: showMembers ? day.arrivals : [],
+        departures: showMembers ? day.departures : [],
+      }))
       .filter(
         (day) =>
           day.events.length > 0 ||
           day.arrivals.length > 0 ||
           day.departures.length > 0,
       );
-  }, [dayData, filter]);
+  }, [dayData, filter, allActive]);
 
   // Detail sheet state
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
@@ -461,7 +455,7 @@ export function DayByDayView({
       {filteredDayData.length === 0 && (
         <div className="bg-card rounded-md border border-border p-8 text-center">
           <p className="text-muted-foreground">
-            {filter !== "all"
+            {!allActive
               ? "No matching items for this filter."
               : "No trip dates set. Set trip dates to see a day-by-day view."}
           </p>

@@ -50,8 +50,8 @@ export function BalanceList({ tripId, onSettleUp }: BalanceListProps) {
   if (!sorted || sorted.length === 0) {
     return (
       <div className="flex items-center gap-2 rounded-md bg-card linen-texture border border-border p-4 text-center justify-center">
-        <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-        <span className="text-sm font-medium text-green-600 dark:text-green-400">
+        <CheckCircle2 className="h-4 w-4 text-success" />
+        <span className="text-sm font-medium text-success">
           All settled up!
         </span>
       </div>

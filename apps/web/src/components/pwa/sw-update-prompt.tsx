@@ -36,11 +36,14 @@ export function SwUpdatePrompt() {
 
   const handleUpdate = useCallback(() => {
     if (!waitingWorker) return;
-    // Reload once the new SW takes control
+    // The SW calls skipWaiting() on install, so it may already be active.
+    // Send SKIP_WAITING as a fallback, then reload regardless.
     navigator.serviceWorker.addEventListener("controllerchange", () => {
       window.location.reload();
     });
     waitingWorker.postMessage({ type: "SKIP_WAITING" });
+    // If controllerchange already fired (SW auto-skipped), reload after a brief delay
+    setTimeout(() => window.location.reload(), 300);
   }, [waitingWorker]);
 
   if (!waitingWorker) return null;
