@@ -113,7 +113,8 @@ export async function createEvent(
   }
 
   if (options?.description) {
-    await page.getByLabel(/description/i).fill(options.description);
+    const dialog = page.getByRole("dialog");
+    await dialog.getByLabel(/description/i).fill(options.description);
   }
 
   if (options?.location) {

@@ -92,7 +92,7 @@ test.describe("Trip Journey", () => {
         .soft(page.getByRole("button", { name: "Going" }).first())
         .toBeVisible();
       await expect(
-        page.getByRole("button", { name: "Edit trip" }),
+        page.getByRole("button", { name: "Edit trip", exact: true }),
       ).toBeVisible();
       await snap(page, "07-trip-detail");
     });

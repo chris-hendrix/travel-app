@@ -22,7 +22,7 @@ export class TripDetailPage {
   constructor(page: Page) {
     this.page = page;
     this.tripHeading = page.getByRole("heading", { level: 1 });
-    this.editButton = page.getByRole("button", { name: "Edit trip" });
+    this.editButton = page.getByRole("button", { name: "Edit trip", exact: true });
     this.editDialogHeading = page.getByRole("heading", { name: "Edit trip" });
     this.createDialogHeading = page.getByRole("heading", {
       name: "Create a new trip",

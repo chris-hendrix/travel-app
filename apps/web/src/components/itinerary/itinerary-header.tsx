@@ -145,7 +145,7 @@ export function ItineraryHeader({
             <DropdownMenuTrigger asChild>
               <Button
                 variant="gradient"
-                className={`fixed bottom-20 right-6 md:bottom-safe-8 md:right-8 lg:absolute lg:bottom-0 lg:right-0 z-50 rounded-full w-14 h-14 shadow-lg transition-all duration-300 ease-out ${
+                className={`fixed bottom-20 right-6 md:bottom-safe-8 md:right-8 z-50 rounded-full w-14 h-14 shadow-lg transition-all duration-300 ease-out ${
                   hideFab
                     ? "opacity-0 scale-75 pointer-events-none"
                     : "opacity-100 scale-100"
