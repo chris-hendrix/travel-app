@@ -886,16 +886,21 @@ test.describe("Trip Journey", () => {
           .locator('input[name="location"]')
           .fill("Seattle-Tacoma Airport");
         // Expand the collapsed "More details" section to reveal the details textarea.
-        // The collapsible animation (150ms) plus subsequent React re-renders can detach
-        // DOM elements. Wait for the animation to fully settle before interacting, then
-        // use a toPass() retry loop as a safety net for any late re-renders.
+        // On CI, the click on the CollapsibleTrigger can be swallowed during a React
+        // re-render (e.g., after filling the location input). If the click is lost, the
+        // collapsible never opens and the textarea never appears — no amount of waiting
+        // helps. Fix: put the click *inside* the toPass() retry loop, but only click
+        // when the trigger is in the "closed" state (Radix sets data-state="open" once
+        // expanded) to avoid toggling it back closed on a successful retry.
         const moreDetailsBtn = page.getByRole("button", { name: "More details" });
-        await moreDetailsBtn.click();
-        // Wait for collapsible animation (150ms) + React re-render cycle to settle.
-        // Without this pause, every toPass() attempt hits a detached element.
-        await page.waitForTimeout(500);
         const detailsTextarea = page.locator('textarea[name="details"]');
         await expect(async () => {
+          const state = await moreDetailsBtn.getAttribute("data-state");
+          if (state !== "open") {
+            await moreDetailsBtn.click();
+            // Brief pause for the 150ms collapsible animation
+            await page.waitForTimeout(200);
+          }
           await expect(detailsTextarea).toBeVisible();
           await detailsTextarea.fill("Arriving on behalf of member");
         }).toPass({ timeout: ELEMENT_TIMEOUT });
