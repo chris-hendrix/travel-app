@@ -843,15 +843,18 @@ test.describe("Trip Journey", () => {
       });
 
       await test.step("verify member selector is visible for organizer", async () => {
-        // Organizer should see the member selector — requires members data to be fetched,
-        // so use ELEMENT_TIMEOUT to allow for the API round-trip.
+        // Organizer should see the member selector — requires members data to be fetched.
+        // The useMembers() hook fires after the dialog opens, so the selector may not
+        // render until the API response arrives. Wrap in toPass() to retry until the
+        // TanStack Query settles and the conditional render (`isOrganizer && members`)
+        // evaluates to true.
         const memberSelector = page.locator('[data-testid="member-selector"]');
-        await expect(memberSelector).toBeVisible({ timeout: ELEMENT_TIMEOUT });
-
-        // Should show the helper text
-        await expect(
-          page.getByText("As organizer, you can add travel for any member"),
-        ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+        await expect(async () => {
+          await expect(memberSelector).toBeVisible();
+          await expect(
+            page.getByText("As organizer, you can add travel for any member"),
+          ).toBeVisible();
+        }).toPass({ timeout: SLOW_NAVIGATION_TIMEOUT });
       });
 
       await test.step("select the other member", async () => {
@@ -883,10 +886,14 @@ test.describe("Trip Journey", () => {
           .locator('input[name="location"]')
           .fill("Seattle-Tacoma Airport");
         // Expand the collapsed "More details" section to reveal the details textarea.
-        // This collapsible animation (150ms) causes React re-renders that can detach
-        // DOM elements. Use a toPass() retry loop so that if the element is detached
-        // between the visibility check and the fill, we retry until it sticks.
-        await page.getByRole("button", { name: "More details" }).click();
+        // The collapsible animation (150ms) plus subsequent React re-renders can detach
+        // DOM elements. Wait for the animation to fully settle before interacting, then
+        // use a toPass() retry loop as a safety net for any late re-renders.
+        const moreDetailsBtn = page.getByRole("button", { name: "More details" });
+        await moreDetailsBtn.click();
+        // Wait for collapsible animation (150ms) + React re-render cycle to settle.
+        // Without this pause, every toPass() attempt hits a detached element.
+        await page.waitForTimeout(500);
         const detailsTextarea = page.locator('textarea[name="details"]');
         await expect(async () => {
           await expect(detailsTextarea).toBeVisible();
