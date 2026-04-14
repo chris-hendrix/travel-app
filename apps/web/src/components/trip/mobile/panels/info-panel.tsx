@@ -23,6 +23,7 @@ import { MemberProfileSheet } from "@/components/trip/member-profile-sheet";
 import { useAccommodations } from "@/hooks/use-accommodations";
 import { useSuggestions, useDismissSuggestion } from "@/hooks/use-suggestions";
 import { SuggestionCard } from "@/components/itinerary/suggestion-card";
+import { CalendarSyncCard } from "@/components/trip/calendar-sync-card";
 import { membersQueryOptions } from "@/hooks/invitation-queries";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/app/providers/auth-provider";
@@ -396,6 +397,9 @@ export function InfoPanel({
             />
           </div>
         )}
+
+        {/* 5b. Calendar sync suggestion */}
+        <CalendarSyncCard />
 
         {/* 6. About this trip */}
         {(trip.description || isOrganizer) && (
