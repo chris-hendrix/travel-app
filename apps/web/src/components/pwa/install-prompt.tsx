@@ -29,6 +29,8 @@ export function InstallPrompt() {
     if (isDismissed()) return;
     // Already in standalone mode — no need to prompt
     if (window.matchMedia("(display-mode: standalone)").matches) return;
+    // Skip on desktop — PWA install only adds value on mobile
+    if (!("ontouchstart" in window || navigator.maxTouchPoints > 0)) return;
 
     const handler = (e: Event) => {
       e.preventDefault();

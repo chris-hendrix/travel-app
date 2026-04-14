@@ -407,7 +407,7 @@ export function TripDetailShell({
             </div>
 
             {/* Right pane: tabs + content */}
-            <div className="lg:flex-1 lg:min-w-0 pb-16">
+            <div className="lg:flex-1 lg:min-w-0 lg:relative pb-16">
               <TripTabNav tripId={tripId} />
               <TripPageProvider
                 tripId={tripId}
