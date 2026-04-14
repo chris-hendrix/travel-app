@@ -17,7 +17,7 @@ import {
 } from "@/queues/workers/notification-batch.worker.js";
 import type { NotificationBatchPayload, WorkerDeps } from "@/queues/types.js";
 import { QUEUE } from "@/queues/types.js";
-import { MockSMSService } from "@/services/sms.service.js";
+import { SMSService } from "@/services/sms.service.js";
 import { generateUniquePhone } from "../../test-utils.js";
 
 describe("notification-batch.worker", () => {
@@ -161,7 +161,7 @@ describe("notification-batch.worker", () => {
       boss: {
         insert: vi.fn().mockResolvedValue(undefined),
       } as unknown as WorkerDeps["boss"],
-      smsService: new MockSMSService(),
+      smsService: new SMSService(),
       pushService: {
         addSubscription: vi.fn(),
         removeSubscription: vi.fn(),

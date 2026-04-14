@@ -12,7 +12,7 @@ import {
 import { eq, or, and } from "drizzle-orm";
 import { InvitationService } from "@/services/invitation.service.js";
 import { PermissionsService } from "@/services/permissions.service.js";
-import { MockSMSService } from "@/services/sms.service.js";
+import { SMSService } from "@/services/sms.service.js";
 import { NotificationService } from "@/services/notification.service.js";
 import { generateUniquePhone } from "../test-utils.js";
 import {
@@ -30,7 +30,7 @@ import type { PgBoss } from "pg-boss";
 
 // Create service instances with db for testing
 const permissionsService = new PermissionsService(db);
-const smsService = new MockSMSService();
+const smsService = new SMSService();
 const notificationService = new NotificationService(db);
 const invitationService = new InvitationService(
   db,
@@ -1350,13 +1350,13 @@ describe("invitation.service", () => {
           expect.objectContaining({
             data: {
               phoneNumber: phone1,
-              message: "You've been invited to a trip on Journiful!",
+              message: expect.stringContaining("on Journiful!"),
             },
           }),
           expect.objectContaining({
             data: {
               phoneNumber: phone2,
-              message: "You've been invited to a trip on Journiful!",
+              message: expect.stringContaining("on Journiful!"),
             },
           }),
         ]),
@@ -1419,10 +1419,11 @@ describe("invitation.service", () => {
 
       expect(result.invitations).toHaveLength(1);
 
-      // Inline SMS should be called
+      // Inline SMS should be called with personalized message and sms_invite type
       expect(sendMessageSpy).toHaveBeenCalledWith(
         phone,
-        "You've been invited to a trip on Journiful!",
+        expect.stringContaining("on Journiful!"),
+        "invite",
       );
 
       sendMessageSpy.mockRestore();

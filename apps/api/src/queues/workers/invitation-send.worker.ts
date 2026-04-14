@@ -6,5 +6,5 @@ export async function handleInvitationSend(
   deps: WorkerDeps,
 ): Promise<void> {
   const { phoneNumber, message } = job.data;
-  await deps.smsService.sendMessage(phoneNumber, message);
+  await deps.smsService.sendMessage(phoneNumber, message, "invite");
 }

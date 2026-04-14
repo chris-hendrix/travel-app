@@ -843,14 +843,18 @@ test.describe("Trip Journey", () => {
       });
 
       await test.step("verify member selector is visible for organizer", async () => {
-        // Organizer should see the member selector
+        // Organizer should see the member selector — requires members data to be fetched.
+        // The useMembers() hook fires after the dialog opens, so the selector may not
+        // render until the API response arrives. Wrap in toPass() to retry until the
+        // TanStack Query settles and the conditional render (`isOrganizer && members`)
+        // evaluates to true.
         const memberSelector = page.locator('[data-testid="member-selector"]');
-        await expect(memberSelector).toBeVisible();
-
-        // Should show the helper text
-        await expect(
-          page.getByText("As organizer, you can add travel for any member"),
-        ).toBeVisible();
+        await expect(async () => {
+          await expect(memberSelector).toBeVisible();
+          await expect(
+            page.getByText("As organizer, you can add travel for any member"),
+          ).toBeVisible();
+        }).toPass({ timeout: SLOW_NAVIGATION_TIMEOUT });
       });
 
       await test.step("select the other member", async () => {
@@ -882,12 +886,24 @@ test.describe("Trip Journey", () => {
           .locator('input[name="location"]')
           .fill("Seattle-Tacoma Airport");
         // Expand the collapsed "More details" section to reveal the details textarea.
-        // This collapsible animation causes a React re-render that can detach DOM
-        // elements, so we wait for the textarea to be stable before continuing.
-        await page.getByRole("button", { name: "More details" }).click();
+        // On CI, the click on the CollapsibleTrigger can be swallowed during a React
+        // re-render (e.g., after filling the location input). If the click is lost, the
+        // collapsible never opens and the textarea never appears — no amount of waiting
+        // helps. Fix: put the click *inside* the toPass() retry loop, but only click
+        // when the trigger is in the "closed" state (Radix sets data-state="open" once
+        // expanded) to avoid toggling it back closed on a successful retry.
+        const moreDetailsBtn = page.getByRole("button", { name: "More details" });
         const detailsTextarea = page.locator('textarea[name="details"]');
-        await expect(detailsTextarea).toBeVisible({ timeout: ELEMENT_TIMEOUT });
-        await detailsTextarea.fill("Arriving on behalf of member");
+        await expect(async () => {
+          const state = await moreDetailsBtn.getAttribute("data-state");
+          if (state !== "open") {
+            await moreDetailsBtn.click();
+            // Brief pause for the 150ms collapsible animation
+            await page.waitForTimeout(200);
+          }
+          await expect(detailsTextarea).toBeVisible();
+          await detailsTextarea.fill("Arriving on behalf of member");
+        }).toPass({ timeout: ELEMENT_TIMEOUT });
 
         // After filling, wait for the submit button to be attached and stable.
         // The collapsible expansion can cause the form to re-render, detaching
