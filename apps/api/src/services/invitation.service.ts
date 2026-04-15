@@ -149,6 +149,36 @@ export interface IInvitationService {
    * @param phoneNumber - The phone number to match invitations against
    */
   processPendingInvitations(userId: string, phoneNumber: string): Promise<void>;
+
+  /**
+   * Gets a public preview of an invitation for the invite deep link page
+   * @param invitationId - The invitation UUID
+   * @returns Preview data for pending, redirect hint for accepted, or null for declined/failed/not found
+   */
+  getInvitationPreview(invitationId: string): Promise<
+    | {
+        tripName: string;
+        destination: string;
+        startDate: string | null;
+        endDate: string | null;
+        inviterName: string;
+        inviteePhone: string;
+        tripId: string;
+      }
+    | { status: "accepted"; tripId: string }
+    | null
+  >;
+
+  /**
+   * Accepts an invitation for an authenticated user
+   * @param invitationId - The invitation UUID
+   * @param userId - The authenticated user's ID
+   * @returns The tripId on success, or null if not found/not pending/phone mismatch
+   */
+  acceptInvitation(
+    invitationId: string,
+    userId: string,
+  ): Promise<{ tripId: string } | null>;
 }
 
 /**
@@ -163,6 +193,7 @@ export class InvitationService implements IInvitationService {
     private notificationService: INotificationService,
     private logger?: Logger,
     private boss: PgBoss | null = null,
+    private frontendUrl: string = "https://journiful.app",
   ) {}
 
   /**
@@ -440,16 +471,19 @@ export class InvitationService implements IInvitationService {
     });
 
     // Send invitation SMS via queue or fallback to inline delivery
+    // Each phone gets a unique deep link to its invitation
     const safeName = inviterDisplayName.slice(0, 20);
     const safeTrip = tripName.slice(0, 30);
-    const inviteSmsMessage = `${safeName} invited you to "${safeTrip}" on Journiful! Join at journiful.app`;
+    const phoneToInvitationId = new Map(
+      createdInvitations.map((inv) => [inv.inviteePhone, inv.id]),
+    );
     if (this.boss && newPhones.length > 0) {
       await this.boss.insert(
         QUEUE.INVITATION_SEND,
         newPhones.map((phone) => ({
           data: {
             phoneNumber: phone,
-            message: inviteSmsMessage,
+            message: `${safeName} invited you to "${safeTrip}" on Journiful!\n${this.frontendUrl}/invite/${phoneToInvitationId.get(phone)}`,
           } as InvitationSendPayload,
         })),
       );
@@ -457,7 +491,7 @@ export class InvitationService implements IInvitationService {
       for (const phone of newPhones) {
         await this.smsService.sendMessage(
           phone,
-          inviteSmsMessage,
+          `${safeName} invited you to "${safeTrip}" on Journiful!\n${this.frontendUrl}/invite/${phoneToInvitationId.get(phone)}`,
           "invite",
         );
       }
@@ -1068,5 +1102,140 @@ export class InvitationService implements IInvitationService {
         })
         .where(inArray(invitations.id, invitationIds));
     });
+  }
+
+  /**
+   * Gets a public preview of an invitation for the invite deep link page.
+   * Returns preview data for pending invitations, a redirect hint for accepted
+   * invitations, and null for declined/failed/not found.
+   */
+  async getInvitationPreview(invitationId: string): Promise<
+    | {
+        tripName: string;
+        destination: string;
+        startDate: string | null;
+        endDate: string | null;
+        inviterName: string;
+        inviteePhone: string;
+        tripId: string;
+      }
+    | { status: "accepted"; tripId: string }
+    | null
+  > {
+    const [row] = await this.db
+      .select({
+        status: invitations.status,
+        tripId: invitations.tripId,
+        inviteePhone: invitations.inviteePhone,
+        tripName: trips.name,
+        destination: trips.destination,
+        startDate: trips.startDate,
+        endDate: trips.endDate,
+        inviterName: users.displayName,
+      })
+      .from(invitations)
+      .innerJoin(trips, eq(invitations.tripId, trips.id))
+      .innerJoin(users, eq(invitations.inviterId, users.id))
+      .where(eq(invitations.id, invitationId))
+      .limit(1);
+
+    if (!row) return null;
+
+    if (row.status === "accepted") {
+      return { status: "accepted", tripId: row.tripId };
+    }
+
+    if (row.status !== "pending") {
+      return null;
+    }
+
+    // Mask phone: show last 4 digits only (e.g. "+1555****890")
+    const phone = row.inviteePhone;
+    const maskedPhone =
+      phone.length > 4
+        ? phone.slice(0, phone.length - 4).replace(/\d/g, "*") +
+          phone.slice(-4)
+        : phone;
+
+    return {
+      tripName: row.tripName,
+      destination: row.destination,
+      startDate: row.startDate,
+      endDate: row.endDate,
+      inviterName: row.inviterName,
+      inviteePhone: maskedPhone,
+      tripId: row.tripId,
+    };
+  }
+
+  /**
+   * Accepts a single invitation for an authenticated user.
+   * Validates the invitation is pending and the user's phone matches inviteePhone.
+   * Creates a member record and flips status to accepted.
+   */
+  async acceptInvitation(
+    invitationId: string,
+    userId: string,
+  ): Promise<{ tripId: string } | null> {
+    // Look up the invitation
+    const [invitation] = await this.db
+      .select({
+        id: invitations.id,
+        tripId: invitations.tripId,
+        inviteePhone: invitations.inviteePhone,
+        status: invitations.status,
+      })
+      .from(invitations)
+      .where(eq(invitations.id, invitationId))
+      .limit(1);
+
+    if (!invitation || invitation.status !== "pending") {
+      return null;
+    }
+
+    // Look up the authenticated user's phone number
+    const [user] = await this.db
+      .select({ phoneNumber: users.phoneNumber })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (!user || user.phoneNumber !== invitation.inviteePhone) {
+      return null;
+    }
+
+    await this.db.transaction(async (tx) => {
+      // Check if already a member
+      const existing = await tx
+        .select({ id: members.id })
+        .from(members)
+        .where(
+          and(
+            eq(members.tripId, invitation.tripId),
+            eq(members.userId, userId),
+          ),
+        )
+        .limit(1);
+
+      if (existing.length === 0) {
+        await tx.insert(members).values({
+          tripId: invitation.tripId,
+          userId,
+          status: "no_response",
+          isOrganizer: false,
+        });
+      }
+
+      await tx
+        .update(invitations)
+        .set({
+          status: "accepted",
+          respondedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(invitations.id, invitationId));
+    });
+
+    return { tripId: invitation.tripId };
   }
 }

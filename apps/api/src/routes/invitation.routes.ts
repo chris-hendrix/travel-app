@@ -53,6 +53,38 @@ const memberRemovalParamsSchema = z.object({
  */
 export async function invitationRoutes(fastify: FastifyInstance) {
   /**
+   * GET /invitations/:id/preview
+   * Public preview of an invitation (no auth required)
+   * Returns trip name, dates, inviter name for pending invitations
+   */
+  fastify.get<{ Params: { id: string } }>(
+    "/invitations/:id/preview",
+    {
+      schema: {
+        params: invitationIdParamsSchema,
+      },
+      preHandler: fastify.rateLimit(defaultRateLimitConfig),
+    },
+    invitationController.getInvitationPreview,
+  );
+
+  /**
+   * POST /invitations/:id/accept
+   * Accept an invitation (requires auth)
+   * Validates phone match and creates member record
+   */
+  fastify.post<{ Params: { id: string } }>(
+    "/invitations/:id/accept",
+    {
+      schema: {
+        params: invitationIdParamsSchema,
+      },
+      preHandler: [fastify.rateLimit(writeRateLimitConfig), authenticate, checkBanned],
+    },
+    invitationController.acceptInvitation,
+  );
+
+  /**
    * GET /trips/:tripId/invitations
    * List invitations for a trip (organizer only)
    * Requires authentication only (not complete profile)
