@@ -41,6 +41,8 @@ export interface Trip {
   createdAt: Date;
   /** Last update timestamp */
   updatedAt: Date;
+  /** Transient flag indicating timezone was auto-updated from destination geocoding */
+  timezoneAutoUpdated?: boolean;
 }
 
 /**
