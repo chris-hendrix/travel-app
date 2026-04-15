@@ -30,6 +30,7 @@ import {
   PinOnReplyError,
   PermissionDeniedError,
   TripNotFoundError,
+  TripLockedError,
   AlreadyMutedError,
   NotMutedError,
   CannotMuteOrganizerError,
@@ -430,6 +431,11 @@ export class MessageService implements IMessageService {
       );
     }
 
+    const isLocked = await this.permissionsService.isTripLocked(tripId);
+    if (isLocked) {
+      throw new TripLockedError();
+    }
+
     const isMuted = await this.permissionsService.isMemberMuted(
       tripId,
       authorId,
@@ -600,6 +606,14 @@ export class MessageService implements IMessageService {
       throw new MessageNotFoundError();
     }
 
+    // Check trip not locked
+    const isLocked = await this.permissionsService.isTripLocked(
+      messageRow.message.tripId,
+    );
+    if (isLocked) {
+      throw new TripLockedError();
+    }
+
     // Check author matches
     if (messageRow.message.authorId !== userId) {
       throw new PermissionDeniedError(
@@ -665,6 +679,14 @@ export class MessageService implements IMessageService {
       throw new MessageNotFoundError();
     }
 
+    // Check trip not locked
+    const isLocked = await this.permissionsService.isTripLocked(
+      messageRow.tripId,
+    );
+    if (isLocked) {
+      throw new TripLockedError();
+    }
+
     // Check author OR organizer (via canModerateMessages)
     const isAuthor = messageRow.authorId === userId;
     const canModerate = await this.permissionsService.canModerateMessages(
@@ -708,6 +730,14 @@ export class MessageService implements IMessageService {
     // Must be top-level
     if (messageRow.message.parentId !== null) {
       throw new PinOnReplyError();
+    }
+
+    // Check trip not locked
+    const isLocked = await this.permissionsService.isTripLocked(
+      messageRow.message.tripId,
+    );
+    if (isLocked) {
+      throw new TripLockedError();
     }
 
     // Check canModerateMessages (organizer only)
@@ -762,6 +792,14 @@ export class MessageService implements IMessageService {
 
     if (!messageRow) {
       throw new MessageNotFoundError();
+    }
+
+    // Check trip not locked
+    const isLocked = await this.permissionsService.isTripLocked(
+      messageRow.tripId,
+    );
+    if (isLocked) {
+      throw new TripLockedError();
     }
 
     // Check canViewMessages (going member)

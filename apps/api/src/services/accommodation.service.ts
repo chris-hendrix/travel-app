@@ -16,6 +16,7 @@ import {
   PermissionDeniedError,
   TripNotFoundError,
   InvalidDateRangeError,
+  TripLockedError,
 } from "../errors.js";
 
 /**
@@ -124,6 +125,10 @@ export class AccommodationService implements IAccommodationService {
     tripId: string,
     data: CreateAccommodationInput,
   ): Promise<Accommodation> {
+    // Check if trip is locked (past end date)
+    const isLocked = await this.permissionsService.isTripLocked(tripId);
+    if (isLocked) throw new TripLockedError();
+
     // Check if user can add accommodations to this trip (organizer only)
     const canAdd = await this.permissionsService.canAddAccommodation(
       userId,
@@ -290,10 +295,15 @@ export class AccommodationService implements IAccommodationService {
       throw new AccommodationNotFoundError();
     }
 
-    const canEdit = await this.permissionsService.canEditAccommodationWithData(
-      userId,
-      existingAccommodation.tripId,
-    );
+    // Check if trip is locked and permissions in parallel (both use tripId which we already have)
+    const [isLocked, canEdit] = await Promise.all([
+      this.permissionsService.isTripLocked(existingAccommodation.tripId),
+      this.permissionsService.canEditAccommodationWithData(
+        userId,
+        existingAccommodation.tripId,
+      ),
+    ]);
+    if (isLocked) throw new TripLockedError();
     if (!canEdit) {
       throw new PermissionDeniedError(
         "Permission denied: only organizers can edit accommodations",
@@ -366,10 +376,15 @@ export class AccommodationService implements IAccommodationService {
       throw new AccommodationNotFoundError();
     }
 
-    const canDelete = await this.permissionsService.canDeleteAccommodationWithData(
-      userId,
-      accRecord.tripId,
-    );
+    // Check if trip is locked and permissions in parallel
+    const [isLocked, canDelete] = await Promise.all([
+      this.permissionsService.isTripLocked(accRecord.tripId),
+      this.permissionsService.canDeleteAccommodationWithData(
+        userId,
+        accRecord.tripId,
+      ),
+    ]);
+    if (isLocked) throw new TripLockedError();
     if (!canDelete) {
       throw new PermissionDeniedError(
         "Permission denied: only organizers can delete accommodations",

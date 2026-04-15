@@ -19,6 +19,11 @@ export const PermissionDeniedError = createError(
   "%s",
   403,
 );
+export const TripLockedError = createError(
+  "TRIP_LOCKED",
+  "This trip has ended and is now read-only",
+  403,
+);
 export const MemberLimitExceededError = createError(
   "MEMBER_LIMIT_EXCEEDED",
   "%s",

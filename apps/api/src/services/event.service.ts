@@ -18,6 +18,7 @@ import {
   PermissionDeniedError,
   TripNotFoundError,
   InvalidDateRangeError,
+  TripLockedError,
 } from "../errors.js";
 
 /**
@@ -128,6 +129,10 @@ export class EventService implements IEventService {
     tripId: string,
     data: CreateEventInput,
   ): Promise<Event> {
+    // Check if trip is locked (past end date)
+    const isLocked = await this.permissionsService.isTripLocked(tripId);
+    if (isLocked) throw new TripLockedError();
+
     // Check if user can add events to this trip
     const canAdd = await this.permissionsService.canAddEvent(userId, tripId);
     if (!canAdd) {
@@ -294,10 +299,15 @@ export class EventService implements IEventService {
       throw new EventNotFoundError();
     }
 
-    const canEdit = await this.permissionsService.canEditEventWithData(userId, {
-      tripId: existingEvent.tripId,
-      createdBy: existingEvent.createdBy,
-    });
+    // Check if trip is locked and permissions in parallel (both need tripId which we already have)
+    const [isLocked, canEdit] = await Promise.all([
+      this.permissionsService.isTripLocked(existingEvent.tripId),
+      this.permissionsService.canEditEventWithData(userId, {
+        tripId: existingEvent.tripId,
+        createdBy: existingEvent.createdBy,
+      }),
+    ]);
+    if (isLocked) throw new TripLockedError();
     if (!canEdit) {
       throw new PermissionDeniedError(
         "Permission denied: only event creator or trip organizers can edit events",
@@ -372,10 +382,15 @@ export class EventService implements IEventService {
       throw new EventNotFoundError();
     }
 
-    const canDelete = await this.permissionsService.canDeleteEventWithData(userId, {
-      tripId: eventRecord.tripId,
-      createdBy: eventRecord.createdBy,
-    });
+    // Check if trip is locked and permissions in parallel
+    const [isLocked, canDelete] = await Promise.all([
+      this.permissionsService.isTripLocked(eventRecord.tripId),
+      this.permissionsService.canDeleteEventWithData(userId, {
+        tripId: eventRecord.tripId,
+        createdBy: eventRecord.createdBy,
+      }),
+    ]);
+    if (isLocked) throw new TripLockedError();
     if (!canDelete) {
       throw new PermissionDeniedError(
         "Permission denied: only event creator or trip organizers can delete events",

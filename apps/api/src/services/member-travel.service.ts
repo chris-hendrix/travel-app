@@ -18,6 +18,7 @@ import {
   MemberNotFoundError,
   PermissionDeniedError,
   TripNotFoundError,
+  TripLockedError,
 } from "../errors.js";
 
 /**
@@ -123,6 +124,10 @@ export class MemberTravelService implements IMemberTravelService {
     tripId: string,
     data: CreateMemberTravelInput,
   ): Promise<MemberTravel> {
+    // Check if trip is locked (past end date)
+    const isLocked = await this.permissionsService.isTripLocked(tripId);
+    if (isLocked) throw new TripLockedError();
+
     // Check if user can add member travel to this trip (any member can)
     const canAdd = await this.permissionsService.canAddMemberTravel(
       userId,
@@ -311,10 +316,15 @@ export class MemberTravelService implements IMemberTravelService {
       throw new MemberTravelNotFoundError();
     }
 
-    const canEdit = await this.permissionsService.canEditMemberTravelWithData(userId, {
-      tripId: travelRecord.tripId,
-      memberId: travelRecord.memberId,
-    });
+    // Check if trip is locked and permissions in parallel
+    const [isLocked, canEdit] = await Promise.all([
+      this.permissionsService.isTripLocked(travelRecord.tripId),
+      this.permissionsService.canEditMemberTravelWithData(userId, {
+        tripId: travelRecord.tripId,
+        memberId: travelRecord.memberId,
+      }),
+    ]);
+    if (isLocked) throw new TripLockedError();
     if (!canEdit) {
       throw new PermissionDeniedError(
         "Permission denied: only the owner or trip organizers can edit member travel",
@@ -380,10 +390,15 @@ export class MemberTravelService implements IMemberTravelService {
       throw new MemberTravelNotFoundError();
     }
 
-    const canDelete = await this.permissionsService.canDeleteMemberTravelWithData(userId, {
-      tripId: travelRecord.tripId,
-      memberId: travelRecord.memberId,
-    });
+    // Check if trip is locked and permissions in parallel
+    const [isLocked, canDelete] = await Promise.all([
+      this.permissionsService.isTripLocked(travelRecord.tripId),
+      this.permissionsService.canDeleteMemberTravelWithData(userId, {
+        tripId: travelRecord.tripId,
+        memberId: travelRecord.memberId,
+      }),
+    ]);
+    if (isLocked) throw new TripLockedError();
     if (!canDelete) {
       throw new PermissionDeniedError(
         "Permission denied: only the owner or trip organizers can delete member travel",
