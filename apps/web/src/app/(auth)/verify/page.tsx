@@ -26,6 +26,8 @@ function VerifyPageContent() {
   const searchParams = useSearchParams();
   const phoneNumber = searchParams.get("phone") || "";
   const smsConsent = searchParams.get("smsConsent") === "true";
+  const redirect = searchParams.get("redirect");
+  const safeRedirect = redirect?.startsWith("/") ? redirect : null;
   const { verify, login } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResending, setIsResending] = useState(false);
@@ -54,9 +56,9 @@ function VerifyPageContent() {
       const result = await verify(data.phoneNumber, data.code, data.smsConsent);
 
       if (result.requiresProfile) {
-        router.push("/complete-profile");
+        router.push(safeRedirect ? `/complete-profile?redirect=${encodeURIComponent(safeRedirect)}` : "/complete-profile");
       } else {
-        router.push("/trips");
+        router.push(safeRedirect || "/trips");
       }
     } catch (error) {
       form.setError("code", {

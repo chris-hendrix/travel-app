@@ -421,6 +421,117 @@ export const invitationController = {
   },
 
   /**
+   * Get invitation preview endpoint
+   * Returns a public preview of an invitation for deep link pages
+   *
+   * @route GET /api/invitations/:id/preview
+   * @param request - Fastify request with invitation ID in params
+   * @param reply - Fastify reply object
+   * @returns Preview data for pending invitations, redirect hint for accepted, or 404
+   */
+  async getInvitationPreview(
+    request: FastifyRequest<{ Params: { id: string } }>,
+    reply: FastifyReply,
+  ) {
+    try {
+      const { id } = request.params;
+      const { invitationService } = request.server;
+
+      const preview = await invitationService.getInvitationPreview(id);
+
+      if (!preview) {
+        return reply.status(404).send({
+          success: false,
+          error: {
+            code: "INVITATION_NOT_FOUND",
+            message: "Invitation not found",
+          },
+        });
+      }
+
+      return reply.status(200).send({ success: true, ...preview });
+    } catch (error) {
+      if (error && typeof error === "object" && "statusCode" in error) {
+        throw error;
+      }
+
+      request.log.error(
+        { err: error, invitationId: request.params.id },
+        "Failed to get invitation preview",
+      );
+
+      return reply.status(500).send({
+        success: false,
+        error: {
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to get invitation preview",
+        },
+      });
+    }
+  },
+
+  /**
+   * Accept invitation endpoint
+   * Accepts an invitation for an authenticated user
+   *
+   * @route POST /api/invitations/:id/accept
+   * @middleware authenticate, checkBanned
+   * @param request - Fastify request with invitation ID in params
+   * @param reply - Fastify reply object
+   * @returns { tripId } on success, 404 if not found/not pending/phone mismatch
+   */
+  async acceptInvitation(
+    request: FastifyRequest<{ Params: { id: string } }>,
+    reply: FastifyReply,
+  ) {
+    try {
+      const { id } = request.params;
+      const userId = request.user.sub;
+      const { invitationService } = request.server;
+
+      const result = await invitationService.acceptInvitation(id, userId);
+
+      if (!result) {
+        return reply.status(404).send({
+          success: false,
+          error: {
+            code: "INVITATION_NOT_FOUND",
+            message: "Invitation not found",
+          },
+        });
+      }
+
+      auditLog(request, "invitation.accepted", {
+        resourceType: "invitation",
+        resourceId: id,
+        metadata: { tripId: result.tripId },
+      });
+
+      return reply.status(200).send({
+        success: true,
+        tripId: result.tripId,
+      });
+    } catch (error) {
+      if (error && typeof error === "object" && "statusCode" in error) {
+        throw error;
+      }
+
+      request.log.error(
+        { err: error, userId: request.user.sub, invitationId: request.params.id },
+        "Failed to accept invitation",
+      );
+
+      return reply.status(500).send({
+        success: false,
+        error: {
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to accept invitation",
+        },
+      });
+    }
+  },
+
+  /**
    * Update my settings endpoint
    * Updates the current member's per-trip settings
    *

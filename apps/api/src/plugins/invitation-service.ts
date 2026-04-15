@@ -15,6 +15,7 @@ export default fp(
       fastify.notificationService,
       fastify.log,
       fastify.boss ?? null,
+      fastify.config.FRONTEND_URL,
     );
     fastify.decorate("invitationService", invitationService);
   },

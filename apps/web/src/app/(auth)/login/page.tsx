@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { requestCodeSchema, type RequestCodeInput } from "@journiful/shared";
 import { useAuth } from "@/app/providers/auth-provider";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PhoneInput } from "@/components/ui/phone-input";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Form,
   FormControl,
@@ -20,15 +21,19 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get("redirect");
+  const phoneHint = searchParams.get("phone");
+  const safeRedirect = redirect?.startsWith("/") ? redirect : null;
   const { login } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<RequestCodeInput>({
     resolver: zodResolver(requestCodeSchema),
     defaultValues: {
-      phoneNumber: "",
+      phoneNumber: phoneHint || "",
       smsConsent: false,
     },
   });
@@ -37,7 +42,8 @@ export default function LoginPage() {
     try {
       setIsSubmitting(true);
       await login(data.phoneNumber, data.smsConsent);
-      router.push(`/verify?phone=${encodeURIComponent(data.phoneNumber)}&smsConsent=true`);
+      const verifyUrl = `/verify?phone=${encodeURIComponent(data.phoneNumber)}&smsConsent=true${safeRedirect ? `&redirect=${encodeURIComponent(safeRedirect)}` : ""}`;
+      router.push(verifyUrl);
     } catch (error) {
       form.setError("phoneNumber", {
         message: error instanceof Error ? error.message : "Request failed",
@@ -159,5 +165,31 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="w-full max-w-md">
+          <div className="bg-card rounded-md shadow-2xl p-8 lg:p-12 border border-border/50 space-y-6">
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-9 w-40" />
+              <Skeleton className="h-5 w-72" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-3 w-56" />
+            </div>
+            <Skeleton className="h-12 w-full rounded-md" />
+          </div>
+        </div>
+      }
+    >
+      <LoginPageContent />
+    </Suspense>
   );
 }
