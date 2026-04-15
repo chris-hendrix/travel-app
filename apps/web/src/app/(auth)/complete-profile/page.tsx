@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { Suspense, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Camera, Trash2 } from "lucide-react";
 import {
   completeProfileSchema,
@@ -13,6 +13,7 @@ import { useAuth } from "@/app/providers/auth-provider";
 import { useUploadProfilePhoto } from "@/hooks/use-user";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Form,
   FormControl,
@@ -41,8 +42,11 @@ import { getInitials } from "@/lib/format";
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 
-export default function CompleteProfilePage() {
+function CompleteProfileContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get("redirect");
+  const safeRedirect = redirect?.startsWith("/") ? redirect : null;
   const { completeProfile } = useAuth();
   const uploadPhoto = useUploadProfilePhoto();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -137,7 +141,7 @@ export default function CompleteProfilePage() {
         }
       }
 
-      router.push("/trips");
+      router.push(safeRedirect || "/trips");
     } catch (error) {
       form.setError("displayName", {
         message:
@@ -306,5 +310,34 @@ export default function CompleteProfilePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CompleteProfilePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="w-full max-w-md">
+          <div className="bg-card rounded-3xl shadow-2xl p-8 lg:p-12 border border-border/50 space-y-6">
+            <div className="space-y-2">
+              <Skeleton className="h-9 w-56" />
+              <Skeleton className="h-5 w-72" />
+            </div>
+            <div className="flex flex-col items-center gap-3">
+              <Skeleton className="size-20 rounded-full" />
+              <Skeleton className="h-8 w-32" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-3 w-56" />
+            </div>
+            <Skeleton className="h-12 w-full rounded-md" />
+          </div>
+        </div>
+      }
+    >
+      <CompleteProfileContent />
+    </Suspense>
   );
 }
