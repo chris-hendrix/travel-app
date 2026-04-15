@@ -1082,55 +1082,6 @@ describe("permissions.service", () => {
     });
   });
 
-  describe("isTripLocked", () => {
-    it("should return true for trip with past end date", async () => {
-      // Set trip end date to a past date
-      await db
-        .update(trips)
-        .set({ endDate: "2025-01-05" })
-        .where(eq(trips.id, testTripId));
-
-      const result = await permissionsService.isTripLocked(testTripId);
-      expect(result).toBe(true);
-
-      // Restore
-      await db
-        .update(trips)
-        .set({ endDate: null })
-        .where(eq(trips.id, testTripId));
-    });
-
-    it("should return false for trip with future end date", async () => {
-      // Set trip end date to a future date
-      await db
-        .update(trips)
-        .set({ endDate: "2099-12-31" })
-        .where(eq(trips.id, testTripId));
-
-      const result = await permissionsService.isTripLocked(testTripId);
-      expect(result).toBe(false);
-
-      // Restore
-      await db
-        .update(trips)
-        .set({ endDate: null })
-        .where(eq(trips.id, testTripId));
-    });
-
-    it("should return false for trip with null end date", async () => {
-      // endDate is already null from setup
-      const result = await permissionsService.isTripLocked(testTripId);
-      expect(result).toBe(false);
-    });
-
-    it("should return false for non-existent trip", async () => {
-      const result = await permissionsService.isTripLocked(
-        "00000000-0000-0000-0000-000000000000",
-      );
-      expect(result).toBe(false);
-    });
-  });
-
   describe("getMembershipInfo", () => {
     it("should return isMember=true and isOrganizer=true for organizer", async () => {
       const result = await permissionsService.getMembershipInfo(

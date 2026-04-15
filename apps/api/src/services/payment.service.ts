@@ -15,7 +15,6 @@ import type { IPermissionsService } from "./permissions.service.js";
 import {
   PaymentNotFoundError,
   PermissionDeniedError,
-  TripLockedError,
 } from "../errors.js";
 
 interface PaymentWithParticipants extends Payment {
@@ -70,9 +69,6 @@ export class PaymentService implements IPaymentService {
     tripId: string,
     data: CreatePaymentInput,
   ): Promise<PaymentWithParticipants> {
-    const isLocked = await this.permissionsService.isTripLocked(tripId);
-    if (isLocked) throw new TripLockedError();
-
     const isMember = await this.permissionsService.isMember(userId, tripId);
     if (!isMember) {
       throw new PermissionDeniedError(
@@ -208,11 +204,7 @@ export class PaymentService implements IPaymentService {
       throw new PaymentNotFoundError();
     }
 
-    const [isLocked, canModify] = await Promise.all([
-      this.permissionsService.isTripLocked(existing.tripId),
-      this.canModifyPayment(userId, existing),
-    ]);
-    if (isLocked) throw new TripLockedError();
+    const canModify = await this.canModifyPayment(userId, existing);
     if (!canModify) {
       throw new PermissionDeniedError(
         "Permission denied: only payment creator or organizers can edit payments",
@@ -309,11 +301,7 @@ export class PaymentService implements IPaymentService {
       throw new PaymentNotFoundError();
     }
 
-    const [isLocked, canModify] = await Promise.all([
-      this.permissionsService.isTripLocked(existing.tripId),
-      this.canModifyPayment(userId, existing),
-    ]);
-    if (isLocked) throw new TripLockedError();
+    const canModify = await this.canModifyPayment(userId, existing);
     if (!canModify) {
       throw new PermissionDeniedError(
         "Permission denied: only payment creator or organizers can delete payments",
