@@ -1493,7 +1493,7 @@ describe("invitation.service", () => {
       }
     });
 
-    it("should create member record and send mutual_invite notification for mutual user", async () => {
+    it("should create member record, invitation record, and send mutual_invite notification for mutual user", async () => {
       const result = await invitationService.createInvitations(
         testOrganizerId,
         testTripId,
@@ -1501,8 +1501,12 @@ describe("invitation.service", () => {
         [mutualUserId],
       );
 
-      // No phone-based invitations created
-      expect(result.invitations).toHaveLength(0);
+      // Mutual invite now creates an invitation record
+      expect(result.invitations).toHaveLength(1);
+      expect(result.invitations[0].inviteePhone).toBe(mutualUserPhone);
+      expect(result.invitations[0].status).toBe("pending");
+      expect(result.invitations[0].tripId).toBe(testTripId);
+      expect(result.invitations[0].inviterId).toBe(testOrganizerId);
       expect(result.skipped).toHaveLength(0);
 
       // addedMembers should include the mutual
@@ -1521,6 +1525,19 @@ describe("invitation.service", () => {
       expect(memberRecords[0].status).toBe("no_response");
       expect(memberRecords[0].isOrganizer).toBe(false);
 
+      // Verify invitation record exists in DB with correct inviteePhone
+      const invitationRecords = await db
+        .select()
+        .from(invitations)
+        .where(
+          and(
+            eq(invitations.tripId, testTripId),
+            eq(invitations.inviteePhone, mutualUserPhone),
+          ),
+        );
+      expect(invitationRecords).toHaveLength(1);
+      expect(invitationRecords[0].status).toBe("pending");
+
       // Verify mutual_invite notification was created
       const notificationRecords = await db
         .select()
@@ -1536,6 +1553,84 @@ describe("invitation.service", () => {
       expect(notificationRecords[0].title).toBe("Trip invitation");
       expect(notificationRecords[0].body).toContain("Test Organizer");
       expect(notificationRecords[0].body).toContain("Test Trip");
+    });
+
+    it("should enqueue SMS with deep link for mutual invite", async () => {
+      const mockBoss = {
+        send: vi.fn().mockResolvedValue(undefined),
+        insert: vi.fn().mockResolvedValue(undefined),
+      } as unknown as PgBoss;
+      const serviceWithBoss = new InvitationService(
+        db,
+        permissionsService,
+        smsService,
+        notificationService,
+        undefined,
+        mockBoss,
+      );
+
+      const result = await serviceWithBoss.createInvitations(
+        testOrganizerId,
+        testTripId,
+        [],
+        [mutualUserId],
+      );
+
+      expect(result.invitations).toHaveLength(1);
+
+      // boss.insert should have been called with the mutual's phone and a deep link
+      expect(mockBoss.insert).toHaveBeenCalledWith(
+        QUEUE.INVITATION_SEND,
+        expect.arrayContaining([
+          expect.objectContaining({
+            data: {
+              phoneNumber: mutualUserPhone,
+              message: expect.stringContaining("/invite/"),
+            },
+          }),
+        ]),
+      );
+    });
+
+    it("should skip invitation and SMS for mutual whose phone is already invited", async () => {
+      // Pre-insert an invitation for the mutual's phone on the same trip
+      await db.insert(invitations).values({
+        tripId: testTripId,
+        inviterId: testOrganizerId,
+        inviteePhone: mutualUserPhone,
+        status: "pending",
+      });
+
+      const result = await invitationService.createInvitations(
+        testOrganizerId,
+        testTripId,
+        [],
+        [mutualUserId],
+      );
+
+      // The mutual's userId should appear in skipped
+      expect(result.skipped).toContain(mutualUserId);
+
+      // No new invitation should be created (the pre-existing one is the only one)
+      const invitationRecords = await db
+        .select()
+        .from(invitations)
+        .where(
+          and(
+            eq(invitations.tripId, testTripId),
+            eq(invitations.inviteePhone, mutualUserPhone),
+          ),
+        );
+      expect(invitationRecords).toHaveLength(1);
+
+      // No new member record should be created (skipped users don't get added)
+      const memberRecords = await db
+        .select()
+        .from(members)
+        .where(
+          and(eq(members.tripId, testTripId), eq(members.userId, mutualUserId)),
+        );
+      expect(memberRecords).toHaveLength(0);
     });
 
     it("should send sms_invite notification for existing user auto-added via phone", async () => {
@@ -1580,8 +1675,8 @@ describe("invitation.service", () => {
         [mutualUserId],
       );
 
-      // Phone-based invitation created for the new phone
-      expect(result.invitations).toHaveLength(1);
+      // 2 invitations: 1 phone-based + 1 mutual-based
+      expect(result.invitations).toHaveLength(2);
 
       // Mutual user added via userId
       expect(result.addedMembers).toHaveLength(1);
@@ -1701,8 +1796,8 @@ describe("invitation.service", () => {
         [mutualUserId],
       );
 
-      // Should have 1 phone invitation (for mutualUser2Phone)
-      expect(result.invitations).toHaveLength(1);
+      // Should have 2 invitations (1 phone for mutualUser2Phone + 1 mutual for mutualUserId)
+      expect(result.invitations).toHaveLength(2);
 
       // Should have 2 addedMembers (one mutual, one phone auto-added)
       expect(result.addedMembers).toHaveLength(2);

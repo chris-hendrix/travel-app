@@ -250,6 +250,7 @@ export class InvitationService implements IInvitationService {
     const tripName = tripRow?.name ?? "a trip";
 
     let createdInvitations: DBInvitation[] = [];
+    let mutualCreatedInvitations: DBInvitation[] = [];
     let skipped: string[] = [];
     let newPhones: string[] = [];
     const addedMembers: { userId: string; displayName: string }[] = [];
@@ -440,30 +441,91 @@ export class InvitationService implements IInvitationService {
         }
 
         if (newMutualUserIds.length > 0) {
-          // Fetch display names for the new mutual invitees
+          // Fetch display names and phone numbers for the new mutual invitees
           const mutualUsers = await tx
-            .select({ id: users.id, displayName: users.displayName })
+            .select({
+              id: users.id,
+              displayName: users.displayName,
+              phoneNumber: users.phoneNumber,
+            })
             .from(users)
             .where(inArray(users.id, newMutualUserIds));
           const mutualUserMap = new Map(
-            mutualUsers.map((u) => [u.id, u.displayName]),
+            mutualUsers.map((u) => [u.id, u]),
           );
 
-          // Create member records for mutual invitees
-          await tx.insert(members).values(
-            newMutualUserIds.map((uid) => ({
-              tripId,
-              userId: uid,
-              status: "no_response" as const,
-              isOrganizer: false,
-            })),
+          // Check for already-invited phones among mutuals (dedup)
+          const mutualPhones = mutualUsers.map((u) => u.phoneNumber);
+          const alreadyInvitedMutualRows = await tx
+            .select({ inviteePhone: invitations.inviteePhone })
+            .from(invitations)
+            .where(
+              and(
+                eq(invitations.tripId, tripId),
+                inArray(invitations.inviteePhone, mutualPhones),
+              ),
+            );
+          const alreadyInvitedMutualPhones = new Set(
+            alreadyInvitedMutualRows.map((r) => r.inviteePhone),
           );
+
+          // Find mutuals whose phones are already invited and add their userId to skipped
+          const phonesToSkipUserIds = new Set<string>();
+          for (const u of mutualUsers) {
+            if (alreadyInvitedMutualPhones.has(u.phoneNumber)) {
+              skipped.push(u.id);
+              phonesToSkipUserIds.add(u.id);
+            }
+          }
+
+          // Filter to mutuals whose phones are NOT already invited
+          const eligibleMutualUserIds = newMutualUserIds.filter(
+            (uid) => !phonesToSkipUserIds.has(uid),
+          );
+
+          // Create invitation records for eligible mutuals
+          if (eligibleMutualUserIds.length > 0) {
+            const mutualInviteValues = eligibleMutualUserIds
+              .map((uid) => {
+                const u = mutualUserMap.get(uid);
+                if (!u) return null;
+                return {
+                  tripId,
+                  inviterId: userId,
+                  inviteePhone: u.phoneNumber,
+                  status: "pending" as const,
+                };
+              })
+              .filter(
+                (v): v is NonNullable<typeof v> => v !== null,
+              );
+
+            if (mutualInviteValues.length > 0) {
+              mutualCreatedInvitations = await tx
+                .insert(invitations)
+                .values(mutualInviteValues)
+                .returning();
+            }
+          }
+
+          // Create member records for mutual invitees (all eligible, not just those with invitations)
+          if (eligibleMutualUserIds.length > 0) {
+            await tx.insert(members).values(
+              eligibleMutualUserIds.map((uid) => ({
+                tripId,
+                userId: uid,
+                status: "no_response" as const,
+                isOrganizer: false,
+              })),
+            );
+          }
 
           // Build addedMembers entries for mutual invitees
-          for (const uid of newMutualUserIds) {
+          for (const uid of eligibleMutualUserIds) {
+            const u = mutualUserMap.get(uid);
             addedMembers.push({
               userId: uid,
-              displayName: mutualUserMap.get(uid) ?? "Unknown",
+              displayName: u?.displayName ?? "Unknown",
             });
           }
         }
@@ -496,6 +558,36 @@ export class InvitationService implements IInvitationService {
         );
       }
     }
+
+    // Send invitation SMS for mutual invites via queue or fallback to inline delivery
+    const mutualPhoneToInvitationId = new Map(
+      mutualCreatedInvitations.map((inv) => [inv.inviteePhone, inv.id]),
+    );
+    const mutualPhonesForSms = mutualCreatedInvitations.map(
+      (inv) => inv.inviteePhone,
+    );
+    if (this.boss && mutualPhonesForSms.length > 0) {
+      await this.boss.insert(
+        QUEUE.INVITATION_SEND,
+        mutualPhonesForSms.map((phone) => ({
+          data: {
+            phoneNumber: phone,
+            message: `${safeName} invited you to "${safeTrip}" on Journiful!\n${this.frontendUrl}/invite/${mutualPhoneToInvitationId.get(phone)}`,
+          } as InvitationSendPayload,
+        })),
+      );
+    } else {
+      for (const phone of mutualPhonesForSms) {
+        await this.smsService.sendMessage(
+          phone,
+          `${safeName} invited you to "${safeTrip}" on Journiful!\n${this.frontendUrl}/invite/${mutualPhoneToInvitationId.get(phone)}`,
+          "invite",
+        );
+      }
+    }
+
+    // Merge mutual invitations into createdInvitations for the return value
+    createdInvitations = [...createdInvitations, ...mutualCreatedInvitations];
 
     // Send sms_invite notifications for existing users auto-added via phone
     for (const autoAddedUserId of phoneAutoAddedUserIds) {
