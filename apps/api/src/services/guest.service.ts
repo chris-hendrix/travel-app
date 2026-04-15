@@ -11,7 +11,6 @@ import {
   GuestNotFoundError,
   GuestHasPaymentsError,
   PermissionDeniedError,
-  TripLockedError,
 } from "../errors.js";
 
 export interface IGuestService {
@@ -43,9 +42,6 @@ export class GuestService implements IGuestService {
     tripId: string,
     data: CreateGuestInput,
   ): Promise<TripGuest> {
-    const isLocked = await this.permissionsService.isTripLocked(tripId);
-    if (isLocked) throw new TripLockedError();
-
     const isMember = await this.permissionsService.isMember(userId, tripId);
     if (!isMember) {
       throw new PermissionDeniedError(
@@ -95,9 +91,6 @@ export class GuestService implements IGuestService {
       throw new GuestNotFoundError();
     }
 
-    const isLocked = await this.permissionsService.isTripLocked(existing.tripId);
-    if (isLocked) throw new TripLockedError();
-
     const canModify = await this.canModifyGuest(userId, existing);
     if (!canModify) {
       throw new PermissionDeniedError(
@@ -135,9 +128,6 @@ export class GuestService implements IGuestService {
     if (!existing) {
       throw new GuestNotFoundError();
     }
-
-    const isLocked = await this.permissionsService.isTripLocked(existing.tripId);
-    if (isLocked) throw new TripLockedError();
 
     const canModify = await this.canModifyGuest(userId, existing);
     if (!canModify) {

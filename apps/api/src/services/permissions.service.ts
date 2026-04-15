@@ -186,14 +186,6 @@ export interface IPermissionsService {
   canViewFullTrip(userId: string, tripId: string): Promise<boolean>;
 
   /**
-   * Checks if a trip is locked (past its end date)
-   * A trip is locked when its endDate has fully passed (end of day UTC)
-   * @param tripId - The UUID of the trip to check
-   * @returns Promise that resolves to true if trip is locked, false otherwise
-   */
-  isTripLocked(tripId: string): Promise<boolean>;
-
-  /**
    * Checks if a user can edit an event using pre-loaded event data
    * Avoids re-loading the event from the database
    * @param userId - The UUID of the user to check
@@ -285,7 +277,7 @@ export interface IPermissionsService {
 
   /**
    * Checks if a user can post a message in a trip
-   * Must be going member, not muted, and trip not locked
+   * Must be going member and not muted
    */
   canPostMessage(userId: string, tripId: string): Promise<boolean>;
 
@@ -662,26 +654,6 @@ export class PermissionsService implements IPermissionsService {
   }
 
   /**
-   * Checks if a trip is locked (past its end date)
-   * A trip is locked when its endDate has fully passed (end of day UTC)
-   * @param tripId - The UUID of the trip to check
-   * @returns true if trip is locked, false otherwise
-   */
-  async isTripLocked(tripId: string): Promise<boolean> {
-    const [trip] = await this.db
-      .select({ endDate: trips.endDate })
-      .from(trips)
-      .where(eq(trips.id, tripId))
-      .limit(1);
-
-    if (!trip || !trip.endDate) return false;
-
-    const endOfTripDay = new Date(trip.endDate);
-    endOfTripDay.setUTCHours(23, 59, 59, 999);
-    return new Date() > endOfTripDay;
-  }
-
-  /**
    * Checks if a user can edit an event using pre-loaded event data
    * Avoids re-loading the event from the database
    * @param userId - The UUID of the user to check
@@ -833,15 +805,14 @@ export class PermissionsService implements IPermissionsService {
 
   /**
    * Checks if a user can post a message in a trip
-   * Must be going member, not muted, and trip not locked
+   * Must be going member and not muted
    */
   async canPostMessage(userId: string, tripId: string): Promise<boolean> {
-    const [canView, isLocked, isMuted] = await Promise.all([
+    const [canView, isMuted] = await Promise.all([
       this.canViewFullTrip(userId, tripId),
-      this.isTripLocked(tripId),
       this.isMemberMuted(tripId, userId),
     ]);
-    return canView && !isLocked && !isMuted;
+    return canView && !isMuted;
   }
 
   /**

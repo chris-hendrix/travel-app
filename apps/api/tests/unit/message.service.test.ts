@@ -23,7 +23,6 @@ import {
   InvalidReplyTargetError,
   PinOnReplyError,
   PermissionDeniedError,
-  TripLockedError,
   AlreadyMutedError,
   NotMutedError,
   CannotMuteOrganizerError,
@@ -356,54 +355,6 @@ describe("message.service", () => {
           "Should fail",
         ),
       ).rejects.toThrow(MessageNotFoundError);
-    });
-
-    it("should throw TripLockedError for locked trip", async () => {
-      // Create a trip with past end date
-      const lockedTripResult = await db
-        .insert(trips)
-        .values({
-          name: "Locked Trip",
-          destination: "Past",
-          preferredTimezone: "UTC",
-          createdBy: testOrganizerId,
-          endDate: "2020-01-01",
-        })
-        .returning();
-      const lockedTripId = lockedTripResult[0].id;
-
-      // Add member
-      await db.insert(members).values({
-        tripId: lockedTripId,
-        userId: testOrganizerId,
-        status: "going",
-        isOrganizer: true,
-      });
-
-      // Create message in locked trip
-      const [lockedMsg] = await db
-        .insert(messages)
-        .values({
-          tripId: lockedTripId,
-          authorId: testOrganizerId,
-          content: "Old message",
-        })
-        .returning();
-
-      try {
-        await expect(
-          messageService.editMessage(
-            lockedMsg.id,
-            testOrganizerId,
-            "Should fail",
-          ),
-        ).rejects.toThrow(TripLockedError);
-      } finally {
-        // Cleanup
-        await db.delete(messages).where(eq(messages.tripId, lockedTripId));
-        await db.delete(members).where(eq(members.tripId, lockedTripId));
-        await db.delete(trips).where(eq(trips.id, lockedTripId));
-      }
     });
 
     it("should throw MemberMutedError for muted author", async () => {

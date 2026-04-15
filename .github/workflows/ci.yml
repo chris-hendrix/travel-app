@@ -95,7 +95,7 @@ jobs:
         run: pnpm turbo typecheck --affected
 
       - name: Dependency audit
-        run: pnpm audit --audit-level=high
+        run: pnpm audit --audit-level=high --ignore-registry-errors
 
   # Step 2b: Devcontainer config validation (no Node/pnpm needed)
   devcontainer:
