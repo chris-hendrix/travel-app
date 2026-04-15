@@ -38,8 +38,7 @@ async function acceptInvitation(
     const res = await fetch(`${API_URL}/invitations/${id}/accept`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        Cookie: `auth_token=${authToken}`,
+        Authorization: `Bearer ${authToken}`,
       },
     });
     if (!res.ok) return { success: false };
