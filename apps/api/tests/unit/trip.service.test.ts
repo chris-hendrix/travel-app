@@ -18,7 +18,7 @@ import type { CreateTripInput } from "@journiful/shared/schemas";
 // Create mock geocoding service
 const mockGeocodingService: IGeocodingService = {
   geocode: vi.fn().mockResolvedValue({ lat: 32.7157, lon: -117.1611 }),
-  getTimezone: vi.fn().mockResolvedValue("America/Los_Angeles"),
+  getTimezone: vi.fn().mockResolvedValue(null),
 };
 
 // Create service instances with db for testing
