@@ -24,6 +24,7 @@ import {
   SheetBody,
   SheetClose,
   SheetContent,
+  SheetDescription,
   SheetTitle,
 } from "@/components/ui/sheet";
 import {
@@ -247,6 +248,7 @@ export const WeatherDetailSheet = memo(function WeatherDetailSheet({
       >
         <VisuallyHidden.Root>
           <SheetTitle>Weather details</SheetTitle>
+          <SheetDescription>Detailed weather forecast for the selected day</SheetDescription>
         </VisuallyHidden.Root>
 
         {/* Header actions */}
