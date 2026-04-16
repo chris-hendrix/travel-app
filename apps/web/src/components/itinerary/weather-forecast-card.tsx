@@ -9,7 +9,7 @@ import type {
 import {
   getWeatherInfo,
   toDisplayTemp,
-  type WeatherTone,
+  TONE_STYLES,
 } from "@/lib/weather-codes";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -44,47 +44,6 @@ function formatDate(dateStr: string): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-const TONE_STYLES: Record<
-  WeatherTone,
-  { light: string; dark: string; icon: string; iconDark: string }
-> = {
-  sunny: {
-    light: "bg-amber-100",
-    dark: "bg-amber-950",
-    icon: "text-amber-500",
-    iconDark: "text-amber-400",
-  },
-  cloudy: {
-    light: "bg-white",
-    dark: "bg-gray-900",
-    icon: "text-gray-400",
-    iconDark: "text-gray-400",
-  },
-  fog: {
-    light: "bg-white",
-    dark: "bg-gray-900",
-    icon: "text-gray-400",
-    iconDark: "text-gray-400",
-  },
-  rain: {
-    light: "bg-blue-100",
-    dark: "bg-blue-950",
-    icon: "text-blue-500",
-    iconDark: "text-blue-400",
-  },
-  snow: {
-    light: "bg-blue-50",
-    dark: "bg-blue-950",
-    icon: "text-sky-400",
-    iconDark: "text-sky-300",
-  },
-  storm: {
-    light: "bg-blue-200",
-    dark: "bg-blue-950",
-    icon: "text-blue-600",
-    iconDark: "text-blue-300",
-  },
-};
 
 export const WeatherForecastCard = memo(function WeatherForecastCard({
   weather,
