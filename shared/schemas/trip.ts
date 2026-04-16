@@ -172,6 +172,7 @@ const tripEntitySchema = z.object({
   cancelled: z.boolean(),
   createdAt: z.date(),
   updatedAt: z.date(),
+  timezoneAutoUpdated: z.boolean().optional(),
 });
 
 /** Organizer info in trip summary */

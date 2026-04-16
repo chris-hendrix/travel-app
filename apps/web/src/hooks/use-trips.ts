@@ -9,7 +9,9 @@ import {
 } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { apiRequest, APIError } from "@/lib/api";
+import { getTimezoneLabel } from "@/lib/constants";
 import type { CreateTripInput, UpdateTripInput } from "@journiful/shared/schemas";
 import type {
   Trip,
@@ -378,6 +380,14 @@ export function useUpdateTrip() {
 
       // Return context with previous data for rollback
       return { previousTrips, previousTrip };
+    },
+
+    // On success: Notify user if timezone was auto-updated
+    onSuccess: (updatedTrip) => {
+      if (updatedTrip.timezoneAutoUpdated) {
+        const label = getTimezoneLabel(updatedTrip.preferredTimezone);
+        toast.info(`Timezone updated to ${label}`);
+      }
     },
 
     // On error: Rollback optimistic update

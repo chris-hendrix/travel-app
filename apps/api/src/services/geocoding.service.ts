@@ -17,9 +17,17 @@ export interface IGeocodingService {
    * @returns Geocoding result or null if not found / on error
    */
   geocode(query: string): Promise<GeocodingResult | null>;
+
+  /**
+   * Looks up the IANA timezone for a location query string
+   * @param query - The location name to look up (e.g. "Paris, France")
+   * @returns IANA timezone string (e.g. "Europe/Paris") or null if not found / on error
+   */
+  getTimezone(query: string): Promise<string | null>;
 }
 
 const NOMINATIM_API_BASE = "https://nominatim.openstreetmap.org/search";
+const OPEN_METEO_GEOCODING_API = "https://geocoding-api.open-meteo.com/v1/search";
 
 /**
  * Nominatim (OpenStreetMap) Geocoding Service Implementation
@@ -62,6 +70,37 @@ export class NominatimGeocodingService implements IGeocodingService {
       };
     } catch (err) {
       this.logger?.error(err, "Geocoding failed");
+      return null;
+    }
+  }
+
+  async getTimezone(query: string): Promise<string | null> {
+    if (!query?.trim()) return null;
+
+    this.logger?.info({ query }, "Timezone lookup query");
+
+    try {
+      const url = `${OPEN_METEO_GEOCODING_API}?name=${encodeURIComponent(query.trim())}&count=1`;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
+      const response = await fetch(url, {
+        headers: {
+          "User-Agent":
+            "journiful-app (https://github.com/chris-hendrix/tripful)",
+        },
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (!response.ok) return null;
+
+      const data = (await response.json()) as {
+        results?: Array<{ timezone: string }>;
+      };
+
+      return data.results?.[0]?.timezone ?? null;
+    } catch (err) {
+      this.logger?.error(err, "Timezone lookup failed");
       return null;
     }
   }

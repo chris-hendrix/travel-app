@@ -145,4 +145,115 @@ describe("NominatimGeocodingService", () => {
       expect(typeof result!.lon).toBe("number");
     });
   });
+
+  describe("getTimezone", () => {
+    it("should return IANA timezone string for a valid query", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            results: [{ timezone: "Europe/Paris" }],
+          }),
+      });
+      vi.stubGlobal("fetch", mockFetch);
+
+      const result = await service.getTimezone("Paris, France");
+      expect(result).toBe("Europe/Paris");
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("geocoding-api.open-meteo.com"),
+        expect.objectContaining({
+          headers: {
+            "User-Agent":
+              "journiful-app (https://github.com/chris-hendrix/tripful)",
+          },
+        }),
+      );
+    });
+
+    it("should return null when results array is empty", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve({ results: [] }),
+        }),
+      );
+
+      const result = await service.getTimezone("xyznonexistent");
+      expect(result).toBeNull();
+    });
+
+    it("should return null when response has no results key", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve({}),
+        }),
+      );
+
+      const result = await service.getTimezone("somewhere");
+      expect(result).toBeNull();
+    });
+
+    it("should return null on network error and log the error", async () => {
+      const networkError = new Error("Network error");
+      vi.stubGlobal("fetch", vi.fn().mockRejectedValue(networkError));
+
+      const result = await service.getTimezone("Tokyo");
+      expect(result).toBeNull();
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        networkError,
+        "Timezone lookup failed",
+      );
+    });
+
+    it("should return null for empty query", async () => {
+      const mockFetch = vi.fn();
+      vi.stubGlobal("fetch", mockFetch);
+
+      const result = await service.getTimezone("");
+      expect(result).toBeNull();
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("should return null for whitespace-only query", async () => {
+      const mockFetch = vi.fn();
+      vi.stubGlobal("fetch", mockFetch);
+
+      const result = await service.getTimezone("   ");
+      expect(result).toBeNull();
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("should return null on non-OK response", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ok: false,
+          status: 500,
+        }),
+      );
+
+      const result = await service.getTimezone("London");
+      expect(result).toBeNull();
+    });
+
+    it("should encode query parameter properly", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            results: [{ timezone: "America/Costa_Rica" }],
+          }),
+      });
+      vi.stubGlobal("fetch", mockFetch);
+
+      await service.getTimezone("San José, Costa Rica");
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("San%20Jos%C3%A9%2C%20Costa%20Rica"),
+        expect.anything(),
+      );
+    });
+  });
 });

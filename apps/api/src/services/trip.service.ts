@@ -173,7 +173,7 @@ export interface ITripService {
     tripId: string,
     userId: string,
     data: UpdateTripInput,
-  ): Promise<Trip>;
+  ): Promise<Trip & { timezoneAutoUpdated?: boolean }>;
 
   /**
    * Cancels a trip (soft delete)
@@ -292,21 +292,22 @@ export class TripService implements ITripService {
       coOrganizerUserIds = coOrganizerUsers.map((u) => u.id);
     }
 
-    // Geocode destination if provided (best-effort, failure does not block creation)
+    // Geocode destination and look up timezone if provided (best-effort, failure does not block creation)
     let destinationLat: number | null = null;
     let destinationLon: number | null = null;
     let destinationDisplayName: string | null = null;
+    let geocodedTimezone: string | null = null;
     if (data.destination) {
-      try {
-        const coords = await this.geocodingService.geocode(data.destination);
-        if (coords) {
-          destinationLat = coords.lat;
-          destinationLon = coords.lon;
-          destinationDisplayName = coords.displayName;
-        }
-      } catch {
-        // Geocoding failure is non-blocking
+      const [coords, tz] = await Promise.all([
+        this.geocodingService.geocode(data.destination).catch(() => null),
+        this.geocodingService.getTimezone(data.destination).catch(() => null),
+      ]);
+      if (coords) {
+        destinationLat = coords.lat;
+        destinationLon = coords.lon;
+        destinationDisplayName = coords.displayName;
       }
+      geocodedTimezone = tz;
     }
 
     // Wrap all inserts in a transaction for atomicity
@@ -322,7 +323,7 @@ export class TripService implements ITripService {
           destinationDisplayName,
           startDate: data.startDate || null,
           endDate: data.endDate || null,
-          preferredTimezone: data.timezone,
+          preferredTimezone: geocodedTimezone ?? data.timezone,
           description: data.description || null,
           coverImageUrl:
             data.coverImageUrl === null ? null : data.coverImageUrl || null,
@@ -741,8 +742,10 @@ export class TripService implements ITripService {
       delete updateData.timezone;
     }
 
-    // If destination changed, geocode and update coordinates + delete weather cache
+    // If destination changed, geocode and update coordinates + look up timezone + delete weather cache
     // Only re-geocode if the destination value actually differs from the current one
+    let destinationChanged = false;
+    let geocodedTimezone: string | null = null;
     if (data.destination !== undefined) {
       // Fetch current trip to compare destination
       const [currentTrip] = await this.db
@@ -752,22 +755,28 @@ export class TripService implements ITripService {
         .limit(1);
 
       if (data.destination !== currentTrip?.destination) {
+        destinationChanged = true;
         let newLat: number | null = null;
         let newLon: number | null = null;
         let newDisplayName: string | null = null;
-        try {
-          const coords = await this.geocodingService.geocode(data.destination);
-          if (coords) {
-            newLat = coords.lat;
-            newLon = coords.lon;
-            newDisplayName = coords.displayName;
-          }
-        } catch {
-          // Geocoding failure is non-blocking
+        const [coords, tz] = await Promise.all([
+          this.geocodingService.geocode(data.destination).catch(() => null),
+          this.geocodingService.getTimezone(data.destination).catch(() => null),
+        ]);
+        if (coords) {
+          newLat = coords.lat;
+          newLon = coords.lon;
+          newDisplayName = coords.displayName;
         }
+        geocodedTimezone = tz;
         updateData.destinationLat = newLat;
         updateData.destinationLon = newLon;
         updateData.destinationDisplayName = newDisplayName;
+
+        // Auto-update timezone if geocoding returned one
+        if (geocodedTimezone) {
+          updateData.preferredTimezone = geocodedTimezone;
+        }
 
         // Delete weather cache when destination changes (regardless of geocoding result)
         await this.db
@@ -792,7 +801,11 @@ export class TripService implements ITripService {
       throw new TripNotFoundError();
     }
 
-    return result[0];
+    const updatedTrip: Trip & { timezoneAutoUpdated?: boolean } = {
+      ...result[0],
+      timezoneAutoUpdated: destinationChanged && !!geocodedTimezone,
+    };
+    return updatedTrip;
   }
 
   /**

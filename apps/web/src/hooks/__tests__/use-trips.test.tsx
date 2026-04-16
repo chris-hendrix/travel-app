@@ -10,13 +10,14 @@ import {
   useTrips,
   useTripDetail,
   useCreateTrip,
+  useUpdateTrip,
   getCreateTripErrorMessage,
   type Trip,
   type TripSummary,
   type TripDetail,
 } from "../use-trips";
 import { APIError } from "@/lib/api";
-import type { CreateTripInput } from "@journiful/shared/schemas";
+import type { CreateTripInput, UpdateTripInput } from "@journiful/shared/schemas";
 import type { GetTripsResponse } from "@journiful/shared/types";
 
 // Mock the API module
@@ -39,6 +40,16 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: mockPush,
   }),
+}));
+
+// Mock sonner toast
+const mockToast = vi.hoisted(() => ({
+  info: vi.fn(),
+  success: vi.fn(),
+  error: vi.fn(),
+}));
+vi.mock("sonner", () => ({
+  toast: mockToast,
 }));
 
 describe("useTrips", () => {
@@ -1004,6 +1015,105 @@ describe("useTripDetail", () => {
       // Verify API was called twice
       expect(apiRequest).toHaveBeenCalledTimes(2);
     });
+  });
+});
+
+describe("useUpdateTrip", () => {
+  let queryClient: QueryClient;
+  let wrapper: ({ children }: { children: ReactNode }) => JSX.Element;
+
+  const existingTrip: Trip = {
+    id: "trip-123",
+    name: "Beach Getaway",
+    destination: "Cancun, Mexico",
+    destinationLat: null,
+    destinationLon: null,
+    startDate: "2026-06-01",
+    endDate: "2026-06-05",
+    preferredTimezone: "America/New_York",
+    description: "Fun trip",
+    coverImageUrl: null,
+    themeId: null,
+    themeFont: null,
+    createdBy: "user-123",
+    allowMembersToAddEvents: true,
+    showAllMembers: false,
+    cancelled: false,
+    createdAt: new Date("2026-02-06T12:00:00Z"),
+    updatedAt: new Date("2026-02-06T12:00:00Z"),
+  };
+
+  beforeEach(() => {
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+
+    vi.clearAllMocks();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(async () => {
+    queryClient.clear();
+    await new Promise((r) => setTimeout(r, 0));
+  });
+
+  it("shows toast when timezoneAutoUpdated is true", async () => {
+    const { apiRequest } = await import("@/lib/api");
+    vi.mocked(apiRequest).mockResolvedValueOnce({
+      success: true,
+      trip: {
+        ...existingTrip,
+        destination: "Tokyo, Japan",
+        preferredTimezone: "Asia/Tokyo",
+        timezoneAutoUpdated: true,
+      },
+    });
+
+    const { result } = renderHook(() => useUpdateTrip(), { wrapper });
+
+    result.current.mutate({
+      tripId: "trip-123",
+      data: { destination: "Tokyo, Japan" } as UpdateTripInput,
+    });
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    expect(mockToast.info).toHaveBeenCalledWith(
+      "Timezone updated to Japan Standard Time (JST)",
+    );
+  });
+
+  it("does not show toast when timezoneAutoUpdated is not set", async () => {
+    const { apiRequest } = await import("@/lib/api");
+    vi.mocked(apiRequest).mockResolvedValueOnce({
+      success: true,
+      trip: {
+        ...existingTrip,
+        name: "Updated Name",
+      },
+    });
+
+    const { result } = renderHook(() => useUpdateTrip(), { wrapper });
+
+    result.current.mutate({
+      tripId: "trip-123",
+      data: { name: "Updated Name" } as UpdateTripInput,
+    });
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    expect(mockToast.info).not.toHaveBeenCalled();
   });
 });
 

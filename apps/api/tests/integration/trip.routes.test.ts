@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, beforeEach } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../helpers.js";
 import { db } from "@/config/database.js";
@@ -2643,6 +2643,283 @@ describe("PUT /api/trips/:id", () => {
       expect(body.success).toBe(false);
       expect(body.error.code).toBe("NOT_FOUND");
       expect(body.error.message).toBe("Trip not found");
+    });
+  });
+});
+
+describe("Timezone auto-population", () => {
+  let app: FastifyInstance;
+
+  afterEach(async () => {
+    vi.restoreAllMocks();
+    if (app) {
+      await app.close();
+    }
+  });
+
+  describe("POST /api/trips - timezone from geocoding", () => {
+    it("should use geocoded timezone instead of user-provided browser timezone", async () => {
+      app = await buildApp();
+
+      // Mock geocoding service
+      vi.spyOn(app.geocodingService, "geocode").mockResolvedValueOnce({
+        lat: 48.8566,
+        lon: 2.3522,
+        displayName: "Paris, Île-de-France, France",
+      });
+      vi.spyOn(app.geocodingService, "getTimezone").mockResolvedValueOnce(
+        "Europe/Paris",
+      );
+
+      const [testUser] = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "Timezone Test User",
+          timezone: "America/New_York",
+        })
+        .returning();
+
+      const token = app.jwt.sign({
+        sub: testUser.id,
+        name: testUser.displayName,
+      });
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/trips",
+        cookies: { auth_token: token },
+        payload: {
+          name: "Paris Trip",
+          destination: "Paris, France",
+          timezone: "America/New_York", // browser default, should be overridden
+        },
+      });
+
+      expect(response.statusCode).toBe(201);
+      const body = JSON.parse(response.body);
+      expect(body.trip.preferredTimezone).toBe("Europe/Paris");
+    });
+
+    it("should fall back to user-provided timezone when timezone lookup fails", async () => {
+      app = await buildApp();
+
+      // Mock geocoding service - geocode succeeds, getTimezone fails
+      vi.spyOn(app.geocodingService, "geocode").mockResolvedValueOnce({
+        lat: 48.8566,
+        lon: 2.3522,
+        displayName: "Paris, Île-de-France, France",
+      });
+      vi.spyOn(app.geocodingService, "getTimezone").mockRejectedValueOnce(
+        new Error("API error"),
+      );
+
+      const [testUser] = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "Timezone Fallback User",
+          timezone: "America/New_York",
+        })
+        .returning();
+
+      const token = app.jwt.sign({
+        sub: testUser.id,
+        name: testUser.displayName,
+      });
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/trips",
+        cookies: { auth_token: token },
+        payload: {
+          name: "Fallback Trip",
+          destination: "Paris, France",
+          timezone: "America/New_York",
+        },
+      });
+
+      expect(response.statusCode).toBe(201);
+      const body = JSON.parse(response.body);
+      expect(body.trip.preferredTimezone).toBe("America/New_York");
+    });
+  });
+
+  describe("PUT /api/trips/:id - timezone auto-update on destination change", () => {
+    it("should auto-update timezone when destination changes and geocoding succeeds", async () => {
+      app = await buildApp();
+
+      const [testUser] = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "Update TZ User",
+          timezone: "America/New_York",
+        })
+        .returning();
+
+      const [trip] = await db
+        .insert(trips)
+        .values({
+          name: "Original Trip",
+          destination: "New York, USA",
+          preferredTimezone: "America/New_York",
+          createdBy: testUser.id,
+        })
+        .returning();
+
+      await db.insert(members).values({
+        userId: testUser.id,
+        tripId: trip.id,
+        status: "going",
+        isOrganizer: true,
+      });
+
+      // Mock geocoding for destination change
+      vi.spyOn(app.geocodingService, "geocode").mockResolvedValueOnce({
+        lat: 35.6762,
+        lon: 139.6503,
+        displayName: "Tokyo, Japan",
+      });
+      vi.spyOn(app.geocodingService, "getTimezone").mockResolvedValueOnce(
+        "Asia/Tokyo",
+      );
+
+      const token = app.jwt.sign({
+        sub: testUser.id,
+        name: testUser.displayName,
+      });
+
+      const response = await app.inject({
+        method: "PUT",
+        url: `/api/trips/${trip.id}`,
+        cookies: { auth_token: token },
+        payload: {
+          destination: "Tokyo, Japan",
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.trip.preferredTimezone).toBe("Asia/Tokyo");
+      expect(body.trip.timezoneAutoUpdated).toBe(true);
+    });
+
+    it("should not change timezone when destination is unchanged", async () => {
+      app = await buildApp();
+
+      const [testUser] = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "No Change User",
+          timezone: "America/New_York",
+        })
+        .returning();
+
+      const [trip] = await db
+        .insert(trips)
+        .values({
+          name: "Same Dest Trip",
+          destination: "Paris, France",
+          preferredTimezone: "Europe/Paris",
+          createdBy: testUser.id,
+        })
+        .returning();
+
+      await db.insert(members).values({
+        userId: testUser.id,
+        tripId: trip.id,
+        status: "going",
+        isOrganizer: true,
+      });
+
+      const token = app.jwt.sign({
+        sub: testUser.id,
+        name: testUser.displayName,
+      });
+
+      // Spy on geocoding to ensure it's NOT called
+      const geocodeSpy = vi.spyOn(app.geocodingService, "geocode");
+      const getTimezoneSpy = vi.spyOn(app.geocodingService, "getTimezone");
+
+      const response = await app.inject({
+        method: "PUT",
+        url: `/api/trips/${trip.id}`,
+        cookies: { auth_token: token },
+        payload: {
+          destination: "Paris, France", // same as current
+          name: "Renamed Trip",
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.trip.preferredTimezone).toBe("Europe/Paris");
+      expect(body.trip.timezoneAutoUpdated).toBe(false);
+      expect(geocodeSpy).not.toHaveBeenCalled();
+      expect(getTimezoneSpy).not.toHaveBeenCalled();
+    });
+
+    it("should keep existing timezone when destination changes but timezone lookup fails", async () => {
+      app = await buildApp();
+
+      const [testUser] = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "TZ Fail User",
+          timezone: "America/New_York",
+        })
+        .returning();
+
+      const [trip] = await db
+        .insert(trips)
+        .values({
+          name: "Fail TZ Trip",
+          destination: "New York, USA",
+          preferredTimezone: "America/New_York",
+          createdBy: testUser.id,
+        })
+        .returning();
+
+      await db.insert(members).values({
+        userId: testUser.id,
+        tripId: trip.id,
+        status: "going",
+        isOrganizer: true,
+      });
+
+      // Mock geocoding - geocode works but getTimezone fails
+      vi.spyOn(app.geocodingService, "geocode").mockResolvedValueOnce({
+        lat: 35.6762,
+        lon: 139.6503,
+        displayName: "Tokyo, Japan",
+      });
+      vi.spyOn(app.geocodingService, "getTimezone").mockRejectedValueOnce(
+        new Error("Timezone API error"),
+      );
+
+      const token = app.jwt.sign({
+        sub: testUser.id,
+        name: testUser.displayName,
+      });
+
+      const response = await app.inject({
+        method: "PUT",
+        url: `/api/trips/${trip.id}`,
+        cookies: { auth_token: token },
+        payload: {
+          destination: "Tokyo, Japan",
+          timezone: "America/Chicago", // user-provided timezone in update
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      // Should use the user-provided timezone from the update payload, not the geocoded one
+      expect(body.trip.preferredTimezone).toBe("America/Chicago");
+      expect(body.trip.timezoneAutoUpdated).toBe(false);
     });
   });
 });
