@@ -61,10 +61,10 @@ const withPWA = withPWAInit({
       },
       {
         urlPattern: /\/_next\/static\/.*/,
-        handler: "CacheFirst",
+        handler: "StaleWhileRevalidate",
         options: {
           cacheName: "static-assets",
-          expiration: { maxEntries: 100, maxAgeSeconds: 2592000 },
+          expiration: { maxEntries: 100, maxAgeSeconds: 86400 },
         },
       },
       {
