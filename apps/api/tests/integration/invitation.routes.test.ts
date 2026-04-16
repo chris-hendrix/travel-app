@@ -2465,7 +2465,7 @@ describe("Invitation Routes", () => {
 
       const body = JSON.parse(response.body);
       expect(body).toHaveProperty("success", true);
-      expect(body.invitations).toHaveLength(0); // no phone invitations
+      expect(body.invitations).toHaveLength(1); // mutual invite now creates invitation record
       expect(body.addedMembers).toHaveLength(1);
       expect(body.addedMembers[0].userId).toBe(mutual.id);
       expect(body.addedMembers[0].displayName).toBe("Mutual Friend");
@@ -2640,7 +2640,7 @@ describe("Invitation Routes", () => {
 
       const body = JSON.parse(response.body);
       expect(body).toHaveProperty("success", true);
-      expect(body.invitations).toHaveLength(1); // phone invitation
+      expect(body.invitations).toHaveLength(2); // phone + mutual invitations
       expect(body.addedMembers).toHaveLength(1); // mutual invite
       expect(body.addedMembers[0].userId).toBe(mutual.id);
       expect(body.skipped).toHaveLength(0);
