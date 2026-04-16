@@ -18,6 +18,7 @@ interface WeatherForecastCardProps {
   isLoading: boolean;
   temperatureUnit: TemperatureUnit;
   isDark?: boolean;
+  onDayClick?: (date: string) => void;
 }
 
 function formatDayOfWeek(dateStr: string): string {
@@ -90,6 +91,7 @@ export const WeatherForecastCard = memo(function WeatherForecastCard({
   isLoading,
   temperatureUnit,
   isDark = false,
+  onDayClick,
 }: WeatherForecastCardProps) {
   if (isLoading) {
     return (
@@ -142,9 +144,22 @@ export const WeatherForecastCard = memo(function WeatherForecastCard({
           return (
             <div
               key={day.date}
-              className={`flex min-w-[4.5rem] flex-1 flex-col items-center rounded-md px-1 py-2 ${tileBg}`}
+              className={`flex min-w-[4.5rem] flex-1 flex-col items-center rounded-md px-1 py-2 ${tileBg}${onDayClick ? " cursor-pointer" : ""}`}
               title={label}
               aria-label={`${formatDayOfWeek(day.date)}: ${label}, high ${high}, low ${low}${day.precipitationProbability > 5 ? `, ${day.precipitationProbability}% rain` : ""}`}
+              onClick={() => onDayClick?.(day.date)}
+              role={onDayClick ? "button" : undefined}
+              tabIndex={onDayClick ? 0 : undefined}
+              onKeyDown={
+                onDayClick
+                  ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onDayClick(day.date);
+                      }
+                    }
+                  : undefined
+              }
             >
               {/* Day + date */}
               <span

@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 
 import { RsvpPills } from "@/components/trip/rsvp-pills";
 import { WeatherForecastCard } from "@/components/itinerary/weather-forecast-card";
+import { WeatherDetailSheet } from "@/components/itinerary/weather-detail-sheet";
 import { AccommodationDetailSheet } from "@/components/itinerary/accommodation-detail-sheet";
 import { EditAccommodationDialog } from "@/components/itinerary/edit-accommodation-dialog";
 import { CreateAccommodationDialog } from "@/components/itinerary/create-accommodation-dialog";
@@ -121,6 +122,7 @@ export function InfoPanel({
     () => suggestions.find((s) => s.gapType === "no_accommodation"),
     [suggestions],
   );
+  const [selectedWeatherDate, setSelectedWeatherDate] = useState<string | null>(null);
   const [selectedAccommodation, setSelectedAccommodation] = useState<Accommodation | null>(null);
   const [editingAccommodation, setEditingAccommodation] = useState<Accommodation | null>(null);
   const [isCreateAccommodationOpen, setIsCreateAccommodationOpen] = useState(false);
@@ -185,6 +187,8 @@ export function InfoPanel({
       </>
     );
   }, [todayDateStr, todayForecast, temperatureUnit]);
+
+  const selectedWeatherIndex = weather?.forecasts.findIndex(f => f.date === selectedWeatherDate) ?? -1;
 
   return (
     <div
@@ -445,9 +449,22 @@ export function InfoPanel({
             isLoading={weatherLoading}
             temperatureUnit={temperatureUnit}
             isDark={preset?.background.isDark ?? false}
+            onDayClick={setSelectedWeatherDate}
           />
         </div>
       </div>
+
+      {/* Weather detail sheet */}
+      <WeatherDetailSheet
+        forecasts={weather?.forecasts ?? []}
+        hourly={weather?.hourly ?? []}
+        selectedIndex={Math.max(0, selectedWeatherIndex)}
+        onIndexChange={(i) => setSelectedWeatherDate(weather?.forecasts[i]?.date ?? null)}
+        open={selectedWeatherDate !== null && selectedWeatherIndex >= 0}
+        onOpenChange={(open) => { if (!open) setSelectedWeatherDate(null); }}
+        temperatureUnit={temperatureUnit}
+        isDark={preset?.background.isDark ?? false}
+      />
 
       {/* Accommodation detail sheet */}
       <AccommodationDetailSheet
