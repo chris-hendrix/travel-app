@@ -152,8 +152,10 @@ export {
 // Re-export weather schemas
 export {
   dailyForecastSchema,
+  hourlyForecastSchema,
   tripWeatherResponseSchema,
   type DailyForecastSchema,
+  type HourlyForecastSchema,
   type TripWeatherResponseSchema,
 } from "./weather";
 
