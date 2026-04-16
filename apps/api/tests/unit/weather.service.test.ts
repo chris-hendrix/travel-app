@@ -444,4 +444,256 @@ describe("WeatherService", () => {
       precipitationProbability: 5,
     });
   });
+
+  it("should return hourly: [] when API response has no hourly key", async () => {
+    mockTripService.getEffectiveDateRange.mockResolvedValue({
+      start: new Date("2026-01-01"),
+      end: new Date("2026-12-31"),
+    });
+
+    // Response without hourly data (simulates old Open-Meteo format)
+    const noHourlyResponse = {
+      daily: {
+        time: ["2026-03-10"],
+        weather_code: [3],
+        temperature_2m_max: [25.5],
+        temperature_2m_min: [15.0],
+        precipitation_probability_max: [5],
+        sunrise: ["2026-03-10T06:45"],
+        sunset: ["2026-03-10T18:30"],
+        wind_speed_10m_max: [12.0],
+        wind_direction_10m_dominant: [180],
+        uv_index_max: [4.5],
+        apparent_temperature_max: [27.0],
+        apparent_temperature_min: [13.0],
+      },
+    };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(noHourlyResponse),
+      }),
+    );
+
+    const result = await service.getForecast(testTripId);
+
+    expect(result.available).toBe(true);
+    expect(result.forecasts).toHaveLength(1);
+    expect(result.hourly).toEqual([]);
+  });
+
+  it("should re-fetch when cached response lacks hourly key (cache compat guard)", async () => {
+    const start = new Date();
+    start.setDate(start.getDate() + 1);
+    const end = new Date();
+    end.setDate(end.getDate() + 3);
+    mockTripService.getEffectiveDateRange.mockResolvedValue({ start, end });
+
+    // Insert fresh cache WITHOUT hourly key (old cache format)
+    const oldCacheResponse = {
+      daily: {
+        time: [futureDateStr(1), futureDateStr(2), futureDateStr(3)],
+        weather_code: [0, 1, 61],
+        temperature_2m_max: [22.5, 21.0, 18.3],
+        temperature_2m_min: [14.2, 13.5, 12.1],
+        precipitation_probability_max: [0, 10, 80],
+        sunrise: [
+          `${futureDateStr(1)}T06:30`,
+          `${futureDateStr(2)}T06:28`,
+          `${futureDateStr(3)}T06:26`,
+        ],
+        sunset: [
+          `${futureDateStr(1)}T19:45`,
+          `${futureDateStr(2)}T19:46`,
+          `${futureDateStr(3)}T19:47`,
+        ],
+        wind_speed_10m_max: [15.2, 10.5, 22.0],
+        wind_direction_10m_dominant: [180, 270, 45],
+        uv_index_max: [5.5, 3.2, 7.8],
+        apparent_temperature_max: [24.0, 22.5, 16.0],
+        apparent_temperature_min: [12.0, 11.5, 10.0],
+      },
+      // No hourly key — old cache format
+    };
+
+    await db.insert(weatherCache).values({
+      tripId: testTripId,
+      response: oldCacheResponse,
+      fetchedAt: new Date(), // fresh timestamp
+    });
+
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(mockOpenMeteoResponse),
+    });
+    vi.stubGlobal("fetch", mockFetch);
+
+    const result = await service.getForecast(testTripId);
+
+    // Should have fallen through to re-fetch despite fresh cache
+    expect(mockFetch).toHaveBeenCalledOnce();
+    expect(result.available).toBe(true);
+    expect(result.hourly.length).toBeGreaterThan(0);
+  });
+
+  it("should include hourly array in getForecast response from fresh fetch", async () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dayAfter = new Date();
+    dayAfter.setDate(dayAfter.getDate() + 3);
+
+    mockTripService.getEffectiveDateRange.mockResolvedValue({
+      start: tomorrow,
+      end: dayAfter,
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(mockOpenMeteoResponse),
+      }),
+    );
+
+    const result = await service.getForecast(testTripId);
+
+    expect(result.available).toBe(true);
+    expect(result).toHaveProperty("hourly");
+    expect(Array.isArray(result.hourly)).toBe(true);
+    expect(result.hourly.length).toBeGreaterThan(0);
+
+    // Verify each hourly entry has the correct HourlyForecast shape
+    for (const h of result.hourly) {
+      expect(h).toHaveProperty("time");
+      expect(h).toHaveProperty("temperature");
+      expect(h).toHaveProperty("weatherCode");
+      expect(h).toHaveProperty("windSpeed");
+      expect(h).toHaveProperty("humidity");
+      expect(h).toHaveProperty("uvIndex");
+      expect(h).toHaveProperty("dewPoint");
+      expect(h).toHaveProperty("precipitationProbability");
+    }
+  });
+
+  it("should include hourly array in cached response", async () => {
+    const start = new Date();
+    start.setDate(start.getDate() + 1);
+    const end = new Date();
+    end.setDate(end.getDate() + 3);
+    mockTripService.getEffectiveDateRange.mockResolvedValue({ start, end });
+
+    // Insert fresh cache WITH hourly data
+    await db.insert(weatherCache).values({
+      tripId: testTripId,
+      response: mockOpenMeteoResponse,
+      fetchedAt: new Date(),
+    });
+
+    const mockFetch = vi.fn();
+    vi.stubGlobal("fetch", mockFetch);
+
+    const result = await service.getForecast(testTripId);
+
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(result.available).toBe(true);
+    expect(result).toHaveProperty("hourly");
+    expect(Array.isArray(result.hourly)).toBe(true);
+    expect(result.hourly.length).toBeGreaterThan(0);
+
+    // Verify hourly entries are correctly parsed from cache
+    for (const h of result.hourly) {
+      expect(h).toHaveProperty("time");
+      expect(h).toHaveProperty("temperature");
+      expect(h).toHaveProperty("weatherCode");
+      expect(h).toHaveProperty("windSpeed");
+      expect(h).toHaveProperty("humidity");
+      expect(h).toHaveProperty("uvIndex");
+      expect(h).toHaveProperty("dewPoint");
+      expect(h).toHaveProperty("precipitationProbability");
+    }
+  });
+
+  it("should include hourly: [] in all unavailable responses", async () => {
+    // No trip found
+    const noTripResult = await service.getForecast(
+      "00000000-0000-0000-0000-000000000000",
+    );
+    expect(noTripResult.available).toBe(false);
+    expect(noTripResult.hourly).toEqual([]);
+
+    // No coordinates
+    const [noCoordTrip] = await db
+      .insert(trips)
+      .values({
+        name: "No Coord Trip 2",
+        destination: "Unknown",
+        preferredTimezone: "UTC",
+        createdBy: testUserId,
+      })
+      .returning();
+
+    const noCoordResult = await service.getForecast(noCoordTrip.id);
+    expect(noCoordResult.available).toBe(false);
+    expect(noCoordResult.hourly).toEqual([]);
+    await db.delete(trips).where(eq(trips.id, noCoordTrip.id));
+
+    // No dates
+    mockTripService.getEffectiveDateRange.mockResolvedValue({
+      start: null,
+      end: null,
+    });
+    const noDatesResult = await service.getForecast(testTripId);
+    expect(noDatesResult.available).toBe(false);
+    expect(noDatesResult.hourly).toEqual([]);
+
+    // Past trip
+    mockTripService.getEffectiveDateRange.mockResolvedValue({
+      start: new Date("2024-01-01"),
+      end: new Date("2024-01-05"),
+    });
+    const pastResult = await service.getForecast(testTripId);
+    expect(pastResult.available).toBe(false);
+    expect(pastResult.hourly).toEqual([]);
+
+    // Too far in the future
+    const farFuture = new Date();
+    farFuture.setDate(farFuture.getDate() + 30);
+    const farFutureEnd = new Date();
+    farFutureEnd.setDate(farFutureEnd.getDate() + 35);
+    mockTripService.getEffectiveDateRange.mockResolvedValue({
+      start: farFuture,
+      end: farFutureEnd,
+    });
+    const farResult = await service.getForecast(testTripId);
+    expect(farResult.available).toBe(false);
+    expect(farResult.hourly).toEqual([]);
+
+    // API network error
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dayAfter = new Date();
+    dayAfter.setDate(dayAfter.getDate() + 3);
+    mockTripService.getEffectiveDateRange.mockResolvedValue({
+      start: tomorrow,
+      end: dayAfter,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("Network error")),
+    );
+    const errorResult = await service.getForecast(testTripId);
+    expect(errorResult.available).toBe(false);
+    expect(errorResult.hourly).toEqual([]);
+
+    // API non-OK response
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: false, status: 500 }),
+    );
+    const serverErrorResult = await service.getForecast(testTripId);
+    expect(serverErrorResult.available).toBe(false);
+    expect(serverErrorResult.hourly).toEqual([]);
+  });
 });

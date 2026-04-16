@@ -207,26 +207,14 @@ export const WeatherDetailSheet = memo(function WeatherDetailSheet({
   temperatureUnit,
   isDark,
 }: WeatherDetailSheetProps) {
-  const forecast = forecasts[selectedIndex];
-  if (!forecast) return null;
-
-  const { icon: WeatherIcon, label, tone } = getWeatherInfo(
-    forecast.weatherCode,
-  );
-  const styles = TONE_STYLES[tone];
-  const iconColor = isDark ? styles.iconDark : styles.icon;
-  const today = isToday(forecast.date);
-  const unit = temperatureUnit === "fahrenheit" ? "F" : "C";
-  const high = toDisplayTemp(forecast.temperatureMax, temperatureUnit);
-  const low = toDisplayTemp(forecast.temperatureMin, temperatureUnit);
-
-  const currentTemp = today
-    ? getCurrentHourTemp(hourly, forecast.date)
-    : null;
-
-  const nextForecast = forecasts[selectedIndex + 1];
-  const dayHours = getHourlyForDay(hourly, forecast.date, nextForecast?.date);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const forecast = forecasts[selectedIndex];
+
+  const today = forecast ? isToday(forecast.date) : false;
+  const nextForecast = forecast ? forecasts[selectedIndex + 1] : undefined;
+  const dayHours = forecast
+    ? getHourlyForDay(hourly, forecast.date, nextForecast?.date)
+    : [];
   const anchorIdx = today ? getAnchorHourIndex(dayHours, new Date()) : 0;
 
   useEffect(() => {
@@ -235,6 +223,21 @@ export const WeatherDetailSheet = memo(function WeatherDetailSheet({
       | undefined;
     el?.scrollIntoView({ inline: "start", behavior: "instant" });
   }, [anchorIdx, selectedIndex]);
+
+  if (!forecast) return null;
+
+  const { icon: WeatherIcon, label, tone } = getWeatherInfo(
+    forecast.weatherCode,
+  );
+  const styles = TONE_STYLES[tone];
+  const iconColor = isDark ? styles.iconDark : styles.icon;
+  const unit = temperatureUnit === "fahrenheit" ? "F" : "C";
+  const high = toDisplayTemp(forecast.temperatureMax, temperatureUnit);
+  const low = toDisplayTemp(forecast.temperatureMin, temperatureUnit);
+
+  const currentTemp = today
+    ? getCurrentHourTemp(hourly, forecast.date)
+    : null;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
