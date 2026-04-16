@@ -81,12 +81,16 @@ export class NominatimGeocodingService implements IGeocodingService {
 
     try {
       const url = `${OPEN_METEO_GEOCODING_API}?name=${encodeURIComponent(query.trim())}&count=1`;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
       const response = await fetch(url, {
         headers: {
           "User-Agent":
             "journiful-app (https://github.com/chris-hendrix/tripful)",
         },
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
 
       if (!response.ok) return null;
 
