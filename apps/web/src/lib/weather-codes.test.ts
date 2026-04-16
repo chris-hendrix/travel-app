@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { toDisplayTemp } from "./weather-codes";
+import { toDisplayTemp, toDisplayWindSpeed, windSpeedUnit } from "./weather-codes";
 
 describe("toDisplayTemp", () => {
   it("rounds celsius values to nearest integer", () => {
@@ -31,5 +31,32 @@ describe("toDisplayTemp", () => {
 
   it("handles negative celsius in celsius mode", () => {
     expect(toDisplayTemp(-5.3, "celsius")).toBe(-5);
+  });
+});
+
+describe("toDisplayWindSpeed", () => {
+  it("rounds km/h for celsius (metric)", () => {
+    expect(toDisplayWindSpeed(10, "celsius")).toBe(10);
+    expect(toDisplayWindSpeed(10.7, "celsius")).toBe(11);
+  });
+
+  it("converts km/h to mph for fahrenheit (imperial)", () => {
+    expect(toDisplayWindSpeed(10, "fahrenheit")).toBe(6);
+    expect(toDisplayWindSpeed(100, "fahrenheit")).toBe(62);
+  });
+
+  it("handles zero", () => {
+    expect(toDisplayWindSpeed(0, "fahrenheit")).toBe(0);
+    expect(toDisplayWindSpeed(0, "celsius")).toBe(0);
+  });
+});
+
+describe("windSpeedUnit", () => {
+  it("returns km/h for celsius", () => {
+    expect(windSpeedUnit("celsius")).toBe("km/h");
+  });
+
+  it("returns mph for fahrenheit", () => {
+    expect(windSpeedUnit("fahrenheit")).toBe("mph");
   });
 });
