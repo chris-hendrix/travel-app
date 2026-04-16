@@ -21,6 +21,23 @@ let mockOpenMeteoResponse: {
     temperature_2m_max: number[];
     temperature_2m_min: number[];
     precipitation_probability_max: number[];
+    sunrise: string[];
+    sunset: string[];
+    wind_speed_10m_max: number[];
+    wind_direction_10m_dominant: number[];
+    uv_index_max: number[];
+    apparent_temperature_max: number[];
+    apparent_temperature_min: number[];
+  };
+  hourly: {
+    time: string[];
+    temperature_2m: number[];
+    weather_code: number[];
+    wind_speed_10m: number[];
+    relative_humidity_2m: number[];
+    uv_index: number[];
+    dew_point_2m: number[];
+    precipitation_probability: number[];
   };
 };
 
@@ -73,6 +90,38 @@ describe("WeatherService", () => {
         temperature_2m_max: [22.5, 21.0, 18.3],
         temperature_2m_min: [14.2, 13.5, 12.1],
         precipitation_probability_max: [0, 10, 80],
+        sunrise: [
+          `${futureDateStr(1)}T06:30`,
+          `${futureDateStr(2)}T06:28`,
+          `${futureDateStr(3)}T06:26`,
+        ],
+        sunset: [
+          `${futureDateStr(1)}T19:45`,
+          `${futureDateStr(2)}T19:46`,
+          `${futureDateStr(3)}T19:47`,
+        ],
+        wind_speed_10m_max: [15.2, 10.5, 22.0],
+        wind_direction_10m_dominant: [180, 270, 45],
+        uv_index_max: [5.5, 3.2, 7.8],
+        apparent_temperature_max: [24.0, 22.5, 16.0],
+        apparent_temperature_min: [12.0, 11.5, 10.0],
+      },
+      hourly: {
+        time: [
+          `${futureDateStr(1)}T00:00`,
+          `${futureDateStr(1)}T01:00`,
+          `${futureDateStr(2)}T00:00`,
+          `${futureDateStr(2)}T01:00`,
+          `${futureDateStr(3)}T00:00`,
+          `${futureDateStr(3)}T01:00`,
+        ],
+        temperature_2m: [14.2, 13.8, 13.5, 13.0, 12.1, 11.8],
+        weather_code: [0, 0, 1, 1, 61, 61],
+        wind_speed_10m: [8.5, 7.2, 5.3, 4.8, 15.0, 14.5],
+        relative_humidity_2m: [72, 75, 68, 70, 85, 88],
+        uv_index: [0, 0, 0, 0, 0, 0],
+        dew_point_2m: [9.5, 9.2, 7.8, 7.5, 9.8, 10.0],
+        precipitation_probability: [0, 0, 10, 10, 80, 80],
       },
     };
 
@@ -319,6 +368,23 @@ describe("WeatherService", () => {
         temperature_2m_max: [25.5, 19.0],
         temperature_2m_min: [15.0, 11.5],
         precipitation_probability_max: [5, 90],
+        sunrise: ["2026-03-10T06:45", "2026-03-11T06:43"],
+        sunset: ["2026-03-10T18:30", "2026-03-11T18:31"],
+        wind_speed_10m_max: [12.0, 20.5],
+        wind_direction_10m_dominant: [180, 315],
+        uv_index_max: [4.5, 2.0],
+        apparent_temperature_max: [27.0, 17.5],
+        apparent_temperature_min: [13.0, 9.0],
+      },
+      hourly: {
+        time: ["2026-03-10T00:00", "2026-03-10T01:00", "2026-03-11T00:00"],
+        temperature_2m: [15.0, 14.5, 11.5],
+        weather_code: [3, 3, 61],
+        wind_speed_10m: [8.0, 7.5, 15.0],
+        relative_humidity_2m: [70, 72, 85],
+        uv_index: [0, 0, 0],
+        dew_point_2m: [9.5, 9.0, 9.0],
+        precipitation_probability: [5, 5, 90],
       },
     };
 
@@ -341,6 +407,13 @@ describe("WeatherService", () => {
       temperatureMax: 25.5,
       temperatureMin: 15.0,
       precipitationProbability: 5,
+      sunrise: "06:45",
+      sunset: "18:30",
+      windSpeedMax: 12.0,
+      windDirectionDominant: 180,
+      uvIndexMax: 4.5,
+      apparentTemperatureMax: 27.0,
+      apparentTemperatureMin: 13.0,
     });
 
     expect(result.forecasts[1]).toEqual({
@@ -349,6 +422,26 @@ describe("WeatherService", () => {
       temperatureMax: 19.0,
       temperatureMin: 11.5,
       precipitationProbability: 90,
+      sunrise: "06:43",
+      sunset: "18:31",
+      windSpeedMax: 20.5,
+      windDirectionDominant: 315,
+      uvIndexMax: 2.0,
+      apparentTemperatureMax: 17.5,
+      apparentTemperatureMin: 9.0,
+    });
+
+    // Verify hourly data is also returned
+    expect(result.hourly).toHaveLength(3);
+    expect(result.hourly[0]).toEqual({
+      time: "2026-03-10T00:00",
+      temperature: 15.0,
+      weatherCode: 3,
+      windSpeed: 8.0,
+      humidity: 70,
+      uvIndex: 0,
+      dewPoint: 9.5,
+      precipitationProbability: 5,
     });
   });
 });
