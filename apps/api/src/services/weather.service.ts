@@ -2,7 +2,11 @@ import { eq, gt, and } from "drizzle-orm";
 import { trips, weatherCache } from "@/db/schema/index.js";
 import type { AppDatabase } from "@/types/index.js";
 import type { ITripService } from "@/services/trip.service.js";
-import type { TripWeatherResponse, DailyForecast } from "@journiful/shared/types";
+import type {
+  TripWeatherResponse,
+  DailyForecastExtended,
+  HourlyForecast,
+} from "@journiful/shared/types";
 
 const FORECAST_API_BASE = "https://api.open-meteo.com/v1/forecast";
 const CACHE_MAX_AGE_MS = 3 * 60 * 60 * 1000; // 3 hours
@@ -22,6 +26,24 @@ interface OpenMeteoDaily {
   temperature_2m_max: number[];
   temperature_2m_min: number[];
   precipitation_probability_max: number[];
+  sunrise: string[];
+  sunset: string[];
+  wind_speed_10m_max: number[];
+  wind_direction_10m_dominant: number[];
+  uv_index_max: number[];
+  apparent_temperature_max: number[];
+  apparent_temperature_min: number[];
+}
+
+interface OpenMeteoHourly {
+  time: string[];
+  temperature_2m: number[];
+  weather_code: number[];
+  wind_speed_10m: number[];
+  relative_humidity_2m: number[];
+  uv_index: number[];
+  dew_point_2m: number[];
+  precipitation_probability: number[];
 }
 
 /**
@@ -49,7 +71,7 @@ export class WeatherService implements IWeatherService {
       .limit(1);
 
     if (!trip) {
-      return { available: false, forecasts: [], fetchedAt: null };
+      return { available: false, forecasts: [], hourly: [], fetchedAt: null };
     }
 
     // 2. Check coordinates
@@ -58,6 +80,7 @@ export class WeatherService implements IWeatherService {
         available: false,
         message: "Set a destination to see weather",
         forecasts: [],
+        hourly: [],
         fetchedAt: null,
       };
     }
@@ -70,6 +93,7 @@ export class WeatherService implements IWeatherService {
         available: false,
         message: "Set trip dates to see weather",
         forecasts: [],
+        hourly: [],
         fetchedAt: null,
       };
     }
@@ -81,7 +105,7 @@ export class WeatherService implements IWeatherService {
       const endStr =
         end instanceof Date ? end.toISOString().slice(0, 10) : String(end);
       if (endStr < todayStr) {
-        return { available: false, forecasts: [], fetchedAt: null };
+        return { available: false, forecasts: [], hourly: [], fetchedAt: null };
       }
     }
 
@@ -96,6 +120,7 @@ export class WeatherService implements IWeatherService {
         available: false,
         message: "Weather forecast available within 16 days of your trip",
         forecasts: [],
+        hourly: [],
         fetchedAt: null,
       };
     }
@@ -113,21 +138,28 @@ export class WeatherService implements IWeatherService {
 
     if (cachedRows.length > 0) {
       const cached = cachedRows[0]!;
-      const forecasts = this.parseForecasts(cached.response);
-      return {
-        available: true,
-        ...(trip.destinationDisplayName
-          ? { location: trip.destinationDisplayName }
-          : {}),
-        forecasts: this.filterToDateRange(forecasts, start, end),
-        fetchedAt: cached.fetchedAt.toISOString(),
-      };
+      // TODO: Remove after 2026-05-15 — all cache entries will have hourly data by then
+      const hasHourly = !!(cached.response as { hourly?: unknown })?.hourly;
+      if (hasHourly) {
+        const forecasts = this.parseForecasts(cached.response);
+        const hourly = this.parseHourlyForecasts(cached.response);
+        return {
+          available: true,
+          ...(trip.destinationDisplayName
+            ? { location: trip.destinationDisplayName }
+            : {}),
+          forecasts: this.filterToDateRange(forecasts, start, end),
+          hourly: this.filterHourlyToDateRange(hourly, start, end),
+          fetchedAt: cached.fetchedAt.toISOString(),
+        };
+      }
+      // Old cache format without hourly — fall through to re-fetch
     }
 
     // 7. Fetch from Open-Meteo
     let rawResponse: unknown;
     try {
-      const url = `${FORECAST_API_BASE}?latitude=${trip.destinationLat}&longitude=${trip.destinationLon}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=${encodeURIComponent(trip.preferredTimezone)}&forecast_days=${MAX_FORECAST_DAYS}`;
+      const url = `${FORECAST_API_BASE}?latitude=${trip.destinationLat}&longitude=${trip.destinationLon}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset,wind_speed_10m_max,wind_direction_10m_dominant,uv_index_max,apparent_temperature_max,apparent_temperature_min&hourly=temperature_2m,weather_code,wind_speed_10m,relative_humidity_2m,uv_index,dew_point_2m,precipitation_probability&timezone=${encodeURIComponent(trip.preferredTimezone)}&forecast_days=${MAX_FORECAST_DAYS}`;
       const response = await fetch(url);
 
       if (!response.ok) {
@@ -135,6 +167,7 @@ export class WeatherService implements IWeatherService {
           available: false,
           message: "Weather temporarily unavailable",
           forecasts: [],
+          hourly: [],
           fetchedAt: null,
         };
       }
@@ -145,6 +178,7 @@ export class WeatherService implements IWeatherService {
         available: false,
         message: "Weather temporarily unavailable",
         forecasts: [],
+        hourly: [],
         fetchedAt: null,
       };
     }
@@ -165,6 +199,7 @@ export class WeatherService implements IWeatherService {
 
     // 9. Parse and filter forecasts
     const forecasts = this.parseForecasts(rawResponse);
+    const hourly = this.parseHourlyForecasts(rawResponse);
 
     return {
       available: true,
@@ -172,14 +207,15 @@ export class WeatherService implements IWeatherService {
         ? { location: trip.destinationDisplayName }
         : {}),
       forecasts: this.filterToDateRange(forecasts, start, end),
+      hourly: this.filterHourlyToDateRange(hourly, start, end),
       fetchedAt: now.toISOString(),
     };
   }
 
   /**
-   * Parse Open-Meteo parallel arrays into DailyForecast objects
+   * Parse Open-Meteo daily parallel arrays into DailyForecastExtended objects
    */
-  private parseForecasts(rawResponse: unknown): DailyForecast[] {
+  private parseForecasts(rawResponse: unknown): DailyForecastExtended[] {
     const data = rawResponse as { daily?: OpenMeteoDaily };
     const daily = data?.daily;
     if (!daily?.time) {
@@ -192,6 +228,35 @@ export class WeatherService implements IWeatherService {
       temperatureMax: daily.temperature_2m_max[i] ?? 0,
       temperatureMin: daily.temperature_2m_min[i] ?? 0,
       precipitationProbability: daily.precipitation_probability_max[i] ?? 0,
+      sunrise: (daily.sunrise?.[i] ?? "").slice(11, 16),
+      sunset: (daily.sunset?.[i] ?? "").slice(11, 16),
+      windSpeedMax: daily.wind_speed_10m_max?.[i] ?? 0,
+      windDirectionDominant: daily.wind_direction_10m_dominant?.[i] ?? 0,
+      uvIndexMax: daily.uv_index_max?.[i] ?? 0,
+      apparentTemperatureMax: daily.apparent_temperature_max?.[i] ?? 0,
+      apparentTemperatureMin: daily.apparent_temperature_min?.[i] ?? 0,
+    }));
+  }
+
+  /**
+   * Parse Open-Meteo hourly parallel arrays into HourlyForecast objects
+   */
+  private parseHourlyForecasts(rawResponse: unknown): HourlyForecast[] {
+    const data = rawResponse as { hourly?: OpenMeteoHourly };
+    const hourly = data?.hourly;
+    if (!hourly?.time) {
+      return [];
+    }
+
+    return hourly.time.map((time, i) => ({
+      time,
+      temperature: hourly.temperature_2m[i] ?? 0,
+      weatherCode: hourly.weather_code[i] ?? 0,
+      windSpeed: hourly.wind_speed_10m[i] ?? 0,
+      humidity: hourly.relative_humidity_2m[i] ?? 0,
+      uvIndex: hourly.uv_index[i] ?? 0,
+      dewPoint: hourly.dew_point_2m[i] ?? 0,
+      precipitationProbability: hourly.precipitation_probability[i] ?? 0,
     }));
   }
 
@@ -199,16 +264,35 @@ export class WeatherService implements IWeatherService {
    * Filter forecasts to dates within the trip's date range
    */
   private filterToDateRange(
-    forecasts: DailyForecast[],
+    forecasts: DailyForecastExtended[],
     start: Date | null,
     end: Date | null,
-  ): DailyForecast[] {
+  ): DailyForecastExtended[] {
     const startStr = start ? start.toISOString().slice(0, 10) : null;
     const endStr = end ? end.toISOString().slice(0, 10) : null;
 
     return forecasts.filter((f) => {
       if (startStr && f.date < startStr) return false;
       if (endStr && f.date > endStr) return false;
+      return true;
+    });
+  }
+
+  /**
+   * Filter hourly entries to the trip's date range
+   */
+  private filterHourlyToDateRange(
+    hourly: HourlyForecast[],
+    start: Date | null,
+    end: Date | null,
+  ): HourlyForecast[] {
+    const startStr = start ? start.toISOString().slice(0, 10) : null;
+    const endStr = end ? end.toISOString().slice(0, 10) : null;
+
+    return hourly.filter((h) => {
+      const dateStr = h.time.slice(0, 10);
+      if (startStr && dateStr < startStr) return false;
+      if (endStr && dateStr > endStr) return false;
       return true;
     });
   }

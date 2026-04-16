@@ -131,6 +131,8 @@ export type { ThemeFont, ThemeBackground, ThemePreset } from "./theme";
 export type {
   TemperatureUnit,
   DailyForecast,
+  HourlyForecast,
+  DailyForecastExtended,
   TripWeatherResponse,
 } from "./weather";
 
