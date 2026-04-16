@@ -30,6 +30,8 @@ import {
 import {
   getWeatherInfo,
   toDisplayTemp,
+  toDisplayWindSpeed,
+  windSpeedUnit,
   TONE_STYLES,
 } from "@/lib/weather-codes";
 import {
@@ -312,7 +314,7 @@ export const WeatherDetailSheet = memo(function WeatherDetailSheet({
                     <span
                       className={`text-[0.625rem] ${isDark ? "text-foreground/60" : "text-muted-foreground"}`}
                     >
-                      {Math.round(hour.windSpeed)} km/h
+                      {toDisplayWindSpeed(hour.windSpeed, temperatureUnit)} {windSpeedUnit(temperatureUnit)}
                     </span>
                   </div>
                 );
@@ -325,7 +327,7 @@ export const WeatherDetailSheet = memo(function WeatherDetailSheet({
             <DetailCard
               icon={Wind}
               label="Wind"
-              value={`${Math.round(forecast.windSpeedMax)} km/h`}
+              value={`${toDisplayWindSpeed(forecast.windSpeedMax, temperatureUnit)} ${windSpeedUnit(temperatureUnit)}`}
               secondary={windDegreesToCompass(forecast.windDirectionDominant)}
               isDark={isDark}
             />

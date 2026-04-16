@@ -146,3 +146,22 @@ export function toDisplayTemp(celsius: number, unit: TemperatureUnit): number {
   }
   return Math.round(celsius);
 }
+
+/**
+ * Convert wind speed from km/h to the requested unit and round.
+ * Fahrenheit preference implies imperial (mph).
+ */
+export function toDisplayWindSpeed(
+  kmh: number,
+  unit: TemperatureUnit,
+): number {
+  if (unit === "fahrenheit") {
+    return Math.round(kmh * 0.621371);
+  }
+  return Math.round(kmh);
+}
+
+/** Return the wind speed unit label for the given preference. */
+export function windSpeedUnit(unit: TemperatureUnit): string {
+  return unit === "fahrenheit" ? "mph" : "km/h";
+}
