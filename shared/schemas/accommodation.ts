@@ -37,7 +37,7 @@ const baseAccommodationSchema = z.object({
  * - description: max 2000 characters (optional)
  * - checkIn: ISO 8601 datetime string (required)
  * - checkOut: ISO 8601 datetime string (required), must be > checkIn
- * - links: array of URLs, max 10 items (optional)
+ * - links: array of `{ url, name? }` objects, max 10 items (optional)
  */
 export const createAccommodationSchema = baseAccommodationSchema.refine(
   (data) => {

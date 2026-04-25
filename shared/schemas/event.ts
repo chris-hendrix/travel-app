@@ -48,7 +48,7 @@ const baseEventSchema = z.object({
  * - endTime: ISO 8601 datetime string (optional), must be > startTime
  * - allDay: boolean (defaults to false)
  * - isOptional: boolean (defaults to false)
- * - links: array of URLs, max 10 items (optional)
+ * - links: array of `{ url, name? }` objects, max 10 items (optional)
  */
 export const createEventSchema = baseEventSchema.refine(
   (data) => {
