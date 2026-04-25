@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Calendar, Car, Globe, PlaneLanding, Plus, Building2, Utensils, type LucideIcon } from "lucide-react";
+import { getTimezoneAbbr } from "@/lib/constants";
 import { useMounted } from "@/hooks/use-mounted";
 import { useMemberTravels } from "@/hooks/use-member-travel";
 import { Button } from "@/components/ui/button";
@@ -21,17 +22,6 @@ export type ItineraryFilterCategory = "activity" | "meal" | "travel" | "members"
 export type ItineraryFilter = Set<ItineraryFilterCategory>;
 export const ALL_FILTER_CATEGORIES: ItineraryFilterCategory[] = ["activity", "meal", "travel", "members"];
 
-function getTimezoneAbbr(tz: string): string {
-  try {
-    const parts = new Intl.DateTimeFormat("en-US", {
-      timeZone: tz,
-      timeZoneName: "short",
-    }).formatToParts(new Date());
-    return parts.find((p) => p.type === "timeZoneName")?.value || tz;
-  } catch {
-    return tz;
-  }
-}
 
 const FILTER_OPTIONS: { value: ItineraryFilterCategory; label: string; icon: LucideIcon }[] = [
   { value: "activity", label: "Activity", icon: Calendar },

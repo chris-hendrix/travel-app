@@ -32,7 +32,6 @@ const baseEventSchema = z.object({
   endTime: z.string().datetime().optional(),
   allDay: z.boolean().default(false),
   links: linksArraySchema.optional(),
-  timezone: z.string().max(100).optional(),
 });
 
 /**

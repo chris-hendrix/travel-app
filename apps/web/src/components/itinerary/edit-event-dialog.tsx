@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Calendar, Car, Loader2, Plus, Trash2, Utensils, X } from "lucide-react";
+import { Calendar, Car, Globe, Loader2, Plus, Trash2, Utensils, X } from "lucide-react";
 import { toast } from "sonner";
 import { parse, addHours } from "date-fns";
 import {
@@ -31,13 +31,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
@@ -57,7 +50,7 @@ import {
   getDeleteEventErrorMessage,
 } from "@/hooks/use-events";
 import { mapServerErrors } from "@/lib/form-errors";
-import { TIMEZONES } from "@/lib/constants";
+import { getTimezoneAbbr } from "@/lib/constants";
 
 const EVENT_TYPES = [
   { value: "activity", label: "Activity", icon: Calendar },
@@ -104,7 +97,6 @@ export function EditEventDialog({
       endTime: undefined,
       allDay: false,
       links: [],
-      timezone: timezone,
     },
   });
 
@@ -125,7 +117,6 @@ export function EditEventDialog({
           : undefined,
         allDay: event.allDay,
         links: event.links || [],
-        timezone: timezone,
       });
       setNewLink({ url: "", name: "" });
       setLinkError(null);
@@ -171,9 +162,8 @@ export function EditEventDialog({
   }, [startTimeValue, form]);
 
   const handleSubmit = (data: UpdateEventInput) => {
-    const { timezone: _tz, ...eventData } = data;
     updateEvent(
-      { eventId: event.id, data: eventData as UpdateEventInput },
+      { eventId: event.id, data },
       {
         onSuccess: () => {
           toast.success("Event updated successfully");
@@ -370,11 +360,15 @@ export function EditEventDialog({
                       Start time
                       <span className="text-destructive ml-1">*</span>
                     </FormLabel>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Globe className="w-3 h-3" />
+                      <span>{getTimezoneAbbr(timezone)}</span>
+                    </div>
                     <FormControl>
                       <DateTimePicker
                         value={field.value || ""}
                         onChange={field.onChange}
-                        timezone={form.watch("timezone") || timezone}
+                        timezone={timezone}
                         placeholder="Select start time"
                         aria-label="Start time"
                         disabled={isPending || isDeleting || !!allDay}
@@ -400,7 +394,7 @@ export function EditEventDialog({
                       <DateTimePicker
                         value={field.value || ""}
                         onChange={(val) => field.onChange(val || undefined)}
-                        timezone={form.watch("timezone") || timezone}
+                        timezone={timezone}
                         placeholder="Select end time"
                         aria-label="End time"
                         disabled={isPending || isDeleting || !!allDay}
@@ -467,42 +461,6 @@ export function EditEventDialog({
                     </FormItem>
                   );
                 }}
-              />
-
-              {/* Timezone */}
-              <FormField
-                control={form.control}
-                name="timezone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base font-semibold text-foreground">
-                      Timezone
-                    </FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      value={field.value ?? ""}
-                      disabled={isPending || isDeleting}
-                    >
-                      <FormControl>
-                        <SelectTrigger
-                          ref={field.ref}
-                          onBlur={field.onBlur}
-                          className="h-12 text-base rounded-md"
-                        >
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {TIMEZONES.map((tz) => (
-                          <SelectItem key={tz.value} value={tz.value}>
-                            {tz.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
               />
 
               {/* Links */}

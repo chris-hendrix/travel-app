@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Calendar, Car, Loader2, Plus, Utensils, X } from "lucide-react";
+import { Calendar, Car, Globe, Loader2, Plus, Utensils, X } from "lucide-react";
 import { toast } from "sonner";
 import { parse, addHours } from "date-fns";
 import {
@@ -30,17 +30,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCreateEvent, getCreateEventErrorMessage } from "@/hooks/use-events";
 import { mapServerErrors } from "@/lib/form-errors";
-import { TIMEZONES } from "@/lib/constants";
+import { getTimezoneAbbr } from "@/lib/constants";
 
 const EVENT_TYPES = [
   { value: "activity", label: "Activity", icon: Calendar },
@@ -85,7 +78,6 @@ export function CreateEventDialog({
       endTime: undefined,
       allDay: false,
       links: [],
-      timezone: timezone,
     },
   });
 
@@ -133,9 +125,8 @@ export function CreateEventDialog({
   }, [startTimeValue, form]);
 
   const handleSubmit = (data: CreateEventInput) => {
-    const { timezone: _tz, ...eventData } = data;
     createEvent(
-      { tripId, data: eventData as CreateEventInput },
+      { tripId, data },
       {
         onSuccess: () => {
           toast.success("Event created successfully");
@@ -319,11 +310,15 @@ export function CreateEventDialog({
                       Start time
                       <span className="text-destructive ml-1">*</span>
                     </FormLabel>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Globe className="w-3 h-3" />
+                      <span>{getTimezoneAbbr(timezone)}</span>
+                    </div>
                     <FormControl>
                       <DateTimePicker
                         value={field.value || ""}
                         onChange={field.onChange}
-                        timezone={form.watch("timezone") || timezone}
+                        timezone={timezone}
                         placeholder="Select start time"
                         aria-label="Start time"
                         disabled={isPending || !!allDay}
@@ -349,7 +344,7 @@ export function CreateEventDialog({
                       <DateTimePicker
                         value={field.value || ""}
                         onChange={(val) => field.onChange(val || undefined)}
-                        timezone={form.watch("timezone") || timezone}
+                        timezone={timezone}
                         placeholder="Select end time"
                         aria-label="End time"
                         disabled={isPending || !!allDay}
@@ -416,42 +411,6 @@ export function CreateEventDialog({
                     </FormItem>
                   );
                 }}
-              />
-
-              {/* Timezone */}
-              <FormField
-                control={form.control}
-                name="timezone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base font-semibold text-foreground">
-                      Timezone
-                    </FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      value={field.value ?? ""}
-                      disabled={isPending}
-                    >
-                      <FormControl>
-                        <SelectTrigger
-                          ref={field.ref}
-                          onBlur={field.onBlur}
-                          className="h-12 text-base rounded-md"
-                        >
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {TIMEZONES.map((tz) => (
-                          <SelectItem key={tz.value} value={tz.value}>
-                            {tz.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
               />
 
               {/* Links */}
