@@ -366,7 +366,8 @@ describe("CreateEventDialog", () => {
   });
 
   describe("Links field", () => {
-    it("shows link input field", () => {
+    it("shows link input field", async () => {
+      const user = userEvent.setup();
       renderWithQueryClient(
         <CreateEventDialog
           open={true}
@@ -376,7 +377,9 @@ describe("CreateEventDialog", () => {
         />,
       );
 
-      expect(screen.getByLabelText(/link url/i)).toBeDefined();
+      await user.click(screen.getByText("More details"));
+
+      expect(await screen.findByLabelText(/link url/i)).toBeDefined();
     });
 
     it("allows adding valid link", async () => {
@@ -390,7 +393,9 @@ describe("CreateEventDialog", () => {
         />,
       );
 
-      const linkInput = screen.getByLabelText(/link url/i);
+      await user.click(screen.getByText("More details"));
+
+      const linkInput = await screen.findByLabelText(/link url/i);
       await user.click(linkInput);
       await user.paste("https://example.com");
 
@@ -399,6 +404,36 @@ describe("CreateEventDialog", () => {
 
       await waitFor(() => {
         expect(screen.getByText("https://example.com")).toBeDefined();
+      });
+    });
+
+    it("allows adding a link with a display name", async () => {
+      const user = userEvent.setup();
+      renderWithQueryClient(
+        <CreateEventDialog
+          open={true}
+          onOpenChange={mockOnOpenChange}
+          tripId={tripId}
+          timezone="America/New_York"
+        />,
+      );
+
+      await user.click(screen.getByText("More details"));
+
+      const linkInput = await screen.findByLabelText(/link url/i);
+      await user.click(linkInput);
+      await user.paste("https://restaurant.example.com");
+
+      const nameInput = screen.getByLabelText(/link display name/i);
+      await user.click(nameInput);
+      await user.paste("Restaurant menu");
+
+      const addButton = screen.getByRole("button", { name: /add link/i });
+      await user.click(addButton);
+
+      await waitFor(() => {
+        expect(screen.getByText("Restaurant menu")).toBeDefined();
+        expect(screen.getByText("https://restaurant.example.com")).toBeDefined();
       });
     });
 
@@ -413,7 +448,9 @@ describe("CreateEventDialog", () => {
         />,
       );
 
-      const linkInput = screen.getByLabelText(/link url/i);
+      await user.click(screen.getByText("More details"));
+
+      const linkInput = await screen.findByLabelText(/link url/i);
       await user.type(linkInput, "not a valid url");
 
       const addButton = screen.getByRole("button", { name: /add link/i });
@@ -435,7 +472,9 @@ describe("CreateEventDialog", () => {
         />,
       );
 
-      const linkInput = screen.getByLabelText(/link url/i);
+      await user.click(screen.getByText("More details"));
+
+      const linkInput = await screen.findByLabelText(/link url/i);
       await user.type(linkInput, "https://example.com");
 
       const addButton = screen.getByRole("button", { name: /add link/i });

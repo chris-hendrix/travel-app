@@ -87,7 +87,10 @@ export function EditEventDialog({
 }: EditEventDialogProps) {
   const { mutate: updateEvent, isPending } = useUpdateEvent();
   const { mutate: deleteEvent, isPending: isDeleting } = useDeleteEvent();
-  const [newLink, setNewLink] = useState("");
+  const [newLink, setNewLink] = useState<{ url: string; name: string }>({
+    url: "",
+    name: "",
+  });
   const [linkError, setLinkError] = useState<string | null>(null);
   const isInitializing = useRef(false);
 
@@ -133,7 +136,7 @@ export function EditEventDialog({
           : undefined,
         timezone: timezone,
       });
-      setNewLink("");
+      setNewLink({ url: "", name: "" });
       setLinkError(null);
       requestAnimationFrame(() => {
         isInitializing.current = false;
@@ -218,19 +221,19 @@ export function EditEventDialog({
   const handleAddLink = () => {
     setLinkError(null);
 
-    if (!newLink.trim()) {
+    if (!newLink.url.trim()) {
       setLinkError("URL is required");
       return;
     }
 
     // Auto-prepend https:// if no protocol is provided
-    let normalizedLink = newLink.trim();
-    if (!/^https?:\/\//i.test(normalizedLink)) {
-      normalizedLink = `https://${normalizedLink}`;
+    let normalizedUrl = newLink.url.trim();
+    if (!/^https?:\/\//i.test(normalizedUrl)) {
+      normalizedUrl = `https://${normalizedUrl}`;
     }
 
     try {
-      new URL(normalizedLink);
+      new URL(normalizedUrl);
     } catch {
       setLinkError("Please enter a valid URL");
       return;
@@ -242,20 +245,24 @@ export function EditEventDialog({
       return;
     }
 
-    if (currentLinks.includes(normalizedLink)) {
+    if (currentLinks.some((link) => link.url === normalizedUrl)) {
       setLinkError("This URL is already added");
       return;
     }
 
-    form.setValue("links", [...currentLinks, normalizedLink]);
-    setNewLink("");
+    const trimmedName = newLink.name.trim();
+    form.setValue("links", [
+      ...currentLinks,
+      { url: normalizedUrl, ...(trimmedName ? { name: trimmedName } : {}) },
+    ]);
+    setNewLink({ url: "", name: "" });
   };
 
-  const handleRemoveLink = (linkToRemove: string) => {
+  const handleRemoveLink = (urlToRemove: string) => {
     const currentLinks = form.getValues("links") || [];
     form.setValue(
       "links",
-      currentLinks.filter((link) => link !== linkToRemove),
+      currentLinks.filter((link) => link.url !== urlToRemove),
     );
   };
 
@@ -597,20 +604,33 @@ export function EditEventDialog({
                           <div className="space-y-2 mt-2">
                             {links.map((link) => (
                               <div
-                                key={link}
+                                key={link.url}
                                 className="flex items-center justify-between p-3 rounded-lg bg-secondary border border-border"
                               >
-                                <span className="text-sm font-medium text-foreground truncate">
-                                  {link}
-                                </span>
+                                <div className="min-w-0 flex-1">
+                                  {link.name && (
+                                    <p className="text-sm font-medium text-foreground truncate">
+                                      {link.name}
+                                    </p>
+                                  )}
+                                  <p
+                                    className={
+                                      link.name
+                                        ? "text-xs text-muted-foreground truncate"
+                                        : "text-sm font-medium text-foreground truncate"
+                                    }
+                                  >
+                                    {link.url}
+                                  </p>
+                                </div>
                                 <Button
                                   type="button"
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => handleRemoveLink(link)}
+                                  onClick={() => handleRemoveLink(link.url)}
                                   disabled={isPending || isDeleting}
                                   className="min-w-[44px] min-h-[44px] rounded-full hover:bg-muted"
-                                  aria-label={`Remove ${link}`}
+                                  aria-label={`Remove ${link.name ?? link.url}`}
                                 >
                                   <X className="w-4 h-4 text-muted-foreground" />
                                 </Button>
@@ -621,13 +641,16 @@ export function EditEventDialog({
 
                         {/* Add link input */}
                         <div className="space-y-2 mt-2">
-                          <div className="flex gap-2">
+                          <div className="flex flex-col gap-2 sm:flex-row">
                             <Input
                               type="url"
                               placeholder="https://example.com"
-                              value={newLink}
+                              value={newLink.url}
                               onChange={(e) => {
-                                setNewLink(e.target.value);
+                                setNewLink((prev) => ({
+                                  ...prev,
+                                  url: e.target.value,
+                                }));
                                 setLinkError(null);
                               }}
                               onKeyDown={(e) => {
@@ -643,12 +666,35 @@ export function EditEventDialog({
                                 linkError ? "edit-event-link-error" : undefined
                               }
                             />
+                            <Input
+                              type="text"
+                              placeholder="Display name (optional)"
+                              value={newLink.name}
+                              maxLength={100}
+                              onChange={(e) => {
+                                setNewLink((prev) => ({
+                                  ...prev,
+                                  name: e.target.value,
+                                }));
+                                setLinkError(null);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  handleAddLink();
+                                }
+                              }}
+                              disabled={isPending || isDeleting}
+                              className="flex-1 h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
+                              aria-label="Link display name"
+                            />
                             <Button
                               type="button"
                               onClick={handleAddLink}
                               disabled={isPending || isDeleting}
                               className="h-12 px-4 bg-muted hover:bg-muted text-foreground rounded-md"
                               variant="outline"
+                              aria-label="Add link"
                             >
                               <Plus className="w-5 h-5" />
                             </Button>

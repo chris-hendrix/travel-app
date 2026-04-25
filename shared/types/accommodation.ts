@@ -2,6 +2,8 @@
  * Accommodation types and response interfaces
  */
 
+import type { LinkItem } from "./link";
+
 /**
  * Accommodation entity
  */
@@ -14,7 +16,7 @@ export interface Accommodation {
   description: string | null;
   checkIn: string;
   checkOut: string;
-  links: string[] | null;
+  links: LinkItem[] | null;
   deletedAt: Date | null;
   deletedBy: string | null;
   createdAt: Date;

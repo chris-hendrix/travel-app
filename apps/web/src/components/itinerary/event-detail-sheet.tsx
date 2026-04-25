@@ -286,16 +286,16 @@ function EventDetailBody({
       {/* Links */}
       {event.links && event.links.length > 0 && (
         <div className="space-y-1.5">
-          {event.links.map((link, index) => (
+          {event.links.map((link) => (
             <a
-              key={index}
-              href={link}
+              key={link.url}
+              href={link.url}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 transition-colors"
             >
               <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">{link}</span>
+              <span className="truncate">{link.name ?? link.url}</span>
             </a>
           ))}
         </div>

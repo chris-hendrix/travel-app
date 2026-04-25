@@ -44,9 +44,9 @@ describe("createAccommodationSchema", () => {
       address: "789 Beach Boulevard, Miami, FL 33139",
       description: "Five-star resort with ocean view and spa facilities",
       links: [
-        "https://example.com/resort",
-        "https://example.com/booking",
-        "https://example.com/amenities",
+        { url: "https://example.com/resort" },
+        { url: "https://example.com/booking" },
+        { url: "https://example.com/amenities" },
       ],
     };
 
@@ -310,10 +310,10 @@ describe("createAccommodationSchema", () => {
 
   it("should reject invalid URLs in links array", () => {
     const invalidUrls = [
-      ["not-a-url"],
-      ["https://valid.com", "invalid-url"],
-      ["just text"],
-      ["example.com"], // Missing protocol
+      [{ url: "not-a-url" }],
+      [{ url: "https://valid.com" }, { url: "invalid-url" }],
+      [{ url: "just text" }],
+      [{ url: "example.com" }], // Missing protocol
     ];
 
     invalidUrls.forEach((links) => {
@@ -331,10 +331,10 @@ describe("createAccommodationSchema", () => {
 
   it("should accept valid URLs in links array", () => {
     const validUrls = [
-      ["https://example.com"],
-      ["http://example.com/booking"],
-      ["https://example.com", "https://another.com/reviews"],
-      ["https://cdn.example.com/brochure.pdf"],
+      [{ url: "https://example.com" }],
+      [{ url: "http://example.com/booking" }],
+      [{ url: "https://example.com" }, { url: "https://another.com/reviews" }],
+      [{ url: "https://cdn.example.com/brochure.pdf" }],
     ];
 
     validUrls.forEach((links) => {
@@ -352,7 +352,7 @@ describe("createAccommodationSchema", () => {
   });
 
   it("should reject links array exceeding max items", () => {
-    const tooManyLinks = Array(11).fill("https://example.com");
+    const tooManyLinks = Array(11).fill({ url: "https://example.com" });
     const accommodation = {
       name: "Hotel",
       checkIn: "2026-07-15T14:00:00.000Z",
@@ -368,7 +368,7 @@ describe("createAccommodationSchema", () => {
   });
 
   it("should accept links array at max items", () => {
-    const maxLinks = Array(10).fill("https://example.com");
+    const maxLinks = Array(10).fill({ url: "https://example.com" });
     const accommodation = {
       name: "Hotel",
       checkIn: "2026-07-15T14:00:00.000Z",
@@ -389,6 +389,49 @@ describe("createAccommodationSchema", () => {
 
     expect(() => createAccommodationSchema.parse(accommodation)).not.toThrow();
   });
+
+  it("should accept links with optional name", () => {
+    const accommodation = {
+      name: "Hotel",
+      checkIn: "2026-07-15T14:00:00.000Z",
+      checkOut: "2026-07-16T11:00:00.000Z",
+      links: [
+        { url: "https://example.com/booking", name: "Reservation" },
+        { url: "https://maps.example.com" },
+      ],
+    };
+
+    expect(() => createAccommodationSchema.parse(accommodation)).not.toThrow();
+  });
+
+  it("should reject link name exceeding 100 characters", () => {
+    const accommodation = {
+      name: "Hotel",
+      checkIn: "2026-07-15T14:00:00.000Z",
+      checkOut: "2026-07-16T11:00:00.000Z",
+      links: [{ url: "https://example.com", name: "a".repeat(101) }],
+    };
+
+    const result = createAccommodationSchema.safeParse(accommodation);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toContain(
+        "not exceed 100 characters",
+      );
+    }
+  });
+
+  it("should reject link missing url", () => {
+    const accommodation = {
+      name: "Hotel",
+      checkIn: "2026-07-15T14:00:00.000Z",
+      checkOut: "2026-07-16T11:00:00.000Z",
+      links: [{ name: "No URL here" }],
+    };
+
+    const result = createAccommodationSchema.safeParse(accommodation);
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("updateAccommodationSchema", () => {
@@ -399,7 +442,7 @@ describe("updateAccommodationSchema", () => {
       { description: "Updated description" },
       { checkIn: "2026-08-01T14:00:00.000Z" },
       { checkOut: "2026-08-10T11:00:00.000Z" },
-      { links: ["https://example.com"] },
+      { links: [{ url: "https://example.com" }] },
     ];
 
     partialUpdates.forEach((update) => {
@@ -429,8 +472,8 @@ describe("updateAccommodationSchema", () => {
       { checkIn: "not-a-date" }, // Invalid datetime format
       { checkOut: "2026/07/16" }, // Invalid datetime format
       { description: "a".repeat(2001) }, // Too long
-      { links: ["not-a-url"] }, // Invalid URL
-      { links: Array(11).fill("https://example.com") }, // Too many links
+      { links: [{ url: "not-a-url" }] }, // Invalid URL
+      { links: Array(11).fill({ url: "https://example.com" }) }, // Too many links
     ];
 
     invalidUpdates.forEach((update) => {

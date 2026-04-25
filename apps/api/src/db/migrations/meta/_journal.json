@@ -211,6 +211,13 @@
       "when": 1776010793362,
       "tag": "0029_daily_boom_boom",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1777137286277,
+      "tag": "0030_magenta_black_tarantula",
+      "breakpoints": true
     }
   ]
 }

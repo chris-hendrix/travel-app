@@ -16,6 +16,7 @@ import {
   integer,
   doublePrecision,
 } from "drizzle-orm/pg-core";
+import type { LinkItem } from "@journiful/shared/types";
 
 // Users table
 export const users = pgTable(
@@ -211,7 +212,7 @@ export const events = pgTable(
     endTime: timestamp("end_time", { withTimezone: true }),
     allDay: boolean("all_day").notNull().default(false),
     isOptional: boolean("is_optional").notNull().default(false),
-    links: text("links").array(),
+    links: jsonb("links").$type<LinkItem[]>(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     deletedBy: uuid("deleted_by").references(() => users.id),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -253,7 +254,7 @@ export const accommodations = pgTable(
     description: text("description"),
     checkIn: timestamp("check_in", { withTimezone: true }).notNull(),
     checkOut: timestamp("check_out", { withTimezone: true }).notNull(),
-    links: text("links").array(),
+    links: jsonb("links").$type<LinkItem[]>(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     deletedBy: uuid("deleted_by").references(() => users.id),
     createdAt: timestamp("created_at", { withTimezone: true })

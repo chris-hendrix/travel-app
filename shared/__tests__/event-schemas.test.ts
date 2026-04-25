@@ -42,8 +42,8 @@ describe("createEventSchema", () => {
       allDay: false,
       isOptional: true,
       links: [
-        "https://example.com/conference",
-        "https://example.com/speaker-bio",
+        { url: "https://example.com/conference" },
+        { url: "https://example.com/speaker-bio" },
       ],
     };
 
@@ -311,10 +311,10 @@ describe("createEventSchema", () => {
 
   it("should reject invalid URLs in links array", () => {
     const invalidUrls = [
-      ["not-a-url"],
-      ["https://valid.com", "invalid-url"],
-      ["just text"],
-      ["example.com"], // Missing protocol
+      [{ url: "not-a-url" }],
+      [{ url: "https://valid.com" }, { url: "invalid-url" }],
+      [{ url: "just text" }],
+      [{ url: "example.com" }], // Missing protocol
     ];
 
     invalidUrls.forEach((links) => {
@@ -332,10 +332,10 @@ describe("createEventSchema", () => {
 
   it("should accept valid URLs in links array", () => {
     const validUrls = [
-      ["https://example.com"],
-      ["http://example.com/path"],
-      ["https://example.com", "https://another.com/page"],
-      ["https://cdn.example.com/resource.pdf"],
+      [{ url: "https://example.com" }],
+      [{ url: "http://example.com/path" }],
+      [{ url: "https://example.com" }, { url: "https://another.com/page" }],
+      [{ url: "https://cdn.example.com/resource.pdf" }],
     ];
 
     validUrls.forEach((links) => {
@@ -351,7 +351,7 @@ describe("createEventSchema", () => {
   });
 
   it("should reject links array exceeding max items", () => {
-    const tooManyLinks = Array(11).fill("https://example.com");
+    const tooManyLinks = Array(11).fill({ url: "https://example.com" });
     const event = {
       name: "Test Event",
       eventType: "meal" as const,
@@ -367,7 +367,7 @@ describe("createEventSchema", () => {
   });
 
   it("should accept links array at max items", () => {
-    const maxLinks = Array(10).fill("https://example.com");
+    const maxLinks = Array(10).fill({ url: "https://example.com" });
     const event = {
       name: "Test Event",
       eventType: "meal" as const,
@@ -388,6 +388,49 @@ describe("createEventSchema", () => {
 
     expect(() => createEventSchema.parse(event)).not.toThrow();
   });
+
+  it("should accept links with optional name", () => {
+    const event = {
+      name: "Test Event",
+      eventType: "meal" as const,
+      startTime: "2026-07-15T12:00:00Z",
+      links: [
+        { url: "https://example.com", name: "Reservation" },
+        { url: "https://maps.example.com" },
+      ],
+    };
+
+    expect(() => createEventSchema.parse(event)).not.toThrow();
+  });
+
+  it("should reject link name exceeding 100 characters", () => {
+    const event = {
+      name: "Test Event",
+      eventType: "meal" as const,
+      startTime: "2026-07-15T12:00:00Z",
+      links: [{ url: "https://example.com", name: "a".repeat(101) }],
+    };
+
+    const result = createEventSchema.safeParse(event);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toContain(
+        "not exceed 100 characters",
+      );
+    }
+  });
+
+  it("should reject link missing url", () => {
+    const event = {
+      name: "Test Event",
+      eventType: "meal" as const,
+      startTime: "2026-07-15T12:00:00Z",
+      links: [{ name: "No URL here" }],
+    };
+
+    const result = createEventSchema.safeParse(event);
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("updateEventSchema", () => {
@@ -401,7 +444,7 @@ describe("updateEventSchema", () => {
       { endTime: "2026-08-01T12:00:00Z" },
       { allDay: true },
       { isOptional: true },
-      { links: ["https://example.com"] },
+      { links: [{ url: "https://example.com" }] },
     ];
 
     partialUpdates.forEach((update) => {
@@ -433,8 +476,8 @@ describe("updateEventSchema", () => {
       { startTime: "not-a-datetime" }, // Invalid datetime format
       { endTime: "2026-07-15" }, // Invalid datetime format
       { description: "a".repeat(2001) }, // Too long
-      { links: ["not-a-url"] }, // Invalid URL
-      { links: Array(11).fill("https://example.com") }, // Too many links
+      { links: [{ url: "not-a-url" }] }, // Invalid URL
+      { links: Array(11).fill({ url: "https://example.com" }) }, // Too many links
     ];
 
     invalidUpdates.forEach((update) => {

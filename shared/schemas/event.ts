@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { stripControlChars } from "../utils/sanitize";
+import { linkItemSchema, linksArraySchema } from "./link";
 
 /**
  * Base event data schema (without cross-field validation)
@@ -33,12 +34,7 @@ const baseEventSchema = z.object({
   endTime: z.string().datetime().optional(),
   allDay: z.boolean().default(false),
   isOptional: z.boolean().default(false),
-  links: z
-    .array(z.string().url("Link must be a valid URL"))
-    .max(10, {
-      error: "Links must not exceed 10 items",
-    })
-    .optional(),
+  links: linksArraySchema.optional(),
   timezone: z.string().max(100).optional(),
 });
 
@@ -52,7 +48,7 @@ const baseEventSchema = z.object({
  * - endTime: ISO 8601 datetime string (optional), must be > startTime
  * - allDay: boolean (defaults to false)
  * - isOptional: boolean (defaults to false)
- * - links: array of URLs, max 10 items (optional)
+ * - links: array of `{ url, name? }` objects, max 10 items (optional)
  */
 export const createEventSchema = baseEventSchema.refine(
   (data) => {
@@ -104,7 +100,7 @@ const eventEntitySchema = z.object({
   endTime: z.date().nullable(),
   allDay: z.boolean(),
   isOptional: z.boolean(),
-  links: z.array(z.string()).nullable(),
+  links: z.array(linkItemSchema).nullable(),
   deletedAt: z.date().nullable(),
   deletedBy: z.string().nullable(),
   createdAt: z.date(),

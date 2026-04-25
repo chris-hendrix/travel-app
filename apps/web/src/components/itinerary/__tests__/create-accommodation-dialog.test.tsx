@@ -232,7 +232,9 @@ describe("CreateAccommodationDialog", () => {
         />,
       );
 
-      const linkInput = screen.getByLabelText(/link url/i);
+      await user.click(screen.getByText("More details"));
+
+      const linkInput = await screen.findByLabelText(/link url/i);
       await user.type(linkInput, "https://example.com");
 
       const addButton = screen.getByRole("button", { name: /add link/i });
@@ -240,6 +242,36 @@ describe("CreateAccommodationDialog", () => {
 
       await waitFor(() => {
         expect(screen.getByText("https://example.com")).toBeDefined();
+      });
+    });
+
+    it("allows adding a link with a display name", async () => {
+      const user = userEvent.setup();
+      renderWithQueryClient(
+        <CreateAccommodationDialog
+          open={true}
+          onOpenChange={mockOnOpenChange}
+          tripId={tripId}
+          timezone="America/New_York"
+        />,
+      );
+
+      await user.click(screen.getByText("More details"));
+
+      const linkInput = await screen.findByLabelText(/link url/i);
+      await user.click(linkInput);
+      await user.paste("https://airbnb.example.com");
+
+      const nameInput = screen.getByLabelText(/link display name/i);
+      await user.click(nameInput);
+      await user.paste("Airbnb listing");
+
+      const addButton = screen.getByRole("button", { name: /add link/i });
+      await user.click(addButton);
+
+      await waitFor(() => {
+        expect(screen.getByText("Airbnb listing")).toBeDefined();
+        expect(screen.getByText("https://airbnb.example.com")).toBeDefined();
       });
     });
 
@@ -254,7 +286,9 @@ describe("CreateAccommodationDialog", () => {
         />,
       );
 
-      const linkInput = screen.getByLabelText(/link url/i);
+      await user.click(screen.getByText("More details"));
+
+      const linkInput = await screen.findByLabelText(/link url/i);
       await user.type(linkInput, "not a valid url");
 
       const addButton = screen.getByRole("button", { name: /add link/i });

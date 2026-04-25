@@ -226,6 +226,13 @@ export {
   type TrackImpressionsInput,
 } from "./affiliate";
 
+// Re-export link schemas
+export {
+  linkItemSchema,
+  linksArraySchema,
+  type LinkItemInput,
+} from "./link";
+
 // Re-export admin schemas
 export {
   adminListUsersQuerySchema,

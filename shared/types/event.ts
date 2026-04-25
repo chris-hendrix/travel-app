@@ -2,6 +2,8 @@
  * Event types and response interfaces
  */
 
+import type { LinkItem } from "./link";
+
 /**
  * Event entity
  */
@@ -19,7 +21,7 @@ export interface Event {
   endTime: Date | null;
   allDay: boolean;
   isOptional: boolean;
-  links: string[] | null;
+  links: LinkItem[] | null;
   deletedAt: Date | null;
   deletedBy: string | null;
   createdAt: Date;

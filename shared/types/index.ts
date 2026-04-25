@@ -182,3 +182,6 @@ export type {
   SuggestionsResponse,
   DismissSuggestionInput,
 } from "./affiliate";
+
+// Re-export link types
+export type { LinkItem } from "./link";
