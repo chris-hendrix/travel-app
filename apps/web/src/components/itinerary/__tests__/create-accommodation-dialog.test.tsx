@@ -131,7 +131,7 @@ describe("CreateAccommodationDialog", () => {
       );
 
       const labels = screen.getAllByText("*");
-      expect(labels.length).toBeGreaterThanOrEqual(3);
+      expect(labels.length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -347,10 +347,10 @@ describe("CreateAccommodationDialog", () => {
         screen.getByRole("button", { name: /create accommodation/i }),
       );
 
-      // Form validation prevents submission without required fields, but button should still work
-      expect(
-        screen.getByRole("button", { name: /create accommodation/i }),
-      ).toBeDefined();
+      // After clicking submit, the button should show the loading state
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /creating/i })).toBeDefined();
+      });
     });
   });
 

@@ -85,8 +85,8 @@ export function EditAccommodationDialog({
       name: "",
       address: "",
       description: "",
-      checkIn: "",
-      checkOut: "",
+      checkIn: undefined,
+      checkOut: undefined,
       links: [],
     },
   });
@@ -303,7 +303,6 @@ export function EditAccommodationDialog({
                     <FormItem>
                       <FormLabel className="text-base font-semibold text-foreground">
                         Check-in
-                        <span className="text-destructive ml-1">*</span>
                       </FormLabel>
                       <FormControl>
                         <DateTimePicker
@@ -329,7 +328,6 @@ export function EditAccommodationDialog({
                     <FormItem>
                       <FormLabel className="text-base font-semibold text-foreground">
                         Check-out
-                        <span className="text-destructive ml-1">*</span>
                       </FormLabel>
                       <FormControl>
                         <DateTimePicker
