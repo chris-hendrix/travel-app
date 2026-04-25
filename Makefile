@@ -12,7 +12,7 @@ help: ## Show available commands
 install: ## Install all dependencies
 	pnpm install
 
-dev: ## Start Docker + dev servers (web:3000, api:8000)
+dev: ## Start dev servers (web:3000, api:8000)
 	pnpm dev
 
 dev-web: ## Start web dev server only

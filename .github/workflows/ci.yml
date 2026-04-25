@@ -107,7 +107,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Validate devcontainer config
-        run: bash scripts/__tests__/test-devcontainer.test.sh
+        run: bash .github/scripts/test-devcontainer.test.sh
 
   # Step 3: Unit Tests (API)
   unit-tests:
