@@ -99,8 +99,8 @@ export function EditAccommodationDialog({
         name: accommodation.name,
         address: accommodation.address || "",
         description: accommodation.description || "",
-        checkIn: accommodation.checkIn,
-        checkOut: accommodation.checkOut,
+        checkIn: accommodation.checkIn ?? undefined,
+        checkOut: accommodation.checkOut ?? undefined,
         links: accommodation.links || [],
       });
       setNewLink({ url: "", name: "" });

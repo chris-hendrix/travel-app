@@ -146,13 +146,15 @@ export class AccommodationService implements IAccommodationService {
       );
     }
 
-    // Validate date range
-    const checkIn = new Date(data.checkIn);
-    const checkOut = new Date(data.checkOut);
-    if (checkOut <= checkIn) {
-      throw new InvalidDateRangeError(
-        "Check-out date must be after check-in date",
-      );
+    // Validate date range when both dates are provided
+    if (data.checkIn && data.checkOut) {
+      const checkIn = new Date(data.checkIn);
+      const checkOut = new Date(data.checkOut);
+      if (checkOut <= checkIn) {
+        throw new InvalidDateRangeError(
+          "Check-out date must be after check-in date",
+        );
+      }
     }
 
     // Check accommodation count limit
@@ -180,8 +182,8 @@ export class AccommodationService implements IAccommodationService {
         name: data.name,
         address: data.address || null,
         description: data.description || null,
-        checkIn: new Date(data.checkIn),
-        checkOut: new Date(data.checkOut),
+        checkIn: data.checkIn ? new Date(data.checkIn) : null,
+        checkOut: data.checkOut ? new Date(data.checkOut) : null,
         links: data.links || null,
       })
       .returning();
@@ -301,14 +303,18 @@ export class AccommodationService implements IAccommodationService {
     }
 
     // Validate date range if both dates will be set after update
-    const finalCheckIn = data.checkIn
+    const resolvedCheckIn = data.checkIn
       ? new Date(data.checkIn)
-      : new Date(existingAccommodation.checkIn);
-    const finalCheckOut = data.checkOut
+      : existingAccommodation.checkIn
+        ? new Date(existingAccommodation.checkIn)
+        : null;
+    const resolvedCheckOut = data.checkOut
       ? new Date(data.checkOut)
-      : new Date(existingAccommodation.checkOut);
+      : existingAccommodation.checkOut
+        ? new Date(existingAccommodation.checkOut)
+        : null;
 
-    if (finalCheckOut <= finalCheckIn) {
+    if (resolvedCheckIn && resolvedCheckOut && resolvedCheckOut <= resolvedCheckIn) {
       throw new InvalidDateRangeError(
         "Check-out date must be after check-in date",
       );

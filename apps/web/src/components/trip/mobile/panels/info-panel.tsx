@@ -331,7 +331,9 @@ export function InfoPanel({
                       <span className="font-medium text-sm truncate">{acc.name}</span>
                     </div>
                     <div className="text-sm text-muted-foreground truncate mt-0.5 pl-6">
-                      {formatDateRange(acc.checkIn, acc.checkOut, timezone)}
+                      {acc.checkIn && acc.checkOut
+                        ? formatDateRange(acc.checkIn, acc.checkOut, timezone)
+                        : ""}
                       {acc.address ? ` · ${acc.address}` : ""}
                     </div>
                   </button>

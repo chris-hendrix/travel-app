@@ -225,6 +225,13 @@
       "when": 1777153560735,
       "tag": "0031_remove_event_meetup_optional",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1777153561000,
+      "tag": "0032_optional_accommodation_dates",
+      "breakpoints": true
     }
   ]
 }

@@ -264,7 +264,7 @@ export function CreateAccommodationDialog({
                       </FormLabel>
                       <FormControl>
                         <DateTimePicker
-                          value={field.value}
+                          value={field.value || ""}
                           onChange={field.onChange}
                           timezone={timezone}
                           placeholder="Check-in"
@@ -290,7 +290,7 @@ export function CreateAccommodationDialog({
                       </FormLabel>
                       <FormControl>
                         <DateTimePicker
-                          value={field.value}
+                          value={field.value || ""}
                           onChange={field.onChange}
                           timezone={timezone}
                           placeholder="Check-out"

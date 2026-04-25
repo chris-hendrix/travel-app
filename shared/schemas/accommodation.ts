@@ -25,8 +25,8 @@ const baseAccommodationSchema = z.object({
       error: "Description must not exceed 2000 characters",
     })
     .optional(),
-  checkIn: z.string().datetime({ offset: true }).or(z.string().datetime()),
-  checkOut: z.string().datetime({ offset: true }).or(z.string().datetime()),
+  checkIn: z.string().datetime({ offset: true }).or(z.string().datetime()).optional(),
+  checkOut: z.string().datetime({ offset: true }).or(z.string().datetime()).optional(),
   links: linksArraySchema.optional(),
 });
 
@@ -35,14 +35,16 @@ const baseAccommodationSchema = z.object({
  * - name: 1-255 characters (required)
  * - address: string (optional)
  * - description: max 2000 characters (optional)
- * - checkIn: ISO 8601 datetime string (required)
- * - checkOut: ISO 8601 datetime string (required), must be > checkIn
+ * - checkIn: ISO 8601 datetime string (optional)
+ * - checkOut: ISO 8601 datetime string (optional), must be > checkIn when both are provided
  * - links: array of `{ url, name? }` objects, max 10 items (optional)
  */
 export const createAccommodationSchema = baseAccommodationSchema.refine(
   (data) => {
-    // Cross-field validation: checkOut must be > checkIn
-    return new Date(data.checkOut) > new Date(data.checkIn);
+    if (data.checkIn && data.checkOut) {
+      return new Date(data.checkOut) > new Date(data.checkIn);
+    }
+    return true;
   },
   {
     message: "Check-out date must be after check-in date",

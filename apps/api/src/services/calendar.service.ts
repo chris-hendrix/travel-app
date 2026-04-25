@@ -238,6 +238,8 @@ export class CalendarService implements ICalendarService {
 
       // Accommodation events
       for (const acc of tripAccommodations) {
+        if (!acc.checkIn || !acc.checkOut) continue;
+
         const descriptionParts: string[] = [];
 
         if (acc.description) {

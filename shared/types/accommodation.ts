@@ -14,8 +14,8 @@ export interface Accommodation {
   name: string;
   address: string | null;
   description: string | null;
-  checkIn: string;
-  checkOut: string;
+  checkIn: string | null;
+  checkOut: string | null;
   links: LinkItem[] | null;
   deletedAt: Date | null;
   deletedBy: string | null;
