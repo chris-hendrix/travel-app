@@ -347,40 +347,40 @@ export function EditAccommodationDialog({
                 />
               </div>
 
+              {/* Description */}
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => {
+                  const charCount = field.value?.length || 0;
+                  const showCounter = charCount >= 1600;
+
+                  return (
+                    <FormItem>
+                      <FormLabel className="text-base font-semibold text-foreground">
+                        Description
+                      </FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Tell your group about this accommodation..."
+                          className="h-32 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md resize-none"
+                          disabled={isPending || isDeleting}
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      {showCounter && (
+                        <div className="text-xs text-muted-foreground text-right">
+                          {charCount} / 2000 characters
+                        </div>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
+              />
+
               <CollapsibleSection label="More details" defaultOpen={false}>
-                {/* Description */}
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => {
-                    const charCount = field.value?.length || 0;
-                    const showCounter = charCount >= 1600;
-
-                    return (
-                      <FormItem>
-                        <FormLabel className="text-base font-semibold text-foreground">
-                          Description
-                        </FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Tell your group about this accommodation..."
-                            className="h-32 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md resize-none"
-                            disabled={isPending || isDeleting}
-                            {...field}
-                            value={field.value || ""}
-                          />
-                        </FormControl>
-                        {showCounter && (
-                          <div className="text-xs text-muted-foreground text-right">
-                            {charCount} / 2000 characters
-                          </div>
-                        )}
-                        <FormMessage />
-                      </FormItem>
-                    );
-                  }}
-                />
-
                 {/* Links */}
                 <FormField
                   control={form.control}
