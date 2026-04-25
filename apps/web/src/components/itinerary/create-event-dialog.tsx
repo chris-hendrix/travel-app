@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Calendar, Car, Globe, Loader2, Plus, Utensils, X } from "lucide-react";
+import { Calendar, Car, Loader2, Plus, Utensils, X } from "lucide-react";
 import { toast } from "sonner";
 import { parse, addHours } from "date-fns";
 import {
@@ -206,7 +206,7 @@ export function CreateEventDialog({
             Create a new event
           </SheetTitle>
           <SheetDescription>
-            Add an event to your trip itinerary
+            Add an event to your trip itinerary · All times in {getTimezoneAbbr(timezone)}
           </SheetDescription>
         </SheetHeader>
 
@@ -306,15 +306,9 @@ export function CreateEventDialog({
                 name="startTime"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-base font-semibold text-foreground flex items-center justify-between">
-                      <span>
-                        Start time
-                        <span className="text-destructive ml-1">*</span>
-                      </span>
-                      <span className="inline-flex items-center gap-1 font-normal text-xs text-muted-foreground">
-                        <Globe className="w-3 h-3" />
-                        {getTimezoneAbbr(timezone)}
-                      </span>
+                    <FormLabel className="text-base font-semibold text-foreground">
+                      Start time
+                      <span className="text-destructive ml-1">*</span>
                     </FormLabel>
                     <FormControl>
                       <DateTimePicker

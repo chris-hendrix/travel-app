@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Globe, Loader2, Plus, X, Trash2 } from "lucide-react";
+import { Loader2, Plus, X, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { parse, addDays } from "date-fns";
 import {
@@ -237,7 +237,7 @@ export function EditAccommodationDialog({
           <SheetTitle className="text-3xl font-playfair tracking-tight">
             Edit accommodation
           </SheetTitle>
-          <SheetDescription>Update your accommodation details</SheetDescription>
+          <SheetDescription>Update your accommodation details · All times in {getTimezoneAbbr(timezone)}</SheetDescription>
         </SheetHeader>
 
         <SheetBody>
@@ -301,13 +301,7 @@ export function EditAccommodationDialog({
                   name="checkIn"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-base font-semibold text-foreground flex items-center justify-between">
-                        <span>Check-in</span>
-                        <span className="inline-flex items-center gap-1 font-normal text-xs text-muted-foreground">
-                          <Globe className="w-3 h-3" />
-                          {getTimezoneAbbr(timezone)}
-                        </span>
-                      </FormLabel>
+                      <FormLabel className="text-base font-semibold text-foreground">Check-in</FormLabel>
                       <FormControl>
                         <DateTimePicker
                           value={field.value ?? ""}
