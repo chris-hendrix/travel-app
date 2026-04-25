@@ -19,7 +19,7 @@ describe("EventCard", () => {
     endTime: new Date("2026-07-15T14:00:00Z"),
     allDay: false,
     isOptional: false,
-    links: ["https://example.com/menu"],
+    links: [{ url: "https://example.com/menu" }],
     deletedAt: null,
     deletedBy: null,
     createdAt: new Date("2026-01-01T00:00:00Z"),

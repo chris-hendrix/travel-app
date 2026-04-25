@@ -48,7 +48,7 @@ function makeEvent(overrides: Partial<Event> = {}): Event {
     endTime: new Date("2026-07-02T12:00:00Z"),
     allDay: false,
     isOptional: false,
-    links: ["https://reef-tours.example.com"],
+    links: [{ url: "https://reef-tours.example.com" }],
     deletedAt: null,
     deletedBy: null,
     createdAt: new Date("2026-01-01T00:00:00Z"),
@@ -69,7 +69,7 @@ function makeAccommodation(
     description: "Oceanfront hotel with pool",
     checkIn: new Date("2026-07-01T15:00:00Z"),
     checkOut: new Date("2026-07-05T11:00:00Z"),
-    links: ["https://seaside-resort.example.com"],
+    links: [{ url: "https://seaside-resort.example.com" }],
     deletedAt: null,
     deletedBy: null,
     createdAt: new Date("2026-01-01T00:00:00Z"),
@@ -267,7 +267,10 @@ describe("CalendarService.generateIcsFeed", () => {
         meetupTime: new Date("2026-07-02T08:30:00Z"),
         meetupLocation: "Hotel Lobby",
         description: "Great reef trip",
-        links: ["https://reef-tours.example.com", "https://maps.example.com"],
+        links: [
+          { url: "https://reef-tours.example.com" },
+          { url: "https://maps.example.com" },
+        ],
         allDay: false,
       });
       const ics = service.generateIcsFeed([{ trip, events: [event], accommodations: [] }]);
@@ -278,6 +281,27 @@ describe("CalendarService.generateIcsFeed", () => {
       expect(ics).toContain("Links:");
       expect(ics).toContain("https://reef-tours.example.com");
       expect(ics).toContain("https://maps.example.com");
+    });
+
+    it("should format named links as 'Name: url' and bare links as just url", () => {
+      const trip = makeTrip({ startDate: null });
+      const event = makeEvent({
+        meetupTime: null,
+        meetupLocation: null,
+        description: null,
+        links: [
+          { url: "https://reef-tours.example.com", name: "Reef Tours" },
+          { url: "https://maps.example.com" },
+        ],
+        allDay: false,
+      });
+      const ics = unfold(
+        service.generateIcsFeed([{ trip, events: [event], accommodations: [] }]),
+      );
+
+      expect(ics).toContain("- Reef Tours: https://reef-tours.example.com");
+      expect(ics).toContain("- https://maps.example.com");
+      expect(ics).not.toContain("- https://reef-tours.example.com");
     });
 
     it("should handle missing optional fields gracefully", () => {
@@ -471,7 +495,7 @@ describe("CalendarService.generateIcsFeed", () => {
       const trip = makeTrip({ startDate: null });
       const acc = makeAccommodation({
         description: "Oceanfront hotel with pool",
-        links: ["https://seaside-resort.example.com"],
+        links: [{ url: "https://seaside-resort.example.com" }],
       });
       const ics = unfold(
         service.generateIcsFeed([
@@ -482,6 +506,25 @@ describe("CalendarService.generateIcsFeed", () => {
       expect(ics).toContain("Oceanfront hotel with pool");
       expect(ics).toContain("Links:");
       expect(ics).toContain("https://seaside-resort.example.com");
+    });
+
+    it("should format named accommodation links as 'Name: url'", () => {
+      const trip = makeTrip({ startDate: null });
+      const acc = makeAccommodation({
+        description: null,
+        links: [
+          { url: "https://airbnb.example.com/listing", name: "Airbnb" },
+          { url: "https://maps.example.com/hotel" },
+        ],
+      });
+      const ics = unfold(
+        service.generateIcsFeed([
+          { trip, events: [], accommodations: [acc] },
+        ]),
+      );
+
+      expect(ics).toContain("- Airbnb: https://airbnb.example.com/listing");
+      expect(ics).toContain("- https://maps.example.com/hotel");
     });
   });
 });

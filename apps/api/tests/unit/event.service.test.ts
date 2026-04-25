@@ -148,7 +148,7 @@ describe("event.service", () => {
         endTime: "2026-06-16T20:00:00Z",
         allDay: false,
         isOptional: false,
-        links: ["https://example.com"],
+        links: [{ url: "https://example.com" }],
       };
 
       const event = await eventService.createEvent(
@@ -542,8 +542,8 @@ describe("event.service", () => {
         eventType: "travel" as const,
         startTime: "2026-06-23T08:00:00Z",
         links: [
-          "https://example.com/booking",
-          "https://example.com/confirmation",
+          { url: "https://example.com/booking" },
+          { url: "https://example.com/confirmation" },
         ],
       };
 
@@ -555,6 +555,28 @@ describe("event.service", () => {
 
       expect(event.links).toHaveLength(2);
       expect(event.links).toEqual(eventData.links);
+    });
+
+    it("should handle event with named links", async () => {
+      const eventData = {
+        name: "Event with Named Link",
+        eventType: "activity" as const,
+        startTime: "2026-06-24T08:00:00Z",
+        links: [
+          { url: "https://example.com/reservation", name: "Reservation" },
+          { url: "https://maps.example.com" },
+        ],
+      };
+
+      const event = await eventService.createEvent(
+        testOrganizerId,
+        testTripId,
+        eventData,
+      );
+
+      expect(event.links).toEqual(eventData.links);
+      expect(event.links?.[0]?.name).toBe("Reservation");
+      expect(event.links?.[1]?.name).toBeUndefined();
     });
 
     it("should handle updating only time fields", async () => {

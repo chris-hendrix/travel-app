@@ -37,7 +37,7 @@ describe("EditAccommodationDialog", () => {
     description: "Test description",
     checkIn: "2026-07-15T14:00:00.000Z",
     checkOut: "2026-07-20T11:00:00.000Z",
-    links: ["https://example.com"],
+    links: [{ url: "https://example.com" }],
     deletedAt: null,
     deletedBy: null,
     createdAt: new Date(),
@@ -158,7 +158,8 @@ describe("EditAccommodationDialog", () => {
       expect(checkOutButton.textContent).toMatch(/jul 20, 2026/i);
     });
 
-    it("pre-populates links", () => {
+    it("pre-populates links", async () => {
+      const user = userEvent.setup();
       renderWithQueryClient(
         <EditAccommodationDialog
           open={true}
@@ -168,7 +169,39 @@ describe("EditAccommodationDialog", () => {
         />,
       );
 
-      expect(screen.getByText("https://example.com")).toBeDefined();
+      await user.click(screen.getByText("More details"));
+
+      expect(await screen.findByText("https://example.com")).toBeDefined();
+    });
+
+    it("allows adding a link with a display name", async () => {
+      const user = userEvent.setup();
+      renderWithQueryClient(
+        <EditAccommodationDialog
+          open={true}
+          onOpenChange={mockOnOpenChange}
+          accommodation={mockAccommodation}
+          timezone="America/New_York"
+        />,
+      );
+
+      await user.click(screen.getByText("More details"));
+
+      const linkInput = await screen.findByLabelText(/link url/i);
+      await user.click(linkInput);
+      await user.paste("https://booking.example.com");
+
+      const nameInput = screen.getByLabelText(/link display name/i);
+      await user.click(nameInput);
+      await user.paste("Booking confirmation");
+
+      const addButton = screen.getByRole("button", { name: /add link/i });
+      await user.click(addButton);
+
+      await waitFor(() => {
+        expect(screen.getByText("Booking confirmation")).toBeDefined();
+        expect(screen.getByText("https://booking.example.com")).toBeDefined();
+      });
     });
   });
 

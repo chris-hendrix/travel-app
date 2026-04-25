@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { stripControlChars } from "../utils/sanitize";
+import { linkItemSchema, linksArraySchema } from "./link";
 
 /**
  * Base accommodation data schema (without cross-field validation)
@@ -26,12 +27,7 @@ const baseAccommodationSchema = z.object({
     .optional(),
   checkIn: z.string().datetime({ offset: true }).or(z.string().datetime()),
   checkOut: z.string().datetime({ offset: true }).or(z.string().datetime()),
-  links: z
-    .array(z.string().url("Link must be a valid URL"))
-    .max(10, {
-      error: "Links must not exceed 10 items",
-    })
-    .optional(),
+  links: linksArraySchema.optional(),
 });
 
 /**
@@ -87,7 +83,7 @@ const accommodationEntitySchema = z.object({
   description: z.string().nullable(),
   checkIn: z.date(),
   checkOut: z.date(),
-  links: z.array(z.string()).nullable(),
+  links: z.array(linkItemSchema).nullable(),
   deletedAt: z.date().nullable(),
   deletedBy: z.string().nullable(),
   createdAt: z.date(),

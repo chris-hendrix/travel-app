@@ -212,7 +212,10 @@ export class CalendarService implements ICalendarService {
         // Links
         if (event.links && event.links.length > 0) {
           descriptionParts.push(
-            "Links:\n" + event.links.map((l) => `- ${l}`).join("\n"),
+            "Links:\n" +
+              event.links
+                .map((l) => (l.name ? `- ${l.name}: ${l.url}` : `- ${l.url}`))
+                .join("\n"),
           );
         }
 
@@ -261,7 +264,10 @@ export class CalendarService implements ICalendarService {
 
         if (acc.links && acc.links.length > 0) {
           descriptionParts.push(
-            "Links:\n" + acc.links.map((l) => `- ${l}`).join("\n"),
+            "Links:\n" +
+              acc.links
+                .map((l) => (l.name ? `- ${l.name}: ${l.url}` : `- ${l.url}`))
+                .join("\n"),
           );
         }
 

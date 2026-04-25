@@ -146,7 +146,7 @@ describe("accommodation.service", () => {
         description: "Luxury beachfront resort",
         checkIn: "2026-07-01T14:00:00.000Z",
         checkOut: "2026-07-10T11:00:00.000Z",
-        links: ["https://resort.example.com"],
+        links: [{ url: "https://resort.example.com" }],
       };
 
       const accommodation = await accommodationService.createAccommodation(
@@ -563,8 +563,8 @@ describe("accommodation.service", () => {
         checkIn: "2026-10-01T14:00:00.000Z",
         checkOut: "2026-10-05T11:00:00.000Z",
         links: [
-          "https://booking.example.com",
-          "https://confirmation.example.com",
+          { url: "https://booking.example.com" },
+          { url: "https://confirmation.example.com" },
         ],
       };
 
@@ -576,6 +576,28 @@ describe("accommodation.service", () => {
 
       expect(accommodation.links).toHaveLength(2);
       expect(accommodation.links).toEqual(accommodationData.links);
+    });
+
+    it("should handle accommodation with named links", async () => {
+      const accommodationData = {
+        name: "Hotel with Named Links",
+        checkIn: "2026-10-10T14:00:00.000Z",
+        checkOut: "2026-10-12T11:00:00.000Z",
+        links: [
+          { url: "https://airbnb.example.com/listing", name: "Airbnb" },
+          { url: "https://maps.example.com/hotel" },
+        ],
+      };
+
+      const accommodation = await accommodationService.createAccommodation(
+        testOrganizerId,
+        testTripId,
+        accommodationData,
+      );
+
+      expect(accommodation.links).toEqual(accommodationData.links);
+      expect(accommodation.links?.[0]?.name).toBe("Airbnb");
+      expect(accommodation.links?.[1]?.name).toBeUndefined();
     });
 
     it("should handle same-day check-in and check-out as invalid", async () => {

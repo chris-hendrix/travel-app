@@ -72,7 +72,10 @@ describe("Itinerary Schema Integration", () => {
         endTime: new Date("2026-03-15T20:00:00Z"),
         allDay: false,
         isOptional: false,
-        links: ["https://restaurant.example.com", "https://maps.example.com"],
+        links: [
+          { url: "https://restaurant.example.com", name: "Restaurant" },
+          { url: "https://maps.example.com" },
+        ],
       };
 
       const result = await db.insert(events).values(eventData).returning();
@@ -218,7 +221,10 @@ describe("Itinerary Schema Integration", () => {
         description: "Luxury hotel with ocean view",
         checkIn: new Date("2026-03-15T14:00:00.000Z"),
         checkOut: new Date("2026-03-20T11:00:00.000Z"),
-        links: ["https://hotel.example.com", "https://booking.example.com/123"],
+        links: [
+          { url: "https://hotel.example.com", name: "Hotel website" },
+          { url: "https://booking.example.com/123" },
+        ],
       };
 
       const result = await db
@@ -600,7 +606,10 @@ describe("Itinerary Schema Integration", () => {
         startTime: new Date("2026-03-16T12:00:00Z"),
         allDay: false,
         isOptional: false,
-        links: [testUrl, "https://other-url.example.com"],
+        links: [
+          { url: testUrl },
+          { url: "https://other-url.example.com" },
+        ],
       });
 
       // Note: Drizzle doesn't have built-in array contains, but we can verify the data
@@ -610,11 +619,35 @@ describe("Itinerary Schema Integration", () => {
         .where(eq(events.tripId, testTripId));
 
       const eventsWithUrl = allEvents.filter(
-        (e) => e.links && e.links.includes(testUrl),
+        (e) => e.links?.some((link) => link.url === testUrl),
       );
 
       expect(eventsWithUrl).toHaveLength(1);
       expect(eventsWithUrl[0]!.name).toBe("Event with specific link");
+    });
+
+    it("should round-trip links with optional name", async () => {
+      const eventData = {
+        tripId: testTripId,
+        createdBy: testUserId,
+        name: "Event with named links",
+        eventType: "activity" as const,
+        startTime: new Date("2026-03-16T13:00:00Z"),
+        allDay: false,
+        isOptional: false,
+        links: [
+          { url: "https://reservation.example.com", name: "Reservation" },
+          { url: "https://maps.example.com" },
+        ],
+      };
+
+      const result = await db.insert(events).values(eventData).returning();
+      const queried = await db
+        .select()
+        .from(events)
+        .where(eq(events.id, result[0]!.id));
+
+      expect(queried[0]!.links).toEqual(eventData.links);
     });
   });
 });
