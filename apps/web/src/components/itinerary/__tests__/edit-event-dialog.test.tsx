@@ -177,7 +177,6 @@ describe("EditEventDialog", () => {
       const eventWithOptions: Event = {
         ...mockEvent,
         allDay: true,
-        isOptional: true,
       };
 
       renderWithQueryClient(
@@ -193,11 +192,6 @@ describe("EditEventDialog", () => {
         name: /all day event/i,
       });
       expect(allDayCheckbox.getAttribute("data-state")).toBe("checked");
-
-      const optionalCheckbox = screen.getByRole("checkbox", {
-        name: /optional event/i,
-      });
-      expect(optionalCheckbox.getAttribute("data-state")).toBe("checked");
     });
   });
 

@@ -103,10 +103,7 @@ export function EditEventDialog({
       location: "",
       startTime: "",
       endTime: undefined,
-      meetupLocation: "",
-      meetupTime: undefined,
       allDay: false,
-      isOptional: false,
       links: [],
       timezone: timezone,
     },
@@ -128,12 +125,7 @@ export function EditEventDialog({
           ? new Date(event.endTime).toISOString()
           : undefined,
         allDay: event.allDay,
-        isOptional: event.isOptional,
         links: event.links || [],
-        meetupLocation: event.meetupLocation || "",
-        meetupTime: event.meetupTime
-          ? new Date(event.meetupTime).toISOString()
-          : undefined,
         timezone: timezone,
       });
       setNewLink({ url: "", name: "" });
@@ -158,6 +150,7 @@ export function EditEventDialog({
 
   // Compute defaultMonth from watched startTime for end/meetup pickers
   const startTimeValue = form.watch("startTime");
+  const allDay = form.watch("allDay");
   const startTimeMonth = useMemo(() => {
     if (!startTimeValue) return undefined;
     const d = new Date(startTimeValue);
@@ -344,6 +337,30 @@ export function EditEventDialog({
                 )}
               />
 
+              {/* All Day Checkbox */}
+              <FormField
+                control={form.control}
+                name="allDay"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value ?? false}
+                        onCheckedChange={field.onChange}
+                        ref={field.ref}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        disabled={isPending || isDeleting}
+                        aria-label="All day event"
+                      />
+                    </FormControl>
+                    <FormLabel className="text-base font-semibold text-foreground cursor-pointer">
+                      All day event
+                    </FormLabel>
+                  </FormItem>
+                )}
+              />
+
               {/* Start Time */}
               <FormField
                 control={form.control}
@@ -361,7 +378,7 @@ export function EditEventDialog({
                         timezone={form.watch("timezone") || timezone}
                         placeholder="Select start time"
                         aria-label="Start time"
-                        disabled={isPending || isDeleting}
+                        disabled={isPending || isDeleting || !!allDay}
                         defaultMonth={tripStartMonth}
                         tripRange={tripRange}
                       />
@@ -371,350 +388,251 @@ export function EditEventDialog({
                 )}
               />
 
+              {/* End Time */}
+              <FormField
+                control={form.control}
+                name="endTime"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-base font-semibold text-foreground">
+                      End time
+                    </FormLabel>
+                    <FormControl>
+                      <DateTimePicker
+                        value={field.value || ""}
+                        onChange={(val) => field.onChange(val || undefined)}
+                        timezone={form.watch("timezone") || timezone}
+                        placeholder="Select end time"
+                        aria-label="End time"
+                        disabled={isPending || isDeleting || !!allDay}
+                        defaultMonth={startTimeMonth || tripStartMonth}
+                        tripRange={tripRange}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Location */}
+              <FormField
+                control={form.control}
+                name="location"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-base font-semibold text-foreground">
+                      Location
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        type="text"
+                        placeholder="123 Main St, Miami Beach"
+                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
+                        disabled={isPending || isDeleting}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Description */}
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => {
+                  const charCount = field.value?.length || 0;
+                  const showCounter = charCount >= 1600;
+
+                  return (
+                    <FormItem>
+                      <FormLabel className="text-base font-semibold text-foreground">
+                        Description
+                      </FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Tell your group about this event..."
+                          className="h-32 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md resize-none"
+                          disabled={isPending || isDeleting}
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      {showCounter && (
+                        <div className="text-xs text-muted-foreground text-right">
+                          {charCount} / 2000 characters
+                        </div>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
+              />
+
               {/* More details (collapsed by default) */}
               <CollapsibleSection label="More details">
-                <div className="space-y-6">
-                  {/* Location */}
-                  <FormField
-                    control={form.control}
-                    name="location"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-base font-semibold text-foreground">
-                          Location
-                        </FormLabel>
+                {/* Timezone */}
+                <FormField
+                  control={form.control}
+                  name="timezone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-base font-semibold text-foreground">
+                        Timezone
+                      </FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value ?? ""}
+                        disabled={isPending || isDeleting}
+                      >
                         <FormControl>
-                          <Input
-                            type="text"
-                            placeholder="123 Main St, Miami Beach"
-                            className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
-                            disabled={isPending || isDeleting}
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Timezone */}
-                  <FormField
-                    control={form.control}
-                    name="timezone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-base font-semibold text-foreground">
-                          Timezone
-                        </FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value ?? ""}
-                          disabled={isPending || isDeleting}
-                        >
-                          <FormControl>
-                            <SelectTrigger
-                              ref={field.ref}
-                              onBlur={field.onBlur}
-                              className="h-12 text-base rounded-md"
-                            >
-                              <SelectValue />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {TIMEZONES.map((tz) => (
-                              <SelectItem key={tz.value} value={tz.value}>
-                                {tz.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* End Time */}
-                  <FormField
-                    control={form.control}
-                    name="endTime"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-base font-semibold text-foreground">
-                          End time
-                        </FormLabel>
-                        <FormControl>
-                          <DateTimePicker
-                            value={field.value || ""}
-                            onChange={(val) => field.onChange(val || undefined)}
-                            timezone={form.watch("timezone") || timezone}
-                            placeholder="Select end time"
-                            aria-label="End time"
-                            disabled={isPending || isDeleting}
-                            defaultMonth={startTimeMonth || tripStartMonth}
-                            tripRange={tripRange}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Meetup Location */}
-                  <FormField
-                    control={form.control}
-                    name="meetupLocation"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-base font-semibold text-foreground">
-                          Meetup location
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            type="text"
-                            placeholder="Hotel lobby, parking lot, etc."
-                            className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
-                            disabled={isPending || isDeleting}
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Meetup Time */}
-                  <FormField
-                    control={form.control}
-                    name="meetupTime"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-base font-semibold text-foreground">
-                          Meetup time
-                        </FormLabel>
-                        <FormControl>
-                          <DateTimePicker
-                            value={field.value || ""}
-                            onChange={(val) => field.onChange(val || undefined)}
-                            timezone={form.watch("timezone") || timezone}
-                            placeholder="Select meetup time"
-                            aria-label="Meetup time"
-                            disabled={isPending || isDeleting}
-                            defaultMonth={startTimeMonth || tripStartMonth}
-                            tripRange={tripRange}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* All Day Checkbox */}
-                  <FormField
-                    control={form.control}
-                    name="allDay"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value ?? false}
-                            onCheckedChange={field.onChange}
+                          <SelectTrigger
                             ref={field.ref}
                             onBlur={field.onBlur}
-                            name={field.name}
-                            disabled={isPending || isDeleting}
-                            aria-label="All day event"
-                          />
+                            className="h-12 text-base rounded-md"
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
                         </FormControl>
-                        <FormLabel className="text-base font-semibold text-foreground cursor-pointer">
-                          All day event
-                        </FormLabel>
-                      </FormItem>
-                    )}
-                  />
+                        <SelectContent>
+                          {TIMEZONES.map((tz) => (
+                            <SelectItem key={tz.value} value={tz.value}>
+                              {tz.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                  {/* Optional Event Checkbox */}
-                  <FormField
-                    control={form.control}
-                    name="isOptional"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value ?? false}
-                            onCheckedChange={field.onChange}
-                            ref={field.ref}
-                            onBlur={field.onBlur}
-                            name={field.name}
-                            disabled={isPending || isDeleting}
-                            aria-label="Optional event"
-                          />
-                        </FormControl>
-                        <FormLabel className="text-base font-semibold text-foreground cursor-pointer">
-                          Optional event
-                        </FormLabel>
-                      </FormItem>
-                    )}
-                  />
+                {/* Links */}
+                <FormField
+                  control={form.control}
+                  name="links"
+                  render={() => (
+                    <FormItem>
+                      <FormLabel className="text-base font-semibold text-foreground">
+                        Links
+                      </FormLabel>
 
-                  {/* Description */}
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => {
-                      const charCount = field.value?.length || 0;
-                      const showCounter = charCount >= 1600;
-
-                      return (
-                        <FormItem>
-                          <FormLabel className="text-base font-semibold text-foreground">
-                            Description
-                          </FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Tell your group about this event..."
-                              className="h-32 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md resize-none"
-                              disabled={isPending || isDeleting}
-                              {...field}
-                              value={field.value || ""}
-                            />
-                          </FormControl>
-                          {showCounter && (
-                            <div className="text-xs text-muted-foreground text-right">
-                              {charCount} / 2000 characters
-                            </div>
-                          )}
-                          <FormMessage />
-                        </FormItem>
-                      );
-                    }}
-                  />
-
-                  {/* Links */}
-                  <FormField
-                    control={form.control}
-                    name="links"
-                    render={() => (
-                      <FormItem>
-                        <FormLabel className="text-base font-semibold text-foreground">
-                          Links
-                        </FormLabel>
-
-                        {/* List of added links */}
-                        {links.length > 0 && (
-                          <div className="space-y-2 mt-2">
-                            {links.map((link) => (
-                              <div
-                                key={link.url}
-                                className="flex items-center justify-between p-3 rounded-lg bg-secondary border border-border"
-                              >
-                                <div className="min-w-0 flex-1">
-                                  {link.name && (
-                                    <p className="text-sm font-medium text-foreground truncate">
-                                      {link.name}
-                                    </p>
-                                  )}
-                                  <p
-                                    className={
-                                      link.name
-                                        ? "text-xs text-muted-foreground truncate"
-                                        : "text-sm font-medium text-foreground truncate"
-                                    }
-                                  >
-                                    {link.url}
-                                  </p>
-                                </div>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleRemoveLink(link.url)}
-                                  disabled={isPending || isDeleting}
-                                  className="min-w-[44px] min-h-[44px] rounded-full hover:bg-muted"
-                                  aria-label={`Remove ${link.name ?? link.url}`}
-                                >
-                                  <X className="w-4 h-4 text-muted-foreground" />
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Add link input */}
+                      {/* List of added links */}
+                      {links.length > 0 && (
                         <div className="space-y-2 mt-2">
-                          <div className="flex flex-col gap-2 sm:flex-row">
-                            <Input
-                              type="url"
-                              placeholder="https://example.com"
-                              value={newLink.url}
-                              onChange={(e) => {
-                                setNewLink((prev) => ({
-                                  ...prev,
-                                  url: e.target.value,
-                                }));
-                                setLinkError(null);
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.preventDefault();
-                                  handleAddLink();
-                                }
-                              }}
-                              disabled={isPending || isDeleting}
-                              className="flex-1 h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
-                              aria-label="Link URL"
-                              aria-describedby={
-                                linkError ? "edit-event-link-error" : undefined
-                              }
-                            />
-                            <Input
-                              type="text"
-                              placeholder="Display name (optional)"
-                              value={newLink.name}
-                              maxLength={100}
-                              onChange={(e) => {
-                                setNewLink((prev) => ({
-                                  ...prev,
-                                  name: e.target.value,
-                                }));
-                                setLinkError(null);
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.preventDefault();
-                                  handleAddLink();
-                                }
-                              }}
-                              disabled={isPending || isDeleting}
-                              className="flex-1 h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
-                              aria-label="Link display name"
-                            />
-                            <Button
-                              type="button"
-                              onClick={handleAddLink}
-                              disabled={isPending || isDeleting}
-                              className="h-12 px-4 bg-muted hover:bg-muted text-foreground rounded-md"
-                              variant="outline"
-                              aria-label="Add link"
+                          {links.map((link) => (
+                            <div
+                              key={link.url}
+                              className="flex items-center justify-between p-3 rounded-lg bg-secondary border border-border"
                             >
-                              <Plus className="w-5 h-5" />
-                            </Button>
-                          </div>
-                          {linkError && (
-                            <p
-                              id="edit-event-link-error"
-                              aria-live="polite"
-                              className="text-sm text-destructive"
-                            >
-                              {linkError}
-                            </p>
-                          )}
+                              <div className="min-w-0 flex-1">
+                                {link.name && (
+                                  <p className="text-sm font-medium text-foreground truncate">
+                                    {link.name}
+                                  </p>
+                                )}
+                                <p
+                                  className={
+                                    link.name
+                                      ? "text-xs text-muted-foreground truncate"
+                                      : "text-sm font-medium text-foreground truncate"
+                                  }
+                                >
+                                  {link.url}
+                                </p>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleRemoveLink(link.url)}
+                                disabled={isPending || isDeleting}
+                                className="min-w-[44px] min-h-[44px] rounded-full hover:bg-muted"
+                                aria-label={`Remove ${link.name ?? link.url}`}
+                              >
+                                <X className="w-4 h-4 text-muted-foreground" />
+                              </Button>
+                            </div>
+                          ))}
                         </div>
+                      )}
 
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                      {/* Add link input */}
+                      <div className="space-y-2 mt-2">
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                          <Input
+                            type="url"
+                            placeholder="https://example.com"
+                            value={newLink.url}
+                            onChange={(e) => {
+                              setNewLink((prev) => ({
+                                ...prev,
+                                url: e.target.value,
+                              }));
+                              setLinkError(null);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleAddLink();
+                              }
+                            }}
+                            disabled={isPending || isDeleting}
+                            className="flex-1 h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
+                            aria-label="Link URL"
+                            aria-describedby={
+                              linkError ? "edit-event-link-error" : undefined
+                            }
+                          />
+                          <Input
+                            type="text"
+                            placeholder="Display name (optional)"
+                            value={newLink.name}
+                            maxLength={100}
+                            onChange={(e) => {
+                              setNewLink((prev) => ({
+                                ...prev,
+                                name: e.target.value,
+                              }));
+                              setLinkError(null);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleAddLink();
+                              }
+                            }}
+                            disabled={isPending || isDeleting}
+                            className="flex-1 h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
+                            aria-label="Link display name"
+                          />
+                          <Button
+                            type="button"
+                            onClick={handleAddLink}
+                            disabled={isPending || isDeleting}
+                            className="h-12 px-4 bg-muted hover:bg-muted text-foreground rounded-md"
+                            variant="outline"
+                            aria-label="Add link"
+                          >
+                            <Plus className="w-5 h-5" />
+                          </Button>
+                        </div>
+                        {linkError && (
+                          <p
+                            id="edit-event-link-error"
+                            aria-live="polite"
+                            className="text-sm text-destructive"
+                          >
+                            {linkError}
+                          </p>
+                        )}
+                      </div>
+
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </CollapsibleSection>
 
               {/* Action Buttons */}

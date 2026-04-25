@@ -122,7 +122,7 @@ describe("CreateEventDialog", () => {
       );
 
       expect(screen.getByLabelText(/event name/i)).toBeDefined();
-      expect(screen.getByLabelText(/event type/i)).toBeDefined();
+      expect(screen.getByText(/event type/i)).toBeDefined();
       expect(screen.getByRole("button", { name: /start time/i })).toBeDefined();
     });
 
@@ -139,7 +139,6 @@ describe("CreateEventDialog", () => {
       expect(screen.getByLabelText(/^location$/i)).toBeDefined();
       expect(screen.getByRole("button", { name: /end time/i })).toBeDefined();
       expect(screen.getByLabelText(/all day event/i)).toBeDefined();
-      expect(screen.getByLabelText(/optional event/i)).toBeDefined();
       expect(screen.getByLabelText(/description/i)).toBeDefined();
     });
 
@@ -211,8 +210,8 @@ describe("CreateEventDialog", () => {
         />,
       );
 
-      const eventTypeSelect = screen.getByLabelText(/event type/i);
-      expect(eventTypeSelect).toBeDefined();
+      // Event type uses a button grid; "Activity" is selected by default
+      expect(screen.getByRole("button", { name: /activity/i })).toBeDefined();
     });
   });
 
@@ -263,22 +262,6 @@ describe("CreateEventDialog", () => {
 
       const checkbox = screen.getByRole("checkbox", {
         name: /all day event/i,
-      });
-      expect(checkbox.getAttribute("data-state")).toBe("unchecked");
-    });
-
-    it("optional event checkbox defaults to unchecked", () => {
-      renderWithQueryClient(
-        <CreateEventDialog
-          open={true}
-          onOpenChange={mockOnOpenChange}
-          tripId={tripId}
-          timezone="America/New_York"
-        />,
-      );
-
-      const checkbox = screen.getByRole("checkbox", {
-        name: /optional event/i,
       });
       expect(checkbox.getAttribute("data-state")).toBe("unchecked");
     });
