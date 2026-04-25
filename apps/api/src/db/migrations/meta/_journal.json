@@ -218,6 +218,13 @@
       "when": 1777137286277,
       "tag": "0030_magenta_black_tarantula",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1777153560735,
+      "tag": "0031_remove_event_meetup_optional",
+      "breakpoints": true
     }
   ]
 }

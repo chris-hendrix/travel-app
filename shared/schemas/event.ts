@@ -28,12 +28,9 @@ const baseEventSchema = z.object({
     error: "Event type must be one of: travel, meal, activity",
   }),
   location: z.string().max(500).optional(),
-  meetupLocation: z.string().max(200).optional(),
-  meetupTime: z.string().datetime().optional(),
   startTime: z.string().datetime(),
   endTime: z.string().datetime().optional(),
   allDay: z.boolean().default(false),
-  isOptional: z.boolean().default(false),
   links: linksArraySchema.optional(),
   timezone: z.string().max(100).optional(),
 });
@@ -47,7 +44,6 @@ const baseEventSchema = z.object({
  * - startTime: ISO 8601 datetime string (required)
  * - endTime: ISO 8601 datetime string (optional), must be > startTime
  * - allDay: boolean (defaults to false)
- * - isOptional: boolean (defaults to false)
  * - links: array of `{ url, name? }` objects, max 10 items (optional)
  */
 export const createEventSchema = baseEventSchema.refine(
@@ -94,12 +90,9 @@ const eventEntitySchema = z.object({
   description: z.string().nullable(),
   eventType: z.enum(["travel", "meal", "activity"]),
   location: z.string().nullable(),
-  meetupLocation: z.string().nullable(),
-  meetupTime: z.date().nullable(),
   startTime: z.date(),
   endTime: z.date().nullable(),
   allDay: z.boolean(),
-  isOptional: z.boolean(),
   links: z.array(linkItemSchema).nullable(),
   deletedAt: z.date().nullable(),
   deletedBy: z.string().nullable(),

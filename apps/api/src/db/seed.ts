@@ -249,7 +249,6 @@ async function main() {
           location: pick(cities),
           startTime: daysFromNow(startDay + day, hour),
           endTime: daysFromNow(startDay + day, hour + duration),
-          isOptional: Math.random() < 0.15,
         });
       }
     }

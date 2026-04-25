@@ -40,7 +40,6 @@ describe("createEventSchema", () => {
       description: "Keynote presentation on AI",
       location: "Convention Center, Room 101",
       allDay: false,
-      isOptional: true,
       links: [
         { url: "https://example.com/conference" },
         { url: "https://example.com/speaker-bio" },
@@ -50,7 +49,7 @@ describe("createEventSchema", () => {
     expect(() => createEventSchema.parse(event)).not.toThrow();
   });
 
-  it("should apply default values for allDay and isOptional", () => {
+  it("should apply default value for allDay", () => {
     const event = {
       name: "Morning Yoga",
       eventType: "activity" as const,
@@ -59,7 +58,6 @@ describe("createEventSchema", () => {
 
     const parsed = createEventSchema.parse(event);
     expect(parsed.allDay).toBe(false);
-    expect(parsed.isOptional).toBe(false);
   });
 
   it("should accept event name at boundary lengths", () => {
@@ -443,7 +441,6 @@ describe("updateEventSchema", () => {
       { startTime: "2026-08-01T10:00:00Z" },
       { endTime: "2026-08-01T12:00:00Z" },
       { allDay: true },
-      { isOptional: true },
       { links: [{ url: "https://example.com" }] },
     ];
 

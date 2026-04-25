@@ -13,12 +13,9 @@ describe("EventCard", () => {
     description: "Lunch at beachside restaurant",
     eventType: "meal",
     location: "Malibu Cafe",
-    meetupLocation: null,
-    meetupTime: null,
     startTime: new Date("2026-07-15T12:00:00Z"),
     endTime: new Date("2026-07-15T14:00:00Z"),
     allDay: false,
-    isOptional: false,
     links: [{ url: "https://example.com/menu" }],
     deletedAt: null,
     deletedBy: null,
@@ -55,31 +52,6 @@ describe("EventCard", () => {
       );
 
       expect(screen.getByText("Malibu Cafe")).toBeDefined();
-    });
-
-    it("shows Optional badge when isOptional is true", () => {
-      const event = { ...baseEvent, isOptional: true };
-      render(
-        <EventCard
-          event={event}
-          timezone="America/Los_Angeles"
-          onClick={onClick}
-        />,
-      );
-
-      expect(screen.getByText("Optional")).toBeDefined();
-    });
-
-    it("does not show Optional badge when isOptional is false", () => {
-      render(
-        <EventCard
-          event={baseEvent}
-          timezone="America/Los_Angeles"
-          onClick={onClick}
-        />,
-      );
-
-      expect(screen.queryByText("Optional")).toBeNull();
     });
   });
 

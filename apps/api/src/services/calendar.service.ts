@@ -186,24 +186,6 @@ export class CalendarService implements ICalendarService {
       for (const event of tripEvents) {
         const descriptionParts: string[] = [];
 
-        // Meetup info
-        if (event.meetupTime || event.meetupLocation) {
-          const meetupParts: string[] = [];
-          if (event.meetupTime) {
-            meetupParts.push(
-              event.meetupTime.toLocaleString("en-US", {
-                timeZone: timezone,
-                hour: "numeric",
-                minute: "2-digit",
-              }),
-            );
-          }
-          if (event.meetupLocation) {
-            meetupParts.push(`at ${event.meetupLocation}`);
-          }
-          descriptionParts.push(`Meetup: ${meetupParts.join(" ")}`);
-        }
-
         // Description
         if (event.description) {
           descriptionParts.push(event.description);

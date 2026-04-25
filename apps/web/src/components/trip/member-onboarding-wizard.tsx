@@ -293,7 +293,6 @@ export function MemberOnboardingWizard({
           eventType: "activity",
           startTime: eventStartTime,
           allDay: false,
-          isOptional: false,
         },
       },
       {
