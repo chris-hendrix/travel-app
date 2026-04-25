@@ -307,7 +307,7 @@ export function InfoPanel({
           <div>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-foreground">Accommodations</h3>
-              {isOrganizer && !isLocked && accommodations && accommodations.length > 0 && (
+              {isOrganizer && !isLocked && (
                 <button
                   onClick={() => setIsCreateAccommodationOpen(true)}
                   className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
@@ -350,13 +350,6 @@ export function InfoPanel({
                         dismissSuggestion.mutate({ suggestionType, suggestionKey })
                       }
                     />
-                    <button
-                      onClick={() => setIsCreateAccommodationOpen(true)}
-                      className="inline-flex items-center gap-1 text-sm text-muted-foreground mt-1 hover:text-foreground transition-colors"
-                    >
-                      <Plus className="size-3.5" />
-                      Add your own
-                    </button>
                   </>
                 ) : (
                   <p className="text-sm text-muted-foreground">
