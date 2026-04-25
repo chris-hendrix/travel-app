@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Plus, X } from "lucide-react";
+import { Globe, Loader2, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { parse, addDays } from "date-fns";
 import {
@@ -34,6 +34,7 @@ import {
   useCreateAccommodation,
   getCreateAccommodationErrorMessage,
 } from "@/hooks/use-accommodations";
+import { getTimezoneAbbr } from "@/lib/constants";
 
 interface CreateAccommodationDialogProps {
   open: boolean;
@@ -257,8 +258,12 @@ export function CreateAccommodationDialog({
                   name="checkIn"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-base font-semibold text-foreground">
-                        Check-in
+                      <FormLabel className="text-base font-semibold text-foreground flex items-center justify-between">
+                        <span>Check-in</span>
+                        <span className="inline-flex items-center gap-1 font-normal text-xs text-muted-foreground">
+                          <Globe className="w-3 h-3" />
+                          {getTimezoneAbbr(timezone)}
+                        </span>
                       </FormLabel>
                       <FormControl>
                         <DateTimePicker

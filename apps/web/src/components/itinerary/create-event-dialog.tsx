@@ -306,14 +306,16 @@ export function CreateEventDialog({
                 name="startTime"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-base font-semibold text-foreground">
-                      Start time
-                      <span className="text-destructive ml-1">*</span>
+                    <FormLabel className="text-base font-semibold text-foreground flex items-center justify-between">
+                      <span>
+                        Start time
+                        <span className="text-destructive ml-1">*</span>
+                      </span>
+                      <span className="inline-flex items-center gap-1 font-normal text-xs text-muted-foreground">
+                        <Globe className="w-3 h-3" />
+                        {getTimezoneAbbr(timezone)}
+                      </span>
                     </FormLabel>
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Globe className="w-3 h-3" />
-                      <span>{getTimezoneAbbr(timezone)}</span>
-                    </div>
                     <FormControl>
                       <DateTimePicker
                         value={field.value || ""}
