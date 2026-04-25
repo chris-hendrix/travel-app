@@ -9,7 +9,7 @@ if [ -z "$GITGUARDIAN_API_KEY" ]; then
   exit 0
 fi
 
-if command -v docker >/dev/null 2>&1; then
+if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
   docker run --rm \
     -e GITGUARDIAN_API_KEY \
     -v "$(pwd):/data" \
