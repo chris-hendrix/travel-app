@@ -226,10 +226,13 @@ export function EditTripDialog({
                   Trip timezone
                 </label>
                 <Select value={pendingTimezone} onValueChange={setPendingTimezone}>
-                  <SelectTrigger className="h-12 text-base rounded-md">
+                  <SelectTrigger className="w-full h-12 text-base rounded-md">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    {pendingTimezone && !TIMEZONES.find((tz) => tz.value === pendingTimezone) && (
+                      <SelectItem value={pendingTimezone}>{pendingTimezone}</SelectItem>
+                    )}
                     {TIMEZONES.map((tz) => (
                       <SelectItem key={tz.value} value={tz.value}>
                         {tz.label}
