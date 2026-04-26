@@ -379,7 +379,7 @@ export function CreateEventDialog({
                           form.setValue("locationLon", null);
                         }}
                         onSelect={(result) => {
-                          field.onChange(result.displayName);
+                          field.onChange(result.shortName);
                           form.setValue("locationLat", result.lat);
                           form.setValue("locationLon", result.lon);
                         }}

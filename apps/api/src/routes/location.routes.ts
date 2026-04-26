@@ -11,6 +11,7 @@ const autocompleteQuerySchema = z.object({
 
 const locationSuggestionSchema = z.object({
   placeId: z.string(),
+  shortName: z.string(),
   displayName: z.string(),
   displayPlace: z.string(),
   displayAddress: z.string(),
@@ -49,6 +50,17 @@ type LocationIQResult = {
   display_address?: string;
   address?: LocationIQAddress;
 };
+
+function buildShortName(r: LocationIQResult): string {
+  const place = r.display_place ?? r.display_name;
+  const addr = r.address;
+  if (!addr) return place;
+  const city = addr.city ?? addr.town ?? addr.village ?? addr.suburb;
+  const region = addr.country_code === "us" ? addr.state : addr.country;
+  // Use city as secondary if it differs from the place name, otherwise use region
+  const secondary = city && city !== place ? city : region;
+  return [place, secondary].filter(Boolean).join(", ");
+}
 
 export async function locationRoutes(fastify: FastifyInstance) {
   fastify.get<{ Querystring: z.infer<typeof autocompleteQuerySchema> }>(
@@ -89,6 +101,7 @@ export async function locationRoutes(fastify: FastifyInstance) {
           })
           .map((r) => ({
             placeId: r.place_id,
+            shortName: buildShortName(r),
             displayName: r.display_name,
             displayPlace: r.display_place ?? r.display_name,
             displayAddress: r.display_address ?? "",

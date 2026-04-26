@@ -6,6 +6,7 @@ import { apiRequest } from "@/lib/api";
 
 export interface LocationSuggestion {
   placeId: string;
+  shortName: string;
   displayName: string;
   displayPlace: string;
   displayAddress: string;

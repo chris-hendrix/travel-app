@@ -254,7 +254,7 @@ export function CreateAccommodationDialog({
                           form.setValue("addressLon", null);
                         }}
                         onSelect={(result) => {
-                          field.onChange(result.displayName);
+                          field.onChange(result.shortName);
                           form.setValue("addressLat", result.lat);
                           form.setValue("addressLon", result.lon);
                         }}

@@ -312,7 +312,7 @@ export function EditTripDialog({
                           form.setValue("destinationLon", null);
                         }}
                         onSelect={(result) => {
-                          field.onChange(result.displayName);
+                          field.onChange(result.shortName);
                           form.setValue("destinationLat", result.lat);
                           form.setValue("destinationLon", result.lon);
                         }}

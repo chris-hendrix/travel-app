@@ -65,8 +65,8 @@ export function LocationInput({
   };
 
   const handleSelect = (suggestion: LocationSuggestion) => {
-    setQuery(suggestion.displayName);
-    onChange(suggestion.displayName);
+    setQuery(suggestion.shortName);
+    onChange(suggestion.shortName);
     onSelect?.(suggestion);
     setOpen(false);
     inputRef.current?.blur();
