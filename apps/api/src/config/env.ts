@@ -98,8 +98,8 @@ const envSchema = z.object({
   // Booking.com Affiliate (optional — suggestions hidden if not set)
   BOOKING_AFFILIATE_ID: z.string().default(""),
 
-  // LocationIQ (optional — autocomplete returns empty if not set)
-  LOCATIONIQ_API_KEY: z.string().default(""),
+  // Foursquare (optional — autocomplete returns empty if not set)
+  FOURSQUARE_API_KEY: z.string().default(""),
 
   ADMIN_PHONE_NUMBERS: z
     .string()

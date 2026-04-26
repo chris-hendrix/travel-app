@@ -21,45 +21,67 @@ const locationSuggestionSchema = z.object({
 
 const autocompleteResponseSchema = z.array(locationSuggestionSchema);
 
-type LocationIQAddress = {
-  name?: string;
-  house_number?: string;
-  road?: string;
-  suburb?: string;
-  city?: string;
-  town?: string;
-  village?: string;
-  county?: string;
-  state?: string;
-  postcode?: string;
-  country?: string;
-  country_code?: string;
+type FoursquareText = {
+  primary: string;
+  secondary: string;
+  highlight: Array<{ start: number; length: number }>;
 };
 
-type LocationIQResult = {
-  place_id: string;
-  osm_id: string;
-  osm_type: string;
-  lat: string;
-  lon: string;
-  boundingbox: [string, string, string, string];
-  class: string;
+type FoursquareLocation = {
+  address: string;
+  locality: string;
+  region: string;
+  postcode: string;
+  country: string;
+  formatted_address: string;
+};
+
+type FoursquarePlace = {
+  fsq_place_id: string;
+  latitude: number;
+  longitude: number;
+  categories: Array<{
+    fsq_category_id: string;
+    name: string;
+    short_name: string;
+    plural_name: string;
+    icon: { prefix: string; suffix: string };
+  }>;
+  distance: number;
+  location: FoursquareLocation;
+  name: string;
+};
+
+type FoursquareGeo = {
+  name: string;
+  center: { latitude: number; longitude: number };
+  bounds: {
+    ne: { latitude: number; longitude: number };
+    sw: { latitude: number; longitude: number };
+  };
+  cc: string;
   type: string;
-  display_name: string;
-  display_place?: string;
-  display_address?: string;
-  address?: LocationIQAddress;
 };
 
-function buildShortName(r: LocationIQResult): string {
-  const place = r.display_place ?? r.display_name;
-  const addr = r.address;
-  if (!addr) return place;
-  const city = addr.city ?? addr.town ?? addr.village ?? addr.suburb;
-  const region = addr.country_code === "us" ? addr.state : addr.country;
-  // Use city as secondary if it differs from the place name, otherwise use region
-  const secondary = city && city !== place ? city : region;
-  return [place, secondary].filter(Boolean).join(", ");
+type FoursquareResult = {
+  type: "search" | "place" | "geo";
+  text: FoursquareText;
+  link: string;
+  place?: FoursquarePlace;
+  search?: { query: string };
+  geo?: FoursquareGeo;
+};
+
+type FoursquareAutocompleteResponse = {
+  results: FoursquareResult[];
+};
+
+function buildShortName(text: FoursquareText): string {
+  const primary = text.primary;
+  const secondary = text.secondary;
+  const parts = secondary.split(",").map((p) => p.trim());
+  const lastPart = parts[parts.length - 1];
+  return lastPart && lastPart !== primary ? `${primary}, ${lastPart}` : primary;
 }
 
 export async function locationRoutes(fastify: FastifyInstance) {
@@ -74,40 +96,70 @@ export async function locationRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       const { q, lat, lon } = request.query;
-      const key = request.server.config.LOCATIONIQ_API_KEY;
+      const key = request.server.config.FOURSQUARE_API_KEY;
 
-      if (!key) return reply.send([]);
+      if (!key) {
+        throw new Error("FOURSQUARE_API_KEY is not configured");
+      }
 
       try {
-        const DELTA = 1; // ~110km bounding box
-        const viewbox =
-          lat != null && lon != null
-            ? `&viewbox=${lon + DELTA},${lat + DELTA},${lon - DELTA},${lat - DELTA}`
-            : "";
-        const url = `https://api.locationiq.com/v1/autocomplete?key=${encodeURIComponent(key)}&q=${encodeURIComponent(q)}&limit=10&normalizecity=1&dedupe=1&accept-language=en${viewbox}`;
+        const params = new URLSearchParams({
+          query: q,
+          limit: "10",
+        });
+
+        if (lat != null && lon != null) {
+          params.set("ll", `${lat},${lon}`);
+          params.set("radius", "50000");
+        }
+
+        const url = `https://places-api.foursquare.com/autocomplete?${params}`;
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 3000);
-        const response = await fetch(url, { signal: controller.signal });
+
+        const response = await fetch(url, {
+          signal: controller.signal,
+          headers: {
+            Authorization: `Bearer ${key}`,
+            "X-Places-Api-Version": "2025-06-17",
+            Accept: "application/json",
+          },
+        });
+
         clearTimeout(timeout);
         if (!response.ok) return reply.send([]);
 
-        const data = (await response.json()) as LocationIQResult[];
-        const seen = new Set<string>();
-        return data
-          .filter((r) => {
-            if (seen.has(r.place_id)) return false;
-            seen.add(r.place_id);
-            return true;
+        const data = (await response.json()) as FoursquareAutocompleteResponse;
+
+        return data.results
+          .filter((r) => (r.type === "place" && r.place) || r.type === "geo")
+          .map((r) => {
+            if (r.type === "place" && r.place) {
+              const place = r.place;
+              return {
+                placeId: place.fsq_place_id,
+                shortName: buildShortName(r.text),
+                displayName: place.name,
+                displayPlace: place.location.locality || place.name,
+                displayAddress: place.location.formatted_address || r.text.secondary,
+                lat: place.latitude,
+                lon: place.longitude,
+              };
+            } else if (r.type === "geo" && r.geo) {
+              const geo = r.geo;
+              return {
+                placeId: geo.name,
+                shortName: r.text.primary,
+                displayName: geo.name,
+                displayPlace: geo.name,
+                displayAddress: r.text.secondary,
+                lat: geo.center.latitude,
+                lon: geo.center.longitude,
+              };
+            }
+            return null;
           })
-          .map((r) => ({
-            placeId: r.place_id,
-            shortName: buildShortName(r),
-            displayName: r.display_name,
-            displayPlace: r.display_place ?? r.display_name,
-            displayAddress: r.display_address ?? "",
-            lat: parseFloat(r.lat),
-            lon: parseFloat(r.lon),
-          }));
+          .filter(Boolean);
       } catch {
         return reply.send([]);
       }
