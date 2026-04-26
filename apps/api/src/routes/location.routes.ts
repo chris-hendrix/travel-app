@@ -76,12 +76,15 @@ type FoursquareAutocompleteResponse = {
   results: FoursquareResult[];
 };
 
-function buildShortName(text: FoursquareText): string {
-  const primary = text.primary;
-  const secondary = text.secondary;
-  const parts = secondary.split(",").map((p) => p.trim());
-  const lastPart = parts[parts.length - 1];
-  return lastPart && lastPart !== primary ? `${primary}, ${lastPart}` : primary;
+function formatPlaceShortName(place: FoursquarePlace): string {
+  const city = place.location.locality || "";
+  const region = place.location.region || "";
+  const country = place.location.country || "";
+
+  if (country === "US") {
+    return city && region ? `${city}, ${region}` : city || place.name;
+  }
+  return city && region ? `${city}, ${region}` : city || place.name;
 }
 
 export async function locationRoutes(fastify: FastifyInstance) {
@@ -138,7 +141,7 @@ export async function locationRoutes(fastify: FastifyInstance) {
               const place = r.place;
               return {
                 placeId: place.fsq_place_id,
-                shortName: buildShortName(r.text),
+                shortName: formatPlaceShortName(place),
                 displayName: place.name,
                 displayPlace: place.location.locality || place.name,
                 displayAddress: place.location.formatted_address || r.text.secondary,
