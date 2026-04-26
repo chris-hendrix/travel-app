@@ -59,6 +59,8 @@ interface EditAccommodationDialogProps {
   onSuccess?: () => void;
   tripStartDate?: string | null | undefined;
   tripEndDate?: string | null | undefined;
+  tripLat?: number | null;
+  tripLon?: number | null;
 }
 
 export function EditAccommodationDialog({
@@ -69,6 +71,8 @@ export function EditAccommodationDialog({
   onSuccess,
   tripStartDate,
   tripEndDate,
+  tripLat,
+  tripLon,
 }: EditAccommodationDialogProps) {
   const { mutate: updateAccommodation, isPending } = useUpdateAccommodation();
   const { mutate: deleteAccommodation, isPending: isDeleting } =
@@ -293,10 +297,11 @@ export function EditAccommodationDialog({
                           form.setValue("addressLon", null);
                         }}
                         onSelect={(result) => {
-                          field.onChange(result.displayName);
+                          field.onChange(result.shortName);
                           form.setValue("addressLat", result.lat);
                           form.setValue("addressLon", result.lon);
                         }}
+                        context={tripLat != null && tripLon != null ? { lat: tripLat, lon: tripLon } : null}
                         placeholder="123 Beach Blvd, Miami Beach, FL 33139"
                         disabled={isPending || isDeleting}
                       />

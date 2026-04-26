@@ -55,7 +55,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Trash2, Loader2 } from "lucide-react";
-import { TIMEZONES } from "@/lib/constants";
+import { TIMEZONES, getTimezoneLabel } from "@/lib/constants";
 import { useState } from "react";
 
 interface EditTripDialogProps {
@@ -139,7 +139,8 @@ export function EditTripDialog({
       { tripId: trip.id, data },
       {
         onSuccess: (updatedTrip) => {
-          if (destinationChanged) {
+          const timezoneChanged = updatedTrip.preferredTimezone !== trip.preferredTimezone;
+          if (destinationChanged && (timezoneChanged || !updatedTrip.timezoneAutoUpdated)) {
             setPendingTimezone(updatedTrip.preferredTimezone);
             setTimezoneConfirm({
               timezone: updatedTrip.preferredTimezone,
@@ -217,7 +218,7 @@ export function EditTripDialog({
                 <p className="text-sm text-muted-foreground">
                   {timezoneConfirm.detected
                     ? "We detected a new timezone for your destination. Confirm or change it below."
-                    : "We couldn't detect a timezone for your destination. Please select the correct one."}
+                    : "We couldn't detect a timezone for your new destination. Your previous timezone is shown below — confirm it's still correct or select a new one."}
                 </p>
               </div>
 
@@ -310,7 +311,7 @@ export function EditTripDialog({
                           form.setValue("destinationLon", null);
                         }}
                         onSelect={(result) => {
-                          field.onChange(result.displayName);
+                          field.onChange(result.shortName);
                           form.setValue("destinationLat", result.lat);
                           form.setValue("destinationLon", result.lon);
                         }}
@@ -370,48 +371,6 @@ export function EditTripDialog({
                 />
               </div>
 
-              {/* Timezone */}
-              <FormField
-                control={form.control}
-                name="timezone"
-                render={({ field }) => {
-                  return (
-                    <FormItem>
-                      <FormLabel className="text-base font-semibold text-foreground">
-                        Trip timezone
-                        <span className="text-destructive ml-1">*</span>
-                      </FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value ?? ""}
-                        disabled={isPending || isDeleting}
-                      >
-                        <FormControl>
-                          <SelectTrigger
-                            ref={field.ref}
-                            onBlur={field.onBlur}
-                            className="h-12 text-base rounded-md"
-                            aria-required="true"
-                          >
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {TIMEZONES.map((tz) => (
-                            <SelectItem key={tz.value} value={tz.value}>
-                              {tz.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormDescription className="text-sm text-muted-foreground">
-                        All trip times will be shown in this timezone
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  );
-                }}
-              />
 
               {/* Description */}
               <FormField
@@ -508,6 +467,26 @@ export function EditTripDialog({
                   </FormItem>
                 )}
               />
+
+              {/* Timezone */}
+              <div className="flex items-center justify-between py-1">
+                <div>
+                  <p className="text-base font-semibold text-foreground">Trip timezone</p>
+                  <p className="text-sm text-muted-foreground">{getTimezoneLabel(trip.preferredTimezone)}</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isPending || isDeleting}
+                  onClick={() => {
+                    setPendingTimezone(trip.preferredTimezone);
+                    setTimezoneConfirm({ timezone: trip.preferredTimezone, detected: false });
+                  }}
+                >
+                  Change
+                </Button>
+              </div>
 
               {/* Submit Button */}
               <div className="flex justify-end pt-4">

@@ -26,6 +26,7 @@ interface LocationInputProps {
   value: string;
   onChange: (value: string) => void;
   onSelect?: (result: LocationSuggestion) => void;
+  context?: { lat: number; lon: number } | null;
   placeholder?: string;
   disabled?: boolean;
   className?: string;
@@ -37,6 +38,7 @@ export function LocationInput({
   value,
   onChange,
   onSelect,
+  context,
   placeholder,
   disabled,
   className,
@@ -50,7 +52,7 @@ export function LocationInput({
     setQuery(value);
   }, [value]);
 
-  const { data: suggestions = [] } = useLocationAutocomplete(query);
+  const { data: suggestions = [] } = useLocationAutocomplete(query, context);
 
   const hasSuggestions = suggestions.length > 0;
 
@@ -63,8 +65,8 @@ export function LocationInput({
   };
 
   const handleSelect = (suggestion: LocationSuggestion) => {
-    setQuery(suggestion.displayName);
-    onChange(suggestion.displayName);
+    setQuery(suggestion.shortName);
+    onChange(suggestion.shortName);
     onSelect?.(suggestion);
     setOpen(false);
     inputRef.current?.blur();
@@ -99,9 +101,9 @@ export function LocationInput({
         <Command shouldFilter={false}>
           <CommandList>
             <CommandEmpty>No results found.</CommandEmpty>
-            {suggestions.map((suggestion) => (
+            {suggestions.slice(0, 5).map((suggestion) => (
               <CommandItem
-                key={`${suggestion.lat}-${suggestion.lon}`}
+                key={suggestion.placeId}
                 value={suggestion.displayName}
                 onSelect={() => handleSelect(suggestion)}
                 className="flex items-start gap-2 py-2 px-3 cursor-pointer"

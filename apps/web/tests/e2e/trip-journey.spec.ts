@@ -59,8 +59,6 @@ test.describe("Trip Journey", () => {
       await tripDetail.destinationInput.fill(tripDestination);
       await pickDate(page, tripDetail.startDateButton, "2026-10-12");
       await pickDate(page, tripDetail.endDateButton, "2026-10-14");
-      // Description is inside collapsed "More options" section
-      await page.getByText("More options").click();
       await tripDetail.descriptionInput.fill(tripDescription);
       await snap(page, "05-create-trip-step1");
       await tripDetail.continueButton.click();

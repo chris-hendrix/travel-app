@@ -50,6 +50,8 @@ interface CreateEventDialogProps {
   onSuccess?: () => void;
   tripStartDate?: string | null | undefined;
   tripEndDate?: string | null | undefined;
+  tripLat?: number | null;
+  tripLon?: number | null;
 }
 
 export function CreateEventDialog({
@@ -60,6 +62,8 @@ export function CreateEventDialog({
   onSuccess,
   tripStartDate,
   tripEndDate,
+  tripLat,
+  tripLon,
 }: CreateEventDialogProps) {
   const { mutate: createEvent, isPending } = useCreateEvent();
   const [newLink, setNewLink] = useState<{ url: string; name: string }>({
@@ -375,10 +379,11 @@ export function CreateEventDialog({
                           form.setValue("locationLon", null);
                         }}
                         onSelect={(result) => {
-                          field.onChange(result.displayName);
+                          field.onChange(result.shortName);
                           form.setValue("locationLat", result.lat);
                           form.setValue("locationLon", result.lon);
                         }}
+                        context={tripLat != null && tripLon != null ? { lat: tripLat, lon: tripLon } : null}
                         placeholder="123 Main St, Miami Beach"
                         disabled={isPending}
                       />

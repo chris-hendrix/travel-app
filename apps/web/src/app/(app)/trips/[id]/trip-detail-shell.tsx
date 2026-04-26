@@ -607,6 +607,8 @@ export function TripDetailShell({
             }}
             accommodation={editingAccommodation}
             timezone={trip.preferredTimezone}
+            tripLat={trip.destinationLat}
+            tripLon={trip.destinationLon}
           />
         )}
 
