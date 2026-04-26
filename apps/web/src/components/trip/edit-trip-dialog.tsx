@@ -127,13 +127,17 @@ export function EditTripDialog({
   }, [startDateValue, form]);
 
   const handleSubmit = (data: UpdateTripInput) => {
+    const destinationChanged = data.destination !== undefined && data.destination !== trip.destination;
     updateTrip(
       { tripId: trip.id, data },
       {
         onSuccess: (updatedTrip) => {
-          if (updatedTrip.timezoneAutoUpdated) {
+          if (destinationChanged) {
             setPendingTimezone(updatedTrip.preferredTimezone);
-            setTimezoneConfirm({ timezone: updatedTrip.preferredTimezone, detected: true });
+            setTimezoneConfirm({
+              timezone: updatedTrip.preferredTimezone,
+              detected: !!updatedTrip.timezoneAutoUpdated,
+            });
           } else {
             onOpenChange(false);
             onSuccess?.();
@@ -513,7 +517,9 @@ export function EditTripDialog({
               <div className="space-y-2">
                 <h3 className="text-xl font-semibold text-foreground">Timezone updated</h3>
                 <p className="text-sm text-muted-foreground">
-                  We detected a new timezone for {trip.destination}. Confirm or change it below.
+                  {timezoneConfirm.detected
+                    ? `We detected a new timezone for your destination. Confirm or change it below.`
+                    : `We couldn't detect a timezone for your destination. Please select the correct one.`}
                 </p>
               </div>
 
@@ -536,7 +542,9 @@ export function EditTripDialog({
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">Auto-detected from your destination</p>
+                {timezoneConfirm.detected && (
+                  <p className="text-xs text-muted-foreground">Auto-detected from your destination</p>
+                )}
               </div>
 
               <Button
