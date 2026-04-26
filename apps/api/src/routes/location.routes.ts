@@ -65,7 +65,7 @@ export async function locationRoutes(fastify: FastifyInstance) {
       if (!key) return reply.send([]);
 
       try {
-        const url = `https://api.locationiq.com/v1/autocomplete?key=${encodeURIComponent(key)}&q=${encodeURIComponent(q)}&limit=10&normalizecity=1`;
+        const url = `https://api.locationiq.com/v1/autocomplete?key=${encodeURIComponent(key)}&q=${encodeURIComponent(q)}&limit=10&normalizecity=1&dedupe=1`;
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 3000);
         const response = await fetch(url, { signal: controller.signal });
@@ -73,14 +73,21 @@ export async function locationRoutes(fastify: FastifyInstance) {
         if (!response.ok) return reply.send([]);
 
         const data = (await response.json()) as LocationIQResult[];
-        return data.map((r) => ({
-          placeId: r.place_id,
-          displayName: r.display_name,
-          displayPlace: r.display_place ?? r.display_name,
-          displayAddress: r.display_address ?? "",
-          lat: parseFloat(r.lat),
-          lon: parseFloat(r.lon),
-        }));
+        const seen = new Set<string>();
+        return data
+          .filter((r) => {
+            if (seen.has(r.place_id)) return false;
+            seen.add(r.place_id);
+            return true;
+          })
+          .map((r) => ({
+            placeId: r.place_id,
+            displayName: r.display_name,
+            displayPlace: r.display_place ?? r.display_name,
+            displayAddress: r.display_address ?? "",
+            lat: parseFloat(r.lat),
+            lon: parseFloat(r.lon),
+          }));
       } catch {
         return reply.send([]);
       }
