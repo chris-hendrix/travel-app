@@ -54,6 +54,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { DatePicker } from "@/components/ui/date-picker";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { Trash2, Loader2 } from "lucide-react";
 import { TIMEZONES } from "@/lib/constants";
 import { useState } from "react";
@@ -140,8 +141,7 @@ export function EditTripDialog({
       {
         onSuccess: (updatedTrip) => {
           const timezoneChanged = updatedTrip.preferredTimezone !== trip.preferredTimezone;
-          const timezoneDetectionFailed = destinationChanged && !updatedTrip.timezoneAutoUpdated && !timezoneChanged;
-          if (destinationChanged && (timezoneChanged || timezoneDetectionFailed)) {
+          if (destinationChanged && (timezoneChanged || !updatedTrip.timezoneAutoUpdated)) {
             setPendingTimezone(updatedTrip.preferredTimezone);
             setTimezoneConfirm({
               timezone: updatedTrip.preferredTimezone,
@@ -468,6 +468,47 @@ export function EditTripDialog({
                   </FormItem>
                 )}
               />
+
+              {/* More options */}
+              <CollapsibleSection label="More options">
+                <FormField
+                  control={form.control}
+                  name="timezone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-base font-semibold text-foreground">
+                        Trip timezone
+                      </FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value ?? ""}
+                        disabled={isPending || isDeleting}
+                      >
+                        <FormControl>
+                          <SelectTrigger
+                            ref={field.ref}
+                            onBlur={field.onBlur}
+                            className="h-12 text-base rounded-md"
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {TIMEZONES.map((tz) => (
+                            <SelectItem key={tz.value} value={tz.value}>
+                              {tz.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription className="text-sm text-muted-foreground">
+                        All trip times will be shown in this timezone
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CollapsibleSection>
 
               {/* Submit Button */}
               <div className="flex justify-end pt-4">

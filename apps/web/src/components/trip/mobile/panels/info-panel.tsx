@@ -495,6 +495,8 @@ export function InfoPanel({
           }}
           accommodation={editingAccommodation}
           timezone={timezone}
+          tripLat={trip.destinationLat}
+          tripLon={trip.destinationLon}
         />
       )}
 
