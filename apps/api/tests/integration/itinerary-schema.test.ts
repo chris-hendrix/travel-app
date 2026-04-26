@@ -71,7 +71,6 @@ describe("Itinerary Schema Integration", () => {
         startTime: new Date("2026-03-15T18:00:00Z"),
         endTime: new Date("2026-03-15T20:00:00Z"),
         allDay: false,
-        isOptional: false,
         links: [
           { url: "https://restaurant.example.com", name: "Restaurant" },
           { url: "https://maps.example.com" },
@@ -87,7 +86,6 @@ describe("Itinerary Schema Integration", () => {
         eventType: eventData.eventType,
         location: eventData.location,
         allDay: false,
-        isOptional: false,
       });
       expect(result[0]!.id).toBeDefined();
       expect(result[0]!.createdAt).toBeInstanceOf(Date);
@@ -112,14 +110,12 @@ describe("Itinerary Schema Integration", () => {
         eventType: "activity" as const,
         startTime: new Date("2026-03-16T00:00:00Z"),
         allDay: true,
-        isOptional: true,
       };
 
       const result = await db.insert(events).values(eventData).returning();
 
       expect(result).toHaveLength(1);
       expect(result[0]!.allDay).toBe(true);
-      expect(result[0]!.isOptional).toBe(true);
       expect(result[0]!.endTime).toBeNull();
       expect(result[0]!.description).toBeNull();
       expect(result[0]!.location).toBeNull();
@@ -133,7 +129,6 @@ describe("Itinerary Schema Integration", () => {
         eventType: "travel" as const,
         startTime: new Date("2026-03-14T10:00:00Z"),
         allDay: false,
-        isOptional: false,
       };
 
       const result = await db.insert(events).values(eventData).returning();
@@ -175,7 +170,6 @@ describe("Itinerary Schema Integration", () => {
         eventType: "activity" as const,
         startTime: new Date("2026-03-17T09:00:00Z"),
         allDay: false,
-        isOptional: false,
       };
 
       await db.insert(events).values(eventData);
@@ -569,7 +563,6 @@ describe("Itinerary Schema Integration", () => {
         eventType: "activity" as const,
         startTime: new Date("2026-03-16T10:00:00Z"),
         allDay: false,
-        isOptional: false,
         links: [],
       };
 
@@ -586,7 +579,6 @@ describe("Itinerary Schema Integration", () => {
         eventType: "activity" as const,
         startTime: new Date("2026-03-16T11:00:00Z"),
         allDay: false,
-        isOptional: false,
         links: null,
       };
 
@@ -605,7 +597,6 @@ describe("Itinerary Schema Integration", () => {
         eventType: "activity" as const,
         startTime: new Date("2026-03-16T12:00:00Z"),
         allDay: false,
-        isOptional: false,
         links: [
           { url: testUrl },
           { url: "https://other-url.example.com" },
@@ -634,7 +625,6 @@ describe("Itinerary Schema Integration", () => {
         eventType: "activity" as const,
         startTime: new Date("2026-03-16T13:00:00Z"),
         allDay: false,
-        isOptional: false,
         links: [
           { url: "https://reservation.example.com", name: "Reservation" },
           { url: "https://maps.example.com" },

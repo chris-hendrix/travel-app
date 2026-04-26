@@ -147,7 +147,6 @@ describe("event.service", () => {
         startTime: "2026-06-16T18:00:00Z",
         endTime: "2026-06-16T20:00:00Z",
         allDay: false,
-        isOptional: false,
         links: [{ url: "https://example.com" }],
       };
 
@@ -165,7 +164,6 @@ describe("event.service", () => {
       expect(event.startTime).toEqual(new Date(eventData.startTime));
       expect(event.endTime).toEqual(new Date(eventData.endTime));
       expect(event.allDay).toBe(false);
-      expect(event.isOptional).toBe(false);
       expect(event.links).toEqual(eventData.links);
       expect(event.createdBy).toBe(testOrganizerId);
       expect(event.tripId).toBe(testTripId);
@@ -408,7 +406,7 @@ describe("event.service", () => {
 
     it("should allow partial updates", async () => {
       const updateData = {
-        isOptional: true,
+        description: "Partially updated description",
       };
 
       const updatedEvent = await eventService.updateEvent(
@@ -417,7 +415,7 @@ describe("event.service", () => {
         updateData,
       );
 
-      expect(updatedEvent.isOptional).toBe(true);
+      expect(updatedEvent.description).toBe("Partially updated description");
       expect(updatedEvent.name).toBe("Test Event"); // Unchanged
     });
   });
