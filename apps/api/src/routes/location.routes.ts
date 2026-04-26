@@ -19,8 +19,8 @@ const autocompleteResponseSchema = z.array(locationSuggestionSchema);
 
 type LocationIQResult = {
   display_name: string;
-  display_place: string;
-  display_address: string;
+  display_place?: string;
+  display_address?: string;
   lat: string;
   lon: string;
 };
@@ -43,14 +43,17 @@ export async function locationRoutes(fastify: FastifyInstance) {
 
       try {
         const url = `https://api.locationiq.com/v1/autocomplete?key=${encodeURIComponent(key)}&q=${encodeURIComponent(q)}&limit=5&normalizecity=1`;
-        const response = await fetch(url);
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 3000);
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeout);
         if (!response.ok) return reply.send([]);
 
         const data = (await response.json()) as LocationIQResult[];
         return data.map((r) => ({
           displayName: r.display_name,
-          displayPlace: r.display_place,
-          displayAddress: r.display_address,
+          displayPlace: r.display_place ?? r.display_name,
+          displayAddress: r.display_address ?? "",
           lat: parseFloat(r.lat),
           lon: parseFloat(r.lon),
         }));
