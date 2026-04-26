@@ -56,6 +56,7 @@ import {
 import { DatePicker } from "@/components/ui/date-picker";
 import { Trash2, Loader2 } from "lucide-react";
 import { TIMEZONES } from "@/lib/constants";
+import { useState } from "react";
 
 interface EditTripDialogProps {
   open: boolean;
@@ -72,6 +73,8 @@ export function EditTripDialog({
 }: EditTripDialogProps) {
   const { mutate: updateTrip, isPending } = useUpdateTrip();
   const { mutate: cancelTrip, isPending: isDeleting } = useCancelTrip();
+  const [timezoneConfirm, setTimezoneConfirm] = useState<{ timezone: string; detected: boolean } | null>(null);
+  const [pendingTimezone, setPendingTimezone] = useState<string>("");
 
   const form = useForm<UpdateTripInput>({
     resolver: zodResolver(updateTripSchema),
@@ -127,9 +130,14 @@ export function EditTripDialog({
     updateTrip(
       { tripId: trip.id, data },
       {
-        onSuccess: () => {
-          onOpenChange(false);
-          onSuccess?.();
+        onSuccess: (updatedTrip) => {
+          if (updatedTrip.timezoneAutoUpdated) {
+            setPendingTimezone(updatedTrip.preferredTimezone);
+            setTimezoneConfirm({ timezone: updatedTrip.preferredTimezone, detected: true });
+          } else {
+            onOpenChange(false);
+            onSuccess?.();
+          }
         },
         onError: (error) => {
           const mapped = mapServerErrors(error, form.setError, {
@@ -144,6 +152,25 @@ export function EditTripDialog({
         },
       },
     );
+  };
+
+  const handleTimezoneConfirm = () => {
+    if (pendingTimezone !== trip.preferredTimezone) {
+      updateTrip(
+        { tripId: trip.id, data: { timezone: pendingTimezone } },
+        {
+          onSuccess: () => {
+            setTimezoneConfirm(null);
+            onOpenChange(false);
+            onSuccess?.();
+          },
+        },
+      );
+    } else {
+      setTimezoneConfirm(null);
+      onOpenChange(false);
+      onSuccess?.();
+    }
   };
 
   const handleDelete = () => {
@@ -171,7 +198,7 @@ export function EditTripDialog({
           </SheetDescription>
         </SheetHeader>
 
-        <SheetBody>
+        <SheetBody className="relative">
           <Form {...form}>
             <form
               onSubmit={form.handleSubmit(handleSubmit)}
@@ -480,6 +507,50 @@ export function EditTripDialog({
               </div>
             </form>
           </Form>
+          {/* Timezone confirmation — shown after save when timezone was auto-updated */}
+          {timezoneConfirm && (
+            <div className="absolute inset-0 bg-background z-10 flex flex-col p-6 gap-6">
+              <div className="space-y-2">
+                <h3 className="text-xl font-semibold text-foreground">Timezone updated</h3>
+                <p className="text-sm text-muted-foreground">
+                  We detected a new timezone for {trip.destination}. Confirm or change it below.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-base font-semibold text-foreground">
+                  Trip timezone
+                </label>
+                <Select
+                  value={pendingTimezone}
+                  onValueChange={setPendingTimezone}
+                >
+                  <SelectTrigger className="h-12 text-base rounded-md">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIMEZONES.map((tz) => (
+                      <SelectItem key={tz.value} value={tz.value}>
+                        {tz.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Auto-detected from your destination</p>
+              </div>
+
+              <Button
+                onClick={handleTimezoneConfirm}
+                disabled={isPending}
+                variant="gradient"
+                size="lg"
+                className="w-full"
+              >
+                {isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                {isPending ? "Saving..." : "Confirm"}
+              </Button>
+            </div>
+          )}
         </SheetBody>
       </SheetContent>
     </Sheet>
