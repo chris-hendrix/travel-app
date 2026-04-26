@@ -93,12 +93,15 @@ export function CreateTripDialog({
   const watchedThemeId = form.watch("themeId");
   const watchedThemeFont = form.watch("themeFont");
 
+  // Theme preview is intentionally disabled during creation — applying a theme
+  // to the dashboard page while picking for a new trip is disorienting.
+  // The theme takes effect when the user navigates to the trip after creation.
   useThemePreview({
     themeId: watchedThemeId ?? null,
     themeFont: watchedThemeFont ?? null,
     initialThemeId: null,
     initialThemeFont: null,
-    enabled: open,
+    enabled: false,
   });
 
   // Auto-suggest font when theme changes and no font is set yet
