@@ -26,6 +26,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { LocationInput } from "@/components/ui/location-input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -62,6 +63,8 @@ export function CreateTripDialog({
     defaultValues: {
       name: "",
       destination: "",
+      destinationLat: null,
+      destinationLon: null,
       startDate: undefined,
       endDate: undefined,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -234,12 +237,19 @@ export function CreateTripDialog({
                           <span className="text-destructive ml-1">*</span>
                         </FormLabel>
                         <FormControl>
-                          <Input
-                            type="text"
+                          <LocationInput
+                            value={field.value ?? ""}
+                            onChange={(val) => {
+                              field.onChange(val);
+                              form.setValue("destinationLat", null);
+                              form.setValue("destinationLon", null);
+                            }}
+                            onSelect={(result) => {
+                              field.onChange(result.displayName);
+                              form.setValue("destinationLat", result.lat);
+                              form.setValue("destinationLon", result.lon);
+                            }}
                             placeholder="Miami Beach, FL"
-                            className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
-                            aria-required="true"
-                            {...field}
                           />
                         </FormControl>
                         <FormMessage />

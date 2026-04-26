@@ -28,6 +28,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { LocationInput } from "@/components/ui/location-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
@@ -98,6 +99,8 @@ export function EditAccommodationDialog({
       form.reset({
         name: accommodation.name,
         address: accommodation.address || "",
+        addressLat: accommodation.addressLat ?? null,
+        addressLon: accommodation.addressLon ?? null,
         description: accommodation.description || "",
         checkIn: accommodation.checkIn ?? undefined,
         checkOut: accommodation.checkOut ?? undefined,
@@ -281,12 +284,20 @@ export function EditAccommodationDialog({
                       Address
                     </FormLabel>
                     <FormControl>
-                      <Input
-                        type="text"
+                      <LocationInput
+                        value={field.value ?? ""}
+                        onChange={(val) => {
+                          field.onChange(val);
+                          form.setValue("addressLat", null);
+                          form.setValue("addressLon", null);
+                        }}
+                        onSelect={(result) => {
+                          field.onChange(result.displayName);
+                          form.setValue("addressLat", result.lat);
+                          form.setValue("addressLon", result.lon);
+                        }}
                         placeholder="123 Beach Blvd, Miami Beach, FL 33139"
-                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                         disabled={isPending || isDeleting}
-                        {...field}
                       />
                     </FormControl>
                     <FormMessage />

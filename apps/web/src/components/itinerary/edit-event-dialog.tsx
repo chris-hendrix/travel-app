@@ -28,6 +28,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { LocationInput } from "@/components/ui/location-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
@@ -109,6 +110,8 @@ export function EditEventDialog({
         description: event.description || "",
         eventType: event.eventType,
         location: event.location || "",
+        locationLat: event.locationLat ?? null,
+        locationLon: event.locationLon ?? null,
         startTime: event.startTime
           ? new Date(event.startTime).toISOString()
           : "",
@@ -413,12 +416,20 @@ export function EditEventDialog({
                       Location
                     </FormLabel>
                     <FormControl>
-                      <Input
-                        type="text"
+                      <LocationInput
+                        value={field.value ?? ""}
+                        onChange={(val) => {
+                          field.onChange(val);
+                          form.setValue("locationLat", null);
+                          form.setValue("locationLon", null);
+                        }}
+                        onSelect={(result) => {
+                          field.onChange(result.displayName);
+                          form.setValue("locationLat", result.lat);
+                          form.setValue("locationLon", result.lon);
+                        }}
                         placeholder="123 Main St, Miami Beach"
-                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                         disabled={isPending || isDeleting}
-                        {...field}
                       />
                     </FormControl>
                     <FormMessage />
