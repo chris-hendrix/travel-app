@@ -302,9 +302,13 @@ export class TripService implements ITripService {
       if (data.destinationLat != null && data.destinationLon != null) {
         destinationLat = data.destinationLat;
         destinationLon = data.destinationLon;
-        geocodedTimezone = await this.geocodingService
-          .getTimezone(data.destination)
-          .catch(() => null);
+        geocodedTimezone =
+          await this.geocodingService
+            .getTimezoneByCoords(data.destinationLat, data.destinationLon)
+            .catch(() => null) ??
+          await this.geocodingService
+            .getTimezone(data.destination)
+            .catch(() => null);
       } else {
         const [coords, tz] = await Promise.all([
           this.geocodingService.geocode(data.destination).catch(() => null),
@@ -771,9 +775,13 @@ export class TripService implements ITripService {
         if (data.destinationLat != null && data.destinationLon != null) {
           newLat = data.destinationLat;
           newLon = data.destinationLon;
-          geocodedTimezone = await this.geocodingService
-            .getTimezone(data.destination)
-            .catch(() => null);
+          geocodedTimezone =
+            await this.geocodingService
+              .getTimezoneByCoords(data.destinationLat, data.destinationLon)
+              .catch(() => null) ??
+            await this.geocodingService
+              .getTimezone(data.destination)
+              .catch(() => null);
         } else {
           const [coords, tz] = await Promise.all([
             this.geocodingService.geocode(data.destination).catch(() => null),

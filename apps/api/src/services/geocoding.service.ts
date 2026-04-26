@@ -24,10 +24,19 @@ export interface IGeocodingService {
    * @returns IANA timezone string (e.g. "Europe/Paris") or null if not found / on error
    */
   getTimezone(query: string): Promise<string | null>;
+
+  /**
+   * Looks up the IANA timezone for a coordinate pair
+   * @param lat - Latitude
+   * @param lon - Longitude
+   * @returns IANA timezone string (e.g. "Europe/Paris") or null if not found / on error
+   */
+  getTimezoneByCoords(lat: number, lon: number): Promise<string | null>;
 }
 
 const NOMINATIM_API_BASE = "https://nominatim.openstreetmap.org/search";
 const OPEN_METEO_GEOCODING_API = "https://geocoding-api.open-meteo.com/v1/search";
+const OPEN_METEO_FORECAST_API = "https://api.open-meteo.com/v1/forecast";
 
 /**
  * Nominatim (OpenStreetMap) Geocoding Service Implementation
@@ -101,6 +110,26 @@ export class NominatimGeocodingService implements IGeocodingService {
       return data.results?.[0]?.timezone ?? null;
     } catch (err) {
       this.logger?.error(err, "Timezone lookup failed");
+      return null;
+    }
+  }
+
+  async getTimezoneByCoords(lat: number, lon: number): Promise<string | null> {
+    this.logger?.info({ lat, lon }, "Timezone lookup by coordinates");
+
+    try {
+      const url = `${OPEN_METEO_FORECAST_API}?latitude=${lat}&longitude=${lon}&timezone=auto&forecast_days=0`;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeout);
+
+      if (!response.ok) return null;
+
+      const data = (await response.json()) as { timezone?: string };
+      return data.timezone ?? null;
+    } catch (err) {
+      this.logger?.error(err, "Timezone lookup by coords failed");
       return null;
     }
   }
