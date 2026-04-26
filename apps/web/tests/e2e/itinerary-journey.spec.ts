@@ -81,9 +81,6 @@ test.describe("Itinerary Journey", () => {
         await page
           .locator('input[name="address"]')
           .fill("123 Main St, San Diego");
-        // Description and links are inside collapsed "More details" section
-        const accommDialog = page.getByRole("dialog");
-        await accommDialog.getByText("More details").click();
         await page
           .locator('textarea[name="description"]')
           .fill("Modern hotel in the heart of downtown");
@@ -179,9 +176,6 @@ test.describe("Itinerary Journey", () => {
         const nameInput = page.locator('input[name="name"]');
         await nameInput.clear();
         await nameInput.fill(updatedEventName);
-        // Location is inside collapsed "More details" section
-        const editDialog = page.getByRole("dialog");
-        await editDialog.getByText("More details").click();
         await page.locator('input[name="location"]').fill("Gaslamp Quarter");
         await page.getByRole("button", { name: "Update event" }).click();
 
