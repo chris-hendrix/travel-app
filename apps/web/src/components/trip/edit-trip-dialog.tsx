@@ -94,6 +94,13 @@ export function EditTripDialog({
 
   const isInitializing = useRef(false);
 
+  // Reset confirmation state when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setTimezoneConfirm(null);
+    }
+  }, [open]);
+
   // Pre-populate form with existing trip data when dialog opens
   useEffect(() => {
     if (open && trip) {
@@ -202,7 +209,51 @@ export function EditTripDialog({
           </SheetDescription>
         </SheetHeader>
 
-        <SheetBody className="relative">
+        <SheetBody>
+          {timezoneConfirm ? (
+            <div className="space-y-6 pb-6">
+              <div className="space-y-2">
+                <h3 className="text-xl font-semibold text-foreground">Confirm timezone</h3>
+                <p className="text-sm text-muted-foreground">
+                  {timezoneConfirm.detected
+                    ? "We detected a new timezone for your destination. Confirm or change it below."
+                    : "We couldn't detect a timezone for your destination. Please select the correct one."}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-base font-semibold text-foreground">
+                  Trip timezone
+                </label>
+                <Select value={pendingTimezone} onValueChange={setPendingTimezone}>
+                  <SelectTrigger className="h-12 text-base rounded-md">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIMEZONES.map((tz) => (
+                      <SelectItem key={tz.value} value={tz.value}>
+                        {tz.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {timezoneConfirm.detected && (
+                  <p className="text-xs text-muted-foreground">Auto-detected from your destination</p>
+                )}
+              </div>
+
+              <Button
+                onClick={handleTimezoneConfirm}
+                disabled={isPending}
+                variant="gradient"
+                size="lg"
+                className="w-full"
+              >
+                {isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                {isPending ? "Saving..." : "Confirm"}
+              </Button>
+            </div>
+          ) : (
           <Form {...form}>
             <form
               onSubmit={form.handleSubmit(handleSubmit)}
@@ -511,53 +562,6 @@ export function EditTripDialog({
               </div>
             </form>
           </Form>
-          {/* Timezone confirmation — shown after save when timezone was auto-updated */}
-          {timezoneConfirm && (
-            <div className="absolute inset-0 bg-background z-10 flex flex-col p-6 gap-6">
-              <div className="space-y-2">
-                <h3 className="text-xl font-semibold text-foreground">Timezone updated</h3>
-                <p className="text-sm text-muted-foreground">
-                  {timezoneConfirm.detected
-                    ? `We detected a new timezone for your destination. Confirm or change it below.`
-                    : `We couldn't detect a timezone for your destination. Please select the correct one.`}
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-base font-semibold text-foreground">
-                  Trip timezone
-                </label>
-                <Select
-                  value={pendingTimezone}
-                  onValueChange={setPendingTimezone}
-                >
-                  <SelectTrigger className="h-12 text-base rounded-md">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIMEZONES.map((tz) => (
-                      <SelectItem key={tz.value} value={tz.value}>
-                        {tz.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {timezoneConfirm.detected && (
-                  <p className="text-xs text-muted-foreground">Auto-detected from your destination</p>
-                )}
-              </div>
-
-              <Button
-                onClick={handleTimezoneConfirm}
-                disabled={isPending}
-                variant="gradient"
-                size="lg"
-                className="w-full"
-              >
-                {isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                {isPending ? "Saving..." : "Confirm"}
-              </Button>
-            </div>
           )}
         </SheetBody>
       </SheetContent>
