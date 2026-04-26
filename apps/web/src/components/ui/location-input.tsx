@@ -99,7 +99,7 @@ export function LocationInput({
         <Command shouldFilter={false}>
           <CommandList>
             <CommandEmpty>No results found.</CommandEmpty>
-            {suggestions.map((suggestion) => (
+            {suggestions.slice(0, 5).map((suggestion) => (
               <CommandItem
                 key={suggestion.placeId}
                 value={suggestion.displayName}
