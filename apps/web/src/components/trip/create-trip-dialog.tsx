@@ -83,6 +83,15 @@ export function CreateTripDialog({
     },
   });
 
+  // Reset to step 1 when dialog closes so next open starts fresh
+  useEffect(() => {
+    if (!open) {
+      setCurrentStep(1);
+      setCreatedTrip(null);
+      setPendingTimezone("");
+    }
+  }, [open]);
+
   const watchedThemeId = form.watch("themeId");
   const watchedThemeFont = form.watch("themeFont");
 

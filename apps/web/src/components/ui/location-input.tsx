@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, type ChangeEvent } from "react";
+import { useState, useRef, useEffect, type ChangeEvent } from "react";
 import { MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -44,6 +44,11 @@ export function LocationInput({
   const [query, setQuery] = useState(value);
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Sync internal query when value prop changes externally (e.g. form.reset)
+  useEffect(() => {
+    setQuery(value);
+  }, [value]);
 
   const { data: suggestions = [] } = useLocationAutocomplete(query);
 
@@ -94,9 +99,9 @@ export function LocationInput({
         <Command shouldFilter={false}>
           <CommandList>
             <CommandEmpty>No results found.</CommandEmpty>
-            {suggestions.map((suggestion, i) => (
+            {suggestions.map((suggestion) => (
               <CommandItem
-                key={`${suggestion.lat}-${suggestion.lon}-${i}`}
+                key={`${suggestion.lat}-${suggestion.lon}`}
                 value={suggestion.displayName}
                 onSelect={() => handleSelect(suggestion)}
                 className="flex items-start gap-2 py-2 px-3 cursor-pointer"
