@@ -301,7 +301,7 @@ export function EditAccommodationDialog({
                           form.setValue("addressLat", result.lat);
                           form.setValue("addressLon", result.lon);
                         }}
-                        context={tripLat != null && tripLon != null ? { lat: tripLat, lon: tripLon } : null}
+                        context={tripLat != null && tripLon != null && tripLat !== undefined && tripLon !== undefined ? { lat: tripLat, lon: tripLon } : null}
                         placeholder="123 Beach Blvd, Miami Beach, FL 33139"
                         disabled={isPending || isDeleting}
                       />

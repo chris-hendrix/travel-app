@@ -18,6 +18,8 @@ interface TodaySectionProps {
   isLocked?: boolean;
   tripStartDate?: string | null;
   tripEndDate?: string | null;
+  tripLat?: number | null;
+  tripLon?: number | null;
   onAddEvent?: () => void;
 }
 
@@ -28,6 +30,8 @@ export function TodaySection({
   isLocked = false,
   tripStartDate,
   tripEndDate,
+  tripLat,
+  tripLon,
   onAddEvent,
 }: TodaySectionProps) {
   const { user } = useAuth();
@@ -177,6 +181,8 @@ export function TodaySection({
           timezone={timezone}
           tripStartDate={tripStartDate ?? undefined}
           tripEndDate={tripEndDate ?? undefined}
+          tripLat={tripLat ?? null}
+          tripLon={tripLon ?? null}
         />
       )}
     </div>

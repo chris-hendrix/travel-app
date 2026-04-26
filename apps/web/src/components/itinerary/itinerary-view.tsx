@@ -385,6 +385,8 @@ export function ItineraryView({
           timezone={timezone}
           tripStartDate={trip?.startDate || null}
           tripEndDate={trip?.endDate || null}
+          tripLat={trip?.destinationLat ?? null}
+          tripLon={trip?.destinationLon ?? null}
           isOrganizer={!!isOrganizer}
           userId={user?.id || ""}
           userNameMap={userNameMap}
