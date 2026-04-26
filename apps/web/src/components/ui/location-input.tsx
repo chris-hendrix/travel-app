@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, type ChangeEvent } from "react";
 import { MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -45,7 +45,7 @@ export function LocationInput({
 
   const hasSuggestions = suggestions.length > 0;
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setQuery(val);
     onChange(val);
