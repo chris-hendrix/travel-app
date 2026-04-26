@@ -232,6 +232,13 @@
       "when": 1777153561000,
       "tag": "0032_optional_accommodation_dates",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1777167373500,
+      "tag": "0033_location_coordinates",
+      "breakpoints": true
     }
   ]
 }

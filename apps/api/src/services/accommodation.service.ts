@@ -242,6 +242,8 @@ export class AccommodationService implements IAccommodationService {
         createdBy: accommodations.createdBy,
         name: accommodations.name,
         address: accommodations.address,
+        addressLat: accommodations.addressLat,
+        addressLon: accommodations.addressLon,
         description: accommodations.description,
         checkIn: accommodations.checkIn,
         checkOut: accommodations.checkOut,

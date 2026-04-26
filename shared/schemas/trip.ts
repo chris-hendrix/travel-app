@@ -79,6 +79,8 @@ const baseTripSchema = z.object({
   coOrganizerPhones: z.array(phoneNumberSchema).optional(),
   themeId: z.enum(THEME_IDS).nullable().optional(),
   themeFont: z.enum(THEME_FONT_VALUES).nullable().optional(),
+  destinationLat: z.number().nullable().optional(),
+  destinationLon: z.number().nullable().optional(),
 });
 
 /**
