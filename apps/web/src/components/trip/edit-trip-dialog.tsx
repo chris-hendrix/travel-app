@@ -139,7 +139,8 @@ export function EditTripDialog({
       { tripId: trip.id, data },
       {
         onSuccess: (updatedTrip) => {
-          if (destinationChanged) {
+          const timezoneChanged = updatedTrip.preferredTimezone !== trip.preferredTimezone;
+          if (destinationChanged && timezoneChanged) {
             setPendingTimezone(updatedTrip.preferredTimezone);
             setTimezoneConfirm({
               timezone: updatedTrip.preferredTimezone,
