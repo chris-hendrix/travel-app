@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
 
 export interface LocationSuggestion {
@@ -32,5 +32,6 @@ export function useLocationAutocomplete(query: string) {
       ),
     enabled: debouncedQuery.length >= 2,
     staleTime: 5 * 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }
