@@ -261,6 +261,7 @@ export function CreateTripDialog({
                         </FormLabel>
                         <FormControl>
                           <LocationInput
+                            name={field.name}
                             value={field.value ?? ""}
                             onChange={(val) => {
                               field.onChange(val);

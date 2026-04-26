@@ -19,6 +19,7 @@ export class TripDetailPage {
   readonly step1Indicator: Locator;
   readonly step2Indicator: Locator;
   readonly goToTripButton: Locator;
+  readonly confirmTimezoneButton: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -43,6 +44,7 @@ export class TripDetailPage {
     this.step1Indicator = page.getByText("Trip details");
     this.step2Indicator = page.getByText("Customize");
     this.goToTripButton = page.getByRole("button", { name: "Go to trip" });
+    this.confirmTimezoneButton = page.getByRole("button", { name: "Confirm", exact: true });
   }
 
   async goto(tripId: string) {

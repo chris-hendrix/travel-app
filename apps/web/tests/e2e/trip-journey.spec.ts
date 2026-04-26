@@ -148,6 +148,9 @@ test.describe("Trip Journey", () => {
       await tripDetail.destinationInput.fill(updatedDestination);
       await tripDetail.descriptionInput.fill(updatedDescription);
       await tripDetail.updateTripButton.click();
+      // Changing destination triggers a timezone confirmation step — confirm it
+      await expect(tripDetail.confirmTimezoneButton).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+      await tripDetail.confirmTimezoneButton.click();
     });
 
     await test.step("verify optimistic update and success", async () => {

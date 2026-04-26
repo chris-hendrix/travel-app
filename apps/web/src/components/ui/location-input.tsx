@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 
 interface LocationInputProps {
   id?: string;
+  name?: string;
   value: string;
   onChange: (value: string) => void;
   onSelect?: (result: LocationSuggestion) => void;
@@ -32,6 +33,7 @@ interface LocationInputProps {
 
 export function LocationInput({
   id,
+  name,
   value,
   onChange,
   onSelect,
@@ -68,6 +70,7 @@ export function LocationInput({
       <PopoverAnchor asChild>
         <Input
           id={id}
+          name={name}
           ref={inputRef}
           value={query}
           onChange={handleInputChange}
