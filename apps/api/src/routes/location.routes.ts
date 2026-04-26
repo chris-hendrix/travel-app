@@ -5,6 +5,8 @@ import { defaultRateLimitConfig } from "@/middleware/rate-limit.middleware.js";
 
 const autocompleteQuerySchema = z.object({
   q: z.string().min(1).max(200),
+  lat: z.coerce.number().optional(),
+  lon: z.coerce.number().optional(),
 });
 
 const locationSuggestionSchema = z.object({
@@ -59,13 +61,18 @@ export async function locationRoutes(fastify: FastifyInstance) {
       preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate],
     },
     async (request, reply) => {
-      const { q } = request.query;
+      const { q, lat, lon } = request.query;
       const key = request.server.config.LOCATIONIQ_API_KEY;
 
       if (!key) return reply.send([]);
 
       try {
-        const url = `https://api.locationiq.com/v1/autocomplete?key=${encodeURIComponent(key)}&q=${encodeURIComponent(q)}&limit=10&normalizecity=1&dedupe=1&accept-language=en`;
+        const DELTA = 1; // ~110km bounding box
+        const viewbox =
+          lat != null && lon != null
+            ? `&viewbox=${lon + DELTA},${lat + DELTA},${lon - DELTA},${lat - DELTA}`
+            : "";
+        const url = `https://api.locationiq.com/v1/autocomplete?key=${encodeURIComponent(key)}&q=${encodeURIComponent(q)}&limit=10&normalizecity=1&dedupe=1&accept-language=en${viewbox}`;
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 3000);
         const response = await fetch(url, { signal: controller.signal });

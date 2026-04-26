@@ -22,15 +22,20 @@ function useDebounce(value: string, delay: number): string {
   return debouncedValue;
 }
 
-export function useLocationAutocomplete(query: string) {
+export function useLocationAutocomplete(
+  query: string,
+  context?: { lat: number; lon: number } | null,
+) {
   const debouncedQuery = useDebounce(query, 300);
 
   return useQuery<LocationSuggestion[]>({
-    queryKey: ["locations", "autocomplete", debouncedQuery],
-    queryFn: () =>
-      apiRequest<LocationSuggestion[]>(
-        `/locations/autocomplete?q=${encodeURIComponent(debouncedQuery)}`,
-      ),
+    queryKey: ["locations", "autocomplete", debouncedQuery, context?.lat, context?.lon],
+    queryFn: () => {
+      const params = new URLSearchParams({ q: debouncedQuery });
+      if (context?.lat != null) params.set("lat", String(context.lat));
+      if (context?.lon != null) params.set("lon", String(context.lon));
+      return apiRequest<LocationSuggestion[]>(`/locations/autocomplete?${params}`);
+    },
     enabled: debouncedQuery.length >= 2,
     staleTime: 5 * 60 * 1000,
     placeholderData: keepPreviousData,

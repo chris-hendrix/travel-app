@@ -307,6 +307,8 @@ export function ItineraryView({
           timezone={timezone}
           tripStartDate={trip?.startDate || null}
           tripEndDate={trip?.endDate || null}
+          tripLat={trip?.destinationLat}
+          tripLon={trip?.destinationLon}
         />
         <CreateAccommodationDialog
           open={isCreateAccommodationOpen}
@@ -315,6 +317,8 @@ export function ItineraryView({
           timezone={timezone}
           tripStartDate={trip?.startDate || null}
           tripEndDate={trip?.endDate || null}
+          tripLat={trip?.destinationLat}
+          tripLon={trip?.destinationLon}
         />
         <DeletedItemsDialog
           open={isDeletedItemsOpen}
@@ -344,6 +348,8 @@ export function ItineraryView({
         {...(hideFab != null ? { hideFab } : {})}
         tripStartDate={trip?.startDate || null}
         tripEndDate={trip?.endDate || null}
+        tripLat={trip?.destinationLat ?? null}
+        tripLon={trip?.destinationLon ?? null}
       />
 
       {/* Content */}

@@ -67,6 +67,8 @@ interface EditEventDialogProps {
   onSuccess?: () => void;
   tripStartDate?: string | null | undefined;
   tripEndDate?: string | null | undefined;
+  tripLat?: number | null;
+  tripLon?: number | null;
 }
 
 export function EditEventDialog({
@@ -77,6 +79,8 @@ export function EditEventDialog({
   onSuccess,
   tripStartDate,
   tripEndDate,
+  tripLat,
+  tripLon,
 }: EditEventDialogProps) {
   const { mutate: updateEvent, isPending } = useUpdateEvent();
   const { mutate: deleteEvent, isPending: isDeleting } = useDeleteEvent();
@@ -429,6 +433,7 @@ export function EditEventDialog({
                           form.setValue("locationLat", result.lat);
                           form.setValue("locationLon", result.lon);
                         }}
+                        context={tripLat != null && tripLon != null ? { lat: tripLat, lon: tripLon } : null}
                         placeholder="123 Main St, Miami Beach"
                         disabled={isPending || isDeleting}
                       />

@@ -45,6 +45,8 @@ interface ItineraryHeaderProps {
   hideFab?: boolean;
   tripStartDate?: string | null | undefined;
   tripEndDate?: string | null | undefined;
+  tripLat?: number | null;
+  tripLon?: number | null;
 }
 
 export function ItineraryHeader({
@@ -62,6 +64,8 @@ export function ItineraryHeader({
   hideFab,
   tripStartDate,
   tripEndDate,
+  tripLat,
+  tripLon,
 }: ItineraryHeaderProps) {
   const [isCreateEventOpen, setIsCreateEventOpen] = useState(false);
   const [isCreateAccommodationOpen, setIsCreateAccommodationOpen] =
@@ -184,6 +188,8 @@ export function ItineraryHeader({
         timezone={selectedTimezone}
         tripStartDate={tripStartDate}
         tripEndDate={tripEndDate}
+        tripLat={tripLat ?? null}
+        tripLon={tripLon ?? null}
       />
       <CreateAccommodationDialog
         open={isCreateAccommodationOpen}
@@ -192,6 +198,8 @@ export function ItineraryHeader({
         timezone={selectedTimezone}
         tripStartDate={tripStartDate}
         tripEndDate={tripEndDate}
+        tripLat={tripLat ?? null}
+        tripLon={tripLon ?? null}
       />
       <CreateMemberTravelDialog
         open={isCreateMemberTravelOpen}

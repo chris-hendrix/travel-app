@@ -26,6 +26,7 @@ interface LocationInputProps {
   value: string;
   onChange: (value: string) => void;
   onSelect?: (result: LocationSuggestion) => void;
+  context?: { lat: number; lon: number } | null;
   placeholder?: string;
   disabled?: boolean;
   className?: string;
@@ -37,6 +38,7 @@ export function LocationInput({
   value,
   onChange,
   onSelect,
+  context,
   placeholder,
   disabled,
   className,
@@ -50,7 +52,7 @@ export function LocationInput({
     setQuery(value);
   }, [value]);
 
-  const { data: suggestions = [] } = useLocationAutocomplete(query);
+  const { data: suggestions = [] } = useLocationAutocomplete(query, context);
 
   const hasSuggestions = suggestions.length > 0;
 
