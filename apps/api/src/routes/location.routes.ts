@@ -134,11 +134,14 @@ export async function locationRoutes(fastify: FastifyInstance) {
 
         const data = (await response.json()) as FoursquareAutocompleteResponse;
 
+        const seen = new Set<string>();
         return data.results
           .filter((r) => (r.type === "place" && r.place) || r.type === "geo")
           .map((r) => {
             if (r.type === "place" && r.place) {
               const place = r.place;
+              if (seen.has(place.fsq_place_id)) return null;
+              seen.add(place.fsq_place_id);
               return {
                 placeId: place.fsq_place_id,
                 shortName: formatPlaceShortName(place),
@@ -150,6 +153,9 @@ export async function locationRoutes(fastify: FastifyInstance) {
               };
             } else if (r.type === "geo" && r.geo) {
               const geo = r.geo;
+              if (seen.has(geo.name)) return null;
+              seen.add(geo.name);
+              if (!geo.center?.latitude || !geo.center?.longitude) return null;
               const geoParts = r.text.primary.split(",").map((p: string) => p.trim());
               const geoShortName =
                 geo.cc === "US"
