@@ -42,7 +42,7 @@ export async function locationRoutes(fastify: FastifyInstance) {
       if (!key) return reply.send([]);
 
       try {
-        const url = `https://api.locationiq.com/v1/autocomplete?key=${encodeURIComponent(key)}&q=${encodeURIComponent(q)}&limit=5&normalizecity=1`;
+        const url = `https://api.locationiq.com/v1/autocomplete?key=${encodeURIComponent(key)}&q=${encodeURIComponent(q)}&limit=10&normalizecity=1`;
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 3000);
         const response = await fetch(url, { signal: controller.signal });
