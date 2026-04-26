@@ -140,7 +140,8 @@ export function EditTripDialog({
       {
         onSuccess: (updatedTrip) => {
           const timezoneChanged = updatedTrip.preferredTimezone !== trip.preferredTimezone;
-          if (destinationChanged && timezoneChanged) {
+          const timezoneDetectionFailed = destinationChanged && !updatedTrip.timezoneAutoUpdated && !timezoneChanged;
+          if (destinationChanged && (timezoneChanged || timezoneDetectionFailed)) {
             setPendingTimezone(updatedTrip.preferredTimezone);
             setTimezoneConfirm({
               timezone: updatedTrip.preferredTimezone,
@@ -218,7 +219,7 @@ export function EditTripDialog({
                 <p className="text-sm text-muted-foreground">
                   {timezoneConfirm.detected
                     ? "We detected a new timezone for your destination. Confirm or change it below."
-                    : "We couldn't detect a timezone for your destination. Please select the correct one."}
+                    : "We couldn't detect a timezone for your new destination. Your previous timezone is shown below — confirm it's still correct or select a new one."}
                 </p>
               </div>
 
@@ -371,48 +372,6 @@ export function EditTripDialog({
                 />
               </div>
 
-              {/* Timezone */}
-              <FormField
-                control={form.control}
-                name="timezone"
-                render={({ field }) => {
-                  return (
-                    <FormItem>
-                      <FormLabel className="text-base font-semibold text-foreground">
-                        Trip timezone
-                        <span className="text-destructive ml-1">*</span>
-                      </FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value ?? ""}
-                        disabled={isPending || isDeleting}
-                      >
-                        <FormControl>
-                          <SelectTrigger
-                            ref={field.ref}
-                            onBlur={field.onBlur}
-                            className="h-12 text-base rounded-md"
-                            aria-required="true"
-                          >
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {TIMEZONES.map((tz) => (
-                            <SelectItem key={tz.value} value={tz.value}>
-                              {tz.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormDescription className="text-sm text-muted-foreground">
-                        All trip times will be shown in this timezone
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  );
-                }}
-              />
 
               {/* Description */}
               <FormField
