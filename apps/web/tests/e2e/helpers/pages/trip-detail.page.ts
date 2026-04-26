@@ -18,6 +18,7 @@ export class TripDetailPage {
   readonly deleteTripButton: Locator;
   readonly step1Indicator: Locator;
   readonly step2Indicator: Locator;
+  readonly goToTripButton: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -41,6 +42,7 @@ export class TripDetailPage {
     this.deleteTripButton = page.getByRole("button", { name: "Delete trip" });
     this.step1Indicator = page.getByText("Trip details");
     this.step2Indicator = page.getByText("Customize");
+    this.goToTripButton = page.getByRole("button", { name: "Go to trip" });
   }
 
   async goto(tripId: string) {

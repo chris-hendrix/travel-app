@@ -70,6 +70,9 @@ test.describe("Trip Journey", () => {
       await snap(page, "06-create-trip-step2");
       await tripDetail.createTripButton.click();
 
+      // Step 3: timezone confirmation — click "Go to trip" to complete navigation
+      await expect(tripDetail.goToTripButton).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
+      await tripDetail.goToTripButton.click();
       await page.waitForURL("**/trips/**", { timeout: NAVIGATION_TIMEOUT });
       expect(page.url()).toContain("/trips/");
     });
@@ -249,6 +252,9 @@ test.describe("Trip Journey", () => {
         await expect(tripDetail.step2Indicator).toBeVisible();
         await tripDetail.createTripButton.click();
 
+        // Step 3: timezone confirmation — click "Go to trip" to complete navigation
+        await expect(tripDetail.goToTripButton).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
+        await tripDetail.goToTripButton.click();
         await page.waitForURL("**/trips/**");
         tripId = page.url().split("/trips/")[1];
         await expect(
