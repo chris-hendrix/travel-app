@@ -13,6 +13,8 @@ export interface Accommodation {
   createdBy: string;
   name: string;
   address: string | null;
+  addressLat: number | null;
+  addressLon: number | null;
   description: string | null;
   checkIn: string | null;
   checkOut: string | null;

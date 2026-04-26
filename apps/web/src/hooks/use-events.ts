@@ -182,6 +182,8 @@ export function useCreateEvent() {
         description: data.description || null,
         eventType: data.eventType,
         location: data.location || null,
+        locationLat: data.locationLat ?? null,
+        locationLon: data.locationLon ?? null,
         startTime: new Date(data.startTime),
         endTime: data.endTime ? new Date(data.endTime) : null,
         allDay: data.allDay ?? false,

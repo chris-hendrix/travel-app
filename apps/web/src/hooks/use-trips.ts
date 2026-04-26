@@ -9,9 +9,7 @@ import {
 } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { apiRequest, APIError } from "@/lib/api";
-import { getTimezoneLabel } from "@/lib/constants";
 import type { CreateTripInput, UpdateTripInput } from "@journiful/shared/schemas";
 import type {
   Trip,
@@ -138,7 +136,6 @@ interface CreateTripContext {
 
 export function useCreateTrip() {
   const queryClient = useQueryClient();
-  const router = useRouter();
 
   return useMutation<Trip, APIError, CreateTripInput, CreateTripContext>({
     mutationKey: tripKeys.create(),
@@ -204,11 +201,7 @@ export function useCreateTrip() {
       return { previousTrips: previousTrips || undefined };
     },
 
-    // On success: Redirect to trip detail page
-    onSuccess: (trip) => {
-      // Redirect to the trip detail page
-      router.push(`/trips/${trip.id}`);
-    },
+    // On success: navigation is handled by the caller (create-trip-dialog step 3)
 
     // On error: Rollback optimistic update
     onError: (_error, _newTrip, context) => {
@@ -382,13 +375,7 @@ export function useUpdateTrip() {
       return { previousTrips, previousTrip };
     },
 
-    // On success: Notify user if timezone was auto-updated
-    onSuccess: (updatedTrip) => {
-      if (updatedTrip.timezoneAutoUpdated) {
-        const label = getTimezoneLabel(updatedTrip.preferredTimezone);
-        toast.info(`Timezone updated to ${label}`);
-      }
-    },
+    // On success: timezone auto-update is handled by edit-trip-dialog
 
     // On error: Rollback optimistic update
     onError: (_error, { tripId }, context) => {

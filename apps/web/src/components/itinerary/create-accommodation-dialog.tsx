@@ -27,6 +27,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { LocationInput } from "@/components/ui/location-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
@@ -67,6 +68,8 @@ export function CreateAccommodationDialog({
     defaultValues: {
       name: "",
       address: "",
+      addressLat: null,
+      addressLon: null,
       description: "",
       checkIn: undefined,
       checkOut: undefined,
@@ -238,12 +241,21 @@ export function CreateAccommodationDialog({
                       Address
                     </FormLabel>
                     <FormControl>
-                      <Input
-                        type="text"
+                      <LocationInput
+                        name={field.name}
+                        value={field.value ?? ""}
+                        onChange={(val) => {
+                          field.onChange(val);
+                          form.setValue("addressLat", null);
+                          form.setValue("addressLon", null);
+                        }}
+                        onSelect={(result) => {
+                          field.onChange(result.displayName);
+                          form.setValue("addressLat", result.lat);
+                          form.setValue("addressLon", result.lon);
+                        }}
                         placeholder="123 Beach Blvd, Miami Beach, FL 33139"
-                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                         disabled={isPending}
-                        {...field}
                       />
                     </FormControl>
                     <FormMessage />

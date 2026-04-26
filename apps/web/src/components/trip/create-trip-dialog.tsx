@@ -6,7 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { createTripSchema, type CreateTripInput } from "@journiful/shared";
 import { THEME_PRESETS } from "@journiful/shared/config";
 import { toast } from "sonner";
-import { useCreateTrip, getCreateTripErrorMessage } from "@/hooks/use-trips";
+import { useRouter } from "next/navigation";
+import { useCreateTrip, useUpdateTrip, getCreateTripErrorMessage } from "@/hooks/use-trips";
 import { mapServerErrors } from "@/lib/form-errors";
 import {
   Sheet,
@@ -26,6 +27,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { LocationInput } from "@/components/ui/location-input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -44,6 +46,7 @@ import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Loader2 } from "lucide-react";
 import { TIMEZONES } from "@/lib/constants";
+import type { Trip } from "@journiful/shared/types";
 
 interface CreateTripDialogProps {
   open: boolean;
@@ -54,14 +57,20 @@ export function CreateTripDialog({
   open,
   onOpenChange,
 }: CreateTripDialogProps) {
-  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+  const [createdTrip, setCreatedTrip] = useState<Trip | null>(null);
+  const [pendingTimezone, setPendingTimezone] = useState<string>("");
+  const router = useRouter();
   const { mutate: createTrip, isPending } = useCreateTrip();
+  const { mutate: updateTrip, isPending: isUpdatingTimezone } = useUpdateTrip();
 
   const form = useForm({
     resolver: zodResolver(createTripSchema),
     defaultValues: {
       name: "",
       destination: "",
+      destinationLat: null,
+      destinationLon: null,
       startDate: undefined,
       endDate: undefined,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -122,8 +131,10 @@ export function CreateTripDialog({
 
   const handleSubmit = (data: CreateTripInput) => {
     createTrip(data, {
-      onSuccess: () => {
-        onOpenChange(false);
+      onSuccess: (trip) => {
+        setCreatedTrip(trip);
+        setPendingTimezone(trip.preferredTimezone);
+        setCurrentStep(3);
       },
       onError: (error) => {
         const mapped = mapServerErrors(error, form.setError, {
@@ -136,6 +147,24 @@ export function CreateTripDialog({
         }
       },
     });
+  };
+
+  const handleTimezoneConfirm = () => {
+    if (!createdTrip) return;
+    if (pendingTimezone !== createdTrip.preferredTimezone) {
+      updateTrip(
+        { tripId: createdTrip.id, data: { timezone: pendingTimezone } },
+        {
+          onSuccess: () => {
+            onOpenChange(false);
+            router.push(`/trips/${createdTrip.id}`);
+          },
+        },
+      );
+    } else {
+      onOpenChange(false);
+      router.push(`/trips/${createdTrip.id}`);
+    }
   };
 
   return (
@@ -151,46 +180,43 @@ export function CreateTripDialog({
         </SheetHeader>
 
         <SheetBody>
-          {/* Progress indicator */}
-          <div className="mb-4">
-            <div className="mb-3">
-              <span className="text-sm font-medium text-foreground">
-                {currentStep === 1 ? "Trip details" : "Customize"}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              {/* Step 1 circle */}
-              <div
-                className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-colors ${
-                  currentStep >= 1
-                    ? "bg-gradient-to-r from-primary to-accent text-white"
-                    : "bg-muted text-muted-foreground"
-                }`}
-              >
-                1
+          {/* Progress indicator — hidden on step 3 */}
+          {currentStep !== 3 && (
+            <div className="mb-4">
+              <div className="mb-3">
+                <span className="text-sm font-medium text-foreground">
+                  {currentStep === 1 ? "Trip details" : "Customize"}
+                </span>
               </div>
-
-              {/* Connecting line */}
-              <div
-                className={`flex-1 h-0.5 transition-colors ${
-                  currentStep >= 2
-                    ? "bg-gradient-to-r from-primary to-accent"
-                    : "bg-muted"
-                }`}
-              />
-
-              {/* Step 2 circle */}
-              <div
-                className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-colors ${
-                  currentStep >= 2
-                    ? "bg-gradient-to-r from-primary to-accent text-white"
-                    : "bg-muted text-muted-foreground"
-                }`}
-              >
-                2
+              <div className="flex items-center gap-2">
+                <div
+                  className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-colors ${
+                    currentStep >= 1
+                      ? "bg-gradient-to-r from-primary to-accent text-white"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  1
+                </div>
+                <div
+                  className={`flex-1 h-0.5 transition-colors ${
+                    currentStep >= 2
+                      ? "bg-gradient-to-r from-primary to-accent"
+                      : "bg-muted"
+                  }`}
+                />
+                <div
+                  className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold transition-colors ${
+                    currentStep >= 2
+                      ? "bg-gradient-to-r from-primary to-accent text-white"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  2
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           <Form {...form}>
             <form
@@ -234,12 +260,20 @@ export function CreateTripDialog({
                           <span className="text-destructive ml-1">*</span>
                         </FormLabel>
                         <FormControl>
-                          <Input
-                            type="text"
+                          <LocationInput
+                            name={field.name}
+                            value={field.value ?? ""}
+                            onChange={(val) => {
+                              field.onChange(val);
+                              form.setValue("destinationLat", null);
+                              form.setValue("destinationLon", null);
+                            }}
+                            onSelect={(result) => {
+                              field.onChange(result.displayName);
+                              form.setValue("destinationLat", result.lat);
+                              form.setValue("destinationLon", result.lon);
+                            }}
                             placeholder="Miami Beach, FL"
-                            className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
-                            aria-required="true"
-                            {...field}
                           />
                         </FormControl>
                         <FormMessage />
@@ -509,6 +543,61 @@ export function CreateTripDialog({
               )}
             </form>
           </Form>
+
+          {/* Step 3: Timezone confirmation */}
+          {currentStep === 3 && createdTrip && (
+            <div className="space-y-6 pb-6">
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  {createdTrip.timezoneAutoUpdated
+                    ? `We detected the timezone for ${createdTrip.destination}.`
+                    : `We couldn't detect a timezone for ${createdTrip.destination}. Your local timezone is set below — confirm it's right for your destination.`}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-base font-semibold text-foreground">
+                  Trip timezone
+                </label>
+                <Select
+                  value={pendingTimezone}
+                  onValueChange={setPendingTimezone}
+                >
+                  <SelectTrigger className="w-full h-12 text-base rounded-md">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pendingTimezone && !TIMEZONES.find((tz) => tz.value === pendingTimezone) && (
+                      <SelectItem value={pendingTimezone}>{pendingTimezone}</SelectItem>
+                    )}
+                    {TIMEZONES.map((tz) => (
+                      <SelectItem key={tz.value} value={tz.value}>
+                        {tz.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {createdTrip.timezoneAutoUpdated && (
+                  <p className="text-xs text-muted-foreground">
+                    Auto-detected from your destination
+                  </p>
+                )}
+              </div>
+
+              <Button
+                onClick={handleTimezoneConfirm}
+                disabled={isUpdatingTimezone}
+                variant="gradient"
+                size="lg"
+                className="w-full"
+              >
+                {isUpdatingTimezone && (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                )}
+                {isUpdatingTimezone ? "Saving..." : "Go to trip"}
+              </Button>
+            </div>
+          )}
         </SheetBody>
       </SheetContent>
     </Sheet>

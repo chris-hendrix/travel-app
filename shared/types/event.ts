@@ -15,6 +15,8 @@ export interface Event {
   description: string | null;
   eventType: "travel" | "meal" | "activity";
   location: string | null;
+  locationLat: number | null;
+  locationLon: number | null;
   startTime: Date;
   endTime: Date | null;
   allDay: boolean;

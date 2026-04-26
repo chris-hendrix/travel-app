@@ -293,21 +293,34 @@ export class TripService implements ITripService {
     }
 
     // Geocode destination and look up timezone if provided (best-effort, failure does not block creation)
+    // Skip geocoding if the frontend already provided coordinates from autocomplete selection
     let destinationLat: number | null = null;
     let destinationLon: number | null = null;
     let destinationDisplayName: string | null = null;
     let geocodedTimezone: string | null = null;
     if (data.destination) {
-      const [coords, tz] = await Promise.all([
-        this.geocodingService.geocode(data.destination).catch(() => null),
-        this.geocodingService.getTimezone(data.destination).catch(() => null),
-      ]);
-      if (coords) {
-        destinationLat = coords.lat;
-        destinationLon = coords.lon;
-        destinationDisplayName = coords.displayName;
+      if (data.destinationLat != null && data.destinationLon != null) {
+        destinationLat = data.destinationLat;
+        destinationLon = data.destinationLon;
+        geocodedTimezone =
+          await this.geocodingService
+            .getTimezoneByCoords(data.destinationLat, data.destinationLon)
+            .catch(() => null) ??
+          await this.geocodingService
+            .getTimezone(data.destination)
+            .catch(() => null);
+      } else {
+        const [coords, tz] = await Promise.all([
+          this.geocodingService.geocode(data.destination).catch(() => null),
+          this.geocodingService.getTimezone(data.destination).catch(() => null),
+        ]);
+        if (coords) {
+          destinationLat = coords.lat;
+          destinationLon = coords.lon;
+          destinationDisplayName = coords.displayName;
+        }
+        geocodedTimezone = tz;
       }
-      geocodedTimezone = tz;
     }
 
     // Wrap all inserts in a transaction for atomicity
@@ -759,16 +772,30 @@ export class TripService implements ITripService {
         let newLat: number | null = null;
         let newLon: number | null = null;
         let newDisplayName: string | null = null;
-        const [coords, tz] = await Promise.all([
-          this.geocodingService.geocode(data.destination).catch(() => null),
-          this.geocodingService.getTimezone(data.destination).catch(() => null),
-        ]);
-        if (coords) {
-          newLat = coords.lat;
-          newLon = coords.lon;
-          newDisplayName = coords.displayName;
+        if (data.destinationLat != null && data.destinationLon != null) {
+          newLat = data.destinationLat;
+          newLon = data.destinationLon;
+          geocodedTimezone =
+            await this.geocodingService
+              .getTimezoneByCoords(data.destinationLat, data.destinationLon)
+              .catch(() => null) ??
+            await this.geocodingService
+              .getTimezone(data.destination)
+              .catch(() => null);
+        } else {
+          const [coords, tz] = await Promise.all([
+            this.geocodingService.geocode(data.destination).catch(() => null),
+            this.geocodingService
+              .getTimezone(data.destination)
+              .catch(() => null),
+          ]);
+          if (coords) {
+            newLat = coords.lat;
+            newLon = coords.lon;
+            newDisplayName = coords.displayName;
+          }
+          geocodedTimezone = tz;
         }
-        geocodedTimezone = tz;
         updateData.destinationLat = newLat;
         updateData.destinationLon = newLon;
         updateData.destinationDisplayName = newDisplayName;

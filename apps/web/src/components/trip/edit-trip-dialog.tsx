@@ -31,6 +31,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { LocationInput } from "@/components/ui/location-input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -55,6 +56,7 @@ import {
 import { DatePicker } from "@/components/ui/date-picker";
 import { Trash2, Loader2 } from "lucide-react";
 import { TIMEZONES } from "@/lib/constants";
+import { useState } from "react";
 
 interface EditTripDialogProps {
   open: boolean;
@@ -71,12 +73,16 @@ export function EditTripDialog({
 }: EditTripDialogProps) {
   const { mutate: updateTrip, isPending } = useUpdateTrip();
   const { mutate: cancelTrip, isPending: isDeleting } = useCancelTrip();
+  const [timezoneConfirm, setTimezoneConfirm] = useState<{ timezone: string; detected: boolean } | null>(null);
+  const [pendingTimezone, setPendingTimezone] = useState<string>("");
 
   const form = useForm<UpdateTripInput>({
     resolver: zodResolver(updateTripSchema),
     defaultValues: {
       name: "",
       destination: "",
+      destinationLat: null,
+      destinationLon: null,
       startDate: undefined,
       endDate: undefined,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -88,6 +94,13 @@ export function EditTripDialog({
 
   const isInitializing = useRef(false);
 
+  // Reset confirmation state when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setTimezoneConfirm(null);
+    }
+  }, [open]);
+
   // Pre-populate form with existing trip data when dialog opens
   useEffect(() => {
     if (open && trip) {
@@ -95,6 +108,8 @@ export function EditTripDialog({
       form.reset({
         name: trip.name,
         destination: trip.destination,
+        destinationLat: trip.destinationLat ?? null,
+        destinationLon: trip.destinationLon ?? null,
         startDate: trip.startDate || undefined,
         endDate: trip.endDate || undefined,
         timezone: trip.preferredTimezone,
@@ -119,12 +134,21 @@ export function EditTripDialog({
   }, [startDateValue, form]);
 
   const handleSubmit = (data: UpdateTripInput) => {
+    const destinationChanged = data.destination !== undefined && data.destination !== trip.destination;
     updateTrip(
       { tripId: trip.id, data },
       {
-        onSuccess: () => {
-          onOpenChange(false);
-          onSuccess?.();
+        onSuccess: (updatedTrip) => {
+          if (destinationChanged) {
+            setPendingTimezone(updatedTrip.preferredTimezone);
+            setTimezoneConfirm({
+              timezone: updatedTrip.preferredTimezone,
+              detected: !!updatedTrip.timezoneAutoUpdated,
+            });
+          } else {
+            onOpenChange(false);
+            onSuccess?.();
+          }
         },
         onError: (error) => {
           const mapped = mapServerErrors(error, form.setError, {
@@ -139,6 +163,25 @@ export function EditTripDialog({
         },
       },
     );
+  };
+
+  const handleTimezoneConfirm = () => {
+    if (pendingTimezone !== trip.preferredTimezone) {
+      updateTrip(
+        { tripId: trip.id, data: { timezone: pendingTimezone } },
+        {
+          onSuccess: () => {
+            setTimezoneConfirm(null);
+            onOpenChange(false);
+            onSuccess?.();
+          },
+        },
+      );
+    } else {
+      setTimezoneConfirm(null);
+      onOpenChange(false);
+      onSuccess?.();
+    }
   };
 
   const handleDelete = () => {
@@ -167,6 +210,53 @@ export function EditTripDialog({
         </SheetHeader>
 
         <SheetBody>
+          {timezoneConfirm ? (
+            <div className="space-y-6 pb-6">
+              <div className="space-y-2">
+                <h3 className="text-xl font-semibold text-foreground">Confirm timezone</h3>
+                <p className="text-sm text-muted-foreground">
+                  {timezoneConfirm.detected
+                    ? "We detected a new timezone for your destination. Confirm or change it below."
+                    : "We couldn't detect a timezone for your destination. Please select the correct one."}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-base font-semibold text-foreground">
+                  Trip timezone
+                </label>
+                <Select value={pendingTimezone} onValueChange={setPendingTimezone}>
+                  <SelectTrigger className="w-full h-12 text-base rounded-md">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pendingTimezone && !TIMEZONES.find((tz) => tz.value === pendingTimezone) && (
+                      <SelectItem value={pendingTimezone}>{pendingTimezone}</SelectItem>
+                    )}
+                    {TIMEZONES.map((tz) => (
+                      <SelectItem key={tz.value} value={tz.value}>
+                        {tz.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {timezoneConfirm.detected && (
+                  <p className="text-xs text-muted-foreground">Auto-detected from your destination</p>
+                )}
+              </div>
+
+              <Button
+                onClick={handleTimezoneConfirm}
+                disabled={isPending}
+                variant="gradient"
+                size="lg"
+                className="w-full"
+              >
+                {isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                {isPending ? "Saving..." : "Confirm"}
+              </Button>
+            </div>
+          ) : (
           <Form {...form}>
             <form
               onSubmit={form.handleSubmit(handleSubmit)}
@@ -211,13 +301,21 @@ export function EditTripDialog({
                       <span className="text-destructive ml-1">*</span>
                     </FormLabel>
                     <FormControl>
-                      <Input
-                        type="text"
+                      <LocationInput
+                        name={field.name}
+                        value={field.value ?? ""}
+                        onChange={(val) => {
+                          field.onChange(val);
+                          form.setValue("destinationLat", null);
+                          form.setValue("destinationLon", null);
+                        }}
+                        onSelect={(result) => {
+                          field.onChange(result.displayName);
+                          form.setValue("destinationLat", result.lat);
+                          form.setValue("destinationLon", result.lon);
+                        }}
                         placeholder="Miami Beach, FL"
-                        className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
                         disabled={isPending || isDeleting}
-                        aria-required="true"
-                        {...field}
                       />
                     </FormControl>
                     <FormMessage />
@@ -468,6 +566,7 @@ export function EditTripDialog({
               </div>
             </form>
           </Form>
+          )}
         </SheetBody>
       </SheetContent>
     </Sheet>

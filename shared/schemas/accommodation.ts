@@ -19,6 +19,8 @@ const baseAccommodationSchema = z.object({
     })
     .transform(stripControlChars),
   address: z.string().max(500).optional(),
+  addressLat: z.number().nullable().optional(),
+  addressLon: z.number().nullable().optional(),
   description: z
     .string()
     .max(2000, {
@@ -82,6 +84,8 @@ const accommodationEntitySchema = z.object({
   createdBy: z.string(),
   name: z.string(),
   address: z.string().nullable(),
+  addressLat: z.number().nullable(),
+  addressLon: z.number().nullable(),
   description: z.string().nullable(),
   checkIn: z.date(),
   checkOut: z.date(),
