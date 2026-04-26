@@ -118,12 +118,6 @@ export async function createEvent(
   const startTrigger = page.getByRole("button", { name: "Start time" });
   await pickDateTime(page, startTrigger, startDateTime);
 
-  // Location, description, end time are inside a collapsed "More details" section
-  if (options?.location || options?.description || options?.endDateTime) {
-    const dialog = page.getByRole("dialog");
-    await dialog.getByText("More details").click();
-  }
-
   if (options?.description) {
     const dialog = page.getByRole("dialog");
     await dialog.getByLabel(/description/i).fill(options.description);

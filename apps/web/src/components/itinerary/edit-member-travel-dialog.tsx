@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Globe, Loader2, PlaneLanding, PlaneTakeoff, Trash2 } from "lucide-react";
+import { Loader2, PlaneLanding, PlaneTakeoff, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { parse } from "date-fns";
 import {
@@ -57,7 +57,7 @@ import {
   useDeleteMemberTravel,
   getDeleteMemberTravelErrorMessage,
 } from "@/hooks/use-member-travel";
-import { TIMEZONES, getTimezoneLabel } from "@/lib/constants";
+import { TIMEZONES, getTimezoneAbbr } from "@/lib/constants";
 import { FlightLookupInput } from "@/components/itinerary/flight-lookup-input";
 import type { FlightLookupResult } from "@journiful/shared/types";
 
@@ -199,7 +199,7 @@ export function EditMemberTravelDialog({
           <SheetTitle className="text-3xl font-playfair tracking-tight">
             Edit travel details
           </SheetTitle>
-          <SheetDescription>Update your travel information</SheetDescription>
+          <SheetDescription>Update your travel information · All times in {getTimezoneAbbr(selectedTimezone)}</SheetDescription>
         </SheetHeader>
 
         <SheetBody>
@@ -260,16 +260,10 @@ export function EditMemberTravelDialog({
                 name="time"
                 render={({ field }) => (
                   <FormItem>
-                    <div className="flex items-center justify-between">
-                      <FormLabel className="text-base font-semibold text-foreground">
-                        {travelTypeLabel} time
-                        <span className="text-destructive ml-1">*</span>
-                      </FormLabel>
-                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                        <Globe className="w-3 h-3" />
-                        {getTimezoneLabel(selectedTimezone)}
-                      </span>
-                    </div>
+                    <FormLabel className="text-base font-semibold text-foreground">
+                      {travelTypeLabel} time
+                      <span className="text-destructive ml-1">*</span>
+                    </FormLabel>
                     <FormControl>
                       <DateTimePicker
                         value={field.value || ""}

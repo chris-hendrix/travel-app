@@ -1071,7 +1071,6 @@ describe("MemberOnboardingWizard", () => {
           location: null,
           description: null,
           allDay: false,
-          isOptional: false,
           deletedAt: null,
           deletedBy: null,
           createdBy: "user-1",

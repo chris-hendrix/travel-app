@@ -172,7 +172,6 @@ describe("Package Exports", () => {
       eventType: "meal",
       startTime: "2026-07-15T19:00:00Z",
       allDay: false,
-      isOptional: false,
     };
     expect(createEventInput).toBeDefined();
 

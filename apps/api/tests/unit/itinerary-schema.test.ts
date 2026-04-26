@@ -34,7 +34,6 @@ describe("Itinerary Schema", () => {
       expect(columns.startTime).toBeDefined();
       expect(columns.endTime).toBeDefined();
       expect(columns.allDay).toBeDefined();
-      expect(columns.isOptional).toBeDefined();
       expect(columns.links).toBeDefined();
       expect(columns.deletedAt).toBeDefined();
       expect(columns.deletedBy).toBeDefined();
@@ -50,7 +49,6 @@ describe("Itinerary Schema", () => {
       expect(columns.eventType.notNull).toBe(true);
       expect(columns.startTime.notNull).toBe(true);
       expect(columns.allDay.notNull).toBe(true);
-      expect(columns.isOptional.notNull).toBe(true);
       expect(columns.createdAt.notNull).toBe(true);
       expect(columns.updatedAt.notNull).toBe(true);
     });
@@ -58,7 +56,6 @@ describe("Itinerary Schema", () => {
     it("should have default values for boolean fields", () => {
       const columns = getTableColumns(events);
       expect(columns.allDay.default).toBeDefined();
-      expect(columns.isOptional.default).toBeDefined();
     });
 
     it("should have type exports", () => {
@@ -99,8 +96,6 @@ describe("Itinerary Schema", () => {
       expect(columns.tripId.notNull).toBe(true);
       expect(columns.createdBy.notNull).toBe(true);
       expect(columns.name.notNull).toBe(true);
-      expect(columns.checkIn.notNull).toBe(true);
-      expect(columns.checkOut.notNull).toBe(true);
       expect(columns.createdAt.notNull).toBe(true);
       expect(columns.updatedAt.notNull).toBe(true);
     });

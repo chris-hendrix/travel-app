@@ -31,7 +31,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
-import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,6 +48,7 @@ import {
   useDeleteAccommodation,
   getDeleteAccommodationErrorMessage,
 } from "@/hooks/use-accommodations";
+import { getTimezoneAbbr } from "@/lib/constants";
 
 interface EditAccommodationDialogProps {
   open: boolean;
@@ -85,8 +85,8 @@ export function EditAccommodationDialog({
       name: "",
       address: "",
       description: "",
-      checkIn: "",
-      checkOut: "",
+      checkIn: undefined,
+      checkOut: undefined,
       links: [],
     },
   });
@@ -99,8 +99,8 @@ export function EditAccommodationDialog({
         name: accommodation.name,
         address: accommodation.address || "",
         description: accommodation.description || "",
-        checkIn: accommodation.checkIn,
-        checkOut: accommodation.checkOut,
+        checkIn: accommodation.checkIn ?? undefined,
+        checkOut: accommodation.checkOut ?? undefined,
         links: accommodation.links || [],
       });
       setNewLink({ url: "", name: "" });
@@ -237,7 +237,7 @@ export function EditAccommodationDialog({
           <SheetTitle className="text-3xl font-playfair tracking-tight">
             Edit accommodation
           </SheetTitle>
-          <SheetDescription>Update your accommodation details</SheetDescription>
+          <SheetDescription>Update your accommodation details · All times in {getTimezoneAbbr(timezone)}</SheetDescription>
         </SheetHeader>
 
         <SheetBody>
@@ -301,10 +301,7 @@ export function EditAccommodationDialog({
                   name="checkIn"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-base font-semibold text-foreground">
-                        Check-in
-                        <span className="text-destructive ml-1">*</span>
-                      </FormLabel>
+                      <FormLabel className="text-base font-semibold text-foreground">Check-in</FormLabel>
                       <FormControl>
                         <DateTimePicker
                           value={field.value ?? ""}
@@ -329,7 +326,6 @@ export function EditAccommodationDialog({
                     <FormItem>
                       <FormLabel className="text-base font-semibold text-foreground">
                         Check-out
-                        <span className="text-destructive ml-1">*</span>
                       </FormLabel>
                       <FormControl>
                         <DateTimePicker
@@ -349,168 +345,166 @@ export function EditAccommodationDialog({
                 />
               </div>
 
-              <CollapsibleSection label="More details" defaultOpen={false}>
-                {/* Description */}
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => {
-                    const charCount = field.value?.length || 0;
-                    const showCounter = charCount >= 1600;
+              {/* Description */}
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => {
+                  const charCount = field.value?.length || 0;
+                  const showCounter = charCount >= 1600;
 
-                    return (
-                      <FormItem>
-                        <FormLabel className="text-base font-semibold text-foreground">
-                          Description
-                        </FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Tell your group about this accommodation..."
-                            className="h-32 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md resize-none"
-                            disabled={isPending || isDeleting}
-                            {...field}
-                            value={field.value || ""}
-                          />
-                        </FormControl>
-                        {showCounter && (
-                          <div className="text-xs text-muted-foreground text-right">
-                            {charCount} / 2000 characters
-                          </div>
-                        )}
-                        <FormMessage />
-                      </FormItem>
-                    );
-                  }}
-                />
-
-                {/* Links */}
-                <FormField
-                  control={form.control}
-                  name="links"
-                  render={() => (
-                    <FormItem className="mt-6">
+                  return (
+                    <FormItem>
                       <FormLabel className="text-base font-semibold text-foreground">
-                        Links
+                        Description
                       </FormLabel>
-
-                      {/* List of added links */}
-                      {links.length > 0 && (
-                        <div className="space-y-2 mt-2">
-                          {links.map((link) => (
-                            <div
-                              key={link.url}
-                              className="flex items-center justify-between p-3 rounded-lg bg-secondary border border-border"
-                            >
-                              <div className="min-w-0 flex-1">
-                                {link.name && (
-                                  <p className="text-sm font-medium text-foreground truncate">
-                                    {link.name}
-                                  </p>
-                                )}
-                                <p
-                                  className={
-                                    link.name
-                                      ? "text-xs text-muted-foreground truncate"
-                                      : "text-sm font-medium text-foreground truncate"
-                                  }
-                                >
-                                  {link.url}
-                                </p>
-                              </div>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleRemoveLink(link.url)}
-                                disabled={isPending || isDeleting}
-                                className="min-w-[44px] min-h-[44px] rounded-full hover:bg-muted"
-                                aria-label={`Remove ${link.name ?? link.url}`}
-                              >
-                                <X className="w-4 h-4 text-muted-foreground" />
-                              </Button>
-                            </div>
-                          ))}
+                      <FormControl>
+                        <Textarea
+                          placeholder="Tell your group about this accommodation..."
+                          className="h-32 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md resize-none"
+                          disabled={isPending || isDeleting}
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      {showCounter && (
+                        <div className="text-xs text-muted-foreground text-right">
+                          {charCount} / 2000 characters
                         </div>
                       )}
-
-                      {/* Add link input */}
-                      <div className="space-y-2 mt-2">
-                        <div className="flex flex-col gap-2 sm:flex-row">
-                          <Input
-                            type="url"
-                            placeholder="https://example.com"
-                            value={newLink.url}
-                            onChange={(e) => {
-                              setNewLink((prev) => ({
-                                ...prev,
-                                url: e.target.value,
-                              }));
-                              setLinkError(null);
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                handleAddLink();
-                              }
-                            }}
-                            disabled={isPending || isDeleting}
-                            className="flex-1 h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
-                            aria-label="Link URL"
-                            aria-describedby={
-                              linkError
-                                ? "edit-accommodation-link-error"
-                                : undefined
-                            }
-                          />
-                          <Input
-                            type="text"
-                            placeholder="Display name (optional)"
-                            value={newLink.name}
-                            maxLength={100}
-                            onChange={(e) => {
-                              setNewLink((prev) => ({
-                                ...prev,
-                                name: e.target.value,
-                              }));
-                              setLinkError(null);
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                handleAddLink();
-                              }
-                            }}
-                            disabled={isPending || isDeleting}
-                            className="flex-1 h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
-                            aria-label="Link display name"
-                          />
-                          <Button
-                            type="button"
-                            onClick={handleAddLink}
-                            disabled={isPending || isDeleting}
-                            className="h-12 px-4 bg-muted hover:bg-muted text-foreground rounded-md"
-                            variant="outline"
-                            aria-label="Add link"
-                          >
-                            <Plus className="w-5 h-5" />
-                          </Button>
-                        </div>
-                        {linkError && (
-                          <p
-                            id="edit-accommodation-link-error"
-                            aria-live="polite"
-                            className="text-sm text-destructive"
-                          >
-                            {linkError}
-                          </p>
-                        )}
-                      </div>
-
                       <FormMessage />
                     </FormItem>
-                  )}
-                />
-              </CollapsibleSection>
+                  );
+                }}
+              />
+
+              {/* Links */}
+              <FormField
+                control={form.control}
+                name="links"
+                render={() => (
+                  <FormItem className="mt-6">
+                    <FormLabel className="text-base font-semibold text-foreground">
+                      Links
+                    </FormLabel>
+
+                    {/* List of added links */}
+                    {links.length > 0 && (
+                      <div className="space-y-2 mt-2">
+                        {links.map((link) => (
+                          <div
+                            key={link.url}
+                            className="flex items-center justify-between p-3 rounded-lg bg-secondary border border-border"
+                          >
+                            <div className="min-w-0 flex-1">
+                              {link.name && (
+                                <p className="text-sm font-medium text-foreground truncate">
+                                  {link.name}
+                                </p>
+                              )}
+                              <p
+                                className={
+                                  link.name
+                                    ? "text-xs text-muted-foreground truncate"
+                                    : "text-sm font-medium text-foreground truncate"
+                                }
+                              >
+                                {link.url}
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleRemoveLink(link.url)}
+                              disabled={isPending || isDeleting}
+                              className="min-w-[44px] min-h-[44px] rounded-full hover:bg-muted"
+                              aria-label={`Remove ${link.name ?? link.url}`}
+                            >
+                              <X className="w-4 h-4 text-muted-foreground" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Add link input */}
+                    <div className="space-y-2 mt-2">
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <Input
+                          type="url"
+                          placeholder="https://example.com"
+                          value={newLink.url}
+                          onChange={(e) => {
+                            setNewLink((prev) => ({
+                              ...prev,
+                              url: e.target.value,
+                            }));
+                            setLinkError(null);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddLink();
+                            }
+                          }}
+                          disabled={isPending || isDeleting}
+                          className="flex-1 h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
+                          aria-label="Link URL"
+                          aria-describedby={
+                            linkError
+                              ? "edit-accommodation-link-error"
+                              : undefined
+                          }
+                        />
+                        <Input
+                          type="text"
+                          placeholder="Display name (optional)"
+                          value={newLink.name}
+                          maxLength={100}
+                          onChange={(e) => {
+                            setNewLink((prev) => ({
+                              ...prev,
+                              name: e.target.value,
+                            }));
+                            setLinkError(null);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddLink();
+                            }
+                          }}
+                          disabled={isPending || isDeleting}
+                          className="flex-1 h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
+                          aria-label="Link display name"
+                        />
+                        <Button
+                          type="button"
+                          onClick={handleAddLink}
+                          disabled={isPending || isDeleting}
+                          className="h-12 px-4 bg-muted hover:bg-muted text-foreground rounded-md"
+                          variant="outline"
+                          aria-label="Add link"
+                        >
+                          <Plus className="w-5 h-5" />
+                        </Button>
+                      </div>
+                      {linkError && (
+                        <p
+                          id="edit-accommodation-link-error"
+                          aria-live="polite"
+                          className="text-sm text-destructive"
+                        >
+                          {linkError}
+                        </p>
+                      )}
+                    </div>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               {/* Action Buttons */}
               <div className="flex gap-4 pt-4">

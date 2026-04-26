@@ -111,8 +111,6 @@ describe("createAccommodationSchema", () => {
         checkIn: "2026-07-15T14:00:00.000Z",
         checkOut: "2026-07-16T11:00:00.000Z",
       }, // Missing name
-      { name: "Hotel", checkOut: "2026-07-16T11:00:00.000Z" }, // Missing checkIn
-      { name: "Hotel", checkIn: "2026-07-15T14:00:00.000Z" }, // Missing checkOut
       {}, // Missing all required fields
     ];
 
@@ -120,6 +118,36 @@ describe("createAccommodationSchema", () => {
       const result = createAccommodationSchema.safeParse(accommodation);
       expect(result.success).toBe(false);
     });
+  });
+
+  it("should accept accommodation without checkIn/checkOut", () => {
+    const accommodation = {
+      name: "Hotel Without Dates",
+    };
+
+    expect(() => createAccommodationSchema.parse(accommodation)).not.toThrow();
+  });
+
+  it("should still validate date order when both dates are provided", () => {
+    const valid = {
+      name: "Hotel",
+      checkIn: "2026-07-15T14:00:00.000Z",
+      checkOut: "2026-07-20T11:00:00.000Z",
+    };
+    expect(() => createAccommodationSchema.parse(valid)).not.toThrow();
+
+    const invalid = {
+      name: "Hotel",
+      checkIn: "2026-07-20T14:00:00.000Z",
+      checkOut: "2026-07-15T11:00:00.000Z",
+    };
+    const result = createAccommodationSchema.safeParse(invalid);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toContain(
+        "Check-out date must be after check-in date",
+      );
+    }
   });
 
   it("should reject invalid datetime formats for checkIn", () => {

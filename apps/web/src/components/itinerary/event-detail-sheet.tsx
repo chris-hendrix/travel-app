@@ -6,7 +6,6 @@ import {
   XIcon,
   MapPin,
   ExternalLink,
-  Users,
   Loader2,
 } from "lucide-react";
 import { VisuallyHidden } from "radix-ui";
@@ -239,14 +238,6 @@ function EventDetailBody({
             Member no longer attending
           </Badge>
         )}
-        {event.isOptional && (
-          <Badge
-            variant="outline"
-            className="text-xs bg-background/50 border-border shrink-0"
-          >
-            Optional
-          </Badge>
-        )}
       </div>
 
       {/* Location */}
@@ -268,19 +259,6 @@ function EventDetailBody({
         <p className="text-sm text-muted-foreground whitespace-pre-wrap">
           {event.description}
         </p>
-      )}
-
-      {/* Meetup info */}
-      {(event.meetupLocation || event.meetupTime) && (
-        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <Users className="h-3.5 w-3.5 shrink-0" />
-          <span>
-            Meet{event.meetupLocation ? ` at ${event.meetupLocation}` : ""}
-            {event.meetupTime
-              ? ` at ${formatInTimezone(event.meetupTime, timezone, "time")}`
-              : ""}
-          </span>
-        </div>
       )}
 
       {/* Links */}

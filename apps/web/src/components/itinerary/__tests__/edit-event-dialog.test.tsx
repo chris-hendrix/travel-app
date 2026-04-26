@@ -36,12 +36,9 @@ describe("EditEventDialog", () => {
     description: "Test description",
     eventType: "activity",
     location: "Test Location",
-    meetupLocation: null,
-    meetupTime: null,
     startTime: new Date("2026-07-15T14:00:00.000Z"),
     endTime: new Date("2026-07-15T16:00:00.000Z"),
     allDay: false,
-    isOptional: false,
     links: [{ url: "https://example.com" }],
     deletedAt: null,
     deletedBy: null,
@@ -177,7 +174,6 @@ describe("EditEventDialog", () => {
       const eventWithOptions: Event = {
         ...mockEvent,
         allDay: true,
-        isOptional: true,
       };
 
       renderWithQueryClient(
@@ -193,11 +189,6 @@ describe("EditEventDialog", () => {
         name: /all day event/i,
       });
       expect(allDayCheckbox.getAttribute("data-state")).toBe("checked");
-
-      const optionalCheckbox = screen.getByRole("checkbox", {
-        name: /optional event/i,
-      });
-      expect(optionalCheckbox.getAttribute("data-state")).toBe("checked");
     });
   });
 

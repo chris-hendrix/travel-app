@@ -174,13 +174,17 @@ export const AccommodationDetailSheet = memo(function AccommodationDetailSheet({
             <div>
               <span className="text-xs text-muted-foreground">Check-in</span>
               <p className="font-medium text-sm">
-                {formatInTimezone(accommodation.checkIn, timezone, "datetime")}
+                {accommodation.checkIn
+                  ? formatInTimezone(accommodation.checkIn, timezone, "datetime")
+                  : "—"}
               </p>
             </div>
             <div>
               <span className="text-xs text-muted-foreground">Check-out</span>
               <p className="font-medium text-sm">
-                {formatInTimezone(accommodation.checkOut, timezone, "datetime")}
+                {accommodation.checkOut
+                  ? formatInTimezone(accommodation.checkOut, timezone, "datetime")
+                  : "—"}
               </p>
             </div>
           </div>

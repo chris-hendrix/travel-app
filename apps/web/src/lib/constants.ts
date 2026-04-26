@@ -70,3 +70,18 @@ export function getTimezoneLabel(tz: string): string {
   const found = TIMEZONES.find((t) => t.value === tz);
   return found ? found.label : tz;
 }
+
+/**
+ * Get the short timezone abbreviation for display (e.g. "EST", "GMT+1").
+ */
+export function getTimezoneAbbr(tz: string): string {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: tz,
+      timeZoneName: "short",
+    }).formatToParts(new Date());
+    return parts.find((p) => p.type === "timeZoneName")?.value || tz;
+  } catch {
+    return tz;
+  }
+}

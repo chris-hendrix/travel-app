@@ -42,12 +42,9 @@ function makeEvent(overrides: Partial<Event> = {}): Event {
     description: "Great reef trip",
     eventType: "activity",
     location: "Reef Point",
-    meetupLocation: "Hotel Lobby",
-    meetupTime: new Date("2026-07-02T08:30:00Z"),
     startTime: new Date("2026-07-02T09:00:00Z"),
     endTime: new Date("2026-07-02T12:00:00Z"),
     allDay: false,
-    isOptional: false,
     links: [{ url: "https://reef-tours.example.com" }],
     deletedAt: null,
     deletedBy: null,
@@ -261,11 +258,9 @@ describe("CalendarService.generateIcsFeed", () => {
   });
 
   describe("event description assembly", () => {
-    it("should include meetup info, description, and links", () => {
+    it("should include description and links", () => {
       const trip = makeTrip({ startDate: null });
       const event = makeEvent({
-        meetupTime: new Date("2026-07-02T08:30:00Z"),
-        meetupLocation: "Hotel Lobby",
         description: "Great reef trip",
         links: [
           { url: "https://reef-tours.example.com" },
@@ -275,8 +270,6 @@ describe("CalendarService.generateIcsFeed", () => {
       });
       const ics = service.generateIcsFeed([{ trip, events: [event], accommodations: [] }]);
 
-      expect(ics).toContain("Meetup:");
-      expect(ics).toContain("Hotel Lobby");
       expect(ics).toContain("Great reef trip");
       expect(ics).toContain("Links:");
       expect(ics).toContain("https://reef-tours.example.com");
@@ -286,8 +279,6 @@ describe("CalendarService.generateIcsFeed", () => {
     it("should format named links as 'Name: url' and bare links as just url", () => {
       const trip = makeTrip({ startDate: null });
       const event = makeEvent({
-        meetupTime: null,
-        meetupLocation: null,
         description: null,
         links: [
           { url: "https://reef-tours.example.com", name: "Reef Tours" },
@@ -307,8 +298,6 @@ describe("CalendarService.generateIcsFeed", () => {
     it("should handle missing optional fields gracefully", () => {
       const trip = makeTrip({ startDate: null });
       const event = makeEvent({
-        meetupTime: null,
-        meetupLocation: null,
         description: null,
         links: null,
         allDay: false,
@@ -318,16 +307,13 @@ describe("CalendarService.generateIcsFeed", () => {
       // Should still produce a valid VEVENT
       expect(ics).toContain("BEGIN:VEVENT");
       expect(ics).toContain(`SUMMARY:${event.name}`);
-      // Should NOT contain meetup or links sections
-      expect(ics).not.toContain("Meetup:");
+      // Should NOT contain links section
       expect(ics).not.toContain("Links:");
     });
 
     it("should handle empty links array", () => {
       const trip = makeTrip({ startDate: null });
       const event = makeEvent({
-        meetupTime: null,
-        meetupLocation: null,
         description: "Just a description",
         links: [],
         allDay: false,
@@ -338,34 +324,6 @@ describe("CalendarService.generateIcsFeed", () => {
       expect(ics).not.toContain("Links:");
     });
 
-    it("should include meetup time only when meetupLocation is null", () => {
-      const trip = makeTrip({ startDate: null });
-      const event = makeEvent({
-        meetupTime: new Date("2026-07-02T08:30:00Z"),
-        meetupLocation: null,
-        description: null,
-        links: null,
-        allDay: false,
-      });
-      const ics = service.generateIcsFeed([{ trip, events: [event], accommodations: [] }]);
-
-      expect(ics).toContain("Meetup:");
-      expect(ics).not.toContain("at ");
-    });
-
-    it("should include meetup location only when meetupTime is null", () => {
-      const trip = makeTrip({ startDate: null });
-      const event = makeEvent({
-        meetupTime: null,
-        meetupLocation: "Hotel Lobby",
-        description: null,
-        links: null,
-        allDay: false,
-      });
-      const ics = service.generateIcsFeed([{ trip, events: [event], accommodations: [] }]);
-
-      expect(ics).toContain("Meetup: at Hotel Lobby");
-    });
   });
 
   describe("multiple trips and events", () => {

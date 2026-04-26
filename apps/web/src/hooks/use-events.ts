@@ -182,12 +182,9 @@ export function useCreateEvent() {
         description: data.description || null,
         eventType: data.eventType,
         location: data.location || null,
-        meetupLocation: data.meetupLocation || null,
-        meetupTime: data.meetupTime ? new Date(data.meetupTime) : null,
         startTime: new Date(data.startTime),
         endTime: data.endTime ? new Date(data.endTime) : null,
         allDay: data.allDay ?? false,
-        isOptional: data.isOptional ?? false,
         links: data.links || null,
         deletedAt: null,
         deletedBy: null,
@@ -349,16 +346,6 @@ export function useUpdateEvent() {
             data.location !== undefined
               ? (data.location ?? null)
               : previousEvent.location,
-          meetupLocation:
-            data.meetupLocation !== undefined
-              ? (data.meetupLocation ?? null)
-              : previousEvent.meetupLocation,
-          meetupTime:
-            data.meetupTime !== undefined
-              ? data.meetupTime
-                ? new Date(data.meetupTime)
-                : null
-              : previousEvent.meetupTime,
           startTime: data.startTime
             ? new Date(data.startTime)
             : previousEvent.startTime,
@@ -369,7 +356,6 @@ export function useUpdateEvent() {
                 : null
               : previousEvent.endTime,
           allDay: data.allDay ?? previousEvent.allDay,
-          isOptional: data.isOptional ?? previousEvent.isOptional,
           links:
             data.links !== undefined
               ? (data.links ?? null)
