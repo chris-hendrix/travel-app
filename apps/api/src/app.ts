@@ -73,6 +73,7 @@ import { paymentRoutes } from "./routes/payment.routes.js";
 import { balanceRoutes } from "./routes/balance.routes.js";
 import { affiliateRoutes } from "./routes/affiliate.routes.js";
 import { adminRoutes } from "./routes/admin.routes.js";
+import { locationRoutes } from "./routes/location.routes.js";
 
 // Config
 import { env } from "./config/env.js";
@@ -276,6 +277,7 @@ export async function buildApp(
   await app.register(balanceRoutes, { prefix: "/api" });
   await app.register(affiliateRoutes, { prefix: "/api" });
   await app.register(adminRoutes, { prefix: "/api/admin" });
+  await app.register(locationRoutes, { prefix: "/api/locations" });
 
   // Not-found handler for unmatched routes
   app.setNotFoundHandler((request, reply) => {
