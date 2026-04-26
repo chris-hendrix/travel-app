@@ -5,6 +5,7 @@ import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
 
 export interface LocationSuggestion {
+  placeId: string;
   displayName: string;
   displayPlace: string;
   displayAddress: string;

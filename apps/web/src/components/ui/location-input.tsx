@@ -101,7 +101,7 @@ export function LocationInput({
             <CommandEmpty>No results found.</CommandEmpty>
             {suggestions.map((suggestion) => (
               <CommandItem
-                key={`${suggestion.lat}-${suggestion.lon}`}
+                key={suggestion.placeId}
                 value={suggestion.displayName}
                 onSelect={() => handleSelect(suggestion)}
                 className="flex items-start gap-2 py-2 px-3 cursor-pointer"
