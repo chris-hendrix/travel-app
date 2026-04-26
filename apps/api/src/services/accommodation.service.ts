@@ -181,6 +181,8 @@ export class AccommodationService implements IAccommodationService {
         createdBy: userId,
         name: data.name,
         address: data.address || null,
+        addressLat: data.addressLat ?? null,
+        addressLon: data.addressLon ?? null,
         description: data.description || null,
         checkIn: data.checkIn ? new Date(data.checkIn) : null,
         checkOut: data.checkOut ? new Date(data.checkOut) : null,
