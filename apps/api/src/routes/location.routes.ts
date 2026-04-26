@@ -108,7 +108,7 @@ export async function locationRoutes(fastify: FastifyInstance) {
       try {
         const params = new URLSearchParams({
           query: q,
-          limit: "10",
+          limit: "20",
         });
 
         if (lat != null && lon != null) {
@@ -150,9 +150,17 @@ export async function locationRoutes(fastify: FastifyInstance) {
               };
             } else if (r.type === "geo" && r.geo) {
               const geo = r.geo;
+              const geoParts = r.text.primary.split(",").map((p: string) => p.trim());
+              const geoShortName =
+                geo.cc === "US"
+                  ? r.text.primary
+                  : geoParts.length >= 3
+                    ? `${geoParts[0]}, ${geoParts[geoParts.length - 1]}`
+                    : r.text.primary;
+
               return {
                 placeId: geo.name,
-                shortName: r.text.primary,
+                shortName: geoShortName,
                 displayName: geo.name,
                 displayPlace: geo.name,
                 displayAddress: r.text.secondary,
