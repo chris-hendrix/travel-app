@@ -111,7 +111,7 @@ export function LocationInput({
                 <MapPin className="w-4 h-4 mt-0.5 shrink-0 text-muted-foreground" />
                 <div className="min-w-0">
                   <p className="text-sm font-medium truncate">
-                    {suggestion.displayPlace}
+                    {suggestion.displayName}
                   </p>
                   <p className="text-xs text-muted-foreground truncate">
                     {suggestion.displayAddress}

@@ -76,17 +76,6 @@ type FoursquareAutocompleteResponse = {
   results: FoursquareResult[];
 };
 
-function formatPlaceShortName(place: FoursquarePlace): string {
-  const city = place.location.locality || "";
-  const region = place.location.region || "";
-  const country = place.location.country || "";
-
-  if (country === "US") {
-    return city && region ? `${city}, ${region}` : city || place.name;
-  }
-  return city && region ? `${city}, ${region}` : city || place.name;
-}
-
 export async function locationRoutes(fastify: FastifyInstance) {
   fastify.get<{ Querystring: z.infer<typeof autocompleteQuerySchema> }>(
     "/autocomplete",
@@ -144,7 +133,7 @@ export async function locationRoutes(fastify: FastifyInstance) {
               seen.add(place.fsq_place_id);
               return {
                 placeId: place.fsq_place_id,
-                shortName: formatPlaceShortName(place),
+                shortName: place.name,
                 displayName: place.name,
                 displayPlace: place.location.locality || place.name,
                 displayAddress: place.location.formatted_address || r.text.secondary,
@@ -167,8 +156,8 @@ export async function locationRoutes(fastify: FastifyInstance) {
               return {
                 placeId: geo.name,
                 shortName: geoShortName,
-                displayName: geo.name,
-                displayPlace: geo.name,
+                displayName: r.text.primary,
+                displayPlace: r.text.primary,
                 displayAddress: r.text.secondary,
                 lat: geo.center.latitude,
                 lon: geo.center.longitude,
