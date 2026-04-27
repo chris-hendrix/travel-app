@@ -433,7 +433,7 @@ export function EditEventDialog({
                           form.setValue("locationLat", result.lat);
                           form.setValue("locationLon", result.lon);
                         }}
-                        context={tripLat != null && tripLon != null ? { lat: tripLat, lon: tripLon } : null}
+                        context={tripLat != null && tripLon != null && tripLat !== undefined && tripLon !== undefined ? { lat: tripLat, lon: tripLon } : null}
                         placeholder="123 Main St, Miami Beach"
                         disabled={isPending || isDeleting}
                       />

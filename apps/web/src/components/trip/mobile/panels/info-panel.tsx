@@ -390,6 +390,8 @@ export function InfoPanel({
               isLocked={isLocked}
               tripStartDate={trip.startDate}
               tripEndDate={trip.endDate}
+              tripLat={trip.destinationLat ?? null}
+              tripLon={trip.destinationLon ?? null}
               {...(isOrganizer
                 ? { onAddEvent: () => setIsCreateEventOpen(true) }
                 : {})}

@@ -41,6 +41,8 @@ interface DayByDayViewProps {
   timezone: string;
   tripStartDate: string | null;
   tripEndDate: string | null;
+  tripLat?: number | null;
+  tripLon?: number | null;
   isOrganizer: boolean;
   userId: string;
   userNameMap: Map<string, string>;
@@ -76,6 +78,8 @@ export function DayByDayView({
   timezone,
   tripStartDate,
   tripEndDate,
+  tripLat,
+  tripLon,
   isOrganizer,
   userId,
   userNameMap,
@@ -473,6 +477,8 @@ export function DayByDayView({
           timezone={timezone}
           tripStartDate={tripStartDate}
           tripEndDate={tripEndDate}
+          tripLat={tripLat ?? null}
+          tripLon={tripLon ?? null}
         />
       )}
       {editingMemberTravel && (
