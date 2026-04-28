@@ -1,0 +1,139 @@
+name: OpenCode PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Post in-progress sticky comment
+        uses: marocchino/sticky-pull-request-comment@v3
+        with:
+          header: opencode-review
+          recreate: true
+          message: |
+            <!-- opencode-review-marker -->
+
+            ## 🔄 AI Review in Progress
+
+            **Commit**: `${{ github.event.pull_request.head.sha }}`
+            **Started**: ${{ github.event.pull_request.updated_at }}
+
+            ---
+            _Reviewing changes..._
+
+      - uses: anomalyco/opencode/github@latest
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          model: opencode-go/deepseek-v4-flash
+          use_github_token: true
+          prompt: |
+            You are reviewing a pull request for the Journiful project — a collaborative trip planning platform.
+
+            Tech stack: Fastify 5 (API), Next.js 16 (Web), React 19, Drizzle ORM + PostgreSQL 16, Tailwind CSS v4, shadcn/ui, TanStack Query v5.
+
+            ---
+
+            ## Phase 1 — Hide the OpenCode working comment
+
+            Find and minimize the "[Working...]" comment this action just posted:
+            ```bash
+            WORKING_ID=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+              --jq 'map(select(.body | contains("[Working..."))) | .[0].id')
+            gh api "repos/${{ github.repository }}/issues/comments/$WORKING_ID/minimize" --method PUT
+            ```
+
+            ## Phase 2 — Review the diff
+
+            Fetch the base branch and examine changes:
+            ```bash
+            git fetch origin "${{ github.event.pull_request.base.ref }}" --depth=50
+            git diff "origin/${{ github.event.pull_request.base.ref }}...HEAD"
+            ```
+
+            Focus on:
+            - Code quality and TypeScript safety
+            - Security: auth flows, cookie handling, secrets exposure
+            - Database query patterns (Drizzle ORM usage)
+            - Tailwind v4 constraints: @theme colors MUST be hex, never hsl()
+            - Shared package imports: use @journiful/shared/schemas, never relative paths with file extensions
+            - React best practices: proper RSC boundaries, async data patterns, metadata conventions
+            - Fastify best practices: route → controller → service pattern, proper error handling
+
+            ## Phase 3 — Post inline review comments
+
+            For each issue found, post an INLINE comment on the specific line using:
+            ```bash
+            gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments" \
+              --method POST \
+              -f body="🔴 Critical / 🟡 Warning / 🔵 Suggestion: Your specific feedback here" \
+              -f commit_id="$(git rev-parse HEAD)" \
+              -f path="path/to/file.ts" \
+              -f line=<line_number> \
+              -f side="RIGHT"
+            ```
+            - Use `side: RIGHT` and line numbers from the NEW file (not the diff position).
+            - Prepend each comment with the severity emoji.
+            - Be specific — reference variable names, function names, exact issues.
+            - Only post comments for actual issues. Do not post "looks good" or empty comments.
+
+            ## Phase 4 — Update the sticky verdict comment
+
+            Find the review comment and update it with the final verdict:
+            ```bash
+            STICKY_ID=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+              --jq 'map(select(.body | contains("<!-- opencode-review-marker -->"))) | .[0].id')
+            COMMIT=$(git rev-parse --short HEAD)
+            NOW=$(date -u '+%Y-%m-%d %H:%M UTC')
+
+            # Count severity levels from any inline comments you posted
+            CRITICAL=...  # count of 🔴
+            WARNING=...   # count of 🟡
+            SUGGESTION=... # count of 🔵
+
+            # Determine verdict
+            if [ "$CRITICAL" -gt 0 ]; then
+              VERDICT="⚠️ **Request Changes**"
+            elif [ "$WARNING" -gt 0 ]; then
+              VERDICT="💬 **Comment**"
+            else
+              VERDICT="✅ **Approve**"
+            fi
+
+            gh api "repos/${{ github.repository }}/issues/comments/$STICKY_ID" \
+              --method PATCH \
+              -f body="<!-- opencode-review-marker -->
+
+            $VERDICT
+
+            **Commit**: \`$COMMIT\`
+            **Completed**: $NOW
+
+            ### Issues Found
+            🔴 $CRITICAL critical &nbsp;|&nbsp; 🟡 $WARNING warning &nbsp;|&nbsp; 🔵 $SUGGESTION suggestion
+
+            ### Summary
+            <Replace with a 2-3 sentence summary of the review findings.>
+
+            ---
+            *Automated review by [OpenCode](https://opencode.ai)*"
+            ```
