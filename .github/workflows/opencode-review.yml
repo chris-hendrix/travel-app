@@ -36,7 +36,6 @@ jobs:
         shell: bash
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # CI is non-interactive — permission prompts would block indefinitely
           opencode run \
@@ -115,10 +114,13 @@ jobs:
             COMMIT=\$(git rev-parse --short HEAD)
             NOW=\$(date -u '+%Y-%m-%d %H:%M UTC')
 
-            # Count severity levels from any inline comments you posted
-            CRITICAL=0  # count of 🔴
-            WARNING=0   # count of 🟡
-            SUGGESTION=0 # count of 🔵
+            # Count severity levels from inline comments you posted against this commit
+            CRITICAL=\$(gh api \"repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments\" \
+              --jq '[.[] | select(.commit_id == "'\$COMMIT'" and (.body | startswith(\"🔴\")))] | length')
+            WARNING=\$(gh api \"repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments\" \
+              --jq '[.[] | select(.commit_id == "'\$COMMIT'" and (.body | startswith(\"🟡\")))] | length')
+            SUGGESTION=\$(gh api \"repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments\" \
+              --jq '[.[] | select(.commit_id == "'\$COMMIT'" and (.body | startswith(\"🔵\")))] | length')
 
             # Determine verdict
             if [ \"\$CRITICAL\" -gt 0 ]; then
