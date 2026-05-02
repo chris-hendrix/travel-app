@@ -135,4 +135,21 @@ jobs:
 
             ---
             *Automated review by [OpenCode](https://opencode.ai)*"
+
+            ## Phase 5 — Clean up extra top-level comments
+
+            The OpenCode action may have posted extra top-level summary comments. Delete any `github-actions[bot]` issue comments that don't contain the `<!-- opencode-review-marker -->` marker:
+            ```bash
+            gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+              --jq 'map(select(.body | contains("<!-- opencode-review-marker -->") | not) | .id) | .[]' \
+              | xargs -I{} gh api "repos/${{ github.repository }}/issues/comments/{}" --method DELETE
             ```
+
+      - name: Clean up extra bot comments
+        shell: bash
+        run: |
+          gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+            --jq 'map(select(.body | contains("<!-- opencode-review-marker -->") | not) | .id) | .[]' \
+            | xargs -I{} gh api "repos/${{ github.repository }}/issues/comments/{}" --method DELETE || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
