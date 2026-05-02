@@ -141,8 +141,8 @@ jobs:
                 line: .line,
                 side: "RIGHT",
                 body: ("<details markdown=\"1\">\n<summary>" +
-                  (if .label == "blocking" then "🛑" elif .label == "suggestion" then "💡" else "✏️" end) + " **" +
-                  ((.label | .[0:1] | ascii_upcase) + .label[1:]) + ":** " + .summary +
+                  (if .label == "blocking" then "🛑" elif .label == "suggestion" then "💡" else "✏️" end) + " " +
+                  ((.label | .[0:1] | ascii_upcase) + .label[1:]) + ": " + .summary +
                   "</summary>\n\n" +
                   "- **Commit**: [" + $commit[0:7] + "](https://github.com/" + $repo + "/commit/" + $commit + ")\n" +
                   "- **Issue**: " + .description + "\n\n" +
