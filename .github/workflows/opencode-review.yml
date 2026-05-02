@@ -34,6 +34,8 @@ jobs:
 
       - name: Post in-progress sticky comment
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           STICKY_ID=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
             --jq 'map(select(.body | contains("<!-- opencode-review-marker -->"))) | last | .id')
@@ -58,6 +60,7 @@ jobs:
         shell: bash
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           # CI is non-interactive — permission prompts would block indefinitely
           opencode run \
@@ -125,6 +128,8 @@ jobs:
 
       - name: Update sticky verdict comment
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           STICKY_ID=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
             --jq 'map(select(.body | contains("<!-- opencode-review-marker -->"))) | last | .id')
