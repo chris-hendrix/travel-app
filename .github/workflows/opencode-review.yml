@@ -9,7 +9,6 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  id-token: write
   contents: read
   pull-requests: write
 
@@ -112,18 +111,18 @@ jobs:
 
             # Determine verdict
             if [ "$CRITICAL" -gt 0 ]; then
-              VERDICT="⚠️ **Request Changes**"
+              VERDICT="❌ **Changes Requested**"
             elif [ "$WARNING" -gt 0 ]; then
-              VERDICT="💬 **Comment**"
+              VERDICT="✔️ **Approved with Comments**"
             else
-              VERDICT="✅ **Approve**"
+              VERDICT="✅ **Approved**"
             fi
 
             gh api "repos/${{ github.repository }}/issues/comments/$STICKY_ID" \
               --method PATCH \
               -f body="<!-- opencode-review-marker -->
 
-            $VERDICT
+            ## $VERDICT
 
             **Commit**: \`$COMMIT\`
             **Completed**: $NOW
