@@ -168,10 +168,21 @@ jobs:
             --input /tmp/review-payload.json \
             --jq '.id')
 
-          sleep 3
+          echo "Posted review #$REVIEW_ID, waiting for comments to index..."
 
-          # GET comments filtered by review ID (reliable, no path/line matching)
-          gh api "repos/$REPO/pulls/${{ github.event.pull_request.number }}/comments?sort=created&direction=desc&per_page=50" \
+          # Poll until comments appear or max retries
+          for i in $(seq 1 10); do
+            sleep 2
+            COUNT=$(gh api "repos/$REPO/pulls/${{ github.event.pull_request.number }}/comments?per_page=50" \
+              --jq '[.[] | select(.pull_request_review_id == '$REVIEW_ID')] | length')
+            if [ "$COUNT" -gt 0 ]; then
+              echo "Found $COUNT comment(s) after ${i}x2s"
+              break
+            fi
+          done
+
+          # GET comments and extract html_urls in order
+          gh api "repos/$REPO/pulls/${{ github.event.pull_request.number }}/comments?per_page=50" \
             --jq '[.[] | select(.pull_request_review_id == '$REVIEW_ID')] | sort_by(.id) | map({html_url})' \
             > /tmp/comment-urls.json
 
