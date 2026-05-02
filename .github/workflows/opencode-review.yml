@@ -24,18 +24,6 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Debug info
-        shell: bash
-        run: |
-          echo "::debug::Repository: ${{ github.repository }}"
-          echo "::debug::PR number: ${{ github.event.pull_request.number }}"
-          echo "::debug::Base ref: ${{ github.event.pull_request.base.ref }}"
-          echo "::debug::Head SHA: ${{ github.event.pull_request.head.sha }}"
-          echo "::debug::Run ID: ${{ github.run_id }}"
-          echo "::debug::Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          echo "::debug::Marker: <!-- opencode-review-marker -->"
-          echo "I AM ALIVE"
-
       - name: Install opencode
         shell: bash
         run: curl -fsSL https://opencode.ai/install | bash
