@@ -101,7 +101,14 @@ jobs:
             - Use \`side: RIGHT\` and line numbers from the NEW file (not the diff position).
             - Prepend each comment with the severity emoji.
             - Be specific — reference variable names, function names, exact issues.
-            - Only post comments for actual issues. Do not post \"looks good\" or empty comments."
+            - Only post comments for actual issues. Do not post \"looks good\" or empty comments.
+
+            After posting all inline comments, write a 2-3 sentence summary to /tmp/review-summary:
+            \`\`\`bash
+            cat > /tmp/review-summary << 'EOF'
+            Replace with 2-3 sentences summarizing the review findings.
+            EOF
+            \`\`\`"
 
       - name: Update sticky verdict comment
         shell: bash
@@ -124,6 +131,11 @@ jobs:
             VERDICT="✅ **Approved**"
           fi
 
+           SUMMARY=""
+          if [ -f /tmp/review-summary ]; then
+            SUMMARY=$(cat /tmp/review-summary)
+          fi
+
           STICKY_ID=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
             --jq 'map(select(.body | contains("<!-- opencode-review-marker -->"))) | last | .id')
 
@@ -138,6 +150,8 @@ jobs:
 
           ### Issues Found
           🔴 $CRITICAL critical &nbsp;|&nbsp; 🟡 $WARNING warning &nbsp;|&nbsp; 🔵 $SUGGESTION suggestion
+
+          $SUMMARY
 
           ---
           *Automated review by [OpenCode](https://opencode.ai)*"
