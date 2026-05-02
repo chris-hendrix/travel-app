@@ -74,7 +74,7 @@ jobs:
 
             ## Phase 1 — Review the diff
 
-            Fetch the base branch and examine changes:
+            Fetch the base branch and examine all changes:
             \`\`\`bash
             git fetch origin \"${{ github.event.pull_request.base.ref }}\" --depth=50
             git diff \"origin/${{ github.event.pull_request.base.ref }}...HEAD\"
@@ -89,61 +89,169 @@ jobs:
             - React best practices: proper RSC boundaries, async data patterns, metadata conventions
             - Fastify best practices: route → controller → service pattern, proper error handling
 
-            ## Phase 2 — Post inline review comments
+            ## Phase 2 — Write review data
 
-            For each issue found, post an INLINE comment on the specific line using:
+            For each issue found, add an entry to the JSON array. Determine \`line\` from the new file line number (the \`+start\` in \`@@ ... +start,count @@\` hunk headers).
+
+            Write the full JSON array to \`/tmp/review-comments.json\`:
             \`\`\`bash
-            gh api \"repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments\" \
-              --method POST \
-              -f body=\"🔴 Critical / 🟡 Warning / 🔵 Suggestion: Your specific feedback here\" \
-              -f commit_id=\"\$(git rev-parse HEAD)\" \
-              -f path=\"path/to/file.ts\" \
-              -f line=<line_number> \
-              -f side=\"RIGHT\"
+            cat > /tmp/review-comments.json << 'ENDOFFILE'
+            [
+              {
+                \"label\": \"blocking\",
+                \"path\": \"path/to/file.ts\",
+                \"line\": 42,
+                \"summary\": \"One-line title of the issue\",
+                \"description\": \"Longer explanation of the issue and why it matters\",
+                \"suggested_change\": \"\`\`\`ts\\ncode that fixes the issue\\n\`\`\`\"
+              }
+            ]
+            ENDOFFILE
             \`\`\`
-            - Use \`side: RIGHT\` and line numbers from the NEW file (not the diff position).
-            - Prepend each comment with the severity emoji.
-            - Be specific — reference variable names, function names, exact issues.
-            - Only post comments for actual issues. Do not post \"looks good\" or empty comments.
 
-            After posting all inline comments, render the full verdict comment body to /tmp/verdict-body:
-            \`\`\`bash
-            cat > /tmp/verdict-body << EOF
-            <!-- opencode-review-marker -->
+            Rules:
+            - \`label\`: \`blocking\` (🛑 blocks approval), \`suggestion\` (💡 improvement), \`nit\` (✏️ preference)
+            - Only include entries for actual issues. Write \`[]\` if none found.
+            - \`path\` is relative to repo root
+            - \`line\` is the new file line number (from \`@@ +start,count\`)
+            - \`summary\` one line, max 80 chars
+            - \`description\` detailed explanation
+            - \`suggested_change\` includes the full code fence with language tag
+            - Use \`\\n\` for newlines inside the JSON string"
 
-            ## ✅ **Approved** (or ❌ **Changes Requested** / ✔️ **Approved with Comments**)
-
-            **Commit**: \\\`\$(git rev-parse --short HEAD)\\\`
-            **Completed**: \$(date -u '+%Y-%m-%d %H:%M UTC')
-
-            ### Issues Found
-            🔴 0 critical &nbsp;|&nbsp; 🟡 2 warnings &nbsp;|&nbsp; 🔵 1 suggestion
-
-            <details>
-            <summary>View details</summary>
-
-            <!-- One bullet per issue posted, grouped by severity -->
-            - 🔴 **Critical**: one-liner about the issue
-            - 🟡 **Warning**: one-liner about the issue
-            - 🔵 **Suggestion**: one-liner about the issue
-
-            </details>
-
-            ---
-            *Automated review by [OpenCode](https://opencode.ai)*
-            EOF
-            \`\`\`"
-
-      - name: Update sticky verdict comment
+      - name: Post inline comments
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
+          COMMIT=$(git rev-parse HEAD)
+
+          if [ ! -f /tmp/review-comments.json ] || [ "$(jq 'length' /tmp/review-comments.json)" -eq 0 ]; then
+            echo "No comments to post"
+            echo "[]" > /tmp/comment-urls.json
+            exit 0
+          fi
+
+          # Build comments array with rendered bodies
+          PAYLOAD=$(jq -c --arg commit "$COMMIT" '
+            [
+              .[] | {
+                path: .path,
+                line: .line,
+                side: "RIGHT",
+                body: ("<summary>" +
+                  (if .label == "blocking" then "🛑" elif .label == "suggestion" then "💡" else "✏️" end) + " " +
+                  (.label | ascii_upcase) + ": " + .summary +
+                  "</summary>\n<details>\n\n" +
+                  "- **Commit**: `" + $commit + "`\n" +
+                  "- **Issue**: " + .description + "\n\n" +
+                  "- **Suggested Change**:\n\n" +
+                  .suggested_change + "\n\n" +
+                  "</details>"
+                  )
+              }
+            ]' /tmp/review-comments.json)
+
+          # Build full review payload
+          REVIEW_PAYLOAD=$(jq -n --arg commit "$COMMIT" --argjson comments "$PAYLOAD" '{
+            commit_id: $commit,
+            event: "COMMENT",
+            comments: $comments
+          }')
+
+          echo "$REVIEW_PAYLOAD" > /tmp/review-payload.json
+
+          # Batch POST review
+          gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews" \
+            --method POST \
+            --input /tmp/review-payload.json
+
+          # GET comments to capture html_urls
+          gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments" \
+            --jq '[.[] | select(.commit_id == "'"$COMMIT"'") | {path, line, side, html_url}]' \
+            > /tmp/comment-urls.json
+
+      - name: Update sticky verdict
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          COMMIT=$(git rev-parse --short HEAD)
+          NOW=$(date -u '+%Y-%m-%d %H:%M UTC')
+
+          if [ ! -f /tmp/review-comments.json ]; then
+            echo "No review data found, skipping verdict"
+            exit 0
+          fi
+
+          # Count by label
+          BLOCKING=$(jq '[.[] | select(.label == "blocking")] | length' /tmp/review-comments.json)
+          SUGGESTION=$(jq '[.[] | select(.label == "suggestion")] | length' /tmp/review-comments.json)
+          NIT=$(jq '[.[] | select(.label == "nit")] | length' /tmp/review-comments.json)
+
+          # Determine verdict
+          if [ "$BLOCKING" -gt 0 ]; then
+            VERDICT="🛑 **Request Changes**"
+          elif [ "$SUGGESTION" -gt 0 ] || [ "$NIT" -gt 0 ]; then
+            VERDICT="💬 **Comment**"
+          else
+            VERDICT="✅ **Approve**"
+          fi
+
+          # Build details block with hyperlinks
+          DETAILS=""
+          if [ -f /tmp/comment-urls.json ]; then
+            while read -r row; do
+              PATH_FIELD=$(echo "$row" | jq -r '.path')
+              LINE_FIELD=$(echo "$row" | jq -r '.line')
+              LABEL=$(echo "$row" | jq -r '.label')
+              SUMMARY=$(echo "$row" | jq -r '.summary')
+
+              URL=$(jq -r --arg path "$PATH_FIELD" --argjson line "$LINE_FIELD" \
+                '.[] | select(.path == $path and .line == $line) | .html_url' \
+                /tmp/comment-urls.json)
+
+              case "$LABEL" in
+                blocking) EMOJI="🛑" ;;
+                suggestion) EMOJI="💡" ;;
+                nit) EMOJI="✏️" ;;
+              esac
+
+              if [ -n "$URL" ] && [ "$URL" != "null" ]; then
+                DETAILS+="- ${EMOJI} [${LABEL}: ${SUMMARY}](${URL})"$'\n'
+              else
+                DETAILS+="- ${EMOJI} ${LABEL}: ${SUMMARY}"$'\n'
+              fi
+            done < <(jq -c '.[]' /tmp/review-comments.json)
+          fi
+
+          # Find and update marker comment
           STICKY_ID=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
             --jq 'map(select(.body | contains("<!-- opencode-review-marker -->"))) | last | .id')
 
-          if [ -n "$STICKY_ID" ] && [ -f /tmp/verdict-body ]; then
+          BODY="<!-- opencode-review-marker -->
+
+          ## $VERDICT
+
+          **Commit**: \`$COMMIT\`
+          **Completed**: $NOW
+
+          ### Issues Found
+          🛑 $BLOCKING blocking &nbsp;|&nbsp; 💡 $SUGGESTION suggestion &nbsp;|&nbsp; ✏️ $NIT nit
+
+          <details>
+          <summary>View details</summary>
+
+          $DETAILS
+          </details>
+
+          ---
+          *Automated review by [OpenCode](https://opencode.ai)*"
+
+          if [ -n "$STICKY_ID" ]; then
             gh api "repos/${{ github.repository }}/issues/comments/$STICKY_ID" \
               --method PATCH \
-              -f body=@/tmp/verdict-body
+              -f body="$BODY"
           fi
