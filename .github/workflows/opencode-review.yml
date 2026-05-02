@@ -150,7 +150,7 @@ jobs:
                   (if .label == "blocking" then "🛑" elif .label == "suggestion" then "💡" else "✏️" end) + " " +
                   ((.label | .[0:1] | ascii_upcase) + .label[1:]) + ": " + .summary +
                   "</summary>\n\n" +
-                  "**Review**: " + $review + "\n\n" +
+                  "**Review**: " + $review + "\n" +
                   "**Commit**: [" + $commit[0:7] + "](https://github.com/" + $repo + "/commit/" + $commit + ")\n\n" +
                   "**Issue**: " + .description + "\n\n" +
                   "**Suggested Change**:\n\n" +
