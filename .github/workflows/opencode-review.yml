@@ -38,10 +38,21 @@ jobs:
         run: |
           STICKY_ID=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
             --jq 'map(select(.body | contains("<!-- opencode-review-marker -->"))) | last | .id')
+
+          REVIEW_NUM=1
+          if [ -n "$STICKY_ID" ]; then
+            PREV=$(gh api "repos/${{ github.repository }}/issues/comments/$STICKY_ID" \
+              --jq '.body' | grep -oP '<!-- opencode-review-count: \K\d+' || echo 0)
+            REVIEW_NUM=$((PREV + 1))
+          fi
+          echo "$REVIEW_NUM" > /tmp/review-count
+
           BODY="<!-- opencode-review-marker -->
+          <!-- opencode-review-count: $REVIEW_NUM -->
 
           ## 🔄 AI Review in Progress
 
+          **Review**: $REVIEW_NUM
           **Commit**: $(git rev-parse --short HEAD)
           **Run**: [#${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
@@ -127,8 +138,9 @@ jobs:
           COMMIT=$(git rev-parse HEAD)
           REPO="${{ github.repository }}"
           PR="${{ github.event.pull_request.number }}"
+          REVIEW=$(cat /tmp/review-count 2>/dev/null || echo 1)
 
-          PAYLOAD=$(jq -c --arg commit "$COMMIT" --arg repo "$REPO" '
+          PAYLOAD=$(jq -c --arg commit "$COMMIT" --arg repo "$REPO" --arg review "$REVIEW" '
             [
               .[] | {
                 path: .path,
@@ -138,6 +150,7 @@ jobs:
                   (if .label == "blocking" then "🛑" elif .label == "suggestion" then "💡" else "✏️" end) + " " +
                   ((.label | .[0:1] | ascii_upcase) + .label[1:]) + ": " + .summary +
                   "</summary>\n\n" +
+                  "**Review**: " + $review + "\n\n" +
                   "**Commit**: [" + $commit[0:7] + "](https://github.com/" + $repo + "/commit/" + $commit + ")\n\n" +
                   "**Issue**: " + .description + "\n\n" +
                   "**Suggested Change**:\n\n" +
@@ -167,6 +180,7 @@ jobs:
           [ -f /tmp/review-comments.json ] || exit 0
 
           COMMIT=$(git rev-parse --short HEAD)
+          REVIEW=$(cat /tmp/review-count 2>/dev/null || echo 1)
 
           read BLOCKING SUGGESTION NIT <<< $(jq -r '[
             (map(select(.label == "blocking")) | length),
@@ -198,9 +212,11 @@ jobs:
             --jq 'map(select(.body | contains("<!-- opencode-review-marker -->"))) | last | .id')
 
           gh api "repos/${{ github.repository }}/issues/comments/$STICKY_ID" --method PATCH -f body="<!-- opencode-review-marker -->
+          <!-- opencode-review-count: $REVIEW -->
 
           ## $VERDICT
 
+          **Review**: $REVIEW
           **Commit**: [$COMMIT](${{ github.server_url }}/${{ github.repository }}/commit/$COMMIT)
           **Run**: [#${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
