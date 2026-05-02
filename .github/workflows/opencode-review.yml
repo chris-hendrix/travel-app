@@ -47,18 +47,12 @@ jobs:
 
             ## Phase 1 — Post the in-progress sticky comment
 
-            Delete any previous review comment (from a prior run) and post a fresh in-progress one:
+            Find an existing marker comment and update it, or create one if none exists:
             \`\`\`bash
-            PREV_ID=\$(gh api \"repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments\" \
-              --jq 'map(select(.body | contains(\"<!-- opencode-review-marker -->\"))) | .[0].id')
-            if [ -n \"\$PREV_ID\" ]; then
-              gh api \"repos/${{ github.repository }}/issues/comments/\$PREV_ID\" --method DELETE
-            fi
-
+            STICKY_ID=\$(gh api \"repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments\" \
+              --jq 'map(select(.body | contains(\"<!-- opencode-review-marker -->\"))) | last | .id')
             NOW=\$(date -u '+%Y-%m-%d %H:%M UTC')
-            gh api \"repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments\" \
-              --method POST \
-              -f body=\"<!-- opencode-review-marker -->
+            BODY=\"<!-- opencode-review-marker -->
 
             ## 🔄 AI Review in Progress
 
@@ -67,6 +61,12 @@ jobs:
 
             ---
             _Reviewing changes..._\"
+
+            if [ -n \"\$STICKY_ID\" ]; then
+              gh api \"repos/${{ github.repository }}/issues/comments/\$STICKY_ID\" --method PATCH -f body=\"\$BODY\"
+            else
+              gh api \"repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments\" --method POST -f body=\"\$BODY\"
+            fi
             \`\`\`
 
             ## Phase 2 — Review the diff
