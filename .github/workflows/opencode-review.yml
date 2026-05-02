@@ -12,12 +12,14 @@ permissions:
   contents: read
   pull-requests: write
 
+env:
+  GH_TOKEN: ${{ github.token }}
+  OPENCODE_MODEL: opencode-go/deepseek-v4-flash
+
 jobs:
   review:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    env:
-      OPENCODE_MODEL: opencode-go/deepseek-v4-flash
     steps:
       - uses: actions/checkout@v6
         with:
@@ -26,18 +28,15 @@ jobs:
 
       - name: Install opencode
         shell: bash
-        run: curl -fsSL https://opencode.ai/install | bash
-
-      - name: Add opencode to PATH
-        shell: bash
-        run: echo "$HOME/.opencode/bin" >> "$GITHUB_PATH"
+        run: |
+          curl -fsSL https://opencode.ai/install | bash
+          echo "$HOME/.opencode/bin" >> "$GITHUB_PATH"
 
       - name: Post in-progress sticky comment
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          STICKY_ID=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+          API_ISSUE="repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}"
+          STICKY_ID=$(gh api "$API_ISSUE/comments" \
             --jq 'map(select(.body | contains("<!-- opencode-review-marker -->"))) | last | .id')
           BODY="<!-- opencode-review-marker -->
 
@@ -50,18 +49,16 @@ jobs:
           _Reviewing changes..._"
 
           if [ -n "$STICKY_ID" ]; then
-            gh api "repos/${{ github.repository }}/issues/comments/$STICKY_ID" --method PATCH -f body="$BODY"
+            gh api "$API_ISSUE/comments/$STICKY_ID" --method PATCH -f body="$BODY"
           else
-            gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" --method POST -f body="$BODY"
+            gh api "$API_ISSUE/comments" --method POST -f body="$BODY"
           fi
 
       - name: Run opencode review
         shell: bash
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
-          GH_TOKEN: ${{ github.token }}
         run: |
-          # CI is non-interactive — permission prompts would block indefinitely
           opencode run \
             --model ${{ env.OPENCODE_MODEL }} \
             --dangerously-skip-permissions \
@@ -120,20 +117,16 @@ jobs:
 
       - name: Post inline comments
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          COMMIT_FULL=$(git rev-parse HEAD)
+          [ -f /tmp/review-comments.json ] || exit 0
+          [ "$(jq 'length' /tmp/review-comments.json)" -gt 0 ] || exit 0
+
+          COMMIT=$(git rev-parse HEAD)
           REPO="${{ github.repository }}"
+          PR="${{ github.event.pull_request.number }}"
 
-          if [ ! -f /tmp/review-comments.json ] || [ "$(jq 'length' /tmp/review-comments.json)" -eq 0 ]; then
-            echo "No comments to post"
-            exit 0
-          fi
-
-          # Build comments array with rendered bodies
-          PAYLOAD=$(jq -c --arg commit "$COMMIT_FULL" --arg repo "$REPO" '
+          PAYLOAD=$(jq -c --arg commit "$COMMIT" --arg repo "$REPO" '
             [
               .[] | {
                 path: .path,
@@ -152,8 +145,7 @@ jobs:
               }
             ]' /tmp/review-comments.json)
 
-          # Build full review payload
-          REVIEW_PAYLOAD=$(jq -n --arg commit "$COMMIT_FULL" --argjson comments "$PAYLOAD" '{
+          REVIEW_PAYLOAD=$(jq -n --arg commit "$COMMIT" --argjson comments "$PAYLOAD" '{
             commit_id: $commit,
             event: "COMMENT",
             comments: $comments
@@ -161,29 +153,24 @@ jobs:
 
           echo "$REVIEW_PAYLOAD" > /tmp/review-payload.json
 
-          # Batch POST review
-          gh api "repos/$REPO/pulls/${{ github.event.pull_request.number }}/reviews" \
-            --method POST \
-            --input /tmp/review-payload.json \
-            --jq '.id' > /dev/null
+          gh api "repos/$REPO/pulls/$PR/reviews" \
+            --method POST --input /tmp/review-payload.json > /dev/null
 
       - name: Update sticky verdict
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          [ -f /tmp/review-comments.json ] || exit 0
+
+          API_ISSUE="repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}"
           COMMIT=$(git rev-parse --short HEAD)
 
-          if [ ! -f /tmp/review-comments.json ]; then
-            echo "No review data found, skipping verdict"
-            exit 0
-          fi
-
-          # Count by label
-          BLOCKING=$(jq '[.[] | select(.label == "blocking")] | length' /tmp/review-comments.json)
-          SUGGESTION=$(jq '[.[] | select(.label == "suggestion")] | length' /tmp/review-comments.json)
-          NIT=$(jq '[.[] | select(.label == "nit")] | length' /tmp/review-comments.json)
+          # Count by label — single jq call
+          read BLOCKING SUGGESTION NIT <<< $(jq -r '[
+            (map(select(.label == "blocking")) | length),
+            (map(select(.label == "suggestion")) | length),
+            (map(select(.label == "nit")) | length)
+          ] | join(" ")' /tmp/review-comments.json)
 
           # Determine verdict
           if [ "$BLOCKING" -gt 0 ]; then
@@ -194,26 +181,23 @@ jobs:
             VERDICT="✅ **Approve**"
           fi
 
-          # Build details block from review data
+          # Build details
           DETAILS=""
           while read -r item; do
             LABEL=$(echo "$item" | jq -r '.label')
             SUMMARY=$(echo "$item" | jq -r '.summary')
-
             case "$LABEL" in
               blocking) EMOJI="🛑"; TITLE="Blocking" ;;
               suggestion) EMOJI="💡"; TITLE="Suggestion" ;;
               nit) EMOJI="✏️"; TITLE="Nit" ;;
             esac
-
             DETAILS+="- ${EMOJI} **${TITLE}:** ${SUMMARY}"$'\n'
           done < <(jq -c '.[]' /tmp/review-comments.json 2>/dev/null)
 
-          # Find and update marker comment
-          STICKY_ID=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+          STICKY_ID=$(gh api "$API_ISSUE/comments" \
             --jq 'map(select(.body | contains("<!-- opencode-review-marker -->"))) | last | .id')
 
-          BODY="<!-- opencode-review-marker -->
+          gh api "$API_ISSUE/comments/$STICKY_ID" --method PATCH -f body="<!-- opencode-review-marker -->
 
           ## $VERDICT
 
@@ -223,7 +207,7 @@ jobs:
           ### Issues Found
           🛑 $BLOCKING blocking &nbsp;|&nbsp; 💡 $SUGGESTION suggestion &nbsp;|&nbsp; ✏️ $NIT nit
 
-          <details markdown="1">
+          <details markdown=\"1\">
           <summary>View details</summary>
 
           $DETAILS
@@ -231,9 +215,3 @@ jobs:
 
           ---
           *Automated review by [OpenCode](https://opencode.ai)*"
-
-          if [ -n "$STICKY_ID" ]; then
-            gh api "repos/${{ github.repository }}/issues/comments/$STICKY_ID" \
-              --method PATCH \
-              -f body="$BODY"
-          fi
