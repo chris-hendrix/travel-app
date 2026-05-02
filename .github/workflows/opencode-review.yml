@@ -129,7 +129,6 @@ jobs:
 
           if [ ! -f /tmp/review-comments.json ] || [ "$(jq 'length' /tmp/review-comments.json)" -eq 0 ]; then
             echo "No comments to post"
-            echo "[]" > /tmp/comment-urls.json
             exit 0
           fi
 
@@ -162,29 +161,11 @@ jobs:
 
           echo "$REVIEW_PAYLOAD" > /tmp/review-payload.json
 
-          # Batch POST review and capture review ID
-          REVIEW_ID=$(gh api "repos/$REPO/pulls/${{ github.event.pull_request.number }}/reviews" \
+          # Batch POST review
+          gh api "repos/$REPO/pulls/${{ github.event.pull_request.number }}/reviews" \
             --method POST \
             --input /tmp/review-payload.json \
-            --jq '.id')
-
-          echo "Posted review #$REVIEW_ID, waiting for comments to index..."
-
-          # Poll until comments appear or max retries
-          for i in $(seq 1 10); do
-            sleep 2
-            COUNT=$(gh api "repos/$REPO/pulls/${{ github.event.pull_request.number }}/comments?per_page=50" \
-              --jq '[.[] | select(.pull_request_review_id == '$REVIEW_ID')] | length')
-            if [ "$COUNT" -gt 0 ]; then
-              echo "Found $COUNT comment(s) after ${i}x2s"
-              break
-            fi
-          done
-
-          # GET comments and extract html_urls in order
-          gh api "repos/$REPO/pulls/${{ github.event.pull_request.number }}/comments?per_page=50" \
-            --jq '[.[] | select(.pull_request_review_id == '$REVIEW_ID')] | sort_by(.id) | map({html_url})' \
-            > /tmp/comment-urls.json
+            --jq '.id' > /dev/null
 
       - name: Update sticky verdict
         shell: bash
@@ -213,27 +194,20 @@ jobs:
             VERDICT="✅ **Approve**"
           fi
 
-          # Build details block with hyperlinks (index-based, same order as comment-urls.json)
+          # Build details block from review data
           DETAILS=""
-          if [ -f /tmp/comment-urls.json ] && jq -e '. | type == "array"' /tmp/comment-urls.json > /dev/null 2>&1; then
-            while read -r item; do
-              IDX=$(echo "$item" | jq -r '.index')
-              LABEL=$(echo "$item" | jq -r '.value.label')
-              SUMMARY=$(echo "$item" | jq -r '.value.summary')
+          while read -r item; do
+            LABEL=$(echo "$item" | jq -r '.label')
+            SUMMARY=$(echo "$item" | jq -r '.summary')
 
-              URL=$(jq -r "try .[$IDX].html_url // \"\"" /tmp/comment-urls.json 2>/dev/null)
+            case "$LABEL" in
+              blocking) EMOJI="🛑"; TITLE="Blocking" ;;
+              suggestion) EMOJI="💡"; TITLE="Suggestion" ;;
+              nit) EMOJI="✏️"; TITLE="Nit" ;;
+            esac
 
-              case "$LABEL" in
-                blocking) EMOJI="🛑"; TITLE="Blocking" ;;
-                suggestion) EMOJI="💡"; TITLE="Suggestion" ;;
-                nit) EMOJI="✏️"; TITLE="Nit" ;;
-              esac
-
-              if [ -n "$URL" ]; then
-                DETAILS+="- ${EMOJI} **${TITLE}:** [${SUMMARY}](${URL})"$'\n'
-              fi
-            done < <(jq -c 'to_entries | .[]' /tmp/review-comments.json 2>/dev/null)
-          fi
+            DETAILS+="- ${EMOJI} **${TITLE}:** ${SUMMARY}"$'\n'
+          done < <(jq -c '.[]' /tmp/review-comments.json 2>/dev/null)
 
           # Find and update marker comment
           STICKY_ID=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
