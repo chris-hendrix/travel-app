@@ -22,15 +22,24 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - uses: anomalyco/opencode/github@latest
+      - name: Install opencode
+        shell: bash
+        run: curl -fsSL https://opencode.ai/install | bash
+
+      - name: Add opencode to PATH
+        shell: bash
+        run: echo "$HOME/.opencode/bin" >> "$GITHUB_PATH"
+
+      - name: Run opencode review
+        shell: bash
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          model: opencode-go/deepseek-v4-flash
-          use_github_token: true
-          prompt: |
-            You are reviewing a pull request for the Journiful project — a collaborative trip planning platform.
+        run: |
+          opencode run \
+            --model opencode-go/deepseek-v4-flash \
+            --dangerously-skip-permissions \
+            "You are reviewing a pull request for the Journiful project — a collaborative trip planning platform.
 
             Tech stack: Fastify 5 (API), Next.js 16 (Web), React 19, Drizzle ORM + PostgreSQL 16, Tailwind CSS v4, shadcn/ui, TanStack Query v5.
 
@@ -38,44 +47,35 @@ jobs:
 
             ## Phase 1 — Post the in-progress sticky comment
 
-            First, hide the OpenCode "[Working...]" comment:
-            ```bash
-            WORKING_ID=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
-              --jq 'map(select(.body | contains("[Working..."))) | .[0].id')
-            if [ -n "$WORKING_ID" ]; then
-              gh api "repos/${{ github.repository }}/issues/comments/$WORKING_ID/minimize" --method PUT
-            fi
-            ```
-
-            Then, delete any previous review comment (from a prior run) and post a fresh in-progress one:
-            ```bash
-            PREV_ID=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
-              --jq 'map(select(.body | contains("<!-- opencode-review-marker -->"))) | .[0].id')
-            if [ -n "$PREV_ID" ]; then
-              gh api "repos/${{ github.repository }}/issues/comments/$PREV_ID" --method DELETE
+            Delete any previous review comment (from a prior run) and post a fresh in-progress one:
+            \`\`\`bash
+            PREV_ID=\$(gh api \"repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments\" \
+              --jq 'map(select(.body | contains(\"<!-- opencode-review-marker -->\"))) | .[0].id')
+            if [ -n \"\$PREV_ID\" ]; then
+              gh api \"repos/${{ github.repository }}/issues/comments/\$PREV_ID\" --method DELETE
             fi
 
-            NOW=$(date -u '+%Y-%m-%d %H:%M UTC')
-            gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+            NOW=\$(date -u '+%Y-%m-%d %H:%M UTC')
+            gh api \"repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments\" \
               --method POST \
-              -f body="<!-- opencode-review-marker -->
+              -f body=\"<!-- opencode-review-marker -->
 
             ## 🔄 AI Review in Progress
 
-            **Commit**: $(git rev-parse --short HEAD)
-            **Started**: $NOW
+            **Commit**: \$(git rev-parse --short HEAD)
+            **Started**: \$NOW
 
             ---
-            _Reviewing changes..._"
-            ```
+            _Reviewing changes..._\"
+            \`\`\`
 
             ## Phase 2 — Review the diff
 
             Fetch the base branch and examine changes:
-            ```bash
-            git fetch origin "${{ github.event.pull_request.base.ref }}" --depth=50
-            git diff "origin/${{ github.event.pull_request.base.ref }}...HEAD"
-            ```
+            \`\`\`bash
+            git fetch origin \"${{ github.event.pull_request.base.ref }}\" --depth=50
+            git diff \"origin/${{ github.event.pull_request.base.ref }}...HEAD\"
+            \`\`\`
 
             Focus on:
             - Code quality and TypeScript safety
@@ -89,28 +89,28 @@ jobs:
             ## Phase 3 — Post inline review comments
 
             For each issue found, post an INLINE comment on the specific line using:
-            ```bash
-            gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments" \
+            \`\`\`bash
+            gh api \"repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments\" \
               --method POST \
-              -f body="🔴 Critical / 🟡 Warning / 🔵 Suggestion: Your specific feedback here" \
-              -f commit_id="$(git rev-parse HEAD)" \
-              -f path="path/to/file.ts" \
+              -f body=\"🔴 Critical / 🟡 Warning / 🔵 Suggestion: Your specific feedback here\" \
+              -f commit_id=\"\$(git rev-parse HEAD)\" \
+              -f path=\"path/to/file.ts\" \
               -f line=<line_number> \
-              -f side="RIGHT"
-            ```
-            - Use `side: RIGHT` and line numbers from the NEW file (not the diff position).
+              -f side=\"RIGHT\"
+            \`\`\`
+            - Use \`side: RIGHT\` and line numbers from the NEW file (not the diff position).
             - Prepend each comment with the severity emoji.
             - Be specific — reference variable names, function names, exact issues.
-            - Only post comments for actual issues. Do not post "looks good" or empty comments.
+            - Only post comments for actual issues. Do not post \"looks good\" or empty comments.
 
             ## Phase 4 — Update the sticky verdict comment
 
             Find the review comment and update it with the final verdict:
-            ```bash
-            STICKY_ID=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
-              --jq 'map(select(.body | contains("<!-- opencode-review-marker -->"))) | last | .id')
-            COMMIT=$(git rev-parse --short HEAD)
-            NOW=$(date -u '+%Y-%m-%d %H:%M UTC')
+            \`\`\`bash
+            STICKY_ID=\$(gh api \"repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments\" \
+              --jq 'map(select(.body | contains(\"<!-- opencode-review-marker -->\"))) | last | .id')
+            COMMIT=\$(git rev-parse --short HEAD)
+            NOW=\$(date -u '+%Y-%m-%d %H:%M UTC')
 
             # Count severity levels from any inline comments you posted
             CRITICAL=...  # count of 🔴
@@ -118,46 +118,38 @@ jobs:
             SUGGESTION=... # count of 🔵
 
             # Determine verdict
-            if [ "$CRITICAL" -gt 0 ]; then
-              VERDICT="❌ **Changes Requested**"
-            elif [ "$WARNING" -gt 0 ]; then
-              VERDICT="✔️ **Approved with Comments**"
+            if [ \"\$CRITICAL\" -gt 0 ]; then
+              VERDICT=\"❌ **Changes Requested**\"
+            elif [ \"\$WARNING\" -gt 0 ]; then
+              VERDICT=\"✔️ **Approved with Comments**\"
             else
-              VERDICT="✅ **Approved**"
+              VERDICT=\"✅ **Approved**\"
             fi
 
-            gh api "repos/${{ github.repository }}/issues/comments/$STICKY_ID" \
+            gh api \"repos/${{ github.repository }}/issues/comments/\$STICKY_ID\" \
               --method PATCH \
-              -f body="<!-- opencode-review-marker -->
+              -f body=\"<!-- opencode-review-marker -->
 
-            ## $VERDICT
+            ## \$VERDICT
 
-            **Commit**: \`$COMMIT\`
-            **Completed**: $NOW
+            **Commit**: \\\`\$COMMIT\\\`
+            **Completed**: \$NOW
 
             ### Issues Found
-            🔴 $CRITICAL critical &nbsp;|&nbsp; 🟡 $WARNING warning &nbsp;|&nbsp; 🔵 $SUGGESTION suggestion
+            🔴 \$CRITICAL critical &nbsp;|&nbsp; 🟡 \$WARNING warning &nbsp;|&nbsp; 🔵 \$SUGGESTION suggestion
 
             ### Summary
             <Replace with a 2-3 sentence summary of the review findings.>
 
             ---
-            *Automated review by [OpenCode](https://opencode.ai)*"
+            *Automated review by [OpenCode](https://opencode.ai)*\"
+            \`\`\`
 
             ## Phase 5 — Clean up extra top-level comments
 
-            The OpenCode action may have posted extra top-level summary comments. Delete any `github-actions[bot]` issue comments that don't contain the `<!-- opencode-review-marker -->` marker:
-            ```bash
-            gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
-              --jq 'map(select(.body | contains("<!-- opencode-review-marker -->") | not) | .id) | .[]' \
-              | xargs -I{} gh api "repos/${{ github.repository }}/issues/comments/{}" --method DELETE
-            ```
-
-      - name: Clean up extra bot comments
-        shell: bash
-        run: |
-          gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
-            --jq 'map(select(.body | contains("<!-- opencode-review-marker -->") | not) | .id) | .[]' \
-            | xargs -I{} gh api "repos/${{ github.repository }}/issues/comments/{}" --method DELETE || true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            Delete any github-actions[bot] issue comments that don't contain the \`<!-- opencode-review-marker -->\` marker:
+            \`\`\`bash
+            gh api \"repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments\" \
+              --jq 'map(select(.body | contains(\"<!-- opencode-review-marker -->\") | not) | .id) | .[]' \
+              | xargs -I{} gh api \"repos/${{ github.repository }}/issues/comments/{}\" --method DELETE
+            \`\`\`"
