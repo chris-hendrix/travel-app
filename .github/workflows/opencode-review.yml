@@ -32,6 +32,28 @@ jobs:
         shell: bash
         run: echo "$HOME/.opencode/bin" >> "$GITHUB_PATH"
 
+      - name: Post in-progress sticky comment
+        shell: bash
+        run: |
+          STICKY_ID=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+            --jq 'map(select(.body | contains("<!-- opencode-review-marker -->"))) | last | .id')
+          NOW=$(date -u '+%Y-%m-%d %H:%M UTC')
+          BODY="<!-- opencode-review-marker -->
+
+          ## 🔄 AI Review in Progress
+
+          **Commit**: $(git rev-parse --short HEAD)
+          **Started**: $NOW
+
+          ---
+          _Reviewing changes..._"
+
+          if [ -n "$STICKY_ID" ]; then
+            gh api "repos/${{ github.repository }}/issues/comments/$STICKY_ID" --method PATCH -f body="$BODY"
+          else
+            gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" --method POST -f body="$BODY"
+          fi
+
       - name: Run opencode review
         shell: bash
         env:
@@ -47,31 +69,7 @@ jobs:
 
             ---
 
-            ## Phase 1 — Post the in-progress sticky comment
-
-            Find an existing marker comment and update it, or create one if none exists:
-            \`\`\`bash
-            STICKY_ID=\$(gh api \"repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments\" \
-              --jq 'map(select(.body | contains(\"<!-- opencode-review-marker -->\"))) | last | .id')
-            NOW=\$(date -u '+%Y-%m-%d %H:%M UTC')
-            BODY=\"<!-- opencode-review-marker -->
-
-            ## 🔄 AI Review in Progress
-
-            **Commit**: \$(git rev-parse --short HEAD)
-            **Started**: \$NOW
-
-            ---
-            _Reviewing changes..._\"
-
-            if [ -n \"\$STICKY_ID\" ]; then
-              gh api \"repos/${{ github.repository }}/issues/comments/\$STICKY_ID\" --method PATCH -f body=\"\$BODY\"
-            else
-              gh api \"repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments\" --method POST -f body=\"\$BODY\"
-            fi
-            \`\`\`
-
-            ## Phase 2 — Review the diff
+            ## Phase 1 — Review the diff
 
             Fetch the base branch and examine changes:
             \`\`\`bash
@@ -88,7 +86,7 @@ jobs:
             - React best practices: proper RSC boundaries, async data patterns, metadata conventions
             - Fastify best practices: route → controller → service pattern, proper error handling
 
-            ## Phase 3 — Post inline review comments
+            ## Phase 2 — Post inline review comments
 
             For each issue found, post an INLINE comment on the specific line using:
             \`\`\`bash
@@ -103,49 +101,43 @@ jobs:
             - Use \`side: RIGHT\` and line numbers from the NEW file (not the diff position).
             - Prepend each comment with the severity emoji.
             - Be specific — reference variable names, function names, exact issues.
-            - Only post comments for actual issues. Do not post \"looks good\" or empty comments.
+            - Only post comments for actual issues. Do not post \"looks good\" or empty comments."
 
-            ## Phase 4 — Update the sticky verdict comment
+      - name: Update sticky verdict comment
+        shell: bash
+        run: |
+          COMMIT=$(git rev-parse --short HEAD)
+          NOW=$(date -u '+%Y-%m-%d %H:%M UTC')
 
-            Find the review comment and update it with the final verdict:
-            \`\`\`bash
-            STICKY_ID=\$(gh api \"repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments\" \
-              --jq 'map(select(.body | contains(\"<!-- opencode-review-marker -->\"))) | last | .id')
-            COMMIT=\$(git rev-parse --short HEAD)
-            NOW=\$(date -u '+%Y-%m-%d %H:%M UTC')
+          CRITICAL=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments" \
+            --jq '[.[] | select(.commit_id == "'"$COMMIT"'" and (.body | startswith("🔴")))] | length')
+          WARNING=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments" \
+            --jq '[.[] | select(.commit_id == "'"$COMMIT"'" and (.body | startswith("🟡")))] | length')
+          SUGGESTION=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments" \
+            --jq '[.[] | select(.commit_id == "'"$COMMIT"'" and (.body | startswith("🔵")))] | length')
 
-            # Count severity levels from inline comments you posted against this commit
-            CRITICAL=\$(gh api \"repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments\" \
-              --jq '[.[] | select(.commit_id == "'\$COMMIT'" and (.body | startswith(\"🔴\")))] | length')
-            WARNING=\$(gh api \"repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments\" \
-              --jq '[.[] | select(.commit_id == "'\$COMMIT'" and (.body | startswith(\"🟡\")))] | length')
-            SUGGESTION=\$(gh api \"repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments\" \
-              --jq '[.[] | select(.commit_id == "'\$COMMIT'" and (.body | startswith(\"🔵\")))] | length')
+          if [ "$CRITICAL" -gt 0 ]; then
+            VERDICT="❌ **Changes Requested**"
+          elif [ "$WARNING" -gt 0 ]; then
+            VERDICT="✔️ **Approved with Comments**"
+          else
+            VERDICT="✅ **Approved**"
+          fi
 
-            # Determine verdict
-            if [ \"\$CRITICAL\" -gt 0 ]; then
-              VERDICT=\"❌ **Changes Requested**\"
-            elif [ \"\$WARNING\" -gt 0 ]; then
-              VERDICT=\"✔️ **Approved with Comments**\"
-            else
-              VERDICT=\"✅ **Approved**\"
-            fi
+          STICKY_ID=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+            --jq 'map(select(.body | contains("<!-- opencode-review-marker -->"))) | last | .id')
 
-            gh api \"repos/${{ github.repository }}/issues/comments/\$STICKY_ID\" \
-              --method PATCH \
-              -f body=\"<!-- opencode-review-marker -->
+          gh api "repos/${{ github.repository }}/issues/comments/$STICKY_ID" \
+            --method PATCH \
+            -f body="<!-- opencode-review-marker -->
 
-            ## \$VERDICT
+          ## $VERDICT
 
-            **Commit**: \\\`\$COMMIT\\\`
-            **Completed**: \$NOW
+          **Commit**: \`$COMMIT\`
+          **Completed**: $NOW
 
-            ### Issues Found
-            🔴 \$CRITICAL critical &nbsp;|&nbsp; 🟡 \$WARNING warning &nbsp;|&nbsp; 🔵 \$SUGGESTION suggestion
+          ### Issues Found
+          🔴 $CRITICAL critical &nbsp;|&nbsp; 🟡 $WARNING warning &nbsp;|&nbsp; 🔵 $SUGGESTION suggestion
 
-            ### Summary
-            <Replace with a 2-3 sentence summary of the review findings.>
-
-            ---
-            *Automated review by [OpenCode](https://opencode.ai)*\"
-            \`\`\`"
+          ---
+          *Automated review by [OpenCode](https://opencode.ai)*"
