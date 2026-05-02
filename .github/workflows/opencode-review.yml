@@ -39,13 +39,11 @@ jobs:
         run: |
           STICKY_ID=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
             --jq 'map(select(.body | contains("<!-- opencode-review-marker -->"))) | last | .id')
-          NOW=$(date -u '+%Y-%m-%d %H:%M UTC')
           BODY="<!-- opencode-review-marker -->
 
           ## 🔄 AI Review in Progress
 
-          **Commit**: $(git rev-parse --short HEAD)
-          **Started**: $NOW
+          **Commit**: $(git rev-parse --short HEAD) | **[Run #${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})**
 
           ---
           _Reviewing changes..._"
@@ -235,8 +233,7 @@ jobs:
 
           ## $VERDICT
 
-          **Commit**: \`$COMMIT\`
-          **Completed**: $NOW
+          **Commit**: \`$COMMIT\` | **[Run #${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})**
 
           ### Issues Found
           🛑 $BLOCKING blocking &nbsp;|&nbsp; 💡 $SUGGESTION suggestion &nbsp;|&nbsp; ✏️ $NIT nit
