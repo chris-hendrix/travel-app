@@ -2,8 +2,6 @@
 import { ensureJWTSecret } from "./config/jwt.js";
 ensureJWTSecret();
 
-console.log("I AM ALIVE");
-
 import closeWithGrace from "close-with-grace";
 import { buildApp } from "./app.js";
 import { env } from "./config/env.js";
