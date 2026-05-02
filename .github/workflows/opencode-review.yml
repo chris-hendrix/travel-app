@@ -43,7 +43,8 @@ jobs:
 
           ## 🔄 AI Review in Progress
 
-          **Commit**: $(git rev-parse --short HEAD) | **[Run #${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})**
+          **Commit**: $(git rev-parse --short HEAD)
+          **Run**: [${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
           ---
           _Reviewing changes..._"
@@ -177,7 +178,6 @@ jobs:
         run: |
           set -euo pipefail
           COMMIT=$(git rev-parse --short HEAD)
-          NOW=$(date -u '+%Y-%m-%d %H:%M UTC')
 
           if [ ! -f /tmp/review-comments.json ]; then
             echo "No review data found, skipping verdict"
@@ -233,7 +233,8 @@ jobs:
 
           ## $VERDICT
 
-          **Commit**: \`$COMMIT\` | **[Run #${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})**
+          **Commit**: \`$COMMIT\`
+          **Run**: [${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
           ### Issues Found
           🛑 $BLOCKING blocking &nbsp;|&nbsp; 💡 $SUGGESTION suggestion &nbsp;|&nbsp; ✏️ $NIT nit
