@@ -204,13 +204,13 @@ jobs:
 
           # Build details block with hyperlinks (index-based, same order as comment-urls.json)
           DETAILS=""
-          if [ -f /tmp/comment-urls.json ]; then
+          if [ -f /tmp/comment-urls.json ] && jq -e '. | type == "array"' /tmp/comment-urls.json > /dev/null 2>&1; then
             while read -r item; do
               IDX=$(echo "$item" | jq -r '.index')
               LABEL=$(echo "$item" | jq -r '.value.label')
               SUMMARY=$(echo "$item" | jq -r '.value.summary')
 
-              URL=$(jq -r ".[$IDX].html_url" /tmp/comment-urls.json)
+              URL=$(jq -r "try .[$IDX].html_url // \"\"" /tmp/comment-urls.json 2>/dev/null)
 
               case "$LABEL" in
                 blocking) EMOJI="🛑"; TITLE="Blocking" ;;
@@ -218,10 +218,10 @@ jobs:
                 nit) EMOJI="✏️"; TITLE="Nit" ;;
               esac
 
-              if [ -n "$URL" ] && [ "$URL" != "null" ]; then
+              if [ -n "$URL" ]; then
                 DETAILS+="- ${EMOJI} **${TITLE}:** [${SUMMARY}](${URL})"$'\n'
               fi
-            done < <(jq -c 'to_entries | .[]' /tmp/review-comments.json)
+            done < <(jq -c 'to_entries | .[]' /tmp/review-comments.json 2>/dev/null)
           fi
 
           # Find and update marker comment
