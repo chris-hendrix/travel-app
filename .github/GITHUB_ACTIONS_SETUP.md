@@ -191,6 +191,46 @@ pnpm --filter @tripful/web exec playwright test --grep @smoke
 - 40 commits to main x 7 min = 280 minutes/month
 - **Total: ~360 minutes/month** (well within free tier)
 
+## OpenCode PR Review Workflow
+
+An automated AI code review powered by **OpenCode** and **DeepSeek V4 Flash** via the OpenCode Go subscription. Every pull request gets reviewed for code quality, security, and project convention compliance — running in parallel alongside the CI pipeline.
+
+### Triggers
+
+- PR `opened`, `synchronize`, `reopened` — reviews on each update
+- PR `ready_for_review` — reviews when a draft is marked ready
+- **Draft PRs are skipped** (no noise while work is in progress)
+
+### Required Secret
+
+| Secret | Source | Notes |
+|--------|--------|-------|
+| `OPENCODE_API_KEY` | [opencode.ai/auth](https://opencode.ai/auth) | OpenCode Go subscription key (~$10/month, ~31,650 requests/5h window for DeepSeek V4 Flash) |
+
+### Setup
+
+1. Subscribe to **OpenCode Go** at [opencode.ai/auth](https://opencode.ai/auth) to get an API key
+2. In GitHub repo, go to **Settings** → **Secrets and variables** → **Actions**
+3. Add a new repository secret: `OPENCODE_API_KEY` with your subscription key
+4. The `GITHUB_TOKEN` is auto-provided by the Actions runner (no setup needed)
+
+The workflow is ready to use — no additional configuration required.
+
+### What It Reviews
+
+- Code quality and TypeScript safety
+- Security: auth flows, cookie handling, secrets exposure
+- Database query patterns (Drizzle ORM)
+- Tailwind v4 constraints (`@theme` colors must be hex, never `hsl()`)
+- Shared package import conventions (`@journiful/shared/schemas` only)
+- React/Fastify best practices specific to this project
+
+The review is posted as a PR comment with actionable feedback. It is **advisory only** — not a required status check.
+
+### Workflow File
+
+`.github/workflows/opencode-review.yml`
+
 ## Workflow File Location
 
 `.github/workflows/ci.yml`
