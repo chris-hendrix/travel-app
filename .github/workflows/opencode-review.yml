@@ -232,7 +232,7 @@ jobs:
 
           ## $VERDICT
 
-          **Commit**: \`$COMMIT\`
+          **Commit**: $COMMIT
           **Run**: [#${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
           ### Issues Found
