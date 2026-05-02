@@ -119,7 +119,15 @@ jobs:
             ### Issues Found
             🔴 0 critical &nbsp;|&nbsp; 🟡 2 warnings &nbsp;|&nbsp; 🔵 1 suggestion
 
-            2-3 sentence summary of findings.
+            <details>
+            <summary>View details</summary>
+
+            <!-- One bullet per issue posted, grouped by severity -->
+            - 🔴 **Critical**: one-liner about the issue
+            - 🟡 **Warning**: one-liner about the issue
+            - 🔵 **Suggestion**: one-liner about the issue
+
+            </details>
 
             ---
             *Automated review by [OpenCode](https://opencode.ai)*
