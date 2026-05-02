@@ -22,22 +22,6 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Post in-progress sticky comment
-        uses: marocchino/sticky-pull-request-comment@v3
-        with:
-          header: opencode-review
-          recreate: true
-          message: |
-            <!-- opencode-review-marker -->
-
-            ## 🔄 AI Review in Progress
-
-            **Commit**: `${{ github.event.pull_request.head.sha }}`
-            **Started**: ${{ github.event.pull_request.updated_at }}
-
-            ---
-            _Reviewing changes..._
-
       - uses: anomalyco/opencode/github@latest
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
@@ -52,13 +36,37 @@ jobs:
 
             ---
 
-            ## Phase 1 — Hide the OpenCode working comment
+            ## Phase 1 — Post the in-progress sticky comment
 
-            Find and minimize the "[Working...]" comment this action just posted:
+            First, hide the OpenCode "[Working...]" comment:
             ```bash
             WORKING_ID=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
               --jq 'map(select(.body | contains("[Working..."))) | .[0].id')
-            gh api "repos/${{ github.repository }}/issues/comments/$WORKING_ID/minimize" --method PUT
+            if [ -n "$WORKING_ID" ]; then
+              gh api "repos/${{ github.repository }}/issues/comments/$WORKING_ID/minimize" --method PUT
+            fi
+            ```
+
+            Then, delete any previous review comment (from a prior run) and post a fresh in-progress one:
+            ```bash
+            PREV_ID=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+              --jq 'map(select(.body | contains("<!-- opencode-review-marker -->"))) | .[0].id')
+            if [ -n "$PREV_ID" ]; then
+              gh api "repos/${{ github.repository }}/issues/comments/$PREV_ID" --method DELETE
+            fi
+
+            NOW=$(date -u '+%Y-%m-%d %H:%M UTC')
+            gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+              --method POST \
+              -f body="<!-- opencode-review-marker -->
+
+            ## 🔄 AI Review in Progress
+
+            **Commit**: $(git rev-parse --short HEAD)
+            **Started**: $NOW
+
+            ---
+            _Reviewing changes..._"
             ```
 
             ## Phase 2 — Review the diff
@@ -100,7 +108,7 @@ jobs:
             Find the review comment and update it with the final verdict:
             ```bash
             STICKY_ID=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
-              --jq 'map(select(.body | contains("<!-- opencode-review-marker -->"))) | .[0].id')
+              --jq 'map(select(.body | contains("<!-- opencode-review-marker -->"))) | last | .id')
             COMMIT=$(git rev-parse --short HEAD)
             NOW=$(date -u '+%Y-%m-%d %H:%M UTC')
 
@@ -134,8 +142,7 @@ jobs:
             <Replace with a 2-3 sentence summary of the review findings.>
 
             ---
-            *Automated review by [OpenCode](https://opencode.ai)*
-<!-- Sticky Pull Request Commentopencode-review -->"
+            *Automated review by [OpenCode](https://opencode.ai)*"
 
             ## Phase 5 — Clean up extra top-level comments
 
