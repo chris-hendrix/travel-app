@@ -20,7 +20,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "zod": "^4.3.6",
+    "zod": "^4.4.2",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0"
   },
