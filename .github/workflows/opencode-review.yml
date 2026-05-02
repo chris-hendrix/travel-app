@@ -103,55 +103,34 @@ jobs:
             - Be specific — reference variable names, function names, exact issues.
             - Only post comments for actual issues. Do not post \"looks good\" or empty comments.
 
-            After posting all inline comments, write a 2-3 sentence summary to /tmp/review-summary:
+            After posting all inline comments, render the full verdict comment body to /tmp/verdict-body:
             \`\`\`bash
-            cat > /tmp/review-summary << 'EOF'
-            Replace with 2-3 sentences summarizing the review findings.
+            cat > /tmp/verdict-body << EOF
+            <!-- opencode-review-marker -->
+
+            ## ✅ **Approved** (or ❌ **Changes Requested** / ✔️ **Approved with Comments**)
+
+            **Commit**: \\\`\$(git rev-parse --short HEAD)\\\`
+            **Completed**: \$(date -u '+%Y-%m-%d %H:%M UTC')
+
+            ### Issues Found
+            🔴 0 critical &nbsp;|&nbsp; 🟡 2 warnings &nbsp;|&nbsp; 🔵 1 suggestion
+
+            2-3 sentence summary of findings.
+
+            ---
+            *Automated review by [OpenCode](https://opencode.ai)*
             EOF
             \`\`\`"
 
       - name: Update sticky verdict comment
         shell: bash
         run: |
-          COMMIT=$(git rev-parse --short HEAD)
-          NOW=$(date -u '+%Y-%m-%d %H:%M UTC')
-
-          CRITICAL=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments" \
-            --jq '[.[] | select(.commit_id == "'"$COMMIT"'" and (.body | startswith("🔴")))] | length')
-          WARNING=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments" \
-            --jq '[.[] | select(.commit_id == "'"$COMMIT"'" and (.body | startswith("🟡")))] | length')
-          SUGGESTION=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments" \
-            --jq '[.[] | select(.commit_id == "'"$COMMIT"'" and (.body | startswith("🔵")))] | length')
-
-          if [ "$CRITICAL" -gt 0 ]; then
-            VERDICT="❌ **Changes Requested**"
-          elif [ "$WARNING" -gt 0 ]; then
-            VERDICT="✔️ **Approved with Comments**"
-          else
-            VERDICT="✅ **Approved**"
-          fi
-
-           SUMMARY=""
-          if [ -f /tmp/review-summary ]; then
-            SUMMARY=$(cat /tmp/review-summary)
-          fi
-
           STICKY_ID=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
             --jq 'map(select(.body | contains("<!-- opencode-review-marker -->"))) | last | .id')
 
-          gh api "repos/${{ github.repository }}/issues/comments/$STICKY_ID" \
-            --method PATCH \
-            -f body="<!-- opencode-review-marker -->
-
-          ## $VERDICT
-
-          **Commit**: \`$COMMIT\`
-          **Completed**: $NOW
-
-          ### Issues Found
-          🔴 $CRITICAL critical &nbsp;|&nbsp; 🟡 $WARNING warning &nbsp;|&nbsp; 🔵 $SUGGESTION suggestion
-
-          $SUMMARY
-
-          ---
-          *Automated review by [OpenCode](https://opencode.ai)*"
+          if [ -n "$STICKY_ID" ] && [ -f /tmp/verdict-body ]; then
+            gh api "repos/${{ github.repository }}/issues/comments/$STICKY_ID" \
+              --method PATCH \
+              -f body=@/tmp/verdict-body
+          fi
