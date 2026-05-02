@@ -44,7 +44,7 @@ jobs:
           ## 🔄 AI Review in Progress
 
           **Commit**: $(git rev-parse --short HEAD)
-          **Run**: [${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          **Run**: [#${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
           ---
           _Reviewing changes..._"
@@ -139,10 +139,10 @@ jobs:
                 path: .path,
                 line: .line,
                 side: "RIGHT",
-                body: ("<summary>" +
+                body: ("<details markdown=\"1\">\n<summary>" +
                   (if .label == "blocking" then "🛑" elif .label == "suggestion" then "💡" else "✏️" end) + " " +
                   (.label | ascii_upcase) + ": " + .summary +
-                  "</summary>\n<details markdown=\"1\">\n\n" +
+                  "</summary>\n\n" +
                   "- **Commit**: `" + $commit + "`\n" +
                   "- **Issue**: " + .description + "\n\n" +
                   "- **Suggested Change**:\n\n" +
@@ -234,7 +234,7 @@ jobs:
           ## $VERDICT
 
           **Commit**: \`$COMMIT\`
-          **Run**: [${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          **Run**: [#${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
           ### Issues Found
           🛑 $BLOCKING blocking &nbsp;|&nbsp; 💡 $SUGGESTION suggestion &nbsp;|&nbsp; ✏️ $NIT nit
