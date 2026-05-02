@@ -16,6 +16,8 @@ jobs:
   review:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    env:
+      OPENCODE_MODEL: opencode-go/deepseek-v4-flash
     steps:
       - uses: actions/checkout@v6
         with:
@@ -36,8 +38,9 @@ jobs:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # CI is non-interactive — permission prompts would block indefinitely
           opencode run \
-            --model opencode-go/deepseek-v4-flash \
+            --model ${{ env.OPENCODE_MODEL }} \
             --dangerously-skip-permissions \
             "You are reviewing a pull request for the Journiful project — a collaborative trip planning platform.
 
@@ -113,9 +116,9 @@ jobs:
             NOW=\$(date -u '+%Y-%m-%d %H:%M UTC')
 
             # Count severity levels from any inline comments you posted
-            CRITICAL=...  # count of 🔴
-            WARNING=...   # count of 🟡
-            SUGGESTION=... # count of 🔵
+            CRITICAL=0  # count of 🔴
+            WARNING=0   # count of 🟡
+            SUGGESTION=0 # count of 🔵
 
             # Determine verdict
             if [ \"\$CRITICAL\" -gt 0 ]; then
