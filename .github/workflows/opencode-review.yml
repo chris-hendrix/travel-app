@@ -134,7 +134,8 @@ jobs:
             <Replace with a 2-3 sentence summary of the review findings.>
 
             ---
-            *Automated review by [OpenCode](https://opencode.ai)*"
+            *Automated review by [OpenCode](https://opencode.ai)*
+<!-- Sticky Pull Request Commentopencode-review -->"
 
             ## Phase 5 — Clean up extra top-level comments
 
