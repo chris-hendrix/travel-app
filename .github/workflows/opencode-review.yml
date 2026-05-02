@@ -142,7 +142,7 @@ jobs:
                 body: ("<summary>" +
                   (if .label == "blocking" then "🛑" elif .label == "suggestion" then "💡" else "✏️" end) + " " +
                   (.label | ascii_upcase) + ": " + .summary +
-                  "</summary>\n<details>\n\n" +
+                  "</summary>\n<details markdown=\"1\">\n\n" +
                   "- **Commit**: `" + $commit + "`\n" +
                   "- **Issue**: " + .description + "\n\n" +
                   "- **Suggested Change**:\n\n" +
@@ -239,7 +239,7 @@ jobs:
           ### Issues Found
           🛑 $BLOCKING blocking &nbsp;|&nbsp; 💡 $SUGGESTION suggestion &nbsp;|&nbsp; ✏️ $NIT nit
 
-          <details>
+          <details markdown="1">
           <summary>View details</summary>
 
           $DETAILS
