@@ -19,8 +19,6 @@ jobs:
   review:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -35,9 +33,10 @@ jobs:
 
       - name: Post in-progress sticky comment
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          API_ISSUE="repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}"
-          STICKY_ID=$(gh api "$API_ISSUE/comments" \
+          STICKY_ID=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
             --jq 'map(select(.body | contains("<!-- opencode-review-marker -->"))) | last | .id')
           BODY="<!-- opencode-review-marker -->
 
@@ -50,9 +49,9 @@ jobs:
           _Reviewing changes..._"
 
           if [ -n "$STICKY_ID" ]; then
-            gh api "$API_ISSUE/comments/$STICKY_ID" --method PATCH -f body="$BODY"
+            gh api "repos/${{ github.repository }}/issues/comments/$STICKY_ID" --method PATCH -f body="$BODY"
           else
-            gh api "$API_ISSUE/comments" --method POST -f body="$BODY"
+            gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" --method POST -f body="$BODY"
           fi
 
       - name: Run opencode review
@@ -118,6 +117,8 @@ jobs:
 
       - name: Post inline comments
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           [ -f /tmp/review-comments.json ] || exit 0
@@ -159,21 +160,20 @@ jobs:
 
       - name: Update sticky verdict
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           [ -f /tmp/review-comments.json ] || exit 0
 
-          API_ISSUE="repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}"
           COMMIT=$(git rev-parse --short HEAD)
 
-          # Count by label — single jq call
           read BLOCKING SUGGESTION NIT <<< $(jq -r '[
             (map(select(.label == "blocking")) | length),
             (map(select(.label == "suggestion")) | length),
             (map(select(.label == "nit")) | length)
           ] | join(" ")' /tmp/review-comments.json)
 
-          # Determine verdict
           if [ "$BLOCKING" -gt 0 ]; then
             VERDICT="🛑 **Request Changes**"
           elif [ "$SUGGESTION" -gt 0 ] || [ "$NIT" -gt 0 ]; then
@@ -182,7 +182,6 @@ jobs:
             VERDICT="✅ **Approve**"
           fi
 
-          # Build details
           DETAILS=""
           while read -r item; do
             LABEL=$(echo "$item" | jq -r '.label')
@@ -195,10 +194,10 @@ jobs:
             DETAILS+="- ${EMOJI} **${TITLE}:** ${SUMMARY}"$'\n'
           done < <(jq -c '.[]' /tmp/review-comments.json 2>/dev/null)
 
-          STICKY_ID=$(gh api "$API_ISSUE/comments" \
+          STICKY_ID=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
             --jq 'map(select(.body | contains("<!-- opencode-review-marker -->"))) | last | .id')
 
-          gh api "$API_ISSUE/comments/$STICKY_ID" --method PATCH -f body="<!-- opencode-review-marker -->
+          gh api "repos/${{ github.repository }}/issues/comments/$STICKY_ID" --method PATCH -f body="<!-- opencode-review-marker -->
 
           ## $VERDICT
 
