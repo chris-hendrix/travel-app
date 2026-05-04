@@ -232,19 +232,19 @@ export function DayByDayView({
   ]);
 
   // Apply filter to day data
-  const allActive = !filter || filter.size === 4;
+  const allActive = !filter || filter.size === 7;
   const filteredDayData = useMemo(() => {
     if (allActive) return dayData;
 
     const showMembers = filter!.has("members");
     const eventTypes = new Set(
-      (["activity", "meal", "travel"] as const).filter((t) => filter!.has(t)),
+      (["food_and_drink", "arts_and_entertainment", "outdoors", "nightlife", "misc", "travel"] as const).filter((t) => filter!.has(t)),
     );
 
     return dayData
       .map((day) => ({
         ...day,
-        events: day.events.filter((e) => eventTypes.has(e.eventType as "activity" | "meal" | "travel")),
+        events: day.events.filter((e) => eventTypes.has(e.eventType as "food_and_drink" | "arts_and_entertainment" | "outdoors" | "nightlife" | "misc" | "travel")),
         arrivals: showMembers ? day.arrivals : [],
         departures: showMembers ? day.departures : [],
       }))

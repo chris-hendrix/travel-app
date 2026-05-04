@@ -233,13 +233,13 @@ async function main() {
       for (const hour of hours) {
         const type =
           hour >= 19 || hour <= 8 || hour === 12
-            ? ("meal" as const)
-            : pick(["activity", "meal"] as const);
+            ? ("food_and_drink" as const)
+            : pick(["misc", "food_and_drink"] as const);
         const name =
-          type === "meal"
+          type === "food_and_drink"
             ? mealNames[mi++ % mealNames.length]!
             : activityNames[ai++ % activityNames.length]!;
-        const duration = type === "meal" ? randInt(1, 2) : randInt(2, 4);
+        const duration = type === "food_and_drink" ? randInt(1, 2) : randInt(2, 4);
 
         eventValues.push({
           tripId: trip.id,
@@ -443,7 +443,7 @@ async function main() {
       tripId: lisbon!.id,
       createdBy: alice.id,
       name: "Welcome Dinner",
-      eventType: "meal",
+      eventType: "food_and_drink",
       location: "Time Out Market",
       startTime: daysFromNow(7, 19),
       endTime: daysFromNow(7, 21),
@@ -452,7 +452,7 @@ async function main() {
       tripId: lisbon!.id,
       createdBy: bob.id,
       name: "Evening Walk in Alfama",
-      eventType: "activity",
+      eventType: "misc",
       location: "Alfama District",
       startTime: daysFromNow(7, 16),
       endTime: daysFromNow(7, 18),
@@ -462,7 +462,7 @@ async function main() {
       tripId: lisbon!.id,
       createdBy: alice.id,
       name: "Belém Tower Visit",
-      eventType: "activity",
+      eventType: "misc",
       location: "Belém Tower",
       startTime: daysFromNow(8, 10),
       endTime: daysFromNow(8, 12),
@@ -471,7 +471,7 @@ async function main() {
       tripId: lisbon!.id,
       createdBy: alice.id,
       name: "Jerónimos Monastery",
-      eventType: "activity",
+      eventType: "misc",
       location: "Jerónimos Monastery",
       startTime: daysFromNow(8, 14),
       endTime: daysFromNow(8, 16),
@@ -482,7 +482,7 @@ async function main() {
       tripId: lisbon!.id,
       createdBy: bob.id,
       name: "Sintra Day Trip",
-      eventType: "activity",
+      eventType: "misc",
       location: "Sintra",
       startTime: daysFromNow(11, 9),
       endTime: daysFromNow(11, 17),
@@ -491,7 +491,7 @@ async function main() {
       tripId: lisbon!.id,
       createdBy: alice.id,
       name: "Seafood Dinner",
-      eventType: "meal",
+      eventType: "food_and_drink",
       location: "Cervejaria Ramiro",
       startTime: daysFromNow(11, 19),
       endTime: daysFromNow(11, 21),

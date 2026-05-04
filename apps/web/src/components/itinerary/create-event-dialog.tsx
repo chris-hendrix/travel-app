@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Calendar, Car, Loader2, Plus, Utensils, X } from "lucide-react";
+import { Calendar, Car, Loader2, Plus, Palette, TreePine, Sparkles, Utensils, X } from "lucide-react";
 import { toast } from "sonner";
 import { parse, addHours } from "date-fns";
 import {
@@ -37,9 +37,12 @@ import { mapServerErrors } from "@/lib/form-errors";
 import { getTimezoneAbbr } from "@/lib/constants";
 
 const EVENT_TYPES = [
-  { value: "activity", label: "Activity", icon: Calendar },
-  { value: "meal", label: "Meal", icon: Utensils },
+  { value: "food_and_drink", label: "Food & Drink", icon: Utensils },
+  { value: "arts_and_entertainment", label: "Arts", icon: Palette },
+  { value: "outdoors", label: "Outdoors", icon: TreePine },
+  { value: "nightlife", label: "Nightlife", icon: Sparkles },
   { value: "travel", label: "Travel", icon: Car },
+  { value: "misc", label: "Misc", icon: Calendar },
 ] as const;
 
 interface CreateEventDialogProps {
@@ -52,6 +55,13 @@ interface CreateEventDialogProps {
   tripEndDate?: string | null | undefined;
   tripLat?: number | null;
   tripLon?: number | null;
+  defaultValues?: {
+    name?: string;
+    eventType?: string;
+    location?: string;
+    locationLat?: number | null;
+    locationLon?: number | null;
+  };
 }
 
 export function CreateEventDialog({
@@ -64,6 +74,7 @@ export function CreateEventDialog({
   tripEndDate,
   tripLat,
   tripLon,
+  defaultValues,
 }: CreateEventDialogProps) {
   const { mutate: createEvent, isPending } = useCreateEvent();
   const [newLink, setNewLink] = useState<{ url: string; name: string }>({
@@ -75,12 +86,12 @@ export function CreateEventDialog({
   const form = useForm({
     resolver: zodResolver(createEventSchema),
     defaultValues: {
-      name: "",
+      name: defaultValues?.name ?? "",
       description: "",
-      eventType: "activity",
-      location: "",
-      locationLat: null,
-      locationLon: null,
+      eventType: defaultValues?.eventType ?? "food_and_drink",
+      location: defaultValues?.location ?? "",
+      locationLat: defaultValues?.locationLat ?? null,
+      locationLon: defaultValues?.locationLon ?? null,
       startTime: "",
       endTime: undefined,
       allDay: false,
@@ -91,11 +102,22 @@ export function CreateEventDialog({
   // Reset form when dialog closes
   useEffect(() => {
     if (!open) {
-      form.reset();
+      form.reset({
+        name: defaultValues?.name ?? "",
+        description: "",
+        eventType: defaultValues?.eventType ?? "food_and_drink",
+        location: defaultValues?.location ?? "",
+        locationLat: defaultValues?.locationLat ?? null,
+        locationLon: defaultValues?.locationLon ?? null,
+        startTime: "",
+        endTime: undefined,
+        allDay: false,
+        links: [],
+      });
       setNewLink({ url: "", name: "" });
       setLinkError(null);
     }
-  }, [open, form]);
+  }, [open, form, defaultValues]);
 
   // Trip-aware defaults
   const tripStartMonth = useMemo(() => {

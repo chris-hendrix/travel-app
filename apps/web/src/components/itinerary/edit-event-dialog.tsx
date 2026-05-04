@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Calendar, Car, Loader2, Plus, Trash2, Utensils, X } from "lucide-react";
+import { Calendar, Car, Loader2, Plus, Trash2, Palette, TreePine, Sparkles, Utensils, X } from "lucide-react";
 import { toast } from "sonner";
 import { parse, addHours } from "date-fns";
 import {
@@ -54,9 +54,12 @@ import { mapServerErrors } from "@/lib/form-errors";
 import { getTimezoneAbbr } from "@/lib/constants";
 
 const EVENT_TYPES = [
-  { value: "activity", label: "Activity", icon: Calendar },
-  { value: "meal", label: "Meal", icon: Utensils },
+  { value: "food_and_drink", label: "Food & Drink", icon: Utensils },
+  { value: "arts_and_entertainment", label: "Arts", icon: Palette },
+  { value: "outdoors", label: "Outdoors", icon: TreePine },
+  { value: "nightlife", label: "Nightlife", icon: Sparkles },
   { value: "travel", label: "Travel", icon: Car },
+  { value: "misc", label: "Misc", icon: Calendar },
 ] as const;
 
 interface EditEventDialogProps {
@@ -96,7 +99,7 @@ export function EditEventDialog({
     defaultValues: {
       name: "",
       description: "",
-      eventType: "activity",
+      eventType: "food_and_drink",
       location: "",
       startTime: "",
       endTime: undefined,
