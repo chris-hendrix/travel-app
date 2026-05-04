@@ -61,8 +61,11 @@ export const rsvpStatusEnum = pgEnum("rsvp_status", [
 // Event type enum
 export const eventTypeEnum = pgEnum("event_type", [
   "travel",
-  "meal",
-  "activity",
+  "food_and_drink",
+  "arts_and_entertainment",
+  "outdoors",
+  "nightlife",
+  "misc",
 ]);
 
 // Member travel type enum
