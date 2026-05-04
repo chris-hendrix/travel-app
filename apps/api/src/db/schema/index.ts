@@ -822,3 +822,24 @@ export const affiliateDismissals = pgTable(
 
 export type AffiliateDismissal = typeof affiliateDismissals.$inferSelect;
 export type NewAffiliateDismissal = typeof affiliateDismissals.$inferInsert;
+
+// POI Cache (single JSONB row per trip)
+export const poiCache = pgTable("poi_cache", {
+  tripId: uuid("trip_id")
+    .primaryKey()
+    .references(() => trips.id),
+  source: text("source").notNull(),
+  searchLat: doublePrecision("search_lat").notNull(),
+  searchLon: doublePrecision("search_lon").notNull(),
+  searchLocation: text("search_location"),
+  cachedAt: timestamp("cached_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  suggestions: jsonb("suggestions")
+    .$type<import("@journiful/shared/types").POISuggestion[]>()
+    .notNull()
+    .default([]),
+});
+
+export type PoiCache = typeof poiCache.$inferSelect;
+export type NewPoiCache = typeof poiCache.$inferInsert;

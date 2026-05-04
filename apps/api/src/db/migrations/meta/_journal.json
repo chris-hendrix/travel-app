@@ -246,6 +246,13 @@
       "when": 1746316800000,
       "tag": "0034_expand_event_type_enum",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1746316801000,
+      "tag": "0035_add_poi_cache",
+      "breakpoints": true
     }
   ]
 }
