@@ -67,6 +67,31 @@ export class DiscoverService implements IDiscoverService {
       if (cached.length > 0) {
         const row = cached[0]!;
         const suggestions = row.suggestions as POISuggestion[];
+
+        // Stale cache detection: if destination coords changed, treat as cache miss
+        const DEST_COORD_EPSILON = 0.001; // ~111 meters
+        if (
+          Math.abs(row.searchLat - destinationLat) > DEST_COORD_EPSILON ||
+          Math.abs(row.searchLon - destinationLon) > DEST_COORD_EPSILON
+        ) {
+          this.log.info(
+            {
+              tripId,
+              oldLat: row.searchLat,
+              oldLon: row.searchLon,
+              newLat: destinationLat,
+              newLon: destinationLon,
+            },
+            "Destination changed, refreshing POI cache",
+          );
+          return this.fetchAndCache(
+            tripId,
+            destinationDisplayName ?? destination ?? null,
+            destinationLat,
+            destinationLon,
+          );
+        }
+
         // Filter out converted POIs
         const unconverted = suggestions.filter((s) => s.eventId == null);
         return groupByCategory(unconverted, destinationDisplayName ?? destination ?? null);
@@ -160,7 +185,7 @@ export class DiscoverService implements IDiscoverService {
       return {
         destination: searchLocation,
         source: "foursquare",
-        categories: {} as Record<POICategoryKey, POISuggestion[]>,
+        categories: groupByCategoryOnly([]),
         partial: true,
         errors,
       };
@@ -243,7 +268,7 @@ function emptyResponse(destination: string | null): POISuggestionsResponse {
   return {
     destination,
     source: "foursquare",
-    categories: {} as Record<POICategoryKey, POISuggestion[]>,
+    categories: groupByCategoryOnly([]),
   };
 }
 
