@@ -129,7 +129,7 @@ describe("ItineraryHeader", () => {
       const buttons = screen.getAllByRole("button");
       await user.click(buttons[0]!);
 
-      expect(onToggleFilter).toHaveBeenCalledWith("activity");
+      expect(onToggleFilter).toHaveBeenCalledWith("misc");
     });
   });
 

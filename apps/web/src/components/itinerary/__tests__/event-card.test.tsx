@@ -11,7 +11,7 @@ describe("EventCard", () => {
     createdBy: "user-123",
     name: "Beach Lunch",
     description: "Lunch at beachside restaurant",
-    eventType: "meal",
+    eventType: "food_and_drink",
     location: "Malibu Cafe",
     startTime: new Date("2026-07-15T12:00:00Z"),
     endTime: new Date("2026-07-15T14:00:00Z"),
@@ -86,7 +86,7 @@ describe("EventCard", () => {
     });
 
     it("applies correct color class for activity event", () => {
-      const event = { ...baseEvent, eventType: "activity" as const };
+      const event = { ...baseEvent, eventType: "misc" as const };
       const { container } = render(
         <EventCard
           event={event}

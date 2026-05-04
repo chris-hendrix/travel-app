@@ -299,7 +299,7 @@ describe("daily-itineraries.worker", () => {
       tripId: testTripId,
       createdBy: testOrganizerId,
       name: "Morning Coffee",
-      eventType: "meal",
+      eventType: "food_and_drink",
       startTime: new Date("2026-03-15T09:00:00Z"),
       allDay: false,
     });
@@ -308,7 +308,7 @@ describe("daily-itineraries.worker", () => {
       tripId: testTripId,
       createdBy: testOrganizerId,
       name: "City Tour",
-      eventType: "activity",
+      eventType: "misc",
       startTime: new Date("2026-03-15T14:30:00Z"),
       allDay: false,
     });
@@ -353,7 +353,7 @@ describe("daily-itineraries.worker", () => {
       tripId: testTripId,
       createdBy: testOrganizerId,
       name: "Deleted Event",
-      eventType: "activity",
+      eventType: "misc",
       startTime: new Date("2026-03-15T10:00:00Z"),
       allDay: false,
       deletedAt: new Date(),
@@ -380,7 +380,7 @@ describe("daily-itineraries.worker", () => {
       tripId: testTripId,
       createdBy: testOrganizerId,
       name: "Today Event",
-      eventType: "activity",
+      eventType: "misc",
       startTime: new Date("2026-03-15T10:00:00Z"),
       allDay: false,
     });
@@ -390,7 +390,7 @@ describe("daily-itineraries.worker", () => {
       tripId: testTripId,
       createdBy: testOrganizerId,
       name: "Tomorrow Event",
-      eventType: "activity",
+      eventType: "misc",
       startTime: new Date("2026-03-16T10:00:00Z"),
       allDay: false,
     });

@@ -34,7 +34,7 @@ describe("EditEventDialog", () => {
     createdBy: "user-123",
     name: "Test Event",
     description: "Test description",
-    eventType: "activity",
+    eventType: "misc",
     location: "Test Location",
     startTime: new Date("2026-07-15T14:00:00.000Z"),
     endTime: new Date("2026-07-15T16:00:00.000Z"),

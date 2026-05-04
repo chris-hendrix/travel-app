@@ -121,7 +121,7 @@ describe("ItineraryView", () => {
     createdBy: "user-123",
     name: "Beach Lunch",
     description: "Lunch at beach",
-    eventType: "meal",
+    eventType: "food_and_drink",
     location: "Malibu Cafe",
     startTime: new Date("2026-07-15T12:00:00Z"),
     endTime: new Date("2026-07-15T14:00:00Z"),
