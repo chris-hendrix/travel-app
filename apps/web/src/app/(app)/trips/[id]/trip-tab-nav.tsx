@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const TABS = [
   { value: "itinerary", label: "Itinerary" },
+  { value: "discover", label: "Discover" },
   { value: "messages", label: "Messages" },
   { value: "photos", label: "Photos" },
   { value: "settle", label: "Settle" },

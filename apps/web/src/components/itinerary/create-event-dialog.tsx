@@ -57,7 +57,7 @@ interface CreateEventDialogProps {
   tripLon?: number | null;
   defaultValues?: {
     name?: string;
-    eventType?: string;
+    eventType?: CreateEventInput["eventType"];
     location?: string;
     locationLat?: number | null;
     locationLon?: number | null;
