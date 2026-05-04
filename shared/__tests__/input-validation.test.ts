@@ -120,7 +120,7 @@ describe("input length validation", () => {
   describe("event location (.max(500))", () => {
     const validEvent = {
       name: "Dinner",
-      eventType: "meal" as const,
+      eventType: "food_and_drink" as const,
       startTime: "2026-03-01T18:00:00Z",
     };
 
@@ -150,7 +150,7 @@ describe("input length validation", () => {
   describe("event timezone (.max(100))", () => {
     const validEvent = {
       name: "Dinner",
-      eventType: "meal" as const,
+      eventType: "food_and_drink" as const,
       startTime: "2026-03-01T18:00:00Z",
     };
 
