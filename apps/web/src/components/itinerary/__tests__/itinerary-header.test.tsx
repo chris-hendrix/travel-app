@@ -88,25 +88,25 @@ describe("ItineraryHeader", () => {
     it("renders member travel toggle", () => {
       renderWithQueryClient(<ItineraryHeader {...defaultProps} />);
 
-      expect(screen.getByText("Member travel")).toBeDefined();
+      expect(screen.getByText("Travel")).toBeDefined();
     });
 
-    it("shows eye icon when member travel is visible", () => {
+    it("shows full opacity plane icon when member travel is visible", () => {
       renderWithQueryClient(
         <ItineraryHeader {...defaultProps} showMemberTravel={true} />,
       );
 
-      const toggle = screen.getByText("Member travel");
-      expect(toggle.className).toContain("bg-primary");
+      const toggle = screen.getByText("Travel");
+      expect(toggle.className).toContain("text-muted-foreground");
     });
 
-    it("shows eye-off icon when member travel is hidden", () => {
+    it("shows dimmed plane icon when member travel is hidden", () => {
       renderWithQueryClient(
         <ItineraryHeader {...defaultProps} showMemberTravel={false} />,
       );
 
-      const toggle = screen.getByText("Member travel");
-      expect(toggle.className).toContain("bg-muted");
+      const toggle = screen.getByText("Travel");
+      expect(toggle.className).toContain("text-muted-foreground/50");
     });
 
     it("renders timezone toggle button", () => {
@@ -132,7 +132,7 @@ describe("ItineraryHeader", () => {
         />,
       );
 
-      const toggle = screen.getByText("Member travel");
+      const toggle = screen.getByText("Travel");
       await user.click(toggle);
 
       expect(onToggleMemberTravel).toHaveBeenCalledOnce();
