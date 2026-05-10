@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DiscoverView } from "../discover-view";
-import type { POISuggestionsResponse, POICategoryKey } from "@journiful/shared/types";
+import type { POISuggestionsResponse, POICategoryKey, TemperatureUnit } from "@journiful/shared/types";
 
 // ─── Mock hooks ──────────────────────────────────────────────────────────────
 
@@ -33,6 +33,8 @@ vi.mock("@/hooks/use-discover", () => ({
   useDiscover: (...args: unknown[]) => mockUseDiscover(...args),
   useConvertPOI: () => ({ mutate: mockConvertPoiMutate }),
 }));
+
+const celsius: TemperatureUnit = "celsius";
 
 // ─── Mock CreateEventDialog ──────────────────────────────────────────────────
 
@@ -204,7 +206,7 @@ describe("DiscoverView", () => {
         refetch: vi.fn(),
       });
 
-      const { container } = render(<DiscoverView tripId={TRIP_ID} />);
+      const { container } = render(<DiscoverView tripId={TRIP_ID} temperatureUnit={celsius} />);
       // Should render skeleton elements
       const skeletons = container.querySelectorAll('[class*="animate-pulse"]');
       // The Skeleton component may not have animate-pulse in test env,
@@ -223,7 +225,7 @@ describe("DiscoverView", () => {
         refetch: vi.fn(),
       });
 
-      render(<DiscoverView tripId={TRIP_ID} />);
+      render(<DiscoverView tripId={TRIP_ID} temperatureUnit={celsius} />);
       expect(screen.getByText("Failed to load suggestions")).toBeDefined();
       expect(screen.getByText("Network error")).toBeDefined();
       expect(screen.getByText("Retry")).toBeDefined();
@@ -240,7 +242,7 @@ describe("DiscoverView", () => {
         refetch: vi.fn(),
       });
 
-      render(<DiscoverView tripId={TRIP_ID} />);
+      render(<DiscoverView tripId={TRIP_ID} temperatureUnit={celsius} />);
       expect(screen.getByText("No destination set")).toBeDefined();
       expect(
         screen.getByText("Set a trip destination to discover nearby places"),
@@ -250,26 +252,26 @@ describe("DiscoverView", () => {
 
   describe("results", () => {
     it("renders discover heading with destination", () => {
-      render(<DiscoverView tripId={TRIP_ID} />);
+      render(<DiscoverView tripId={TRIP_ID} temperatureUnit={celsius} />);
       expect(screen.getByText("Discover")).toBeDefined();
       expect(screen.getByText(/Paris, France/)).toBeDefined();
     });
 
     it("renders POI cards for non-empty categories", () => {
-      render(<DiscoverView tripId={TRIP_ID} />);
+      render(<DiscoverView tripId={TRIP_ID} temperatureUnit={celsius} />);
       expect(screen.getByText("Le Bistro")).toBeDefined();
       expect(screen.getByText("Cafe Paris")).toBeDefined();
       expect(screen.getByText("Louvre Museum")).toBeDefined();
     });
 
     it("shows category counts", () => {
-      render(<DiscoverView tripId={TRIP_ID} />);
+      render(<DiscoverView tripId={TRIP_ID} temperatureUnit={celsius} />);
       expect(screen.getByText("(2)")).toBeDefined();
       expect(screen.getByText("(1)")).toBeDefined();
     });
 
     it("does not render category sections for empty categories", () => {
-      const { container } = render(<DiscoverView tripId={TRIP_ID} />);
+      const { container } = render(<DiscoverView tripId={TRIP_ID} temperatureUnit={celsius} />);
       // The category section <h3> headings should only exist for non-empty categories
       const headings = container.querySelectorAll("h3");
       const headingTexts = Array.from(headings).map((h) => h.textContent);
@@ -290,7 +292,7 @@ describe("DiscoverView", () => {
         refetch: vi.fn(),
       });
 
-      render(<DiscoverView tripId={TRIP_ID} />);
+      render(<DiscoverView tripId={TRIP_ID} temperatureUnit={celsius} />);
       expect(
         screen.getByText("Some categories couldn't be loaded. Results may be incomplete."),
       ).toBeDefined();
@@ -299,7 +301,7 @@ describe("DiscoverView", () => {
 
   describe("filter pills", () => {
     it("shows all four category filter pills", () => {
-      render(<DiscoverView tripId={TRIP_ID} />);
+      render(<DiscoverView tripId={TRIP_ID} temperatureUnit={celsius} />);
       // Text appears in both filter pills and category h3 headings, so use getAllByText
       expect(screen.getAllByText("Food & Drink").length).toBeGreaterThan(0);
       expect(screen.getAllByText("Arts & Entertainment").length).toBeGreaterThan(0);
@@ -310,7 +312,7 @@ describe("DiscoverView", () => {
 
   describe("refresh button", () => {
     it("renders a refresh button", () => {
-      render(<DiscoverView tripId={TRIP_ID} />);
+      render(<DiscoverView tripId={TRIP_ID} temperatureUnit={celsius} />);
       expect(screen.getByText("Refresh")).toBeDefined();
     });
   });
@@ -318,7 +320,7 @@ describe("DiscoverView", () => {
   describe("POI-to-event flow", () => {
     it("opens create event dialog when a POI card is clicked", async () => {
       const user = userEvent.setup();
-      render(<DiscoverView tripId={TRIP_ID} />);
+      render(<DiscoverView tripId={TRIP_ID} temperatureUnit={celsius} />);
 
       // Click the first POI card ("Le Bistro")
       const bistroButton = screen.getByText("Le Bistro").closest("button");

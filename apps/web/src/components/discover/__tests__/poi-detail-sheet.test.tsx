@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { POIDetailSheet } from "../poi-detail-sheet";
-import type { POISuggestion, POICategoryKey } from "@journiful/shared/types";
+import type { POISuggestion, POICategoryKey, TemperatureUnit } from "@journiful/shared/types";
 
 function makePOI(overrides: Partial<POISuggestion> = {}): POISuggestion {
   return {
@@ -24,6 +24,8 @@ function makePOI(overrides: Partial<POISuggestion> = {}): POISuggestion {
   };
 }
 
+const celsius: TemperatureUnit = "celsius";
+
 describe("POIDetailSheet", () => {
   const onCreateEvent = vi.fn();
   const onOpenChange = vi.fn();
@@ -41,6 +43,7 @@ describe("POIDetailSheet", () => {
           open={true}
           onOpenChange={onOpenChange}
           onCreateEvent={onCreateEvent}
+          temperatureUnit={celsius}
         />,
       );
       expect(screen.getByText("Le Bistro Parisien")).toBeDefined();
@@ -54,6 +57,7 @@ describe("POIDetailSheet", () => {
           open={true}
           onOpenChange={onOpenChange}
           onCreateEvent={onCreateEvent}
+          temperatureUnit={celsius}
         />,
       );
       const link = screen.getByText("456 Test St").closest("a");
@@ -68,6 +72,7 @@ describe("POIDetailSheet", () => {
           open={true}
           onOpenChange={onOpenChange}
           onCreateEvent={onCreateEvent}
+          temperatureUnit={celsius}
         />,
       );
       expect(screen.getByText(/450/)).toBeDefined();
@@ -80,6 +85,7 @@ describe("POIDetailSheet", () => {
           open={true}
           onOpenChange={onOpenChange}
           onCreateEvent={onCreateEvent}
+          temperatureUnit={celsius}
         />,
       );
       const link = screen.getByText("https://example.com").closest("a");
@@ -94,6 +100,7 @@ describe("POIDetailSheet", () => {
           open={true}
           onOpenChange={onOpenChange}
           onCreateEvent={onCreateEvent}
+          temperatureUnit={celsius}
         />,
       );
       // No ExternalLink icon should be present since website is null
@@ -111,6 +118,7 @@ describe("POIDetailSheet", () => {
           open={true}
           onOpenChange={onOpenChange}
           onCreateEvent={onCreateEvent}
+          temperatureUnit={celsius}
         />,
       );
       const link = screen.getByText("+1 555-0199").closest("a");
@@ -124,6 +132,7 @@ describe("POIDetailSheet", () => {
           open={true}
           onOpenChange={onOpenChange}
           onCreateEvent={onCreateEvent}
+          temperatureUnit={celsius}
         />,
       );
       expect(screen.getByText("Italian Restaurant")).toBeDefined();
@@ -136,6 +145,7 @@ describe("POIDetailSheet", () => {
           open={true}
           onOpenChange={onOpenChange}
           onCreateEvent={onCreateEvent}
+          temperatureUnit={celsius}
         />,
       );
       expect(screen.queryByText("Italian Restaurant")).toBeNull();
@@ -148,6 +158,7 @@ describe("POIDetailSheet", () => {
           open={true}
           onOpenChange={onOpenChange}
           onCreateEvent={onCreateEvent}
+          temperatureUnit={celsius}
         />,
       );
       // Should render without error
@@ -161,6 +172,7 @@ describe("POIDetailSheet", () => {
           open={true}
           onOpenChange={onOpenChange}
           onCreateEvent={onCreateEvent}
+          temperatureUnit={celsius}
         />,
       );
       expect(
@@ -179,6 +191,7 @@ describe("POIDetailSheet", () => {
           open={true}
           onOpenChange={onOpenChange}
           onCreateEvent={onCreateEvent}
+          temperatureUnit={celsius}
         />,
       );
       const button = screen.getByRole("button", { name: /create event/i });
