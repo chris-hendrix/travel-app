@@ -1,6 +1,7 @@
 import { reset, cities } from "drizzle-seed";
 import { db, pool } from "@/config/database.js";
 import * as schema from "@/db/schema/index.js";
+import type { POISuggestion } from "@journiful/shared/types";
 
 // --- Helpers ---
 
@@ -121,6 +122,8 @@ async function main() {
       {
         name: "Tokyo Adventure",
         destination: "Tokyo, Japan",
+        destinationLat: 35.6762,
+        destinationLon: 139.6503,
         startDate: toDateStr(daysFromNow(-3)),
         endDate: toDateStr(daysFromNow(4)),
         preferredTimezone: "Asia/Tokyo",
@@ -131,6 +134,8 @@ async function main() {
       {
         name: "Barcelona Beach Week",
         destination: "Barcelona, Spain",
+        destinationLat: 41.3874,
+        destinationLon: 2.1686,
         startDate: toDateStr(daysFromNow(14)),
         endDate: toDateStr(daysFromNow(21)),
         preferredTimezone: "Europe/Madrid",
@@ -140,6 +145,8 @@ async function main() {
       {
         name: "NYC Weekend",
         destination: "New York City, USA",
+        destinationLat: 40.7128,
+        destinationLon: -74.0060,
         startDate: toDateStr(daysFromNow(-10)),
         endDate: toDateStr(daysFromNow(-7)),
         preferredTimezone: "America/New_York",
@@ -504,6 +511,130 @@ async function main() {
     content:
       "This trip is set up for testing affiliate suggestions — has gaps for all 4 rules!",
   });
+
+  // ── POI Cache Mock Data ───────────────────────────────────────────────
+
+  // Helper to create mock POIs for a city
+  function makeMockPOIs(
+    sourceId: string,
+    name: string,
+    address: string,
+    lat: number,
+    lon: number,
+    distance: number,
+    category: "food_and_drink" | "arts_and_entertainment" | "outdoors" | "nightlife",
+    subcategory: string,
+  ): POISuggestion {
+    return {
+      sourceId,
+      name,
+      address,
+      lat,
+      lon,
+      distance,
+      category,
+      popularity: null,
+      price: null,
+      rating: null,
+      website: null,
+      tel: null,
+      subcategory,
+      eventId: null,
+    };
+  }
+
+  // Tokyo POIs
+  const tokyoPOIs: POISuggestion[] = [
+    makeMockPOIs("mock-tokyo-001", "Ichiran Shibuya", "1-22-7 Jinnan, Shibuya", 35.6603, 139.7024, 3200, "food_and_drink", "Ramen Restaurant"),
+    makeMockPOIs("mock-tokyo-002", "Sukiyabashi Jiro", "4-2-15 Ginza, Chuo", 35.6722, 139.7637, 5200, "food_and_drink", "Sushi Restaurant"),
+    makeMockPOIs("mock-tokyo-003", "Gonpachi Nishiazabu", "1-13-11 Nishiazabu, Minato", 35.6592, 139.7239, 2800, "food_and_drink", "Izakaya"),
+    makeMockPOIs("mock-tokyo-004", "Senso-ji Temple", "2-3-1 Asakusa, Taito", 35.7148, 139.7967, 4800, "arts_and_entertainment", "Buddhist Temple"),
+    makeMockPOIs("mock-tokyo-005", "teamLab Borderless", "1-3-8 Aomi, Koto", 35.6247, 139.7822, 7500, "arts_and_entertainment", "Digital Art Museum"),
+    makeMockPOIs("mock-tokyo-006", "Shinjuku Gyoen", "11 Naitomachi, Shinjuku", 35.6852, 139.7100, 4100, "outdoors", "National Garden"),
+    makeMockPOIs("mock-tokyo-007", "Yoyogi Park", "2-1 Yoyogikamizonocho, Shibuya", 35.6715, 139.6949, 3500, "outdoors", "City Park"),
+    makeMockPOIs("mock-tokyo-008", "Golden Gai", "1-1-6 Kabukicho, Shinjuku", 35.6943, 139.7031, 2300, "nightlife", "Bar District"),
+    makeMockPOIs("mock-tokyo-009", "WOMB", "2-16 Maruyamacho, Shibuya", 35.6555, 139.6976, 1800, "nightlife", "Nightclub"),
+  ];
+
+  // Barcelona POIs
+  const barcelonaPOIs: POISuggestion[] = [
+    makeMockPOIs("mock-bcn-001", "Ciudad Condal", "Rambla de Catalunya 18", 41.3895, 2.1656, 1500, "food_and_drink", "Tapas Restaurant"),
+    makeMockPOIs("mock-bcn-002", "La Boqueria", "La Rambla 91", 41.3817, 2.1717, 2200, "food_and_drink", "Food Market"),
+    makeMockPOIs("mock-bcn-003", "Can Paixano", "Carrer de la Reina Cristina 7", 41.3801, 2.1834, 2800, "food_and_drink", "Cava Bar"),
+    makeMockPOIs("mock-bcn-004", "Sagrada Família", "Carrer de Mallorca 401", 41.4036, 2.1744, 3100, "arts_and_entertainment", "Basilica"),
+    makeMockPOIs("mock-bcn-005", "Picasso Museum", "Carrer Montcada 15-23", 41.3852, 2.1808, 2400, "arts_and_entertainment", "Art Museum"),
+    makeMockPOIs("mock-bcn-006", "Barceloneta Beach", "Passeig Marítim de la Barceloneta", 41.3786, 2.1925, 3500, "outdoors", "Beach"),
+    makeMockPOIs("mock-bcn-007", "Park Güell", "Carrer d'Olot 7", 41.4145, 2.1527, 4200, "outdoors", "Public Park"),
+    makeMockPOIs("mock-bcn-008", "Razzmatazz", "Carrer dels Almogàvers 122", 41.3975, 2.1912, 2600, "nightlife", "Nightclub"),
+  ];
+
+  // NYC POIs
+  const nycPOIs: POISuggestion[] = [
+    makeMockPOIs("mock-nyc-001", "Joe's Pizza", "7 Carmine St, Greenwich Village", 40.7303, -74.0026, 1800, "food_and_drink", "Pizzeria"),
+    makeMockPOIs("mock-nyc-002", "Katz's Delicatessen", "205 E Houston St, Lower East Side", 40.7223, -73.9874, 2500, "food_and_drink", "Deli"),
+    makeMockPOIs("mock-nyc-003", "Russ & Daughters", "179 E Houston St", 40.7226, -73.9883, 2600, "food_and_drink", "Bagel Shop"),
+    makeMockPOIs("mock-nyc-004", "The Met", "1000 5th Ave, Upper East Side", 40.7794, -73.9632, 4200, "arts_and_entertainment", "Art Museum"),
+    makeMockPOIs("mock-nyc-005", "Broadway Theatre", "1681 Broadway, Midtown", 40.7627, -73.9846, 1100, "arts_and_entertainment", "Theater District"),
+    makeMockPOIs("mock-nyc-006", "Central Park", "59th to 110th St, Manhattan", 40.7829, -73.9654, 4500, "outdoors", "Urban Park"),
+    makeMockPOIs("mock-nyc-007", "The High Line", "Gansevoort St to 34th St", 40.7480, -74.0048, 2300, "outdoors", "Elevated Park"),
+    makeMockPOIs("mock-nyc-008", "The Dead Rabbit", "30 Water St, Financial District", 40.7033, -74.0112, 3200, "nightlife", "Irish Pub"),
+    makeMockPOIs("mock-nyc-009", "House of Yes", "2 Wyckoff Ave, Bushwick", 40.7066, -73.9229, 8500, "nightlife", "Event Venue"),
+  ];
+
+  // Lisbon POIs
+  const lisbonPOIs: POISuggestion[] = [
+    makeMockPOIs("mock-lis-001", "Pastéis de Belém", "Rua de Belém 84", 38.6975, -9.2037, 4200, "food_and_drink", "Bakery"),
+    makeMockPOIs("mock-lis-002", "Cervejaria Ramiro", "Av. Almirante Reis 1", 38.7319, -9.1347, 1800, "food_and_drink", "Seafood Restaurant"),
+    makeMockPOIs("mock-lis-003", "Time Out Market", "Av. 24 de Julho 49", 38.7068, -9.1453, 2400, "food_and_drink", "Food Court"),
+    makeMockPOIs("mock-lis-004", "Jerónimos Monastery", "Praça do Império", 38.6979, -9.2068, 4500, "arts_and_entertainment", "Monastery"),
+    makeMockPOIs("mock-lis-005", "MAAT", "Av. Brasília, Central Tejo", 38.6959, -9.1943, 3200, "arts_and_entertainment", "Modern Art Museum"),
+    makeMockPOIs("mock-lis-006", "Praça do Comércio", "Praça do Comércio", 38.7075, -9.1365, 1500, "outdoors", "Plaza"),
+    makeMockPOIs("mock-lis-007", "Jardim Botânico", "Rua da Escola Politécnica 58", 38.7167, -9.1522, 2100, "outdoors", "Botanical Garden"),
+    makeMockPOIs("mock-lis-008", "Bairro Alto", "Bairro Alto", 38.7126, -9.1465, 1800, "nightlife", "Nightlife District"),
+    makeMockPOIs("mock-lis-009", "Lux Frágil", "Av. Infante D. Henrique", 38.7075, -9.1268, 1600, "nightlife", "Nightclub"),
+  ];
+
+  // Insert poi_cache rows
+  await db.insert(schema.poiCache).values([
+    {
+      tripId: tokyo.id,
+      source: "foursquare",
+      searchLat: tokyo.destinationLat!,
+      searchLon: tokyo.destinationLon!,
+      searchLocation: tokyo.destination,
+      cachedAt: new Date(),
+      suggestions: tokyoPOIs,
+    },
+    {
+      tripId: barcelona.id,
+      source: "foursquare",
+      searchLat: barcelona.destinationLat!,
+      searchLon: barcelona.destinationLon!,
+      searchLocation: barcelona.destination,
+      cachedAt: new Date(),
+      suggestions: barcelonaPOIs,
+    },
+    {
+      tripId: nyc.id,
+      source: "foursquare",
+      searchLat: nyc.destinationLat!,
+      searchLon: nyc.destinationLon!,
+      searchLocation: nyc.destination,
+      cachedAt: new Date(),
+      suggestions: nycPOIs,
+    },
+    {
+      tripId: lisbon!.id,
+      source: "foursquare",
+      searchLat: lisbon!.destinationLat!,
+      searchLon: lisbon!.destinationLon!,
+      searchLocation: lisbon!.destination,
+      cachedAt: new Date(),
+      suggestions: lisbonPOIs,
+    },
+  ]);
+
+  console.log("\n  📍 POI cache seeded for all 4 trips\n");
 
   console.log(
     "\n  🧪 Affiliate test trip: 'Lisbon Getaway' (login as Alice to see suggestions)\n",
