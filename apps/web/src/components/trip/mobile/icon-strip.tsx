@@ -4,8 +4,8 @@ import { Home, Compass, CalendarDays, MessageCircle, Camera, DollarSign } from "
 
 const ICONS = [
   { icon: Home, label: "Home" },
-  { icon: Compass, label: "Discover" },
   { icon: CalendarDays, label: "Itinerary" },
+  { icon: Compass, label: "Discover" },
   { icon: MessageCircle, label: "Messages" },
   { icon: Camera, label: "Photos" },
   { icon: DollarSign, label: "Settle" },

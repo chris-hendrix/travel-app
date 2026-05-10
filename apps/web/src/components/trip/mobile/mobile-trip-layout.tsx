@@ -125,7 +125,7 @@ export function MobileTripLayout({
 
   // Scroll itinerary to today's date when switching to itinerary panel
   useEffect(() => {
-    if (activeIndex !== 2) return;
+    if (activeIndex !== 1) return;
     // Small delay to let swiper transition finish
     const timer = setTimeout(() => {
       const todayEl = document.getElementById("day-today");
@@ -177,16 +177,16 @@ export function MobileTripLayout({
               onOpenMembers={() => setIsMembersOpen(true)}
               onScroll={handleInfoScroll}
             />
-            <DiscoverPanel
-              tripId={tripId}
-              temperatureUnit={temperatureUnit}
-            />
             <ItineraryPanel
               tripId={tripId}
               onAddTravel={() => setShowOnboarding(true)}
               {...(weather?.forecasts ? { forecasts: weather.forecasts } : {})}
               temperatureUnit={temperatureUnit}
-              hideFab={activeIndex !== 2}
+              hideFab={activeIndex !== 1}
+            />
+            <DiscoverPanel
+              tripId={tripId}
+              temperatureUnit={temperatureUnit}
             />
             <MessagesPanel
               tripId={tripId}

@@ -9,7 +9,7 @@ import type { Swiper as SwiperType } from "swiper";
 // @ts-expect-error -- swiper/css has no type declarations (TS2882 in TS5.8+)
 import "swiper/css";
 
-const SLIDE_HASHES = ["info", "discover", "itinerary", "messages", "photos", "settle"] as const;
+const SLIDE_HASHES = ["info", "itinerary", "discover", "messages", "photos", "settle"] as const;
 
 export interface MobileTripSwiperRef {
   slideTo: (index: number) => void;
