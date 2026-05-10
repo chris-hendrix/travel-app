@@ -269,13 +269,13 @@ export function DiscoverView({ tripId }: DiscoverViewProps) {
                 <button
                   type="button"
                   onClick={() => setIsLocationPickerOpen(true)}
-                  className="inline-flex items-center gap-0.5 text-sm font-medium text-foreground hover:text-primary transition-colors cursor-pointer rounded px-1 -ml-1"
+                  className="inline-flex items-center gap-0.5 text-sm font-medium text-foreground hover:text-primary transition-colors cursor-pointer rounded px-1 -ml-1 min-w-0"
                 >
-                  {location.name}
-                  <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="truncate max-w-[160px]">{location.name}</span>
+                  <ChevronDown className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
                 </button>
               ) : (
-                <span className="text-sm font-medium text-foreground font-sans">
+                <span className="text-sm font-medium text-foreground font-sans truncate max-w-[160px]">
                   {location.name}
                 </span>
               )}

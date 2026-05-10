@@ -54,24 +54,24 @@ export const POICard = memo(function POICard({
       type="button"
       onClick={() => onSelect(poi)}
       className={cn(
-        "group flex flex-col gap-1.5 rounded-md p-3",
-        "bg-card text-left transition-all",
+        "group flex flex-col gap-1 rounded-md p-2.5",
+        "bg-card text-left transition-all overflow-hidden",
         "hover:border-primary/40 hover:shadow-sm hover:bg-accent/5",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         "cursor-pointer motion-safe:active:scale-[0.98]",
-        "h-36 min-w-[200px] border-l-2",
+        "h-28 w-[200px] shrink-0 border-l-2",
         borderColor,
       )}
     >
       {/* Name — fills available space */}
-      <span className="flex-1 text-sm font-semibold text-foreground leading-tight line-clamp-2">
+      <span className="flex-1 text-sm font-semibold text-foreground leading-tight line-clamp-2 min-w-0">
         {poi.name}
       </span>
 
       {/* Address — always rendered to maintain layout height */}
-      <span className="flex items-start gap-1 text-xs text-muted-foreground truncate">
+      <span className="flex items-start gap-1 text-xs text-muted-foreground min-w-0">
         <MapPin className="w-3 h-3 shrink-0 mt-0.5" aria-hidden="true" />
-        <span className="truncate">{poi.address || "\u2014"}</span>
+        <span className="truncate min-w-0">{poi.address || "\u2014"}</span>
       </span>
 
       {/* Distance — sticks to bottom of card */}
