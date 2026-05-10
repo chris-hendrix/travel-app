@@ -23,6 +23,7 @@ import {
   type MobileTripSwiperRef,
 } from "./mobile-trip-swiper";
 import { InfoPanel } from "./panels/info-panel";
+import { DiscoverPanel } from "./panels/discover-panel";
 import { ItineraryPanel } from "./panels/itinerary-panel";
 import { MessagesPanel } from "./panels/messages-panel";
 import { PhotosPanel } from "./panels/photos-panel";
@@ -124,7 +125,7 @@ export function MobileTripLayout({
 
   // Scroll itinerary to today's date when switching to itinerary panel
   useEffect(() => {
-    if (activeIndex !== 1) return;
+    if (activeIndex !== 2) return;
     // Small delay to let swiper transition finish
     const timer = setTimeout(() => {
       const todayEl = document.getElementById("day-today");
@@ -176,12 +177,16 @@ export function MobileTripLayout({
               onOpenMembers={() => setIsMembersOpen(true)}
               onScroll={handleInfoScroll}
             />
+            <DiscoverPanel
+              tripId={tripId}
+              temperatureUnit={temperatureUnit}
+            />
             <ItineraryPanel
               tripId={tripId}
               onAddTravel={() => setShowOnboarding(true)}
               {...(weather?.forecasts ? { forecasts: weather.forecasts } : {})}
               temperatureUnit={temperatureUnit}
-              hideFab={activeIndex !== 1}
+              hideFab={activeIndex !== 2}
             />
             <MessagesPanel
               tripId={tripId}
@@ -193,13 +198,13 @@ export function MobileTripLayout({
               tripId={tripId}
               isOrganizer={isOrganizer}
               disabled={isLocked}
-              hideFab={activeIndex !== 3}
+              hideFab={activeIndex !== 4}
             />
             <SettlePanel
               tripId={tripId}
               isOrganizer={isOrganizer}
               disabled={isLocked}
-              hideFab={activeIndex !== 4}
+              hideFab={activeIndex !== 5}
             />
           </MobileTripSwiper>
         </div>

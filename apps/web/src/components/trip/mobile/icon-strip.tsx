@@ -1,9 +1,10 @@
 "use client";
 
-import { Home, CalendarDays, MessageCircle, Camera, DollarSign } from "lucide-react";
+import { Home, Compass, CalendarDays, MessageCircle, Camera, DollarSign } from "lucide-react";
 
 const ICONS = [
   { icon: Home, label: "Home" },
+  { icon: Compass, label: "Discover" },
   { icon: CalendarDays, label: "Itinerary" },
   { icon: MessageCircle, label: "Messages" },
   { icon: Camera, label: "Photos" },
