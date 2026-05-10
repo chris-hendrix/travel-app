@@ -2,7 +2,7 @@
 
 import { VisuallyHidden } from "radix-ui";
 import { MapPin, Navigation, ExternalLink, Phone, XIcon } from "lucide-react";
-import type { POISuggestion, POICategoryKey } from "@journiful/shared/types";
+import type { POISuggestion, POICategoryKey, TemperatureUnit } from "@journiful/shared/types";
 import {
   Sheet,
   SheetBody,
@@ -18,6 +18,7 @@ interface POIDetailSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreateEvent: (poi: POISuggestion) => void;
+  temperatureUnit: TemperatureUnit;
 }
 
 const CATEGORY_ACCENT_COLORS: Record<POICategoryKey, string> = {
@@ -34,7 +35,18 @@ const CATEGORY_LABELS: Record<POICategoryKey, string> = {
   nightlife: "Nightlife",
 };
 
-function formatDistance(meters: number): string {
+/**
+ * Format distance in metres to a short human-readable string.
+ *
+ * - Imperial (fahrenheit): feet < 1000 → "N ft", else "N.N mi"
+ * - Metric (celsius): meters < 1000 → "N m", else "N.N km"
+ */
+function formatDistance(meters: number, unit: TemperatureUnit): string {
+  if (unit === "fahrenheit") {
+    const feet = meters * 3.28084;
+    if (feet < 1000) return `${Math.round(feet)} ft`;
+    return `${(meters / 1609.34).toFixed(1)} mi`;
+  }
   if (meters < 1000) return `${Math.round(meters)} m`;
   return `${(meters / 1000).toFixed(1)} km`;
 }
@@ -44,6 +56,7 @@ export function POIDetailSheet({
   open,
   onOpenChange,
   onCreateEvent,
+  temperatureUnit,
 }: POIDetailSheetProps) {
   const accentColor = poi ? CATEGORY_ACCENT_COLORS[poi.category] : null;
 
@@ -72,6 +85,7 @@ export function POIDetailSheet({
             <POIDetailBody
               poi={poi}
               onCreateEvent={onCreateEvent}
+              temperatureUnit={temperatureUnit}
             />
           )}
         </SheetBody>
@@ -83,9 +97,11 @@ export function POIDetailSheet({
 function POIDetailBody({
   poi,
   onCreateEvent,
+  temperatureUnit,
 }: {
   poi: POISuggestion;
   onCreateEvent: (poi: POISuggestion) => void;
+  temperatureUnit: TemperatureUnit;
 }) {
   return (
     <div className="space-y-4">
@@ -123,7 +139,7 @@ function POIDetailBody({
 
         <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
           <Navigation className="w-3.5 h-3.5 shrink-0" />
-          {formatDistance(poi.distance)}
+          {formatDistance(poi.distance, temperatureUnit)}
         </span>
 
         {poi.website && (
@@ -152,8 +168,7 @@ function POIDetailBody({
       {/* Create Event button */}
       <Button
         variant="gradient"
-        size="lg"
-        className="w-full rounded-md"
+        className="w-full h-12 rounded-md"
         onClick={() => onCreateEvent(poi)}
       >
         Create Event

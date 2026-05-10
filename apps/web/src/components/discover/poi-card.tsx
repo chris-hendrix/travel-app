@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import { MapPin, Navigation } from "lucide-react";
-import type { POISuggestion, POICategoryKey } from "@journiful/shared/types";
+import type { POISuggestion, POICategoryKey, TemperatureUnit } from "@journiful/shared/types";
 import { cn } from "@/lib/utils";
 
 /**
@@ -22,10 +22,15 @@ const CATEGORY_BORDER_COLORS: Record<POICategoryKey, string> = {
 /**
  * Format distance in metres to a short human-readable string.
  *
- * - < 1000 m → "N m"
- * - ≥ 1000 m → "N.N km"
+ * - Imperial (fahrenheit): feet < 1000 → "N ft", else "N.N mi"
+ * - Metric (celsius): meters < 1000 → "N m", else "N.N km"
  */
-function formatDistance(meters: number): string {
+function formatDistance(meters: number, unit: TemperatureUnit): string {
+  if (unit === "fahrenheit") {
+    const feet = meters * 3.28084;
+    if (feet < 1000) return `${Math.round(feet)} ft`;
+    return `${(meters / 1609.34).toFixed(1)} mi`;
+  }
   if (meters < 1000) return `${Math.round(meters)} m`;
   return `${(meters / 1000).toFixed(1)} km`;
 }
@@ -33,6 +38,7 @@ function formatDistance(meters: number): string {
 interface POICardProps {
   poi: POISuggestion;
   onSelect: (poi: POISuggestion) => void;
+  temperatureUnit: TemperatureUnit;
 }
 
 /**
@@ -46,6 +52,7 @@ interface POICardProps {
 export const POICard = memo(function POICard({
   poi,
   onSelect,
+  temperatureUnit,
 }: POICardProps) {
   const borderColor = CATEGORY_BORDER_COLORS[poi.category];
 
@@ -77,7 +84,7 @@ export const POICard = memo(function POICard({
       {/* Distance — sticks to bottom of card */}
       <span className="flex items-center gap-1 text-xs text-muted-foreground/70 mt-auto">
         <Navigation className="w-3 h-3" aria-hidden="true" />
-        {formatDistance(poi.distance)}
+        {formatDistance(poi.distance, temperatureUnit)}
       </span>
     </button>
   );

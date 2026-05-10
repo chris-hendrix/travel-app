@@ -125,7 +125,8 @@ export class DiscoverService implements IDiscoverService {
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 5000);
 
-          const url = `${FOURSQUARE_BASE}?ll=${lat},${lon}&radius=${RADIUS}&fsq_category_ids=${cat.fsqCategoryIds}&sort=POPULARITY&limit=${LIMIT}&exclude_all_chains=true`;
+          const allCategoryIds = [cat.parent, ...cat.subcategories].map((c) => c.fsqCategoryId).join(",");
+          const url = `${FOURSQUARE_BASE}?ll=${lat},${lon}&radius=${RADIUS}&fsq_category_ids=${allCategoryIds}&sort=POPULARITY&limit=${LIMIT}&exclude_all_chains=true`;
           const resp = await fetch(url, {
             signal: controller.signal,
             headers: {

@@ -10,7 +10,7 @@ import {
   TreePine,
   Sparkles,
 } from "lucide-react";
-import type { POISuggestion, POICategoryKey } from "@journiful/shared/types";
+import type { POISuggestion, POICategoryKey, TemperatureUnit } from "@journiful/shared/types";
 import { POI_CATEGORIES } from "@journiful/shared/types";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -51,9 +51,10 @@ interface LocationOption {
 
 interface DiscoverViewProps {
   tripId: string;
+  temperatureUnit: TemperatureUnit;
 }
 
-export function DiscoverView({ tripId }: DiscoverViewProps) {
+export function DiscoverView({ tripId, temperatureUnit }: DiscoverViewProps) {
   // ── Data ──────────────────────────────────────────────────────────────────
 
   const { data: trip } = useTripDetail(tripId);
@@ -306,7 +307,7 @@ export function DiscoverView({ tripId }: DiscoverViewProps) {
               <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none snap-x snap-mandatory">
                 {pois.map((poi) => (
                   <div key={poi.sourceId} className="snap-start">
-                    <POICard poi={poi} onSelect={handlePOISelect} />
+                    <POICard poi={poi} onSelect={handlePOISelect} temperatureUnit={temperatureUnit} />
                   </div>
                 ))}
               </div>
@@ -320,6 +321,7 @@ export function DiscoverView({ tripId }: DiscoverViewProps) {
         open={isDetailSheetOpen}
         onOpenChange={setIsDetailSheetOpen}
         onCreateEvent={handleCreateEventFromDetail}
+        temperatureUnit={temperatureUnit}
       />
 
       {/* Location Picker Sheet (organizer only) */}
