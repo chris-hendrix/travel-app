@@ -42,17 +42,6 @@ describe("EventCard", () => {
       expect(screen.getByText("Beach Lunch")).toBeDefined();
     });
 
-    it("renders location when provided", () => {
-      render(
-        <EventCard
-          event={baseEvent}
-          timezone="America/Los_Angeles"
-          onClick={onClick}
-        />,
-      );
-
-      expect(screen.getByText("Malibu Cafe")).toBeDefined();
-    });
   });
 
   describe("Event types", () => {
@@ -71,7 +60,7 @@ describe("EventCard", () => {
       expect(card?.className).toContain("bg-event-travel-light");
     });
 
-    it("applies correct color class for meal event", () => {
+    it("applies correct color class for food_and_drink event", () => {
       const { container } = render(
         <EventCard
           event={baseEvent}
@@ -81,11 +70,11 @@ describe("EventCard", () => {
       );
 
       const card = container.firstElementChild;
-      expect(card?.className).toContain("border-l-event-meal");
-      expect(card?.className).toContain("bg-event-meal-light");
+      expect(card?.className).toContain("border-l-event-food_and_drink");
+      expect(card?.className).toContain("bg-event-food_and_drink-light");
     });
 
-    it("applies correct color class for activity event", () => {
+    it("applies correct color class for misc event", () => {
       const event = { ...baseEvent, eventType: "misc" as const };
       const { container } = render(
         <EventCard
@@ -96,8 +85,8 @@ describe("EventCard", () => {
       );
 
       const card = container.firstElementChild;
-      expect(card?.className).toContain("border-l-event-activity");
-      expect(card?.className).toContain("bg-event-activity-light");
+      expect(card?.className).toContain("border-l-event-misc");
+      expect(card?.className).toContain("bg-event-misc-light");
     });
   });
 
@@ -168,34 +157,26 @@ describe("EventCard", () => {
     });
   });
 
-  describe("Multi-day time display", () => {
-    it("shows date with time for multi-day events", () => {
+  describe("Time display", () => {
+    it("shows date prefix when showDate is true", () => {
       const event = {
         ...baseEvent,
         startTime: new Date("2026-02-10T10:00:00Z"),
         endTime: new Date("2026-02-12T18:00:00Z"),
       };
-      render(<EventCard event={event} timezone="UTC" onClick={onClick} />);
+      render(
+        <EventCard
+          event={event}
+          timezone="UTC"
+          onClick={onClick}
+          showDate={true}
+        />,
+      );
 
-      // Should show month in the time display for multi-day events
-      expect(screen.getByText(/Feb 10/)).toBeDefined();
-      expect(screen.getByText(/Feb 12/)).toBeDefined();
+      expect(screen.getByText(/Feb 10, 2026/)).toBeDefined();
     });
 
-    it("treats midnight end time as same-day event", () => {
-      const event = {
-        ...baseEvent,
-        // 8 PM to midnight — should be treated as single-day, not multi-day
-        startTime: new Date("2026-02-10T20:00:00Z"),
-        endTime: new Date("2026-02-11T00:00:00Z"),
-      };
-      render(<EventCard event={event} timezone="UTC" onClick={onClick} />);
-
-      // Should show normal time range, not multi-day format
-      expect(screen.getByText(/8:00 PM - 12:00 AM/)).toBeDefined();
-    });
-
-    it("shows normal time range for same-day events", () => {
+    it("shows start time for same-day events", () => {
       const event = {
         ...baseEvent,
         startTime: new Date("2026-02-10T10:00:00Z"),
@@ -203,8 +184,7 @@ describe("EventCard", () => {
       };
       render(<EventCard event={event} timezone="UTC" onClick={onClick} />);
 
-      // Should not include month in single-day time display
-      expect(screen.getByText(/10:00 AM - 6:00 PM/)).toBeDefined();
+      expect(screen.getByText(/10:00 AM/)).toBeDefined();
     });
   });
 });

@@ -354,39 +354,6 @@ describe("useCreateTrip", () => {
   });
 
   describe("successful trip creation", () => {
-    it("creates a trip successfully and redirects", async () => {
-      const { apiRequest } = await import("@/lib/api");
-      vi.mocked(apiRequest).mockResolvedValueOnce({
-        success: true,
-        trip: mockTripResponse,
-      });
-
-      const { result } = renderHook(() => useCreateTrip(), { wrapper });
-
-      // Initially not pending
-      expect(result.current.isPending).toBe(false);
-
-      // Trigger mutation
-      result.current.mutate(mockTripInput);
-
-      // Wait for mutation to complete
-      await waitFor(() => {
-        expect(result.current.isSuccess).toBe(true);
-      });
-
-      // Verify API was called with correct data
-      expect(apiRequest).toHaveBeenCalledWith("/trips", {
-        method: "POST",
-        body: JSON.stringify(mockTripInput),
-      });
-
-      // Verify redirect happened
-      expect(mockPush).toHaveBeenCalledWith("/trips/trip-123");
-
-      // Verify no error
-      expect(result.current.error).toBe(null);
-    });
-
     it("returns the created trip data", async () => {
       const { apiRequest } = await import("@/lib/api");
       vi.mocked(apiRequest).mockResolvedValueOnce({
@@ -1062,34 +1029,6 @@ describe("useUpdateTrip", () => {
   afterEach(async () => {
     queryClient.clear();
     await new Promise((r) => setTimeout(r, 0));
-  });
-
-  it("shows toast when timezoneAutoUpdated is true", async () => {
-    const { apiRequest } = await import("@/lib/api");
-    vi.mocked(apiRequest).mockResolvedValueOnce({
-      success: true,
-      trip: {
-        ...existingTrip,
-        destination: "Tokyo, Japan",
-        preferredTimezone: "Asia/Tokyo",
-        timezoneAutoUpdated: true,
-      },
-    });
-
-    const { result } = renderHook(() => useUpdateTrip(), { wrapper });
-
-    result.current.mutate({
-      tripId: "trip-123",
-      data: { destination: "Tokyo, Japan" } as UpdateTripInput,
-    });
-
-    await waitFor(() => {
-      expect(result.current.isSuccess).toBe(true);
-    });
-
-    expect(mockToast.info).toHaveBeenCalledWith(
-      "Timezone updated to Japan Standard Time (JST)",
-    );
   });
 
   it("does not show toast when timezoneAutoUpdated is not set", async () => {

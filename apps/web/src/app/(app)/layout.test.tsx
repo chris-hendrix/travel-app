@@ -23,6 +23,11 @@ vi.mock("@/components/app-header", () => ({
   AppHeader: () => <header data-testid="app-header">App Header</header>,
 }));
 
+// Mock ImpersonationBanner (client component using useAuth)
+vi.mock("@/components/impersonation-banner", () => ({
+  ImpersonationBanner: () => null,
+}));
+
 // Mock GlobalMutationIndicator (client component using TanStack Query)
 vi.mock("@/components/global-mutation-indicator", () => ({
   GlobalMutationIndicator: () => null,

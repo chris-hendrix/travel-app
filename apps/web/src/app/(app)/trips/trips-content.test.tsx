@@ -647,7 +647,7 @@ describe("TripsContent", () => {
 
       renderWithClient(<TripsContent />);
 
-      const fab = screen.getByLabelText("Create new trip");
+      const fab = screen.getByRole("button", { name: /new trip/i });
       expect(fab).toBeDefined();
     });
 
@@ -663,7 +663,7 @@ describe("TripsContent", () => {
 
       renderWithClient(<TripsContent />);
 
-      const fab = screen.getByLabelText("Create new trip");
+      const fab = screen.getByRole("button", { name: /new trip/i });
       await user.click(fab);
 
       await waitFor(() => {
@@ -689,7 +689,7 @@ describe("TripsContent", () => {
       expect(screen.queryByTestId("create-trip-dialog")).toBeNull();
 
       // Click FAB to open dialog
-      const fab = screen.getByLabelText("Create new trip");
+      const fab = screen.getByRole("button", { name: /new trip/i });
       await user.click(fab);
 
       // Dialog should now be visible

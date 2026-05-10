@@ -5,6 +5,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { EditAccommodationDialog } from "../edit-accommodation-dialog";
 import type { Accommodation } from "@journiful/shared/types";
 
+// Mock location autocomplete
+vi.mock("@/hooks/use-location-autocomplete", () => ({
+  useLocationAutocomplete: () => ({ data: [], isLoading: false }),
+}));
+
 // Mock sonner
 const mockToast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock("sonner", () => ({
@@ -169,8 +174,6 @@ describe("EditAccommodationDialog", () => {
         />,
       );
 
-      await user.click(screen.getByText("More details"));
-
       expect(await screen.findByText("https://example.com")).toBeDefined();
     });
 
@@ -184,8 +187,6 @@ describe("EditAccommodationDialog", () => {
           timezone="America/New_York"
         />,
       );
-
-      await user.click(screen.getByText("More details"));
 
       const linkInput = await screen.findByLabelText(/link url/i);
       await user.click(linkInput);

@@ -33,7 +33,11 @@ describe("VerifyPage", () => {
       push: mockPush,
     } as any);
 
-    mockGet.mockReturnValue("+15551234567");
+    mockGet.mockImplementation((key: string) => {
+      if (key === "phone") return "+15551234567";
+      if (key === "smsConsent") return "true";
+      return null;
+    });
     vi.mocked(useSearchParams).mockReturnValue({
       get: mockGet,
     } as any);
@@ -135,7 +139,7 @@ describe("VerifyPage", () => {
     await user.click(button);
 
     await waitFor(() => {
-      expect(mockVerify).toHaveBeenCalledWith("+15551234567", "123456");
+      expect(mockVerify).toHaveBeenCalledWith("+15551234567", "123456", true);
     });
   });
 
@@ -285,7 +289,7 @@ describe("VerifyPage", () => {
     await user.click(resendButton);
 
     await waitFor(() => {
-      expect(mockLogin).toHaveBeenCalledWith("+15551234567");
+      expect(mockLogin).toHaveBeenCalledWith("+15551234567", true);
     });
   });
 

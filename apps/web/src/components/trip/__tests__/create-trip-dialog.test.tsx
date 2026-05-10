@@ -32,6 +32,11 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+// Mock use-location-autocomplete
+vi.mock("@/hooks/use-location-autocomplete", () => ({
+  useLocationAutocomplete: () => ({ data: [], isLoading: false }),
+}));
+
 describe("CreateTripDialog", () => {
   const mockOnOpenChange = vi.fn();
   let queryClient: QueryClient;
@@ -106,15 +111,13 @@ describe("CreateTripDialog", () => {
       expect(screen.getByLabelText(/destination/i)).toBeDefined();
       expect(screen.getByRole("button", { name: /start date/i })).toBeDefined();
       expect(screen.getByRole("button", { name: /end date/i })).toBeDefined();
-      expect(screen.getByLabelText(/trip timezone/i)).toBeDefined();
     });
 
-    it("shows Step 1 of 2 progress indicator", () => {
+    it("shows Trip details progress indicator", () => {
       renderWithQueryClient(
         <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
       );
 
-      expect(screen.getByText("Step 1 of 2")).toBeDefined();
       expect(screen.getByText("Trip details")).toBeDefined();
     });
 
@@ -133,8 +136,8 @@ describe("CreateTripDialog", () => {
 
       // Check for required asterisks by finding text content
       const labels = screen.getAllByText("*");
-      // Trip name, Destination, and Timezone should have asterisks
-      expect(labels.length).toBeGreaterThanOrEqual(3);
+      // Trip name and Destination should have asterisks
+      expect(labels.length).toBeGreaterThanOrEqual(2);
     });
   });
 
@@ -245,7 +248,7 @@ describe("CreateTripDialog", () => {
 
       // Should proceed to Step 2 without date errors
       await waitFor(() => {
-        expect(screen.getByText("Step 2 of 2")).toBeDefined();
+        expect(screen.getByText("Customize")).toBeDefined();
       });
     });
 
@@ -264,30 +267,8 @@ describe("CreateTripDialog", () => {
     });
   });
 
-  describe("Field validation - Timezone", () => {
-    it("defaults to browser timezone", () => {
-      renderWithQueryClient(
-        <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
-      );
-
-      // Timezone should have a default value
-      const timezoneSelect = screen.getByLabelText(/trip timezone/i);
-      expect(timezoneSelect).toBeDefined();
-    });
-
-    it("renders timezone select with options", () => {
-      renderWithQueryClient(
-        <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
-      );
-
-      const timezoneSelect = screen.getByLabelText(/trip timezone/i);
-      expect(timezoneSelect).toBeDefined();
-
-      // Timezone select should be present and functional
-      // Note: Full interaction testing with Radix Select is complex in jsdom
-      // The component will be tested in E2E tests
-    });
-  });
+  // Timezone is configured on step 3 (after form submission), not on step 1
+  // These fields no longer appear in the create flow step 1
 
   describe("Step navigation", () => {
     it("does not proceed to Step 2 with invalid Step 1 data", async () => {
@@ -302,8 +283,8 @@ describe("CreateTripDialog", () => {
 
       // Should stay on Step 1
       await waitFor(() => {
-        expect(screen.getByText("Step 1 of 2")).toBeDefined();
-        expect(screen.queryByText("Step 2 coming in Task 4.4")).toBeNull();
+        expect(screen.getByText("Trip details")).toBeDefined();
+        expect(screen.queryByText("Customize")).toBeNull();
       });
     });
 
@@ -325,7 +306,6 @@ describe("CreateTripDialog", () => {
 
       // Should show Step 2
       await waitFor(() => {
-        expect(screen.getByText("Step 2 of 2")).toBeDefined();
         expect(screen.getByText("Customize")).toBeDefined();
       });
     });
@@ -346,7 +326,7 @@ describe("CreateTripDialog", () => {
       await user.click(screen.getByRole("button", { name: /continue/i }));
 
       await waitFor(() => {
-        expect(screen.getByText("Step 2 of 2")).toBeDefined();
+        expect(screen.getByText("Customize")).toBeDefined();
       });
 
       // Click Back
@@ -355,7 +335,7 @@ describe("CreateTripDialog", () => {
 
       // Should return to Step 1
       await waitFor(() => {
-        expect(screen.getByText("Step 1 of 2")).toBeDefined();
+        expect(screen.getByText("Trip details")).toBeDefined();
         expect(screen.getByLabelText(/trip name/i)).toBeDefined();
       });
     });
@@ -376,7 +356,7 @@ describe("CreateTripDialog", () => {
       await user.click(screen.getByRole("button", { name: /continue/i }));
 
       await waitFor(() => {
-        expect(screen.getByText("Step 2 of 2")).toBeDefined();
+        expect(screen.getByText("Customize")).toBeDefined();
       });
 
       // Navigate back
@@ -408,7 +388,7 @@ describe("CreateTripDialog", () => {
       await user.click(screen.getByRole("button", { name: /continue/i }));
 
       await waitFor(() => {
-        expect(screen.getByText("Step 2 of 2")).toBeDefined();
+        expect(screen.getByText("Customize")).toBeDefined();
       });
     }
 
@@ -447,8 +427,7 @@ describe("CreateTripDialog", () => {
 
       await navigateToStep2(user);
 
-      expect(screen.getByText("Step 2 of 2")).toBeDefined();
-      expect(screen.getByText("Customize")).toBeDefined();
+expect(screen.getByText("Customize")).toBeDefined();
     });
   });
 
@@ -523,7 +502,7 @@ describe("CreateTripDialog", () => {
       await user.click(screen.getByRole("button", { name: /continue/i }));
 
       await waitFor(() => {
-        expect(screen.getByText("Step 2 of 2")).toBeDefined();
+        expect(screen.getByText("Customize")).toBeDefined();
       });
 
       await user.click(screen.getByRole("button", { name: /create trip/i }));
@@ -569,7 +548,7 @@ describe("CreateTripDialog", () => {
       await user.click(screen.getByRole("button", { name: /continue/i }));
 
       await waitFor(() => {
-        expect(screen.getByText("Step 2 of 2")).toBeDefined();
+        expect(screen.getByText("Customize")).toBeDefined();
       });
 
       await user.click(screen.getByRole("button", { name: /create trip/i }));
@@ -597,7 +576,7 @@ describe("CreateTripDialog", () => {
       await user.click(screen.getByRole("button", { name: /continue/i }));
 
       await waitFor(() => {
-        expect(screen.getByText("Step 2 of 2")).toBeDefined();
+        expect(screen.getByText("Customize")).toBeDefined();
       });
     }
 
@@ -657,101 +636,8 @@ describe("CreateTripDialog", () => {
     });
   });
 
-  describe("Step 1 - Allow members to add events checkbox", () => {
-    it("defaults to checked (true)", async () => {
-      renderWithQueryClient(
-        <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
-      );
-
-      const checkbox = screen.getByRole("checkbox", {
-        name: /allow members to add events/i,
-      });
-      expect(checkbox.getAttribute("data-state")).toBe("checked");
-    });
-
-    it("can be toggled off", async () => {
-      const user = userEvent.setup();
-      renderWithQueryClient(
-        <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
-      );
-
-      const checkbox = screen.getByRole("checkbox", {
-        name: /allow members to add events/i,
-      });
-      expect(checkbox.getAttribute("data-state")).toBe("checked");
-
-      await user.click(checkbox);
-
-      expect(checkbox.getAttribute("data-state")).toBe("unchecked");
-    });
-
-    it("can be toggled back on", async () => {
-      const user = userEvent.setup();
-      renderWithQueryClient(
-        <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
-      );
-
-      const checkbox = screen.getByRole("checkbox", {
-        name: /allow members to add events/i,
-      });
-
-      await user.click(checkbox);
-      expect(checkbox.getAttribute("data-state")).toBe("unchecked");
-
-      await user.click(checkbox);
-      expect(checkbox.getAttribute("data-state")).toBe("checked");
-    });
-
-    it("submits correct value when unchecked", async () => {
-      const { apiRequest } = await import("@/lib/api");
-      vi.mocked(apiRequest).mockClear();
-      vi.mocked(apiRequest).mockResolvedValueOnce({
-        success: true,
-        trip: {
-          id: "trip-123",
-          name: "Test Trip",
-          destination: "Miami",
-          startDate: null,
-          endDate: null,
-          preferredTimezone: "America/New_York",
-          description: null,
-          coverImageUrl: null,
-          createdBy: "user-123",
-          allowMembersToAddEvents: false,
-          cancelled: false,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      });
-
-      const user = userEvent.setup();
-      renderWithQueryClient(
-        <CreateTripDialog open={true} onOpenChange={mockOnOpenChange} />,
-      );
-
-      const checkbox = screen.getByLabelText(/allow members to add events/i);
-      await user.click(checkbox);
-
-      // Fill required fields and navigate to Step 2 to submit
-      await user.type(screen.getByLabelText(/trip name/i), "Test Trip");
-      await user.type(screen.getByLabelText(/destination/i), "Miami");
-      await user.click(screen.getByRole("button", { name: /continue/i }));
-
-      await waitFor(() => {
-        expect(screen.getByText("Step 2 of 2")).toBeDefined();
-      });
-
-      await user.click(screen.getByRole("button", { name: /create trip/i }));
-
-      await waitFor(() => {
-        expect(apiRequest).toHaveBeenCalled();
-        const callArgs = vi.mocked(apiRequest).mock.calls[0];
-        expect(callArgs).toBeDefined();
-        const body = JSON.parse(callArgs[1]?.body as string);
-        expect(body.allowMembersToAddEvents).toBe(false);
-      });
-    });
-  });
+  // The "Allow members to add events" checkbox is only in the edit trip dialog,
+  // not in the create flow.
 
   describe("Step 2 - Back navigation preserves data", () => {
     it("renders Step 2 fields after round-trip navigation", async () => {
@@ -766,7 +652,7 @@ describe("CreateTripDialog", () => {
       await user.click(screen.getByRole("button", { name: /continue/i }));
 
       await waitFor(() => {
-        expect(screen.getByText("Step 2 of 2")).toBeDefined();
+        expect(screen.getByText("Customize")).toBeDefined();
       });
 
       // Verify Step 2 fields are present
@@ -778,14 +664,14 @@ describe("CreateTripDialog", () => {
       await user.click(screen.getByRole("button", { name: /back/i }));
 
       await waitFor(() => {
-        expect(screen.getByText("Step 1 of 2")).toBeDefined();
+        expect(screen.getByText("Trip details")).toBeDefined();
       });
 
       // Navigate forward again
       await user.click(screen.getByRole("button", { name: /continue/i }));
 
       await waitFor(() => {
-        expect(screen.getByText("Step 2 of 2")).toBeDefined();
+        expect(screen.getByText("Customize")).toBeDefined();
       });
 
       // Verify Step 2 fields are still present after round-trip
@@ -806,7 +692,7 @@ describe("CreateTripDialog", () => {
       await user.click(screen.getByRole("button", { name: /continue/i }));
 
       await waitFor(() => {
-        expect(screen.getByText("Step 2 of 2")).toBeDefined();
+        expect(screen.getByText("Customize")).toBeDefined();
       });
     }
 
@@ -915,7 +801,7 @@ describe("CreateTripDialog", () => {
       expect(stepIndicators.length).toBe(2);
 
       // Verify Step 1 and Step 2 text is present
-      expect(screen.getByText("Step 1 of 2")).toBeDefined();
+      expect(screen.getByText("Trip details")).toBeDefined();
     });
 
     it("shows step progress when navigating to Step 2", async () => {
@@ -925,7 +811,7 @@ describe("CreateTripDialog", () => {
       );
 
       // Verify Step 1 indicator
-      expect(screen.getByText("Step 1 of 2")).toBeDefined();
+      expect(screen.getByText("Trip details")).toBeDefined();
 
       // Navigate to Step 2
       const nameInput = screen.getByLabelText(/trip name/i);
@@ -937,7 +823,7 @@ describe("CreateTripDialog", () => {
       await user.click(screen.getByRole("button", { name: /continue/i }));
 
       await waitFor(() => {
-        expect(screen.getByText("Step 2 of 2")).toBeDefined();
+        expect(screen.getByText("Customize")).toBeDefined();
       });
 
       // Both step numbers should still be visible
@@ -956,7 +842,6 @@ describe("CreateTripDialog", () => {
       expect(screen.getByLabelText(/destination/i)).toBeDefined();
       expect(screen.getByRole("button", { name: /start date/i })).toBeDefined();
       expect(screen.getByRole("button", { name: /end date/i })).toBeDefined();
-      expect(screen.getByLabelText(/trip timezone/i)).toBeDefined();
     });
 
     it("has aria-invalid attribute on invalid fields", async () => {
@@ -980,10 +865,7 @@ describe("CreateTripDialog", () => {
       );
 
       expect(
-        screen.getByText(/choose something memorable \(3-100 characters\)/i),
-      ).toBeDefined();
-      expect(
-        screen.getByText(/all trip times will be shown in this timezone/i),
+        screen.getByText(/Plan your next adventure with friends and family/i),
       ).toBeDefined();
     });
   });
@@ -1075,7 +957,7 @@ describe("CreateTripDialog", () => {
 
       // Submit from Step 2
       await waitFor(() => {
-        expect(screen.getByText("Step 2 of 2")).toBeDefined();
+        expect(screen.getByText("Customize")).toBeDefined();
       });
 
       await user.click(screen.getByRole("button", { name: /create trip/i }));

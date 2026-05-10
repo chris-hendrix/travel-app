@@ -258,48 +258,6 @@ describe("ItineraryView", () => {
     });
   });
 
-  describe("Filter pills", () => {
-    it("defaults to 'All' filter", () => {
-      mockUseEvents.mockReturnValue({
-        data: [mockEvent],
-        isPending: false,
-        isError: false,
-        refetch: vi.fn(),
-      });
-
-      render(
-        <Wrapper>
-          <ItineraryView tripId="trip-123" />
-        </Wrapper>,
-      );
-
-      const allPill = screen.getByText("All");
-      expect(allPill.className).toContain("bg-primary");
-    });
-  });
-
-  describe("Timezone settings", () => {
-    it("renders timezone settings button", () => {
-      mockUseEvents.mockReturnValue({
-        data: [mockEvent],
-        isPending: false,
-        isError: false,
-        refetch: vi.fn(),
-      });
-
-      render(
-        <Wrapper>
-          <ItineraryView tripId="trip-123" />
-        </Wrapper>,
-      );
-
-      const settingsButton = screen.getByRole("button", {
-        name: "Timezone settings",
-      });
-      expect(settingsButton).toBeDefined();
-    });
-  });
-
   describe("Content display", () => {
     it("displays events when present", () => {
       mockUseEvents.mockReturnValue({

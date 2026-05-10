@@ -4,6 +4,11 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { CreateAccommodationDialog } from "../create-accommodation-dialog";
 
+// Mock location autocomplete
+vi.mock("@/hooks/use-location-autocomplete", () => ({
+  useLocationAutocomplete: () => ({ data: [], isLoading: false }),
+}));
+
 // Mock sonner
 const mockToast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock("sonner", () => ({
@@ -232,8 +237,6 @@ describe("CreateAccommodationDialog", () => {
         />,
       );
 
-      await user.click(screen.getByText("More details"));
-
       const linkInput = await screen.findByLabelText(/link url/i);
       await user.type(linkInput, "https://example.com");
 
@@ -255,8 +258,6 @@ describe("CreateAccommodationDialog", () => {
           timezone="America/New_York"
         />,
       );
-
-      await user.click(screen.getByText("More details"));
 
       const linkInput = await screen.findByLabelText(/link url/i);
       await user.click(linkInput);
@@ -285,8 +286,6 @@ describe("CreateAccommodationDialog", () => {
           timezone="America/New_York"
         />,
       );
-
-      await user.click(screen.getByText("More details"));
 
       const linkInput = await screen.findByLabelText(/link url/i);
       await user.type(linkInput, "not a valid url");

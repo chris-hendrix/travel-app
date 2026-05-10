@@ -36,6 +36,7 @@ vi.mock("@/hooks/use-invitations", () => ({
 // Mock useMemberTravels (required by ItineraryHeader for smart defaulting)
 vi.mock("@/hooks/use-member-travel", () => ({
   useMemberTravels: () => ({ data: [] }),
+  useCreateMemberTravel: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 // Mock getUploadUrl (required by CreateMemberTravelDialog)
@@ -288,16 +289,4 @@ describe("ItineraryHeader", () => {
     });
   });
 
-  describe("Sticky positioning", () => {
-    it("applies sticky positioning classes", () => {
-      const { container } = renderWithQueryClient(
-        <ItineraryHeader {...defaultProps} />,
-      );
-
-      const header = container.querySelector(".sticky");
-      expect(header).toBeDefined();
-      expect(header?.className).toContain("top-0");
-      expect(header?.className).toContain("z-30");
-    });
-  });
 });

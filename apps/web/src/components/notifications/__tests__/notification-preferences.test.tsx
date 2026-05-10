@@ -32,6 +32,15 @@ vi.mock("@/hooks/use-calendar", () => ({
   useUpdateTripCalendarExclusion: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
+vi.mock("@/lib/push-notifications", () => ({
+  isPushSupported: () => false,
+}));
+
+vi.mock("@/hooks/use-push-notifications", () => ({
+  usePushPermission: () => ({ permission: "default" }),
+  useSubscribeToPush: () => vi.fn(),
+}));
+
 vi.mock("@/hooks/use-invitations", () => ({
   useMySettings: (tripId: string) => mockUseMySettings(tripId),
   useUpdateMySettings: () => ({
@@ -87,7 +96,7 @@ describe("NotificationPreferences", () => {
 
     expect(
       screen.getByText(
-        "Notifications are sent in-app and via SMS to your phone number.",
+        "Notifications are sent in-app, via push, and via SMS to your phone number.",
       ),
     ).toBeDefined();
   });

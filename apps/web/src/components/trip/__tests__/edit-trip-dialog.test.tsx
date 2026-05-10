@@ -5,6 +5,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { EditTripDialog } from "../edit-trip-dialog";
 import type { Trip } from "@/hooks/use-trips";
 
+// Mock location autocomplete
+vi.mock("@/hooks/use-location-autocomplete", () => ({
+  useLocationAutocomplete: () => ({ data: [], isLoading: false }),
+}));
+
 // Mock sonner
 const mockToast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock("sonner", () => ({
@@ -855,7 +860,6 @@ describe("EditTripDialog", () => {
       expect(screen.getByLabelText(/destination/i)).toBeDefined();
       expect(screen.getByRole("button", { name: /start date/i })).toBeDefined();
       expect(screen.getByRole("button", { name: /end date/i })).toBeDefined();
-      expect(screen.getByLabelText(/trip timezone/i)).toBeDefined();
       expect(screen.getByLabelText(/description/i)).toBeDefined();
       expect(
         screen.getByLabelText(/allow members to add events/i),
