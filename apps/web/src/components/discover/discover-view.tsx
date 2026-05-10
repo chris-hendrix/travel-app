@@ -176,6 +176,22 @@ export function DiscoverView({ tripId, temperatureUnit }: DiscoverViewProps) {
   const hasNoDestination = !location;
   const hasResults = discover && !hasNoDestination;
 
+  // ── Empty: no destination set ─────────────────────────────────────────────
+  // Must check BEFORE isPending — when location is null, the discover query is
+  // disabled and TanStack Query v5 reports isPending=true (status "pending"
+  // with no fetch). If we checked isPending first we'd show infinite loading.
+
+  if (hasNoDestination) {
+    return (
+      <EmptyState
+        icon={Compass}
+        title="No destination set"
+        description="Set a trip destination to discover nearby places"
+        variant="card"
+      />
+    );
+  }
+
   // ── Loading state ─────────────────────────────────────────────────────────
 
   if (isPending) {
@@ -213,19 +229,6 @@ export function DiscoverView({ tripId, temperatureUnit }: DiscoverViewProps) {
           Retry
         </Button>
       </div>
-    );
-  }
-
-  // ── Empty: no destination set ─────────────────────────────────────────────
-
-  if (hasNoDestination) {
-    return (
-      <EmptyState
-        icon={Compass}
-        title="No destination set"
-        description="Set a trip destination to discover nearby places"
-        variant="card"
-      />
     );
   }
 
