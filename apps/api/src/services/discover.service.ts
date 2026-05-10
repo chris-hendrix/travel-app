@@ -258,6 +258,9 @@ export class DiscoverService implements IDiscoverService {
       popularity: null,
       price: null,
       rating: null,
+      website: null,
+      tel: null,
+      subcategory: null,
       eventId: null,
     });
   }

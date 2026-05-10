@@ -17,6 +17,9 @@ export interface POISuggestion {
   popularity: number | null;  // Premium-tier field (0-1), null in freePro
   price: number | null;       // Premium-tier field (1-4), null in freePro
   rating: number | null;      // Premium-tier field (0-10), null in freePro
+  website: string | null;     // Foursquare Pro: website
+  tel: string | null;         // Foursquare Pro: tel (local format)
+  subcategory: string | null; // categories[0].name (e.g. "Italian Restaurant")
   eventId: string | null;     // FK to events.id when converted to a trip event
 }
 
@@ -55,6 +58,6 @@ export const POI_CATEGORIES: POICategoryConfig[] = [
   {
     id: "nightlife",
     label: "Nightlife",
-    fsqCategoryIds: "4d4b7105d754a06376d81259",
+    fsqCategoryIds: "4bf58dd8d48988d116941735,4bf58dd8d48988d117941735,4bf58dd8d48988d118941735,4bf58dd8d48988d11b941735,4bf58dd8d48988d11d941735,4bf58dd8d48988d11e941735,4bf58dd8d48988d120941735,4bf58dd8d48988d121941735,4bf58dd8d48988d122941735",
   },
 ];

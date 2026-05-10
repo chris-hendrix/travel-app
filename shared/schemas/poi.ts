@@ -21,6 +21,9 @@ export const poiSuggestionSchema = z.object({
   popularity: z.number().nullable(),
   price: z.number().nullable(),
   rating: z.number().nullable(),
+  website: z.string().nullable(),
+  tel: z.string().nullable(),
+  subcategory: z.string().nullable(),
   eventId: z.string().nullable(),
 });
 
