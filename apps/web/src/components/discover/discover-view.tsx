@@ -301,13 +301,10 @@ export function DiscoverView({ tripId, temperatureUnit }: DiscoverViewProps) {
               <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <Icon className="w-4 h-4" />
                 {cat.label}
-                <span className="text-xs font-normal text-muted-foreground">
-                  ({pois.length})
-                </span>
               </h3>
 
-              {/* Horizontally scrollable row */}
-              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none snap-x snap-mandatory">
+              {/* Horizontally scrollable row with peek + fade */}
+              <div className="flex gap-3 overflow-x-auto pb-2 pr-10 scrollbar-none snap-x snap-mandatory [mask-image:linear-gradient(to_right,black_calc(100%-56px),transparent_100%)]">
                 {pois.map((poi) => (
                   <div key={poi.sourceId} className="snap-start">
                     <POICard poi={poi} onSelect={handlePOISelect} temperatureUnit={temperatureUnit} />
