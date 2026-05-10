@@ -9,7 +9,7 @@ import { apiRequest } from "@/lib/api";
 import { discoverKeys, discoverQueryOptions } from "./discover-queries";
 
 // Re-export for backward compatibility
-export { discoverKeys, discoverQueryOptions };
+export { discoverKeys };
 
 /**
  * Hook for fetching POI suggestions for a trip
@@ -17,37 +17,24 @@ export { discoverKeys, discoverQueryOptions };
  * Features:
  * - Automatic caching: Results are cached with ["discover", tripId] key
  * - Returns POI suggestions grouped by category
- * - Supports optional refresh param to force re-fetch from Foursquare
+ * - Changing lat/lon triggers re-fetch via the query key
  *
  * @param tripId - The ID of the trip to fetch POI suggestions for
- * @param refresh - Whether to force a refresh from the upstream API
+ * @param lat - Latitude for the search center
+ * @param lon - Longitude for the search center
+ * @param location - Optional location name
  * @returns Query object with data, loading, and error state
  */
-export function useDiscover(tripId: string, refresh = false) {
+export function useDiscover(
+  tripId: string,
+  lat: number | null,
+  lon: number | null,
+  location?: string,
+) {
   return useQuery({
-    ...discoverQueryOptions(tripId, refresh),
-    enabled: !!tripId,
+    ...discoverQueryOptions(tripId, lat, lon, location),
+    enabled: !!tripId && lat != null && lon != null,
   });
-}
-
-/**
- * Hook for manually refreshing the discover cache
- *
- * Invalidates the existing query and triggers a new fetch with refresh=true.
- *
- * @param tripId - The ID of the trip to refresh suggestions for
- * @returns An object with a refresh function
- */
-export function useRefreshDiscover(tripId: string) {
-  const queryClient = useQueryClient();
-
-  return {
-    refresh: () => {
-      queryClient.invalidateQueries({ queryKey: discoverKeys.trip(tripId) });
-      // Also fetch with refresh=true to bypass server cache
-      return queryClient.fetchQuery(discoverQueryOptions(tripId, true));
-    },
-  };
 }
 
 /**

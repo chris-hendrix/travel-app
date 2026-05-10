@@ -16,16 +16,27 @@ export const discoverKeys = {
  * Server caches results for 7 days; client considers 5-minute stale time.
  * Pass refresh=true to force an upstream Foursquare fetch.
  */
-export function discoverQueryOptions(tripId: string, refresh = false) {
+export function discoverQueryOptions(
+  tripId: string,
+  lat: number | null,
+  lon: number | null,
+  location?: string,
+  refresh = false,
+) {
   return queryOptions({
-    queryKey: [...discoverKeys.trip(tripId), { refresh }],
+    queryKey: [...discoverKeys.trip(tripId), { lat, lon, refresh }],
     staleTime: 5 * 60 * 1000, // 5 min (server caches for 7 days)
-    enabled: !!tripId,
+    enabled: !!tripId && lat != null && lon != null,
     queryFn: async ({ signal }) => {
+      const params = new URLSearchParams();
+      if (lat != null) params.set("lat", lat.toString());
+      if (lon != null) params.set("lon", lon.toString());
+      if (location) params.set("location", location);
+      if (refresh) params.set("refresh", "true");
       const response = await apiRequest<{
         success: true;
         data: POISuggestionsResponse;
-      }>(`/trips/${tripId}/discover?refresh=${refresh}`, { signal });
+      }>(`/trips/${tripId}/discover?${params}`, { signal });
       return response.data;
     },
   });

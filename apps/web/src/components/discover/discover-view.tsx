@@ -22,7 +22,6 @@ import { useTripDetail } from "@/hooks/use-trips";
 import { useEvents } from "@/hooks/use-events";
 import {
   useDiscover,
-  useRefreshDiscover,
   useConvertPOI,
 } from "@/hooks/use-discover";
 import { POICard } from "./poi-card";
@@ -60,8 +59,12 @@ export function DiscoverView({ tripId }: DiscoverViewProps) {
     isError,
     error,
     refetch,
-  } = useDiscover(tripId);
-  const { refresh } = useRefreshDiscover(tripId);
+  } = useDiscover(
+    tripId,
+    trip?.destinationLat ?? null,
+    trip?.destinationLon ?? null,
+    trip?.destination,
+  );
   const convertPOI = useConvertPOI(tripId);
 
   // ── Filter state ──────────────────────────────────────────────────────────
@@ -148,11 +151,11 @@ export function DiscoverView({ tripId }: DiscoverViewProps) {
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      await refresh();
+      await refetch();
     } finally {
       setIsRefreshing(false);
     }
-  }, [refresh]);
+  }, [refetch]);
 
   // ── Loading state ─────────────────────────────────────────────────────────
 
