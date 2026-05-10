@@ -124,7 +124,7 @@ describe("POIDetailSheet", () => {
     it("does not render website section when null", () => {
       render(
         <POIDetailSheet
-          poi={makePOI({ website: null })}
+          poi={makePOI({ website: null, tel: null })}
           open={true}
           onOpenChange={onOpenChange}
           onCreateEvent={onCreateEvent}

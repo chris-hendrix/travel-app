@@ -26,9 +26,9 @@ describe("LocationPickerSheet", () => {
     {
       id: "acc-no-coords",
       name: "No Coords Hotel",
-      address: "789 Oak St",
-      addressLat: 0,
-      addressLon: 0,
+      address: null,
+      addressLat: null,
+      addressLon: null,
     },
   ];
 

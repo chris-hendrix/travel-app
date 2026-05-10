@@ -74,10 +74,11 @@ describe("POICard", () => {
       expect(screen.getByText("3.1 mi")).toBeDefined();
     });
 
-    it("shows the correct category label", () => {
+    it("has a left border class for the correct category", () => {
       const poi = makePOI({ category: "nightlife" });
-      render(<POICard poi={poi} onSelect={onSelect} temperatureUnit={celsius} />);
-      expect(screen.getByText("Nightlife")).toBeDefined();
+      const { container } = render(<POICard poi={poi} onSelect={onSelect} temperatureUnit={celsius} />);
+      const card = container.querySelector("button");
+      expect(card?.className).toContain("border-l-event-nightlife");
     });
 
     it("renders subcategory when provided", () => {
@@ -101,6 +102,20 @@ describe("POICard", () => {
 
   });
 
+  describe("category colour mapping", () => {
+    it.each([
+      ["food_and_drink" as POICategoryKey, "border-l-event-food_and_drink"],
+      ["arts_and_entertainment" as POICategoryKey, "border-l-event-arts_and_entertainment"],
+      ["outdoors" as POICategoryKey, "border-l-event-outdoors"],
+      ["nightlife" as POICategoryKey, "border-l-event-nightlife"],
+    ])("renders %s category with correct left border colour", (category, expectedClass) => {
+      const poi = makePOI({ category });
+      const { container } = render(<POICard poi={poi} onSelect={onSelect} temperatureUnit={celsius} />);
+      const card = container.querySelector("button");
+      expect(card?.className).toContain(expectedClass);
+    });
+  });
+
   describe("interaction", () => {
     it("calls onSelect when clicked", async () => {
       const user = userEvent.setup();
@@ -117,20 +132,6 @@ describe("POICard", () => {
       render(<POICard poi={makePOI()} onSelect={onSelect} temperatureUnit={celsius} />);
       const button = screen.getByRole("button");
       expect(button.tagName).toBe("BUTTON");
-    });
-  });
-
-  describe("category colour mapping", () => {
-    it.each([
-      ["food_and_drink" as POICategoryKey, "border-l-event-food_and_drink"],
-      ["arts_and_entertainment" as POICategoryKey, "border-l-event-arts_and_entertainment"],
-      ["outdoors" as POICategoryKey, "border-l-event-outdoors"],
-      ["nightlife" as POICategoryKey, "border-l-event-nightlife"],
-    ])("renders %s category with correct left border colour", (category, expectedClass) => {
-      const poi = makePOI({ category });
-      const { container } = render(<POICard poi={poi} onSelect={onSelect} temperatureUnit={celsius} />);
-      const card = container.querySelector("button");
-      expect(card?.className).toContain(expectedClass);
     });
   });
 });

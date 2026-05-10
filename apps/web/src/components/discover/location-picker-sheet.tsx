@@ -19,8 +19,8 @@ interface LocationPickerSheetProps {
     id: string;
     name: string;
     address: string | null;
-    addressLat: number;
-    addressLon: number;
+    addressLat: number | null;
+    addressLon: number | null;
   }>;
   selectedLocation: { lat: number; lon: number; name: string };
   onSelect: (location: { lat: number; lon: number; name: string }) => void;
@@ -42,7 +42,8 @@ export function LocationPickerSheet({
   onSelect,
 }: LocationPickerSheetProps) {
   const validAccommodations = accommodations.filter(
-    (a) => a.addressLat != null && a.addressLon != null,
+    (a): a is typeof a & { addressLat: number; addressLon: number } =>
+      a.addressLat != null && a.addressLon != null,
   );
 
   const handleSelect = (location: {
