@@ -341,19 +341,21 @@ export function DiscoverView({ tripId, temperatureUnit }: DiscoverViewProps) {
             : null
         }
         accommodations={
-          accommodations?.map((acc) => ({
-            id: acc.id,
-            name: acc.name,
-            address: acc.address ?? null,
-            addressLat: acc.addressLat ?? 0,
-            addressLon: acc.addressLon ?? 0,
-          })) ?? []
+          accommodations
+            ?.filter((acc) => acc.addressLat != null && acc.addressLon != null)
+            .map((acc) => ({
+              id: acc.id,
+              name: acc.name,
+              address: acc.address ?? null,
+              addressLat: acc.addressLat!,
+              addressLon: acc.addressLon!,
+            })) ?? []
         }
-        selectedLocation={{
-          lat: location?.lat ?? 0,
-          lon: location?.lon ?? 0,
-          name: location?.name ?? "",
-        }}
+        selectedLocation={
+          location
+            ? { lat: location.lat, lon: location.lon, name: location.name }
+            : { lat: 0, lon: 0, name: "" }
+        }
         onSelect={(loc) => {
           setSelectedLocation({
             lat: loc.lat,
