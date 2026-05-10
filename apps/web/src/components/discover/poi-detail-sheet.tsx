@@ -113,11 +113,11 @@ function POIDetailBody({
             href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(poi.address)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors min-w-0"
           >
             <MapPin className="w-3.5 h-3.5 shrink-0" />
-            <span>{poi.address}</span>
-            <span className="text-xs opacity-60">Google Maps</span>
+            <span className="truncate min-w-0">{poi.address}</span>
+            <span className="text-xs opacity-60 shrink-0">Google Maps</span>
           </a>
         )}
 
@@ -131,20 +131,20 @@ function POIDetailBody({
             href={poi.website}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors min-w-0"
           >
             <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-            <span className="truncate">{poi.website}</span>
+            <span className="truncate min-w-0">{poi.website}</span>
           </a>
         )}
 
         {poi.tel && (
           <a
             href={`tel:${poi.tel}`}
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
           >
             <Phone className="w-3.5 h-3.5 shrink-0" />
-            {poi.tel}
+            <span className="truncate">{poi.tel}</span>
           </a>
         )}
       </div>
