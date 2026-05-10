@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Calendar, Car, Globe, PlaneLanding, Plus, Building2, Palette, TreePine, Sparkles, Utensils, type LucideIcon } from "lucide-react";
+import { Calendar, Globe, PlaneLanding, Plus, Building2, Eye, EyeOff } from "lucide-react";
 import { getTimezoneAbbr } from "@/lib/constants";
 import { useMounted } from "@/hooks/use-mounted";
 import { useMemberTravels } from "@/hooks/use-member-travel";
@@ -18,27 +18,9 @@ import { CreateEventDialog } from "./create-event-dialog";
 import { CreateAccommodationDialog } from "./create-accommodation-dialog";
 import { CreateMemberTravelDialog } from "./create-member-travel-dialog";
 
-export type ItineraryFilterCategory = "misc" | "food_and_drink" | "travel" | "members" | "arts_and_entertainment" | "outdoors" | "nightlife";
-export type ItineraryFilter = Set<ItineraryFilterCategory>;
-export const ALL_FILTER_CATEGORIES: ItineraryFilterCategory[] = [
-  "misc", "food_and_drink", "travel", "members",
-  "arts_and_entertainment", "outdoors", "nightlife"
-];
-
-
-const FILTER_OPTIONS: { value: ItineraryFilterCategory; label: string; icon: LucideIcon }[] = [
-  { value: "food_and_drink", label: "Food & Drink", icon: Utensils },
-  { value: "arts_and_entertainment", label: "Arts", icon: Palette },
-  { value: "outdoors", label: "Outdoors", icon: TreePine },
-  { value: "nightlife", label: "Nightlife", icon: Sparkles },
-  { value: "travel", label: "Travel", icon: Car },
-  { value: "misc", label: "Misc", icon: Calendar },
-  { value: "members", label: "Members", icon: PlaneLanding },
-];
-
 interface ItineraryHeaderProps {
-  filter: ItineraryFilter;
-  onToggleFilter: (category: ItineraryFilterCategory) => void;
+  showMemberTravel: boolean;
+  onToggleMemberTravel: () => void;
   selectedTimezone: string;
   onTimezoneChange: (tz: string) => void;
   tripTimezone: string;
@@ -56,8 +38,8 @@ interface ItineraryHeaderProps {
 }
 
 export function ItineraryHeader({
-  filter,
-  onToggleFilter,
+  showMemberTravel,
+  onToggleMemberTravel,
   selectedTimezone,
   onTimezoneChange,
   tripTimezone,
@@ -99,23 +81,25 @@ export function ItineraryHeader({
       >
         <div className="max-w-5xl mx-auto">
           <div className="flex items-center justify-between gap-3">
-            {/* Filter pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto">
-              {FILTER_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => onToggleFilter(opt.value)}
-                  className={cn(
-                    "inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors shrink-0 cursor-pointer",
-                    filter.has(opt.value)
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground",
-                  )}
-                >
-                  <opt.icon className="w-3.5 h-3.5" />
-                </button>
-              ))}
+            {/* Member travel toggle */}
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={onToggleMemberTravel}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors shrink-0 cursor-pointer",
+                  showMemberTravel
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground",
+                )}
+              >
+                {showMemberTravel ? (
+                  <Eye className="w-3.5 h-3.5" />
+                ) : (
+                  <EyeOff className="w-3.5 h-3.5" />
+                )}
+                Member travel
+              </button>
             </div>
 
             {/* Timezone toggle */}

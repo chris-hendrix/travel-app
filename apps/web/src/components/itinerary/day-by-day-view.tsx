@@ -33,8 +33,6 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 
-import type { ItineraryFilter } from "./itinerary-header";
-
 interface DayByDayViewProps {
   events: Event[];
   memberTravels: MemberTravel[];
@@ -49,7 +47,7 @@ interface DayByDayViewProps {
   isLocked?: boolean;
   forecasts?: DailyForecast[];
   temperatureUnit?: TemperatureUnit;
-  filter?: ItineraryFilter;
+  showMemberTravel?: boolean;
   tripId?: string;
   daySuggestions?: Map<string, SuggestionCardType[]>;
   onDismissSuggestion?: (suggestionType: string, suggestionKey: string) => void;
@@ -86,7 +84,7 @@ export function DayByDayView({
   isLocked,
   forecasts,
   temperatureUnit,
-  filter,
+  showMemberTravel,
   tripId,
   daySuggestions,
   onDismissSuggestion,
@@ -231,22 +229,15 @@ export function DayByDayView({
     tripEndDate,
   ]);
 
-  // Apply filter to day data
-  const allActive = !filter || filter.size === 7;
+  // Show/hide member travel arrival/departure rows
   const filteredDayData = useMemo(() => {
-    if (allActive) return dayData;
-
-    const showMembers = filter!.has("members");
-    const eventTypes = new Set(
-      (["food_and_drink", "arts_and_entertainment", "outdoors", "nightlife", "misc", "travel"] as const).filter((t) => filter!.has(t)),
-    );
+    if (showMemberTravel) return dayData;
 
     return dayData
       .map((day) => ({
         ...day,
-        events: day.events.filter((e) => eventTypes.has(e.eventType as "food_and_drink" | "arts_and_entertainment" | "outdoors" | "nightlife" | "misc" | "travel")),
-        arrivals: showMembers ? day.arrivals : [],
-        departures: showMembers ? day.departures : [],
+        arrivals: [],
+        departures: [],
       }))
       .filter(
         (day) =>
@@ -254,7 +245,7 @@ export function DayByDayView({
           day.arrivals.length > 0 ||
           day.departures.length > 0,
       );
-  }, [dayData, filter, allActive]);
+  }, [dayData, showMemberTravel]);
 
   // Detail sheet state
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
@@ -459,9 +450,7 @@ export function DayByDayView({
       {filteredDayData.length === 0 && (
         <div className="bg-card rounded-md border border-border p-8 text-center">
           <p className="text-muted-foreground">
-            {!allActive
-              ? "No matching items for this filter."
-              : "No trip dates set. Set trip dates to see a day-by-day view."}
+            No trip dates set. Set trip dates to see a day-by-day view.
           </p>
         </div>
       )}

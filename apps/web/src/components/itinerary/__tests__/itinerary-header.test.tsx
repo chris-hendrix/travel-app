@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ItineraryHeader, ALL_FILTER_CATEGORIES } from "../itinerary-header";
+import { ItineraryHeader } from "../itinerary-header";
 
 // Mock useAuth (required by CreateMemberTravelDialog rendered inside ItineraryHeader)
 vi.mock("@/app/providers/auth-provider", () => ({
@@ -57,8 +57,8 @@ describe("ItineraryHeader", () => {
   let queryClient: QueryClient;
 
   const defaultProps = {
-    filter: new Set(ALL_FILTER_CATEGORIES),
-    onToggleFilter: vi.fn(),
+    showMemberTravel: true,
+    onToggleMemberTravel: vi.fn(),
     selectedTimezone: "America/Los_Angeles",
     onTimezoneChange: vi.fn(),
     tripTimezone: "America/Los_Angeles",
@@ -85,51 +85,57 @@ describe("ItineraryHeader", () => {
   };
 
   describe("Rendering", () => {
-    it("renders filter pills", () => {
+    it("renders member travel toggle", () => {
       renderWithQueryClient(<ItineraryHeader {...defaultProps} />);
 
-      expect(screen.getByText("All")).toBeDefined();
+      expect(screen.getByText("Member travel")).toBeDefined();
     });
 
-    it("renders timezone settings button", () => {
-      renderWithQueryClient(<ItineraryHeader {...defaultProps} />);
+    it("shows eye icon when member travel is visible", () => {
+      renderWithQueryClient(
+        <ItineraryHeader {...defaultProps} showMemberTravel={true} />,
+      );
+
+      const toggle = screen.getByText("Member travel");
+      expect(toggle.className).toContain("bg-primary");
+    });
+
+    it("shows eye-off icon when member travel is hidden", () => {
+      renderWithQueryClient(
+        <ItineraryHeader {...defaultProps} showMemberTravel={false} />,
+      );
+
+      const toggle = screen.getByText("Member travel");
+      expect(toggle.className).toContain("bg-muted");
+    });
+
+    it("renders timezone toggle button", () => {
+      renderWithQueryClient(
+        <ItineraryHeader {...defaultProps} tripTimezone="UTC" userTimezone="America/New_York" />,
+      );
 
       expect(
-        screen.getByRole("button", { name: "Timezone settings" }),
+        screen.getByRole("button", { name: /switch to/i }),
       ).toBeDefined();
     });
   });
 
-  describe("Filter pills", () => {
-    it("highlights all pills when all categories are active", () => {
-      renderWithQueryClient(
-        <ItineraryHeader {...defaultProps} filter={new Set(ALL_FILTER_CATEGORIES)} />,
-      );
-
-      // All 4 category pills should be highlighted
-      const buttons = screen.getAllByRole("button");
-      const pills = buttons.slice(0, 4);
-      pills.forEach((pill) => {
-        expect(pill.className).toContain("bg-primary");
-      });
-    });
-
-    it("calls onToggleFilter when a filter pill is clicked", async () => {
+  describe("Member travel toggle", () => {
+    it("calls onToggleMemberTravel when clicked", async () => {
       const user = userEvent.setup({ pointerEventsCheck: 0 });
-      const onToggleFilter = vi.fn();
+      const onToggleMemberTravel = vi.fn();
 
       renderWithQueryClient(
         <ItineraryHeader
           {...defaultProps}
-          onToggleFilter={onToggleFilter}
+          onToggleMemberTravel={onToggleMemberTravel}
         />,
       );
 
-      // Click the first filter pill (Activity)
-      const buttons = screen.getAllByRole("button");
-      await user.click(buttons[0]!);
+      const toggle = screen.getByText("Member travel");
+      await user.click(toggle);
 
-      expect(onToggleFilter).toHaveBeenCalledWith("misc");
+      expect(onToggleMemberTravel).toHaveBeenCalledOnce();
     });
   });
 

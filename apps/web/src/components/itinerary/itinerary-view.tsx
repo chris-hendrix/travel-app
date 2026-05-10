@@ -17,7 +17,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTripDetail } from "@/hooks/use-trips";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ItineraryHeader, ALL_FILTER_CATEGORIES, type ItineraryFilter, type ItineraryFilterCategory } from "./itinerary-header";
+import { ItineraryHeader } from "./itinerary-header";
 import { DayByDayView } from "./day-by-day-view";
 import { CreateEventDialog } from "./create-event-dialog";
 import { CreateAccommodationDialog } from "./create-accommodation-dialog";
@@ -127,21 +127,11 @@ export function ItineraryView({
     allAccommodations.some((a) => a.deletedAt !== null) ||
     allMemberTravels.some((t) => t.deletedAt !== null);
 
-  // Filter state — default all categories active
-  const [filter, setFilter] = useState<ItineraryFilter>(() => new Set(ALL_FILTER_CATEGORIES));
+  // Show/hide member travel
+  const [showMemberTravel, setShowMemberTravel] = useState(true);
 
-  const handleToggleFilter = useCallback((category: ItineraryFilterCategory) => {
-    setFilter((prev) => {
-      const next = new Set(prev);
-      if (next.has(category)) {
-        next.delete(category);
-        // If last one deselected, snap back to all
-        if (next.size === 0) return new Set(ALL_FILTER_CATEGORIES);
-      } else {
-        next.add(category);
-      }
-      return next;
-    });
+  const handleToggleMemberTravel = useCallback(() => {
+    setShowMemberTravel((prev) => !prev);
   }, []);
   const tripTimezone = trip?.preferredTimezone || "UTC";
   const userTimezone =
@@ -332,10 +322,10 @@ export function ItineraryView({
 
   return (
     <div>
-      {/* Header with filter pills + timezone */}
+      {/* Header with member travel toggle + timezone */}
       <ItineraryHeader
-        filter={filter}
-        onToggleFilter={handleToggleFilter}
+        showMemberTravel={showMemberTravel}
+        onToggleMemberTravel={handleToggleMemberTravel}
         selectedTimezone={selectedTimezone}
         onTimezoneChange={setSelectedTimezone}
         tripTimezone={tripTimezone}
@@ -393,7 +383,7 @@ export function ItineraryView({
           isLocked={isLocked}
           forecasts={forecasts ?? []}
           temperatureUnit={temperatureUnit ?? "fahrenheit"}
-          filter={filter}
+          showMemberTravel={showMemberTravel}
           tripId={tripId}
           daySuggestions={daySuggestions}
           onDismissSuggestion={handleDismiss}
