@@ -6,7 +6,7 @@ import type { AppDatabase } from "@/types/index.js";
 import type { FastifyBaseLogger } from "fastify";
 
 export interface IDiscoverService {
-  getDiscoverPOIs(tripId: string, refresh?: boolean): Promise<POISuggestionsResponse>;
+  getDiscoverPOIs(tripId: string, lat: number, lon: number, location: string | null, refresh?: boolean): Promise<POISuggestionsResponse>;
   convertPOI(tripId: string, sourceId: string, eventId: string): Promise<void>;
 }
 
@@ -22,6 +22,8 @@ type FsqPlace = {
   latitude: number;
   longitude: number;
   distance: number;
+  website?: string;
+  tel?: string;
   location: { formatted_address?: string };
   categories: Array<{ name: string }>;
 };
@@ -35,15 +37,10 @@ export class DiscoverService implements IDiscoverService {
     private readonly log: FastifyBaseLogger,
   ) {}
 
-  async getDiscoverPOIs(tripId: string, refresh = false): Promise<POISuggestionsResponse> {
-    // 1. Read trip destination
+  async getDiscoverPOIs(tripId: string, lat: number, lon: number, location: string | null, refresh = false): Promise<POISuggestionsResponse> {
+    // 1. Verify trip exists
     const [trip] = await this.db
-      .select({
-        destination: trips.destination,
-        destinationLat: trips.destinationLat,
-        destinationLon: trips.destinationLon,
-        destinationDisplayName: trips.destinationDisplayName,
-      })
+      .select({ id: trips.id })
       .from(trips)
       .where(eq(trips.id, tripId));
 
@@ -51,10 +48,9 @@ export class DiscoverService implements IDiscoverService {
       return emptyResponse(null);
     }
 
-    // 2. Check if destination has coords
-    const { destination, destinationLat, destinationLon, destinationDisplayName } = trip;
-    if (destinationLat == null || destinationLon == null) {
-      return emptyResponse(destinationDisplayName ?? destination ?? null);
+    // 2. If no coordinates provided, return empty
+    if (lat == null || lon == null) {
+      return emptyResponse(location);
     }
 
     // 3. Check cache
@@ -71,40 +67,30 @@ export class DiscoverService implements IDiscoverService {
         // Stale cache detection: if destination coords changed, treat as cache miss
         const DEST_COORD_EPSILON = 0.001; // ~111 meters
         if (
-          Math.abs(row.searchLat - destinationLat) > DEST_COORD_EPSILON ||
-          Math.abs(row.searchLon - destinationLon) > DEST_COORD_EPSILON
+          Math.abs(row.searchLat - lat) > DEST_COORD_EPSILON ||
+          Math.abs(row.searchLon - lon) > DEST_COORD_EPSILON
         ) {
           this.log.info(
             {
               tripId,
               oldLat: row.searchLat,
               oldLon: row.searchLon,
-              newLat: destinationLat,
-              newLon: destinationLon,
+              newLat: lat,
+              newLon: lon,
             },
             "Destination changed, refreshing POI cache",
           );
-          return this.fetchAndCache(
-            tripId,
-            destinationDisplayName ?? destination ?? null,
-            destinationLat,
-            destinationLon,
-          );
+          return this.fetchAndCache(tripId, location, lat, lon);
         }
 
         // Filter out converted POIs
         const unconverted = suggestions.filter((s) => s.eventId == null);
-        return groupByCategory(unconverted, destinationDisplayName ?? destination ?? null);
+        return groupByCategory(unconverted, location);
       }
     }
 
     // 4. Fetch from Foursquare
-    return this.fetchAndCache(
-      tripId,
-      destinationDisplayName ?? destination ?? null,
-      destinationLat,
-      destinationLon,
-    );
+    return this.fetchAndCache(tripId, location, lat, lon);
   }
 
   private async fetchAndCache(
@@ -139,7 +125,7 @@ export class DiscoverService implements IDiscoverService {
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 5000);
 
-          const url = `${FOURSQUARE_BASE}?ll=${lat},${lon}&radius=${RADIUS}&fsq_category_ids=${cat.fsqCategoryIds}&sort=POPULARITY&limit=${LIMIT}`;
+          const url = `${FOURSQUARE_BASE}?ll=${lat},${lon}&radius=${RADIUS}&fsq_category_ids=${cat.fsqCategoryIds}&sort=POPULARITY&limit=${LIMIT}&exclude_all_chains=true`;
           const resp = await fetch(url, {
             signal: controller.signal,
             headers: {
@@ -258,9 +244,9 @@ export class DiscoverService implements IDiscoverService {
       popularity: null,
       price: null,
       rating: null,
-      website: null,
-      tel: null,
-      subcategory: null,
+      website: p.website ?? null,
+      tel: p.tel ?? null,
+      subcategory: p.categories?.[0]?.name ?? null,
       eventId: null,
     });
   }

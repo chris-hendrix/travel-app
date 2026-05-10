@@ -10,6 +10,9 @@ const tripIdParams = z.object({
 });
 
 const discoverQuerySchema = z.object({
+  lat: z.coerce.number(),
+  lon: z.coerce.number(),
+  location: z.string().optional(),
   refresh: z.coerce.boolean().optional(),
 });
 
@@ -24,7 +27,7 @@ export async function discoverRoutes(fastify: FastifyInstance) {
    * Get POI suggestions for a trip's destination
    * Requires authentication and trip membership
    */
-  fastify.get<{ Params: { tripId: string }; Querystring: { refresh?: boolean } }>(
+  fastify.get<{ Params: { tripId: string }; Querystring: { lat: number; lon: number; location?: string; refresh?: boolean } }>(
     "/trips/:tripId/discover",
     {
       preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate],
@@ -41,7 +44,7 @@ export async function discoverRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       const { tripId } = request.params;
-      const { refresh } = request.query;
+      const { lat, lon, location, refresh } = request.query;
       const userId = request.user.sub;
 
       // Check FOURSQUARE_API_KEY is configured
@@ -66,6 +69,9 @@ export async function discoverRoutes(fastify: FastifyInstance) {
 
       const result = await request.server.discoverService.getDiscoverPOIs(
         tripId,
+        lat,
+        lon,
+        location ?? null,
         refresh,
       );
 

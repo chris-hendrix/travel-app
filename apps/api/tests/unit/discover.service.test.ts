@@ -18,6 +18,9 @@ function makeSuggestion(overrides: Partial<POISuggestion> = {}): POISuggestion {
     popularity: null,
     price: null,
     rating: null,
+    website: null,
+    tel: null,
+    subcategory: null,
     eventId: null,
     ...overrides,
   };
@@ -98,14 +101,7 @@ describe("DiscoverService", () => {
       const poi2 = makeSuggestion({ sourceId: "fsq-2", name: "Bar Two", category: "nightlife" });
 
       // Trip query
-      mockDb.where.mockResolvedValueOnce([
-        {
-          destination: "Paris",
-          destinationLat: 48.8566,
-          destinationLon: 2.3522,
-          destinationDisplayName: "Paris, France",
-        },
-      ]);
+      mockDb.where.mockResolvedValueOnce([{ id: TRIP_ID }]);
       // Cache query
       mockDb.where.mockResolvedValueOnce([
         {
@@ -119,7 +115,7 @@ describe("DiscoverService", () => {
         },
       ]);
 
-      const result = await service.getDiscoverPOIs(TRIP_ID);
+      const result = await service.getDiscoverPOIs(TRIP_ID, 48.8566, 2.3522, "Paris, France");
 
       expect(result.destination).toBe("Paris, France");
       expect(result.source).toBe("foursquare");
@@ -140,14 +136,7 @@ describe("DiscoverService", () => {
         eventId: "event-999",
       });
 
-      mockDb.where.mockResolvedValueOnce([
-        {
-          destination: "Paris",
-          destinationLat: 48.8566,
-          destinationLon: 2.3522,
-          destinationDisplayName: "Paris",
-        },
-      ]);
+      mockDb.where.mockResolvedValueOnce([{ id: TRIP_ID }]);
       mockDb.where.mockResolvedValueOnce([
         {
           tripId: TRIP_ID,
@@ -160,7 +149,7 @@ describe("DiscoverService", () => {
         },
       ]);
 
-      const result = await service.getDiscoverPOIs(TRIP_ID);
+      const result = await service.getDiscoverPOIs(TRIP_ID, 48.8566, 2.3522, "Paris");
 
       // Only the unconverted POI should appear
       expect(result.categories.food_and_drink).toHaveLength(1);
@@ -174,20 +163,13 @@ describe("DiscoverService", () => {
   describe("Foursquare fetch", () => {
     it("fetches from Foursquare on first load (no cache)", async () => {
       // Trip query
-      mockDb.where.mockResolvedValueOnce([
-        {
-          destination: "Paris",
-          destinationLat: 48.8566,
-          destinationLon: 2.3522,
-          destinationDisplayName: "Paris",
-        },
-      ]);
+      mockDb.where.mockResolvedValueOnce([{ id: TRIP_ID }]);
       // No cache
       mockDb.where.mockResolvedValueOnce([]);
       // fetchAndCache: existing cache is also empty
       mockDb.where.mockResolvedValueOnce([]);
 
-      const result = await service.getDiscoverPOIs(TRIP_ID);
+      const result = await service.getDiscoverPOIs(TRIP_ID, 48.8566, 2.3522, "Paris");
 
       expect(result.source).toBe("foursquare");
       expect(fetchSpy).toHaveBeenCalledTimes(4); // 4 category calls
@@ -199,14 +181,7 @@ describe("DiscoverService", () => {
 
     it("re-fetches on refresh=true", async () => {
       // Trip query
-      mockDb.where.mockResolvedValueOnce([
-        {
-          destination: "Paris",
-          destinationLat: 48.8566,
-          destinationLon: 2.3522,
-          destinationDisplayName: "Paris",
-        },
-      ]);
+      mockDb.where.mockResolvedValueOnce([{ id: TRIP_ID }]);
       // fetchAndCache: existing cache contains converted POI
       mockDb.where.mockResolvedValueOnce([
         {
@@ -224,7 +199,7 @@ describe("DiscoverService", () => {
       // fetchAndCache: insert succeeds
       mockDb.onConflictDoUpdate.mockResolvedValueOnce(undefined);
 
-      const result = await service.getDiscoverPOIs(TRIP_ID, true);
+      const result = await service.getDiscoverPOIs(TRIP_ID, 48.8566, 2.3522, "Paris", true);
 
       expect(result.source).toBe("foursquare");
       // Should fetch from Foursquare (refresh bypasses cache read)
@@ -234,14 +209,7 @@ describe("DiscoverService", () => {
 
     it("preserves converted POIs on refresh", async () => {
       // Trip query
-      mockDb.where.mockResolvedValueOnce([
-        {
-          destination: "Paris",
-          destinationLat: 48.8566,
-          destinationLon: 2.3522,
-          destinationDisplayName: "Paris",
-        },
-      ]);
+      mockDb.where.mockResolvedValueOnce([{ id: TRIP_ID }]);
       // fetchAndCache: existing cache with converted POI
       const converted = makeSuggestion({
         sourceId: "fsq-converted",
@@ -261,7 +229,7 @@ describe("DiscoverService", () => {
       ]);
       mockDb.onConflictDoUpdate.mockResolvedValueOnce(undefined);
 
-      const result = await service.getDiscoverPOIs(TRIP_ID, true);
+      const result = await service.getDiscoverPOIs(TRIP_ID, 48.8566, 2.3522, "Paris", true);
 
       expect(result.source).toBe("foursquare");
       expect(fetchSpy).toHaveBeenCalledTimes(4);
@@ -281,14 +249,7 @@ describe("DiscoverService", () => {
 
   describe("error handling", () => {
     it("handles partial Foursquare failure (some categories fail)", async () => {
-      mockDb.where.mockResolvedValueOnce([
-        {
-          destination: "Paris",
-          destinationLat: 48.8566,
-          destinationLon: 2.3522,
-          destinationDisplayName: "Paris",
-        },
-      ]);
+      mockDb.where.mockResolvedValueOnce([{ id: TRIP_ID }]);
       mockDb.where.mockResolvedValueOnce([]);
       mockDb.where.mockResolvedValueOnce([]);
       mockDb.onConflictDoUpdate.mockResolvedValueOnce(undefined);
@@ -315,7 +276,7 @@ describe("DiscoverService", () => {
         .mockResolvedValueOnce({ ok: false, status: 429 })
         .mockResolvedValueOnce({ ok: false, status: 500 });
 
-      const result = await service.getDiscoverPOIs(TRIP_ID);
+      const result = await service.getDiscoverPOIs(TRIP_ID, 48.8566, 2.3522, "Paris");
 
       expect(result.source).toBe("foursquare");
       expect(result.partial).toBe(true);
@@ -328,21 +289,14 @@ describe("DiscoverService", () => {
     });
 
     it("handles all Foursquare calls failing", async () => {
-      mockDb.where.mockResolvedValueOnce([
-        {
-          destination: "Paris",
-          destinationLat: 48.8566,
-          destinationLon: 2.3522,
-          destinationDisplayName: "Paris",
-        },
-      ]);
+      mockDb.where.mockResolvedValueOnce([{ id: TRIP_ID }]);
       mockDb.where.mockResolvedValueOnce([]);
       mockDb.where.mockResolvedValueOnce([]);
 
       // All 4 fetch calls fail
       fetchSpy.mockResolvedValue({ ok: false, status: 500 });
 
-      const result = await service.getDiscoverPOIs(TRIP_ID);
+      const result = await service.getDiscoverPOIs(TRIP_ID, 48.8566, 2.3522, "Paris");
 
       // Categories should be empty
       expect(result.categories.food_and_drink).toHaveLength(0);
@@ -357,18 +311,11 @@ describe("DiscoverService", () => {
   // ── 4. Edge cases ──────────────────────────────────────────────────────────
 
   describe("edge cases", () => {
-    it("returns empty for missing destination coords", async () => {
-      // Trip with no lat/lon
-      mockDb.where.mockResolvedValueOnce([
-        {
-          destination: null,
-          destinationLat: null,
-          destinationLon: null,
-          destinationDisplayName: null,
-        },
-      ]);
+    it("returns empty when lat/lon are not provided", async () => {
+      // Trip exists
+      mockDb.where.mockResolvedValueOnce([{ id: TRIP_ID }]);
 
-      const result = await service.getDiscoverPOIs(TRIP_ID);
+      const result = await service.getDiscoverPOIs(TRIP_ID, null as any, null as any, null);
 
       expect(result.categories.food_and_drink).toHaveLength(0);
       expect(result.categories.arts_and_entertainment).toHaveLength(0);
@@ -377,16 +324,9 @@ describe("DiscoverService", () => {
       expect(fetchSpy).not.toHaveBeenCalled();
     });
 
-    it("auto-refreshes when destination coords change (stale cache)", async () => {
-      // Trip query — NEW destination coords (London)
-      mockDb.where.mockResolvedValueOnce([
-        {
-          destination: "London",
-          destinationLat: 51.5074,
-          destinationLon: -0.1278,
-          destinationDisplayName: "London, UK",
-        },
-      ]);
+    it("auto-refreshes when passed coords differ from cache (stale cache)", async () => {
+      // Trip exists
+      mockDb.where.mockResolvedValueOnce([{ id: TRIP_ID }]);
       // Cache query — OLD coords (Paris)
       const oldSuggestion = makeSuggestion({
         sourceId: "fsq-old",
@@ -427,9 +367,9 @@ describe("DiscoverService", () => {
         }),
       });
 
-      const result = await service.getDiscoverPOIs(TRIP_ID);
+      const result = await service.getDiscoverPOIs(TRIP_ID, 51.5074, -0.1278, "London, UK");
 
-      // Should have detected stale cache (Paris → London) and re-fetched
+      // Should have detected stale cache (Paris coords in cache → London coords passed) and re-fetched
       expect(result.destination).toBe("London, UK");
       expect(fetchSpy).toHaveBeenCalledTimes(4);
       expect(mockLog.info).toHaveBeenCalledWith(
@@ -449,16 +389,9 @@ describe("DiscoverService", () => {
     });
 
     it("does not treat small coord diffs as stale (within epsilon)", async () => {
-      // Trip query — slightly different coords but within epsilon
-      mockDb.where.mockResolvedValueOnce([
-        {
-          destination: "Paris",
-          destinationLat: 48.8567, // 0.0001 diff
-          destinationLon: 2.3523, // 0.0001 diff
-          destinationDisplayName: "Paris, France",
-        },
-      ]);
-      // Cache query
+      // Trip exists
+      mockDb.where.mockResolvedValueOnce([{ id: TRIP_ID }]);
+      // Cache query — slightly different coords but within epsilon
       mockDb.where.mockResolvedValueOnce([
         {
           tripId: TRIP_ID,
@@ -471,7 +404,7 @@ describe("DiscoverService", () => {
         },
       ]);
 
-      const result = await service.getDiscoverPOIs(TRIP_ID);
+      const result = await service.getDiscoverPOIs(TRIP_ID, 48.8567, 2.3523, "Paris, France");
 
       // Should use cached data, not re-fetch
       expect(result.destination).toBe("Paris, France");
