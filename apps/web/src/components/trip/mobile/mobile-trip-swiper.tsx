@@ -66,6 +66,7 @@ export const MobileTripSwiper = forwardRef<
       spaceBetween={0}
       speed={300}
       allowTouchMove={allowTouchMove}
+      noSwipingClass="no-swipe"
       hashNavigation={{ replaceState: true, watchState: true }}
       onSwiper={handleSwiper}
       onSlideChange={handleSlideChange}

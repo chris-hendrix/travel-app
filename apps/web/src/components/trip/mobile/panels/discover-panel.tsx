@@ -10,6 +10,8 @@ interface DiscoverPanelProps {
 
 export function DiscoverPanel({ tripId, temperatureUnit }: DiscoverPanelProps) {
   return (
-    <DiscoverView tripId={tripId} temperatureUnit={temperatureUnit} />
+    <div className="px-4 pt-4">
+      <DiscoverView tripId={tripId} temperatureUnit={temperatureUnit} />
+    </div>
   );
 }
