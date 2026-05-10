@@ -80,10 +80,16 @@ describe("POICard", () => {
       expect(screen.getByText("Nightlife")).toBeDefined();
     });
 
-    it("has a fixed height class", () => {
-      const { container } = render(<POICard poi={makePOI()} onSelect={onSelect} temperatureUnit={celsius} />);
-      const card = container.querySelector("button");
-      expect(card?.className).toContain("h-28");
+    it("renders subcategory when provided", () => {
+      const poi = makePOI({ subcategory: "Italian Restaurant" });
+      render(<POICard poi={poi} onSelect={onSelect} temperatureUnit={celsius} />);
+      expect(screen.getByText("Italian Restaurant")).toBeDefined();
+    });
+
+    it("does not render subcategory when null", () => {
+      const poi = makePOI({ subcategory: null });
+      render(<POICard poi={poi} onSelect={onSelect} temperatureUnit={celsius} />);
+      expect(screen.queryByText("Italian Restaurant")).toBeNull();
     });
 
     it("has a left border class for the correct category", () => {

@@ -29,10 +29,14 @@ const celsius: TemperatureUnit = "celsius";
 describe("POIDetailSheet", () => {
   const onCreateEvent = vi.fn();
   const onOpenChange = vi.fn();
+  const onPrev = vi.fn();
+  const onNext = vi.fn();
 
   beforeEach(() => {
     onCreateEvent.mockClear();
     onOpenChange.mockClear();
+    onPrev.mockClear();
+    onNext.mockClear();
   });
 
   describe("rendering", () => {
@@ -44,6 +48,12 @@ describe("POIDetailSheet", () => {
           onOpenChange={onOpenChange}
           onCreateEvent={onCreateEvent}
           temperatureUnit={celsius}
+          onPrev={onPrev}
+          onNext={onNext}
+          hasPrev={false}
+          hasNext={false}
+          poiIndex={0}
+          totalPois={1}
         />,
       );
       expect(screen.getByText("Le Bistro Parisien")).toBeDefined();
@@ -58,6 +68,12 @@ describe("POIDetailSheet", () => {
           onOpenChange={onOpenChange}
           onCreateEvent={onCreateEvent}
           temperatureUnit={celsius}
+          onPrev={onPrev}
+          onNext={onNext}
+          hasPrev={false}
+          hasNext={false}
+          poiIndex={0}
+          totalPois={1}
         />,
       );
       const link = screen.getByText("456 Test St").closest("a");
@@ -73,6 +89,12 @@ describe("POIDetailSheet", () => {
           onOpenChange={onOpenChange}
           onCreateEvent={onCreateEvent}
           temperatureUnit={celsius}
+          onPrev={onPrev}
+          onNext={onNext}
+          hasPrev={false}
+          hasNext={false}
+          poiIndex={0}
+          totalPois={1}
         />,
       );
       expect(screen.getByText(/450/)).toBeDefined();
@@ -86,9 +108,15 @@ describe("POIDetailSheet", () => {
           onOpenChange={onOpenChange}
           onCreateEvent={onCreateEvent}
           temperatureUnit={celsius}
+          onPrev={onPrev}
+          onNext={onNext}
+          hasPrev={false}
+          hasNext={false}
+          poiIndex={0}
+          totalPois={1}
         />,
       );
-      const link = screen.getByText("https://example.com").closest("a");
+      const link = screen.getByText("example.com").closest("a");
       expect(link).toBeDefined();
       expect(link?.getAttribute("href")).toBe("https://example.com");
     });
@@ -101,6 +129,12 @@ describe("POIDetailSheet", () => {
           onOpenChange={onOpenChange}
           onCreateEvent={onCreateEvent}
           temperatureUnit={celsius}
+          onPrev={onPrev}
+          onNext={onNext}
+          hasPrev={false}
+          hasNext={false}
+          poiIndex={0}
+          totalPois={1}
         />,
       );
       // No ExternalLink icon should be present since website is null
@@ -119,6 +153,12 @@ describe("POIDetailSheet", () => {
           onOpenChange={onOpenChange}
           onCreateEvent={onCreateEvent}
           temperatureUnit={celsius}
+          onPrev={onPrev}
+          onNext={onNext}
+          hasPrev={false}
+          hasNext={false}
+          poiIndex={0}
+          totalPois={1}
         />,
       );
       const link = screen.getByText("+1 555-0199").closest("a");
@@ -133,6 +173,12 @@ describe("POIDetailSheet", () => {
           onOpenChange={onOpenChange}
           onCreateEvent={onCreateEvent}
           temperatureUnit={celsius}
+          onPrev={onPrev}
+          onNext={onNext}
+          hasPrev={false}
+          hasNext={false}
+          poiIndex={0}
+          totalPois={1}
         />,
       );
       expect(screen.getByText("Italian Restaurant")).toBeDefined();
@@ -146,6 +192,12 @@ describe("POIDetailSheet", () => {
           onOpenChange={onOpenChange}
           onCreateEvent={onCreateEvent}
           temperatureUnit={celsius}
+          onPrev={onPrev}
+          onNext={onNext}
+          hasPrev={false}
+          hasNext={false}
+          poiIndex={0}
+          totalPois={1}
         />,
       );
       expect(screen.queryByText("Italian Restaurant")).toBeNull();
@@ -159,6 +211,12 @@ describe("POIDetailSheet", () => {
           onOpenChange={onOpenChange}
           onCreateEvent={onCreateEvent}
           temperatureUnit={celsius}
+          onPrev={onPrev}
+          onNext={onNext}
+          hasPrev={false}
+          hasNext={false}
+          poiIndex={0}
+          totalPois={1}
         />,
       );
       // Should render without error
@@ -173,6 +231,12 @@ describe("POIDetailSheet", () => {
           onOpenChange={onOpenChange}
           onCreateEvent={onCreateEvent}
           temperatureUnit={celsius}
+          onPrev={onPrev}
+          onNext={onNext}
+          hasPrev={false}
+          hasNext={false}
+          poiIndex={0}
+          totalPois={1}
         />,
       );
       expect(
@@ -192,6 +256,12 @@ describe("POIDetailSheet", () => {
           onOpenChange={onOpenChange}
           onCreateEvent={onCreateEvent}
           temperatureUnit={celsius}
+          onPrev={onPrev}
+          onNext={onNext}
+          hasPrev={false}
+          hasNext={false}
+          poiIndex={0}
+          totalPois={1}
         />,
       );
       const button = screen.getByRole("button", { name: /create event/i });

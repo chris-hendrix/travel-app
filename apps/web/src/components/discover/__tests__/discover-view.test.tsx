@@ -251,9 +251,9 @@ describe("DiscoverView", () => {
   });
 
   describe("results", () => {
-    it("renders discover heading with destination", () => {
+    it("renders location picker with destination", () => {
       render(<DiscoverView tripId={TRIP_ID} temperatureUnit={celsius} />);
-      expect(screen.getByText("Discover")).toBeDefined();
+      expect(screen.getByText("near")).toBeDefined();
       expect(screen.getByText(/Paris, France/)).toBeDefined();
     });
 

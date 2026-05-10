@@ -130,21 +130,42 @@ export function DiscoverView({ tripId, temperatureUnit }: DiscoverViewProps) {
 
   // ── POI → Event flow ──────────────────────────────────────────────────────
 
-  const [selectedPOI, setSelectedPOI] = useState<POISuggestion | null>(null);
+  const [selectedPOIIndex, setSelectedPOIIndex] = useState<number | null>(null);
   const [isDetailSheetOpen, setIsDetailSheetOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [dialogJustClosed, setDialogJustClosed] = useState(0);
 
+  // Flatten all POIs for prev/next navigation
+  const allPois = useMemo(() => {
+    if (!discover) return [];
+    return POI_CATEGORIES.flatMap((cat) => discover.categories[cat.id] ?? []);
+  }, [discover]);
+
+  // Derive selectedPOI from index
+  const selectedPOI: POISuggestion | null =
+    selectedPOIIndex != null ? (allPois[selectedPOIIndex] ?? null) : null;
+
   const handlePOISelect = useCallback((poi: POISuggestion) => {
-    setSelectedPOI(poi);
+    const idx = allPois.findIndex((p) => p.sourceId === poi.sourceId);
+    setSelectedPOIIndex(idx >= 0 ? idx : null);
     setIsDetailSheetOpen(true);
+  }, [allPois]);
+
+  const handlePrev = useCallback(() => {
+    setSelectedPOIIndex((prev) => (prev != null ? Math.max(0, prev - 1) : 0));
   }, []);
 
+  const handleNext = useCallback(() => {
+    setSelectedPOIIndex((prev) =>
+      prev != null ? Math.min(allPois.length - 1, prev + 1) : 0,
+    );
+  }, [allPois.length]);
+
   // Called by POIDetailSheet when "Create Event" is clicked
-  const handleCreateEventFromDetail = useCallback((poi: POISuggestion) => {
+  const handleCreateEventFromDetail = useCallback((_poi: POISuggestion) => {
     setIsDetailSheetOpen(false);
-    setSelectedPOI(poi);
-    // Small delay to let the detail sheet close animation finish
+    // Keep poi in selectedPOI state for CreateEventDialog defaultValues
+    // selectedPOI is derived from selectedPOIIndex, which stays set
     setTimeout(() => setIsCreateDialogOpen(true), 150);
   }, []);
 
@@ -166,7 +187,7 @@ export function DiscoverView({ tripId, temperatureUnit }: DiscoverViewProps) {
           eventId: matchingEvent.id,
         });
       }
-      setSelectedPOI(null);
+      // Don't reset index — keep it for prev/next navigation
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dialogJustClosed, events]);
@@ -259,34 +280,26 @@ export function DiscoverView({ tripId, temperatureUnit }: DiscoverViewProps) {
 
   return (
     <div className="space-y-6">
-      {/* Heading + Location */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-foreground font-playfair flex items-center gap-2">
-          <Compass className="w-5 h-5 text-primary" />
-          Discover
-          {location?.name && (
-            <>
-              <span className="text-sm font-normal text-muted-foreground font-sans">
-                near
-              </span>
-              {isOrganizer ? (
-                <button
-                  type="button"
-                  onClick={() => setIsLocationPickerOpen(true)}
-                  className="inline-flex items-center gap-0.5 text-sm font-medium text-foreground hover:text-primary transition-colors cursor-pointer rounded px-1 -ml-1 min-w-0"
-                >
-                  <span className="truncate max-w-[160px]">{location.name}</span>
-                  <ChevronDown className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
-                </button>
-              ) : (
-                <span className="text-sm font-medium text-foreground font-sans truncate max-w-[160px]">
-                  {location.name}
-                </span>
-              )}
-            </>
+      {/* Location picker */}
+      {location?.name && (
+        <div className="flex items-center gap-1">
+          <span className="text-sm text-muted-foreground">near</span>
+          {isOrganizer ? (
+            <button
+              type="button"
+              onClick={() => setIsLocationPickerOpen(true)}
+              className="inline-flex items-center gap-0.5 text-sm font-medium text-foreground hover:text-primary transition-colors cursor-pointer rounded px-1 -ml-1 min-w-0"
+            >
+              <span className="truncate max-w-[160px]">{location.name}</span>
+              <ChevronDown className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+            </button>
+          ) : (
+            <span className="text-sm font-medium text-foreground truncate max-w-[160px]">
+              {location.name}
+            </span>
           )}
-        </h2>
-      </div>
+        </div>
+      )}
 
       {/* Category sections */}
       {discover &&
@@ -322,6 +335,12 @@ export function DiscoverView({ tripId, temperatureUnit }: DiscoverViewProps) {
         onOpenChange={setIsDetailSheetOpen}
         onCreateEvent={handleCreateEventFromDetail}
         temperatureUnit={temperatureUnit}
+        onPrev={handlePrev}
+        onNext={handleNext}
+        hasPrev={selectedPOIIndex != null && selectedPOIIndex > 0}
+        hasNext={selectedPOIIndex != null && selectedPOIIndex < allPois.length - 1}
+        poiIndex={selectedPOIIndex ?? 0}
+        totalPois={allPois.length}
       />
 
       {/* Location Picker Sheet (organizer only) */}

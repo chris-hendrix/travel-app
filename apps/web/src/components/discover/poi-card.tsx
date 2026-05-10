@@ -44,10 +44,10 @@ interface POICardProps {
 /**
  * A compact card that displays a single POI suggestion.
  *
- * Renders a colour-coded left accent bar, the place name, truncated address,
- * and distance from the trip destination. Clicking the card invokes
- * `onSelect` with the full POI object so the parent can open the event
- * creation dialog.
+ * Renders a colour-coded left accent bar, the place name (1-line truncated),
+ * optional subcategory, truncated address, and distance from the trip
+ * destination. Clicking the card invokes `onSelect` with the full POI
+ * object so the parent can open the detail sheet or event creation dialog.
  */
 export const POICard = memo(function POICard({
   poi,
@@ -66,14 +66,21 @@ export const POICard = memo(function POICard({
         "hover:border-primary/40 hover:shadow-sm hover:bg-accent/5",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         "cursor-pointer motion-safe:active:scale-[0.98]",
-        "h-28 w-[200px] shrink-0 border-l-2",
+        "w-[200px] shrink-0 border-l-2",
         borderColor,
       )}
     >
-      {/* Name — fills available space */}
-      <span className="flex-1 text-sm font-semibold text-foreground leading-tight line-clamp-2 min-w-0">
+      {/* Name — 1-line truncated */}
+      <span className="text-sm font-semibold text-foreground leading-tight truncate min-w-0">
         {poi.name}
       </span>
+
+      {/* Subcategory */}
+      {poi.subcategory && (
+        <span className="text-xs text-muted-foreground truncate min-w-0">
+          {poi.subcategory}
+        </span>
+      )}
 
       {/* Address — always rendered to maintain layout height */}
       <span className="flex items-start gap-1 text-xs text-muted-foreground min-w-0">
@@ -81,8 +88,8 @@ export const POICard = memo(function POICard({
         <span className="truncate min-w-0">{poi.address || "\u2014"}</span>
       </span>
 
-      {/* Distance — sticks to bottom of card */}
-      <span className="flex items-center gap-1 text-xs text-muted-foreground/70 mt-auto">
+      {/* Distance */}
+      <span className="flex items-center gap-1 text-xs text-muted-foreground/70">
         <Navigation className="w-3 h-3" aria-hidden="true" />
         {formatDistance(poi.distance, temperatureUnit)}
       </span>
