@@ -39,10 +39,11 @@ describe("POICard", () => {
       expect(screen.getByText("123 Rue de Rivoli, Paris")).toBeDefined();
     });
 
-    it("does not render an address line when address is null", () => {
+    it("renders a placeholder when address is null", () => {
       const poi = makePOI({ address: null });
       render(<POICard poi={poi} onSelect={onSelect} />);
-      // Should not find the address text
+      // Should render an em-dash placeholder to maintain layout height
+      expect(screen.getByText("\u2014")).toBeDefined();
       expect(screen.queryByText("123 Rue de Rivoli, Paris")).toBeNull();
     });
 
@@ -64,13 +65,19 @@ describe("POICard", () => {
       expect(screen.getByText("Nightlife")).toBeDefined();
     });
 
-    it("applies correct category colour class to badge", () => {
+    it("has a fixed height class", () => {
+      const { container } = render(<POICard poi={makePOI()} onSelect={onSelect} />);
+      const card = container.querySelector("button");
+      expect(card?.className).toContain("h-36");
+    });
+
+    it("has a left border class for the correct category", () => {
       const poi = makePOI({ category: "food_and_drink" });
       const { container } = render(<POICard poi={poi} onSelect={onSelect} />);
-      const badge = container.querySelector("span");
-      expect(badge?.className).toContain("bg-event-food_and_drink-light");
-      expect(badge?.className).toContain("text-event-food_and_drink");
+      const card = container.querySelector("button");
+      expect(card?.className).toContain("border-l-event-food_and_drink");
     });
+
   });
 
   describe("interaction", () => {
@@ -94,16 +101,15 @@ describe("POICard", () => {
 
   describe("category colour mapping", () => {
     it.each([
-      ["food_and_drink" as POICategoryKey, "bg-event-food_and_drink-light", "Food & Drink"],
-      ["arts_and_entertainment" as POICategoryKey, "bg-event-arts_and_entertainment-light", "Arts"],
-      ["outdoors" as POICategoryKey, "bg-event-outdoors-light", "Outdoors"],
-      ["nightlife" as POICategoryKey, "bg-event-nightlife-light", "Nightlife"],
-    ])("renders %s category with correct badge colour and label", (category, expectedClass, label) => {
+      ["food_and_drink" as POICategoryKey, "border-l-event-food_and_drink"],
+      ["arts_and_entertainment" as POICategoryKey, "border-l-event-arts_and_entertainment"],
+      ["outdoors" as POICategoryKey, "border-l-event-outdoors"],
+      ["nightlife" as POICategoryKey, "border-l-event-nightlife"],
+    ])("renders %s category with correct left border colour", (category, expectedClass) => {
       const poi = makePOI({ category });
       const { container } = render(<POICard poi={poi} onSelect={onSelect} />);
-      const badge = container.querySelector("span");
-      expect(badge?.textContent).toBe(label);
-      expect(badge?.className).toContain(expectedClass);
+      const card = container.querySelector("button");
+      expect(card?.className).toContain(expectedClass);
     });
   });
 });

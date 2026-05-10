@@ -9,7 +9,8 @@ import type { POISuggestionsResponse, POICategoryKey } from "@journiful/shared/t
 const mockUseTripDetail = vi.fn();
 const mockUseEvents = vi.fn();
 const mockUseDiscover = vi.fn();
-const mockRefreshFn = vi.fn();
+const mockUseAccommodations = vi.fn();
+const mockUseAuth = vi.fn();
 const mockConvertPoiMutate = vi.fn();
 
 vi.mock("@/hooks/use-trips", () => ({
@@ -20,9 +21,16 @@ vi.mock("@/hooks/use-events", () => ({
   useEvents: (...args: unknown[]) => mockUseEvents(...args),
 }));
 
+vi.mock("@/hooks/use-accommodations", () => ({
+  useAccommodations: (...args: unknown[]) => mockUseAccommodations(...args),
+}));
+
+vi.mock("@/app/providers/auth-provider", () => ({
+  useAuth: (...args: unknown[]) => mockUseAuth(...args),
+}));
+
 vi.mock("@/hooks/use-discover", () => ({
   useDiscover: (...args: unknown[]) => mockUseDiscover(...args),
-  useRefreshDiscover: () => ({ refresh: mockRefreshFn }),
   useConvertPOI: () => ({ mutate: mockConvertPoiMutate }),
 }));
 
@@ -85,6 +93,9 @@ function makePopulatedResponse(): POISuggestionsResponse {
           price: null,
           rating: null,
           eventId: null,
+          website: null,
+          tel: null,
+          subcategory: null,
         },
         {
           sourceId: "fsq-food-2",
@@ -98,6 +109,9 @@ function makePopulatedResponse(): POISuggestionsResponse {
           price: null,
           rating: null,
           eventId: null,
+          website: null,
+          tel: null,
+          subcategory: null,
         },
       ],
       arts_and_entertainment: [
@@ -113,6 +127,9 @@ function makePopulatedResponse(): POISuggestionsResponse {
           price: null,
           rating: null,
           eventId: null,
+          website: null,
+          tel: null,
+          subcategory: null,
         },
       ],
       outdoors: [],
@@ -139,6 +156,9 @@ function makePartialResponse(): POISuggestionsResponse {
           price: null,
           rating: null,
           eventId: null,
+          website: null,
+          tel: null,
+          subcategory: null,
         },
       ],
       arts_and_entertainment: [],
@@ -163,6 +183,8 @@ describe("DiscoverView", () => {
       data: { preferredTimezone: "Europe/Paris", startDate: "2026-04-10", endDate: "2026-04-13" },
     });
     mockUseEvents.mockReturnValue({ data: [] });
+    mockUseAccommodations.mockReturnValue({ data: [] });
+    mockUseAuth.mockReturnValue({ user: null, loading: false, isAdmin: false, impersonating: { active: false } });
     mockUseDiscover.mockReturnValue({
       data: makePopulatedResponse(),
       isPending: false,
