@@ -3,30 +3,32 @@
 import { useCallback, useMemo, useState, useEffect } from "react";
 import {
   Compass,
-  Navigation,
-  RotateCcw,
+  AlertCircle,
+  ChevronDown,
   Utensils,
   Palette,
   TreePine,
   Sparkles,
-  AlertCircle,
 } from "lucide-react";
 import type { POISuggestion, POICategoryKey } from "@journiful/shared/types";
 import { POI_CATEGORIES } from "@journiful/shared/types";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CreateEventDialog } from "@/components/itinerary/create-event-dialog";
 import { useTripDetail } from "@/hooks/use-trips";
 import { useEvents } from "@/hooks/use-events";
+import { useAccommodations } from "@/hooks/use-accommodations";
+import { useAuth } from "@/app/providers/auth-provider";
 import {
   useDiscover,
   useConvertPOI,
 } from "@/hooks/use-discover";
 import { POICard } from "./poi-card";
+import { POIDetailSheet } from "./poi-detail-sheet";
+import { LocationPickerSheet } from "./location-picker-sheet";
 
-// ─── Category icons & labels ────────────────────────────────────────────────
+// ─── Category icons ──────────────────────────────────────────────────────────
 
 const CATEGORY_ICONS: Record<POICategoryKey, typeof Utensils> = {
   food_and_drink: Utensils,
@@ -35,24 +37,70 @@ const CATEGORY_ICONS: Record<POICategoryKey, typeof Utensils> = {
   nightlife: Sparkles,
 };
 
+// ─── Location type ───────────────────────────────────────────────────────────
+
+interface LocationOption {
+  lat: number;
+  lon: number;
+  name: string;
+  source: "trip" | "accommodation";
+  accommodationId?: string;
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
 interface DiscoverViewProps {
   tripId: string;
 }
 
-/**
- * Discover tab – POI (Point of Interest) suggestions for a trip destination.
- *
- * Renders a heading with a manual refresh button, filter pills to toggle
- * POI categories, and a horizontal-scrolling list of POI cards per category.
- * Clicking a card opens the CreateEventDialog pre-filled with the POI's name,
- * category, and location. On successful event creation the POI is marked as
- * converted via PATCH /discover/convert so it no longer shows.
- */
 export function DiscoverView({ tripId }: DiscoverViewProps) {
   // ── Data ──────────────────────────────────────────────────────────────────
 
   const { data: trip } = useTripDetail(tripId);
   const { data: events } = useEvents(tripId);
+  const { data: accommodations } = useAccommodations(tripId);
+  const { user } = useAuth();
+
+  // ── Location resolution: first accommodation with coords → trip destination ─
+
+  const availableLocations = useMemo<LocationOption[]>(() => {
+    const locations: LocationOption[] = [];
+
+    // Trip destination (if has coords)
+    if (trip?.destinationLat != null && trip?.destinationLon != null) {
+      locations.push({
+        lat: trip.destinationLat,
+        lon: trip.destinationLon,
+        name: trip.destination || "Trip destination",
+        source: "trip",
+      });
+    }
+
+    // Accommodations with coords
+    if (accommodations) {
+      for (const acc of accommodations) {
+        if (acc.addressLat != null && acc.addressLon != null) {
+          locations.push({
+            lat: acc.addressLat,
+            lon: acc.addressLon,
+            name: acc.name,
+            source: "accommodation",
+            accommodationId: acc.id,
+          });
+        }
+      }
+    }
+
+    return locations;
+  }, [trip, accommodations]);
+
+  const defaultLocation = availableLocations.length > 0 ? availableLocations[0] : null;
+
+  const [selectedLocation, setSelectedLocation] = useState<LocationOption | null>(null);
+  const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
+
+  const location = selectedLocation ?? defaultLocation;
+
   const {
     data: discover,
     isPending,
@@ -61,55 +109,50 @@ export function DiscoverView({ tripId }: DiscoverViewProps) {
     refetch,
   } = useDiscover(
     tripId,
-    trip?.destinationLat ?? null,
-    trip?.destinationLon ?? null,
-    trip?.destination,
+    location?.lat ?? null,
+    location?.lon ?? null,
+    location?.name,
   );
+
   const convertPOI = useConvertPOI(tripId);
 
-  // ── Filter state ──────────────────────────────────────────────────────────
+  // ── Organizer check ────────────────────────────────────────────────────────
 
-  const [visibleCategories, setVisibleCategories] = useState<
-    Set<POICategoryKey>
-  >(() => new Set(POI_CATEGORIES.map((c) => c.id)));
+  const isOrganizer = useMemo(
+    () =>
+      !!user &&
+      !!trip &&
+      (trip.createdBy === user.id ||
+        trip.organizers?.some((org: { id: string }) => org.id === user.id)),
+    [user, trip],
+  );
 
-  const toggleCategory = useCallback((id: POICategoryKey) => {
-    setVisibleCategories((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-        // Keep at least one active
-        if (next.size === 0) return prev;
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  }, []);
-
-  // ── POI → Event conversion flow ──────────────────────────────────────────
+  // ── POI → Event flow ──────────────────────────────────────────────────────
 
   const [selectedPOI, setSelectedPOI] = useState<POISuggestion | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDetailSheetOpen, setIsDetailSheetOpen] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [dialogJustClosed, setDialogJustClosed] = useState(0);
 
   const handlePOISelect = useCallback((poi: POISuggestion) => {
     setSelectedPOI(poi);
-    setIsDialogOpen(true);
+    setIsDetailSheetOpen(true);
+  }, []);
+
+  // Called by POIDetailSheet when "Create Event" is clicked
+  const handleCreateEventFromDetail = useCallback((poi: POISuggestion) => {
+    setIsDetailSheetOpen(false);
+    setSelectedPOI(poi);
+    // Small delay to let the detail sheet close animation finish
+    setTimeout(() => setIsCreateDialogOpen(true), 150);
   }, []);
 
   const handleEventCreated = useCallback(() => {
-    setIsDialogOpen(false);
+    setIsCreateDialogOpen(false);
     setDialogJustClosed((n) => n + 1);
   }, []);
 
-  const handleDialogOpenChange = useCallback((open: boolean) => {
-    setIsDialogOpen(open);
-  }, []);
-
-  // When the CreateEventDialog successfully creates an event, wait for the
-  // events list to refetch (triggered by useCreateEvent's onSettled), then
-  // read the real event from cache and mark the POI as converted.
+  // When the CreateEventDialog successfully creates an event, mark POI as converted
   useEffect(() => {
     if (dialogJustClosed > 0 && selectedPOI && events && events.length > 0) {
       const matchingEvent = events.find(
@@ -124,38 +167,13 @@ export function DiscoverView({ tripId }: DiscoverViewProps) {
       }
       setSelectedPOI(null);
     }
-    // We intentionally depend on `events` so the effect re-runs after refetch
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dialogJustClosed, events]);
 
   // ── Derived state ─────────────────────────────────────────────────────────
 
-  const hasNoDestination =
-    discover && (discover.destination === null || discover.destination === "");
+  const hasNoDestination = !location;
   const hasResults = discover && !hasNoDestination;
-
-  const visiblePOICount = useMemo(() => {
-    if (!discover) return 0;
-    let count = 0;
-    for (const [cat, pois] of Object.entries(discover.categories)) {
-      if (visibleCategories.has(cat as POICategoryKey)) {
-        count += pois.length;
-      }
-    }
-    return count;
-  }, [discover, visibleCategories]);
-
-  // ── Refresh handler ───────────────────────────────────────────────────────
-
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
-    try {
-      await refetch();
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [refetch]);
 
   // ── Loading state ─────────────────────────────────────────────────────────
 
@@ -163,17 +181,10 @@ export function DiscoverView({ tripId }: DiscoverViewProps) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-40" />
-        <div className="flex gap-2">
-          <Skeleton className="h-8 w-24 rounded-full" />
-          <Skeleton className="h-8 w-24 rounded-full" />
-          <Skeleton className="h-8 w-24 rounded-full" />
-          <Skeleton className="h-8 w-24 rounded-full" />
-        </div>
         <div className="flex gap-4 overflow-hidden">
-          <Skeleton className="h-44 w-56 shrink-0 rounded-md" />
-          <Skeleton className="h-44 w-56 shrink-0 rounded-md" />
-          <Skeleton className="h-44 w-56 shrink-0 rounded-md" />
-          <Skeleton className="h-44 w-56 shrink-0 rounded-md" />
+          <Skeleton className="h-36 w-[200px] shrink-0 rounded-md" />
+          <Skeleton className="h-36 w-[200px] shrink-0 rounded-md" />
+          <Skeleton className="h-36 w-[200px] shrink-0 rounded-md" />
         </div>
       </div>
     );
@@ -219,7 +230,7 @@ export function DiscoverView({ tripId }: DiscoverViewProps) {
 
   // ── Empty: fetched but no POIs returned ───────────────────────────────────
 
-  if (hasResults && visiblePOICount === 0) {
+  if (hasResults && POI_CATEGORIES.every((cat) => !discover.categories[cat.id]?.length)) {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -229,9 +240,9 @@ export function DiscoverView({ tripId }: DiscoverViewProps) {
           </h2>
         </div>
         <EmptyState
-          icon={Navigation}
+          icon={Compass}
           title="No places found"
-          description="No places found near this destination"
+          description={`No places found near ${location?.name ?? "this location"}`}
           variant="card"
         />
       </div>
@@ -244,74 +255,38 @@ export function DiscoverView({ tripId }: DiscoverViewProps) {
 
   return (
     <div className="space-y-6">
-      {/* Heading + Refresh */}
+      {/* Heading + Location */}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-foreground font-playfair flex items-center gap-2">
           <Compass className="w-5 h-5 text-primary" />
           Discover
-          {discover?.destination && (
-            <span className="text-sm font-normal text-muted-foreground font-sans">
-              near{" "}
-              <span className="font-medium text-foreground">
-                {discover.destination}
+          {location?.name && (
+            <>
+              <span className="text-sm font-normal text-muted-foreground font-sans">
+                near
               </span>
-            </span>
+              {isOrganizer ? (
+                <button
+                  type="button"
+                  onClick={() => setIsLocationPickerOpen(true)}
+                  className="inline-flex items-center gap-0.5 text-sm font-medium text-foreground hover:text-primary transition-colors cursor-pointer rounded px-1 -ml-1"
+                >
+                  {location.name}
+                  <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+                </button>
+              ) : (
+                <span className="text-sm font-medium text-foreground font-sans">
+                  {location.name}
+                </span>
+              )}
+            </>
           )}
         </h2>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          className="gap-1.5"
-        >
-          <RotateCcw
-            className={cn("w-4 h-4", isRefreshing && "animate-spin")}
-          />
-          Refresh
-        </Button>
-      </div>
-
-      {/* Partial data warning */}
-      {discover?.partial && (
-        <div className="flex items-start gap-2 rounded-sm bg-warning/10 border border-warning/30 p-3 text-sm text-warning-foreground">
-          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-          <span>
-            Some categories couldn't be loaded. Results may be incomplete.
-          </span>
-        </div>
-      )}
-
-      {/* Filter pills */}
-      <div className="flex flex-wrap gap-2">
-        {POI_CATEGORIES.map((cat) => {
-          const Icon = CATEGORY_ICONS[cat.id];
-          const isActive = visibleCategories.has(cat.id);
-          return (
-            <button
-              key={cat.id}
-              type="button"
-              onClick={() => toggleCategory(cat.id)}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5",
-                "text-xs font-medium transition-colors cursor-pointer",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                isActive
-                  ? "bg-primary/10 text-primary border border-primary/30"
-                  : "bg-muted text-muted-foreground border border-border hover:bg-secondary",
-              )}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              {cat.label}
-            </button>
-          );
-        })}
       </div>
 
       {/* Category sections */}
       {discover &&
         POI_CATEGORIES.map((cat) => {
-          if (!visibleCategories.has(cat.id)) return null;
           const pois = discover.categories[cat.id];
           if (!pois || pois.length === 0) return null;
 
@@ -339,10 +314,55 @@ export function DiscoverView({ tripId }: DiscoverViewProps) {
           );
         })}
 
-      {/* Create Event Dialog (triggered by POI card click) */}
+      {/* POI Detail Sheet */}
+      <POIDetailSheet
+        poi={selectedPOI}
+        open={isDetailSheetOpen}
+        onOpenChange={setIsDetailSheetOpen}
+        onCreateEvent={handleCreateEventFromDetail}
+      />
+
+      {/* Location Picker Sheet (organizer only) */}
+      <LocationPickerSheet
+        open={isLocationPickerOpen}
+        onOpenChange={setIsLocationPickerOpen}
+        tripDestination={
+          trip?.destinationLat != null && trip?.destinationLon != null
+            ? {
+                lat: trip.destinationLat,
+                lon: trip.destinationLon,
+                name: trip.destination || "Trip destination",
+              }
+            : null
+        }
+        accommodations={
+          accommodations?.map((acc) => ({
+            id: acc.id,
+            name: acc.name,
+            address: acc.address ?? null,
+            addressLat: acc.addressLat ?? 0,
+            addressLon: acc.addressLon ?? 0,
+          })) ?? []
+        }
+        selectedLocation={{
+          lat: location?.lat ?? 0,
+          lon: location?.lon ?? 0,
+          name: location?.name ?? "",
+        }}
+        onSelect={(loc) => {
+          setSelectedLocation({
+            lat: loc.lat,
+            lon: loc.lon,
+            name: loc.name,
+            source: "trip",
+          });
+        }}
+      />
+
+      {/* Create Event Dialog (triggered by detail sheet) */}
       <CreateEventDialog
-        open={isDialogOpen}
-        onOpenChange={handleDialogOpenChange}
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
         tripId={tripId}
         timezone={timezone}
         onSuccess={handleEventCreated}
