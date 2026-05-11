@@ -49,6 +49,10 @@ export class NominatimGeocodingService implements IGeocodingService {
 
   async geocode(query: string): Promise<GeocodingResult | null> {
     if (!query?.trim()) return null;
+    if (process.env.NODE_ENV === "test") {
+      this.logger?.info({ query }, "Geocoding skipped (test mode)");
+      return null;
+    }
 
     this.logger?.info({ query }, "Geocoding query");
 
@@ -85,6 +89,10 @@ export class NominatimGeocodingService implements IGeocodingService {
 
   async getTimezone(query: string): Promise<string | null> {
     if (!query?.trim()) return null;
+    if (process.env.NODE_ENV === "test") {
+      this.logger?.info({ query }, "Timezone lookup skipped (test mode)");
+      return null;
+    }
 
     this.logger?.info({ query }, "Timezone lookup query");
 
@@ -115,6 +123,11 @@ export class NominatimGeocodingService implements IGeocodingService {
   }
 
   async getTimezoneByCoords(lat: number, lon: number): Promise<string | null> {
+    if (process.env.NODE_ENV === "test") {
+      this.logger?.info({ lat, lon }, "Timezone lookup by coords skipped (test mode)");
+      return null;
+    }
+
     this.logger?.info({ lat, lon }, "Timezone lookup by coordinates");
 
     try {
