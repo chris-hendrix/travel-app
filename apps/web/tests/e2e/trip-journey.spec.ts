@@ -356,7 +356,7 @@ test.describe("Trip Journey", () => {
           exact: true,
         });
         await expect(
-          promoteeNameEl.locator("..").getByText("Organizer"),
+          promoteeNameEl.locator("..").getByText("Organizer").first(),
         ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
       });
 
@@ -579,7 +579,9 @@ test.describe("Trip Journey", () => {
 
         // Badge is in the detail sheet, not on the card
         await eventCard.click();
-        await expect(page.getByText("Member no longer attending")).toBeVisible({
+        await expect(
+          page.getByText("Member no longer attending", { exact: false }),
+        ).toBeVisible({
           timeout: ELEMENT_TIMEOUT,
         });
 

@@ -306,8 +306,11 @@ test.describe("Invitation Journey", () => {
         ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
 
         // Badge is in the detail sheet — click event card to open it
-        await page.getByText(eventName).click();
-        await expect(page.getByText("Member no longer attending")).toBeVisible({
+        await page.getByText(eventName).first().waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.getByText(eventName).first().click();
+        await expect(
+          page.getByText("Member no longer attending", { exact: false }),
+        ).toBeVisible({
           timeout: ELEMENT_TIMEOUT,
         });
         await snap(page, "16-member-not-attending-indicator");
@@ -361,9 +364,10 @@ test.describe("Invitation Journey", () => {
         ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
 
         // Badge should be gone — open detail sheet to verify
-        await page.getByText(eventName).click();
+        await page.getByText(eventName).first().waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.getByText(eventName).first().click();
         await expect(
-          page.getByText("Member no longer attending"),
+          page.getByText("Member no longer attending", { exact: false }),
         ).not.toBeVisible();
         await page.keyboard.press("Escape");
       });

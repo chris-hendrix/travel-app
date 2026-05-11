@@ -203,7 +203,7 @@ test.describe("Discover Journey", () => {
         await page.getByText("Pastéis de Belém").first().click();
 
         await expect(page.getByText("Pastéis de Belém").first()).toBeVisible();
-        await expect(page.getByText("Bakery")).toBeVisible();
+        await expect(page.getByText("Bakery").first()).toBeVisible();
         await expect(
           page.getByText("2.6 mi").or(page.getByText("4.2 km")),
         ).toBeVisible();
