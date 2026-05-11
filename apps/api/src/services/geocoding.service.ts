@@ -91,7 +91,7 @@ export class NominatimGeocodingService implements IGeocodingService {
     try {
       const url = `${OPEN_METEO_GEOCODING_API}?name=${encodeURIComponent(query.trim())}&count=1`;
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 3000);
+      const timeout = setTimeout(() => controller.abort(), 10000);
       const response = await fetch(url, {
         headers: {
           "User-Agent":
@@ -120,7 +120,7 @@ export class NominatimGeocodingService implements IGeocodingService {
     try {
       const url = `${OPEN_METEO_FORECAST_API}?latitude=${lat}&longitude=${lon}&timezone=auto&forecast_days=0`;
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 3000);
+      const timeout = setTimeout(() => controller.abort(), 10000);
       const response = await fetch(url, { signal: controller.signal });
       clearTimeout(timeout);
 

@@ -91,7 +91,7 @@ export async function locationRoutes(fastify: FastifyInstance) {
       const key = request.server.config.FOURSQUARE_API_KEY;
 
       if (!key) {
-        throw new Error("FOURSQUARE_API_KEY is not configured");
+        return reply.send([]);
       }
 
       try {
