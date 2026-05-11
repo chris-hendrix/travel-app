@@ -165,15 +165,17 @@ describe("Admin Routes", () => {
         displayName: "PhoneSearchAdmin",
         role: "admin",
       });
-      const targetPhone = "+15559876543";
+      const targetPhone = generateUniquePhone();
       await createUser({
         displayName: "Phone Target",
         phoneNumber: targetPhone,
       });
 
+      // Extract last 7 digits of the phone for substring search
+      const searchDigits = targetPhone.slice(-7);
       const response = await app.inject({
         method: "GET",
-        url: "/api/admin/users?search=9876543",
+        url: `/api/admin/users?search=${searchDigits}`,
         cookies: { auth_token: adminToken(app, admin.id) },
       });
 
