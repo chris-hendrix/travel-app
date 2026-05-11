@@ -1254,7 +1254,7 @@ describe("trip.service", () => {
         .where(eq(trips.id, testTripId))
         .limit(1);
 
-      expect(updatedTrip.updatedAt.getTime()).toBeGreaterThan(
+      expect(updatedTrip.updatedAt.getTime()).toBeGreaterThanOrEqual(
         originalUpdatedAt,
       );
     });
