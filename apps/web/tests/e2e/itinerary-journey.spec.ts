@@ -47,7 +47,7 @@ test.describe("Itinerary Journey", () => {
       await test.step("create meal event", async () => {
         const eventName = `Dinner at Harbor ${Date.now()}`;
         await createEvent(page, eventName, "2026-10-01T18:30", {
-          type: "Meal",
+          type: "Food & Drink",
           location: "Harbor Drive Seafood",
           description: "Seafood restaurant by the bay",
           endDateTime: "2026-10-01T20:00",
@@ -257,13 +257,13 @@ test.describe("Itinerary Journey", () => {
 
         const mealEvent = `Lunch ${Date.now()}`;
         await createEvent(page, mealEvent, "2027-03-10T12:00", {
-          type: "Meal",
+          type: "Food & Drink",
         });
         await expect(page.getByText(/Lunch/)).toBeVisible();
 
         const activityEvent = `Show ${Date.now()}`;
         await createEvent(page, activityEvent, "2027-03-10T20:00", {
-          type: "Activity",
+          type: "Arts",
         });
         await expect(page.getByText(/Show/)).toBeVisible();
       });
@@ -404,7 +404,6 @@ test.describe("Itinerary Journey", () => {
       await authenticateViaAPI(page, request, "Delete Restore User");
       const tripName = `Delete Restore Trip ${Date.now()}`;
       let tripId: string;
-      let eventId: string;
 
       await test.step("create trip via UI", async () => {
         await createTrip(
@@ -418,21 +417,8 @@ test.describe("Itinerary Journey", () => {
         expect(tripId).toBeTruthy();
       });
 
-      await test.step("create event via API", async () => {
-        const response = await page.request.post(
-          `http://localhost:8000/api/trips/${tripId}/events`,
-          {
-            data: {
-              name: "Dinner at Joe's",
-              eventType: "meal",
-              startTime: "2026-10-01T18:00:00.000Z",
-            },
-          },
-        );
-        expect(response.ok()).toBeTruthy();
-        const data = await response.json();
-        eventId = data.event.id;
-        expect(eventId).toBeTruthy();
+      await test.step("create event via UI", async () => {
+        await createEvent(page, "Dinner at Joe's", { type: "Food & Drink" });
       });
 
       await test.step("reload and verify event is visible", async () => {

@@ -10,8 +10,8 @@ const tripIdParams = z.object({
 });
 
 const discoverQuerySchema = z.object({
-  lat: z.coerce.number(),
-  lon: z.coerce.number(),
+  lat: z.coerce.number().optional(),
+  lon: z.coerce.number().optional(),
   location: z.string().optional(),
   refresh: z.coerce.boolean().optional(),
 });
