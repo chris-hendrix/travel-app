@@ -49,11 +49,6 @@ export class NominatimGeocodingService implements IGeocodingService {
 
   async geocode(query: string): Promise<GeocodingResult | null> {
     if (!query?.trim()) return null;
-    if (process.env.NODE_ENV === "test") {
-      this.logger?.info({ query }, "Geocoding skipped (test mode)");
-      return null;
-    }
-
     this.logger?.info({ query }, "Geocoding query");
 
     try {
@@ -89,17 +84,12 @@ export class NominatimGeocodingService implements IGeocodingService {
 
   async getTimezone(query: string): Promise<string | null> {
     if (!query?.trim()) return null;
-    if (process.env.NODE_ENV === "test") {
-      this.logger?.info({ query }, "Timezone lookup skipped (test mode)");
-      return null;
-    }
-
     this.logger?.info({ query }, "Timezone lookup query");
 
     try {
       const url = `${OPEN_METEO_GEOCODING_API}?name=${encodeURIComponent(query.trim())}&count=1`;
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 30000);
+      const timeout = setTimeout(() => controller.abort(), 5000);
       const response = await fetch(url, {
         headers: {
           "User-Agent":
@@ -123,17 +113,12 @@ export class NominatimGeocodingService implements IGeocodingService {
   }
 
   async getTimezoneByCoords(lat: number, lon: number): Promise<string | null> {
-    if (process.env.NODE_ENV === "test") {
-      this.logger?.info({ lat, lon }, "Timezone lookup by coords skipped (test mode)");
-      return null;
-    }
-
     this.logger?.info({ lat, lon }, "Timezone lookup by coordinates");
 
     try {
       const url = `${OPEN_METEO_FORECAST_API}?latitude=${lat}&longitude=${lon}&timezone=auto&forecast_days=0`;
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 30000);
+      const timeout = setTimeout(() => controller.abort(), 5000);
       const response = await fetch(url, { signal: controller.signal });
       clearTimeout(timeout);
 
