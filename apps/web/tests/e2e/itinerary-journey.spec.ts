@@ -418,7 +418,7 @@ test.describe("Itinerary Journey", () => {
       });
 
       await test.step("create event via UI", async () => {
-        await createEvent(page, "Dinner at Joe's", { type: "Food & Drink" });
+        await createEvent(page, "Dinner at Joe's", "2026-10-01T18:00", { type: "Food & Drink" });
       });
 
       await test.step("reload and verify event is visible", async () => {
