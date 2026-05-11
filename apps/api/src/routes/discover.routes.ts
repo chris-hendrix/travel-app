@@ -1,8 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { eq } from "drizzle-orm";
 import { authenticate } from "@/middleware/auth.middleware.js";
 import { defaultRateLimitConfig } from "@/middleware/rate-limit.middleware.js";
 import { TripNotFoundError } from "@/errors.js";
+import { poiCache, trips } from "@/db/schema/index.js";
 import { poiSuggestionsResponseSchema } from "@journiful/shared/schemas";
 
 const tripIdParams = z.object({
@@ -27,7 +29,7 @@ export async function discoverRoutes(fastify: FastifyInstance) {
    * Get POI suggestions for a trip's destination
    * Requires authentication and trip membership
    */
-  fastify.get<{ Params: { tripId: string }; Querystring: { lat: number; lon: number; location?: string; refresh?: boolean } }>(
+  fastify.get<{ Params: { tripId: string }; Querystring: { lat?: number; lon?: number; location?: string; refresh?: boolean } }>(
     "/trips/:tripId/discover",
     {
       preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate],
@@ -44,19 +46,8 @@ export async function discoverRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       const { tripId } = request.params;
-      const { lat, lon, location, refresh } = request.query;
+      const { lat: queryLat, lon: queryLon, location: queryLocation, refresh } = request.query;
       const userId = request.user.sub;
-
-      // Check FOURSQUARE_API_KEY is configured
-      if (!request.server.config.FOURSQUARE_API_KEY) {
-        return reply.status(503).send({
-          success: false,
-          error: {
-            code: "SERVICE_UNAVAILABLE",
-            message: "Discover feature is not configured",
-          },
-        });
-      }
 
       // Check trip membership
       const isMember = await request.server.permissionsService.isMember(
@@ -67,11 +58,73 @@ export async function discoverRoutes(fastify: FastifyInstance) {
         throw new TripNotFoundError();
       }
 
+      // Look up trip for fallback values (destination name, coordinates)
+      const [trip] = await request.server.db
+        .select({
+          destination: trips.destination,
+          destinationDisplayName: trips.destinationDisplayName,
+          destinationLat: trips.destinationLat,
+          destinationLon: trips.destinationLon,
+        })
+        .from(trips)
+        .where(eq(trips.id, tripId));
+
+      // Use query params, fall back to trip data
+      const lat = queryLat ?? trip?.destinationLat ?? null;
+      const lon = queryLon ?? trip?.destinationLon ?? null;
+      const location = queryLocation ?? trip?.destinationDisplayName ?? trip?.destination ?? null;
+
+      // If no coordinates at all, return empty response with trip's destination
+      if (lat == null || lon == null) {
+        return reply.send({
+          success: true,
+          data: {
+            destination: location,
+            source: "foursquare" as const,
+            categories: {
+              food_and_drink: [],
+              arts_and_entertainment: [],
+              outdoors: [],
+              nightlife: [],
+            },
+          },
+        });
+      }
+
+      // If API key is not configured, serve from cache (if available)
+      if (!request.server.config.FOURSQUARE_API_KEY) {
+        if (!refresh) {
+          const cached = await request.server.db
+            .select()
+            .from(poiCache)
+            .where(eq(poiCache.tripId, tripId));
+          if (cached.length > 0) {
+            // Delegate to service — it will hit cache and return results
+            const result =
+              await request.server.discoverService.getDiscoverPOIs(
+                tripId,
+                lat,
+                lon,
+                location,
+                false,
+              );
+            return reply.send({ success: true, data: result });
+          }
+        }
+        return reply.status(503).send({
+          success: false,
+          error: {
+            code: "SERVICE_UNAVAILABLE",
+            message: "Discover feature is not configured",
+          },
+        });
+      }
+
       const result = await request.server.discoverService.getDiscoverPOIs(
         tripId,
         lat,
         lon,
-        location ?? null,
+        location,
         refresh,
       );
 
