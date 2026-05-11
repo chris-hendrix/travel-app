@@ -21,6 +21,7 @@ import {
 } from "./helpers/timeouts";
 import { pickDateTime } from "./helpers/date-pickers";
 import { dismissToast } from "./helpers/toast";
+import { createEvent } from "./helpers/itinerary";
 
 /**
  * E2E Journey: Invitations & RSVP
@@ -241,7 +242,7 @@ test.describe("Invitation Journey", () => {
 
       const eventName = `Test Event ${timestamp}`;
 
-      await test.step("member creates an event via API", async () => {
+      await test.step("member creates an event via UI", async () => {
         // Auth as member in browser
         await authenticateViaAPIWithPhone(
           page,
@@ -250,21 +251,13 @@ test.describe("Invitation Journey", () => {
           "Member Beta",
         );
 
-        // Create event via API (member has canAddEvent permission)
-        const eventResponse = await page.request.post(
-          `http://localhost:8000/api/trips/${tripId}/events`,
-          {
-            data: {
-              name: eventName,
-              eventType: "activity",
-              startTime: "2026-11-11T10:00:00.000Z",
-            },
-          },
-        );
-        expect(eventResponse.ok()).toBeTruthy();
-
-        // Navigate to trip to verify event is visible
+        // Navigate to trip and create event via UI
         await page.goto(`/trips/${tripId}`);
+        await createEvent(page, eventName, "2026-11-11T10:00", {
+          type: "Arts",
+        });
+
+        // Verify event is visible
         await expect(page.getByText(eventName)).toBeVisible({
           timeout: NAVIGATION_TIMEOUT,
         });
