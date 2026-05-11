@@ -238,7 +238,7 @@ describe("CalendarService.generateIcsFeed", () => {
       const event = makeEvent({ eventType: "food_and_drink", allDay: false });
       const ics = service.generateIcsFeed([{ trip, events: [event], accommodations: [] }]);
 
-      expect(ics).toContain("CATEGORIES:meal");
+      expect(ics).toContain("CATEGORIES:food_and_drink");
     });
   });
 
