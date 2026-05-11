@@ -9,6 +9,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import { type ComponentType, type SVGProps } from "react";
 import { cn } from "@/lib/utils";
 
 interface LocationPickerSheetProps {
@@ -108,7 +109,7 @@ export function LocationPickerSheet({
 }
 
 interface LocationRowProps {
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  icon: ComponentType<SVGProps<SVGSVGElement>>;
   name: string;
   subtitle: string | null;
   selected: boolean;
