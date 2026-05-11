@@ -251,8 +251,12 @@ test.describe("Invitation Journey", () => {
           "Member Beta",
         );
 
-        // Navigate to trip and create event via UI
+        // Navigate to trip and wait for page to load before interacting
         await page.goto(`/trips/${tripId}`);
+        await expect(
+          page.getByRole("heading", { level: 1, name: /RSVP Change Trip/ }),
+        ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
+
         await createEvent(page, eventName, "2026-11-11T10:00", {
           type: "Arts",
         });

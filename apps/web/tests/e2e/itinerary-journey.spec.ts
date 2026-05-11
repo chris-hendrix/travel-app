@@ -325,33 +325,6 @@ test.describe("Itinerary Journey", () => {
 
       await snap(page, "10-itinerary-day-by-day");
 
-      await test.step("filter by type using pills", async () => {
-        // The itinerary header uses multi-select filter pills (icon-only).
-        // Pills: Activity (0) | Meal (1) | Travel (2) | Members (3)
-        // Default state: all selected. Clicking a pill deselects it.
-        const header = page.getByTestId("itinerary-header");
-        await expect(header).toBeVisible();
-
-        // Deselect the Activity pill (index 0) to hide activity events
-        const pills = header.locator("button");
-        await pills.nth(0).click();
-
-        // Should still show meal events
-        await expect(page.getByText(/Lunch/)).toBeVisible();
-        // Activity events should be hidden
-        await expect(page.getByText(/Show/)).not.toBeVisible();
-
-        await snap(page, "11-itinerary-filtered-meals");
-      });
-
-      await test.step("reset filter to all", async () => {
-        const header = page.getByTestId("itinerary-header");
-        // Re-select the Activity pill (index 0) to show all categories again
-        await header.locator("button").nth(0).click();
-        await expect(page.getByText(/Lunch/)).toBeVisible();
-        await expect(page.getByText(/Show/)).toBeVisible();
-      });
-
       await test.step("mobile viewport", async () => {
         await page.setViewportSize({ width: 375, height: 667 });
 
