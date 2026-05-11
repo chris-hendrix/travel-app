@@ -16,7 +16,7 @@ import {
   integer,
   doublePrecision,
 } from "drizzle-orm/pg-core";
-import type { LinkItem } from "@journiful/shared/types";
+import type { LinkItem, POISuggestion } from "@journiful/shared/types";
 
 // Users table
 export const users = pgTable(
@@ -836,7 +836,7 @@ export const poiCache = pgTable("poi_cache", {
     .notNull()
     .defaultNow(),
   suggestions: jsonb("suggestions")
-    .$type<import("@journiful/shared/types").POISuggestion[]>()
+    .$type<POISuggestion[]>()
     .notNull()
     .default([]),
 });
