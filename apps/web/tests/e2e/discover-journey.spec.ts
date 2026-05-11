@@ -184,7 +184,7 @@ test.describe("Discover Journey", () => {
       });
 
       await test.step("verify POI cards", async () => {
-        await expect(page.getByText("Pastéis de Belém")).toBeVisible({
+        await expect(page.getByText("Pastéis de Belém").first()).toBeVisible({
           timeout: ELEMENT_TIMEOUT,
         });
         await expect(page.getByText("Cervejaria Ramiro")).toBeVisible();
@@ -202,7 +202,7 @@ test.describe("Discover Journey", () => {
       await test.step("detail sheet: open and verify content", async () => {
         await page.getByText("Pastéis de Belém").first().click();
 
-        await expect(page.getByText("Pastéis de Belém")).toBeVisible();
+        await expect(page.getByText("Pastéis de Belém").first()).toBeVisible();
         await expect(page.getByText("Bakery")).toBeVisible();
         await expect(
           page.getByText("2.6 mi").or(page.getByText("4.2 km")),
