@@ -189,7 +189,6 @@ export function DiscoverView({ tripId, temperatureUnit }: DiscoverViewProps) {
       }
       // Don't reset index — keep it for prev/next navigation
     }
-    // eslint-disable-next-line
   }, [dialogJustClosed, events]);
 
   // ── Derived state ─────────────────────────────────────────────────────────
