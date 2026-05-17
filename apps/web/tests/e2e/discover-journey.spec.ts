@@ -205,7 +205,7 @@ test.describe("Discover Journey", () => {
         await expect(page.getByText("Pastéis de Belém").first()).toBeVisible();
         await expect(page.getByText("Bakery").first()).toBeVisible();
         await expect(
-          page.getByText("2.6 mi").or(page.getByText("4.2 km")),
+          page.getByText("2.6 mi").or(page.getByText("4.2 km")).first(),
         ).toBeVisible();
 
         const addressLink = page.getByRole("link", { name: /Rua de Belém/ });

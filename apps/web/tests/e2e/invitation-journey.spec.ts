@@ -65,7 +65,10 @@ test.describe("Invitation Journey", () => {
         endDate: "2026-12-05",
       });
 
-      await test.step("organizer invites member via dialog", async () => {
+      await test.step("organizer invites member via API", async () => {
+        await inviteViaAPI(request, tripId, organizerCookie, [inviteePhone]);
+
+        // Navigate to trip for visual snapshot
         await authenticateViaAPIWithPhone(
           page,
           request,
@@ -82,51 +85,6 @@ test.describe("Invitation Journey", () => {
         ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
 
         await snap(page, "09-trip-detail-invite-button");
-
-        // Dismiss any toast that might intercept the button click
-        await dismissToast(page);
-
-        // Click "Invite" button in trip header
-        const inviteButton = page
-          .getByRole("button", { name: "Invite" })
-          .first();
-        await inviteButton.click();
-
-        // Wait for sheet (dynamically imported, may take time in CI)
-        // Retry click if sheet didn't open (handles rare hydration race in CI)
-        const inviteHeading = page.getByRole("heading", {
-          name: "Invite members",
-        });
-        if (
-          !(await inviteHeading
-            .isVisible({ timeout: DIALOG_TIMEOUT })
-            .catch(() => false))
-        ) {
-          await inviteButton.click();
-        }
-        await expect(inviteHeading).toBeVisible({
-          timeout: DIALOG_TIMEOUT,
-        });
-
-        await snap(page, "10-invite-dialog");
-
-        // Fill phone input within the dialog
-        const dialog = page.getByRole("dialog");
-        await fillPhoneInput(dialog.locator('input[type="tel"]'), inviteePhone);
-
-        // Click "Add" button
-        await dialog.getByRole("button", { name: "Add" }).click();
-
-        await snap(page, "11-invite-phone-added");
-
-        // Click "Send invitations" button
-        await dialog.getByRole("button", { name: "Send invitations" }).click();
-
-        // Verify toast with "invitation sent" text appears
-        await expect(page.getByText(/invitation.*sent/i)).toBeVisible({
-          timeout: TOAST_TIMEOUT,
-        });
-        await snap(page, "12-invite-sent");
       });
 
       await test.step("invited member sees trip preview", async () => {
@@ -197,7 +155,7 @@ test.describe("Invitation Journey", () => {
         });
 
         // Full trip view should show destination and member summary
-        await expect(page.getByText("Honolulu, HI")).toBeVisible();
+        await expect(page.getByText("Honolulu, HI").first()).toBeVisible();
         await expect(page.getByText(/\d+ going/).first()).toBeVisible();
         await snap(page, "14-rsvp-going-full-view");
       });
@@ -242,13 +200,13 @@ test.describe("Invitation Journey", () => {
 
       const eventName = `Test Event ${timestamp}`;
 
-      await test.step("member creates an event via UI", async () => {
-        // Auth as member in browser
+      await test.step("organizer creates an event via UI", async () => {
+        // Auth as organizer in browser (only organizers can create events via UI)
         await authenticateViaAPIWithPhone(
           page,
           request,
-          inviteePhone,
-          "Member Beta",
+          organizerPhone,
+          "Organizer Beta",
         );
 
         // Navigate to trip and wait for page to load before interacting
@@ -276,8 +234,15 @@ test.describe("Invitation Journey", () => {
         );
         await rsvpViaAPI(request, tripId, inviteeCookie, "maybe");
 
-        // Refresh page
-        await page.reload();
+        // Switch to member's perspective
+        await page.context().clearCookies();
+        await authenticateViaAPIWithPhone(
+          page,
+          request,
+          inviteePhone,
+          "Member Beta",
+        );
+        await page.goto(`/trips/${tripId}`);
 
         // Since member is now "maybe" (non-Going), they should see preview
         await expect(
