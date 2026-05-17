@@ -74,8 +74,8 @@ test.describe("Settle Journey", () => {
         // Submit
         await sheet.getByRole("button", { name: "Add Expense" }).click();
 
-        // Wait for the dialog to close
-        await expect(sheet).toBeHidden({ timeout: DIALOG_TIMEOUT });
+        // Wait for the dialog to close (Radix exit animation)
+        await sheet.waitFor({ state: "hidden", timeout: DIALOG_TIMEOUT });
 
         // Verify expense appears in the list
         await expect(page.getByText("Dinner at restaurant")).toBeVisible({
@@ -104,8 +104,8 @@ test.describe("Settle Journey", () => {
 
         await sheet.getByRole("button", { name: "Save Changes" }).click();
 
-        // Wait for the dialog to close
-        await expect(sheet).toBeHidden({ timeout: DIALOG_TIMEOUT });
+        // Wait for the dialog to close (Radix exit animation)
+        await sheet.waitFor({ state: "hidden", timeout: DIALOG_TIMEOUT });
 
         // Verify updated
         await expect(page.getByText("Dinner at steakhouse")).toBeVisible({
@@ -144,8 +144,8 @@ test.describe("Settle Journey", () => {
 
         await sheet.getByRole("button", { name: "Add Expense" }).click();
 
-        // Wait for the dialog to close
-        await expect(sheet).toBeHidden({ timeout: DIALOG_TIMEOUT });
+        // Wait for the dialog to close (Radix exit animation)
+        await sheet.waitFor({ state: "hidden", timeout: DIALOG_TIMEOUT });
 
         await expect(page.getByText("Taxi ride")).toBeVisible({
           timeout: ELEMENT_TIMEOUT,

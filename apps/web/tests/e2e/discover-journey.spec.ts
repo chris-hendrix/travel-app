@@ -184,12 +184,18 @@ test.describe("Discover Journey", () => {
       });
 
       await test.step("verify POI cards", async () => {
-        await expect(page.getByText("Pastéis de Belém").first()).toBeVisible({
-          timeout: ELEMENT_TIMEOUT,
-        });
-        await expect(page.getByText("Cervejaria Ramiro")).toBeVisible();
-        await expect(page.getByText("MAAT")).toBeVisible();
-        await expect(page.getByText("Lux Frágil")).toBeVisible();
+        await expect(
+          page.getByRole("button", { name: /Pastéis de Belém/ }),
+        ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+        await expect(
+          page.getByRole("button", { name: /Cervejaria Ramiro/ }),
+        ).toBeVisible();
+        await expect(
+          page.getByRole("button", { name: /MAAT/ }),
+        ).toBeVisible();
+        await expect(
+          page.getByRole("button", { name: /Lux Frágil/ }),
+        ).toBeVisible();
 
         await expect(page.getByText("Food & Drink")).toBeVisible();
         await expect(page.getByText("Arts & Entertainment")).toBeVisible();
@@ -200,9 +206,13 @@ test.describe("Discover Journey", () => {
       });
 
       await test.step("detail sheet: open and verify content", async () => {
-        await page.getByText("Pastéis de Belém").first().click();
+        await page
+          .getByRole("button", { name: /Pastéis de Belém/ })
+          .click();
 
-        await expect(page.getByText("Pastéis de Belém").first()).toBeVisible();
+        await expect(
+          page.getByRole("heading", { name: "Pastéis de Belém" }),
+        ).toBeVisible();
         await expect(page.getByText("Bakery").first()).toBeVisible();
         await expect(
           page.getByText("2.6 mi").or(page.getByText("4.2 km")).first(),
@@ -228,9 +238,9 @@ test.describe("Discover Journey", () => {
         });
 
         await page.getByRole("button", { name: "Previous place" }).click();
-        await expect(page.getByText("Pastéis de Belém")).toBeVisible({
-          timeout: ELEMENT_TIMEOUT,
-        });
+        await expect(
+          page.getByRole("heading", { name: "Pastéis de Belém" }),
+        ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
 
         await snap(page, "discover-arrow-navigation");
       });

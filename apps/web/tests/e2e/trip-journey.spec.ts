@@ -388,7 +388,7 @@ test.describe("Trip Journey", () => {
         await expect(page.getByText("Trip updated successfully")).toBeVisible();
       });
 
-      await test.step("demote co-organizer and verify access revoked", async () => {
+      await test.step("demote co-organizer and verify organizer role removed", async () => {
         await page.context().clearCookies();
         await authenticateViaAPIWithPhone(
           page,
@@ -436,7 +436,8 @@ test.describe("Trip Journey", () => {
           demoteeNameEl.locator("..").getByText("Organizer", { exact: true }),
         ).not.toBeVisible({ timeout: ELEMENT_TIMEOUT });
 
-        // Verify User B can no longer access the trip
+        // Verify User B can still view the trip as a regular member
+        // (demotion only removes organizer role, not membership)
         await page.context().clearCookies();
         await authenticateViaAPIWithPhone(
           page,
@@ -446,9 +447,12 @@ test.describe("Trip Journey", () => {
         );
 
         await page.goto(`/trips/${tripId}`);
+        // User B is still a member, so the trip heading should be visible.
+        // The heading name includes the original tripName (a substring match is sufficient).
         await expect(
-          page.getByRole("heading", { name: "Trip not found" }),
-        ).toBeVisible();
+          page.getByRole("heading", { level: 1, name: tripName }),
+        ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
+        // User B is no longer an organizer, so the edit button should be hidden
         await expect(tripDetail.editButton).not.toBeVisible();
       });
     },
