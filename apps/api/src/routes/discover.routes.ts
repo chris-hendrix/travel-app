@@ -21,7 +21,7 @@ const discoverQuerySchema = z.object({
 
 const convertBodySchema = z.object({
   sourceId: z.string(),
-  eventId: z.string(),
+  eventId: z.string().uuid({ message: "Invalid event ID format" }),
 });
 
 export async function discoverRoutes(fastify: FastifyInstance) {

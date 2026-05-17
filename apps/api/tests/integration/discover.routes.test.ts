@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, beforeAll } from "vitest";
+import { describe, it, expect, afterEach, beforeAll, vi } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../helpers.js";
 import { db } from "@/config/database.js";
@@ -16,6 +16,8 @@ describe("Discover Routes", () => {
   });
 
   afterEach(async () => {
+    vi.unstubAllEnvs();
+    (env as { FOURSQUARE_API_KEY: string }).FOURSQUARE_API_KEY = originalFsqKey;
     if (app) {
       await app.close();
     }
@@ -34,81 +36,70 @@ describe("Discover Routes", () => {
     });
 
     it("returns 503 when FOURSQUARE_API_KEY is not set", async () => {
-      // Temporarily clear the API key for this test
+      vi.stubEnv("FOURSQUARE_API_KEY", "");
       (env as { FOURSQUARE_API_KEY: string }).FOURSQUARE_API_KEY = "";
-      try {
-        app = await buildApp();
 
-        const testUserResult = await db
-          .insert(users)
-          .values({
-            phoneNumber: generateUniquePhone(),
-            displayName: "Discover Test User",
-            timezone: "UTC",
-          })
-          .returning();
-        const testUser = testUserResult[0]!;
+      app = await buildApp();
 
-        const tripResult = await db
-          .insert(trips)
-          .values({
-            name: "Discover Test Trip",
-            destination: "Paris",
-            destinationLat: 48.8566,
-            destinationLon: 2.3522,
-            preferredTimezone: "Europe/Paris",
-            createdBy: testUser.id,
-          })
-          .returning();
-        const trip = tripResult[0]!;
+      const testUserResult = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "Discover Test User",
+          timezone: "UTC",
+        })
+        .returning();
+      const testUser = testUserResult[0]!;
 
-        await db.insert(members).values({
-          tripId: trip.id,
-          userId: testUser.id,
-          status: "going",
-        });
+      const tripResult = await db
+        .insert(trips)
+        .values({
+          name: "Discover Test Trip",
+          destination: "Paris",
+          destinationLat: 48.8566,
+          destinationLon: 2.3522,
+          preferredTimezone: "Europe/Paris",
+          createdBy: testUser.id,
+        })
+        .returning();
+      const trip = tripResult[0]!;
 
-        const token = app.jwt.sign({
-          sub: testUser.id,
-          name: testUser.displayName,
-        });
+      await db.insert(members).values({
+        tripId: trip.id,
+        userId: testUser.id,
+        status: "going",
+      });
 
-        const response = await app.inject({
-          method: "GET",
-          url: `/api/trips/${trip.id}/discover`,
-          cookies: { auth_token: token },
-        });
+      const token = app.jwt.sign({
+        sub: testUser.id,
+        name: testUser.displayName,
+      });
 
-        expect(response.statusCode).toBe(503);
-        const body = JSON.parse(response.body);
-        expect(body.success).toBe(false);
-        expect(body.error.code).toBe("SERVICE_UNAVAILABLE");
-      } finally {
-        (env as { FOURSQUARE_API_KEY: string }).FOURSQUARE_API_KEY =
-          originalFsqKey;
-        // Clean up test data
+      const response = await app.inject({
+        method: "GET",
+        url: `/api/trips/${trip.id}/discover`,
+        cookies: { auth_token: token },
+      });
+
+      expect(response.statusCode).toBe(503);
+      const body = JSON.parse(response.body);
+      expect(body.success).toBe(false);
+      expect(body.error.code).toBe("SERVICE_UNAVAILABLE");
+
+      // Clean up test data
+      const tripRows = await db
+        .select({ id: trips.id })
+        .from(trips)
+        .where(eq(trips.name, "Discover Test Trip"))
+        .limit(1);
+      if (tripRows.length > 0) {
+        await db.delete(poiCache).where(eq(poiCache.tripId, tripRows[0]!.id));
         await db
-          .delete(poiCache)
-          .where(eq(poiCache.tripId, (
-            await db
-              .select({ id: trips.id })
-              .from(trips)
-              .where(eq(trips.name, "Discover Test Trip"))
-              .limit(1)
-          ).at(0)?.id ?? ""));
-        const tripRows = await db
-          .select({ id: trips.id })
-          .from(trips)
-          .where(eq(trips.name, "Discover Test Trip"))
-          .limit(1);
-        if (tripRows.length > 0) {
-          await db
-            .delete(members)
-            .where(eq(members.tripId, tripRows[0]!.id));
-          await db
-            .delete(trips)
-            .where(eq(trips.id, tripRows[0]!.id));
-        }
+          .delete(members)
+          .where(eq(members.tripId, tripRows[0]!.id));
+        await db
+          .delete(trips)
+          .where(eq(trips.id, tripRows[0]!.id));
       }
     });
 

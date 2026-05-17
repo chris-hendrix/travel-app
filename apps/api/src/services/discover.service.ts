@@ -128,9 +128,9 @@ export class DiscoverService implements IDiscoverService {
     // 4 parallel Foursquare calls
     const categoryResults = await Promise.all(
       POI_CATEGORIES.map(async (cat) => {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
         try {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 5000);
 
           const allCategoryIds = [cat.parent, ...cat.subcategories].map((c) => c.fsqCategoryId).join(",");
           const url = `${FOURSQUARE_BASE}?ll=${lat},${lon}&radius=${RADIUS}&fsq_category_ids=${allCategoryIds}&sort=POPULARITY&limit=${LIMIT}&exclude_all_chains=true`;
@@ -153,6 +153,7 @@ export class DiscoverService implements IDiscoverService {
           const results = (data.results ?? []).map(this.mapFsqToSuggestion(cat.id));
           return { category: cat.id, results };
         } catch (err) {
+          clearTimeout(timeout);
           this.log.warn({ category: cat.id, err }, "Foursquare category fetch error");
           return { category: cat.id, results: [] as POISuggestion[] };
         }
