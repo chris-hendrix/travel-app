@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { authenticate } from "@/middleware/auth.middleware.js";
+import { checkBanned } from "@/middleware/admin.middleware.js";
 import { defaultRateLimitConfig } from "@/middleware/rate-limit.middleware.js";
 import { TripNotFoundError } from "@/errors.js";
 import { poiCache, trips } from "@/db/schema/index.js";
@@ -33,7 +34,7 @@ export async function discoverRoutes(fastify: FastifyInstance) {
   fastify.get<{ Params: { tripId: string }; Querystring: { lat?: number; lon?: number; location?: string; refresh?: boolean } }>(
     "/trips/:tripId/discover",
     {
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate],
+      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
       schema: {
         params: tripIdParams,
         querystring: discoverQuerySchema,
@@ -136,7 +137,7 @@ export async function discoverRoutes(fastify: FastifyInstance) {
   fastify.patch<{ Params: { tripId: string }; Body: { sourceId: string; eventId: string } }>(
     "/trips/:tripId/discover/convert",
     {
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate],
+      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
       schema: {
         params: tripIdParams,
         body: convertBodySchema,

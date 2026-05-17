@@ -121,14 +121,14 @@ export class DiscoverService implements IDiscoverService {
       .where(eq(poiCache.tripId, tripId));
 
     const convertedSourceIds = new Set<string>();
-    let existingConverted: POISuggestion[] = [];
+    const preExistingConverted: POISuggestion[] = [];
 
     if (existing.length > 0) {
       const existingSuggestions = existing[0]!.suggestions as POISuggestion[];
       for (const s of existingSuggestions) {
         if (s.eventId != null) {
           convertedSourceIds.add(s.sourceId);
-          existingConverted.push(s);
+          preExistingConverted.push(s);
         }
       }
     }
@@ -195,8 +195,26 @@ export class DiscoverService implements IDiscoverService {
     }
 
     // Build new blob: fresh (filtered) + existing converted
-    const newBlob = [...allFresh, ...existingConverted];
+    let newBlob = [...allFresh, ...preExistingConverted];
     const hasErrors = Object.keys(errors).length > 0;
+
+    // Re-read to catch conversions that happened during Foursquare fetches (0.5–5s window)
+    if (!allEmpty) {
+      const latest = await this.db
+        .select()
+        .from(poiCache)
+        .where(eq(poiCache.tripId, tripId));
+      if (latest.length > 0) {
+        const latestSuggestions = latest[0]!.suggestions as POISuggestion[];
+        const latestConverted = latestSuggestions.filter((s) => s.eventId != null);
+        const latestConvertedIds = new Set(latestConverted.map((s) => s.sourceId));
+        // Rebuild: fresh results (excluding now-converted) + latest conversions
+        newBlob = [
+          ...allFresh.filter((r) => !latestConvertedIds.has(r.sourceId)),
+          ...latestConverted,
+        ];
+      }
+    }
 
     // Upsert cache
     await this.db
@@ -231,26 +249,28 @@ export class DiscoverService implements IDiscoverService {
   }
 
   async convertPOI(tripId: string, sourceId: string, eventId: string): Promise<void> {
-    await this.db.execute(
-      sql`SELECT pg_advisory_xact_lock(hashtext('poi_convert_' || ${tripId}))`,
-    );
+    await this.db.transaction(async (tx) => {
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtext('poi_convert_' || ${tripId}))`,
+      );
 
-    const rows = await this.db
-      .select()
-      .from(poiCache)
-      .where(eq(poiCache.tripId, tripId));
+      const rows = await tx
+        .select()
+        .from(poiCache)
+        .where(eq(poiCache.tripId, tripId));
 
-    if (rows.length === 0) return;
+      if (rows.length === 0) return;
 
-    const suggestions = rows[0]!.suggestions as POISuggestion[];
-    const updated = suggestions.map((s) =>
-      s.sourceId === sourceId ? { ...s, eventId } : s,
-    );
+      const suggestions = rows[0]!.suggestions as POISuggestion[];
+      const updated = suggestions.map((s) =>
+        s.sourceId === sourceId ? { ...s, eventId } : s,
+      );
 
-    await this.db
-      .update(poiCache)
-      .set({ suggestions: updated })
-      .where(eq(poiCache.tripId, tripId));
+      await tx
+        .update(poiCache)
+        .set({ suggestions: updated })
+        .where(eq(poiCache.tripId, tripId));
+    });
   }
 
   private mapFsqToSuggestion(category: POICategoryKey) {

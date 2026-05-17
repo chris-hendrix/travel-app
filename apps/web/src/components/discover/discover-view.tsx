@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import {
   Compass,
   AlertCircle,
@@ -131,6 +131,7 @@ export function DiscoverView({ tripId, temperatureUnit }: DiscoverViewProps) {
   const [selectedPOIIndex, setSelectedPOIIndex] = useState<number | null>(null);
   const [isDetailSheetOpen, setIsDetailSheetOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [pendingCreateEvent, setPendingCreateEvent] = useState(false);
 
   // Flatten all POIs for prev/next navigation
   const allPois = useMemo(() => {
@@ -161,9 +162,7 @@ export function DiscoverView({ tripId, temperatureUnit }: DiscoverViewProps) {
   // Called by POIDetailSheet when "Create Event" is clicked
   const handleCreateEventFromDetail = useCallback((_poi: POISuggestion) => {
     setIsDetailSheetOpen(false);
-    // Keep poi in selectedPOI state for CreateEventDialog defaultValues
-    // selectedPOI is derived from selectedPOIIndex, which stays set
-    setTimeout(() => setIsCreateDialogOpen(true), 150);
+    setPendingCreateEvent(true);
   }, []);
 
   const handleEventCreated = useCallback((event: Event) => {
@@ -176,6 +175,13 @@ export function DiscoverView({ tripId, temperatureUnit }: DiscoverViewProps) {
       });
     }
   }, [selectedPOI, convertPOI]);
+
+  useEffect(() => {
+    if (!isDetailSheetOpen && pendingCreateEvent) {
+      setIsCreateDialogOpen(true);
+      setPendingCreateEvent(false);
+    }
+  }, [isDetailSheetOpen, pendingCreateEvent]);
 
   // ── Derived state ─────────────────────────────────────────────────────────
 
