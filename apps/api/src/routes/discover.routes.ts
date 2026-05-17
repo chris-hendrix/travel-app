@@ -6,6 +6,7 @@ import { defaultRateLimitConfig } from "@/middleware/rate-limit.middleware.js";
 import { TripNotFoundError } from "@/errors.js";
 import { poiCache, trips } from "@/db/schema/index.js";
 import { poiSuggestionsResponseSchema } from "@journiful/shared/schemas";
+import { groupByCategoryOnly } from "@/services/discover.service.js";
 
 const tripIdParams = z.object({
   tripId: z.string().uuid({ message: "Invalid trip ID format" }),
@@ -81,12 +82,7 @@ export async function discoverRoutes(fastify: FastifyInstance) {
           data: {
             destination: location,
             source: "foursquare" as const,
-            categories: {
-              food_and_drink: [],
-              arts_and_entertainment: [],
-              outdoors: [],
-              nightlife: [],
-            },
+            categories: groupByCategoryOnly([]),
           },
         });
       }

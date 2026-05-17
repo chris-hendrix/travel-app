@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState, useEffect } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Compass,
   AlertCircle,
@@ -10,14 +10,13 @@ import {
   TreePine,
   Sparkles,
 } from "lucide-react";
-import type { POISuggestion, POICategoryKey, TemperatureUnit } from "@journiful/shared/types";
+import type { POISuggestion, POICategoryKey, TemperatureUnit, Event } from "@journiful/shared/types";
 import { POI_CATEGORIES } from "@journiful/shared/types";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CreateEventDialog } from "@/components/itinerary/create-event-dialog";
 import { useTripDetail } from "@/hooks/use-trips";
-import { useEvents } from "@/hooks/use-events";
 import { useAccommodations } from "@/hooks/use-accommodations";
 import { useAuth } from "@/app/providers/auth-provider";
 import {
@@ -58,7 +57,6 @@ export function DiscoverView({ tripId, temperatureUnit }: DiscoverViewProps) {
   // ── Data ──────────────────────────────────────────────────────────────────
 
   const { data: trip } = useTripDetail(tripId);
-  const { data: events } = useEvents(tripId);
   const { data: accommodations } = useAccommodations(tripId);
   const { user } = useAuth();
 
@@ -133,7 +131,6 @@ export function DiscoverView({ tripId, temperatureUnit }: DiscoverViewProps) {
   const [selectedPOIIndex, setSelectedPOIIndex] = useState<number | null>(null);
   const [isDetailSheetOpen, setIsDetailSheetOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [dialogJustClosed, setDialogJustClosed] = useState(0);
 
   // Flatten all POIs for prev/next navigation
   const allPois = useMemo(() => {
@@ -169,27 +166,16 @@ export function DiscoverView({ tripId, temperatureUnit }: DiscoverViewProps) {
     setTimeout(() => setIsCreateDialogOpen(true), 150);
   }, []);
 
-  const handleEventCreated = useCallback(() => {
+  const handleEventCreated = useCallback((event: Event) => {
     setIsCreateDialogOpen(false);
-    setDialogJustClosed((n) => n + 1);
-  }, []);
-
-  // When the CreateEventDialog successfully creates an event, mark POI as converted
-  useEffect(() => {
-    if (dialogJustClosed > 0 && selectedPOI && events && events.length > 0) {
-      const matchingEvent = events.find(
-        (e) =>
-          !e.id.startsWith("temp-") && e.name === selectedPOI.name,
-      );
-      if (matchingEvent) {
-        convertPOI.mutate({
-          sourceId: selectedPOI.sourceId,
-          eventId: matchingEvent.id,
-        });
-      }
-      // Don't reset index — keep it for prev/next navigation
+    // Immediately convert the POI using the event ID from the mutation response
+    if (selectedPOI) {
+      convertPOI.mutate({
+        sourceId: selectedPOI.sourceId,
+        eventId: event.id,
+      });
     }
-  }, [dialogJustClosed, events]);
+  }, [selectedPOI, convertPOI]);
 
   // ── Derived state ─────────────────────────────────────────────────────────
 
@@ -357,13 +343,15 @@ export function DiscoverView({ tripId, temperatureUnit }: DiscoverViewProps) {
         }
         accommodations={
           accommodations
-            ?.filter((acc) => acc.addressLat != null && acc.addressLon != null)
+            ?.filter((acc): acc is typeof acc & { addressLat: number; addressLon: number } =>
+              acc.addressLat != null && acc.addressLon != null
+            )
             .map((acc) => ({
               id: acc.id,
               name: acc.name,
               address: acc.address ?? null,
-              addressLat: acc.addressLat!,
-              addressLon: acc.addressLon!,
+              addressLat: acc.addressLat,
+              addressLon: acc.addressLon,
             })) ?? []
         }
         selectedLocation={

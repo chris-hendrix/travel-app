@@ -32,6 +32,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { Checkbox } from "@/components/ui/checkbox";
+import type { Event } from "@journiful/shared/types";
 import { useCreateEvent, getCreateEventErrorMessage } from "@/hooks/use-events";
 import { mapServerErrors } from "@/lib/form-errors";
 import { getTimezoneAbbr } from "@/lib/constants";
@@ -50,7 +51,7 @@ interface CreateEventDialogProps {
   onOpenChange: (open: boolean) => void;
   tripId: string;
   timezone: string;
-  onSuccess?: () => void;
+  onSuccess?: (event: Event) => void;
   tripStartDate?: string | null | undefined;
   tripEndDate?: string | null | undefined;
   tripLat?: number | null;
@@ -157,10 +158,10 @@ export function CreateEventDialog({
     createEvent(
       { tripId, data },
       {
-        onSuccess: () => {
+        onSuccess: (eventData) => {
           toast.success("Event created successfully");
           onOpenChange(false);
-          onSuccess?.();
+          onSuccess?.(eventData);
         },
         onError: (error) => {
           const mapped = mapServerErrors(error, form.setError, {

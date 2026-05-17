@@ -99,6 +99,13 @@ export class DiscoverService implements IDiscoverService {
     lat: number,
     lon: number,
   ): Promise<POISuggestionsResponse> {
+    // Guard: API key is required to call Foursquare
+    if (!this.foursquareKey) {
+      throw new Error(
+        "Foursquare API key is not configured. Set FOURSQUARE_API_KEY environment variable.",
+      );
+    }
+
     // Read existing converted POIs
     const existing = await this.db
       .select()
@@ -270,7 +277,7 @@ function groupByCategory(suggestions: POISuggestion[], destination: string | nul
   };
 }
 
-function groupByCategoryOnly(suggestions: POISuggestion[]): Record<POICategoryKey, POISuggestion[]> {
+export function groupByCategoryOnly(suggestions: POISuggestion[]): Record<POICategoryKey, POISuggestion[]> {
   const categories = {} as Record<POICategoryKey, POISuggestion[]>;
   for (const cat of POI_CATEGORIES) {
     categories[cat.id] = [];
