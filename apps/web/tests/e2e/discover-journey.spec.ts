@@ -223,7 +223,7 @@ test.describe("Discover Journey", () => {
       await test.step("detail sheet: arrow navigation", async () => {
         await page.getByRole("button", { name: "Next place" }).click();
 
-        await expect(page.getByText("Cervejaria Ramiro")).toBeVisible({
+        await expect(page.getByRole("heading", { name: "Cervejaria Ramiro" })).toBeVisible({
           timeout: ELEMENT_TIMEOUT,
         });
 

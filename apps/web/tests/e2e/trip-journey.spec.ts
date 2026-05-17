@@ -82,7 +82,7 @@ test.describe("Trip Journey", () => {
       await expect(
         page.getByRole("heading", { level: 1, name: tripName }),
       ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
-      await expect.soft(page.getByText(tripDestination)).toBeVisible();
+      await expect.soft(page.getByText(tripDestination).first()).toBeVisible();
       await expect.soft(page.getByText("Oct 12 - 14, 2026")).toBeVisible();
       await expect
         .soft(page.getByText(tripDescription).first())
