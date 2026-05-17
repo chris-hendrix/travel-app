@@ -49,17 +49,20 @@ export class NominatimGeocodingService implements IGeocodingService {
 
   async geocode(query: string): Promise<GeocodingResult | null> {
     if (!query?.trim()) return null;
-
     this.logger?.info({ query }, "Geocoding query");
 
     try {
       const url = `${NOMINATIM_API_BASE}?q=${encodeURIComponent(query.trim())}&format=json&limit=1`;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
       const response = await fetch(url, {
         headers: {
           "User-Agent":
             "journiful-app (https://github.com/chris-hendrix/tripful)",
         },
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
 
       if (!response.ok) return null;
 
@@ -85,13 +88,12 @@ export class NominatimGeocodingService implements IGeocodingService {
 
   async getTimezone(query: string): Promise<string | null> {
     if (!query?.trim()) return null;
-
     this.logger?.info({ query }, "Timezone lookup query");
 
     try {
       const url = `${OPEN_METEO_GEOCODING_API}?name=${encodeURIComponent(query.trim())}&count=1`;
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 3000);
+      const timeout = setTimeout(() => controller.abort(), 5000);
       const response = await fetch(url, {
         headers: {
           "User-Agent":
@@ -120,7 +122,7 @@ export class NominatimGeocodingService implements IGeocodingService {
     try {
       const url = `${OPEN_METEO_FORECAST_API}?latitude=${lat}&longitude=${lon}&timezone=auto&forecast_days=0`;
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 3000);
+      const timeout = setTimeout(() => controller.abort(), 5000);
       const response = await fetch(url, { signal: controller.signal });
       clearTimeout(timeout);
 

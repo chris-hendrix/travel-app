@@ -12,7 +12,7 @@ const mockDeletedEvent: Event = {
   createdBy: "user-123",
   name: "Deleted Beach Party",
   description: null,
-  eventType: "activity",
+  eventType: "misc",
   location: null,
   startTime: new Date("2026-07-16T12:00:00Z"),
   endTime: null,

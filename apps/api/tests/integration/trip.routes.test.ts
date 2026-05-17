@@ -1074,14 +1074,14 @@ describe("GET /api/trips", () => {
           tripId: trip.id,
           createdBy: testUser.id,
           name: "Active Event 1",
-          eventType: "activity",
+          eventType: "misc",
           startTime: new Date("2026-06-01T10:00:00Z"),
         },
         {
           tripId: trip.id,
           createdBy: testUser.id,
           name: "Active Event 2",
-          eventType: "meal",
+          eventType: "food_and_drink",
           startTime: new Date("2026-06-01T12:00:00Z"),
         },
       ]);

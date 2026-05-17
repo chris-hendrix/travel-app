@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { Calendar, Car, Utensils } from "lucide-react";
+import { Calendar, Car, Utensils, Palette, TreePine, Sparkles } from "lucide-react";
 import type { Event } from "@journiful/shared/types";
 import { formatInTimezone } from "@/lib/utils/timezone";
 
@@ -19,16 +19,34 @@ export const EVENT_TYPE_CONFIG = {
     bg: "bg-event-travel-light",
     icon: Car,
   },
-  meal: {
-    color: "text-event-meal",
-    accent: "border-l-event-meal",
-    bg: "bg-event-meal-light",
+  food_and_drink: {
+    color: "text-event-food_and_drink",
+    accent: "border-l-event-food_and_drink",
+    bg: "bg-event-food_and_drink-light",
     icon: Utensils,
   },
-  activity: {
-    color: "text-event-activity",
-    accent: "border-l-event-activity",
-    bg: "bg-event-activity-light",
+  arts_and_entertainment: {
+    color: "text-event-arts_and_entertainment",
+    accent: "border-l-event-arts_and_entertainment",
+    bg: "bg-event-arts_and_entertainment-light",
+    icon: Palette,
+  },
+  outdoors: {
+    color: "text-event-outdoors",
+    accent: "border-l-event-outdoors",
+    bg: "bg-event-outdoors-light",
+    icon: TreePine,
+  },
+  nightlife: {
+    color: "text-event-nightlife",
+    accent: "border-l-event-nightlife",
+    bg: "bg-event-nightlife-light",
+    icon: Sparkles,
+  },
+  misc: {
+    color: "text-event-misc",
+    accent: "border-l-event-misc",
+    bg: "bg-event-misc-light",
     icon: Calendar,
   },
 } as const;

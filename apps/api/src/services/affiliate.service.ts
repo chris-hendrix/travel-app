@@ -264,7 +264,7 @@ function detectGaps(
           gaps.push({ type: "empty_day", priority: 3, day });
         }
       } else {
-        const hasMeal = dayEvents.some((e) => e.eventType === "meal");
+        const hasMeal = dayEvents.some((e) => e.eventType === "food_and_drink");
         // Don't suggest meals on arrival/departure days
         if (!hasMeal && !isArrivalOrDepartureDay) {
           gaps.push({ type: "missing_meal", priority: 4, day });

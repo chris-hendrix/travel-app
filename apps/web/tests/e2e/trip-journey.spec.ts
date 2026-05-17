@@ -8,9 +8,10 @@ import { TripsPage, TripDetailPage } from "./helpers/pages";
 import { snap } from "./helpers/screenshots";
 import { removeNextjsDevOverlay, dismissPwaPrompts } from "./helpers/nextjs-dev";
 import { pickDate, pickDateTime } from "./helpers/date-pickers";
-import { createTripViaAPI, inviteAndAcceptViaAPI } from "./helpers/invitations";
+import { createTripViaAPI, inviteAndAcceptViaAPI, inviteViaAPI, rsvpViaAPI } from "./helpers/invitations";
 import { navigateToMobilePanel } from "./helpers/mobile-panels";
 import { dismissToast } from "./helpers/toast";
+import { createEvent } from "./helpers/itinerary";
 import {
   NAVIGATION_TIMEOUT,
   ELEMENT_TIMEOUT,
@@ -18,6 +19,7 @@ import {
   DIALOG_TIMEOUT,
   SLOW_NAVIGATION_TIMEOUT,
   RETRY_INTERVAL,
+  API_BASE,
 } from "./helpers/timeouts";
 
 /**
@@ -81,7 +83,7 @@ test.describe("Trip Journey", () => {
       await expect(
         page.getByRole("heading", { level: 1, name: tripName }),
       ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
-      await expect.soft(page.getByText(tripDestination)).toBeVisible();
+      await expect.soft(page.getByText(tripDestination).first()).toBeVisible();
       await expect.soft(page.getByText("Oct 12 - 14, 2026")).toBeVisible();
       await expect
         .soft(page.getByText(tripDescription).first())
@@ -212,7 +214,7 @@ test.describe("Trip Journey", () => {
   });
 
   test(
-    "trip permissions journey",
+    "promote and demote co-organizer by phone",
     { tag: "@regression" },
     async ({ page, request }) => {
       test.slow(); // Multiple auth switches and navigations
@@ -294,7 +296,17 @@ test.describe("Trip Journey", () => {
         await expect(page.getByText(tripName)).not.toBeVisible();
       });
 
-      await test.step("add User B as co-organizer", async () => {
+      await test.step("invite User B to trip", async () => {
+        await inviteAndAcceptViaAPI(
+          request,
+          tripId,
+          userAPhone,
+          userBPhone,
+          "User B - Co-Organizer",
+        );
+      });
+
+      await test.step("promote member to co-organizer via UI", async () => {
         await page.context().clearCookies();
         await authenticateViaAPIWithPhone(
           page,
@@ -306,13 +318,47 @@ test.describe("Trip Journey", () => {
         await page.goto(`/trips/${tripId}`);
         await expect(
           page.getByRole("heading", { level: 1, name: tripName }),
-        ).toBeVisible();
+        ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
 
-        const addCoOrgResponse = await page.request.post(
-          `http://localhost:8000/api/trips/${tripId}/co-organizers`,
-          { data: { phoneNumber: userBPhone } },
-        );
-        expect(addCoOrgResponse.ok()).toBeTruthy();
+        // Open Members dialog by clicking the member count
+        await expect(page.getByText(/2 going/).first()).toBeVisible();
+
+        // Retry click — heading may be server-rendered before React hydrates the onClick handler
+        const dialog = page.getByRole("dialog");
+        await expect(async () => {
+          await page.getByText(/2 going/).first().click();
+          await expect(
+            dialog.getByRole("heading", { name: "Members" }),
+          ).toBeVisible({ timeout: 1000 });
+        }).toPass({ timeout: ELEMENT_TIMEOUT });
+
+        await expect(dialog.getByText("User A - Trip Creator")).toBeVisible();
+        await expect(dialog.getByText("User B - Co-Organizer")).toBeVisible();
+
+        // Find the actions button for User B
+        const memberRow = dialog
+          .locator("div")
+          .filter({ hasText: "User B - Co-Organizer" });
+        const actionsButton = memberRow.getByRole("button", {
+          name: "Actions for User B - Co-Organizer",
+        });
+        await actionsButton.click();
+
+        // Click "Make co-organizer" in the dropdown
+        await page.getByText("Make co-organizer").click();
+
+        // Verify toast success message
+        await expect(
+          page.getByText("User B - Co-Organizer is now a co-organizer"),
+        ).toBeVisible({ timeout: 5000 });
+
+        // Verify "Organizer" badge appears on that member in the dialog
+        const promoteeNameEl = dialog.getByText("User B - Co-Organizer", {
+          exact: true,
+        });
+        await expect(
+          promoteeNameEl.locator("..").getByText("Organizer", { exact: true }),
+        ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
       });
 
       await test.step("co-organizer can view and edit trip", async () => {
@@ -342,7 +388,7 @@ test.describe("Trip Journey", () => {
         await expect(page.getByText("Trip updated successfully")).toBeVisible();
       });
 
-      await test.step("remove co-organizer and verify access revoked", async () => {
+      await test.step("demote co-organizer and verify organizer role removed", async () => {
         await page.context().clearCookies();
         await authenticateViaAPIWithPhone(
           page,
@@ -351,22 +397,47 @@ test.describe("Trip Journey", () => {
           "User A - Trip Creator",
         );
 
-        const tripResponse = await page.request.get(
-          `http://localhost:8000/api/trips/${tripId}`,
-        );
-        expect(tripResponse.ok()).toBeTruthy();
+        await page.goto(`/trips/${tripId}`);
+        await expect(
+          page.getByRole("heading", { level: 1, name: tripName }),
+        ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
 
-        const tripData = await tripResponse.json();
-        const userBId = tripData.trip.organizers.find(
-          (org: { phoneNumber: string }) => org.phoneNumber === userBPhone,
-        )?.id;
-        expect(userBId).toBeDefined();
+        // Open Members dialog
+        const dialog = page.getByRole("dialog");
+        await expect(async () => {
+          await page.getByText(/2 going/).first().click();
+          await expect(
+            dialog.getByRole("heading", { name: "Members" }),
+          ).toBeVisible({ timeout: 1000 });
+        }).toPass({ timeout: ELEMENT_TIMEOUT });
 
-        const removeCoOrgResponse = await page.request.delete(
-          `http://localhost:8000/api/trips/${tripId}/co-organizers/${userBId}`,
-        );
-        expect(removeCoOrgResponse.ok()).toBeTruthy();
+        // Find User B and open actions dropdown
+        const memberRow = dialog
+          .locator("div")
+          .filter({ hasText: "User B - Co-Organizer" });
+        const actionsButton = memberRow.getByRole("button", {
+          name: "Actions for User B - Co-Organizer",
+        });
+        await actionsButton.click();
 
+        // Click "Remove co-organizer" in the dropdown
+        await page.getByText("Remove co-organizer").click();
+
+        // Verify toast
+        await expect(
+          page.getByText("User B - Co-Organizer is no longer a co-organizer"),
+        ).toBeVisible({ timeout: 5000 });
+
+        // Verify "Organizer" badge is removed
+        const demoteeNameEl = dialog.getByText("User B - Co-Organizer", {
+          exact: true,
+        });
+        await expect(
+          demoteeNameEl.locator("..").getByText("Organizer", { exact: true }),
+        ).not.toBeVisible({ timeout: ELEMENT_TIMEOUT });
+
+        // Verify User B can still view the trip as a regular member
+        // (demotion only removes organizer role, not membership)
         await page.context().clearCookies();
         await authenticateViaAPIWithPhone(
           page,
@@ -376,9 +447,12 @@ test.describe("Trip Journey", () => {
         );
 
         await page.goto(`/trips/${tripId}`);
+        // User B is still a member, so the trip heading should be visible.
+        // The heading name includes the original tripName (a substring match is sufficient).
         await expect(
-          page.getByRole("heading", { name: "Trip not found" }),
-        ).toBeVisible();
+          page.getByRole("heading", { level: 1, name: tripName }),
+        ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
+        // User B is no longer an organizer, so the edit button should be hidden
         await expect(tripDetail.editButton).not.toBeVisible();
       });
     },
@@ -396,8 +470,9 @@ test.describe("Trip Journey", () => {
       const memberPhone = `+1555${(parseInt(shortTimestamp) + 1000).toString()}`;
 
       let tripId: string;
+      let memberCookie: string;
 
-      await test.step("setup: create organizer, trip, invite member, and member creates event", async () => {
+      await test.step("setup: create organizer, trip, and invite member", async () => {
         const organizerCookie = await createUserViaAPI(
           request,
           organizerPhone,
@@ -411,39 +486,34 @@ test.describe("Trip Journey", () => {
           endDate: "2026-10-05",
         });
 
-        await inviteAndAcceptViaAPI(
-          request,
-          tripId,
-          organizerPhone,
-          memberPhone,
-          "Test Member",
-          organizerCookie,
-        );
+        // Send invitation
+        await inviteViaAPI(request, tripId, organizerCookie, [memberPhone]);
 
-        const memberCookie = await createUserViaAPI(
-          request,
-          memberPhone,
-          "Test Member",
-        );
-        const eventResponse = await request.post(
-          `http://localhost:8000/api/trips/${tripId}/events`,
-          {
-            data: {
-              name: "Member's Dinner Plan",
-              eventType: "meal",
-              startTime: "2026-10-02T19:00:00.000Z",
-            },
-            headers: { cookie: memberCookie },
+        // Authenticate the invitee (triggers processPendingInvitations to create member record)
+        memberCookie = await createUserViaAPI(request, memberPhone, "Test Member");
+
+        // RSVP as "going"
+        await rsvpViaAPI(request, tripId, memberCookie, "going");
+      });
+
+      await test.step("create event via API as member", async () => {
+        const eventResponse = await request.post(`${API_BASE}/trips/${tripId}/events`, {
+          data: {
+            name: "Member's Dinner Plan",
+            eventType: "food_and_drink",
+            startTime: "2026-10-02T19:00:00.000Z",
           },
-        );
+          headers: { cookie: memberCookie },
+        });
         if (!eventResponse.ok()) {
+          const body = await eventResponse.text();
           throw new Error(
-            `Failed to create member event: ${eventResponse.status()} ${await eventResponse.text()}`,
+            `Failed to create event: ${eventResponse.status()} ${eventResponse.statusText()} - ${body}`,
           );
         }
       });
 
-      await test.step("organizer navigates to trip and verifies member's event", async () => {
+      await test.step("organizer navigates to trip and verifies event", async () => {
         await authenticateViaAPIWithPhone(
           page,
           request,
@@ -530,7 +600,9 @@ test.describe("Trip Journey", () => {
 
         // Badge is in the detail sheet, not on the card
         await eventCard.click();
-        await expect(page.getByText("Member no longer attending")).toBeVisible({
+        await expect(
+          page.getByText("Member no longer attending", { exact: false }),
+        ).toBeVisible({
           timeout: ELEMENT_TIMEOUT,
         });
 
@@ -683,7 +755,7 @@ test.describe("Trip Journey", () => {
 
       let tripId: string;
 
-      await test.step("setup: create organizer, trip, event, and invite member", async () => {
+      await test.step("setup: create organizer, trip, and invite member", async () => {
         const organizerCookie = await createUserViaAPI(
           request,
           organizerPhone,
@@ -697,24 +769,7 @@ test.describe("Trip Journey", () => {
           endDate: "2026-12-05",
         });
 
-        // Create an event so the itinerary has content and the FAB is visible
-        // (empty state only shows "Add Event" / "Add Accommodation" buttons, not the FAB)
-        const eventResponse = await request.post(
-          `http://localhost:8000/api/trips/${tripId}/events`,
-          {
-            data: {
-              name: "Welcome Dinner",
-              eventType: "meal",
-              startTime: "2026-12-01T18:00:00.000Z",
-            },
-            headers: { cookie: organizerCookie },
-          },
-        );
-        if (!eventResponse.ok()) {
-          throw new Error(
-            `Failed to create event: ${eventResponse.status()} ${await eventResponse.text()}`,
-          );
-        }
+        // Event will be created via UI after navigation to the trip
 
         await inviteAndAcceptViaAPI(
           request,
@@ -741,6 +796,8 @@ test.describe("Trip Journey", () => {
             name: `Delegation Trip ${timestamp}`,
           }),
         ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
+
+        await createEvent(page, "Welcome Dinner", "2026-12-01T18:00", { type: "Food & Drink" });
       });
 
       await test.step("open My Travel dialog via FAB", async () => {

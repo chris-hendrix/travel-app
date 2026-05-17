@@ -1065,7 +1065,7 @@ describe("MemberOnboardingWizard", () => {
           id: "event-1",
           tripId: "trip-1",
           name: "Beach day",
-          eventType: "activity",
+          eventType: "misc",
           startTime: new Date("2026-03-16T14:00:00.000Z"),
           endTime: null,
           location: null,

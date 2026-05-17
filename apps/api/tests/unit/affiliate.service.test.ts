@@ -292,21 +292,21 @@ describe("affiliate.service", () => {
           tripId: testTripId,
           createdBy: testUserId,
           name: "Breakfast",
-          eventType: "meal",
+          eventType: "food_and_drink",
           startTime: new Date("2026-04-10T09:00:00Z"),
         },
         {
           tripId: testTripId,
           createdBy: testUserId,
           name: "Lunch",
-          eventType: "meal",
+          eventType: "food_and_drink",
           startTime: new Date("2026-04-12T12:00:00Z"),
         },
         {
           tripId: testTripId,
           createdBy: testUserId,
           name: "Dinner",
-          eventType: "meal",
+          eventType: "food_and_drink",
           startTime: new Date("2026-04-13T19:00:00Z"),
         },
       ]);
@@ -316,7 +316,7 @@ describe("affiliate.service", () => {
         tripId: testTripId,
         createdBy: testUserId,
         name: "Sightseeing",
-        eventType: "activity",
+        eventType: "misc",
         startTime: new Date("2026-04-11T10:00:00Z"),
       });
 
@@ -355,14 +355,14 @@ describe("affiliate.service", () => {
           tripId: testTripId,
           createdBy: testUserId,
           name: "Arrival Activity",
-          eventType: "activity",
+          eventType: "misc",
           startTime: new Date("2026-04-10T15:00:00Z"),
         },
         {
           tripId: testTripId,
           createdBy: testUserId,
           name: "Departure Activity",
-          eventType: "activity",
+          eventType: "misc",
           startTime: new Date("2026-04-13T09:00:00Z"),
         },
       ]);

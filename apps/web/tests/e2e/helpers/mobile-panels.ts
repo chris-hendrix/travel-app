@@ -5,15 +5,17 @@ import type { Page } from "@playwright/test";
  *
  * - 0 = Home (Info panel)
  * - 1 = Itinerary
- * - 2 = Messages
- * - 3 = Photos
- * - 4 = Settle
+ * - 2 = Discover
+ * - 3 = Messages
+ * - 4 = Photos
+ * - 5 = Settle
  */
-export type MobilePanel = "Home" | "Itinerary" | "Messages" | "Photos" | "Settle";
+export type MobilePanel = "Home" | "Itinerary" | "Discover" | "Messages" | "Photos" | "Settle";
 
 /** Map panel names to their desktop tab route segments. */
 const PANEL_TAB_ROUTES: Record<string, string> = {
   Itinerary: "itinerary",
+  Discover: "discover",
   Messages: "messages",
   Photos: "photos",
   Settle: "settle",

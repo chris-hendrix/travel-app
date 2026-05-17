@@ -13,7 +13,7 @@ export interface Event {
   createdBy: string;
   name: string;
   description: string | null;
-  eventType: "travel" | "meal" | "activity";
+  eventType: "travel" | "food_and_drink" | "arts_and_entertainment" | "outdoors" | "nightlife" | "misc";
   location: string | null;
   locationLat: number | null;
   locationLon: number | null;

@@ -5,6 +5,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { EditEventDialog } from "../edit-event-dialog";
 import type { Event } from "@journiful/shared/types";
 
+// Mock location autocomplete
+vi.mock("@/hooks/use-location-autocomplete", () => ({
+  useLocationAutocomplete: () => ({ data: [], isLoading: false }),
+}));
+
 // Mock sonner
 const mockToast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock("sonner", () => ({
@@ -34,7 +39,7 @@ describe("EditEventDialog", () => {
     createdBy: "user-123",
     name: "Test Event",
     description: "Test description",
-    eventType: "activity",
+    eventType: "misc",
     location: "Test Location",
     startTime: new Date("2026-07-15T14:00:00.000Z"),
     endTime: new Date("2026-07-15T16:00:00.000Z"),
@@ -164,8 +169,6 @@ describe("EditEventDialog", () => {
           timezone="America/New_York"
         />,
       );
-
-      await user.click(screen.getByText("More details"));
 
       expect(await screen.findByText("https://example.com")).toBeDefined();
     });
@@ -430,8 +433,6 @@ describe("EditEventDialog", () => {
         />,
       );
 
-      await user.click(screen.getByText("More details"));
-
       const linkInput = await screen.findByLabelText(/link url/i);
       await user.click(linkInput);
       await user.paste("https://newlink.com");
@@ -454,8 +455,6 @@ describe("EditEventDialog", () => {
           timezone="America/New_York"
         />,
       );
-
-      await user.click(screen.getByText("More details"));
 
       const linkInput = await screen.findByLabelText(/link url/i);
       await user.click(linkInput);
@@ -484,8 +483,6 @@ describe("EditEventDialog", () => {
           timezone="America/New_York"
         />,
       );
-
-      await user.click(screen.getByText("More details"));
 
       const removeButton = await screen.findByRole("button", {
         name: /remove https:\/\/example\.com/i,

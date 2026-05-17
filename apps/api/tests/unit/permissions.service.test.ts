@@ -170,7 +170,7 @@ describe("permissions.service", () => {
         tripId: testTripId,
         createdBy: testCoOrganizerId,
         name: "Test Event",
-        eventType: "activity",
+        eventType: "misc",
         startTime: new Date("2026-06-15T10:00:00Z"),
       })
       .returning();
@@ -1017,7 +1017,7 @@ describe("permissions.service", () => {
           tripId: testTripId,
           createdBy: testMemberId,
           name: "Member Event",
-          eventType: "activity",
+          eventType: "misc",
           startTime: new Date("2026-06-16T10:00:00Z"),
         })
         .returning();

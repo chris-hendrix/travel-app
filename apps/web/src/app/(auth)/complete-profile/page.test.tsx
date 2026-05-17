@@ -4,9 +4,34 @@ import userEvent from "@testing-library/user-event";
 import { useRouter } from "next/navigation";
 import CompleteProfilePage from "./page";
 
-// Mock next/navigation
+// Mock next/navigation — include useSearchParams
+const mockSearchParamsGet = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: vi.fn(),
+  useSearchParams: () => ({
+    get: mockSearchParamsGet,
+  }),
+}));
+
+// Mock @/lib/constants
+vi.mock("@/lib/constants", () => ({
+  TIMEZONES: [
+    { value: "America/New_York", label: "Eastern Time (US & Canada)" },
+    { value: "America/Chicago", label: "Central Time (US & Canada)" },
+    { value: "America/Denver", label: "Mountain Time (US & Canada)" },
+    { value: "America/Los_Angeles", label: "Pacific Time (US & Canada)" },
+  ],
+  TIMEZONE_AUTO_DETECT: "__auto_detect__",
+  getDetectedTimezone: () => "America/New_York",
+  getTimezoneLabel: (tz: string) => {
+    const labels: Record<string, string> = {
+      "America/New_York": "Eastern Time (US & Canada)",
+      "America/Chicago": "Central Time (US & Canada)",
+      "America/Los_Angeles": "Pacific Time (US & Canada)",
+    };
+    return labels[tz] || tz;
+  },
+  getTimezoneAbbr: () => "EST",
 }));
 
 // Mock auth provider
@@ -55,6 +80,7 @@ describe("CompleteProfilePage", () => {
     mockCompleteProfile.mockClear();
     mockUploadMutateAsync.mockClear();
     mockPush.mockClear();
+    mockSearchParamsGet.mockClear();
     mockUser = null;
 
     mockCreateObjectURL = vi.fn((file) => `blob:${file.name || "photo"}`);

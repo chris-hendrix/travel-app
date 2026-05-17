@@ -4,6 +4,11 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { CreateEventDialog } from "../create-event-dialog";
 
+// Mock location autocomplete
+vi.mock("@/hooks/use-location-autocomplete", () => ({
+  useLocationAutocomplete: () => ({ data: [], isLoading: false }),
+}));
+
 // Mock sonner
 const mockToast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock("sonner", () => ({
@@ -200,18 +205,16 @@ describe("CreateEventDialog", () => {
   });
 
   describe("Field validation - Event type", () => {
-    it("defaults to activity", () => {
+    it("defaults to food_and_drink", () => {
       renderWithQueryClient(
         <CreateEventDialog
           open={true}
           onOpenChange={mockOnOpenChange}
-          tripId={tripId}
+          tripId="trip-123"
           timezone="America/New_York"
         />,
       );
-
-      // Event type uses a button grid; "Activity" is selected by default
-      expect(screen.getByRole("button", { name: /activity/i })).toBeDefined();
+      expect(screen.getByText("Food & Drink")).toBeDefined();
     });
   });
 
@@ -360,8 +363,6 @@ describe("CreateEventDialog", () => {
         />,
       );
 
-      await user.click(screen.getByText("More details"));
-
       expect(await screen.findByLabelText(/link url/i)).toBeDefined();
     });
 
@@ -375,8 +376,6 @@ describe("CreateEventDialog", () => {
           timezone="America/New_York"
         />,
       );
-
-      await user.click(screen.getByText("More details"));
 
       const linkInput = await screen.findByLabelText(/link url/i);
       await user.click(linkInput);
@@ -400,8 +399,6 @@ describe("CreateEventDialog", () => {
           timezone="America/New_York"
         />,
       );
-
-      await user.click(screen.getByText("More details"));
 
       const linkInput = await screen.findByLabelText(/link url/i);
       await user.click(linkInput);
@@ -431,8 +428,6 @@ describe("CreateEventDialog", () => {
         />,
       );
 
-      await user.click(screen.getByText("More details"));
-
       const linkInput = await screen.findByLabelText(/link url/i);
       await user.type(linkInput, "not a valid url");
 
@@ -454,8 +449,6 @@ describe("CreateEventDialog", () => {
           timezone="America/New_York"
         />,
       );
-
-      await user.click(screen.getByText("More details"));
 
       const linkInput = await screen.findByLabelText(/link url/i);
       await user.type(linkInput, "https://example.com");

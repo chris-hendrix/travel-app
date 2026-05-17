@@ -13,13 +13,13 @@ describe("createEventSchema", () => {
       },
       {
         name: "Dinner at Italian Restaurant",
-        eventType: "meal" as const,
+        eventType: "food_and_drink" as const,
         startTime: "2026-07-15T19:00:00Z",
         endTime: "2026-07-15T21:00:00Z",
       },
       {
         name: "Beach Volleyball",
-        eventType: "activity" as const,
+        eventType: "misc" as const,
         startTime: "2026-07-16T14:00:00Z",
         location: "South Beach",
         description: "Friendly beach volleyball game",
@@ -34,7 +34,7 @@ describe("createEventSchema", () => {
   it("should accept event with all optional fields", () => {
     const event = {
       name: "Conference Talk",
-      eventType: "activity" as const,
+      eventType: "misc" as const,
       startTime: "2026-08-10T14:00:00Z",
       endTime: "2026-08-10T15:30:00Z",
       description: "Keynote presentation on AI",
@@ -52,7 +52,7 @@ describe("createEventSchema", () => {
   it("should apply default value for allDay", () => {
     const event = {
       name: "Morning Yoga",
-      eventType: "activity" as const,
+      eventType: "misc" as const,
       startTime: "2026-07-16T07:00:00Z",
     };
 
@@ -64,12 +64,12 @@ describe("createEventSchema", () => {
     const events = [
       {
         name: "A",
-        eventType: "meal" as const,
+        eventType: "food_and_drink" as const,
         startTime: "2026-07-15T12:00:00Z",
       }, // Minimum (1)
       {
         name: "a".repeat(255),
-        eventType: "activity" as const,
+        eventType: "misc" as const,
         startTime: "2026-07-15T12:00:00Z",
       }, // Maximum (255)
     ];
@@ -82,7 +82,7 @@ describe("createEventSchema", () => {
   it("should reject event names that are too short", () => {
     const event = {
       name: "",
-      eventType: "meal",
+      eventType: "food_and_drink",
       startTime: "2026-07-15T12:00:00Z",
     };
 
@@ -97,7 +97,7 @@ describe("createEventSchema", () => {
     const longName = "a".repeat(256);
     const event = {
       name: longName,
-      eventType: "meal",
+      eventType: "food_and_drink",
       startTime: "2026-07-15T12:00:00Z",
     };
 
@@ -112,9 +112,9 @@ describe("createEventSchema", () => {
 
   it("should reject missing required fields", () => {
     const invalidEvents = [
-      { eventType: "meal", startTime: "2026-07-15T12:00:00Z" }, // Missing name
+      { eventType: "food_and_drink", startTime: "2026-07-15T12:00:00Z" }, // Missing name
       { name: "Lunch", startTime: "2026-07-15T12:00:00Z" }, // Missing eventType
-      { name: "Lunch", eventType: "meal" }, // Missing startTime
+      { name: "Lunch", eventType: "food_and_drink" }, // Missing startTime
       {}, // Missing all required fields
     ];
 
@@ -138,17 +138,20 @@ describe("createEventSchema", () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.issues[0]?.message).toContain(
-          "Event type must be one of: travel, meal, activity",
+          "Event type must be one of: travel, food_and_drink, arts_and_entertainment, outdoors, nightlife, misc",
         );
       }
     });
   });
 
   it("should accept valid event types", () => {
-    const validEventTypes: Array<"travel" | "meal" | "activity"> = [
+    const validEventTypes: Array<"travel" | "food_and_drink" | "arts_and_entertainment" | "outdoors" | "nightlife" | "misc"> = [
       "travel",
-      "meal",
-      "activity",
+      "food_and_drink",
+      "arts_and_entertainment",
+      "outdoors",
+      "nightlife",
+      "misc",
     ];
 
     validEventTypes.forEach((eventType) => {
@@ -174,7 +177,7 @@ describe("createEventSchema", () => {
     invalidDatetimes.forEach((startTime) => {
       const event = {
         name: "Test Event",
-        eventType: "meal" as const,
+        eventType: "food_and_drink" as const,
         startTime,
       };
 
@@ -193,7 +196,7 @@ describe("createEventSchema", () => {
     validDatetimes.forEach((startTime) => {
       const event = {
         name: "Test Event",
-        eventType: "meal" as const,
+        eventType: "food_and_drink" as const,
         startTime,
       };
 
@@ -211,7 +214,7 @@ describe("createEventSchema", () => {
     invalidDatetimes.forEach((endTime) => {
       const event = {
         name: "Test Event",
-        eventType: "meal" as const,
+        eventType: "food_and_drink" as const,
         startTime: "2026-07-15T12:00:00Z",
         endTime,
       };
@@ -224,7 +227,7 @@ describe("createEventSchema", () => {
   it("should reject endTime before startTime", () => {
     const event = {
       name: "Test Event",
-      eventType: "meal" as const,
+      eventType: "food_and_drink" as const,
       startTime: "2026-07-15T14:00:00Z",
       endTime: "2026-07-15T12:00:00Z",
     };
@@ -242,7 +245,7 @@ describe("createEventSchema", () => {
   it("should reject endTime equal to startTime", () => {
     const event = {
       name: "Test Event",
-      eventType: "meal" as const,
+      eventType: "food_and_drink" as const,
       startTime: "2026-07-15T12:00:00Z",
       endTime: "2026-07-15T12:00:00Z",
     };
@@ -259,7 +262,7 @@ describe("createEventSchema", () => {
   it("should accept endTime after startTime", () => {
     const event = {
       name: "Test Event",
-      eventType: "meal" as const,
+      eventType: "food_and_drink" as const,
       startTime: "2026-07-15T12:00:00Z",
       endTime: "2026-07-15T14:00:00Z",
     };
@@ -270,7 +273,7 @@ describe("createEventSchema", () => {
   it("should accept event without endTime", () => {
     const event = {
       name: "Test Event",
-      eventType: "meal" as const,
+      eventType: "food_and_drink" as const,
       startTime: "2026-07-15T12:00:00Z",
     };
 
@@ -281,7 +284,7 @@ describe("createEventSchema", () => {
     const longDescription = "a".repeat(2001);
     const event = {
       name: "Test Event",
-      eventType: "meal" as const,
+      eventType: "food_and_drink" as const,
       startTime: "2026-07-15T12:00:00Z",
       description: longDescription,
     };
@@ -299,7 +302,7 @@ describe("createEventSchema", () => {
     const maxDescription = "a".repeat(2000);
     const event = {
       name: "Test Event",
-      eventType: "meal" as const,
+      eventType: "food_and_drink" as const,
       startTime: "2026-07-15T12:00:00Z",
       description: maxDescription,
     };
@@ -318,7 +321,7 @@ describe("createEventSchema", () => {
     invalidUrls.forEach((links) => {
       const event = {
         name: "Test Event",
-        eventType: "meal" as const,
+        eventType: "food_and_drink" as const,
         startTime: "2026-07-15T12:00:00Z",
         links,
       };
@@ -339,7 +342,7 @@ describe("createEventSchema", () => {
     validUrls.forEach((links) => {
       const event = {
         name: "Test Event",
-        eventType: "meal" as const,
+        eventType: "food_and_drink" as const,
         startTime: "2026-07-15T12:00:00Z",
         links,
       };
@@ -352,7 +355,7 @@ describe("createEventSchema", () => {
     const tooManyLinks = Array(11).fill({ url: "https://example.com" });
     const event = {
       name: "Test Event",
-      eventType: "meal" as const,
+      eventType: "food_and_drink" as const,
       startTime: "2026-07-15T12:00:00Z",
       links: tooManyLinks,
     };
@@ -368,7 +371,7 @@ describe("createEventSchema", () => {
     const maxLinks = Array(10).fill({ url: "https://example.com" });
     const event = {
       name: "Test Event",
-      eventType: "meal" as const,
+      eventType: "food_and_drink" as const,
       startTime: "2026-07-15T12:00:00Z",
       links: maxLinks,
     };
@@ -379,7 +382,7 @@ describe("createEventSchema", () => {
   it("should accept empty links array", () => {
     const event = {
       name: "Test Event",
-      eventType: "meal" as const,
+      eventType: "food_and_drink" as const,
       startTime: "2026-07-15T12:00:00Z",
       links: [],
     };
@@ -390,7 +393,7 @@ describe("createEventSchema", () => {
   it("should accept links with optional name", () => {
     const event = {
       name: "Test Event",
-      eventType: "meal" as const,
+      eventType: "food_and_drink" as const,
       startTime: "2026-07-15T12:00:00Z",
       links: [
         { url: "https://example.com", name: "Reservation" },
@@ -404,7 +407,7 @@ describe("createEventSchema", () => {
   it("should reject link name exceeding 100 characters", () => {
     const event = {
       name: "Test Event",
-      eventType: "meal" as const,
+      eventType: "food_and_drink" as const,
       startTime: "2026-07-15T12:00:00Z",
       links: [{ url: "https://example.com", name: "a".repeat(101) }],
     };
@@ -421,7 +424,7 @@ describe("createEventSchema", () => {
   it("should reject link missing url", () => {
     const event = {
       name: "Test Event",
-      eventType: "meal" as const,
+      eventType: "food_and_drink" as const,
       startTime: "2026-07-15T12:00:00Z",
       links: [{ name: "No URL here" }],
     };
@@ -436,7 +439,7 @@ describe("updateEventSchema", () => {
     const partialUpdates = [
       { name: "Updated Event Name" },
       { description: "Updated description" },
-      { eventType: "activity" as const },
+      { eventType: "misc" as const },
       { location: "New Location" },
       { startTime: "2026-08-01T10:00:00Z" },
       { endTime: "2026-08-01T12:00:00Z" },
@@ -452,7 +455,7 @@ describe("updateEventSchema", () => {
   it("should accept partial updates with multiple fields", () => {
     const update = {
       name: "Updated Event",
-      eventType: "meal" as const,
+      eventType: "food_and_drink" as const,
       startTime: "2026-08-15T18:00:00Z",
       endTime: "2026-08-15T20:00:00Z",
       location: "New Restaurant",

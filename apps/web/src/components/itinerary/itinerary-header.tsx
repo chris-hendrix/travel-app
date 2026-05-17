@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Calendar, Car, Globe, PlaneLanding, Plus, Building2, Utensils, type LucideIcon } from "lucide-react";
+import { Calendar, Globe, PlaneLanding, Plus, Building2 } from "lucide-react";
 import { getTimezoneAbbr } from "@/lib/constants";
 import { useMounted } from "@/hooks/use-mounted";
 import { useMemberTravels } from "@/hooks/use-member-travel";
@@ -18,21 +18,9 @@ import { CreateEventDialog } from "./create-event-dialog";
 import { CreateAccommodationDialog } from "./create-accommodation-dialog";
 import { CreateMemberTravelDialog } from "./create-member-travel-dialog";
 
-export type ItineraryFilterCategory = "activity" | "meal" | "travel" | "members";
-export type ItineraryFilter = Set<ItineraryFilterCategory>;
-export const ALL_FILTER_CATEGORIES: ItineraryFilterCategory[] = ["activity", "meal", "travel", "members"];
-
-
-const FILTER_OPTIONS: { value: ItineraryFilterCategory; label: string; icon: LucideIcon }[] = [
-  { value: "activity", label: "Activity", icon: Calendar },
-  { value: "meal", label: "Meal", icon: Utensils },
-  { value: "travel", label: "Travel", icon: Car },
-  { value: "members", label: "Members", icon: PlaneLanding },
-];
-
 interface ItineraryHeaderProps {
-  filter: ItineraryFilter;
-  onToggleFilter: (category: ItineraryFilterCategory) => void;
+  showMemberTravel: boolean;
+  onToggleMemberTravel: () => void;
   selectedTimezone: string;
   onTimezoneChange: (tz: string) => void;
   tripTimezone: string;
@@ -50,8 +38,8 @@ interface ItineraryHeaderProps {
 }
 
 export function ItineraryHeader({
-  filter,
-  onToggleFilter,
+  showMemberTravel,
+  onToggleMemberTravel,
   selectedTimezone,
   onTimezoneChange,
   tripTimezone,
@@ -93,39 +81,39 @@ export function ItineraryHeader({
       >
         <div className="max-w-5xl mx-auto">
           <div className="flex items-center justify-between gap-3">
-            {/* Filter pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto">
-              {FILTER_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => onToggleFilter(opt.value)}
-                  className={cn(
-                    "inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors shrink-0 cursor-pointer",
-                    filter.has(opt.value)
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground",
-                  )}
-                >
-                  <opt.icon className="w-3.5 h-3.5" />
-                </button>
-              ))}
-            </div>
-
-            {/* Timezone toggle */}
-            {showTzToggle && (
+            <div className="flex items-center gap-2 ml-auto">
               <button
                 type="button"
-                onClick={() =>
-                  onTimezoneChange(isTripTz ? userTimezone : tripTimezone)
-                }
-                className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors shrink-0 cursor-pointer"
-                aria-label={`Switch to ${isTripTz ? "your" : "trip"} timezone`}
+                onClick={onToggleMemberTravel}
+                className={cn(
+                  "inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs transition-colors shrink-0 cursor-pointer",
+                  showMemberTravel
+                    ? "text-muted-foreground hover:text-foreground hover:bg-muted/80"
+                    : "text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/80",
+                )}
               >
-                <Globe className="w-3 h-3" />
-                <span className="tabular-nums">{tzAbbr}</span>
+                <PlaneLanding
+                  className={cn(
+                    "w-3 h-3 transition-all",
+                    showMemberTravel ? "opacity-100" : "opacity-40",
+                  )}
+                />
+                Travel
               </button>
-            )}
+              {showTzToggle && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    onTimezoneChange(isTripTz ? userTimezone : tripTimezone)
+                  }
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors shrink-0 cursor-pointer"
+                  aria-label={`Switch to ${isTripTz ? "your" : "trip"} timezone`}
+                >
+                  <Globe className="w-3 h-3" />
+                  <span className="tabular-nums">{tzAbbr}</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>

@@ -23,6 +23,7 @@ import {
   type MobileTripSwiperRef,
 } from "./mobile-trip-swiper";
 import { InfoPanel } from "./panels/info-panel";
+import { DiscoverPanel } from "./panels/discover-panel";
 import { ItineraryPanel } from "./panels/itinerary-panel";
 import { MessagesPanel } from "./panels/messages-panel";
 import { PhotosPanel } from "./panels/photos-panel";
@@ -183,6 +184,10 @@ export function MobileTripLayout({
               temperatureUnit={temperatureUnit}
               hideFab={activeIndex !== 1}
             />
+            <DiscoverPanel
+              tripId={tripId}
+              temperatureUnit={temperatureUnit}
+            />
             <MessagesPanel
               tripId={tripId}
               isOrganizer={isOrganizer}
@@ -193,13 +198,13 @@ export function MobileTripLayout({
               tripId={tripId}
               isOrganizer={isOrganizer}
               disabled={isLocked}
-              hideFab={activeIndex !== 3}
+              hideFab={activeIndex !== 4}
             />
             <SettlePanel
               tripId={tripId}
               isOrganizer={isOrganizer}
               disabled={isLocked}
-              hideFab={activeIndex !== 4}
+              hideFab={activeIndex !== 5}
             />
           </MobileTripSwiper>
         </div>

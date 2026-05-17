@@ -122,7 +122,7 @@ describe("TripMessages", () => {
     vi.useRealTimers();
   });
 
-  it("renders section header with Discussion title", () => {
+  it("renders section header with Messages title", () => {
     mockData = {
       success: true,
       messages: [],
@@ -131,7 +131,7 @@ describe("TripMessages", () => {
 
     render(<TripMessages tripId="trip-1" isOrganizer={false} />);
 
-    expect(screen.getByText("Discussion")).toBeDefined();
+    expect(screen.getByText("Messages")).toBeDefined();
   });
 
   it("renders section with id=discussion for scroll targeting", () => {
@@ -244,9 +244,9 @@ describe("TripMessages", () => {
 
     render(<TripMessages tripId="trip-1" isOrganizer={false} />);
 
-    // The only text content should be "Discussion" in the header area
-    const header = screen.getByText("Discussion");
-    expect(header.nextElementSibling).toBeNull();
+    // Should show "Messages" but no count number
+    expect(screen.getByText("Messages")).toBeDefined();
+    expect(screen.queryByText("0")).toBeNull();
   });
 
   it("renders section with aria-label 'Trip discussion'", () => {

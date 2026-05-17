@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const TABS = [
   { value: "itinerary", label: "Itinerary" },
+  { value: "discover", label: "Discover" },
   { value: "messages", label: "Messages" },
   { value: "photos", label: "Photos" },
   { value: "settle", label: "Settle" },
@@ -17,7 +18,7 @@ export function TripTabNav({ tripId }: { tripId: string }) {
     TABS.find((t) => pathname.endsWith(t.value))?.value ?? "itinerary";
 
   return (
-    <div className="hidden lg:flex mb-6 border-b border-border">
+    <div className="hidden md:flex mb-6 border-b border-border">
       <Tabs value={activeTab}>
         <TabsList variant="line">
           {TABS.map((tab) => (

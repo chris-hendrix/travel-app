@@ -9,7 +9,7 @@ import type { Swiper as SwiperType } from "swiper";
 // @ts-expect-error -- swiper/css has no type declarations (TS2882 in TS5.8+)
 import "swiper/css";
 
-const SLIDE_HASHES = ["info", "itinerary", "messages", "photos", "settle"] as const;
+const SLIDE_HASHES = ["info", "itinerary", "discover", "messages", "photos", "settle"] as const;
 
 export interface MobileTripSwiperRef {
   slideTo: (index: number) => void;
@@ -19,7 +19,7 @@ interface MobileTripSwiperProps {
   onSlideChange: (index: number) => void;
   onProgress: (progress: number) => void;
   allowTouchMove?: boolean;
-  children: [ReactNode, ReactNode, ReactNode, ReactNode, ReactNode];
+  children: [ReactNode, ReactNode, ReactNode, ReactNode, ReactNode, ReactNode];
 }
 
 export const MobileTripSwiper = forwardRef<
@@ -66,6 +66,8 @@ export const MobileTripSwiper = forwardRef<
       spaceBetween={0}
       speed={300}
       allowTouchMove={allowTouchMove}
+      noSwiping={true}
+      noSwipingClass="no-swipe"
       hashNavigation={{ replaceState: true, watchState: true }}
       onSwiper={handleSwiper}
       onSlideChange={handleSlideChange}

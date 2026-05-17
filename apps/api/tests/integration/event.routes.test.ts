@@ -65,7 +65,7 @@ describe("Event Routes", () => {
         },
         payload: {
           name: "Eiffel Tower Visit",
-          eventType: "activity",
+          eventType: "misc",
           startTime: "2026-06-15T14:00:00Z",
           description: "Visit the Eiffel Tower",
           location: "Eiffel Tower, Paris",
@@ -79,7 +79,7 @@ describe("Event Routes", () => {
       expect(body).toHaveProperty("event");
       expect(body.event).toMatchObject({
         name: "Eiffel Tower Visit",
-        eventType: "activity",
+        eventType: "misc",
         description: "Visit the Eiffel Tower",
         location: "Eiffel Tower, Paris",
         tripId: trip.id,
@@ -95,7 +95,7 @@ describe("Event Routes", () => {
         url: "/api/trips/550e8400-e29b-41d4-a716-446655440000/events",
         payload: {
           name: "Test Event",
-          eventType: "activity",
+          eventType: "misc",
           startTime: "2026-06-15T14:00:00Z",
         },
       });
@@ -162,7 +162,7 @@ describe("Event Routes", () => {
         },
         payload: {
           name: "Unauthorized Event",
-          eventType: "activity",
+          eventType: "misc",
           startTime: "2026-06-15T14:00:00Z",
         },
       });
@@ -264,14 +264,14 @@ describe("Event Routes", () => {
           tripId: trip.id,
           createdBy: testUser.id,
           name: "Event 1",
-          eventType: "activity",
+          eventType: "misc",
           startTime: new Date("2026-06-15T14:00:00Z"),
         },
         {
           tripId: trip.id,
           createdBy: testUser.id,
           name: "Event 2",
-          eventType: "meal",
+          eventType: "food_and_drink",
           startTime: new Date("2026-06-15T18:00:00Z"),
         },
       ]);
@@ -334,14 +334,14 @@ describe("Event Routes", () => {
           tripId: trip.id,
           createdBy: testUser.id,
           name: "Activity Event",
-          eventType: "activity",
+          eventType: "misc",
           startTime: new Date("2026-06-15T14:00:00Z"),
         },
         {
           tripId: trip.id,
           createdBy: testUser.id,
           name: "Meal Event",
-          eventType: "meal",
+          eventType: "food_and_drink",
           startTime: new Date("2026-06-15T18:00:00Z"),
         },
       ]);
@@ -353,7 +353,7 @@ describe("Event Routes", () => {
 
       const response = await app.inject({
         method: "GET",
-        url: `/api/trips/${trip.id}/events?type=activity`,
+        url: `/api/trips/${trip.id}/events?type=misc`,
         cookies: {
           auth_token: token,
         },
@@ -363,7 +363,7 @@ describe("Event Routes", () => {
 
       const body = JSON.parse(response.body);
       expect(body.events).toHaveLength(1);
-      expect(body.events[0].eventType).toBe("activity");
+      expect(body.events[0].eventType).toBe("misc");
     });
 
     it("should return 401 if not authenticated", async () => {
@@ -414,7 +414,7 @@ describe("Event Routes", () => {
         tripId: trip.id,
         createdBy: testUser.id,
         name: "Attending Event",
-        eventType: "activity",
+        eventType: "misc",
         startTime: new Date("2026-06-15T14:00:00Z"),
       });
 
@@ -491,7 +491,7 @@ describe("Event Routes", () => {
         tripId: trip.id,
         createdBy: creator.id,
         name: "Maybe Event",
-        eventType: "meal",
+        eventType: "food_and_drink",
         startTime: new Date("2026-06-15T18:00:00Z"),
       });
 
@@ -551,7 +551,7 @@ describe("Event Routes", () => {
         tripId: trip.id,
         createdBy: testUser.id,
         name: "Profile Event",
-        eventType: "activity",
+        eventType: "misc",
         startTime: new Date("2026-06-15T14:00:00Z"),
       });
 
@@ -630,7 +630,7 @@ describe("Event Routes", () => {
         tripId: trip.id,
         createdBy: organizer.id,
         name: "Secret Event",
-        eventType: "activity",
+        eventType: "misc",
         startTime: new Date("2026-06-15T14:00:00Z"),
       });
 
@@ -707,7 +707,7 @@ describe("Event Routes", () => {
         tripId: trip.id,
         createdBy: creator.id,
         name: "Creator Removed Event",
-        eventType: "activity",
+        eventType: "misc",
         startTime: new Date("2026-06-15T14:00:00Z"),
       });
 
@@ -777,7 +777,7 @@ describe("Event Routes", () => {
           tripId: trip.id,
           createdBy: testUser.id,
           name: "Test Event",
-          eventType: "activity",
+          eventType: "misc",
           startTime: new Date("2026-06-15T14:00:00Z"),
         })
         .returning();
@@ -875,7 +875,7 @@ describe("Event Routes", () => {
           tripId: trip.id,
           createdBy: testUser.id,
           name: "Original Event",
-          eventType: "activity",
+          eventType: "misc",
           startTime: new Date("2026-06-15T14:00:00Z"),
         })
         .returning();
@@ -946,7 +946,7 @@ describe("Event Routes", () => {
           tripId: trip.id,
           createdBy: owner.id,
           name: "Test Event",
-          eventType: "activity",
+          eventType: "misc",
           startTime: new Date("2026-06-15T14:00:00Z"),
         })
         .returning();
@@ -1024,7 +1024,7 @@ describe("Event Routes", () => {
           tripId: trip.id,
           createdBy: testUser.id,
           name: "Test Event",
-          eventType: "activity",
+          eventType: "misc",
           startTime: new Date("2026-06-15T14:00:00Z"),
         })
         .returning();
@@ -1090,7 +1090,7 @@ describe("Event Routes", () => {
           tripId: trip.id,
           createdBy: testUser.id,
           name: "Test Event",
-          eventType: "activity",
+          eventType: "misc",
           startTime: new Date("2026-06-15T14:00:00Z"),
           deletedAt: new Date(),
           deletedBy: testUser.id,
@@ -1156,7 +1156,7 @@ describe("Event Routes", () => {
           tripId: trip.id,
           createdBy: testUser.id,
           name: `Event ${i + 1}`,
-          eventType: "activity" as const,
+          eventType: "misc" as const,
           startTime: new Date(
             `2026-06-15T${String(i % 24).padStart(2, "0")}:00:00Z`,
           ),
@@ -1174,7 +1174,7 @@ describe("Event Routes", () => {
         cookies: { auth_token: token },
         payload: {
           name: "One Too Many",
-          eventType: "activity",
+          eventType: "misc",
           startTime: "2026-06-16T14:00:00Z",
         },
       });
@@ -1224,7 +1224,7 @@ describe("Event Routes", () => {
           tripId: trip.id,
           createdBy: testUser.id,
           name: `Event ${i + 1}`,
-          eventType: "activity" as const,
+          eventType: "misc" as const,
           startTime: new Date(
             `2026-06-15T${String(i % 24).padStart(2, "0")}:00:00Z`,
           ),
@@ -1236,7 +1236,7 @@ describe("Event Routes", () => {
         tripId: trip.id,
         createdBy: testUser.id,
         name: "Deleted Event",
-        eventType: "activity" as const,
+        eventType: "misc" as const,
         startTime: new Date("2026-06-16T12:00:00Z"),
         deletedAt: new Date(),
         deletedBy: testUser.id,
@@ -1253,7 +1253,7 @@ describe("Event Routes", () => {
         cookies: { auth_token: token },
         payload: {
           name: "Should Succeed",
-          eventType: "activity",
+          eventType: "misc",
           startTime: "2026-06-16T14:00:00Z",
         },
       });

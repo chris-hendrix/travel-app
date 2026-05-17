@@ -32,9 +32,13 @@ vi.mock("@/components/ui/phone-input", () => ({
   ),
 }));
 
-// Mock next/navigation
+// Mock next/navigation — include useSearchParams
+const mockSearchParamsGet = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: vi.fn(),
+  useSearchParams: () => ({
+    get: mockSearchParamsGet,
+  }),
 }));
 
 // Mock auth provider
@@ -45,6 +49,12 @@ vi.mock("@/app/providers/auth-provider", () => ({
   }),
 }));
 
+/** Check the SMS consent checkbox so the Continue button is enabled */
+async function checkSmsConsent(user: ReturnType<typeof userEvent.setup>) {
+  const checkbox = screen.getByRole("checkbox", { name: /i agree to receive text messages/i });
+  await user.click(checkbox);
+}
+
 describe("LoginPage", () => {
   const mockPush = vi.fn();
 
@@ -54,6 +64,7 @@ describe("LoginPage", () => {
     } as any);
     mockLogin.mockClear();
     mockPush.mockClear();
+    mockSearchParamsGet.mockReturnValue(null);
   });
 
   afterEach(() => {
@@ -81,6 +92,7 @@ describe("LoginPage", () => {
     const button = screen.getByRole("button", { name: /continue/i });
 
     await user.type(input, "123");
+    await checkSmsConsent(user);
     await user.click(button);
 
     await waitFor(
@@ -104,6 +116,7 @@ describe("LoginPage", () => {
     const button = screen.getByRole("button", { name: /continue/i });
 
     await user.type(input, "123456789012345678901");
+    await checkSmsConsent(user);
     await user.click(button);
 
     await waitFor(() => {
@@ -126,10 +139,11 @@ describe("LoginPage", () => {
     const button = screen.getByRole("button", { name: /continue/i });
 
     await user.type(input, "+15551234567");
+    await checkSmsConsent(user);
     await user.click(button);
 
     await waitFor(() => {
-      expect(mockLogin).toHaveBeenCalledWith("+15551234567");
+      expect(mockLogin).toHaveBeenCalledWith("+15551234567", true);
     });
   });
 
@@ -143,10 +157,11 @@ describe("LoginPage", () => {
     const button = screen.getByRole("button", { name: /continue/i });
 
     await user.type(input, "+15551234567");
+    await checkSmsConsent(user);
     await user.click(button);
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith("/verify?phone=%2B15551234567");
+      expect(mockPush).toHaveBeenCalledWith("/verify?phone=%2B15551234567&smsConsent=true");
     });
   });
 
@@ -160,6 +175,7 @@ describe("LoginPage", () => {
     const button = screen.getByRole("button", { name: /continue/i });
 
     await user.type(input, "+15551234567");
+    await checkSmsConsent(user);
     await user.click(button);
 
     await waitFor(() => {
@@ -182,6 +198,7 @@ describe("LoginPage", () => {
     const button = screen.getByRole("button", { name: /continue/i });
 
     await user.type(input, "+15551234567");
+    await checkSmsConsent(user);
     await user.click(button);
 
     await waitFor(() => {
@@ -207,6 +224,7 @@ describe("LoginPage", () => {
     const button = screen.getByRole("button", { name: /continue/i });
 
     await user.type(input, "+15551234567");
+    await checkSmsConsent(user);
     await user.click(button);
 
     await waitFor(() => {
@@ -235,9 +253,7 @@ describe("LoginPage", () => {
     render(<LoginPage />);
 
     expect(
-      screen.getByText(
-        "By continuing, you agree to our Terms of Service and Privacy Policy",
-      ),
+      screen.getByText(/By continuing, you agree to our/i),
     ).toBeDefined();
   });
 

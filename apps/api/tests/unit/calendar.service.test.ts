@@ -40,7 +40,7 @@ function makeEvent(overrides: Partial<Event> = {}): Event {
     createdBy: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
     name: "Snorkeling Tour",
     description: "Great reef trip",
-    eventType: "activity",
+    eventType: "misc",
     location: "Reef Point",
     startTime: new Date("2026-07-02T09:00:00Z"),
     endTime: new Date("2026-07-02T12:00:00Z"),
@@ -235,10 +235,10 @@ describe("CalendarService.generateIcsFeed", () => {
 
     it("should include event type as category", () => {
       const trip = makeTrip({ startDate: null });
-      const event = makeEvent({ eventType: "meal", allDay: false });
+      const event = makeEvent({ eventType: "food_and_drink", allDay: false });
       const ics = service.generateIcsFeed([{ trip, events: [event], accommodations: [] }]);
 
-      expect(ics).toContain("CATEGORIES:meal");
+      expect(ics).toContain("CATEGORIES:food_and_drink");
     });
   });
 

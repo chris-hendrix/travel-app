@@ -233,6 +233,14 @@ export {
   type LinkItemInput,
 } from "./link";
 
+// Re-export POI schemas
+export {
+  poiSuggestionSchema,
+  poiSuggestionsResponseSchema,
+  type POISuggestion,
+  type POISuggestionsResponse,
+} from "./poi";
+
 // Re-export admin schemas
 export {
   adminListUsersQuerySchema,

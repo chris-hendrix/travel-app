@@ -290,7 +290,7 @@ export function MemberOnboardingWizard({
         tripId,
         data: {
           name: eventName,
-          eventType: "activity",
+          eventType: "misc",
           startTime: eventStartTime,
           allDay: false,
         },

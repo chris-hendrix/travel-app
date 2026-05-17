@@ -121,7 +121,7 @@ describe("ItineraryView", () => {
     createdBy: "user-123",
     name: "Beach Lunch",
     description: "Lunch at beach",
-    eventType: "meal",
+    eventType: "food_and_drink",
     location: "Malibu Cafe",
     startTime: new Date("2026-07-15T12:00:00Z"),
     endTime: new Date("2026-07-15T14:00:00Z"),
@@ -255,48 +255,6 @@ describe("ItineraryView", () => {
 
       expect(screen.getByText("Add Event")).toBeDefined();
       expect(screen.getByText("Add Accommodation")).toBeDefined();
-    });
-  });
-
-  describe("Filter pills", () => {
-    it("defaults to 'All' filter", () => {
-      mockUseEvents.mockReturnValue({
-        data: [mockEvent],
-        isPending: false,
-        isError: false,
-        refetch: vi.fn(),
-      });
-
-      render(
-        <Wrapper>
-          <ItineraryView tripId="trip-123" />
-        </Wrapper>,
-      );
-
-      const allPill = screen.getByText("All");
-      expect(allPill.className).toContain("bg-primary");
-    });
-  });
-
-  describe("Timezone settings", () => {
-    it("renders timezone settings button", () => {
-      mockUseEvents.mockReturnValue({
-        data: [mockEvent],
-        isPending: false,
-        isError: false,
-        refetch: vi.fn(),
-      });
-
-      render(
-        <Wrapper>
-          <ItineraryView tripId="trip-123" />
-        </Wrapper>,
-      );
-
-      const settingsButton = screen.getByRole("button", {
-        name: "Timezone settings",
-      });
-      expect(settingsButton).toBeDefined();
     });
   });
 

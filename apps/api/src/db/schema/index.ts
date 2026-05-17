@@ -16,7 +16,7 @@ import {
   integer,
   doublePrecision,
 } from "drizzle-orm/pg-core";
-import type { LinkItem } from "@journiful/shared/types";
+import type { LinkItem, POISuggestion } from "@journiful/shared/types";
 
 // Users table
 export const users = pgTable(
@@ -61,8 +61,11 @@ export const rsvpStatusEnum = pgEnum("rsvp_status", [
 // Event type enum
 export const eventTypeEnum = pgEnum("event_type", [
   "travel",
-  "meal",
-  "activity",
+  "food_and_drink",
+  "arts_and_entertainment",
+  "outdoors",
+  "nightlife",
+  "misc",
 ]);
 
 // Member travel type enum
@@ -819,3 +822,24 @@ export const affiliateDismissals = pgTable(
 
 export type AffiliateDismissal = typeof affiliateDismissals.$inferSelect;
 export type NewAffiliateDismissal = typeof affiliateDismissals.$inferInsert;
+
+// POI Cache (single JSONB row per trip)
+export const poiCache = pgTable("poi_cache", {
+  tripId: uuid("trip_id")
+    .primaryKey()
+    .references(() => trips.id),
+  source: text("source").notNull(),
+  searchLat: doublePrecision("search_lat").notNull(),
+  searchLon: doublePrecision("search_lon").notNull(),
+  searchLocation: text("search_location"),
+  cachedAt: timestamp("cached_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  suggestions: jsonb("suggestions")
+    .$type<POISuggestion[]>()
+    .notNull()
+    .default([]),
+});
+
+export type PoiCache = typeof poiCache.$inferSelect;
+export type NewPoiCache = typeof poiCache.$inferInsert;

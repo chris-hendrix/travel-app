@@ -169,7 +169,7 @@ describe("Package Exports", () => {
 
     const createEventInput: CreateEventInput = {
       name: "Dinner",
-      eventType: "meal",
+      eventType: "food_and_drink",
       startTime: "2026-07-15T19:00:00Z",
       allDay: false,
     };

@@ -47,7 +47,7 @@ test.describe("Itinerary Journey", () => {
       await test.step("create meal event", async () => {
         const eventName = `Dinner at Harbor ${Date.now()}`;
         await createEvent(page, eventName, "2026-10-01T18:30", {
-          type: "Meal",
+          type: "Food & Drink",
           location: "Harbor Drive Seafood",
           description: "Seafood restaurant by the bay",
           endDateTime: "2026-10-01T20:00",
@@ -257,13 +257,13 @@ test.describe("Itinerary Journey", () => {
 
         const mealEvent = `Lunch ${Date.now()}`;
         await createEvent(page, mealEvent, "2027-03-10T12:00", {
-          type: "Meal",
+          type: "Food & Drink",
         });
         await expect(page.getByText(/Lunch/)).toBeVisible();
 
         const activityEvent = `Show ${Date.now()}`;
         await createEvent(page, activityEvent, "2027-03-10T20:00", {
-          type: "Activity",
+          type: "Arts",
         });
         await expect(page.getByText(/Show/)).toBeVisible();
       });
@@ -325,33 +325,6 @@ test.describe("Itinerary Journey", () => {
 
       await snap(page, "10-itinerary-day-by-day");
 
-      await test.step("filter by type using pills", async () => {
-        // The itinerary header uses multi-select filter pills (icon-only).
-        // Pills: Activity (0) | Meal (1) | Travel (2) | Members (3)
-        // Default state: all selected. Clicking a pill deselects it.
-        const header = page.getByTestId("itinerary-header");
-        await expect(header).toBeVisible();
-
-        // Deselect the Activity pill (index 0) to hide activity events
-        const pills = header.locator("button");
-        await pills.nth(0).click();
-
-        // Should still show meal events
-        await expect(page.getByText(/Lunch/)).toBeVisible();
-        // Activity events should be hidden
-        await expect(page.getByText(/Show/)).not.toBeVisible();
-
-        await snap(page, "11-itinerary-filtered-meals");
-      });
-
-      await test.step("reset filter to all", async () => {
-        const header = page.getByTestId("itinerary-header");
-        // Re-select the Activity pill (index 0) to show all categories again
-        await header.locator("button").nth(0).click();
-        await expect(page.getByText(/Lunch/)).toBeVisible();
-        await expect(page.getByText(/Show/)).toBeVisible();
-      });
-
       await test.step("mobile viewport", async () => {
         await page.setViewportSize({ width: 375, height: 667 });
 
@@ -404,7 +377,6 @@ test.describe("Itinerary Journey", () => {
       await authenticateViaAPI(page, request, "Delete Restore User");
       const tripName = `Delete Restore Trip ${Date.now()}`;
       let tripId: string;
-      let eventId: string;
 
       await test.step("create trip via UI", async () => {
         await createTrip(
@@ -418,21 +390,8 @@ test.describe("Itinerary Journey", () => {
         expect(tripId).toBeTruthy();
       });
 
-      await test.step("create event via API", async () => {
-        const response = await page.request.post(
-          `http://localhost:8000/api/trips/${tripId}/events`,
-          {
-            data: {
-              name: "Dinner at Joe's",
-              eventType: "meal",
-              startTime: "2026-10-01T18:00:00.000Z",
-            },
-          },
-        );
-        expect(response.ok()).toBeTruthy();
-        const data = await response.json();
-        eventId = data.event.id;
-        expect(eventId).toBeTruthy();
+      await test.step("create event via UI", async () => {
+        await createEvent(page, "Dinner at Joe's", "2026-10-01T18:00", { type: "Food & Drink" });
       });
 
       await test.step("reload and verify event is visible", async () => {

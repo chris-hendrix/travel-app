@@ -127,7 +127,7 @@ describe("event.service", () => {
         tripId: testTripId,
         createdBy: testOrganizerId,
         name: "Test Event",
-        eventType: "activity",
+        eventType: "misc",
         startTime: new Date("2026-06-15T10:00:00Z"),
         endTime: new Date("2026-06-15T12:00:00Z"),
       })
@@ -142,7 +142,7 @@ describe("event.service", () => {
       const eventData = {
         name: "New Event",
         description: "Event description",
-        eventType: "meal" as const,
+        eventType: "food_and_drink" as const,
         location: "Restaurant",
         startTime: "2026-06-16T18:00:00Z",
         endTime: "2026-06-16T20:00:00Z",
@@ -172,7 +172,7 @@ describe("event.service", () => {
     it("should create an event as member with status=going", async () => {
       const eventData = {
         name: "Member Event",
-        eventType: "activity" as const,
+        eventType: "misc" as const,
         startTime: "2026-06-17T10:00:00Z",
       };
 
@@ -190,7 +190,7 @@ describe("event.service", () => {
     it("should throw PermissionDeniedError for non-member", async () => {
       const eventData = {
         name: "Unauthorized Event",
-        eventType: "activity" as const,
+        eventType: "misc" as const,
         startTime: "2026-06-18T10:00:00Z",
       };
 
@@ -202,7 +202,7 @@ describe("event.service", () => {
     it("should throw TripNotFoundError for non-existent trip", async () => {
       const eventData = {
         name: "Event",
-        eventType: "activity" as const,
+        eventType: "misc" as const,
         startTime: "2026-06-18T10:00:00Z",
       };
 
@@ -218,7 +218,7 @@ describe("event.service", () => {
     it("should throw InvalidDateRangeError if endTime is before startTime", async () => {
       const eventData = {
         name: "Invalid Event",
-        eventType: "activity" as const,
+        eventType: "misc" as const,
         startTime: "2026-06-18T12:00:00Z",
         endTime: "2026-06-18T10:00:00Z",
       };
@@ -352,7 +352,7 @@ describe("event.service", () => {
           tripId: testTripId,
           createdBy: testMemberId,
           name: "Member Event",
-          eventType: "meal",
+          eventType: "food_and_drink",
           startTime: new Date("2026-06-20T12:00:00Z"),
         })
         .returning();
@@ -445,7 +445,7 @@ describe("event.service", () => {
           tripId: testTripId,
           createdBy: testMemberId,
           name: "Member Event",
-          eventType: "activity",
+        eventType: "misc",
           startTime: new Date("2026-06-21T14:00:00Z"),
         })
         .returning();
@@ -520,7 +520,7 @@ describe("event.service", () => {
     it("should handle event with all-day flag", async () => {
       const eventData = {
         name: "All Day Event",
-        eventType: "activity" as const,
+        eventType: "misc" as const,
         startTime: "2026-06-22T00:00:00Z",
         allDay: true,
       };
@@ -558,7 +558,7 @@ describe("event.service", () => {
     it("should handle event with named links", async () => {
       const eventData = {
         name: "Event with Named Link",
-        eventType: "activity" as const,
+        eventType: "misc" as const,
         startTime: "2026-06-24T08:00:00Z",
         links: [
           { url: "https://example.com/reservation", name: "Reservation" },
