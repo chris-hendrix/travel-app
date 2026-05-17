@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { trips, poiCache } from "@/db/schema/index.js";
 import { POI_CATEGORIES } from "@journiful/shared/types";
 import type { POISuggestion, POICategoryKey, POISuggestionsResponse } from "@journiful/shared/types";
@@ -80,7 +80,15 @@ export class DiscoverService implements IDiscoverService {
             },
             "Destination changed, refreshing POI cache",
           );
-          return this.fetchAndCache(tripId, location, lat, lon);
+          if (this.foursquareKey) {
+            return this.fetchAndCache(tripId, location, lat, lon);
+          }
+          this.log.warn(
+            { tripId },
+            "Destination changed but no API key configured, serving stale cache",
+          );
+          const unconverted = suggestions.filter((s) => s.eventId == null);
+          return groupByCategory(unconverted, location);
         }
 
         // Filter out converted POIs
@@ -223,6 +231,10 @@ export class DiscoverService implements IDiscoverService {
   }
 
   async convertPOI(tripId: string, sourceId: string, eventId: string): Promise<void> {
+    await this.db.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtext('poi_convert_' || ${tripId}))`,
+    );
+
     const rows = await this.db
       .select()
       .from(poiCache)
