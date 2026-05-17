@@ -8,7 +8,7 @@ import { TripsPage, TripDetailPage } from "./helpers/pages";
 import { snap } from "./helpers/screenshots";
 import { removeNextjsDevOverlay, dismissPwaPrompts } from "./helpers/nextjs-dev";
 import { pickDate, pickDateTime } from "./helpers/date-pickers";
-import { createTripViaAPI, inviteAndAcceptViaAPI } from "./helpers/invitations";
+import { createTripViaAPI, inviteAndAcceptViaAPI, inviteViaAPI, rsvpViaAPI } from "./helpers/invitations";
 import { navigateToMobilePanel } from "./helpers/mobile-panels";
 import { dismissToast } from "./helpers/toast";
 import { createEvent } from "./helpers/itinerary";
@@ -19,6 +19,7 @@ import {
   DIALOG_TIMEOUT,
   SLOW_NAVIGATION_TIMEOUT,
   RETRY_INTERVAL,
+  API_BASE,
 } from "./helpers/timeouts";
 
 /**
@@ -356,7 +357,7 @@ test.describe("Trip Journey", () => {
           exact: true,
         });
         await expect(
-          promoteeNameEl.locator("..").getByText("Organizer").first(),
+          promoteeNameEl.locator("..").getByText("Organizer", { exact: true }),
         ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
       });
 
@@ -432,7 +433,7 @@ test.describe("Trip Journey", () => {
           exact: true,
         });
         await expect(
-          demoteeNameEl.locator("..").getByText("Organizer"),
+          demoteeNameEl.locator("..").getByText("Organizer", { exact: true }),
         ).not.toBeVisible({ timeout: ELEMENT_TIMEOUT });
 
         // Verify User B can no longer access the trip
@@ -465,6 +466,7 @@ test.describe("Trip Journey", () => {
       const memberPhone = `+1555${(parseInt(shortTimestamp) + 1000).toString()}`;
 
       let tripId: string;
+      let memberCookie: string;
 
       await test.step("setup: create organizer, trip, and invite member", async () => {
         const organizerCookie = await createUserViaAPI(
@@ -480,17 +482,34 @@ test.describe("Trip Journey", () => {
           endDate: "2026-10-05",
         });
 
-        await inviteAndAcceptViaAPI(
-          request,
-          tripId,
-          organizerPhone,
-          memberPhone,
-          "Test Member",
-          organizerCookie,
-        );
+        // Send invitation
+        await inviteViaAPI(request, tripId, organizerCookie, [memberPhone]);
+
+        // Authenticate the invitee (triggers processPendingInvitations to create member record)
+        memberCookie = await createUserViaAPI(request, memberPhone, "Test Member");
+
+        // RSVP as "going"
+        await rsvpViaAPI(request, tripId, memberCookie, "going");
       });
 
-      await test.step("organizer navigates to trip, creates event, and verifies", async () => {
+      await test.step("create event via API as member", async () => {
+        const eventResponse = await request.post(`${API_BASE}/trips/${tripId}/events`, {
+          data: {
+            name: "Member's Dinner Plan",
+            eventType: "food_and_drink",
+            startTime: "2026-10-02T19:00:00.000Z",
+          },
+          headers: { cookie: memberCookie },
+        });
+        if (!eventResponse.ok()) {
+          const body = await eventResponse.text();
+          throw new Error(
+            `Failed to create event: ${eventResponse.status()} ${eventResponse.statusText()} - ${body}`,
+          );
+        }
+      });
+
+      await test.step("organizer navigates to trip and verifies event", async () => {
         await authenticateViaAPIWithPhone(
           page,
           request,
@@ -505,8 +524,6 @@ test.describe("Trip Journey", () => {
             name: `Remove Member Trip ${timestamp}`,
           }),
         ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
-
-        await createEvent(page, "Member's Dinner Plan", "2026-10-02T19:00", { type: "Food & Drink" });
 
         await expect(page.getByText("Member's Dinner Plan")).toBeVisible({
           timeout: ELEMENT_TIMEOUT,

@@ -53,12 +53,16 @@ export class NominatimGeocodingService implements IGeocodingService {
 
     try {
       const url = `${NOMINATIM_API_BASE}?q=${encodeURIComponent(query.trim())}&format=json&limit=1`;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
       const response = await fetch(url, {
         headers: {
           "User-Agent":
             "journiful-app (https://github.com/chris-hendrix/tripful)",
         },
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
 
       if (!response.ok) return null;
 
