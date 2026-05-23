@@ -1,4 +1,4 @@
-.PHONY: help install dev dev-web dev-api pwa migrate seed studio generate up down clean reset-db test-up test-down test-exec test-run test-status test-setup test-clean
+.PHONY: help install dev dev-web dev-api build-mobile pwa migrate seed studio generate up down clean reset-db test-up test-down test-exec test-run test-status test-setup test-clean
 
 .DEFAULT_GOAL := help
 
@@ -35,6 +35,9 @@ generate: ## Generate migration from schema changes
 
 pwa: ## Build + serve web in production mode for PWA testing (api:8000, web:3000)
 	pnpm docker:up && cd apps/web && pnpm build && cd ../.. && pnpm dev:api & cd apps/web && pnpm start
+
+build-mobile: ## Build web app for Capacitor static export
+	cd apps/web && pnpm build:mobile
 
 # --- Infrastructure ---
 
