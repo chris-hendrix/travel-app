@@ -1,19 +1,14 @@
-"use client";
+import SettleTab from "./tab-page";
 
-import { useTripPage } from "../trip-page-context";
-import { SettleSection } from "@/components/settle/settle-section";
-import { ErrorBoundary } from "@/components/error-boundary";
+export function generateStaticParams() {
+  return [{ id: "static-export-placeholder" }];
+}
 
-export default function SettleTab() {
-  const { tripId, isOrganizer, isLocked } = useTripPage();
-
-  return (
-    <ErrorBoundary>
-      <SettleSection
-        tripId={tripId}
-        isOrganizer={isOrganizer}
-        disabled={isLocked}
-      />
-    </ErrorBoundary>
-  );
+export default function SettleTabWrapper({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  void params;
+  return <SettleTab />;
 }

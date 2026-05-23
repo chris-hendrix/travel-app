@@ -1,11 +1,14 @@
-"use client";
+import DiscoverPage from "./tab-page";
 
-import { useParams } from "next/navigation";
-import { DiscoverView } from "@/components/discover/discover-view";
-import { useTripPage } from "../trip-page-context";
+export function generateStaticParams() {
+  return [{ id: "static-export-placeholder" }];
+}
 
-export default function DiscoverPage() {
-  const params = useParams<{ id: string }>();
-  const { temperatureUnit } = useTripPage();
-  return <DiscoverView tripId={params.id} temperatureUnit={temperatureUnit} />;
+export default function DiscoverPageWrapper({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  void params;
+  return <DiscoverPage />;
 }

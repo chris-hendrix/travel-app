@@ -1,16 +1,14 @@
-"use client";
+import PhotosTab from "./tab-page";
 
-import { useTripPage } from "../trip-page-context";
-import { PhotosSection } from "@/components/photos/photos-section";
+export function generateStaticParams() {
+  return [{ id: "static-export-placeholder" }];
+}
 
-export default function PhotosTab() {
-  const { trip, isOrganizer, isLocked } = useTripPage();
-
-  return (
-    <PhotosSection
-      tripId={trip.id}
-      isOrganizer={isOrganizer}
-      disabled={isLocked}
-    />
-  );
+export default function PhotosTabWrapper({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  void params;
+  return <PhotosTab />;
 }

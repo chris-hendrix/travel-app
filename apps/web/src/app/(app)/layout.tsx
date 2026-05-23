@@ -6,16 +6,24 @@ import { ImpersonationBanner } from "@/components/impersonation-banner";
 import { GlobalMutationIndicator } from "@/components/global-mutation-indicator";
 import { QueryErrorBoundaryWrapper } from "@/components/query-error-boundary-wrapper";
 
+export const dynamic = "force-static";
+
 export default async function ProtectedLayout({
   children,
 }: {
   children: ReactNode;
 }) {
-  const cookieStore = await cookies();
-  const authToken = cookieStore.get("auth_token");
+  // In static export mode (NEXT_EXPORT=true), cookies are unavailable.
+  // Skip server-side auth — client-side AuthProvider handles it.
+  const isExport = process.env.NEXT_EXPORT === "true";
 
-  if (!authToken?.value) {
-    redirect("/login");
+  if (!isExport) {
+    const cookieStore = await cookies();
+    const authToken = cookieStore.get("auth_token");
+
+    if (!authToken?.value) {
+      redirect("/login");
+    }
   }
 
   return (

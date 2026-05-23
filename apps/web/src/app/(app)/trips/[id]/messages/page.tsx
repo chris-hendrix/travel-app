@@ -1,20 +1,14 @@
-"use client";
+import MessagesTab from "./tab-page";
 
-import { useTripPage } from "../trip-page-context";
-import { TripMessages } from "@/components/messaging";
-import { ErrorBoundary } from "@/components/error-boundary";
+export function generateStaticParams() {
+  return [{ id: "static-export-placeholder" }];
+}
 
-export default function MessagesTab() {
-  const { tripId, isOrganizer, isLocked, currentMember } = useTripPage();
-
-  return (
-    <ErrorBoundary>
-      <TripMessages
-        tripId={tripId}
-        isOrganizer={isOrganizer}
-        disabled={isLocked}
-        isMuted={currentMember?.isMuted}
-      />
-    </ErrorBoundary>
-  );
+export default function MessagesTabWrapper({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  void params;
+  return <MessagesTab />;
 }

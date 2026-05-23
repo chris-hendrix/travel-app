@@ -6,6 +6,8 @@ import { Calendar, Building2, PartyPopper, Plane } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { JsonLd } from "@/components/json-ld";
 
+export const dynamic = "force-static";
+
 export const metadata: Metadata = {
   title: "Journiful - Group Trip Planner | Plan Travel Together",
   description:
@@ -61,11 +63,17 @@ const steps = [
 ] as const;
 
 export default async function Home() {
-  const cookieStore = await cookies();
-  const authToken = cookieStore.get("auth_token");
+  // In static export mode (NEXT_EXPORT=true), cookies are unavailable.
+  // Skip server-side auth — client-side handles it.
+  const isExport = process.env.NEXT_EXPORT === "true";
 
-  if (authToken?.value) {
-    redirect("/trips");
+  if (!isExport) {
+    const cookieStore = await cookies();
+    const authToken = cookieStore.get("auth_token");
+
+    if (authToken?.value) {
+      redirect("/login");
+    }
   }
 
   return (

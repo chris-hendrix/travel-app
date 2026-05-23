@@ -1,17 +1,14 @@
-"use client";
+import ItineraryTab from "./tab-page";
 
-import { useTripPage } from "../trip-page-context";
-import { ItineraryView } from "@/components/itinerary/itinerary-view";
+export function generateStaticParams() {
+  return [{ id: "static-export-placeholder" }];
+}
 
-export default function ItineraryTab() {
-  const { tripId, weather, temperatureUnit, setShowOnboarding } = useTripPage();
-
-  return (
-    <ItineraryView
-      tripId={tripId}
-      onAddTravel={() => setShowOnboarding(true)}
-      forecasts={weather?.forecasts}
-      temperatureUnit={temperatureUnit}
-    />
-  );
+export default function ItineraryTabWrapper({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  void params;
+  return <ItineraryTab />;
 }
