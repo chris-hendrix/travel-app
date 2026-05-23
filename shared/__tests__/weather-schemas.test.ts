@@ -14,6 +14,13 @@ describe("dailyForecastSchema", () => {
       temperatureMax: 25.5,
       temperatureMin: 12.3,
       precipitationProbability: 40,
+      sunrise: "06:30",
+      sunset: "18:45",
+      windSpeedMax: 15.3,
+      windDirectionDominant: 180,
+      uvIndexMax: 5.2,
+      apparentTemperatureMax: 28.1,
+      apparentTemperatureMin: 10.5,
     };
     expect(() => dailyForecastSchema.parse(valid)).not.toThrow();
   });
@@ -25,6 +32,13 @@ describe("dailyForecastSchema", () => {
       temperatureMax: 25,
       temperatureMin: 12,
       precipitationProbability: 40,
+      sunrise: "06:30",
+      sunset: "18:45",
+      windSpeedMax: 15,
+      windDirectionDominant: 180,
+      uvIndexMax: 5,
+      apparentTemperatureMax: 28,
+      apparentTemperatureMin: 10,
     });
     expect(result.success).toBe(false);
   });
@@ -36,6 +50,13 @@ describe("dailyForecastSchema", () => {
       temperatureMax: 25,
       temperatureMin: 12,
       precipitationProbability: -1,
+      sunrise: "06:30",
+      sunset: "18:45",
+      windSpeedMax: 15,
+      windDirectionDominant: 180,
+      uvIndexMax: 5,
+      apparentTemperatureMax: 28,
+      apparentTemperatureMin: 10,
     });
     expect(result.success).toBe(false);
   });
@@ -47,6 +68,13 @@ describe("dailyForecastSchema", () => {
       temperatureMax: 25,
       temperatureMin: 12,
       precipitationProbability: 101,
+      sunrise: "06:30",
+      sunset: "18:45",
+      windSpeedMax: 15,
+      windDirectionDominant: 180,
+      uvIndexMax: 5,
+      apparentTemperatureMax: 28,
+      apparentTemperatureMin: 10,
     });
     expect(result.success).toBe(false);
   });
@@ -58,6 +86,13 @@ describe("dailyForecastSchema", () => {
       temperatureMax: 25,
       temperatureMin: 12,
       precipitationProbability: 0,
+      sunrise: "06:30",
+      sunset: "18:45",
+      windSpeedMax: 15,
+      windDirectionDominant: 180,
+      uvIndexMax: 5,
+      apparentTemperatureMax: 28,
+      apparentTemperatureMin: 10,
     });
     expect(atZero.success).toBe(true);
 
@@ -67,6 +102,13 @@ describe("dailyForecastSchema", () => {
       temperatureMax: 25,
       temperatureMin: 12,
       precipitationProbability: 100,
+      sunrise: "06:30",
+      sunset: "18:45",
+      windSpeedMax: 15,
+      windDirectionDominant: 180,
+      uvIndexMax: 5,
+      apparentTemperatureMax: 28,
+      apparentTemperatureMin: 10,
     });
     expect(atHundred.success).toBe(true);
   });
@@ -78,6 +120,13 @@ describe("dailyForecastSchema", () => {
       temperatureMax: -5.2,
       temperatureMin: -15.0,
       precipitationProbability: 80,
+      sunrise: "08:15",
+      sunset: "16:30",
+      windSpeedMax: 25,
+      windDirectionDominant: 315,
+      uvIndexMax: 2,
+      apparentTemperatureMax: -8,
+      apparentTemperatureMin: -20,
     });
     expect(result.success).toBe(true);
   });
@@ -94,8 +143,16 @@ describe("tripWeatherResponseSchema", () => {
           temperatureMax: 25,
           temperatureMin: 12,
           precipitationProbability: 40,
+          sunrise: "06:30",
+          sunset: "18:45",
+          windSpeedMax: 15,
+          windDirectionDominant: 180,
+          uvIndexMax: 5,
+          apparentTemperatureMax: 28,
+          apparentTemperatureMin: 10,
         },
       ],
+      hourly: [],
       fetchedAt: "2026-03-08T12:00:00Z",
     };
     expect(() => tripWeatherResponseSchema.parse(valid)).not.toThrow();
@@ -106,6 +163,7 @@ describe("tripWeatherResponseSchema", () => {
       available: false,
       message: "Trip dates are too far in the future",
       forecasts: [],
+      hourly: [],
       fetchedAt: null,
     };
     expect(() => tripWeatherResponseSchema.parse(valid)).not.toThrow();
@@ -115,6 +173,7 @@ describe("tripWeatherResponseSchema", () => {
     const valid = {
       available: true,
       forecasts: [],
+      hourly: [],
       fetchedAt: null,
     };
     expect(() => tripWeatherResponseSchema.parse(valid)).not.toThrow();
@@ -131,6 +190,7 @@ describe("tripWeatherResponseSchema", () => {
     const result = tripWeatherResponseSchema.safeParse({
       available: true,
       forecasts: [{ date: "2026-03-15" }], // missing fields
+      hourly: [],
       fetchedAt: null,
     });
     expect(result.success).toBe(false);
