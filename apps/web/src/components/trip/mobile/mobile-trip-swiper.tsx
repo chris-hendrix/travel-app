@@ -6,7 +6,6 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import { HashNavigation, A11y } from "swiper/modules";
 import type { Swiper as SwiperType } from "swiper";
 
-// @ts-expect-error -- swiper/css has no type declarations (TS2882 in TS5.8+)
 import "swiper/css";
 
 const SLIDE_HASHES = ["info", "itinerary", "discover", "messages", "photos", "settle"] as const;
