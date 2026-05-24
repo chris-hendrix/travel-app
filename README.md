@@ -13,6 +13,12 @@ make migrate                                       # Run database migrations
 make dev                                           # Run web (3000) + api (8000)
 ```
 
+```bash
+# Optional: build Android APK
+make build-mobile
+cd apps/web && npx cap sync && cd android && ./gradlew assembleDebug
+```
+
 Requires **Node.js 22+**, **pnpm 10+**, and **Docker** with Compose v2.
 
 ## Ports
@@ -24,6 +30,7 @@ Requires **Node.js 22+**, **pnpm 10+**, and **Docker** with Compose v2.
 | PostgreSQL     | 5433  | localhost:5433                 |
 | MinIO API      | 9000  | http://localhost:9000          |
 | MinIO Console  | 9001  | http://localhost:9001          |
+| Android emulator | —   | adb over TCP:5037              |
 
 ## Stack
 
@@ -36,6 +43,7 @@ Requires **Node.js 22+**, **pnpm 10+**, and **Docker** with Compose v2.
 | Database      | PostgreSQL 16                         |
 | Validation    | Zod (shared between web and api)      |
 | Testing       | Vitest, Playwright                    |
+| Mobile        | Capacitor 8, Firebase Cloud Messaging |
 | Runtime       | Node.js 22                            |
 
 ## Docs
