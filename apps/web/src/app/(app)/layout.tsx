@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { AppHeader } from "@/components/app-header";
+import { AuthGuard } from "@/components/auth-guard";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
 import { GlobalMutationIndicator } from "@/components/global-mutation-indicator";
 import { QueryErrorBoundaryWrapper } from "@/components/query-error-boundary-wrapper";
@@ -26,7 +27,7 @@ export default async function ProtectedLayout({
     }
   }
 
-  return (
+  const content = (
     <>
       <ImpersonationBanner />
       <GlobalMutationIndicator />
@@ -39,4 +40,12 @@ export default async function ProtectedLayout({
       </main>
     </>
   );
+
+  // In static export mode, wrap with client-side AuthGuard since
+  // server-side cookie checks are unavailable (no server runtime).
+  if (isExport) {
+    return <AuthGuard>{content}</AuthGuard>;
+  }
+
+  return content;
 }
