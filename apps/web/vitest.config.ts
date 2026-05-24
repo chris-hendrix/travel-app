@@ -13,6 +13,7 @@ export default defineConfig({
       "**/node_modules/**",
       "**/dist/**",
       "**/tests/e2e/**", // Exclude E2E tests from Vitest (run with Playwright instead)
+      "**/tests/mobile/**", // Exclude mobile tests from Vitest (run with Playwright Android instead)
       "**/.{idea,git,cache,output,temp}/**",
     ],
   },

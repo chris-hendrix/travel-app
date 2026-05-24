@@ -8,7 +8,7 @@
     "build:mobile": "bash scripts/build-mobile.sh",
     "postbuild": "cp -r public .next/standalone/apps/web/public && cp -r .next/static .next/standalone/apps/web/.next/static",
     "start": "next start",
-    "lint": "eslint . --ignore-pattern '**/*.test.tsx' --ignore-pattern '**/*.test.ts' --ignore-pattern '**/*.spec.tsx' --ignore-pattern '**/*.spec.ts' --ignore-pattern 'public/worker-*.js'",
+    "lint": "eslint . --ignore-pattern '**/*.test.tsx' --ignore-pattern '**/*.test.ts' --ignore-pattern '**/*.spec.tsx' --ignore-pattern '**/*.spec.ts' --ignore-pattern 'public/worker-*.js' --ignore-pattern 'android/**'",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
