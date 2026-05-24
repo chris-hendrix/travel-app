@@ -70,6 +70,9 @@ export const pushSubscribeSchema = z.object({
     p256dh: z.string().min(1),
     auth: z.string().min(1),
   }),
+  token: z.string().optional(),
+  platform: z.enum(["ios", "android", "web"]).optional(),
+  provider: z.enum(["vapid", "fcm"]).optional(),
   userAgent: z.string().optional(),
 });
 

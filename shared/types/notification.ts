@@ -81,6 +81,9 @@ export interface PushSubscriptionInput {
     p256dh: string;
     auth: string;
   };
+  token?: string;
+  platform?: "ios" | "android" | "web";
+  provider?: "vapid" | "fcm";
   userAgent?: string;
 }
 
