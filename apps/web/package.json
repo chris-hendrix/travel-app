@@ -19,6 +19,7 @@
     "clean": "rm -rf .next .turbo node_modules"
   },
   "dependencies": {
+    "@capacitor/push-notifications": "^8.1.1",
     "@ducanh2912/next-pwa": "^10.2.9",
     "@hookform/resolvers": "^5.4.0",
     "@journiful/shared": "workspace:*",

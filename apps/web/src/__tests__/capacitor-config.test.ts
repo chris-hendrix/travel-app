@@ -29,4 +29,11 @@ describe("capacitor.config", () => {
     // The config test runs without the env var, so url is undefined
     expect(config.server?.url).toBeUndefined();
   });
+
+  it("has push notification presentation options", () => {
+    expect(config.plugins?.PushNotifications?.presentationOptions).toEqual([
+      "alert",
+      "sound",
+    ]);
+  });
 });

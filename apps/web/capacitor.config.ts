@@ -10,6 +10,11 @@ const config: CapacitorConfig = {
     ...(isLiveReload ? { url: "http://10.0.2.2:3000" } : {}),
     cleartext: true,
   },
+  plugins: {
+    PushNotifications: {
+      presentationOptions: ["alert", "sound"],
+    },
+  },
 };
 
 export default config;
