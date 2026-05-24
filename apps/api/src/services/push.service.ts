@@ -12,7 +12,13 @@ import type { Logger } from "@/types/logger.js";
 export interface IPushService {
   addSubscription(
     userId: string,
-    sub: { endpoint: string; keys: { p256dh: string; auth: string } },
+    sub: {
+      endpoint?: string;
+      keys?: { p256dh: string; auth: string };
+      token?: string;
+      platform: "ios" | "android" | "web";
+      provider: "vapid" | "fcm";
+    },
     userAgent?: string,
   ): Promise<void>;
   removeSubscription(endpoint: string, userId?: string): Promise<void>;
@@ -44,27 +50,62 @@ export class PushService implements IPushService {
 
   async addSubscription(
     userId: string,
-    sub: { endpoint: string; keys: { p256dh: string; auth: string } },
+    sub: {
+      endpoint?: string;
+      keys?: { p256dh: string; auth: string };
+      token?: string;
+      platform: "ios" | "android" | "web";
+      provider: "vapid" | "fcm";
+    },
     userAgent?: string,
   ): Promise<void> {
-    await this.db
-      .insert(pushSubscriptions)
-      .values({
-        userId,
-        endpoint: sub.endpoint,
-        p256dh: sub.keys.p256dh,
-        auth: sub.keys.auth,
-        userAgent: userAgent ?? null,
-      })
-      .onConflictDoUpdate({
-        target: pushSubscriptions.endpoint,
-        set: {
-          p256dh: sub.keys.p256dh,
-          auth: sub.keys.auth,
+    if (sub.provider === "fcm") {
+      // For FCM, use a synthetic endpoint to satisfy the unique constraint
+      await this.db
+        .insert(pushSubscriptions)
+        .values({
+          userId,
+          endpoint: `fcm:${sub.token}`,
+          p256dh: "",
+          auth: "",
+          token: sub.token!,
+          platform: sub.platform,
+          provider: sub.provider,
           userAgent: userAgent ?? null,
-        },
-        setWhere: eq(pushSubscriptions.userId, userId),
-      });
+        })
+        .onConflictDoUpdate({
+          target: pushSubscriptions.endpoint,
+          set: {
+            token: sub.token!,
+            platform: sub.platform,
+            userAgent: userAgent ?? null,
+          },
+          setWhere: eq(pushSubscriptions.userId, userId),
+        });
+    } else {
+      // VAPID: insert or update by endpoint
+      await this.db
+        .insert(pushSubscriptions)
+        .values({
+          userId,
+          endpoint: sub.endpoint!,
+          p256dh: sub.keys!.p256dh,
+          auth: sub.keys!.auth,
+          platform: sub.platform,
+          provider: "vapid",
+          userAgent: userAgent ?? null,
+        })
+        .onConflictDoUpdate({
+          target: pushSubscriptions.endpoint,
+          set: {
+            p256dh: sub.keys!.p256dh,
+            auth: sub.keys!.auth,
+            platform: sub.platform,
+            userAgent: userAgent ?? null,
+          },
+          setWhere: eq(pushSubscriptions.userId, userId),
+        });
+    }
   }
 
   async removeSubscription(endpoint: string, userId?: string): Promise<void> {

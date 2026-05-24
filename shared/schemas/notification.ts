@@ -64,17 +64,39 @@ export const notificationPreferencesResponseSchema = z.object({
 // --- Push subscription schemas ---
 
 /** POST /api/push/subscribe - Subscribe to push notifications */
-export const pushSubscribeSchema = z.object({
-  endpoint: z.string().url(),
-  keys: z.object({
-    p256dh: z.string().min(1),
-    auth: z.string().min(1),
-  }),
-  token: z.string().optional(),
-  platform: z.enum(["ios", "android", "web"]).optional(),
-  provider: z.enum(["vapid", "fcm"]).optional(),
-  userAgent: z.string().optional(),
-});
+export const pushSubscribeSchema = z.preprocess(
+  (val) => {
+    if (typeof val === "object" && val !== null) {
+      const obj = val as Record<string, unknown>;
+      // Legacy VAPID payload without provider/platform — infer from shape
+      if (!obj.provider && obj.endpoint && obj.keys) {
+        obj.provider = "vapid";
+      }
+      if (obj.provider === "vapid" && obj.platform === undefined) {
+        obj.platform = "web";
+      }
+    }
+    return val;
+  },
+  z.discriminatedUnion("provider", [
+    z.object({
+      endpoint: z.string().min(1),
+      keys: z.object({
+        p256dh: z.string().min(1),
+        auth: z.string().min(1),
+      }),
+      provider: z.literal("vapid"),
+      platform: z.enum(["web"]).default("web"),
+      userAgent: z.string().optional(),
+    }),
+    z.object({
+      token: z.string().min(1),
+      provider: z.literal("fcm"),
+      platform: z.enum(["android", "ios"]),
+      userAgent: z.string().optional(),
+    }),
+  ]),
+);
 
 /** DELETE /api/push/subscribe - Unsubscribe from push notifications */
 export const pushUnsubscribeSchema = z.object({
