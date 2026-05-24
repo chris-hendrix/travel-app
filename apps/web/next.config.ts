@@ -87,9 +87,11 @@ export function createNextConfig(
 
   return {
     output: isExportMode ? "export" : "standalone",
+    ...(isExportMode && { assetPrefix: "" }),
     transpilePackages: ["@journiful/shared"],
     reactStrictMode: true,
     turbopack: {},
+
     experimental: {
       viewTransition: true,
       optimizePackageImports: ["lucide-react", "date-fns"],
