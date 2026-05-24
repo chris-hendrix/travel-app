@@ -10,6 +10,9 @@ cd "$(dirname "$0")/.."
 
 npx next build --webpack
 
+# Fix absolute asset paths for Capacitor file:// compatibility
+bash "$(dirname "$0")/fix-asset-paths.sh"
+
 echo ""
 echo "Static export complete: out/index.html"
 ls -lh out/index.html
