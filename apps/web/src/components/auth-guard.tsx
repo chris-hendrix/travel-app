@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { apiRequest } from "@/lib/api";
 import { Loader2 } from "lucide-react";
 
 interface AuthGuardProps {
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 export function AuthGuard({ children }: AuthGuardProps) {
