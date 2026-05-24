@@ -43,6 +43,7 @@
     "fastify-plugin": "^5.1.0",
     "fastify-type-provider-zod": "^6.1.0",
     "file-type": "^22.0.1",
+    "firebase-admin": "^13.10.0",
     "ical-generator": "^10.2.0",
     "libphonenumber-js": "^1.13.3",
     "pg": "^8.21.0",

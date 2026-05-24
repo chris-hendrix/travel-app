@@ -18,6 +18,7 @@ export default fp(
       fastify.config.VAPID_PUBLIC_KEY,
       fastify.config.VAPID_PRIVATE_KEY,
       fastify.config.VAPID_SUBJECT,
+      fastify.config.FIREBASE_SERVICE_ACCOUNT || undefined,
     );
     fastify.decorate("pushService", pushService);
   },

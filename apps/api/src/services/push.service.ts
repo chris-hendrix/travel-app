@@ -1,4 +1,5 @@
 import webpush from "web-push";
+import * as admin from "firebase-admin";
 import { and, eq } from "drizzle-orm";
 import { pushSubscriptions } from "@/db/schema/index.js";
 import type { AppDatabase } from "@/types/index.js";
@@ -30,6 +31,7 @@ export interface IPushService {
 
 export class PushService implements IPushService {
   private enabled: boolean;
+  private admin: admin.app.App | null = null;
 
   constructor(
     private db: AppDatabase,
@@ -37,11 +39,36 @@ export class PushService implements IPushService {
     vapidPublicKey: string,
     vapidPrivateKey: string,
     vapidSubject: string,
+    firebaseServiceAccount?: string,
   ) {
-    this.enabled = !!(vapidPublicKey && vapidPrivateKey);
-    if (this.enabled) {
-      webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
-    } else {
+    let vapidConfigured = false;
+    if (vapidPublicKey && vapidPrivateKey) {
+      try {
+        webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
+        vapidConfigured = true;
+      } catch (err) {
+        this.logger.error(
+          { err },
+          "Invalid VAPID keys — web push disabled",
+        );
+      }
+    }
+
+    // Initialize Firebase Admin if service account is provided
+    if (firebaseServiceAccount) {
+      try {
+        const serviceAccount = JSON.parse(firebaseServiceAccount);
+        this.admin = admin.initializeApp({
+          credential: admin.credential.cert(serviceAccount),
+        }, "push-service");
+        this.logger.info("Firebase Admin initialized for FCM push delivery");
+      } catch (err) {
+        this.logger.error({ err }, "Failed to initialize Firebase Admin");
+      }
+    }
+
+    this.enabled = vapidConfigured || this.admin !== null;
+    if (!this.enabled) {
       this.logger.info(
         "VAPID keys not configured — push notifications disabled",
       );
@@ -134,10 +161,58 @@ export class PushService implements IPushService {
   async sendToUser(userId: string, payload: PushPayload): Promise<void> {
     if (!this.enabled) return;
 
-    const subs = await this.getUserSubscriptions(userId);
-    const payloadStr = JSON.stringify(payload);
+    const subs = await this.db
+      .select()
+      .from(pushSubscriptions)
+      .where(eq(pushSubscriptions.userId, userId));
 
-    for (const sub of subs) {
+    const fcmSubs = subs.filter((s) => s.provider === "fcm" && s.token);
+    const vapidSubs = subs.filter((s) => s.provider !== "fcm" || !s.token);
+
+    // Send via FCM
+    for (const sub of fcmSubs) {
+      if (this.admin) {
+        try {
+          await this.admin.messaging().send({
+            token: sub.token!,
+            notification: {
+              title: payload.title,
+              body: payload.body,
+            },
+            data: {
+              url: payload.url ?? "/",
+              tag: payload.tag ?? "",
+            },
+            android: {
+              priority: "high",
+              notification: {
+                channelId: "default",
+                clickAction: "FCM_PLUGIN_ACTIVITY",
+              },
+            },
+          });
+        } catch (err: unknown) {
+          const code = (err as { code?: string }).code;
+          if (
+            code === "messaging/registration-token-not-registered" ||
+            code === "messaging/invalid-argument"
+          ) {
+            // Token is invalid or unregistered — clean up
+            await this.removeSubscription(sub.endpoint);
+            this.logger.info({ token: sub.token }, "removed invalid FCM token");
+          } else {
+            this.logger.error(
+              { err, token: sub.token },
+              "FCM delivery failed",
+            );
+          }
+        }
+      }
+    }
+
+    // Send via VAPID (existing logic)
+    const payloadStr = JSON.stringify(payload);
+    for (const sub of vapidSubs) {
       try {
         await webpush.sendNotification(
           {
