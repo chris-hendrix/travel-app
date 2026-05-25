@@ -39,7 +39,11 @@ pwa: ## Build + serve web in production mode for PWA testing (api:8000, web:3000
 build-mobile: ## Build web app for Capacitor static export
 	cd apps/web && pnpm build:mobile
 
+BUILD_NUMBER ?= $(shell git rev-list --count HEAD 2>/dev/null || echo 1)
+TESTERS ?=
+
 distribute-android: ## Build and distribute Android APK via Firebase App Distribution
+	@echo "Release versionCode: $(BUILD_NUMBER)"
 	@echo "Generating release notes..."
 	git log --oneline -5 > /tmp/release-notes.txt
 	@echo "Extracting service account credentials..."
@@ -57,12 +61,13 @@ distribute-android: ## Build and distribute Android APK via Firebase App Distrib
 	@echo "Syncing Capacitor assets..."
 	cd apps/web && npx cap sync
 	@echo "Building and distributing APK to Firebase..."
-	@if [ -z "$$JAVA_HOME" ] && [ -d "/home/chend/jdk/jdk-21.0.11+10" ]; then \
-		export JAVA_HOME="/home/chend/jdk/jdk-21.0.11+10"; \
+	@GRADLE_ARGS="-PbuildNumber=$(BUILD_NUMBER) -PreleaseNotesFile=/tmp/release-notes.txt"; \
+	if [ -n "$(TESTERS)" ]; then \
+		GRADLE_ARGS="$$GRADLE_ARGS -Ptesters=$(TESTERS)"; \
 	fi; \
+	JAVA_HOME="/home/chend/jdk/jdk-21.0.11+10"; \
 	cd apps/web/android && GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json \
-		./gradlew assembleDebug appDistributionUploadDebug \
-		-PreleaseNotesFile=/tmp/release-notes.txt
+		./gradlew assembleDebug appDistributionUploadDebug $$GRADLE_ARGS
 	@rm -f /tmp/firebase-sa.json /tmp/release-notes.txt
 	@echo "Distribution complete. Check Firebase Console."
 

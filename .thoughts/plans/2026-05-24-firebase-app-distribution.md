@@ -241,6 +241,8 @@ Passed to the Gradle build via `releaseNotesFile` property.
 
 **2026-05-24** - Makefile target implemented. Discovered `export JAVA_HOME` does not persist across Make recipe lines (each `@`-prefixed line runs in separate shell). Fixed by inlining the JAVA_HOME check into the same shell invocation as the Gradle command. Also fixed bug in provided code: `$$(grep ...)` would try to execute grep output as a command instead of writing to temp file. FIREBASE_SERVICE_ACCOUNT sourced from `apps/api/.env` by default.
 
+**2026-05-24** - Makefile `distribute-android` extended: `BUILD_NUMBER` defaults to `git rev-list --count HEAD` for deterministic local/CI versioning. `TESTERS` variable passed to Gradle when set. Usage: `make distribute-android TESTERS=you@gmail.com`.
+
 ## References
 
 - Firebase App Distribution Gradle plugin: https://firebase.google.com/docs/app-distribution/android/distribute-gradle
