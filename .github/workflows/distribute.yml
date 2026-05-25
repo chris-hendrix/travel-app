@@ -48,6 +48,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate Android project
+        run: cd apps/web && npx cap add android
+
       - name: Build web app for mobile
         run: make build-mobile
 
@@ -95,6 +98,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Generate Android project
+        run: cd apps/web && npx cap add android
 
       - name: Write Google Services JSON
         run: echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > apps/web/android/app/google-services.json
