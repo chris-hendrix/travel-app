@@ -39,6 +39,33 @@ pwa: ## Build + serve web in production mode for PWA testing (api:8000, web:3000
 build-mobile: ## Build web app for Capacitor static export
 	cd apps/web && pnpm build:mobile
 
+distribute-android: ## Build and distribute Android APK via Firebase App Distribution
+	@echo "Generating release notes..."
+	git log --oneline -5 > /tmp/release-notes.txt
+	@echo "Extracting service account credentials..."
+	@if [ -z "$$FIREBASE_SERVICE_ACCOUNT" ]; then \
+		if [ -f "apps/api/.env" ]; then \
+			grep '^FIREBASE_SERVICE_ACCOUNT=' apps/api/.env | sed 's/^FIREBASE_SERVICE_ACCOUNT=//' > /tmp/firebase-sa.json; \
+		else \
+			echo "ERROR: FIREBASE_SERVICE_ACCOUNT not set and apps/api/.env not found"; exit 1; \
+		fi; \
+	else \
+		echo "$$FIREBASE_SERVICE_ACCOUNT" > /tmp/firebase-sa.json; \
+	fi
+	@echo "Building web app for mobile..."
+	$(MAKE) build-mobile
+	@echo "Syncing Capacitor assets..."
+	cd apps/web && npx cap sync
+	@echo "Building and distributing APK to Firebase..."
+	@if [ -z "$$JAVA_HOME" ] && [ -d "/home/chend/jdk/jdk-21.0.11+10" ]; then \
+		export JAVA_HOME="/home/chend/jdk/jdk-21.0.11+10"; \
+	fi; \
+	cd apps/web/android && GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json \
+		./gradlew assembleDebug appDistributionUploadDebug \
+		-PreleaseNotesFile=/tmp/release-notes.txt
+	@rm -f /tmp/firebase-sa.json /tmp/release-notes.txt
+	@echo "Distribution complete. Check Firebase Console."
+
 # --- Infrastructure ---
 
 up: ## Start Docker services (postgres, minio)

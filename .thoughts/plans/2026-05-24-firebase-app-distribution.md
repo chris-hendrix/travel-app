@@ -12,7 +12,7 @@ Integrate Firebase App Distribution into the build pipeline so every push to `ma
 
 ## Success Criteria
 
-- [ ] `make distribute-android` builds APK and uploads to Firebase App Distribution from local WSL2
+- [x] `make distribute-android` builds APK and uploads to Firebase App Distribution from local WSL2
 - [ ] Release appears in Firebase Console → App Distribution with correct version
 - [ ] Testers receive email invite or console link to install
 - [ ] GitHub Actions workflow distributes on push to `main`
@@ -163,27 +163,16 @@ Passed to the Gradle build via `releaseNotesFile` property.
 
 ### Task 3: Makefile Target
 
-- [ ] **Task 3.1: Add `distribute-android` target**
-  - GREEN: Generate release notes from recent commits: `git log --oneline -5 > /tmp/release-notes.txt`
-  - GREEN: Create Makefile target:
-    ```makefile
-    distribute-android: ## Build and distribute Android APK via Firebase App Distribution
-    	@echo "Writing service account credentials..."
-    	@echo "$$FIREBASE_SERVICE_ACCOUNT" > /tmp/firebase-sa.json
-    	@echo "Building web app for mobile..."
-    	cd apps/web && pnpm build:mobile
-    	@echo "Syncing Capacitor..."
-    	cd apps/web && npx cap sync
-    	@echo "Building and distributing APK..."
-    	cd apps/web/android && GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json \
-    		./gradlew assembleDebug appDistributionUploadDebug \
-    		-PreleaseNotesFile=/tmp/release-notes.txt
-    	@rm -f /tmp/firebase-sa.json /tmp/release-notes.txt
-    	@echo "Distribution complete. Check Firebase Console."
-    ```
-  - GREEN: Pass release notes to Gradle via `-PreleaseNotesFile=/tmp/release-notes.txt`
-  - GREEN: Clean up temp file after build: `rm -f /tmp/firebase-sa.json /tmp/release-notes.txt`
-  - CHECK: `make distribute-android` completes successfully from WSL2
+- [x] **Task 3.1: Add `distribute-android` target**
+  - [x] GREEN: Generate release notes from recent commits: `git log --oneline -5 > /tmp/release-notes.txt`
+  - [x] GREEN: Create Makefile target (added after `build-mobile` in Dev shortcuts section) with JAVA_HOME check, FIREBASE_SERVICE_ACCOUNT extraction, sub-make `build-mobile`, `cap sync`, and Gradle assemble+upload
+  - [x] GREEN: Pass release notes to Gradle via `-PreleaseNotesFile=/tmp/release-notes.txt`
+  - [x] GREEN: Clean up temp files after build: `rm -f /tmp/firebase-sa.json /tmp/release-notes.txt`
+  - [x] CHECK: `make distribute-android` completes successfully from WSL2 → **BUILD SUCCESSFUL in 14s**
+    - Release URL: `https://console.firebase.google.com/project/journiful-app/appdistribution/app/android:com.journiful.app/releases/5kh44v5fm5uk0`
+    - Tester sharing: `https://appdistribution.firebase.google.com/testerapps/1:322289647579:android:99cfd802aca2d7c3ea71fe/releases/5kh44v5fm5uk0`
+    - Release ID: `5kh44v5fm5uk0`
+    - Binary SHA256: `5f8f007792394a058c756c37c7d57d76bdc04e12847a32ef3e18a9b0f3fd346a`
 
 ### Task 4: GitHub Actions Workflow
 
@@ -249,6 +238,8 @@ Passed to the Gradle build via `releaseNotesFile` property.
 **2026-05-24** - Task 2.2 upload blocked: Service account `firebase-adminsdk-fbsvc@journiful-app.iam.gserviceaccount.com` lacks IAM role `roles/firebaseappdistribution.admin`. It cannot enable APIs, read/modify IAM policies, or upload releases. Must be granted manually. `gcloud auth login --no-browser` available but requires browser-based OAuth flow. Also discovered: Java not on host PATH but available at `/home/chend/jdk/jdk-21.0.11+10`; `ANDROID_HOME` already set to Windows Sdk path; `firebase appdistribution:releases:list` is not a recognized Firebase CLI command.
 
 **2026-05-24** - IAM permission blocker **RESOLVED**. Granted `Firebase App Distribution Admin` role to service account `firebase-adminsdk-fbsvc@journiful-app.iam.gserviceaccount.com` via Firebase Console → Project Settings → Service Accounts → IAM. Re-ran `./gradlew appDistributionUploadDebug` with `GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json` → **BUILD SUCCESSFUL in 12s**. Release ID: `43126kuf8214g`. Also noted: JAVA_HOME must be explicitly set to `/home/chend/jdk/jdk-21.0.11+10` on this WSL2 host for Gradle to run (will need same in CI workflow).
+
+**2026-05-24** - Makefile target implemented. Discovered `export JAVA_HOME` does not persist across Make recipe lines (each `@`-prefixed line runs in separate shell). Fixed by inlining the JAVA_HOME check into the same shell invocation as the Gradle command. Also fixed bug in provided code: `$$(grep ...)` would try to execute grep output as a command instead of writing to temp file. FIREBASE_SERVICE_ACCOUNT sourced from `apps/api/.env` by default.
 
 ## References
 
