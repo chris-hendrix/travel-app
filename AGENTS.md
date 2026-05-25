@@ -37,6 +37,7 @@ pnpm dev:api          # Backend only
 make build-mobile                                     # Static export for Android APK
 cd apps/web && npx cap sync                           # Sync web assets into Android project
 cd apps/web/android && ./gradlew assembleDebug       # Build debug APK
+make distribute-android                               # Build, sync, and distribute to Firebase App Distribution
 ```
 
 ### Testing — devcontainer only
