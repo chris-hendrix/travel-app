@@ -40,11 +40,14 @@ build-mobile: ## Build web app for Capacitor static export
 	cd apps/web && pnpm build:mobile
 
 BUILD_NUMBER ?= $(shell git rev-list --count HEAD 2>/dev/null || echo 1)
+GIT_BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+GIT_SHA ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+VERSION_NAME ?= $(GIT_BRANCH)-$(GIT_SHA)
 FIREBASE_TESTERS := $(shell grep '^FIREBASE_APP_DISTRIBUTION_TESTERS=' apps/api/.env 2>/dev/null | sed 's/^FIREBASE_APP_DISTRIBUTION_TESTERS=//' || echo "")
 TESTERS ?= $(FIREBASE_TESTERS)
 
 distribute-android: ## Build and distribute Android APK via Firebase App Distribution
-	@echo "Release versionCode: $(BUILD_NUMBER)"
+	@echo "Release: $(VERSION_NAME) (build $(BUILD_NUMBER))"
 	@echo "Generating release notes..."
 	git log --oneline -5 > /tmp/release-notes.txt
 	@echo "Extracting service account credentials..."
@@ -62,7 +65,7 @@ distribute-android: ## Build and distribute Android APK via Firebase App Distrib
 	@echo "Syncing Capacitor assets..."
 	cd apps/web && npx cap sync
 	@echo "Building and distributing APK to Firebase..."
-	@GRADLE_ARGS="-PbuildNumber=$(BUILD_NUMBER) -PreleaseNotesFile=/tmp/release-notes.txt"; \
+	@GRADLE_ARGS="-PbuildNumber=$(BUILD_NUMBER) -PversionNameOverride=$(VERSION_NAME) -PreleaseNotesFile=/tmp/release-notes.txt"; \
 	if [ -n "$(TESTERS)" ]; then \
 		GRADLE_ARGS="$$GRADLE_ARGS -Ptesters=$(TESTERS)"; \
 	fi; \

@@ -57,7 +57,9 @@ jobs:
         run: cd apps/web && npx cap sync
 
       - name: Build debug APK
-        run: cd apps/web/android && ./gradlew assembleDebug
+        run: |
+          cd apps/web/android && ./gradlew assembleDebug \
+            -PversionNameOverride="$GITHUB_REF_NAME-${GITHUB_SHA::7}"
         env:
           GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx3g
 
@@ -119,6 +121,7 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json \
             ./gradlew assembleDebug appDistributionUploadDebug \
             -PbuildNumber=$GITHUB_RUN_NUMBER \
+            -PversionNameOverride="$GITHUB_REF_NAME-${GITHUB_SHA::7}" \
             -Ptesters="${{ secrets.FIREBASE_APP_DISTRIBUTION_TESTERS }}" \
             -PreleaseNotesFile=/tmp/release-notes.txt
         env:
