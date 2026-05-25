@@ -40,7 +40,8 @@ build-mobile: ## Build web app for Capacitor static export
 	cd apps/web && pnpm build:mobile
 
 BUILD_NUMBER ?= $(shell git rev-list --count HEAD 2>/dev/null || echo 1)
-TESTERS ?=
+FIREBASE_TESTERS := $(shell grep '^FIREBASE_APP_DISTRIBUTION_TESTERS=' apps/api/.env 2>/dev/null | sed 's/^FIREBASE_APP_DISTRIBUTION_TESTERS=//' || echo "")
+TESTERS ?= $(FIREBASE_TESTERS)
 
 distribute-android: ## Build and distribute Android APK via Firebase App Distribution
 	@echo "Release versionCode: $(BUILD_NUMBER)"

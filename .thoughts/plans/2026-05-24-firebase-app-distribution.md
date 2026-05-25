@@ -110,7 +110,7 @@ android {
 
 In CI, pass `-PbuildNumber=$GITHUB_RUN_NUMBER` to `./gradlew`. Local builds default to 1.
 
-Testers can be passed via `-Ptesters='a@b.com,c@d.com'` on the Gradle command line. Defaults to the hardcoded value for local dev.
+Testers default to `FIREBASE_APP_DISTRIBUTION_TESTERS` from `apps/api/.env` (read by Makefile). Can be overridden on the command line via `make distribute-android TESTERS='a@b.com,c@d.com'`.
 
 NOTE: Android provides `debug` and `release` build types implicitly. The current
 `app/build.gradle` only explicitly configures `release`, but `debug` exists and
@@ -261,6 +261,8 @@ broken cap sync, and Gradle config errors in CI without spamming testers.
 **2026-05-24** - CI trigger refined to 3-tier strategy: PR build-only, merge build+distribute, manual dispatch. Added Play Store relationship documentation. Avoids tester fatigue from distributing on every merge.
 
 **2026-05-24** - Makefile `distribute-android` extended: `BUILD_NUMBER` defaults to `git rev-list --count HEAD` for deterministic local/CI versioning. `TESTERS` variable passed to Gradle when set. Usage: `make distribute-android TESTERS=you@gmail.com`.
+
+**2026-05-24** - Testers moved to `apps/api/.env` as `FIREBASE_APP_DISTRIBUTION_TESTERS`. Makefile auto-reads it as `TESTERS` default. No more passing `TESTERS=` on command line.
 
 ## References
 
