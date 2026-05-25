@@ -195,6 +195,7 @@ broken cap sync, and Gradle config errors in CI without spamming testers.
 - [ ] **Task 4.1: Add GitHub Secrets**
   - GREEN: Add `GOOGLE_SERVICES_JSON` secret (contents of `google-services.json`)
   - GREEN: Add `FIREBASE_SERVICE_ACCOUNT` secret (service account JSON from `.env`)
+  - GREEN: Add `FIREBASE_APP_DISTRIBUTION_TESTERS` secret (comma-separated tester emails, e.g. `chendrix1123@gmail.com`)
   - CHECK: Secrets visible in repo Settings → Secrets and variables → Actions
 
 - [ ] **Task 4.2: Create workflow file**
@@ -214,7 +215,7 @@ broken cap sync, and Gradle config errors in CI without spamming testers.
     - Generate release notes: `git log --oneline -5 > /tmp/release-notes.txt`
     - `make build-mobile`
     - `cd apps/web && npx cap sync`
-    - `cd apps/web/android && ./gradlew assembleDebug appDistributionUploadDebug -PbuildNumber=$GITHUB_RUN_NUMBER -PreleaseNotesFile=/tmp/release-notes.txt`
+    - `cd apps/web/android && ./gradlew assembleDebug appDistributionUploadDebug -PbuildNumber=$GITHUB_RUN_NUMBER -Ptesters="${{ secrets.FIREBASE_APP_DISTRIBUTION_TESTERS }}" -PreleaseNotesFile=/tmp/release-notes.txt`
     - Cleanup: `rm /tmp/firebase-sa.json /tmp/release-notes.txt`
   - CHECK: Workflow appears in Actions tab
 
@@ -263,6 +264,8 @@ broken cap sync, and Gradle config errors in CI without spamming testers.
 **2026-05-24** - Makefile `distribute-android` extended: `BUILD_NUMBER` defaults to `git rev-list --count HEAD` for deterministic local/CI versioning. `TESTERS` variable passed to Gradle when set. Usage: `make distribute-android TESTERS=you@gmail.com`.
 
 **2026-05-24** - Testers moved to `apps/api/.env` as `FIREBASE_APP_DISTRIBUTION_TESTERS`. Makefile auto-reads it as `TESTERS` default. No more passing `TESTERS=` on command line.
+
+**2026-05-24** - `FIREBASE_APP_DISTRIBUTION_TESTERS` added as GitHub Secret for CI workflow (Task 4.1/4.2). Env var already in `apps/api/.env` for local use.
 
 ## References
 
