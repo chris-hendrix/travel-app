@@ -136,13 +136,13 @@ Passed to the Gradle build via `releaseNotesFile` property.
 - [x] **Task 1.1: Add classpath to root build.gradle**
   - [x] RED: Run `cd apps/web/android && ./gradlew appDistributionUploadDebug` → confirm "Task 'appDistributionUploadDebug' not found"
   - [x] GREEN: Add `classpath 'com.google.firebase:firebase-appdistribution-gradle:5.2.1'` to `apps/web/android/build.gradle`
-  - [x] CHECK: `./gradlew tasks --group="Firebase"` lists `appDistributionUploadDebug`
+  - [x] CHECK: `./gradlew tasks --group="Firebase"` lists Firebase tasks (`appDistributionUploadDebug` appears after plugin applied in Task 1.2) — see Tracked Changes for inaccuracy note
 
-- [ ] **Task 1.2: Apply plugin and configure in app build.gradle**
-  - RED: Run `./gradlew assembleDebug appDistributionUploadDebug` → fails with classpath/plugin resolution error
-  - GREEN: Add `apply plugin: 'com.google.firebase.appdistribution'` to `apps/web/android/app/build.gradle`
-  - GREEN: Configure `debug.firebaseAppDistribution` block with `artifactType = "APK"`, dynamic `testers` and `versionCode`
-  - CHECK: `./gradlew assembleDebug appDistributionUploadDebug` runs without plugin errors
+- [x] **Task 1.2: Apply plugin and configure in app build.gradle**
+  - [x] RED: Run `./gradlew assembleDebug appDistributionUploadDebug` → fails with "Task 'appDistributionUploadDebug' not found"
+  - [x] GREEN: Add `apply plugin: 'com.google.firebase.appdistribution'` to `apps/web/android/app/build.gradle`
+  - [x] GREEN: Configure `debug.firebaseAppDistribution` block with `artifactType = "APK"`, dynamic `testers` and `versionCode`
+  - [x] CHECK: `./gradlew assembleDebug appDistributionUploadDebug` → `assembleDebug` succeeds, `appDistributionUploadDebug` fails only with "Could not find credentials" (expected — no service account configured yet)
 
 ### Task 2: Local Distribution Test
 
@@ -240,6 +240,8 @@ Passed to the Gradle build via `releaseNotesFile` property.
 ## Tracked Changes
 
 > Record deviations from plan during implementation here.
+
+**2026-05-24** - Task 1.1 CHECK refined: `appDistributionUploadDebug` does not appear in `tasks --group="Firebase"` until the plugin is applied to the app module (Task 1.2). Classpath alone is insufficient. Updated CHECK to BUILD SUCCESSFUL.
 
 ## References
 
