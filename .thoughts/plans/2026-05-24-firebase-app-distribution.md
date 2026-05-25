@@ -19,6 +19,19 @@ Integrate Firebase App Distribution into the build pipeline so every push to `ma
 - [ ] `pnpm build:web` (standalone) still succeeds after Gradle changes
 - [ ] All existing tests pass (`pnpm test`, `pnpm lint`, `pnpm typecheck`)
 
+## Relationship to Play Store
+
+Firebase App Distribution and Google Play Store serve different stages:
+
+```
+Dev build → Firebase App Distribution (internal testers, this workflow)
+                │
+                ▼  (future, out of scope)
+         Signed AAB → Play Console Internal Track → Closed Track → Production
+```
+
+Firebase App Distribution stays valuable post-launch as a **pre-staging sanity check**: distribute a debug build to 3-5 testers before cutting the signed AAB for Play Store testing tracks. Play Store publishing (signed AABs, release keystores, Play Console API) is a separate future workflow.
+
 ## What We're NOT Doing
 
 - Not setting up Fastlane (overkill — Gradle plugin is sufficient)
@@ -119,13 +132,16 @@ git log --oneline -5 > /tmp/release-notes.txt
 ```
 Passed to the Gradle build via `releaseNotesFile` property.
 
-### CI Trigger
+### CI Triggers (3-Tier Strategy)
 
-| Trigger | Behavior |
-|---------|----------|
-| `push` to `main` | Auto-distribute on every merge |
-| `workflow_dispatch` | Manual trigger from GitHub Actions tab |
-| Path filter: `apps/web/**` | Only runs when web/mobile code changes |
+| Trigger | Behavior | Purpose |
+|---------|----------|---------|
+| Pull request (path: `apps/web/**`) | Build APK only (no distribute) | Catch build breakage fast — like `pnpm typecheck` for Android |
+| `push` to `main` (path: `apps/web/**`) | Build + distribute to Firebase App Distribution | Latest main always testable by internal team |
+| `workflow_dispatch` | Build + distribute (manual) | Ad-hoc builds for specific testing needs |
+
+A build-only PR check (assembleDebug, no upload) catches missing imports,
+broken cap sync, and Gradle config errors in CI without spamming testers.
 
 ---
 
@@ -184,7 +200,8 @@ Passed to the Gradle build via `releaseNotesFile` property.
 - [ ] **Task 4.2: Create workflow file**
   - RED: Push a commit with the workflow file but without `FIREBASE_SERVICE_ACCOUNT` secret set → workflow runs, Gradle task fails with clear auth error (not silent hang)
   - GREEN: Create `.github/workflows/distribute.yml` with:
-    - Trigger: `push` to `main` with path filter `apps/web/**` + `workflow_dispatch`
+    - Trigger: `pull_request` (paths: `apps/web/**`) build-only (assembleDebug, no upload) + `push` to `main` (paths: `apps/web/**`) build+distribute + `workflow_dispatch` build+distribute
+    - Note: PR workflow only runs `./gradlew assembleDebug` (no `appDistributionUploadDebug`) to keep it fast and credential-free
     - `actions/checkout@v6`
     - `actions/setup-java@v4` with `java-version: '21'`, `distribution: 'temurin'`
     - `android-actions/setup-android@v3` (or `sdkmanager "platforms;android-36" "build-tools;36.0.0"`)
@@ -240,6 +257,8 @@ Passed to the Gradle build via `releaseNotesFile` property.
 **2026-05-24** - IAM permission blocker **RESOLVED**. Granted `Firebase App Distribution Admin` role to service account `firebase-adminsdk-fbsvc@journiful-app.iam.gserviceaccount.com` via Firebase Console → Project Settings → Service Accounts → IAM. Re-ran `./gradlew appDistributionUploadDebug` with `GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json` → **BUILD SUCCESSFUL in 12s**. Release ID: `43126kuf8214g`. Also noted: JAVA_HOME must be explicitly set to `/home/chend/jdk/jdk-21.0.11+10` on this WSL2 host for Gradle to run (will need same in CI workflow).
 
 **2026-05-24** - Makefile target implemented. Discovered `export JAVA_HOME` does not persist across Make recipe lines (each `@`-prefixed line runs in separate shell). Fixed by inlining the JAVA_HOME check into the same shell invocation as the Gradle command. Also fixed bug in provided code: `$$(grep ...)` would try to execute grep output as a command instead of writing to temp file. FIREBASE_SERVICE_ACCOUNT sourced from `apps/api/.env` by default.
+
+**2026-05-24** - CI trigger refined to 3-tier strategy: PR build-only, merge build+distribute, manual dispatch. Added Play Store relationship documentation. Avoids tester fatigue from distributing on every merge.
 
 **2026-05-24** - Makefile `distribute-android` extended: `BUILD_NUMBER` defaults to `git rev-list --count HEAD` for deterministic local/CI versioning. `TESTERS` variable passed to Gradle when set. Usage: `make distribute-android TESTERS=you@gmail.com`.
 
