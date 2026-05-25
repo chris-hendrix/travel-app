@@ -5,10 +5,12 @@ on:
     branches: [main]
     paths:
       - 'apps/web/**'
+      - '.github/workflows/distribute.yml'
   push:
     branches: [main]
     paths:
       - 'apps/web/**'
+      - '.github/workflows/distribute.yml'
   workflow_dispatch:
 
 # Cancel in-progress runs for same PR/branch
