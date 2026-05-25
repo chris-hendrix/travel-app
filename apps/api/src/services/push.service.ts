@@ -1,5 +1,5 @@
 import webpush from "web-push";
-import * as admin from "firebase-admin";
+import admin from "firebase-admin";
 import { and, eq } from "drizzle-orm";
 import { pushSubscriptions } from "@/db/schema/index.js";
 import type { AppDatabase } from "@/types/index.js";

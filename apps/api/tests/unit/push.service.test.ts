@@ -33,7 +33,7 @@ vi.mock("firebase-admin", () => {
   };
 });
 
-import * as admin from "firebase-admin";
+import admin from "firebase-admin";
 import { PushService } from "@/services/push.service.js";
 
 describe("PushService", () => {
