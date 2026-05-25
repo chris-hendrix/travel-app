@@ -146,10 +146,10 @@ Passed to the Gradle build via `releaseNotesFile` property.
 
 ### Task 2: Local Distribution Test
 
-- [ ] **Task 2.1: Extract service account JSON to temp file**
-  - RED: Run `ls /tmp/firebase-sa.json` → file does not exist
-  - GREEN: Write service account JSON from `FIREBASE_SERVICE_ACCOUNT` env var to temp file
-  - CHECK: File exists, valid JSON, contains `project_id`
+- [x] **Task 2.1: Extract service account JSON to temp file**
+  - [x] RED: Run `ls /tmp/firebase-sa.json` → file does not exist
+  - [x] GREEN: Write service account JSON from `FIREBASE_SERVICE_ACCOUNT` env var to temp file
+  - [x] CHECK: File exists, valid JSON, contains `project_id`
 
 - [ ] **Task 2.2: Run full build + distribute**
   - GREEN: `make build-mobile && cd apps/web && npx cap sync`
