@@ -58,8 +58,10 @@ jobs:
 
       - name: Build debug APK
         run: |
-          cd apps/web/android && ./gradlew assembleDebug \
-            -PversionNameOverride="$GITHUB_REF_NAME-${GITHUB_SHA::7}"
+          cd apps/web/android
+          BRANCH_NAME=$(echo "${{ github.head_ref || github.ref_name }}" | tr '/' '-')
+          ./gradlew assembleDebug \
+            -PversionNameOverride="${BRANCH_NAME}-${GITHUB_SHA::7}"
         env:
           GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx3g
 
@@ -107,7 +109,7 @@ jobs:
         run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > /tmp/firebase-sa.json
 
       - name: Generate release notes with branch name
-        run: echo "[$GITHUB_REF_NAME] $(git log -1 --pretty=%B)" > /tmp/release-notes.txt
+        run: echo "[$(echo '${{ github.head_ref || github.ref_name }}' | tr '/' '-')] $(git log -1 --pretty=%B)" > /tmp/release-notes.txt
 
       - name: Build web app for mobile
         run: make build-mobile
@@ -118,10 +120,11 @@ jobs:
       - name: Build and distribute to Firebase
         run: |
           cd apps/web/android
+          BRANCH_NAME=$(echo "${{ github.head_ref || github.ref_name }}" | tr '/' '-')
           GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json \
             ./gradlew assembleDebug appDistributionUploadDebug \
             -PbuildNumber=$GITHUB_RUN_NUMBER \
-            -PversionNameOverride="$GITHUB_REF_NAME-${GITHUB_SHA::7}" \
+            -PversionNameOverride="${BRANCH_NAME}-${GITHUB_SHA::7}" \
             -Ptesters="${{ secrets.FIREBASE_APP_DISTRIBUTION_TESTERS }}" \
             -PreleaseNotesFile=/tmp/release-notes.txt
         env:
