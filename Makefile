@@ -1,4 +1,4 @@
-.PHONY: help install dev dev-web dev-api build-mobile pwa migrate seed studio generate up down clean reset-db test-up test-down test-exec test-run test-status test-setup test-clean
+.PHONY: help install dev dev-web dev-api build-mobile android-setup adb-reverse cap-dev cap-run pwa migrate seed studio generate up down clean reset-db test-up test-down test-exec test-run test-status test-setup test-clean
 
 .DEFAULT_GOAL := help
 
@@ -39,6 +39,100 @@ pwa: ## Build + serve web in production mode for PWA testing (api:8000, web:3000
 build-mobile: ## Build web app for Capacitor static export
 	cd apps/web && pnpm build:mobile
 
+adb-reverse: ## Forward emulator ports to host (for Android emulator dev)
+	@ADB=$$(command -v adb 2>/dev/null || command -v adb.exe 2>/dev/null); \
+	if [ -z "$$ADB" ]; then \
+		echo "❌ adb not found. Install Android SDK tools and ensure platform-tools is in PATH."; \
+		exit 1; \
+	fi; \
+	$$ADB reverse tcp:8000 tcp:8000 && $$ADB reverse tcp:3000 tcp:3000 && \
+	echo "✅ Port forwarding active: emulator:8000 → host:8000, emulator:3000 → host:3000"
+
+android-setup: ## One-time WSL2 Android SDK interop setup (symlinks, sdkmanager)
+	@echo "🔧 Setting up WSL2 ↔ Windows Android SDK interop..."
+	@# Source ANDROID_HOME from env or local.properties
+	@if [ -z "$$ANDROID_HOME" ]; then \
+		if [ -f "apps/web/android/local.properties" ]; then \
+			ANDROID_HOME=$$(grep '^sdk.dir=' apps/web/android/local.properties | sed 's/^sdk.dir=//'); \
+			export ANDROID_HOME; \
+		fi; \
+	fi
+	@if [ -z "$$ANDROID_HOME" ]; then \
+		echo "❌ ANDROID_HOME not set. Check local.properties or export ANDROID_HOME."; \
+		exit 1; \
+	fi
+	@echo "  SDK: $$ANDROID_HOME"
+	@# Symlink platform-tools binaries (idempotent)
+	@for tool in adb fastboot sqlite3; do \
+		if [ -f "$$ANDROID_HOME/platform-tools/$${tool}.exe" ] && [ ! -L "$$ANDROID_HOME/platform-tools/$$tool" ]; then \
+			ln -sf "$$ANDROID_HOME/platform-tools/$${tool}.exe" "$$ANDROID_HOME/platform-tools/$$tool" && \
+			echo "  ✓ symlinked $$tool.exe → $$tool"; \
+		fi; \
+	done
+	@# Download Linux cmdline-tools for sdkmanager (if not already present)
+	@if [ ! -f "$$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then \
+		UNZIP=$$(command -v unzip 2>/dev/null || command -v busybox 2>/dev/null); \
+		if [ -z "$$UNZIP" ]; then \
+			echo "  ⚠ unzip not found (install with: sudo apt install unzip)"; \
+			echo "  ⏭ skipping sdkmanager"; \
+		else \
+			echo "  ⬇ Downloading Linux cmdline-tools..."; \
+			mkdir -p "$$ANDROID_HOME/cmdline-tools/latest"; \
+			curl -sL -o /tmp/cmdline-tools.zip "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip" && \
+			rm -rf /tmp/cmdline-tools && \
+			if [ "$$UNZIP" = "$$(command -v busybox 2>/dev/null)" ]; then \
+				busybox unzip -qo /tmp/cmdline-tools.zip -d /tmp/cmdline-tools; \
+			else \
+				unzip -qo /tmp/cmdline-tools.zip -d /tmp/cmdline-tools; \
+			fi && \
+			cp -r /tmp/cmdline-tools/cmdline-tools/bin/* "$$ANDROID_HOME/cmdline-tools/latest/bin/" && \
+			cp -r /tmp/cmdline-tools/cmdline-tools/lib "$$ANDROID_HOME/cmdline-tools/latest/" && \
+			rm -rf /tmp/cmdline-tools /tmp/cmdline-tools.zip && \
+			echo "  ✓ sdkmanager installed (with lib/ dependencies)"; \
+		fi; \
+	else \
+		echo "  ✓ sdkmanager already present"; \
+	fi
+	@# Report build-tools status
+	@echo "  Build-tools available:"
+	@ls -d "$$ANDROID_HOME"/build-tools/*/ 2>/dev/null | while read dir; do \
+		ver=$$(basename "$$dir"); \
+		native=$$(ls "$$dir"/aapt 2>/dev/null && echo "native" || echo "exe-only"); \
+		echo "    $$ver ($$native)"; \
+	done
+	@echo "✅ Android SDK WSL2 interop setup complete"
+
+cap-dev: adb-reverse ## Sync + open Capacitor project (open Android Studio from Windows)
+	@ENV_JAVA_HOME=$$(grep '^JAVA_HOME=' apps/api/.env 2>/dev/null | sed 's/^JAVA_HOME=//'); \
+	if [ -n "$$ENV_JAVA_HOME" ] && [ "$$JAVA_HOME" != "$$ENV_JAVA_HOME" ]; then \
+		echo "  ⚠ JAVA_HOME mismatch: env=$$JAVA_HOME, .env=$$ENV_JAVA_HOME — using .env" && export JAVA_HOME="$$ENV_JAVA_HOME"; \
+	elif [ -z "$$JAVA_HOME" ] && [ -n "$$ENV_JAVA_HOME" ]; then \
+		export JAVA_HOME="$$ENV_JAVA_HOME"; \
+	fi; \
+	if [ -z "$$JAVA_HOME" ]; then \
+		echo "ERROR: JAVA_HOME is not set. Set it in apps/api/.env or export it in your environment."; exit 1; \
+	fi; \
+	cd apps/web && CAPACITOR_LIVE_RELOAD=true npx cap sync
+	@echo "📱 Synced. Now open Android Studio on Windows, open the project at:"
+	@echo "   apps/web/android/"
+	@echo "   Then press ▶ Run to launch on emulator."
+
+cap-run: adb-reverse ## Install and launch APK directly on connected emulator (bypasses native-run)
+	@ENV_JAVA_HOME=$$(grep '^JAVA_HOME=' apps/api/.env 2>/dev/null | sed 's/^JAVA_HOME=//'); \
+	if [ -n "$$ENV_JAVA_HOME" ] && [ "$$JAVA_HOME" != "$$ENV_JAVA_HOME" ]; then \
+		echo "  ⚠ JAVA_HOME mismatch: env=$$JAVA_HOME, .env=$$ENV_JAVA_HOME — using .env" && export JAVA_HOME="$$ENV_JAVA_HOME"; \
+	elif [ -z "$$JAVA_HOME" ] && [ -n "$$ENV_JAVA_HOME" ]; then \
+		export JAVA_HOME="$$ENV_JAVA_HOME"; \
+	fi; \
+	if [ -z "$$JAVA_HOME" ]; then \
+		echo "ERROR: JAVA_HOME is not set. Set it in apps/api/.env or export it in your environment."; exit 1; \
+	fi; \
+	cd apps/web && CAPACITOR_LIVE_RELOAD=true npx cap sync && \
+	cd android && ./gradlew assembleDebug && \
+	ADB=$$(command -v adb 2>/dev/null || command -v adb.exe 2>/dev/null); \
+	$$ADB -s emulator-5554 install -r app/build/outputs/apk/debug/app-debug.apk && \
+	$$ADB -s emulator-5554 shell am start -n com.journiful.app/.MainActivity
+
 BUILD_NUMBER ?= $(shell git rev-list --count HEAD 2>/dev/null || echo 1)
 GIT_BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 GIT_SHA ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
@@ -69,11 +163,11 @@ distribute-android: ## Build and distribute Android APK via Firebase App Distrib
 	if [ -n "$(TESTERS)" ]; then \
 		GRADLE_ARGS="$$GRADLE_ARGS -Ptesters=$(TESTERS)"; \
 	fi; \
-	if [ -z "$$JAVA_HOME" ]; then \
-		if [ -f "apps/api/.env" ]; then \
-			JAVA_HOME=$$(grep '^JAVA_HOME=' apps/api/.env | sed 's/^JAVA_HOME=//'); \
-			export JAVA_HOME; \
-		fi; \
+	ENV_JAVA_HOME=$$(grep '^JAVA_HOME=' apps/api/.env 2>/dev/null | sed 's/^JAVA_HOME=//'); \
+	if [ -n "$$ENV_JAVA_HOME" ] && [ "$$JAVA_HOME" != "$$ENV_JAVA_HOME" ]; then \
+		echo "  ⚠ JAVA_HOME mismatch: env=$$JAVA_HOME, .env=$$ENV_JAVA_HOME — using .env" && export JAVA_HOME="$$ENV_JAVA_HOME"; \
+	elif [ -z "$$JAVA_HOME" ] && [ -n "$$ENV_JAVA_HOME" ]; then \
+		export JAVA_HOME="$$ENV_JAVA_HOME"; \
 	fi; \
 	if [ -z "$$JAVA_HOME" ]; then \
 		echo "ERROR: JAVA_HOME is not set. Set it in apps/api/.env or export it in your environment."; exit 1; \

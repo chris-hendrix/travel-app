@@ -62,6 +62,7 @@ make test-down                        # Tear down
 **One-time setup:**
 - Android Studio on Windows (not in WSL2) — SDK 33+, create a Pixel emulator
 - WSL2 ADB interop: set `ANDROID_HOME` to the Windows SDK path, `alias adb='adb.exe'`
+- Port forwarding: run `make adb-reverse` before starting the emulator (forwards localhost:8000 and :3000 to host)
 - Firebase project with Cloud Messaging → `google-services.json` → `apps/web/android/app/`
 - Firebase service account → `FIREBASE_SERVICE_ACCOUNT` in `apps/api/.env`
 
@@ -71,12 +72,34 @@ make test-down                        # Tear down
 | `NEXT_EXPORT=true` | build-time | Triggers static export (set by `make build-mobile`) |
 | `CAPACITOR_LIVE_RELOAD=true` | `.env.local` | Dev mode — loads from `http://10.0.2.2:3000` on emulator |
 | `FIREBASE_SERVICE_ACCOUNT` | `apps/api/.env` | Firebase Admin SDK JSON (single line) for FCM push |
+| `make adb-reverse` | host setup | Forwards emulator ports 8000 & 3000 to host (required for dev API access) |
+
+**Dev workflow:**
+```
+# Terminal 1: Start API + web with hot reload
+make dev
+
+# Terminal 2: Launch app on emulator with live reload
+make cap-dev
+```
+Code changes to the web app are hot-reloaded instantly in the emulator.
 
 **Build pipeline:**
 ```
 make build-mobile → out/ → npx cap sync → android/ assets
                                         → ./gradlew assembleDebug → APK
 ```
+
+**WebView debugging (Chrome DevTools):**
+
+1. `WebView.setWebContentsDebuggingEnabled(true)` is enabled in `MainActivity.java`
+2. Forward the DevTools socket: `adb forward tcp:9222 localabstract:webview_devtools_remote_<pid>` (get PID from `adb shell pidof com.journiful.app`)
+3. On Windows (as Administrator), bridge the port from WSL2:
+   ```
+   netsh interface portproxy add v4tov4 listenport=9222 listenaddress=0.0.0.0 connectport=9222 connectaddress=127.0.0.1
+   ```
+4. Access from Windows Chrome at `chrome://inspect` or `http://localhost:9222`
+5. To access from WSL2, find the Windows host IP: `ip route show default | awk '{print $3}'` — then use `http://<WINDOWS_IP>:9222/json`
 
 **Architecture:**
 - Export uses `assetPrefix: ''` for `file://` asset resolution in Capacitor WebView.
