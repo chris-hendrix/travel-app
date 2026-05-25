@@ -151,12 +151,12 @@ Passed to the Gradle build via `releaseNotesFile` property.
   - [x] GREEN: Write service account JSON from `FIREBASE_SERVICE_ACCOUNT` env var to temp file
   - [x] CHECK: File exists, valid JSON, contains `project_id`
 
-- [ ] **Task 2.2: Run full build + distribute**
-  - GREEN: `make build-mobile && cd apps/web && npx cap sync`
-  - GREEN: `cd apps/web/android && GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json ./gradlew assembleDebug appDistributionUploadDebug`
-  - CHECK: APK exists at `apps/web/android/app/build/outputs/apk/debug/app-debug.apk`
-  - CHECK: Upload succeeds (Gradle task exits 0, no auth errors in output)
-  - CHECK: Run `firebase appdistribution:releases:list --app <appId>` via Firebase CLI to confirm new release with expected versionCode
+- [x] **Task 2.2: Run full build + distribute**
+  - [x] GREEN: `make build-mobile && cd apps/web && npx cap sync` → succeeded
+  - [x] GREEN: `cd apps/web/android && GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json ./gradlew assembleDebug appDistributionUploadDebug` → `assembleDebug` succeeded, `appDistributionUploadDebug` FAILED with 403
+  - [x] CHECK: APK exists at `apps/web/android/app/build/outputs/apk/debug/app-debug.apk` (10.9 MB / 11M)
+  - [!] CHECK: Upload blocked — 403 "The caller does not have permission". Service account `firebase-adminsdk-fbsvc@journiful-app.iam.gserviceaccount.com` needs `roles/firebaseappdistribution.admin` (or `releaser`). Must be granted manually in Firebase Console > Project Settings > Service Accounts or GCP IAM.
+  - [!] CHECK: `firebase appdistribution:releases:list` is not a recognized Firebase CLI command (also blocked by same 403 permission).
 
 ### Task 3: Makefile Target
 
@@ -242,6 +242,8 @@ Passed to the Gradle build via `releaseNotesFile` property.
 > Record deviations from plan during implementation here.
 
 **2026-05-24** - Task 1.1 CHECK refined: `appDistributionUploadDebug` does not appear in `tasks --group="Firebase"` until the plugin is applied to the app module (Task 1.2). Classpath alone is insufficient. Updated CHECK to BUILD SUCCESSFUL.
+
+**2026-05-24** - Task 2.2 upload blocked: Service account `firebase-adminsdk-fbsvc@journiful-app.iam.gserviceaccount.com` lacks IAM role `roles/firebaseappdistribution.admin`. It cannot enable APIs, read/modify IAM policies, or upload releases. Must be granted manually. `gcloud auth login --no-browser` available but requires browser-based OAuth flow. Also discovered: Java not on host PATH but available at `/home/chend/jdk/jdk-21.0.11+10`; `ANDROID_HOME` already set to Windows Sdk path; `firebase appdistribution:releases:list` is not a recognized Firebase CLI command.
 
 ## References
 
