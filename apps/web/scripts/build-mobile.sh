@@ -8,6 +8,11 @@ echo "Building Journiful for mobile (static export)..."
 export NEXT_EXPORT=true
 cd "$(dirname "$0")/.."
 
+if [ -z "${NEXT_PUBLIC_API_URL:-}" ]; then
+  echo "⚠️  NEXT_PUBLIC_API_URL is not set — API calls will use default (likely localhost)."
+  echo "   For distribution builds, set: NEXT_PUBLIC_API_URL=https://api.journiful.app/api"
+fi
+
 npx next build --webpack
 
 # Fix absolute asset paths for Capacitor file:// compatibility

@@ -155,7 +155,7 @@ distribute-android: ## Build and distribute Android APK via Firebase App Distrib
 		echo "$$FIREBASE_SERVICE_ACCOUNT" > /tmp/firebase-sa.json; \
 	fi
 	@echo "Building web app for mobile..."
-	$(MAKE) build-mobile
+	NEXT_PUBLIC_API_URL=https://api.journiful.app/api $(MAKE) build-mobile
 	@echo "Syncing Capacitor assets..."
 	cd apps/web && npx cap sync
 	@echo "Building and distributing APK to Firebase..."
