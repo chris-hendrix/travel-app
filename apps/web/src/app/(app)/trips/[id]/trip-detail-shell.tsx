@@ -3,6 +3,7 @@
 import { useState, useMemo, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
 import {
@@ -110,14 +111,13 @@ function SkeletonDetail() {
 }
 
 export function TripDetailShell({
-  tripId,
   children,
 }: {
-  tripId: string;
   children: ReactNode;
 }) {
-  const { data: trip, isPending, isError } = useTripDetail(tripId);
-  const { data: events } = useEvents(tripId);
+  const params = useParams<{ id: string }>();
+  const { data: trip, isPending, isError } = useTripDetail(params.id);
+  const { data: events } = useEvents(params.id);
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
@@ -134,19 +134,19 @@ export function TripDetailShell({
   const [editingAccommodation, setEditingAccommodation] =
     useState<Accommodation | null>(null);
 
-  const removeMember = useRemoveMember(tripId);
-  const updateRole = useUpdateMemberRole(tripId);
+  const removeMember = useRemoveMember(params.id);
+  const updateRole = useUpdateMemberRole(params.id);
   const { user } = useAuth();
   const { data: members } = useQuery({
-    ...membersQueryOptions(tripId),
-    enabled: !!tripId,
+    ...membersQueryOptions(params.id),
+    enabled: !!params.id,
     select: (data) =>
       data.map((m) => ({ id: m.id, userId: m.userId, isMuted: m.isMuted })),
   });
   const currentMember = members?.find((m) => m.userId === user?.id);
   const isMobile = useIsMobile();
   const { data: weather, isLoading: weatherLoading } =
-    useWeatherForecast(tripId);
+    useWeatherForecast(params.id);
   const temperatureUnit: TemperatureUnit =
     user?.temperatureUnit === "celsius" ? "celsius" : "fahrenheit";
 
@@ -228,7 +228,7 @@ export function TripDetailShell({
     return (
       <TripPreview
         trip={trip}
-        tripId={tripId}
+        tripId={params.id}
         onGoingSuccess={() => setShowOnboarding(true)}
       />
     );
@@ -238,7 +238,7 @@ export function TripDetailShell({
     return (
       <MobileTripLayout
         trip={trip}
-        tripId={tripId}
+        tripId={params.id}
         isOrganizer={isOrganizer}
         isLocked={isLocked}
         activeEventCount={activeEventCount}
@@ -372,7 +372,7 @@ export function TripDetailShell({
               <div className="lg:sticky lg:top-16 lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto lg:scrollbar-none">
                 <InfoPanel
                   trip={trip}
-                  tripId={tripId}
+                  tripId={params.id}
                   isOrganizer={isOrganizer}
                   activeEventCount={0}
                   weather={weather}
@@ -392,7 +392,7 @@ export function TripDetailShell({
             <div className="lg:hidden mb-6">
               <InfoPanel
                 trip={trip}
-                tripId={tripId}
+                tripId={params.id}
                 isOrganizer={isOrganizer}
                 activeEventCount={0}
                 weather={weather}
@@ -408,9 +408,9 @@ export function TripDetailShell({
 
             {/* Right pane: tabs + content */}
             <div className="lg:flex-1 lg:min-w-0 lg:relative pb-16">
-              <TripTabNav tripId={tripId} />
+              <TripTabNav tripId={params.id} />
               <TripPageProvider
-                tripId={tripId}
+                tripId={params.id}
                 trip={trip}
                 isOrganizer={isOrganizer}
                 isLocked={isLocked}
@@ -458,7 +458,7 @@ export function TripDetailShell({
           <InviteMembersDialog
             open={isInviteOpen}
             onOpenChange={setIsInviteOpen}
-            tripId={tripId}
+            tripId={params.id}
           />
         )}
 
@@ -475,7 +475,7 @@ export function TripDetailShell({
               </SheetDescription>
             </SheetHeader>
             <SheetBody>
-              <NotificationPreferences tripId={tripId} />
+              <NotificationPreferences tripId={params.id} />
             </SheetBody>
           </SheetContent>
         </Sheet>
@@ -546,7 +546,7 @@ export function TripDetailShell({
                 </div>
               ) : (
                 <MembersList
-                  tripId={tripId}
+                  tripId={params.id}
                   isOrganizer={isOrganizer}
                   createdBy={trip.createdBy}
                   currentUserId={user?.id}
@@ -616,7 +616,7 @@ export function TripDetailShell({
           <MemberOnboardingWizard
             open={showOnboarding}
             onOpenChange={setShowOnboarding}
-            tripId={tripId}
+            tripId={params.id}
             trip={trip}
           />
         )}

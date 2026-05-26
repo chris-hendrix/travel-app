@@ -47,7 +47,7 @@ export default async function TripLayout({ params, children }: Props) {
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
-      <TripDetailShell tripId={id}>{children}</TripDetailShell>
+      <TripDetailShell>{children}</TripDetailShell>
     </HydrationBoundary>
   );
 }
