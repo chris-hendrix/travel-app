@@ -11,6 +11,9 @@ const config: CapacitorConfig = {
     cleartext: true,
   },
   plugins: {
+    CapacitorHttp: {
+      enabled: true,
+    },
     PushNotifications: {
       presentationOptions: ["alert", "sound"],
     },
