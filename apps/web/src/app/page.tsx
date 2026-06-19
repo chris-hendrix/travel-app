@@ -80,7 +80,7 @@ export default async function Home() {
     <>
       <main className="flex min-h-screen flex-col bg-background linen-texture">
         {/* Header */}
-        <header className="sticky top-0 z-40 w-full bg-background border-b border-border linen-texture">
+        <header className="sticky top-0 z-40 w-full bg-background border-b border-border linen-texture pt-safe">
           <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
             <Link
               href="/"

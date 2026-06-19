@@ -4,7 +4,7 @@ import Link from "next/link";
 export default function InviteLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background linen-texture">
-      <header className="sticky top-0 z-40 w-full border-b border-border bg-background linen-texture">
+      <header className="sticky top-0 z-40 w-full border-b border-border bg-background linen-texture pt-safe">
         <div className="mx-auto flex h-14 max-w-2xl items-center justify-between px-6">
           <Link
             href="/"
