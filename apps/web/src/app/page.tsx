@@ -63,15 +63,17 @@ const steps = [
 ] as const;
 
 export default async function Home() {
-  // Redirect authenticated users to the app
+  let authToken: { value: string } | undefined;
+
   try {
     const cookieStore = await cookies();
-    const authToken = cookieStore.get("auth_token");
-    if (authToken?.value) {
-      redirect("/login");
-    }
+    authToken = cookieStore.get("auth_token");
   } catch {
     // Static export: cookies() throws; fall through to show landing page
+  }
+
+  if (authToken?.value) {
+    redirect("/login");
   }
 
   return (

@@ -13,15 +13,17 @@ export default async function ProtectedLayout({
 }: {
   children: ReactNode;
 }) {
-  // Redirect unauthenticated users to login
+  let authToken: { value: string } | undefined;
+
   try {
     const cookieStore = await cookies();
-    const authToken = cookieStore.get("auth_token");
-    if (!authToken?.value) {
-      redirect("/login");
-    }
+    authToken = cookieStore.get("auth_token");
   } catch {
     // Static export: cookies() throws; auth handled client-side
+  }
+
+  if (!authToken?.value) {
+    redirect("/login");
   }
 
   return (
