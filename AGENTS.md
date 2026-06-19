@@ -34,10 +34,13 @@ pnpm dev:web          # Frontend only
 pnpm dev:api          # Backend only
 
 # Mobile / Capacitor (host)
-make build-mobile                                     # Static export for Android APK
-cd apps/web && npx cap sync                           # Sync web assets into Android project
-cd apps/web/android && ./gradlew assembleDebug       # Build debug APK
-make distribute-android                               # Build, sync, and distribute to Firebase App Distribution
+make cap-apk                  # Full pipeline: static export → cap sync → assembleDebug APK
+make cap-install              # Install APK on emulator + launch
+make cap-run                  # cap-apk + cap-install combined (requires live reload config)
+make cap-logs                 # Tail WebView JS console (chromium) logs
+make cap-crash                # Dump Android crash log buffer
+make adb-reverse              # Forward emulator ports 8000 & 3000 to host
+make distribute-android       # Build, sync, and distribute to Firebase App Distribution
 ```
 
 ### Testing — devcontainer only
@@ -51,6 +54,7 @@ make test-exec CMD="pnpm test:e2e"    # E2E (Playwright)
 make test-exec CMD="pnpm lint"
 make test-exec CMD="pnpm typecheck"
 make test-down                        # Tear down
+make test-static-smoke               # Verify static export integrity (no error pages, pages render)
 ```
 
 `test-exec` wraps `CMD` in `bash -c`, so compound commands work: `make test-exec CMD="cd apps/api && pnpm db:migrate"`.
