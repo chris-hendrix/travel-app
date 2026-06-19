@@ -5,9 +5,6 @@ import { AppHeader } from "@/components/app-header";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
 import { GlobalMutationIndicator } from "@/components/global-mutation-indicator";
 import { QueryErrorBoundaryWrapper } from "@/components/query-error-boundary-wrapper";
-
-export const dynamic = "force-static";
-
 export default async function ProtectedLayout({
   children,
 }: {
