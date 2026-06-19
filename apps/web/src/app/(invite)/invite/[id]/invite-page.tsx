@@ -73,23 +73,22 @@ export default async function InvitePage({
 
   // Already accepted — redirect to trip
   if ("status" in preview && preview.status === "accepted") {
-    redirect(`/trips/${preview.tripId}`);
+    redirect(`/trips?id=${preview.tripId}`);
   }
 
-  // In static export mode, cookies are unavailable — skip auth check
-  const isExport = process.env.NEXT_EXPORT === "true";
-
-  if (!isExport) {
-    // Authenticated user with pending invitation — accept and redirect
+  // Authenticated user with pending invitation — accept and redirect
+  try {
     const cookieStore = await cookies();
     const authToken = cookieStore.get("auth_token");
 
     if (authToken?.value && !("status" in preview)) {
       const result = await acceptInvitation(id, authToken.value);
       if (result.success && result.tripId) {
-        redirect(`/trips/${result.tripId}`);
+        redirect(`/trips?id=${result.tripId}`);
       }
     }
+  } catch {
+    // Static export: cookies() throws; fall through to show preview
   }
 
   // Unauthenticated — show preview card

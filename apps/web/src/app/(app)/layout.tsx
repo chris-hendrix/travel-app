@@ -2,7 +2,6 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { AppHeader } from "@/components/app-header";
-import { AuthGuard } from "@/components/auth-guard";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
 import { GlobalMutationIndicator } from "@/components/global-mutation-indicator";
 import { QueryErrorBoundaryWrapper } from "@/components/query-error-boundary-wrapper";
@@ -14,20 +13,18 @@ export default async function ProtectedLayout({
 }: {
   children: ReactNode;
 }) {
-  // In static export mode (NEXT_EXPORT=true), cookies are unavailable.
-  // Skip server-side auth — client-side AuthProvider handles it.
-  const isExport = process.env.NEXT_EXPORT === "true";
-
-  if (!isExport) {
+  // Redirect unauthenticated users to login
+  try {
     const cookieStore = await cookies();
     const authToken = cookieStore.get("auth_token");
-
     if (!authToken?.value) {
       redirect("/login");
     }
+  } catch {
+    // Static export: cookies() throws; auth handled client-side
   }
 
-  const content = (
+  return (
     <>
       <ImpersonationBanner />
       <GlobalMutationIndicator />
@@ -40,12 +37,4 @@ export default async function ProtectedLayout({
       </main>
     </>
   );
-
-  // In static export mode, wrap with client-side AuthGuard since
-  // server-side cookie checks are unavailable (no server runtime).
-  if (isExport) {
-    return <AuthGuard>{content}</AuthGuard>;
-  }
-
-  return content;
 }
