@@ -12,7 +12,7 @@ const config: CapacitorConfig = {
   },
   plugins: {
     CapacitorHttp: {
-      enabled: true,
+      enabled: !isLiveReload,
     },
     PushNotifications: {
       presentationOptions: ["alert", "sound"],
