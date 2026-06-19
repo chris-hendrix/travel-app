@@ -145,7 +145,7 @@ export default function AdminUsersPage() {
                   >
                     <td className="px-4 py-3">
                       <Link
-                        href={`/admin/users/${user.id}`}
+                        href={`/admin/users?id=${user.id}`}
                         className="font-medium text-foreground hover:text-primary transition-colors"
                       >
                         {user.displayName || "(no name)"}

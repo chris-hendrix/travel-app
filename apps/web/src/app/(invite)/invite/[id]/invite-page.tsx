@@ -60,11 +60,16 @@ export const metadata: Metadata = {
 };
 
 export default async function InvitePage({
-  params,
+  searchParams,
 }: {
-  params: Promise<{ id: string }>;
+  searchParams: Promise<{ id?: string }>;
 }) {
-  const { id } = await params;
+  const { id } = (await searchParams) || {};
+
+  if (!id) {
+    return <InvitePreviewCard valid={false} />;
+  }
+
   const preview = await fetchPreview(id);
 
   if (!preview.success) {

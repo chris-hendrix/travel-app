@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Ban, ShieldCheck, ShieldOff, UserCog } from "lucide-react";
 import Link from "next/link";
@@ -46,7 +46,8 @@ interface AdminUserDetail {
 }
 
 export default function AdminUserDetailPage() {
-  const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
+  const userId = searchParams.get("id") || "";
   const queryClient = useQueryClient();
 
   // Edit form state
@@ -65,10 +66,10 @@ export default function AdminUserDetailPage() {
   const [impersonateError, setImpersonateError] = useState("");
 
   const { data, isLoading } = useQuery({
-    queryKey: ["admin", "users", params.id],
+    queryKey: ["admin", "users", userId],
     queryFn: () =>
       apiRequest<{ success: boolean; user: AdminUserDetail }>(
-        `/admin/users/${params.id}`,
+        `/admin/users/${userId}`,
       ),
   });
 
@@ -76,21 +77,21 @@ export default function AdminUserDetailPage() {
 
   const updateMutation = useMutation({
     mutationFn: (body: { displayName?: string; timezone?: string }) =>
-      apiRequest(`/admin/users/${params.id}`, {
+      apiRequest(`/admin/users/${userId}`, {
         method: "PUT",
         body: JSON.stringify(body),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "users", params.id] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "users", userId] });
       setIsEditing(false);
     },
   });
 
   const actionMutation = useMutation({
     mutationFn: (action: "ban" | "unban" | "promote" | "demote") =>
-      apiRequest(`/admin/users/${params.id}/${action}`, { method: "POST" }),
+      apiRequest(`/admin/users/${userId}/${action}`, { method: "POST" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "users", params.id] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "users", userId] });
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       setConfirmAction(null);
     },
@@ -98,7 +99,7 @@ export default function AdminUserDetailPage() {
 
   const impersonateMutation = useMutation({
     mutationFn: (code: string) =>
-      apiRequest(`/admin/impersonate/${params.id}`, {
+      apiRequest(`/admin/impersonate/${userId}`, {
         method: "POST",
         body: JSON.stringify({ code }),
       }),
