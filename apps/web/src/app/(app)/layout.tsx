@@ -13,13 +13,44 @@ export default async function ProtectedLayout({
 }: {
   children: ReactNode;
 }) {
+  // Static export: skip server-side auth redirect entirely;
+  // auth is enforced client-side by the AuthProvider.
+  const isExport = process.env.NEXT_EXPORT === "true";
+  if (isExport) {
+    // Still check cookies() to get the layout variable populated,
+    // but never redirect — the shell must render for all routes.
+    try {
+      const cookieStore = await cookies();
+      const token = cookieStore.get("auth_token");
+      if (token) {
+        // Has a token — render the protected shell
+      }
+    } catch {
+      // cookies() unavailable, expected during export
+    }
+    // Always render the shell; AuthProvider handles auth client-side
+    return (
+      <>
+        <ImpersonationBanner />
+        <GlobalMutationIndicator />
+        <AppHeader />
+        <main
+          id="main-content"
+          className="bg-gradient-to-b from-background via-background to-secondary/30 min-h-[calc(100dvh-3.5rem)]"
+        >
+          <QueryErrorBoundaryWrapper>{children}</QueryErrorBoundaryWrapper>
+        </main>
+      </>
+    );
+  }
+
   let authToken: { value: string } | undefined;
 
   try {
     const cookieStore = await cookies();
     authToken = cookieStore.get("auth_token");
   } catch {
-    // Static export: cookies() throws; auth handled client-side
+    // cookies unavailable — redirect
   }
 
   if (!authToken?.value) {
