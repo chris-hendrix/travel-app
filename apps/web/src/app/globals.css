@@ -533,6 +533,10 @@
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
 @utility bottom-safe-6 {
   bottom: calc(1.5rem + env(safe-area-inset-bottom));
 }
