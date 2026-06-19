@@ -1,4 +1,4 @@
-.PHONY: help install dev dev-web dev-api build-mobile android-setup adb-reverse cap-dev cap-run pwa migrate seed studio generate up down clean reset-db test-up test-down test-exec test-run test-status test-setup test-clean
+.PHONY: help install dev dev-web dev-api build-mobile android-setup adb-reverse cap-dev cap-run pwa migrate seed studio generate up down clean reset-db test-up test-down test-exec test-run test-status test-setup test-clean test-static-smoke
 
 .DEFAULT_GOAL := help
 
@@ -225,6 +225,9 @@ test-run: ## Run full test suite (unit + E2E)
 
 test-pwa: ## Run PWA e2e tests (offline, manifest, push API, install prompts)
 	$(MAKE) test-exec CMD="cd apps/web && pnpm exec playwright test tests/e2e/pwa.spec.ts --reporter=list"
+
+test-static-smoke: build-mobile ## Verify static export integrity (no error pages, pages render)
+	$(MAKE) test-exec CMD="cd apps/web && npx playwright test tests/static-export --config tests/static-export/playwright.config.ts --reporter=list"
 
 test-clean: ## Remove build caches in devcontainer
 	@docker compose -p $(PROJECT) exec -u node -w /workspace app bash -c '\
