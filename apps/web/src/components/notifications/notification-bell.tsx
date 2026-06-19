@@ -127,9 +127,9 @@ function NotificationPreview({
         notification.type === "trip_message" &&
         notification.data?.messageId
       ) {
-        router.push(`/trips/${notification.tripId}#discussion`);
+        router.push(`/trips?id=${notification.tripId}&tab=messages#discussion`);
       } else {
-        router.push(`/trips/${notification.tripId}`);
+        router.push(`/trips?id=${notification.tripId}`);
       }
     }
     onClose();
@@ -256,9 +256,9 @@ function NotificationSheetBody({ onClose }: { onClose: () => void }) {
         notification.type === "trip_message" &&
         notification.data?.messageId
       ) {
-        router.push(`/trips/${notification.tripId}#discussion`);
+        router.push(`/trips?id=${notification.tripId}&tab=messages#discussion`);
       } else {
-        router.push(`/trips/${notification.tripId}`);
+        router.push(`/trips?id=${notification.tripId}`);
       }
     }
     onClose();

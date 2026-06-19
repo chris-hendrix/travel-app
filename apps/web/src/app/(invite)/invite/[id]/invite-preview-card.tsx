@@ -83,7 +83,7 @@ export function InvitePreviewCard(props: InvitePreviewCardProps) {
   } = props;
 
   const dateRange = formatDateRange(startDate, endDate);
-  const joinUrl = `/login?redirect=${encodeURIComponent(`/trips/${tripId}`)}&phone=${encodeURIComponent(inviteePhone)}`;
+  const joinUrl = `/login?redirect=${encodeURIComponent(`/trips?id=${tripId}`)}&phone=${encodeURIComponent(inviteePhone)}`;
 
   return (
     <Card className="w-full max-w-md border-border/50 shadow-2xl linen-texture overflow-hidden">

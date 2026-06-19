@@ -166,13 +166,13 @@ export function CreateTripDialog({
         {
           onSuccess: () => {
             onOpenChange(false);
-            router.push(`/trips/${createdTrip.id}`);
+            router.push(`/trips?id=${createdTrip.id}`);
           },
         },
       );
     } else {
       onOpenChange(false);
-      router.push(`/trips/${createdTrip.id}`);
+      router.push(`/trips?id=${createdTrip.id}`);
     }
   };
 

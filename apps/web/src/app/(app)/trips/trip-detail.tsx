@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useMemo, type ReactNode } from "react";
+import { useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
 import {
@@ -55,6 +55,12 @@ import { THEME_FONTS } from "@journiful/shared/config";
 import { supportsHover } from "@/lib/supports-hover";
 import { TripPageProvider } from "./trip-page-context";
 import { TripTabNav } from "./trip-tab-nav";
+
+const ItineraryTab = dynamic(() => import("./tabs/itinerary-tab"), { ssr: true });
+const DiscoverTab = dynamic(() => import("./tabs/discover-tab"), { ssr: true });
+const MessagesTab = dynamic(() => import("./tabs/messages-tab"), { ssr: true });
+const PhotosTab = dynamic(() => import("./tabs/photos-tab"), { ssr: true });
+const SettleTab = dynamic(() => import("./tabs/settle-tab"), { ssr: true });
 
 const EditTripDialog = dynamic(() =>
   import("@/components/trip/edit-trip-dialog").then((mod) => ({
@@ -110,14 +116,12 @@ function SkeletonDetail() {
   );
 }
 
-export function TripDetailShell({
-  children,
-}: {
-  children: ReactNode;
-}) {
-  const params = useParams<{ id: string }>();
-  const { data: trip, isPending, isError } = useTripDetail(params.id);
-  const { data: events } = useEvents(params.id);
+export function TripDetailShell() {
+  const searchParams = useSearchParams();
+  const tripId = searchParams.get("id") || "";
+  const activeTab = searchParams.get("tab") || "itinerary";
+  const { data: trip, isPending, isError } = useTripDetail(tripId);
+  const { data: events } = useEvents(tripId);
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
@@ -134,19 +138,19 @@ export function TripDetailShell({
   const [editingAccommodation, setEditingAccommodation] =
     useState<Accommodation | null>(null);
 
-  const removeMember = useRemoveMember(params.id);
-  const updateRole = useUpdateMemberRole(params.id);
+  const removeMember = useRemoveMember(tripId);
+  const updateRole = useUpdateMemberRole(tripId);
   const { user } = useAuth();
   const { data: members } = useQuery({
-    ...membersQueryOptions(params.id),
-    enabled: !!params.id,
+    ...membersQueryOptions(tripId),
+    enabled: !!tripId,
     select: (data) =>
       data.map((m) => ({ id: m.id, userId: m.userId, isMuted: m.isMuted })),
   });
   const currentMember = members?.find((m) => m.userId === user?.id);
   const isMobile = useIsMobile();
   const { data: weather, isLoading: weatherLoading } =
-    useWeatherForecast(params.id);
+    useWeatherForecast(tripId);
   const temperatureUnit: TemperatureUnit =
     user?.temperatureUnit === "celsius" ? "celsius" : "fahrenheit";
 
@@ -228,7 +232,7 @@ export function TripDetailShell({
     return (
       <TripPreview
         trip={trip}
-        tripId={params.id}
+        tripId={tripId}
         onGoingSuccess={() => setShowOnboarding(true)}
       />
     );
@@ -238,7 +242,7 @@ export function TripDetailShell({
     return (
       <MobileTripLayout
         trip={trip}
-        tripId={params.id}
+        tripId={tripId}
         isOrganizer={isOrganizer}
         isLocked={isLocked}
         activeEventCount={activeEventCount}
@@ -372,7 +376,7 @@ export function TripDetailShell({
               <div className="lg:sticky lg:top-16 lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto lg:scrollbar-none">
                 <InfoPanel
                   trip={trip}
-                  tripId={params.id}
+                  tripId={tripId}
                   isOrganizer={isOrganizer}
                   activeEventCount={0}
                   weather={weather}
@@ -392,7 +396,7 @@ export function TripDetailShell({
             <div className="lg:hidden mb-6">
               <InfoPanel
                 trip={trip}
-                tripId={params.id}
+                tripId={tripId}
                 isOrganizer={isOrganizer}
                 activeEventCount={0}
                 weather={weather}
@@ -408,9 +412,9 @@ export function TripDetailShell({
 
             {/* Right pane: tabs + content */}
             <div className="lg:flex-1 lg:min-w-0 lg:relative pb-16">
-              <TripTabNav tripId={params.id} />
+              <TripTabNav tripId={tripId} />
               <TripPageProvider
-                tripId={params.id}
+                tripId={tripId}
                 trip={trip}
                 isOrganizer={isOrganizer}
                 isLocked={isLocked}
@@ -426,7 +430,11 @@ export function TripDetailShell({
                 openMembers={() => setIsMembersOpen(true)}
                 setShowOnboarding={setShowOnboarding}
               >
-                {children}
+                {activeTab === "itinerary" && <ItineraryTab />}
+                {activeTab === "discover" && <DiscoverTab />}
+                {activeTab === "messages" && <MessagesTab />}
+                {activeTab === "photos" && <PhotosTab />}
+                {activeTab === "settle" && <SettleTab />}
               </TripPageProvider>
             </div>
           </div>
@@ -458,7 +466,7 @@ export function TripDetailShell({
           <InviteMembersDialog
             open={isInviteOpen}
             onOpenChange={setIsInviteOpen}
-            tripId={params.id}
+            tripId={tripId}
           />
         )}
 
@@ -475,7 +483,7 @@ export function TripDetailShell({
               </SheetDescription>
             </SheetHeader>
             <SheetBody>
-              <NotificationPreferences tripId={params.id} />
+              <NotificationPreferences tripId={tripId} />
             </SheetBody>
           </SheetContent>
         </Sheet>
@@ -546,7 +554,7 @@ export function TripDetailShell({
                 </div>
               ) : (
                 <MembersList
-                  tripId={params.id}
+                  tripId={tripId}
                   isOrganizer={isOrganizer}
                   createdBy={trip.createdBy}
                   currentUserId={user?.id}
@@ -616,7 +624,7 @@ export function TripDetailShell({
           <MemberOnboardingWizard
             open={showOnboarding}
             onOpenChange={setShowOnboarding}
-            tripId={params.id}
+            tripId={tripId}
             trip={trip}
           />
         )}

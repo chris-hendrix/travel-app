@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -13,9 +13,8 @@ const TABS = [
 ] as const;
 
 export function TripTabNav({ tripId }: { tripId: string }) {
-  const pathname = usePathname();
-  const activeTab =
-    TABS.find((t) => pathname.endsWith(t.value))?.value ?? "itinerary";
+  const searchParams = useSearchParams();
+  const activeTab = searchParams.get("tab") ?? "itinerary";
 
   return (
     <div className="hidden md:flex mb-6 border-b border-border">
@@ -28,7 +27,7 @@ export function TripTabNav({ tripId }: { tripId: string }) {
               asChild
               className="text-base tracking-wide px-4 py-2"
             >
-              <Link href={`/trips/${tripId}/${tab.value}`}>{tab.label}</Link>
+              <Link href={`/trips?id=${tripId}&tab=${tab.value}`}>{tab.label}</Link>
             </TabsTrigger>
           ))}
         </TabsList>
