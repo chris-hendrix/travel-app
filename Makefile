@@ -1,4 +1,4 @@
-.PHONY: help install dev dev-web dev-api build-mobile android-setup adb-reverse cap-dev cap-run pwa migrate seed studio generate up down clean reset-db test-up test-down test-exec test-run test-status test-setup test-clean test-static-smoke
+.PHONY: help install dev dev-web dev-api build-mobile android-setup adb-reverse cap-dev cap-run cap-apk cap-install cap-logs cap-crash pwa migrate seed studio generate up down clean reset-db test-up test-down test-exec test-run test-status test-setup test-clean test-static-smoke
 
 .DEFAULT_GOAL := help
 
@@ -132,6 +132,23 @@ cap-run: adb-reverse ## Install and launch APK directly on connected emulator (b
 	ADB=$$(command -v adb 2>/dev/null || command -v adb.exe 2>/dev/null); \
 	$$ADB -s emulator-5554 install -r app/build/outputs/apk/debug/app-debug.apk && \
 	$$ADB -s emulator-5554 shell am start -n com.journiful.app/.MainActivity
+
+cap-apk: build-mobile ## Build the APK (static export + cap sync + gradle)
+	cd apps/web && npx cap sync && \
+	cd android && JAVA_HOME=$${JAVA_HOME:-/home/chend/tools/jdk21} ./gradlew assembleDebug
+
+cap-install: ## Install latest APK on emulator and launch
+	ADB=$$(command -v adb 2>/dev/null || command -v adb.exe 2>/dev/null); \
+	$$ADB -s emulator-5554 install -r apps/web/android/app/build/outputs/apk/debug/app-debug.apk && \
+	$$ADB -s emulator-5554 shell am start -n com.journiful.app/.MainActivity
+
+cap-logs: ## Tail Capacitor WebView JS console logs
+	ADB=$$(command -v adb 2>/dev/null || command -v adb.exe 2>/dev/null); \
+	$$ADB -s emulator-5554 logcat chromium:V *:S
+
+cap-crash: ## Show Android crash logs
+	ADB=$$(command -v adb 2>/dev/null || command -v adb.exe 2>/dev/null); \
+	$$ADB -s emulator-5554 logcat -d AndroidRuntime:E *:S
 
 BUILD_NUMBER ?= $(shell git rev-list --count HEAD 2>/dev/null || echo 1)
 GIT_BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
