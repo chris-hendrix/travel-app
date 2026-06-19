@@ -9,10 +9,12 @@
       Journiful "J" mark — Mediterranean travel brand.
       SVG viewBox="0 -11 86 97.4", scaled 0.65× and centered
       in the 108dp adaptive-icon viewport (safe zone ~66dp).
+      Centering math: content center (43, 37.7), viewport center (54, 54),
+      translate = 54 - center×scale.
     -->
     <group
-        android:translateX="30"
-        android:translateY="27"
+        android:translateX="26"
+        android:translateY="30"
         android:scaleX="0.65"
         android:scaleY="0.65">
 
