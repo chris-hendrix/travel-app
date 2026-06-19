@@ -72,17 +72,35 @@ make test-down                        # Tear down
 | `NEXT_EXPORT=true` | build-time | Triggers static export (set by `make build-mobile`) |
 | `CAPACITOR_LIVE_RELOAD=true` | `.env.local` | Dev mode — loads from `http://10.0.2.2:3000` on emulator |
 | `FIREBASE_SERVICE_ACCOUNT` | `apps/api/.env` | Firebase Admin SDK JSON (single line) for FCM push |
+| `NEXT_PUBLIC_API_URL` | build-time / CI | API base URL for browser-side requests. Must be set to `https://api.journiful.app/api` for distribution builds. Local dev defaults to `http://localhost:8000/api` via `.env.local`. |
 | `make adb-reverse` | host setup | Forwards emulator ports 8000 & 3000 to host (required for dev API access) |
 
-**Dev workflow:**
+**Dev workflow (with Android Studio):**
 ```
 # Terminal 1: Start API + web with hot reload
 make dev
 
-# Terminal 2: Launch app on emulator with live reload
+# Terminal 2: Sync + launch on emulator with live reload
 make cap-dev
+# Then open apps/web/android/ in Android Studio, press ▶ Run
 ```
 Code changes to the web app are hot-reloaded instantly in the emulator.
+
+**CLI-only QA (no Android Studio):**
+```bash
+# Windows PowerShell: start emulator
+& "$env:ANDROID_HOME\emulator\emulator" -avd <avd_name> -no-boot-anim
+
+# WSL2: build, sync, and launch
+make dev                              # Terminal 1: API + web
+make adb-reverse                      # Forward ports
+make cap-dev                          # Sync with live reload
+adb shell am start -n com.journiful.app/.MainActivity   # Launch app
+
+# WSL2: watch logs
+adb logcat chromium:V *:S             # JS console output
+adb logcat AndroidRuntime:E *:S       # Crash logs
+```
 
 **Build pipeline:**
 ```
@@ -105,6 +123,18 @@ make build-mobile → out/ → npx cap sync → android/ assets
 - Export uses `assetPrefix: ''` for `file://` asset resolution in Capacitor WebView.
 - Server-side `cookies()`/`headers()` skipped in export mode; `<AuthGuard>` client component guards authenticated routes instead.
 - Push routes by platform: Capacitor FCM plugin on native, Web Push API on web.
+- `CapacitorHttp` fetch patching (`{ enabled: true }`) routes all `window.fetch()` calls through native HTTP on Android, bypassing CORS entirely. On web, falls back to normal `fetch()`. Configured in `capacitor.config.ts`.
+
+### Mock auth for local testing
+
+When `ENABLE_FIXED_VERIFICATION_CODE=true` (default in dev), SMS verification uses a fixed code **`123456`** — no real SMS is sent. Any phone number containing "555" passes validation (e.g., `+1 555 123 4567`).
+
+**Test credentials:**
+
+| Purpose | Phone | Code |
+|---------|-------|------|
+| Admin user (pre-seeded) | `+15550000001` | `123456` |
+| New test user | `+1555` + any 9 digits | `123456` |
 
 ### Manual browser testing (playwright-cli)
 
@@ -149,4 +179,5 @@ Frontend `3000`, API `8000`, PostgreSQL `5433` → container `5432`, MinIO API `
 - **Tailwind v4 `@theme` colors must be hex, never `hsl()`.** Tailwind v4 strips the `hsl()` wrapper, leaving raw channel values like `0 0% 100%` which are invalid CSS. Browsers fall back to `transparent` and every background goes see-through. See `apps/web/src/app/globals.css`.
 - **Static export requires `assetPrefix: ''` (empty string), not `'./'`.** Next.js font loading rejects relative prefixes; empty string produces root-relative paths that Capacitor's WebView resolves correctly from `file:///android_asset/`.
 - **Shared package imports use no file extensions**, despite the repo running NodeNext. Next.js `transpilePackages` requires extensionless imports; the resulting TS2835 warnings are cosmetic and must be ignored. Always import as `@journiful/shared/schemas`, never `'../../../shared/schemas/index.js'`.
+- **Client components in static export MUST read dynamic route params via `useParams()`, never from server component props.** Server component layouts render once at build time with placeholder values (`"static-export-placeholder"`); props passed to children are frozen. Use `const { id } = useParams<...>()` in client components instead.
 - **Deployment topology**: see [`DEPLOYMENT.md`](./DEPLOYMENT.md) for Railway services, environments, and dashboard configuration.
