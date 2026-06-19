@@ -415,13 +415,13 @@ describe("MutualsContent", () => {
       const summerLink = screen.getByRole("link", {
         name: "Summer Vacation",
       });
-      expect(summerLink.getAttribute("href")).toBe("/trips/trip-1");
+      expect(summerLink.getAttribute("href")).toBe("/trips?id=trip-1");
 
       const skiLink = screen.getByRole("link", { name: "Ski Weekend" });
-      expect(skiLink.getAttribute("href")).toBe("/trips/trip-2");
+      expect(skiLink.getAttribute("href")).toBe("/trips?id=trip-2");
 
       const beachLink = screen.getByRole("link", { name: "Beach Party" });
-      expect(beachLink.getAttribute("href")).toBe("/trips/trip-3");
+      expect(beachLink.getAttribute("href")).toBe("/trips?id=trip-3");
     });
   });
 
