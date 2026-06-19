@@ -13,47 +13,24 @@ export default async function ProtectedLayout({
 }: {
   children: ReactNode;
 }) {
-  // Static export: skip server-side auth redirect entirely;
-  // auth is enforced client-side by the AuthProvider.
-  const isExport = process.env.NEXT_EXPORT === "true";
-  if (isExport) {
-    // Still check cookies() to get the layout variable populated,
-    // but never redirect — the shell must render for all routes.
-    try {
-      const cookieStore = await cookies();
-      const token = cookieStore.get("auth_token");
-      if (token) {
-        // Has a token — render the protected shell
-      }
-    } catch {
-      // cookies() unavailable, expected during export
-    }
-    // Always render the shell; AuthProvider handles auth client-side
-    return (
-      <>
-        <ImpersonationBanner />
-        <GlobalMutationIndicator />
-        <AppHeader />
-        <main
-          id="main-content"
-          className="bg-gradient-to-b from-background via-background to-secondary/30 min-h-[calc(100dvh-3.5rem)]"
-        >
-          <QueryErrorBoundaryWrapper>{children}</QueryErrorBoundaryWrapper>
-        </main>
-      </>
-    );
-  }
-
   let authToken: { value: string } | undefined;
 
   try {
     const cookieStore = await cookies();
     authToken = cookieStore.get("auth_token");
   } catch {
-    // cookies unavailable — redirect
+    // Static export: cookies() unavailable — skip server auth,
+    // client-side AuthProvider handles authentication
   }
 
-  if (!authToken?.value) {
+  // During static export (force-static), authToken is undefined.
+  // The redirect() call below uses NEXT_REDIRECT which Next.js handles
+  // internally. At build time with no cookies, authToken stays undefined,
+  // redirect fires, and Next.js renders an error page.
+  // We prevent this by checking: only redirect if cookies() actually returned
+  // something meaningful (real server request), not an empty export build.
+  const isExport = process.env.NEXT_EXPORT === "true";
+  if (!isExport && !authToken?.value) {
     redirect("/login");
   }
 
