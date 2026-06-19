@@ -112,7 +112,7 @@ cap-dev: adb-reverse ## Sync + open Capacitor project (open Android Studio from 
 	if [ -z "$$JAVA_HOME" ]; then \
 		echo "ERROR: JAVA_HOME is not set. Set it in apps/api/.env or export it in your environment."; exit 1; \
 	fi; \
-	cd apps/web && CAPACITOR_LIVE_RELOAD=true npx cap sync
+	cd apps/web && CAPACITOR_LIVE_RELOAD=true npx cap update
 	@echo "📱 Synced. Now open Android Studio on Windows, open the project at:"
 	@echo "   apps/web/android/"
 	@echo "   Then press ▶ Run to launch on emulator."
@@ -127,7 +127,7 @@ cap-run: adb-reverse ## Install and launch APK directly on connected emulator (b
 	if [ -z "$$JAVA_HOME" ]; then \
 		echo "ERROR: JAVA_HOME is not set. Set it in apps/api/.env or export it in your environment."; exit 1; \
 	fi; \
-	cd apps/web && CAPACITOR_LIVE_RELOAD=true npx cap sync && \
+	cd apps/web && CAPACITOR_LIVE_RELOAD=true npx cap update && \
 	cd android && ./gradlew assembleDebug && \
 	ADB=$$(command -v adb 2>/dev/null || command -v adb.exe 2>/dev/null); \
 	$$ADB -s emulator-5554 install -r app/build/outputs/apk/debug/app-debug.apk && \
