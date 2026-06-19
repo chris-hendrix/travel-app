@@ -121,7 +121,7 @@ make build-mobile → out/ → npx cap sync → android/ assets
 
 **Architecture:**
 - Export uses `assetPrefix: ''` for `file://` asset resolution in Capacitor WebView.
-- Server-side `cookies()`/`headers()` skipped in export mode; `<AuthGuard>` client component guards authenticated routes instead.
+- Server-side `cookies()`/`headers()` skipped in export mode via `NEXT_EXPORT` guard; client-side auth provider handles authentication at runtime.
 - Push routes by platform: Capacitor FCM plugin on native, Web Push API on web.
 - `CapacitorHttp` fetch patching (`{ enabled: true }`) routes all `window.fetch()` calls through native HTTP on Android, bypassing CORS entirely. On web, falls back to normal `fetch()`. Configured in `capacitor.config.ts`.
 
@@ -179,5 +179,7 @@ Frontend `3000`, API `8000`, PostgreSQL `5433` → container `5432`, MinIO API `
 - **Tailwind v4 `@theme` colors must be hex, never `hsl()`.** Tailwind v4 strips the `hsl()` wrapper, leaving raw channel values like `0 0% 100%` which are invalid CSS. Browsers fall back to `transparent` and every background goes see-through. See `apps/web/src/app/globals.css`.
 - **Static export requires `assetPrefix: ''` (empty string), not `'./'`.** Next.js font loading rejects relative prefixes; empty string produces root-relative paths that Capacitor's WebView resolves correctly from `file:///android_asset/`.
 - **Shared package imports use no file extensions**, despite the repo running NodeNext. Next.js `transpilePackages` requires extensionless imports; the resulting TS2835 warnings are cosmetic and must be ignored. Always import as `@journiful/shared/schemas`, never `'../../../shared/schemas/index.js'`.
-- **Client components in static export MUST read dynamic route params via `useParams()`, never from server component props.** Server component layouts render once at build time with placeholder values (`"static-export-placeholder"`); props passed to children are frozen. Use `const { id } = useParams<...>()` in client components instead.
+- **No `[id]` dynamic route segments.** Static export can't render them at runtime. Use query params instead (`/trips?id=X`), read via `useSearchParams()` in client components. Server components in static export cannot `await searchParams` — all search param reading must be client-side, wrapped in `<Suspense>`.
+- **`redirect()` must NEVER be inside `try/catch`.** Next.js's `redirect()` works by throwing `NEXT_REDIRECT` internally. Catching it suppresses the redirect and produces "unexpected end of stream" errors. Only wrap `cookies()` in try/catch; keep `redirect()` outside.
+- **Layouts that check `cookies()` for auth need a `NEXT_EXPORT` guard.** During `next build --export`, `cookies()` returns empty — without a guard, `redirect("/login")` fires and all protected pages render as error pages (`__next_error__`). Check `process.env.NEXT_EXPORT === "true"` to skip the redirect during export; client-side auth handles it at runtime.
 - **Deployment topology**: see [`DEPLOYMENT.md`](./DEPLOYMENT.md) for Railway services, environments, and dashboard configuration.
