@@ -7,11 +7,10 @@ const apiBase = (
 ).replace(/\/api$/, "");
 const { protocol, hostname, port } = new URL(apiBase);
 const isDev = process.env.NODE_ENV === "development";
-const isExport = process.env.NEXT_EXPORT === "true";
 
 const withPWA = withPWAInit({
   dest: "public",
-  disable: isDev || isExport,
+  disable: isDev,
   cacheStartUrl: true,
   dynamicStartUrl: true,
   customWorkerSrc: "worker",

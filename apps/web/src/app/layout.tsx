@@ -73,8 +73,6 @@ export default function RootLayout({
 }: Readonly<{
   children: ReactNode;
 }>) {
-  const isExport = process.env.NEXT_EXPORT === "true";
-
   return (
     <html
       lang="en"
@@ -88,7 +86,9 @@ export default function RootLayout({
         spaceGrotesk.variable,
       )}
     >
-      <head>{isExport && <base href="/" />}</head>
+      <head>
+        <base href="/" />
+      </head>
       <body className="antialiased">
         <noscript>
           <div

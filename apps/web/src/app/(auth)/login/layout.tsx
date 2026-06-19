@@ -17,16 +17,15 @@ export default async function LoginLayout({
 }: {
   children: ReactNode;
 }) {
-  // In static export mode, cookies are unavailable — skip auth check
-  const isExport = process.env.NEXT_EXPORT === "true";
-
-  if (!isExport) {
+  // Redirect authenticated users past the login page
+  try {
     const cookieStore = await cookies();
     const authToken = cookieStore.get("auth_token");
-
     if (authToken?.value) {
       redirect("/trips");
     }
+  } catch {
+    // Static export: cookies() throws; fall through to show login
   }
 
   return children;
