@@ -91,12 +91,14 @@ export const requestCodeResponseSchema = z.object({
 export const verifyCodeResponseSchema = z.object({
   success: z.literal(true),
   user: userResponseSchema,
+  token: z.string(),
   requiresProfile: z.boolean(),
 });
 
 export const completeProfileResponseSchema = z.object({
   success: z.literal(true),
   user: userResponseSchema,
+  token: z.string(),
 });
 
 export const getMeResponseSchema = z.object({
