@@ -1,19 +1,12 @@
-import type { Metadata } from "next";
-import { cookies } from "next/headers";
+"use client";
+
+import { useEffect } from "react";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Calendar, Building2, PartyPopper, Plane } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { JsonLd } from "@/components/json-ld";
-
-export const dynamic = "force-static";
-
-export const metadata: Metadata = {
-  title: "Journiful - Group Trip Planner | Plan Travel Together",
-  description:
-    "Journiful — memories & itineraries. The group trip planner that makes collaborative travel planning easy. Coordinate itineraries, accommodations, events, and member logistics all in one place.",
-  alternates: { canonical: "/" },
-};
+import { isNative } from "@/lib/platform";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://journiful.app";
 
@@ -62,19 +55,12 @@ const steps = [
   },
 ] as const;
 
-export default async function Home() {
-  let authToken: { value: string } | undefined;
-
-  try {
-    const cookieStore = await cookies();
-    authToken = cookieStore.get("auth_token");
-  } catch {
-    // Static export: cookies() throws; fall through to show landing page
-  }
-
-  if (authToken?.value) {
-    redirect("/login");
-  }
+export default function Home() {
+  useEffect(() => {
+    if (isNative()) {
+      redirect("/login");
+    }
+  }, []);
 
   return (
     <>

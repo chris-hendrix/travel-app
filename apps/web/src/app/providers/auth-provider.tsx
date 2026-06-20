@@ -12,6 +12,12 @@ import {
 import { useRouter } from "next/navigation";
 import type { User } from "@journiful/shared";
 import { API_URL } from "@/lib/api";
+import { isNative } from "@/lib/platform";
+import {
+  saveNativeToken,
+  getNativeToken,
+  clearNativeToken,
+} from "@/lib/native-auth";
 
 interface ImpersonatingState {
   active: boolean;
@@ -51,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUser = useCallback(async () => {
     try {
+      // Standard cookie-based auth (works in browser, may not persist in native)
       const response = await fetch(`${API_URL}/auth/me`, {
         credentials: "include",
       });
@@ -64,11 +71,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             ? { active: true, user: data.impersonatingUser }
             : { active: false },
         );
-      } else {
-        setUser(null);
-        setIsAdmin(false);
-        setImpersonating({ active: false });
+        return;
       }
+
+      // Fallback: try native token from Capacitor Preferences
+      if (isNative()) {
+        const nativeToken = await getNativeToken();
+        if (nativeToken) {
+          const nativeResponse = await fetch(`${API_URL}/auth/me`, {
+            headers: { Authorization: `Bearer ${nativeToken}` },
+            credentials: "include",
+          });
+
+          if (nativeResponse.ok) {
+            const data = await nativeResponse.json();
+            setUser(data.user);
+            setIsAdmin(data.isAdmin === true);
+            setImpersonating(
+              data.impersonating
+                ? { active: true, user: data.impersonatingUser }
+                : { active: false },
+            );
+            return;
+          }
+        }
+      }
+
+      // No auth — clear state
+      setUser(null);
+      setIsAdmin(false);
+      setImpersonating({ active: false });
     } catch {
       setUser(null);
       setIsAdmin(false);
@@ -111,6 +143,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const data = await response.json();
 
+    // Persist token for native app restarts (Capacitor Preferences)
+    if (data.token) {
+      await saveNativeToken(data.token);
+    }
+
     if (!data.requiresProfile) {
       setUser(data.user);
     }
@@ -133,6 +170,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const data = await response.json();
+
+      // Persist token for native app restarts (Capacitor Preferences)
+      if (data.token) {
+        await saveNativeToken(data.token);
+      }
+
       setUser(data.user);
     },
     [],
@@ -143,6 +186,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       method: "POST",
       credentials: "include",
     });
+
+    // Clear persisted native token
+    await clearNativeToken();
 
     setUser(null);
     setIsAdmin(false);

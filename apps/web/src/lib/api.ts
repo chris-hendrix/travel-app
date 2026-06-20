@@ -2,6 +2,8 @@
  * API client for communicating with the Journiful backend
  */
 
+import { getNativeToken } from "./native-auth";
+
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
@@ -44,13 +46,19 @@ export async function apiRequest<T>(
   options: RequestInit = {},
 ): Promise<T> {
   try {
+    const nativeToken = await getNativeToken();
+    const headers: Record<string, string> = {
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...((options.headers as Record<string, string>) || {}),
+    };
+    if (nativeToken) {
+      headers["Authorization"] = `Bearer ${nativeToken}`;
+    }
+
     const response = await fetch(`${API_URL}${endpoint}`, {
       ...options,
       credentials: "include",
-      headers: {
-        ...(options.body ? { "Content-Type": "application/json" } : {}),
-        ...options.headers,
-      },
+      headers,
     });
 
     // Handle 204 No Content responses (e.g. DELETE endpoints)
