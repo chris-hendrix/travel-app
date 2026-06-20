@@ -39,7 +39,7 @@ make cap-install              # Install APK on emulator + launch
 make cap-run                  # cap-apk + cap-install combined (requires live reload config)
 make cap-logs                 # Tail WebView JS console (chromium) logs
 make cap-crash                # Dump Android crash log buffer
-make adb-reverse              # Forward emulator ports 8000 & 3000 to host
+make adb-reverse              # Forward emulator ports 8000 & 3000 to host (use -s emulator-XXXX if multiple)
 make distribute-android       # Build, sync, and distribute to Firebase App Distribution
 ```
 
