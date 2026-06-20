@@ -6,10 +6,10 @@ import { XIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useDialogBack } from "@/hooks/use-dialog-back";
 
-function Sheet({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Root>) {
+function Sheet(props: React.ComponentProps<typeof DialogPrimitive.Root>) {
+  useDialogBack(!!props.open, () => props.onOpenChange?.(false));
   return <DialogPrimitive.Root data-slot="sheet" {...props} />;
 }
 

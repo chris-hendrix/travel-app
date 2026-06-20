@@ -5,10 +5,10 @@ import { AlertDialog as AlertDialogPrimitive } from "radix-ui";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useDialogBack } from "@/hooks/use-dialog-back";
 
-function AlertDialog({
-  ...props
-}: React.ComponentProps<typeof AlertDialogPrimitive.Root>) {
+function AlertDialog(props: React.ComponentProps<typeof AlertDialogPrimitive.Root>) {
+  useDialogBack(!!props.open, () => props.onOpenChange?.(false));
   return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />;
 }
 
