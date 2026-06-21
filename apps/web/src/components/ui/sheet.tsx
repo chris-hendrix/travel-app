@@ -63,7 +63,7 @@ function SheetContent({
       <DialogPrimitive.Content
         data-slot="sheet-content"
         className={cn(
-          "bg-background fixed inset-y-0 z-50 flex w-full flex-col shadow-lg outline-none sm:max-w-lg",
+          "bg-background fixed inset-y-0 z-50 flex w-full flex-col shadow-lg outline-none sm:max-w-lg px-safe",
           side === "left" &&
             "left-0 border-r data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left duration-300",
           side === "right" &&
@@ -76,7 +76,7 @@ function SheetContent({
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="sheet-close"
-            className="cursor-pointer data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+            className="cursor-pointer data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-safe-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
           >
             <XIcon />
             <span className="sr-only">Close</span>
@@ -92,7 +92,7 @@ function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="sheet-header"
       className={cn(
-        "flex flex-col gap-2 p-6 pb-0 text-center sm:text-left",
+        "flex flex-col gap-2 p-6 pb-0 text-center sm:text-left pt-safe",
         className,
       )}
       {...props}
@@ -122,7 +122,7 @@ function SheetFooter({
     <div
       data-slot="sheet-footer"
       className={cn(
-        "flex flex-col-reverse gap-2 border-t p-6 pt-4 sm:flex-row sm:justify-end",
+        "flex flex-col-reverse gap-2 border-t p-6 pt-4 sm:flex-row sm:justify-end pb-safe",
         className,
       )}
       {...props}
