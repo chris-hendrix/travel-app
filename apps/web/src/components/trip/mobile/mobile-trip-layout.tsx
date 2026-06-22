@@ -146,7 +146,7 @@ export function MobileTripLayout({
       themeFont={trip.themeFont}
       scope="page"
     >
-      <div className="h-[calc(100dvh-3.5rem)] flex flex-col bg-background overflow-hidden">
+      <div className="h-[calc(100dvh-3.5rem-env(safe-area-inset-top))] flex flex-col bg-background overflow-hidden">
         <AnimatedHero
           trip={trip}
           collapseProgress={collapseT}

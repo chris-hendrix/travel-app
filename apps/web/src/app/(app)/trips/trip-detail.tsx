@@ -265,7 +265,7 @@ export function TripDetailShell() {
       scope="page"
     >
       <div
-        className="min-h-screen bg-background motion-safe:animate-[revealUp_400ms_ease-out_both]"
+        className="min-h-[calc(100dvh-3.5rem-env(safe-area-inset-top))] bg-background motion-safe:animate-[revealUp_400ms_ease-out_both]"
         style={preset ? { background: "var(--theme-background)" } : undefined}
       >
         {/* Hero section with cover image + overlay */}
