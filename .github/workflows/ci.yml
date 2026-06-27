@@ -189,6 +189,7 @@ jobs:
         shardTotal: [4]
     env:
       NODE_ENV: test
+      GEOCODING_STUB: true
       DATABASE_URL: postgresql://journiful:journiful123@localhost:5432/journiful
       JWT_SECRET: test-jwt-secret-minimum-32-characters-long-for-testing-purposes-only
       FRONTEND_URL: http://localhost:3000

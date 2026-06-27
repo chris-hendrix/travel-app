@@ -51,7 +51,7 @@ export class NominatimGeocodingService implements IGeocodingService {
     if (!query?.trim()) return null;
     this.logger?.info({ query }, "Geocoding query");
 
-    if (process.env.NODE_ENV === "test") {
+    if (process.env.GEOCODING_STUB === "true") {
       return { lat: 47.6062, lon: -122.3321, displayName: query };
     }
 
@@ -94,7 +94,7 @@ export class NominatimGeocodingService implements IGeocodingService {
     if (!query?.trim()) return null;
     this.logger?.info({ query }, "Timezone lookup query");
 
-    if (process.env.NODE_ENV === "test") {
+    if (process.env.GEOCODING_STUB === "true") {
       return "America/Los_Angeles";
     }
 
@@ -127,7 +127,7 @@ export class NominatimGeocodingService implements IGeocodingService {
   async getTimezoneByCoords(lat: number, lon: number): Promise<string | null> {
     this.logger?.info({ lat, lon }, "Timezone lookup by coordinates");
 
-    if (process.env.NODE_ENV === "test") {
+    if (process.env.GEOCODING_STUB === "true") {
       return "America/Los_Angeles";
     }
 
