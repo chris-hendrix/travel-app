@@ -165,14 +165,14 @@ export function CreateTripDialog({
         { tripId: createdTrip.id, data: { timezone: pendingTimezone } },
         {
           onSuccess: () => {
-            onOpenChange(false);
             router.push(`/trips?id=${createdTrip.id}`);
+            onOpenChange(false);
           },
         },
       );
     } else {
-      onOpenChange(false);
       router.push(`/trips?id=${createdTrip.id}`);
+      onOpenChange(false);
     }
   };
 

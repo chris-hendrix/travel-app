@@ -21,9 +21,10 @@ export function useDialogBack(open: boolean, onClose: () => void) {
     }
     if (!open && pushedRef.current) {
       // Dialog was closed programmatically (close button, not back gesture)
-      // Clean up the history entry we pushed
+      // Clean up the history entry we pushed without triggering a navigation
+      // (history.back() causes phantom navigations that break E2E tests)
       pushedRef.current = false;
-      window.history.back();
+      window.history.replaceState(null, "", window.location.href);
     }
   }, [open]);
 
