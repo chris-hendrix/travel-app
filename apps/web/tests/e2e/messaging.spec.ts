@@ -82,7 +82,7 @@ test.describe("Messaging Journey", () => {
           organizerPhone,
           "Msg Organizer",
         );
-        await page.goto(`/trips/${tripId}`);
+        await page.goto(`/trips?id=${tripId}`);
         await expect(page.getByRole("heading", { level: 1 })).toBeVisible({
           timeout: NAVIGATION_TIMEOUT,
         });
@@ -319,7 +319,7 @@ test.describe("Messaging Journey", () => {
           organizerPhone,
           "Org Admin",
         );
-        await page.goto(`/trips/${tripId}`);
+        await page.goto(`/trips?id=${tripId}`);
         await expect(page.getByRole("heading", { level: 1 })).toBeVisible({
           timeout: NAVIGATION_TIMEOUT,
         });

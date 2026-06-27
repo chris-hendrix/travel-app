@@ -386,7 +386,7 @@ test.describe("Itinerary Journey", () => {
           "2026-10-01",
           "2026-10-05",
         );
-        tripId = page.url().split("/trips/")[1];
+        tripId = new URL(page.url()).searchParams.get("id")!;
         expect(tripId).toBeTruthy();
       });
 

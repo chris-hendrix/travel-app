@@ -138,7 +138,7 @@ test.describe("Photos Journey", () => {
         });
 
         // Extract tripId from URL for API polling
-        const tripId = page.url().split("/trips/")[1];
+        const tripId = new URL(page.url()).searchParams.get("id")!;
 
         // On mobile the photos section is in the Photos panel.
         await navigateToMobilePanel(page, "Photos");

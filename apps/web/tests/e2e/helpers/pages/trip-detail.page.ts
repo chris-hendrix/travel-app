@@ -48,6 +48,6 @@ export class TripDetailPage {
   }
 
   async goto(tripId: string) {
-    await this.page.goto(`/trips/${tripId}`);
+    await this.page.goto(`/trips?id=${tripId}`);
   }
 }

@@ -153,7 +153,7 @@ test.describe("Notification Journey", () => {
           .first();
         await notificationItem.click();
 
-        await page.waitForURL(`**/trips/${tripId}**`, {
+        await page.waitForURL(`**/trips?id=${tripId}**`, {
           timeout: NAVIGATION_TIMEOUT,
         });
         await expect(page.getByRole("heading", { level: 1 })).toBeVisible({

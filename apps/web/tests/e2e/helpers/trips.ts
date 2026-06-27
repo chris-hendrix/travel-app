@@ -36,7 +36,7 @@ export async function createTrip(
   // Step 3: timezone confirmation — click "Go to trip" to complete navigation
   await expect(tripDetail.goToTripButton).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
   await tripDetail.goToTripButton.click();
-  await page.waitForURL("**/trips/**");
+  await page.waitForURL("**/trips?id=**");
   await expect(
     page.getByRole("heading", { level: 1, name: tripName }),
   ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });

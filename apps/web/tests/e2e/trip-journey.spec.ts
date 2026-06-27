@@ -73,8 +73,8 @@ test.describe("Trip Journey", () => {
       // Step 3: timezone confirmation — click "Go to trip" to complete navigation
       await expect(tripDetail.goToTripButton).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
       await tripDetail.goToTripButton.click();
-      await page.waitForURL("**/trips/**", { timeout: NAVIGATION_TIMEOUT });
-      expect(page.url()).toContain("/trips/");
+      await page.waitForURL("**/trips?id=**", { timeout: NAVIGATION_TIMEOUT });
+      expect(page.url()).toContain("/trips?id=");
     });
 
     await test.step("verify trip detail page", async () => {
@@ -111,7 +111,7 @@ test.describe("Trip Journey", () => {
 
       await dismissToast(page);
       await page.getByText(tripName).first().click();
-      await page.waitForURL("**/trips/**");
+      await page.waitForURL("**/trips?id=**");
       await expect(
         page.getByRole("heading", { level: 1, name: tripName }),
       ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
@@ -177,7 +177,7 @@ test.describe("Trip Journey", () => {
     await test.step("delete trip with cancel then confirm", async () => {
       await dismissToast(page);
       await page.getByText(updatedName).click();
-      await page.waitForURL("**/trips/**");
+      await page.waitForURL("**/trips?id=**");
 
       await expect(async () => {
         await tripDetail.editButton.click();
@@ -258,8 +258,8 @@ test.describe("Trip Journey", () => {
         // Step 3: timezone confirmation — click "Go to trip" to complete navigation
         await expect(tripDetail.goToTripButton).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
         await tripDetail.goToTripButton.click();
-        await page.waitForURL("**/trips/**");
-        tripId = page.url().split("/trips/")[1];
+        await page.waitForURL("**/trips?id=**");
+        tripId = new URL(page.url()).searchParams.get("id")!;
         await expect(
           page.getByRole("heading", { level: 1, name: tripName }),
         ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
@@ -275,7 +275,7 @@ test.describe("Trip Journey", () => {
           "User B - Non-Member",
         );
 
-        await page.goto(`/trips/${tripId}`);
+        await page.goto(`/trips?id=${tripId}`);
         await expect(
           page.getByRole("heading", { name: "Trip not found" }),
         ).toBeVisible();
@@ -315,7 +315,7 @@ test.describe("Trip Journey", () => {
           "User A - Trip Creator",
         );
 
-        await page.goto(`/trips/${tripId}`);
+        await page.goto(`/trips?id=${tripId}`);
         await expect(
           page.getByRole("heading", { level: 1, name: tripName }),
         ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
@@ -370,7 +370,7 @@ test.describe("Trip Journey", () => {
           "User B - Co-Organizer",
         );
 
-        await page.goto(`/trips/${tripId}`);
+        await page.goto(`/trips?id=${tripId}`);
         await expect(
           page.getByRole("heading", { level: 1, name: tripName }),
         ).toBeVisible();
@@ -397,7 +397,7 @@ test.describe("Trip Journey", () => {
           "User A - Trip Creator",
         );
 
-        await page.goto(`/trips/${tripId}`);
+        await page.goto(`/trips?id=${tripId}`);
         await expect(
           page.getByRole("heading", { level: 1, name: tripName }),
         ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
@@ -446,7 +446,7 @@ test.describe("Trip Journey", () => {
           "User B - Co-Organizer",
         );
 
-        await page.goto(`/trips/${tripId}`);
+        await page.goto(`/trips?id=${tripId}`);
         // User B is still a member, so the trip heading should be visible.
         // The heading name includes the original tripName (a substring match is sufficient).
         await expect(
@@ -521,7 +521,7 @@ test.describe("Trip Journey", () => {
           "Remove Test Org",
         );
 
-        await page.goto(`/trips/${tripId}`);
+        await page.goto(`/trips?id=${tripId}`);
         await expect(
           page.getByRole("heading", {
             level: 1,
@@ -657,7 +657,7 @@ test.describe("Trip Journey", () => {
           "Promote Test Org",
         );
 
-        await page.goto(`/trips/${tripId}`);
+        await page.goto(`/trips?id=${tripId}`);
         await expect(
           page.getByRole("heading", {
             level: 1,
@@ -789,7 +789,7 @@ test.describe("Trip Journey", () => {
           "Delegation Org",
         );
 
-        await page.goto(`/trips/${tripId}`);
+        await page.goto(`/trips?id=${tripId}`);
         await expect(
           page.getByRole("heading", {
             level: 1,

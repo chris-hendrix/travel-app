@@ -85,7 +85,7 @@ test.describe("Mutuals Journey", () => {
       });
 
       await test.step("organizer invites mutual from trip dialog", async () => {
-        await page.goto(`/trips/${trip2Id}`);
+        await page.goto(`/trips?id=${trip2Id}`);
         await expect(
           page.getByRole("heading", {
             level: 1,
