@@ -31,6 +31,15 @@ function LoginPageContent() {
   const { user, loading: authLoading, login } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // useForm must run before any early returns so hook count stays stable
+  const form = useForm<RequestCodeInput>({
+    resolver: zodResolver(requestCodeSchema),
+    defaultValues: {
+      phoneNumber: phoneHint || "",
+      smsConsent: false,
+    },
+  });
+
   // Redirect authenticated users to /trips (handles app restart with persisted token)
   useEffect(() => {
     if (!authLoading && user) {
@@ -49,14 +58,6 @@ function LoginPageContent() {
 
   // Don't render form while redirecting
   if (user) return null;
-
-  const form = useForm<RequestCodeInput>({
-    resolver: zodResolver(requestCodeSchema),
-    defaultValues: {
-      phoneNumber: phoneHint || "",
-      smsConsent: false,
-    },
-  });
 
   async function onSubmit(data: RequestCodeInput) {
     try {
