@@ -73,7 +73,7 @@ test.describe("Trip Journey", () => {
       // Step 3: timezone confirmation — click "Go to trip" to complete navigation
       await expect(tripDetail.goToTripButton).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
       await tripDetail.goToTripButton.click();
-      await page.waitForURL("**/trips\\?id=**", { timeout: NAVIGATION_TIMEOUT });
+      await page.waitForURL("**/trips?id=**", { timeout: NAVIGATION_TIMEOUT });
       expect(page.url()).toContain("/trips?id=");
     });
 
@@ -111,7 +111,7 @@ test.describe("Trip Journey", () => {
 
       await dismissToast(page);
       await page.getByText(tripName).first().click();
-      await page.waitForURL("**/trips\\?id=**");
+      await page.waitForURL("**/trips?id=**");
       await expect(
         page.getByRole("heading", { level: 1, name: tripName }),
       ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
@@ -177,7 +177,7 @@ test.describe("Trip Journey", () => {
     await test.step("delete trip with cancel then confirm", async () => {
       await dismissToast(page);
       await page.getByText(updatedName).click();
-      await page.waitForURL("**/trips\\?id=**");
+      await page.waitForURL("**/trips?id=**");
 
       await expect(async () => {
         await tripDetail.editButton.click();
@@ -258,7 +258,7 @@ test.describe("Trip Journey", () => {
         // Step 3: timezone confirmation — click "Go to trip" to complete navigation
         await expect(tripDetail.goToTripButton).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
         await tripDetail.goToTripButton.click();
-        await page.waitForURL("**/trips\\?id=**");
+        await page.waitForURL("**/trips?id=**");
         tripId = new URL(page.url()).searchParams.get("id")!;
         await expect(
           page.getByRole("heading", { level: 1, name: tripName }),
