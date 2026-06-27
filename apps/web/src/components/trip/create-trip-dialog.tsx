@@ -165,14 +165,14 @@ export function CreateTripDialog({
         { tripId: createdTrip.id, data: { timezone: pendingTimezone } },
         {
           onSuccess: () => {
+            // Navigate to trip — the dialog will unmount naturally with the page
             router.push(`/trips?id=${createdTrip.id}`);
-            onOpenChange(false);
           },
         },
       );
     } else {
+      // Navigate to trip — the dialog will unmount naturally with the page
       router.push(`/trips?id=${createdTrip.id}`);
-      onOpenChange(false);
     }
   };
 

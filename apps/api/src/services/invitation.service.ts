@@ -545,7 +545,7 @@ export class InvitationService implements IInvitationService {
         newPhones.map((phone) => ({
           data: {
             phoneNumber: phone,
-            message: `${safeName} invited you to "${safeTrip}" on Journiful!\n${this.frontendUrl}/invite/${phoneToInvitationId.get(phone)}`,
+            message: `${safeName} invited you to "${safeTrip}" on Journiful!\n${this.frontendUrl}/invite?id=${phoneToInvitationId.get(phone)}`,
           } as InvitationSendPayload,
         })),
       );
@@ -553,7 +553,7 @@ export class InvitationService implements IInvitationService {
       for (const phone of newPhones) {
         await this.smsService.sendMessage(
           phone,
-          `${safeName} invited you to "${safeTrip}" on Journiful!\n${this.frontendUrl}/invite/${phoneToInvitationId.get(phone)}`,
+          `${safeName} invited you to "${safeTrip}" on Journiful!\n${this.frontendUrl}/invite?id=${phoneToInvitationId.get(phone)}`,
           "invite",
         );
       }
@@ -572,7 +572,7 @@ export class InvitationService implements IInvitationService {
         mutualPhonesForSms.map((phone) => ({
           data: {
             phoneNumber: phone,
-            message: `${safeName} invited you to "${safeTrip}" on Journiful!\n${this.frontendUrl}/invite/${mutualPhoneToInvitationId.get(phone)}`,
+            message: `${safeName} invited you to "${safeTrip}" on Journiful!\n${this.frontendUrl}/invite?id=${mutualPhoneToInvitationId.get(phone)}`,
           } as InvitationSendPayload,
         })),
       );
@@ -580,7 +580,7 @@ export class InvitationService implements IInvitationService {
       for (const phone of mutualPhonesForSms) {
         await this.smsService.sendMessage(
           phone,
-          `${safeName} invited you to "${safeTrip}" on Journiful!\n${this.frontendUrl}/invite/${mutualPhoneToInvitationId.get(phone)}`,
+          `${safeName} invited you to "${safeTrip}" on Journiful!\n${this.frontendUrl}/invite?id=${mutualPhoneToInvitationId.get(phone)}`,
           "invite",
         );
       }

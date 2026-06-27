@@ -703,7 +703,7 @@ test.describe("Invitation Journey", () => {
 /**
  * E2E Journey: Invite Deep Link
  *
- * Tests the SMS deep link invite flow: /invite/:invitationId
+ * Tests the SMS deep link invite flow: /invite?id=:invitationId
  * - Unauthenticated user sees preview, completes login, lands on trip
  * - Authenticated user auto-accepts and redirects to trip
  * - Re-click on accepted invitation redirects to trip
@@ -751,7 +751,7 @@ test.describe("Invite Deep Link Journey", () => {
       const invitationId = (inviteResult.invitations[0] as { id: string }).id;
 
       await test.step("preview card shows trip info", async () => {
-        await page.goto(`/invite/${invitationId}`);
+        await page.goto(`/invite?id=${invitationId}`);
 
         // Assert preview card content
         await expect(
@@ -873,7 +873,7 @@ test.describe("Invite Deep Link Journey", () => {
       const invitationId = (inviteResult.invitations[0] as { id: string }).id;
 
       await test.step("invite link auto-accepts and redirects to trip", async () => {
-        await page.goto(`/invite/${invitationId}`);
+        await page.goto(`/invite?id=${invitationId}`);
 
         // Should redirect to /trips?id={tripId}
         await page.waitForURL(`**/trips?id=${tripId}`, {
@@ -943,7 +943,7 @@ test.describe("Invite Deep Link Journey", () => {
       ]);
 
       await test.step("re-clicking accepted invite redirects to trip", async () => {
-        await page.goto(`/invite/${invitationId}`);
+        await page.goto(`/invite?id=${invitationId}`);
 
         // Should redirect to /trips?id={tripId} (not show "no longer available")
         await page.waitForURL(`**/trips?id=${tripId}`, {
@@ -960,7 +960,7 @@ test.describe("Invite Deep Link Journey", () => {
     "invalid invitation shows fallback",
     { tag: "@regression" },
     async ({ page }) => {
-      await page.goto("/invite/00000000-0000-0000-0000-000000000000");
+      await page.goto("/invite?id=00000000-0000-0000-0000-000000000000");
 
       await expect(
         page.getByRole("heading", { name: "Invitation unavailable" }),
