@@ -14,17 +14,32 @@ vi.mock("web-push", () => ({
 }));
 
 // Mock firebase-admin
-vi.mock("firebase-admin", () => {
+// Using importOriginal async pattern — the most reliable way to mock CJS
+// modules in vitest 4. The sync factory pattern fails in CI (vitest 4.1.7 +
+// Node 22 on ubuntu-latest) because the returned object shape doesn't match
+// vitest's internal CJS→ESM interop for the real firebase-admin module.
+// importOriginal preserves the real module shape, only overriding what we need.
+vi.mock("firebase-admin", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("firebase-admin")>();
+
   const mockSend = vi.fn().mockResolvedValue("message-id-123");
   const mockMessaging = vi.fn(() => ({ send: mockSend }));
-  const mockCredential = {
-    cert: vi.fn(() => "mock-credential"),
-  };
   const mockInitializeApp = vi.fn(() => ({
     messaging: mockMessaging,
   }));
+  const mockCert = vi.fn(() => "mock-credential" as any);
+  const mockCredential = {
+    ...actual.credential,
+    cert: mockCert,
+  };
+
+  // vitest wraps CJS module.exports as a synthetic `default` property
+  // for ESM interop. TypeScript doesn't know about this runtime detail,
+  // so we cast to access it.
   return {
+    ...actual,
     default: {
+      ...(actual as any).default,
       initializeApp: mockInitializeApp,
       credential: mockCredential,
     },
