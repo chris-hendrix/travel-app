@@ -95,7 +95,7 @@ export class NominatimGeocodingService implements IGeocodingService {
     this.logger?.info({ query }, "Timezone lookup query");
 
     if (process.env.GEOCODING_STUB === "true") {
-      return "America/Los_Angeles";
+      return "UTC";
     }
 
     try {
@@ -128,7 +128,7 @@ export class NominatimGeocodingService implements IGeocodingService {
     this.logger?.info({ lat, lon }, "Timezone lookup by coordinates");
 
     if (process.env.GEOCODING_STUB === "true") {
-      return "America/Los_Angeles";
+      return "UTC";
     }
 
     try {

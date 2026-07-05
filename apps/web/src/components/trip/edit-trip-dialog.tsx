@@ -173,14 +173,12 @@ export function EditTripDialog({
         {
           onSuccess: () => {
             setTimezoneConfirm(null);
-            onOpenChange(false);
             onSuccess?.();
           },
         },
       );
     } else {
       setTimezoneConfirm(null);
-      onOpenChange(false);
       onSuccess?.();
     }
   };
