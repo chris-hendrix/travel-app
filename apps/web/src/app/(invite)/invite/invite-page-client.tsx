@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { InvitePreviewCard } from "./[id]/invite-preview-card";
-import { apiRequest } from "@/lib/api";
+import { apiRequest, API_URL } from "@/lib/api";
 
 type PreviewResponse =
   | { success: true; tripName: string; destination: string; startDate: string | null; endDate: string | null; inviterName: string; inviteePhone: string; tripId: string; }
@@ -21,8 +21,6 @@ export function InvitePageClient() {
       setLoading(false);
       return;
     }
-
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
     fetch(`${API_URL}/invitations/${id}/preview`, { cache: "no-store" })
       .then(res => res.json())
