@@ -86,7 +86,14 @@ async function waitForPhotoProcessing(
     expect(readyPhotos.length).toBe(expectedCount);
   }).toPass({ timeout, intervals: [1000, 2000, 3000] });
 
-  await page.reload({ waitUntil: "networkidle" });
+  // Use page.goto() instead of page.reload() — on WebKit, reload can redirect
+  // to /trips after cookie auth check during client hydration.
+  await page.goto(`/trips?id=${tripId}`, { waitUntil: "domcontentloaded" });
+  // Wait for the trip heading to confirm the trip detail page loaded.
+  await page
+    .getByRole("heading", { level: 1 })
+    .first()
+    .waitFor({ state: "visible", timeout: 15_000 });
 }
 
 /** Locator for photo cards that have finished processing (contain an img element). */

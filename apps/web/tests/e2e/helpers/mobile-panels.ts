@@ -1,3 +1,4 @@
+import { expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
 /**
@@ -33,17 +34,28 @@ export async function navigateToMobilePanel(
   panel: MobilePanel,
 ): Promise<void> {
   const icon = page.getByRole("button", { name: panel, exact: true });
-  // On mobile the icon strip is rendered — click it.
-  // Probe with a short timeout: scrollIntoViewIfNeeded would block for the
-  // full test timeout when the icon strip doesn't exist (desktop viewport).
-  const mobileVisible = await icon
-    .waitFor({ state: "visible", timeout: 5_000 })
+  // Probe with a short timeout to determine if the mobile icon strip exists.
+  const isMobile = await icon
+    .waitFor({ state: "visible", timeout: 3_000 })
     .then(() => true)
     .catch(() => false);
-  if (mobileVisible) {
-    // Scroll the icon into the visible viewport before clicking (belt-and-suspenders).
-    await icon.scrollIntoViewIfNeeded();
-    await icon.click();
+
+  if (isMobile) {
+    // On mobile the icon strip uses justify-around with exactly 6 icons;
+    // all icons are always visible within the 390px+ viewport width.
+    //
+    // After page.reload(), React hydration can detach DOM elements briefly
+    // on WebKit — use .toPass() for retry to handle the race. We recreate
+    // the locator inside the retry closure so a fresh element is found if the
+    // previous one was detached by a React re-render.
+    await expect(async () => {
+      const freshIcon = page.getByRole("button", {
+        name: panel,
+        exact: true,
+      });
+      await freshIcon.click({ timeout: 5_000 });
+    }).toPass({ timeout: 15_000 });
+
     // Wait for any panel data fetches (TanStack Query) to settle.
     await page.waitForLoadState("networkidle");
     // Give the swiper CSS transition (~300ms) time to complete.

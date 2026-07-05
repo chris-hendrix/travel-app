@@ -5,6 +5,7 @@ import { removeNextjsDevOverlay, dismissPwaPrompts } from "./helpers/nextjs-dev"
 import { pickDateTime } from "./helpers/date-pickers";
 import { createTrip } from "./helpers/trips";
 import { clickFabAction, createEvent } from "./helpers/itinerary";
+import { navigateToMobilePanel } from "./helpers/mobile-panels";
 import {
   NAVIGATION_TIMEOUT,
   ELEMENT_TIMEOUT,
@@ -395,7 +396,30 @@ test.describe("Itinerary Journey", () => {
       });
 
       await test.step("reload and verify event is visible", async () => {
-        await page.reload();
+        // Use page.goto() instead of page.reload() — on WebKit, reload can
+        // redirect to /trips after cookie auth check during client hydration.
+        // Navigate to the explicit trip URL (no Swiper hash) to ensure the
+        // trip detail page loads correctly.
+        const eventsResponse = page.waitForResponse(
+          (resp) =>
+            resp.url().includes(`/trips/${tripId}/events`) &&
+            resp.status() === 200,
+          { timeout: NAVIGATION_TIMEOUT },
+        );
+        await page.goto(`/trips?id=${tripId}`, {
+          waitUntil: "domcontentloaded",
+        });
+        // Confirm the trip detail page loaded by waiting for the heading.
+        await page
+          .getByRole("heading", { level: 1 })
+          .first()
+          .waitFor({ state: "visible", timeout: NAVIGATION_TIMEOUT });
+        await eventsResponse;
+
+        // On mobile the swiper defaults to the Info panel (index 0);
+        // navigate to Itinerary (index 1) where event cards are rendered.
+        await navigateToMobilePanel(page, "Itinerary");
+
         await expect(page.getByText("Dinner at Joe's")).toBeVisible({
           timeout: NAVIGATION_TIMEOUT,
         });
@@ -427,9 +451,26 @@ test.describe("Itinerary Journey", () => {
       });
 
       await test.step("open Deleted Items dialog and verify content", async () => {
-        // Reload to ensure fresh data - the optimistic update may still show
-        // the event in the main list during cache refetch
-        await page.reload();
+        // Reload to ensure fresh data — the optimistic update may still show
+        // the event in the main list during cache refetch.
+        // Wait for events API (both regular and includeDeleted) to settle
+        // so the "View deleted items" button appears after the refetch.
+        // Register the response waiter BEFORE navigation to catch the response.
+        const eventsResponse = page.waitForResponse(
+          (resp) =>
+            resp.url().includes(`/trips/${tripId}/events`) &&
+            resp.status() === 200,
+          { timeout: NAVIGATION_TIMEOUT },
+        );
+        await page.goto(`/trips?id=${tripId}`, {
+          waitUntil: "domcontentloaded",
+        });
+        await eventsResponse;
+        // Confirm the trip detail page loaded.
+        await page
+          .getByRole("heading", { level: 1 })
+          .first()
+          .waitFor({ state: "visible", timeout: NAVIGATION_TIMEOUT });
 
         // Deleted items are now in a dialog. With the only event deleted,
         // the empty state shows a "View deleted items" link for organizers.
@@ -468,9 +509,27 @@ test.describe("Itinerary Journey", () => {
         // Close dialog if still open
         await page.keyboard.press("Escape");
 
-        // Reload to ensure fresh data — the restore operation invalidates
-        // React Query caches but the page may still show stale data.
-        await page.reload();
+        // Navigate to the explicit trip URL (no Swiper hash) to ensure
+        // the trip detail page loads correctly on WebKit.
+        const eventsResponse = page.waitForResponse(
+          (resp) =>
+            resp.url().includes(`/trips/${tripId}/events`) &&
+            resp.status() === 200,
+          { timeout: NAVIGATION_TIMEOUT },
+        );
+        await page.goto(`/trips?id=${tripId}`, {
+          waitUntil: "domcontentloaded",
+        });
+        await page
+          .getByRole("heading", { level: 1 })
+          .first()
+          .waitFor({ state: "visible", timeout: NAVIGATION_TIMEOUT });
+        await eventsResponse;
+
+        // On mobile the swiper defaults to the Info panel (index 0);
+        // navigate to Itinerary (index 1) where event cards are rendered.
+        await navigateToMobilePanel(page, "Itinerary");
+
         await expect(page.getByText("Dinner at Joe's")).toBeVisible({
           timeout: NAVIGATION_TIMEOUT,
         });
