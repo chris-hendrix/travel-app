@@ -34,22 +34,37 @@ export async function registerForPush(
       throw new Error("Push notification permission denied");
     }
 
-    await PushNotifications.register();
+    // Register listener before calling register() to avoid race condition.
+    // Wrap in Promise.race with a 10s timeout in case the event never fires.
+    const result = await Promise.race<PushRegistrationResult>([
+      new Promise<PushRegistrationResult>((resolve, reject) => {
+        let registrationListener: { remove: () => Promise<void> } | null = null;
+        let errorListener: { remove: () => Promise<void> } | null = null;
 
-    return new Promise((resolve) => {
-      PushNotifications.addListener("registration", (token: Token) => {
-        resolve({
-          token: token.value,
-          platform,
-          provider: "fcm",
-        });
-      });
-      // Note: listener is registered before register() resolves,
-      // but we register it after — it still works because Capacitor
-      // queues registrations. However, to be safe, we also handle
-      // the case where registration event fired before listener.
-      // For now, assume the listener will catch it.
-    });
+        PushNotifications.addListener("registration", (token: Token) => {
+          registrationListener?.remove();
+          errorListener?.remove();
+          resolve({ token: token.value, platform, provider: "fcm" });
+        }).then((handle) => { registrationListener = handle; });
+
+        PushNotifications.addListener("registrationError", (err) => {
+          registrationListener?.remove();
+          errorListener?.remove();
+          reject(new Error(`FCM registration error: ${err.error ?? "unknown"}`));
+        }).then((handle) => { errorListener = handle; });
+
+        // Now register — events will be caught by the listeners above
+        PushNotifications.register();
+      }),
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Push registration timed out after 10s")),
+          10_000,
+        ),
+      ),
+    ]);
+
+    return result;
   }
 
   // Web: use VAPID

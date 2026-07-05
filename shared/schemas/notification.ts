@@ -99,9 +99,16 @@ export const pushSubscribeSchema = z.preprocess(
 );
 
 /** DELETE /api/push/subscribe - Unsubscribe from push notifications */
-export const pushUnsubscribeSchema = z.object({
-  endpoint: z.string().url(),
-});
+export const pushUnsubscribeSchema = z.discriminatedUnion("provider", [
+  z.object({
+    provider: z.literal("vapid"),
+    endpoint: z.string().url(),
+  }),
+  z.object({
+    provider: z.literal("fcm"),
+    token: z.string().min(1),
+  }),
+]);
 
 /** GET /api/push/vapid-public-key response */
 export const vapidPublicKeyResponseSchema = z.object({

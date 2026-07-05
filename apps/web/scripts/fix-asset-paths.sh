@@ -37,7 +37,9 @@ echo "  Fixing subdirectory .txt files..."
 find "$OUT_DIR" -mindepth 2 -name "*.txt" -not -path "*/_next/*" -print0 | while IFS= read -r -d '' f; do
   rel="${f#$OUT_DIR/}"
   depth=$(echo "$rel" | tr -cd '/' | wc -c)
-  prefix=$(printf '../%.0s' $(seq 1 $depth))
+  prefix=
+  i=0
+  while [ "$i" -lt "$depth" ]; do prefix="$prefix../"; i=$((i+1)); done
   sed -i "s|\"/_next/|\"${prefix}_next/|g" "$f"
   sed -i "s|'/_next/|'${prefix}_next/|g" "$f"
   sed -i "s|:HL\\[\"/_next/|:HL[\"${prefix}_next/|g" "$f"
@@ -48,7 +50,9 @@ echo "  Fixing subdirectory .html files..."
 find "$OUT_DIR" -mindepth 2 -name "*.html" -not -path "*/_next/*" -print0 | while IFS= read -r -d '' f; do
   rel="${f#$OUT_DIR/}"
   depth=$(echo "$rel" | tr -cd '/' | wc -c)
-  prefix=$(printf '../%.0s' $(seq 1 $depth))
+  prefix=
+  i=0
+  while [ "$i" -lt "$depth" ]; do prefix="$prefix../"; i=$((i+1)); done
   sed -i "s|\"/_next/|\"${prefix}_next/|g" "$f"
   sed -i "s|'/_next/|'${prefix}_next/|g" "$f"
 done
@@ -64,8 +68,8 @@ echo "  Checking JS files..."
 if grep -rq '"/_next/static/' "$OUT_DIR/_next/static/chunks/" 2>/dev/null; then
   echo "    Warning: JS chunks contain absolute asset paths - fixing..."
   find "$OUT_DIR/_next/static/chunks" -name "*.js" -print0 | while IFS= read -r -d '' f; do
-    sed -i 's|"/_next/static/|"./_next/static/|g' "$f"
-    sed -i "s|'/_next/static/|'./_next/static/|g" "$f"
+    sed -i '/sourceMappingURL/!s|"/_next/static/|"./_next/static/|g' "$f"
+    sed -i "/sourceMappingURL/!s|'/_next/static/|'./_next/static/|g" "$f"
   done
 else
   echo "    No absolute paths in JS chunks (good)"

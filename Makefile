@@ -189,9 +189,11 @@ distribute-android: ## Build and distribute Android APK via Firebase App Distrib
 	if [ -z "$$JAVA_HOME" ]; then \
 		echo "ERROR: JAVA_HOME is not set. Set it in apps/api/.env or export it in your environment."; exit 1; \
 	fi; \
-	cd apps/web/android && GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json \
-		./gradlew assembleDebug appDistributionUploadDebug $$GRADLE_ARGS
-	@rm -f /tmp/firebase-sa.json /tmp/release-notes.txt
+	@cd apps/web/android && GOOGLE_APPLICATION_CREDENTIALS=/tmp/firebase-sa.json \
+		./gradlew assembleDebug appDistributionUploadDebug $$GRADLE_ARGS; \
+	EXIT=$$?; \
+	rm -f /tmp/firebase-sa.json /tmp/release-notes.txt; \
+	exit $$EXIT
 	@echo "Distribution complete. Check Firebase Console."
 
 # --- Infrastructure ---

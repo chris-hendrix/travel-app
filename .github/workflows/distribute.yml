@@ -78,9 +78,7 @@ jobs:
     name: Distribute to Firebase
     runs-on: ubuntu-latest
     needs: build-android
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
-    env:
-      NEXT_PUBLIC_API_URL: https://api.journiful.app/api
+    if: github.event_name != 'pull_request'
     steps:
       - uses: actions/checkout@v6
         with:
@@ -96,15 +94,11 @@ jobs:
         with:
           packages: 'platforms;android-36 build-tools;36.0.0'
 
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v6
+      - name: Download APK artifact
+        uses: actions/download-artifact@v6
         with:
-          node-version: 22
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+          name: app-debug
+          path: apps/web/android/app/build/outputs/apk/debug/
 
       - name: Write Google Services JSON
         run: echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > apps/web/android/app/google-services.json
@@ -114,12 +108,6 @@ jobs:
 
       - name: Generate release notes with branch name
         run: echo "[$(echo '${{ github.head_ref || github.ref_name }}' | tr '/' '-')] $(git log -1 --pretty=%B)" > /tmp/release-notes.txt
-
-      - name: Build web app for mobile
-        run: make build-mobile
-
-      - name: Sync Capacitor assets
-        run: cd apps/web && npx cap sync
 
       - name: Build and distribute to Firebase
         run: |
@@ -136,4 +124,4 @@ jobs:
 
       - name: Cleanup temp files
         if: always()
-        run: rm -f /tmp/firebase-sa.json /tmp/release-notes.txt
+        run: rm -f /tmp/firebase-sa.json /tmp/release-notes.txt apps/web/android/app/google-services.json

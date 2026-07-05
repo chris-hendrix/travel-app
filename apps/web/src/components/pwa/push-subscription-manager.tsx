@@ -37,13 +37,19 @@ export function PushSubscriptionManager() {
     // Detect logout
     if (wasLoggedIn && !isLoggedIn) {
       if (isNative()) {
-        // Native logout: server-side removal by token (if we tracked it)
-        // For now, just let the server handle it on next registration
+        import("@/lib/native-auth").then(async ({ getNativeToken }) => {
+          const token = await getNativeToken();
+          if (token) {
+            await unsubscribe.mutateAsync({ provider: "fcm", token }).catch(() => {
+              // Server-side removal failed — server cleans on next failed push
+            });
+          }
+        });
       } else {
         getExistingSubscription().then(async (existing) => {
           if (existing) {
             try {
-              await unsubscribe.mutateAsync(existing.endpoint);
+              await unsubscribe.mutateAsync({ provider: "vapid", endpoint: existing.endpoint });
             } catch {
               // Server-side removal failed — still unsubscribe locally
             }

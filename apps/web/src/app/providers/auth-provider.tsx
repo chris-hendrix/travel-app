@@ -17,6 +17,7 @@ import {
   saveNativeToken,
   getNativeToken,
   clearNativeToken,
+  clearNativeTokenCache,
 } from "@/lib/native-auth";
 
 interface ImpersonatingState {
@@ -189,6 +190,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Clear persisted native token
     await clearNativeToken();
+    clearNativeTokenCache();
 
     setUser(null);
     setIsAdmin(false);

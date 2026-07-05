@@ -91,7 +91,9 @@ export async function pushRoutes(fastify: FastifyInstance) {
       preHandler: [fastify.rateLimit(writeRateLimitConfig), authenticate, checkBanned],
     },
     async (request) => {
-      const { endpoint } = request.body;
+      const body = request.body;
+      const endpoint =
+        body.provider === "fcm" ? `fcm:${body.token}` : body.endpoint;
       await fastify.pushService.removeSubscription(endpoint, request.user.sub);
       return { success: true };
     },
