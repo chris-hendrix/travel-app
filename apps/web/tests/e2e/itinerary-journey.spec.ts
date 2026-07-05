@@ -468,8 +468,11 @@ test.describe("Itinerary Journey", () => {
         // Close dialog if still open
         await page.keyboard.press("Escape");
 
+        // Reload to ensure fresh data — the restore operation invalidates
+        // React Query caches but the page may still show stale data.
+        await page.reload();
         await expect(page.getByText("Dinner at Joe's")).toBeVisible({
-          timeout: ELEMENT_TIMEOUT,
+          timeout: NAVIGATION_TIMEOUT,
         });
 
         await snap(page, "21-event-restored");

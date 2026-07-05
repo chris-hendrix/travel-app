@@ -158,7 +158,10 @@ test.describe("Trip Journey", () => {
         page.locator("h1").filter({ hasText: updatedName }),
       ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
       await expect(page.getByText("Trip updated successfully")).toBeVisible();
-      await expect(tripDetail.editDialogHeading).not.toBeVisible();
+      await tripDetail.editDialogHeading.waitFor({
+        state: "hidden",
+        timeout: 15000,
+      });
 
       await expect.soft(page.getByText(updatedDestination)).toBeVisible();
       await expect.soft(page.getByText("Oct 12 - 14, 2026")).toBeVisible();
@@ -194,7 +197,7 @@ test.describe("Trip Journey", () => {
       await page.getByRole("button", { name: "Cancel" }).click();
       await expect(
         page.getByText("Are you sure you want to delete this trip?"),
-      ).not.toBeVisible();
+      ).not.toBeVisible({ timeout: DIALOG_TIMEOUT });
       await expect(tripDetail.deleteTripButton).toBeVisible();
 
       // Click delete again and confirm

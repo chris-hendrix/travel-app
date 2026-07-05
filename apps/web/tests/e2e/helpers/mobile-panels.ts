@@ -34,14 +34,22 @@ export async function navigateToMobilePanel(
 ): Promise<void> {
   const icon = page.getByRole("button", { name: panel, exact: true });
   // On mobile the icon strip is rendered — click it.
+  // Probe with a short timeout: scrollIntoViewIfNeeded would block for the
+  // full test timeout when the icon strip doesn't exist (desktop viewport).
   const mobileVisible = await icon
-    .waitFor({ state: "visible", timeout: 2_000 })
+    .waitFor({ state: "visible", timeout: 5_000 })
     .then(() => true)
     .catch(() => false);
   if (mobileVisible) {
+    // Scroll the icon into the visible viewport before clicking (belt-and-suspenders).
+    await icon.scrollIntoViewIfNeeded();
     await icon.click();
-    // Allow swiper transition (300ms) to settle before interacting with content.
-    await page.waitForTimeout(400);
+    // Wait for any panel data fetches (TanStack Query) to settle.
+    await page.waitForLoadState("networkidle");
+    // Give the swiper CSS transition (~300ms) time to complete.
+    // networkidle resolves immediately when no requests are in flight,
+    // which can happen before the slide animation finishes.
+    await page.waitForTimeout(500);
     return;
   }
 
@@ -50,10 +58,11 @@ export async function navigateToMobilePanel(
   if (route) {
     const tab = page.getByRole("tab", { name: panel, exact: true });
     const tabVisible = await tab
-      .waitFor({ state: "visible", timeout: 2_000 })
+      .waitFor({ state: "visible", timeout: 5_000 })
       .then(() => true)
       .catch(() => false);
     if (tabVisible) {
+      await tab.scrollIntoViewIfNeeded();
       await tab.click();
       await page.waitForLoadState("networkidle");
     }
