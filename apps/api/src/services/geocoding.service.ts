@@ -38,6 +38,32 @@ const NOMINATIM_API_BASE = "https://nominatim.openstreetmap.org/search";
 const OPEN_METEO_GEOCODING_API = "https://geocoding-api.open-meteo.com/v1/search";
 const OPEN_METEO_FORECAST_API = "https://api.open-meteo.com/v1/forecast";
 
+const STUB_TIMEZONES: Record<string, { tz: string; lat: number; lon: number }> = {
+  seattle:     { tz: "America/Los_Angeles", lat: 47.6062, lon: -122.3321 },
+  portland:    { tz: "America/Los_Angeles", lat: 45.5152, lon: -122.6784 },
+  austin:      { tz: "America/Chicago",      lat: 30.2672, lon: -97.7431 },
+  chicago:     { tz: "America/Chicago",      lat: 41.8781, lon: -87.6298 },
+  miami:       { tz: "America/New_York",     lat: 25.7617, lon: -80.1918 },
+  "new york":  { tz: "America/New_York",     lat: 40.7128, lon: -74.0060 },
+  london:      { tz: "Europe/London",        lat: 51.5074, lon: -0.1278 },
+  paris:       { tz: "Europe/Paris",         lat: 48.8566, lon: 2.3522 },
+  barcelona:   { tz: "Europe/Madrid",        lat: 41.3874, lon: 2.1686 },
+  tokyo:       { tz: "Asia/Tokyo",           lat: 35.6762, lon: 139.6503 },
+  sydney:      { tz: "Australia/Sydney",     lat: -33.8688, lon: 151.2093 },
+  maui:        { tz: "Pacific/Honolulu",     lat: 20.7984, lon: -156.3319 },
+  honolulu:    { tz: "Pacific/Honolulu",     lat: 21.3069, lon: -157.8583 },
+  "san francisco": { tz: "America/Los_Angeles", lat: 37.7749, lon: -122.4194 },
+  "los angeles":   { tz: "America/Los_Angeles", lat: 34.0522, lon: -118.2437 },
+};
+
+function stubLookup(query: string) {
+  const lower = query.toLowerCase();
+  for (const [key, val] of Object.entries(STUB_TIMEZONES)) {
+    if (lower.includes(key)) return val;
+  }
+  return { tz: "UTC", lat: 47.6062, lon: -122.3321 }; // fallback
+}
+
 /**
  * Nominatim (OpenStreetMap) Geocoding Service Implementation
  * Uses the free Nominatim API to resolve location names to coordinates.
@@ -52,7 +78,8 @@ export class NominatimGeocodingService implements IGeocodingService {
     this.logger?.info({ query }, "Geocoding query");
 
     if (process.env.GEOCODING_STUB === "true") {
-      return { lat: 47.6062, lon: -122.3321, displayName: query };
+      const match = stubLookup(query);
+      return { lat: match.lat, lon: match.lon, displayName: query };
     }
 
     try {
@@ -95,7 +122,7 @@ export class NominatimGeocodingService implements IGeocodingService {
     this.logger?.info({ query }, "Timezone lookup query");
 
     if (process.env.GEOCODING_STUB === "true") {
-      return "UTC";
+      return stubLookup(query).tz;
     }
 
     try {
@@ -128,7 +155,9 @@ export class NominatimGeocodingService implements IGeocodingService {
     this.logger?.info({ lat, lon }, "Timezone lookup by coordinates");
 
     if (process.env.GEOCODING_STUB === "true") {
-      return "UTC";
+      // Fall back to string lookup — most coordinate pairs won't match city names,
+      // so this returns "UTC" for unrecognized coordinates.
+      return stubLookup(String(lat) + "," + String(lon)).tz;
     }
 
     try {
