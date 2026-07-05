@@ -17,7 +17,7 @@ export function buildPushPayload(
       return {
         title: title || "New message",
         body: body || "You have a new message",
-        url: tripId ? `/trips/${tripId}/messages` : "/",
+        url: tripId ? `/trips?id=${tripId}&tab=messages#discussion` : "/",
         tag: tripId ? `msg-${tripId}` : "msg",
       };
 
@@ -25,7 +25,7 @@ export function buildPushPayload(
       return {
         title: title || "Trip updated",
         body: body || "A trip has been updated",
-        url: tripId ? `/trips/${tripId}` : "/",
+        url: tripId ? `/trips?id=${tripId}` : "/",
         tag: tripId ? `update-${tripId}` : "update",
       };
 
@@ -33,15 +33,16 @@ export function buildPushPayload(
       return {
         title: title || "Today's itinerary",
         body: body || "Check your plans for today",
-        url: tripId ? `/trips/${tripId}/itinerary` : "/",
+        url: tripId ? `/trips?id=${tripId}&tab=itinerary` : "/",
         tag: tripId ? `daily-${tripId}` : "daily",
       };
 
     case "mutual_invite":
+    case "sms_invite":
       return {
         title: title || "Trip invitation",
         body: body || "You've been invited to a trip",
-        url: tripId ? `/trips/${tripId}` : "/",
+        url: tripId ? `/trips?id=${tripId}` : "/",
         tag: tripId ? `invite-${tripId}` : "invite",
       };
 

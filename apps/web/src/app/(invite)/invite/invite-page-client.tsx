@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { InvitePreviewCard } from "./[id]/invite-preview-card";
+import { apiRequest } from "@/lib/api";
 
 type PreviewResponse =
   | { success: true; tripName: string; destination: string; startDate: string | null; endDate: string | null; inviterName: string; inviteePhone: string; tripId: string; }
@@ -20,12 +21,31 @@ export function InvitePageClient() {
       setLoading(false);
       return;
     }
-    
+
     const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
-    
+
     fetch(`${API_URL}/invitations/${id}/preview`, { cache: "no-store" })
       .then(res => res.json())
-      .then(data => {
+      .then(async (data) => {
+        // Pending invitation with trip data — try auto-accept for authenticated users
+        if (data?.success && data?.tripName && !data?.status) {
+          try {
+            const acceptResult = await apiRequest<{ success: boolean; tripId: string }>(
+              `/invitations/${id}/accept`,
+              { method: "POST" },
+            );
+            if (acceptResult?.success && acceptResult?.tripId) {
+              // Auto-accepted — redirect to trip
+              if (typeof window !== "undefined") {
+                window.location.href = `/trips?id=${acceptResult.tripId}`;
+              }
+              return;
+            }
+          } catch {
+            // Auto-accept failed (not authenticated, wrong phone, etc.)
+            // Fall through to show the preview card
+          }
+        }
         setPreview(data);
         setLoading(false);
       })

@@ -1585,7 +1585,7 @@ describe("invitation.service", () => {
           expect.objectContaining({
             data: {
               phoneNumber: mutualUserPhone,
-              message: expect.stringContaining("/invite/"),
+              message: expect.stringContaining("/invite?id="),
             },
           }),
         ]),

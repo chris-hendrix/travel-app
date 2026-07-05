@@ -40,12 +40,12 @@ function LoginPageContent() {
     },
   });
 
-  // Redirect authenticated users to /trips (handles app restart with persisted token)
+  // Redirect authenticated users (handles app restart with persisted token)
   useEffect(() => {
     if (!authLoading && user) {
-      router.replace("/trips");
+      router.replace(safeRedirect || "/trips");
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, safeRedirect]);
 
   // Show loading spinner during auth check
   if (authLoading) {

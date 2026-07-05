@@ -164,7 +164,7 @@ export class CalendarService implements ICalendarService {
 
         const description = [
           trip.description,
-          `\nView trip: https://journiful.app/trips/${trip.id}`,
+          `\nView trip: https://journiful.app/trips?id=${trip.id}`,
         ]
           .filter(Boolean)
           .join("\n");
@@ -178,7 +178,7 @@ export class CalendarService implements ICalendarService {
           end: exclusiveEnd,
           allDay: true,
           transparency: ICalEventTransparency.TRANSPARENT,
-          url: `https://journiful.app/trips/${trip.id}`,
+          url: `https://journiful.app/trips?id=${trip.id}`,
         });
       }
 
@@ -256,7 +256,7 @@ export class CalendarService implements ICalendarService {
         }
 
         descriptionParts.push(
-          `View trip: https://journiful.app/trips/${trip.id}`,
+          `View trip: https://journiful.app/trips?id=${trip.id}`,
         );
 
         const description = descriptionParts.join("\n\n");
