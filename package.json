@@ -26,14 +26,14 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@typescript-eslint/eslint-plugin": "^8.59.4",
-    "@typescript-eslint/parser": "^8.59.4",
-    "eslint": "^10.4.0",
-    "globals": "^17.6.0",
+    "@typescript-eslint/eslint-plugin": "^8.62.1",
+    "@typescript-eslint/parser": "^8.62.1",
+    "eslint": "^10.6.0",
+    "globals": "^17.7.0",
     "husky": "^9.1.7",
-    "lint-staged": "^17.0.5",
-    "prettier": "^3.8.3",
-    "turbo": "^2.9.14",
+    "lint-staged": "^17.0.8",
+    "prettier": "^3.9.4",
+    "turbo": "^2.10.3",
     "typescript": "^6.0.3"
   },
   "pnpm": {
