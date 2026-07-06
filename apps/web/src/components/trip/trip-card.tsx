@@ -61,7 +61,7 @@ export const TripCard = memo(function TripCard({
   return (
     <TripThemeProvider themeId={trip.themeId} themeFont={trip.themeFont}>
       <Link
-        href={`/trips/${trip.id}`}
+        href={`/trips?id=${trip.id}`}
         {...(supportsHover ? { onMouseEnter: prefetchTrip } : {})}
         onTouchStart={prefetchTrip}
         onFocus={prefetchTrip}

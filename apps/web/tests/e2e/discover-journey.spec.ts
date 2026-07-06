@@ -132,7 +132,7 @@ test.describe("Discover Journey", () => {
       });
 
       await test.step("mock discover API and navigate to Discover tab", async () => {
-        const tripId = page.url().split("/trips/")[1];
+        const tripId = new URL(page.url()).searchParams.get("id")!;
 
         // Mock the trip detail to inject destination lat/lon
         await page.route(
@@ -175,7 +175,7 @@ test.describe("Discover Journey", () => {
         );
 
         // Reload trip page — mock will inject lat/lon into the response
-        await page.goto(`/trips/${tripId}`);
+        await page.goto(`/trips?id=${tripId}`);
         await expect(
           page.getByRole("heading", { level: 1, name: tripName }),
         ).toBeVisible({ timeout: ELEMENT_TIMEOUT });

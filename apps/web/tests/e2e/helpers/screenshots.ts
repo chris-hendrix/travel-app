@@ -9,30 +9,22 @@ const SCREENSHOTS_DIR = path.resolve(
 
 const isCI = !!process.env.CI;
 
-const DESKTOP = { width: 1280, height: 1080 };
-const MOBILE = { width: 375, height: 667 };
-
-/** Capture desktop + mobile JPG screenshots. No-op in CI. */
+/**
+ * Capture a JPG screenshot at the current viewport. No-op in CI.
+ *
+ * NOTE: Resizing the viewport (e.g. desktop → mobile → desktop) triggers
+ * React remounts and destroys transient component state (like open dialogs
+ * and lightboxes). Always take screenshots at the current viewport, never
+ * switch it inside a helper.
+ */
 export async function snap(page: Page, name: string): Promise<void> {
   if (isCI) return;
   fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
 
-  const original = page.viewportSize() ?? DESKTOP;
-
   await page.screenshot({
-    path: path.join(SCREENSHOTS_DIR, `${name}-desktop.jpg`),
+    path: path.join(SCREENSHOTS_DIR, `${name}.jpg`),
     type: "jpeg",
     quality: 85,
     fullPage: true,
   });
-
-  await page.setViewportSize(MOBILE);
-  await page.screenshot({
-    path: path.join(SCREENSHOTS_DIR, `${name}-mobile.jpg`),
-    type: "jpeg",
-    quality: 85,
-    fullPage: true,
-  });
-
-  await page.setViewportSize(original);
 }

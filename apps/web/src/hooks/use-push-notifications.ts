@@ -10,6 +10,7 @@ import {
   getExistingSubscription,
 } from "@/lib/push-notifications";
 import type { PushSubscriptionInput } from "@journiful/shared/types";
+import type { PushUnsubscribeInput } from "@journiful/shared/schemas";
 
 // ---------------------------------------------------------------------------
 // Query keys
@@ -84,10 +85,10 @@ export function usePushSubscription() {
   });
 
   const unsubscribe = useMutation({
-    mutationFn: async (endpoint: string) => {
+    mutationFn: async (input: PushUnsubscribeInput) => {
       return apiRequest<{ success: true }>("/push/subscribe", {
         method: "DELETE",
-        body: JSON.stringify({ endpoint }),
+        body: JSON.stringify(input),
       });
     },
     onSuccess: () => {
@@ -147,7 +148,7 @@ export function useUnsubscribeFromPush() {
     const existing = await getExistingSubscription();
     if (!existing) return;
 
-    await unsubscribe.mutateAsync(existing.endpoint);
+    await unsubscribe.mutateAsync({ provider: "vapid", endpoint: existing.endpoint });
     await existing.unsubscribe();
   }, [unsubscribe]);
 }

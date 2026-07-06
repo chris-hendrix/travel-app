@@ -118,13 +118,13 @@ describe("MutualProfileSheet", () => {
     );
 
     const italyLink = screen.getByText("Summer in Italy").closest("a");
-    expect(italyLink?.getAttribute("href")).toBe("/trips/trip-1");
+    expect(italyLink?.getAttribute("href")).toBe("/trips?id=trip-1");
 
     const tokyoLink = screen.getByText("Tokyo Adventure").closest("a");
-    expect(tokyoLink?.getAttribute("href")).toBe("/trips/trip-2");
+    expect(tokyoLink?.getAttribute("href")).toBe("/trips?id=trip-2");
 
     const mountainLink = screen.getByText("Mountain Retreat").closest("a");
-    expect(mountainLink?.getAttribute("href")).toBe("/trips/trip-3");
+    expect(mountainLink?.getAttribute("href")).toBe("/trips?id=trip-3");
   });
 
   it("does not render content when mutual is null", () => {

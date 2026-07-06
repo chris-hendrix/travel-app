@@ -153,14 +153,14 @@ describe("CalendarService.generateIcsFeed", () => {
       const ics = unfold(service.generateIcsFeed([{ trip, events: [], accommodations: [] }]));
 
       expect(ics).toContain("Sun and sand");
-      expect(ics).toContain(`https://journiful.app/trips/${trip.id}`);
+      expect(ics).toContain(`https://journiful.app/trips?id=${trip.id}`);
     });
 
     it("should include link even when trip description is null", () => {
       const trip = makeTrip({ description: null });
       const ics = unfold(service.generateIcsFeed([{ trip, events: [], accommodations: [] }]));
 
-      expect(ics).toContain(`https://journiful.app/trips/${trip.id}`);
+      expect(ics).toContain(`https://journiful.app/trips?id=${trip.id}`);
     });
 
     it("should set destination as location", () => {
@@ -408,7 +408,7 @@ describe("CalendarService.generateIcsFeed", () => {
       expect(ics).not.toContain("LOCATION:");
       expect(ics).not.toContain("Links:");
       // Should still have trip link
-      expect(ics).toContain(`https://journiful.app/trips/${trip.id}`);
+      expect(ics).toContain(`https://journiful.app/trips?id=${trip.id}`);
     });
 
     it("should include accommodations alongside trip and event VEVENTs", () => {

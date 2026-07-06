@@ -1,221 +1,25 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import Link from "next/link";
-import { Calendar, Building2, PartyPopper, Plane } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { JsonLd } from "@/components/json-ld";
+import { HomePageClient } from "./home-page-client";
+
+export const dynamic = "force-static";
 
 export const metadata: Metadata = {
   title: "Journiful - Group Trip Planner | Plan Travel Together",
   description:
-    "Journiful — memories & itineraries. The group trip planner that makes collaborative travel planning easy. Coordinate itineraries, accommodations, events, and member logistics all in one place.",
+    "Plan group trips together. Coordinate itineraries, accommodations, and events with your travel companions in one place.",
   alternates: { canonical: "/" },
 };
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://journiful.app";
-
-const features = [
-  {
-    icon: Calendar,
-    title: "Shared Itineraries",
-    description:
-      "Build a day-by-day schedule your whole group can see and contribute to.",
-  },
-  {
-    icon: Building2,
-    title: "Accommodations",
-    description:
-      "Research and decide on lodging together with all the details in one place.",
-  },
-  {
-    icon: PartyPopper,
-    title: "Event Planning",
-    description:
-      "Create events and schedule activities so everyone knows what's happening and when.",
-  },
-  {
-    icon: Plane,
-    title: "Travel Logistics",
-    description:
-      "Track member availability, flights, and travel details to keep the group in sync.",
-  },
-] as const;
-
-const steps = [
-  {
-    number: "1",
-    title: "Create a trip",
-    description: "Set dates, add a destination, and give your trip a name.",
-  },
-  {
-    number: "2",
-    title: "Invite your group",
-    description: "Share a link and everyone joins in seconds.",
-  },
-  {
-    number: "3",
-    title: "Plan together",
-    description: "Add events, accommodations, and logistics as a group.",
-  },
-] as const;
-
-export default async function Home() {
-  const cookieStore = await cookies();
-  const authToken = cookieStore.get("auth_token");
-
-  if (authToken?.value) {
-    redirect("/trips");
-  }
-
+export default function Home() {
   return (
     <>
-      <main className="flex min-h-screen flex-col bg-background linen-texture">
-        {/* Header */}
-        <header className="sticky top-0 z-40 w-full bg-background border-b border-border linen-texture">
-          <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-            <Link
-              href="/"
-              className="font-display text-2xl font-bold tracking-tight"
-            >
-              Journiful
-            </Link>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/login">Sign in</Link>
-            </Button>
-          </div>
-        </header>
-
-        {/* Hero Section */}
-        <section className="relative flex flex-col items-center justify-center px-4 pt-12 pb-20 text-center sm:pt-20 sm:pb-28">
-          <h1 className="mb-4 max-w-2xl text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl font-playfair motion-safe:animate-[revealUp_600ms_ease-out_both]">
-            Plan Group Trips Together
-          </h1>
-          <p className="mb-10 max-w-lg text-center text-lg text-muted-foreground sm:text-xl motion-safe:animate-[revealUp_600ms_ease-out_200ms_both]">
-            The trip planning app that brings your travel group together.
-            Coordinate everything in one place.
-          </p>
-          <Button
-            variant="gradient"
-            size="lg"
-            className="px-10 font-accent motion-safe:animate-[revealUp_600ms_ease-out_400ms_both]"
-            asChild
-          >
-            <Link href="/login">Get started</Link>
-          </Button>
-        </section>
-
-        {/* Features Section */}
-        <section className="px-4 py-20 sm:py-28">
-          <div className="mx-auto max-w-5xl">
-            <h2 className="mb-12 text-center text-3xl font-bold tracking-tight text-foreground sm:text-4xl font-playfair scroll-reveal">
-              Everything your group needs to plan the perfect trip
-            </h2>
-            <div className="grid gap-8 sm:grid-cols-2">
-              {features.map((feature) => (
-                <div
-                  key={feature.title}
-                  className="rounded-md border border-border bg-card p-6 linen-texture scroll-reveal"
-                >
-                  <feature.icon className="mb-3 h-6 w-6 text-accent" />
-                  <h3 className="mb-2 text-lg font-semibold text-foreground font-accent">
-                    {feature.title}
-                  </h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {feature.description}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* How It Works Section */}
-        <section className="px-4 py-20 sm:py-28">
-          <div className="mx-auto max-w-3xl">
-            <h2 className="mb-12 text-center text-3xl font-bold tracking-tight text-foreground sm:text-4xl font-playfair scroll-reveal">
-              How Journiful works
-            </h2>
-            <div className="grid gap-8 sm:grid-cols-3">
-              {steps.map((step) => (
-                <div key={step.number} className="text-center scroll-reveal">
-                  <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-sm border-2 border-dashed border-accent text-sm font-bold text-accent font-accent">
-                    {step.number}
-                  </div>
-                  <h3 className="mb-2 text-lg font-semibold text-foreground font-accent">
-                    {step.title}
-                  </h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {step.description}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Bottom CTA Section */}
-        <section className="flex flex-col items-center px-4 pt-12 pb-24 text-center sm:pb-32 scroll-reveal">
-          <h2 className="mb-6 text-2xl font-bold tracking-tight text-foreground sm:text-3xl font-playfair">
-            Ready to plan your next adventure?
-          </h2>
-          <Button
-            variant="gradient"
-            size="lg"
-            className="px-10 font-accent"
-            asChild
-          >
-            <Link href="/login">Start planning</Link>
-          </Button>
-        </section>
-
-        {/* Footer */}
-        <footer className="flex flex-col items-center gap-2 px-4 pb-8 text-center text-xs text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <Link href="/terms" className="hover:text-foreground">
-              Terms of Service
-            </Link>
-            <span aria-hidden="true">&middot;</span>
-            <Link href="/privacy" className="hover:text-foreground">
-              Privacy Policy
-            </Link>
-            <span aria-hidden="true">&middot;</span>
-            <Link href="/sms-terms" className="hover:text-foreground">
-              SMS Terms
-            </Link>
-          </div>
-          <p>&copy; 2026 Journiful. All rights reserved.</p>
-        </footer>
-      </main>
-
-      {/* Structured Data */}
-      <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "WebSite",
-          name: "Journiful",
-          url: siteUrl,
-          description:
-            "Plan group trips together. Coordinate itineraries, accommodations, and events with your travel companions in one place.",
+      {/* Redirect Capacitor native context to login immediately, before React loads */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `(function(){try{if(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()){location.replace('/login.html')}}catch(e){}})()`,
         }}
       />
-      <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "WebApplication",
-          name: "Journiful",
-          url: siteUrl,
-          applicationCategory: "TravelApplication",
-          operatingSystem: "Web",
-          description:
-            "The group trip planner that makes collaborative travel planning easy.",
-          offers: {
-            "@type": "Offer",
-            price: "0",
-            priceCurrency: "USD",
-          },
-        }}
-      />
+      <HomePageClient />
     </>
   );
 }

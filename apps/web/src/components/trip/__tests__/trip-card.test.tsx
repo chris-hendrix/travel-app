@@ -234,7 +234,7 @@ describe("TripCard", () => {
       render(<TripCard trip={baseTrip} />);
 
       const link = screen.getByRole("link");
-      expect(link.getAttribute("href")).toBe("/trips/trip-123");
+      expect(link.getAttribute("href")).toBe("/trips?id=trip-123");
     });
 
     it("has correct href for different trip ids", () => {
@@ -242,7 +242,7 @@ describe("TripCard", () => {
       render(<TripCard trip={trip} />);
 
       const link = screen.getByRole("link");
-      expect(link.getAttribute("href")).toBe("/trips/trip-456");
+      expect(link.getAttribute("href")).toBe("/trips?id=trip-456");
     });
   });
 

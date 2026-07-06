@@ -125,8 +125,14 @@ export async function buildApp(
   await app.register(queuePlugin);
 
   // Register CORS
+  const frontendOrigins = app.config.FRONTEND_URL.split(",").map((s) => s.trim());
   await app.register(cors, {
-    origin: app.config.FRONTEND_URL.split(",").map((s) => s.trim()),
+    origin: [
+      ...frontendOrigins,
+      "capacitor://localhost", // bundled Capacitor WebView
+      "http://localhost", // dev live reload
+      "http://10.0.2.2:3000", // Android emulator accessing dev server
+    ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],

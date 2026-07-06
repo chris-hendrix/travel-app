@@ -86,6 +86,9 @@ export default function RootLayout({
         spaceGrotesk.variable,
       )}
     >
+      <head>
+        <base href="/" />
+      </head>
       <body className="antialiased">
         <noscript>
           <div

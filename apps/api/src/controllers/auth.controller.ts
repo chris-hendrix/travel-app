@@ -218,6 +218,7 @@ export const authController = {
       return reply.status(200).send({
         success: true,
         user,
+        token,
         requiresProfile,
       });
     } catch (error) {
@@ -296,6 +297,7 @@ export const authController = {
       return reply.status(200).send({
         success: true,
         user: updatedUser,
+        token,
       });
     } catch (error) {
       // Re-throw typed errors for error handler

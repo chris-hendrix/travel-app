@@ -178,7 +178,7 @@ export function PhotoLightbox({
       onTouchEnd={handleTouchEnd}
     >
       {/* Top bar */}
-      <div className="absolute top-0 left-0 right-0 flex items-center justify-between p-4 z-10">
+      <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 pt-safe pb-4 z-10">
         <span className="text-white text-sm" aria-live="polite">
           {currentIndex + 1} / {photos.length}
         </span>
@@ -257,7 +257,7 @@ export function PhotoLightbox({
       </div>
 
       {/* Bottom caption area */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 z-10">
+      <div className="absolute bottom-0 left-0 right-0 px-4 pt-4 pb-safe z-10">
         {isEditingCaption ? (
           <input
             ref={captionInputRef}

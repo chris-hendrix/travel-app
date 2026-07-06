@@ -72,7 +72,7 @@ export function MutualProfileSheet({
                     {mutual.sharedTrips.map((trip) => (
                       <li key={trip.id}>
                         <Link
-                          href={`/trips/${trip.id}`}
+                          href={`/trips?id=${trip.id}`}
                           className={cn(
                             "block rounded-lg px-3 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors",
                           )}

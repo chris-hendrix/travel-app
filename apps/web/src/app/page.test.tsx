@@ -26,12 +26,12 @@ describe("Home (landing page)", () => {
     vi.clearAllMocks();
   });
 
-  it("redirects to /trips when auth_token cookie exists", async () => {
+  it("redirects to /login when auth_token cookie exists", async () => {
     mockGet.mockReturnValue({ name: "auth_token", value: "some-token" });
 
     await expect(Home()).rejects.toThrow("NEXT_REDIRECT");
 
-    expect(mockRedirect).toHaveBeenCalledWith("/trips");
+    expect(mockRedirect).toHaveBeenCalledWith("/login");
   });
 
   it("renders landing page when auth_token cookie is missing", async () => {

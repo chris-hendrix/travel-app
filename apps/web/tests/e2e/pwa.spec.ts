@@ -98,7 +98,7 @@ test.describe("Push API", () => {
     // Unsubscribe
     const unsubResponse = await request.delete(`${API_BASE}/push/subscribe`, {
       headers: { Cookie: cookie },
-      data: { endpoint },
+      data: { provider: "vapid", endpoint },
     });
     expect(unsubResponse.ok()).toBeTruthy();
   });

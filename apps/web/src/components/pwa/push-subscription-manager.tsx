@@ -8,6 +8,8 @@ import {
   usePushSubscription,
 } from "@/hooks/use-push-notifications";
 import { subscribeToPush } from "@/lib/push-notifications";
+import { isNative } from "@/lib/platform";
+import { registerForPush } from "@/lib/native-push";
 
 /**
  * Manages push subscription lifecycle in response to auth state changes.
@@ -25,7 +27,8 @@ export function PushSubscriptionManager() {
   const prevUserId = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!isPushSupported()) return;
+    // Allow native to proceed even without web PushManager support
+    if (!isNative() && !isPushSupported()) return;
 
     const currentUserId = user?.id ?? null;
     const wasLoggedIn = prevUserId.current !== null;
@@ -33,43 +36,55 @@ export function PushSubscriptionManager() {
 
     // Detect logout
     if (wasLoggedIn && !isLoggedIn) {
-      getExistingSubscription().then(async (existing) => {
-        if (existing) {
-          try {
-            await unsubscribe.mutateAsync(existing.endpoint);
-          } catch {
-            // Server-side removal failed — still unsubscribe locally
+      if (isNative()) {
+        import("@/lib/native-auth").then(async ({ getNativeToken }) => {
+          const token = await getNativeToken();
+          if (token) {
+            await unsubscribe.mutateAsync({ provider: "fcm", token }).catch(() => {
+              // Server-side removal failed — server cleans on next failed push
+            });
           }
-          await existing.unsubscribe();
-        }
-      });
+        });
+      } else {
+        getExistingSubscription().then(async (existing) => {
+          if (existing) {
+            try {
+              await unsubscribe.mutateAsync({ provider: "vapid", endpoint: existing.endpoint });
+            } catch {
+              // Server-side removal failed — still unsubscribe locally
+            }
+            await existing.unsubscribe();
+          }
+        });
+      }
     }
 
     // Detect login (or mount with user already logged in)
-    if (isLoggedIn && vapidPublicKey && getPermissionState() === "granted") {
-      getExistingSubscription().then(async (existing) => {
-        if (existing) {
-          // Re-register with server (idempotent upsert)
-          const json = existing.toJSON();
-          if (json.endpoint && json.keys) {
-            try {
-              await subscribe.mutateAsync({
-                endpoint: json.endpoint,
-                keys: {
-                  p256dh: json.keys.p256dh!,
-                  auth: json.keys.auth!,
-                },
-                userAgent: navigator.userAgent,
-              });
-            } catch {
-              // Non-critical — subscription will be retried on next visit
+    if (isLoggedIn) {
+      if (isNative()) {
+        // Native: use Capacitor Push Notifications (FCM)
+        registerForPush()
+          .then(async (result) => {
+            if (result && result.provider === "fcm") {
+              try {
+                await subscribe.mutateAsync({
+                  token: result.token!,
+                  platform: result.platform as "ios" | "android",
+                  provider: "fcm" as const,
+                });
+              } catch {
+                // Non-critical — registration will be retried on next visit
+              }
             }
-          }
-        } else {
-          // Permission granted but no subscription — re-subscribe
-          const subscription = await subscribeToPush(vapidPublicKey);
-          if (subscription) {
-            const json = subscription.toJSON();
+          })
+          .catch((err) => {
+            console.error("Native push registration failed:", err);
+          });
+      } else if (vapidPublicKey && getPermissionState() === "granted") {
+        getExistingSubscription().then(async (existing) => {
+          if (existing) {
+            // Re-register with server (idempotent upsert)
+            const json = existing.toJSON();
             if (json.endpoint && json.keys) {
               try {
                 await subscribe.mutateAsync({
@@ -81,12 +96,32 @@ export function PushSubscriptionManager() {
                   userAgent: navigator.userAgent,
                 });
               } catch {
-                // Non-critical
+                // Non-critical — subscription will be retried on next visit
+              }
+            }
+          } else {
+            // Permission granted but no subscription — re-subscribe
+            const subscription = await subscribeToPush(vapidPublicKey);
+            if (subscription) {
+              const json = subscription.toJSON();
+              if (json.endpoint && json.keys) {
+                try {
+                  await subscribe.mutateAsync({
+                    endpoint: json.endpoint,
+                    keys: {
+                      p256dh: json.keys.p256dh!,
+                      auth: json.keys.auth!,
+                    },
+                    userAgent: navigator.userAgent,
+                  });
+                } catch {
+                  // Non-critical
+                }
               }
             }
           }
-        }
-      });
+        });
+      }
     }
 
     prevUserId.current = currentUserId;

@@ -76,7 +76,7 @@ test.describe("Invitation Journey", () => {
           "Organizer Alpha",
         );
 
-        await page.goto(`/trips/${tripId}`);
+        await page.goto(`/trips?id=${tripId}`);
         await expect(
           page.getByRole("heading", {
             level: 1,
@@ -96,7 +96,7 @@ test.describe("Invitation Journey", () => {
           "Invited Member",
         );
 
-        await page.goto(`/trips/${tripId}`);
+        await page.goto(`/trips?id=${tripId}`);
 
         // Verify preview mode
         await expect(
@@ -210,7 +210,7 @@ test.describe("Invitation Journey", () => {
         );
 
         // Navigate to trip and wait for page to load before interacting
-        await page.goto(`/trips/${tripId}`);
+        await page.goto(`/trips?id=${tripId}`);
         await expect(
           page.getByRole("heading", { level: 1, name: /RSVP Change Trip/ }),
         ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
@@ -242,7 +242,7 @@ test.describe("Invitation Journey", () => {
           inviteePhone,
           "Member Beta",
         );
-        await page.goto(`/trips/${tripId}`);
+        await page.goto(`/trips?id=${tripId}`);
 
         // Since member is now "maybe" (non-Going), they should see preview
         await expect(
@@ -262,7 +262,7 @@ test.describe("Invitation Journey", () => {
           "Organizer Beta",
         );
 
-        await page.goto(`/trips/${tripId}`);
+        await page.goto(`/trips?id=${tripId}`);
         await expect(
           page.getByRole("heading", {
             level: 1,
@@ -378,7 +378,7 @@ test.describe("Invitation Journey", () => {
           "Uninvited User",
         );
 
-        await page.goto(`/trips/${tripId}`);
+        await page.goto(`/trips?id=${tripId}`);
 
         // Verify 404 page
         await expect(
@@ -446,7 +446,7 @@ test.describe("Invitation Journey", () => {
         "Organizer Delta",
       );
 
-      await page.goto(`/trips/${tripId}`);
+      await page.goto(`/trips?id=${tripId}`);
       await expect(
         page.getByRole("heading", {
           level: 1,
@@ -532,7 +532,7 @@ test.describe("Invitation Journey", () => {
           "Wizard Member",
         );
 
-        await page.goto(`/trips/${tripId}`);
+        await page.goto(`/trips?id=${tripId}`);
 
         // Verify preview mode
         await expect(
@@ -703,7 +703,7 @@ test.describe("Invitation Journey", () => {
 /**
  * E2E Journey: Invite Deep Link
  *
- * Tests the SMS deep link invite flow: /invite/:invitationId
+ * Tests the SMS deep link invite flow: /invite?id=:invitationId
  * - Unauthenticated user sees preview, completes login, lands on trip
  * - Authenticated user auto-accepts and redirects to trip
  * - Re-click on accepted invitation redirects to trip
@@ -751,7 +751,7 @@ test.describe("Invite Deep Link Journey", () => {
       const invitationId = (inviteResult.invitations[0] as { id: string }).id;
 
       await test.step("preview card shows trip info", async () => {
-        await page.goto(`/invite/${invitationId}`);
+        await page.goto(`/invite?id=${invitationId}`);
 
         // Assert preview card content
         await expect(
@@ -813,11 +813,11 @@ test.describe("Invite Deep Link Journey", () => {
       });
 
       await test.step("lands on trip page as member", async () => {
-        // Should redirect to /trips/:tripId (not /trips)
-        await page.waitForURL(`**/trips/${tripId}`, {
+        // Should redirect to /trips?id={tripId} (not /trips)
+        await page.waitForURL(`**/trips?id=${tripId}`, {
           timeout: NAVIGATION_TIMEOUT,
         });
-        expect(page.url()).toContain(`/trips/${tripId}`);
+        expect(page.url()).toContain(`/trips?id=${tripId}`);
 
         // Trip name should be visible on the trip page
         await expect(
@@ -873,13 +873,13 @@ test.describe("Invite Deep Link Journey", () => {
       const invitationId = (inviteResult.invitations[0] as { id: string }).id;
 
       await test.step("invite link auto-accepts and redirects to trip", async () => {
-        await page.goto(`/invite/${invitationId}`);
+        await page.goto(`/invite?id=${invitationId}`);
 
-        // Should redirect to /trips/:tripId
-        await page.waitForURL(`**/trips/${tripId}`, {
+        // Should redirect to /trips?id={tripId}
+        await page.waitForURL(`**/trips?id=${tripId}`, {
           timeout: NAVIGATION_TIMEOUT,
         });
-        expect(page.url()).toContain(`/trips/${tripId}`);
+        expect(page.url()).toContain(`/trips?id=${tripId}`);
 
         // Trip name should be visible
         await expect(
@@ -943,13 +943,13 @@ test.describe("Invite Deep Link Journey", () => {
       ]);
 
       await test.step("re-clicking accepted invite redirects to trip", async () => {
-        await page.goto(`/invite/${invitationId}`);
+        await page.goto(`/invite?id=${invitationId}`);
 
-        // Should redirect to /trips/:tripId (not show "no longer available")
-        await page.waitForURL(`**/trips/${tripId}`, {
+        // Should redirect to /trips?id={tripId} (not show "no longer available")
+        await page.waitForURL(`**/trips?id=${tripId}`, {
           timeout: NAVIGATION_TIMEOUT,
         });
-        expect(page.url()).toContain(`/trips/${tripId}`);
+        expect(page.url()).toContain(`/trips?id=${tripId}`);
 
         await snap(page, "33-invite-deep-link-reclick-redirect");
       });
@@ -960,7 +960,7 @@ test.describe("Invite Deep Link Journey", () => {
     "invalid invitation shows fallback",
     { tag: "@regression" },
     async ({ page }) => {
-      await page.goto("/invite/00000000-0000-0000-0000-000000000000");
+      await page.goto("/invite?id=00000000-0000-0000-0000-000000000000");
 
       await expect(
         page.getByRole("heading", { name: "Invitation unavailable" }),

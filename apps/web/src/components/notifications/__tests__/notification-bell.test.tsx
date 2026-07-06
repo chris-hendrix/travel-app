@@ -294,7 +294,7 @@ describe("NotificationBell", () => {
     await user.click(screen.getByText("Trip Updated"));
 
     expect(mockMarkAsRead).toHaveBeenCalledWith("notif-abc");
-    expect(mockPush).toHaveBeenCalledWith("/trips/trip-xyz");
+    expect(mockPush).toHaveBeenCalledWith("/trips?id=trip-xyz");
   });
 
   it("navigates to discussion hash for trip_message notifications", async () => {
@@ -329,7 +329,7 @@ describe("NotificationBell", () => {
 
     await user.click(screen.getByText("Trip Updated"));
 
-    expect(mockPush).toHaveBeenCalledWith("/trips/trip-abc#discussion");
+    expect(mockPush).toHaveBeenCalledWith("/trips?id=trip-abc&tab=messages#discussion");
   });
 
   it("does not call markAsRead for already-read notifications", async () => {
@@ -363,7 +363,7 @@ describe("NotificationBell", () => {
     await user.click(screen.getByText("Trip Updated"));
 
     expect(mockMarkAsRead).not.toHaveBeenCalled();
-    expect(mockPush).toHaveBeenCalledWith("/trips/trip-xyz");
+    expect(mockPush).toHaveBeenCalledWith("/trips?id=trip-xyz");
   });
 
   it('does not show "Mark all as read" when all notifications are read', async () => {

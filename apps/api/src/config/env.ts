@@ -92,6 +92,9 @@ const envSchema = z.object({
   VAPID_PRIVATE_KEY: z.string().default(""),
   VAPID_SUBJECT: z.string().default("mailto:hello@journiful.app"),
 
+  // Firebase Admin SDK for FCM push delivery (optional — JSON service account)
+  FIREBASE_SERVICE_ACCOUNT: z.string().default(""),
+
   // AeroDataBox Flight Lookup (optional)
   AERODATABOX_API_KEY: z.string().default(""),
 

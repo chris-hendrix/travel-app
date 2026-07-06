@@ -664,6 +664,11 @@ export const pushSubscriptions = pgTable(
     endpoint: text("endpoint").notNull().unique(),
     p256dh: text("p256dh").notNull(),
     auth: text("auth").notNull(),
+    token: text("token"),
+    platform: text("platform", { enum: ["ios", "android", "web"] }),
+    provider: text("provider", { enum: ["vapid", "fcm"] })
+      .notNull()
+      .default("vapid"),
     userAgent: text("user_agent"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

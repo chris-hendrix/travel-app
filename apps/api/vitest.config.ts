@@ -26,6 +26,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      "firebase-admin": path.resolve(__dirname, "./tests/mocks/firebase-admin.ts"),
       "@": path.resolve(__dirname, "./src"),
       "@shared/types": path.resolve(__dirname, "../../shared/types"),
       "@shared/schemas": path.resolve(__dirname, "../../shared/schemas"),

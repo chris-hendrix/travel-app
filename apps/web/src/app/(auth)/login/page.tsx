@@ -1,12 +1,13 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter, useSearchParams } from "next/navigation";
 import { requestCodeSchema, type RequestCodeInput } from "@journiful/shared";
 import { useAuth } from "@/app/providers/auth-provider";
 import Link from "next/link";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PhoneInput } from "@/components/ui/phone-input";
@@ -27,9 +28,10 @@ function LoginPageContent() {
   const redirect = searchParams.get("redirect");
   const phoneHint = searchParams.get("phone");
   const safeRedirect = redirect?.startsWith("/") ? redirect : null;
-  const { login } = useAuth();
+  const { user, loading: authLoading, login } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // useForm must run before any early returns so hook count stays stable
   const form = useForm<RequestCodeInput>({
     resolver: zodResolver(requestCodeSchema),
     defaultValues: {
@@ -37,6 +39,25 @@ function LoginPageContent() {
       smsConsent: false,
     },
   });
+
+  // Redirect authenticated users (handles app restart with persisted token)
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace(safeRedirect || "/trips");
+    }
+  }, [user, authLoading, router, safeRedirect]);
+
+  // Show loading spinner during auth check
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="text-muted-foreground size-8 animate-spin" />
+      </div>
+    );
+  }
+
+  // Don't render form while redirecting
+  if (user) return null;
 
   async function onSubmit(data: RequestCodeInput) {
     try {

@@ -73,16 +73,26 @@ export interface UpdateNotificationPreferencesResponse {
 }
 
 /**
- * Input for subscribing to push notifications
+ * Input for subscribing to push notifications.
+ * Supports both VAPID (Web) and FCM (Android/iOS) formats.
  */
-export interface PushSubscriptionInput {
-  endpoint: string;
-  keys: {
-    p256dh: string;
-    auth: string;
-  };
-  userAgent?: string;
-}
+export type PushSubscriptionInput =
+  | {
+      endpoint: string;
+      keys: {
+        p256dh: string;
+        auth: string;
+      };
+      provider?: "vapid";
+      platform?: "web";
+      userAgent?: string;
+    }
+  | {
+      token: string;
+      provider: "fcm";
+      platform: "android" | "ios";
+      userAgent?: string;
+    };
 
 /**
  * Payload sent to the push service worker

@@ -3,10 +3,13 @@ import {
   users,
   members,
   invitations,
+  pushSubscriptions,
   type User,
   type NewUser,
   type Invitation,
   type NewInvitation,
+  type PushSubscription,
+  type NewPushSubscription,
 } from "@/db/schema/index.js";
 import { getTableName, getTableColumns } from "drizzle-orm";
 
@@ -100,6 +103,63 @@ describe("Database Schema", () => {
     it("should have type exports", () => {
       const selectType: Invitation = {} as Invitation;
       const insertType: NewInvitation = {} as NewInvitation;
+
+      expect(selectType).toBeDefined();
+      expect(insertType).toBeDefined();
+    });
+  });
+
+  describe("PushSubscriptions Table", () => {
+    it("should have correct table name", () => {
+      expect(getTableName(pushSubscriptions)).toBe("push_subscriptions");
+    });
+
+    it("should have existing VAPID columns", () => {
+      const columns = getTableColumns(pushSubscriptions);
+      expect(columns.id).toBeDefined();
+      expect(columns.userId).toBeDefined();
+      expect(columns.endpoint).toBeDefined();
+      expect(columns.p256dh).toBeDefined();
+      expect(columns.auth).toBeDefined();
+      expect(columns.userAgent).toBeDefined();
+      expect(columns.createdAt).toBeDefined();
+    });
+
+    it("should have required constraints on VAPID columns", () => {
+      const columns = getTableColumns(pushSubscriptions);
+      expect(columns.endpoint.notNull).toBe(true);
+      expect(columns.p256dh.notNull).toBe(true);
+      expect(columns.auth.notNull).toBe(true);
+    });
+
+    it("should have FCM token column (nullable)", () => {
+      const columns = getTableColumns(pushSubscriptions);
+      expect(columns.token).toBeDefined();
+      expect(columns.token.dataType).toBe("string");
+      expect(columns.token.notNull).toBe(false);
+      expect(columns.token.default).toBeUndefined();
+    });
+
+    it("should have platform column (nullable, enum values)", () => {
+      const columns = getTableColumns(pushSubscriptions);
+      expect(columns.platform).toBeDefined();
+      expect(columns.platform.dataType).toBe("string");
+      expect(columns.platform.notNull).toBe(false);
+    });
+
+    it("should have provider column (nullable, defaults to 'vapid')", () => {
+      const columns = getTableColumns(pushSubscriptions);
+      expect(columns.provider).toBeDefined();
+      expect(columns.provider.dataType).toBe("string");
+      expect(columns.provider.notNull).toBe(true);
+      expect(columns.provider.default).toBeDefined();
+      // The default value is stored as a SQL expression or string
+      expect(columns.provider.default).toBe("vapid");
+    });
+
+    it("should have type exports", () => {
+      const selectType: PushSubscription = {} as PushSubscription;
+      const insertType: NewPushSubscription = {} as NewPushSubscription;
 
       expect(selectType).toBeDefined();
       expect(insertType).toBeDefined();

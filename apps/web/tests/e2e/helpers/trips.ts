@@ -32,11 +32,11 @@ export async function createTrip(
   await pickDate(page, tripDetail.endDateButton, endDate);
   await tripDetail.continueButton.click();
   await expect(tripDetail.step2Indicator).toBeVisible();
-  await tripDetail.createTripButton.click();
+  await tripDetail.createTripButton.click({ noWaitAfter: true });
   // Step 3: timezone confirmation — click "Go to trip" to complete navigation
   await expect(tripDetail.goToTripButton).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
   await tripDetail.goToTripButton.click();
-  await page.waitForURL("**/trips/**");
+  await page.waitForURL("**/trips?id=**");
   await expect(
     page.getByRole("heading", { level: 1, name: tripName }),
   ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });

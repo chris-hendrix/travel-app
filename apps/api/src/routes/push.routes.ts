@@ -51,12 +51,29 @@ export async function pushRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       const userId = request.user.sub;
-      const { endpoint, keys, userAgent } = request.body;
-      await fastify.pushService.addSubscription(
-        userId,
-        { endpoint, keys },
-        userAgent,
-      );
+      const body = request.body;
+      if (body.provider === "fcm") {
+        await fastify.pushService.addSubscription(
+          userId,
+          {
+            token: body.token,
+            platform: body.platform,
+            provider: "fcm",
+          },
+          body.userAgent,
+        );
+      } else {
+        await fastify.pushService.addSubscription(
+          userId,
+          {
+            endpoint: body.endpoint,
+            keys: body.keys,
+            platform: body.platform,
+            provider: "vapid",
+          },
+          body.userAgent,
+        );
+      }
       return reply.status(201).send({ success: true });
     },
   );
@@ -74,7 +91,9 @@ export async function pushRoutes(fastify: FastifyInstance) {
       preHandler: [fastify.rateLimit(writeRateLimitConfig), authenticate, checkBanned],
     },
     async (request) => {
-      const { endpoint } = request.body;
+      const body = request.body;
+      const endpoint =
+        body.provider === "fcm" ? `fcm:${body.token}` : body.endpoint;
       await fastify.pushService.removeSubscription(endpoint, request.user.sub);
       return { success: true };
     },

@@ -68,6 +68,9 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 
+# Dev planning artifacts (local only)
+.thoughts/
+
 # Misc
 *.pem
 .cache/
@@ -77,3 +80,6 @@ tmp/
 
 # Uploads
 apps/api/uploads/
+
+# Added by ggshield
+.cache_ggshield

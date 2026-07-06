@@ -79,27 +79,39 @@ const withPWA = withPWAInit({
   },
 });
 
-const nextConfig: NextConfig = {
-  output: "standalone",
-  transpilePackages: ["@journiful/shared"],
-  reactStrictMode: true,
-  turbopack: {},
-  experimental: {
-    viewTransition: true,
-    optimizePackageImports: ["lucide-react", "date-fns"],
-  },
-  images: {
-    remotePatterns: [
-      {
-        protocol: protocol.replace(":", "") as "http" | "https",
-        hostname,
-        ...(port ? { port } : {}),
-        pathname: "/uploads/**",
-      },
-    ],
-    // Allow localhost/private IPs in dev (Next.js blocks them by default)
-    dangerouslyAllowLocalIP: isDev,
-  },
-};
+export function createNextConfig(
+  env: Record<string, string | undefined>,
+): NextConfig {
+  const isExportMode = env.NEXT_EXPORT === "true";
+
+  return {
+    output: isExportMode ? "export" : "standalone",
+    ...(isExportMode && { assetPrefix: "" }),
+    transpilePackages: ["@journiful/shared"],
+    reactStrictMode: true,
+    turbopack: {},
+
+    experimental: {
+      viewTransition: true,
+      optimizePackageImports: ["lucide-react", "date-fns"],
+    },
+    images: isExportMode
+      ? { unoptimized: true }
+      : {
+          remotePatterns: [
+            {
+              protocol: protocol.replace(":", "") as "http" | "https",
+              hostname,
+              ...(port ? { port } : {}),
+              pathname: "/uploads/**",
+            },
+          ],
+          // Allow localhost/private IPs in dev (Next.js blocks them by default)
+          dangerouslyAllowLocalIP: isDev,
+        },
+  };
+}
+
+const nextConfig: NextConfig = createNextConfig(process.env);
 
 export default withPWA(nextConfig);

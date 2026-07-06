@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Build the Next.js app for Capacitor static export
+# Sets NEXT_EXPORT=true to produce out/ directory
+
+echo "Building Journiful for mobile (static export)..."
+export NEXT_EXPORT=true
+cd "$(dirname "$0")/.."
+
+if [ -z "${NEXT_PUBLIC_API_URL:-}" ]; then
+  echo "⚠️  NEXT_PUBLIC_API_URL is not set — API calls will use default (likely localhost)."
+  echo "   For distribution builds, set: NEXT_PUBLIC_API_URL=https://api.journiful.app/api"
+fi
+
+npx next build --webpack
+
+# Fix absolute asset paths for Capacitor file:// compatibility
+bash "$(dirname "$0")/fix-asset-paths.sh"
+
+echo ""
+echo "Static export complete: out/index.html"
+ls -lh out/index.html

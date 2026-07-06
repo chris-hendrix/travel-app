@@ -61,7 +61,7 @@ export function TripPreview({
   };
 
   return (
-    <div className="min-h-screen bg-background pb-safe">
+    <div className="min-h-[calc(100dvh-3.5rem-env(safe-area-inset-top))] bg-background pb-safe">
       {/* Hero — shorter on mobile to keep CTA visible above the fold */}
       {trip.coverImageUrl ? (
         <div className="relative h-48 sm:h-72 overflow-hidden">
