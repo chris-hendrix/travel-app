@@ -258,7 +258,7 @@ describe("Push Routes", () => {
         method: "DELETE",
         url: "/api/push/subscribe",
         cookies: { auth_token: token },
-        payload: { endpoint },
+        payload: { provider: "vapid", endpoint },
       });
 
       expect(response.statusCode).toBe(200);
