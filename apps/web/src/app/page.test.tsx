@@ -1,66 +1,29 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import { render } from "@testing-library/react";
 
-// Mock next/headers
-const mockGet = vi.fn();
-vi.mock("next/headers", () => ({
-  cookies: vi.fn(async () => ({
-    get: mockGet,
-  })),
+// Mock HomePageClient — it uses useAuth() which needs AuthProvider context;
+// we unit-test page.tsx's responsibility: rendering the script + delegate component.
+vi.mock("./home-page-client", () => ({
+  HomePageClient: () => <div data-testid="home-page-client">HomePageClient</div>,
 }));
 
-// Mock next/navigation
-const mockRedirect = vi.fn();
-vi.mock("next/navigation", () => ({
-  redirect: (url: string) => {
-    mockRedirect(url);
-    throw new Error("NEXT_REDIRECT");
-  },
-}));
-
-// Import AFTER mocks
 import Home from "./page";
 
 describe("Home (landing page)", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  it("renders the Capacitor native redirect script", () => {
+    const { container } = render(<Home />);
+    const script = container.querySelector("script");
+    expect(script).toBeTruthy();
+    expect(script?.innerHTML).toContain("location.replace('/login.html')");
   });
 
-  it("redirects to /login when auth_token cookie exists", async () => {
-    mockGet.mockReturnValue({ name: "auth_token", value: "some-token" });
-
-    await expect(Home()).rejects.toThrow("NEXT_REDIRECT");
-
-    expect(mockRedirect).toHaveBeenCalledWith("/login");
+  it("renders HomePageClient", () => {
+    const { getByTestId } = render(<Home />);
+    expect(getByTestId("home-page-client")).toBeTruthy();
   });
 
-  it("renders landing page when auth_token cookie is missing", async () => {
-    mockGet.mockReturnValue(undefined);
-
-    const result = await Home();
-
-    render(result as React.ReactElement);
-    expect(screen.getByText("Plan Group Trips Together")).toBeDefined();
-    expect(screen.getByText("Get started")).toBeDefined();
-    expect(mockRedirect).not.toHaveBeenCalled();
-  });
-
-  it("renders landing page when auth_token cookie has empty value", async () => {
-    mockGet.mockReturnValue({ name: "auth_token", value: "" });
-
-    const result = await Home();
-
-    render(result as React.ReactElement);
-    expect(screen.getByText("Plan Group Trips Together")).toBeDefined();
-    expect(screen.getByText("Get started")).toBeDefined();
-    expect(mockRedirect).not.toHaveBeenCalled();
-  });
-
-  it("checks the correct cookie name", async () => {
-    mockGet.mockReturnValue(undefined);
-
-    await Home();
-
-    expect(mockGet).toHaveBeenCalledWith("auth_token");
+  it("does NOT call cookies() or redirect() — auth is handled client-side", () => {
+    // Home() is a sync component. It should not throw.
+    expect(() => render(<Home />)).not.toThrow();
   });
 });

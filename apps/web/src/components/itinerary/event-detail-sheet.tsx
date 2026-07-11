@@ -6,10 +6,8 @@ import {
   XIcon,
   MapPin,
   ExternalLink,
-  Loader2,
 } from "lucide-react";
 import { VisuallyHidden } from "radix-ui";
-import { toast } from "sonner";
 import type { Event } from "@journiful/shared/types";
 import {
   Sheet,
@@ -18,19 +16,7 @@ import {
   SheetContent,
   SheetTitle,
 } from "@/components/ui/sheet";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { useDeleteEvent, getDeleteEventErrorMessage } from "@/hooks/use-events";
 import { cn } from "@/lib/utils";
 import {
   formatInTimezone,
@@ -47,6 +33,7 @@ interface EventDetailSheetProps {
   canEdit: boolean;
   canDelete: boolean;
   onEdit: (event: Event) => void;
+  onDelete?: (event: Event) => void;
   createdByName?: string | undefined;
 }
 
@@ -58,24 +45,9 @@ export function EventDetailSheet({
   canEdit,
   canDelete,
   onEdit,
+  onDelete,
   createdByName,
 }: EventDetailSheetProps) {
-  const { mutate: deleteEvent, isPending: isDeleting } = useDeleteEvent();
-
-  const handleDelete = () => {
-    if (!event) return;
-    deleteEvent(event.id, {
-      onSuccess: () => {
-        onOpenChange(false);
-      },
-      onError: (error) => {
-        toast.error(
-          getDeleteEventErrorMessage(error) ?? "Failed to delete event",
-        );
-      },
-    });
-  };
-
   const config = event ? EVENT_TYPE_CONFIG[event.eventType] : null;
 
   return (
@@ -107,40 +79,13 @@ export function EventDetailSheet({
             </button>
           )}
           {canDelete && event && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <button
-                  className="rounded-md p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
-                  title="Delete"
-                  disabled={isDeleting}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will delete the event. Organizers can restore it later.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel disabled={isDeleting}>
-                    Cancel
-                  </AlertDialogCancel>
-                  <AlertDialogAction
-                    variant="destructive"
-                    onClick={handleDelete}
-                    disabled={isDeleting}
-                  >
-                    {isDeleting && (
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    )}
-                    {isDeleting ? "Deleting..." : "Yes, delete"}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            <button
+              className="rounded-md p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+              title="Delete"
+              onClick={() => onDelete?.(event)}
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
           )}
           <SheetClose className="rounded-md p-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer">
             <XIcon className="w-4 h-4" />

@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Loader2 } from "lucide-react";
 import type { Event } from "@journiful/shared/types";
-import { useEvents } from "@/hooks/use-events";
+import { useEvents, useDeleteEvent, getDeleteEventErrorMessage } from "@/hooks/use-events";
 import { useAuth } from "@/app/providers/auth-provider";
 import { getDayInTimezone, formatInTimezone, utcToLocalParts } from "@/lib/utils/timezone";
 import { EVENT_TYPE_CONFIG } from "@/components/itinerary/event-card";
@@ -10,6 +11,17 @@ import { EventDetailSheet } from "@/components/itinerary/event-detail-sheet";
 import { EditEventDialog } from "@/components/itinerary/edit-event-dialog";
 import { canModifyEvent } from "@/components/itinerary/utils/permissions";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface TodaySectionProps {
   tripId: string;
@@ -92,6 +104,25 @@ export function TodaySection({
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
 
+  // Delete confirmation state
+  const [deleteTargetEvent, setDeleteTargetEvent] = useState<Event | null>(null);
+  const { mutate: deleteEvent, isPending: isDeleting } = useDeleteEvent();
+
+  const handleDeleteConfirm = () => {
+    if (!deleteTargetEvent) return;
+    deleteEvent(deleteTargetEvent.id, {
+      onSuccess: () => {
+        setSelectedEvent(null);
+        setDeleteTargetEvent(null);
+      },
+      onError: (error) => {
+        toast.error(
+          getDeleteEventErrorMessage(error) ?? "Failed to delete event",
+        );
+      },
+    });
+  };
+
   const isLoading = eventsLoading;
   const isEmpty = !isLoading && sortedEvents.length === 0;
 
@@ -168,7 +199,42 @@ export function TodaySection({
           setSelectedEvent(null);
           setEditingEvent(event);
         }}
+        onDelete={(event) => {
+          setDeleteTargetEvent(event);
+        }}
       />
+
+      {/* Delete event confirmation dialog */}
+      <AlertDialog
+        open={!!deleteTargetEvent}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTargetEvent(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will delete the event. Organizers can restore it later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+            >
+              {isDeleting && (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              )}
+              {isDeleting ? "Deleting..." : "Yes, delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Edit event dialog */}
       {editingEvent && (

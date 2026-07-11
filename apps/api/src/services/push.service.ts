@@ -1,5 +1,6 @@
 import webpush from "web-push";
-import admin from "firebase-admin";
+import admin, { type App } from "firebase-admin";
+import { getMessaging } from "firebase-admin/messaging";
 import { and, eq } from "drizzle-orm";
 import { pushSubscriptions } from "@/db/schema/index.js";
 import type { AppDatabase } from "@/types/index.js";
@@ -31,7 +32,7 @@ export interface IPushService {
 
 export class PushService implements IPushService {
   private enabled: boolean;
-  private admin: admin.app.App | null = null;
+  private admin: App | null = null;
 
   constructor(
     private db: AppDatabase,
@@ -59,7 +60,7 @@ export class PushService implements IPushService {
       try {
         const serviceAccount = JSON.parse(firebaseServiceAccount);
         this.admin = admin.initializeApp({
-          credential: admin.credential.cert(serviceAccount),
+          credential: admin.cert(serviceAccount),
         }, "push-service");
         this.logger.info("Firebase Admin initialized for FCM push delivery");
       } catch (err) {
@@ -173,7 +174,7 @@ export class PushService implements IPushService {
     for (const sub of fcmSubs) {
       if (this.admin) {
         try {
-          await this.admin.messaging().send({
+          await getMessaging(this.admin).send({
             token: sub.token!,
             notification: {
               title: payload.title,

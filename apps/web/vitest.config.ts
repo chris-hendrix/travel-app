@@ -14,6 +14,7 @@ export default defineConfig({
       "**/dist/**",
       "**/tests/e2e/**", // Exclude E2E tests from Vitest (run with Playwright instead)
       "**/tests/mobile/**", // Exclude mobile tests from Vitest (run with Playwright Android instead)
+      "**/tests/static-export/**", // Exclude static export smoke tests from Vitest (run with Playwright instead)
       "**/.{idea,git,cache,output,temp}/**",
     ],
   },
