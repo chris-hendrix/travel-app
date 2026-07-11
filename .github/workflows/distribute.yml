@@ -101,7 +101,13 @@ jobs:
         run: echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > /tmp/google-services.json
 
       - name: Extract Firebase App ID
-        run: echo "FIREBASE_APP_ID=$(jq -r '.client[0].client_info.mobilesdk_app_id' /tmp/google-services.json)" >> $GITHUB_ENV
+        run: |
+          FIREBASE_APP_ID="$(jq -r '.client[0].client_info.mobilesdk_app_id' /tmp/google-services.json)"
+          if [ -z "$FIREBASE_APP_ID" ]; then
+            echo "ERROR: Could not extract mobilesdk_app_id from google-services.json" >&2
+            exit 1
+          fi
+          echo "FIREBASE_APP_ID=$FIREBASE_APP_ID" >> $GITHUB_ENV
 
       - name: Write service account credentials
         run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > /tmp/firebase-sa.json
@@ -111,17 +117,18 @@ jobs:
 
       - name: Distribute to Firebase
         run: |
-          TESTERS_FLAG=""
-          if [ -n "${{ secrets.FIREBASE_APP_DISTRIBUTION_TESTERS }}" ]; then
-            TESTERS_FLAG="--testers '${{ secrets.FIREBASE_APP_DISTRIBUTION_TESTERS }}'"
+          ARGS=()
+          if [ -n "$FIREBASE_TESTERS" ]; then
+            ARGS+=(--testers "$FIREBASE_TESTERS")
           fi
           firebase appdistribution:distribute \
             apps/web/android/app/build/outputs/apk/debug/app-debug.apk \
             --app "$FIREBASE_APP_ID" \
             --release-notes-file /tmp/release-notes.txt \
-            $TESTERS_FLAG
+            "${ARGS[@]}"
         env:
           GOOGLE_APPLICATION_CREDENTIALS: /tmp/firebase-sa.json
+          FIREBASE_TESTERS: ${{ secrets.FIREBASE_APP_DISTRIBUTION_TESTERS }}
 
       - name: Cleanup temp files
         if: always()
