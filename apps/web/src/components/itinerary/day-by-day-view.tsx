@@ -21,7 +21,7 @@ import {
   utcToLocalParts,
 } from "@/lib/utils/timezone";
 import { cn } from "@/lib/utils";
-import { CalendarOff } from "lucide-react";
+import { CalendarOff, Loader2 } from "lucide-react";
 import {
   canModifyEvent,
   canModifyMemberTravel,
@@ -32,6 +32,18 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import { useDeleteEvent, getDeleteEventErrorMessage } from "@/hooks/use-events";
 
 interface DayByDayViewProps {
   events: Event[];
@@ -256,6 +268,25 @@ export function DayByDayView({
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [editingMemberTravel, setEditingMemberTravel] =
     useState<MemberTravel | null>(null);
+
+  // Delete confirmation state
+  const [deleteTargetEvent, setDeleteTargetEvent] = useState<Event | null>(null);
+  const { mutate: deleteEvent, isPending: isDeleting } = useDeleteEvent();
+
+  const handleDeleteConfirm = () => {
+    if (!deleteTargetEvent) return;
+    deleteEvent(deleteTargetEvent.id, {
+      onSuccess: () => {
+        setSelectedEvent(null);
+        setDeleteTargetEvent(null);
+      },
+      onError: (error) => {
+        toast.error(
+          getDeleteEventErrorMessage(error) ?? "Failed to delete event",
+        );
+      },
+    });
+  };
 
   return (
     <div>
@@ -505,10 +536,45 @@ export function DayByDayView({
           setSelectedEvent(null);
           setEditingEvent(event);
         }}
+        onDelete={(event) => {
+          setDeleteTargetEvent(event);
+        }}
         createdByName={
           selectedEvent ? userNameMap.get(selectedEvent.createdBy) : undefined
         }
       />
+
+      {/* Delete event confirmation dialog */}
+      <AlertDialog
+        open={!!deleteTargetEvent}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTargetEvent(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will delete the event. Organizers can restore it later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+            >
+              {isDeleting && (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              )}
+              {isDeleting ? "Deleting..." : "Yes, delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <MemberTravelDetailSheet
         memberTravel={selectedMemberTravel}

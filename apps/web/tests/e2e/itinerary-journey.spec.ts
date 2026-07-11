@@ -201,6 +201,11 @@ test.describe("Itinerary Journey", () => {
         );
         // Close detail sheet
         await page.keyboard.press("Escape");
+        // Wait for sheet to fully close before next interaction (radix-ui 1.6.x timing fix)
+        await expect(page.locator('[data-slot="sheet-content"]')).not.toBeVisible({
+          timeout: 5000,
+        });
+        await page.waitForTimeout(200);
       });
 
       await test.step("delete event with cancel then confirm", async () => {

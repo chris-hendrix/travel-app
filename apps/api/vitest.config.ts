@@ -23,14 +23,43 @@ export default defineConfig({
     sequence: {
       concurrent: false, // Run tests within each file sequentially
     },
+    // Aliases checked by vitest during test module resolution
+    alias: {
+      "firebase-admin/messaging": path.resolve(__dirname, "./tests/mocks/firebase-admin.ts"),
+    },
   },
   resolve: {
-    alias: {
-      "firebase-admin": path.resolve(__dirname, "./tests/mocks/firebase-admin.ts"),
-      "@": path.resolve(__dirname, "./src"),
-      "@shared/types": path.resolve(__dirname, "../../shared/types"),
-      "@shared/schemas": path.resolve(__dirname, "../../shared/schemas"),
-      "@shared/utils": path.resolve(__dirname, "../../shared/utils"),
-    },
+    alias: [
+      {
+        // Exact match to avoid prefix-matching firebase-admin/messaging
+        find: /^firebase-admin$/,
+        replacement: path.resolve(__dirname, "./tests/mocks/firebase-admin.ts"),
+      },
+      {
+        find: "firebase-admin/messaging",
+        replacement: path.resolve(__dirname, "./tests/mocks/firebase-admin.ts"),
+      },
+      {
+        find: "@",
+        replacement: path.resolve(__dirname, "./src"),
+      },
+      {
+        find: "@shared/types",
+        replacement: path.resolve(__dirname, "../../shared/types"),
+      },
+      {
+        find: "@shared/schemas",
+        replacement: path.resolve(__dirname, "../../shared/schemas"),
+      },
+      {
+        find: "@shared/utils",
+        replacement: path.resolve(__dirname, "../../shared/utils"),
+      },
+    ],
+  },
+  // Ensure firebase-admin is processed inline (not externalized) so resolve.alias
+  // can intercept both the main package and subpath imports like firebase-admin/messaging.
+  ssr: {
+    noExternal: ["firebase-admin"],
   },
 });

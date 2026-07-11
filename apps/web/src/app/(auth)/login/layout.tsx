@@ -18,13 +18,15 @@ export default async function LoginLayout({
   children: ReactNode;
 }) {
   if (process.env.NEXT_EXPORT !== "true") {
+    let authToken: string | undefined;
     try {
       const cookieStore = await cookies();
-      if (cookieStore.get("auth_token")?.value) {
-        redirect("/trips");
-      }
+      authToken = cookieStore.get("auth_token")?.value;
     } catch {
       // cookies() unavailable during export
+    }
+    if (authToken) {
+      redirect("/trips");
     }
   }
 

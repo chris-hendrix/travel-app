@@ -43,7 +43,7 @@ describe("registerForPush", () => {
         if (event === "registration") {
           setTimeout(() => callback({ value: "fcm-token-123" }), 0);
         }
-        return { remove: vi.fn() } as any;
+        return Promise.resolve({ remove: vi.fn() }) as any;
       }) as any
     );
 
