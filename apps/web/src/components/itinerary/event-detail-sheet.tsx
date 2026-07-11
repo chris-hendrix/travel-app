@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   Pencil,
   Trash2,
@@ -49,9 +50,20 @@ export function EventDetailSheet({
   createdByName,
 }: EventDetailSheetProps) {
   const config = event ? EVENT_TYPE_CONFIG[event.eventType] : null;
+  const [openCount, setOpenCount] = useState(0);
+
+  // Force remount when the sheet re-opens (radix-ui 1.6.x Dialog regression:
+  // the sheet won't reopen after closing via Escape without a remount).
+  useEffect(() => {
+    if (open) setOpenCount((c) => c + 1);
+  }, [open]);
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet
+      key={`event-sheet-${event?.id ?? "empty"}-${openCount}`}
+      open={open}
+      onOpenChange={onOpenChange}
+    >
       <SheetContent showCloseButton={false} className={cn(config?.bg)}>
         <VisuallyHidden.Root>
           <SheetTitle>Event details</SheetTitle>
