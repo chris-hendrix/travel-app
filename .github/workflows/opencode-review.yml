@@ -2,10 +2,12 @@ name: OpenCode PR Review
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, ready_for_review]
+  issue_comment:
+    types: [created]
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -17,13 +19,28 @@ env:
 
 jobs:
   review:
-    if: github.event.pull_request.draft == false
+    if: |
+      (github.event_name == 'pull_request' && github.event.pull_request.draft == false) ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request != null && startsWith(github.event.comment.body, '/review'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
           fetch-depth: 0
+
+      - name: Determine PR number
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "issue_comment" ]; then
+            echo "PR_NUMBER=${{ github.event.issue.number }}" >> $GITHUB_ENV
+            echo "BASE_REF=$(gh pr view ${{ github.event.issue.number }} --json baseRefName --jq '.baseRefName')" >> $GITHUB_ENV
+          else
+            echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+            echo "BASE_REF=${{ github.event.pull_request.base.ref }}" >> $GITHUB_ENV
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Install opencode
         shell: bash
@@ -36,7 +53,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          STICKY_ID=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+          STICKY_ID=$(gh api "repos/${{ github.repository }}/issues/${{ env.PR_NUMBER }}/comments" \
             --jq 'map(select(.body | contains("<!-- opencode-review-marker -->"))) | last | .id')
 
           REVIEW_NUM=1
@@ -62,7 +79,7 @@ jobs:
           if [ -n "$STICKY_ID" ]; then
             gh api "repos/${{ github.repository }}/issues/comments/$STICKY_ID" --method PATCH -f body="$BODY"
           else
-            gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" --method POST -f body="$BODY"
+            gh api "repos/${{ github.repository }}/issues/${{ env.PR_NUMBER }}/comments" --method POST -f body="$BODY"
           fi
 
       - name: Run opencode review
@@ -83,8 +100,8 @@ jobs:
 
             Fetch the base branch and examine all changes:
             \`\`\`bash
-            git fetch origin \"${{ github.event.pull_request.base.ref }}\" --depth=50
-            git diff \"origin/${{ github.event.pull_request.base.ref }}...HEAD\"
+            git fetch origin \"${{ env.BASE_REF }}\" --depth=50
+            git diff \"origin/${{ env.BASE_REF }}...HEAD\"
             \`\`\`
 
             Focus on:
@@ -137,7 +154,7 @@ jobs:
 
           COMMIT=$(git rev-parse HEAD)
           REPO="${{ github.repository }}"
-          PR="${{ github.event.pull_request.number }}"
+          PR="$PR_NUMBER"
           REVIEW=$(cat /tmp/review-count 2>/dev/null || echo 1)
 
           PAYLOAD=$(jq -c --arg commit "$COMMIT" --arg repo "$REPO" --arg review "$REVIEW" '
@@ -208,7 +225,7 @@ jobs:
             DETAILS+="- ${EMOJI} **${TITLE}:** ${SUMMARY}"$'\n'
           done < <(jq -c '.[]' /tmp/review-comments.json 2>/dev/null)
 
-          STICKY_ID=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+          STICKY_ID=$(gh api "repos/${{ github.repository }}/issues/${{ env.PR_NUMBER }}/comments" \
             --jq 'map(select(.body | contains("<!-- opencode-review-marker -->"))) | last | .id')
 
           gh api "repos/${{ github.repository }}/issues/comments/$STICKY_ID" --method PATCH -f body="<!-- opencode-review-marker -->
