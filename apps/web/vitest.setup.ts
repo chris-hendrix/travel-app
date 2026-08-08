@@ -4,8 +4,11 @@ import { vi } from "vitest";
 global.ResizeObserver = class ResizeObserver {
   observe() {}
   unobserve() {}
-  disconnect() {}
+  disconnect() {};
 };
+
+// Polyfill scrollIntoView for jsdom (required by cmdk Command component)
+Element.prototype.scrollIntoView = vi.fn();
 
 // Polyfill matchMedia for jsdom (used by prefers-reduced-motion checks)
 Object.defineProperty(window, "matchMedia", {

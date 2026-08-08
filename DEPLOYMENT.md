@@ -65,6 +65,12 @@ The `build:web` script includes copying static assets into the Next.js standalon
 | `TWILIO_VERIFY_SERVICE_SID`      | `VAxxxxxxxxxx` |                                                          |
 | `ENABLE_FIXED_VERIFICATION_CODE` | `false`        | **Must be false in production** (server crashes if true) |
 
+#### Google Maps Platform
+
+| Variable              | Example | Notes                                                                     |
+| --------------------- | ------- | ------------------------------------------------------------------------- |
+| `GOOGLE_MAPS_API_KEY` | (secret) | Required for Discover POIs, location autocomplete, geocoding + timezone. Server-side only. |
+
 #### S3 Storage (Railway Storage Bucket)
 
 | Variable                | Notes                                     |

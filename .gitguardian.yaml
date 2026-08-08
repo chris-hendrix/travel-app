@@ -3,33 +3,36 @@
 
 version: 2
 
-paths-ignore:
-  # Test directories
-  - "**/tests/**"
-  - "**/test/**"
-  - "**/__tests__/**"
-  - "**/*.test.ts"
-  - "**/*.test.js"
-  - "**/*.spec.ts"
-  - "**/*.spec.js"
+secret:
+  ignored_paths:
+    # Test directories
+    - "**/tests/**"
+    - "**/test/**"
+    - "**/__tests__/**"
+    - "**/*.test.ts"
+    - "**/*.test.js"
+    - "**/*.spec.ts"
+    - "**/*.spec.js"
 
-  # Test setup scripts
-  - "**/scripts/setup-test-db.sh"
-  - "**/scripts/*-test-*.sh"
+    # Test setup scripts
+    - "**/scripts/setup-test-db.sh"
+    - "**/scripts/*-test-*.sh"
 
-  # CI/CD files with test credentials
-  - ".github/workflows/ci.yml"
-  - ".github/workflows/test*.yml"
+    # CI/CD files with test credentials
+    - ".github/workflows/ci.yml"
+    - ".github/workflows/test*.yml"
 
-  # Example and fixture files
-  - "**/*.example"
-  - "**/*.fixture.*"
-  - "**/fixtures/**"
-  - "**/examples/**"
+    # Example and fixture files
+    - "**/*.example"
+    - "**/*.fixture.*"
+    - "**/fixtures/**"
+    - "**/examples/**"
 
-# Allow specific patterns that are safe in test contexts
-matches-ignore:
-  - name: Test database credentials
-    match: journiful123
-  - name: Test JWT secrets
-    match: test-jwt-secret-minimum-32-characters-long-for-testing-purposes-only
+  ignored_matches:
+    # Allow specific patterns that are safe in test contexts
+    - name: Test database credentials
+      match: journiful123
+    - name: Test JWT secrets
+      match: test-jwt-secret-minimum-32-characters-long-for-testing-purposes-only
+    - name: Test session token UUID (false positive)
+      match: 550e8400-e29b-41d4-a716-446655440000

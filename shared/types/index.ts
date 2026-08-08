@@ -37,6 +37,14 @@ export interface ErrorResponse {
   details?: Record<string, unknown>;
 }
 
+/** Autocomplete suggestion (no coords — Place Details call required) */
+export interface AutocompleteSuggestion {
+  placeId: string;
+  shortName: string;
+  displayName: string;
+  displayAddress: string;
+}
+
 // Re-export user-related types
 export type { User, AuthResponse } from "./user";
 
@@ -188,4 +196,4 @@ export type { LinkItem } from "./link";
 
 // Re-export POI types
 export type { POICategoryKey, POISuggestion, POISuggestionsResponse, POICategoryConfig } from "./poi";
-export { POI_CATEGORIES } from "./poi";
+export { POI_CATEGORIES, googleTypeLabels } from "./poi";

@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 import { trips, poiCache } from "@/db/schema/index.js";
-import { POI_CATEGORIES } from "@journiful/shared/types";
+import { POI_CATEGORIES, googleTypeLabels } from "@journiful/shared/types";
 import type { POISuggestion, POICategoryKey, POISuggestionsResponse } from "@journiful/shared/types";
 import type { AppDatabase } from "@/types/index.js";
 import type { FastifyBaseLogger } from "fastify";
@@ -10,30 +10,32 @@ export interface IDiscoverService {
   convertPOI(tripId: string, sourceId: string, eventId: string): Promise<void>;
 }
 
-const FOURSQUARE_BASE = "https://places-api.foursquare.com/places/search";
-const FOURSQUARE_VERSION = "2025-06-17";
-const RADIUS = 50000;
-const LIMIT = 10;
+const GOOGLE_PLACES_BASE = "https://places.googleapis.com/v1/places:searchNearby";
+const GOOGLE_MAX_RESULTS = 20;
+const GOOGLE_RADIUS = 50000;
+const CACHE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days per Google ToS
 
-// Foursquare search response types
-type FsqPlace = {
-  fsq_place_id: string;
-  name: string;
-  latitude: number;
-  longitude: number;
-  distance: number;
-  website?: string;
-  tel?: string;
-  location: { formatted_address?: string };
-  categories: Array<{ name: string }>;
+// Generic Google types to filter before category matching
+const GENERIC_GOOGLE_TYPES = new Set([
+  "establishment", "point_of_interest", "food", "store",
+  "sublocality", "political", "geocode",
+]);
+
+type GooglePlace = {
+  id: string;
+  displayName: { text: string; languageCode: string };
+  formattedAddress: string;
+  location: { latitude: number; longitude: number };
+  types: string[];
+  attributions?: string[];
 };
 
-type FsqSearchResponse = { results: FsqPlace[]; context?: unknown };
+type GoogleSearchNearbyResponse = { places: GooglePlace[] };
 
 export class DiscoverService implements IDiscoverService {
   constructor(
     private readonly db: AppDatabase,
-    private readonly foursquareKey: string,
+    private readonly googleApiKey: string,
     private readonly log: FastifyBaseLogger,
   ) {}
 
@@ -80,7 +82,7 @@ export class DiscoverService implements IDiscoverService {
             },
             "Destination changed, refreshing POI cache",
           );
-          if (this.foursquareKey) {
+          if (this.googleApiKey) {
             return this.fetchAndCache(tripId, location, lat, lon);
           }
           this.log.warn(
@@ -91,13 +93,25 @@ export class DiscoverService implements IDiscoverService {
           return groupByCategory(unconverted, location);
         }
 
+        // 30-day TTL: if cache is too old, re-fetch per Google ToS
+        const cacheAge = Date.now() - row.cachedAt.getTime();
+        if (cacheAge > CACHE_MAX_AGE_MS) {
+          if (this.googleApiKey) {
+            return this.fetchAndCache(tripId, location, lat, lon);
+          }
+          this.log.warn(
+            { tripId, cacheAge },
+            "POI cache expired but no API key configured, serving stale",
+          );
+        }
+
         // Filter out converted POIs
         const unconverted = suggestions.filter((s) => s.eventId == null);
         return groupByCategory(unconverted, location);
       }
     }
 
-    // 4. Fetch from Foursquare
+    // 4. Fetch from Google Places
     return this.fetchAndCache(tripId, location, lat, lon);
   }
 
@@ -107,10 +121,10 @@ export class DiscoverService implements IDiscoverService {
     lat: number,
     lon: number,
   ): Promise<POISuggestionsResponse> {
-    // Guard: API key is required to call Foursquare
-    if (!this.foursquareKey) {
+    // Guard: API key is required to call Google Places
+    if (!this.googleApiKey) {
       throw new Error(
-        "Foursquare API key is not configured. Set FOURSQUARE_API_KEY environment variable.",
+        "Google API key is not configured. Set GOOGLE_MAPS_API_KEY environment variable.",
       );
     }
 
@@ -133,36 +147,58 @@ export class DiscoverService implements IDiscoverService {
       }
     }
 
-    // 4 parallel Foursquare calls
+    // 4 parallel Google Places searchNearby POST calls
+    const attributionSet = new Set<string>();
+
     const categoryResults = await Promise.all(
       POI_CATEGORIES.map(async (cat) => {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 5000);
         try {
+          const body = JSON.stringify({
+            locationRestriction: {
+              circle: {
+                center: { latitude: lat, longitude: lon },
+                radius: GOOGLE_RADIUS,
+              },
+            },
+            includedTypes: cat.googleTypes,
+            maxResultCount: GOOGLE_MAX_RESULTS,
+            rankPreference: "POPULARITY",
+          });
 
-          const allCategoryIds = [cat.parent, ...cat.subcategories].map((c) => c.fsqCategoryId).join(",");
-          const url = `${FOURSQUARE_BASE}?ll=${lat},${lon}&radius=${RADIUS}&fsq_category_ids=${allCategoryIds}&sort=POPULARITY&limit=${LIMIT}&exclude_all_chains=true`;
-          const resp = await fetch(url, {
+          const resp = await fetch(GOOGLE_PLACES_BASE, {
+            method: "POST",
             signal: controller.signal,
             headers: {
-              Authorization: `Bearer ${this.foursquareKey}`,
-              "X-Places-Api-Version": FOURSQUARE_VERSION,
-              Accept: "application/json",
+              "Content-Type": "application/json",
+              "X-Goog-Api-Key": this.googleApiKey,
+              "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.location,places.types,places.attributions",
             },
+            body,
           });
           clearTimeout(timeout);
 
           if (!resp.ok) {
-            this.log.warn({ category: cat.id, status: resp.status }, "Foursquare category fetch failed");
+            this.log.warn({ category: cat.id, status: resp.status }, "Google Places category fetch failed");
             return { category: cat.id, results: [] as POISuggestion[] };
           }
 
-          const data = (await resp.json()) as FsqSearchResponse;
-          const results = (data.results ?? []).map(this.mapFsqToSuggestion(cat.id));
+          const data = (await resp.json()) as GoogleSearchNearbyResponse;
+
+          if (data.places) {
+            for (const place of data.places) {
+              if (place.attributions) {
+                for (const attr of place.attributions) attributionSet.add(attr);
+              }
+            }
+          }
+
+          const results = (data.places ?? []).map(this.mapGoogleToSuggestion(cat.id, lat, lon));
           return { category: cat.id, results };
         } catch (err) {
           clearTimeout(timeout);
-          this.log.warn({ category: cat.id, err }, "Foursquare category fetch error");
+          this.log.warn({ category: cat.id, err }, "Google Places category fetch error");
           return { category: cat.id, results: [] as POISuggestion[] };
         }
       }),
@@ -172,6 +208,7 @@ export class DiscoverService implements IDiscoverService {
     const errors: Record<string, string> = {};
     let allEmpty = true;
     const allFresh: POISuggestion[] = [];
+    const seenSourceIds = new Set<string>();
 
     for (const { category, results } of categoryResults) {
       if (results.length === 0) {
@@ -179,18 +216,24 @@ export class DiscoverService implements IDiscoverService {
       } else {
         allEmpty = false;
       }
-      // Filter out already-converted POIs
-      const filtered = results.filter((r) => !convertedSourceIds.has(r.sourceId));
+      // Filter out already-converted POIs and cross-category duplicates (first category wins)
+      const filtered = results.filter((r) => {
+        if (convertedSourceIds.has(r.sourceId)) return false;
+        if (seenSourceIds.has(r.sourceId)) return false;
+        seenSourceIds.add(r.sourceId);
+        return true;
+      });
       allFresh.push(...filtered);
     }
 
     if (allEmpty && Object.keys(errors).length === POI_CATEGORIES.length) {
       return {
         destination: searchLocation,
-        source: "foursquare",
+        source: "google",
         categories: groupByCategoryOnly([]),
         partial: true,
         errors,
+        attributions: [],
       };
     }
 
@@ -198,7 +241,7 @@ export class DiscoverService implements IDiscoverService {
     let newBlob = [...allFresh, ...preExistingConverted];
     const hasErrors = Object.keys(errors).length > 0;
 
-    // Re-read to catch conversions that happened during Foursquare fetches (0.5–5s window)
+    // Re-read to catch conversions that happened during Google Places fetches (0.5–5s window)
     if (!allEmpty) {
       const latest = await this.db
         .select()
@@ -221,7 +264,7 @@ export class DiscoverService implements IDiscoverService {
       .insert(poiCache)
       .values({
         tripId,
-        source: "foursquare",
+        source: "google",
         searchLat: lat,
         searchLon: lon,
         searchLocation,
@@ -242,8 +285,9 @@ export class DiscoverService implements IDiscoverService {
     // Return unconverted fresh results
     return {
       destination: searchLocation,
-      source: "foursquare",
+      source: "google",
       categories: groupByCategoryOnly(allFresh),
+      attributions: [...attributionSet],
       ...(hasErrors ? { partial: true, errors } : {}),
     };
   }
@@ -273,23 +317,42 @@ export class DiscoverService implements IDiscoverService {
     });
   }
 
-  private mapFsqToSuggestion(category: POICategoryKey) {
-    return (p: FsqPlace): POISuggestion => ({
-      sourceId: p.fsq_place_id,
-      name: p.name,
-      address: p.location?.formatted_address ?? null,
-      lat: p.latitude,
-      lon: p.longitude,
-      distance: p.distance,
-      category,
-      popularity: null,
-      price: null,
-      rating: null,
-      website: p.website ?? null,
-      tel: p.tel ?? null,
-      subcategory: p.categories?.[0]?.name ?? null,
-      eventId: null,
-    });
+  private mapGoogleToSuggestion(category: POICategoryKey, centerLat: number, centerLon: number) {
+    return (p: GooglePlace): POISuggestion => {
+      // Filter out generic types that aren't useful for categorization
+      const meaningfulTypes = p.types.filter((t) => !GENERIC_GOOGLE_TYPES.has(t));
+
+      // Match against this category's googleTypes (first match wins)
+      const catConfig = POI_CATEGORIES.find((c) => c.id === category)!;
+      const matchedType = meaningfulTypes.find((t) => catConfig.googleTypes.includes(t)) ?? meaningfulTypes[0] ?? null;
+
+      // Compute distance with haversine formula
+      const R = 6371000; // Earth radius in meters
+      const dLat = (p.location.latitude - centerLat) * Math.PI / 180;
+      const dLon = (p.location.longitude - centerLon) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) ** 2
+        + Math.cos(centerLat * Math.PI / 180)
+        * Math.cos(p.location.latitude * Math.PI / 180)
+        * Math.sin(dLon / 2) ** 2;
+      const distance = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+      return {
+        sourceId: p.id,
+        name: p.displayName.text,
+        address: p.formattedAddress ?? null,
+        lat: p.location.latitude,
+        lon: p.location.longitude,
+        distance,
+        category,
+        popularity: null,
+        price: null,
+        rating: null,
+        website: null,
+        tel: null,
+        subcategory: matchedType ? (googleTypeLabels[matchedType] ?? matchedType) : null,
+        eventId: null,
+      };
+    };
   }
 }
 
@@ -297,7 +360,7 @@ export class DiscoverService implements IDiscoverService {
 function emptyResponse(destination: string | null): POISuggestionsResponse {
   return {
     destination,
-    source: "foursquare",
+    source: "google",
     categories: groupByCategoryOnly([]),
   };
 }
@@ -305,7 +368,7 @@ function emptyResponse(destination: string | null): POISuggestionsResponse {
 function groupByCategory(suggestions: POISuggestion[], destination: string | null): POISuggestionsResponse {
   return {
     destination,
-    source: "foursquare",
+    source: "google",
     categories: groupByCategoryOnly(suggestions),
   };
 }

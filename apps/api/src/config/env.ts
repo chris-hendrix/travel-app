@@ -30,10 +30,25 @@ const envSchema = z.object({
     .string()
     .min(32, "JWT_SECRET must be at least 32 characters for security"),
 
-  // Frontend
+  // Frontend (supports comma-separated list for CORS multiple origins)
   FRONTEND_URL: z
     .string()
-    .url("FRONTEND_URL must be a valid URL")
+    .min(1, "FRONTEND_URL is required")
+    .refine(
+      (val) =>
+        val
+          .split(",")
+          .map((s) => s.trim())
+          .every((url) => {
+            try {
+              new URL(url);
+              return true;
+            } catch {
+              return false;
+            }
+          }),
+      "FRONTEND_URL must be a valid URL (comma-separated list allowed)",
+    )
     .default("http://localhost:3000"),
 
   // Proxy
@@ -101,8 +116,9 @@ const envSchema = z.object({
   // Booking.com Affiliate (optional — suggestions hidden if not set)
   BOOKING_AFFILIATE_ID: z.string().default(""),
 
-  // Foursquare (optional — autocomplete returns empty if not set)
-  FOURSQUARE_API_KEY: z.string().default(""),
+  // Google Maps Platform (optional — discover/autocomplete returns empty if not set)
+  // Sign up at https://console.cloud.google.com (free tier available)
+  GOOGLE_MAPS_API_KEY: z.string().default(""),
 
   ADMIN_PHONE_NUMBERS: z
     .string()

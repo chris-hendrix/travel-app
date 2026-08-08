@@ -34,11 +34,10 @@ export interface IGeocodingService {
   getTimezoneByCoords(lat: number, lon: number): Promise<string | null>;
 }
 
-const NOMINATIM_API_BASE = "https://nominatim.openstreetmap.org/search";
-const OPEN_METEO_GEOCODING_API = "https://geocoding-api.open-meteo.com/v1/search";
-const OPEN_METEO_FORECAST_API = "https://api.open-meteo.com/v1/forecast";
+const GOOGLE_GEOCODING_API = "https://maps.googleapis.com/maps/api/geocode/json";
+const GOOGLE_TIMEZONE_API = "https://maps.googleapis.com/maps/api/timezone/json";
 
-const STUB_TIMEZONES: Record<string, { tz: string; lat: number; lon: number }> = {
+export const STUB_TIMEZONES: Record<string, { tz: string; lat: number; lon: number }> = {
   seattle:     { tz: "America/Los_Angeles", lat: 47.6062, lon: -122.3321 },
   portland:    { tz: "America/Los_Angeles", lat: 45.5152, lon: -122.6784 },
   austin:      { tz: "America/Chicago",      lat: 30.2672, lon: -97.7431 },
@@ -56,7 +55,7 @@ const STUB_TIMEZONES: Record<string, { tz: string; lat: number; lon: number }> =
   "los angeles":   { tz: "America/Los_Angeles", lat: 34.0522, lon: -118.2437 },
 };
 
-function stubLookup(query: string) {
+export function stubLookup(query: string) {
   const lower = query.toLowerCase();
   for (const [key, val] of Object.entries(STUB_TIMEZONES)) {
     if (lower.includes(key)) return val;
@@ -65,13 +64,20 @@ function stubLookup(query: string) {
 }
 
 /**
- * Nominatim (OpenStreetMap) Geocoding Service Implementation
- * Uses the free Nominatim API to resolve location names to coordinates.
- * No API key required. Handles flexible input formats like
- * "Sydney Australia", "Miami Beach FL", "Tokyo, Japan", etc.
+ * Google Geocoding Service Implementation
+ * Uses Google Maps Geocoding API and Time Zone API to resolve
+ * location names to coordinates and IANA timezone identifiers.
+ * Requires a Google Maps API key.
  */
-export class NominatimGeocodingService implements IGeocodingService {
-  constructor(private logger?: Logger) {}
+export class GoogleGeocodingService implements IGeocodingService {
+  private apiKey: string;
+
+  constructor(
+    apiKey: string,
+    private logger?: Logger,
+  ) {
+    this.apiKey = apiKey;
+  }
 
   async geocode(query: string): Promise<GeocodingResult | null> {
     if (!query?.trim()) return null;
@@ -83,33 +89,29 @@ export class NominatimGeocodingService implements IGeocodingService {
     }
 
     try {
-      const url = `${NOMINATIM_API_BASE}?q=${encodeURIComponent(query.trim())}&format=json&limit=1`;
+      const url = `${GOOGLE_GEOCODING_API}?address=${encodeURIComponent(query.trim())}&key=${this.apiKey}`;
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 5000);
-      const response = await fetch(url, {
-        headers: {
-          "User-Agent":
-            "journiful-app (https://github.com/chris-hendrix/tripful)",
-        },
-        signal: controller.signal,
-      });
+      const response = await fetch(url, { signal: controller.signal });
       clearTimeout(timeout);
 
       if (!response.ok) return null;
 
-      const data = (await response.json()) as Array<{
-        lat: string;
-        lon: string;
-        display_name: string;
-      }>;
+      const data = (await response.json()) as {
+        results?: Array<{
+          geometry: { location: { lat: number; lng: number } };
+          formatted_address: string;
+        }>;
+        status: string;
+      };
 
-      const first = data[0];
+      const first = data.results?.[0];
       if (!first) return null;
 
       return {
-        lat: parseFloat(first.lat),
-        lon: parseFloat(first.lon),
-        displayName: first.display_name,
+        lat: first.geometry.location.lat,
+        lon: first.geometry.location.lng,
+        displayName: first.formatted_address,
       };
     } catch (err) {
       this.logger?.error(err, "Geocoding failed");
@@ -126,25 +128,11 @@ export class NominatimGeocodingService implements IGeocodingService {
     }
 
     try {
-      const url = `${OPEN_METEO_GEOCODING_API}?name=${encodeURIComponent(query.trim())}&count=1`;
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000);
-      const response = await fetch(url, {
-        headers: {
-          "User-Agent":
-            "journiful-app (https://github.com/chris-hendrix/tripful)",
-        },
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
+      // Geocode first to get coordinates
+      const geoResult = await this.geocode(query);
+      if (!geoResult) return null;
 
-      if (!response.ok) return null;
-
-      const data = (await response.json()) as {
-        results?: Array<{ timezone: string }>;
-      };
-
-      return data.results?.[0]?.timezone ?? null;
+      return this.getTimezoneByCoords(geoResult.lat, geoResult.lon);
     } catch (err) {
       this.logger?.error(err, "Timezone lookup failed");
       return null;
@@ -155,13 +143,12 @@ export class NominatimGeocodingService implements IGeocodingService {
     this.logger?.info({ lat, lon }, "Timezone lookup by coordinates");
 
     if (process.env.GEOCODING_STUB === "true") {
-      // Fall back to string lookup — most coordinate pairs won't match city names,
-      // so this returns "UTC" for unrecognized coordinates.
       return stubLookup(String(lat) + "," + String(lon)).tz;
     }
 
     try {
-      const url = `${OPEN_METEO_FORECAST_API}?latitude=${lat}&longitude=${lon}&timezone=auto&forecast_days=0`;
+      const timestamp = Math.floor(Date.now() / 1000);
+      const url = `${GOOGLE_TIMEZONE_API}?location=${encodeURIComponent(`${lat},${lon}`)}&timestamp=${timestamp}&key=${this.apiKey}`;
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 5000);
       const response = await fetch(url, { signal: controller.signal });
@@ -169,8 +156,12 @@ export class NominatimGeocodingService implements IGeocodingService {
 
       if (!response.ok) return null;
 
-      const data = (await response.json()) as { timezone?: string };
-      return data.timezone ?? null;
+      const data = (await response.json()) as {
+        timeZoneId?: string;
+        status: string;
+      };
+
+      return data.timeZoneId ?? null;
     } catch (err) {
       this.logger?.error(err, "Timezone lookup by coords failed");
       return null;

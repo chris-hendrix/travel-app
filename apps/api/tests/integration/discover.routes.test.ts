@@ -9,15 +9,15 @@ import { env } from "@/config/env.js";
 
 describe("Discover Routes", () => {
   let app: FastifyInstance;
-  let originalFsqKey: string;
+  let originalGoogleKey: string;
 
   beforeAll(() => {
-    originalFsqKey = env.FOURSQUARE_API_KEY;
+    originalGoogleKey = env.GOOGLE_MAPS_API_KEY;
   });
 
   afterEach(async () => {
     vi.unstubAllEnvs();
-    (env as { FOURSQUARE_API_KEY: string }).FOURSQUARE_API_KEY = originalFsqKey;
+    (env as { GOOGLE_MAPS_API_KEY: string }).GOOGLE_MAPS_API_KEY = originalGoogleKey;
     if (app) {
       await app.close();
     }
@@ -35,9 +35,9 @@ describe("Discover Routes", () => {
       expect(response.statusCode).toBe(401);
     });
 
-    it("returns 503 when FOURSQUARE_API_KEY is not set", async () => {
-      vi.stubEnv("FOURSQUARE_API_KEY", "");
-      (env as { FOURSQUARE_API_KEY: string }).FOURSQUARE_API_KEY = "";
+    it("returns 503 when GOOGLE_MAPS_API_KEY is not set", async () => {
+      vi.stubEnv("GOOGLE_MAPS_API_KEY", "");
+      (env as { GOOGLE_MAPS_API_KEY: string }).GOOGLE_MAPS_API_KEY = "";
 
       app = await buildApp();
 
@@ -230,8 +230,8 @@ describe("Discover Routes", () => {
       app = await buildApp();
 
       // Only run if API key is available, otherwise skip
-      if (!env.FOURSQUARE_API_KEY) {
-        console.log("Skipping — FOURSQUARE_API_KEY not set");
+      if (!env.GOOGLE_MAPS_API_KEY) {
+        console.log("Skipping — GOOGLE_MAPS_API_KEY not set");
         return;
       }
 
@@ -268,14 +268,14 @@ describe("Discover Routes", () => {
       // Insert a POI cache row directly
       await db.insert(poiCache).values({
         tripId: trip.id,
-        source: "foursquare",
+        source: "google",
         searchLat: 48.8566,
         searchLon: 2.3522,
         searchLocation: "Paris, France",
         cachedAt: new Date(),
         suggestions: [
           {
-            sourceId: "fsq-cached-1",
+            sourceId: "ChIJ-cached-1",
             name: "Cached Bistro",
             address: "1 Rue de Paris",
             lat: 48.8566,
@@ -324,8 +324,8 @@ describe("Discover Routes", () => {
     it("supports refresh=true to bypass cache", async () => {
       app = await buildApp();
 
-      if (!env.FOURSQUARE_API_KEY) {
-        console.log("Skipping — FOURSQUARE_API_KEY not set");
+      if (!env.GOOGLE_MAPS_API_KEY) {
+        console.log("Skipping — GOOGLE_MAPS_API_KEY not set");
         return;
       }
 
@@ -373,7 +373,7 @@ describe("Discover Routes", () => {
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
       expect(body.success).toBe(true);
-      expect(body.data.source).toBe("foursquare");
+      expect(body.data.source).toBe("google");
 
       // Cleanup
       await db.delete(poiCache).where(eq(poiCache.tripId, trip.id));
@@ -390,7 +390,7 @@ describe("Discover Routes", () => {
       const response = await app.inject({
         method: "PATCH",
         url: "/api/trips/550e8400-e29b-41d4-a716-446655440000/discover/convert",
-        payload: { sourceId: "fsq-1", eventId: "evt-1" },
+        payload: { sourceId: "ChIJ-1", eventId: "evt-1" },
       });
 
       expect(response.statusCode).toBe(401);
@@ -431,14 +431,14 @@ describe("Discover Routes", () => {
       // Insert cache row with a POI to convert
       await db.insert(poiCache).values({
         tripId: trip.id,
-        source: "foursquare",
+        source: "google",
         searchLat: 48.8566,
         searchLon: 2.3522,
         searchLocation: "Paris",
         cachedAt: new Date(),
         suggestions: [
           {
-            sourceId: "fsq-convert-me",
+            sourceId: "ChIJ-convert-me",
             name: "Convertible Place",
             address: "2 Rue Example",
             lat: 48.8566,
@@ -465,7 +465,7 @@ describe("Discover Routes", () => {
         method: "PATCH",
         url: `/api/trips/${trip.id}/discover/convert`,
         cookies: { auth_token: token },
-        payload: { sourceId: "fsq-convert-me", eventId: "evt-converted-123" },
+        payload: { sourceId: "ChIJ-convert-me", eventId: "evt-converted-123" },
       });
 
       expect(response.statusCode).toBe(200);
@@ -480,7 +480,7 @@ describe("Discover Routes", () => {
         .limit(1);
       expect(cacheRow.length).toBe(1);
       const suggestion = (cacheRow[0]!.suggestions as Array<Record<string, unknown>>).find(
-        (s) => s.sourceId === "fsq-convert-me",
+        (s) => s.sourceId === "ChIJ-convert-me",
       );
       expect(suggestion).toBeDefined();
       expect(suggestion!.eventId).toBe("evt-converted-123");

@@ -39,6 +39,7 @@ export const poiSuggestionsResponseSchema = z.object({
   ),
   partial: z.boolean().optional(),
   errors: z.record(z.string(), z.string()).optional(),
+  attributions: z.array(z.string()).optional(),
 });
 
 export type POISuggestion = z.infer<typeof poiSuggestionSchema>;

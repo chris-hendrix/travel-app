@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, type ChangeEvent } from "react";
 import { MapPin } from "lucide-react";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import {
   Command,
@@ -14,10 +15,9 @@ import {
   PopoverContent,
   PopoverAnchor,
 } from "@/components/ui/popover";
-import {
-  useLocationAutocomplete,
-  type LocationSuggestion,
-} from "@/hooks/use-location-autocomplete";
+import { useLocationAutocomplete } from "@/hooks/use-location-autocomplete";
+import { useLocationDetails, type LocationSuggestion } from "@/hooks/use-location-details";
+import type { AutocompleteSuggestion } from "@journiful/shared/types";
 import { cn } from "@/lib/utils";
 
 interface LocationInputProps {
@@ -32,6 +32,25 @@ interface LocationInputProps {
   className?: string;
 }
 
+function generateSessionToken(): string {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    try {
+      return crypto.randomUUID();
+    } catch {
+      /* fall through */
+    }
+  }
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6]! & 0x0f) | 0x40;
+  bytes[8] = (bytes[8]! & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0"));
+  return `${hex.slice(0, 4).join("")}-${hex.slice(4, 6).join("")}-${hex.slice(6, 8).join("")}-${hex.slice(8, 10).join("")}-${hex.slice(10, 16).join("")}`;
+}
+
 export function LocationInput({
   id,
   name,
@@ -43,6 +62,8 @@ export function LocationInput({
   disabled,
   className,
 }: LocationInputProps) {
+  const detailsMutation = useLocationDetails();
+  const [sessionToken, setSessionToken] = useState(() => generateSessionToken());
   const [query, setQuery] = useState(value);
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -52,7 +73,11 @@ export function LocationInput({
     setQuery(value);
   }, [value]);
 
-  const { data: suggestions = [] } = useLocationAutocomplete(query, context);
+  const { data: suggestions = [] } = useLocationAutocomplete(
+    query,
+    context,
+    sessionToken,
+  );
 
   const hasSuggestions = suggestions.length > 0;
 
@@ -64,12 +89,21 @@ export function LocationInput({
     else setOpen(false);
   };
 
-  const handleSelect = (suggestion: LocationSuggestion) => {
-    setQuery(suggestion.shortName);
-    onChange(suggestion.shortName);
-    onSelect?.(suggestion);
-    setOpen(false);
-    inputRef.current?.blur();
+  const handleSelect = async (suggestion: AutocompleteSuggestion) => {
+    try {
+      const fullSuggestion = await detailsMutation.mutateAsync({
+        placeId: suggestion.placeId,
+        sessionToken,
+      });
+      setQuery(fullSuggestion.shortName);
+      onChange(fullSuggestion.shortName);
+      onSelect?.(fullSuggestion);
+      setOpen(false);
+      inputRef.current?.blur();
+      setSessionToken(generateSessionToken());
+    } catch {
+      toast.error("Couldn't load place details. Please try another suggestion.");
+    }
   };
 
   return (
@@ -120,6 +154,9 @@ export function LocationInput({
               </CommandItem>
             ))}
           </CommandList>
+          <div className="border-t border-border px-3 py-1.5">
+            <p className="text-[10px] text-muted-foreground/60 text-right">Powered by Google</p>
+          </div>
         </Command>
       </PopoverContent>
     </Popover>

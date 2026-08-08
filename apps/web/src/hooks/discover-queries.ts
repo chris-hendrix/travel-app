@@ -14,7 +14,7 @@ export const discoverKeys = {
  * Query options factory for fetching POI suggestions for a trip
  *
  * Server caches results for 7 days; client considers 5-minute stale time.
- * Pass refresh=true to force an upstream Foursquare fetch.
+ * Pass refresh=true to force an upstream Google Places fetch.
  */
 export function discoverQueryOptions(
   tripId: string,
