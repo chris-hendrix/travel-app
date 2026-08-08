@@ -78,10 +78,28 @@ Decision rule: **write every test at the lowest level that gives the confidence 
 > **Note:** The current `apps/api/tests/unit/` directory is in a transitional state. 26 of its 36 test files hit a real Postgres — they are service integration tests, mislabeled. These files will be moved to `apps/api/tests/service/`; the remaining ~15 true-pure-unit files will stay in `tests/unit/`. The taxonomy above reflects the post-rename target state.
 
 #### Decision rules (which level to write)
-TODO
+Use this table to decide which test level to write for any new behavior:
+
+| When you are testing... | Write at this level | Rationale |
+|--------------------------|---------------------|-----------|
+| A pure function — validation, calculation, data transform, Zod schema | **Pure unit** | Fast, isolated, catches logic errors at the source |
+| A service method that queries or mutates real data, or spans a transaction boundary | **Service integration** (real DB) | Mocking the DB hides query bugs and constraint violations |
+| Middleware wiring, auth guards, or request/response contracts between components | **Route integration** | `app.inject()` exercises the full HTTP layer at a fraction of E2E cost |
+| Component behavior as users interact — clicks, typing, conditional rendering, form UX | **Component integration** (RTL) | Renders the real component tree; mocks only the API boundary |
+| A user-observable outcome that depends on the full browser→frontend→API→DB stack | **E2E** (Playwright) | Reserved for critical journeys (see E2E inclusion criteria) |
+
+Heuristic: **if mocking feels necessary to make a test fast, but the mock hides the failure mode you care about, write it at the next level down the pyramid.** Mocking the DB to make a service test fast? That test belongs in service integration with a real DB. Mocking the API to avoid E2E overhead? That test belongs in route integration with `app.inject()`.
 
 #### Banned at each level
-TODO
+Each level has explicit bans — these are anti-patterns caught during code review:
+
+| Level | Banned |
+|-------|--------|
+| **E2E** | Form validation, field-level error messages, edge-case re-verification, feature-flag toggles, anything already asserted by a Zod schema or RTL component test. **Fat journeys**: do not conflate multiple unrelated user goals into a single spec (e.g. a "trip journey" that validates the create form AND tests the edit dialog AND checks photo upload). Each spec must map to one critical flow. **Silent browser drops**: never remove a browser project (Firefox, WebKit, tablet viewport) for "flakiness" without a PR and linked issue — see Flakiness policy. |
+| **Service integration** | Mocking the database under test. If a test imports `db` or a service that queries Postgres, it must hit the real test database. Mock the external boundary (SMS, push, S3, geocoding), not the DB. |
+| **Route integration** | Mocking service-layer internals. Route tests wire through real controllers and services; mock only external APIs at the service boundary. Pure-business-logic edge cases belong in service integration, not route tests. |
+| **Component integration** | Asserting CSS class strings or DOM structure as the primary behavior check. Prefer user-facing assertions: "the submit button is disabled", "the error message is visible", "the loading spinner appears." Class strings may be used as secondary selectors, never as the primary assertion target. |
+| **Pure unit** | Mocking so heavily that real integration failures are hidden. A unit test with 5 mocks that all return hardcoded values isn't testing behavior — it's testing mocks. If the test needs that much isolation, move it to a higher level where the wiring is real. |
 
 #### Target test shape
 TODO
