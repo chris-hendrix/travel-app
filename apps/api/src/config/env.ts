@@ -113,9 +113,6 @@ const envSchema = z.object({
   // AeroDataBox Flight Lookup (optional)
   AERODATABOX_API_KEY: z.string().default(""),
 
-  // Booking.com Affiliate (optional — suggestions hidden if not set)
-  BOOKING_AFFILIATE_ID: z.string().default(""),
-
   // Google Maps Platform (optional — discover/autocomplete returns empty if not set)
   // Sign up at https://console.cloud.google.com (free tier available)
   GOOGLE_MAPS_API_KEY: z.string().default(""),

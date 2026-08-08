@@ -385,12 +385,9 @@ async function main() {
     },
   ]);
 
-  // --- Affiliate Suggestions Test Trip ---
-  // Designed to trigger all 4 gap detection rules:
-  //   missing_travel: Alice is "going" but has no memberTravel
-  //   no_accommodation: zero accommodations
-  //   empty_day: days 3 and 4 have no events
-  //   missing_meal: day 2 has activities but no meals
+  // --- Group Demo Trip ---
+  // A week in Lisbon — sample itinerary with events, travel gaps,
+  // and mixed member RSVP statuses for testing the full trip lifecycle.
   const [lisbon] = await db
     .insert(schema.trips)
     .values({
@@ -401,7 +398,7 @@ async function main() {
       startDate: toDateStr(daysFromNow(7)),
       endDate: toDateStr(daysFromNow(13)),
       preferredTimezone: "Europe/Lisbon",
-      description: "A week in Lisbon — affiliate suggestions test trip.",
+      description: "A week in Lisbon — group itinerary demo trip.",
       createdBy: alice.id,
     })
     .returning();
@@ -509,7 +506,7 @@ async function main() {
     tripId: lisbon!.id,
     authorId: alice.id,
     content:
-      "This trip is set up for testing affiliate suggestions — has gaps for all 4 rules!",
+      "Group demo trip — sample itinerary across all event categories.",
   });
 
   // ── POI Cache Mock Data ───────────────────────────────────────────────
@@ -637,7 +634,7 @@ async function main() {
   console.log("\n  📍 POI cache seeded for all 4 trips\n");
 
   console.log(
-    "\n  🧪 Affiliate test trip: 'Lisbon Getaway' (login as Alice to see suggestions)\n",
+    "\n  📋 Group demo trip: 'Lisbon Getaway' (login as Alice to test)\n",
   );
 
   // Print login info
