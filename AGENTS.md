@@ -131,10 +131,47 @@ A flaky test is a test failure — never silently ignored or worked around.
 4. **Root-cause diagnosis is mandatory.** When a test flakes, the immediate response is diagnosis, not deletion. Check for: async race conditions, missing `waitFor` guards, shared mutable state between tests, or DB state leakage. If the root cause is unclear after 30 minutes of investigation, quarantine the test under rule 1 — do not delete it.
 
 #### E2E inclusion criteria (critical flows)
-TODO
+
+A flow is E2E-worthy only if it meets both criteria:
+
+1. **User-observable outcome across the full stack** — the behavior cannot be verified by rendering a component, injecting an HTTP request, or testing a service method in isolation. It requires the real browser→frontend→API→DB pipeline.
+2. **On the approved critical-flow list** — the flow represents auth, money, or core value-delivery for the product.
+
+Everything else is covered at a lower test level. The critical-flow list is the cap on the E2E suite; no spec outside this list may remain in `apps/web/tests/e2e/`.
+
+**Approved critical-flow list (Aug 2026):**
+
+| # | Critical flow | What it verifies | Current spec |
+|---|---------------|------------------|-------------|
+| 1 | **Auth** | Phone verification → complete profile → dashboard access, logout, route guards | `auth-journey.spec.ts` |
+| 2 | **Trip CRUD** | Create trip → edit details → delete trip, member-permission boundaries | `trip-journey.spec.ts` |
+| 3 | **Invitation + RSVP + deep-link join** | Receive invitation → RSVP (accept/decline) → deep-link join (unauthenticated & authenticated flows) | `invitation-journey.spec.ts` |
+| 4 | **Itinerary CRUD** | Event create → edit → delete on a real trip | `itinerary-journey.spec.ts` |
+| 5 | **Messaging** | Send message → receive message → organizer actions | `messaging.spec.ts` |
+| 6 | **Settle** | Create expense → verify balance accuracy (money path — correctness is critical) | `settle-journey.spec.ts` |
+| 7 | **Notifications** | Bell badge → tap to open notification center → tap notification to navigate → mark as read. Notification *triggers* (badge appearance after invite, message, etc.) may be asserted inline within flows 1-5; the standalone spec covers the notification center UX itself. | `notifications.spec.ts` |
+
+Any E2E spec NOT on this list is an audit candidate for SPLIT / CUT / CONVERT. The Phase 2 audit (separate plan) will produce a verdict table for all 13 current spec files.
 
 #### CI testing policy
-TODO
+
+**Current state (Aug 2026):**
+
+| Gate | Runs on | Status |
+|------|---------|--------|
+| E2E (Playwright) | Every PR, 4-way sharded | **Blocking** — must pass to merge |
+| API tests (Vitest) | Every PR (api path filter) | Blocking |
+| Web RTL + shared unit (Vitest) | Local only | **Not in CI** |
+| Lint + typecheck | Every PR | Blocking |
+
+This means the slowest, most expensive layer gates PRs while the fast, broad coverage layers (1,224 web RTL + 331 shared unit cases) have no CI presence. This is a known gap — the immediate policy is unchanged (E2E stays blocking) to avoid destabilizing the merge gate.
+
+**Documented follow-ups (deferred, not in this plan):**
+
+1. Add web RTL + shared unit Vitest to CI as a cheap, fast gate that runs before E2E.
+2. Split the E2E suite into `@smoke` (PR gate, ~5 min) vs. full (runs on main, ~60 min).
+3. Set a flakiness budget: if E2E flake rate exceeds 5% in a rolling 7-day window, no new E2E tests may be added until the budget recovers.
+4. Consider enabling Playwright tracing-on-failure for CI artifacts.
 
 ### Native (Capacitor)
 
