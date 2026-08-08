@@ -27,6 +27,7 @@ type GooglePlace = {
   formattedAddress: string;
   location: { latitude: number; longitude: number };
   types: string[];
+  attributions?: string[];
 };
 
 type GoogleSearchNearbyResponse = { places: GooglePlace[] };
@@ -147,6 +148,8 @@ export class DiscoverService implements IDiscoverService {
     }
 
     // 4 parallel Google Places searchNearby POST calls
+    const attributionSet = new Set<string>();
+
     const categoryResults = await Promise.all(
       POI_CATEGORIES.map(async (cat) => {
         const controller = new AbortController();
@@ -170,7 +173,7 @@ export class DiscoverService implements IDiscoverService {
             headers: {
               "Content-Type": "application/json",
               "X-Goog-Api-Key": this.googleApiKey,
-              "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.location,places.types",
+              "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.location,places.types,places.attributions",
             },
             body,
           });
@@ -182,6 +185,15 @@ export class DiscoverService implements IDiscoverService {
           }
 
           const data = (await resp.json()) as GoogleSearchNearbyResponse;
+
+          if (data.places) {
+            for (const place of data.places) {
+              if (place.attributions) {
+                for (const attr of place.attributions) attributionSet.add(attr);
+              }
+            }
+          }
+
           const results = (data.places ?? []).map(this.mapGoogleToSuggestion(cat.id, lat, lon));
           return { category: cat.id, results };
         } catch (err) {
@@ -196,6 +208,7 @@ export class DiscoverService implements IDiscoverService {
     const errors: Record<string, string> = {};
     let allEmpty = true;
     const allFresh: POISuggestion[] = [];
+    const seenSourceIds = new Set<string>();
 
     for (const { category, results } of categoryResults) {
       if (results.length === 0) {
@@ -203,8 +216,13 @@ export class DiscoverService implements IDiscoverService {
       } else {
         allEmpty = false;
       }
-      // Filter out already-converted POIs
-      const filtered = results.filter((r) => !convertedSourceIds.has(r.sourceId));
+      // Filter out already-converted POIs and cross-category duplicates (first category wins)
+      const filtered = results.filter((r) => {
+        if (convertedSourceIds.has(r.sourceId)) return false;
+        if (seenSourceIds.has(r.sourceId)) return false;
+        seenSourceIds.add(r.sourceId);
+        return true;
+      });
       allFresh.push(...filtered);
     }
 
@@ -215,6 +233,7 @@ export class DiscoverService implements IDiscoverService {
         categories: groupByCategoryOnly([]),
         partial: true,
         errors,
+        attributions: [],
       };
     }
 
@@ -268,6 +287,7 @@ export class DiscoverService implements IDiscoverService {
       destination: searchLocation,
       source: "google",
       categories: groupByCategoryOnly(allFresh),
+      attributions: [...attributionSet],
       ...(hasErrors ? { partial: true, errors } : {}),
     };
   }

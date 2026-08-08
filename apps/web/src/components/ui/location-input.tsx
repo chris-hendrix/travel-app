@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, type ChangeEvent } from "react";
 import { MapPin } from "lucide-react";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import {
   Command,
@@ -101,7 +102,7 @@ export function LocationInput({
       inputRef.current?.blur();
       setSessionToken(generateSessionToken());
     } catch {
-      // silently fail — user can try another suggestion
+      toast.error("Couldn't load place details. Please try another suggestion.");
     }
   };
 
@@ -153,6 +154,9 @@ export function LocationInput({
               </CommandItem>
             ))}
           </CommandList>
+          <div className="border-t border-border px-3 py-1.5">
+            <p className="text-[10px] text-muted-foreground/60 text-right">Powered by Google</p>
+          </div>
         </Command>
       </PopoverContent>
     </Popover>

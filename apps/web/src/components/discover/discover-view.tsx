@@ -319,6 +319,18 @@ export function DiscoverView({ tripId, temperatureUnit }: DiscoverViewProps) {
           );
         })}
 
+      {/* Google Places attribution */}
+      {discover && (
+        <div className="text-center space-y-1 py-4">
+          <p className="text-xs text-muted-foreground">Powered by Google</p>
+          {discover.attributions && discover.attributions.length > 0 && (
+            <p className="text-[10px] text-muted-foreground/60">
+              {discover.attributions.join(", ")}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* POI Detail Sheet */}
       <POIDetailSheet
         poi={selectedPOI}

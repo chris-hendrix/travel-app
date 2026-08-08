@@ -178,7 +178,7 @@ describe("Location Routes", () => {
       expect(body.locationBias).toBeUndefined();
     });
 
-    it("returns [] on Google error", async () => {
+    it("returns 503 on Google error", async () => {
       const { token } = await createAuthenticatedApp();
 
       vi.spyOn(global, "fetch").mockResolvedValueOnce(
@@ -193,12 +193,13 @@ describe("Location Routes", () => {
         cookies: { auth_token: token },
       });
 
-      expect(response.statusCode).toBe(200);
+      expect(response.statusCode).toBe(503);
       const body = JSON.parse(response.body);
-      expect(body).toEqual([]);
+      expect(body.success).toBe(false);
+      expect(body.error.code).toBe("SERVICE_UNAVAILABLE");
     });
 
-    it("returns [] on timeout", async () => {
+    it("returns 503 on timeout", async () => {
       const { token } = await createAuthenticatedApp();
 
       vi.spyOn(global, "fetch").mockImplementationOnce((_url, options) => {
@@ -219,10 +220,11 @@ describe("Location Routes", () => {
         cookies: { auth_token: token },
       });
 
-      // The handler catches the AbortError and returns []
-      expect(response.statusCode).toBe(200);
+      // The handler catches the AbortError and returns 503
+      expect(response.statusCode).toBe(503);
       const body = JSON.parse(response.body);
-      expect(body).toEqual([]);
+      expect(body.success).toBe(false);
+      expect(body.error.code).toBe("SERVICE_UNAVAILABLE");
     });
 
     it("deduplicates results by placeId", async () => {

@@ -229,7 +229,7 @@ describe("DiscoverService", () => {
         expect(opts.method).toBe("POST");
         expect(opts.headers?.["X-Goog-Api-Key"]).toBe("test-google-key");
         expect(opts.headers?.["X-Goog-FieldMask"]).toBe(
-          "places.id,places.displayName,places.formattedAddress,places.location,places.types",
+          "places.id,places.displayName,places.formattedAddress,places.location,places.types,places.attributions",
         );
       }
     });
@@ -440,7 +440,98 @@ describe("DiscoverService", () => {
     });
   });
 
-  // ── 6. Edge cases ──────────────────────────────────────────────────────────
+  // ── 6. Cross-category deduplication ────────────────────────────────────────
+
+  describe("cross-category deduplication", () => {
+    it("deduplicates POIs across categories by sourceId (first category wins)", async () => {
+      mockDb.where.mockResolvedValueOnce([{ id: TRIP_ID }]);
+      mockDb.where.mockResolvedValueOnce([]); // no cache
+      mockDb.where.mockResolvedValueOnce([]); // fetchAndCache existing
+      mockDb.onConflictDoUpdate.mockResolvedValueOnce(undefined);
+
+      // POI_CATEGORIES priority order: food → arts → outdoors → nightlife
+      // Tourist attraction is in both arts_and_entertainment and outdoors googleTypes
+      fetchSpy
+        // Call 1: food_and_drink
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            places: [
+              makeGooglePlace({
+                id: "ChIJ-food-1",
+                displayName: { text: "Bistro", languageCode: "en" },
+              }),
+            ],
+          }),
+        })
+        // Call 2: arts_and_entertainment — returns tourist_attraction
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            places: [
+              makeGooglePlace({
+                id: "ChIJ-dup-001",
+                displayName: { text: "Eiffel Tower", languageCode: "en" },
+                types: ["tourist_attraction", "point_of_interest", "establishment"],
+              }),
+            ],
+          }),
+        })
+        // Call 3: outdoors — same place duplicated
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            places: [
+              makeGooglePlace({
+                id: "ChIJ-dup-001",
+                displayName: { text: "Eiffel Tower", languageCode: "en" },
+                types: ["tourist_attraction", "point_of_interest", "establishment"],
+              }),
+            ],
+          }),
+        })
+        // Call 4: nightlife
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            places: [
+              makeGooglePlace({
+                id: "ChIJ-night-1",
+                displayName: { text: "Club XYZ", languageCode: "en" },
+                types: ["night_club", "bar", "establishment"],
+              }),
+            ],
+          }),
+        });
+
+      const result = await service.getDiscoverPOIs(TRIP_ID, 48.8566, 2.3522, "Paris");
+
+      expect(result.source).toBe("google");
+
+      // Duplicate should appear in arts_and_entertainment (first in priority order after food)
+      const dupInArts = result.categories.arts_and_entertainment.find(
+        (p: POISuggestion) => p.sourceId === "ChIJ-dup-001",
+      );
+      expect(dupInArts).toBeDefined();
+      expect(dupInArts!.name).toBe("Eiffel Tower");
+      expect(dupInArts!.category).toBe("arts_and_entertainment");
+
+      // Duplicate should NOT appear in outdoors (second in priority)
+      const dupInOutdoors = result.categories.outdoors.find(
+        (p: POISuggestion) => p.sourceId === "ChIJ-dup-001",
+      );
+      expect(dupInOutdoors).toBeUndefined();
+
+      // Other categories still have their results
+      expect(result.categories.food_and_drink).toHaveLength(1);
+      expect(result.categories.food_and_drink[0]!.name).toBe("Bistro");
+
+      expect(result.categories.nightlife).toHaveLength(1);
+      expect(result.categories.nightlife[0]!.name).toBe("Club XYZ");
+    });
+  });
+
+  // ── 7. Edge cases ──────────────────────────────────────────────────────────
 
   describe("edge cases", () => {
     it("returns empty when lat/lon are not provided", async () => {

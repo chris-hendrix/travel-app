@@ -63,7 +63,10 @@ export async function locationRoutes(fastify: FastifyInstance) {
     {
       schema: {
         querystring: autocompleteQuerySchema,
-        response: { 200: autocompleteResponseSchema },
+        response: {
+          200: autocompleteResponseSchema,
+          503: z.object({ success: z.literal(false), error: z.object({ code: z.string(), message: z.string() }) }),
+        },
       },
       preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate],
     },
@@ -99,12 +102,18 @@ export async function locationRoutes(fastify: FastifyInstance) {
           headers: {
             "Content-Type": "application/json",
             "X-Goog-Api-Key": key,
+            "X-Goog-FieldMask": "suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.structuredFormat",
           },
           body: JSON.stringify(body),
         });
 
         clearTimeout(timeout);
-        if (!response.ok) return reply.send([]);
+        if (!response.ok) {
+          return reply.status(503).send({
+            success: false,
+            error: { code: "SERVICE_UNAVAILABLE", message: "Google Places Autocomplete returned an error" },
+          });
+        }
 
         const data = (await response.json()) as GoogleAutocompleteResponse;
 
@@ -124,7 +133,10 @@ export async function locationRoutes(fastify: FastifyInstance) {
               p.structuredFormat?.secondaryText?.text ?? "",
           }));
       } catch {
-        return reply.send([]);
+        return reply.status(503).send({
+          success: false,
+          error: { code: "SERVICE_UNAVAILABLE", message: "Google Places Autocomplete request failed" },
+        });
       }
     },
   );
@@ -163,7 +175,7 @@ export async function locationRoutes(fastify: FastifyInstance) {
           signal: controller.signal,
           headers: {
             "X-Goog-Api-Key": key,
-            "X-Goog-FieldMask": "id,displayName,formattedAddress,location,types",
+            "X-Goog-FieldMask": "id,displayName,formattedAddress,location,types,attributions",
           },
         });
 

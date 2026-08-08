@@ -3,7 +3,12 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import { toast } from "sonner";
 import { LocationInput } from "../location-input";
+
+vi.mock("sonner", () => ({
+  toast: { error: vi.fn() },
+}));
 
 // Track autocomplete calls to verify session tokens
 const autocompleteCalls: Array<{ query: string; sessionToken: string }> = [];
@@ -198,5 +203,26 @@ describe("LocationInput", () => {
 
     // The tokens should differ (new token generated after first selection)
     expect(secondToken).not.toBe(firstToken);
+  });
+
+  it("shows toast error when place details call fails", async () => {
+    mockDetailsMutateAsync.mockRejectedValueOnce(new Error("Network error"));
+
+    renderLocationInput();
+    const input = screen.getByPlaceholderText("Search location...");
+
+    await user.type(input, "San");
+
+    await waitFor(() => {
+      expect(screen.getByText("San Francisco")).toBeDefined();
+    });
+
+    await user.click(screen.getByText("San Francisco"));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith(
+        "Couldn't load place details. Please try another suggestion.",
+      );
+    });
   });
 });

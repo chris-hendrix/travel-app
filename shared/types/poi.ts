@@ -30,6 +30,7 @@ export interface POISuggestionsResponse {
   categories: Record<POICategoryKey, POISuggestion[]>;
   partial?: boolean;
   errors?: Record<string, string>;
+  attributions?: string[];
 }
 
 /** Google Places type labels */
