@@ -401,7 +401,7 @@ async function main() {
       startDate: toDateStr(daysFromNow(7)),
       endDate: toDateStr(daysFromNow(13)),
       preferredTimezone: "Europe/Lisbon",
-      description: "A week in Lisbon — affiliate suggestions test trip.",
+      description: "A week in Lisbon — group itinerary demo trip.",
       createdBy: alice.id,
     })
     .returning();
@@ -509,7 +509,7 @@ async function main() {
     tripId: lisbon!.id,
     authorId: alice.id,
     content:
-      "This trip is set up for testing affiliate suggestions — has gaps for all 4 rules!",
+      "Group demo trip — sample itinerary across all event categories.",
   });
 
   // ── POI Cache Mock Data ───────────────────────────────────────────────
