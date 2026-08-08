@@ -49,6 +49,15 @@ test.describe("Messaging Journey", () => {
       const organizerPhone = generateUniquePhone();
       const memberPhone = generateUniquePhone();
 
+      // Dynamic future dates — trip must not be locked for messaging to work
+      const today = new Date();
+      const start = new Date(today);
+      start.setDate(start.getDate() + 1);
+      const end = new Date(today);
+      end.setDate(end.getDate() + 5);
+      const startDate = start.toISOString().split("T")[0];
+      const endDate = end.toISOString().split("T")[0];
+
       let tripId: string;
       let organizerCookie: string;
 
@@ -62,8 +71,8 @@ test.describe("Messaging Journey", () => {
         tripId = await createTripViaAPI(request, organizerCookie, {
           name: `Messaging Trip ${timestamp}`,
           destination: "Portland, OR",
-          startDate: "2026-08-01",
-          endDate: "2026-08-05",
+          startDate,
+          endDate,
         });
 
         const memberCookie = await createUserViaAPI(
@@ -275,6 +284,15 @@ test.describe("Messaging Journey", () => {
       const organizerPhone = generateUniquePhone();
       const memberPhone = generateUniquePhone();
 
+      // Dynamic future dates — trip must not be locked for messaging to work
+      const today = new Date();
+      const start = new Date(today);
+      start.setDate(start.getDate() + 1);
+      const end = new Date(today);
+      end.setDate(end.getDate() + 5);
+      const startDate = start.toISOString().split("T")[0];
+      const endDate = end.toISOString().split("T")[0];
+
       let tripId: string;
       let organizerCookie: string;
       let memberCookie: string;
@@ -289,8 +307,8 @@ test.describe("Messaging Journey", () => {
         tripId = await createTripViaAPI(request, organizerCookie, {
           name: `Organizer Actions Trip ${timestamp}`,
           destination: "Seattle, WA",
-          startDate: "2026-09-01",
-          endDate: "2026-09-05",
+          startDate,
+          endDate,
         });
 
         memberCookie = await createUserViaAPI(
