@@ -59,6 +59,35 @@ make test-static-smoke               # Verify static export integrity (no error 
 
 `test-exec` wraps `CMD` in `bash -c`, so compound commands work: `make test-exec CMD="cd apps/api && pnpm db:migrate"`.
 
+### Testing methodology
+
+#### Philosophy — hybrid
+TODO
+
+#### Test level taxonomy
+TODO
+
+#### Decision rules (which level to write)
+TODO
+
+#### Banned at each level
+TODO
+
+#### Target test shape
+TODO
+
+#### Database isolation in tests
+TODO
+
+#### Flakiness policy
+TODO
+
+#### E2E inclusion criteria (critical flows)
+TODO
+
+#### CI testing policy
+TODO
+
 ### Native (Capacitor)
 
 `apps/web` wraps into an Android APK via Capacitor 8 static export. The web PWA and server-rendered deployment remain untouched. Push uses FCM on native, VAPID on web.
