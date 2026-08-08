@@ -203,7 +203,7 @@ describe("Location Routes", () => {
 
       vi.spyOn(global, "fetch").mockImplementationOnce((_url, options) => {
         return new Promise((_resolve, reject) => {
-          const signal = (options as RequestInit)?.signal;
+          const signal = (options as { signal?: AbortSignal })?.signal;
           if (signal) {
             signal.addEventListener("abort", () => {
               reject(new DOMException("The operation was aborted.", "AbortError"));
@@ -379,7 +379,7 @@ describe("Location Routes", () => {
 
       vi.spyOn(global, "fetch").mockImplementationOnce((_url, options) => {
         return new Promise((_resolve, reject) => {
-          const signal = (options as RequestInit)?.signal;
+          const signal = (options as { signal?: AbortSignal })?.signal;
           if (signal) {
             signal.addEventListener("abort", () => {
               reject(new DOMException("The operation was aborted.", "AbortError"));

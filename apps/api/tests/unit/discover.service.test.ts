@@ -225,7 +225,7 @@ describe("DiscoverService", () => {
       for (const call of fetchCalls) {
         const url = call[0] as string;
         expect(url).toBe("https://places.googleapis.com/v1/places:searchNearby");
-        const opts = call[1] as RequestInit;
+        const opts = call[1] as { method?: string; headers?: Record<string, string> };
         expect(opts.method).toBe("POST");
         expect(opts.headers?.["X-Goog-Api-Key"]).toBe("test-google-key");
         expect(opts.headers?.["X-Goog-FieldMask"]).toBe(
@@ -447,7 +447,7 @@ describe("DiscoverService", () => {
       // Trip exists
       mockDb.where.mockResolvedValueOnce([{ id: TRIP_ID }]);
 
-      const result = await service.getDiscoverPOIs(TRIP_ID, null as any, null as any, null);
+      const result = await service.getDiscoverPOIs(TRIP_ID, null as unknown as number, null as unknown as number, null);
 
       expect(result.categories.food_and_drink).toHaveLength(0);
       expect(result.categories.arts_and_entertainment).toHaveLength(0);

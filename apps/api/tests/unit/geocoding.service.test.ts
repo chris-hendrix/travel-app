@@ -166,7 +166,6 @@ describe("GoogleGeocodingService", () => {
       });
       vi.stubGlobal("fetch", mockFetch);
 
-      const now = Math.floor(Date.now() / 1000);
       const result = await service.getTimezoneByCoords(48.8566, 2.3522);
       expect(result).toBe("Europe/Paris");
       expect(mockFetch).toHaveBeenCalledWith(

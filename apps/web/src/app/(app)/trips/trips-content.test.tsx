@@ -99,13 +99,28 @@ function wrapTrips(trips: TripSummary[]) {
 describe("TripsContent", () => {
   let queryClient: QueryClient;
 
+  // Dynamic future dates to prevent test failures from hardcoded dates drifting into the past
+  const future1 = new Date();
+  future1.setMonth(future1.getMonth() + 1);
+  const future1Str = future1.toISOString().split("T")[0];
+  const future1End = new Date(future1);
+  future1End.setDate(future1End.getDate() + 7);
+  const future1EndStr = future1End.toISOString().split("T")[0];
+
+  const future2 = new Date();
+  future2.setMonth(future2.getMonth() + 3);
+  const future2Str = future2.toISOString().split("T")[0];
+  const future2End = new Date(future2);
+  future2End.setDate(future2End.getDate() + 5);
+  const future2EndStr = future2End.toISOString().split("T")[0];
+
   const mockTrips: TripSummary[] = [
     {
       id: "trip-1",
       name: "Summer Vacation",
       destination: "Hawaii",
-      startDate: "2026-07-15",
-      endDate: "2026-07-22",
+      startDate: future1Str,
+      endDate: future1EndStr,
       coverImageUrl: "https://example.com/hawaii.jpg",
       isOrganizer: true,
       rsvpStatus: "going",
@@ -123,8 +138,8 @@ describe("TripsContent", () => {
       id: "trip-2",
       name: "Ski Weekend",
       destination: "Aspen, CO",
-      startDate: "2026-12-10",
-      endDate: "2026-12-15",
+      startDate: future2Str,
+      endDate: future2EndStr,
       coverImageUrl: null,
       isOrganizer: false,
       rsvpStatus: "maybe",

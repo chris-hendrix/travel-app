@@ -89,12 +89,20 @@ describe("ItineraryView", () => {
     updatedAt: new Date(),
   };
 
+  // Dynamic future date to prevent isLocked from becoming true when the hardcoded date drifts into the past
+  const futureDate = new Date();
+  futureDate.setMonth(futureDate.getMonth() + 1);
+  const futureStartStr = futureDate.toISOString().split("T")[0];
+  const futureEnd = new Date(futureDate);
+  futureEnd.setDate(futureEnd.getDate() + 5);
+  const futureEndStr = futureEnd.toISOString().split("T")[0];
+
   const mockTrip = {
     id: "trip-123",
     name: "Summer Trip",
     destination: "Malibu",
-    startDate: "2026-07-15",
-    endDate: "2026-07-20",
+    startDate: futureStartStr,
+    endDate: futureEndStr,
     preferredTimezone: "America/Los_Angeles",
     description: "Fun trip",
     coverImageUrl: null,
