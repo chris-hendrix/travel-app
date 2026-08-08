@@ -180,17 +180,6 @@ export type {
   GetMyBalanceResponse,
 } from "./balance";
 
-// Re-export affiliate types
-export type {
-  GapType,
-  SuggestionType,
-  SuggestionPartner,
-  SuggestionCard,
-  TripContext,
-  SuggestionsResponse,
-  DismissSuggestionInput,
-} from "./affiliate";
-
 // Re-export link types
 export type { LinkItem } from "./link";
 
