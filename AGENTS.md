@@ -174,6 +174,8 @@ Place cross-cutting code in `shared/` (`types/`, `schemas/`, `utils/`), exported
 
 Copy `apps/api/.env.example` → `apps/api/.env` and `apps/web/.env.local.example` → `apps/web/.env.local`. Required: `DATABASE_URL` and `JWT_SECRET` (min 32 chars).
 
+Google Maps Platform (Discover, Autocomplete, Geocoding, Timezone) replaces the former Foursquare integration. See `GOOGLE_MAPS_API_KEY` in `apps/api/.env.example`.
+
 ### Ports
 
 Frontend `3000`, API `8000`, PostgreSQL `5433` → container `5432`, MinIO API `9000`, MinIO Console `9001`, Playwright UI `9323`, Android emulator `adb` over TCP `5037`.

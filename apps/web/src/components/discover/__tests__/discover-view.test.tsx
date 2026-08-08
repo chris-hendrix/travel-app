@@ -67,7 +67,7 @@ const TRIP_ID = "trip-123";
 function makeEmptyResponse(): POISuggestionsResponse {
   return {
     destination: null,
-    source: "foursquare",
+    source: "google",
     categories: {
       food_and_drink: [],
       arts_and_entertainment: [],
@@ -80,7 +80,7 @@ function makeEmptyResponse(): POISuggestionsResponse {
 function makePopulatedResponse(): POISuggestionsResponse {
   return {
     destination: "Paris, France",
-    source: "foursquare",
+    source: "google",
     categories: {
       food_and_drink: [
         {
