@@ -29,7 +29,6 @@ import type { IPushService } from "@/services/push.service.js";
 import type { IGuestService } from "@/services/guest.service.js";
 import type { IPaymentService } from "@/services/payment.service.js";
 import type { IBalanceService } from "@/services/balance.service.js";
-import type { IAffiliateService } from "@/services/affiliate.service.js";
 import type { IAdminService } from "@/services/admin.service.js";
 import type { IDiscoverService } from "@/services/discover.service.js";
 
@@ -92,7 +91,6 @@ declare module "fastify" {
     guestService: IGuestService;
     paymentService: IPaymentService;
     balanceService: IBalanceService;
-    affiliateService: IAffiliateService;
     adminService: IAdminService;
     discoverService: IDiscoverService;
     healthService: { getStatus(): Promise<HealthCheckResponse> };
