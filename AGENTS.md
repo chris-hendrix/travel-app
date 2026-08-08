@@ -102,13 +102,33 @@ Each level has explicit bans — these are anti-patterns caught during code revi
 | **Pure unit** | Mocking so heavily that real integration failures are hidden. A unit test with 5 mocks that all return hardcoded values isn't testing behavior — it's testing mocks. If the test needs that much isolation, move it to a higher level where the wiring is real. |
 
 #### Target test shape
-TODO
+
+The target shape is defined by intent, not by strict numerical counts:
+
+- **Backend (API):** Broad pure-unit base → service integration middle → route integration layer → no API-level E2E. Most new backend behavior should be covered at the service or route integration level.
+- **Frontend (web):** Component integration (RTL) is the largest layer → pure unit for utilities → E2E is the smallest layer, capped by the critical-flow list below.
+
+The E2E cap is defined by the **E2E inclusion criteria** (see below), not by a coverage percentage. Hard rule: **an E2E spec may only cover a critical user flow.** Everything else must be covered at a lower level. Any new E2E test added to the suite requires a one-line justification in the PR description citing which critical flow from the list it covers. This rule (M2) is the sustaining constraint that prevents the suite from silently regrowing — a pattern observed after the Feb 2026 optimization rounds.
 
 #### Database isolation in tests
-TODO
+
+**Current policy:** Each test that creates records uses `generateUniquePhone()` (or equivalent unique-key strategy) to avoid collisions. Global setup (`tests/global-setup.ts`) clears only three utility tables once per suite run. Cleanup helpers are imported per-test-file, not applied automatically.
+
+**Known limitation:** State accumulates across test files within a run — which means test ordering can matter and latent order-dependence is possible. This is not a blocking issue for the current suite size but must be fixed before scaling.
+
+**Future improvement (documented, not implemented):** Per-test transactional rollback (`BEGIN` / `ROLLBACK`) so that every test starts with a clean slate and leaves no side effects. This is the documented remediation path; do not address flakiness by adding more manual cleanup calls in individual tests.
 
 #### Flakiness policy
-TODO
+
+A flaky test is a test failure — never silently ignored or worked around.
+
+1. **Quarantine rule:** If a test fails 3 times within a 7-day window with no code changes to the test or the code under test, mark it `test.skip` with an inline comment containing the owner's GitHub handle and a link to the tracking issue. The test stays skipped until the root cause is fixed — it is tracked, not forgotten.
+
+2. **Retry cap:** Maximum 1 retry per test in CI. If a test requires the retry to pass, it qualifies for quarantine under rule 1. Do not increase the retry limit to mask flakiness.
+
+3. **Browser projects are never silently dropped.** Removing a browser project (Firefox, WebKit) or a viewport (tablet, mobile) because of "flakiness" is banned without a reviewed PR and a linked GitHub issue explaining the root cause. This rule directly overrides the precedent set by commit `1f7fa72`, which dropped Firefox, WebKit, and iPad with the comment "flakiness, not real bugs."
+
+4. **Root-cause diagnosis is mandatory.** When a test flakes, the immediate response is diagnosis, not deletion. Check for: async race conditions, missing `waitFor` guards, shared mutable state between tests, or DB state leakage. If the root cause is unclear after 30 minutes of investigation, quarantine the test under rule 1 — do not delete it.
 
 #### E2E inclusion criteria (critical flows)
 TODO
