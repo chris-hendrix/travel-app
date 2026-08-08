@@ -59,7 +59,8 @@
       "undici": "^7.28.0",
       "postcss": ">=8.5.18",
       "brace-expansion@<1.1.17": ">=1.1.17",
-      "brace-expansion@>=4.0.0 <5.0.8": ">=5.0.8"
+      "brace-expansion@>=4.0.0 <5.0.8": ">=5.0.8",
+      "sharp": ">=0.35.0"
     }
   },
   "packageManager": "pnpm@10.30.1",
