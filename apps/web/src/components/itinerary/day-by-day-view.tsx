@@ -6,9 +6,7 @@ import type {
   MemberTravel,
   DailyForecast,
   TemperatureUnit,
-  SuggestionCard as SuggestionCardType,
 } from "@journiful/shared/types";
-import { SuggestionCard } from "./suggestion-card";
 import { EventCard } from "./event-card";
 import { MemberTravelLineItem } from "./member-travel-line-item";
 import { EventDetailSheet } from "./event-detail-sheet";
@@ -60,9 +58,6 @@ interface DayByDayViewProps {
   forecasts?: DailyForecast[];
   temperatureUnit?: TemperatureUnit;
   showMemberTravel?: boolean;
-  tripId?: string;
-  daySuggestions?: Map<string, SuggestionCardType[]>;
-  onDismissSuggestion?: (suggestionType: string, suggestionKey: string) => void;
 }
 
 interface DayData {
@@ -97,9 +92,6 @@ export function DayByDayView({
   forecasts,
   temperatureUnit,
   showMemberTravel,
-  tripId,
-  daySuggestions,
-  onDismissSuggestion,
 }: DayByDayViewProps) {
   // Track current time for the "now" indicator
   const [now, setNow] = useState(() => Date.now());
@@ -463,16 +455,6 @@ export function DayByDayView({
                   <span className="text-sm">No events scheduled</span>
                 </div>
               )}
-              {!isLocked &&
-                onDismissSuggestion &&
-                daySuggestions?.get(day.date)?.map((s) => (
-                  <SuggestionCard
-                    key={s.id}
-                    suggestion={s}
-                    tripId={tripId || ""}
-                    onDismiss={onDismissSuggestion}
-                  />
-                ))}
             </div>
           </div>
         );

@@ -22,8 +22,6 @@ import { CreateEventDialog } from "@/components/itinerary/create-event-dialog";
 import { canModifyAccommodation } from "@/components/itinerary/utils/permissions";
 import { MemberProfileSheet } from "@/components/trip/member-profile-sheet";
 import { useAccommodations } from "@/hooks/use-accommodations";
-import { useSuggestions, useDismissSuggestion } from "@/hooks/use-suggestions";
-import { SuggestionCard } from "@/components/itinerary/suggestion-card";
 import { CalendarSyncCard } from "@/components/trip/calendar-sync-card";
 import { membersQueryOptions } from "@/hooks/invitation-queries";
 import { useQuery } from "@tanstack/react-query";
@@ -116,12 +114,6 @@ export function InfoPanel({
 
   const { user } = useAuth();
   const { data: accommodations } = useAccommodations(tripId);
-  const { data: suggestions = [] } = useSuggestions(tripId);
-  const dismissSuggestion = useDismissSuggestion(tripId);
-  const accommodationSuggestion = useMemo(
-    () => suggestions.find((s) => s.gapType === "no_accommodation"),
-    [suggestions],
-  );
   const [selectedWeatherDate, setSelectedWeatherDate] = useState<string | null>(null);
   const [selectedAccommodation, setSelectedAccommodation] = useState<Accommodation | null>(null);
   const [editingAccommodation, setEditingAccommodation] = useState<Accommodation | null>(null);
@@ -340,29 +332,15 @@ export function InfoPanel({
                 ))}
               </div>
             ) : (
-              <>
-                {accommodationSuggestion ? (
-                  <>
-                    <SuggestionCard
-                      suggestion={accommodationSuggestion}
-                      tripId={tripId}
-                      onDismiss={(suggestionType, suggestionKey) =>
-                        dismissSuggestion.mutate({ suggestionType, suggestionKey })
-                      }
-                    />
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No accommodations.{" "}
-                    <button
-                      onClick={() => setIsCreateAccommodationOpen(true)}
-                      className="text-primary hover:underline transition-colors"
-                    >
-                      Add one
-                    </button>
-                  </p>
-                )}
-              </>
+              <p className="text-sm text-muted-foreground">
+                No accommodations.{" "}
+                <button
+                  onClick={() => setIsCreateAccommodationOpen(true)}
+                  className="text-primary hover:underline transition-colors"
+                >
+                  Add one
+                </button>
+              </p>
             )}
           </div>
         )}
