@@ -428,8 +428,8 @@ describe("POST /api/auth/complete-profile", () => {
       // Generate expired JWT token (expired 1 second ago)
       const expiredToken = app.jwt.sign({
         sub: testUser.id,
-        exp: Math.floor(Date.now() / 1000) - 1, // Expired 1 second ago
-      });
+        exp: Math.floor(Date.now() / 1000) - 60, // Expired 60 seconds ago
+      }, {});
 
       const response = await app.inject({
         method: "POST",

@@ -148,11 +148,11 @@ describe("GET /api/auth/me", () => {
 
       const testUser = testUserResult[0];
 
-      // Generate expired JWT token (expired 1 second ago)
+      // Generate expired JWT token (expired 60 seconds ago)
       const expiredToken = app.jwt.sign({
         sub: testUser.id,
-        exp: Math.floor(Date.now() / 1000) - 1, // Expired 1 second ago
-      });
+        exp: Math.floor(Date.now() / 1000) - 60, // Expired 60 seconds ago
+      }, {});
 
       const response = await app.inject({
         method: "GET",
@@ -311,11 +311,11 @@ describe("POST /api/auth/logout", () => {
 
       const testUser = testUserResult[0];
 
-      // Generate expired JWT token (expired 1 second ago)
+      // Generate expired JWT token (expired 60 seconds ago)
       const expiredToken = app.jwt.sign({
         sub: testUser.id,
-        exp: Math.floor(Date.now() / 1000) - 1, // Expired 1 second ago
-      });
+        exp: Math.floor(Date.now() / 1000) - 60, // Expired 60 seconds ago
+      }, {});
 
       const response = await app.inject({
         method: "POST",
