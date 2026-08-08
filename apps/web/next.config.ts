@@ -92,7 +92,6 @@ export function createNextConfig(
     turbopack: {},
 
     experimental: {
-      viewTransition: true,
       optimizePackageImports: ["lucide-react", "date-fns"],
     },
     images: isExportMode
