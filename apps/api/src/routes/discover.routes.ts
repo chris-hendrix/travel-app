@@ -82,14 +82,14 @@ export async function discoverRoutes(fastify: FastifyInstance) {
           success: true,
           data: {
             destination: location,
-            source: "foursquare" as const,
+            source: "google" as const,
             categories: groupByCategoryOnly([]),
           },
         });
       }
 
       // If API key is not configured, serve from cache (if available)
-      if (!request.server.config.FOURSQUARE_API_KEY) {
+      if (!request.server.config.GOOGLE_MAPS_API_KEY) {
         if (!refresh) {
           const cached = await request.server.db
             .select()

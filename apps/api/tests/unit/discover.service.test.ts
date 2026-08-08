@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { DiscoverService } from "@/services/discover.service.js";
 import type { POISuggestion, POICategoryKey } from "@journiful/shared/types";
 
@@ -8,7 +8,7 @@ const TRIP_ID = "trip-1111-2222-3333";
 
 function makeSuggestion(overrides: Partial<POISuggestion> = {}): POISuggestion {
   return {
-    sourceId: "fsq-001",
+    sourceId: "ChIJ-mock-001",
     name: "Test Place",
     address: "123 Test St",
     lat: 48.8566,
@@ -26,15 +26,13 @@ function makeSuggestion(overrides: Partial<POISuggestion> = {}): POISuggestion {
   };
 }
 
-function makeFsqResult(overrides: Record<string, unknown> = {}) {
+function makeGooglePlace(overrides: Record<string, unknown> = {}) {
   return {
-    fsq_place_id: "fsq-mock-001",
-    name: "Mock Place",
-    latitude: 48.857,
-    longitude: 2.353,
-    distance: 400,
-    location: { formatted_address: "456 Mock Ave" },
-    categories: [{ name: "Restaurant" }],
+    id: "ChIJ-mock-001",
+    displayName: { text: "Mock Place", languageCode: "en" },
+    formattedAddress: "456 Mock Ave",
+    location: { latitude: 48.857, longitude: 2.353 },
+    types: ["restaurant", "food", "point_of_interest", "establishment"],
     ...overrides,
   };
 }
@@ -83,22 +81,26 @@ describe("DiscoverService", () => {
   beforeEach(() => {
     mockDb = createMockDb();
     mockLog = createMockLogger();
-    service = new DiscoverService(mockDb as never, "test-fsq-key", mockLog as never);
+    service = new DiscoverService(mockDb as never, "test-google-key", mockLog as never);
 
     // Mock global fetch
     fetchSpy = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ results: [makeFsqResult()] }),
+      json: async () => ({ places: [makeGooglePlace()] }),
     });
     global.fetch = fetchSpy;
   });
 
-  // ── 1. Returns cached data without calling Foursquare ──────────────────────
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // ── 1. Returns cached data without calling Google Places ───────────────────
 
   describe("cached data", () => {
-    it("returns cached data without calling Foursquare when cache exists", async () => {
-      const poi1 = makeSuggestion({ sourceId: "fsq-1", name: "Cafe One" });
-      const poi2 = makeSuggestion({ sourceId: "fsq-2", name: "Bar Two", category: "nightlife" });
+    it("returns cached data without calling Google Places when cache exists", async () => {
+      const poi1 = makeSuggestion({ sourceId: "ChIJ-1", name: "Cafe One" });
+      const poi2 = makeSuggestion({ sourceId: "ChIJ-2", name: "Bar Two", category: "nightlife" });
 
       // Trip query
       mockDb.where.mockResolvedValueOnce([{ id: TRIP_ID }]);
@@ -106,7 +108,7 @@ describe("DiscoverService", () => {
       mockDb.where.mockResolvedValueOnce([
         {
           tripId: TRIP_ID,
-          source: "foursquare",
+          source: "google",
           searchLat: 48.8566,
           searchLon: 2.3522,
           searchLocation: "Paris, France",
@@ -118,20 +120,20 @@ describe("DiscoverService", () => {
       const result = await service.getDiscoverPOIs(TRIP_ID, 48.8566, 2.3522, "Paris, France");
 
       expect(result.destination).toBe("Paris, France");
-      expect(result.source).toBe("foursquare");
+      expect(result.source).toBe("google");
       expect(result.categories.food_and_drink).toHaveLength(1);
       expect(result.categories.food_and_drink[0]!.name).toBe("Cafe One");
       expect(result.categories.nightlife).toHaveLength(1);
       expect(result.categories.nightlife[0]!.name).toBe("Bar Two");
 
-      // Foursquare should NOT be called
+      // Google Places should NOT be called
       expect(fetchSpy).not.toHaveBeenCalled();
     });
 
     it("filters out converted POIs (eventId != null)", async () => {
-      const unconverted = makeSuggestion({ sourceId: "fsq-u1", name: "Unconverted Place" });
+      const unconverted = makeSuggestion({ sourceId: "ChIJ-u1", name: "Unconverted Place" });
       const converted = makeSuggestion({
-        sourceId: "fsq-c1",
+        sourceId: "ChIJ-c1",
         name: "Already Converted",
         eventId: "event-999",
       });
@@ -140,7 +142,7 @@ describe("DiscoverService", () => {
       mockDb.where.mockResolvedValueOnce([
         {
           tripId: TRIP_ID,
-          source: "foursquare",
+          source: "google",
           searchLat: 48.8566,
           searchLon: 2.3522,
           searchLocation: "Paris",
@@ -156,12 +158,52 @@ describe("DiscoverService", () => {
       expect(result.categories.food_and_drink[0]!.name).toBe("Unconverted Place");
       expect(fetchSpy).not.toHaveBeenCalled();
     });
+
+    it("re-fetches when cache is older than 30 days (cache expiry)", async () => {
+      const oldDate = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000); // 31 days ago
+      const oldSuggestion = makeSuggestion({ sourceId: "ChIJ-old", name: "Old Place" });
+
+      // Trip query
+      mockDb.where.mockResolvedValueOnce([{ id: TRIP_ID }]);
+      // Cache query: has cache but it's 31 days old
+      mockDb.where.mockResolvedValueOnce([
+        {
+          tripId: TRIP_ID,
+          source: "google",
+          searchLat: 48.8566,
+          searchLon: 2.3522,
+          searchLocation: "Paris",
+          cachedAt: oldDate,
+          suggestions: [oldSuggestion],
+        },
+      ]);
+      // fetchAndCache: existing cache read (converted POIs)
+      mockDb.where.mockResolvedValueOnce([
+        {
+          tripId: TRIP_ID,
+          source: "google",
+          searchLat: 48.8566,
+          searchLon: 2.3522,
+          searchLocation: "Paris",
+          cachedAt: oldDate,
+          suggestions: [oldSuggestion],
+        },
+      ]);
+      mockDb.onConflictDoUpdate.mockResolvedValueOnce(undefined);
+
+      const result = await service.getDiscoverPOIs(TRIP_ID, 48.8566, 2.3522, "Paris");
+
+      expect(result.source).toBe("google");
+      // Should have made 4 fetch calls (cache expired)
+      expect(fetchSpy).toHaveBeenCalledTimes(4);
+      expect(mockDb.onConflictDoUpdate).toHaveBeenCalled();
+    });
   });
 
-  // ── 2. Fetches from Foursquare on first load ───────────────────────────────
+  // ── 2. Fetches from Google Places on first load ────────────────────────────
 
-  describe("Foursquare fetch", () => {
-    it("fetches from Foursquare on first load (no cache)", async () => {
+  describe("Google Places fetch", () => {
+    it("fetches from Google Places on first load (no cache)", async () => {
       // Trip query
       mockDb.where.mockResolvedValueOnce([{ id: TRIP_ID }]);
       // No cache
@@ -171,12 +213,25 @@ describe("DiscoverService", () => {
 
       const result = await service.getDiscoverPOIs(TRIP_ID, 48.8566, 2.3522, "Paris");
 
-      expect(result.source).toBe("foursquare");
-      expect(fetchSpy).toHaveBeenCalledTimes(4); // 4 category calls
+      expect(result.source).toBe("google");
+      expect(fetchSpy).toHaveBeenCalledTimes(4); // 4 category calls (POSTs to searchNearby)
 
       // Should have inserted cache
       expect(mockDb.insert).toHaveBeenCalled();
       expect(mockDb.onConflictDoUpdate).toHaveBeenCalled();
+
+      // Verify fetch was called with correct URL
+      const fetchCalls = fetchSpy.mock.calls;
+      for (const call of fetchCalls) {
+        const url = call[0] as string;
+        expect(url).toBe("https://places.googleapis.com/v1/places:searchNearby");
+        const opts = call[1] as RequestInit;
+        expect(opts.method).toBe("POST");
+        expect(opts.headers?.["X-Goog-Api-Key"]).toBe("test-google-key");
+        expect(opts.headers?.["X-Goog-FieldMask"]).toBe(
+          "places.id,places.displayName,places.formattedAddress,places.location,places.types",
+        );
+      }
     });
 
     it("re-fetches on refresh=true", async () => {
@@ -186,13 +241,13 @@ describe("DiscoverService", () => {
       mockDb.where.mockResolvedValueOnce([
         {
           tripId: TRIP_ID,
-          source: "foursquare",
+          source: "google",
           searchLat: 48.8566,
           searchLon: 2.3522,
           searchLocation: "Paris",
           cachedAt: new Date(),
           suggestions: [
-            makeSuggestion({ sourceId: "fsq-converted", name: "Converted", eventId: "evt-1" }),
+            makeSuggestion({ sourceId: "ChIJ-converted", name: "Converted", eventId: "evt-1" }),
           ],
         },
       ]);
@@ -201,8 +256,8 @@ describe("DiscoverService", () => {
 
       const result = await service.getDiscoverPOIs(TRIP_ID, 48.8566, 2.3522, "Paris", true);
 
-      expect(result.source).toBe("foursquare");
-      // Should fetch from Foursquare (refresh bypasses cache read)
+      expect(result.source).toBe("google");
+      // Should fetch from Google Places (refresh bypasses cache read)
       expect(fetchSpy).toHaveBeenCalledTimes(4);
       expect(mockDb.onConflictDoUpdate).toHaveBeenCalled();
     });
@@ -212,14 +267,14 @@ describe("DiscoverService", () => {
       mockDb.where.mockResolvedValueOnce([{ id: TRIP_ID }]);
       // fetchAndCache: existing cache with converted POI
       const converted = makeSuggestion({
-        sourceId: "fsq-converted",
+        sourceId: "ChIJ-converted",
         name: "Louvre",
         eventId: "evt-louvre",
       });
       mockDb.where.mockResolvedValueOnce([
         {
           tripId: TRIP_ID,
-          source: "foursquare",
+          source: "google",
           searchLat: 48.8566,
           searchLon: 2.3522,
           searchLocation: "Paris",
@@ -231,24 +286,101 @@ describe("DiscoverService", () => {
 
       const result = await service.getDiscoverPOIs(TRIP_ID, 48.8566, 2.3522, "Paris", true);
 
-      expect(result.source).toBe("foursquare");
+      expect(result.source).toBe("google");
       expect(fetchSpy).toHaveBeenCalledTimes(4);
 
       // Insert call should include the converted POI
       const insertedValue = mockDb.values.mock.calls[0]?.[0] as { suggestions: POISuggestion[] };
       expect(insertedValue.suggestions).toBeDefined();
       const preserved = insertedValue.suggestions.find(
-        (s: POISuggestion) => s.sourceId === "fsq-converted",
+        (s: POISuggestion) => s.sourceId === "ChIJ-converted",
       );
       expect(preserved).toBeDefined();
       expect(preserved!.eventId).toBe("evt-louvre");
     });
   });
 
-  // ── 3. Error handling ──────────────────────────────────────────────────────
+  // ── 3. Generic type filtering and subcategory labeling ─────────────────────
 
-  describe("error handling", () => {
-    it("handles partial Foursquare failure (some categories fail)", async () => {
+  describe("Google Places type mapping", () => {
+    it("filters out generic Google types", async () => {
+      // This tests mapGoogleToSuggestion behavior internally
+      // Generic types (food, point_of_interest, establishment) should be filtered
+      // leaving only "restaurant" as the meaningful type
+      mockDb.where.mockResolvedValueOnce([{ id: TRIP_ID }]);
+      mockDb.where.mockResolvedValueOnce([]); // no cache
+      mockDb.where.mockResolvedValueOnce([]); // fetchAndCache existing
+      mockDb.onConflictDoUpdate.mockResolvedValueOnce(undefined);
+
+      // Google place with generic types mixed in
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          places: [
+            makeGooglePlace({
+              id: "ChIJ-gen-test",
+              displayName: { text: "Generic Test", languageCode: "en" },
+              types: ["restaurant", "food", "point_of_interest", "establishment"],
+            }),
+          ],
+        }),
+      });
+
+      const result = await service.getDiscoverPOIs(TRIP_ID, 48.8566, 2.3522, "Paris");
+
+      // food_and_drink should have the restaurant since "restaurant" is in googleTypes for food_and_drink
+      // The generic types (food, point_of_interest, establishment) are filtered out before matching
+      expect(result.categories.food_and_drink.length).toBeGreaterThan(0);
+      const poi = result.categories.food_and_drink[0]!;
+      expect(poi.name).toBe("Generic Test");
+    });
+
+    it("uses googleTypeLabels for subcategory display name", async () => {
+      mockDb.where.mockResolvedValueOnce([{ id: TRIP_ID }]);
+      mockDb.where.mockResolvedValueOnce([]); // no cache
+      mockDb.where.mockResolvedValueOnce([]); // fetchAndCache existing
+      mockDb.onConflictDoUpdate.mockResolvedValueOnce(undefined);
+
+      fetchSpy.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          places: [
+            makeGooglePlace({
+              id: "ChIJ-label-test",
+              displayName: { text: "Label Test", languageCode: "en" },
+              types: ["restaurant", "point_of_interest", "establishment"],
+            }),
+          ],
+        }),
+      });
+
+      const result = await service.getDiscoverPOIs(TRIP_ID, 48.8566, 2.3522, "Paris");
+
+      const poi = result.categories.food_and_drink[0]!;
+      // subcategory should be the human-friendly label "Restaurant", not the raw type "restaurant"
+      expect(poi.subcategory).toBe("Restaurant");
+    });
+  });
+
+  // ── 4. No API key ──────────────────────────────────────────────────────────
+
+  describe("no API key", () => {
+    it("throws when googleApiKey is empty string", async () => {
+      const svc = new DiscoverService(mockDb as never, "", mockLog as never);
+
+      mockDb.where.mockResolvedValueOnce([{ id: TRIP_ID }]);
+      mockDb.where.mockResolvedValueOnce([]); // no cache
+
+      await expect(
+        svc.getDiscoverPOIs(TRIP_ID, 48.8566, 2.3522, "Paris"),
+      ).rejects.toThrow(/Google API key/i);
+    });
+  });
+
+  // ── 5. Error handling ──────────────────────────────────────────────────────
+
+  describe("Google Places error handling", () => {
+    it("handles partial Google Places failure (some categories fail)", async () => {
       mockDb.where.mockResolvedValueOnce([{ id: TRIP_ID }]);
       mockDb.where.mockResolvedValueOnce([]);
       mockDb.where.mockResolvedValueOnce([]);
@@ -259,17 +391,17 @@ describe("DiscoverService", () => {
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            results: [
-              makeFsqResult({ fsq_place_id: "fsq-food-1", name: "Bistro" }),
-              makeFsqResult({ fsq_place_id: "fsq-food-2", name: "Pizzeria" }),
+            places: [
+              makeGooglePlace({ id: "ChIJ-food-1", displayName: { text: "Bistro", languageCode: "en" } }),
+              makeGooglePlace({ id: "ChIJ-food-2", displayName: { text: "Pizzeria", languageCode: "en" } }),
             ],
           }),
         })
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({
-            results: [
-              makeFsqResult({ fsq_place_id: "fsq-arts-1", name: "Gallery" }),
+            places: [
+              makeGooglePlace({ id: "ChIJ-arts-1", displayName: { text: "Gallery", languageCode: "en" } }),
             ],
           }),
         })
@@ -278,7 +410,7 @@ describe("DiscoverService", () => {
 
       const result = await service.getDiscoverPOIs(TRIP_ID, 48.8566, 2.3522, "Paris");
 
-      expect(result.source).toBe("foursquare");
+      expect(result.source).toBe("google");
       expect(result.partial).toBe(true);
       expect(result.errors).toBeDefined();
       expect(Object.keys(result.errors!)).toContain("outdoors");
@@ -288,7 +420,7 @@ describe("DiscoverService", () => {
       expect(result.categories.arts_and_entertainment.length).toBeGreaterThan(0);
     });
 
-    it("handles all Foursquare calls failing", async () => {
+    it("handles all Google Places calls failing", async () => {
       mockDb.where.mockResolvedValueOnce([{ id: TRIP_ID }]);
       mockDb.where.mockResolvedValueOnce([]);
       mockDb.where.mockResolvedValueOnce([]);
@@ -308,7 +440,7 @@ describe("DiscoverService", () => {
     });
   });
 
-  // ── 4. Edge cases ──────────────────────────────────────────────────────────
+  // ── 6. Edge cases ──────────────────────────────────────────────────────────
 
   describe("edge cases", () => {
     it("returns empty when lat/lon are not provided", async () => {
@@ -329,13 +461,13 @@ describe("DiscoverService", () => {
       mockDb.where.mockResolvedValueOnce([{ id: TRIP_ID }]);
       // Cache query — OLD coords (Paris)
       const oldSuggestion = makeSuggestion({
-        sourceId: "fsq-old",
+        sourceId: "ChIJ-old",
         name: "Old Paris Cafe",
       });
       mockDb.where.mockResolvedValueOnce([
         {
           tripId: TRIP_ID,
-          source: "foursquare",
+          source: "google",
           searchLat: 48.8566, // Paris lat
           searchLon: 2.3522, // Paris lon
           searchLocation: "Paris, France",
@@ -347,7 +479,7 @@ describe("DiscoverService", () => {
       mockDb.where.mockResolvedValueOnce([
         {
           tripId: TRIP_ID,
-          source: "foursquare",
+          source: "google",
           searchLat: 48.8566,
           searchLon: 2.3522,
           searchLocation: "Paris, France",
@@ -357,12 +489,12 @@ describe("DiscoverService", () => {
       ]);
       mockDb.onConflictDoUpdate.mockResolvedValueOnce(undefined);
 
-      // Foursquare responds with London places
+      // Google responds with London places
       fetchSpy.mockResolvedValue({
         ok: true,
         json: async () => ({
-          results: [
-            makeFsqResult({ fsq_place_id: "fsq-london-1", name: "London Cafe" }),
+          places: [
+            makeGooglePlace({ id: "ChIJ-london-1", displayName: { text: "London Cafe", languageCode: "en" } }),
           ],
         }),
       });
@@ -395,7 +527,7 @@ describe("DiscoverService", () => {
       mockDb.where.mockResolvedValueOnce([
         {
           tripId: TRIP_ID,
-          source: "foursquare",
+          source: "google",
           searchLat: 48.8566,
           searchLon: 2.3522,
           searchLocation: "Paris, France",

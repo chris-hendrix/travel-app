@@ -598,7 +598,7 @@ async function main() {
   await db.insert(schema.poiCache).values([
     {
       tripId: tokyo.id,
-      source: "foursquare",
+      source: "google",
       searchLat: tokyo.destinationLat!,
       searchLon: tokyo.destinationLon!,
       searchLocation: tokyo.destination,
@@ -607,7 +607,7 @@ async function main() {
     },
     {
       tripId: barcelona.id,
-      source: "foursquare",
+      source: "google",
       searchLat: barcelona.destinationLat!,
       searchLon: barcelona.destinationLon!,
       searchLocation: barcelona.destination,
@@ -616,7 +616,7 @@ async function main() {
     },
     {
       tripId: nyc.id,
-      source: "foursquare",
+      source: "google",
       searchLat: nyc.destinationLat!,
       searchLon: nyc.destinationLon!,
       searchLocation: nyc.destination,
@@ -625,7 +625,7 @@ async function main() {
     },
     {
       tripId: lisbon!.id,
-      source: "foursquare",
+      source: "google",
       searchLat: lisbon!.destinationLat!,
       searchLon: lisbon!.destinationLon!,
       searchLocation: lisbon!.destination,

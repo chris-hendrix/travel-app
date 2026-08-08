@@ -88,7 +88,7 @@ export async function locationRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       const { q, lat, lon } = request.query;
-      const key = request.server.config.FOURSQUARE_API_KEY;
+      const key = request.server.config.GOOGLE_MAPS_API_KEY;
 
       if (!key) {
         return reply.send([]);

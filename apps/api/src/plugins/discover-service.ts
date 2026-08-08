@@ -8,7 +8,7 @@ import { DiscoverService } from "@/services/discover.service.js";
  */
 export default fp(
   async function discoverServicePlugin(fastify: FastifyInstance) {
-    const key = fastify.config.FOURSQUARE_API_KEY;
+    const key = fastify.config.GOOGLE_MAPS_API_KEY;
     const discoverService = new DiscoverService(fastify.db, key, fastify.log);
     fastify.decorate("discoverService", discoverService);
   },
