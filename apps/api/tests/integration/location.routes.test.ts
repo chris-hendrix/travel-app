@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../helpers.js";
 import { db } from "@/config/database.js";
@@ -10,8 +10,11 @@ const SESSION_TOKEN = "00000000-0000-4000-a000-000000000001";
 describe("Location Routes", () => {
   let app: FastifyInstance;
 
-  afterEach(async () => {
+  beforeEach(() => {
     vi.restoreAllMocks();
+  });
+
+  afterEach(async () => {
     if (app) {
       await app.close();
     }
