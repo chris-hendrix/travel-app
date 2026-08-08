@@ -7,7 +7,16 @@ const autocompleteQuerySchema = z.object({
   q: z.string().min(1).max(200),
   lat: z.coerce.number().optional(),
   lon: z.coerce.number().optional(),
+  sessionToken: z.string().uuid(),
 });
+
+const autocompleteSuggestionSchema = z.object({
+  placeId: z.string(),
+  shortName: z.string(),
+  displayName: z.string(),
+  displayAddress: z.string(),
+});
+const autocompleteResponseSchema = z.array(autocompleteSuggestionSchema);
 
 const locationSuggestionSchema = z.object({
   placeId: z.string(),
@@ -19,61 +28,33 @@ const locationSuggestionSchema = z.object({
   lon: z.number(),
 });
 
-const autocompleteResponseSchema = z.array(locationSuggestionSchema);
+const detailsQuerySchema = z.object({
+  placeId: z.string().min(1),
+  sessionToken: z.string().uuid(),
+});
 
-type FoursquareText = {
-  primary: string;
-  secondary: string;
-  highlight: Array<{ start: number; length: number }>;
-};
+const GOOGLE_PLACES_BASE = "https://places.googleapis.com/v1";
 
-type FoursquareLocation = {
-  address: string;
-  locality: string;
-  region: string;
-  postcode: string;
-  country: string;
-  formatted_address: string;
-};
-
-type FoursquarePlace = {
-  fsq_place_id: string;
-  latitude: number;
-  longitude: number;
-  categories: Array<{
-    fsq_category_id: string;
-    name: string;
-    short_name: string;
-    plural_name: string;
-    icon: { prefix: string; suffix: string };
-  }>;
-  distance: number;
-  location: FoursquareLocation;
-  name: string;
-};
-
-type FoursquareGeo = {
-  name: string;
-  center: { latitude: number; longitude: number };
-  bounds: {
-    ne: { latitude: number; longitude: number };
-    sw: { latitude: number; longitude: number };
+type GoogleAutocompletePlacePrediction = {
+  placeId: string;
+  text: { text: string };
+  structuredFormat?: {
+    mainText?: { text: string };
+    secondaryText?: { text: string };
   };
-  cc: string;
-  type: string;
 };
 
-type FoursquareResult = {
-  type: "search" | "place" | "geo";
-  text: FoursquareText;
-  link: string;
-  place?: FoursquarePlace;
-  search?: { query: string };
-  geo?: FoursquareGeo;
+type GoogleAutocompleteResponse = {
+  suggestions?: Array<{
+    placePrediction: GoogleAutocompletePlacePrediction;
+  }>;
 };
 
-type FoursquareAutocompleteResponse = {
-  results: FoursquareResult[];
+type GooglePlaceDetailsResponse = {
+  id: string;
+  displayName: { text: string; languageCode: string };
+  formattedAddress: string;
+  location: { latitude: number; longitude: number };
 };
 
 export async function locationRoutes(fastify: FastifyInstance) {
@@ -87,7 +68,7 @@ export async function locationRoutes(fastify: FastifyInstance) {
       preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate],
     },
     async (request, reply) => {
-      const { q, lat, lon } = request.query;
+      const { q, lat, lon, sessionToken } = request.query;
       const key = request.server.config.GOOGLE_MAPS_API_KEY;
 
       if (!key) {
@@ -95,79 +76,127 @@ export async function locationRoutes(fastify: FastifyInstance) {
       }
 
       try {
-        const params = new URLSearchParams({
-          query: q,
-          limit: "20",
-        });
+        const body: Record<string, unknown> = {
+          input: q,
+          sessionToken,
+        };
 
         if (lat != null && lon != null) {
-          params.set("ll", `${lat},${lon}`);
-          params.set("radius", "50000");
+          body.locationBias = {
+            circle: {
+              center: { latitude: lat, longitude: lon },
+              radius: 50000,
+            },
+          };
         }
 
-        const url = `https://places-api.foursquare.com/autocomplete?${params}`;
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 3000);
 
-        const response = await fetch(url, {
+        const response = await fetch(`${GOOGLE_PLACES_BASE}/places:autocomplete`, {
+          method: "POST",
           signal: controller.signal,
           headers: {
-            Authorization: `Bearer ${key}`,
-            "X-Places-Api-Version": "2025-06-17",
-            Accept: "application/json",
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": key,
           },
+          body: JSON.stringify(body),
         });
 
         clearTimeout(timeout);
         if (!response.ok) return reply.send([]);
 
-        const data = (await response.json()) as FoursquareAutocompleteResponse;
+        const data = (await response.json()) as GoogleAutocompleteResponse;
 
         const seen = new Set<string>();
-        return data.results
-          .filter((r) => (r.type === "place" && r.place) || r.type === "geo")
-          .map((r) => {
-            if (r.type === "place" && r.place) {
-              const place = r.place;
-              if (seen.has(place.fsq_place_id)) return null;
-              seen.add(place.fsq_place_id);
-              return {
-                placeId: place.fsq_place_id,
-                shortName: place.name,
-                displayName: place.name,
-                displayPlace: place.location.locality || place.name,
-                displayAddress: place.location.formatted_address || r.text.secondary,
-                lat: place.latitude,
-                lon: place.longitude,
-              };
-            } else if (r.type === "geo" && r.geo) {
-              const geo = r.geo;
-              if (seen.has(geo.name)) return null;
-              seen.add(geo.name);
-              if (!geo.center?.latitude || !geo.center?.longitude) return null;
-              const geoParts = r.text.primary.split(",").map((p: string) => p.trim());
-              const geoShortName =
-                geo.cc === "US"
-                  ? r.text.primary
-                  : geoParts.length >= 3
-                    ? `${geoParts[0]}, ${geoParts[geoParts.length - 1]}`
-                    : r.text.primary;
-
-              return {
-                placeId: geo.name,
-                shortName: geoShortName,
-                displayName: r.text.primary,
-                displayPlace: r.text.primary,
-                displayAddress: r.text.secondary,
-                lat: geo.center.latitude,
-                lon: geo.center.longitude,
-              };
-            }
-            return null;
+        return (data.suggestions ?? [])
+          .map((s) => s.placePrediction)
+          .filter((p) => {
+            if (seen.has(p.placeId)) return false;
+            seen.add(p.placeId);
+            return true;
           })
-          .filter(Boolean);
+          .map((p) => ({
+            placeId: p.placeId,
+            shortName: p.structuredFormat?.mainText?.text ?? p.text.text,
+            displayName: p.text.text,
+            displayAddress:
+              p.structuredFormat?.secondaryText?.text ?? "",
+          }));
       } catch {
         return reply.send([]);
+      }
+    },
+  );
+
+  fastify.get<{ Querystring: z.infer<typeof detailsQuerySchema> }>(
+    "/details",
+    {
+      schema: {
+        querystring: detailsQuerySchema,
+        response: { 200: locationSuggestionSchema },
+      },
+      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate],
+    },
+    async (request, reply) => {
+      const { placeId, sessionToken } = request.query;
+      const key = request.server.config.GOOGLE_MAPS_API_KEY;
+
+      if (!key) {
+        return reply.status(503).send({
+          success: false,
+          error: {
+            code: "SERVICE_UNAVAILABLE",
+            message: "Google API key is not configured",
+          },
+        });
+      }
+
+      try {
+        const url = new URL(`${GOOGLE_PLACES_BASE}/places/${encodeURIComponent(placeId)}`);
+        url.searchParams.set("sessionToken", sessionToken);
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+
+        const response = await fetch(url.toString(), {
+          signal: controller.signal,
+          headers: {
+            "X-Goog-Api-Key": key,
+            "X-Goog-FieldMask": "id,displayName,formattedAddress,location,types",
+          },
+        });
+
+        clearTimeout(timeout);
+        if (!response.ok) {
+          return reply.status(503).send({
+            success: false,
+            error: {
+              code: "SERVICE_UNAVAILABLE",
+              message: "Google Places API returned an error",
+            },
+          });
+        }
+
+        const data = (await response.json()) as GooglePlaceDetailsResponse;
+
+        return {
+          placeId: data.id,
+          shortName: data.displayName.text,
+          displayName: data.displayName.text,
+          displayPlace: data.formattedAddress,
+          displayAddress: data.formattedAddress,
+          lat: data.location.latitude,
+          lon: data.location.longitude,
+        };
+      } catch {
+        return reply.status(503).send({
+          success: false,
+          error: {
+            code: "SERVICE_UNAVAILABLE",
+            message: "Google Places API request failed",
+          },
+        });
       }
     },
   );
