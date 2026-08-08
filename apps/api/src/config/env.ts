@@ -30,10 +30,25 @@ const envSchema = z.object({
     .string()
     .min(32, "JWT_SECRET must be at least 32 characters for security"),
 
-  // Frontend
+  // Frontend (supports comma-separated list for CORS multiple origins)
   FRONTEND_URL: z
     .string()
-    .url("FRONTEND_URL must be a valid URL")
+    .min(1, "FRONTEND_URL is required")
+    .refine(
+      (val) =>
+        val
+          .split(",")
+          .map((s) => s.trim())
+          .every((url) => {
+            try {
+              new URL(url);
+              return true;
+            } catch {
+              return false;
+            }
+          }),
+      "FRONTEND_URL must be a valid URL (comma-separated list allowed)",
+    )
     .default("http://localhost:3000"),
 
   // Proxy
