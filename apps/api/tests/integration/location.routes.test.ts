@@ -55,6 +55,7 @@ describe("Location Routes", () => {
 
     it("returns AutocompleteSuggestion[] (no lat/lon) for valid query", async () => {
       const { token } = await createAuthenticatedApp();
+      app.config.GOOGLE_MAPS_API_KEY = "test-key";
 
       const mockResponse = {
         suggestions: [
@@ -128,6 +129,7 @@ describe("Location Routes", () => {
 
     it("includes locationBias when lat/lon present", async () => {
       const { token } = await createAuthenticatedApp();
+      app.config.GOOGLE_MAPS_API_KEY = "test-key";
 
       vi.spyOn(global, "fetch").mockResolvedValueOnce(
         new Response(JSON.stringify({ suggestions: [] }), { status: 200 }),
@@ -159,6 +161,7 @@ describe("Location Routes", () => {
 
     it("omits locationBias when no lat/lon", async () => {
       const { token } = await createAuthenticatedApp();
+      app.config.GOOGLE_MAPS_API_KEY = "test-key";
 
       vi.spyOn(global, "fetch").mockResolvedValueOnce(
         new Response(JSON.stringify({ suggestions: [] }), { status: 200 }),
@@ -180,6 +183,7 @@ describe("Location Routes", () => {
 
     it("returns 503 on Google error", async () => {
       const { token } = await createAuthenticatedApp();
+      app.config.GOOGLE_MAPS_API_KEY = "test-key";
 
       vi.spyOn(global, "fetch").mockResolvedValueOnce(
         new Response(JSON.stringify({ error: "Internal Server Error" }), {
@@ -201,6 +205,7 @@ describe("Location Routes", () => {
 
     it("returns 503 on timeout", async () => {
       const { token } = await createAuthenticatedApp();
+      app.config.GOOGLE_MAPS_API_KEY = "test-key";
 
       vi.spyOn(global, "fetch").mockImplementationOnce((_url, options) => {
         return new Promise((_resolve, reject) => {
@@ -229,6 +234,7 @@ describe("Location Routes", () => {
 
     it("deduplicates results by placeId", async () => {
       const { token } = await createAuthenticatedApp();
+      app.config.GOOGLE_MAPS_API_KEY = "test-key";
 
       const mockResponse = {
         suggestions: [
@@ -304,6 +310,7 @@ describe("Location Routes", () => {
 
     it("returns LocationSuggestion (with lat/lon) for valid placeId+sessionToken", async () => {
       const { token } = await createAuthenticatedApp();
+      app.config.GOOGLE_MAPS_API_KEY = "test-key";
 
       const mockResponse = {
         id: PLACE_ID,
