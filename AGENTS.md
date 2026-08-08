@@ -62,10 +62,20 @@ make test-static-smoke               # Verify static export integrity (no error 
 ### Testing methodology
 
 #### Philosophy — hybrid
-TODO
+Backend (Fastify/Drizzle) uses the classic Test Pyramid: broad pure-unit base, service + route integration middle, no API-level E2E. Frontend (Next.js) uses the Testing Trophy (Kent C. Dodds): heavy React Testing Library component-integration middle, small E2E cap. This hybrid model reflects the ratios observed in the 2026 Autonoma testing framework analysis (~60/25/15 unit/integration/e2e), where AI-assisted codebases shift confidence left to the middle layers.
+
+Decision rule: **write every test at the lowest level that gives the confidence you need.** If a pure-unit test can verify the behavior, don't write a service test. If a component test renders the interaction, don't write an E2E test. Only reach for E2E when the user-observable outcome depends on the full stack.
 
 #### Test level taxonomy
-TODO
+| Level | Definition | What it tests | Directory |
+|-------|-----------|---------------|-----------|
+| Pure unit | Isolated logic — no DB, network, or filesystem | Pure functions, Zod schemas, validation, calculations, utility transforms, middleware logic in isolation | `shared/__tests__/`, `apps/api/tests/unit/`, `apps/web/src/**/__tests__/` (pure utils only) |
+| Service integration | Service class wired to **real Postgres** via test DB; external APIs (SMS, push, S3, geocoding) mocked | Query correctness, transaction boundaries, business logic with real data, service-to-service composition | `apps/api/tests/service/` |
+| Route integration | Fastify `app.inject()` through the full route → controller → service chain | Middleware wiring, auth guards, request/response contracts, HTTP status codes, header behavior | `apps/api/tests/integration/` |
+| Component integration | React Testing Library render + user interaction (`fireEvent`, `userEvent`); API client mocked | Component behavior as users interact, conditional rendering, form submission UX, loading/error/empty states, accessibility | `apps/web/src/**/__tests__/` |
+| E2E | Playwright — full browser → frontend → API → DB stack | Critical user journeys across the entire system (see E2E inclusion criteria below) | `apps/web/tests/e2e/` |
+
+> **Note:** The current `apps/api/tests/unit/` directory is in a transitional state. 26 of its 36 test files hit a real Postgres — they are service integration tests, mislabeled. These files will be moved to `apps/api/tests/service/`; the remaining ~15 true-pure-unit files will stay in `tests/unit/`. The taxonomy above reflects the post-rename target state.
 
 #### Decision rules (which level to write)
 TODO
