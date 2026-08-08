@@ -91,7 +91,7 @@ test.describe("Messaging Journey", () => {
           organizerPhone,
           "Msg Organizer",
         );
-        await page.goto(`/trips?id=${tripId}`);
+        await page.goto(`/trips?id=${tripId}`, { waitUntil: "networkidle" });
         await expect(page.getByRole("heading", { level: 1 })).toBeVisible({
           timeout: NAVIGATION_TIMEOUT,
         });
@@ -337,7 +337,7 @@ test.describe("Messaging Journey", () => {
           organizerPhone,
           "Org Admin",
         );
-        await page.goto(`/trips?id=${tripId}`);
+        await page.goto(`/trips?id=${tripId}`, { waitUntil: "networkidle" });
         await expect(page.getByRole("heading", { level: 1 })).toBeVisible({
           timeout: NAVIGATION_TIMEOUT,
         });
