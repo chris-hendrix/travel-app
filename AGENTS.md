@@ -61,117 +61,38 @@ make test-static-smoke               # Verify static export integrity (no error 
 
 ### Testing methodology
 
+**All test, lint, and typecheck commands run in the devcontainer** via `make test-exec CMD="..."` (see commands above). The devcontainer pins Node, PostgreSQL, and Playwright browser versions.
+
 #### Philosophy — hybrid
-Backend (Fastify/Drizzle) uses the classic Test Pyramid: broad pure-unit base, service + route integration middle, no API-level E2E. Frontend (Next.js) uses the Testing Trophy (Kent C. Dodds): heavy React Testing Library component-integration middle, small E2E cap. This hybrid model reflects the ratios observed in the 2026 Autonoma testing framework analysis (~60/25/15 unit/integration/e2e), where AI-assisted codebases shift confidence left to the middle layers.
+Backend (Fastify/Drizzle) uses the classic Test Pyramid: broad pure-unit base, service + route integration middle, no API-level E2E. Frontend (Next.js) uses the Testing Trophy (Kent C. Dodds): heavy RTL component-integration middle, small E2E cap.
 
 Decision rule: **write every test at the lowest level that gives the confidence you need.** If a pure-unit test can verify the behavior, don't write a service test. If a component test renders the interaction, don't write an E2E test. Only reach for E2E when the user-observable outcome depends on the full stack.
 
+Heuristic: **if mocking hides the failure mode you care about, write at the next level down.** Mocking the DB to make a service test fast? That belongs in service integration with a real DB. Mocking the API to avoid E2E overhead? That belongs in route integration with `app.inject()`.
+
 #### Test level taxonomy
-| Level | Definition | What it tests | Directory |
-|-------|-----------|---------------|-----------|
-| Pure unit | Isolated logic — no DB, network, or filesystem | Pure functions, Zod schemas, validation, calculations, utility transforms, middleware logic in isolation | `shared/__tests__/`, `apps/api/tests/unit/`, `apps/web/src/**/__tests__/` (pure utils only) |
-| Service integration | Service class wired to **real Postgres** via test DB; external APIs (SMS, push, S3, geocoding) mocked | Query correctness, transaction boundaries, business logic with real data, service-to-service composition | `apps/api/tests/service/` |
-| Route integration | Fastify `app.inject()` through the full route → controller → service chain | Middleware wiring, auth guards, request/response contracts, HTTP status codes, header behavior | `apps/api/tests/integration/` |
-| Component integration | React Testing Library render + user interaction (`fireEvent`, `userEvent`); API client mocked | Component behavior as users interact, conditional rendering, form submission UX, loading/error/empty states, accessibility | `apps/web/src/**/__tests__/` |
-| E2E | Playwright — full browser → frontend → API → DB stack | Critical user journeys across the entire system (see E2E inclusion criteria below) | `apps/web/tests/e2e/` |
+| Level | What it tests | Directory |
+|-------|---------------|-----------|
+| Pure unit | Pure functions, Zod schemas, calculations, transforms | `shared/__tests__/`, `apps/api/tests/unit/`, `apps/web/src/**/__tests__/` (pure utils only) |
+| Service integration | Real Postgres; external APIs (SMS, push, S3, geocoding) mocked | `apps/api/tests/service/` |
+| Route integration | Fastify `app.inject()` through route → controller → service | `apps/api/tests/integration/` |
+| Component integration | RTL render + interaction; API client mocked | `apps/web/src/**/__tests__/` |
+| E2E | Playwright full-stack — **critical flows only** (see `apps/web/tests/e2e/AGENTS.md`) | `apps/web/tests/e2e/` |
 
-> **Note:** The current `apps/api/tests/unit/` directory is in a transitional state. 26 of its 36 test files hit a real Postgres — they are service integration tests, mislabeled. These files will be moved to `apps/api/tests/service/`; the remaining ~15 true-pure-unit files will stay in `tests/unit/`. The taxonomy above reflects the post-rename target state.
-
-#### Decision rules (which level to write)
-Use this table to decide which test level to write for any new behavior:
-
-| When you are testing... | Write at this level | Rationale |
-|--------------------------|---------------------|-----------|
-| A pure function — validation, calculation, data transform, Zod schema | **Pure unit** | Fast, isolated, catches logic errors at the source |
-| A service method that queries or mutates real data, or spans a transaction boundary | **Service integration** (real DB) | Mocking the DB hides query bugs and constraint violations |
-| Middleware wiring, auth guards, or request/response contracts between components | **Route integration** | `app.inject()` exercises the full HTTP layer at a fraction of E2E cost |
-| Component behavior as users interact — clicks, typing, conditional rendering, form UX | **Component integration** (RTL) | Renders the real component tree; mocks only the API boundary |
-| A user-observable outcome that depends on the full browser→frontend→API→DB stack | **E2E** (Playwright) | Reserved for critical journeys (see E2E inclusion criteria) |
-
-Heuristic: **if mocking feels necessary to make a test fast, but the mock hides the failure mode you care about, write it at the next level down the pyramid.** Mocking the DB to make a service test fast? That test belongs in service integration with a real DB. Mocking the API to avoid E2E overhead? That test belongs in route integration with `app.inject()`.
+> **Note:** `apps/api/tests/unit/` is transitional — 22 DB-backed files were moved to `tests/service/` in Aug 2026; ~15 true-pure-unit files remain.
 
 #### Banned at each level
-Each level has explicit bans — these are anti-patterns caught during code review:
+- **Service integration:** No mocking the database under test. Mock external boundaries (SMS, push, S3), not the DB.
+- **Route integration:** No mocking service-layer internals. Mock only external APIs at the service boundary.
+- **Component integration:** No asserting CSS class strings as primary behavior check. Prefer user-facing assertions.
+- **Pure unit:** No 5-mock towers that test the mocks, not behavior — move up a level.
+- **E2E:** Form validation, field-level errors, edge-case re-verification, feature-flag toggles — anything already asserted by Zod/RTL. Fat journeys banned (one spec = one critical flow). **No silent browser project drops** without a PR + linked issue. Full rules, critical-flow list, flakiness policy, and CI gates in `apps/web/tests/e2e/AGENTS.md`.
 
-| Level | Banned |
-|-------|--------|
-| **E2E** | Form validation, field-level error messages, edge-case re-verification, feature-flag toggles, anything already asserted by a Zod schema or RTL component test. **Fat journeys**: do not conflate multiple unrelated user goals into a single spec (e.g. a "trip journey" that validates the create form AND tests the edit dialog AND checks photo upload). Each spec must map to one critical flow. **Silent browser drops**: never remove a browser project (Firefox, WebKit, tablet viewport) for "flakiness" without a PR and linked issue — see Flakiness policy. |
-| **Service integration** | Mocking the database under test. If a test imports `db` or a service that queries Postgres, it must hit the real test database. Mock the external boundary (SMS, push, S3, geocoding), not the DB. |
-| **Route integration** | Mocking service-layer internals. Route tests wire through real controllers and services; mock only external APIs at the service boundary. Pure-business-logic edge cases belong in service integration, not route tests. |
-| **Component integration** | Asserting CSS class strings or DOM structure as the primary behavior check. Prefer user-facing assertions: "the submit button is disabled", "the error message is visible", "the loading spinner appears." Class strings may be used as secondary selectors, never as the primary assertion target. |
-| **Pure unit** | Mocking so heavily that real integration failures are hidden. A unit test with 5 mocks that all return hardcoded values isn't testing behavior — it's testing mocks. If the test needs that much isolation, move it to a higher level where the wiring is real. |
+#### Target shape
+Backend: broad unit → service middle → route layer → no API-level E2E. Frontend: RTL is largest → pure unit utilities → E2E is smallest, capped by the 7 critical flows listed in `apps/web/tests/e2e/AGENTS.md`. New E2E test requires a one-line PR justification citing which critical flow it covers.
 
-#### Target test shape
-
-The target shape is defined by intent, not by strict numerical counts:
-
-- **Backend (API):** Broad pure-unit base → service integration middle → route integration layer → no API-level E2E. Most new backend behavior should be covered at the service or route integration level.
-- **Frontend (web):** Component integration (RTL) is the largest layer → pure unit for utilities → E2E is the smallest layer, capped by the critical-flow list below.
-
-The E2E cap is defined by the **E2E inclusion criteria** (see below), not by a coverage percentage. Hard rule: **an E2E spec may only cover a critical user flow.** Everything else must be covered at a lower level. Any new E2E test added to the suite requires a one-line justification in the PR description citing which critical flow from the list it covers. This rule (M2) is the sustaining constraint that prevents the suite from silently regrowing — a pattern observed after the Feb 2026 optimization rounds.
-
-#### Database isolation in tests
-
-**Current policy:** Each test that creates records uses `generateUniquePhone()` (or equivalent unique-key strategy) to avoid collisions. Global setup (`tests/global-setup.ts`) clears only three utility tables once per suite run. Cleanup helpers are imported per-test-file, not applied automatically.
-
-**Known limitation:** State accumulates across test files within a run — which means test ordering can matter and latent order-dependence is possible. This is not a blocking issue for the current suite size but must be fixed before scaling.
-
-**Future improvement (documented, not implemented):** Per-test transactional rollback (`BEGIN` / `ROLLBACK`) so that every test starts with a clean slate and leaves no side effects. This is the documented remediation path; do not address flakiness by adding more manual cleanup calls in individual tests.
-
-#### Flakiness policy
-
-A flaky test is a test failure — never silently ignored or worked around.
-
-1. **Quarantine rule:** If a test fails 3 times within a 7-day window with no code changes to the test or the code under test, mark it `test.skip` with an inline comment containing the owner's GitHub handle and a link to the tracking issue. The test stays skipped until the root cause is fixed — it is tracked, not forgotten.
-
-2. **Retry cap:** Maximum 1 retry per test in CI. If a test requires the retry to pass, it qualifies for quarantine under rule 1. Do not increase the retry limit to mask flakiness.
-
-3. **Browser projects are never silently dropped.** Removing a browser project (Firefox, WebKit) or a viewport (tablet, mobile) because of "flakiness" is banned without a reviewed PR and a linked GitHub issue explaining the root cause. This rule directly overrides the precedent set by commit `1f7fa72`, which dropped Firefox, WebKit, and iPad with the comment "flakiness, not real bugs."
-
-4. **Root-cause diagnosis is mandatory.** When a test flakes, the immediate response is diagnosis, not deletion. Check for: async race conditions, missing `waitFor` guards, shared mutable state between tests, or DB state leakage. If the root cause is unclear after 30 minutes of investigation, quarantine the test under rule 1 — do not delete it.
-
-#### E2E inclusion criteria (critical flows)
-
-A flow is E2E-worthy only if it meets both criteria:
-
-1. **User-observable outcome across the full stack** — the behavior cannot be verified by rendering a component, injecting an HTTP request, or testing a service method in isolation. It requires the real browser→frontend→API→DB pipeline.
-2. **On the approved critical-flow list** — the flow represents auth, money, or core value-delivery for the product.
-
-Everything else is covered at a lower test level. The critical-flow list is the cap on the E2E suite; no spec outside this list may remain in `apps/web/tests/e2e/`. The Aug 2026 E2E triage audit slimmed the suite from 13 specs / 36 tests to ~7 specs / ~14 tests — 6 specs were CUT or CONVERTED, leaving only the critical-flow specs below.
-
-**Approved critical-flow list (Aug 2026):**
-
-| # | Critical flow | What it verifies | Current spec (post-triage, Aug 2026) |
-|---|---------------|------------------|----------------------------------------|
-| 1 | **Auth** | Phone verification → complete profile → dashboard access, logout, route guards | `auth-journey.spec.ts` (3 tests: signup, logout, route guards) |
-| 2 | **Trip CRUD** | Create trip → edit details → delete trip, member-permission boundaries | `trip-journey.spec.ts` (3 tests: CRUD chain, promote/demote, FAB nav) |
-| 3 | **Invitation + RSVP + deep-link join** | Receive invitation → RSVP (accept/decline) → deep-link join (unauthenticated & authenticated flows) | `invitation-journey.spec.ts` (4 tests: RSVP journey + 3 deep-link variants) |
-| 4 | **Itinerary CRUD** | Event create → edit → delete on a real trip | `itinerary-journey.spec.ts` (2 tests: event CRUD + deleted items restore) |
-| 5 | **Messaging** | Send message → receive message → organizer actions | `messaging.spec.ts` (2 tests: send+receive + organizer moderate) |
-| 6 | **Settle** | Create expense → verify balance accuracy (money path — correctness is critical) | `settle-journey.spec.ts` (1 test: balance accuracy) |
-| 7 | **Notifications** | Bell badge → tap to open notification center → tap notification to navigate → mark as read. Notification *triggers* (badge appearance after invite, message, etc.) may be asserted inline within flows 1-5; the standalone spec covers the notification center UX itself. | `notifications.spec.ts` (unchanged) |
-
-Any E2E spec NOT on this list is an audit candidate for SPLIT / CUT / CONVERT. The Phase 2 audit completed Aug 2026: 6 specs CUT/CONVERTED (photos, profile, discover, pwa, mutuals, admin). The suite now contains ~7 specs / ~14 tests — see `.thoughts/audits/2026-08-08-e2e-triage.md` for the full verdict table.
-
-#### CI testing policy
-
-**Current state (Aug 2026):**
-
-| Gate | Runs on | Status |
-|------|---------|--------|
-| E2E (Playwright) | Every PR, 4-way sharded | **Blocking** — must pass to merge |
-| API tests (Vitest) | Every PR (api path filter) | Blocking |
-| Web RTL + shared unit (Vitest) | Local only | **Not in CI** |
-| Lint + typecheck | Every PR | Blocking |
-
-This means the slowest, most expensive layer gates PRs while the fast, broad coverage layers (1,224 web RTL + 331 shared unit cases) have no CI presence. This is a known gap — the immediate policy is unchanged (E2E stays blocking) to avoid destabilizing the merge gate.
-
-**Documented follow-ups (deferred, not in this plan):**
-
-1. Add web RTL + shared unit Vitest to CI as a cheap, fast gate that runs before E2E.
-2. Split the E2E suite into `@smoke` (PR gate, ~5 min) vs. full (runs on main, ~60 min).
-3. Set a flakiness budget: if E2E flake rate exceeds 5% in a rolling 7-day window, no new E2E tests may be added until the budget recovers.
-4. Consider enabling Playwright tracing-on-failure for CI artifacts.
+#### Database isolation
+Each test that creates records uses `generateUniquePhone()` (or equivalent unique-key strategy). Global setup (`tests/global-setup.ts`) clears three utility tables once per suite run. Known limitation: state accumulates across test files within a run. Documented future improvement: per-test transactional rollback (`BEGIN`/`ROLLBACK`).
 
 ### Native (Capacitor)
 
