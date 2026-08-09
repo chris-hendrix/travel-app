@@ -2,9 +2,8 @@ import { test, expect } from "@playwright/test";
 import { authenticateViaAPI } from "./helpers/auth";
 import { snap } from "./helpers/screenshots";
 import { removeNextjsDevOverlay, dismissPwaPrompts } from "./helpers/nextjs-dev";
-import { pickDateTime } from "./helpers/date-pickers";
 import { createTrip } from "./helpers/trips";
-import { clickFabAction, createEvent } from "./helpers/itinerary";
+import { createEvent } from "./helpers/itinerary";
 import { navigateToMobilePanel } from "./helpers/mobile-panels";
 import {
   NAVIGATION_TIMEOUT,
@@ -14,10 +13,11 @@ import {
 } from "./helpers/timeouts";
 
 /**
- * E2E Journey: Itinerary CRUD, View Modes, and Permissions
+ * E2E Journey: Itinerary event CRUD and Deleted Items / Restore
  *
- * Consolidates 12 individual itinerary tests into 3 journey tests.
- * Uses authenticateViaAPI for fast auth.
+ * Covers only critical event CRUD and the delete+restore flow.
+ * Accommodation, member travel, and view-mode behaviors are covered by
+ * lower-layer RTL component tests.
  */
 
 test.describe("Itinerary Journey", () => {
@@ -68,97 +68,6 @@ test.describe("Itinerary Journey", () => {
           .soft(locationLink)
           .toHaveAttribute("href", /google\.com\/maps\/search/);
         // Close the detail sheet
-        await page.keyboard.press("Escape");
-      });
-
-      await test.step("create accommodation", async () => {
-        await clickFabAction(page, "Accommodation");
-        await expect(
-          page.getByRole("heading", { name: "Create a new accommodation" }),
-        ).toBeVisible();
-
-        const accommodationName = `Downtown Hotel ${Date.now()}`;
-        await page.locator('input[name="name"]').fill(accommodationName);
-        await page
-          .locator('input[name="address"]')
-          .fill("123 Main St, San Diego");
-        await page
-          .locator('textarea[name="description"]')
-          .fill("Modern hotel in the heart of downtown");
-        await pickDateTime(
-          page,
-          page.getByRole("button", { name: "Check-in" }),
-          "2026-10-01T15:00",
-        );
-        await pickDateTime(
-          page,
-          page.getByRole("button", { name: "Check-out" }),
-          "2026-10-03T11:00",
-        );
-
-        const linkInput = page.locator('input[aria-label="Link URL"]');
-        await linkInput.fill("https://example.com/hotel");
-        await page.getByRole("button", { name: "Add link" }).click();
-
-        await page
-          .getByRole("button", { name: "Create accommodation" })
-          .click();
-
-        // Accommodation appears in the InfoPanel sidebar (not the day-by-day itinerary)
-        await expect(page.getByText("Accommodation created successfully")).toBeVisible({
-          timeout: TOAST_TIMEOUT,
-        });
-        // Verify the accommodation name appears in the Accommodations section
-        const accommodationButton = page
-          .getByRole("button")
-          .filter({
-            hasText: new RegExp(accommodationName.replace(/\d+/g, "\\d+")),
-          })
-          .first();
-        await expect(accommodationButton).toBeVisible({
-          timeout: ELEMENT_TIMEOUT,
-        });
-      });
-
-      await snap(page, "09-itinerary-with-events");
-
-      await test.step("add member travel", async () => {
-        await clickFabAction(page, "My Travel");
-        await expect(
-          page.getByRole("heading", { name: "Add your travel details" }),
-        ).toBeVisible();
-
-        await page.getByRole("button", { name: "Arrival" }).click();
-
-        const travelTimeTrigger = page.getByRole("button", {
-          name: "Travel time",
-        });
-        await pickDateTime(page, travelTimeTrigger, "2026-10-01T14:30");
-
-        await page.locator('input[name="location"]').fill("San Diego Airport");
-        // Expand the collapsed "More details" section to reveal the details textarea
-        await page.getByRole("button", { name: "More details" }).click();
-        await page
-          .locator('textarea[name="details"]')
-          .fill("Arriving from Chicago");
-        await page.locator('button[type="submit"]', { hasText: "Add travel details" }).click();
-
-        // Travel card shows member name (location is in the detail sheet)
-        await expect(page.getByText(/Itinerary Tester/).first()).toBeVisible();
-
-        // Click the travel line-item card to open the detail sheet
-        // The card only shows member name, so match on that
-        const travelCard = page
-          .locator('[role="button"]')
-          .filter({ hasText: /Itinerary Tester/ })
-          .first();
-        await travelCard.click();
-
-        // Verify location and details in the detail sheet
-        await expect(page.getByText("San Diego Airport")).toBeVisible();
-        await expect(page.getByText("Arriving from Chicago")).toBeVisible();
-
-        // Close the detail sheet so it doesn't block subsequent steps
         await page.keyboard.press("Escape");
       });
 
@@ -238,137 +147,6 @@ test.describe("Itinerary Journey", () => {
         });
         await page.reload();
         await expect(page.getByText(/Updated Dinner/)).not.toBeVisible({
-          timeout: ELEMENT_TIMEOUT,
-        });
-      });
-    },
-  );
-
-  test(
-    "itinerary view modes",
-    { tag: "@regression" },
-    async ({ page, request }) => {
-      test.slow(); // Multiple FAB interactions + date pickers are slow on iPhone WebKit
-      await authenticateViaAPI(page, request, "View Mode User");
-      const tripName = `View Mode Trip ${Date.now()}`;
-
-      await test.step("create trip with multiple events", async () => {
-        await createTrip(
-          page,
-          tripName,
-          "Las Vegas, NV",
-          "2027-03-10",
-          "2027-03-13",
-        );
-
-        const mealEvent = `Lunch ${Date.now()}`;
-        await createEvent(page, mealEvent, "2027-03-10T12:00", {
-          type: "Food & Drink",
-        });
-        await expect(page.getByText(/Lunch/)).toBeVisible();
-
-        const activityEvent = `Show ${Date.now()}`;
-        await createEvent(page, activityEvent, "2027-03-10T20:00", {
-          type: "Arts",
-        });
-        await expect(page.getByText(/Show/)).toBeVisible();
-      });
-
-      await test.step("add member travel (arrival)", async () => {
-        await clickFabAction(page, "My Travel");
-        await expect(
-          page.getByRole("heading", { name: "Add your travel details" }),
-        ).toBeVisible();
-
-        await page.getByRole("button", { name: "Arrival" }).click();
-
-        const travelTimeTrigger = page.getByRole("button", {
-          name: "Travel time",
-        });
-        await pickDateTime(page, travelTimeTrigger, "2027-03-10T09:00");
-
-        await page.locator('input[name="location"]').fill("Las Vegas Airport");
-        await page.locator('button[type="submit"]', { hasText: "Add travel details" }).click();
-
-        // Wait for success toast confirming API call completed (refetch follows)
-        await expect(page.getByText(/travel details added/i)).toBeVisible({
-          timeout: TOAST_TIMEOUT,
-        });
-
-        // Travel card shows member name (appears after refetch with JOIN data;
-        // optimistic update lacks memberName so the real name loads on refetch).
-        // Use NAVIGATION_TIMEOUT — refetch can be slow on CI after toast + API round-trip.
-        await expect(page.getByText(/View Mode User/).first()).toBeVisible({
-          timeout: NAVIGATION_TIMEOUT,
-        });
-
-        // Location details are in the detail sheet (decluttered card view)
-        const travelCard = page
-          .locator('[role="button"]')
-          .filter({ hasText: /View Mode User/ })
-          .first();
-        await travelCard.click();
-        await expect(page.getByText("Las Vegas Airport")).toBeVisible();
-        const airportLink = page.getByRole("link", {
-          name: /Las Vegas Airport.*Google Maps/,
-        });
-        await expect(airportLink).toBeVisible();
-        await expect(airportLink).toHaveAttribute(
-          "href",
-          /google\.com\/maps\/search/,
-        );
-        // Close the detail sheet
-        await page.keyboard.press("Escape");
-      });
-
-      await test.step("verify date gutter in day-by-day view", async () => {
-        // The calendar-style date gutter should show month, day number, and weekday
-        // Trip dates: 2027-03-10 to 2027-03-13
-        await expect.soft(page.getByText("Mar").first()).toBeVisible();
-        await expect.soft(page.getByText("10").first()).toBeVisible();
-        await expect.soft(page.getByText("Wed").first()).toBeVisible();
-      });
-
-      await snap(page, "10-itinerary-day-by-day");
-
-      await test.step("mobile viewport", async () => {
-        await page.setViewportSize({ width: 375, height: 667 });
-
-        // On mobile the trip detail renders a swiper layout starting on the
-        // Info panel (index 0).  Navigate to the Itinerary panel (index 1)
-        // via the icon strip so the itinerary header and FAB become visible.
-        const itineraryIcon = page.getByRole("button", {
-          name: "Itinerary",
-          exact: true,
-        });
-        await itineraryIcon.waitFor({ state: "visible", timeout: 5_000 });
-        await itineraryIcon.click();
-        // Allow swiper transition to settle
-        await page.waitForTimeout(400);
-
-        const header = page.getByTestId("itinerary-header");
-        await expect(header).toBeVisible();
-
-        // Filter pills should be visible on mobile too (icon-only pills)
-        await expect(header.locator("button").first()).toBeVisible();
-        await expect(page.getByText(/Lunch/)).toBeVisible();
-        await expect(
-          page.getByRole("button", { name: "Add to itinerary" }),
-        ).toBeVisible();
-
-        // Dialog works on mobile via FAB
-        await clickFabAction(page, "Event");
-        await expect(
-          page.getByRole("heading", { name: "Create a new event" }),
-        ).toBeVisible();
-        await page.keyboard.press("Escape");
-        await expect(
-          page.getByRole("heading", { name: "Create a new event" }),
-        ).not.toBeVisible({ timeout: DIALOG_TIMEOUT });
-
-        // Restore desktop viewport
-        await page.setViewportSize({ width: 1280, height: 720 });
-        await expect(page.getByText(/Lunch/)).toBeVisible({
           timeout: ELEMENT_TIMEOUT,
         });
       });

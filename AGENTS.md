@@ -59,6 +59,41 @@ make test-static-smoke               # Verify static export integrity (no error 
 
 `test-exec` wraps `CMD` in `bash -c`, so compound commands work: `make test-exec CMD="cd apps/api && pnpm db:migrate"`.
 
+### Testing methodology
+
+**All test, lint, and typecheck commands run in the devcontainer** via `make test-exec CMD="..."` (see commands above). The devcontainer pins Node, PostgreSQL, and Playwright browser versions.
+
+#### Philosophy — hybrid
+Backend (Fastify/Drizzle) uses the classic Test Pyramid: broad pure-unit base, service + route integration middle, no API-level E2E. Frontend (Next.js) uses the Testing Trophy (Kent C. Dodds): heavy RTL component-integration middle, small E2E cap.
+
+Decision rule: **write every test at the lowest level that gives the confidence you need.** If a pure-unit test can verify the behavior, don't write a service test. If a component test renders the interaction, don't write an E2E test. Only reach for E2E when the user-observable outcome depends on the full stack.
+
+Heuristic: **if mocking hides the failure mode you care about, write at the next level down.** Mocking the DB to make a service test fast? That belongs in service integration with a real DB. Mocking the API to avoid E2E overhead? That belongs in route integration with `app.inject()`.
+
+#### Test level taxonomy
+| Level | What it tests | Directory |
+|-------|---------------|-----------|
+| Pure unit | Pure functions, Zod schemas, calculations, transforms | `shared/__tests__/`, `apps/api/tests/unit/`, `apps/web/src/**/__tests__/` (pure utils only) |
+| Service integration | Real Postgres; external APIs (SMS, push, S3, geocoding) mocked | `apps/api/tests/service/` |
+| Route integration | Fastify `app.inject()` through route → controller → service | `apps/api/tests/integration/` |
+| Component integration | RTL render + interaction; API client mocked | `apps/web/src/**/__tests__/` |
+| E2E | Playwright full-stack — **critical flows only** (see `apps/web/tests/e2e/AGENTS.md`) | `apps/web/tests/e2e/` |
+
+> **Note:** `apps/api/tests/unit/` is transitional — 22 DB-backed files were moved to `tests/service/` in Aug 2026; ~15 true-pure-unit files remain.
+
+#### Banned at each level
+- **Service integration:** No mocking the database under test. Mock external boundaries (SMS, push, S3), not the DB.
+- **Route integration:** No mocking service-layer internals. Mock only external APIs at the service boundary.
+- **Component integration:** No asserting CSS class strings as primary behavior check. Prefer user-facing assertions.
+- **Pure unit:** No 5-mock towers that test the mocks, not behavior — move up a level.
+- **E2E:** Form validation, field-level errors, edge-case re-verification, feature-flag toggles — anything already asserted by Zod/RTL. Fat journeys banned (one spec = one critical flow). **No silent browser project drops** without a PR + linked issue. Full rules, critical-flow list, flakiness policy, and CI gates in `apps/web/tests/e2e/AGENTS.md`.
+
+#### Target shape
+Backend: broad unit → service middle → route layer → no API-level E2E. Frontend: RTL is largest → pure unit utilities → E2E is smallest, capped by the 7 critical flows listed in `apps/web/tests/e2e/AGENTS.md`. New E2E test requires a one-line PR justification citing which critical flow it covers.
+
+#### Database isolation
+Each test that creates records uses `generateUniquePhone()` (or equivalent unique-key strategy). Global setup (`tests/global-setup.ts`) clears three utility tables once per suite run. Known limitation: state accumulates across test files within a run. Documented future improvement: per-test transactional rollback (`BEGIN`/`ROLLBACK`).
+
 ### Native (Capacitor)
 
 `apps/web` wraps into an Android APK via Capacitor 8 static export. The web PWA and server-rendered deployment remain untouched. Push uses FCM on native, VAPID on web.
