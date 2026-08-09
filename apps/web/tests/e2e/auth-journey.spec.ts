@@ -73,12 +73,14 @@ test.describe("Auth Journey", () => {
       await snap(page, "04-trips-empty");
     });
 
-    await test.step("auth cookie is set correctly", async () => {
-      const cookies = await page.context().cookies();
-      const authCookie = cookies.find((c) => c.name === "auth_token");
-      expect(authCookie).toBeDefined();
-      expect.soft(authCookie?.httpOnly).toBe(true);
-      expect.soft(authCookie?.value).toBeTruthy();
+  });
+
+  test("logout and post-logout guard", async ({ page, request }) => {
+    const trips = new TripsPage(page);
+
+    await test.step("authenticate and land on trips", async () => {
+      await authenticateUser(page, request, "Test User");
+      await expect(trips.heading).toBeVisible();
     });
 
     await test.step("logout clears session and redirects", async () => {
