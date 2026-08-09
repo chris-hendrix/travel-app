@@ -45,6 +45,10 @@ describe("Location Routes", () => {
   // ─── Autocomplete tests ───────────────────────────────────────────
 
   describe("GET /api/locations/autocomplete", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
     it("returns 401 if not authenticated", async () => {
       app = await buildApp();
 
