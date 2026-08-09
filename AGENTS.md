@@ -137,21 +137,21 @@ A flow is E2E-worthy only if it meets both criteria:
 1. **User-observable outcome across the full stack** — the behavior cannot be verified by rendering a component, injecting an HTTP request, or testing a service method in isolation. It requires the real browser→frontend→API→DB pipeline.
 2. **On the approved critical-flow list** — the flow represents auth, money, or core value-delivery for the product.
 
-Everything else is covered at a lower test level. The critical-flow list is the cap on the E2E suite; no spec outside this list may remain in `apps/web/tests/e2e/`.
+Everything else is covered at a lower test level. The critical-flow list is the cap on the E2E suite; no spec outside this list may remain in `apps/web/tests/e2e/`. The Aug 2026 E2E triage audit slimmed the suite from 13 specs / 36 tests to ~7 specs / ~14 tests — 6 specs were CUT or CONVERTED, leaving only the critical-flow specs below.
 
 **Approved critical-flow list (Aug 2026):**
 
-| # | Critical flow | What it verifies | Current spec |
-|---|---------------|------------------|-------------|
-| 1 | **Auth** | Phone verification → complete profile → dashboard access, logout, route guards | `auth-journey.spec.ts` |
-| 2 | **Trip CRUD** | Create trip → edit details → delete trip, member-permission boundaries | `trip-journey.spec.ts` |
-| 3 | **Invitation + RSVP + deep-link join** | Receive invitation → RSVP (accept/decline) → deep-link join (unauthenticated & authenticated flows) | `invitation-journey.spec.ts` |
-| 4 | **Itinerary CRUD** | Event create → edit → delete on a real trip | `itinerary-journey.spec.ts` |
-| 5 | **Messaging** | Send message → receive message → organizer actions | `messaging.spec.ts` |
-| 6 | **Settle** | Create expense → verify balance accuracy (money path — correctness is critical) | `settle-journey.spec.ts` |
-| 7 | **Notifications** | Bell badge → tap to open notification center → tap notification to navigate → mark as read. Notification *triggers* (badge appearance after invite, message, etc.) may be asserted inline within flows 1-5; the standalone spec covers the notification center UX itself. | `notifications.spec.ts` |
+| # | Critical flow | What it verifies | Current spec (post-triage, Aug 2026) |
+|---|---------------|------------------|----------------------------------------|
+| 1 | **Auth** | Phone verification → complete profile → dashboard access, logout, route guards | `auth-journey.spec.ts` (3 tests: signup, logout, route guards) |
+| 2 | **Trip CRUD** | Create trip → edit details → delete trip, member-permission boundaries | `trip-journey.spec.ts` (3 tests: CRUD chain, promote/demote, FAB nav) |
+| 3 | **Invitation + RSVP + deep-link join** | Receive invitation → RSVP (accept/decline) → deep-link join (unauthenticated & authenticated flows) | `invitation-journey.spec.ts` (4 tests: RSVP journey + 3 deep-link variants) |
+| 4 | **Itinerary CRUD** | Event create → edit → delete on a real trip | `itinerary-journey.spec.ts` (2 tests: event CRUD + deleted items restore) |
+| 5 | **Messaging** | Send message → receive message → organizer actions | `messaging.spec.ts` (2 tests: send+receive + organizer moderate) |
+| 6 | **Settle** | Create expense → verify balance accuracy (money path — correctness is critical) | `settle-journey.spec.ts` (1 test: balance accuracy) |
+| 7 | **Notifications** | Bell badge → tap to open notification center → tap notification to navigate → mark as read. Notification *triggers* (badge appearance after invite, message, etc.) may be asserted inline within flows 1-5; the standalone spec covers the notification center UX itself. | `notifications.spec.ts` (unchanged) |
 
-Any E2E spec NOT on this list is an audit candidate for SPLIT / CUT / CONVERT. The Phase 2 audit (separate plan) will produce a verdict table for all 13 current spec files.
+Any E2E spec NOT on this list is an audit candidate for SPLIT / CUT / CONVERT. The Phase 2 audit completed Aug 2026: 6 specs CUT/CONVERTED (photos, profile, discover, pwa, mutuals, admin). The suite now contains ~7 specs / ~14 tests — see `.thoughts/audits/2026-08-08-e2e-triage.md` for the full verdict table.
 
 #### CI testing policy
 
