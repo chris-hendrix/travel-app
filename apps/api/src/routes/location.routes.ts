@@ -236,7 +236,7 @@ export async function locationRoutes(fastify: FastifyInstance) {
         return reply.code(404).send();
       }
 
-      const url = `${GOOGLE_PLACES_BASE}/${encodeURIComponent(photoRef)}/media?key=${key}&maxWidthPx=${w}&maxHeightPx=${h}`;
+      const url = `${GOOGLE_PLACES_BASE}/${photoRef}/media?key=${key}&maxWidthPx=${w}&maxHeightPx=${h}`;
 
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 5000);
