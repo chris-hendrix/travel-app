@@ -64,6 +64,12 @@
   --color-event-misc: #14482e;
   --color-event-misc-light: #d8eedf;
   --color-event-misc-border: #8fc4a8;
+  --color-event-wellness: #1e5a4e;
+  --color-event-wellness-light: #d4ece5;
+  --color-event-wellness-border: #87c5b4;
+  --color-event-shopping: #6e2a4a;
+  --color-event-shopping-light: #f0dde7;
+  --color-event-shopping-border: #c790a8;
   --color-accommodation: #3e1a6e;
   --color-accommodation-light: #f0e8f5;
   --color-accommodation-border: #c5aed9;
@@ -129,6 +135,12 @@
   --color-event-misc: #78c8a0;
   --color-event-misc-light: #162e1e;
   --color-event-misc-border: #3a6a50;
+  --color-event-wellness: #5cb89a;
+  --color-event-wellness-light: #142a22;
+  --color-event-wellness-border: #2a5a48;
+  --color-event-shopping: #c77aa0;
+  --color-event-shopping-light: #2a1830;
+  --color-event-shopping-border: #5a3070;
   --color-accommodation: #b88ee8;
   --color-accommodation-light: #251a30;
   --color-accommodation-border: #5a3a80;

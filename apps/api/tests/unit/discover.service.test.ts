@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { DiscoverService } from "@/services/discover.service.js";
+import { POI_CATEGORIES } from "@journiful/shared/types";
 import type { POISuggestion, POICategoryKey } from "@journiful/shared/types";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -22,6 +23,10 @@ function makeSuggestion(overrides: Partial<POISuggestion> = {}): POISuggestion {
     tel: null,
     subcategory: null,
     eventId: null,
+    photoName: null,
+    photoAttribution: null,
+    googleMapsUri: null,
+    businessStatus: null,
     ...overrides,
   };
 }
@@ -195,7 +200,7 @@ describe("DiscoverService", () => {
 
       expect(result.source).toBe("google");
       // Should have made 4 fetch calls (cache expired)
-      expect(fetchSpy).toHaveBeenCalledTimes(4);
+      expect(fetchSpy).toHaveBeenCalledTimes(6);
       expect(mockDb.onConflictDoUpdate).toHaveBeenCalled();
     });
   });
@@ -214,7 +219,7 @@ describe("DiscoverService", () => {
       const result = await service.getDiscoverPOIs(TRIP_ID, 48.8566, 2.3522, "Paris");
 
       expect(result.source).toBe("google");
-      expect(fetchSpy).toHaveBeenCalledTimes(4); // 4 category calls (POSTs to searchNearby)
+      expect(fetchSpy).toHaveBeenCalledTimes(6); // 6 category calls (POSTs to searchNearby)
 
       // Should have inserted cache
       expect(mockDb.insert).toHaveBeenCalled();
@@ -229,7 +234,7 @@ describe("DiscoverService", () => {
         expect(opts.method).toBe("POST");
         expect(opts.headers?.["X-Goog-Api-Key"]).toBe("test-google-key");
         expect(opts.headers?.["X-Goog-FieldMask"]).toBe(
-          "places.id,places.displayName,places.formattedAddress,places.location,places.types,places.attributions",
+          "places.id,places.displayName,places.formattedAddress,places.location,places.types,places.attributions,places.photos,places.businessStatus,places.googleMapsUri",
         );
       }
     });
@@ -258,7 +263,7 @@ describe("DiscoverService", () => {
 
       expect(result.source).toBe("google");
       // Should fetch from Google Places (refresh bypasses cache read)
-      expect(fetchSpy).toHaveBeenCalledTimes(4);
+      expect(fetchSpy).toHaveBeenCalledTimes(6);
       expect(mockDb.onConflictDoUpdate).toHaveBeenCalled();
     });
 
@@ -287,7 +292,7 @@ describe("DiscoverService", () => {
       const result = await service.getDiscoverPOIs(TRIP_ID, 48.8566, 2.3522, "Paris", true);
 
       expect(result.source).toBe("google");
-      expect(fetchSpy).toHaveBeenCalledTimes(4);
+      expect(fetchSpy).toHaveBeenCalledTimes(6);
 
       // Insert call should include the converted POI
       const insertedValue = mockDb.values.mock.calls[0]?.[0] as { suggestions: POISuggestion[] };
@@ -435,6 +440,8 @@ describe("DiscoverService", () => {
       expect(result.categories.arts_and_entertainment).toHaveLength(0);
       expect(result.categories.outdoors).toHaveLength(0);
       expect(result.categories.nightlife).toHaveLength(0);
+      expect(result.categories.wellness).toHaveLength(0);
+      expect(result.categories.shopping).toHaveLength(0);
       // Should not have inserted since all empty
       expect(mockDb.insert).not.toHaveBeenCalled();
     });
@@ -544,6 +551,8 @@ describe("DiscoverService", () => {
       expect(result.categories.arts_and_entertainment).toHaveLength(0);
       expect(result.categories.outdoors).toHaveLength(0);
       expect(result.categories.nightlife).toHaveLength(0);
+      expect(result.categories.wellness).toHaveLength(0);
+      expect(result.categories.shopping).toHaveLength(0);
       expect(fetchSpy).not.toHaveBeenCalled();
     });
 
@@ -594,7 +603,7 @@ describe("DiscoverService", () => {
 
       // Should have detected stale cache (Paris coords in cache → London coords passed) and re-fetched
       expect(result.destination).toBe("London, UK");
-      expect(fetchSpy).toHaveBeenCalledTimes(4);
+      expect(fetchSpy).toHaveBeenCalledTimes(6);
       expect(mockLog.info).toHaveBeenCalledWith(
         expect.objectContaining({
           oldLat: 48.8566,
@@ -633,6 +642,152 @@ describe("DiscoverService", () => {
       expect(result.destination).toBe("Paris, France");
       expect(result.categories.food_and_drink).toHaveLength(1);
       expect(fetchSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("category disjointness", () => {
+    it("has no Google type appearing in two categories", () => {
+      const seen = new Map<string, string>();
+      const duplicates: string[] = [];
+
+      for (const cat of POI_CATEGORIES) {
+        for (const t of cat.googleTypes) {
+          if (seen.has(t)) {
+            duplicates.push(`${t} (${seen.get(t)} and ${cat.id})`);
+          } else {
+            seen.set(t, cat.id);
+          }
+        }
+      }
+
+      expect(duplicates).toEqual([]);
+    });
+
+    it('places bar only under nightlife', () => {
+      const barCategories = POI_CATEGORIES
+        .filter((c) => c.googleTypes.includes("bar"))
+        .map((c) => c.id);
+
+      expect(barCategories).toEqual(["nightlife"]);
+    });
+
+    it('places liquor_store in no category', () => {
+      const liquorCategories = POI_CATEGORIES
+        .filter((c) => c.googleTypes.includes("liquor_store"))
+        .map((c) => c.id);
+
+      expect(liquorCategories).toEqual([]);
+    });
+
+    it('places tourist_attraction only under outdoors', () => {
+      const taCategories = POI_CATEGORIES
+        .filter((c) => c.googleTypes.includes("tourist_attraction"))
+        .map((c) => c.id);
+
+      expect(taCategories).toEqual(["outdoors"]);
+    });
+
+    it.each(["zoo", "aquarium", "amusement_park"] as const)(
+      'places %s only under outdoors',
+      (type) => {
+        const categories = POI_CATEGORIES
+          .filter((c) => c.googleTypes.includes(type))
+          .map((c) => c.id);
+
+        expect(categories).toEqual(["outdoors"]);
+      },
+    );
+
+    it('places night_club only under nightlife', () => {
+      const ncCategories = POI_CATEGORIES
+        .filter((c) => c.googleTypes.includes("night_club"))
+        .map((c) => c.id);
+
+      expect(ncCategories).toEqual(["nightlife"]);
+    });
+  });
+
+  describe("distance sorting", () => {
+    it("sorts POIs within each category by distance ascending", async () => {
+      const { groupByCategoryOnly } = await import("@/services/discover.service.js");
+
+      const pois = [
+        makeSuggestion({ category: "food_and_drink", distance: 200, sourceId: "a" }),
+        makeSuggestion({ category: "food_and_drink", distance: 50, sourceId: "b" }),
+        makeSuggestion({ category: "food_and_drink", distance: 1000, sourceId: "c" }),
+        makeSuggestion({ category: "outdoors", distance: 300, sourceId: "d" }),
+        makeSuggestion({ category: "outdoors", distance: 100, sourceId: "e" }),
+      ];
+
+      const result = groupByCategoryOnly(pois);
+
+      expect(result.food_and_drink.map((p) => p.distance)).toEqual([50, 200, 1000]);
+      expect(result.outdoors.map((p) => p.distance)).toEqual([100, 300]);
+      // Other categories should be empty arrays
+      expect(result.arts_and_entertainment).toEqual([]);
+      expect(result.nightlife).toEqual([]);
+      expect(result.wellness).toEqual([]);
+      expect(result.shopping).toEqual([]);
+    });
+  });
+
+  describe("mapGoogleToSuggestion photo fields", () => {
+    it("populates photoName, photoAttribution, googleMapsUri, businessStatus from Google response", () => {
+      const service = new DiscoverService(
+        createMockDb() as any,
+        "test-key",
+        createMockLogger() as any,
+      );
+
+      // Access the private method via type assertion
+      const mapper = (service as any).mapGoogleToSuggestion("nightlife", 41.3874, 2.1686);
+
+      const googlePlace = makeGooglePlace({
+        id: "ChIJTest123",
+        displayName: { text: "Test Bar", languageCode: "en" },
+        types: ["bar"],
+        photos: [
+          {
+            name: "places/ChIJTest123/photos/AUGGfZkK",
+            authorAttributions: [{ displayName: "Jane Doe", uri: "", photoUri: "" }],
+            widthPx: 400,
+            heightPx: 280,
+          },
+        ],
+        businessStatus: "OPERATIONAL",
+        googleMapsUri: "https://maps.google.com/?cid=123",
+      });
+
+      const result = mapper(googlePlace);
+
+      expect(result.photoName).toBe("places/ChIJTest123/photos/AUGGfZkK");
+      expect(result.photoAttribution).toBe("Jane Doe");
+      expect(result.googleMapsUri).toBe("https://maps.google.com/?cid=123");
+      expect(result.businessStatus).toBe("OPERATIONAL");
+    });
+
+    it("returns null photo fields when Google response lacks them", () => {
+      const service = new DiscoverService(
+        createMockDb() as any,
+        "test-key",
+        createMockLogger() as any,
+      );
+
+      const mapper = (service as any).mapGoogleToSuggestion("food_and_drink", 41.3874, 2.1686);
+
+      const googlePlace = makeGooglePlace({
+        id: "ChIJTest456",
+        displayName: { text: "Basic Place", languageCode: "en" },
+        types: ["restaurant"],
+        // No photos, businessStatus, googleMapsUri
+      });
+
+      const result = mapper(googlePlace);
+
+      expect(result.photoName).toBeNull();
+      expect(result.photoAttribution).toBeNull();
+      expect(result.googleMapsUri).toBeNull();
+      expect(result.businessStatus).toBeNull();
     });
   });
 });

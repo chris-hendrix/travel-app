@@ -34,13 +34,17 @@ const CATEGORY_ACCENT_COLORS: Record<POICategoryKey, string> = {
   arts_and_entertainment: "bg-event-arts_and_entertainment",
   outdoors: "bg-event-outdoors",
   nightlife: "bg-event-nightlife",
+  wellness: "bg-event-wellness",
+  shopping: "bg-event-shopping",
 };
 
 const CATEGORY_LABELS: Record<POICategoryKey, string> = {
   food_and_drink: "Food & Drink",
-  arts_and_entertainment: "Arts & Entertainment",
+  arts_and_entertainment: "Arts & Leisure",
   outdoors: "Outdoors",
   nightlife: "Nightlife",
+  wellness: "Wellness & Fitness",
+  shopping: "Shopping",
 };
 
 /**
@@ -145,41 +149,66 @@ function POIDetailBody({
     }
   }, [poi.website]);
 
+  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "";
+
   return (
     <div className="flex flex-col h-full">
       <div className="space-y-4 flex-1">
-        {/* Category label */}
-        <p className="text-sm text-muted-foreground">
-          {CATEGORY_LABELS[poi.category]}
-        </p>
+        {/* Cover photo hero with chevron navigation */}
+        <div className="relative">
+          {poi.photoName ? (
+            <a
+              href={poi.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(poi.address ?? poi.name)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="relative block w-full aspect-[3/2] bg-cover bg-center"
+              style={{
+                backgroundImage: `url(${apiBase}/api/locations/photos/${encodeURIComponent(poi.photoName)}?w=600&h=400)`,
+              }}
+              aria-label={`Open ${poi.name} in Google Maps`}
+            >
+              {/* Gradient overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+              {/* "Open in Google Maps" overlay */}
+              <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-md bg-black/60 text-white text-xs px-2 py-1" aria-hidden="true">
+                <MapPin className="w-3 h-3" />
+                Google Maps
+              </span>
+            </a>
+          ) : (
+            <div className="w-full aspect-[3/2] bg-muted flex items-center justify-center">
+              <MapPin className="w-8 h-8 text-muted-foreground/50" />
+            </div>
+          )}
 
-        {/* POI name with navigation arrows (weather pattern) */}
-        <div className="flex items-center justify-between">
+          {/* Prev/Next chevrons as siblings */}
           <button
             onClick={onPrev}
             disabled={!hasPrev}
-            className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-default"
+            className="absolute z-20 rounded-full bg-black/50 text-white p-1 hover:bg-black/70 disabled:opacity-30 left-2 top-1/2 -translate-y-1/2"
             aria-label="Previous place"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <h3 className="font-playfair text-xl font-semibold text-center px-2 truncate min-w-0">
-            {poi.name}
-          </h3>
           <button
             onClick={onNext}
             disabled={!hasNext}
-            className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-default"
+            className="absolute z-20 rounded-full bg-black/50 text-white p-1 hover:bg-black/70 disabled:opacity-30 right-2 top-1/2 -translate-y-1/2"
             aria-label="Next place"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Position counter */}
-        <p className="text-xs text-muted-foreground text-center">
-          {poiIndex + 1} of {totalPois}
+        {/* Category label */}
+        <p className="text-sm text-muted-foreground">
+          {CATEGORY_LABELS[poi.category]}
         </p>
+
+        {/* POI name */}
+        <h3 className="font-playfair text-xl font-semibold text-center px-2 truncate min-w-0">
+          {poi.name}
+        </h3>
 
         {/* Non-clickable info: subcategory + distance */}
         <div className="space-y-1.5">
@@ -194,19 +223,13 @@ function POIDetailBody({
           </span>
         </div>
 
-        {/* Clickable links: address, website, phone */}
+        {/* Address (plain text), website, phone */}
         <div className="space-y-2">
           {poi.address && (
-            <a
-              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(poi.address)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors min-w-0"
-            >
-              <MapPin className="w-3.5 h-3.5 shrink-0" />
+            <span className="flex items-center gap-1.5 text-sm text-muted-foreground min-w-0">
+              <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
               <span className="truncate min-w-0">{poi.address}</span>
-              <span className="text-xs opacity-60 shrink-0">Google Maps</span>
-            </a>
+            </span>
           )}
 
           {websiteHostname && (
@@ -233,17 +256,25 @@ function POIDetailBody({
         </div>
       </div>
 
-      {/* Bottom section: Create Event + attribution */}
+      {/* Bottom section: Create Event + counter + attribution */}
       <div className="pt-4 space-y-2">
-        <Button
-          variant="gradient"
-          className="w-full h-12 rounded-md"
-          onClick={() => onCreateEvent(poi)}
-        >
-          Create Event
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="gradient"
+            className="flex-1 h-12 rounded-md"
+            onClick={() => onCreateEvent(poi)}
+          >
+            Create Event
+          </Button>
+          <span className="text-xs text-muted-foreground shrink-0">
+            {poiIndex + 1} of {totalPois}
+          </span>
+        </div>
+        {poi.photoAttribution && (
+          <p className="text-xs text-muted-foreground text-center">Photo by {poi.photoAttribution}</p>
+        )}
         <p className="text-xs text-muted-foreground text-center">
-          Added by Foursquare Places
+          Powered by Google
         </p>
       </div>
     </div>

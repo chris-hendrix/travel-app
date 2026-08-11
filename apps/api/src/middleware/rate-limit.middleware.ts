@@ -89,6 +89,28 @@ export const defaultRateLimitConfig: RateLimitOptions = {
 };
 
 /**
+ * Rate limiting for the Google Places photo proxy.
+ * 60 requests per minute per IP — photos are public, cached, and
+ * user identity is not available on this unauthenticated route.
+ */
+export const photoProxyRateLimitConfig: RateLimitOptions = {
+  max: 60,
+  timeWindow: "1 minute",
+  keyGenerator: (request) => request.ip,
+  errorResponseBuilder: (_request, context) => {
+    const error = new Error("Too many requests. Please slow down.") as Error & {
+      statusCode: number;
+      code: string;
+      customRateLimitMessage: string;
+    };
+    error.statusCode = context.statusCode;
+    error.code = "RATE_LIMIT_EXCEEDED";
+    error.customRateLimitMessage = "Too many requests. Please slow down.";
+    return error;
+  },
+};
+
+/**
  * Stricter rate limiting for write endpoints (POST/PUT/DELETE).
  * 30 requests per minute per authenticated user (falls back to IP).
  */

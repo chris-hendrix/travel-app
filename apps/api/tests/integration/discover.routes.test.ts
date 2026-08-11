@@ -218,6 +218,8 @@ describe("Discover Routes", () => {
         arts_and_entertainment: [],
         outdoors: [],
         nightlife: [],
+        wellness: [],
+        shopping: [],
       });
 
       // Cleanup
@@ -289,6 +291,10 @@ describe("Discover Routes", () => {
             tel: null,
             subcategory: null,
             eventId: null,
+            photoName: null,
+            photoAttribution: null,
+            googleMapsUri: null,
+            businessStatus: null,
           },
         ],
       });
@@ -313,6 +319,8 @@ describe("Discover Routes", () => {
       expect(body.data.categories.arts_and_entertainment).toEqual([]);
       expect(body.data.categories.outdoors).toEqual([]);
       expect(body.data.categories.nightlife).toEqual([]);
+      expect(body.data.categories.wellness).toEqual([]);
+      expect(body.data.categories.shopping).toEqual([]);
 
       // Cleanup
       await db.delete(poiCache).where(eq(poiCache.tripId, trip.id));

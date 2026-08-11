@@ -17,6 +17,8 @@ export const poiSuggestionSchema = z.object({
     "arts_and_entertainment",
     "outdoors",
     "nightlife",
+    "wellness",
+    "shopping",
   ]),
   popularity: z.number().nullable(),
   price: z.number().nullable(),
@@ -25,6 +27,10 @@ export const poiSuggestionSchema = z.object({
   tel: z.string().nullable(),
   subcategory: z.string().nullable(),
   eventId: z.string().nullable(),
+  photoName: z.string().nullable(),
+  photoAttribution: z.string().nullable(),
+  googleMapsUri: z.string().nullable(),
+  businessStatus: z.string().nullable(),
 });
 
 /**
@@ -34,7 +40,7 @@ export const poiSuggestionsResponseSchema = z.object({
   destination: z.string().nullable(),
   source: z.string(),
   categories: z.record(
-    z.enum(["food_and_drink", "arts_and_entertainment", "outdoors", "nightlife"]),
+    z.enum(["food_and_drink", "arts_and_entertainment", "outdoors", "nightlife", "wellness", "shopping"]),
     z.array(poiSuggestionSchema),
   ),
   partial: z.boolean().optional(),

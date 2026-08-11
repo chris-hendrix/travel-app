@@ -28,6 +28,9 @@ type GooglePlace = {
   location: { latitude: number; longitude: number };
   types: string[];
   attributions?: string[];
+  photos?: { name: string; authorAttributions?: { displayName?: string; uri?: string; photoUri?: string }[]; widthPx: number; heightPx: number }[];
+  businessStatus?: string;
+  googleMapsUri?: string;
 };
 
 type GoogleSearchNearbyResponse = { places: GooglePlace[] };
@@ -147,7 +150,7 @@ export class DiscoverService implements IDiscoverService {
       }
     }
 
-    // 4 parallel Google Places searchNearby POST calls
+    // 6 parallel Google Places searchNearby POST calls
     const attributionSet = new Set<string>();
 
     const categoryResults = await Promise.all(
@@ -173,7 +176,7 @@ export class DiscoverService implements IDiscoverService {
             headers: {
               "Content-Type": "application/json",
               "X-Goog-Api-Key": this.googleApiKey,
-              "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.location,places.types,places.attributions",
+              "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.location,places.types,places.attributions,places.photos,places.businessStatus,places.googleMapsUri",
             },
             body,
           });
@@ -351,6 +354,10 @@ export class DiscoverService implements IDiscoverService {
         tel: null,
         subcategory: matchedType ? (googleTypeLabels[matchedType] ?? matchedType) : null,
         eventId: null,
+        photoName: p.photos?.[0]?.name ?? null,
+        photoAttribution: p.photos?.[0]?.authorAttributions?.[0]?.displayName ?? null,
+        googleMapsUri: p.googleMapsUri ?? null,
+        businessStatus: p.businessStatus ?? null,
       };
     };
   }
@@ -382,6 +389,10 @@ export function groupByCategoryOnly(suggestions: POISuggestion[]): Record<POICat
     if (categories[s.category]) {
       categories[s.category].push(s);
     }
+  }
+  // Sort each category by distance ascending (nearest first)
+  for (const cat of POI_CATEGORIES) {
+    categories[cat.id].sort((a, b) => a.distance - b.distance);
   }
   return categories;
 }

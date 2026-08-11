@@ -5,10 +5,12 @@ import {
   Compass,
   AlertCircle,
   ChevronDown,
-  Utensils,
+  Dumbbell,
   Palette,
-  TreePine,
+  ShoppingBag,
   Sparkles,
+  TreePine,
+  Utensils,
 } from "lucide-react";
 import type { POISuggestion, POICategoryKey, TemperatureUnit, Event } from "@journiful/shared/types";
 import { POI_CATEGORIES } from "@journiful/shared/types";
@@ -34,6 +36,8 @@ const CATEGORY_ICONS: Record<POICategoryKey, typeof Utensils> = {
   arts_and_entertainment: Palette,
   outdoors: TreePine,
   nightlife: Sparkles,
+  wellness: Dumbbell,
+  shopping: ShoppingBag,
 };
 
 // ─── Location type ───────────────────────────────────────────────────────────

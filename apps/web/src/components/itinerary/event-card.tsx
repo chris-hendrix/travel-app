@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { Calendar, Car, Utensils, Palette, TreePine, Sparkles } from "lucide-react";
+import { Calendar, Car, Utensils, Palette, TreePine, Sparkles, Dumbbell, ShoppingBag } from "lucide-react";
 import type { Event } from "@journiful/shared/types";
 import { formatInTimezone } from "@/lib/utils/timezone";
 
@@ -42,6 +42,18 @@ export const EVENT_TYPE_CONFIG = {
     accent: "border-l-event-nightlife",
     bg: "bg-event-nightlife-light",
     icon: Sparkles,
+  },
+  wellness: {
+    color: "text-event-wellness",
+    accent: "border-l-event-wellness",
+    bg: "bg-event-wellness-light",
+    icon: Dumbbell,
+  },
+  shopping: {
+    color: "text-event-shopping",
+    accent: "border-l-event-shopping",
+    bg: "bg-event-shopping-light",
+    icon: ShoppingBag,
   },
   misc: {
     color: "text-event-misc",
