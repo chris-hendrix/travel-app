@@ -290,7 +290,11 @@ describe("POIDetailSheet", () => {
       );
       const heroLink = screen.getByLabelText(/Open Le Bistro Parisien in Google Maps/i);
       expect(heroLink).toBeDefined();
-      expect(heroLink.style.backgroundImage).toContain("/api/locations/photos/places%2Fx%2Fy");
+      const style = heroLink.style.backgroundImage;
+      expect(style).toContain("/locations/photos/");
+      expect(style).not.toContain("/api/api");
+      expect(style).toContain("maxWidthPx=600");
+      expect(style).toContain("maxHeightPx=400");
     });
 
     it("renders muted placeholder when photoName is null", () => {

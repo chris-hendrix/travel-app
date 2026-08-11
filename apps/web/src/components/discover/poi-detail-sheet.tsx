@@ -163,7 +163,7 @@ function POIDetailBody({
               rel="noopener noreferrer"
               className="relative block w-full aspect-[3/2] bg-cover bg-center"
               style={{
-                backgroundImage: `url(${apiBase}/api/locations/photos/${encodeURIComponent(poi.photoName)}?w=600&h=400)`,
+                backgroundImage: `url(${apiBase}/locations/photos/${encodeURIComponent(poi.photoName)}?maxWidthPx=600&maxHeightPx=400)`,
               }}
               aria-label={`Open ${poi.name} in Google Maps`}
             >

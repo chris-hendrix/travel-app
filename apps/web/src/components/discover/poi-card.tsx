@@ -78,7 +78,7 @@ export const POICard = memo(function POICard({
       onClick={() => onSelect(poi)}
       aria-label={ariaLabel}
       className={cn(
-        "relative w-full overflow-hidden rounded-lg bg-card border border-border text-left cursor-pointer",
+        "relative w-full aspect-square overflow-hidden rounded-lg bg-card border border-border text-left cursor-pointer",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         "motion-safe:active:scale-[0.98]",
       )}
@@ -88,7 +88,7 @@ export const POICard = memo(function POICard({
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage: `url(${apiBase}/api/locations/photos/${encodeURIComponent(poi.photoName)}?w=400&h=280)`,
+            backgroundImage: `url(${apiBase}/locations/photos/${encodeURIComponent(poi.photoName)}?maxWidthPx=400&maxHeightPx=280)`,
           }}
         />
       )}
@@ -100,7 +100,7 @@ export const POICard = memo(function POICard({
       <div className={cn("absolute left-0 top-0 bottom-0 w-1 border-l-4", borderColor)} />
 
       {/* Foreground content */}
-      <div className="relative z-10 p-3 flex flex-col h-full min-h-[140px]">
+      <div className="relative z-10 p-3 flex flex-col h-full justify-between">
         {/* Top: name + businessStatus badge */}
         <div className="flex items-start justify-between gap-2">
           <h3 className="font-semibold text-sm text-white drop-shadow-md line-clamp-2">

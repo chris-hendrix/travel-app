@@ -89,9 +89,11 @@ describe("POICard", () => {
       );
       const bgDiv = container.querySelector('[style*="background-image"]');
       expect(bgDiv).toBeTruthy();
-      expect(bgDiv?.getAttribute("style")).toContain(
-        "/api/locations/photos/places%2Fx%2Fphotos%2Fy",
-      );
+      const style = bgDiv!.getAttribute("style") ?? "";
+      expect(style).toContain("/locations/photos/");
+      expect(style).not.toContain("/api/api");
+      expect(style).toContain("maxWidthPx=400");
+      expect(style).toContain("maxHeightPx=280");
     });
 
     it("does not render background-image when photoName is null", () => {

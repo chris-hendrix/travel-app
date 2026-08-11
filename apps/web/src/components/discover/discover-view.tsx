@@ -215,9 +215,9 @@ export function DiscoverView({ tripId, temperatureUnit }: DiscoverViewProps) {
       <div className="space-y-6">
         <Skeleton className="h-8 w-40" />
         <div className="flex gap-4 overflow-hidden">
-          <Skeleton className="h-36 w-[200px] shrink-0 rounded-md" />
-          <Skeleton className="h-36 w-[200px] shrink-0 rounded-md" />
-          <Skeleton className="h-36 w-[200px] shrink-0 rounded-md" />
+          <Skeleton className="aspect-square w-44 shrink-0 rounded-md" />
+          <Skeleton className="aspect-square w-44 shrink-0 rounded-md" />
+          <Skeleton className="aspect-square w-44 shrink-0 rounded-md" />
         </div>
       </div>
     );
@@ -314,7 +314,7 @@ export function DiscoverView({ tripId, temperatureUnit }: DiscoverViewProps) {
               {/* Horizontally scrollable row with peek + fade */}
               <div className="no-swipe flex gap-3 overflow-x-auto pb-2 pr-10 scrollbar-none snap-x snap-mandatory [mask-image:linear-gradient(to_right,black_calc(100%-56px),transparent_100%)]">
                 {pois.map((poi) => (
-                  <div key={poi.sourceId} className="snap-start">
+                  <div key={poi.sourceId} className="snap-start w-44 shrink-0">
                     <POICard poi={poi} onSelect={handlePOISelect} temperatureUnit={temperatureUnit} />
                   </div>
                 ))}
