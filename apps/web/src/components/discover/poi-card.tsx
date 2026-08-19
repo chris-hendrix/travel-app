@@ -1,22 +1,22 @@
 "use client";
 
 import { memo } from "react";
-import { MapPin, Navigation } from "lucide-react";
 import type { POISuggestion, POICategoryKey, TemperatureUnit } from "@journiful/shared/types";
 import { cn } from "@/lib/utils";
+import { API_URL } from "@/lib/api";
 
 /**
- * Tailwind border colour classes per category, matching the Vivid Capri event tokens.
- *
- * Each key uses the `border-l-event-{category}` tokens defined in globals.css so the
- * left accent bar is colour-coded consistently with events of the same type in the
- * itinerary.
+ * Tailwind background colour classes per category, matching the Vivid Capri
+ * event tokens. Used for the thin accent strip along the top of the photo well.
  */
-const CATEGORY_BORDER_COLORS: Record<POICategoryKey, string> = {
-  food_and_drink: "border-l-event-food_and_drink",
-  arts_and_entertainment: "border-l-event-arts_and_entertainment",
-  outdoors: "border-l-event-outdoors",
-  nightlife: "border-l-event-nightlife",
+const CATEGORY_ACCENT_COLORS: Record<POICategoryKey, string> = {
+  food_and_drink: "bg-event-food_and_drink",
+  arts_and_entertainment: "bg-event-arts_and_entertainment",
+  outdoors: "bg-event-outdoors",
+  nightlife: "bg-event-nightlife",
+  wellness: "bg-event-wellness",
+  shopping: "bg-event-shopping",
+  lodging: "bg-event-lodging",
 };
 
 /**
@@ -42,57 +42,88 @@ interface POICardProps {
 }
 
 /**
- * A compact card that displays a single POI suggestion.
+ * A postcard-styled POI card matching the vintage postcard frames used for trip
+ * cards on the trips page (.postcard / .postcard-mat / .postcard-image).
  *
- * Renders a colour-coded left accent bar, the place name (1-line truncated),
- * optional subcategory, truncated address, and distance from the trip
- * destination. Clicking the card invokes `onSelect` with the full POI
- * object so the parent can open the detail sheet or event creation dialog.
+ * The card is a landscape 3:2 photo in a white mat inside a cardboard frame.
+ * When a Google Places photo is available (`poi.photoName`) it is loaded via the
+ * backend photo proxy as a background-image; otherwise a themed gradient fills
+ * the well. A thin category-coloured strip runs along the top of the image well,
+ * and the place name (Playfair) + subcategory/distance sit over a bottom scrim.
  */
 export const POICard = memo(function POICard({
   poi,
   onSelect,
   temperatureUnit,
 }: POICardProps) {
-  const borderColor = CATEGORY_BORDER_COLORS[poi.category];
+  const accentColor = CATEGORY_ACCENT_COLORS[poi.category];
+
+  const ariaLabel = poi.photoAttribution
+    ? `${poi.name} \u2014 Photo by ${poi.photoAttribution}`
+    : poi.name;
+
+  const showBusinessStatus =
+    poi.businessStatus !== null && poi.businessStatus !== "OPERATIONAL";
 
   return (
     <button
       type="button"
       onClick={() => onSelect(poi)}
+      aria-label={ariaLabel}
       className={cn(
-        "group flex flex-col gap-1 rounded-md p-2.5",
-        "bg-card text-left transition-all overflow-hidden",
-        "hover:border-primary/40 hover:shadow-sm hover:bg-accent/5",
+        "postcard w-full text-left cursor-pointer",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-        "cursor-pointer motion-safe:active:scale-[0.98]",
-        "w-[200px] shrink-0 border-l-2",
-        borderColor,
+        "motion-safe:active:scale-[0.98]",
       )}
     >
-      {/* Name — 1-line truncated */}
-      <span className="text-sm font-semibold text-foreground leading-tight truncate min-w-0">
-        {poi.name}
-      </span>
+      {/* Mat: white border around the photo */}
+      <div className="postcard-mat bg-card" style={{ padding: 8 }}>
+        <div className="postcard-image">
+          {/* Photo background (only when photoName present) */}
+          {poi.photoName ? (
+            <div
+              className="absolute inset-0 bg-cover bg-center"
+              style={{
+                backgroundImage: `url(${API_URL}/locations/photos/${encodeURIComponent(poi.photoName)}?maxWidthPx=400&maxHeightPx=280)`,
+              }}
+            />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-accent/15 to-secondary/20" />
+          )}
 
-      {/* Subcategory */}
-      {poi.subcategory && (
-        <span className="text-xs text-muted-foreground truncate min-w-0">
-          {poi.subcategory}
-        </span>
-      )}
+          {/* Category accent strip */}
+          <div className={cn("absolute top-0 left-0 right-0 h-0.5 z-10", accentColor)} />
 
-      {/* Address — always rendered to maintain layout height */}
-      <span className="flex items-start gap-1 text-xs text-muted-foreground min-w-0">
-        <MapPin className="w-3 h-3 shrink-0 mt-0.5" aria-hidden="true" />
-        <span className="truncate min-w-0">{poi.address || "\u2014"}</span>
-      </span>
+          {/* Scrim — always renders so text stays readable with or without photo */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 
-      {/* Distance */}
-      <span className="flex items-center gap-1 text-xs text-muted-foreground/70">
-        <Navigation className="w-3 h-3" aria-hidden="true" />
-        {formatDistance(poi.distance, temperatureUnit)}
-      </span>
+          {/* Top-left: business-status badge (non-OPERATIONAL only) */}
+          {showBusinessStatus && (
+            <span className="absolute top-2 left-2 z-10 rounded bg-black/50 px-1.5 py-0.5 text-xs text-white border border-white/20 backdrop-blur-md">
+              {poi.businessStatus}
+            </span>
+          )}
+
+          {/* Top-right: photo attribution (Google ToS requires credit per display) */}
+          {poi.photoAttribution && (
+            <span className="absolute top-2 right-2 z-10 text-[9px] text-white/60 drop-shadow">
+              {poi.photoAttribution}
+            </span>
+          )}
+
+          {/* Bottom: name + subcategory · distance */}
+          <div className="absolute bottom-0 left-0 right-0 p-2">
+            <h3 className="font-playfair text-sm font-semibold leading-snug text-white drop-shadow-md line-clamp-2">
+              {poi.name}
+            </h3>
+            <div className="mt-0.5 flex items-center gap-1 text-xs text-white/80">
+              {poi.subcategory && <span className="truncate">{poi.subcategory}</span>}
+              {poi.subcategory && <span className="shrink-0 text-white/50">·</span>}
+              <span className="shrink-0">{formatDistance(poi.distance, temperatureUnit)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </button>
   );
 });

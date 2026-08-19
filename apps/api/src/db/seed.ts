@@ -519,7 +519,7 @@ async function main() {
     lat: number,
     lon: number,
     distance: number,
-    category: "food_and_drink" | "arts_and_entertainment" | "outdoors" | "nightlife",
+    category: "food_and_drink" | "arts_and_entertainment" | "outdoors" | "nightlife" | "wellness" | "shopping",
     subcategory: string,
   ): POISuggestion {
     return {
@@ -536,6 +536,10 @@ async function main() {
       website: null,
       tel: null,
       subcategory,
+      photoName: null,
+      photoAttribution: null,
+      googleMapsUri: null,
+      businessStatus: null,
       eventId: null,
     };
   }
@@ -557,7 +561,7 @@ async function main() {
   const barcelonaPOIs: POISuggestion[] = [
     makeMockPOIs("mock-bcn-001", "Ciudad Condal", "Rambla de Catalunya 18", 41.3895, 2.1656, 1500, "food_and_drink", "Tapas Restaurant"),
     makeMockPOIs("mock-bcn-002", "La Boqueria", "La Rambla 91", 41.3817, 2.1717, 2200, "food_and_drink", "Food Market"),
-    makeMockPOIs("mock-bcn-003", "Can Paixano", "Carrer de la Reina Cristina 7", 41.3801, 2.1834, 2800, "food_and_drink", "Cava Bar"),
+    makeMockPOIs("mock-bcn-003", "Can Paixano", "Carrer de la Reina Cristina 7", 41.3801, 2.1834, 2800, "nightlife", "Cava Bar"),
     makeMockPOIs("mock-bcn-004", "Sagrada Família", "Carrer de Mallorca 401", 41.4036, 2.1744, 3100, "arts_and_entertainment", "Basilica"),
     makeMockPOIs("mock-bcn-005", "Picasso Museum", "Carrer Montcada 15-23", 41.3852, 2.1808, 2400, "arts_and_entertainment", "Art Museum"),
     makeMockPOIs("mock-bcn-006", "Barceloneta Beach", "Passeig Marítim de la Barceloneta", 41.3786, 2.1925, 3500, "outdoors", "Beach"),

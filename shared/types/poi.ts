@@ -3,7 +3,10 @@ export type POICategoryKey =
   | "food_and_drink"
   | "arts_and_entertainment"
   | "outdoors"
-  | "nightlife";
+  | "nightlife"
+  | "wellness"
+  | "shopping"
+  | "lodging";
 
 /** A single POI suggestion stored in the poi_cache JSONB blob */
 export interface POISuggestion {
@@ -21,6 +24,10 @@ export interface POISuggestion {
   tel: string | null;         // nullable
   subcategory: string | null; // categories[0].name (e.g. "Italian Restaurant")
   eventId: string | null;     // FK to events.id when converted to a trip event
+  photoName: string | null;
+  photoAttribution: string | null;
+  googleMapsUri: string | null;
+  businessStatus: string | null;
 }
 
 /** Response from GET /api/trips/:id/discover */
@@ -63,6 +70,27 @@ export const googleTypeLabels: Record<string, string> = {
   scenic_lookout: "Scenic Lookout",
   natural_feature: "Natural Feature",
   liquor_store: "Liquor Store",
+  supermarket: "Supermarket",
+  grocery_store: "Grocery Store",
+  lodging: "Lodging",
+  hotel: "Hotel",
+  motel: "Motel",
+  guest_house: "Guest House",
+  hostel: "Hostel",
+  bed_and_breakfast: "Bed & Breakfast",
+  gym: "Gym",
+  spa: "Spa",
+  beauty_salon: "Beauty Salon",
+  shopping_mall: "Shopping Mall",
+  book_store: "Bookstore",
+  clothing_store: "Clothing Store",
+  shoe_store: "Shoe Store",
+  department_store: "Department Store",
+  electronics_store: "Electronics Store",
+  jewelry_store: "Jewelry Store",
+  florist: "Florist",
+  pet_store: "Pet Store",
+  bicycle_store: "Bike Shop",
 };
 
 /** Category configuration with Google Places types */
@@ -76,56 +104,47 @@ export const POI_CATEGORIES: POICategoryConfig[] = [
   {
     id: "food_and_drink",
     label: "Food & Drink",
-    googleTypes: [
-      "restaurant",
-      "bar",
-      "cafe",
-      "bakery",
-      "meal_takeaway",
-      "meal_delivery",
-    ],
+    googleTypes: ["restaurant", "cafe", "bakery", "meal_takeaway", "meal_delivery"],
   },
   {
     id: "arts_and_entertainment",
-    label: "Arts & Entertainment",
+    label: "Arts & Leisure",
     googleTypes: [
-      "movie_theater",
-      "museum",
-      "art_gallery",
-      "performing_arts_theater",
-      "amusement_park",
-      "zoo",
-      "aquarium",
-      "casino",
-      "night_club",
-      "tourist_attraction",
-      "library",
-      "bowling_alley",
+      "movie_theater", "museum", "art_gallery", "performing_arts_theater",
+      "library", "bowling_alley", "casino",
     ],
   },
   {
     id: "outdoors",
     label: "Outdoors",
     googleTypes: [
-      "park",
-      "tourist_attraction",
-      "campground",
-      "hiking_area",
-      "beach",
-      "garden",
-      "plaza",
-      "marina",
-      "scenic_lookout",
-      "natural_feature",
+      "park", "tourist_attraction", "campground", "hiking_area", "beach",
+      "garden", "plaza", "marina", "scenic_lookout", "natural_feature",
+      "zoo", "aquarium", "amusement_park",
     ],
   },
   {
     id: "nightlife",
     label: "Nightlife",
+    googleTypes: ["night_club", "bar"],
+  },
+  {
+    id: "wellness",
+    label: "Wellness & Fitness",
+    googleTypes: ["gym", "spa", "beauty_salon"],
+  },
+  {
+    id: "shopping",
+    label: "Shopping",
     googleTypes: [
-      "night_club",
-      "bar",
-      "liquor_store",
+      "shopping_mall", "book_store", "clothing_store", "shoe_store",
+      "department_store", "electronics_store", "jewelry_store", "florist",
+      "pet_store", "bicycle_store", "supermarket", "grocery_store", "liquor_store",
     ],
+  },
+  {
+    id: "lodging",
+    label: "Stays",
+    googleTypes: ["lodging", "hotel", "motel", "guest_house", "hostel", "bed_and_breakfast"],
   },
 ];

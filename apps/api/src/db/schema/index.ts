@@ -64,6 +64,9 @@ export const eventTypeEnum = pgEnum("event_type", [
   "arts_and_entertainment",
   "outdoors",
   "nightlife",
+  "wellness",
+  "shopping",
+  "lodging",
   "misc",
 ]);
 

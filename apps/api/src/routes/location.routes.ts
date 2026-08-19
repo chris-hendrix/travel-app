@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { authenticate } from "@/middleware/auth.middleware.js";
-import { defaultRateLimitConfig } from "@/middleware/rate-limit.middleware.js";
+import { defaultRateLimitConfig, photoProxyRateLimitConfig } from "@/middleware/rate-limit.middleware.js";
 
 const autocompleteQuerySchema = z.object({
   q: z.string().min(1).max(200),
@@ -209,6 +209,60 @@ export async function locationRoutes(fastify: FastifyInstance) {
             message: "Google Places API request failed",
           },
         });
+      }
+    },
+  );
+
+  fastify.get<{ Params: { photoRef: string }; Querystring: { maxWidthPx?: string; maxHeightPx?: string } }>(
+    "/photos/:photoRef",
+    {
+      preHandler: [fastify.rateLimit(photoProxyRateLimitConfig)],
+    },
+    async (request, reply) => {
+      const { photoRef } = request.params;
+
+      // Validate photo ref format: places/{placeId}/photos/{photoRef}
+      if (!/^places\/[^/]+\/photos\/[^/]+$/.test(photoRef)) {
+        return reply.code(400).send({ error: "Invalid photo reference" });
+      }
+
+      // Parse optional size params
+      const { maxWidthPx, maxHeightPx } = request.query;
+      const w = Math.min(Math.max(parseInt(maxWidthPx ?? "400", 10) || 400, 1), 4800);
+      const h = Math.min(Math.max(parseInt(maxHeightPx ?? "280", 10) || 280, 1), 4800);
+
+      const key = request.server.config.GOOGLE_MAPS_API_KEY;
+      if (!key) {
+        return reply.code(404).send();
+      }
+
+      const url = `${GOOGLE_PLACES_BASE}/${photoRef}/media?key=${key}&maxWidthPx=${w}&maxHeightPx=${h}`;
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+
+      try {
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeout);
+
+        if (!response.ok || !response.body) {
+          return reply.code(404).send();
+        }
+
+        const contentType = response.headers.get("content-type") ?? "image/jpeg";
+
+        reply.header("Content-Type", contentType);
+        reply.header("Cache-Control", "public, max-age=604800, immutable");
+
+        // Stream the response body using Node.js Readable.fromWeb
+        const { Readable } = await import("stream");
+        return reply.send(Readable.fromWeb(response.body as any));
+      } catch (err: any) {
+        clearTimeout(timeout);
+        if (err?.name === "AbortError") {
+          return reply.code(404).send();
+        }
+        return reply.code(404).send();
       }
     },
   );

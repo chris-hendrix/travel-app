@@ -73,6 +73,9 @@ function makeEmptyResponse(): POISuggestionsResponse {
       arts_and_entertainment: [],
       outdoors: [],
       nightlife: [],
+      wellness: [],
+      shopping: [],
+      lodging: [],
     },
   };
 }
@@ -98,6 +101,10 @@ function makePopulatedResponse(): POISuggestionsResponse {
           website: null,
           tel: null,
           subcategory: null,
+          photoName: null,
+          photoAttribution: null,
+          googleMapsUri: null,
+          businessStatus: null,
         },
         {
           sourceId: "fsq-food-2",
@@ -114,6 +121,10 @@ function makePopulatedResponse(): POISuggestionsResponse {
           website: null,
           tel: null,
           subcategory: null,
+          photoName: null,
+          photoAttribution: null,
+          googleMapsUri: null,
+          businessStatus: null,
         },
       ],
       arts_and_entertainment: [
@@ -132,10 +143,17 @@ function makePopulatedResponse(): POISuggestionsResponse {
           website: null,
           tel: null,
           subcategory: null,
+          photoName: null,
+          photoAttribution: null,
+          googleMapsUri: null,
+          businessStatus: null,
         },
       ],
       outdoors: [],
       nightlife: [],
+      wellness: [],
+      shopping: [],
+      lodging: [],
     },
   };
 }
@@ -233,12 +251,14 @@ describe("DiscoverView", () => {
       // The category section <h3> headings should only exist for non-empty categories
       const headings = container.querySelectorAll("h3");
       const headingTexts = Array.from(headings).map((h) => h.textContent);
-      // Outdoors and nightlife are empty — should NOT have h3 headings
+      // Outdoors, nightlife, wellness, and shopping are empty — should NOT have h3 headings
       expect(headingTexts.some((t) => t?.startsWith("Outdoors"))).toBe(false);
       expect(headingTexts.some((t) => t?.startsWith("Nightlife"))).toBe(false);
+      expect(headingTexts.some((t) => t?.startsWith("Wellness"))).toBe(false);
+      expect(headingTexts.some((t) => t?.startsWith("Shopping"))).toBe(false);
       // Non-empty categories DO render their section headings
       expect(headingTexts.some((t) => t?.startsWith("Food & Drink"))).toBe(true);
-      expect(headingTexts.some((t) => t?.startsWith("Arts & Entertainment"))).toBe(true);
+      expect(headingTexts.some((t) => t?.startsWith("Arts & Leisure"))).toBe(true);
     });
   });
 

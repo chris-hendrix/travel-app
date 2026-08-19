@@ -24,8 +24,8 @@ const baseEventSchema = z.object({
       error: "Description must not exceed 2000 characters",
     })
     .optional(),
-  eventType: z.enum(["travel", "food_and_drink", "arts_and_entertainment", "outdoors", "nightlife", "misc"], {
-    error: "Event type must be one of: travel, food_and_drink, arts_and_entertainment, outdoors, nightlife, misc",
+  eventType: z.enum(["travel", "food_and_drink", "arts_and_entertainment", "outdoors", "nightlife", "wellness", "shopping", "lodging", "misc"], {
+    error: "Event type must be one of: travel, food_and_drink, arts_and_entertainment, outdoors, nightlife, wellness, shopping, lodging, misc",
   }),
   location: z.string().max(500).optional(),
   locationLat: z.number().nullable().optional(),
@@ -90,7 +90,7 @@ const eventEntitySchema = z.object({
   createdBy: z.string(),
   name: z.string(),
   description: z.string().nullable(),
-  eventType: z.enum(["travel", "food_and_drink", "arts_and_entertainment", "outdoors", "nightlife", "misc"]),
+  eventType: z.enum(["travel", "food_and_drink", "arts_and_entertainment", "outdoors", "nightlife", "wellness", "shopping", "lodging", "misc"]),
   location: z.string().nullable(),
   locationLat: z.number().nullable(),
   locationLon: z.number().nullable(),

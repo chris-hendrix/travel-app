@@ -5,10 +5,13 @@ import {
   Compass,
   AlertCircle,
   ChevronDown,
-  Utensils,
+  Dumbbell,
+  Hotel,
   Palette,
-  TreePine,
+  ShoppingBag,
   Sparkles,
+  TreePine,
+  Utensils,
 } from "lucide-react";
 import type { POISuggestion, POICategoryKey, TemperatureUnit, Event } from "@journiful/shared/types";
 import { POI_CATEGORIES } from "@journiful/shared/types";
@@ -34,6 +37,9 @@ const CATEGORY_ICONS: Record<POICategoryKey, typeof Utensils> = {
   arts_and_entertainment: Palette,
   outdoors: TreePine,
   nightlife: Sparkles,
+  wellness: Dumbbell,
+  shopping: ShoppingBag,
+  lodging: Hotel,
 };
 
 // ─── Location type ───────────────────────────────────────────────────────────
@@ -211,9 +217,9 @@ export function DiscoverView({ tripId, temperatureUnit }: DiscoverViewProps) {
       <div className="space-y-6">
         <Skeleton className="h-8 w-40" />
         <div className="flex gap-4 overflow-hidden">
-          <Skeleton className="h-36 w-[200px] shrink-0 rounded-md" />
-          <Skeleton className="h-36 w-[200px] shrink-0 rounded-md" />
-          <Skeleton className="h-36 w-[200px] shrink-0 rounded-md" />
+          <Skeleton className="aspect-square w-44 shrink-0 rounded-md" />
+          <Skeleton className="aspect-square w-44 shrink-0 rounded-md" />
+          <Skeleton className="aspect-square w-44 shrink-0 rounded-md" />
         </div>
       </div>
     );
@@ -310,7 +316,10 @@ export function DiscoverView({ tripId, temperatureUnit }: DiscoverViewProps) {
               {/* Horizontally scrollable row with peek + fade */}
               <div className="no-swipe flex gap-3 overflow-x-auto pb-2 pr-10 scrollbar-none snap-x snap-mandatory [mask-image:linear-gradient(to_right,black_calc(100%-56px),transparent_100%)]">
                 {pois.map((poi) => (
-                  <div key={poi.sourceId} className="snap-start">
+                  <div
+                    key={poi.sourceId}
+                    className="snap-start w-48 shrink-0 [content-visibility:auto] [contain-intrinsic-size:192px_136px]"
+                  >
                     <POICard poi={poi} onSelect={handlePOISelect} temperatureUnit={temperatureUnit} />
                   </div>
                 ))}
