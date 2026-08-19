@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Calendar, Car, Hotel, Loader2, Plus, Trash2, Palette, TreePine, Sparkles, ShoppingBag, Utensils, X } from "lucide-react";
+import { Calendar, Car, Hotel, Loader2, Plus, Dumbbell, Trash2, Palette, TreePine, Sparkles, ShoppingBag, Utensils, X } from "lucide-react";
 import { toast } from "sonner";
 import { parse, addHours } from "date-fns";
 import {
@@ -58,6 +58,7 @@ const EVENT_TYPES = [
   { value: "arts_and_entertainment", label: "Arts", icon: Palette },
   { value: "outdoors", label: "Outdoors", icon: TreePine },
   { value: "nightlife", label: "Nightlife", icon: Sparkles },
+  { value: "wellness", label: "Wellness & Fitness", icon: Dumbbell },
   { value: "shopping", label: "Shopping", icon: ShoppingBag },
   { value: "lodging", label: "Stays", icon: Hotel },
   { value: "travel", label: "Travel", icon: Car },
