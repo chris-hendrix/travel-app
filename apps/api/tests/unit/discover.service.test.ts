@@ -200,7 +200,7 @@ describe("DiscoverService", () => {
 
       expect(result.source).toBe("google");
       // Should have made 4 fetch calls (cache expired)
-      expect(fetchSpy).toHaveBeenCalledTimes(6);
+      expect(fetchSpy).toHaveBeenCalledTimes(7);
       expect(mockDb.onConflictDoUpdate).toHaveBeenCalled();
     });
   });
@@ -219,7 +219,7 @@ describe("DiscoverService", () => {
       const result = await service.getDiscoverPOIs(TRIP_ID, 48.8566, 2.3522, "Paris");
 
       expect(result.source).toBe("google");
-      expect(fetchSpy).toHaveBeenCalledTimes(6); // 6 category calls (POSTs to searchNearby)
+      expect(fetchSpy).toHaveBeenCalledTimes(7); // 7 category calls (POSTs to searchNearby)
 
       // Should have inserted cache
       expect(mockDb.insert).toHaveBeenCalled();
@@ -263,7 +263,7 @@ describe("DiscoverService", () => {
 
       expect(result.source).toBe("google");
       // Should fetch from Google Places (refresh bypasses cache read)
-      expect(fetchSpy).toHaveBeenCalledTimes(6);
+      expect(fetchSpy).toHaveBeenCalledTimes(7);
       expect(mockDb.onConflictDoUpdate).toHaveBeenCalled();
     });
 
@@ -292,7 +292,7 @@ describe("DiscoverService", () => {
       const result = await service.getDiscoverPOIs(TRIP_ID, 48.8566, 2.3522, "Paris", true);
 
       expect(result.source).toBe("google");
-      expect(fetchSpy).toHaveBeenCalledTimes(6);
+      expect(fetchSpy).toHaveBeenCalledTimes(7);
 
       // Insert call should include the converted POI
       const insertedValue = mockDb.values.mock.calls[0]?.[0] as { suggestions: POISuggestion[] };
@@ -603,7 +603,7 @@ describe("DiscoverService", () => {
 
       // Should have detected stale cache (Paris coords in cache → London coords passed) and re-fetched
       expect(result.destination).toBe("London, UK");
-      expect(fetchSpy).toHaveBeenCalledTimes(6);
+      expect(fetchSpy).toHaveBeenCalledTimes(7);
       expect(mockLog.info).toHaveBeenCalledWith(
         expect.objectContaining({
           oldLat: 48.8566,
@@ -671,12 +671,38 @@ describe("DiscoverService", () => {
       expect(barCategories).toEqual(["nightlife"]);
     });
 
-    it('places liquor_store in no category', () => {
+    it('places liquor_store only under shopping', () => {
       const liquorCategories = POI_CATEGORIES
         .filter((c) => c.googleTypes.includes("liquor_store"))
         .map((c) => c.id);
 
-      expect(liquorCategories).toEqual([]);
+      expect(liquorCategories).toEqual(["shopping"]);
+    });
+
+    it('places supermarket only under shopping', () => {
+      const supermarketCategories = POI_CATEGORIES
+        .filter((c) => c.googleTypes.includes("supermarket"))
+        .map((c) => c.id);
+
+      expect(supermarketCategories).toEqual(["shopping"]);
+    });
+
+    it('places grocery_store only under shopping', () => {
+      const groceryCategories = POI_CATEGORIES
+        .filter((c) => c.googleTypes.includes("grocery_store"))
+        .map((c) => c.id);
+
+      expect(groceryCategories).toEqual(["shopping"]);
+    });
+
+    it('places lodging types only under lodging', () => {
+      const lodgingKeys = ["lodging", "hotel", "motel", "guest_house", "hostel", "bed_and_breakfast"];
+      for (const t of lodgingKeys) {
+        const categories = POI_CATEGORIES
+          .filter((c) => c.googleTypes.includes(t))
+          .map((c) => c.id);
+        expect(categories).toEqual(["lodging"]);
+      }
     });
 
     it('places tourist_attraction only under outdoors', () => {

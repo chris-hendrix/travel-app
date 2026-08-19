@@ -63,7 +63,7 @@ describe("POIDetailSheet", () => {
       expect(screen.getByText("Le Bistro Parisien")).toBeDefined();
     });
 
-    it("renders the address as plain text, not a link", () => {
+    it("renders the address as a link to Google Maps", () => {
       const poi = makePOI({ address: "456 Test St" });
       render(
         <POIDetailSheet
@@ -82,8 +82,11 @@ describe("POIDetailSheet", () => {
       );
       const addrEl = screen.getByText("456 Test St");
       expect(addrEl).toBeDefined();
-      // Address should NOT be inside an <a> tag
-      expect(addrEl.closest("a")).toBeNull();
+      // Address should be inside an <a> tag pointing at Google Maps
+      const link = addrEl.closest("a");
+      expect(link).toBeDefined();
+      expect(link?.getAttribute("href")).toContain("google.com/maps");
+      expect(link?.getAttribute("target")).toBe("_blank");
     });
 
     it("renders distance", () => {
@@ -126,7 +129,7 @@ describe("POIDetailSheet", () => {
       expect(link?.getAttribute("href")).toBe("https://example.com");
     });
 
-    it("does not render website link when null", () => {
+    it("does not render website or tel links when null", () => {
       render(
         <POIDetailSheet
           poi={makePOI({ website: null, tel: null })}
@@ -142,9 +145,12 @@ describe("POIDetailSheet", () => {
           totalPois={1}
         />,
       );
-      // No <a> elements should exist (address is span, no photo, no website, no tel)
-      const links = document.querySelectorAll("a");
-      expect(links.length).toBe(0);
+      // No website or phone links should exist
+      expect(screen.queryByText("example.com")).toBeNull();
+      expect(screen.queryByText("+1 555-0199")).toBeNull();
+      // The address is still rendered as a link to Google Maps
+      const addressLink = screen.getByText("123 Rue de Rivoli, Paris").closest("a");
+      expect(addressLink?.getAttribute("href")).toContain("google.com/maps");
     });
 
     it("renders tel link when present", () => {
@@ -386,7 +392,7 @@ describe("POIDetailSheet", () => {
   });
 
   describe("counter position", () => {
-    it("renders counter in bottom section next to Create Event", () => {
+    it("renders counter in the header next to the close button", () => {
       render(
         <POIDetailSheet
           poi={makePOI()}
@@ -408,7 +414,7 @@ describe("POIDetailSheet", () => {
       expect(screen.getByRole("button", { name: /create event/i })).toBeDefined();
     });
 
-    it("does NOT render counter at the old top position", () => {
+    it("renders the counter exactly once", () => {
       render(
         <POIDetailSheet
           poi={makePOI()}
@@ -424,7 +430,7 @@ describe("POIDetailSheet", () => {
           totalPois={1}
         />,
       );
-      // "1 of 1" appears exactly once (in the bottom row), not twice
+      // "1 of 1" appears exactly once (in the header), not duplicated
       const matches = screen.getAllByText("1 of 1");
       expect(matches.length).toBe(1);
     });

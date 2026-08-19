@@ -165,7 +165,10 @@ export class DiscoverService implements IDiscoverService {
                 radius: GOOGLE_RADIUS,
               },
             },
-            includedTypes: cat.googleTypes,
+            // Match on the place's single primary type so multi-type places
+            // (Walmart: department_store + bakery; hotels: lodging + bar/gym)
+            // don't bleed into unrelated categories via secondary types.
+            includedPrimaryTypes: cat.googleTypes,
             maxResultCount: GOOGLE_MAX_RESULTS,
             rankPreference: "POPULARITY",
           });

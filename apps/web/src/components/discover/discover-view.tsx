@@ -6,6 +6,7 @@ import {
   AlertCircle,
   ChevronDown,
   Dumbbell,
+  Hotel,
   Palette,
   ShoppingBag,
   Sparkles,
@@ -38,6 +39,7 @@ const CATEGORY_ICONS: Record<POICategoryKey, typeof Utensils> = {
   nightlife: Sparkles,
   wellness: Dumbbell,
   shopping: ShoppingBag,
+  lodging: Hotel,
 };
 
 // ─── Location type ───────────────────────────────────────────────────────────
@@ -314,7 +316,10 @@ export function DiscoverView({ tripId, temperatureUnit }: DiscoverViewProps) {
               {/* Horizontally scrollable row with peek + fade */}
               <div className="no-swipe flex gap-3 overflow-x-auto pb-2 pr-10 scrollbar-none snap-x snap-mandatory [mask-image:linear-gradient(to_right,black_calc(100%-56px),transparent_100%)]">
                 {pois.map((poi) => (
-                  <div key={poi.sourceId} className="snap-start w-44 shrink-0">
+                  <div
+                    key={poi.sourceId}
+                    className="snap-start w-48 shrink-0 [content-visibility:auto] [contain-intrinsic-size:192px_136px]"
+                  >
                     <POICard poi={poi} onSelect={handlePOISelect} temperatureUnit={temperatureUnit} />
                   </div>
                 ))}

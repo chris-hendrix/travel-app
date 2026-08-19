@@ -104,27 +104,29 @@ describe("POICard", () => {
       expect(container.querySelector('[style*="background-image"]')).toBeNull();
     });
 
-    it("has bg-card class as fallback when no photo", () => {
+    it("has postcard frame and bg-card mat as fallback when no photo", () => {
       const poi = makePOI({ photoName: null });
       const { container } = render(
         <POICard poi={poi} onSelect={onSelect} temperatureUnit={celsius} />,
       );
       const button = container.querySelector("button");
-      expect(button?.className).toContain("bg-card");
+      expect(button?.className).toContain("postcard");
+      const mat = container.querySelector(".postcard-mat");
+      expect(mat?.className).toContain("bg-card");
     });
   });
 
   describe("photo attribution", () => {
-    it("renders attribution text when photoAttribution is present", () => {
+    it("renders attribution name when photoAttribution is present", () => {
       const poi = makePOI({ photoAttribution: "Jane Doe" });
       render(<POICard poi={poi} onSelect={onSelect} temperatureUnit={celsius} />);
-      expect(screen.getByText("Photo: Jane Doe")).toBeDefined();
+      expect(screen.getByText("Jane Doe")).toBeDefined();
     });
 
     it("does not render attribution text when photoAttribution is null", () => {
       const poi = makePOI({ photoAttribution: null });
       render(<POICard poi={poi} onSelect={onSelect} temperatureUnit={celsius} />);
-      expect(screen.queryByText(/Photo:/)).toBeNull();
+      expect(screen.queryByText("Jane Doe")).toBeNull();
     });
   });
 
@@ -174,19 +176,20 @@ describe("POICard", () => {
 
   describe("category colour mapping", () => {
     it.each([
-      ["food_and_drink" as POICategoryKey, "border-l-event-food_and_drink"],
-      ["arts_and_entertainment" as POICategoryKey, "border-l-event-arts_and_entertainment"],
-      ["outdoors" as POICategoryKey, "border-l-event-outdoors"],
-      ["nightlife" as POICategoryKey, "border-l-event-nightlife"],
-      ["wellness" as POICategoryKey, "border-l-event-wellness"],
-      ["shopping" as POICategoryKey, "border-l-event-shopping"],
-    ])("renders %s category with correct left border colour", (category, expectedClass) => {
+      ["food_and_drink" as POICategoryKey, "bg-event-food_and_drink"],
+      ["arts_and_entertainment" as POICategoryKey, "bg-event-arts_and_entertainment"],
+      ["outdoors" as POICategoryKey, "bg-event-outdoors"],
+      ["nightlife" as POICategoryKey, "bg-event-nightlife"],
+      ["wellness" as POICategoryKey, "bg-event-wellness"],
+      ["shopping" as POICategoryKey, "bg-event-shopping"],
+      ["lodging" as POICategoryKey, "bg-event-lodging"],
+    ])("renders %s category with correct accent colour", (category, expectedClass) => {
       const poi = makePOI({ category });
       const { container } = render(
         <POICard poi={poi} onSelect={onSelect} temperatureUnit={celsius} />,
       );
-      // The border class is on the accent strip div, not the button
-      const accentStrip = container.querySelector(`.${expectedClass.split(" ").join(".")}`);
+      // The accent class is on the top strip div inside the photo well
+      const accentStrip = container.querySelector(`.${expectedClass}`);
       expect(accentStrip).toBeTruthy();
     });
   });

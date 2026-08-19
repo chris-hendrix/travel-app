@@ -220,6 +220,7 @@ describe("Discover Routes", () => {
         nightlife: [],
         wellness: [],
         shopping: [],
+        lodging: [],
       });
 
       // Cleanup

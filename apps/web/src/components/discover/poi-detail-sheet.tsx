@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { VisuallyHidden } from "radix-ui";
 import { MapPin, Navigation, ExternalLink, Phone, XIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import type { POISuggestion, POICategoryKey, TemperatureUnit } from "@journiful/shared/types";
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { API_URL } from "@/lib/api";
 
 interface POIDetailSheetProps {
   poi: POISuggestion | null;
@@ -36,15 +37,7 @@ const CATEGORY_ACCENT_COLORS: Record<POICategoryKey, string> = {
   nightlife: "bg-event-nightlife",
   wellness: "bg-event-wellness",
   shopping: "bg-event-shopping",
-};
-
-const CATEGORY_LABELS: Record<POICategoryKey, string> = {
-  food_and_drink: "Food & Drink",
-  arts_and_entertainment: "Arts & Leisure",
-  outdoors: "Outdoors",
-  nightlife: "Nightlife",
-  wellness: "Wellness & Fitness",
-  shopping: "Shopping",
+  lodging: "bg-event-lodging",
 };
 
 /**
@@ -78,6 +71,31 @@ export function POIDetailSheet({
 }: POIDetailSheetProps) {
   const accentColor = poi ? CATEGORY_ACCENT_COLORS[poi.category] : null;
 
+  // Keyboard arrow navigation between POIs while the sheet is open.
+  // Skipped when focus is in a form field (don't hijack text editing).
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.tagName === "SELECT"
+      ) {
+        return;
+      }
+      if (e.key === "ArrowLeft" && hasPrev) {
+        e.preventDefault();
+        onPrev();
+      } else if (e.key === "ArrowRight" && hasNext) {
+        e.preventDefault();
+        onNext();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, hasPrev, hasNext, onPrev, onNext]);
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent showCloseButton={false}>
@@ -90,8 +108,13 @@ export function POIDetailSheet({
           <div className={cn("h-1.5 w-full", accentColor)} />
         )}
 
-        {/* Header actions */}
-        <div className="flex items-center justify-end gap-1 px-4 pt-4">
+        {/* Header: counter (left) + close (right) */}
+        <div className="flex items-center justify-between gap-1 px-4 pt-4">
+          {poi && (
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {poiIndex + 1} of {totalPois}
+            </span>
+          )}
           <SheetClose className="rounded-md p-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer">
             <XIcon className="w-4 h-4" />
             <span className="sr-only">Close</span>
@@ -108,8 +131,6 @@ export function POIDetailSheet({
               onNext={onNext}
               hasPrev={hasPrev}
               hasNext={hasNext}
-              poiIndex={poiIndex}
-              totalPois={totalPois}
             />
           )}
         </SheetBody>
@@ -126,8 +147,6 @@ function POIDetailBody({
   onNext,
   hasPrev,
   hasNext,
-  poiIndex,
-  totalPois,
 }: {
   poi: POISuggestion;
   onCreateEvent: (poi: POISuggestion) => void;
@@ -136,8 +155,6 @@ function POIDetailBody({
   onNext: () => void;
   hasPrev: boolean;
   hasNext: boolean;
-  poiIndex: number;
-  totalPois: number;
 }) {
   // Extract hostname from URL for clean display
   const websiteHostname = useMemo(() => {
@@ -149,7 +166,9 @@ function POIDetailBody({
     }
   }, [poi.website]);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "";
+  const mapsHref =
+    poi.googleMapsUri ??
+    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(poi.address ?? poi.name)}`;
 
   return (
     <div className="flex flex-col h-full">
@@ -158,12 +177,12 @@ function POIDetailBody({
         <div className="relative">
           {poi.photoName ? (
             <a
-              href={poi.googleMapsUri ?? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(poi.address ?? poi.name)}`}
+              href={mapsHref}
               target="_blank"
               rel="noopener noreferrer"
               className="relative block w-full aspect-[3/2] bg-cover bg-center"
               style={{
-                backgroundImage: `url(${apiBase}/locations/photos/${encodeURIComponent(poi.photoName)}?maxWidthPx=600&maxHeightPx=400)`,
+                backgroundImage: `url(${API_URL}/locations/photos/${encodeURIComponent(poi.photoName)}?maxWidthPx=600&maxHeightPx=400)`,
               }}
               aria-label={`Open ${poi.name} in Google Maps`}
             >
@@ -200,82 +219,79 @@ function POIDetailBody({
           </button>
         </div>
 
-        {/* Category label */}
-        <p className="text-sm text-muted-foreground">
-          {CATEGORY_LABELS[poi.category]}
-        </p>
-
         {/* POI name */}
-        <h3 className="font-playfair text-xl font-semibold text-center px-2 truncate min-w-0">
+        <h3 className="font-playfair text-xl font-semibold line-clamp-2 min-w-0">
           {poi.name}
         </h3>
 
-        {/* Non-clickable info: subcategory + distance */}
-        <div className="space-y-1.5">
-          {poi.subcategory && (
-            <p className="text-sm text-muted-foreground">
-              {poi.subcategory}
-            </p>
-          )}
-          <span className="flex items-center gap-1.5 text-sm text-muted-foreground/70">
+        {/* Subcategory · distance */}
+        <div className="flex items-center gap-1.5 text-sm text-muted-foreground/70 min-w-0">
+          {poi.subcategory && <span className="truncate">{poi.subcategory}</span>}
+          {poi.subcategory && <span className="shrink-0 text-muted-foreground/40">·</span>}
+          <span className="shrink-0 flex items-center gap-1">
             <Navigation className="w-3.5 h-3.5 shrink-0" />
             {formatDistance(poi.distance, temperatureUnit)}
           </span>
         </div>
 
-        {/* Address (plain text), website, phone */}
-        <div className="space-y-2">
+        {/* Address (link to Google Maps), website, phone */}
+        <div className="space-y-2 text-sm text-muted-foreground">
           {poi.address && (
-            <span className="flex items-center gap-1.5 text-sm text-muted-foreground min-w-0">
-              <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
-              <span className="truncate min-w-0">{poi.address}</span>
-            </span>
-          )}
-
-          {websiteHostname && (
             <a
-              href={poi.website!}
+              href={mapsHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors min-w-0"
+              className="flex items-center gap-1.5 hover:text-primary transition-colors min-w-0"
             >
-              <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate min-w-0">{websiteHostname}</span>
+              <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              <span className="truncate min-w-0">{poi.address}</span>
+              <ExternalLink className="w-3 h-3 shrink-0 text-muted-foreground/60" />
             </a>
           )}
 
-          {poi.tel && (
-            <a
-              href={`tel:${poi.tel}`}
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
-            >
-              <Phone className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">{poi.tel}</span>
-            </a>
+          {(websiteHostname || poi.tel) && (
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              {websiteHostname && (
+                <a
+                  href={poi.website!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 hover:text-primary transition-colors min-w-0"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate min-w-0">{websiteHostname}</span>
+                </a>
+              )}
+              {poi.tel && (
+                <a
+                  href={`tel:${poi.tel}`}
+                  className="flex items-center gap-1.5 hover:text-primary transition-colors"
+                >
+                  <Phone className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">{poi.tel}</span>
+                </a>
+              )}
+            </div>
           )}
         </div>
       </div>
 
-      {/* Bottom section: Create Event + counter + attribution */}
+      {/* Bottom section: Create Event + attribution */}
       <div className="pt-4 space-y-2">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="gradient"
-            className="flex-1 h-12 rounded-md"
-            onClick={() => onCreateEvent(poi)}
-          >
-            Create Event
-          </Button>
-          <span className="text-xs text-muted-foreground shrink-0">
-            {poiIndex + 1} of {totalPois}
-          </span>
+        <Button
+          variant="gradient"
+          className="w-full h-12 rounded-md"
+          onClick={() => onCreateEvent(poi)}
+        >
+          Create Event
+        </Button>
+        <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+          {poi.photoAttribution && (
+            <span>Photo by {poi.photoAttribution}</span>
+          )}
+          {poi.photoAttribution && <span className="text-muted-foreground/40">·</span>}
+          <span>Powered by Google</span>
         </div>
-        {poi.photoAttribution && (
-          <p className="text-xs text-muted-foreground text-center">Photo by {poi.photoAttribution}</p>
-        )}
-        <p className="text-xs text-muted-foreground text-center">
-          Powered by Google
-        </p>
       </div>
     </div>
   );

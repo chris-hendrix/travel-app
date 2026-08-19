@@ -3,21 +3,20 @@
 import { memo } from "react";
 import type { POISuggestion, POICategoryKey, TemperatureUnit } from "@journiful/shared/types";
 import { cn } from "@/lib/utils";
+import { API_URL } from "@/lib/api";
 
 /**
- * Tailwind border colour classes per category, matching the Vivid Capri event tokens.
- *
- * Each key uses the `border-l-event-{category}` tokens defined in globals.css so the
- * left accent bar is colour-coded consistently with events of the same type in the
- * itinerary.
+ * Tailwind background colour classes per category, matching the Vivid Capri
+ * event tokens. Used for the thin accent strip along the top of the photo well.
  */
-const CATEGORY_BORDER_COLORS: Record<POICategoryKey, string> = {
-  food_and_drink: "border-l-event-food_and_drink",
-  arts_and_entertainment: "border-l-event-arts_and_entertainment",
-  outdoors: "border-l-event-outdoors",
-  nightlife: "border-l-event-nightlife",
-  wellness: "border-l-event-wellness",
-  shopping: "border-l-event-shopping",
+const CATEGORY_ACCENT_COLORS: Record<POICategoryKey, string> = {
+  food_and_drink: "bg-event-food_and_drink",
+  arts_and_entertainment: "bg-event-arts_and_entertainment",
+  outdoors: "bg-event-outdoors",
+  nightlife: "bg-event-nightlife",
+  wellness: "bg-event-wellness",
+  shopping: "bg-event-shopping",
+  lodging: "bg-event-lodging",
 };
 
 /**
@@ -36,11 +35,6 @@ function formatDistance(meters: number, unit: TemperatureUnit): string {
   return `${(meters / 1000).toFixed(1)} km`;
 }
 
-const apiBase: string =
-  typeof process !== "undefined" && process.env?.NEXT_PUBLIC_API_URL
-    ? process.env.NEXT_PUBLIC_API_URL
-    : "";
-
 interface POICardProps {
   poi: POISuggestion;
   onSelect: (poi: POISuggestion) => void;
@@ -48,22 +42,21 @@ interface POICardProps {
 }
 
 /**
- * A background-image POI card with a gradient overlay.
+ * A postcard-styled POI card matching the vintage postcard frames used for trip
+ * cards on the trips page (.postcard / .postcard-mat / .postcard-image).
  *
- * When a Google Places photo is available (`poi.photoName`), it is loaded via the
- * backend photo proxy and rendered as a `background-image` on a full-bleed div behind
- * a gradient overlay. Without a photo the card falls back to `bg-card`.
- *
- * A colour-coded left accent bar, the place name, optional subcategory chip, distance
- * chip, business-status badge (non-OPERATIONAL only), and photo attribution are
- * layered on top.
+ * The card is a landscape 3:2 photo in a white mat inside a cardboard frame.
+ * When a Google Places photo is available (`poi.photoName`) it is loaded via the
+ * backend photo proxy as a background-image; otherwise a themed gradient fills
+ * the well. A thin category-coloured strip runs along the top of the image well,
+ * and the place name (Playfair) + subcategory/distance sit over a bottom scrim.
  */
 export const POICard = memo(function POICard({
   poi,
   onSelect,
   temperatureUnit,
 }: POICardProps) {
-  const borderColor = CATEGORY_BORDER_COLORS[poi.category];
+  const accentColor = CATEGORY_ACCENT_COLORS[poi.category];
 
   const ariaLabel = poi.photoAttribution
     ? `${poi.name} \u2014 Photo by ${poi.photoAttribution}`
@@ -78,58 +71,57 @@ export const POICard = memo(function POICard({
       onClick={() => onSelect(poi)}
       aria-label={ariaLabel}
       className={cn(
-        "relative w-full aspect-square overflow-hidden rounded-lg bg-card border border-border text-left cursor-pointer",
+        "postcard w-full text-left cursor-pointer",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         "motion-safe:active:scale-[0.98]",
       )}
     >
-      {/* Photo background (only when photoName present) */}
-      {poi.photoName && (
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage: `url(${apiBase}/locations/photos/${encodeURIComponent(poi.photoName)}?maxWidthPx=400&maxHeightPx=280)`,
-          }}
-        />
-      )}
+      {/* Mat: white border around the photo */}
+      <div className="postcard-mat bg-card" style={{ padding: 8 }}>
+        <div className="postcard-image">
+          {/* Photo background (only when photoName present) */}
+          {poi.photoName ? (
+            <div
+              className="absolute inset-0 bg-cover bg-center"
+              style={{
+                backgroundImage: `url(${API_URL}/locations/photos/${encodeURIComponent(poi.photoName)}?maxWidthPx=400&maxHeightPx=280)`,
+              }}
+            />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-accent/15 to-secondary/20" />
+          )}
 
-      {/* Gradient overlay — always renders so text stays readable with or without photo */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+          {/* Category accent strip */}
+          <div className={cn("absolute top-0 left-0 right-0 h-0.5 z-10", accentColor)} />
 
-      {/* Left accent border strip */}
-      <div className={cn("absolute left-0 top-0 bottom-0 w-1 border-l-4", borderColor)} />
+          {/* Scrim — always renders so text stays readable with or without photo */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 
-      {/* Foreground content */}
-      <div className="relative z-10 p-3 flex flex-col h-full justify-between">
-        {/* Top: name + businessStatus badge */}
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="font-semibold text-sm text-white drop-shadow-md line-clamp-2">
-            {poi.name}
-          </h3>
+          {/* Top-left: business-status badge (non-OPERATIONAL only) */}
           {showBusinessStatus && (
-            <span className="shrink-0 text-xs bg-destructive/20 text-destructive rounded px-1.5 py-0.5 whitespace-nowrap">
+            <span className="absolute top-2 left-2 z-10 rounded bg-black/50 px-1.5 py-0.5 text-xs text-white border border-white/20 backdrop-blur-md">
               {poi.businessStatus}
             </span>
           )}
-        </div>
 
-        {/* Bottom: chips + attribution */}
-        <div className="mt-auto flex items-end justify-between gap-2">
-          <div className="flex flex-wrap gap-1">
-            {poi.subcategory && (
-              <span className="text-xs bg-black/40 text-white/90 rounded px-1.5 py-0.5">
-                {poi.subcategory}
-              </span>
-            )}
-            <span className="text-xs bg-black/40 text-white/90 rounded px-1.5 py-0.5">
-              {formatDistance(poi.distance, temperatureUnit)}
-            </span>
-          </div>
+          {/* Top-right: photo attribution (Google ToS requires credit per display) */}
           {poi.photoAttribution && (
-            <span className="shrink-0 text-[10px] text-white/70">
-              Photo: {poi.photoAttribution}
+            <span className="absolute top-2 right-2 z-10 text-[9px] text-white/60 drop-shadow">
+              {poi.photoAttribution}
             </span>
           )}
+
+          {/* Bottom: name + subcategory · distance */}
+          <div className="absolute bottom-0 left-0 right-0 p-2">
+            <h3 className="font-playfair text-sm font-semibold leading-snug text-white drop-shadow-md line-clamp-2">
+              {poi.name}
+            </h3>
+            <div className="mt-0.5 flex items-center gap-1 text-xs text-white/80">
+              {poi.subcategory && <span className="truncate">{poi.subcategory}</span>}
+              {poi.subcategory && <span className="shrink-0 text-white/50">·</span>}
+              <span className="shrink-0">{formatDistance(poi.distance, temperatureUnit)}</span>
+            </div>
+          </div>
         </div>
       </div>
     </button>

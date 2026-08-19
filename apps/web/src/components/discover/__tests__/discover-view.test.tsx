@@ -75,6 +75,7 @@ function makeEmptyResponse(): POISuggestionsResponse {
       nightlife: [],
       wellness: [],
       shopping: [],
+      lodging: [],
     },
   };
 }
@@ -152,6 +153,7 @@ function makePopulatedResponse(): POISuggestionsResponse {
       nightlife: [],
       wellness: [],
       shopping: [],
+      lodging: [],
     },
   };
 }

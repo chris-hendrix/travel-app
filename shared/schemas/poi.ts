@@ -19,6 +19,7 @@ export const poiSuggestionSchema = z.object({
     "nightlife",
     "wellness",
     "shopping",
+    "lodging",
   ]),
   popularity: z.number().nullable(),
   price: z.number().nullable(),
@@ -40,7 +41,7 @@ export const poiSuggestionsResponseSchema = z.object({
   destination: z.string().nullable(),
   source: z.string(),
   categories: z.record(
-    z.enum(["food_and_drink", "arts_and_entertainment", "outdoors", "nightlife", "wellness", "shopping"]),
+    z.enum(["food_and_drink", "arts_and_entertainment", "outdoors", "nightlife", "wellness", "shopping", "lodging"]),
     z.array(poiSuggestionSchema),
   ),
   partial: z.boolean().optional(),

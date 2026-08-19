@@ -138,14 +138,14 @@ describe("createEventSchema", () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.issues[0]?.message).toContain(
-          "Event type must be one of: travel, food_and_drink, arts_and_entertainment, outdoors, nightlife, wellness, shopping, misc",
+          "Event type must be one of: travel, food_and_drink, arts_and_entertainment, outdoors, nightlife, wellness, shopping, lodging, misc",
         );
       }
     });
   });
 
   it("should accept valid event types", () => {
-    const validEventTypes: Array<"travel" | "food_and_drink" | "arts_and_entertainment" | "outdoors" | "nightlife" | "wellness" | "shopping" | "misc"> = [
+    const validEventTypes: Array<"travel" | "food_and_drink" | "arts_and_entertainment" | "outdoors" | "nightlife" | "wellness" | "shopping" | "lodging" | "misc"> = [
       "travel",
       "food_and_drink",
       "arts_and_entertainment",
@@ -153,6 +153,7 @@ describe("createEventSchema", () => {
       "nightlife",
       "wellness",
       "shopping",
+      "lodging",
       "misc",
     ];
 

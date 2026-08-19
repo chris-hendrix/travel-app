@@ -5,7 +5,8 @@ export type POICategoryKey =
   | "outdoors"
   | "nightlife"
   | "wellness"
-  | "shopping";
+  | "shopping"
+  | "lodging";
 
 /** A single POI suggestion stored in the poi_cache JSONB blob */
 export interface POISuggestion {
@@ -69,6 +70,14 @@ export const googleTypeLabels: Record<string, string> = {
   scenic_lookout: "Scenic Lookout",
   natural_feature: "Natural Feature",
   liquor_store: "Liquor Store",
+  supermarket: "Supermarket",
+  grocery_store: "Grocery Store",
+  lodging: "Lodging",
+  hotel: "Hotel",
+  motel: "Motel",
+  guest_house: "Guest House",
+  hostel: "Hostel",
+  bed_and_breakfast: "Bed & Breakfast",
   gym: "Gym",
   spa: "Spa",
   beauty_salon: "Beauty Salon",
@@ -130,7 +139,12 @@ export const POI_CATEGORIES: POICategoryConfig[] = [
     googleTypes: [
       "shopping_mall", "book_store", "clothing_store", "shoe_store",
       "department_store", "electronics_store", "jewelry_store", "florist",
-      "pet_store", "bicycle_store",
+      "pet_store", "bicycle_store", "supermarket", "grocery_store", "liquor_store",
     ],
+  },
+  {
+    id: "lodging",
+    label: "Stays",
+    googleTypes: ["lodging", "hotel", "motel", "guest_house", "hostel", "bed_and_breakfast"],
   },
 ];
