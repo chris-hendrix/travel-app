@@ -102,6 +102,10 @@ export async function buildApp(
   const app = Fastify({
     ...opts.fastify,
     trustProxy: env.TRUST_PROXY ?? false,
+    // Google Places photo resource names (places/{id}/photos/{ref}) are ~350-500
+    // chars, exceeding find-my-way's default 100-char param limit. Without this,
+    // every /locations/photos/:photoRef request fails with FST_ERR_MAX_PARAM_LENGTH (414).
+    maxParamLength: 2000,
     ajv: {
       customOptions: {
         useDefaults: true,
