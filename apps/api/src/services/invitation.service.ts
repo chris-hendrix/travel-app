@@ -4,9 +4,12 @@ import {
   users,
   trips,
   mutedMembers,
+  memberTravel,
+  payments,
+  paymentParticipants,
   type Invitation as DBInvitation,
 } from "@/db/schema/index.js";
-import { eq, and, inArray, count, sql } from "drizzle-orm";
+import { eq, and, inArray, count, sql, isNull } from "drizzle-orm";
 import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
 import type { ISMSService } from "./sms.service.js";
@@ -179,6 +182,46 @@ export interface IInvitationService {
     invitationId: string,
     userId: string,
   ): Promise<{ tripId: string } | null>;
+
+  /**
+   * Creates a placeholder member (not-yet-invited user)
+   */
+  createPlaceholder(
+    userId: string,
+    tripId: string,
+    data: { name: string; phoneNumber?: string },
+  ): Promise<MemberWithProfile>;
+
+  /**
+   * Updates a placeholder member's name/phone
+   */
+  updatePlaceholder(
+    userId: string,
+    memberId: string,
+    data: { name?: string; phoneNumber?: string | null },
+  ): Promise<MemberWithProfile>;
+
+  /**
+   * Deletes a placeholder member (hard delete, cascades travel/payments)
+   */
+  deletePlaceholder(userId: string, memberId: string): Promise<void>;
+
+  /**
+   * Sends an SMS invite for a placeholder that has a phone number
+   */
+  invitePlaceholder(
+    userId: string,
+    memberId: string,
+  ): Promise<DBInvitation>;
+
+  /**
+   * Directly links a placeholder to an existing mutual user, merging if needed
+   */
+  linkPlaceholder(
+    userId: string,
+    memberId: string,
+    targetUserId: string,
+  ): Promise<MemberWithProfile>;
 }
 
 /**
@@ -316,7 +359,7 @@ export class InvitationService implements IInvitationService {
                 inArray(members.userId, existingUserIds),
               ),
             );
-          alreadyMemberUserIds = new Set(existingMembers.map((m) => m.userId));
+          alreadyMemberUserIds = new Set(existingMembers.map((m) => m.userId).filter((id): id is string => id !== null));
         }
 
         // Build skipped list for phones
@@ -664,6 +707,7 @@ export class InvitationService implements IInvitationService {
         id: invitations.id,
         tripId: invitations.tripId,
         inviteePhone: invitations.inviteePhone,
+        memberId: invitations.memberId,
       })
       .from(invitations)
       .where(eq(invitations.id, invitationId))
@@ -684,22 +728,27 @@ export class InvitationService implements IInvitationService {
       );
     }
 
-    // Look up user by phone to delete member record
-    const [inviteeUser] = await this.db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.phoneNumber, invitation.inviteePhone))
-      .limit(1);
+    // If invitation is linked to a placeholder, delete that placeholder directly
+    if (invitation.memberId) {
+      await this.db.delete(members).where(eq(members.id, invitation.memberId));
+    } else {
+      // Look up user by phone to delete member record
+      const [inviteeUser] = await this.db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.phoneNumber, invitation.inviteePhone))
+        .limit(1);
 
-    if (inviteeUser) {
-      await this.db
-        .delete(members)
-        .where(
-          and(
-            eq(members.tripId, invitation.tripId),
-            eq(members.userId, inviteeUser.id),
-          ),
-        );
+      if (inviteeUser) {
+        await this.db
+          .delete(members)
+          .where(
+            and(
+              eq(members.tripId, invitation.tripId),
+              eq(members.userId, inviteeUser.id),
+            ),
+          );
+      }
     }
 
     // Delete the invitation record
@@ -766,25 +815,46 @@ export class InvitationService implements IInvitationService {
 
     // Delete invitation and member in a transaction for consistency
     await this.db.transaction(async (tx) => {
-      // Find and delete associated invitation via user's phone number
-      const [targetUser] = await tx
-        .select({ phoneNumber: users.phoneNumber })
-        .from(users)
-        .where(eq(users.id, member.userId))
-        .limit(1);
+      // Delete invitations linked via memberId (placeholder invites) and via phone (legacy/real)
+      await tx.delete(invitations).where(eq(invitations.memberId, memberId));
 
-      if (targetUser) {
-        await tx
-          .delete(invitations)
-          .where(
-            and(
-              eq(invitations.tripId, tripId),
-              eq(invitations.inviteePhone, targetUser.phoneNumber),
-            ),
-          );
+      if (member.userId) {
+        const [targetUser] = await tx
+          .select({ phoneNumber: users.phoneNumber })
+          .from(users)
+          .where(eq(users.id, member.userId))
+          .limit(1);
+
+        if (targetUser) {
+          await tx
+            .delete(invitations)
+            .where(
+              and(
+                eq(invitations.tripId, tripId),
+                eq(invitations.inviteePhone, targetUser.phoneNumber),
+              ),
+            );
+        }
+      } else {
+        // Placeholder: also clean invitation by phoneNumber stored on member row if any
+        const [placeholder] = await tx
+          .select({ phoneNumber: members.phoneNumber })
+          .from(members)
+          .where(eq(members.id, memberId))
+          .limit(1);
+        if (placeholder?.phoneNumber) {
+          await tx
+            .delete(invitations)
+            .where(
+              and(
+                eq(invitations.tripId, tripId),
+                eq(invitations.inviteePhone, placeholder.phoneNumber),
+              ),
+            );
+        }
       }
 
-      // Delete the member record (cascades to member_travel)
+      // Delete the member record (cascades to member_travel/payments/participants)
       await tx.delete(members).where(eq(members.id, memberId));
     });
   }
@@ -842,12 +912,13 @@ export class InvitationService implements IInvitationService {
       }
     }
 
-    // Query updated member with profile info
+    // Query updated member with profile info (leftJoin to support placeholders, though updater is real user)
     const queryResult = await this.db
       .select({
         id: members.id,
         userId: members.userId,
-        displayName: users.displayName,
+        memberDisplayName: members.displayName,
+        userDisplayName: users.displayName,
         profilePhotoUrl: users.profilePhotoUrl,
         handles: users.handles,
         status: members.status,
@@ -855,7 +926,7 @@ export class InvitationService implements IInvitationService {
         createdAt: members.createdAt,
       })
       .from(members)
-      .innerJoin(users, eq(members.userId, users.id))
+      .leftJoin(users, eq(members.userId, users.id))
       .where(and(eq(members.tripId, tripId), eq(members.userId, userId)))
       .limit(1);
 
@@ -864,9 +935,10 @@ export class InvitationService implements IInvitationService {
     return {
       id: result.id,
       userId: result.userId,
-      displayName: result.displayName,
-      profilePhotoUrl: result.profilePhotoUrl,
+      displayName: result.userDisplayName ?? result.memberDisplayName ?? "Unknown",
+      profilePhotoUrl: result.profilePhotoUrl ?? null,
       handles: result.handles ?? null,
+      isPlaceholder: result.userId === null,
       status: result.status,
       isOrganizer: result.isOrganizer,
       createdAt: result.createdAt.toISOString(),
@@ -972,22 +1044,24 @@ export class InvitationService implements IInvitationService {
       .where(eq(trips.id, tripId))
       .limit(1);
 
-    // Query members with user profiles
+    // Query members with user profiles (leftJoin to include placeholders)
     const results = await this.db
       .select({
         id: members.id,
         userId: members.userId,
-        displayName: users.displayName,
+        memberDisplayName: members.displayName,
+        memberPhoneNumber: members.phoneNumber,
+        userDisplayName: users.displayName,
         profilePhotoUrl: users.profilePhotoUrl,
         handles: users.handles,
-        phoneNumber: users.phoneNumber,
+        userPhoneNumber: users.phoneNumber,
         sharePhone: members.sharePhone,
         status: members.status,
         isOrganizer: members.isOrganizer,
         createdAt: members.createdAt,
       })
       .from(members)
-      .innerJoin(users, eq(members.userId, users.id))
+      .leftJoin(users, eq(members.userId, users.id))
       .where(eq(members.tripId, tripId));
 
     // Get muted members for this trip (only when requesting user is organizer)
@@ -997,7 +1071,10 @@ export class InvitationService implements IInvitationService {
         .select({ userId: mutedMembers.userId })
         .from(mutedMembers)
         .where(eq(mutedMembers.tripId, tripId));
-      mutedUserIds = new Set(mutedRows.map((r) => r.userId));
+      const filteredIds = mutedRows
+        .map((r) => r.userId)
+        .filter((id): id is string => id !== null);
+      mutedUserIds = new Set(filteredIds);
     }
 
     // Filter members for non-organizers when showAllMembers is off
@@ -1006,19 +1083,26 @@ export class InvitationService implements IInvitationService {
         ? results.filter((r) => r.status === "going" || r.status === "maybe")
         : results;
 
-    return filteredResults.map((r) => ({
-      id: r.id,
-      userId: r.userId,
-      displayName: r.displayName,
-      profilePhotoUrl: r.profilePhotoUrl,
-      handles: r.handles ?? null,
-      ...(isOrg || r.sharePhone ? { phoneNumber: r.phoneNumber } : {}),
-      status: r.status,
-      isOrganizer: r.isOrganizer,
-      ...(isOrg ? { isMuted: mutedUserIds.has(r.userId) } : {}),
-      ...(isOrg ? { sharePhone: r.sharePhone } : {}),
-      createdAt: r.createdAt.toISOString(),
-    }));
+    return filteredResults.map((r) => {
+      const isPlaceholder = r.userId === null;
+      const displayName = r.userDisplayName ?? r.memberDisplayName ?? "Unknown";
+      const effectivePhone = r.userPhoneNumber ?? r.memberPhoneNumber ?? undefined;
+      const shouldIncludePhone = isOrg || r.sharePhone;
+      return {
+        id: r.id,
+        userId: r.userId,
+        displayName,
+        profilePhotoUrl: r.profilePhotoUrl ?? null,
+        handles: r.handles ?? null,
+        ...(shouldIncludePhone && effectivePhone ? { phoneNumber: effectivePhone } : {}),
+        isPlaceholder,
+        status: r.status,
+        isOrganizer: r.isOrganizer,
+        ...(isOrg && r.userId ? { isMuted: mutedUserIds.has(r.userId) } : {}),
+        ...(isOrg ? { sharePhone: r.sharePhone } : {}),
+        createdAt: r.createdAt.toISOString(),
+      };
+    });
   }
 
   /**
@@ -1102,12 +1186,13 @@ export class InvitationService implements IInvitationService {
       .set({ isOrganizer, updatedAt: new Date() })
       .where(eq(members.id, memberId));
 
-    // Query updated member with profile info
+    // Query updated member with profile info (leftJoin for placeholders)
     const queryResult = await this.db
       .select({
         id: members.id,
         userId: members.userId,
-        displayName: users.displayName,
+        memberDisplayName: members.displayName,
+        userDisplayName: users.displayName,
         profilePhotoUrl: users.profilePhotoUrl,
         handles: users.handles,
         status: members.status,
@@ -1115,7 +1200,7 @@ export class InvitationService implements IInvitationService {
         createdAt: members.createdAt,
       })
       .from(members)
-      .innerJoin(users, eq(members.userId, users.id))
+      .leftJoin(users, eq(members.userId, users.id))
       .where(eq(members.id, memberId))
       .limit(1);
 
@@ -1124,9 +1209,10 @@ export class InvitationService implements IInvitationService {
     return {
       id: result.id,
       userId: result.userId,
-      displayName: result.displayName,
-      profilePhotoUrl: result.profilePhotoUrl,
+      displayName: result.userDisplayName ?? result.memberDisplayName ?? "Unknown",
+      profilePhotoUrl: result.profilePhotoUrl ?? null,
       handles: result.handles ?? null,
+      isPlaceholder: result.userId === null,
       status: result.status,
       isOrganizer: result.isOrganizer,
       createdAt: result.createdAt.toISOString(),
@@ -1136,14 +1222,15 @@ export class InvitationService implements IInvitationService {
   /**
    * Processes pending invitations for a user after signup/login
    * Creates member records and updates invitation status
+   * Placeholder-aware: claims placeholder rows by memberId or phone fallback, merging if needed
    */
   async processPendingInvitations(
     userId: string,
     phoneNumber: string,
   ): Promise<void> {
-    // Find all pending invitations for this phone
+    // Find all pending invitations for this phone (include memberId for placeholder reconcile)
     const pendingInvitations = await this.db
-      .select({ id: invitations.id, tripId: invitations.tripId })
+      .select({ id: invitations.id, tripId: invitations.tripId, memberId: invitations.memberId })
       .from(invitations)
       .where(
         and(
@@ -1154,45 +1241,79 @@ export class InvitationService implements IInvitationService {
 
     if (pendingInvitations.length === 0) return;
 
-    const tripIds = pendingInvitations.map((inv) => inv.tripId);
-
     await this.db.transaction(async (tx) => {
-      // Batch: get all existing memberships for these trips
-      const existingMembers = await tx
-        .select({ tripId: members.tripId })
-        .from(members)
-        .where(
-          and(inArray(members.tripId, tripIds), eq(members.userId, userId)),
-        );
+      for (const inv of pendingInvitations) {
+        // Try to find placeholder by invitation.memberId first, fallback to phone match
+        let placeholderId: string | null = inv.memberId ?? null;
+        if (!placeholderId) {
+          const [placeholder] = await tx
+            .select({ id: members.id })
+            .from(members)
+            .where(
+              and(
+                eq(members.tripId, inv.tripId),
+                eq(members.phoneNumber, phoneNumber),
+                isNull(members.userId),
+              ),
+            )
+            .limit(1);
+          placeholderId = placeholder?.id ?? null;
+        } else {
+          // Verify placeholder still exists and is still a placeholder
+          const [placeholder] = await tx
+            .select({ id: members.id, userId: members.userId })
+            .from(members)
+            .where(eq(members.id, placeholderId))
+            .limit(1);
+          if (!placeholder || placeholder.userId !== null) {
+            placeholderId = null;
+          }
+        }
 
-      const existingTripIds = new Set(existingMembers.map((m) => m.tripId));
+        if (placeholderId) {
+          // Check if user already has a member row in this trip (duplicate)
+          const [existing] = await tx
+            .select({ id: members.id })
+            .from(members)
+            .where(and(eq(members.tripId, inv.tripId), eq(members.userId, userId)))
+            .limit(1);
 
-      // Batch: insert new members for trips where user isn't already a member
-      const newMemberTrips = pendingInvitations.filter(
-        (inv) => !existingTripIds.has(inv.tripId),
-      );
+          if (existing && existing.id !== placeholderId) {
+            // Merge placeholder into existing member: transfer travel/payments/participants
+            await tx.update(memberTravel).set({ memberId: existing.id }).where(eq(memberTravel.memberId, placeholderId));
+            await tx.update(payments).set({ memberId: existing.id }).where(eq(payments.memberId, placeholderId));
+            await tx.update(paymentParticipants).set({ memberId: existing.id }).where(eq(paymentParticipants.memberId, placeholderId));
+            await tx.delete(members).where(eq(members.id, placeholderId));
+          } else if (!existing) {
+            // Claim placeholder
+            await tx.update(members).set({ userId, updatedAt: new Date() }).where(eq(members.id, placeholderId));
+          }
+        } else {
+          // No placeholder: check if already a member
+          const [existing] = await tx
+            .select({ id: members.id })
+            .from(members)
+            .where(and(eq(members.tripId, inv.tripId), eq(members.userId, userId)))
+            .limit(1);
+          if (!existing) {
+            await tx.insert(members).values({
+              tripId: inv.tripId,
+              userId,
+              status: "no_response" as const,
+              isOrganizer: false,
+            });
+          }
+        }
 
-      if (newMemberTrips.length > 0) {
-        await tx.insert(members).values(
-          newMemberTrips.map((inv) => ({
-            tripId: inv.tripId,
-            userId,
-            status: "no_response" as const,
-            isOrganizer: false,
-          })),
-        );
+        await tx
+          .update(invitations)
+          .set({
+            status: "accepted",
+            respondedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(invitations.id, inv.id));
       }
-
-      // Batch: update all invitations to accepted
-      const invitationIds = pendingInvitations.map((inv) => inv.id);
-      await tx
-        .update(invitations)
-        .set({
-          status: "accepted",
-          respondedAt: new Date(),
-          updatedAt: new Date(),
-        })
-        .where(inArray(invitations.id, invitationIds));
     });
   }
 
@@ -1263,19 +1384,20 @@ export class InvitationService implements IInvitationService {
   /**
    * Accepts a single invitation for an authenticated user.
    * Validates the invitation is pending and the user's phone matches inviteePhone.
-   * Creates a member record and flips status to accepted.
+   * Placeholder-aware: claims placeholder by memberId or phone fallback.
    */
   async acceptInvitation(
     invitationId: string,
     userId: string,
   ): Promise<{ tripId: string } | null> {
-    // Look up the invitation
+    // Look up the invitation (include memberId)
     const [invitation] = await this.db
       .select({
         id: invitations.id,
         tripId: invitations.tripId,
         inviteePhone: invitations.inviteePhone,
         status: invitations.status,
+        memberId: invitations.memberId,
       })
       .from(invitations)
       .where(eq(invitations.id, invitationId))
@@ -1297,25 +1419,64 @@ export class InvitationService implements IInvitationService {
     }
 
     await this.db.transaction(async (tx) => {
-      // Check if already a member
-      const existing = await tx
-        .select({ id: members.id })
-        .from(members)
-        .where(
-          and(
-            eq(members.tripId, invitation.tripId),
-            eq(members.userId, userId),
-          ),
-        )
-        .limit(1);
+      // Resolve placeholder: prefer invitation.memberId, fallback to phone match
+      let placeholderId: string | null = invitation.memberId ?? null;
+      if (!placeholderId) {
+        const [placeholder] = await tx
+          .select({ id: members.id })
+          .from(members)
+          .where(
+            and(
+              eq(members.tripId, invitation.tripId),
+              eq(members.phoneNumber, invitation.inviteePhone),
+              isNull(members.userId),
+            ),
+          )
+          .limit(1);
+        placeholderId = placeholder?.id ?? null;
+      } else {
+        const [ph] = await tx
+          .select({ id: members.id, userId: members.userId })
+          .from(members)
+          .where(eq(members.id, placeholderId))
+          .limit(1);
+        if (!ph || ph.userId !== null) placeholderId = null;
+      }
 
-      if (existing.length === 0) {
-        await tx.insert(members).values({
-          tripId: invitation.tripId,
-          userId,
-          status: "no_response",
-          isOrganizer: false,
-        });
+      if (placeholderId) {
+        const [existing] = await tx
+          .select({ id: members.id })
+          .from(members)
+          .where(and(eq(members.tripId, invitation.tripId), eq(members.userId, userId)))
+          .limit(1);
+        if (existing && existing.id !== placeholderId) {
+          await tx.update(memberTravel).set({ memberId: existing.id }).where(eq(memberTravel.memberId, placeholderId));
+          await tx.update(payments).set({ memberId: existing.id }).where(eq(payments.memberId, placeholderId));
+          await tx.update(paymentParticipants).set({ memberId: existing.id }).where(eq(paymentParticipants.memberId, placeholderId));
+          await tx.delete(members).where(eq(members.id, placeholderId));
+        } else if (!existing) {
+          await tx.update(members).set({ userId, updatedAt: new Date() }).where(eq(members.id, placeholderId));
+        }
+      } else {
+        const existing = await tx
+          .select({ id: members.id })
+          .from(members)
+          .where(
+            and(
+              eq(members.tripId, invitation.tripId),
+              eq(members.userId, userId),
+            ),
+          )
+          .limit(1);
+
+        if (existing.length === 0) {
+          await tx.insert(members).values({
+            tripId: invitation.tripId,
+            userId,
+            status: "no_response",
+            isOrganizer: false,
+          });
+        }
       }
 
       await tx
@@ -1329,5 +1490,198 @@ export class InvitationService implements IInvitationService {
     });
 
     return { tripId: invitation.tripId };
+  }
+
+  // === Placeholder member methods ===
+
+  async createPlaceholder(
+    userId: string,
+    tripId: string,
+    data: { name: string; phoneNumber?: string },
+  ): Promise<MemberWithProfile> {
+    const isOrg = await this.permissionsService.isOrganizer(userId, tripId);
+    if (!isOrg) {
+      const tripExists = await this.db.select({ id: trips.id }).from(trips).where(eq(trips.id, tripId)).limit(1);
+      if (tripExists.length === 0) throw new TripNotFoundError();
+      throw new PermissionDeniedError("Permission denied: only organizers can add placeholders");
+    }
+
+    const countResult = await this.db.select({ value: count() }).from(members).where(eq(members.tripId, tripId));
+    if (countResult[0]!.value >= 25) {
+      throw new MemberLimitExceededError("Member limit exceeded: trip already has 25 members");
+    }
+
+    const [inserted] = await this.db
+      .insert(members)
+      .values({
+        tripId,
+        userId: null,
+        displayName: data.name,
+        phoneNumber: data.phoneNumber ?? null,
+        status: "no_response",
+        isOrganizer: false,
+      })
+      .returning();
+    if (!inserted) throw new Error("Failed to create placeholder");
+
+    return {
+      id: inserted.id,
+      userId: null,
+      displayName: inserted.displayName ?? "Unknown",
+      profilePhotoUrl: null,
+      handles: null,
+      ...(inserted.phoneNumber ? { phoneNumber: inserted.phoneNumber } : {}),
+      isPlaceholder: true,
+      status: inserted.status,
+      isOrganizer: inserted.isOrganizer,
+      createdAt: inserted.createdAt.toISOString(),
+    };
+  }
+
+  async updatePlaceholder(
+    userId: string,
+    memberId: string,
+    data: { name?: string; phoneNumber?: string | null },
+  ): Promise<MemberWithProfile> {
+    const [member] = await this.db.select({ id: members.id, tripId: members.tripId, userId: members.userId }).from(members).where(eq(members.id, memberId)).limit(1);
+    if (!member) throw new MemberNotFoundError();
+    if (member.userId !== null) throw new MemberNotFoundError();
+    const isOrg = await this.permissionsService.isOrganizer(userId, member.tripId);
+    if (!isOrg) throw new PermissionDeniedError("Permission denied: only organizers can update placeholders");
+
+    const updateData: Record<string, unknown> = { updatedAt: new Date() };
+    if (data.name !== undefined) updateData.displayName = data.name;
+    if (data.phoneNumber !== undefined) updateData.phoneNumber = data.phoneNumber;
+
+    const [updated] = await this.db.update(members).set(updateData).where(eq(members.id, memberId)).returning();
+    if (!updated) throw new MemberNotFoundError();
+    return {
+      id: updated.id,
+      userId: null,
+      displayName: updated.displayName ?? "Unknown",
+      profilePhotoUrl: null,
+      handles: null,
+      ...(updated.phoneNumber ? { phoneNumber: updated.phoneNumber } : {}),
+      isPlaceholder: true,
+      status: updated.status,
+      isOrganizer: updated.isOrganizer,
+      createdAt: updated.createdAt.toISOString(),
+    };
+  }
+
+  async deletePlaceholder(userId: string, memberId: string): Promise<void> {
+    const [member] = await this.db.select({ id: members.id, tripId: members.tripId, userId: members.userId, isOrganizer: members.isOrganizer }).from(members).where(eq(members.id, memberId)).limit(1);
+    if (!member) throw new MemberNotFoundError();
+    if (member.userId !== null) throw new MemberNotFoundError();
+    const isOrg = await this.permissionsService.isOrganizer(userId, member.tripId);
+    if (!isOrg) throw new PermissionDeniedError("Permission denied: only organizers can delete placeholders");
+
+    if (member.isOrganizer) {
+      const [organizerCount] = await this.db.select({ value: count() }).from(members).where(and(eq(members.tripId, member.tripId), eq(members.isOrganizer, true)));
+      if (organizerCount!.value <= 1) throw new LastOrganizerError();
+    }
+
+    // Hard delete cascades payments/participants/travel/invitations
+    await this.db.delete(members).where(eq(members.id, memberId));
+  }
+
+  async invitePlaceholder(userId: string, memberId: string): Promise<DBInvitation> {
+    const [member] = await this.db.select({ id: members.id, tripId: members.tripId, phoneNumber: members.phoneNumber, userId: members.userId }).from(members).where(eq(members.id, memberId)).limit(1);
+    if (!member || member.userId !== null) throw new MemberNotFoundError();
+    if (!member.phoneNumber) throw new InvitationNotFoundError();
+    const isOrg = await this.permissionsService.isOrganizer(userId, member.tripId);
+    if (!isOrg) throw new PermissionDeniedError("Permission denied: only organizers can invite placeholders");
+
+    // Check existing pending invitation for this placeholder
+    const [existing] = await this.db.select({ id: invitations.id }).from(invitations).where(eq(invitations.memberId, memberId)).limit(1);
+    if (existing) throw new MemberLimitExceededError("Placeholder already has a pending invitation");
+
+    const [invitation] = await this.db.insert(invitations).values({
+      tripId: member.tripId,
+      inviterId: userId,
+      inviteePhone: member.phoneNumber,
+      memberId: member.id,
+      status: "pending",
+    }).returning();
+    if (!invitation) throw new Error("Failed to create invitation");
+
+    // Fetch inviter/trip for SMS
+    const [inviterRow] = await this.db.select({ displayName: users.displayName }).from(users).where(eq(users.id, userId)).limit(1);
+    const [tripRow] = await this.db.select({ name: trips.name }).from(trips).where(eq(trips.id, member.tripId)).limit(1);
+    const safeName = (inviterRow?.displayName ?? "Someone").slice(0, 20);
+    const safeTrip = (tripRow?.name ?? "a trip").slice(0, 30);
+    const message = `${safeName} invited you to "${safeTrip}" on Journiful!\n${this.frontendUrl}/invite?id=${invitation.id}`;
+
+    if (this.boss) {
+      await this.boss.insert(QUEUE.INVITATION_SEND, [{ data: { phoneNumber: member.phoneNumber, message } as InvitationSendPayload }]);
+    } else {
+      await this.smsService.sendMessage(member.phoneNumber, message, "invite");
+    }
+
+    return invitation;
+  }
+
+  async linkPlaceholder(
+    userId: string,
+    memberId: string,
+    targetUserId: string,
+  ): Promise<MemberWithProfile> {
+    const [member] = await this.db.select({ id: members.id, tripId: members.tripId, userId: members.userId }).from(members).where(eq(members.id, memberId)).limit(1);
+    if (!member || member.userId !== null) throw new MemberNotFoundError();
+    const isOrg = await this.permissionsService.isOrganizer(userId, member.tripId);
+    if (!isOrg) throw new PermissionDeniedError("Permission denied: only organizers can link placeholders");
+
+    // Verify target is mutual
+    const mutualCheck = await this.db.execute<{ user_id: string }>(sql`
+      SELECT m2.user_id
+      FROM members m1
+      JOIN members m2 ON m1.trip_id = m2.trip_id AND m1.user_id != m2.user_id
+      WHERE m1.user_id = ${userId}
+        AND m2.user_id = ${targetUserId}
+      GROUP BY m2.user_id
+    `);
+    if (mutualCheck.rows.length === 0) throw new NotAMutualError(`User ${targetUserId} is not a mutual and cannot be linked directly`);
+
+    const [existing] = await this.db.select({ id: members.id }).from(members).where(and(eq(members.tripId, member.tripId), eq(members.userId, targetUserId))).limit(1);
+
+    if (existing) {
+      // Merge placeholder into existing member
+      await this.db.transaction(async (tx) => {
+        await tx.update(memberTravel).set({ memberId: existing.id }).where(eq(memberTravel.memberId, memberId));
+        await tx.update(payments).set({ memberId: existing.id }).where(eq(payments.memberId, memberId));
+        await tx.update(paymentParticipants).set({ memberId: existing.id }).where(eq(paymentParticipants.memberId, memberId));
+        await tx.delete(members).where(eq(members.id, memberId));
+      });
+      // Return existing member profile
+      const [row] = await this.db.select({ id: members.id, userId: members.userId, memberDisplayName: members.displayName, userDisplayName: users.displayName, profilePhotoUrl: users.profilePhotoUrl, handles: users.handles, status: members.status, isOrganizer: members.isOrganizer, createdAt: members.createdAt }).from(members).leftJoin(users, eq(members.userId, users.id)).where(eq(members.id, existing.id)).limit(1);
+      if (!row) throw new MemberNotFoundError();
+      return {
+        id: row.id,
+        userId: row.userId,
+        displayName: row.userDisplayName ?? row.memberDisplayName ?? "Unknown",
+        profilePhotoUrl: row.profilePhotoUrl ?? null,
+        handles: row.handles ?? null,
+        isPlaceholder: row.userId === null,
+        status: row.status,
+        isOrganizer: row.isOrganizer,
+        createdAt: row.createdAt.toISOString(),
+      };
+    } else {
+      // Direct link: set userId on placeholder
+      const [updated] = await this.db.update(members).set({ userId: targetUserId, updatedAt: new Date() }).where(eq(members.id, memberId)).returning();
+      if (!updated) throw new MemberNotFoundError();
+      const [user] = await this.db.select({ displayName: users.displayName, profilePhotoUrl: users.profilePhotoUrl, handles: users.handles }).from(users).where(eq(users.id, targetUserId)).limit(1);
+      return {
+        id: updated.id,
+        userId: targetUserId,
+        displayName: user?.displayName ?? updated.displayName ?? "Unknown",
+        profilePhotoUrl: user?.profilePhotoUrl ?? null,
+        handles: user?.handles ?? null,
+        isPlaceholder: false,
+        status: updated.status,
+        isOrganizer: updated.isOrganizer,
+        createdAt: updated.createdAt.toISOString(),
+      };
+    }
   }
 }
