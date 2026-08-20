@@ -3,6 +3,8 @@ import type {
   CreateInvitationsInput,
   UpdateRsvpInput,
   UpdateMySettingsInput,
+  CreatePlaceholderInput,
+  UpdatePlaceholderInput,
 } from "@journiful/shared/schemas";
 import { PermissionDeniedError } from "../errors.js";
 import { auditLog } from "@/utils/audit.js";
@@ -586,6 +588,92 @@ export const invitationController = {
           message: "Failed to update my settings",
         },
       });
+    }
+  },
+
+  async createPlaceholder(
+    request: FastifyRequest<{
+      Params: { tripId: string };
+      Body: CreatePlaceholderInput;
+    }>,
+    reply: FastifyReply,
+  ) {
+    try {
+      const { tripId } = request.params;
+      const userId = request.user.sub;
+      const member = await request.server.invitationService.createPlaceholder(userId, tripId, request.body as { name: string; phoneNumber?: string });
+      auditLog(request, "placeholder.created", { resourceType: "trip", resourceId: tripId, metadata: { memberId: member.id } });
+      return reply.status(201).send({ success: true, member });
+    } catch (error) {
+      if (error && typeof error === "object" && "statusCode" in error) throw error;
+      request.log.error({ err: error }, "Failed to create placeholder");
+      return reply.status(500).send({ success: false, error: { code: "INTERNAL_SERVER_ERROR", message: "Failed to create placeholder" } });
+    }
+  },
+
+  async updatePlaceholder(
+    request: FastifyRequest<{
+      Params: { id: string };
+      Body: UpdatePlaceholderInput;
+    }>,
+    reply: FastifyReply,
+  ) {
+    try {
+      const member = await request.server.invitationService.updatePlaceholder(request.user.sub, request.params.id, request.body as { name?: string; phoneNumber?: string | null });
+      auditLog(request, "placeholder.updated", { resourceType: "member", resourceId: request.params.id });
+      return reply.send({ success: true, member });
+    } catch (error) {
+      if (error && typeof error === "object" && "statusCode" in error) throw error;
+      request.log.error({ err: error }, "Failed to update placeholder");
+      return reply.status(500).send({ success: false, error: { code: "INTERNAL_SERVER_ERROR", message: "Failed to update placeholder" } });
+    }
+  },
+
+  async deletePlaceholder(
+    request: FastifyRequest<{ Params: { id: string } }>,
+    reply: FastifyReply,
+  ) {
+    try {
+      await request.server.invitationService.deletePlaceholder(request.user.sub, request.params.id);
+      auditLog(request, "placeholder.deleted", { resourceType: "member", resourceId: request.params.id });
+      return reply.send({ success: true });
+    } catch (error) {
+      if (error && typeof error === "object" && "statusCode" in error) throw error;
+      request.log.error({ err: error }, "Failed to delete placeholder");
+      return reply.status(500).send({ success: false, error: { code: "INTERNAL_SERVER_ERROR", message: "Failed to delete placeholder" } });
+    }
+  },
+
+  async invitePlaceholder(
+    request: FastifyRequest<{ Params: { id: string } }>,
+    reply: FastifyReply,
+  ) {
+    try {
+      const invitation = await request.server.invitationService.invitePlaceholder(request.user.sub, request.params.id);
+      auditLog(request, "placeholder.invited", { resourceType: "member", resourceId: request.params.id, metadata: { invitationId: invitation.id } });
+      return reply.status(201).send({ success: true, invitation });
+    } catch (error) {
+      if (error && typeof error === "object" && "statusCode" in error) throw error;
+      request.log.error({ err: error }, "Failed to invite placeholder");
+      return reply.status(500).send({ success: false, error: { code: "INTERNAL_SERVER_ERROR", message: "Failed to invite placeholder" } });
+    }
+  },
+
+  async linkPlaceholder(
+    request: FastifyRequest<{
+      Params: { id: string };
+      Body: { targetUserId: string };
+    }>,
+    reply: FastifyReply,
+  ) {
+    try {
+      const member = await request.server.invitationService.linkPlaceholder(request.user.sub, request.params.id, request.body.targetUserId);
+      auditLog(request, "placeholder.linked", { resourceType: "member", resourceId: request.params.id, metadata: { targetUserId: request.body.targetUserId } });
+      return reply.send({ success: true, member });
+    } catch (error) {
+      if (error && typeof error === "object" && "statusCode" in error) throw error;
+      request.log.error({ err: error }, "Failed to link placeholder");
+      return reply.status(500).send({ success: false, error: { code: "INTERNAL_SERVER_ERROR", message: "Failed to link placeholder" } });
     }
   },
 };

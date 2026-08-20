@@ -26,7 +26,6 @@ import type { IPhotoService } from "@/services/photo.service.js";
 import type { IImageProcessingService } from "@/services/image-processing.service.js";
 import type { IStorageService } from "@/services/storage.service.js";
 import type { IPushService } from "@/services/push.service.js";
-import type { IGuestService } from "@/services/guest.service.js";
 import type { IPaymentService } from "@/services/payment.service.js";
 import type { IBalanceService } from "@/services/balance.service.js";
 import type { IAdminService } from "@/services/admin.service.js";
@@ -88,7 +87,6 @@ declare module "fastify" {
     imageProcessingService: IImageProcessingService;
     storage: IStorageService;
     pushService: IPushService;
-    guestService: IGuestService;
     paymentService: IPaymentService;
     balanceService: IBalanceService;
     adminService: IAdminService;
