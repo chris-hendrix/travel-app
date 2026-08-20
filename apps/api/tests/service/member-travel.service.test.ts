@@ -31,6 +31,7 @@ describe("member-travel.service", () => {
   let testTripId: string;
   let testMember1MemberId: string;
   let testMember2MemberId: string;
+  let testPlaceholderMemberId: string;
   let testMemberTravelId: string;
 
   // Clean up test data (safe for parallel execution)
@@ -149,6 +150,19 @@ describe("member-travel.service", () => {
       })
       .returning();
     testMember2MemberId = member2MemberResult[0].id;
+
+    // Add a placeholder member (userId null, displayName set)
+    const placeholderMemberResult = await db
+      .insert(members)
+      .values({
+        tripId: testTripId,
+        userId: null,
+        displayName: "Placeholder Guest",
+        phoneNumber: generateUniquePhone(),
+        status: "going",
+      })
+      .returning();
+    testPlaceholderMemberId = placeholderMemberResult[0].id;
 
     // Create a test member travel for member 1
     const travelResult = await db
@@ -822,6 +836,143 @@ describe("member-travel.service", () => {
       expect(travel).toBeDefined();
       expect(travel.memberId).toBe(testMember1MemberId);
       expect(travel.travelType).toBe("departure");
+    });
+  });
+
+  describe("placeholder member travel", () => {
+    it("should allow organizer to create member travel for a placeholder member", async () => {
+      const travelData = {
+        travelType: "arrival" as const,
+        time: "2026-06-10T14:00:00Z",
+        location: "Airport",
+        details: "Placeholder arrival",
+        memberId: testPlaceholderMemberId,
+      };
+
+      const travel = await memberTravelService.createMemberTravel(
+        testOrganizerId,
+        testTripId,
+        travelData,
+      );
+
+      expect(travel).toBeDefined();
+      expect(travel.memberId).toBe(testPlaceholderMemberId);
+      expect(travel.travelType).toBe("arrival");
+      expect(travel.tripId).toBe(testTripId);
+    });
+
+    it("should return placeholder member travel in list with userId null and members displayName", async () => {
+      // Create travel for the placeholder member via organizer delegation
+      const travelData = {
+        travelType: "arrival" as const,
+        time: "2026-06-10T14:00:00Z",
+        location: "Airport",
+        memberId: testPlaceholderMemberId,
+      };
+      await memberTravelService.createMemberTravel(
+        testOrganizerId,
+        testTripId,
+        travelData,
+      );
+
+      const travelList =
+        await memberTravelService.getMemberTravelByTrip(testTripId);
+
+      const placeholderTravel = travelList.find(
+        (t) => t.memberId === testPlaceholderMemberId,
+      );
+
+      expect(placeholderTravel).toBeDefined();
+      expect(placeholderTravel!.userId).toBeNull();
+      expect(placeholderTravel!.memberName).toBe("Placeholder Guest");
+    });
+
+    it("should list both placeholder and real member travel with correct names", async () => {
+      // Create travel for the placeholder member
+      await memberTravelService.createMemberTravel(testOrganizerId, testTripId, {
+        travelType: "arrival" as const,
+        time: "2026-06-10T14:00:00Z",
+        memberId: testPlaceholderMemberId,
+      });
+
+      // Create travel for a real member (member 2, status 'maybe')
+      await memberTravelService.createMemberTravel(testMember2Id, testTripId, {
+        travelType: "departure" as const,
+        time: "2026-06-20T16:00:00Z",
+      });
+
+      const travelList =
+        await memberTravelService.getMemberTravelByTrip(testTripId);
+
+      // Existing travel for member 1 + placeholder + member 2
+      expect(travelList).toHaveLength(3);
+
+      const placeholderTravel = travelList.find(
+        (t) => t.memberId === testPlaceholderMemberId,
+      );
+      const realTravel = travelList.find(
+        (t) => t.memberId === testMember2MemberId,
+      );
+
+      expect(placeholderTravel!.userId).toBeNull();
+      expect(placeholderTravel!.memberName).toBe("Placeholder Guest");
+      expect(realTravel!.userId).toBe(testMember2Id);
+      expect(realTravel!.memberName).toBe("Test Member 2");
+    });
+
+    it("should not allow placeholder owner (null userId) to edit placeholder travel", async () => {
+      // Create travel for the placeholder member
+      const travel = await memberTravelService.createMemberTravel(
+        testOrganizerId,
+        testTripId,
+        {
+          travelType: "arrival" as const,
+          time: "2026-06-10T14:00:00Z",
+          memberId: testPlaceholderMemberId,
+        },
+      );
+
+      // A placeholder has no userId, so no user can claim ownership.
+      // Verify a non-organizer member cannot edit it.
+      await expect(
+        memberTravelService.updateMemberTravel(
+          testMember1Id,
+          travel.id,
+          { location: "Unauthorized" },
+        ),
+      ).rejects.toThrow(PermissionDeniedError);
+    });
+
+    it("should allow organizer to edit placeholder travel", async () => {
+      // Create travel for the placeholder member
+      const travel = await memberTravelService.createMemberTravel(
+        testOrganizerId,
+        testTripId,
+        {
+          travelType: "arrival" as const,
+          time: "2026-06-10T14:00:00Z",
+          memberId: testPlaceholderMemberId,
+        },
+      );
+
+      const updated = await memberTravelService.updateMemberTravel(
+        testOrganizerId,
+        travel.id,
+        { location: "Updated by organizer" },
+      );
+
+      expect(updated.location).toBe("Updated by organizer");
+    });
+
+    it("should keep real member travel owner-editable", async () => {
+      // Existing testMemberTravelId belongs to member 1 (real member)
+      const updated = await memberTravelService.updateMemberTravel(
+        testMember1Id,
+        testMemberTravelId,
+        { location: "Owner edit" },
+      );
+
+      expect(updated.location).toBe("Owner edit");
     });
   });
 });

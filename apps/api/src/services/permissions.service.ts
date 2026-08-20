@@ -741,6 +741,9 @@ export class PermissionsService implements IPermissionsService {
       .where(eq(members.id, memberTravelData.memberId))
       .limit(1);
 
+    // For placeholder members (userId null), the owner check below never
+    // matches (null !== any real userId), so placeholder travel is only
+    // editable by trip organizers. This is the intended behavior.
     if (memberResult.length > 0 && memberResult[0]!.userId === userId) {
       return true;
     }

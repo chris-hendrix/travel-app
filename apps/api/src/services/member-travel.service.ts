@@ -257,23 +257,31 @@ export class MemberTravelService implements IMemberTravelService {
   async getMemberTravelByTrip(
     tripId: string,
     includeDeleted = false,
-  ): Promise<(MemberTravel & { memberName: string; userId: string })[]> {
+  ): Promise<(MemberTravel & { memberName: string; userId: string | null })[]> {
     const conditions = [eq(memberTravel.tripId, tripId)];
 
     if (!includeDeleted) {
       conditions.push(isNull(memberTravel.deletedAt));
     }
 
-    return this.db
+    const rows = await this.db
       .select({
         ...getTableColumns(memberTravel),
         memberName: users.displayName,
+        memberDisplayName: members.displayName,
         userId: members.userId,
       })
       .from(memberTravel)
       .innerJoin(members, eq(memberTravel.memberId, members.id))
-      .innerJoin(users, eq(members.userId, users.id))
+      .leftJoin(users, eq(members.userId, users.id))
       .where(and(...conditions));
+
+    // For placeholder members (userId null) there is no matching users row, so
+    // fall back to the displayName stored on the members row itself.
+    return rows.map((row) => ({
+      ...row,
+      memberName: row.memberName ?? row.memberDisplayName ?? "",
+    }));
   }
 
   /**
