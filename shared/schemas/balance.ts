@@ -2,11 +2,11 @@
 
 import { z } from "zod";
 
-/** A person involved in a balance (user or guest) */
+/** A person involved in a balance (member or placeholder) */
 const balancePersonSchema = z.object({
   id: z.string(),
   name: z.string(),
-  isGuest: z.boolean(),
+  isPlaceholder: z.boolean(),
 });
 
 /** A single simplified debt between two people */

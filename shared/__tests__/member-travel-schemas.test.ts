@@ -4,6 +4,7 @@ import { describe, it, expect } from "vitest";
 import {
   createMemberTravelSchema,
   updateMemberTravelSchema,
+  memberTravelResponseSchema,
 } from "../schemas/index.js";
 
 describe("createMemberTravelSchema", () => {
@@ -352,6 +353,53 @@ describe("updateMemberTravelSchema", () => {
     };
 
     const result = updateMemberTravelSchema.safeParse(invalidUpdate);
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("memberTravelEntitySchema (via memberTravelResponseSchema)", () => {
+  const baseMemberTravel = {
+    id: "travel-1",
+    tripId: "trip-1",
+    memberId: "550e8400-e29b-41d4-a716-446655440000",
+    travelType: "arrival" as const,
+    time: new Date("2026-07-15T10:30:00Z"),
+    location: null,
+    details: null,
+    flightNumber: null,
+    deletedAt: null,
+    deletedBy: null,
+    createdAt: new Date("2026-07-15T10:00:00Z"),
+    updatedAt: new Date("2026-07-15T10:00:00Z"),
+    memberName: "Alice",
+  };
+
+  it("should accept a member travel with a null userId (placeholder)", () => {
+    expect(() =>
+      memberTravelResponseSchema.parse({
+        success: true,
+        memberTravel: { ...baseMemberTravel, userId: null },
+      }),
+    ).not.toThrow();
+  });
+
+  it("should accept a member travel with a non-null userId", () => {
+    expect(() =>
+      memberTravelResponseSchema.parse({
+        success: true,
+        memberTravel: {
+          ...baseMemberTravel,
+          userId: "550e8400-e29b-41d4-a716-446655440001",
+        },
+      }),
+    ).not.toThrow();
+  });
+
+  it("should reject a member travel missing userId", () => {
+    const result = memberTravelResponseSchema.safeParse({
+      success: true,
+      memberTravel: baseMemberTravel,
+    });
     expect(result.success).toBe(false);
   });
 });

@@ -185,15 +185,13 @@ export {
   type FlightLookupResponse,
 } from "./flight";
 
-// Re-export guest schemas
+// Re-export placeholder member schemas
 export {
-  createGuestSchema,
-  updateGuestSchema,
-  guestListResponseSchema,
-  guestResponseSchema,
-  type CreateGuestInput,
-  type UpdateGuestInput,
-} from "./guest";
+  createPlaceholderSchema,
+  updatePlaceholderSchema,
+  type CreatePlaceholderInput,
+  type UpdatePlaceholderInput,
+} from "./placeholder";
 
 // Re-export payment schemas
 export {

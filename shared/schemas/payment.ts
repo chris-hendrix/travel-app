@@ -3,15 +3,10 @@
 import { z } from "zod";
 import { stripControlChars } from "../utils/sanitize";
 
-/** A participant in a payment (either a user or a guest) */
-const participantSchema = z
-  .object({
-    userId: z.string().uuid().optional(),
-    guestId: z.string().uuid().optional(),
-  })
-  .refine((data) => (data.userId != null) !== (data.guestId != null), {
-    message: "Each participant must have exactly one of userId or guestId",
-  });
+/** A participant in a payment, identified by member ID */
+const participantSchema = z.object({
+  memberId: z.string().uuid({ message: "Participant member ID must be a valid UUID" }),
+});
 
 /**
  * Base payment data schema (without cross-field validation)
@@ -30,8 +25,7 @@ const basePaymentSchema = z.object({
     .number()
     .int({ message: "Amount must be a whole number (cents)" })
     .positive({ message: "Amount must be greater than 0" }),
-  userId: z.string().uuid().optional(),
-  guestId: z.string().uuid().optional(),
+  memberId: z.string().uuid({ message: "Payer member ID must be a valid UUID" }),
   participants: z
     .array(participantSchema)
     .min(1, { message: "At least one participant is required" }),
@@ -42,35 +36,17 @@ const basePaymentSchema = z.object({
  * Validates payment creation data
  * - description: 1-500 characters (required)
  * - amount: positive integer in cents (required)
- * - userId or guestId: payer (exactly one required)
- * - participants: array of {userId} or {guestId} (at least 1)
+ * - memberId: payer member UUID (required)
+ * - participants: array of {memberId} (at least 1)
  * - date: ISO 8601 datetime (optional)
  */
-export const createPaymentSchema = basePaymentSchema.refine(
-  (data) => (data.userId != null) !== (data.guestId != null),
-  {
-    message: "Payer must have exactly one of userId or guestId",
-    path: ["userId"],
-  },
-);
+export const createPaymentSchema = basePaymentSchema;
 
 /**
  * Validates payment update data (all fields optional)
  * - Same validation rules as createPaymentSchema when fields are provided
  */
-export const updatePaymentSchema = basePaymentSchema.partial().refine(
-  (data) => {
-    // If either payer field is provided, exactly one must be set
-    if (data.userId !== undefined || data.guestId !== undefined) {
-      return (data.userId != null) !== (data.guestId != null);
-    }
-    return true;
-  },
-  {
-    message: "Payer must have exactly one of userId or guestId",
-    path: ["userId"],
-  },
-);
+export const updatePaymentSchema = basePaymentSchema.partial();
 
 // --- Response schemas ---
 
@@ -78,11 +54,10 @@ export const updatePaymentSchema = basePaymentSchema.partial().refine(
 const paymentParticipantEntitySchema = z.object({
   id: z.string(),
   paymentId: z.string(),
-  userId: z.string().nullable(),
-  guestId: z.string().nullable(),
+  memberId: z.string(),
   shareAmount: z.number(),
   name: z.string().optional(),
-  isGuest: z.boolean().optional(),
+  isPlaceholder: z.boolean().optional(),
   createdAt: z.date(),
 });
 
@@ -92,8 +67,7 @@ const paymentEntitySchema = z.object({
   tripId: z.string(),
   description: z.string(),
   amount: z.number(),
-  userId: z.string().nullable(),
-  guestId: z.string().nullable(),
+  memberId: z.string(),
   date: z.date(),
   createdBy: z.string(),
   deletedAt: z.date().nullable(),
@@ -101,7 +75,7 @@ const paymentEntitySchema = z.object({
   createdAt: z.date(),
   updatedAt: z.date(),
   payerName: z.string().optional(),
-  payerIsGuest: z.boolean().optional(),
+  payerIsPlaceholder: z.boolean().optional(),
   participants: z.array(paymentParticipantEntitySchema),
 });
 

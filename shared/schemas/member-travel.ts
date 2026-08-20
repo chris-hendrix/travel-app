@@ -47,6 +47,7 @@ const memberTravelEntitySchema = z.object({
   id: z.string(),
   tripId: z.string(),
   memberId: z.string(),
+  userId: z.string().nullable(),
   travelType: z.enum(["arrival", "departure"]),
   time: z.date(),
   location: z.string().nullable(),

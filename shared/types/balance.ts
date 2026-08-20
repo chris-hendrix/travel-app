@@ -3,12 +3,12 @@
  */
 
 /**
- * A person involved in a balance (user or guest)
+ * A person involved in a balance (member or placeholder)
  */
 export interface BalancePerson {
   id: string;
   name: string;
-  isGuest: boolean;
+  isPlaceholder: boolean;
 }
 
 /**

@@ -9,8 +9,8 @@ export interface MemberTravel {
   id: string;
   tripId: string;
   memberId: string;
-  /** User ID of the member (populated by list endpoint via join) */
-  userId?: string;
+  /** User ID of the member (null for placeholder members) */
+  userId: string | null;
   travelType: "arrival" | "departure";
   time: Date;
   location: string | null;

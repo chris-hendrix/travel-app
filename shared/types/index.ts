@@ -160,8 +160,11 @@ export type {
   FlightLookupResponse,
 } from "./flight";
 
-// Re-export guest types
-export type { Guest, GetGuestsResponse, GuestResponse } from "./guest";
+// Re-export placeholder member types
+export type {
+  CreatePlaceholderInput,
+  UpdatePlaceholderInput,
+} from "./placeholder";
 
 // Re-export payment types
 export type {

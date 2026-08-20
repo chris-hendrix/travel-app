@@ -6,6 +6,8 @@ import {
   updateRsvpSchema,
   updateMySettingsSchema,
   mySettingsResponseSchema,
+  getMembersResponseSchema,
+  updateRsvpResponseSchema,
 } from "../schemas/index.js";
 
 describe("createInvitationsSchema", () => {
@@ -221,6 +223,74 @@ describe("updateRsvpSchema", () => {
     const result = updateRsvpSchema.safeParse({
       status: "going",
       sharePhone: "yes",
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("memberWithProfileSchema", () => {
+  const realMember = {
+    id: "550e8400-e29b-41d4-a716-446655440000",
+    userId: "550e8400-e29b-41d4-a716-446655440001",
+    displayName: "Alice",
+    profilePhotoUrl: null,
+    handles: null,
+    phoneNumber: "+14155552671",
+    isPlaceholder: false,
+    status: "going",
+    isOrganizer: true,
+    isMuted: false,
+    sharePhone: true,
+    createdAt: "2026-07-15T00:00:00.000Z",
+  };
+
+  const placeholderMember = {
+    id: "550e8400-e29b-41d4-a716-446655440002",
+    userId: null,
+    displayName: "Bob (placeholder)",
+    profilePhotoUrl: null,
+    handles: null,
+    phoneNumber: "+442071838750",
+    isPlaceholder: true,
+    status: "no_response",
+    isOrganizer: false,
+    createdAt: "2026-07-15T00:00:00.000Z",
+  };
+
+  it("should accept a real member with a non-null userId", () => {
+    expect(() =>
+      getMembersResponseSchema.parse({ success: true, members: [realMember] }),
+    ).not.toThrow();
+  });
+
+  it("should accept a placeholder member with a null userId", () => {
+    expect(() =>
+      getMembersResponseSchema.parse({
+        success: true,
+        members: [placeholderMember],
+      }),
+    ).not.toThrow();
+  });
+
+  it("should accept an RSVP response wrapping a member", () => {
+    expect(() =>
+      updateRsvpResponseSchema.parse({ success: true, member: realMember }),
+    ).not.toThrow();
+  });
+
+  it("should reject a member missing isPlaceholder", () => {
+    const { isPlaceholder: _isPlaceholder, ...withoutFlag } = placeholderMember;
+    const result = getMembersResponseSchema.safeParse({
+      success: true,
+      members: [withoutFlag],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("should reject a member with a non-boolean isPlaceholder", () => {
+    const result = getMembersResponseSchema.safeParse({
+      success: true,
+      members: [{ ...placeholderMember, isPlaceholder: "yes" }],
     });
     expect(result.success).toBe(false);
   });

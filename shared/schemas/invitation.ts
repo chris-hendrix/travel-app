@@ -62,11 +62,12 @@ const invitationEntitySchema = z.object({
  *  Note: createdAt is pre-converted to ISO string by the service layer */
 const memberWithProfileSchema = z.object({
   id: z.string(),
-  userId: z.string(),
+  userId: z.string().nullable(),
   displayName: z.string(),
   profilePhotoUrl: z.string().nullable(),
   handles: z.record(z.string(), z.string()).nullable().optional(),
   phoneNumber: z.string().optional(),
+  isPlaceholder: z.boolean(),
   status: z.enum(["going", "not_going", "maybe", "no_response"]),
   isOrganizer: z.boolean(),
   isMuted: z.boolean().optional(),

@@ -22,12 +22,16 @@ export interface Invitation {
  */
 export interface MemberWithProfile {
   id: string;
-  userId: string;
+  /** Null for placeholder members */
+  userId: string | null;
+  /** Member name (placeholder) or user name (real member) */
   displayName: string;
   profilePhotoUrl: string | null;
   handles: Record<string, string> | null;
   /** Only included when requesting user is an organizer */
   phoneNumber?: string;
+  /** True when the member has no linked user account */
+  isPlaceholder: boolean;
   status: "going" | "not_going" | "maybe" | "no_response";
   isOrganizer: boolean;
   /** Only included when requesting user is an organizer */
