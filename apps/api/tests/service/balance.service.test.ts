@@ -6,7 +6,6 @@ import {
   members,
   payments,
   paymentParticipants,
-  tripGuests,
 } from "@/db/schema/index.js";
 import { eq, or } from "drizzle-orm";
 import { BalanceService } from "@/services/balance.service.js";
@@ -21,6 +20,9 @@ describe("balance.service", () => {
   let userAId: string;
   let userBId: string;
   let userCId: string;
+  let memberAId: string;
+  let memberBId: string;
+  let memberCId: string;
   let tripId: string;
 
   const cleanup = async () => {
@@ -36,7 +38,6 @@ describe("balance.service", () => {
           .where(eq(paymentParticipants.paymentId, p.id));
       }
       await db.delete(payments).where(eq(payments.tripId, tripId));
-      await db.delete(tripGuests).where(eq(tripGuests.tripId, tripId));
       await db.delete(members).where(eq(members.tripId, tripId));
       await db.delete(trips).where(eq(trips.id, tripId));
     }
@@ -84,11 +85,21 @@ describe("balance.service", () => {
       .returning();
     tripId = trip!.id;
 
-    await db.insert(members).values([
-      { tripId, userId: userAId, status: "going", isOrganizer: true },
-      { tripId, userId: userBId, status: "going" },
-      { tripId, userId: userCId, status: "going" },
-    ]);
+    const [ma] = await db
+      .insert(members)
+      .values({ tripId, userId: userAId, status: "going", isOrganizer: true })
+      .returning();
+    const [mb] = await db
+      .insert(members)
+      .values({ tripId, userId: userBId, status: "going" })
+      .returning();
+    const [mc] = await db
+      .insert(members)
+      .values({ tripId, userId: userCId, status: "going" })
+      .returning();
+    memberAId = ma!.id;
+    memberBId = mb!.id;
+    memberCId = mc!.id;
   });
 
   afterEach(async () => {
@@ -108,29 +119,31 @@ describe("balance.service", () => {
         tripId,
         description: "Dinner",
         amount: 3000,
-        userId: userAId,
+        memberId: memberAId,
         createdBy: userAId,
       })
       .returning();
 
     await db.insert(paymentParticipants).values([
-      { paymentId: payment!.id, userId: userBId, shareAmount: 1500 },
-      { paymentId: payment!.id, userId: userCId, shareAmount: 1500 },
+      { paymentId: payment!.id, memberId: memberBId, shareAmount: 1500 },
+      { paymentId: payment!.id, memberId: memberCId, shareAmount: 1500 },
     ]);
 
     const balances = await balanceService.getTripBalances(tripId);
     expect(balances).toHaveLength(2);
 
     // Bob owes Alice $15, Charlie owes Alice $15
-    const sorted = balances.sort((a, b) => a.from.name.localeCompare(b.from.name));
+    const sorted = balances.sort((a, b) =>
+      a.from.name.localeCompare(b.from.name),
+    );
     expect(sorted[0]).toMatchObject({
-      from: { name: "Bob", isGuest: false },
-      to: { name: "Alice", isGuest: false },
+      from: { name: "Bob", isPlaceholder: false },
+      to: { name: "Alice", isPlaceholder: false },
       amount: 1500,
     });
     expect(sorted[1]).toMatchObject({
-      from: { name: "Charlie", isGuest: false },
-      to: { name: "Alice", isGuest: false },
+      from: { name: "Charlie", isPlaceholder: false },
+      to: { name: "Alice", isPlaceholder: false },
       amount: 1500,
     });
   });
@@ -143,15 +156,15 @@ describe("balance.service", () => {
         tripId,
         description: "Lunch",
         amount: 3000,
-        userId: userAId,
+        memberId: memberAId,
         createdBy: userAId,
       })
       .returning();
 
     await db.insert(paymentParticipants).values([
-      { paymentId: payment!.id, userId: userAId, shareAmount: 1000 },
-      { paymentId: payment!.id, userId: userBId, shareAmount: 1000 },
-      { paymentId: payment!.id, userId: userCId, shareAmount: 1000 },
+      { paymentId: payment!.id, memberId: memberAId, shareAmount: 1000 },
+      { paymentId: payment!.id, memberId: memberBId, shareAmount: 1000 },
+      { paymentId: payment!.id, memberId: memberCId, shareAmount: 1000 },
     ]);
 
     const balances = await balanceService.getTripBalances(tripId);
@@ -159,7 +172,9 @@ describe("balance.service", () => {
 
     // Alice is owed $20 net (paid 30, owes self 10)
     // Bob and Charlie each owe $10
-    const sorted = balances.sort((a, b) => a.from.name.localeCompare(b.from.name));
+    const sorted = balances.sort((a, b) =>
+      a.from.name.localeCompare(b.from.name),
+    );
     expect(sorted[0]).toMatchObject({
       from: { name: "Bob" },
       to: { name: "Alice" },
@@ -180,14 +195,14 @@ describe("balance.service", () => {
         tripId,
         description: "Coffee",
         amount: 2000,
-        userId: userAId,
+        memberId: memberAId,
         createdBy: userAId,
       })
       .returning();
 
     await db.insert(paymentParticipants).values([
-      { paymentId: p1!.id, userId: userAId, shareAmount: 1000 },
-      { paymentId: p1!.id, userId: userBId, shareAmount: 1000 },
+      { paymentId: p1!.id, memberId: memberAId, shareAmount: 1000 },
+      { paymentId: p1!.id, memberId: memberBId, shareAmount: 1000 },
     ]);
 
     // Bob settles by paying Alice $10 (settlement = payment with single participant)
@@ -197,14 +212,14 @@ describe("balance.service", () => {
         tripId,
         description: "Settlement",
         amount: 1000,
-        userId: userBId,
+        memberId: memberBId,
         createdBy: userBId,
       })
       .returning();
 
-    await db.insert(paymentParticipants).values([
-      { paymentId: p2!.id, userId: userAId, shareAmount: 1000 },
-    ]);
+    await db
+      .insert(paymentParticipants)
+      .values([{ paymentId: p2!.id, memberId: memberAId, shareAmount: 1000 }]);
 
     const balances = await balanceService.getTripBalances(tripId);
     expect(balances).toHaveLength(0);
@@ -218,16 +233,16 @@ describe("balance.service", () => {
         tripId,
         description: "Gum",
         amount: 100,
-        userId: userAId,
+        memberId: memberAId,
         createdBy: userAId,
       })
       .returning();
 
     // 100/3 = 33 remainder 1 => first gets 34, rest get 33
     await db.insert(paymentParticipants).values([
-      { paymentId: payment!.id, userId: userAId, shareAmount: 34 },
-      { paymentId: payment!.id, userId: userBId, shareAmount: 33 },
-      { paymentId: payment!.id, userId: userCId, shareAmount: 33 },
+      { paymentId: payment!.id, memberId: memberAId, shareAmount: 34 },
+      { paymentId: payment!.id, memberId: memberBId, shareAmount: 33 },
+      { paymentId: payment!.id, memberId: memberCId, shareAmount: 33 },
     ]);
 
     const balances = await balanceService.getTripBalances(tripId);
@@ -239,35 +254,40 @@ describe("balance.service", () => {
     expect(totalOwed).toBe(66);
   });
 
-  it("should handle guest participants", async () => {
-    // Create a guest
-    const [guest] = await db
-      .insert(tripGuests)
-      .values({ tripId, name: "Dave (Guest)", createdBy: userAId })
+  it("should handle placeholder participants", async () => {
+    // Create a placeholder member (no linked user)
+    const [placeholder] = await db
+      .insert(members)
+      .values({
+        tripId,
+        userId: null,
+        displayName: "Dave (TBD)",
+        status: "going",
+      })
       .returning();
 
-    // Alice pays $20 split between Alice and Dave
+    // Alice pays $20 split between Alice and Dave (placeholder)
     const [payment] = await db
       .insert(payments)
       .values({
         tripId,
         description: "Taxi",
         amount: 2000,
-        userId: userAId,
+        memberId: memberAId,
         createdBy: userAId,
       })
       .returning();
 
     await db.insert(paymentParticipants).values([
-      { paymentId: payment!.id, userId: userAId, shareAmount: 1000 },
-      { paymentId: payment!.id, guestId: guest!.id, shareAmount: 1000 },
+      { paymentId: payment!.id, memberId: memberAId, shareAmount: 1000 },
+      { paymentId: payment!.id, memberId: placeholder!.id, shareAmount: 1000 },
     ]);
 
     const balances = await balanceService.getTripBalances(tripId);
     expect(balances).toHaveLength(1);
     expect(balances[0]).toMatchObject({
-      from: { name: "Dave (Guest)", isGuest: true },
-      to: { name: "Alice", isGuest: false },
+      from: { name: "Dave (TBD)", isPlaceholder: true },
+      to: { name: "Alice", isPlaceholder: false },
       amount: 1000,
     });
   });
@@ -280,14 +300,14 @@ describe("balance.service", () => {
         tripId,
         description: "Dinner",
         amount: 3000,
-        userId: userAId,
+        memberId: memberAId,
         createdBy: userAId,
       })
       .returning();
 
     await db.insert(paymentParticipants).values([
-      { paymentId: p1!.id, userId: userBId, shareAmount: 1500 },
-      { paymentId: p1!.id, userId: userCId, shareAmount: 1500 },
+      { paymentId: p1!.id, memberId: memberBId, shareAmount: 1500 },
+      { paymentId: p1!.id, memberId: memberCId, shareAmount: 1500 },
     ]);
 
     // Bob pays $20 for Alice (Alice owes 20)
@@ -297,14 +317,14 @@ describe("balance.service", () => {
         tripId,
         description: "Lunch",
         amount: 2000,
-        userId: userBId,
+        memberId: memberBId,
         createdBy: userBId,
       })
       .returning();
 
-    await db.insert(paymentParticipants).values([
-      { paymentId: p2!.id, userId: userAId, shareAmount: 2000 },
-    ]);
+    await db
+      .insert(paymentParticipants)
+      .values([{ paymentId: p2!.id, memberId: memberAId, shareAmount: 2000 }]);
 
     const balances = await balanceService.getTripBalances(tripId);
 
@@ -327,16 +347,18 @@ describe("balance.service", () => {
         tripId,
         description: "Deleted dinner",
         amount: 5000,
-        userId: userAId,
+        memberId: memberAId,
         createdBy: userAId,
         deletedAt: new Date(),
         deletedBy: userAId,
       })
       .returning();
 
-    await db.insert(paymentParticipants).values([
-      { paymentId: payment!.id, userId: userBId, shareAmount: 5000 },
-    ]);
+    await db
+      .insert(paymentParticipants)
+      .values([
+        { paymentId: payment!.id, memberId: memberBId, shareAmount: 5000 },
+      ]);
 
     const balances = await balanceService.getTripBalances(tripId);
     expect(balances).toHaveLength(0);
@@ -351,15 +373,15 @@ describe("balance.service", () => {
           tripId,
           description: "Dinner",
           amount: 3000,
-          userId: userAId,
+          memberId: memberAId,
           createdBy: userAId,
         })
         .returning();
 
       await db.insert(paymentParticipants).values([
-        { paymentId: payment!.id, userId: userAId, shareAmount: 1000 },
-        { paymentId: payment!.id, userId: userBId, shareAmount: 1000 },
-        { paymentId: payment!.id, userId: userCId, shareAmount: 1000 },
+        { paymentId: payment!.id, memberId: memberAId, shareAmount: 1000 },
+        { paymentId: payment!.id, memberId: memberBId, shareAmount: 1000 },
+        { paymentId: payment!.id, memberId: memberCId, shareAmount: 1000 },
       ]);
 
       const result = await balanceService.getMyBalance(tripId, userAId);

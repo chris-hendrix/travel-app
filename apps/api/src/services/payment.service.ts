@@ -1,8 +1,8 @@
 import {
   payments,
   paymentParticipants,
+  members,
   users,
-  tripGuests,
   type Payment,
 } from "@/db/schema/index.js";
 import { eq, and, isNull, inArray } from "drizzle-orm";
@@ -15,21 +15,29 @@ import type { IPermissionsService } from "./permissions.service.js";
 import {
   PaymentNotFoundError,
   PermissionDeniedError,
+  MemberNotFoundError,
 } from "../errors.js";
+
+interface PaymentParticipantWithInfo {
+  id: string;
+  paymentId: string;
+  memberId: string;
+  shareAmount: number;
+  name?: string;
+  isPlaceholder?: boolean;
+  createdAt: Date;
+}
 
 interface PaymentWithParticipants extends Payment {
   payerName?: string;
-  payerIsGuest?: boolean;
-  participants: {
-    id: string;
-    paymentId: string;
-    userId: string | null;
-    guestId: string | null;
-    shareAmount: number;
-    name?: string;
-    isGuest?: boolean;
-    createdAt: Date;
-  }[];
+  payerIsPlaceholder?: boolean;
+  participants: PaymentParticipantWithInfo[];
+}
+
+/** Resolved member display info: name + placeholder flag */
+interface MemberInfo {
+  name: string;
+  isPlaceholder: boolean;
 }
 
 export interface IPaymentService {
@@ -76,6 +84,12 @@ export class PaymentService implements IPaymentService {
       );
     }
 
+    // Validate that the payer and all participants belong to this trip
+    await this.validateMembersBelongToTrip(tripId, [
+      data.memberId,
+      ...data.participants.map((p) => p.memberId),
+    ]);
+
     // Compute equal shares with cent rounding
     const shares = this.computeEqualShares(
       data.amount,
@@ -89,8 +103,7 @@ export class PaymentService implements IPaymentService {
         tripId,
         description: data.description,
         amount: data.amount,
-        userId: data.userId ?? null,
-        guestId: data.guestId ?? null,
+        memberId: data.memberId,
         date: data.date ? new Date(data.date) : new Date(),
         createdBy: userId,
       })
@@ -105,8 +118,7 @@ export class PaymentService implements IPaymentService {
       .values(
         data.participants.map((p, i) => ({
           paymentId: payment.id,
-          userId: p.userId ?? null,
-          guestId: p.guestId ?? null,
+          memberId: p.memberId,
           shareAmount: shares[i]!,
         })),
       )
@@ -139,23 +151,16 @@ export class PaymentService implements IPaymentService {
       .from(paymentParticipants)
       .where(inArray(paymentParticipants.paymentId, paymentIds));
 
-    // Collect all user IDs and guest IDs for name lookup
-    const userIds = new Set<string>();
-    const guestIds = new Set<string>();
-
+    // Collect all member IDs for name/placeholder lookup
+    const memberIds = new Set<string>();
     for (const p of paymentRows) {
-      if (p.userId) userIds.add(p.userId);
-      if (p.guestId) guestIds.add(p.guestId);
+      memberIds.add(p.memberId);
     }
     for (const pp of participantRows) {
-      if (pp.userId) userIds.add(pp.userId);
-      if (pp.guestId) guestIds.add(pp.guestId);
+      memberIds.add(pp.memberId);
     }
 
-    const nameMap = await this.buildNameMap(
-      Array.from(userIds),
-      Array.from(guestIds),
-    );
+    const memberMap = await this.buildMemberMap(Array.from(memberIds));
 
     // Group participants by payment
     const participantsByPayment = new Map<string, typeof participantRows>();
@@ -167,19 +172,19 @@ export class PaymentService implements IPaymentService {
 
     return paymentRows.map((p) => {
       const pParticipants = participantsByPayment.get(p.id) ?? [];
+      const payer = memberMap.get(p.memberId);
       return {
         ...p,
-        payerName: p.userId
-          ? (nameMap.get(`user:${p.userId}`) ?? "Unknown")
-          : (nameMap.get(`guest:${p.guestId}`) ?? "Unknown"),
-        payerIsGuest: p.guestId != null,
-        participants: pParticipants.map((pp) => ({
-          ...pp,
-          name: pp.userId
-            ? (nameMap.get(`user:${pp.userId}`) ?? "Unknown")
-            : (nameMap.get(`guest:${pp.guestId}`) ?? "Unknown"),
-          isGuest: pp.guestId != null,
-        })),
+        payerName: payer?.name ?? "Unknown",
+        payerIsPlaceholder: payer?.isPlaceholder ?? false,
+        participants: pParticipants.map((pp) => {
+          const info = memberMap.get(pp.memberId);
+          return {
+            ...pp,
+            name: info?.name ?? "Unknown",
+            isPlaceholder: info?.isPlaceholder ?? false,
+          };
+        }),
       };
     });
   }
@@ -211,12 +216,22 @@ export class PaymentService implements IPaymentService {
       );
     }
 
+    // Validate any new member references belong to this trip
+    const newMemberIds: string[] = [];
+    if (data.memberId !== undefined) newMemberIds.push(data.memberId);
+    if (data.participants !== undefined) {
+      for (const p of data.participants) newMemberIds.push(p.memberId);
+    }
+    if (newMemberIds.length > 0) {
+      await this.validateMembersBelongToTrip(existing.tripId, newMemberIds);
+    }
+
     // Build update data
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
-    if (data.description !== undefined) updateData.description = data.description;
+    if (data.description !== undefined)
+      updateData.description = data.description;
     if (data.amount !== undefined) updateData.amount = data.amount;
-    if (data.userId !== undefined) updateData.userId = data.userId ?? null;
-    if (data.guestId !== undefined) updateData.guestId = data.guestId ?? null;
+    if (data.memberId !== undefined) updateData.memberId = data.memberId;
     if (data.date !== undefined) updateData.date = new Date(data.date);
 
     const [updated] = await this.db
@@ -248,8 +263,7 @@ export class PaymentService implements IPaymentService {
         .values(
           data.participants.map((p, i) => ({
             paymentId,
-            userId: p.userId ?? null,
-            guestId: p.guestId ?? null,
+            memberId: p.memberId,
             shareAmount: shares[i]!,
           })),
         )
@@ -384,74 +398,90 @@ export class PaymentService implements IPaymentService {
     return this.permissionsService.isOrganizer(userId, payment.tripId);
   }
 
+  /**
+   * Ensure every referenced member belongs to the given trip.
+   * Throws MemberNotFoundError if any member is missing or foreign.
+   */
+  private async validateMembersBelongToTrip(
+    tripId: string,
+    memberIds: string[],
+  ): Promise<void> {
+    const unique = Array.from(new Set(memberIds));
+    if (unique.length === 0) return;
+
+    const rows = await this.db
+      .select({ id: members.id })
+      .from(members)
+      .where(and(eq(members.tripId, tripId), inArray(members.id, unique)));
+
+    if (rows.length !== unique.length) {
+      throw new MemberNotFoundError();
+    }
+  }
+
   private async enrichPayment(
     payment: Payment,
     participantRows: {
       id: string;
       paymentId: string;
-      userId: string | null;
-      guestId: string | null;
+      memberId: string;
       shareAmount: number;
       createdAt: Date;
     }[],
   ): Promise<PaymentWithParticipants> {
-    const userIds = new Set<string>();
-    const guestIds = new Set<string>();
-
-    if (payment.userId) userIds.add(payment.userId);
-    if (payment.guestId) guestIds.add(payment.guestId);
+    const memberIds = new Set<string>();
+    memberIds.add(payment.memberId);
     for (const pp of participantRows) {
-      if (pp.userId) userIds.add(pp.userId);
-      if (pp.guestId) guestIds.add(pp.guestId);
+      memberIds.add(pp.memberId);
     }
 
-    const nameMap = await this.buildNameMap(
-      Array.from(userIds),
-      Array.from(guestIds),
-    );
+    const memberMap = await this.buildMemberMap(Array.from(memberIds));
+    const payer = memberMap.get(payment.memberId);
 
     return {
       ...payment,
-      payerName: payment.userId
-        ? (nameMap.get(`user:${payment.userId}`) ?? "Unknown")
-        : (nameMap.get(`guest:${payment.guestId}`) ?? "Unknown"),
-      payerIsGuest: payment.guestId != null,
-      participants: participantRows.map((pp) => ({
-        ...pp,
-        name: pp.userId
-          ? (nameMap.get(`user:${pp.userId}`) ?? "Unknown")
-          : (nameMap.get(`guest:${pp.guestId}`) ?? "Unknown"),
-        isGuest: pp.guestId != null,
-      })),
+      payerName: payer?.name ?? "Unknown",
+      payerIsPlaceholder: payer?.isPlaceholder ?? false,
+      participants: participantRows.map((pp) => {
+        const info = memberMap.get(pp.memberId);
+        return {
+          ...pp,
+          name: info?.name ?? "Unknown",
+          isPlaceholder: info?.isPlaceholder ?? false,
+        };
+      }),
     };
   }
 
-  private async buildNameMap(
-    userIds: string[],
-    guestIds: string[],
-  ): Promise<Map<string, string>> {
-    const nameMap = new Map<string, string>();
+  /**
+   * Resolve member display info in a single members query joined to users.
+   * name = COALESCE(users.displayName, members.displayName)
+   * isPlaceholder = members.userId IS NULL
+   */
+  private async buildMemberMap(
+    memberIds: string[],
+  ): Promise<Map<string, MemberInfo>> {
+    const map = new Map<string, MemberInfo>();
+    if (memberIds.length === 0) return map;
 
-    if (userIds.length > 0) {
-      const userRows = await this.db
-        .select({ id: users.id, displayName: users.displayName })
-        .from(users)
-        .where(inArray(users.id, userIds));
-      for (const u of userRows) {
-        nameMap.set(`user:${u.id}`, u.displayName);
-      }
+    const rows = await this.db
+      .select({
+        id: members.id,
+        userId: members.userId,
+        memberDisplayName: members.displayName,
+        userDisplayName: users.displayName,
+      })
+      .from(members)
+      .leftJoin(users, eq(members.userId, users.id))
+      .where(inArray(members.id, memberIds));
+
+    for (const r of rows) {
+      map.set(r.id, {
+        name: r.userDisplayName ?? r.memberDisplayName ?? "Unknown",
+        isPlaceholder: r.userId === null,
+      });
     }
 
-    if (guestIds.length > 0) {
-      const guestRows = await this.db
-        .select({ id: tripGuests.id, name: tripGuests.name })
-        .from(tripGuests)
-        .where(inArray(tripGuests.id, guestIds));
-      for (const g of guestRows) {
-        nameMap.set(`guest:${g.id}`, g.name);
-      }
-    }
-
-    return nameMap;
+    return map;
   }
 }
