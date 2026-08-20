@@ -2,6 +2,8 @@ import { eq, sql } from "drizzle-orm";
 import { trips, poiCache } from "@/db/schema/index.js";
 import { POI_CATEGORIES, googleTypeLabels } from "@journiful/shared/types";
 import type { POISuggestion, POICategoryKey, POISuggestionsResponse } from "@journiful/shared/types";
+import { poiSuggestionSchema } from "@journiful/shared/schemas";
+import { z } from "zod";
 import type { AppDatabase } from "@/types/index.js";
 import type { FastifyBaseLogger } from "fastify";
 
@@ -67,7 +69,26 @@ export class DiscoverService implements IDiscoverService {
 
       if (cached.length > 0) {
         const row = cached[0]!;
-        const suggestions = row.suggestions as POISuggestion[];
+        let suggestions = row.suggestions as POISuggestion[];
+
+        // Validate cached blob against current schema — stale blobs (e.g. pre
+        // photo/background fields from commit dbc997ae) fail serialization and
+        // 500 the response. Detect here and self-heal instead.
+        const validation = z.array(poiSuggestionSchema).safeParse(suggestions);
+        if (!validation.success) {
+          if (this.googleApiKey) {
+            this.log.info(
+              { tripId, issues: validation.error.issues.slice(0, 3) },
+              "Stale POI cache schema, invalidating and refetching",
+            );
+            await this.db.delete(poiCache).where(eq(poiCache.tripId, tripId));
+            return this.fetchAndCache(tripId, location, lat, lon);
+          }
+          // No API key — can't refetch, normalize missing fields to null so
+          // the response still passes Zod serialization (degraded but not 500).
+          this.log.warn({ tripId }, "Stale POI cache schema but no API key, serving normalized cache");
+          suggestions = suggestions.map(normalizeSuggestion);
+        }
 
         // Stale cache detection: if destination coords changed, treat as cache miss
         const DEST_COORD_EPSILON = 0.001; // ~111 meters
@@ -364,6 +385,18 @@ export class DiscoverService implements IDiscoverService {
       };
     };
   }
+}
+
+// Normalize a possibly-stale cached POI (pre-dbc997ae blobs lack photo fields)
+function normalizeSuggestion(s: POISuggestion): POISuggestion {
+  const raw = s as unknown as Record<string, unknown>;
+  return {
+    ...s,
+    photoName: (raw.photoName as string | null | undefined) ?? null,
+    photoAttribution: (raw.photoAttribution as string | null | undefined) ?? null,
+    googleMapsUri: (raw.googleMapsUri as string | null | undefined) ?? null,
+    businessStatus: (raw.businessStatus as string | null | undefined) ?? null,
+  };
 }
 
 // Helpers

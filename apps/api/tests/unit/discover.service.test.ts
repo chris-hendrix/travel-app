@@ -51,6 +51,8 @@ interface MockDb {
   insert: ReturnType<typeof vi.fn>;
   values: ReturnType<typeof vi.fn>;
   onConflictDoUpdate: ReturnType<typeof vi.fn>;
+  delete: ReturnType<typeof vi.fn>;
+  deleteWhere: ReturnType<typeof vi.fn>;
 }
 
 function createMockDb(): MockDb {
@@ -60,7 +62,9 @@ function createMockDb(): MockDb {
   const onConflictDoUpdate = vi.fn().mockResolvedValue(undefined);
   const values = vi.fn().mockReturnValue({ onConflictDoUpdate });
   const insert = vi.fn().mockReturnValue({ values });
-  return { select, from, where, insert, values, onConflictDoUpdate };
+  const deleteWhere = vi.fn().mockResolvedValue(undefined);
+  const del = vi.fn().mockReturnValue({ where: deleteWhere });
+  return { select, from, where, insert, values, onConflictDoUpdate, delete: del, deleteWhere };
 }
 
 // ─── Mock logger ─────────────────────────────────────────────────────────────
@@ -202,6 +206,84 @@ describe("DiscoverService", () => {
       // Should have made 4 fetch calls (cache expired)
       expect(fetchSpy).toHaveBeenCalledTimes(7);
       expect(mockDb.onConflictDoUpdate).toHaveBeenCalled();
+    });
+  });
+
+  // ── Stale cache (pre-dbc997ae blobs missing photo fields) ─────────────────
+
+  describe("stale cache self-healing", () => {
+    function makeStaleSuggestion(): POISuggestion {
+      // Simulate a blob stored before photoName/photoAttribution/googleMapsUri/businessStatus existed
+      const full = makeSuggestion({ sourceId: "ChIJ-stale", name: "Stale Place" });
+      const { photoName: _photoName, photoAttribution: _photoAttribution, googleMapsUri: _googleMapsUri, businessStatus: _businessStatus, ...rest } =
+        full as unknown as Record<string, unknown> as POISuggestion & Record<string, unknown>;
+      return rest as unknown as POISuggestion;
+    }
+
+    it("invalidates stale cache and refetches when API key is present", async () => {
+      const stale = makeStaleSuggestion();
+
+      // Trip query
+      mockDb.where.mockResolvedValueOnce([{ id: TRIP_ID }]);
+      // Cache query — stale blob (missing the 4 photo fields)
+      mockDb.where.mockResolvedValueOnce([
+        {
+          tripId: TRIP_ID,
+          source: "google",
+          searchLat: 48.8566,
+          searchLon: 2.3522,
+          searchLocation: "Paris",
+          cachedAt: new Date(),
+          suggestions: [stale],
+        },
+      ]);
+      // fetchAndCache: existing cache read after delete (empty, since we deleted)
+      mockDb.where.mockResolvedValueOnce([]);
+      // fetchAndCache: re-read latest after fetch (also empty)
+      mockDb.where.mockResolvedValueOnce([]);
+      mockDb.deleteWhere.mockResolvedValueOnce(undefined);
+      mockDb.onConflictDoUpdate.mockResolvedValueOnce(undefined);
+
+      const result = await service.getDiscoverPOIs(TRIP_ID, 48.8566, 2.3522, "Paris");
+
+      expect(mockDb.deleteWhere).toHaveBeenCalled();
+      expect(fetchSpy).toHaveBeenCalledTimes(7);
+      expect(result.source).toBe("google");
+      expect(mockDb.onConflictDoUpdate).toHaveBeenCalled();
+    });
+
+    it("normalizes stale cache and serves it when no API key is configured", async () => {
+      const staleService = new DiscoverService(mockDb as never, "", mockLog as never);
+      const stale = makeStaleSuggestion();
+
+      // Mock fetch should NOT be called in this path
+      fetchSpy.mockClear();
+
+      // Trip query
+      mockDb.where.mockResolvedValueOnce([{ id: TRIP_ID }]);
+      // Cache query — stale blob
+      mockDb.where.mockResolvedValueOnce([
+        {
+          tripId: TRIP_ID,
+          source: "google",
+          searchLat: 48.8566,
+          searchLon: 2.3522,
+          searchLocation: "Paris",
+          cachedAt: new Date(),
+          suggestions: [stale],
+        },
+      ]);
+
+      const result = await staleService.getDiscoverPOIs(TRIP_ID, 48.8566, 2.3522, "Paris");
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(mockDb.deleteWhere).not.toHaveBeenCalled();
+      expect(result.categories.food_and_drink).toHaveLength(1);
+      const poi = result.categories.food_and_drink[0]!;
+      expect(poi.photoName).toBeNull();
+      expect(poi.photoAttribution).toBeNull();
+      expect(poi.googleMapsUri).toBeNull();
+      expect(poi.businessStatus).toBeNull();
     });
   });
 
