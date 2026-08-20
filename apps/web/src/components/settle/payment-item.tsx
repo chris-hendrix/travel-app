@@ -16,9 +16,9 @@ function formatCents(cents: number): string {
 
 export function PaymentItem({ payment, onClick, currentUserId }: PaymentItemProps) {
   const isCurrentUserPayer =
-    !!currentUserId && !payment.payerIsGuest && payment.userId === currentUserId;
+    !!currentUserId && !payment.payerIsPlaceholder && payment.memberId === currentUserId;
   const payerName = isCurrentUserPayer ? "You" : (payment.payerName ?? "Someone");
-  const isGuest = payment.payerIsGuest ?? false;
+  const isGuest = payment.payerIsPlaceholder ?? false;
   const participantCount = payment.participants.length;
   const date = new Date(payment.date);
   const isSettlement =
@@ -30,7 +30,7 @@ export function PaymentItem({ payment, onClick, currentUserId }: PaymentItemProp
   if (isSettlement) {
     const recipient = payment.participants[0];
     const isRecipientCurrentUser =
-      !!currentUserId && !recipient?.isGuest && recipient?.userId === currentUserId;
+      !!currentUserId && !recipient?.isPlaceholder && recipient?.memberId === currentUserId;
     const recipientName = isRecipientCurrentUser ? "you" : (recipient?.name ?? "Someone");
     return (
       <button

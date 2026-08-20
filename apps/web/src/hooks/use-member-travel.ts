@@ -179,6 +179,7 @@ export function useCreateMemberTravel() {
         id: "temp-" + Date.now(),
         tripId,
         memberId: "current-member",
+        userId: null,
         travelType: data.travelType,
         time: new Date(data.time),
         location: data.location || null,
@@ -188,7 +189,7 @@ export function useCreateMemberTravel() {
         deletedBy: null,
         createdAt: new Date(),
         updatedAt: new Date(),
-      };
+      } as MemberTravel;
 
       // Add optimistic member travel to the cache if member travels list exists
       if (previousMemberTravels) {

@@ -17,7 +17,7 @@ function personName(
   person: BalanceEntry["from"],
   currentUserId?: string,
 ): string {
-  if (currentUserId && !person.isGuest && person.id === currentUserId) {
+  if (currentUserId && !person.isPlaceholder && person.id === currentUserId) {
     return "You";
   }
   return person.name;
@@ -55,10 +55,10 @@ export function BalanceItem({
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">
           {fromName} {verb} {toName}
-          {entry.from.isGuest && (
+          {entry.from.isPlaceholder && (
             <UserCircle className="inline h-3.5 w-3.5 text-muted-foreground ml-1 align-text-bottom" aria-label="Guest" />
           )}
-          {entry.to.isGuest && (
+          {entry.to.isPlaceholder && (
             <UserCircle className="inline h-3.5 w-3.5 text-muted-foreground ml-1 align-text-bottom" aria-label="Guest" />
           )}
         </p>

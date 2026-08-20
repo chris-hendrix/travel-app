@@ -26,11 +26,11 @@ export function BalanceList({ tripId, onSettleUp }: BalanceListProps) {
     if (!balances || !user) return balances;
     return [...balances].sort((a, b) => {
       const aIsMe =
-        (!a.from.isGuest && a.from.id === user.id) ||
-        (!a.to.isGuest && a.to.id === user.id);
+        (!a.from.isPlaceholder && a.from.id === user.id) ||
+        (!a.to.isPlaceholder && a.to.id === user.id);
       const bIsMe =
-        (!b.from.isGuest && b.from.id === user.id) ||
-        (!b.to.isGuest && b.to.id === user.id);
+        (!b.from.isPlaceholder && b.from.id === user.id) ||
+        (!b.to.isPlaceholder && b.to.id === user.id);
       if (aIsMe && !bIsMe) return -1;
       if (!aIsMe && bIsMe) return 1;
       return 0;

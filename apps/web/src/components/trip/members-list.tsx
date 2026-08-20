@@ -49,7 +49,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { VenmoIcon } from "@/components/icons/venmo-icon";
@@ -115,15 +114,16 @@ function MemberRow({
   onMute,
   onUnmute,
 }: MemberRowProps) {
-  const canRemove = isOrganizer && !!onRemove && member.userId !== createdBy;
+  const canRemove = isOrganizer && !!onRemove && (member.isPlaceholder || member.userId !== createdBy);
 
   const canUpdateRole =
     !!onUpdateRole &&
+    !member.isPlaceholder &&
     member.userId !== createdBy &&
     member.userId !== currentUserId;
 
   const canMute =
-    isOrganizer && !member.isOrganizer && member.userId !== createdBy;
+    isOrganizer && !member.isOrganizer && !member.isPlaceholder && member.userId !== createdBy;
 
   const showActions = isOrganizer && (canRemove || canUpdateRole || canMute);
 
@@ -326,7 +326,7 @@ export function MembersList({
   const revokeInvitation = useRevokeInvitation(tripId);
 
   const handleMute = async () => {
-    if (!mutingMember) return;
+    if (!mutingMember || !mutingMember.userId) return;
     try {
       await muteMember.mutateAsync(mutingMember.userId);
       toast.success(`${mutingMember.displayName} has been muted`);
@@ -339,6 +339,7 @@ export function MembersList({
   };
 
   const handleUnmute = async (member: MemberWithProfile) => {
+    if (!member.userId) return;
     try {
       await unmuteMember.mutateAsync(member.userId);
       toast.success(`${member.displayName} has been unmuted`);
@@ -391,15 +392,13 @@ export function MembersList({
   const going = members.filter((m) => m.status === "going");
   const maybe = members.filter((m) => m.status === "maybe");
   const notGoing = members.filter((m) => m.status === "not_going");
-  const noResponse = members.filter((m) => m.status === "no_response");
+  const placeholders = members.filter((m) => m.isPlaceholder);
 
-  // Pending/failed invitations for the Invited tab
+  // Pending/failed invitations for the Invited group
   const pendingInvitations =
     invitations?.filter(
       (inv) => inv.status === "pending" || inv.status === "failed",
     ) ?? [];
-
-  const invitedCount = noResponse.length + pendingInvitations.length;
 
   const memberRowProps = {
     isOrganizer,
@@ -412,95 +411,48 @@ export function MembersList({
     onUnmute: handleUnmute,
   };
 
+  function SectionHeader({ title, count }: { title: string; count: number }) {
+    return (
+      <div className="flex items-center justify-between py-2">
+        <h3 className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">{title}</h3>
+        <span className="inline-flex size-5 items-center justify-center rounded-full bg-muted text-xs font-semibold">{count}</span>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col flex-1">
-      <Tabs defaultValue="going" className="flex-1">
-        <TabsList
-          variant="line"
-          className="flex w-full justify-start overflow-x-auto overflow-y-hidden [&>*]:flex-none gap-1 border-b border-border px-0"
-        >
-          <TabsTrigger value="going" className="text-sm">
-            Going
-            <span className="ml-1 inline-flex size-5 items-center justify-center rounded-full bg-muted text-xs font-semibold">
-              {going.length}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger value="maybe" className="text-sm">
-            Maybe
-            <span className="ml-1 inline-flex size-5 items-center justify-center rounded-full bg-muted text-xs font-semibold">
-              {maybe.length}
-            </span>
-          </TabsTrigger>
-          {isOrganizer && (
-            <TabsTrigger value="not_going" className="text-sm">
-              Not Going
-              <span className="ml-1 inline-flex size-5 items-center justify-center rounded-full bg-muted text-xs font-semibold">
-                {notGoing.length}
-              </span>
-            </TabsTrigger>
-          )}
-          {isOrganizer && (
-            <TabsTrigger value="invited" className="text-sm">
-              Invited
-              <span className="ml-1 inline-flex size-5 items-center justify-center rounded-full bg-muted text-xs font-semibold">
-                {invitedCount}
-              </span>
-            </TabsTrigger>
-          )}
-        </TabsList>
-
-        <TabsContent value="going">
+      <div className="flex-1 space-y-6 overflow-y-auto">
+        <section>
+          <SectionHeader title="Going" count={going.length} />
           <div className="divide-y divide-border">
-            {going.map((member, i) => (
-              <MemberRow
-                key={member.id}
-                member={member}
-                index={i}
-                {...memberRowProps}
-              />
+            {going.length === 0 ? <p className="text-sm text-muted-foreground py-2">No one yet</p> : going.map((member, i) => (
+              <MemberRow key={member.id} member={member} index={i} {...memberRowProps} />
             ))}
           </div>
-        </TabsContent>
-
-        <TabsContent value="maybe">
+        </section>
+        <section>
+          <SectionHeader title="Maybe" count={maybe.length} />
           <div className="divide-y divide-border">
-            {maybe.map((member, i) => (
-              <MemberRow
-                key={member.id}
-                member={member}
-                index={i}
-                {...memberRowProps}
-              />
+            {maybe.length === 0 ? <p className="text-sm text-muted-foreground py-2">No one yet</p> : maybe.map((member, i) => (
+              <MemberRow key={member.id} member={member} index={i} {...memberRowProps} />
             ))}
           </div>
-        </TabsContent>
-
+        </section>
         {isOrganizer && (
-          <TabsContent value="not_going">
+          <section>
+            <SectionHeader title="Not going" count={notGoing.length} />
             <div className="divide-y divide-border">
-              {notGoing.map((member, i) => (
-                <MemberRow
-                  key={member.id}
-                  member={member}
-                  index={i}
-                  {...memberRowProps}
-                />
+              {notGoing.length === 0 ? <p className="text-sm text-muted-foreground py-2">No one yet</p> : notGoing.map((member, i) => (
+                <MemberRow key={member.id} member={member} index={i} {...memberRowProps} />
               ))}
             </div>
-          </TabsContent>
+          </section>
         )}
-
-        {isOrganizer && (
-          <TabsContent value="invited">
+        {isOrganizer && pendingInvitations.length > 0 && (
+          <section>
+            <SectionHeader title="Invited" count={pendingInvitations.length} />
             <div className="divide-y divide-border">
-              {noResponse.map((member, i) => (
-                <MemberRow
-                  key={member.id}
-                  member={member}
-                  index={i}
-                  {...memberRowProps}
-                />
-              ))}
               {pendingInvitations.map((invitation) => (
                 <PendingInvitationRow
                   key={invitation.id}
@@ -510,19 +462,30 @@ export function MembersList({
                 />
               ))}
             </div>
-          </TabsContent>
+          </section>
         )}
-      </Tabs>
+        {isOrganizer && placeholders.length > 0 && (
+          <section>
+            <SectionHeader title="Not invited" count={placeholders.length} />
+            <div className="divide-y divide-border">
+              {placeholders.map((member, i) => (
+                <MemberRow key={member.id} member={member} index={i} {...memberRowProps} />
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
 
       {isOrganizer && onInvite && (
-        <div className="mt-auto pt-4 border-t border-border">
+        <div className="sticky bottom-0 bg-background pt-4 pb-2 border-t border-border mt-4">
           <Button
             onClick={onInvite}
             variant="outline"
             size="sm"
+            className="w-full"
           >
             <UserPlus className="w-4 h-4 mr-2" />
-            Invite
+            Invite members
           </Button>
         </div>
       )}

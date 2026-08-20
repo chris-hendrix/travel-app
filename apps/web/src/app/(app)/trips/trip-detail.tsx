@@ -144,10 +144,8 @@ export function TripDetailShell() {
   const { data: members } = useQuery({
     ...membersQueryOptions(tripId),
     enabled: !!tripId,
-    select: (data) =>
-      data.map((m) => ({ id: m.id, userId: m.userId, isMuted: m.isMuted })),
   });
-  const currentMember = members?.find((m) => m.userId === user?.id);
+  const currentMember = members?.find((m) => m.userId === user?.id) as { id: string; userId: string | null; isMuted?: boolean } | undefined;
   const isMobile = useIsMobile();
   const { data: weather, isLoading: weatherLoading } =
     useWeatherForecast(tripId);
@@ -249,7 +247,7 @@ export function TripDetailShell() {
         weather={weather}
         weatherLoading={weatherLoading}
         temperatureUnit={temperatureUnit}
-        currentMember={currentMember}
+        currentMember={currentMember as any}
         user={user}
         removeMember={removeMember}
         handleUpdateRole={handleUpdateRole}
@@ -382,7 +380,7 @@ export function TripDetailShell() {
                   weather={weather}
                   weatherLoading={weatherLoading}
                   temperatureUnit={temperatureUnit}
-                  currentMember={currentMember}
+                  currentMember={currentMember as any}
                   onOpenInvite={() => setIsInviteOpen(true)}
                   onOpenEdit={() => setIsEditOpen(true)}
                   onOpenSettings={() => setIsSettingsOpen(true)}
@@ -402,7 +400,7 @@ export function TripDetailShell() {
                 weather={weather}
                 weatherLoading={weatherLoading}
                 temperatureUnit={temperatureUnit}
-                currentMember={currentMember}
+                currentMember={currentMember as any}
                 onOpenInvite={() => setIsInviteOpen(true)}
                 onOpenEdit={() => setIsEditOpen(true)}
                 onOpenSettings={() => setIsSettingsOpen(true)}
@@ -421,7 +419,7 @@ export function TripDetailShell() {
                 weather={weather}
                 weatherLoading={weatherLoading}
                 temperatureUnit={temperatureUnit}
-                currentMember={currentMember}
+                currentMember={currentMember as any}
                 user={user}
                 events={events}
                 openEdit={() => setIsEditOpen(true)}

@@ -139,7 +139,7 @@ export function ItineraryView({
       }
     }
     for (const member of members) {
-      if (!map.has(member.userId)) {
+      if (member.userId && !map.has(member.userId)) {
         map.set(member.userId, member.displayName);
       }
     }

@@ -71,10 +71,11 @@ export async function handleNotificationBatch(
     .innerJoin(users, eq(members.userId, users.id))
     .where(and(eq(members.tripId, tripId), eq(members.status, "going")));
 
-  // 2. Filter out excludeUserId
+  // 2. Filter out excludeUserId and placeholders (no user)
+  const nonPlaceholderGoing = goingMembers.filter((m): m is { userId: string; phoneNumber: string } => m.userId !== null);
   const targetMembers = excludeUserId
-    ? goingMembers.filter((m) => m.userId !== excludeUserId)
-    : goingMembers;
+    ? nonPlaceholderGoing.filter((m) => m.userId !== excludeUserId)
+    : nonPlaceholderGoing;
 
   if (targetMembers.length === 0) {
     return;

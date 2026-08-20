@@ -368,6 +368,7 @@ export class NotificationService implements INotificationService {
       .where(and(eq(members.tripId, tripId), eq(members.status, "going")));
 
     for (const member of goingMembers) {
+      if (!member.userId) continue;
       if (excludeUserId && member.userId === excludeUserId) {
         continue;
       }

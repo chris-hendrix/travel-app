@@ -7,7 +7,7 @@ import { DollarSign, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/app/providers/auth-provider";
 import { membersQueryOptions } from "@/hooks/invitation-queries";
-import { useGuests, useCreateGuest } from "@/hooks/use-guests";
+import { useCreatePlaceholder } from "@/hooks/use-placeholders";
 import {
   useCreatePayment,
   useUpdatePayment,
@@ -39,14 +39,14 @@ import type { Payment } from "@journiful/shared/types";
 
 interface PayerOption {
   id: string;
-  type: "user" | "guest";
   name: string;
+  isPlaceholder?: boolean;
 }
 
 interface ParticipantOption {
   id: string;
-  type: "user" | "guest";
   name: string;
+  isPlaceholder?: boolean;
   checked: boolean;
 }
 
@@ -70,28 +70,29 @@ export function PaymentForm({
     ...membersQueryOptions(tripId),
     enabled: !!tripId,
   });
-  const { data: guests } = useGuests(tripId);
   const createPayment = useCreatePayment();
   const updatePayment = useUpdatePayment();
   const deletePayment = useDeletePayment();
-  const createGuest = useCreateGuest();
-  const [newGuestName, setNewGuestName] = useState("");
+  const createPlaceholder = useCreatePlaceholder(tripId);
+  const [newPersonName, setNewPersonName] = useState("");
 
-  // Build payer/participant options
+  // Build payer/participant options — single member list (placeholders included via members)
   const people = useMemo<PayerOption[]>(() => {
     const opts: PayerOption[] = [];
     if (members) {
       for (const m of members) {
-        opts.push({ id: m.userId, type: "user", name: m.displayName });
-      }
-    }
-    if (guests) {
-      for (const g of guests) {
-        opts.push({ id: g.id, type: "guest", name: g.name });
+        opts.push({ id: m.id, name: m.displayName, isPlaceholder: m.isPlaceholder });
       }
     }
     return opts;
-  }, [members, guests]);
+  }, [members]);
+
+  // Resolve current user's memberId for default payer
+  const currentMemberId = useMemo(() => {
+    if (!members || !user) return "";
+    const me = members.find((m) => m.userId === user.id);
+    return me?.id ?? "";
+  }, [members, user]);
 
   // Form state
   const [description, setDescription] = useState(
@@ -102,9 +103,9 @@ export function PaymentForm({
   );
   const [payerId, setPayerId] = useState<string>(() => {
     if (payment) {
-      return payment.userId ?? payment.guestId ?? "";
+      return payment.memberId ?? "";
     }
-    return user?.id ?? "";
+    return currentMemberId;
   });
   const [date, setDate] = useState(
     payment
@@ -115,7 +116,7 @@ export function PaymentForm({
     () => {
       if (payment) {
         return new Set(
-          payment.participants.map((p) => p.userId ?? p.guestId ?? ""),
+          payment.participants.map((p) => p.memberId),
         );
       }
       // Default: all people selected
@@ -126,10 +127,10 @@ export function PaymentForm({
   // Reset form when payment prop changes (opening a different expense or creating new)
   useEffect(() => {
     if (open) {
-      setNewGuestName("");
+      setNewPersonName("");
       setDescription(payment?.description ?? "");
       setAmountStr(payment ? (payment.amount / 100).toFixed(2) : "");
-      setPayerId(payment?.userId ?? payment?.guestId ?? user?.id ?? "");
+      setPayerId(payment?.memberId ?? currentMemberId);
       setDate(
         payment
           ? format(new Date(payment.date), "yyyy-MM-dd")
@@ -137,7 +138,7 @@ export function PaymentForm({
       );
       if (payment) {
         setSelectedParticipants(
-          new Set(payment.participants.map((p) => p.userId ?? p.guestId ?? "")),
+          new Set(payment.participants.map((p) => p.memberId)),
         );
         setInitialized(true);
       } else {
@@ -145,7 +146,7 @@ export function PaymentForm({
         setInitialized(people.length > 0);
       }
     }
-  }, [open, payment]);
+  }, [open, payment, people, currentMemberId]);
 
   // When people list loads and we have no participants yet (initial add), select all
   const [initialized, setInitialized] = useState(!!payment);
@@ -185,20 +186,20 @@ export function PaymentForm({
     setSelectedParticipants(new Set());
   }, []);
 
-  const handleAddGuest = () => {
-    const trimmed = newGuestName.trim();
+  const handleAddPerson = () => {
+    const trimmed = newPersonName.trim();
     if (!trimmed) return;
-    createGuest.mutate(
-      { tripId, data: { name: trimmed } },
+    createPlaceholder.mutate(
+      { name: trimmed },
       {
-        onSuccess: (guest) => {
-          setNewGuestName("");
-          // Auto-select the new guest as a participant
-          setSelectedParticipants((prev) => new Set([...prev, guest.id]));
+        onSuccess: (member) => {
+          setNewPersonName("");
+          // Auto-select the new person as a participant
+          setSelectedParticipants((prev) => new Set([...prev, member.id]));
         },
         onError: (error) => {
           toast.error(
-            error instanceof Error ? error.message : "Failed to add guest",
+            error instanceof Error ? error.message : "Failed to add person",
           );
         },
       },
@@ -216,19 +217,12 @@ export function PaymentForm({
   const handleSubmit = () => {
     if (!isValid) return;
 
-    const payer = people.find((p) => p.id === payerId);
-    if (!payer) return;
-
-    const participants = Array.from(selectedParticipants).map((id) => {
-      const person = people.find((p) => p.id === id);
-      if (!person) return { userId: id };
-      return person.type === "user" ? { userId: id } : { guestId: id };
-    });
+    const participants = Array.from(selectedParticipants).map((id) => ({ memberId: id }));
 
     const payload = {
       description: description.trim(),
       amount: amountCents,
-      ...(payer.type === "user" ? { userId: payerId } : { guestId: payerId }),
+      memberId: payerId,
       participants,
       date: new Date(date + "T12:00:00").toISOString(),
     };
@@ -319,7 +313,6 @@ export function PaymentForm({
                   {people.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.name}
-                      {p.type === "guest" ? " (guest)" : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -369,26 +362,25 @@ export function PaymentForm({
                     />
                     <span className="text-sm">
                       {p.name}
-                      {p.type === "guest" ? " (guest)" : ""}
                     </span>
                   </label>
                 ))}
                 {participantOptions.length === 0 && (
                   <p className="text-sm text-muted-foreground px-2 py-1.5">
-                    No members or guests available.
+                    No members available.
                   </p>
                 )}
-                {/* Inline add guest */}
+                {/* Inline add person */}
                 <div className="flex items-center gap-2 px-2 pt-1.5 border-t border-border mt-1">
                   <UserPlus className="size-4 text-muted-foreground shrink-0" />
                   <Input
-                    placeholder="Add guest..."
-                    value={newGuestName}
-                    onChange={(e) => setNewGuestName(e.target.value)}
+                    placeholder="Add person..."
+                    value={newPersonName}
+                    onChange={(e) => setNewPersonName(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
-                        handleAddGuest();
+                        handleAddPerson();
                       }
                     }}
                     className="h-7 text-sm border-0 shadow-none px-0 focus-visible:ring-0"

@@ -626,8 +626,8 @@ export class TripService implements ITripService {
         (memberCountByTrip.get(m.tripId) ?? 0) + 1,
       );
 
-      // Track organizer userIds (isOrganizer=true)
-      if (m.isOrganizer) {
+      // Track organizer userIds (isOrganizer=true) — skip placeholders
+      if (m.isOrganizer && m.userId) {
         if (!organizerMembersByTrip.has(m.tripId)) {
           organizerMembersByTrip.set(m.tripId, []);
         }

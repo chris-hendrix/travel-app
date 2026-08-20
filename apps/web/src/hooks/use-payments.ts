@@ -65,8 +65,7 @@ export function useCreatePayment() {
         tripId,
         description: data.description,
         amount: data.amount,
-        userId: data.userId ?? null,
-        guestId: data.guestId ?? null,
+        memberId: data.memberId,
         date: data.date ? new Date(data.date) : new Date(),
         createdBy: "current-user",
         deletedAt: null,
@@ -76,8 +75,7 @@ export function useCreatePayment() {
         participants: data.participants.map((p, i) => ({
           id: "temp-participant-" + i,
           paymentId: "temp-" + Date.now(),
-          userId: p.userId ?? null,
-          guestId: p.guestId ?? null,
+          memberId: p.memberId,
           shareAmount: Math.floor(data.amount / data.participants.length),
           createdAt: new Date(),
         })),
@@ -162,14 +160,7 @@ export function useUpdatePayment() {
                     ...p,
                     description: data.description ?? p.description,
                     amount: data.amount ?? p.amount,
-                    userId:
-                      data.userId !== undefined
-                        ? (data.userId ?? null)
-                        : p.userId,
-                    guestId:
-                      data.guestId !== undefined
-                        ? (data.guestId ?? null)
-                        : p.guestId,
+                    memberId: data.memberId ?? p.memberId,
                     date: data.date ? new Date(data.date) : p.date,
                     updatedAt: new Date(),
                   }
