@@ -11,6 +11,7 @@ import {
   boolean,
   pgEnum,
   unique,
+  uniqueIndex,
   jsonb,
   integer,
   doublePrecision,
@@ -131,9 +132,9 @@ export const members = pgTable(
     tripId: uuid("trip_id")
       .notNull()
       .references(() => trips.id, { onDelete: "cascade" }),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    displayName: varchar("display_name", { length: 100 }),
+    phoneNumber: varchar("phone_number", { length: 20 }),
     status: rsvpStatusEnum("status").notNull().default("no_response"),
     isOrganizer: boolean("is_organizer").notNull().default(false),
     sharePhone: boolean("share_phone").notNull().default(false),
@@ -149,6 +150,9 @@ export const members = pgTable(
     index("members_trip_id_idx").on(table.tripId),
     index("members_user_id_idx").on(table.userId),
     unique("members_trip_user_unique").on(table.tripId, table.userId),
+    uniqueIndex("members_trip_phone_unique")
+      .on(table.tripId, table.phoneNumber)
+      .where(sql`${table.phoneNumber} IS NOT NULL`),
     index("members_trip_id_is_organizer_idx").on(
       table.tripId,
       table.isOrganizer,
@@ -172,6 +176,9 @@ export const invitations = pgTable(
       .notNull()
       .references(() => users.id),
     inviteePhone: varchar("invitee_phone", { length: 20 }).notNull(),
+    memberId: uuid("member_id").references(() => members.id, {
+      onDelete: "cascade",
+    }),
     status: invitationStatusEnum("status").notNull().default("pending"),
     sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
     respondedAt: timestamp("responded_at", { withTimezone: true }),
@@ -682,31 +689,6 @@ export const pushSubscriptions = pgTable(
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 export type NewPushSubscription = typeof pushSubscriptions.$inferInsert;
 
-// Trip Guests (non-member participants for expense splitting)
-export const tripGuests = pgTable(
-  "trip_guests",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    tripId: uuid("trip_id")
-      .notNull()
-      .references(() => trips.id, { onDelete: "cascade" }),
-    name: varchar("name", { length: 100 }).notNull(),
-    createdBy: uuid("created_by")
-      .notNull()
-      .references(() => users.id),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-  },
-  (table) => [index("trip_guests_trip_id_idx").on(table.tripId)],
-);
-
-export type TripGuest = typeof tripGuests.$inferSelect;
-export type NewTripGuest = typeof tripGuests.$inferInsert;
-
 // Payments (expenses and settlements)
 export const payments = pgTable(
   "payments",
@@ -717,9 +699,9 @@ export const payments = pgTable(
       .references(() => trips.id, { onDelete: "cascade" }),
     description: text("description").notNull(),
     amount: integer("amount").notNull(), // cents to avoid floating point
-    // Payer — exactly one is non-null (enforced by CHECK constraint in migration)
-    userId: uuid("user_id").references(() => users.id),
-    guestId: uuid("guest_id").references(() => tripGuests.id),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
     date: timestamp("date", { withTimezone: true }).notNull().defaultNow(),
     createdBy: uuid("created_by")
       .notNull()
@@ -737,8 +719,7 @@ export const payments = pgTable(
     index("payments_trip_id_not_deleted_idx")
       .on(table.tripId)
       .where(sql`${table.deletedAt} IS NULL`),
-    index("payments_user_id_idx").on(table.userId),
-    index("payments_guest_id_idx").on(table.guestId),
+    index("payments_member_id_idx").on(table.memberId),
   ],
 );
 
@@ -753,9 +734,9 @@ export const paymentParticipants = pgTable(
     paymentId: uuid("payment_id")
       .notNull()
       .references(() => payments.id, { onDelete: "cascade" }),
-    // Participant — exactly one is non-null (enforced by CHECK constraint in migration)
-    userId: uuid("user_id").references(() => users.id),
-    guestId: uuid("guest_id").references(() => tripGuests.id),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
     shareAmount: integer("share_amount").notNull(), // cents — computed at write time
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -763,8 +744,7 @@ export const paymentParticipants = pgTable(
   },
   (table) => [
     index("payment_participants_payment_id_idx").on(table.paymentId),
-    index("payment_participants_user_id_idx").on(table.userId),
-    index("payment_participants_guest_id_idx").on(table.guestId),
+    index("payment_participants_member_id_idx").on(table.memberId),
   ],
 );
 

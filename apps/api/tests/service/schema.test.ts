@@ -3,6 +3,8 @@ import {
   users,
   members,
   invitations,
+  payments,
+  paymentParticipants,
   pushSubscriptions,
   type User,
   type NewUser,
@@ -12,6 +14,8 @@ import {
   type NewPushSubscription,
 } from "@/db/schema/index.js";
 import { getTableName, getTableColumns } from "drizzle-orm";
+import { getTableConfig } from "drizzle-orm/pg-core";
+import * as schemaModule from "@/db/schema/index.js";
 
 describe("Database Schema", () => {
   describe("Users Table", () => {
@@ -163,6 +167,119 @@ describe("Database Schema", () => {
 
       expect(selectType).toBeDefined();
       expect(insertType).toBeDefined();
+    });
+  });
+
+  describe("Members Table - placeholder member columns", () => {
+    it("should have nullable userId (placeholder members have no user)", () => {
+      const columns = getTableColumns(members);
+      expect(columns.userId).toBeDefined();
+      expect(columns.userId.notNull).toBe(false);
+    });
+
+    it("should have nullable displayName varchar(100)", () => {
+      const columns = getTableColumns(members);
+      expect(columns.displayName).toBeDefined();
+      expect(columns.displayName.dataType).toBe("string");
+      expect(columns.displayName.notNull).toBe(false);
+      expect(columns.displayName.length).toBe(100);
+    });
+
+    it("should have nullable phoneNumber varchar(20)", () => {
+      const columns = getTableColumns(members);
+      expect(columns.phoneNumber).toBeDefined();
+      expect(columns.phoneNumber.dataType).toBe("string");
+      expect(columns.phoneNumber.notNull).toBe(false);
+      expect(columns.phoneNumber.length).toBe(20);
+    });
+
+    it("should have partial unique index on (trip_id, phone_number) WHERE phone_number IS NOT NULL", () => {
+      const config = getTableConfig(members);
+      const idx = config.indexes.find(
+        (i) => i.config.name === "members_trip_phone_unique",
+      );
+      expect(idx).toBeDefined();
+      expect(idx?.config.unique).toBe(true);
+      expect(idx?.config.where).toBeDefined();
+      const columnNames = idx?.config.columns.map(
+        (c) => (c as { name?: string }).name,
+      );
+      expect(columnNames).toEqual(["trip_id", "phone_number"]);
+    });
+  });
+
+  describe("Payments Table - memberId replaces userId/guestId", () => {
+    it("should have required memberId FK to members with cascade delete", () => {
+      const columns = getTableColumns(payments);
+      expect(columns.memberId).toBeDefined();
+      expect(columns.memberId.dataType).toBe("string");
+      expect(columns.memberId.notNull).toBe(true);
+
+      const config = getTableConfig(payments);
+      const fk = config.foreignKeys.find((f) =>
+        f.reference().columns.some((c) => c.name === "member_id"),
+      );
+      expect(fk).toBeDefined();
+      expect(fk?.onDelete).toBe("cascade");
+      expect(
+        fk ? getTableName(fk.reference().foreignTable) : undefined,
+      ).toBe("members");
+    });
+
+    it("should not have userId or guestId columns", () => {
+      const columns = getTableColumns(payments);
+      expect(columns).not.toHaveProperty("userId");
+      expect(columns).not.toHaveProperty("guestId");
+    });
+  });
+
+  describe("PaymentParticipants Table - memberId replaces userId/guestId", () => {
+    it("should have required memberId FK to members with cascade delete", () => {
+      const columns = getTableColumns(paymentParticipants);
+      expect(columns.memberId).toBeDefined();
+      expect(columns.memberId.dataType).toBe("string");
+      expect(columns.memberId.notNull).toBe(true);
+
+      const config = getTableConfig(paymentParticipants);
+      const fk = config.foreignKeys.find((f) =>
+        f.reference().columns.some((c) => c.name === "member_id"),
+      );
+      expect(fk).toBeDefined();
+      expect(fk?.onDelete).toBe("cascade");
+      expect(
+        fk ? getTableName(fk.reference().foreignTable) : undefined,
+      ).toBe("members");
+    });
+
+    it("should not have userId or guestId columns", () => {
+      const columns = getTableColumns(paymentParticipants);
+      expect(columns).not.toHaveProperty("userId");
+      expect(columns).not.toHaveProperty("guestId");
+    });
+  });
+
+  describe("Invitations Table - nullable memberId", () => {
+    it("should have nullable memberId FK to members with cascade delete", () => {
+      const columns = getTableColumns(invitations);
+      expect(columns.memberId).toBeDefined();
+      expect(columns.memberId.dataType).toBe("string");
+      expect(columns.memberId.notNull).toBe(false);
+
+      const config = getTableConfig(invitations);
+      const fk = config.foreignKeys.find((f) =>
+        f.reference().columns.some((c) => c.name === "member_id"),
+      );
+      expect(fk).toBeDefined();
+      expect(fk?.onDelete).toBe("cascade");
+      expect(
+        fk ? getTableName(fk.reference().foreignTable) : undefined,
+      ).toBe("members");
+    });
+  });
+
+  describe("Trip Guests removal", () => {
+    it("should no longer export the tripGuests table", () => {
+      expect("tripGuests" in schemaModule).toBe(false);
     });
   });
 });
