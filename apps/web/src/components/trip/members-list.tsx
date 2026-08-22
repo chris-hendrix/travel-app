@@ -3,6 +3,7 @@
 import { useState } from "react";
 import {
   UserPlus,
+  UserCircle,
   Phone,
   Users,
   EllipsisVertical,
@@ -188,9 +189,12 @@ function MemberRow({
             </Badge>
           )}
           {member.isPlaceholder && (
-            <Badge variant="secondary" className="bg-muted text-muted-foreground border">
-              Placeholder
-            </Badge>
+            <span
+              className="inline-flex items-center justify-center size-5 rounded-full border border-dashed border-primary/30 bg-card"
+              aria-label="Placeholder"
+            >
+              <UserCircle className="size-3 text-primary/60" />
+            </span>
           )}
           {member.isMuted && (
             <Badge className="bg-orange-500/15 text-orange-600 border-orange-500/30">
@@ -520,16 +524,15 @@ export function MembersList({
               <UserPlus className="w-4 h-4 mr-2" />
               Invite members
             </Button>
-            <Button
+            <button
               onClick={handleAddPerson}
-              variant="ghost"
-              size="sm"
-              className="w-full font-normal text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline mt-3"
               disabled={(members?.length ?? 0) >= 25}
               data-testid="add-placeholder-trigger"
+              className="w-full text-center text-xs font-normal text-muted-foreground hover:text-foreground mt-3 py-1 disabled:opacity-50 disabled:pointer-events-none"
+              type="button"
             >
               Add person without inviting
-            </Button>
+            </button>
           </div>
         )}
         <AddPlaceholderDialog
@@ -597,27 +600,31 @@ export function MembersList({
   return (
     <div className="flex flex-col flex-1">
       <div className="flex-1 space-y-6 overflow-y-auto">
-        <section>
-          <SectionHeader title="Going" count={going.length} />
-          <div className="divide-y divide-border">
-            {going.length === 0 ? <p className="text-sm text-muted-foreground py-2">No one yet</p> : going.map((member, i) => (
-              <MemberRow key={member.id} member={member} index={i} {...memberRowProps} />
-            ))}
-          </div>
-        </section>
-        <section>
-          <SectionHeader title="Maybe" count={maybe.length} />
-          <div className="divide-y divide-border">
-            {maybe.length === 0 ? <p className="text-sm text-muted-foreground py-2">No one yet</p> : maybe.map((member, i) => (
-              <MemberRow key={member.id} member={member} index={i} {...memberRowProps} />
-            ))}
-          </div>
-        </section>
-        {isOrganizer && (
+        {going.length > 0 && (
+          <section>
+            <SectionHeader title="Going" count={going.length} />
+            <div className="divide-y divide-border">
+              {going.map((member, i) => (
+                <MemberRow key={member.id} member={member} index={i} {...memberRowProps} />
+              ))}
+            </div>
+          </section>
+        )}
+        {maybe.length > 0 && (
+          <section>
+            <SectionHeader title="Maybe" count={maybe.length} />
+            <div className="divide-y divide-border">
+              {maybe.map((member, i) => (
+                <MemberRow key={member.id} member={member} index={i} {...memberRowProps} />
+              ))}
+            </div>
+          </section>
+        )}
+        {isOrganizer && notGoing.length > 0 && (
           <section>
             <SectionHeader title="Not going" count={notGoing.length} />
             <div className="divide-y divide-border">
-              {notGoing.length === 0 ? <p className="text-sm text-muted-foreground py-2">No one yet</p> : notGoing.map((member, i) => (
+              {notGoing.map((member, i) => (
                 <MemberRow key={member.id} member={member} index={i} {...memberRowProps} />
               ))}
             </div>
@@ -641,33 +648,14 @@ export function MembersList({
             </div>
           </section>
         )}
-        {isOrganizer && (
+        {isOrganizer && notInvited.length > 0 && (
           <section>
-            <SectionHeader title="Not invited" count={notInvited.length} />
-            {notInvited.length === 0 ? (
-              <div className="rounded-md border border-dashed border-border bg-card/50 p-6 text-center linen-texture">
-                <div className="mx-auto mb-3 size-12 rounded-full border-2 border-dashed border-primary/30 bg-card flex items-center justify-center">
-                  <UserPlus className="size-6 text-primary/60" />
-                </div>
-                <p className="font-playfair text-sm font-medium">No one extra yet</p>
-                <Button
-                  onClick={handleAddPerson}
-                  variant="ghost"
-                  size="sm"
-                  className="font-normal text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline mt-3"
-                  disabled={(members?.length ?? 0) >= 25}
-                  data-testid="add-placeholder-trigger"
-                >
-                  Add person without inviting
-                </Button>
-              </div>
-            ) : (
-              <div className="divide-y divide-border">
-                {notInvited.map((member, i) => (
-                  <MemberRow key={member.id} member={member} index={i} {...memberRowProps} />
-                ))}
-              </div>
-            )}
+            <SectionHeader title="Placeholders" count={notInvited.length} />
+            <div className="divide-y divide-border">
+              {notInvited.map((member, i) => (
+                <MemberRow key={member.id} member={member} index={i} {...memberRowProps} />
+              ))}
+            </div>
           </section>
         )}
       </div>
@@ -683,16 +671,15 @@ export function MembersList({
             <UserPlus className="w-4 h-4 mr-2" />
             Invite members
           </Button>
-          <Button
+          <button
             onClick={handleAddPerson}
-            variant="ghost"
-            size="sm"
-            className="w-full font-normal text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline mt-3"
             disabled={(members?.length ?? 0) >= 25}
             data-testid="add-placeholder-trigger"
+            className="w-full text-center text-xs font-normal text-muted-foreground hover:text-foreground mt-3 py-1 disabled:opacity-50 disabled:pointer-events-none"
+            type="button"
           >
             Add person without inviting
-          </Button>
+          </button>
         </div>
       )}
 

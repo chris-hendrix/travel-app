@@ -32,7 +32,14 @@ function PhoneInput({
   ...props
 }: PhoneInputProps) {
   return (
-    <div data-slot="phone-input" className={cn("flex", className)}>
+    <div
+      data-slot="phone-input"
+      className={cn(
+        "flex items-center rounded-md border border-input bg-transparent shadow-xs transition-[color,box-shadow,border-color] has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-ring/50 has-[input:focus-visible]:ring-[3px] has-[input[aria-invalid=true]]:border-destructive has-[input[aria-invalid=true]]:ring-destructive/20",
+        "h-12 px-1 disabled:opacity-50 disabled:pointer-events-none",
+        className,
+      )}
+    >
       <RPNPhoneInput
         international
         defaultCountry={defaultCountry}
@@ -42,7 +49,7 @@ function PhoneInput({
         flags={flags}
         countrySelectComponent={CountrySelect}
         inputComponent={InputField}
-        className="flex w-full items-center"
+        className="flex w-full flex-1 items-center gap-0"
         {...props}
       />
     </div>
@@ -65,7 +72,7 @@ function CountrySelect({
   iconComponent: Icon,
 }: CountrySelectProps) {
   return (
-    <div className="relative flex items-center">
+    <div className="relative flex items-center shrink-0 pl-2">
       <select
         value={value || ""}
         onChange={(e) => onChange?.(e.target.value as Country)}
@@ -79,9 +86,9 @@ function CountrySelect({
           </option>
         ))}
       </select>
-      <div className="flex items-center gap-1 pr-2">
+      <div className="flex items-center gap-1 pr-2 border-r border-input mr-2">
         {Icon && value ? <Icon country={value} label="" /> : null}
-        <ChevronDownIcon className="text-muted-foreground size-4 opacity-50" />
+        <ChevronDownIcon className="text-muted-foreground size-3.5 opacity-60" />
       </div>
     </div>
   );
@@ -94,9 +101,7 @@ function InputField(props: React.ComponentProps<"input">) {
       type="tel"
       autoComplete="tel"
       className={cn(
-        "placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground border-input h-11 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow,border-color] outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
-        "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-        "aria-invalid:ring-destructive/20 aria-invalid:border-destructive",
+        "placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground flex-1 bg-transparent px-2 py-1 text-base outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm w-full min-w-0",
         className,
       )}
       {...rest}

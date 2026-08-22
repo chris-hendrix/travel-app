@@ -290,8 +290,9 @@ describe("MembersList", () => {
       expect(screen.getByRole("heading", { name: "Maybe" })).toBeDefined();
       expect(screen.getByRole("heading", { name: "Not going" })).toBeDefined();
       // Invited only when pendingInvitations>0, so with no invitations it is not rendered
-      // Not invited always for organizers
-      expect(screen.getByRole("heading", { name: "Not invited" })).toBeDefined();
+      // Placeholders hidden when 0 (hide-empty)
+      expect(screen.queryByRole("heading", { name: "Placeholders" })).toBeNull();
+      expect(screen.queryByRole("heading", { name: "Not invited" })).toBeNull();
     });
 
     it("shows correct counts in headings", () => {
@@ -306,8 +307,8 @@ describe("MembersList", () => {
       expect(within(maybeHeading).getByText("1")).toBeDefined();
       const notGoingHeading = screen.getByRole("heading", { name: "Not going" }).parentElement!;
       expect(within(notGoingHeading).getByText("1")).toBeDefined();
-      const notInvitedHeading = screen.getByRole("heading", { name: "Not invited" }).parentElement!;
-      expect(within(notInvitedHeading).getByText("0")).toBeDefined();
+      // Placeholders hidden when 0, so no heading
+      expect(screen.queryByRole("heading", { name: "Placeholders" })).toBeNull();
     });
 
     it("shows Invited heading when pending invitations exist", () => {
