@@ -10,6 +10,7 @@ import {
   paymentParticipants,
 } from "@/db/schema/index.js";
 import { generateUniquePhone } from "../test-utils.js";
+import { eq, and } from "drizzle-orm";
 
 describe("Balance Routes", () => {
   let app: FastifyInstance;
@@ -49,20 +50,22 @@ describe("Balance Routes", () => {
     ]);
 
     // Alice pays $20 split between Alice and Bob
+    const [aliceMember] = await db.select().from(members).where(and(eq(members.tripId, trip!.id), eq(members.userId, userA!.id))).then(r=>r);
+    const [bobMember] = await db.select().from(members).where(and(eq(members.tripId, trip!.id), eq(members.userId, userB!.id))).then(r=>r);
     const [payment] = await db
       .insert(payments)
       .values({
         tripId: trip!.id,
         description: "Dinner",
         amount: 2000,
-        userId: userA!.id,
+        memberId: aliceMember!.id,
         createdBy: userA!.id,
       })
       .returning();
 
     await db.insert(paymentParticipants).values([
-      { paymentId: payment!.id, userId: userA!.id, shareAmount: 1000 },
-      { paymentId: payment!.id, userId: userB!.id, shareAmount: 1000 },
+      { paymentId: payment!.id, memberId: aliceMember!.id, shareAmount: 1000 },
+      { paymentId: payment!.id, memberId: bobMember!.id, shareAmount: 1000 },
     ]);
 
     return { userA: userA!, userB: userB!, trip: trip! };
@@ -85,8 +88,8 @@ describe("Balance Routes", () => {
       expect(body.success).toBe(true);
       expect(body.balances).toHaveLength(1);
       expect(body.balances[0]).toMatchObject({
-        from: { name: "Bob", isGuest: false },
-        to: { name: "Alice", isGuest: false },
+        from: { name: "Bob", isPlaceholder: false },
+        to: { name: "Alice", isPlaceholder: false },
         amount: 1000,
       });
     });

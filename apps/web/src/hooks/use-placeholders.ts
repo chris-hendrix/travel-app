@@ -23,9 +23,16 @@ export function useCreatePlaceholder(tripId: string) {
     onSuccess: () => {
       toast.success("Person added");
       queryClient.invalidateQueries({ queryKey: memberKeys.list(tripId) });
+      queryClient.invalidateQueries({ queryKey: invitationKeys.list(tripId) });
+      queryClient.invalidateQueries({ queryKey: paymentKeys.list(tripId) });
+      queryClient.invalidateQueries({ queryKey: balanceKeys.trip(tripId) });
+      queryClient.invalidateQueries({ queryKey: balanceKeys.me(tripId) });
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: memberKeys.list(tripId) });
+      queryClient.invalidateQueries({ queryKey: invitationKeys.list(tripId) });
+      queryClient.invalidateQueries({ queryKey: paymentKeys.list(tripId) });
+      queryClient.invalidateQueries({ queryKey: balanceKeys.trip(tripId) });
     },
   });
 }

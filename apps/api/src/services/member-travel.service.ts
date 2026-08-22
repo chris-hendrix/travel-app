@@ -278,9 +278,9 @@ export class MemberTravelService implements IMemberTravelService {
 
     // For placeholder members (userId null) there is no matching users row, so
     // fall back to the displayName stored on the members row itself.
-    return rows.map((row) => ({
-      ...row,
-      memberName: row.memberName ?? row.memberDisplayName ?? "",
+    return rows.map(({ memberDisplayName, ...rest }) => ({
+      ...rest,
+      memberName: rest.memberName ?? memberDisplayName ?? "",
     }));
   }
 

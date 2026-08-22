@@ -9,7 +9,7 @@ import {
   payments,
   paymentParticipants,
 } from "@/db/schema/index.js";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { generateUniquePhone } from "../test-utils.js";
 
 describe("Payment Routes", () => {
@@ -75,6 +75,9 @@ describe("Payment Routes", () => {
         name: organizer.displayName,
       });
 
+      // Fetch member rows for memberId-based payload
+      const orgMember = await db.select().from(members).where(and(eq(members.tripId, trip.id), eq(members.userId, organizer.id))).then(r => r[0]);
+      const memMember = await db.select().from(members).where(and(eq(members.tripId, trip.id), eq(members.userId, member.id))).then(r => r[0]);
       const response = await app.inject({
         method: "POST",
         url: `/api/trips/${trip.id}/payments`,
@@ -82,10 +85,10 @@ describe("Payment Routes", () => {
         payload: {
           description: "Dinner",
           amount: 3000,
-          userId: organizer.id,
+          memberId: orgMember!.id,
           participants: [
-            { userId: organizer.id },
-            { userId: member.id },
+            { memberId: orgMember!.id },
+            { memberId: memMember!.id },
           ],
         },
       });
@@ -109,9 +112,9 @@ describe("Payment Routes", () => {
         payload: {
           description: "Test",
           amount: 1000,
-          userId: "550e8400-e29b-41d4-a716-446655440000",
+          memberId: "550e8400-e29b-41d4-a716-446655440000",
           participants: [
-            { userId: "550e8400-e29b-41d4-a716-446655440000" },
+            { memberId: "550e8400-e29b-41d4-a716-446655440000" },
           ],
         },
       });
@@ -128,6 +131,7 @@ describe("Payment Routes", () => {
         name: organizer.displayName,
       });
 
+      const orgMem = await db.select().from(members).where(and(eq(members.tripId, trip.id), eq(members.userId, organizer.id))).then(r => r[0]);
       // Create a payment directly
       const [payment] = await db
         .insert(payments)
@@ -135,14 +139,15 @@ describe("Payment Routes", () => {
           tripId: trip.id,
           description: "Lunch",
           amount: 2000,
-          userId: organizer.id,
+          memberId: orgMem!.id,
           createdBy: organizer.id,
         })
         .returning();
 
+      const memMem = await db.select().from(members).where(and(eq(members.tripId, trip.id), eq(members.userId, member.id))).then(r => r[0]);
       await db.insert(paymentParticipants).values({
         paymentId: payment!.id,
-        userId: member.id,
+        memberId: memMem!.id,
         shareAmount: 2000,
       });
 
@@ -169,13 +174,14 @@ describe("Payment Routes", () => {
         name: organizer.displayName,
       });
 
+      const orgMemDel = await db.select().from(members).where(and(eq(members.tripId, trip.id), eq(members.userId, organizer.id))).then(r => r[0]);
       const [payment] = await db
         .insert(payments)
         .values({
           tripId: trip.id,
           description: "To Delete",
           amount: 1000,
-          userId: organizer.id,
+          memberId: orgMemDel!.id,
           createdBy: organizer.id,
         })
         .returning();
@@ -201,13 +207,14 @@ describe("Payment Routes", () => {
       const { organizer, member, trip } = await setupTrip();
 
       // Payment created by organizer
+      const orgMemProt = await db.select().from(members).where(and(eq(members.tripId, trip.id), eq(members.userId, organizer.id))).then(r => r[0]);
       const [payment] = await db
         .insert(payments)
         .values({
           tripId: trip.id,
           description: "Protected",
           amount: 1000,
-          userId: organizer.id,
+          memberId: orgMemProt!.id,
           createdBy: organizer.id,
         })
         .returning();
@@ -237,13 +244,14 @@ describe("Payment Routes", () => {
         name: organizer.displayName,
       });
 
+      const orgMemRes = await db.select().from(members).where(and(eq(members.tripId, trip.id), eq(members.userId, organizer.id))).then(r => r[0]);
       const [payment] = await db
         .insert(payments)
         .values({
           tripId: trip.id,
           description: "Deleted",
           amount: 1000,
-          userId: organizer.id,
+          memberId: orgMemRes!.id,
           createdBy: organizer.id,
           deletedAt: new Date(),
           deletedBy: organizer.id,
@@ -252,7 +260,7 @@ describe("Payment Routes", () => {
 
       await db.insert(paymentParticipants).values({
         paymentId: payment!.id,
-        userId: organizer.id,
+        memberId: orgMemRes!.id,
         shareAmount: 1000,
       });
 

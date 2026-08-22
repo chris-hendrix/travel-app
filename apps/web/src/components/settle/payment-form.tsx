@@ -7,7 +7,7 @@ import { DollarSign, Trash2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/app/providers/auth-provider";
 import { membersQueryOptions } from "@/hooks/invitation-queries";
-import { useCreatePlaceholder } from "@/hooks/use-placeholders";
+import { AddPlaceholderDialog } from "@/components/trip/add-placeholder-dialog";
 import {
   useCreatePayment,
   useUpdatePayment,
@@ -73,8 +73,7 @@ export function PaymentForm({
   const createPayment = useCreatePayment();
   const updatePayment = useUpdatePayment();
   const deletePayment = useDeletePayment();
-  const createPlaceholder = useCreatePlaceholder(tripId);
-  const [newPersonName, setNewPersonName] = useState("");
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
 
   // Build payer/participant options — single member list (placeholders included via members)
   const people = useMemo<PayerOption[]>(() => {
@@ -127,7 +126,6 @@ export function PaymentForm({
   // Reset form when payment prop changes (opening a different expense or creating new)
   useEffect(() => {
     if (open) {
-      setNewPersonName("");
       setDescription(payment?.description ?? "");
       setAmountStr(payment ? (payment.amount / 100).toFixed(2) : "");
       setPayerId(payment?.memberId ?? currentMemberId);
@@ -186,24 +184,9 @@ export function PaymentForm({
     setSelectedParticipants(new Set());
   }, []);
 
-  const handleAddPerson = () => {
-    const trimmed = newPersonName.trim();
-    if (!trimmed) return;
-    createPlaceholder.mutate(
-      { name: trimmed },
-      {
-        onSuccess: (member) => {
-          setNewPersonName("");
-          // Auto-select the new person as a participant
-          setSelectedParticipants((prev) => new Set([...prev, member.id]));
-        },
-        onError: (error) => {
-          toast.error(
-            error instanceof Error ? error.message : "Failed to add person",
-          );
-        },
-      },
-    );
+  const handleAddPlaceholderSuccess = (member: { id: string }) => {
+    // Auto-select the new person as a participant
+    setSelectedParticipants((prev) => new Set([...prev, member.id]));
   };
 
   // Validation
@@ -256,20 +239,21 @@ export function PaymentForm({
     getPaymentErrorMessage(updatePayment.error);
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent>
-        <SheetHeader>
-          <SheetTitle className="text-2xl font-playfair tracking-tight">
-            {isEditing ? "Edit Expense" : "Add Expense"}
-          </SheetTitle>
-          <SheetDescription className="sr-only">
-            {isEditing
-              ? "Edit an existing expense"
-              : "Add a new expense to split with the group"}
-          </SheetDescription>
-        </SheetHeader>
+    <>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle className="text-2xl font-playfair tracking-tight">
+              {isEditing ? "Edit Expense" : "Add Expense"}
+            </SheetTitle>
+            <SheetDescription className="sr-only">
+              {isEditing
+                ? "Edit an existing expense"
+                : "Add a new expense to split with the group"}
+            </SheetDescription>
+          </SheetHeader>
 
-        <SheetBody>
+          <SheetBody>
           <div className="space-y-5">
             {/* Description */}
             <div className="space-y-2">
@@ -370,22 +354,15 @@ export function PaymentForm({
                     No members available.
                   </p>
                 )}
-                {/* Inline add person */}
-                <div className="flex items-center gap-2 px-2 pt-1.5 border-t border-border mt-1">
-                  <UserPlus className="size-4 text-muted-foreground shrink-0" />
-                  <Input
-                    placeholder="Add person..."
-                    value={newPersonName}
-                    onChange={(e) => setNewPersonName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleAddPerson();
-                      }
-                    }}
-                    className="h-7 text-sm border-0 shadow-none px-0 focus-visible:ring-0"
-                  />
-                </div>
+                {/* Reuse same AddPlaceholderDialog */}
+                <button
+                  type="button"
+                  onClick={() => setAddDialogOpen(true)}
+                  className="flex items-center gap-2 px-2 pt-1.5 border-t border-border mt-1 w-full text-left hover:bg-muted/40 rounded-md py-1"
+                >
+                  <UserPlus className="size-4 text-primary shrink-0" />
+                  <span className="text-sm text-primary font-medium">Add person…</span>
+                </button>
               </div>
               {payerPerson && selectedParticipants.has(payerId) && (
                 <p className="text-xs text-muted-foreground">
@@ -426,7 +403,14 @@ export function PaymentForm({
             </Button>
           )}
         </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </SheetContent>
+      </Sheet>
+      <AddPlaceholderDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        tripId={tripId}
+        onSuccess={handleAddPlaceholderSuccess}
+      />
+    </>
   );
 }

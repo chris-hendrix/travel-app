@@ -55,7 +55,7 @@ function SheetContent({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
-  side?: "left" | "right";
+  side?: "left" | "right" | "bottom";
 }) {
   return (
     <SheetPortal data-slot="sheet-portal">
@@ -63,11 +63,13 @@ function SheetContent({
       <DialogPrimitive.Content
         data-slot="sheet-content"
         className={cn(
-          "bg-background fixed inset-y-0 z-50 flex w-full flex-col shadow-lg outline-none sm:max-w-lg px-safe pt-safe",
+          "bg-background fixed z-50 flex w-full flex-col shadow-lg outline-none px-safe pt-safe",
           side === "left" &&
-            "left-0 border-r data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left duration-300",
+            "inset-y-0 left-0 border-r sm:max-w-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left duration-300",
           side === "right" &&
-            "right-0 border-l data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right duration-300",
+            "inset-y-0 right-0 border-l sm:max-w-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right duration-300",
+          side === "bottom" &&
+            "inset-x-0 bottom-0 max-h-[85dvh] rounded-t-lg border-t data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom duration-300",
           className,
         )}
         {...props}

@@ -38,6 +38,23 @@ vi.mock("@/hooks/use-invitations", () => ({
   getRevokeInvitationErrorMessage: () => "Failed to revoke invitation",
 }));
 
+vi.mock("@/hooks/use-placeholders", () => ({
+  useDeletePlaceholder: () => ({ mutateAsync: vi.fn().mockResolvedValue(undefined), isPending: false }),
+  useInvitePlaceholder: () => ({ mutateAsync: vi.fn().mockResolvedValue(undefined), isPending: false }),
+  useLinkPlaceholder: () => ({ mutateAsync: vi.fn().mockResolvedValue(undefined), isPending: false }),
+  useCreatePlaceholder: () => ({ mutateAsync: vi.fn().mockResolvedValue({ id: "new" }), isPending: false }),
+  useUpdatePlaceholder: () => ({ mutateAsync: vi.fn().mockResolvedValue({ id: "upd" }), isPending: false }),
+  getPlaceholderErrorMessage: () => null,
+}));
+
+vi.mock("@/hooks/use-mutuals", () => ({
+  useMutualSuggestions: () => ({ data: { mutuals: [] }, isPending: false }),
+}));
+
+vi.mock("@/hooks/use-is-mobile", () => ({
+  useIsMobile: () => false,
+}));
+
 const mockMuteMember = {
   mutateAsync: vi.fn().mockResolvedValue({ success: true }),
   isPending: false,
@@ -65,6 +82,7 @@ const mockMembers: MemberWithProfile[] = [
     phoneNumber: "+14155551234",
     status: "going",
     isOrganizer: true,
+    isPlaceholder: false,
     createdAt: "2026-01-01T00:00:00Z",
     handles: null,
   },
@@ -76,6 +94,7 @@ const mockMembers: MemberWithProfile[] = [
     phoneNumber: "+14155555678",
     status: "maybe",
     isOrganizer: false,
+    isPlaceholder: false,
     createdAt: "2026-01-02T00:00:00Z",
     handles: null,
   },
@@ -87,6 +106,7 @@ const mockMembers: MemberWithProfile[] = [
     phoneNumber: "+14155559999",
     status: "not_going",
     isOrganizer: false,
+    isPlaceholder: false,
     createdAt: "2026-01-03T00:00:00Z",
     handles: null,
   },
@@ -97,6 +117,7 @@ const mockMembers: MemberWithProfile[] = [
     profilePhotoUrl: null,
     status: "no_response",
     isOrganizer: false,
+    isPlaceholder: false,
     createdAt: "2026-01-04T00:00:00Z",
     handles: null,
   },
@@ -133,11 +154,7 @@ beforeEach(() => {
       queries: { retry: false },
       mutations: { retry: false },
     },
-    logger: {
-      log: () => {},
-      warn: () => {},
-      error: () => {},
-    },
+
   });
   vi.clearAllMocks();
 
@@ -250,44 +267,50 @@ describe("MembersList", () => {
     });
   });
 
-  describe("tab rendering", () => {
-    it("shows Going and Maybe tabs for non-organizers", () => {
+  describe("grouped rendering (no tabs)", () => {
+    it("shows Going and Maybe headings for non-organizers", () => {
       renderWithQueryClient(
         <MembersList tripId="trip-123" isOrganizer={false} />,
       );
 
-      expect(screen.getByRole("tab", { name: /Going/ })).toBeDefined();
-      expect(screen.getByRole("tab", { name: /Maybe/ })).toBeDefined();
-      expect(screen.queryByRole("tab", { name: /Not Going/ })).toBeNull();
-      expect(screen.queryByRole("tab", { name: /Invited/ })).toBeNull();
+      expect(screen.getByRole("heading", { name: "Going" })).toBeDefined();
+      expect(screen.getByRole("heading", { name: "Maybe" })).toBeDefined();
+      expect(screen.queryByRole("heading", { name: "Not going" })).toBeNull();
+      // Invited hidden when no invitations and no placeholders pending
+      // but Not invited heading exists for organizers only — for non-organizer it is hidden
+      expect(screen.queryByRole("heading", { name: "Invited" })).toBeNull();
     });
 
-    it("shows all four tabs for organizers", () => {
+    it("shows all grouped headings for organizers", () => {
       renderWithQueryClient(
         <MembersList tripId="trip-123" isOrganizer={true} />,
       );
 
-      expect(screen.getByRole("tab", { name: /^Going/ })).toBeDefined();
-      expect(screen.getByRole("tab", { name: /^Maybe/ })).toBeDefined();
-      expect(screen.getByRole("tab", { name: /^Not Going/ })).toBeDefined();
-      expect(screen.getByRole("tab", { name: /^Invited/ })).toBeDefined();
+      expect(screen.getByRole("heading", { name: "Going" })).toBeDefined();
+      expect(screen.getByRole("heading", { name: "Maybe" })).toBeDefined();
+      expect(screen.getByRole("heading", { name: "Not going" })).toBeDefined();
+      // Invited only when pendingInvitations>0, so with no invitations it is not rendered
+      // Not invited always for organizers
+      expect(screen.getByRole("heading", { name: "Not invited" })).toBeDefined();
     });
 
-    it("shows correct tab counts", () => {
+    it("shows correct counts in headings", () => {
       renderWithQueryClient(
         <MembersList tripId="trip-123" isOrganizer={true} />,
       );
 
-      expect(screen.getByRole("tab", { name: /^Going\W*1$/ })).toBeDefined();
-      expect(screen.getByRole("tab", { name: /^Maybe\W*1$/ })).toBeDefined();
-      expect(
-        screen.getByRole("tab", { name: /^Not Going\W*1$/ }),
-      ).toBeDefined();
-      // Invited = 1 no_response member + 0 pending invitations
-      expect(screen.getByRole("tab", { name: /^Invited\W*1$/ })).toBeDefined();
+      // Check count badges near headings (going 1, maybe 1, not going 1)
+      const goingHeading = screen.getByRole("heading", { name: "Going" }).parentElement!;
+      expect(within(goingHeading).getByText("1")).toBeDefined();
+      const maybeHeading = screen.getByRole("heading", { name: "Maybe" }).parentElement!;
+      expect(within(maybeHeading).getByText("1")).toBeDefined();
+      const notGoingHeading = screen.getByRole("heading", { name: "Not going" }).parentElement!;
+      expect(within(notGoingHeading).getByText("1")).toBeDefined();
+      const notInvitedHeading = screen.getByRole("heading", { name: "Not invited" }).parentElement!;
+      expect(within(notInvitedHeading).getByText("0")).toBeDefined();
     });
 
-    it("shows correct Invited count including pending invitations", () => {
+    it("shows Invited heading when pending invitations exist", () => {
       mockUseInvitations.mockReturnValue({
         data: mockInvitations,
         isPending: false,
@@ -297,38 +320,40 @@ describe("MembersList", () => {
         <MembersList tripId="trip-123" isOrganizer={true} />,
       );
 
-      // 1 no_response member + 2 pending/failed invitations = 3
-      expect(screen.getByRole("tab", { name: /^Invited\W*3$/ })).toBeDefined();
+      expect(screen.getByRole("heading", { name: "Invited" })).toBeDefined();
+      const invitedHeading = screen.getByRole("heading", { name: "Invited" }).parentElement!;
+      expect(within(invitedHeading).getByText("3")).toBeDefined();
     });
 
-    it("defaults to Going tab", () => {
+    it("renders Going section first", () => {
       renderWithQueryClient(
         <MembersList tripId="trip-123" isOrganizer={false} />,
       );
 
-      const goingTab = screen.getByRole("tab", { name: /Going/ });
-      expect(goingTab.getAttribute("data-state")).toBe("active");
+      const headings = screen.getAllByRole("heading");
+      expect(headings[0]!.textContent).toBe("Going");
     });
   });
 
-  describe("Going tab content", () => {
-    it("renders going members on the default tab", () => {
+  describe("Going section content (grouped)", () => {
+    it("renders going members alongside other sections", () => {
       renderWithQueryClient(
         <MembersList tripId="trip-123" isOrganizer={false} />,
       );
 
       expect(screen.getByText("John Doe")).toBeDefined();
-      // Members in other tabs should not be visible
-      expect(screen.queryByText("Jane Smith")).toBeNull();
+      // With grouped rendering, Maybe members are also visible
+      expect(screen.getByText("Jane Smith")).toBeDefined();
     });
 
-    it("renders avatar for going members", () => {
+    it("renders avatars for visible members (grouped shows 2)", () => {
       renderWithQueryClient(
         <MembersList tripId="trip-123" isOrganizer={false} />,
       );
 
       const avatars = document.querySelectorAll("[data-slot='avatar']");
-      expect(avatars.length).toBe(1);
+      // Going (John) + Maybe (Jane) = 2 avatars for non-organizer grouped view
+      expect(avatars.length).toBe(2);
     });
 
     it("shows Organizer badge for organizer members", () => {
@@ -353,31 +378,27 @@ describe("MembersList", () => {
       expect(organizerBadge!.className).toContain("to-accent");
     });
 
-    it("does not show Organizer badge for non-organizer members", async () => {
-      const user = userEvent.setup();
+    it("does not show Organizer badge for non-organizer members", () => {
       renderWithQueryClient(
         <MembersList tripId="trip-123" isOrganizer={false} />,
       );
 
-      // Switch to Maybe tab where Jane Smith (non-organizer) is
-      await user.click(screen.getByRole("tab", { name: /Maybe/ }));
-
       expect(screen.getByText("Jane Smith")).toBeDefined();
-      expect(screen.queryByText("Organizer")).toBeNull();
+      // Only John Doe has Organizer badge, Jane should not contribute another
+      expect(screen.getAllByText("Organizer").length).toBe(1);
+      const janeRow = screen.getByText("Jane Smith").closest(".py-3")!;
+      expect(janeRow.textContent).not.toContain("Organizer");
     });
   });
 
   describe("Maybe tab content", () => {
-    it("renders maybe members when tab is clicked", async () => {
-      const user = userEvent.setup();
+    it("renders maybe members alongside going (grouped)", () => {
       renderWithQueryClient(
         <MembersList tripId="trip-123" isOrganizer={false} />,
       );
 
-      await user.click(screen.getByRole("tab", { name: /Maybe/ }));
-
       expect(screen.getByText("Jane Smith")).toBeDefined();
-      expect(screen.queryByText("John Doe")).toBeNull();
+      expect(screen.getByText("John Doe")).toBeDefined();
     });
 
     it("renders avatar with initials fallback when no photo", async () => {
@@ -386,7 +407,7 @@ describe("MembersList", () => {
         <MembersList tripId="trip-123" isOrganizer={false} />,
       );
 
-      await user.click(screen.getByRole("tab", { name: /Maybe/ }));
+      // grouped: Maybe visible without tab click
 
       expect(screen.getByText("JS")).toBeDefined();
     });
@@ -399,7 +420,7 @@ describe("MembersList", () => {
         <MembersList tripId="trip-123" isOrganizer={true} />,
       );
 
-      await user.click(screen.getByRole("tab", { name: /Not Going/ }));
+      // grouped: Not going visible without tab
 
       expect(screen.getByText("Bob Wilson")).toBeDefined();
     });
@@ -420,7 +441,7 @@ describe("MembersList", () => {
         <MembersList tripId="trip-123" isOrganizer={true} />,
       );
 
-      await user.click(screen.getByRole("tab", { name: /Invited/ }));
+      // grouped: Invited visible without tab
 
       expect(screen.getByText("Alice Brown")).toBeDefined();
     });
@@ -436,7 +457,7 @@ describe("MembersList", () => {
         <MembersList tripId="trip-123" isOrganizer={true} />,
       );
 
-      await user.click(screen.getByRole("tab", { name: /Invited/ }));
+      // grouped: Invited visible without tab
 
       expect(screen.getByText("+14155550001")).toBeDefined();
       expect(screen.getByText("Pending")).toBeDefined();
@@ -453,7 +474,7 @@ describe("MembersList", () => {
         <MembersList tripId="trip-123" isOrganizer={true} />,
       );
 
-      await user.click(screen.getByRole("tab", { name: /Invited/ }));
+      // grouped: Invited visible without tab
 
       expect(screen.getByText("+14155550002")).toBeDefined();
       const failedBadge = screen.getByText("Failed");
@@ -473,7 +494,7 @@ describe("MembersList", () => {
         <MembersList tripId="trip-123" isOrganizer={true} />,
       );
 
-      await user.click(screen.getByRole("tab", { name: /Invited/ }));
+      // grouped: Invited visible without tab
 
       // formatRelativeTime is mocked to return date string
       const sentTexts = screen.getAllByText(/^Sent /);
@@ -491,7 +512,7 @@ describe("MembersList", () => {
         <MembersList tripId="trip-123" isOrganizer={true} />,
       );
 
-      await user.click(screen.getByRole("tab", { name: /Invited/ }));
+      // grouped: Invited visible without tab
 
       expect(
         screen.getByRole("button", {
@@ -516,7 +537,7 @@ describe("MembersList", () => {
         <MembersList tripId="trip-123" isOrganizer={true} />,
       );
 
-      await user.click(screen.getByRole("tab", { name: /Invited/ }));
+      // grouped: Invited visible without tab
 
       const revokeButton = screen.getByRole("button", {
         name: "Revoke invitation to +14155550001",
@@ -592,7 +613,7 @@ describe("MembersList", () => {
         />,
       );
 
-      expect(screen.getByText("Invite")).toBeDefined();
+      expect(screen.getByText(/Invite members/)).toBeDefined();
     });
 
     it("does NOT show invite button for non-organizers", () => {
@@ -605,7 +626,7 @@ describe("MembersList", () => {
         />,
       );
 
-      expect(screen.queryByText("Invite")).toBeNull();
+      expect(screen.queryByText(/Invite members/)).toBeNull();
     });
 
     it("calls onInvite when invite button is clicked", async () => {
@@ -619,7 +640,7 @@ describe("MembersList", () => {
         />,
       );
 
-      const inviteButton = screen.getByText("Invite");
+      const inviteButton = screen.getByText(/Invite members/);
       await user.click(inviteButton);
 
       expect(onInvite).toHaveBeenCalledOnce();
@@ -640,7 +661,7 @@ describe("MembersList", () => {
       );
 
       // Switch to Maybe tab for Jane Smith
-      await user.click(screen.getByRole("tab", { name: /Maybe/ }));
+      // grouped: Maybe visible without tab click
 
       expect(
         screen.getByRole("button", { name: "Actions for Jane Smith" }),
@@ -695,7 +716,7 @@ describe("MembersList", () => {
       );
 
       // Jane Smith is on the Maybe tab
-      await user.click(screen.getByRole("tab", { name: /Maybe/ }));
+      // grouped: Maybe visible without tab click
 
       const actionsButton = screen.getByRole("button", {
         name: "Actions for Jane Smith",
@@ -729,7 +750,7 @@ describe("MembersList", () => {
       );
 
       // Jane Smith is on the Maybe tab
-      await user.click(screen.getByRole("tab", { name: /Maybe/ }));
+      // grouped: Maybe visible without tab click
 
       const actionsButton = screen.getByRole("button", {
         name: "Actions for Jane Smith",
@@ -865,7 +886,7 @@ describe("MembersList", () => {
         />,
       );
 
-      await user.click(screen.getByRole("tab", { name: /Maybe/ }));
+      // grouped: Maybe visible without tab click
 
       const actionsButton = screen.getByRole("button", {
         name: "Actions for Jane Smith",
@@ -959,7 +980,7 @@ describe("MembersList", () => {
         />,
       );
 
-      await user.click(screen.getByRole("tab", { name: /Maybe/ }));
+      // grouped: Maybe visible without tab click
 
       const actionsButton = screen.getByRole("button", {
         name: "Actions for Jane Smith",
@@ -1033,7 +1054,7 @@ describe("MembersList", () => {
         />,
       );
 
-      await user.click(screen.getByRole("tab", { name: /Maybe/ }));
+      // grouped: Maybe visible without tab click
 
       const actionsButton = screen.getByRole("button", {
         name: "Actions for Jane Smith",
@@ -1169,7 +1190,7 @@ describe("MembersList", () => {
         />,
       );
 
-      await user.click(screen.getByRole("tab", { name: /Maybe/ }));
+      // grouped: Maybe visible without tab click
 
       const actionsButton = screen.getByRole("button", {
         name: "Actions for Jane Smith",
@@ -1198,7 +1219,7 @@ describe("MembersList", () => {
         />,
       );
 
-      await user.click(screen.getByRole("tab", { name: /Maybe/ }));
+      // grouped: Maybe visible without tab click
 
       const actionsButton = screen.getByRole("button", {
         name: "Actions for Jane Smith",
@@ -1316,9 +1337,9 @@ describe("MembersList", () => {
         <MembersList tripId="trip-123" isOrganizer={false} />,
       );
 
-      // On the Going tab, there's 1 member row
+      // Grouped rendering shows Going + Maybe = 2 rows for non-organizer
       const memberRows = document.querySelectorAll(".py-3");
-      expect(memberRows.length).toBe(1);
+      expect(memberRows.length).toBe(2);
 
       memberRows.forEach((row) => {
         expect(row.className).not.toContain("first:pt-0");

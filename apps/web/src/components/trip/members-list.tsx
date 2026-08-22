@@ -13,6 +13,10 @@ import {
   Volume2,
   Loader2,
   X,
+  Pencil,
+  Send,
+  Link2,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -29,6 +33,13 @@ import {
   getMuteMemberErrorMessage,
   getUnmuteMemberErrorMessage,
 } from "@/hooks/use-messages";
+import {
+  useDeletePlaceholder,
+  useInvitePlaceholder,
+  useLinkPlaceholder,
+  getPlaceholderErrorMessage,
+} from "@/hooks/use-placeholders";
+import { useMutualSuggestions } from "@/hooks/use-mutuals";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,10 +60,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetBody,
+} from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { VenmoIcon } from "@/components/icons/venmo-icon";
 import { InstagramIcon } from "@/components/icons/instagram-icon";
+import { AddPlaceholderDialog } from "@/components/trip/add-placeholder-dialog";
 import {
   getInitials,
   formatPhoneNumber,
@@ -100,6 +120,11 @@ interface MemberRowProps {
   onMemberClick?: ((member: MemberWithProfile) => void) | undefined;
   onMute: (member: MemberWithProfile) => void;
   onUnmute: (member: MemberWithProfile) => void;
+  // Placeholder handlers - when member.isPlaceholder
+  onEditPlaceholder?: (member: MemberWithProfile) => void;
+  onSendInvite?: (member: MemberWithProfile) => void;
+  onLinkPlaceholder?: (member: MemberWithProfile) => void;
+  onDeletePlaceholder?: (member: MemberWithProfile) => void;
 }
 
 function MemberRow({
@@ -113,6 +138,10 @@ function MemberRow({
   onMemberClick,
   onMute,
   onUnmute,
+  onEditPlaceholder,
+  onSendInvite,
+  onLinkPlaceholder,
+  onDeletePlaceholder,
 }: MemberRowProps) {
   const canRemove = isOrganizer && !!onRemove && (member.isPlaceholder || member.userId !== createdBy);
 
@@ -125,7 +154,11 @@ function MemberRow({
   const canMute =
     isOrganizer && !member.isOrganizer && !member.isPlaceholder && member.userId !== createdBy;
 
-  const showActions = isOrganizer && (canRemove || canUpdateRole || canMute);
+  // For placeholders, we show a dedicated menu
+  const isPlaceholder = member.isPlaceholder;
+  const showPlaceholderActions = isOrganizer && isPlaceholder;
+  const showRealActions = isOrganizer && (canRemove || canUpdateRole || canMute) && !isPlaceholder;
+  const showActions = showPlaceholderActions || showRealActions;
 
   return (
     <div
@@ -207,45 +240,72 @@ function MemberRow({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {canUpdateRole && !member.isOrganizer && (
-              <DropdownMenuItem onSelect={() => onUpdateRole!(member, true)}>
-                <ShieldCheck className="w-4 h-4" />
-                Make co-organizer
-              </DropdownMenuItem>
-            )}
-            {canUpdateRole && member.isOrganizer && (
-              <DropdownMenuItem onSelect={() => onUpdateRole!(member, false)}>
-                <ShieldOff className="w-4 h-4" />
-                Remove co-organizer
-              </DropdownMenuItem>
-            )}
-            {canMute && canUpdateRole && <DropdownMenuSeparator />}
-            {canMute && (
+            {isPlaceholder ? (
               <>
-                {member.isMuted ? (
-                  <DropdownMenuItem onSelect={() => onUnmute(member)}>
-                    <Volume2 className="w-4 h-4" />
-                    Unmute
+                <DropdownMenuItem onSelect={() => onEditPlaceholder?.(member)}>
+                  <Pencil className="w-4 h-4" />
+                  Edit name/phone
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => onSendInvite?.(member)}>
+                  <Send className="w-4 h-4" />
+                  Send invite
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => onLinkPlaceholder?.(member)}>
+                  <Link2 className="w-4 h-4" />
+                  Link user
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onSelect={() => onDeletePlaceholder?.(member)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Remove
+                </DropdownMenuItem>
+              </>
+            ) : (
+              <>
+                {canUpdateRole && !member.isOrganizer && (
+                  <DropdownMenuItem onSelect={() => onUpdateRole!(member, true)}>
+                    <ShieldCheck className="w-4 h-4" />
+                    Make co-organizer
                   </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem onSelect={() => onMute(member)}>
-                    <VolumeX className="w-4 h-4" />
-                    Mute
+                )}
+                {canUpdateRole && member.isOrganizer && (
+                  <DropdownMenuItem onSelect={() => onUpdateRole!(member, false)}>
+                    <ShieldOff className="w-4 h-4" />
+                    Remove co-organizer
+                  </DropdownMenuItem>
+                )}
+                {canMute && canUpdateRole && <DropdownMenuSeparator />}
+                {canMute && (
+                  <>
+                    {member.isMuted ? (
+                      <DropdownMenuItem onSelect={() => onUnmute(member)}>
+                        <Volume2 className="w-4 h-4" />
+                        Unmute
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem onSelect={() => onMute(member)}>
+                        <VolumeX className="w-4 h-4" />
+                        Mute
+                      </DropdownMenuItem>
+                    )}
+                  </>
+                )}
+                {canRemove && (canUpdateRole || canMute) && (
+                  <DropdownMenuSeparator />
+                )}
+                {canRemove && (
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onSelect={() => onRemove!(member)}
+                  >
+                    <UserMinus className="w-4 h-4" />
+                    Remove from trip
                   </DropdownMenuItem>
                 )}
               </>
-            )}
-            {canRemove && (canUpdateRole || canMute) && (
-              <DropdownMenuSeparator />
-            )}
-            {canRemove && (
-              <DropdownMenuItem
-                variant="destructive"
-                onSelect={() => onRemove!(member)}
-              >
-                <UserMinus className="w-4 h-4" />
-                Remove from trip
-              </DropdownMenuItem>
             )}
           </DropdownMenuContent>
         </DropdownMenu>
@@ -325,6 +385,19 @@ export function MembersList({
   const unmuteMember = useUnmuteMember(tripId);
   const revokeInvitation = useRevokeInvitation(tripId);
 
+  // Placeholder dialog state
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editingPlaceholder, setEditingPlaceholder] = useState<MemberWithProfile | null>(null);
+
+  // Link sheet state
+  const [linkMember, setLinkMember] = useState<MemberWithProfile | null>(null);
+  const [linkSheetOpen, setLinkSheetOpen] = useState(false);
+
+  const deletePlaceholder = useDeletePlaceholder(tripId);
+  const invitePlaceholder = useInvitePlaceholder(tripId);
+  const linkPlaceholder = useLinkPlaceholder(tripId);
+  const { data: mutualSuggestions } = useMutualSuggestions(tripId);
+
   const handleMute = async () => {
     if (!mutingMember || !mutingMember.userId) return;
     try {
@@ -359,6 +432,65 @@ export function MembersList({
     }
   };
 
+  const handleEditPlaceholder = (member: MemberWithProfile) => {
+    setEditingPlaceholder(member);
+    setAddDialogOpen(true);
+  };
+
+  const handleAddPerson = () => {
+    setEditingPlaceholder(null);
+    setAddDialogOpen(true);
+  };
+
+  const handleDialogOpenChange = (open: boolean) => {
+    setAddDialogOpen(open);
+    if (!open) setEditingPlaceholder(null);
+  };
+
+  const handleSendInvite = async (member: MemberWithProfile) => {
+    if (!member.phoneNumber) {
+      toast.error("Add a phone number first");
+      setEditingPlaceholder(member);
+      setAddDialogOpen(true);
+      return;
+    }
+    try {
+      await invitePlaceholder.mutateAsync(member.id);
+    } catch (error) {
+      const msg = getPlaceholderErrorMessage(error as Error);
+      toast.error(msg ?? "Failed to send invite");
+    }
+  };
+
+  const handleDeletePlaceholder = async (member: MemberWithProfile) => {
+    try {
+      await deletePlaceholder.mutateAsync(member.id);
+    } catch (error) {
+      const msg = getPlaceholderErrorMessage(error as Error);
+      toast.error(msg ?? "Failed to remove person");
+    }
+  };
+
+  const handleLinkPlaceholder = (member: MemberWithProfile) => {
+    setLinkMember(member);
+    setLinkSheetOpen(true);
+  };
+
+  const handleLinkSelect = async (targetUserId: string) => {
+    if (!linkMember) return;
+    try {
+      await linkPlaceholder.mutateAsync({
+        memberId: linkMember.id,
+        targetUserId,
+      });
+      setLinkSheetOpen(false);
+      setLinkMember(null);
+    } catch (error) {
+      const msg = getPlaceholderErrorMessage(error as Error);
+      toast.error(msg ?? "Failed to link user");
+    }
+  };
+
   if (isPending) {
     return <MembersListSkeleton />;
   }
@@ -373,17 +505,35 @@ export function MembersList({
           className="flex-1"
         />
         {isOrganizer && onInvite && (
-          <div className="mt-auto pt-4 border-t border-border">
+          <div className="sticky bottom-0 bg-background pt-4 pb-2 border-t border-border mt-4 flex gap-2">
             <Button
               onClick={onInvite}
               variant="outline"
               size="sm"
+              className="flex-1"
             >
               <UserPlus className="w-4 h-4 mr-2" />
               Invite members
             </Button>
+            <Button
+              onClick={handleAddPerson}
+              variant="gradient"
+              size="sm"
+              className="flex-1"
+              disabled={(members?.length ?? 0) >= 25}
+              data-testid="add-placeholder-trigger"
+            >
+              <UserPlus className="w-4 h-4 mr-2" />
+              Add person
+            </Button>
           </div>
         )}
+        <AddPlaceholderDialog
+          open={addDialogOpen}
+          onOpenChange={handleDialogOpenChange}
+          tripId={tripId}
+          placeholder={editingPlaceholder}
+        />
       </div>
     );
   }
@@ -394,11 +544,27 @@ export function MembersList({
   const notGoing = members.filter((m) => m.status === "not_going");
   const placeholders = members.filter((m) => m.isPlaceholder);
 
-  // Pending/failed invitations for the Invited group
+  // Pending/failed invitations + no_response members for the Invited group (legacy tab combined both)
   const pendingInvitations =
     invitations?.filter(
       (inv) => inv.status === "pending" || inv.status === "failed",
     ) ?? [];
+  const noResponseMembers = members.filter((m) => m.status === "no_response" && !m.isPlaceholder);
+  const invitedCount = noResponseMembers.length + pendingInvitations.length;
+
+  // Partition rule: Not invited = isPlaceholder && !hasPendingInvite(memberId or phone)
+  const pendingInvitePhoneSet = new Set(pendingInvitations.map((i) => i.inviteePhone));
+  const pendingInviteMemberIdSet = new Set(
+    pendingInvitations.map((i) => (i as unknown as { memberId?: string }).memberId).filter(Boolean) as string[],
+  );
+
+  function hasPendingInvite(member: MemberWithProfile): boolean {
+    if (pendingInviteMemberIdSet.has(member.id)) return true;
+    if (member.phoneNumber && pendingInvitePhoneSet.has(member.phoneNumber)) return true;
+    return false;
+  }
+
+  const notInvited = placeholders.filter((m) => !hasPendingInvite(m));
 
   const memberRowProps = {
     isOrganizer,
@@ -409,6 +575,10 @@ export function MembersList({
     onMemberClick,
     onMute: setMutingMember,
     onUnmute: handleUnmute,
+    onEditPlaceholder: handleEditPlaceholder,
+    onSendInvite: handleSendInvite,
+    onLinkPlaceholder: handleLinkPlaceholder,
+    onDeletePlaceholder: handleDeletePlaceholder,
   };
 
   function SectionHeader({ title, count }: { title: string; count: number }) {
@@ -449,10 +619,13 @@ export function MembersList({
             </div>
           </section>
         )}
-        {isOrganizer && pendingInvitations.length > 0 && (
+        {isOrganizer && invitedCount > 0 && (
           <section>
-            <SectionHeader title="Invited" count={pendingInvitations.length} />
+            <SectionHeader title="Invited" count={invitedCount} />
             <div className="divide-y divide-border">
+              {noResponseMembers.map((member, i) => (
+                <MemberRow key={member.id} member={member} index={i} {...memberRowProps} />
+              ))}
               {pendingInvitations.map((invitation) => (
                 <PendingInvitationRow
                   key={invitation.id}
@@ -464,31 +637,106 @@ export function MembersList({
             </div>
           </section>
         )}
-        {isOrganizer && placeholders.length > 0 && (
+        {isOrganizer && (
           <section>
-            <SectionHeader title="Not invited" count={placeholders.length} />
-            <div className="divide-y divide-border">
-              {placeholders.map((member, i) => (
-                <MemberRow key={member.id} member={member} index={i} {...memberRowProps} />
-              ))}
-            </div>
+            <SectionHeader title="Not invited" count={notInvited.length} />
+            {notInvited.length === 0 ? (
+              <div className="rounded-md border border-dashed border-border bg-card/50 p-6 text-center linen-texture">
+                <div className="mx-auto mb-3 size-12 rounded-full border-2 border-dashed border-primary/30 bg-card flex items-center justify-center">
+                  <UserPlus className="size-6 text-primary/60" />
+                </div>
+                <p className="font-playfair text-sm font-medium">No extra travelers yet</p>
+                <p className="text-xs text-muted-foreground mt-1 mb-4">
+                  Add people you’re planning for — you can invite them later.
+                </p>
+                <Button
+                  onClick={handleAddPerson}
+                  variant="outline"
+                  size="sm"
+                  disabled={(members?.length ?? 0) >= 25}
+                  data-testid="add-placeholder-trigger"
+                >
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Add person
+                </Button>
+              </div>
+            ) : (
+              <div className="divide-y divide-border">
+                {notInvited.map((member, i) => (
+                  <MemberRow key={member.id} member={member} index={i} {...memberRowProps} />
+                ))}
+              </div>
+            )}
           </section>
         )}
       </div>
 
       {isOrganizer && onInvite && (
-        <div className="sticky bottom-0 bg-background pt-4 pb-2 border-t border-border mt-4">
+        <div className="sticky bottom-0 bg-background pt-4 pb-2 border-t border-border mt-4 flex gap-2">
           <Button
             onClick={onInvite}
             variant="outline"
             size="sm"
-            className="w-full"
+            className="flex-1"
           >
             <UserPlus className="w-4 h-4 mr-2" />
             Invite members
           </Button>
+          <Button
+            onClick={handleAddPerson}
+            variant="gradient"
+            size="sm"
+            className="flex-1"
+            disabled={(members?.length ?? 0) >= 25}
+            data-testid="add-placeholder-trigger"
+          >
+            <UserPlus className="w-4 h-4 mr-2" />
+            Add person
+          </Button>
         </div>
       )}
+
+      <AddPlaceholderDialog
+        open={addDialogOpen}
+        onOpenChange={handleDialogOpenChange}
+        tripId={tripId}
+        placeholder={editingPlaceholder}
+      />
+
+      {/* Link user sheet */}
+      <Sheet open={linkSheetOpen} onOpenChange={setLinkSheetOpen}>
+        <SheetContent className="flex flex-col">
+          <SheetHeader>
+            <SheetTitle className="font-playfair">Link to mutual</SheetTitle>
+            <SheetDescription>
+              Pick a mutual to connect to “{linkMember?.displayName}”. If they already have a member row, their travel and payments will be merged.
+            </SheetDescription>
+          </SheetHeader>
+          <SheetBody className="space-y-3">
+            {!mutualSuggestions || mutualSuggestions.mutuals.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">No mutuals available</p>
+            ) : (
+              <div className="space-y-1 max-h-[60dvh] overflow-y-auto">
+                {mutualSuggestions.mutuals.map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => handleLinkSelect(m.id)}
+                    disabled={linkPlaceholder.isPending}
+                    className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-muted/60 text-left"
+                  >
+                    <Avatar size="sm">
+                      <AvatarImage src={getUploadUrl(m.profilePhotoUrl)} alt={m.displayName} />
+                      <AvatarFallback>{getInitials(m.displayName)}</AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm font-medium truncate flex-1">{m.displayName}</span>
+                    {linkPlaceholder.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </SheetBody>
+        </SheetContent>
+      </Sheet>
 
       <AlertDialog
         open={!!mutingMember}
