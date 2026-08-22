@@ -145,7 +145,7 @@ describe("InviteMembersDialog", () => {
     it("renders Add button", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
-      expect(screen.getByRole("button", { name: /add/i })).toBeDefined();
+      expect(screen.getByRole("button", { name: /^Add$/ })).toBeDefined();
     });
 
     it("renders submit button disabled when no phones added", () => {
@@ -166,7 +166,7 @@ describe("InviteMembersDialog", () => {
       const phoneInput = screen.getByTestId("phone-input");
       await user.type(phoneInput, "+14155552671");
 
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /^Add$/ });
       await user.click(addButton);
 
       await waitFor(() => {
@@ -181,7 +181,7 @@ describe("InviteMembersDialog", () => {
       const phoneInput = screen.getByTestId("phone-input");
       await user.type(phoneInput, "invalid");
 
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /^Add$/ });
       await user.click(addButton);
 
       await waitFor(() => {
@@ -196,7 +196,7 @@ describe("InviteMembersDialog", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
       const phoneInput = screen.getByTestId("phone-input");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /^Add$/ });
 
       // Add first phone
       await user.type(phoneInput, "+14155552671");
@@ -222,7 +222,7 @@ describe("InviteMembersDialog", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
       const phoneInput = screen.getByTestId("phone-input");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /^Add$/ });
 
       // Add phone
       await user.type(phoneInput, "+14155552671");
@@ -248,7 +248,7 @@ describe("InviteMembersDialog", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
       const phoneInput = screen.getByTestId("phone-input");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /^Add$/ });
 
       await user.type(phoneInput, "+14155552671");
       await user.click(addButton);
@@ -282,7 +282,7 @@ describe("InviteMembersDialog", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
       const phoneInput = screen.getByTestId("phone-input");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /^Add$/ });
 
       // Add phones
       await user.type(phoneInput, "+14155552671");
@@ -326,7 +326,7 @@ describe("InviteMembersDialog", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
       const phoneInput = screen.getByTestId("phone-input");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /^Add$/ });
 
       await user.type(phoneInput, "+14155552671");
       await user.click(addButton);
@@ -359,7 +359,7 @@ describe("InviteMembersDialog", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
       const phoneInput = screen.getByTestId("phone-input");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /^Add$/ });
 
       await user.type(phoneInput, "+14155552671");
       await user.click(addButton);
@@ -394,7 +394,7 @@ describe("InviteMembersDialog", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
       const phoneInput = screen.getByTestId("phone-input");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /^Add$/ });
 
       await user.type(phoneInput, "+14155552671");
       await user.click(addButton);
@@ -423,7 +423,7 @@ describe("InviteMembersDialog", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
       const phoneInput = screen.getByTestId("phone-input");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /^Add$/ });
 
       await user.type(phoneInput, "+14155552671");
       await user.click(addButton);
@@ -467,7 +467,7 @@ describe("InviteMembersDialog", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
       const phoneInput = screen.getByTestId("phone-input");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /^Add$/ });
 
       await user.type(phoneInput, "+14155552671");
       await user.click(addButton);
@@ -486,7 +486,7 @@ describe("InviteMembersDialog", () => {
       expect(phoneInputAfterSubmit).toHaveProperty("disabled", true);
 
       const addButtonAfterSubmit = screen.getByRole("button", {
-        name: /add/i,
+        name: /^Add$/,
       });
       expect(addButtonAfterSubmit).toHaveProperty("disabled", true);
     });
@@ -512,7 +512,7 @@ describe("InviteMembersDialog", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
       const phoneInput = screen.getByTestId("phone-input");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /^Add$/ });
 
       await user.type(phoneInput, "+14155552671");
       await user.click(addButton);
@@ -554,7 +554,7 @@ describe("InviteMembersDialog", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
       const phoneInput = screen.getByTestId("phone-input");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /^Add$/ });
 
       await user.type(phoneInput, "+14155552671");
       await user.click(addButton);
@@ -577,7 +577,7 @@ describe("InviteMembersDialog", () => {
       );
 
       const phoneInput = screen.getByTestId("phone-input");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /^Add$/ });
 
       // Add a phone number
       await user.type(phoneInput, "+14155552671");
@@ -786,7 +786,7 @@ describe("InviteMembersDialog", () => {
       // Add a phone number
       const phoneInput = screen.getByTestId("phone-input");
       await user.type(phoneInput, "+14155552671");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /^Add$/ });
       await user.click(addButton);
 
       await waitFor(() => {
@@ -831,7 +831,7 @@ describe("InviteMembersDialog", () => {
       // Add phone and submit
       const phoneInput = screen.getByTestId("phone-input");
       await user.type(phoneInput, "+14155552671");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /^Add$/ });
       await user.click(addButton);
 
       await waitFor(() => {
@@ -918,7 +918,7 @@ describe("InviteMembersDialog", () => {
       // Add phone
       const phoneInput = screen.getByTestId("phone-input");
       await user.type(phoneInput, "+14155552671");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /^Add$/ });
       await user.click(addButton);
 
       await waitFor(() => {

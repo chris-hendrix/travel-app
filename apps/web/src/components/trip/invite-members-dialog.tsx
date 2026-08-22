@@ -41,6 +41,7 @@ import { toast } from "sonner";
 import { Loader2, X, UserPlus, Phone, Search, Users } from "lucide-react";
 import { formatPhoneNumber, getInitials } from "@/lib/format";
 import { getUploadUrl } from "@/lib/api";
+import { AddPlaceholderDialog } from "@/components/trip/add-placeholder-dialog";
 
 interface InviteMembersDialogProps {
   open: boolean;
@@ -56,6 +57,7 @@ export function InviteMembersDialog({
   const [currentPhone, setCurrentPhone] = useState("");
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [mutualSearch, setMutualSearch] = useState("");
+  const [addPlaceholderOpen, setAddPlaceholderOpen] = useState(false);
 
   const { mutate: inviteMembers, isPending } = useInviteMembers(tripId);
   const { data: suggestions, isPending: isSuggestionsLoading } =
@@ -179,7 +181,8 @@ export function InviteMembersDialog({
   }, [suggestions?.mutuals, userIds]);
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <>
+      <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent>
         <SheetHeader>
           <SheetTitle className="text-3xl font-playfair tracking-tight">
@@ -444,8 +447,38 @@ export function InviteMembersDialog({
               </div>
             </form>
           </Form>
+
+          {/* Add person without inviting — footer (moved educational copy) */}
+          <div className="pt-4 mt-4 border-t border-dashed">
+            <p className="text-xs text-muted-foreground mb-3">
+              Planning for someone who isn’t on Journiful yet? They’ll appear
+              in the member list, itinerary &amp; Settle — no SMS until you
+              invite. Add people you’re planning for — you can invite them
+              later.
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full font-normal text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
+              onClick={() => setAddPlaceholderOpen(true)}
+              type="button"
+            >
+              <UserPlus className="w-4 h-4 mr-2" />
+              Add person without inviting
+            </Button>
+          </div>
         </SheetBody>
       </SheetContent>
     </Sheet>
+    <AddPlaceholderDialog
+      open={addPlaceholderOpen}
+      onOpenChange={setAddPlaceholderOpen}
+      tripId={tripId}
+      forceDialog
+      onSuccess={() => {
+        toast.success("Person added without invite");
+      }}
+    />
+    </>
   );
 }

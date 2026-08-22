@@ -354,14 +354,14 @@ export function PaymentForm({
                     No members available.
                   </p>
                 )}
-                {/* Reuse same AddPlaceholderDialog */}
+                {/* Reuse same AddPlaceholderDialog — de-emphasized */}
                 <button
                   type="button"
                   onClick={() => setAddDialogOpen(true)}
                   className="flex items-center gap-2 px-2 pt-1.5 border-t border-border mt-1 w-full text-left hover:bg-muted/40 rounded-md py-1"
                 >
-                  <UserPlus className="size-4 text-primary shrink-0" />
-                  <span className="text-sm text-primary font-medium">Add person…</span>
+                  <UserPlus className="size-4 text-primary/60 shrink-0" />
+                  <span className="text-sm font-normal text-muted-foreground hover:text-primary">Add person without inviting…</span>
                 </button>
               </div>
               {payerPerson && selectedParticipants.has(payerId) && (

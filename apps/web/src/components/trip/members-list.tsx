@@ -187,6 +187,11 @@ function MemberRow({
               Organizer
             </Badge>
           )}
+          {member.isPlaceholder && (
+            <Badge variant="secondary" className="bg-muted text-muted-foreground border">
+              Placeholder
+            </Badge>
+          )}
           {member.isMuted && (
             <Badge className="bg-orange-500/15 text-orange-600 border-orange-500/30">
               <VolumeX className="w-3 h-3 mr-1" />
@@ -505,26 +510,25 @@ export function MembersList({
           className="flex-1"
         />
         {isOrganizer && onInvite && (
-          <div className="sticky bottom-0 bg-background pt-4 pb-2 border-t border-border mt-4 flex gap-2">
+          <div className="sticky bottom-0 bg-background pt-4 pb-2 border-t border-border mt-4 flex flex-col">
             <Button
               onClick={onInvite}
-              variant="outline"
-              size="sm"
-              className="flex-1"
+              variant="gradient"
+              size="lg"
+              className="w-full h-12"
             >
               <UserPlus className="w-4 h-4 mr-2" />
               Invite members
             </Button>
             <Button
               onClick={handleAddPerson}
-              variant="gradient"
+              variant="ghost"
               size="sm"
-              className="flex-1"
+              className="w-full font-normal text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline mt-3"
               disabled={(members?.length ?? 0) >= 25}
               data-testid="add-placeholder-trigger"
             >
-              <UserPlus className="w-4 h-4 mr-2" />
-              Add person
+              Add person without inviting
             </Button>
           </div>
         )}
@@ -645,19 +649,16 @@ export function MembersList({
                 <div className="mx-auto mb-3 size-12 rounded-full border-2 border-dashed border-primary/30 bg-card flex items-center justify-center">
                   <UserPlus className="size-6 text-primary/60" />
                 </div>
-                <p className="font-playfair text-sm font-medium">No extra travelers yet</p>
-                <p className="text-xs text-muted-foreground mt-1 mb-4">
-                  Add people you’re planning for — you can invite them later.
-                </p>
+                <p className="font-playfair text-sm font-medium">No one extra yet</p>
                 <Button
                   onClick={handleAddPerson}
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
+                  className="font-normal text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline mt-3"
                   disabled={(members?.length ?? 0) >= 25}
                   data-testid="add-placeholder-trigger"
                 >
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  Add person
+                  Add person without inviting
                 </Button>
               </div>
             ) : (
@@ -672,26 +673,25 @@ export function MembersList({
       </div>
 
       {isOrganizer && onInvite && (
-        <div className="sticky bottom-0 bg-background pt-4 pb-2 border-t border-border mt-4 flex gap-2">
+        <div className="sticky bottom-0 bg-background pt-4 pb-2 border-t border-border mt-4 flex flex-col">
           <Button
             onClick={onInvite}
-            variant="outline"
-            size="sm"
-            className="flex-1"
+            variant="gradient"
+            size="lg"
+            className="w-full h-12"
           >
             <UserPlus className="w-4 h-4 mr-2" />
             Invite members
           </Button>
           <Button
             onClick={handleAddPerson}
-            variant="gradient"
+            variant="ghost"
             size="sm"
-            className="flex-1"
+            className="w-full font-normal text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline mt-3"
             disabled={(members?.length ?? 0) >= 25}
             data-testid="add-placeholder-trigger"
           >
-            <UserPlus className="w-4 h-4 mr-2" />
-            Add person
+            Add person without inviting
           </Button>
         </div>
       )}

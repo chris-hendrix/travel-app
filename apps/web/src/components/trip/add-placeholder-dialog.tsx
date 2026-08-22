@@ -50,6 +50,8 @@ interface AddPlaceholderDialogProps {
   tripId: string;
   placeholder?: MemberWithProfile | null;
   onSuccess?: (member: MemberWithProfile) => void;
+  /** When true, always render as Dialog (avoid nested Sheet on mobile) */
+  forceDialog?: boolean;
 }
 
 export function AddPlaceholderDialog({
@@ -58,10 +60,12 @@ export function AddPlaceholderDialog({
   tripId,
   placeholder,
   onSuccess,
+  forceDialog = false,
 }: AddPlaceholderDialogProps) {
   const isEdit = !!placeholder?.isPlaceholder;
-  const isMobile = useIsMobile();
-  const { data: members } = useMembers(tripId);
+  const isMobileRaw = useIsMobile();
+  const isMobile = forceDialog ? false : isMobileRaw;
+  const { data: members } = useMembers(open ? tripId : "");
   const createPlaceholder = useCreatePlaceholder(tripId);
   const updatePlaceholder = useUpdatePlaceholder();
 
@@ -219,9 +223,8 @@ export function AddPlaceholderDialog({
               {isEdit ? "Edit person" : "Add person"}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {isEdit
-                ? "Update name or phone number."
-                : "Not yet invited — you can invite them later."}
+              Placeholder: someone you&apos;re planning for before inviting.
+              They appear in the itinerary &amp; Settle; send an invite or link them later.
             </p>
           </div>
         </div>
