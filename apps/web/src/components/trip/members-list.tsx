@@ -74,7 +74,6 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { VenmoIcon } from "@/components/icons/venmo-icon";
 import { InstagramIcon } from "@/components/icons/instagram-icon";
 import { AddPlaceholderDialog } from "@/components/trip/add-placeholder-dialog";
-import { PlaceholderDetailSheet } from "@/components/trip/placeholder-detail-sheet";
 import {
   getInitials,
   formatPhoneNumber,
@@ -442,8 +441,6 @@ export function MembersList({
   const [linkMember, setLinkMember] = useState<MemberWithProfile | null>(null);
   const [linkSheetOpen, setLinkSheetOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<MemberWithProfile | null>(null);
-  const [detailMember, setDetailMember] = useState<MemberWithProfile | null>(null);
-  const [detailFocus, setDetailFocus] = useState<"name" | "phone" | "mutual" | undefined>(undefined);
 
   const deletePlaceholder = useDeletePlaceholder(tripId);
   const invitePlaceholder = useInvitePlaceholder(tripId);
@@ -764,20 +761,8 @@ export function MembersList({
         placeholder={editingPlaceholder}
       />
 
-      <PlaceholderDetailSheet
-        member={detailMember}
-        open={!!detailMember}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDetailMember(null);
-            setDetailFocus(undefined);
-          }
-        }}
-        tripId={tripId}
-        {...(detailFocus ? { initialFocus: detailFocus } : {})}
-      />
-
-      {/* Link user sheet (legacy fallback — still used if handleLinkPlaceholder not overridden) */}
+      {/* Detail sheet now rendered at top-level (trip-detail / mobile layout) like MemberProfileSheet — not nested */}
+      {/* Link user sheet (legacy fallback) */}
       <Sheet open={linkSheetOpen} onOpenChange={handleLinkSheetOpenChange}>
         <SheetContent className="flex flex-col">
           <SheetHeader>

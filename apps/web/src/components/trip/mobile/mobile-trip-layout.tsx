@@ -13,6 +13,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { MembersList } from "@/components/trip/members-list";
+import { MemberProfileSheet } from "@/components/trip/member-profile-sheet";
+import { PlaceholderDetailSheet } from "@/components/trip/placeholder-detail-sheet";
 import { NotificationPreferences } from "@/components/notifications/notification-preferences";
 import { TripThemeProvider } from "@/components/trip/trip-theme-provider";
 import { useHasOpenDialog } from "@/hooks/use-has-open-dialog";
@@ -103,6 +105,8 @@ export function MobileTripLayout({
   const [removingMember, setRemovingMember] = useState<{
     member: MemberWithProfile;
   } | null>(null);
+  const [profileMember, setProfileMember] = useState<MemberWithProfile | null>(null);
+  const [placeholderDetailMember, setPlaceholderDetailMember] = useState<MemberWithProfile | null>(null);
 
   const swiperRef = useRef<MobileTripSwiperRef>(null);
 
@@ -330,6 +334,8 @@ export function MobileTripLayout({
                   }}
                   onRemove={(member) => setRemovingMember({ member })}
                   onUpdateRole={handleUpdateRole}
+                  onMemberClick={(m) => setProfileMember(m)}
+                  onPlaceholderClick={(m) => setPlaceholderDetailMember(m)}
                 />
               )}
             </SheetBody>
@@ -344,6 +350,18 @@ export function MobileTripLayout({
             trip={trip}
           />
         )}
+
+        <MemberProfileSheet
+          member={profileMember}
+          open={!!profileMember}
+          onOpenChange={(o) => !o && setProfileMember(null)}
+        />
+        <PlaceholderDetailSheet
+          member={placeholderDetailMember}
+          open={!!placeholderDetailMember}
+          onOpenChange={(o) => !o && setPlaceholderDetailMember(null)}
+          tripId={tripId}
+        />
       </div>
     </TripThemeProvider>
   );

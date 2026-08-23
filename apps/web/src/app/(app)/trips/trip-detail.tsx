@@ -48,6 +48,7 @@ import type { Accommodation } from "@journiful/shared/types";
 import { NotificationPreferences } from "@/components/notifications/notification-preferences";
 import { MembersList } from "@/components/trip/members-list";
 import { MemberProfileSheet } from "@/components/trip/member-profile-sheet";
+import { PlaceholderDetailSheet } from "@/components/trip/placeholder-detail-sheet";
 import { TripPreview } from "@/components/trip/trip-preview";
 import { TripThemeProvider } from "@/components/trip/trip-theme-provider";
 import { THEME_PRESETS } from "@journiful/shared/config";
@@ -133,6 +134,7 @@ export function TripDetailShell() {
   } | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [profileMember, setProfileMember] = useState<MemberWithProfile | null>(null);
+  const [placeholderDetailMember, setPlaceholderDetailMember] = useState<MemberWithProfile | null>(null);
   const [selectedAccommodation, setSelectedAccommodation] =
     useState<Accommodation | null>(null);
   const [editingAccommodation, setEditingAccommodation] =
@@ -563,6 +565,7 @@ export function TripDetailShell() {
                   onRemove={(member) => setRemovingMember({ member })}
                   onUpdateRole={handleUpdateRole}
                   onMemberClick={(member) => setProfileMember(member)}
+                  onPlaceholderClick={(member) => setPlaceholderDetailMember(member)}
                 />
               )}
             </SheetBody>
@@ -634,6 +637,14 @@ export function TripDetailShell() {
           onOpenChange={(open) => {
             if (!open) setProfileMember(null);
           }}
+        />
+        <PlaceholderDetailSheet
+          member={placeholderDetailMember}
+          open={!!placeholderDetailMember}
+          onOpenChange={(open) => {
+            if (!open) setPlaceholderDetailMember(null);
+          }}
+          tripId={tripId}
         />
       </div>
     </TripThemeProvider>
