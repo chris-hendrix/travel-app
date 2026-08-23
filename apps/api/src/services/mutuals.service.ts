@@ -180,8 +180,8 @@ export class MutualsService implements IMutualsService {
     // Build WHERE conditions
     const whereConditions: ReturnType<typeof sql>[] = [
       sql`m1.user_id = ${userId}`,
-      // Exclude users already in the target trip
-      sql`u.id NOT IN (SELECT user_id FROM members WHERE trip_id = ${tripId})`,
+      // Exclude users already in the target trip — use NOT EXISTS to stay NULL-safe when placeholders (user_id NULL) exist
+      sql`NOT EXISTS (SELECT 1 FROM members mx WHERE mx.trip_id = ${tripId} AND mx.user_id = u.id)`,
     ];
 
     if (search) {
