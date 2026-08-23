@@ -5,6 +5,7 @@ import type {
   UpdateMySettingsInput,
   CreatePlaceholderInput,
   UpdatePlaceholderInput,
+  AttachPlaceholderInput,
 } from "@journiful/shared/schemas";
 import { PermissionDeniedError } from "../errors.js";
 import { auditLog } from "@/utils/audit.js";
@@ -674,6 +675,24 @@ export const invitationController = {
       if (error && typeof error === "object" && "statusCode" in error) throw error;
       request.log.error({ err: error }, "Failed to link placeholder");
       return reply.status(500).send({ success: false, error: { code: "INTERNAL_SERVER_ERROR", message: "Failed to link placeholder" } });
+    }
+  },
+
+  async attachPlaceholder(
+    request: FastifyRequest<{
+      Params: { id: string };
+      Body: AttachPlaceholderInput;
+    }>,
+    reply: FastifyReply,
+  ) {
+    try {
+      const member = await request.server.invitationService.attachPlaceholder(request.user.sub, request.params.id, request.body as { phoneNumber?: string; targetUserId?: string });
+      auditLog(request, "placeholder.attached", { resourceType: "member", resourceId: request.params.id, metadata: request.body as Record<string, string> });
+      return reply.send({ success: true, member });
+    } catch (error) {
+      if (error && typeof error === "object" && "statusCode" in error) throw error;
+      request.log.error({ err: error }, "Failed to attach placeholder");
+      return reply.status(500).send({ success: false, error: { code: "INTERNAL_SERVER_ERROR", message: "Failed to attach placeholder" } });
     }
   },
 };

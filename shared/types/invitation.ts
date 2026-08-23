@@ -10,6 +10,7 @@ export interface Invitation {
   tripId: string;
   inviterId: string;
   inviteePhone: string;
+  memberId?: string | null;
   status: "pending" | "accepted" | "declined" | "failed";
   sentAt: string;
   respondedAt: string | null;

@@ -189,8 +189,12 @@ export {
 export {
   createPlaceholderSchema,
   updatePlaceholderSchema,
+  attachPlaceholderSchema,
+  linkPlaceholderBodySchema,
   type CreatePlaceholderInput,
   type UpdatePlaceholderInput,
+  type AttachPlaceholderInput,
+  type LinkPlaceholderInput,
 } from "./placeholder";
 
 // Re-export payment schemas

@@ -42,6 +42,7 @@ vi.mock("@/hooks/use-placeholders", () => ({
   useDeletePlaceholder: () => ({ mutateAsync: vi.fn().mockResolvedValue(undefined), isPending: false }),
   useInvitePlaceholder: () => ({ mutateAsync: vi.fn().mockResolvedValue(undefined), isPending: false }),
   useLinkPlaceholder: () => ({ mutateAsync: vi.fn().mockResolvedValue(undefined), isPending: false }),
+  useAttachPlaceholder: () => ({ mutateAsync: vi.fn().mockResolvedValue({ id: "attached", isPlaceholder: false, displayName: "Attached" }), isPending: false }),
   useCreatePlaceholder: () => ({ mutateAsync: vi.fn().mockResolvedValue({ id: "new" }), isPending: false }),
   useUpdatePlaceholder: () => ({ mutateAsync: vi.fn().mockResolvedValue({ id: "upd" }), isPending: false }),
   getPlaceholderErrorMessage: () => null,

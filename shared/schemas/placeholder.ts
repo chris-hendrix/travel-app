@@ -41,6 +41,27 @@ export const updatePlaceholderSchema = z.object({
   phoneNumber: phoneNumberSchema.optional(),
 });
 
+export const attachPlaceholderSchema = z
+  .object({
+    phoneNumber: phoneNumberSchema.optional(),
+    targetUserId: z.string().uuid("Invalid UUID format").optional(),
+  })
+  .strict()
+  .refine(
+    (d) => (d.phoneNumber ? 1 : 0) + (d.targetUserId ? 1 : 0) === 1,
+    {
+      message: "Provide exactly one of phoneNumber or targetUserId",
+      path: ["phoneNumber"],
+    },
+  );
+
+ // Link placeholder body (legacy) — keep for /link route
+export const linkPlaceholderBodySchema = z.object({
+  targetUserId: z.string().uuid("Invalid UUID format"),
+});
+
 // Inferred TypeScript types from schemas
 export type CreatePlaceholderInput = z.infer<typeof createPlaceholderSchema>;
 export type UpdatePlaceholderInput = z.infer<typeof updatePlaceholderSchema>;
+export type AttachPlaceholderInput = z.infer<typeof attachPlaceholderSchema>;
+export type LinkPlaceholderInput = z.infer<typeof linkPlaceholderBodySchema>;

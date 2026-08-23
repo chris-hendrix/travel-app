@@ -115,6 +115,32 @@ export function useLinkPlaceholder(tripId: string) {
   });
 }
 
+export function useAttachPlaceholder(tripId: string) {
+  const queryClient = useQueryClient();
+  return useMutation<MemberWithProfile, APIError, { memberId: string; phoneNumber?: string; targetUserId?: string }>({
+    mutationKey: ["placeholders", "attach", tripId],
+    mutationFn: async ({ memberId, phoneNumber, targetUserId }) => {
+      const body: Record<string, string> = {};
+      if (phoneNumber) body.phoneNumber = phoneNumber;
+      if (targetUserId) body.targetUserId = targetUserId;
+      const res = await apiRequest<{ success: true; member: MemberWithProfile }>(`/placeholders/${memberId}/attach`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      return res.member;
+    },
+    onSuccess: (member) => {
+      if (!member.isPlaceholder) toast.success(`Linked to ${member.displayName}`);
+      else toast.success("Phone attached — send invite to activate");
+      queryClient.invalidateQueries({ queryKey: memberKeys.list(tripId) });
+      queryClient.invalidateQueries({ queryKey: invitationKeys.list(tripId) });
+      queryClient.invalidateQueries({ queryKey: paymentKeys.list(tripId) });
+      queryClient.invalidateQueries({ queryKey: balanceKeys.trip(tripId) });
+      queryClient.invalidateQueries({ queryKey: balanceKeys.me(tripId) });
+    },
+  });
+}
+
 export function getPlaceholderErrorMessage(error: Error | null): string | null {
   if (!error) return null;
   if (error instanceof APIError) {
@@ -129,6 +155,8 @@ export function getPlaceholderErrorMessage(error: Error | null): string | null {
         return "Person has no phone number to invite.";
       case "NOT_A_MUTUAL":
         return "User is not a mutual.";
+      case "PHONE_TAKEN":
+        return "Phone number already in use in this trip.";
       default:
         return error.message;
     }

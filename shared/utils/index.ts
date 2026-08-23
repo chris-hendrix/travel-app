@@ -44,3 +44,4 @@ export {
   deriveDarkPaletteVariants,
   readableForeground,
 } from "./color-utils";
+export { toE164, normalizePhoneForCompare } from "./normalizePhone";

@@ -30,6 +30,7 @@ import {
   CannotModifyOwnRoleError,
   LastOrganizerError,
   NotAMutualError,
+  PhoneTakenError,
 } from "../errors.js";
 
 /**
@@ -221,6 +222,18 @@ export interface IInvitationService {
     userId: string,
     memberId: string,
     targetUserId: string,
+  ): Promise<MemberWithProfile>;
+
+  /**
+   * Attaches a phone number or links a mutual to a placeholder.
+   * If phoneNumber matches a registered user, instantly converts (merge if needed).
+   * If phoneNumber unknown, stages phoneNumber without converting.
+   * If targetUserId provided, delegates to link logic (requires mutual).
+   */
+  attachPlaceholder(
+    userId: string,
+    memberId: string,
+    data: { phoneNumber?: string; targetUserId?: string },
   ): Promise<MemberWithProfile>;
 }
 
@@ -1682,6 +1695,103 @@ export class InvitationService implements IInvitationService {
         isOrganizer: updated.isOrganizer,
         createdAt: updated.createdAt.toISOString(),
       };
+    }
+  }
+
+  async attachPlaceholder(
+    userId: string,
+    memberId: string,
+    data: { phoneNumber?: string; targetUserId?: string },
+  ): Promise<MemberWithProfile> {
+    const [member] = await this.db.select({ id: members.id, tripId: members.tripId, userId: members.userId }).from(members).where(eq(members.id, memberId)).limit(1);
+    if (!member || member.userId !== null) throw new MemberNotFoundError();
+    const isOrg = await this.permissionsService.isOrganizer(userId, member.tripId);
+    if (!isOrg) throw new PermissionDeniedError("Permission denied: only organizers can attach placeholders");
+
+    // Exclusive: exactly one of phoneNumber / targetUserId
+    const hasPhone = !!data.phoneNumber;
+    const hasTarget = !!data.targetUserId;
+    if (hasPhone === hasTarget) throw new PhoneTakenError("Provide exactly one of phoneNumber or targetUserId");
+
+    if (hasTarget) {
+      // Reuse link logic (requires mutual)
+      return this.linkPlaceholder(userId, memberId, data.targetUserId!);
+    }
+
+    // Phone path — relaxed: no mutual check, any registered user linkable
+    const phone = data.phoneNumber!;
+    // Try to find user by phone
+    const [foundUser] = await this.db.select({ id: users.id }).from(users).where(eq(users.phoneNumber, phone)).limit(1);
+
+    if (foundUser) {
+      // Instant convert: if existing member in trip, merge; else claim
+      const [existing] = await this.db.select({ id: members.id }).from(members).where(and(eq(members.tripId, member.tripId), eq(members.userId, foundUser.id))).limit(1);
+      if (existing) {
+        await this.db.transaction(async (tx) => {
+          await tx.update(memberTravel).set({ memberId: existing.id }).where(eq(memberTravel.memberId, memberId));
+          await tx.update(payments).set({ memberId: existing.id }).where(eq(payments.memberId, memberId));
+          await tx.update(paymentParticipants).set({ memberId: existing.id }).where(eq(paymentParticipants.memberId, memberId));
+          await tx.delete(members).where(eq(members.id, memberId));
+        });
+        const [row] = await this.db.select({ id: members.id, userId: members.userId, memberDisplayName: members.displayName, userDisplayName: users.displayName, profilePhotoUrl: users.profilePhotoUrl, handles: users.handles, status: members.status, isOrganizer: members.isOrganizer, createdAt: members.createdAt }).from(members).leftJoin(users, eq(members.userId, users.id)).where(eq(members.id, existing.id)).limit(1);
+        if (!row) throw new MemberNotFoundError();
+        return {
+          id: row.id,
+          userId: row.userId,
+          displayName: row.userDisplayName ?? row.memberDisplayName ?? "Unknown",
+          profilePhotoUrl: row.profilePhotoUrl ?? null,
+          handles: row.handles ?? null,
+          isPlaceholder: row.userId === null,
+          status: row.status,
+          isOrganizer: row.isOrganizer,
+          createdAt: row.createdAt.toISOString(),
+        };
+      } else {
+        // Direct claim
+        try {
+          const [updated] = await this.db.update(members).set({ userId: foundUser.id, phoneNumber: phone, updatedAt: new Date() }).where(eq(members.id, memberId)).returning();
+          if (!updated) throw new MemberNotFoundError();
+          const [user] = await this.db.select({ displayName: users.displayName, profilePhotoUrl: users.profilePhotoUrl, handles: users.handles }).from(users).where(eq(users.id, foundUser.id)).limit(1);
+          return {
+            id: updated.id,
+            userId: foundUser.id,
+            displayName: user?.displayName ?? updated.displayName ?? "Unknown",
+            profilePhotoUrl: user?.profilePhotoUrl ?? null,
+            handles: user?.handles ?? null,
+            isPlaceholder: false,
+            status: updated.status,
+            isOrganizer: updated.isOrganizer,
+            createdAt: updated.createdAt.toISOString(),
+          };
+        } catch (err: unknown) {
+          const code = (err as { code?: string })?.code;
+          // Unique violation on members_trip_phone_unique or members_trip_user_unique
+          if (code === "23505") throw new PhoneTakenError("Phone number already in use in this trip");
+          throw err;
+        }
+      }
+    } else {
+      // Unknown phone — stage phoneNumber without converting
+      try {
+        const [updated] = await this.db.update(members).set({ phoneNumber: phone, updatedAt: new Date() }).where(eq(members.id, memberId)).returning();
+        if (!updated) throw new MemberNotFoundError();
+        return {
+          id: updated.id,
+          userId: null,
+          displayName: updated.displayName ?? "Unknown",
+          profilePhotoUrl: null,
+          handles: null,
+          ...(updated.phoneNumber ? { phoneNumber: updated.phoneNumber } : {}),
+          isPlaceholder: true,
+          status: updated.status,
+          isOrganizer: updated.isOrganizer,
+          createdAt: updated.createdAt.toISOString(),
+        };
+      } catch (err: unknown) {
+        const code = (err as { code?: string })?.code;
+        if (code === "23505") throw new PhoneTakenError("Phone number already in use in this trip");
+        throw err;
+      }
     }
   }
 }

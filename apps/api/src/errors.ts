@@ -88,6 +88,7 @@ export const InvitationNotFoundError = createError(
   404,
 );
 export const NotAMutualError = createError("NOT_A_MUTUAL", "%s", 403);
+export const PhoneTakenError = createError("PHONE_TAKEN", "%s", 409);
 
 // Member removal errors
 export const MemberNotFoundError = createError(

@@ -10,6 +10,7 @@ import { writeRateLimitConfig } from "@/middleware/rate-limit.middleware.js";
 import {
   createPlaceholderSchema,
   updatePlaceholderSchema,
+  attachPlaceholderSchema,
   successResponseSchema,
 } from "@journiful/shared/schemas";
 
@@ -85,6 +86,17 @@ export async function placeholderRoutes(fastify: FastifyInstance) {
         },
       },
       invitationController.linkPlaceholder,
+    );
+
+    scope.post<{ Params: { id: string }; Body: { phoneNumber?: string; targetUserId?: string } }>(
+      "/placeholders/:id/attach",
+      {
+        schema: {
+          params: placeholderIdParamsSchema,
+          body: attachPlaceholderSchema,
+        },
+      },
+      invitationController.attachPlaceholder,
     );
   });
 }
