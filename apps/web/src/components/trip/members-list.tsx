@@ -489,8 +489,10 @@ export function MembersList({
       onPlaceholderClick(member);
       return;
     }
-    setDetailMember(member);
-    setDetailFocus("name");
+    // HOTFIX: detail sheet panel not rendering over members sheet (nested Sheet focus-trap)
+    // Fall back to AddPlaceholderDialog until portal stacking is fixed
+    setEditingPlaceholder(member);
+    setAddDialogOpen(true);
   };
 
   const handleAddPerson = () => {
@@ -503,13 +505,14 @@ export function MembersList({
     if (!open) setEditingPlaceholder(null);
   };
 
-  const handlePlaceholderDetailOpen = (member: MemberWithProfile, focus?: "name" | "phone" | "mutual") => {
+  const handlePlaceholderDetailOpen = (member: MemberWithProfile, _focus?: "name" | "phone" | "mutual") => {
     if (onPlaceholderClick) {
       onPlaceholderClick(member);
       return;
     }
-    setDetailMember(member);
-    setDetailFocus(focus);
+    // HOTFIX: see above — use edit dialog until detail sheet portal is fixed
+    setEditingPlaceholder(member);
+    setAddDialogOpen(true);
   };
 
   const handleSendInvite = async (member: MemberWithProfile) => {
