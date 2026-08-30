@@ -45,7 +45,7 @@ export async function placeholderRoutes(fastify: FastifyInstance) {
       invitationController.createPlaceholder,
     );
 
-    scope.put<{ Params: { id: string }; Body: { name?: string; phoneNumber?: string } }>(
+    scope.put<{ Params: { id: string }; Body: { name?: string; phoneNumber?: string | null } }>(
       "/placeholders/:id",
       {
         schema: {

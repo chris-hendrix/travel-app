@@ -38,7 +38,7 @@ export const updatePlaceholderSchema = z.object({
     })
     .transform(stripControlChars)
     .optional(),
-  phoneNumber: phoneNumberSchema.optional(),
+  phoneNumber: phoneNumberSchema.nullish(),
 });
 
 export const attachPlaceholderSchema = z

@@ -15,5 +15,5 @@ export interface CreatePlaceholderInput {
  */
 export interface UpdatePlaceholderInput {
   name?: string;
-  phoneNumber?: string;
+  phoneNumber?: string | null;
 }

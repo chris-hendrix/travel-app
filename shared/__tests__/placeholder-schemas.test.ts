@@ -136,4 +136,9 @@ describe("updatePlaceholderSchema", () => {
       expect(result.error.issues[0]?.message).toContain("E.164 format");
     }
   });
+
+  it("should accept null phoneNumber to clear it", () => {
+    const parsed = updatePlaceholderSchema.parse({ phoneNumber: null });
+    expect(parsed.phoneNumber).toBeNull();
+  });
 });
