@@ -48,14 +48,6 @@ vi.mock("@/hooks/use-placeholders", () => ({
   getPlaceholderErrorMessage: () => null,
 }));
 
-vi.mock("@/hooks/use-mutuals", () => ({
-  useMutualSuggestions: () => ({ data: { mutuals: [] }, isPending: false }),
-}));
-
-vi.mock("@/hooks/use-is-mobile", () => ({
-  useIsMobile: () => false,
-}));
-
 const mockMuteMember = {
   mutateAsync: vi.fn().mockResolvedValue({ success: true }),
   isPending: false,
@@ -646,6 +638,81 @@ describe("MembersList", () => {
       await user.click(inviteButton);
 
       expect(onInvite).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe("add placeholder flow", () => {
+    it("swaps the member list for the in-sheet placeholder form", async () => {
+      const user = userEvent.setup();
+      renderWithQueryClient(
+        <MembersList tripId="trip-123" isOrganizer={true} onInvite={() => {}} />,
+      );
+
+      // member list is rendered first
+      expect(screen.getByText("John Doe")).toBeDefined();
+
+      await user.click(screen.getByTestId("add-placeholder-trigger"));
+
+      // placeholder form renders in place; the member list is gone
+      expect(screen.getByTestId("add-placeholder-name")).toBeDefined();
+      expect(screen.queryByText("John Doe")).toBeNull();
+      expect(screen.queryByText("Jane Smith")).toBeNull();
+    });
+
+    it("returns to the member list when Cancel is clicked", async () => {
+      const user = userEvent.setup();
+      renderWithQueryClient(
+        <MembersList tripId="trip-123" isOrganizer={true} onInvite={() => {}} />,
+      );
+
+      await user.click(screen.getByTestId("add-placeholder-trigger"));
+      expect(screen.getByTestId("add-placeholder-name")).toBeDefined();
+
+      await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+      // back to the member list, form is gone
+      expect(screen.getByText("John Doe")).toBeDefined();
+      expect(screen.queryByTestId("add-placeholder-name")).toBeNull();
+    });
+
+    it("renders PlaceholderForm in edit mode when onPlaceholderClick is absent", async () => {
+      const membersWithPlaceholder: MemberWithProfile[] = [
+        {
+          id: "member-ph",
+          userId: null,
+          displayName: "TBD Guest",
+          profilePhotoUrl: null,
+          status: "no_response",
+          isOrganizer: false,
+          isPlaceholder: true,
+          createdAt: "2026-01-05T00:00:00Z",
+          handles: null,
+        },
+      ];
+      mockUseMembers.mockReturnValue({
+        data: membersWithPlaceholder,
+        isPending: false,
+      });
+
+      const user = userEvent.setup();
+      renderWithQueryClient(
+        <MembersList
+          tripId="trip-123"
+          isOrganizer={true}
+          createdBy="user-1"
+          onInvite={() => {}}
+        />,
+      );
+
+      await user.click(
+        screen.getByRole("button", { name: "Actions for TBD Guest" }),
+      );
+      await user.click(await screen.findByText("Edit name/phone"));
+
+      // edit mode: form header and Save button shown
+      expect(screen.getByText("Edit person")).toBeDefined();
+      expect(screen.getByTestId("add-placeholder-name")).toBeDefined();
+      expect(screen.getByText("Save")).toBeDefined();
     });
   });
 

@@ -37,10 +37,8 @@ import {
 import {
   useDeletePlaceholder,
   useInvitePlaceholder,
-  useLinkPlaceholder,
   getPlaceholderErrorMessage,
 } from "@/hooks/use-placeholders";
-import { useMutualSuggestions } from "@/hooks/use-mutuals";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -61,19 +59,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetBody,
-} from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { VenmoIcon } from "@/components/icons/venmo-icon";
 import { InstagramIcon } from "@/components/icons/instagram-icon";
-import { AddPlaceholderDialog } from "@/components/trip/add-placeholder-dialog";
+import { PlaceholderForm } from "@/components/trip/placeholder-form";
 import {
   getInitials,
   formatPhoneNumber,
@@ -433,19 +423,13 @@ export function MembersList({
   const unmuteMember = useUnmuteMember(tripId);
   const revokeInvitation = useRevokeInvitation(tripId);
 
-  // Placeholder dialog state
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  // In-sheet view: member list or the placeholder add/edit form
+  const [view, setView] = useState<"list" | "addPlaceholder">("list");
   const [editingPlaceholder, setEditingPlaceholder] = useState<MemberWithProfile | null>(null);
-
-  // Link sheet state
-  const [linkMember, setLinkMember] = useState<MemberWithProfile | null>(null);
-  const [linkSheetOpen, setLinkSheetOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<MemberWithProfile | null>(null);
 
   const deletePlaceholder = useDeletePlaceholder(tripId);
   const invitePlaceholder = useInvitePlaceholder(tripId);
-  const linkPlaceholder = useLinkPlaceholder(tripId);
-  const { data: mutualSuggestions, isPending: mutualPending } = useMutualSuggestions(tripId);
 
   const handleMute = async () => {
     if (!mutingMember || !mutingMember.userId) return;
@@ -486,20 +470,14 @@ export function MembersList({
       onPlaceholderClick(member);
       return;
     }
-    // HOTFIX: detail sheet panel not rendering over members sheet (nested Sheet focus-trap)
-    // Fall back to AddPlaceholderDialog until portal stacking is fixed
+    // Fallback: render PlaceholderForm in-sheet in edit mode
     setEditingPlaceholder(member);
-    setAddDialogOpen(true);
+    setView("addPlaceholder");
   };
 
   const handleAddPerson = () => {
     setEditingPlaceholder(null);
-    setAddDialogOpen(true);
-  };
-
-  const handleDialogOpenChange = (open: boolean) => {
-    setAddDialogOpen(open);
-    if (!open) setEditingPlaceholder(null);
+    setView("addPlaceholder");
   };
 
   const handlePlaceholderDetailOpen = (member: MemberWithProfile, _focus?: "name" | "phone" | "mutual") => {
@@ -507,9 +485,9 @@ export function MembersList({
       onPlaceholderClick(member);
       return;
     }
-    // HOTFIX: see above — use edit dialog until detail sheet portal is fixed
+    // Fallback: render PlaceholderForm in-sheet in edit mode
     setEditingPlaceholder(member);
-    setAddDialogOpen(true);
+    setView("addPlaceholder");
   };
 
   const handleSendInvite = async (member: MemberWithProfile) => {
@@ -544,25 +522,18 @@ export function MembersList({
     handlePlaceholderDetailOpen(member, "mutual");
   };
 
-  const handleLinkSheetOpenChange = (open: boolean) => {
-    setLinkSheetOpen(open);
-    if (!open) setLinkMember(null);
-  };
-
-  const handleLinkSelect = async (targetUserId: string) => {
-    if (!linkMember) return;
-    try {
-      await linkPlaceholder.mutateAsync({
-        memberId: linkMember.id,
-        targetUserId,
-      });
-      setLinkSheetOpen(false);
-      setLinkMember(null);
-    } catch (error) {
-      const msg = getPlaceholderErrorMessage(error as Error);
-      toast.error(msg ?? "Failed to link user");
-    }
-  };
+  if (view === "addPlaceholder") {
+    return (
+      <div className="flex flex-col flex-1">
+        <PlaceholderForm
+          tripId={tripId}
+          placeholder={editingPlaceholder}
+          onSuccess={() => setView("list")}
+          onCancel={() => setView("list")}
+        />
+      </div>
+    );
+  }
 
   if (isPending) {
     return <MembersListSkeleton />;
@@ -599,12 +570,6 @@ export function MembersList({
             </button>
           </div>
         )}
-        <AddPlaceholderDialog
-          open={addDialogOpen}
-          onOpenChange={handleDialogOpenChange}
-          tripId={tripId}
-          placeholder={editingPlaceholder}
-        />
       </div>
     );
   }
@@ -754,55 +719,7 @@ export function MembersList({
         </div>
       )}
 
-      <AddPlaceholderDialog
-        open={addDialogOpen}
-        onOpenChange={handleDialogOpenChange}
-        tripId={tripId}
-        placeholder={editingPlaceholder}
-      />
-
       {/* Detail sheet now rendered at top-level (trip-detail / mobile layout) like MemberProfileSheet — not nested */}
-      {/* Link user sheet (legacy fallback) */}
-      <Sheet open={linkSheetOpen} onOpenChange={handleLinkSheetOpenChange}>
-        <SheetContent className="flex flex-col">
-          <SheetHeader>
-            <SheetTitle className="font-playfair">Link to mutual</SheetTitle>
-            <SheetDescription>
-              Pick a mutual to connect to “{linkMember?.displayName}”. If they already have a member row, their travel and payments will be merged.
-            </SheetDescription>
-          </SheetHeader>
-          <SheetBody className="space-y-3">
-            {mutualPending ? (
-              <div className="space-y-2 py-4">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-              </div>
-            ) : !mutualSuggestions || mutualSuggestions.mutuals.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-6 text-center">No mutuals available</p>
-            ) : (
-              <div className="space-y-1 max-h-[40vh] overflow-y-auto">
-                {mutualSuggestions.mutuals.map((m) => (
-                  <button
-                    key={m.id}
-                    onClick={() => handleLinkSelect(m.id)}
-                    disabled={linkPlaceholder.isPending}
-                    className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-muted/60 text-left"
-                  >
-                    <Avatar size="sm">
-                      <AvatarImage src={getUploadUrl(m.profilePhotoUrl)} alt={m.displayName} />
-                      <AvatarFallback>{getInitials(m.displayName)}</AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm font-medium truncate flex-1">{m.displayName}</span>
-                    {linkPlaceholder.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                  </button>
-                ))}
-              </div>
-            )}
-          </SheetBody>
-        </SheetContent>
-      </Sheet>
-
       <AlertDialog
         open={!!pendingDelete}
         onOpenChange={(open) => !open && setPendingDelete(null)}
