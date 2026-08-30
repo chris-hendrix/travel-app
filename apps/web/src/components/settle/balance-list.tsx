@@ -3,8 +3,8 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2 } from "lucide-react";
-import { useAuth } from "@/app/providers/auth-provider";
 import { tripBalancesQueryOptions } from "@/hooks/balance-queries";
+import { useCurrentMemberId } from "@/hooks/use-current-member-id";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BalanceItem } from "./balance-item";
 import type { BalanceEntry } from "@journiful/shared/types";
@@ -15,7 +15,7 @@ interface BalanceListProps {
 }
 
 export function BalanceList({ tripId, onSettleUp }: BalanceListProps) {
-  const { user } = useAuth();
+  const currentMemberId = useCurrentMemberId(tripId);
   const { data: balances, isPending } = useQuery({
     ...tripBalancesQueryOptions(tripId),
     enabled: !!tripId,
@@ -23,19 +23,19 @@ export function BalanceList({ tripId, onSettleUp }: BalanceListProps) {
 
   // Sort: current user's balances first
   const sorted = useMemo(() => {
-    if (!balances || !user) return balances;
+    if (!balances || !currentMemberId) return balances;
     return [...balances].sort((a, b) => {
       const aIsMe =
-        (!a.from.isPlaceholder && a.from.id === user.id) ||
-        (!a.to.isPlaceholder && a.to.id === user.id);
+        (!a.from.isPlaceholder && a.from.id === currentMemberId) ||
+        (!a.to.isPlaceholder && a.to.id === currentMemberId);
       const bIsMe =
-        (!b.from.isPlaceholder && b.from.id === user.id) ||
-        (!b.to.isPlaceholder && b.to.id === user.id);
+        (!b.from.isPlaceholder && b.from.id === currentMemberId) ||
+        (!b.to.isPlaceholder && b.to.id === currentMemberId);
       if (aIsMe && !bIsMe) return -1;
       if (!aIsMe && bIsMe) return 1;
       return 0;
     });
-  }, [balances, user]);
+  }, [balances, currentMemberId]);
 
   if (isPending) {
     return (
@@ -64,7 +64,7 @@ export function BalanceList({ tripId, onSettleUp }: BalanceListProps) {
         <BalanceItem
           key={i}
           entry={entry}
-          {...(user ? { currentUserId: user.id } : {})}
+          {...(currentMemberId ? { currentMemberId } : {})}
           {...(onSettleUp ? { onSettleUp } : {})}
         />
       ))}

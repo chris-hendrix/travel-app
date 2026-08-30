@@ -6,7 +6,7 @@ import type { BalanceEntry } from "@journiful/shared/types";
 interface BalanceItemProps {
   entry: BalanceEntry;
   onSettleUp?: (entry: BalanceEntry) => void;
-  currentUserId?: string;
+  currentMemberId?: string;
 }
 
 function formatCents(cents: number): string {
@@ -15,9 +15,13 @@ function formatCents(cents: number): string {
 
 function personName(
   person: BalanceEntry["from"],
-  currentUserId?: string,
+  currentMemberId?: string,
 ): string {
-  if (currentUserId && !person.isPlaceholder && person.id === currentUserId) {
+  if (
+    currentMemberId &&
+    !person.isPlaceholder &&
+    person.id === currentMemberId
+  ) {
     return "You";
   }
   return person.name;
@@ -26,10 +30,10 @@ function personName(
 export function BalanceItem({
   entry,
   onSettleUp,
-  currentUserId,
+  currentMemberId,
 }: BalanceItemProps) {
-  const fromName = personName(entry.from, currentUserId);
-  const toName = personName(entry.to, currentUserId);
+  const fromName = personName(entry.from, currentMemberId);
+  const toName = personName(entry.to, currentMemberId);
   const verb = fromName === "You" ? "owe" : "owes";
 
   // Only highlight when the current user owes someone (actionable)
