@@ -24,8 +24,6 @@ export function PaymentItem({ payment, onClick, currentMemberId }: PaymentItemPr
   const isSettlement =
     participantCount === 1 && payment.description.startsWith("Settled up");
 
-  const highlightClass = "border-border";
-
   // Settlement card — different style
   if (isSettlement) {
     const recipient = payment.participants[0];
@@ -47,11 +45,11 @@ export function PaymentItem({ payment, onClick, currentMemberId }: PaymentItemPr
   }
 
   // Regular expense card
-  const verb = payerName === "You" ? "paid" : "paid";
+  const verb = "paid";
   return (
     <button
       onClick={onClick ? () => onClick(payment) : undefined}
-      className={`flex items-center gap-3 rounded-md bg-card linen-texture border p-3 w-full text-left hover:bg-accent/50 transition-colors cursor-pointer ${highlightClass}`}
+      className="flex items-center gap-3 rounded-md bg-card linen-texture border border-border p-3 w-full text-left hover:bg-accent/50 transition-colors cursor-pointer"
     >
       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 shrink-0">
         <Receipt className="h-4 w-4 text-primary" />

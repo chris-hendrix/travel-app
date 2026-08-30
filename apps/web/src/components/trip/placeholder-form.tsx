@@ -57,13 +57,17 @@ export function PlaceholderForm({
   const memberCount = members?.length ?? 0;
   const isAtLimit = !isEdit && memberCount >= 25;
 
+  // NOTE: the conditional create/update schema union can't be expressed in
+  // the resolver's type under exactOptionalPropertyTypes (update input allows
+  // `name?: string` / `phoneNumber?: string | null` vs the form generic
+  // `{ name: string; phoneNumber?: string }`), so the resolver stays cast.
   const form = useForm<{ name: string; phoneNumber?: string }>({
     resolver: zodResolver(
       (isEdit ? updatePlaceholderSchema : createPlaceholderSchema) as any,
     ) as any,
     defaultValues: {
       name: "",
-    } as any,
+    },
   });
 
   // Sync form when placeholder changes (mounts in edit mode / switches person)
@@ -74,7 +78,7 @@ export function PlaceholderForm({
     if (placeholder?.phoneNumber) {
       resetVals.phoneNumber = placeholder.phoneNumber;
     }
-    form.reset(resetVals as any);
+    form.reset(resetVals);
     form.clearErrors();
   }, [placeholder, form]);
 
@@ -136,7 +140,7 @@ export function PlaceholderForm({
   });
 
   function handleServerError(error: Error) {
-    const message = error instanceof APIError ? error.message : error.message;
+    const message = error.message;
     const code = error instanceof APIError ? error.code : "";
 
     // 25-limit maps to MEMBER_LIMIT_EXCEEDED
@@ -195,7 +199,7 @@ export function PlaceholderForm({
         </div>
 
         <FormField
-          control={form.control as any}
+          control={form.control}
           name="name"
           render={({ field }) => (
             <FormItem>
@@ -217,7 +221,7 @@ export function PlaceholderForm({
         />
 
         <FormField
-          control={form.control as any}
+          control={form.control}
           name="phoneNumber"
           render={({ field }) => (
             <FormItem>
@@ -230,7 +234,6 @@ export function PlaceholderForm({
                   onChange={(val) => field.onChange(val || undefined)}
                   placeholder="Enter phone number"
                   disabled={isPending}
-                  aria-describedby={field.value ? undefined : undefined}
                   // forward data-testid via wrapper
                   className="[&>div>input]:data-[slot=input]"
                 />

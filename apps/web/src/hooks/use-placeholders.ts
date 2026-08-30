@@ -4,10 +4,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiRequest, APIError } from "@/lib/api";
 import type { MemberWithProfile } from "@journiful/shared/types";
-import { memberKeys } from "./invitation-queries";
+import { memberKeys, invitationKeys } from "./invitation-queries";
 import { paymentKeys } from "./payment-queries";
 import { balanceKeys } from "./balance-queries";
-import { invitationKeys } from "./invitation-queries";
 
 export function useCreatePlaceholder(tripId: string) {
   const queryClient = useQueryClient();
@@ -22,17 +21,13 @@ export function useCreatePlaceholder(tripId: string) {
     },
     onSuccess: () => {
       toast.success("Person added");
-      queryClient.invalidateQueries({ queryKey: memberKeys.list(tripId) });
-      queryClient.invalidateQueries({ queryKey: invitationKeys.list(tripId) });
-      queryClient.invalidateQueries({ queryKey: paymentKeys.list(tripId) });
-      queryClient.invalidateQueries({ queryKey: balanceKeys.trip(tripId) });
-      queryClient.invalidateQueries({ queryKey: balanceKeys.me(tripId) });
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: memberKeys.list(tripId) });
       queryClient.invalidateQueries({ queryKey: invitationKeys.list(tripId) });
       queryClient.invalidateQueries({ queryKey: paymentKeys.list(tripId) });
       queryClient.invalidateQueries({ queryKey: balanceKeys.trip(tripId) });
+      queryClient.invalidateQueries({ queryKey: balanceKeys.me(tripId) });
     },
   });
 }
