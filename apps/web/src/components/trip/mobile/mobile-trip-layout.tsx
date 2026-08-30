@@ -29,7 +29,7 @@ import { DiscoverPanel } from "./panels/discover-panel";
 import { ItineraryPanel } from "./panels/itinerary-panel";
 import { MessagesPanel } from "./panels/messages-panel";
 import { PhotosPanel } from "./panels/photos-panel";
-import { SettlePanel } from "./panels/settle-panel";
+import { SettleSection } from "@/components/settle/settle-section";
 import type { TripDetailWithMeta } from "@/hooks/trip-queries";
 import type { MemberWithProfile } from "@/hooks/use-invitations";
 import { getRemoveMemberErrorMessage } from "@/hooks/use-invitations";
@@ -204,10 +204,11 @@ export function MobileTripLayout({
               disabled={isLocked}
               hideFab={activeIndex !== 4}
             />
-            <SettlePanel
+            <SettleSection
               tripId={tripId}
               isOrganizer={isOrganizer}
               disabled={isLocked}
+              variant="panel"
               hideFab={activeIndex !== 5}
             />
           </MobileTripSwiper>

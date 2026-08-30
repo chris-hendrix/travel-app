@@ -1,6 +1,27 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { SettleSection } from "../settle-section";
+
+// ─── Mock portal + mount state ──────────────────────────────────────────────
+
+// createPortal renders its node in-place (in the component tree) so the
+// portaled FAB stays discoverable via `screen`; we still assert the portal
+// was targeted at document.body.
+vi.mock("react-dom", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-dom")>();
+  return {
+    ...actual,
+    createPortal: vi.fn((node: ReactNode) => node),
+  };
+});
+
+vi.mock("@/hooks/use-mounted", () => ({
+  useMounted: () => true,
+}));
+
+const mockedCreatePortal = vi.mocked(createPortal);
 
 // ─── Mock child components ───────────────────────────────────────────────────
 
@@ -211,6 +232,109 @@ describe("SettleSection", () => {
       expect(
         screen.queryByRole("button", { name: "Add expense" }),
       ).toBeNull();
+    });
+  });
+
+  describe("Panel variant", () => {
+    it("renders the full-height flex container classes", () => {
+      const { container } = render(
+        <SettleSection
+          tripId={TRIP_ID}
+          isOrganizer={false}
+          variant="panel"
+        />,
+      );
+
+      const root = container.firstElementChild;
+      expect(root?.className).toContain("h-full");
+      expect(root?.className).toContain("flex-col");
+      expect(root?.className).toContain("overflow-hidden");
+    });
+
+    it("renders the Add expense FAB through a portal to document.body", () => {
+      render(
+        <SettleSection
+          tripId={TRIP_ID}
+          isOrganizer={false}
+          variant="panel"
+        />,
+      );
+
+      expect(
+        screen.getByRole("button", { name: "Add expense" }),
+      ).toBeDefined();
+      expect(mockedCreatePortal).toHaveBeenCalledWith(
+        expect.anything(),
+        document.body,
+      );
+    });
+
+    it("positions the panel FAB at bottom-20 right-6", () => {
+      render(
+        <SettleSection
+          tripId={TRIP_ID}
+          isOrganizer={false}
+          variant="panel"
+        />,
+      );
+
+      const fab = screen.getByRole("button", { name: "Add expense" });
+      expect(fab.className).toContain("bottom-20");
+      expect(fab.className).toContain("right-6");
+    });
+
+    it("still renders heading and child sections in panel variant", () => {
+      render(
+        <SettleSection
+          tripId={TRIP_ID}
+          isOrganizer={false}
+          variant="panel"
+        />,
+      );
+
+      expect(screen.getByText("Settle")).toBeDefined();
+      expect(screen.getByText("Balances")).toBeDefined();
+      expect(screen.getByText("Expenses")).toBeDefined();
+      expect(screen.getByTestId("balance-list")).toBeDefined();
+      expect(screen.getByTestId("payment-list")).toBeDefined();
+    });
+  });
+
+  describe("hideFab (panel FAB fade-out)", () => {
+    it("applies fade-out classes when hideFab is true", () => {
+      render(
+        <SettleSection
+          tripId={TRIP_ID}
+          isOrganizer={false}
+          variant="panel"
+          hideFab
+        />,
+      );
+
+      const fab = screen.getByRole("button", { name: "Add expense" });
+      const classes = fab.className.split(/\s+/);
+      expect(fab.className).toContain("transition-all");
+      expect(classes).toContain("opacity-0");
+      expect(classes).toContain("scale-75");
+      expect(classes).toContain("pointer-events-none");
+      expect(fab.tabIndex).toBe(-1);
+    });
+
+    it("keeps the FAB visible when hideFab is false/omitted", () => {
+      render(
+        <SettleSection
+          tripId={TRIP_ID}
+          isOrganizer={false}
+          variant="panel"
+        />,
+      );
+
+      const fab = screen.getByRole("button", { name: "Add expense" });
+      const classes = fab.className.split(/\s+/);
+      expect(classes).toContain("opacity-100");
+      expect(classes).toContain("scale-100");
+      expect(classes).not.toContain("pointer-events-none");
+      expect(fab.tabIndex).not.toBe(-1);
     });
   });
 
