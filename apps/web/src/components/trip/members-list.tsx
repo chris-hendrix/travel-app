@@ -18,6 +18,7 @@ import {
   Send,
   Link2,
   Trash2,
+  ChevronLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -25,6 +26,8 @@ import {
   useInvitations,
   useRevokeInvitation,
   getRevokeInvitationErrorMessage,
+  useRemoveMember,
+  getRemoveMemberErrorMessage,
 } from "@/hooks/use-invitations";
 import type { MemberWithProfile } from "@/hooks/use-invitations";
 import type { Invitation } from "@journiful/shared/types";
@@ -64,6 +67,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { VenmoIcon } from "@/components/icons/venmo-icon";
 import { InstagramIcon } from "@/components/icons/instagram-icon";
 import { PlaceholderForm } from "@/components/trip/placeholder-form";
+import { MemberProfileView } from "@/components/trip/member-profile-view";
+import { PlaceholderDetailView } from "@/components/trip/placeholder-detail-view";
 import {
   getInitials,
   formatPhoneNumber,
@@ -71,6 +76,8 @@ import {
 } from "@/lib/format";
 import { getUploadUrl } from "@/lib/api";
 import { PHONE_REGEX } from "@journiful/shared/schemas";
+// Sheet chrome is owned by the parent SheetContent; MembersList renders plain
+// header/body divs so tests can render it without a Dialog provider.
 
 function normalizePhone(phone: string): string | null {
   const cleaned = phone.trim().replace(/[\s\-().]/g, "");
@@ -86,9 +93,18 @@ interface MembersListProps {
   onInvite?: () => void;
   onRemove?: (member: MemberWithProfile) => void;
   onUpdateRole?: (member: MemberWithProfile, isOrganizer: boolean) => void;
+  /** @deprecated handled in-sheet */
   onMemberClick?: (member: MemberWithProfile) => void;
+  /** @deprecated handled in-sheet */
   onPlaceholderClick?: (member: MemberWithProfile) => void;
 }
+
+type MembersView =
+  | { type: "list" }
+  | { type: "addPlaceholder"; editing: MemberWithProfile | null }
+  | { type: "memberProfile"; member: MemberWithProfile }
+  | { type: "placeholderDetail"; member: MemberWithProfile; focus?: "name" | "phone" | "mutual" | undefined }
+  | { type: "removeMember"; member: MemberWithProfile };
 
 function MembersListSkeleton() {
   return (
@@ -144,7 +160,8 @@ function MemberRow({
   onLinkPlaceholder,
   onDeletePlaceholder,
 }: MemberRowProps) {
-  const canRemove = isOrganizer && !!onRemove && (member.isPlaceholder || member.userId !== createdBy);
+  const canRemove =
+    isOrganizer && (member.isPlaceholder || member.userId !== createdBy) && member.userId !== currentUserId;
 
   const canUpdateRole =
     !!onUpdateRole &&
@@ -153,7 +170,11 @@ function MemberRow({
     member.userId !== currentUserId;
 
   const canMute =
-    isOrganizer && !member.isOrganizer && !member.isPlaceholder && member.userId !== createdBy;
+    isOrganizer &&
+    !member.isOrganizer &&
+    !member.isPlaceholder &&
+    member.userId !== createdBy &&
+    member.userId !== currentUserId;
 
   // For placeholders, we show a dedicated menu
   const isPlaceholder = member.isPlaceholder;
@@ -409,8 +430,6 @@ export function MembersList({
   onInvite,
   onRemove,
   onUpdateRole,
-  onMemberClick,
-  onPlaceholderClick,
 }: MembersListProps) {
   const { data: members, isPending } = useMembers(tripId);
   const { data: invitations } = useInvitations(tripId, {
@@ -422,10 +441,9 @@ export function MembersList({
   const muteMember = useMuteMember(tripId);
   const unmuteMember = useUnmuteMember(tripId);
   const revokeInvitation = useRevokeInvitation(tripId);
+  const removeMember = useRemoveMember(tripId);
 
-  // In-sheet view: member list or the placeholder add/edit form
-  const [view, setView] = useState<"list" | "addPlaceholder">("list");
-  const [editingPlaceholder, setEditingPlaceholder] = useState<MemberWithProfile | null>(null);
+  const [view, setView] = useState<MembersView>({ type: "list" });
   const [pendingDelete, setPendingDelete] = useState<MemberWithProfile | null>(null);
 
   const deletePlaceholder = useDeletePlaceholder(tripId);
@@ -465,34 +483,25 @@ export function MembersList({
     }
   };
 
+  const handleMemberClick = (member: MemberWithProfile) => {
+    setView({ type: "memberProfile", member });
+  };
+
+  const handlePlaceholderClick = (member: MemberWithProfile, focus?: "name" | "phone" | "mutual") => {
+    setView({ type: "placeholderDetail", member, focus });
+  };
+
   const handleEditPlaceholder = (member: MemberWithProfile) => {
-    if (onPlaceholderClick) {
-      onPlaceholderClick(member);
-      return;
-    }
-    // Fallback: render PlaceholderForm in-sheet in edit mode
-    setEditingPlaceholder(member);
-    setView("addPlaceholder");
+    handlePlaceholderClick(member, "name");
   };
 
   const handleAddPerson = () => {
-    setEditingPlaceholder(null);
-    setView("addPlaceholder");
-  };
-
-  const handlePlaceholderDetailOpen = (member: MemberWithProfile, _focus?: "name" | "phone" | "mutual") => {
-    if (onPlaceholderClick) {
-      onPlaceholderClick(member);
-      return;
-    }
-    // Fallback: render PlaceholderForm in-sheet in edit mode
-    setEditingPlaceholder(member);
-    setView("addPlaceholder");
+    setView({ type: "addPlaceholder", editing: null });
   };
 
   const handleSendInvite = async (member: MemberWithProfile) => {
     if (!member.phoneNumber) {
-      handlePlaceholderDetailOpen(member, "phone");
+      handlePlaceholderClick(member, "phone");
       return;
     }
     try {
@@ -512,6 +521,10 @@ export function MembersList({
     try {
       await deletePlaceholder.mutateAsync(pendingDelete.id);
       setPendingDelete(null);
+      // If we were viewing that placeholder's detail, go back to list
+      if (view.type === "placeholderDetail" && view.member.id === pendingDelete.id) {
+        setView({ type: "list" });
+      }
     } catch (error) {
       const msg = getPlaceholderErrorMessage(error as Error);
       toast.error(msg ?? "Failed to remove person");
@@ -519,58 +532,181 @@ export function MembersList({
   };
 
   const handleLinkPlaceholder = (member: MemberWithProfile) => {
-    handlePlaceholderDetailOpen(member, "mutual");
+    handlePlaceholderClick(member, "mutual");
   };
 
-  if (view === "addPlaceholder") {
+  const handleBack = () => setView({ type: "list" });
+
+  // Sub-views: same sheet, different view — header + body swap (plain divs so tests don't need Dialog)
+  if (view.type === "addPlaceholder") {
     return (
-      <div className="flex flex-col flex-1">
-        <PlaceholderForm
-          tripId={tripId}
-          placeholder={editingPlaceholder}
-          onSuccess={() => setView("list")}
-          onCancel={() => setView("list")}
-        />
-      </div>
+      <>
+        <div className="flex flex-col gap-2 p-6 pb-0" data-testid="members-sheet-header">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon-xs" onClick={handleBack} aria-label="Back to members" data-testid="members-back-button">
+              <ChevronLeft className="size-5" />
+            </Button>
+            <h2 className="text-3xl font-playfair tracking-tight">{view.editing ? "Edit person" : "Add person"}</h2>
+          </div>
+          <p className="sr-only">{view.editing ? "Edit placeholder" : "Add a placeholder person"}</p>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 pt-4 pb-6">
+          <PlaceholderForm
+            tripId={tripId}
+            placeholder={view.editing}
+            onSuccess={() => setView({ type: "list" })}
+            onCancel={handleBack}
+          />
+        </div>
+      </>
+    );
+  }
+
+  if (view.type === "memberProfile") {
+    return (
+      <>
+        <div className="flex flex-col gap-2 p-6 pb-0" data-testid="members-sheet-header">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon-xs" onClick={handleBack} aria-label="Back to members" data-testid="members-back-button">
+              <ChevronLeft className="size-5" />
+            </Button>
+            <h2 className="text-3xl font-playfair tracking-tight">{view.member.displayName}</h2>
+          </div>
+          <p className="text-muted-foreground text-sm">
+            {view.member.isOrganizer ? "Organizer" : "Member"}
+            {view.member.status === "going"
+              ? " · Going"
+              : view.member.status === "maybe"
+                ? " · Maybe"
+                : view.member.status === "not_going"
+                  ? " · Not going"
+                  : ""}
+          </p>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 pt-4 pb-6" data-testid="member-profile-view">
+          <MemberProfileView member={view.member} />
+        </div>
+      </>
+    );
+  }
+
+  if (view.type === "placeholderDetail") {
+    return (
+      <>
+        <div className="flex flex-col gap-2 p-6 pb-0" data-testid="members-sheet-header">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon-xs" onClick={handleBack} aria-label="Back to members" data-testid="members-back-button">
+              <ChevronLeft className="size-5" />
+            </Button>
+            <h2 className="text-3xl font-playfair tracking-tight text-left">{view.member.displayName}</h2>
+          </div>
+          <p className="sr-only">Manage placeholder {view.member.displayName}</p>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 pt-4 pb-6">
+          <PlaceholderDetailView
+            member={view.member}
+            tripId={tripId}
+            initialFocus={view.focus}
+            onBack={handleBack}
+            onCloseSheet={handleBack}
+          />
+        </div>
+      </>
+    );
+  }
+
+  if (view.type === "removeMember") {
+    return (
+      <>
+        <div className="flex flex-col gap-2 p-6 pb-0" data-testid="members-sheet-header">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon-xs" onClick={handleBack} aria-label="Back to members" data-testid="members-back-button">
+              <ChevronLeft className="size-5" />
+            </Button>
+            <h2 className="text-3xl font-playfair tracking-tight">Remove member</h2>
+          </div>
+          <p className="sr-only">Confirm member removal</p>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 pt-4 pb-6">
+          <div className="flex flex-col flex-1">
+            <div className="flex-1">
+              <p className="text-muted-foreground">
+                Are you sure you want to remove <span className="font-medium text-foreground">{view.member.displayName}</span> from this trip? This will remove their membership and any associated invitation.
+              </p>
+            </div>
+            <div className="flex gap-3 justify-end mt-auto pt-4 border-t border-border">
+              <Button variant="outline" onClick={handleBack} disabled={removeMember.isPending}>Cancel</Button>
+              <Button
+                variant="destructive"
+                disabled={removeMember.isPending}
+                onClick={() => {
+                  const memberToRemove = view.member;
+                  removeMember.mutate(memberToRemove.id, {
+                    onSuccess: () => {
+                      toast.success(`${memberToRemove.displayName} has been removed`);
+                      setView({ type: "list" });
+                    },
+                    onError: (error: unknown) => {
+                      const message = getRemoveMemberErrorMessage(error as Error | null);
+                      toast.error(message ?? "Failed to remove member");
+                      setView({ type: "list" });
+                    },
+                  });
+                }}
+              >
+                {removeMember.isPending ? "Removing..." : "Remove"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </>
     );
   }
 
   if (isPending) {
-    return <MembersListSkeleton />;
+    return (
+      <>
+        <div className="flex flex-col gap-2 p-6 pb-0" data-testid="members-sheet-header">
+          <h2 className="text-3xl font-playfair tracking-tight">Members</h2>
+          <p className="sr-only">Trip members and invitations</p>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 pt-4 pb-6">
+          <MembersListSkeleton />
+        </div>
+      </>
+    );
   }
 
   if (!members || members.length === 0) {
     return (
-      <div className="flex flex-col flex-1">
-        <EmptyState
-          icon={Users}
-          title="No members yet"
-          variant="inline"
-          className="flex-1"
-        />
-        {isOrganizer && onInvite && (
-          <div className="sticky bottom-0 bg-background pt-4 pb-2 border-t border-border mt-4 flex flex-col">
-            <Button
-              onClick={onInvite}
-              variant="gradient"
-              size="lg"
-              className="w-full h-12"
-            >
-              <UserPlus className="w-4 h-4 mr-2" />
-              Invite members
-            </Button>
-            <button
-              onClick={handleAddPerson}
-              disabled={(members?.length ?? 0) >= 25}
-              data-testid="add-placeholder-trigger"
-              className="w-full text-center text-xs font-normal text-muted-foreground hover:text-foreground mt-3 py-1 disabled:opacity-50 disabled:pointer-events-none"
-              type="button"
-            >
-              Add person without inviting
-            </button>
+      <>
+        <div className="flex flex-col gap-2 p-6 pb-0" data-testid="members-sheet-header">
+          <h2 className="text-3xl font-playfair tracking-tight">Members</h2>
+          <p className="sr-only">Trip members and invitations</p>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 pt-4 pb-6">
+          <div className="flex flex-col flex-1">
+            <EmptyState icon={Users} title="No members yet" variant="inline" className="flex-1" />
+            {isOrganizer && onInvite && (
+              <div className="sticky bottom-0 bg-background pt-4 pb-2 border-t border-border mt-4 flex flex-col">
+                <Button onClick={onInvite} variant="gradient" size="lg" className="w-full h-12">
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Invite members
+                </Button>
+                <button
+                  onClick={handleAddPerson}
+                  disabled={(members?.length ?? 0) >= 25}
+                  data-testid="add-placeholder-trigger"
+                  className="w-full text-center text-xs font-normal text-muted-foreground hover:text-foreground mt-3 py-1 disabled:opacity-50 disabled:pointer-events-none"
+                  type="button"
+                >
+                  Add person without inviting
+                </button>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      </>
     );
   }
 
@@ -612,10 +748,13 @@ export function MembersList({
     isOrganizer,
     createdBy,
     currentUserId,
-    onRemove,
+    onRemove: (member: MemberWithProfile) => {
+      if (onRemove) onRemove(member);
+      else setView({ type: "removeMember" as const, member });
+    },
     onUpdateRole,
-    onMemberClick,
-    onPlaceholderClick: onPlaceholderClick ?? handleEditPlaceholder,
+    onMemberClick: handleMemberClick,
+    onPlaceholderClick: (m: MemberWithProfile) => handlePlaceholderClick(m),
     onMute: setMutingMember,
     onUnmute: handleUnmute,
     onEditPlaceholder: handleEditPlaceholder,
@@ -634,8 +773,14 @@ export function MembersList({
   }
 
   return (
-    <div className="flex flex-col flex-1">
-      <div className="flex-1 space-y-6 overflow-y-auto">
+    <>
+      <div className="flex flex-col gap-2 p-6 pb-0" data-testid="members-sheet-header">
+        <h2 className="text-3xl font-playfair tracking-tight">Members</h2>
+        <p className="sr-only">Trip members and invitations</p>
+      </div>
+      <div className="flex-1 overflow-y-auto px-6 pt-4 pb-6">
+        <div className="flex flex-col flex-1">
+          <div className="flex-1 space-y-6 overflow-y-auto">
         {going.length > 0 && (
           <section>
             <SectionHeader title="Going" count={going.length} />
@@ -716,10 +861,12 @@ export function MembersList({
           >
             Add person without inviting
           </button>
+          </div>
+        )}
         </div>
-      )}
+      </div>
 
-      {/* Detail sheet now rendered at top-level (trip-detail / mobile layout) like MemberProfileSheet — not nested */}
+      {/* Placeholder delete confirm */}
       <AlertDialog
         open={!!pendingDelete}
         onOpenChange={(open) => !open && setPendingDelete(null)}
@@ -776,6 +923,6 @@ export function MembersList({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 }

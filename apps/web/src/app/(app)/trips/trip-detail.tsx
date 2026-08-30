@@ -15,8 +15,6 @@ import {
 import { useTripDetail } from "@/hooks/use-trips";
 import { useEvents } from "@/hooks/use-events";
 import {
-  useRemoveMember,
-  getRemoveMemberErrorMessage,
   useUpdateMemberRole,
   getUpdateMemberRoleErrorMessage,
 } from "@/hooks/use-invitations";
@@ -47,8 +45,6 @@ import type { TemperatureUnit } from "@journiful/shared/types";
 import type { Accommodation } from "@journiful/shared/types";
 import { NotificationPreferences } from "@/components/notifications/notification-preferences";
 import { MembersList } from "@/components/trip/members-list";
-import { MemberProfileSheet } from "@/components/trip/member-profile-sheet";
-import { PlaceholderDetailSheet } from "@/components/trip/placeholder-detail-sheet";
 import { TripPreview } from "@/components/trip/trip-preview";
 import { TripThemeProvider } from "@/components/trip/trip-theme-provider";
 import { THEME_PRESETS } from "@journiful/shared/config";
@@ -129,18 +125,12 @@ export function TripDetailShell() {
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isMembersOpen, setIsMembersOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [removingMember, setRemovingMember] = useState<{
-    member: MemberWithProfile;
-  } | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [profileMember, setProfileMember] = useState<MemberWithProfile | null>(null);
-  const [placeholderDetailMember, setPlaceholderDetailMember] = useState<MemberWithProfile | null>(null);
   const [selectedAccommodation, setSelectedAccommodation] =
     useState<Accommodation | null>(null);
   const [editingAccommodation, setEditingAccommodation] =
     useState<Accommodation | null>(null);
 
-  const removeMember = useRemoveMember(tripId);
   const updateRole = useUpdateMemberRole(tripId);
   const { user } = useAuth();
   const { data: members } = useQuery({
@@ -251,7 +241,6 @@ export function TripDetailShell() {
         temperatureUnit={temperatureUnit}
         currentMember={currentMember as any}
         user={user}
-        removeMember={removeMember}
         handleUpdateRole={handleUpdateRole}
         initialShowOnboarding={showOnboarding}
       />
@@ -488,87 +477,20 @@ export function TripDetailShell() {
           </SheetContent>
         </Sheet>
 
-        {/* Members Sheet */}
-        <Sheet
-          open={isMembersOpen}
-          onOpenChange={(open) => {
-            setIsMembersOpen(open);
-            if (!open) setRemovingMember(null);
-          }}
-        >
-          <SheetContent>
-            <SheetHeader>
-              <SheetTitle className="text-3xl font-playfair tracking-tight">
-                {removingMember ? "Remove member" : "Members"}
-              </SheetTitle>
-              <SheetDescription className="sr-only">
-                {removingMember
-                  ? "Confirm member removal"
-                  : "Trip members and invitations"}
-              </SheetDescription>
-            </SheetHeader>
-
-            <SheetBody>
-              {removingMember ? (
-                <div className="flex flex-col flex-1">
-                  <div className="flex-1">
-                    <p className="text-muted-foreground">
-                      Are you sure you want to remove{" "}
-                      <span className="font-medium text-foreground">
-                        {removingMember.member.displayName}
-                      </span>{" "}
-                      from this trip? This will remove their membership and any
-                      associated invitation.
-                    </p>
-                  </div>
-                  <div className="flex gap-3 justify-end mt-auto pt-4 border-t border-border">
-                    <Button
-                      variant="outline"
-                      onClick={() => setRemovingMember(null)}
-                      disabled={removeMember.isPending}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      disabled={removeMember.isPending}
-                      onClick={() => {
-                        removeMember.mutate(removingMember.member.id, {
-                          onSuccess: () => {
-                            toast.success(
-                              `${removingMember.member.displayName} has been removed`,
-                            );
-                            setRemovingMember(null);
-                          },
-                          onError: (error) => {
-                            const message = getRemoveMemberErrorMessage(error);
-                            toast.error(message ?? "Failed to remove member");
-                            setRemovingMember(null);
-                          },
-                        });
-                      }}
-                    >
-                      {removeMember.isPending ? "Removing..." : "Remove"}
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <MembersList
-                  tripId={tripId}
-                  isOrganizer={isOrganizer}
-                  createdBy={trip.createdBy}
-                  currentUserId={user?.id}
-                  onInvite={() => {
-                    setIsMembersOpen(false);
-                    setIsInviteOpen(true);
-                  }}
-                  onRemove={(member) => setRemovingMember({ member })}
-                  onUpdateRole={handleUpdateRole}
-                  onMemberClick={(member) => setProfileMember(member)}
-                  onPlaceholderClick={(member) => setPlaceholderDetailMember(member)}
-                />
-              )}
-            </SheetBody>
+        {/* Members Sheet — same sheet, different views (list / profile / placeholder detail) */}
+        <Sheet open={isMembersOpen} onOpenChange={setIsMembersOpen}>
+          <SheetContent className="p-0 gap-0 flex flex-col">
+            <MembersList
+              tripId={tripId}
+              isOrganizer={isOrganizer}
+              createdBy={trip.createdBy}
+              currentUserId={user?.id}
+              onInvite={() => {
+                setIsMembersOpen(false);
+                setIsInviteOpen(true);
+              }}
+              onUpdateRole={handleUpdateRole}
+            />
           </SheetContent>
         </Sheet>
 
@@ -629,23 +551,6 @@ export function TripDetailShell() {
             trip={trip}
           />
         )}
-
-        {/* Member profile sheet */}
-        <MemberProfileSheet
-          member={profileMember}
-          open={!!profileMember}
-          onOpenChange={(open) => {
-            if (!open) setProfileMember(null);
-          }}
-        />
-        <PlaceholderDetailSheet
-          member={placeholderDetailMember}
-          open={!!placeholderDetailMember}
-          onOpenChange={(open) => {
-            if (!open) setPlaceholderDetailMember(null);
-          }}
-          tripId={tripId}
-        />
       </div>
     </TripThemeProvider>
   );

@@ -36,6 +36,10 @@ vi.mock("@/hooks/use-invitations", () => ({
     mockUseInvitations(tripId, options),
   useRevokeInvitation: () => mockRevokeInvitation,
   getRevokeInvitationErrorMessage: () => "Failed to revoke invitation",
+  useRemoveMember: () => ({ mutate: vi.fn(), isPending: false }),
+  getRemoveMemberErrorMessage: () => "Failed to remove member",
+  useUpdateMemberRole: () => ({ mutate: vi.fn(), isPending: false }),
+  getUpdateMemberRoleErrorMessage: () => "Failed to update role",
 }));
 
 vi.mock("@/hooks/use-placeholders", () => ({
@@ -46,6 +50,10 @@ vi.mock("@/hooks/use-placeholders", () => ({
   useCreatePlaceholder: () => ({ mutateAsync: vi.fn().mockResolvedValue({ id: "new" }), isPending: false }),
   useUpdatePlaceholder: () => ({ mutateAsync: vi.fn().mockResolvedValue({ id: "upd" }), isPending: false }),
   getPlaceholderErrorMessage: () => null,
+}));
+
+vi.mock("@/hooks/use-mutuals", () => ({
+  useMutualSuggestions: () => ({ data: { mutuals: [] }, isPending: false }),
 }));
 
 const mockMuteMember = {
@@ -324,8 +332,12 @@ describe("MembersList", () => {
         <MembersList tripId="trip-123" isOrganizer={false} />,
       );
 
-      const headings = screen.getAllByRole("heading");
-      expect(headings[0]!.textContent).toBe("Going");
+      // First heading is now the sheet header "Members" (h2); section headers are h3
+      const headings = screen.getAllByRole("heading").map((h) => h.textContent);
+      const goingIndex = headings.indexOf("Going");
+      expect(goingIndex).toBeGreaterThanOrEqual(1);
+      // Going is the first section after the sheet header
+      expect(headings[goingIndex]).toBe("Going");
     });
   });
 
@@ -709,10 +721,54 @@ describe("MembersList", () => {
       );
       await user.click(await screen.findByText("Edit name/phone"));
 
-      // edit mode: form header and Save button shown
-      expect(screen.getByText("Edit person")).toBeDefined();
-      expect(screen.getByTestId("add-placeholder-name")).toBeDefined();
-      expect(screen.getByText("Save")).toBeDefined();
+      // Same-sheet detail view: header shows placeholder name, detail view rendered
+      expect(screen.getByText("TBD Guest")).toBeDefined();
+      expect(screen.getByTestId("placeholder-detail-view")).toBeDefined();
+      expect(screen.getByTestId("placeholder-name-input")).toBeDefined();
+    });
+
+    it("delegates to onPlaceholderClick when provided instead of swapping to the in-sheet form", async () => {
+      // After in-sheet refactor, clicking a placeholder always shows the detail view
+      // in the same sheet; the onPlaceholderClick prop is now ignored (deprecated).
+      const membersWithPlaceholder: MemberWithProfile[] = [
+        {
+          id: "member-ph",
+          userId: null,
+          displayName: "TBD Guest",
+          profilePhotoUrl: null,
+          status: "no_response",
+          isOrganizer: false,
+          isPlaceholder: true,
+          createdAt: "2026-01-05T00:00:00Z",
+          handles: null,
+        },
+      ];
+      mockUseMembers.mockReturnValue({
+        data: membersWithPlaceholder,
+        isPending: false,
+      });
+
+      const user = userEvent.setup();
+      const onPlaceholderClick = vi.fn();
+      renderWithQueryClient(
+        // @ts-expect-error deprecated prop kept for type compat, ignored at runtime
+        <MembersList
+          tripId="trip-123"
+          isOrganizer={true}
+          createdBy="user-1"
+          onInvite={() => {}}
+          onPlaceholderClick={onPlaceholderClick}
+        />,
+      );
+
+      await user.click(
+        screen.getByRole("button", { name: "Actions for TBD Guest" }),
+      );
+      await user.click(await screen.findByText("Edit name/phone"));
+
+      // Detail view is shown in-sheet; callback is deprecated and not called
+      expect(screen.getByTestId("placeholder-detail-view")).toBeDefined();
+      expect(screen.queryByTestId("add-placeholder-name")).toBeNull();
     });
   });
 

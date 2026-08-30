@@ -3,18 +3,8 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import {
-  Sheet,
-  SheetBody,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { Sheet, SheetBody, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { MembersList } from "@/components/trip/members-list";
-import { MemberProfileSheet } from "@/components/trip/member-profile-sheet";
-import { PlaceholderDetailSheet } from "@/components/trip/placeholder-detail-sheet";
 import { NotificationPreferences } from "@/components/notifications/notification-preferences";
 import { TripThemeProvider } from "@/components/trip/trip-theme-provider";
 import { useHasOpenDialog } from "@/hooks/use-has-open-dialog";
@@ -32,7 +22,6 @@ import { PhotosPanel } from "./panels/photos-panel";
 import { SettleSection } from "@/components/settle/settle-section";
 import type { TripDetailWithMeta } from "@/hooks/trip-queries";
 import type { MemberWithProfile } from "@/hooks/use-invitations";
-import { getRemoveMemberErrorMessage } from "@/hooks/use-invitations";
 import type { TripWeatherResponse, TemperatureUnit } from "@journiful/shared/types";
 
 const EditTripDialog = dynamic(() =>
@@ -70,10 +59,6 @@ interface MobileTripLayoutProps {
   temperatureUnit: TemperatureUnit;
   currentMember: { id: string; userId: string; isMuted: boolean | undefined } | undefined;
   user: { id: string } | null;
-  removeMember: {
-    mutate: (id: string, options: { onSuccess: () => void; onError: (error: unknown) => void }) => void;
-    isPending: boolean;
-  };
   handleUpdateRole: (member: MemberWithProfile, isOrganizer: boolean) => void;
   initialShowOnboarding?: boolean;
 }
@@ -89,7 +74,6 @@ export function MobileTripLayout({
   temperatureUnit,
   currentMember,
   user,
-  removeMember,
   handleUpdateRole,
   initialShowOnboarding,
 }: MobileTripLayoutProps) {
@@ -102,11 +86,6 @@ export function MobileTripLayout({
   const [isMembersOpen, setIsMembersOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(initialShowOnboarding ?? false);
-  const [removingMember, setRemovingMember] = useState<{
-    member: MemberWithProfile;
-  } | null>(null);
-  const [profileMember, setProfileMember] = useState<MemberWithProfile | null>(null);
-  const [placeholderDetailMember, setPlaceholderDetailMember] = useState<MemberWithProfile | null>(null);
 
   const swiperRef = useRef<MobileTripSwiperRef>(null);
 
@@ -261,85 +240,20 @@ export function MobileTripLayout({
           </SheetContent>
         </Sheet>
 
-        <Sheet
-          open={isMembersOpen}
-          onOpenChange={(open) => {
-            setIsMembersOpen(open);
-            if (!open) setRemovingMember(null);
-          }}
-        >
-          <SheetContent>
-            <SheetHeader>
-              <SheetTitle className="text-3xl font-playfair tracking-tight">
-                {removingMember ? "Remove member" : "Members"}
-              </SheetTitle>
-              <SheetDescription className="sr-only">
-                {removingMember
-                  ? "Confirm member removal"
-                  : "Trip members and invitations"}
-              </SheetDescription>
-            </SheetHeader>
-            <SheetBody>
-              {removingMember ? (
-                <div className="flex flex-col flex-1">
-                  <div className="flex-1">
-                    <p className="text-muted-foreground">
-                      Are you sure you want to remove{" "}
-                      <span className="font-medium text-foreground">
-                        {removingMember.member.displayName}
-                      </span>{" "}
-                      from this trip? This will remove their membership and any
-                      associated invitation.
-                    </p>
-                  </div>
-                  <div className="flex gap-3 justify-end mt-auto pt-4 border-t border-border">
-                    <Button
-                      variant="outline"
-                      onClick={() => setRemovingMember(null)}
-                      disabled={removeMember.isPending}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      disabled={removeMember.isPending}
-                      onClick={() => {
-                        removeMember.mutate(removingMember.member.id, {
-                          onSuccess: () => {
-                            toast.success(
-                              `${removingMember.member.displayName} has been removed`,
-                            );
-                            setRemovingMember(null);
-                          },
-                          onError: (error: unknown) => {
-                            const message = getRemoveMemberErrorMessage(error as Error | null);
-                            toast.error(message ?? "Failed to remove member");
-                            setRemovingMember(null);
-                          },
-                        });
-                      }}
-                    >
-                      {removeMember.isPending ? "Removing..." : "Remove"}
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <MembersList
-                  tripId={tripId}
-                  isOrganizer={isOrganizer}
-                  createdBy={trip.createdBy}
-                  currentUserId={user?.id}
-                  onInvite={() => {
-                    setIsMembersOpen(false);
-                    setIsInviteOpen(true);
-                  }}
-                  onRemove={(member) => setRemovingMember({ member })}
-                  onUpdateRole={handleUpdateRole}
-                  onMemberClick={(m) => setProfileMember(m)}
-                  onPlaceholderClick={(m) => setPlaceholderDetailMember(m)}
-                />
-              )}
-            </SheetBody>
+        {/* Members Sheet — same sheet, different views (list / profile / placeholder detail) */}
+        <Sheet open={isMembersOpen} onOpenChange={setIsMembersOpen}>
+          <SheetContent className="p-0 gap-0 flex flex-col">
+            <MembersList
+              tripId={tripId}
+              isOrganizer={isOrganizer}
+              createdBy={trip.createdBy}
+              currentUserId={user?.id}
+              onInvite={() => {
+                setIsMembersOpen(false);
+                setIsInviteOpen(true);
+              }}
+              onUpdateRole={handleUpdateRole}
+            />
           </SheetContent>
         </Sheet>
 
@@ -351,18 +265,6 @@ export function MobileTripLayout({
             trip={trip}
           />
         )}
-
-        <MemberProfileSheet
-          member={profileMember}
-          open={!!profileMember}
-          onOpenChange={(o) => !o && setProfileMember(null)}
-        />
-        <PlaceholderDetailSheet
-          member={placeholderDetailMember}
-          open={!!placeholderDetailMember}
-          onOpenChange={(o) => !o && setPlaceholderDetailMember(null)}
-          tripId={tripId}
-        />
       </div>
     </TripThemeProvider>
   );
