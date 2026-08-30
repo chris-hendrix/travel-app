@@ -7,16 +7,16 @@ import type { Payment } from "@journiful/shared/types";
 interface PaymentItemProps {
   payment: Payment;
   onClick?: (payment: Payment) => void;
-  currentUserId?: string;
+  currentMemberId?: string;
 }
 
 function formatCents(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-export function PaymentItem({ payment, onClick, currentUserId }: PaymentItemProps) {
+export function PaymentItem({ payment, onClick, currentMemberId }: PaymentItemProps) {
   const isCurrentUserPayer =
-    !!currentUserId && !payment.payerIsPlaceholder && payment.memberId === currentUserId;
+    !!currentMemberId && !payment.payerIsPlaceholder && payment.memberId === currentMemberId;
   const payerName = isCurrentUserPayer ? "You" : (payment.payerName ?? "Someone");
   const isGuest = payment.payerIsPlaceholder ?? false;
   const participantCount = payment.participants.length;
@@ -30,7 +30,7 @@ export function PaymentItem({ payment, onClick, currentUserId }: PaymentItemProp
   if (isSettlement) {
     const recipient = payment.participants[0];
     const isRecipientCurrentUser =
-      !!currentUserId && !recipient?.isPlaceholder && recipient?.memberId === currentUserId;
+      !!currentMemberId && !recipient?.isPlaceholder && recipient?.memberId === currentMemberId;
     const recipientName = isRecipientCurrentUser ? "you" : (recipient?.name ?? "Someone");
     return (
       <button

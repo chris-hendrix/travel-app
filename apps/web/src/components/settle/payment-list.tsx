@@ -1,8 +1,8 @@
 "use client";
 
 import { Wallet, RotateCcw, Plus } from "lucide-react";
-import { useAuth } from "@/app/providers/auth-provider";
 import { usePayments, useRestorePayment } from "@/hooks/use-payments";
+import { useCurrentMemberId } from "@/hooks/use-current-member-id";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,7 @@ export function PaymentList({
   onAddExpense,
   isOrganizer,
 }: PaymentListProps) {
-  const { user } = useAuth();
+  const currentMemberId = useCurrentMemberId(tripId);
   const { data: payments, isPending } = usePayments(tripId);
   const restorePayment = useRestorePayment();
 
@@ -66,7 +66,7 @@ export function PaymentList({
           key={payment.id}
           payment={payment}
           {...(onPaymentClick ? { onClick: onPaymentClick } : {})}
-          {...(user ? { currentUserId: user.id } : {})}
+          {...(currentMemberId ? { currentMemberId } : {})}
         />
       ))}
 
@@ -88,7 +88,10 @@ export function PaymentList({
           </p>
           {deleted.map((payment) => (
             <div key={payment.id} className="relative opacity-60">
-              <PaymentItem payment={payment} />
+              <PaymentItem
+                payment={payment}
+                {...(currentMemberId ? { currentMemberId } : {})}
+              />
               <div className="absolute inset-y-0 right-2 flex items-center">
                 <Button
                   variant="outline"
