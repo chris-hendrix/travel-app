@@ -47,8 +47,8 @@ vi.mock("@/lib/api", () => ({
 
 function makeEntry(overrides: Partial<BalanceEntry> = {}): BalanceEntry {
   return {
-    from: { id: "from-1", name: "Alice", isGuest: true },
-    to: { id: "to-1", name: "Bob", isGuest: true },
+    from: { id: "from-1", name: "Alice" },
+    to: { id: "to-1", name: "Bob" },
     amount: 2500, // $25.00 in cents
     ...overrides,
   };
@@ -240,8 +240,8 @@ describe("SettlementForm", () => {
           data: {
             description: "Settled up — Venmo",
             amount: entry.amount,
-            guestId: "from-1",
-            participants: [{ guestId: "to-1" }],
+            userId: "from-1",
+            participants: [{ userId: "to-1" }],
             date: expect.any(String) as string,
           },
         },

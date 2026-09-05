@@ -8,11 +8,9 @@
 export interface PaymentParticipant {
   id: string;
   paymentId: string;
-  userId: string | null;
-  guestId: string | null;
+  userId: string;
   shareAmount: number;
   name?: string;
-  isGuest?: boolean;
   createdAt: Date;
 }
 
@@ -24,8 +22,7 @@ export interface Payment {
   tripId: string;
   description: string;
   amount: number;
-  userId: string | null;
-  guestId: string | null;
+  userId: string;
   date: Date;
   createdBy: string;
   deletedAt: Date | null;
@@ -33,7 +30,6 @@ export interface Payment {
   createdAt: Date;
   updatedAt: Date;
   payerName?: string;
-  payerIsGuest?: boolean;
   participants: PaymentParticipant[];
 }
 

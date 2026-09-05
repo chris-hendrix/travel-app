@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, UserCircle } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import type { BalanceEntry } from "@journiful/shared/types";
 
 interface BalanceItemProps {
@@ -17,7 +17,7 @@ function personName(
   person: BalanceEntry["from"],
   currentUserId?: string,
 ): string {
-  if (currentUserId && !person.isGuest && person.id === currentUserId) {
+  if (currentUserId && person.id === currentUserId) {
     return "You";
   }
   return person.name;
@@ -55,12 +55,6 @@ export function BalanceItem({
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">
           {fromName} {verb} {toName}
-          {entry.from.isGuest && (
-            <UserCircle className="inline h-3.5 w-3.5 text-muted-foreground ml-1 align-text-bottom" aria-label="Guest" />
-          )}
-          {entry.to.isGuest && (
-            <UserCircle className="inline h-3.5 w-3.5 text-muted-foreground ml-1 align-text-bottom" aria-label="Guest" />
-          )}
         </p>
         {onSettleUp && (
           <p className="text-xs text-primary group-hover:underline">

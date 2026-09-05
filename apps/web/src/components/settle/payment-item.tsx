@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { Receipt, Handshake, UserCircle } from "lucide-react";
+import { Receipt, Handshake } from "lucide-react";
 import type { Payment } from "@journiful/shared/types";
 
 interface PaymentItemProps {
@@ -16,9 +16,8 @@ function formatCents(cents: number): string {
 
 export function PaymentItem({ payment, onClick, currentUserId }: PaymentItemProps) {
   const isCurrentUserPayer =
-    !!currentUserId && !payment.payerIsGuest && payment.userId === currentUserId;
+    !!currentUserId && payment.userId === currentUserId;
   const payerName = isCurrentUserPayer ? "You" : (payment.payerName ?? "Someone");
-  const isGuest = payment.payerIsGuest ?? false;
   const participantCount = payment.participants.length;
   const date = new Date(payment.date);
   const isSettlement =
@@ -30,7 +29,7 @@ export function PaymentItem({ payment, onClick, currentUserId }: PaymentItemProp
   if (isSettlement) {
     const recipient = payment.participants[0];
     const isRecipientCurrentUser =
-      !!currentUserId && !recipient?.isGuest && recipient?.userId === currentUserId;
+      !!currentUserId && recipient?.userId === currentUserId;
     const recipientName = isRecipientCurrentUser ? "you" : (recipient?.name ?? "Someone");
     return (
       <button
@@ -64,9 +63,6 @@ export function PaymentItem({ payment, onClick, currentUserId }: PaymentItemProp
           <span className="truncate">
             {payerName} {verb}
           </span>
-          {isGuest && (
-            <UserCircle className="h-3 w-3 shrink-0" aria-label="Guest" />
-          )}
           <span className="shrink-0">
             {" "}&middot; {participantCount} {participantCount === 1 ? "person" : "people"}
           </span>

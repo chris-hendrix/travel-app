@@ -17,7 +17,6 @@ import {
   weatherCache,
   tripPhotos,
   pushSubscriptions,
-  tripGuests,
   payments,
   paymentParticipants,
 } from "./index.js";
@@ -35,7 +34,6 @@ export const usersRelations = relations(users, ({ many }) => ({
   blacklistedTokens: many(blacklistedTokens),
   uploadedPhotos: many(tripPhotos),
   pushSubscriptions: many(pushSubscriptions),
-  createdGuests: many(tripGuests),
   payments: many(payments, { relationName: "paymentPayer" }),
   createdPayments: many(payments, { relationName: "paymentCreator" }),
   paymentParticipations: many(paymentParticipants),
@@ -54,7 +52,6 @@ export const tripsRelations = relations(trips, ({ one, many }) => ({
   mutedMembers: many(mutedMembers),
   weatherCache: one(weatherCache),
   photos: many(tripPhotos),
-  guests: many(tripGuests),
   payments: many(payments),
 }));
 
@@ -215,32 +212,12 @@ export const tripPhotosRelations = relations(tripPhotos, ({ one }) => ({
   }),
 }));
 
-export const tripGuestsRelations = relations(
-  tripGuests,
-  ({ one, many }) => ({
-    trip: one(trips, {
-      fields: [tripGuests.tripId],
-      references: [trips.id],
-    }),
-    creator: one(users, {
-      fields: [tripGuests.createdBy],
-      references: [users.id],
-    }),
-    payments: many(payments),
-    paymentParticipations: many(paymentParticipants),
-  }),
-);
-
 export const paymentsRelations = relations(payments, ({ one, many }) => ({
   trip: one(trips, { fields: [payments.tripId], references: [trips.id] }),
   payer: one(users, {
     fields: [payments.userId],
     references: [users.id],
     relationName: "paymentPayer",
-  }),
-  guestPayer: one(tripGuests, {
-    fields: [payments.guestId],
-    references: [tripGuests.id],
   }),
   creator: one(users, {
     fields: [payments.createdBy],
@@ -260,10 +237,6 @@ export const paymentParticipantsRelations = relations(
     user: one(users, {
       fields: [paymentParticipants.userId],
       references: [users.id],
-    }),
-    guest: one(tripGuests, {
-      fields: [paymentParticipants.guestId],
-      references: [tripGuests.id],
     }),
   }),
 );

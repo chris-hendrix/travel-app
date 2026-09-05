@@ -2,7 +2,6 @@ import {
   payments,
   paymentParticipants,
   users,
-  tripGuests,
 } from "@/db/schema/index.js";
 import { eq, and, isNull, inArray } from "drizzle-orm";
 import type { AppDatabase } from "@/types/index.js";
@@ -10,7 +9,6 @@ import type { AppDatabase } from "@/types/index.js";
 interface BalancePerson {
   id: string;
   name: string;
-  isGuest: boolean;
 }
 
 interface BalanceEntry {
@@ -52,12 +50,8 @@ export class BalanceService implements IBalanceService {
     const details: MyBalanceDetail[] = [];
 
     for (const entry of balances) {
-      const fromKey = entry.from.isGuest
-        ? `guest:${entry.from.id}`
-        : `user:${entry.from.id}`;
-      const toKey = entry.to.isGuest
-        ? `guest:${entry.to.id}`
-        : `user:${entry.to.id}`;
+      const fromKey = `user:${entry.from.id}`;
+      const toKey = `user:${entry.to.id}`;
 
       if (fromKey === userKey) {
         // User owes this person
@@ -76,7 +70,7 @@ export class BalanceService implements IBalanceService {
   /**
    * Compute net balance per person across all non-deleted payments.
    * Positive = owed money (net payer). Negative = owes money (net debtor).
-   * Key format: "user:<id>" or "guest:<id>"
+   * Key format: "user:<id>"
    */
   private async computeNetBalances(
     tripId: string,
@@ -89,7 +83,6 @@ export class BalanceService implements IBalanceService {
         id: payments.id,
         amount: payments.amount,
         userId: payments.userId,
-        guestId: payments.guestId,
       })
       .from(payments)
       .where(and(eq(payments.tripId, tripId), isNull(payments.deletedAt)));
@@ -103,7 +96,6 @@ export class BalanceService implements IBalanceService {
       .select({
         paymentId: paymentParticipants.paymentId,
         userId: paymentParticipants.userId,
-        guestId: paymentParticipants.guestId,
         shareAmount: paymentParticipants.shareAmount,
       })
       .from(paymentParticipants)
@@ -118,9 +110,7 @@ export class BalanceService implements IBalanceService {
     }
 
     for (const payment of paymentRows) {
-      const payerKey = payment.userId
-        ? `user:${payment.userId}`
-        : `guest:${payment.guestId}`;
+      const payerKey = `user:${payment.userId}`;
 
       // Payer gains credit for the full amount
       net.set(payerKey, (net.get(payerKey) ?? 0) + payment.amount);
@@ -128,9 +118,7 @@ export class BalanceService implements IBalanceService {
       // Each participant owes their share
       const pParticipants = participantsByPayment.get(payment.id) ?? [];
       for (const pp of pParticipants) {
-        const participantKey = pp.userId
-          ? `user:${pp.userId}`
-          : `guest:${pp.guestId}`;
+        const participantKey = `user:${pp.userId}`;
         net.set(
           participantKey,
           (net.get(participantKey) ?? 0) - pp.shareAmount,
@@ -201,18 +189,17 @@ export class BalanceService implements IBalanceService {
 
   /**
    * Build a lookup map of person keys to person info for all
-   * users and guests involved in a trip's payments.
+   * users involved in a trip's payments.
    */
   private async buildPersonMap(
     tripId: string,
   ): Promise<Map<string, BalancePerson>> {
     const personMap = new Map<string, BalancePerson>();
 
-    // Get all non-deleted payments for user/guest IDs
+    // Get all non-deleted payments for user IDs
     const paymentRows = await this.db
       .select({
         userId: payments.userId,
-        guestId: payments.guestId,
       })
       .from(payments)
       .where(and(eq(payments.tripId, tripId), isNull(payments.deletedAt)));
@@ -225,25 +212,21 @@ export class BalanceService implements IBalanceService {
     ).map((p) => p.id);
 
     const userIds = new Set<string>();
-    const guestIds = new Set<string>();
 
     for (const p of paymentRows) {
       if (p.userId) userIds.add(p.userId);
-      if (p.guestId) guestIds.add(p.guestId);
     }
 
     if (paymentIds.length > 0) {
       const participantRows = await this.db
         .select({
           userId: paymentParticipants.userId,
-          guestId: paymentParticipants.guestId,
         })
         .from(paymentParticipants)
         .where(inArray(paymentParticipants.paymentId, paymentIds));
 
       for (const pp of participantRows) {
         if (pp.userId) userIds.add(pp.userId);
-        if (pp.guestId) guestIds.add(pp.guestId);
       }
     }
 
@@ -257,22 +240,6 @@ export class BalanceService implements IBalanceService {
         personMap.set(`user:${u.id}`, {
           id: u.id,
           name: u.displayName,
-          isGuest: false,
-        });
-      }
-    }
-
-    if (guestIds.size > 0) {
-      const guestRows = await this.db
-        .select({ id: tripGuests.id, name: tripGuests.name })
-        .from(tripGuests)
-        .where(inArray(tripGuests.id, Array.from(guestIds)));
-
-      for (const g of guestRows) {
-        personMap.set(`guest:${g.id}`, {
-          id: g.id,
-          name: g.name,
-          isGuest: true,
         });
       }
     }
