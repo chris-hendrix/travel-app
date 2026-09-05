@@ -6,7 +6,6 @@ import {
   members,
   payments,
   paymentParticipants,
-  tripGuests,
 } from "@/db/schema/index.js";
 import { eq, or } from "drizzle-orm";
 import { BalanceService } from "@/services/balance.service.js";
@@ -36,7 +35,6 @@ describe("balance.service", () => {
           .where(eq(paymentParticipants.paymentId, p.id));
       }
       await db.delete(payments).where(eq(payments.tripId, tripId));
-      await db.delete(tripGuests).where(eq(tripGuests.tripId, tripId));
       await db.delete(members).where(eq(members.tripId, tripId));
       await db.delete(trips).where(eq(trips.id, tripId));
     }
@@ -124,13 +122,13 @@ describe("balance.service", () => {
     // Bob owes Alice $15, Charlie owes Alice $15
     const sorted = balances.sort((a, b) => a.from.name.localeCompare(b.from.name));
     expect(sorted[0]).toMatchObject({
-      from: { name: "Bob", isGuest: false },
-      to: { name: "Alice", isGuest: false },
+      from: { name: "Bob" },
+      to: { name: "Alice" },
       amount: 1500,
     });
     expect(sorted[1]).toMatchObject({
-      from: { name: "Charlie", isGuest: false },
-      to: { name: "Alice", isGuest: false },
+      from: { name: "Charlie" },
+      to: { name: "Alice" },
       amount: 1500,
     });
   });
@@ -237,39 +235,6 @@ describe("balance.service", () => {
     expect(balances).toHaveLength(2);
     const totalOwed = balances.reduce((sum, b) => sum + b.amount, 0);
     expect(totalOwed).toBe(66);
-  });
-
-  it("should handle guest participants", async () => {
-    // Create a guest
-    const [guest] = await db
-      .insert(tripGuests)
-      .values({ tripId, name: "Dave (Guest)", createdBy: userAId })
-      .returning();
-
-    // Alice pays $20 split between Alice and Dave
-    const [payment] = await db
-      .insert(payments)
-      .values({
-        tripId,
-        description: "Taxi",
-        amount: 2000,
-        userId: userAId,
-        createdBy: userAId,
-      })
-      .returning();
-
-    await db.insert(paymentParticipants).values([
-      { paymentId: payment!.id, userId: userAId, shareAmount: 1000 },
-      { paymentId: payment!.id, guestId: guest!.id, shareAmount: 1000 },
-    ]);
-
-    const balances = await balanceService.getTripBalances(tripId);
-    expect(balances).toHaveLength(1);
-    expect(balances[0]).toMatchObject({
-      from: { name: "Dave (Guest)", isGuest: true },
-      to: { name: "Alice", isGuest: false },
-      amount: 1000,
-    });
   });
 
   it("should simplify cross-debts between multiple people", async () => {

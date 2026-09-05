@@ -2,7 +2,6 @@ import {
   payments,
   paymentParticipants,
   users,
-  tripGuests,
   type Payment,
 } from "@/db/schema/index.js";
 import { eq, and, isNull, inArray } from "drizzle-orm";
@@ -19,15 +18,12 @@ import {
 
 interface PaymentWithParticipants extends Payment {
   payerName?: string;
-  payerIsGuest?: boolean;
   participants: {
     id: string;
     paymentId: string;
-    userId: string | null;
-    guestId: string | null;
+    userId: string;
     shareAmount: number;
     name?: string;
-    isGuest?: boolean;
     createdAt: Date;
   }[];
 }
@@ -89,8 +85,7 @@ export class PaymentService implements IPaymentService {
         tripId,
         description: data.description,
         amount: data.amount,
-        userId: data.userId ?? null,
-        guestId: data.guestId ?? null,
+        userId: data.userId!,
         date: data.date ? new Date(data.date) : new Date(),
         createdBy: userId,
       })
@@ -105,8 +100,7 @@ export class PaymentService implements IPaymentService {
       .values(
         data.participants.map((p, i) => ({
           paymentId: payment.id,
-          userId: p.userId ?? null,
-          guestId: p.guestId ?? null,
+          userId: p.userId!,
           shareAmount: shares[i]!,
         })),
       )
@@ -139,23 +133,17 @@ export class PaymentService implements IPaymentService {
       .from(paymentParticipants)
       .where(inArray(paymentParticipants.paymentId, paymentIds));
 
-    // Collect all user IDs and guest IDs for name lookup
+    // Collect all user IDs for name lookup
     const userIds = new Set<string>();
-    const guestIds = new Set<string>();
 
     for (const p of paymentRows) {
       if (p.userId) userIds.add(p.userId);
-      if (p.guestId) guestIds.add(p.guestId);
     }
     for (const pp of participantRows) {
       if (pp.userId) userIds.add(pp.userId);
-      if (pp.guestId) guestIds.add(pp.guestId);
     }
 
-    const nameMap = await this.buildNameMap(
-      Array.from(userIds),
-      Array.from(guestIds),
-    );
+    const nameMap = await this.buildNameMap(Array.from(userIds));
 
     // Group participants by payment
     const participantsByPayment = new Map<string, typeof participantRows>();
@@ -169,16 +157,10 @@ export class PaymentService implements IPaymentService {
       const pParticipants = participantsByPayment.get(p.id) ?? [];
       return {
         ...p,
-        payerName: p.userId
-          ? (nameMap.get(`user:${p.userId}`) ?? "Unknown")
-          : (nameMap.get(`guest:${p.guestId}`) ?? "Unknown"),
-        payerIsGuest: p.guestId != null,
+        payerName: nameMap.get(`user:${p.userId}`) ?? "Unknown",
         participants: pParticipants.map((pp) => ({
           ...pp,
-          name: pp.userId
-            ? (nameMap.get(`user:${pp.userId}`) ?? "Unknown")
-            : (nameMap.get(`guest:${pp.guestId}`) ?? "Unknown"),
-          isGuest: pp.guestId != null,
+          name: nameMap.get(`user:${pp.userId}`) ?? "Unknown",
         })),
       };
     });
@@ -215,8 +197,7 @@ export class PaymentService implements IPaymentService {
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
     if (data.description !== undefined) updateData.description = data.description;
     if (data.amount !== undefined) updateData.amount = data.amount;
-    if (data.userId !== undefined) updateData.userId = data.userId ?? null;
-    if (data.guestId !== undefined) updateData.guestId = data.guestId ?? null;
+    if (data.userId !== undefined) updateData.userId = data.userId;
     if (data.date !== undefined) updateData.date = new Date(data.date);
 
     const [updated] = await this.db
@@ -248,8 +229,7 @@ export class PaymentService implements IPaymentService {
         .values(
           data.participants.map((p, i) => ({
             paymentId,
-            userId: p.userId ?? null,
-            guestId: p.guestId ?? null,
+            userId: p.userId!,
             shareAmount: shares[i]!,
           })),
         )
@@ -389,47 +369,31 @@ export class PaymentService implements IPaymentService {
     participantRows: {
       id: string;
       paymentId: string;
-      userId: string | null;
-      guestId: string | null;
+      userId: string;
       shareAmount: number;
       createdAt: Date;
     }[],
   ): Promise<PaymentWithParticipants> {
     const userIds = new Set<string>();
-    const guestIds = new Set<string>();
 
     if (payment.userId) userIds.add(payment.userId);
-    if (payment.guestId) guestIds.add(payment.guestId);
     for (const pp of participantRows) {
       if (pp.userId) userIds.add(pp.userId);
-      if (pp.guestId) guestIds.add(pp.guestId);
     }
 
-    const nameMap = await this.buildNameMap(
-      Array.from(userIds),
-      Array.from(guestIds),
-    );
+    const nameMap = await this.buildNameMap(Array.from(userIds));
 
     return {
       ...payment,
-      payerName: payment.userId
-        ? (nameMap.get(`user:${payment.userId}`) ?? "Unknown")
-        : (nameMap.get(`guest:${payment.guestId}`) ?? "Unknown"),
-      payerIsGuest: payment.guestId != null,
+      payerName: nameMap.get(`user:${payment.userId}`) ?? "Unknown",
       participants: participantRows.map((pp) => ({
         ...pp,
-        name: pp.userId
-          ? (nameMap.get(`user:${pp.userId}`) ?? "Unknown")
-          : (nameMap.get(`guest:${pp.guestId}`) ?? "Unknown"),
-        isGuest: pp.guestId != null,
+        name: nameMap.get(`user:${pp.userId}`) ?? "Unknown",
       })),
     };
   }
 
-  private async buildNameMap(
-    userIds: string[],
-    guestIds: string[],
-  ): Promise<Map<string, string>> {
+  private async buildNameMap(userIds: string[]): Promise<Map<string, string>> {
     const nameMap = new Map<string, string>();
 
     if (userIds.length > 0) {
@@ -439,16 +403,6 @@ export class PaymentService implements IPaymentService {
         .where(inArray(users.id, userIds));
       for (const u of userRows) {
         nameMap.set(`user:${u.id}`, u.displayName);
-      }
-    }
-
-    if (guestIds.length > 0) {
-      const guestRows = await this.db
-        .select({ id: tripGuests.id, name: tripGuests.name })
-        .from(tripGuests)
-        .where(inArray(tripGuests.id, guestIds));
-      for (const g of guestRows) {
-        nameMap.set(`guest:${g.id}`, g.name);
       }
     }
 

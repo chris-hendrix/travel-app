@@ -85,8 +85,8 @@ describe("Balance Routes", () => {
       expect(body.success).toBe(true);
       expect(body.balances).toHaveLength(1);
       expect(body.balances[0]).toMatchObject({
-        from: { name: "Bob", isGuest: false },
-        to: { name: "Alice", isGuest: false },
+        from: { name: "Bob" },
+        to: { name: "Alice" },
         amount: 1000,
       });
     });
