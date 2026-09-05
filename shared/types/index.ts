@@ -160,9 +160,6 @@ export type {
   FlightLookupResponse,
 } from "./flight";
 
-// Re-export guest types
-export type { Guest, GetGuestsResponse, GuestResponse } from "./guest";
-
 // Re-export payment types
 export type {
   Payment,
