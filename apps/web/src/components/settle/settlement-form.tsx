@@ -58,9 +58,7 @@ export function SettlementForm({
   const toPerson = entry.to;
 
   // Look up recipient's venmo handle from members data
-  const recipientMember = !toPerson.isGuest
-    ? members?.find((m) => m.userId === toPerson.id)
-    : undefined;
+  const recipientMember = members?.find((m) => m.userId === toPerson.id);
   const venmoHandle = recipientMember?.handles?.venmo;
 
   const handleSubmit = () => {
@@ -76,14 +74,8 @@ export function SettlementForm({
         data: {
           description,
           amount: amountCents,
-          ...(fromPerson.isGuest
-            ? { guestId: fromPerson.id }
-            : { userId: fromPerson.id }),
-          participants: [
-            toPerson.isGuest
-              ? { guestId: toPerson.id }
-              : { userId: toPerson.id },
-          ],
+          userId: fromPerson.id,
+          participants: [{ userId: toPerson.id }],
           date: new Date().toISOString(),
         },
       },
