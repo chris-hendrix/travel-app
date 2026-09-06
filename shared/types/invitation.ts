@@ -22,12 +22,15 @@ export interface Invitation {
  */
 export interface MemberWithProfile {
   id: string;
-  userId: string;
+  /** Null for guest members (no attached user account); web derives isGuest from userId === null */
+  userId: string | null;
   displayName: string;
   profilePhotoUrl: string | null;
   handles: Record<string, string> | null;
   /** Only included when requesting user is an organizer */
   phoneNumber?: string;
+  /** Guest phone; only included when requesting user is an organizer and member is a guest */
+  guestPhone?: string;
   status: "going" | "not_going" | "maybe" | "no_response";
   isOrganizer: boolean;
   /** Only included when requesting user is an organizer */

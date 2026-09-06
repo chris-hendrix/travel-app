@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { phoneNumberSchema } from "./phone";
+import { stripControlChars } from "../utils/sanitize";
 
 /**
  * Validates batch invitation creation data
@@ -62,11 +63,12 @@ const invitationEntitySchema = z.object({
  *  Note: createdAt is pre-converted to ISO string by the service layer */
 const memberWithProfileSchema = z.object({
   id: z.string(),
-  userId: z.string(),
+  userId: z.string().nullable(),
   displayName: z.string(),
   profilePhotoUrl: z.string().nullable(),
   handles: z.record(z.string(), z.string()).nullable().optional(),
   phoneNumber: z.string().optional(),
+  guestPhone: z.string().optional(),
   status: z.enum(["going", "not_going", "maybe", "no_response"]),
   isOrganizer: z.boolean(),
   isMuted: z.boolean().optional(),
@@ -118,7 +120,36 @@ export const mySettingsResponseSchema = z.object({
   calendarExcluded: z.boolean(),
 });
 
+/** Organizer-settable RSVP status for guest members (includes no_response default) */
+export const guestRsvpStatusEnum = z.enum([
+  "going",
+  "not_going",
+  "maybe",
+  "no_response",
+]);
+
+/**
+ * Validates guest member creation data (organizer-only)
+ * - displayName: required, 1-50 chars, control chars stripped
+ * - guestPhone: optional E.164 phone number (same validator as invitations)
+ */
+export const createGuestSchema = z.object({
+  displayName: z
+    .string()
+    .min(1, { error: "Display name is required" })
+    .max(50, { error: "Display name must be at most 50 characters" })
+    .transform(stripControlChars),
+  guestPhone: phoneNumberSchema.optional(),
+});
+
+/** Validates guest member update data (organizer-only); all fields optional */
+export const updateGuestSchema = createGuestSchema.partial().extend({
+  status: guestRsvpStatusEnum.optional(),
+});
+
 // Inferred TypeScript types from schemas
 export type CreateInvitationsInput = z.infer<typeof createInvitationsSchema>;
 export type UpdateRsvpInput = z.infer<typeof updateRsvpSchema>;
 export type UpdateMySettingsInput = z.infer<typeof updateMySettingsSchema>;
+export type CreateGuestInput = z.infer<typeof createGuestSchema>;
+export type UpdateGuestInput = z.infer<typeof updateGuestSchema>;
