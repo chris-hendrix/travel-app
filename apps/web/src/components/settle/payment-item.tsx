@@ -7,6 +7,9 @@ import type { Payment } from "@journiful/shared/types";
 interface PaymentItemProps {
   payment: Payment;
   onClick?: (payment: Payment) => void;
+  /** Member id of the viewer (member-keyed; a guest row never matches). */
+  currentMemberId?: string;
+  /** @deprecated — pass currentMemberId instead (ids are member ids). */
   currentUserId?: string;
 }
 
@@ -14,9 +17,12 @@ function formatCents(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-export function PaymentItem({ payment, onClick, currentUserId }: PaymentItemProps) {
+export function PaymentItem({ payment, onClick, currentMemberId, currentUserId }: PaymentItemProps) {
+  // Null-safe You-labels: member-keyed comparison only. Guests have
+  // userId null and never equal the viewer's member id.
+  const viewerMemberId = currentMemberId ?? currentUserId;
   const isCurrentUserPayer =
-    !!currentUserId && payment.userId === currentUserId;
+    !!viewerMemberId && payment.payerMemberId === viewerMemberId;
   const payerName = isCurrentUserPayer ? "You" : (payment.payerName ?? "Someone");
   const participantCount = payment.participants.length;
   const date = new Date(payment.date);
@@ -29,7 +35,7 @@ export function PaymentItem({ payment, onClick, currentUserId }: PaymentItemProp
   if (isSettlement) {
     const recipient = payment.participants[0];
     const isRecipientCurrentUser =
-      !!currentUserId && recipient?.userId === currentUserId;
+      !!viewerMemberId && recipient?.memberId === viewerMemberId;
     const recipientName = isRecipientCurrentUser ? "you" : (recipient?.name ?? "Someone");
     return (
       <button

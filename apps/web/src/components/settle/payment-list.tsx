@@ -1,8 +1,10 @@
 "use client";
 
 import { Wallet, RotateCcw, Plus } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/app/providers/auth-provider";
 import { usePayments, useRestorePayment } from "@/hooks/use-payments";
+import { membersQueryOptions } from "@/hooks/invitation-queries";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
@@ -26,6 +28,14 @@ export function PaymentList({
   const { user } = useAuth();
   const { data: payments, isPending } = usePayments(tripId);
   const restorePayment = useRestorePayment();
+  const { data: members } = useQuery({
+    ...membersQueryOptions(tripId),
+    enabled: !!tripId,
+  });
+  // Member-keyed You-labels (guests have userId null, never match).
+  const currentMember = user?.id
+    ? members?.find((m) => m.userId === user.id)
+    : undefined;
 
   if (isPending) {
     return (
@@ -66,7 +76,7 @@ export function PaymentList({
           key={payment.id}
           payment={payment}
           {...(onPaymentClick ? { onClick: onPaymentClick } : {})}
-          {...(user ? { currentUserId: user.id } : {})}
+          {...(currentMember ? { currentMemberId: currentMember.id } : {})}
         />
       ))}
 

@@ -240,8 +240,8 @@ describe("SettlementForm", () => {
           data: {
             description: "Settled up — Venmo",
             amount: entry.amount,
-            userId: "from-1",
-            participants: [{ userId: "to-1" }],
+            payerMemberId: "from-1",
+            participants: [{ memberId: "to-1" }],
             date: expect.any(String) as string,
           },
         },
