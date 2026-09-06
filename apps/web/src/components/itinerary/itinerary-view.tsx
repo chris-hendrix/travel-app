@@ -132,7 +132,8 @@ export function ItineraryView({
     ? members.find((m) => m.userId === user.id)
     : undefined;
 
-  // Build userId→displayName lookup from organizers + members
+  // Build userId→displayName lookup from organizers + members (keyed by
+  // member.id upstream; guests with userId null never match a caller).
   const userNameMap = useMemo(() => {
     const map = new Map<string, string>();
     if (trip?.organizers) {
@@ -336,6 +337,7 @@ export function ItineraryView({
           tripLon={trip?.destinationLon ?? null}
           isOrganizer={!!isOrganizer}
           userId={user?.id || ""}
+          currentMemberId={currentMember?.id ?? null}
           userNameMap={userNameMap}
           isLocked={isLocked}
           forecasts={forecasts ?? []}

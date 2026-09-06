@@ -53,6 +53,7 @@ interface DayByDayViewProps {
   tripLon?: number | null;
   isOrganizer: boolean;
   userId: string;
+  currentMemberId?: string | null;
   userNameMap: Map<string, string>;
   isLocked?: boolean;
   forecasts?: DailyForecast[];
@@ -87,6 +88,7 @@ export function DayByDayView({
   tripLon,
   isOrganizer,
   userId,
+  currentMemberId,
   userNameMap,
   isLocked,
   forecasts,
@@ -573,6 +575,7 @@ export function DayByDayView({
                 userId,
                 isOrganizer,
                 isLocked,
+                currentMemberId ?? null,
               )
             : false
         }
@@ -583,6 +586,7 @@ export function DayByDayView({
                 userId,
                 isOrganizer,
                 isLocked,
+                currentMemberId ?? null,
               )
             : false
         }
