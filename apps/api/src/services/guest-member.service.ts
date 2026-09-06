@@ -1,4 +1,4 @@
-import { members, users, payments } from "@/db/schema/index.js";
+import { members, users, payments, invitations } from "@/db/schema/index.js";
 import { eq, and, count, isNull, ne } from "drizzle-orm";
 import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
@@ -15,6 +15,21 @@ import {
 } from "../errors.js";
 
 export const MAX_TRIP_MEMBERS = 25;
+
+/** Executor supporting SELECT ... FOR UPDATE + UPDATEs (db or caller tx). */
+type ClaimExecutor = Pick<AppDatabase, "select" | "update">;
+
+export interface ClaimGuestMemberInput {
+  tripId: string;
+  userId: string;
+  guestPhone: string;
+}
+
+export interface ClaimGuestMemberResult {
+  claimed: boolean;
+  alreadyClaimed?: boolean;
+  member?: typeof members.$inferSelect;
+}
 
 export interface IGuestMemberService {
   createGuest(
@@ -38,6 +53,10 @@ export interface IGuestMemberService {
     requesterUserId: string,
     memberId: string,
   ): Promise<void>;
+  claimGuestMember(
+    tx: ClaimExecutor,
+    input: ClaimGuestMemberInput,
+  ): Promise<ClaimGuestMemberResult>;
 }
 
 export class GuestMemberService implements IGuestMemberService {
@@ -196,6 +215,77 @@ export class GuestMemberService implements IGuestMemberService {
     // Member delete cascades to member_travel + payment_participants rows;
     // balances recompute on read (member:<id> keys).
     await this.db.delete(members).where(eq(members.id, guest.id));
+  }
+
+  /**
+   * Task 4.1: one transactional claim used by all three claim paths.
+   * Must run inside the caller's transaction (SELECT ... FOR UPDATE).
+   * Cap-neutral: the guest row already counted toward the 25 cap — no count.
+   */
+  async claimGuestMember(
+    tx: ClaimExecutor,
+    input: ClaimGuestMemberInput,
+  ): Promise<ClaimGuestMemberResult> {
+    const guestPhone = phoneNumberSchema.parse(input.guestPhone);
+
+    const [guest] = await tx
+      .select()
+      .from(members)
+      .where(
+        and(
+          eq(members.tripId, input.tripId),
+          eq(members.guestPhone, guestPhone),
+        ),
+      )
+      .for("update")
+      .limit(1);
+
+    if (!guest) {
+      // No guest row left: either never existed or already claimed (first
+      // claim cleared guest_phone). Distinguish via the (tripId, userId) row.
+      const [existing] = await tx
+        .select()
+        .from(members)
+        .where(
+          and(
+            eq(members.tripId, input.tripId),
+            eq(members.userId, input.userId),
+          ),
+        )
+        .limit(1);
+      if (existing) {
+        return { claimed: false, alreadyClaimed: true, member: existing };
+      }
+      return { claimed: false };
+    }
+
+    if (guest.userId !== null) {
+      return { claimed: false, alreadyClaimed: true, member: guest };
+    }
+
+    const [claimed] = await tx
+      .update(members)
+      .set({
+        userId: input.userId,
+        claimedAt: new Date(),
+        guestDisplayName: null,
+        guestPhone: null,
+      })
+      .where(eq(members.id, guest.id))
+      .returning();
+
+    await tx
+      .update(invitations)
+      .set({ status: "accepted", respondedAt: new Date() })
+      .where(
+        and(
+          eq(invitations.tripId, input.tripId),
+          eq(invitations.inviteePhone, guestPhone),
+          eq(invitations.status, "pending"),
+        ),
+      );
+
+    return { claimed: true, member: claimed! };
   }
 
   private async requireOrganizer(

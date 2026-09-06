@@ -6,6 +6,9 @@ import {
   members,
   invitations,
   events,
+  memberTravel,
+  payments,
+  paymentParticipants,
   notificationPreferences,
   notifications,
 } from "@/db/schema/index.js";
@@ -463,6 +466,48 @@ describe("invitation.service", () => {
       await expect(
         invitationService.revokeInvitation(testMemberId, created[0].id),
       ).rejects.toThrow(PermissionDeniedError);
+    });
+
+    it("Task 4.4: revoking an invitation leaves an unclaimed guest row intact", async () => {
+      const guestPhone = generateUniquePhone();
+      const [guest] = await db
+        .insert(members)
+        .values({
+          tripId: testTripId,
+          userId: null,
+          guestDisplayName: "Unclaimed Guest",
+          guestPhone,
+          status: "no_response",
+        })
+        .returning();
+      expect(guest.userId).toBeNull();
+
+      // Invitation for the same phone (no registered user) creates no member.
+      const { invitations: created } =
+        await invitationService.createInvitations(testOrganizerId, testTripId, [
+          guestPhone,
+        ]);
+      // Phone matches a guest row but no user: still creates an invitation.
+      expect(created).toHaveLength(1);
+
+      await invitationService.revokeInvitation(
+        testOrganizerId,
+        created[0].id,
+      );
+
+      const remainingInvitations = await db
+        .select()
+        .from(invitations)
+        .where(eq(invitations.id, created[0].id));
+      expect(remainingInvitations).toHaveLength(0);
+
+      const guestAfter = await db
+        .select()
+        .from(members)
+        .where(eq(members.id, guest.id));
+      expect(guestAfter).toHaveLength(1);
+      expect(guestAfter[0].userId).toBeNull();
+      expect(guestAfter[0].guestPhone).toBe(guestPhone);
     });
   });
 
@@ -1011,6 +1056,156 @@ describe("invitation.service", () => {
     });
   });
 
+  describe("processPendingInvitations guest auto-claim (Task 4.3)", () => {
+    it("claims the guest row in place instead of inserting a new member", async () => {
+      const guestPhone = generateUniquePhone();
+      // Guest row with guestPhone = P
+      const [guest] = await db
+        .insert(members)
+        .values({
+          tripId: testTripId,
+          userId: null,
+          guestDisplayName: "Mom",
+          guestPhone,
+        })
+        .returning();
+      // Pending invitation for P (phone has no user yet -> invite only)
+      await invitationService.createInvitations(testOrganizerId, testTripId, [
+        guestPhone,
+      ]);
+
+      // New user signs up with P
+      const [newUser] = await db
+        .insert(users)
+        .values({
+          phoneNumber: guestPhone,
+          displayName: "Mom Real",
+          timezone: "UTC",
+        })
+        .returning();
+
+      await invitationService.processPendingInvitations(
+        newUser.id,
+        guestPhone,
+      );
+
+      // Exactly one member row for (trip, user): the claimed guest row
+      const memberRows = await db
+        .select()
+        .from(members)
+        .where(
+          and(eq(members.tripId, testTripId), eq(members.userId, newUser.id)),
+        );
+      expect(memberRows).toHaveLength(1);
+      expect(memberRows[0].id).toBe(guest.id);
+      expect(memberRows[0].guestPhone).toBeNull();
+      expect(memberRows[0].guestDisplayName).toBeNull();
+      expect(memberRows[0].claimedAt).not.toBeNull();
+
+      // Invitation flipped to accepted
+      const [invitation] = await db
+        .select()
+        .from(invitations)
+        .where(
+          and(
+            eq(invitations.tripId, testTripId),
+            eq(invitations.inviteePhone, guestPhone),
+          ),
+        );
+      expect(invitation.status).toBe("accepted");
+
+      // Clean up
+      await db.delete(users).where(eq(users.phoneNumber, guestPhone));
+    });
+
+    it("claims on phone match alone when no invitation exists", async () => {
+      const guestPhone = generateUniquePhone();
+      const [guest] = await db
+        .insert(members)
+        .values({
+          tripId: testTripId,
+          userId: null,
+          guestDisplayName: "Grandma",
+          guestPhone,
+        })
+        .returning();
+
+      const [newUser] = await db
+        .insert(users)
+        .values({
+          phoneNumber: guestPhone,
+          displayName: "Grandma Real",
+          timezone: "UTC",
+        })
+        .returning();
+
+      await invitationService.processPendingInvitations(
+        newUser.id,
+        guestPhone,
+      );
+
+      const memberRows = await db
+        .select()
+        .from(members)
+        .where(
+          and(eq(members.tripId, testTripId), eq(members.userId, newUser.id)),
+        );
+      expect(memberRows).toHaveLength(1);
+      expect(memberRows[0].id).toBe(guest.id);
+      expect(memberRows[0].guestPhone).toBeNull();
+
+      // Clean up
+      await db.delete(users).where(eq(users.phoneNumber, guestPhone));
+    });
+
+    it("acceptInvitation converts the guest row instead of inserting", async () => {
+      const guestPhone = generateUniquePhone();
+      const [guest] = await db
+        .insert(members)
+        .values({
+          tripId: testTripId,
+          userId: null,
+          guestDisplayName: "Cousin",
+          guestPhone,
+        })
+        .returning();
+
+      const { invitations: created } =
+        await invitationService.createInvitations(testOrganizerId, testTripId, [
+          guestPhone,
+        ]);
+      expect(created).toHaveLength(1);
+
+      const [newUser] = await db
+        .insert(users)
+        .values({
+          phoneNumber: guestPhone,
+          displayName: "Cousin Real",
+          timezone: "UTC",
+        })
+        .returning();
+
+      const result = await invitationService.acceptInvitation(
+        created[0].id,
+        newUser.id,
+      );
+      expect(result).toEqual({ tripId: testTripId });
+
+      const memberRows = await db
+        .select()
+        .from(members)
+        .where(
+          and(eq(members.tripId, testTripId), eq(members.userId, newUser.id)),
+        );
+      expect(memberRows).toHaveLength(1);
+      expect(memberRows[0].id).toBe(guest.id);
+      expect(memberRows[0].guestPhone).toBeNull();
+
+      // Clean up
+      await db.delete(users).where(eq(users.phoneNumber, guestPhone));
+    });
+  });
+
   describe("removeMember", () => {
     it("should remove a non-organizer member and their invitation", async () => {
       // Create a user and invite them so they have both member and invitation records
@@ -1102,6 +1297,89 @@ describe("invitation.service", () => {
           and(eq(members.tripId, testTripId), eq(members.userId, testMemberId)),
         );
       expect(membersAfter).toHaveLength(0);
+    });
+
+    it("Task 4.4: organizer removes a guest by memberId — member+travel+participants gone", async () => {
+      const guestPhone = generateUniquePhone();
+      const [guest] = await db
+        .insert(members)
+        .values({
+          tripId: testTripId,
+          userId: null,
+          guestDisplayName: "Guest Mom",
+          guestPhone,
+          status: "no_response",
+        })
+        .returning();
+      expect(guest.userId).toBeNull();
+
+      const [travel] = await db
+        .insert(memberTravel)
+        .values({
+          tripId: testTripId,
+          memberId: guest.id,
+          travelType: "arrival",
+          time: new Date(),
+        })
+        .returning();
+
+      const [organizerMember] = await db
+        .select()
+        .from(members)
+        .where(
+          and(
+            eq(members.tripId, testTripId),
+            eq(members.userId, testOrganizerId),
+          ),
+        );
+      const [payment] = await db
+        .insert(payments)
+        .values({
+          tripId: testTripId,
+          description: "Guest dinner",
+          amount: 10000,
+          memberId: organizerMember.id,
+          createdBy: testOrganizerId,
+        })
+        .returning();
+      await db.insert(paymentParticipants).values({
+        paymentId: payment.id,
+        memberId: guest.id,
+        shareAmount: 5000,
+      });
+
+      // Must not throw on the users.phoneNumber lookup with NULL userId.
+      await invitationService.removeMember(
+        testOrganizerId,
+        testTripId,
+        guest.id,
+      );
+
+      const memberAfter = await db
+        .select()
+        .from(members)
+        .where(eq(members.id, guest.id));
+      expect(memberAfter).toHaveLength(0);
+
+      const travelAfter = await db
+        .select()
+        .from(memberTravel)
+        .where(eq(memberTravel.id, travel.id));
+      expect(travelAfter).toHaveLength(0);
+
+      const participantsAfter = await db
+        .select()
+        .from(paymentParticipants)
+        .where(eq(paymentParticipants.paymentId, payment.id));
+      expect(participantsAfter).toHaveLength(0);
+
+      // Organizer-paid payment itself survives (only the guest share cascades).
+      const paymentAfter = await db
+        .select()
+        .from(payments)
+        .where(eq(payments.id, payment.id));
+      expect(paymentAfter).toHaveLength(1);
+      await db.delete(payments).where(eq(payments.id, payment.id));
     });
 
     it("should throw PermissionDeniedError for non-organizers", async () => {
@@ -1822,6 +2100,111 @@ describe("invitation.service", () => {
       expect(result.invitations).toHaveLength(1);
       expect(result.addedMembers).toHaveLength(0);
       expect(result.skipped).toHaveLength(0);
+    });
+
+    it("Task 4.2: attaching a mutual whose phone matches a guest claims the guest (no new member row)", async () => {
+      // Trip has a guest row with guestPhone = mutual's phone
+      const [guest] = await db
+        .insert(members)
+        .values({
+          tripId: testTripId,
+          userId: null,
+          guestDisplayName: "Mom",
+          guestPhone: mutualUserPhone,
+        })
+        .returning();
+
+      const result = await invitationService.createInvitations(
+        testOrganizerId,
+        testTripId,
+        [],
+        [mutualUserId],
+      );
+
+      // Claimed mutual reported via addedMembers, not skipped
+      expect(result.addedMembers).toHaveLength(1);
+      expect(result.addedMembers[0].userId).toBe(mutualUserId);
+      expect(result.skipped).toHaveLength(0);
+      // No new invitation row for the claimed phone
+      expect(result.invitations).toHaveLength(0);
+
+      // NO new member row: exactly one row for this user on this trip...
+      const memberRows = await db
+        .select()
+        .from(members)
+        .where(
+          and(
+            eq(members.tripId, testTripId),
+            eq(members.userId, mutualUserId),
+          ),
+        );
+      expect(memberRows).toHaveLength(1);
+      // ...and it is the original guest row claimed in place
+      expect(memberRows[0].id).toBe(guest.id);
+      expect(memberRows[0].guestPhone).toBeNull();
+      expect(memberRows[0].guestDisplayName).toBeNull();
+      expect(memberRows[0].claimedAt).not.toBeNull();
+
+      // mutual_invite notification sent to the mutual
+      const notificationRecords = await db
+        .select()
+        .from(notifications)
+        .where(
+          and(
+            eq(notifications.userId, mutualUserId),
+            eq(notifications.tripId, testTripId),
+            eq(notifications.type, "mutual_invite"),
+          ),
+        );
+      expect(notificationRecords).toHaveLength(1);
+    });
+
+    it("Task 4.2 (phone path): inviting an existing user's phone matching a guest claims the guest", async () => {
+      const [guest] = await db
+        .insert(members)
+        .values({
+          tripId: testTripId,
+          userId: null,
+          guestDisplayName: "Mom",
+          guestPhone: mutualUserPhone,
+        })
+        .returning();
+
+      const memberCountBefore = await db
+        .select()
+        .from(members)
+        .where(eq(members.tripId, testTripId));
+
+      const result = await invitationService.createInvitations(
+        testOrganizerId,
+        testTripId,
+        [mutualUserPhone],
+      );
+
+      // Claimed: reported as added, not skipped, no duplicate member insert
+      expect(result.addedMembers).toHaveLength(1);
+      expect(result.addedMembers[0].userId).toBe(mutualUserId);
+      expect(result.skipped).toHaveLength(0);
+
+      const memberRows = await db
+        .select()
+        .from(members)
+        .where(
+          and(
+            eq(members.tripId, testTripId),
+            eq(members.userId, mutualUserId),
+          ),
+        );
+      expect(memberRows).toHaveLength(1);
+      expect(memberRows[0].id).toBe(guest.id);
+      expect(memberRows[0].guestPhone).toBeNull();
+
+      // Member count unchanged apart from the in-place claim (cap-neutral)
+      const memberCountAfter = await db
+        .select()
+        .from(members)
+        .where(eq(members.tripId, testTripId));
+      expect(memberCountAfter).toHaveLength(memberCountBefore.length);
     });
   });
 });
