@@ -752,3 +752,269 @@ describe("guest-member.service claimGuestMember (Task 4.1)", () => {
     expect(miss.alreadyClaimed).toBeUndefined();
   });
 });
+
+/**
+ * Task 5.1 RED: member & trip reads include guests.
+ * - getTripMembers returns guest rows (userId null) for organizer AND
+ *   non-organizer regardless of showAllMembers/status; claimed rows keep the
+ *   going/maybe/showAllMembers filter.
+ * - getMemberTravelByTrip returns guest travel with memberName =
+ *   guest_display_name and userId null.
+ * - trip reads include guests; updateMemberRole rejects guest rows.
+ */
+describe("member & trip reads with guests present (Task 5.1)", () => {
+  const permissionsService = new PermissionsService(db);
+  const guestMemberService = new GuestMemberService(db, permissionsService);
+
+  let organizerId: string;
+  let nonOrganizerId: string;
+  let tripId: string;
+  const createdUserPhones: string[] = [];
+
+  const createUser = async (displayName: string, phone?: string) => {
+    const p = phone ?? generateUniquePhone();
+    createdUserPhones.push(p);
+    const [user] = await db
+      .insert(users)
+      .values({ phoneNumber: p, displayName })
+      .returning();
+    return user;
+  };
+
+  // Lazy service imports (avoid cycles at module load)
+  const getInvitationService = async () => {
+    const { InvitationService } = await import(
+      "@/services/invitation.service.js"
+    );
+    const { SMSService } = await import("@/services/sms.service.js");
+    const { NotificationService } = await import(
+      "@/services/notification.service.js"
+    );
+    return new InvitationService(
+      db,
+      permissionsService,
+      new SMSService(),
+      new NotificationService(db),
+    );
+  };
+  const getTravelService = async () => {
+    const { MemberTravelService } = await import(
+      "@/services/member-travel.service.js"
+    );
+    return new MemberTravelService(db, permissionsService);
+  };
+
+  beforeEach(async () => {
+    createdUserPhones.length = 0;
+    const organizer = await createUser("Trip Organizer");
+    organizerId = organizer.id;
+    const nonOrganizer = await createUser("Regular Member");
+    nonOrganizerId = nonOrganizer.id;
+    const [trip] = await db
+      .insert(trips)
+      .values({
+        name: "Guest Reads Trip",
+        destination: "Naples",
+        preferredTimezone: "Europe/Rome",
+        createdBy: organizerId,
+      })
+      .returning();
+    tripId = trip.id;
+    await db.insert(members).values([
+      { tripId, userId: organizerId, isOrganizer: true, status: "going" },
+      { tripId, userId: nonOrganizerId, isOrganizer: false, status: "going" },
+    ]);
+  });
+
+  afterEach(async () => {
+    if (tripId) {
+      const { memberTravel } = await import("@/db/schema/index.js");
+      await db.delete(memberTravel).where(eq(memberTravel.tripId, tripId));
+      await db.delete(members).where(eq(members.tripId, tripId));
+      await db.delete(trips).where(eq(trips.id, tripId));
+    }
+    for (const phone of createdUserPhones) {
+      await db.delete(users).where(eq(users.phoneNumber, phone));
+    }
+  });
+
+  it("organizer sees the guest with displayName + guestPhone and userId null", async () => {
+    const guestPhone = generateUniquePhone();
+    await guestMemberService.createGuest(tripId, organizerId, {
+      displayName: "Mom",
+      guestPhone,
+    });
+    const invitationService = await getInvitationService();
+    const list = await invitationService.getTripMembers(tripId, organizerId);
+    const guest = list.find((m) => m.userId === null);
+    expect(guest).toBeDefined();
+    expect(guest!.displayName).toBe("Mom");
+    expect(guest!.guestPhone).toBe(guestPhone);
+    expect(guest!.isOrganizer).toBe(false);
+  });
+
+  it("non-organizer sees the no_response guest even when showAllMembers is off", async () => {
+    await guestMemberService.createGuest(tripId, organizerId, {
+      displayName: "Mom",
+    });
+    // A claimed no_response member must stay hidden from non-organizers
+    // while the guest row bypasses the going/maybe filter.
+    const lurker = await createUser("Lurker");
+    await db.insert(members).values({
+      tripId,
+      userId: lurker.id,
+      status: "no_response",
+    });
+    const invitationService = await getInvitationService();
+    const list = await invitationService.getTripMembers(
+      tripId,
+      nonOrganizerId,
+    );
+    const guest = list.find((m) => m.userId === null);
+    expect(guest).toBeDefined();
+    expect(guest!.displayName).toBe("Mom");
+    expect(guest!.guestPhone).toBeUndefined();
+    expect(list.find((m) => m.userId === lurker.id)).toBeUndefined();
+  });
+
+  it("getMemberTravelByTrip returns guest travel with guest name and null userId", async () => {
+    const guest = await guestMemberService.createGuest(tripId, organizerId, {
+      displayName: "Mom",
+    });
+    const travelService = await getTravelService();
+    await travelService.createMemberTravel(organizerId, tripId, {
+      memberId: guest.id,
+      travelType: "arrival",
+      time: new Date().toISOString(),
+    });
+    const rows = await travelService.getMemberTravelByTrip(tripId);
+    const guestRow = rows.find((r) => r.memberId === guest.id);
+    expect(guestRow).toBeDefined();
+    expect(guestRow!.memberName).toBe("Mom");
+    expect(guestRow!.userId).toBeNull();
+  });
+
+  it("updateMemberRole rejects promoting a guest row to organizer", async () => {
+    const guest = await guestMemberService.createGuest(tripId, organizerId, {
+      displayName: "Mom",
+    });
+    const invitationService = await getInvitationService();
+    await expect(
+      invitationService.updateMemberRole(
+        organizerId,
+        tripId,
+        guest.id,
+        true,
+      ),
+    ).rejects.toThrow();
+    const [row] = await db
+      .select({ isOrganizer: members.isOrganizer })
+      .from(members)
+      .where(eq(members.id, guest.id));
+    expect(row!.isOrganizer).toBe(false);
+  });
+});
+
+/**
+ * Task 5.4 RED: calendar & messaging exclusion audit.
+ * - a guest row alone never yields a calendar entry
+ *   (calendar.service getCalendarTripsAndEvents keys on members.userId)
+ * - message posting/viewing denies any caller not matched by members.userId
+ *   (guest rows are never callers)
+ * Exclusion is by construction; these tests assert it (no code change expected).
+ */
+describe("calendar & messaging exclusion with guests present (Task 5.4)", () => {
+  const permissionsService = new PermissionsService(db);
+  const guestMemberService = new GuestMemberService(db, permissionsService);
+
+  let organizerId: string;
+  let tripId: string;
+  const createdUserPhones: string[] = [];
+
+  const createUser = async (displayName: string, phone?: string) => {
+    const p = phone ?? generateUniquePhone();
+    createdUserPhones.push(p);
+    const [user] = await db
+      .insert(users)
+      .values({ phoneNumber: p, displayName })
+      .returning();
+    return user;
+  };
+
+  beforeEach(async () => {
+    createdUserPhones.length = 0;
+    const organizer = await createUser("Trip Organizer");
+    organizerId = organizer.id;
+    const [trip] = await db
+      .insert(trips)
+      .values({
+        name: "Guest Exclusion Trip",
+        destination: "Naples",
+        preferredTimezone: "Europe/Rome",
+        createdBy: organizerId,
+      })
+      .returning();
+    tripId = trip.id;
+    await db.insert(members).values({
+      tripId,
+      userId: organizerId,
+      isOrganizer: true,
+      status: "going",
+    });
+  });
+
+  afterEach(async () => {
+    if (tripId) {
+      await db.delete(members).where(eq(members.tripId, tripId));
+      await db.delete(trips).where(eq(trips.id, tripId));
+    }
+    for (const phone of createdUserPhones) {
+      await db.delete(users).where(eq(users.phoneNumber, phone));
+    }
+  });
+
+  it("guest-only membership is invisible to getCalendarTripsAndEvents", async () => {
+    const { CalendarService } = await import(
+      "@/services/calendar.service.js"
+    );
+    const calendarService = new CalendarService(db);
+    const guest = await guestMemberService.createGuest(tripId, organizerId, {
+      displayName: "Mom",
+    });
+    expect(guest.userId).toBeNull();
+
+    // No user row corresponds to the guest row, so no userId-keyed lookup
+    // can resolve it: an unmatched caller sees zero calendar entries
+    // even though the guest row exists on the trip.
+    const unmatchedUserId = "00000000-0000-4000-8000-000000000000";
+    const feed = await calendarService.getCalendarTripsAndEvents(
+      unmatchedUserId,
+    );
+    expect(feed).toHaveLength(0);
+
+    // Sanity: the organizer membership still resolves (exclusion is
+    // guest-specific, not a broken feed).
+    const orgFeed = await calendarService.getCalendarTripsAndEvents(
+      organizerId,
+    );
+    expect(orgFeed.map((t) => t.trip.id)).toContain(tripId);
+  });
+
+  it("message view/post permissions deny callers not matched by members.userId", async () => {
+    await guestMemberService.createGuest(tripId, organizerId, {
+      displayName: "Mom",
+    });
+    // Guest rows carry userId NULL: nobody self-serves via a guest row.
+    const unmatchedUserId = "00000000-0000-4000-8000-000000000001";
+    await expect(
+      permissionsService.canViewMessages(unmatchedUserId, tripId),
+    ).resolves.toBe(false);
+    await expect(
+      permissionsService.canPostMessage(unmatchedUserId, tripId),
+    ).resolves.toBe(false);
+    // Sanity: a real going member keeps access.
+    await expect(
+      permissionsService.canPostMessage(organizerId, tripId),
+    ).resolves.toBe(true);
+  });
+});

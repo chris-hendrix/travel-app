@@ -328,7 +328,9 @@ export class InvitationService implements IInvitationService {
                 inArray(members.userId, existingUserIds),
               ),
             );
-          alreadyMemberUserIds = new Set(existingMembers.map((m) => m.userId));
+          alreadyMemberUserIds = new Set(
+            existingMembers.map((m) => m.userId).filter((id) => id !== null),
+          );
         }
 
         // Build skipped list for phones
@@ -1097,22 +1099,25 @@ export class InvitationService implements IInvitationService {
       .where(eq(trips.id, tripId))
       .limit(1);
 
-    // Query members with user profiles
+    // Query members with user profiles. Guest rows (userId NULL) have no
+    // users row, so leftJoin + COALESCE keeps them in the result set with
+    // the guest display name (Task 5.1).
     const results = await this.db
       .select({
         id: members.id,
         userId: members.userId,
-        displayName: users.displayName,
+        displayName: sql<string>`COALESCE(${users.displayName}, ${members.guestDisplayName})`,
         profilePhotoUrl: users.profilePhotoUrl,
         handles: users.handles,
         phoneNumber: users.phoneNumber,
+        guestPhone: members.guestPhone,
         sharePhone: members.sharePhone,
         status: members.status,
         isOrganizer: members.isOrganizer,
         createdAt: members.createdAt,
       })
       .from(members)
-      .innerJoin(users, eq(members.userId, users.id))
+      .leftJoin(users, eq(members.userId, users.id))
       .where(eq(members.tripId, tripId));
 
     // Get muted members for this trip (only when requesting user is organizer)
@@ -1125,10 +1130,17 @@ export class InvitationService implements IInvitationService {
       mutedUserIds = new Set(mutedRows.map((r) => r.userId));
     }
 
-    // Filter members for non-organizers when showAllMembers is off
+    // Filter members for non-organizers when showAllMembers is off.
+    // Guest rows (userId NULL) are visible to everyone regardless of the
+    // going/maybe filter; claimed rows follow the existing filter.
     const filteredResults =
       !isOrg && !tripSettings[0]?.showAllMembers
-        ? results.filter((r) => r.status === "going" || r.status === "maybe")
+        ? results.filter(
+            (r) =>
+              r.userId === null ||
+              r.status === "going" ||
+              r.status === "maybe",
+          )
         : results;
 
     return filteredResults.map((r) => ({
@@ -1137,10 +1149,19 @@ export class InvitationService implements IInvitationService {
       displayName: r.displayName,
       profilePhotoUrl: r.profilePhotoUrl,
       handles: r.handles ?? null,
-      ...(isOrg || r.sharePhone ? { phoneNumber: r.phoneNumber } : {}),
+      ...(isOrg || r.sharePhone
+        ? r.phoneNumber
+          ? { phoneNumber: r.phoneNumber }
+          : {}
+        : {}),
+      ...(isOrg && r.userId === null && r.guestPhone
+        ? { guestPhone: r.guestPhone }
+        : {}),
       status: r.status,
       isOrganizer: r.isOrganizer,
-      ...(isOrg ? { isMuted: mutedUserIds.has(r.userId) } : {}),
+      ...(isOrg
+        ? { isMuted: r.userId !== null && mutedUserIds.has(r.userId) }
+        : {}),
       ...(isOrg ? { sharePhone: r.sharePhone } : {}),
       createdAt: r.createdAt.toISOString(),
     }));
@@ -1200,6 +1221,13 @@ export class InvitationService implements IInvitationService {
       throw new MemberNotFoundError();
     }
 
+    // Guests (no attached user account) can never be organizers
+    if (member.userId === null) {
+      throw new PermissionDeniedError(
+        "Permission denied: guest members cannot be organizers",
+      );
+    }
+
     // Prevent self-promote/demote
     if (member.userId === userId) {
       throw new CannotModifyOwnRoleError();
@@ -1227,12 +1255,13 @@ export class InvitationService implements IInvitationService {
       .set({ isOrganizer, updatedAt: new Date() })
       .where(eq(members.id, memberId));
 
-    // Query updated member with profile info
+    // Query updated member with profile info (leftJoin so guest rows are
+    // never dropped by the join audit; guests are rejected above)
     const queryResult = await this.db
       .select({
         id: members.id,
         userId: members.userId,
-        displayName: users.displayName,
+        displayName: sql<string>`COALESCE(${users.displayName}, ${members.guestDisplayName})`,
         profilePhotoUrl: users.profilePhotoUrl,
         handles: users.handles,
         status: members.status,
@@ -1240,7 +1269,7 @@ export class InvitationService implements IInvitationService {
         createdAt: members.createdAt,
       })
       .from(members)
-      .innerJoin(users, eq(members.userId, users.id))
+      .leftJoin(users, eq(members.userId, users.id))
       .where(eq(members.id, memberId))
       .limit(1);
 
