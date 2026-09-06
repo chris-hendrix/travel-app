@@ -190,6 +190,11 @@ export const PaymentNotFoundError = createError(
   "Payment not found",
   404,
 );
+export const PaymentMemberNotInTripError = createError(
+  "PAYMENT_MEMBER_NOT_IN_TRIP",
+  "%s",
+  409,
+);
 
 // Admin errors
 export const AdminNotFoundError = createError(
