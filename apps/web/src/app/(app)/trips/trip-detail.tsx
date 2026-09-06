@@ -638,6 +638,8 @@ export function TripDetailShell() {
         <MemberProfileSheet
           member={profileMember}
           open={!!profileMember}
+          tripId={tripId}
+          isOrganizer={isOrganizer}
           onOpenChange={(open) => {
             if (!open) setProfileMember(null);
           }}
