@@ -208,7 +208,7 @@ clean: ## Remove all build artifacts and node_modules
 	turbo run clean && rm -rf node_modules .turbo
 
 reset-db: ## Drop and recreate database, migrate, and seed
-	docker-compose down -v && docker-compose up -d postgres minio minio-init && sleep 2 && cd apps/api && pnpm db:migrate && pnpm db:seed
+	docker-compose down -v && docker-compose up -d postgres minio minio-init && until docker exec journiful-postgres pg_isready -U journiful > /dev/null 2>&1; do sleep 1; done && docker exec journiful-postgres psql -U journiful -d journiful -tc "SELECT 1 FROM pg_roles WHERE rolname='tripful'" | grep -q 1 || docker exec journiful-postgres psql -U journiful -d journiful -c "CREATE ROLE tripful WITH LOGIN PASSWORD 'tripful_dev' SUPERUSER;" && docker exec journiful-postgres psql -U journiful -d journiful -tc "SELECT 1 FROM pg_database WHERE datname='tripful'" | grep -q 1 || docker exec journiful-postgres psql -U journiful -d journiful -c "CREATE DATABASE tripful OWNER tripful;" ; cd apps/api && pnpm db:migrate && pnpm db:seed
 
 # --- Devcontainer testing ---
 

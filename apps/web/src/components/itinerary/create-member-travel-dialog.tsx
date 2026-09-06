@@ -88,18 +88,24 @@ export function CreateMemberTravelDialog({
   const [selectedTimezone, setSelectedTimezone] = useState(timezone);
   const [selectedMemberId, setSelectedMemberId] = useState("self");
 
-  // Find the current user's member record
-  const currentMember = members?.find((m) => m.userId === user?.id);
+  // Find the current user's member record (null-safe: guest rows have
+  // userId null and never match a caller).
+  const currentMember = members?.find(
+    (m) => user?.id != null && m.userId != null && m.userId === user.id,
+  );
 
   // Smart default: if user already has an arrival, default to departure and vice versa
+  // (keyed by member.id — the canonical travel identity).
   const defaultTravelType = useMemo(() => {
-    if (!existingTravels || !user?.id) return "arrival";
-    const userTravels = existingTravels.filter((t) => t.userId === user.id);
+    if (!existingTravels || !currentMember) return "arrival";
+    const userTravels = existingTravels.filter(
+      (t) => t.memberId === currentMember.id,
+    );
     const hasArrival = userTravels.some((t) => t.travelType === "arrival");
     const hasDeparture = userTravels.some((t) => t.travelType === "departure");
     if (hasArrival && !hasDeparture) return "departure";
     return "arrival";
-  }, [existingTravels, user?.id]);
+  }, [existingTravels, currentMember]);
 
   const form = useForm<CreateMemberTravelInput>({
     resolver: zodResolver(createMemberTravelSchema),
@@ -221,13 +227,16 @@ export function CreateMemberTravelDialog({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {members.map((member) => (
-                        <SelectItem
-                          key={member.id}
-                          value={
-                            member.userId === user?.id ? "self" : member.id
-                          }
-                        >
+                      {members.map((member) => {
+                        const isSelf =
+                          user?.id != null &&
+                          member.userId != null &&
+                          member.userId === user.id;
+                        return (
+                          <SelectItem
+                            key={member.id}
+                            value={isSelf ? "self" : member.id}
+                          >
                           <span className="flex items-center gap-2">
                             <Avatar size="sm">
                               {member.profilePhotoUrl && (
@@ -241,10 +250,15 @@ export function CreateMemberTravelDialog({
                               </AvatarFallback>
                             </Avatar>
                             {member.displayName}
-                            {member.userId === user?.id ? " (You)" : ""}
+                            {user?.id != null &&
+                            member.userId != null &&
+                            member.userId === user.id
+                              ? " (You)"
+                              : ""}
                           </span>
-                        </SelectItem>
-                      ))}
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                   <FormDescription className="text-sm text-muted-foreground">

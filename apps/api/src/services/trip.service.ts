@@ -422,17 +422,20 @@ export class TripService implements ITripService {
 
     const trip = tripResult[0]!;
 
-    // Load organizers with user info in a single JOIN query
+    // Load organizers with user info in a single JOIN query. leftJoin +
+    // COALESCE keeps guest rows (userId NULL) visible instead of dropping
+    // them; guests are never organizers (enforced in updateMemberRole), so
+    // organizer rows always resolve a users row in practice.
     const organizerUsers = await this.db
       .select({
-        id: users.id,
-        displayName: users.displayName,
+        id: sql<string>`COALESCE(${users.id}, ${members.id})`,
+        displayName: sql<string>`COALESCE(${users.displayName}, ${members.guestDisplayName})`,
         phoneNumber: users.phoneNumber,
         profilePhotoUrl: users.profilePhotoUrl,
         timezone: users.timezone,
       })
       .from(members)
-      .innerJoin(users, eq(members.userId, users.id))
+      .leftJoin(users, eq(members.userId, users.id))
       .where(and(eq(members.tripId, tripId), eq(members.isOrganizer, true)));
 
     // Load member count
@@ -442,7 +445,9 @@ export class TripService implements ITripService {
       organizers: organizerUsers.map((u) => ({
         id: u.id,
         displayName: u.displayName,
-        ...(userIsOrganizer ? { phoneNumber: u.phoneNumber } : {}),
+        ...(userIsOrganizer && u.phoneNumber
+          ? { phoneNumber: u.phoneNumber }
+          : {}),
         profilePhotoUrl: u.profilePhotoUrl,
         timezone: u.timezone,
       })),
@@ -626,8 +631,8 @@ export class TripService implements ITripService {
         (memberCountByTrip.get(m.tripId) ?? 0) + 1,
       );
 
-      // Track organizer userIds (isOrganizer=true)
-      if (m.isOrganizer) {
+      // Track organizer userIds (isOrganizer=true; guests can never be organizers)
+      if (m.isOrganizer && m.userId) {
         if (!organizerMembersByTrip.has(m.tripId)) {
           organizerMembersByTrip.set(m.tripId, []);
         }
@@ -1069,14 +1074,17 @@ export class TripService implements ITripService {
    * @returns Promise that resolves to array of User objects
    */
   async getCoOrganizers(tripId: string): Promise<User[]> {
-    // Single JOIN query: get members with isOrganizer=true and their user info
+    // Single JOIN query: get members with isOrganizer=true and their user info.
+    // leftJoin so guest rows (userId NULL) never drop the join; guests are
+    // never organizers (enforced in updateMemberRole), so in practice every
+    // row resolves a users row. Guest rows without a user are skipped.
     const results = await this.db
       .select(getTableColumns(users))
       .from(members)
-      .innerJoin(users, eq(members.userId, users.id))
+      .leftJoin(users, eq(members.userId, users.id))
       .where(and(eq(members.tripId, tripId), eq(members.isOrganizer, true)));
 
-    return results;
+    return results.filter((u): u is User => u.id !== null);
   }
 
   /**

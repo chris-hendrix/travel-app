@@ -87,9 +87,14 @@ export {
   getInvitationsResponseSchema,
   updateRsvpResponseSchema,
   getMembersResponseSchema,
+  guestRsvpStatusEnum,
+  createGuestSchema,
+  updateGuestSchema,
   type CreateInvitationsInput,
   type UpdateRsvpInput,
   type UpdateMySettingsInput,
+  type CreateGuestInput,
+  type UpdateGuestInput,
 } from "./invitation";
 
 // Re-export member schemas

@@ -147,7 +147,12 @@ export function TripDetailShell() {
     select: (data) =>
       data.map((m) => ({ id: m.id, userId: m.userId, isMuted: m.isMuted })),
   });
-  const currentMember = members?.find((m) => m.userId === user?.id);
+  // Null-safe: guests have userId null, so never match a logged-in user.
+  // Without the user?.id guard, a logged-out viewer (user?.id undefined)
+  // could resolve to the wrong row.
+  const currentMember = user?.id
+    ? members?.find((m) => m.userId === user.id)
+    : undefined;
   const isMobile = useIsMobile();
   const { data: weather, isLoading: weatherLoading } =
     useWeatherForecast(tripId);
@@ -633,6 +638,8 @@ export function TripDetailShell() {
         <MemberProfileSheet
           member={profileMember}
           open={!!profileMember}
+          tripId={tripId}
+          isOrganizer={isOrganizer}
           onOpenChange={(open) => {
             if (!open) setProfileMember(null);
           }}

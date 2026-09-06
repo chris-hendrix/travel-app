@@ -29,7 +29,8 @@ import {
   getMuteMemberErrorMessage,
   getUnmuteMemberErrorMessage,
 } from "@/hooks/use-messages";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { MemberAvatar, isGuestMember } from "@/components/trip/guest-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,12 +55,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { VenmoIcon } from "@/components/icons/venmo-icon";
 import { InstagramIcon } from "@/components/icons/instagram-icon";
-import {
-  getInitials,
-  formatPhoneNumber,
-  formatRelativeTime,
-} from "@/lib/format";
-import { getUploadUrl } from "@/lib/api";
+import { formatPhoneNumber, formatRelativeTime } from "@/lib/format";
 
 interface MembersListProps {
   tripId: string;
@@ -115,15 +111,23 @@ function MemberRow({
   onMute,
   onUnmute,
 }: MemberRowProps) {
-  const canRemove = isOrganizer && !!onRemove && member.userId !== createdBy;
+  const isGuest = isGuestMember(member);
+  // Guests are never the trip creator (creator is always a user account),
+  // so organizer Remove applies; role/mute actions never apply to guests.
+  const canRemove =
+    isOrganizer && !!onRemove && (isGuest || member.userId !== createdBy);
 
   const canUpdateRole =
+    !isGuest &&
     !!onUpdateRole &&
     member.userId !== createdBy &&
     member.userId !== currentUserId;
 
   const canMute =
-    isOrganizer && !member.isOrganizer && member.userId !== createdBy;
+    !isGuest &&
+    isOrganizer &&
+    !member.isOrganizer &&
+    member.userId !== createdBy;
 
   const showActions = isOrganizer && (canRemove || canUpdateRole || canMute);
 
@@ -136,13 +140,7 @@ function MemberRow({
         className="flex items-center gap-3 flex-1 min-w-0 text-left hover:bg-muted/50 -ml-2 pl-2 -my-1 py-1 rounded-md transition-colors"
         onClick={() => onMemberClick?.(member)}
       >
-        <Avatar size="default">
-          <AvatarImage
-            src={getUploadUrl(member.profilePhotoUrl)}
-            alt={member.displayName}
-          />
-          <AvatarFallback>{getInitials(member.displayName)}</AvatarFallback>
-        </Avatar>
+        <MemberAvatar member={member} />
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -154,36 +152,41 @@ function MemberRow({
               Organizer
             </Badge>
           )}
+          {isGuest && (
+            <Badge className="bg-accent text-accent-foreground">
+              Guest
+            </Badge>
+          )}
           {member.isMuted && (
             <Badge className="bg-orange-500/15 text-orange-600 border-orange-500/30">
               <VolumeX className="w-3 h-3 mr-1" />
               Muted
             </Badge>
           )}
-          {member.handles?.venmo && (
+          {!isGuest && member.handles?.venmo && (
             <a
               href={`https://venmo.com/${member.handles.venmo.replace(/^@/, "")}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary"
-              data-testid={`member-venmo-${member.userId}`}
+              data-testid={`member-venmo-${member.id}`}
             >
               <VenmoIcon className="w-4 h-4" />
             </a>
           )}
-          {member.handles?.instagram && (
+          {!isGuest && member.handles?.instagram && (
             <a
               href={`https://instagram.com/${member.handles.instagram.replace(/^@/, "")}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary"
-              data-testid={`member-instagram-${member.userId}`}
+              data-testid={`member-instagram-${member.id}`}
             >
               <InstagramIcon className="w-4 h-4" />
             </a>
           )}
         </div>
-        {member.phoneNumber && (
+        {!isGuest && member.phoneNumber && (
           <div className="flex items-center gap-1 mt-0.5">
             <Phone className="w-3 h-3 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">
@@ -326,7 +329,7 @@ export function MembersList({
   const revokeInvitation = useRevokeInvitation(tripId);
 
   const handleMute = async () => {
-    if (!mutingMember) return;
+    if (!mutingMember || !mutingMember.userId) return;
     try {
       await muteMember.mutateAsync(mutingMember.userId);
       toast.success(`${mutingMember.displayName} has been muted`);
@@ -339,6 +342,7 @@ export function MembersList({
   };
 
   const handleUnmute = async (member: MemberWithProfile) => {
+    if (!member.userId) return;
     try {
       await unmuteMember.mutateAsync(member.userId);
       toast.success(`${member.displayName} has been unmuted`);
@@ -387,11 +391,21 @@ export function MembersList({
     );
   }
 
-  // Group members by RSVP status
+  // Group members by RSVP status.
+  // Guests bypass the status filter: they are visible to every member
+  // (non-organizers only see the Going/Maybe tabs, so guests with any
+  // other status surface on the Going tab for them).
   const going = members.filter((m) => m.status === "going");
   const maybe = members.filter((m) => m.status === "maybe");
   const notGoing = members.filter((m) => m.status === "not_going");
   const noResponse = members.filter((m) => m.status === "no_response");
+  const overflowGuests = isOrganizer
+    ? []
+    : members.filter(
+        (m) =>
+          m.userId === null && m.status !== "going" && m.status !== "maybe",
+      );
+  const goingVisible = [...going, ...overflowGuests];
 
   // Pending/failed invitations for the Invited tab
   const pendingInvitations =
@@ -422,7 +436,7 @@ export function MembersList({
           <TabsTrigger value="going" className="text-sm">
             Going
             <span className="ml-1 inline-flex size-5 items-center justify-center rounded-full bg-muted text-xs font-semibold">
-              {going.length}
+              {goingVisible.length}
             </span>
           </TabsTrigger>
           <TabsTrigger value="maybe" className="text-sm">
@@ -451,7 +465,7 @@ export function MembersList({
 
         <TabsContent value="going">
           <div className="divide-y divide-border">
-            {going.map((member, i) => (
+            {goingVisible.map((member, i) => (
               <MemberRow
                 key={member.id}
                 member={member}

@@ -57,9 +57,14 @@ export function SettlementForm({
   const fromPerson = entry.from;
   const toPerson = entry.to;
 
-  // Look up recipient's venmo handle from members data
-  const recipientMember = members?.find((m) => m.userId === toPerson.id);
-  const venmoHandle = recipientMember?.handles?.venmo;
+  // Look up recipient by member id. Guests are full counterparties with
+  // uniform copy — but they have no venmo/instagram handles, so no
+  // payment links render for guest recipients.
+  const recipientMember = members?.find((m) => m.id === toPerson.id);
+  const isGuestRecipient = recipientMember?.userId === null;
+  const venmoHandle = isGuestRecipient
+    ? undefined
+    : recipientMember?.handles?.venmo;
 
   const handleSubmit = () => {
     if (!isValid) return;
@@ -74,8 +79,8 @@ export function SettlementForm({
         data: {
           description,
           amount: amountCents,
-          userId: fromPerson.id,
-          participants: [{ userId: toPerson.id }],
+          payerMemberId: fromPerson.id,
+          participants: [{ memberId: toPerson.id }],
           date: new Date().toISOString(),
         },
       },

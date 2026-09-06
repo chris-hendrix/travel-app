@@ -14,6 +14,10 @@ import {
   getInviteMembersErrorMessage,
 } from "@/hooks/use-invitations";
 import { useMutualSuggestions } from "@/hooks/use-mutuals";
+import { useQueryClient } from "@tanstack/react-query";
+import { memberKeys } from "@/hooks/invitation-queries";
+import { tripKeys } from "@/hooks/trip-queries";
+import { apiRequest, APIError } from "@/lib/api";
 import {
   Sheet,
   SheetBody,
@@ -31,6 +35,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -56,8 +61,13 @@ export function InviteMembersDialog({
   const [currentPhone, setCurrentPhone] = useState("");
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [mutualSearch, setMutualSearch] = useState("");
+  const [guestName, setGuestName] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [guestError, setGuestError] = useState<string | null>(null);
+  const [guests, setGuests] = useState<Array<{ name: string; phone?: string }>>([]);
 
-  const { mutate: inviteMembers, isPending } = useInviteMembers(tripId);
+  const queryClient = useQueryClient();
+  const { mutateAsync: inviteMembersAsync, isPending } = useInviteMembers(tripId);
   const { data: suggestions, isPending: isSuggestionsLoading } =
     useMutualSuggestions(tripId);
 
@@ -76,6 +86,10 @@ export function InviteMembersDialog({
       setCurrentPhone("");
       setPhoneError(null);
       setMutualSearch("");
+      setGuestName("");
+      setGuestPhone("");
+      setGuestError(null);
+      setGuests([]);
     }
   }, [open, form]);
 
@@ -124,38 +138,117 @@ export function InviteMembersDialog({
     }
   };
 
-  const handleSubmit = (data: CreateInvitationsInput) => {
-    inviteMembers(data, {
-      onSuccess: (response) => {
+  const handleAddGuest = () => {
+    setGuestError(null);
+    const name = guestName.trim();
+    if (!name) {
+      setGuestError("Guest name is required");
+      return;
+    }
+    const phone = guestPhone.trim() ? guestPhone.trim() : undefined;
+    if (phone && !PHONE_REGEX.test(phone)) {
+      setGuestError("Phone number must be in E.164 format (e.g., +14155552671)");
+      return;
+    }
+    if (phone) {
+      const guestPhones = guests.map((g) => g.phone).filter(Boolean) as string[];
+      const invitePhones = form.getValues("phoneNumbers") || [];
+      if (guestPhones.includes(phone) || invitePhones.includes(phone)) {
+        setGuestError("This phone number is already added");
+        return;
+      }
+    }
+    setGuests((prev) => [...prev, { name, ...(phone ? { phone } : {}) }]);
+    setGuestName("");
+    setGuestPhone("");
+  };
+
+  const handleRemoveGuest = (index: number) => {
+    setGuests((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSubmitInvalid = () => {
+    // zod refine requires ≥1 phone/userId; guests-only submits bypass
+    // validation via the submit button's onClick (onSubmitClick). If the
+    // native form submit lands here with guests queued, submit anyway.
+    if (guests.length > 0) {
+      void handleSubmit(form.getValues() as CreateInvitationsInput);
+    }
+  };
+
+  const onSubmitClick = () => {
+    const data = form.getValues() as CreateInvitationsInput;
+    void handleSubmit(data);
+  };
+
+  const handleSubmit = async (data: CreateInvitationsInput) => {
+    const hasInvites =
+      (data.phoneNumbers?.length ?? 0) > 0 || (data.userIds?.length ?? 0) > 0;
+    const pendingGuests = [...guests];
+    try {
+      const toastParts: string[] = [];
+      if (hasInvites) {
+        const response = await inviteMembersAsync(data);
         const invitedCount = response.invitations.length;
         const addedMembersCount = response.addedMembers?.length ?? 0;
         const skippedCount = response.skipped.length;
-        const parts: string[] = [];
         if (invitedCount > 0) {
-          parts.push(
+          toastParts.push(
             `${invitedCount} invitation${invitedCount !== 1 ? "s" : ""} sent`,
           );
         }
         if (addedMembersCount > 0) {
-          parts.push(
+          toastParts.push(
             `${addedMembersCount} member${addedMembersCount !== 1 ? "s" : ""} added`,
           );
         }
         if (skippedCount > 0) {
-          parts.push(`${skippedCount} already invited`);
+          toastParts.push(`${skippedCount} already invited`);
         }
-        const message =
-          parts.length > 0 ? parts.join(", ") : "Invitations processed";
-        toast.success(message);
-        onOpenChange(false);
-      },
-      onError: (error) => {
-        toast.error(
-          getInviteMembersErrorMessage(error) ??
-            "An unexpected error occurred.",
+      }
+      const addedGuests: string[] = [];
+      const skippedGuests: string[] = [];
+      for (const g of pendingGuests) {
+        try {
+          await apiRequest(`/trips/${tripId}/members/guests`, {
+            method: "POST",
+            body: JSON.stringify({
+              displayName: g.name,
+              ...(g.phone ? { guestPhone: g.phone } : {}),
+            }),
+          });
+          addedGuests.push(g.name);
+        } catch (err) {
+          if (err instanceof APIError && err.code === "DUPLICATE_MEMBER") {
+            skippedGuests.push(g.name);
+            toast.error(`${g.name} is already in this trip`);
+          } else {
+            throw err;
+          }
+        }
+      }
+      if (addedGuests.length > 0) {
+        toastParts.push(
+          `${addedGuests.length} guest${addedGuests.length !== 1 ? "s" : ""} added`,
         );
-      },
-    });
+      }
+      if (skippedGuests.length > 0) {
+        toastParts.push(`Skipped: ${skippedGuests.join(", ")}`);
+      }
+      if (addedGuests.length > 0 || skippedGuests.length > 0 || hasInvites) {
+        queryClient.invalidateQueries({ queryKey: memberKeys.list(tripId) });
+        queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
+      }
+      const message =
+        toastParts.length > 0 ? toastParts.join(", ") : "Invitations processed";
+      toast.success(message);
+      onOpenChange(false);
+    } catch (error) {
+      toast.error(
+        getInviteMembersErrorMessage(error as Error) ??
+          "An unexpected error occurred.",
+      );
+    }
   };
 
   const phoneNumbers = form.watch("phoneNumbers") ?? [];
@@ -195,7 +288,7 @@ export function InviteMembersDialog({
         <SheetBody>
           <Form {...form}>
             <form
-              onSubmit={form.handleSubmit(handleSubmit)}
+              onSubmit={form.handleSubmit(handleSubmit, handleSubmitInvalid)}
               className="space-y-6 pb-6"
             >
               {/* Mutuals Section - loading skeleton */}
@@ -414,6 +507,85 @@ export function InviteMembersDialog({
                 )}
               />
 
+              {/* Without an account — guest section */}
+              <div className="space-y-3" data-testid="guest-section">
+                <div className="relative py-1">
+                  <Separator />
+                  <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-3 text-xs text-muted-foreground">
+                    Without an account
+                  </span>
+                </div>
+                <p className="text-muted-foreground text-xs">
+                  No app needed — you plan for them, they can claim their spot later.
+                </p>
+
+                {guests.length > 0 && (
+                  <div className="flex flex-wrap gap-2" data-testid="guest-chips">
+                    {guests.map((g, i) => (
+                      <Badge
+                        key={`${g.name}-${i}`}
+                        className="px-3 py-1.5 text-sm gap-1.5 bg-accent text-accent-foreground hover:bg-accent/90"
+                      >
+                        {g.name}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveGuest(i)}
+                          disabled={isPending}
+                          className="ml-1 hover:opacity-70 transition-colors"
+                          aria-label={`Remove guest ${g.name}`}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Input
+                    value={guestName}
+                    onChange={(e) => {
+                      setGuestName(e.target.value);
+                      setGuestError(null);
+                    }}
+                    disabled={isPending}
+                    placeholder="Name"
+                    aria-label="Guest name"
+                    className="h-12 rounded-md"
+                  />
+                  <PhoneInput
+                    value={guestPhone}
+                    onChange={(val) => {
+                      setGuestPhone(val || "");
+                      setGuestError(null);
+                    }}
+                    disabled={isPending}
+                    placeholder="Phone (optional)"
+                    className="flex-1 h-12 rounded-md"
+                    aria-label="Guest phone (optional)"
+                    aria-describedby={guestError ? "invite-guest-error" : undefined}
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleAddGuest}
+                    disabled={isPending || guestName.trim().length === 0}
+                    variant="outline"
+                    size="lg"
+                  >
+                    + Add guest
+                  </Button>
+                  {guestError && (
+                    <p
+                      id="invite-guest-error"
+                      aria-live="polite"
+                      className="text-sm text-destructive"
+                    >
+                      {guestError}
+                    </p>
+                  )}
+                </div>
+              </div>
+
               {/* Action Buttons */}
               <div className="flex gap-4 pt-4">
                 <Button
@@ -427,10 +599,13 @@ export function InviteMembersDialog({
                   Cancel
                 </Button>
                 <Button
-                  type="submit"
+                  type="button"
+                  onClick={onSubmitClick}
                   disabled={
                     isPending ||
-                    (phoneNumbers.length === 0 && userIds.length === 0)
+                    (phoneNumbers.length === 0 &&
+                      userIds.length === 0 &&
+                      guests.length === 0)
                   }
                   variant="gradient"
                   size="lg"

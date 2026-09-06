@@ -1337,4 +1337,99 @@ describe("permissions.service", () => {
       expect(result).toBe(false);
     });
   });
+
+  describe("guest members null-audit (Task 5.2)", () => {
+    let guestMemberId: string;
+
+    beforeEach(async () => {
+      // Guest row: no attached user account (userId NULL)
+      const guestResult = await db
+        .insert(members)
+        .values({
+          tripId: testTripId,
+          userId: null,
+          guestDisplayName: "Guest Mom",
+          status: "no_response",
+        })
+        .returning();
+      guestMemberId = guestResult[0].id;
+    });
+
+    it("getMembershipInfo returns isMember=false for a user whose only link is a guest row", async () => {
+      // testNonMemberId has no member row; the guest row (userId NULL) must
+      // never match them — guests are denied self-service by construction.
+      const result = await permissionsService.getMembershipInfo(
+        testNonMemberId,
+        testTripId,
+      );
+      expect(result).toEqual({ isMember: false, isOrganizer: false });
+    });
+
+    it("isMember/canUpdateRsvp return false when only a guest row exists", async () => {
+      expect(
+        await permissionsService.isMember(testNonMemberId, testTripId),
+      ).toBe(false);
+      expect(
+        await permissionsService.canUpdateRsvp(testNonMemberId, testTripId),
+      ).toBe(false);
+    });
+
+    it("guest travel is editable only by organizers (canEditMemberTravelWithData)", async () => {
+      const guestTravel = { tripId: testTripId, memberId: guestMemberId };
+      // Organizer can edit guest travel
+      expect(
+        await permissionsService.canEditMemberTravelWithData(
+          testCreatorId,
+          guestTravel,
+        ),
+      ).toBe(true);
+      // Regular member cannot (self-edit never applies: guest userId is NULL)
+      expect(
+        await permissionsService.canEditMemberTravelWithData(
+          testMemberId,
+          guestTravel,
+        ),
+      ).toBe(false);
+      // Non-member cannot
+      expect(
+        await permissionsService.canEditMemberTravelWithData(
+          testNonMemberId,
+          guestTravel,
+        ),
+      ).toBe(false);
+    });
+
+    it("guest travel is editable only by organizers (canEditMemberTravel)", async () => {
+      const travelResult = await db
+        .insert(memberTravel)
+        .values({
+          tripId: testTripId,
+          memberId: guestMemberId,
+          travelType: "arrival",
+          time: new Date("2026-06-10T14:00:00Z"),
+          location: "Airport",
+        })
+        .returning();
+      const guestTravelId = travelResult[0].id;
+
+      expect(
+        await permissionsService.canEditMemberTravel(
+          testCreatorId,
+          guestTravelId,
+        ),
+      ).toBe(true);
+      expect(
+        await permissionsService.canEditMemberTravel(
+          testMemberId,
+          guestTravelId,
+        ),
+      ).toBe(false);
+      expect(
+        await permissionsService.canEditMemberTravel(
+          testNonMemberId,
+          guestTravelId,
+        ),
+      ).toBe(false);
+    });
+  });
 });
