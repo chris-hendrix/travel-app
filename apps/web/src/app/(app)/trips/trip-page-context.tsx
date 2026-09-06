@@ -18,7 +18,7 @@ interface TripPageContextValue {
   weather: WeatherData;
   weatherLoading: boolean;
   temperatureUnit: TemperatureUnit;
-  currentMember: { id: string; userId: string; isMuted: boolean | undefined } | undefined;
+  currentMember: { id: string; userId: string | null; isMuted: boolean | undefined } | undefined;
   user: User | null;
   events: EventsData;
 

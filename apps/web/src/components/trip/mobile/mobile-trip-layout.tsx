@@ -66,7 +66,7 @@ interface MobileTripLayoutProps {
   weather: TripWeatherResponse | undefined;
   weatherLoading: boolean;
   temperatureUnit: TemperatureUnit;
-  currentMember: { id: string; userId: string; isMuted: boolean | undefined } | undefined;
+  currentMember: { id: string; userId: string | null; isMuted: boolean | undefined } | undefined;
   user: { id: string } | null;
   removeMember: {
     mutate: (id: string, options: { onSuccess: () => void; onError: (error: unknown) => void }) => void;

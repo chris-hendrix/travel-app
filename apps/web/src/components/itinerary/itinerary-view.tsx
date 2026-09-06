@@ -127,8 +127,10 @@ export function ItineraryView({
     ? new Date(`${trip.endDate}T23:59:59.999Z`) < new Date()
     : false;
 
-  // Find current member for travel reminder banner
-  const currentMember = members.find((m) => m.userId === user?.id);
+  // Find current member for travel reminder banner (null-safe: guests never match).
+  const currentMember = user?.id
+    ? members.find((m) => m.userId === user.id)
+    : undefined;
 
   // Build userId→displayName lookup from organizers + members
   const userNameMap = useMemo(() => {
@@ -139,7 +141,7 @@ export function ItineraryView({
       }
     }
     for (const member of members) {
-      if (!map.has(member.userId)) {
+      if (member.userId && !map.has(member.userId)) {
         map.set(member.userId, member.displayName);
       }
     }

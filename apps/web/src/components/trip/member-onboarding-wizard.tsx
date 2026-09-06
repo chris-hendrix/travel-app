@@ -58,7 +58,10 @@ export function MemberOnboardingWizard({
   const { user } = useAuth();
   const { data: members = [] } = useMembers(tripId);
   const { data: memberTravels = [] } = useMemberTravels(tripId);
-  const currentMember = members.find((m) => m.userId === user?.id);
+  // Null-safe: guest rows have userId null and never match the viewer.
+  const currentMember = user?.id
+    ? members.find((m) => m.userId === user.id)
+    : undefined;
 
   // Find existing arrival/departure for current member
   const existingArrival = memberTravels.find(

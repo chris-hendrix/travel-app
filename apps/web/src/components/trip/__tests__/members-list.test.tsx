@@ -1291,7 +1291,7 @@ describe("MembersList", () => {
         <MembersList tripId="trip-123" isOrganizer={false} />,
       );
 
-      const venmoLink = screen.getByTestId("member-venmo-user-1");
+      const venmoLink = screen.getByTestId("member-venmo-member-1");
       expect(venmoLink).toBeDefined();
       expect(venmoLink.getAttribute("href")).toBe("https://venmo.com/testuser");
       expect(venmoLink.getAttribute("target")).toBe("_blank");
@@ -1306,7 +1306,7 @@ describe("MembersList", () => {
         <MembersList tripId="trip-123" isOrganizer={false} />,
       );
 
-      expect(screen.queryByTestId("member-venmo-user-1")).toBeNull();
+      expect(screen.queryByTestId("member-venmo-member-1")).toBeNull();
     });
   });
 

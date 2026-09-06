@@ -78,7 +78,7 @@ interface InfoPanelProps {
   weather: TripWeatherResponse | undefined;
   weatherLoading: boolean;
   temperatureUnit: TemperatureUnit;
-  currentMember: { id: string; userId: string; isMuted: boolean | undefined } | undefined;
+  currentMember: { id: string; userId: string | null; isMuted: boolean | undefined } | undefined;
   onOpenInvite: () => void;
   onOpenEdit: () => void;
   onOpenSettings: () => void;
@@ -276,7 +276,11 @@ export function InfoPanel({
               <>
                 {" · Organized by "}
                 {trip.organizers.map((org, i) => {
-                  const member = members?.find((m) => m.userId === org.id);
+                  // Organizers are user accounts; fall back to member-id match
+                  // so the sheet still opens if the id spaces ever diverge.
+                  const member =
+                    members?.find((m) => m.userId === org.id) ??
+                    members?.find((m) => m.id === org.id);
                   return (
                     <span key={org.id}>
                       {i > 0 && ", "}

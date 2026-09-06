@@ -12,6 +12,9 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { isGuestMember } from "@/components/trip/guest-avatar";
+import { cn } from "@/lib/utils";
 import { VenmoIcon } from "@/components/icons/venmo-icon";
 import { InstagramIcon } from "@/components/icons/instagram-icon";
 
@@ -19,6 +22,23 @@ interface MemberProfileSheetProps {
   member: MemberWithProfile | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+function statusSuffix(
+  status: MemberWithProfile["status"] | undefined,
+): string {
+  switch (status) {
+    case "going":
+      return " · Going";
+    case "maybe":
+      return " · Maybe";
+    case "not_going":
+      return " · Not going";
+    case "no_response":
+      return " · No response";
+    default:
+      return "";
+  }
 }
 
 export function MemberProfileSheet({
@@ -31,26 +51,39 @@ export function MemberProfileSheet({
       <SheetContent>
         <SheetHeader>
           <SheetTitle className="text-3xl font-playfair tracking-tight">
-            {member?.displayName ?? ""}
+            {member?.displayName ?? ""}{" "}
+            {member && isGuestMember(member) && (
+              <Badge className="bg-accent text-accent-foreground align-middle">
+                Guest
+              </Badge>
+            )}
           </SheetTitle>
           <SheetDescription>
-            {member?.isOrganizer ? "Organizer" : "Member"}
-            {member?.status === "going"
-              ? " · Going"
-              : member?.status === "maybe"
-                ? " · Maybe"
-                : member?.status === "not_going"
-                  ? " · Not going"
-                  : ""}
+            {member && isGuestMember(member) ? (
+              <>Guest{statusSuffix(member.status)}</>
+            ) : (
+              <>
+                {member?.isOrganizer ? "Organizer" : "Member"}
+                {statusSuffix(member?.status)}
+              </>
+            )}
           </SheetDescription>
         </SheetHeader>
 
         <SheetBody>
           {member && (
             <div className="space-y-6 pb-6">
-              {/* Large Avatar */}
+              {/* Large Avatar — dashed ring for guests (claim-state signal) */}
               <div className="flex justify-center">
-                <Avatar className="size-20 text-xl">
+                <Avatar
+                  className={cn(
+                    "size-20 text-xl",
+                    isGuestMember(member) &&
+                      "border-2 border-dashed border-accent",
+                  )}
+                  data-testid={`member-avatar-${member.id}`}
+                  data-guest-ring={isGuestMember(member) ? "dashed" : "solid"}
+                >
                   {member.profilePhotoUrl && (
                     <AvatarImage
                       src={getUploadUrl(member.profilePhotoUrl)}
@@ -63,8 +96,10 @@ export function MemberProfileSheet({
                 </Avatar>
               </div>
 
-              {/* Social handles */}
-              {member.handles && Object.keys(member.handles).length > 0 && (
+              {/* Social handles — guests have no handles */}
+              {!isGuestMember(member) &&
+                member.handles &&
+                Object.keys(member.handles).length > 0 && (
                 <div className="space-y-2">
                   {member.handles.venmo && (
                     <a
