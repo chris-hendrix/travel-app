@@ -256,6 +256,20 @@ describe("MemberProfileSheet guest redesign", () => {
     expect(mockInviteMutate).not.toHaveBeenCalled();
   });
 
+  it("Send invite closes the sheet", async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+    renderSheet({ onOpenChange });
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    await waitFor(() => {
+      expect(mockInviteMutate).toHaveBeenCalledWith({
+        phoneNumbers: ["+14155551111"],
+        userIds: [],
+      });
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+  });
+
   it("shows muted 'Invite sent ✓' when a pending invitation exists", () => {
     mockUseInvitations.mockReturnValue({
       data: [

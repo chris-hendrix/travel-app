@@ -64,7 +64,7 @@ export interface IInvitationService {
    */
   getInvitationsByTrip(
     tripId: string,
-  ): Promise<(DBInvitation & { inviteeName?: string })[]>;
+  ): Promise<(DBInvitation & { inviteeName?: string; invitedGuestName?: string })[]>;
 
   /**
    * Revokes an invitation
@@ -418,6 +418,23 @@ export class InvitationService implements IInvitationService {
             )
             .returning();
 
+          // Guest-to-invite conversion (read-layer only): a guest member row
+          // (user_id NULL, guest_phone set) with a pending/failed invitation
+          // for that phone is presented as INVITED, not as a member.
+          // Reset any matching guest row to no_response (idempotent).
+          if (newPhones.length > 0) {
+            await tx
+              .update(members)
+              .set({ status: "no_response", updatedAt: new Date() })
+              .where(
+                and(
+                  eq(members.tripId, tripId),
+                  sql`${members.userId} IS NULL`,
+                  inArray(members.guestPhone, newPhones),
+                ),
+              );
+          }
+
           // Create member records for phones that belong to existing users
           const newMemberValues: {
             tripId: string;
@@ -752,7 +769,7 @@ export class InvitationService implements IInvitationService {
    */
   async getInvitationsByTrip(
     tripId: string,
-  ): Promise<(DBInvitation & { inviteeName?: string })[]> {
+  ): Promise<(DBInvitation & { inviteeName?: string; invitedGuestName?: string })[]> {
     const results = await this.db
       .select({
         invitation: invitations,
@@ -762,12 +779,35 @@ export class InvitationService implements IInvitationService {
       .leftJoin(users, eq(invitations.inviteePhone, users.phoneNumber))
       .where(eq(invitations.tripId, tripId));
 
+    const guestRows = await this.db
+      .select({
+        guestPhone: members.guestPhone,
+        guestDisplayName: members.guestDisplayName,
+      })
+      .from(members)
+      .where(
+        and(eq(members.tripId, tripId), sql`${members.userId} IS NULL`),
+      );
+    const guestNameByPhone = new Map<string, string>();
+    for (const g of guestRows) {
+      if (g.guestPhone !== null && g.guestDisplayName !== null) {
+        guestNameByPhone.set(g.guestPhone, g.guestDisplayName);
+      }
+    }
+
     return results.map((r) => {
-      const entry: DBInvitation & { inviteeName?: string } = {
+      const entry: DBInvitation & {
+        inviteeName?: string;
+        invitedGuestName?: string;
+      } = {
         ...r.invitation,
       };
       if (r.displayName) {
         entry.inviteeName = r.displayName;
+      }
+      const guestName = guestNameByPhone.get(r.invitation.inviteePhone);
+      if (guestName !== undefined) {
+        entry.invitedGuestName = guestName;
       }
       return entry;
     });
@@ -1120,6 +1160,35 @@ export class InvitationService implements IInvitationService {
       .leftJoin(users, eq(members.userId, users.id))
       .where(eq(members.tripId, tripId));
 
+    // Guest-to-invite conversion (read-layer presentation only): a guest
+    // member row (user_id NULL, guest_phone set) with a pending or failed
+    // invitation for that phone is presented as INVITED, not as a member.
+    // Applies to both organizer and non-organizer views. NULL-safe:
+    // claimed rows (guest_phone NULL) are never matched.
+    const pendingInviteRows = await this.db
+      .select({ inviteePhone: invitations.inviteePhone })
+      .from(invitations)
+      .where(
+        and(
+          eq(invitations.tripId, tripId),
+          inArray(invitations.status, ["pending", "failed"]),
+        ),
+      );
+    const pendingInvitePhones = new Set(
+      pendingInviteRows.map((r) => r.inviteePhone),
+    );
+    const visibleResults =
+      pendingInvitePhones.size > 0
+        ? results.filter(
+            (r) =>
+              !(
+                r.userId === null &&
+                r.guestPhone !== null &&
+                pendingInvitePhones.has(r.guestPhone)
+              ),
+          )
+        : results;
+
     // Get muted members for this trip (only when requesting user is organizer)
     let mutedUserIds: Set<string> = new Set();
     if (isOrg) {
@@ -1135,13 +1204,13 @@ export class InvitationService implements IInvitationService {
     // going/maybe filter; claimed rows follow the existing filter.
     const filteredResults =
       !isOrg && !tripSettings[0]?.showAllMembers
-        ? results.filter(
+        ? visibleResults.filter(
             (r) =>
               r.userId === null ||
               r.status === "going" ||
               r.status === "maybe",
           )
-        : results;
+        : visibleResults;
 
     return filteredResults.map((r) => ({
       id: r.id,

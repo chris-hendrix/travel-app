@@ -222,22 +222,29 @@ describe("MembersList guest rows (Task 7.1)", () => {
     );
   });
 
-  it("invitation matching a member phone is not duplicated in the Invited tab", async () => {
+  it("invited guest renders as a named phone row (guest left the members payload server-side)", async () => {
     const user = userEvent.setup();
-    // Mom is a guest member (no_response → Invited tab) AND someone sent
-    // her phone a pending invite — the phone row must not duplicate her.
+    // Guest-to-invite conversion: once invited, the guest row leaves the
+    // members payload server-side; the invitation carries invitedGuestName.
+    mockUseMembers.mockReturnValue({
+      data: [organizerLiam],
+      isPending: false,
+    });
     mockUseInvitations.mockReturnValue({
       data: [
         {
           id: "inv-1",
           inviteePhone: "+14155551111", // Mom's phone (guest)
+          invitedGuestName: "Mom",
           status: "pending",
+          sentAt: "2026-01-06T00:00:00Z",
           createdAt: "2026-01-06T00:00:00Z",
         },
         {
           id: "inv-2",
           inviteePhone: "+15559990000", // unrelated pending invite
           status: "pending",
+          sentAt: "2026-01-06T00:00:00Z",
           createdAt: "2026-01-06T00:00:00Z",
         },
       ],
@@ -249,14 +256,43 @@ describe("MembersList guest rows (Task 7.1)", () => {
 
     await user.click(screen.getByRole("tab", { name: /Invited/ }));
 
-    // Mom's member row appears; her phone invitation row does not
+    // Mom's name is the primary label with her phone as the secondary line
     expect(screen.getByText("Mom")).toBeDefined();
+    expect(screen.getByText("+14155551111")).toBeDefined();
     expect(
-      screen.queryByLabelText("Revoke invitation to +14155551111"),
-    ).toBeNull();
+      screen.getByLabelText("Revoke invitation to +14155551111"),
+    ).toBeDefined();
     // Unrelated pending invitation still shows
     expect(
       screen.getByLabelText("Revoke invitation to +15559990000"),
     ).toBeDefined();
+  });
+
+  it("non-guest invitation falls back to bare phone as primary label", async () => {
+    const user = userEvent.setup();
+    mockUseMembers.mockReturnValue({
+      data: [organizerLiam],
+      isPending: false,
+    });
+    mockUseInvitations.mockReturnValue({
+      data: [
+        {
+          id: "inv-2",
+          inviteePhone: "+15559990000",
+          status: "pending",
+          sentAt: "2026-01-06T00:00:00Z",
+          createdAt: "2026-01-06T00:00:00Z",
+        },
+      ],
+      isPending: false,
+    });
+    renderWithQueryClient(
+      <MembersList tripId="trip-123" isOrganizer={true} createdBy="user-1" currentUserId="user-1" />,
+    );
+
+    await user.click(screen.getByRole("tab", { name: /Invited/ }));
+
+    // Bare phone is the primary label (no guest name present)
+    expect(screen.getByText("+15559990000")).toBeDefined();
   });
 });

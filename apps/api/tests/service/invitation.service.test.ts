@@ -2207,4 +2207,212 @@ describe("invitation.service", () => {
       expect(memberCountAfter).toHaveLength(memberCountBefore.length);
     });
   });
+
+  describe("guest-to-invite conversion (read-layer presentation)", () => {
+    it("excludes a guest with a pending invitation from getTripMembers (organizer + non-organizer)", async () => {
+      const guestPhone = generateUniquePhone();
+      const [guest] = await db
+        .insert(members)
+        .values({
+          tripId: testTripId,
+          userId: null,
+          guestDisplayName: "Invited Guest",
+          guestPhone,
+          status: "no_response",
+        })
+        .returning();
+      expect(guest.userId).toBeNull();
+
+      // Guest visible before any invitation exists
+      const beforeOrg = await invitationService.getTripMembers(
+        testTripId,
+        testOrganizerId,
+      );
+      expect(beforeOrg.find((m) => m.id === guest.id)).toBeDefined();
+      const beforeMember = await invitationService.getTripMembers(
+        testTripId,
+        testMemberId,
+      );
+      expect(beforeMember.find((m) => m.id === guest.id)).toBeDefined();
+
+      // Phone has no user account -> invitation-only, guest row untouched
+      const { invitations: created } =
+        await invitationService.createInvitations(testOrganizerId, testTripId, [
+          guestPhone,
+        ]);
+      expect(created).toHaveLength(1);
+
+      const afterOrg = await invitationService.getTripMembers(
+        testTripId,
+        testOrganizerId,
+      );
+      expect(afterOrg.find((m) => m.id === guest.id)).toBeUndefined();
+      const afterMember = await invitationService.getTripMembers(
+        testTripId,
+        testMemberId,
+      );
+      expect(afterMember.find((m) => m.id === guest.id)).toBeUndefined();
+    });
+
+    it("still excludes the guest when the invitation is failed", async () => {
+      const guestPhone = generateUniquePhone();
+      const [guest] = await db
+        .insert(members)
+        .values({
+          tripId: testTripId,
+          userId: null,
+          guestDisplayName: "Failed Invite Guest",
+          guestPhone,
+          status: "no_response",
+        })
+        .returning();
+
+      const { invitations: created } =
+        await invitationService.createInvitations(testOrganizerId, testTripId, [
+          guestPhone,
+        ]);
+      expect(created).toHaveLength(1);
+      await db
+        .update(invitations)
+        .set({ status: "failed" })
+        .where(eq(invitations.id, created[0].id));
+
+      const asOrg = await invitationService.getTripMembers(
+        testTripId,
+        testOrganizerId,
+      );
+      expect(asOrg.find((m) => m.id === guest.id)).toBeUndefined();
+      const asMember = await invitationService.getTripMembers(
+        testTripId,
+        testMemberId,
+      );
+      expect(asMember.find((m) => m.id === guest.id)).toBeUndefined();
+    });
+
+    it("guest reappears with status no_response after the invitation is revoked", async () => {
+      const guestPhone = generateUniquePhone();
+      const [guest] = await db
+        .insert(members)
+        .values({
+          tripId: testTripId,
+          userId: null,
+          guestDisplayName: "Revoked Guest",
+          guestPhone,
+          status: "going",
+        })
+        .returning();
+
+      const { invitations: created } =
+        await invitationService.createInvitations(testOrganizerId, testTripId, [
+          guestPhone,
+        ]);
+      expect(created).toHaveLength(1);
+
+      // RSVP reset on invite (Task B): going -> no_response
+      const [resetRow] = await db
+        .select({ status: members.status })
+        .from(members)
+        .where(eq(members.id, guest.id));
+      expect(resetRow!.status).toBe("no_response");
+
+      // Hidden while the invite is pending
+      const hidden = await invitationService.getTripMembers(
+        testTripId,
+        testOrganizerId,
+      );
+      expect(hidden.find((m) => m.id === guest.id)).toBeUndefined();
+
+      await invitationService.revokeInvitation(
+        testOrganizerId,
+        created[0].id,
+      );
+
+      // Guest row survives revoke (unclaimed) and reappears as a member
+      const reappeared = await invitationService.getTripMembers(
+        testTripId,
+        testOrganizerId,
+      );
+      const guestAgain = reappeared.find((m) => m.id === guest.id);
+      expect(guestAgain).toBeDefined();
+      expect(guestAgain!.status).toBe("no_response");
+      expect(guestAgain!.userId).toBeNull();
+    });
+
+    it("resets guest RSVP to no_response on invite (idempotent)", async () => {
+      const guestPhone = generateUniquePhone();
+      const [guest] = await db
+        .insert(members)
+        .values({
+          tripId: testTripId,
+          userId: null,
+          guestDisplayName: "RSVP Guest",
+          guestPhone,
+          status: "going",
+        })
+        .returning();
+
+      // Seed a pending invitation directly so createInvitations skips it;
+      // the reset path only runs for newly created invitations.
+      const { invitations: created } =
+        await invitationService.createInvitations(testOrganizerId, testTripId, [
+          guestPhone,
+        ]);
+      expect(created).toHaveLength(1);
+
+      const [row] = await db
+        .select({ status: members.status })
+        .from(members)
+        .where(eq(members.id, guest.id));
+      expect(row!.status).toBe("no_response");
+
+      // Re-inviting the same phone is skipped; status stays no_response
+      const again = await invitationService.createInvitations(
+        testOrganizerId,
+        testTripId,
+        [guestPhone],
+      );
+      expect(again.skipped).toContain(guestPhone);
+      const [rowAfter] = await db
+        .select({ status: members.status })
+        .from(members)
+        .where(eq(members.id, guest.id));
+      expect(rowAfter!.status).toBe("no_response");
+    });
+
+    it("includes invitedGuestName on the invitations list payload", async () => {
+      const guestPhone = generateUniquePhone();
+      await db.insert(members).values({
+        tripId: testTripId,
+        userId: null,
+        guestDisplayName: "Named Guest",
+        guestPhone,
+        status: "no_response",
+      });
+
+      const { invitations: created } =
+        await invitationService.createInvitations(testOrganizerId, testTripId, [
+          guestPhone,
+        ]);
+      expect(created).toHaveLength(1);
+
+      const list = await invitationService.getInvitationsByTrip(testTripId);
+      const entry = list.find((i) => i.inviteePhone === guestPhone);
+      expect(entry).toBeDefined();
+      expect(entry!.invitedGuestName).toBe("Named Guest");
+    });
+
+    it("omits invitedGuestName when no guest row matches the invite phone", async () => {
+      const plainPhone = generateUniquePhone();
+      const { invitations: created } =
+        await invitationService.createInvitations(testOrganizerId, testTripId, [
+          plainPhone,
+        ]);
+      expect(created).toHaveLength(1);
+
+      const list = await invitationService.getInvitationsByTrip(testTripId);
+      const entry = list.find((i) => i.inviteePhone === plainPhone);
+      expect(entry).toBeDefined();
+      expect(entry!.invitedGuestName).toBeUndefined();
+    });
+  });
 });

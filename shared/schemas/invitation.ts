@@ -57,6 +57,7 @@ const invitationEntitySchema = z.object({
   createdAt: z.date(),
   updatedAt: z.date(),
   inviteeName: z.string().optional(),
+  invitedGuestName: z.string().optional(),
 });
 
 /** Member with profile info (for member list and RSVP responses)

@@ -268,6 +268,10 @@ function PendingInvitationRow({
   onRevoke,
   isRevoking,
 }: PendingInvitationRowProps) {
+  const guestName =
+    (invitation.invitedGuestName?.trim() ?? "").length > 0
+      ? (invitation.invitedGuestName as string)
+      : null;
   return (
     <div className="flex items-center gap-3 py-3">
       <Avatar size="default">
@@ -278,8 +282,8 @@ function PendingInvitationRow({
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">
-            {formatPhoneNumber(invitation.inviteePhone)}
+          <span className="text-sm font-medium text-foreground truncate">
+            {guestName ?? formatPhoneNumber(invitation.inviteePhone)}
           </span>
           <Badge
             variant={
@@ -289,6 +293,14 @@ function PendingInvitationRow({
             {invitation.status === "failed" ? "Failed" : "Pending"}
           </Badge>
         </div>
+        {guestName && (
+          <div className="flex items-center gap-1 mt-0.5">
+            <Phone className="w-3 h-3 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">
+              {formatPhoneNumber(invitation.inviteePhone)}
+            </span>
+          </div>
+        )}
         <span className="text-xs text-muted-foreground">
           Sent {formatRelativeTime(invitation.sentAt)}
         </span>

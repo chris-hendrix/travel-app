@@ -158,6 +158,10 @@ function GuestEditor({
         userIds: [],
       });
       toast.success(`Invite sent to ${trimmed}`);
+      // The guest row leaves the members list server-side (guest-to-invite
+      // conversion); close the sheet explicitly so the organizer lands back
+      // on the Invited tab phone row.
+      onClaimed();
     } catch (error) {
       if (error instanceof Error && "code" in error) {
         setPhoneError(

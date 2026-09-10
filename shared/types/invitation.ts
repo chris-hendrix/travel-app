@@ -15,6 +15,8 @@ export interface Invitation {
   respondedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Guest display name when the invitee phone matches a guest member row */
+  invitedGuestName?: string;
 }
 
 /**

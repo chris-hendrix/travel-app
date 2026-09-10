@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { db } from "@/config/database.js";
-import { users, trips, members } from "@/db/schema/index.js";
+import { users, trips, members, invitations } from "@/db/schema/index.js";
 import { eq, count } from "drizzle-orm";
 import { generateUniquePhone } from "../test-utils.js";
 import { GuestMemberService } from "@/services/guest-member.service.js";
@@ -228,6 +228,41 @@ describe("guest-member.service createGuest (Task 3.1)", () => {
         displayName: "Too Many",
       }),
     ).rejects.toThrow(MemberLimitExceededError);
+  });
+
+  it("pending-invite guest still counts toward the 25 cap (26th createGuest blocked)", async () => {
+    // 2 members exist; add a guest with a pending invitation + 22 fillers = 25
+    const guestPhone = generateUniquePhone();
+    await guestMemberService.createGuest(tripId, organizerId, {
+      displayName: "Invited Guest",
+      guestPhone,
+    });
+    await db.insert(invitations).values({
+      tripId,
+      inviterId: organizerId,
+      inviteePhone: guestPhone,
+      status: "pending",
+    });
+    try {
+      for (let i = 0; i < 22; i++) {
+        const filler = await createUser(`Cap Filler ${i}`);
+        await db.insert(members).values({ tripId, userId: filler.id });
+      }
+
+      const [row] = await db
+        .select({ value: count() })
+        .from(members)
+        .where(eq(members.tripId, tripId));
+      expect(row!.value).toBe(25);
+
+      await expect(
+        guestMemberService.createGuest(tripId, organizerId, {
+          displayName: "Too Many",
+        }),
+      ).rejects.toThrow(MemberLimitExceededError);
+    } finally {
+      await db.delete(invitations).where(eq(invitations.tripId, tripId));
+    }
   });
 });
 
