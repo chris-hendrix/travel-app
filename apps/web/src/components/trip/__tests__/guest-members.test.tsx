@@ -221,4 +221,42 @@ describe("MembersList guest rows (Task 7.1)", () => {
       expect.objectContaining({ id: "member-guest-1", userId: null }),
     );
   });
+
+  it("invitation matching a member phone is not duplicated in the Invited tab", async () => {
+    const user = userEvent.setup();
+    // Mom is a guest member (no_response → Invited tab) AND someone sent
+    // her phone a pending invite — the phone row must not duplicate her.
+    mockUseInvitations.mockReturnValue({
+      data: [
+        {
+          id: "inv-1",
+          inviteePhone: "+14155551111", // Mom's phone (guest)
+          status: "pending",
+          createdAt: "2026-01-06T00:00:00Z",
+        },
+        {
+          id: "inv-2",
+          inviteePhone: "+15559990000", // unrelated pending invite
+          status: "pending",
+          createdAt: "2026-01-06T00:00:00Z",
+        },
+      ],
+      isPending: false,
+    });
+    renderWithQueryClient(
+      <MembersList tripId="trip-123" isOrganizer={true} createdBy="user-1" currentUserId="user-1" />,
+    );
+
+    await user.click(screen.getByRole("tab", { name: /Invited/ }));
+
+    // Mom's member row appears; her phone invitation row does not
+    expect(screen.getByText("Mom")).toBeDefined();
+    expect(
+      screen.queryByLabelText("Revoke invitation to +14155551111"),
+    ).toBeNull();
+    // Unrelated pending invitation still shows
+    expect(
+      screen.getByLabelText("Revoke invitation to +15559990000"),
+    ).toBeDefined();
+  });
 });

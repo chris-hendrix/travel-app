@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Pencil } from "lucide-react";
 import type { MemberWithProfile } from "@journiful/shared/types";
 import { PHONE_REGEX } from "@journiful/shared/schemas";
 import { getUploadUrl } from "@/lib/api";
@@ -212,17 +213,16 @@ function GuestEditor({
 
   return (
     <div className="space-y-5">
-      {/* RSVP */}
+      {/* RSVP — pills are self-explanatory; sr-only label for a11y */}
       <div className="space-y-2">
-        <p id={`rsvp-label-${member.id}`} className="text-sm font-medium">
-          RSVP
-        </p>
-        <RsvpPills
-          includeNoResponse
-          onSelect={handleRsvp}
-          pending={rsvpPending}
-          status={member.status}
-        />
+        <div role="group" aria-label={`RSVP for ${member.displayName}`}>
+          <RsvpPills
+            includeNoResponse
+            onSelect={handleRsvp}
+            pending={rsvpPending}
+            status={member.status}
+          />
+        </div>
         {rsvpError && (
           <p role="alert" className="text-xs text-destructive">
             {rsvpError}
@@ -230,7 +230,6 @@ function GuestEditor({
         )}
       </div>
 
-      <div className="border-t border-border/60" />
 
       {/* Invite them */}
       <div className="space-y-3">
@@ -384,7 +383,6 @@ export function MemberProfileSheet({
                   </Avatar>
                 </div>
 
-                <div className="border-t border-border/60" />
 
                 <GuestEditor
                   member={member}
@@ -486,10 +484,23 @@ function GuestNameTitle({
 }) {
   const updateGuest = useUpdateGuest(tripId);
   const [name, setName] = useState(member.displayName);
+  const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Keep the draft in sync if the member row changes underneath us (claim,
+  // refetch) while the sheet is open.
+  useEffect(() => {
+    if (!editing) setName(member.displayName);
+  }, [member.displayName, editing]);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
 
   const handleBlur = async () => {
     const trimmed = name.trim();
+    setEditing(false);
     if (!trimmed || trimmed === member.displayName) {
       setName(member.displayName);
       setError(null);
@@ -510,15 +521,53 @@ function GuestNameTitle({
     }
   };
 
+  const handleKeyDown = (e: {
+    key: string;
+    preventDefault: () => void;
+  }) => {
+    if (e.key === "Escape") {
+      setName(member.displayName);
+      setError(null);
+      setEditing(false);
+    }
+  };
+
+  if (!editing) {
+    return (
+      <div className="flex w-full flex-col items-start gap-1">
+        <SheetTitle className="sr-only">{member.displayName}</SheetTitle>
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          aria-label="Edit guest name"
+          className="group flex items-center gap-1.5 rounded-sm text-left font-playfair text-3xl font-semibold tracking-tight md:text-3xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          {member.displayName}
+          <Pencil
+            aria-hidden
+            className="size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+          />
+        </button>
+        {error && (
+          <p role="alert" className="text-xs text-destructive">
+            {error}
+          </p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="flex w-full flex-col items-start gap-1">
       <SheetTitle className="sr-only">{member.displayName}</SheetTitle>
       <Input
+        ref={inputRef}
         value={name}
         onChange={(e) => setName(e.target.value)}
         onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
         aria-label="Guest name"
-        className="h-auto w-full border-transparent bg-transparent p-0 text-left font-playfair text-3xl tracking-tight shadow-none focus-visible:border-transparent focus-visible:underline focus-visible:ring-0"
+        className="h-auto w-full border-transparent bg-transparent p-0 text-left font-playfair text-3xl font-semibold tracking-tight shadow-none md:text-3xl focus-visible:border-transparent focus-visible:underline focus-visible:ring-0"
       />
       {error && (
         <p role="alert" className="text-xs text-destructive">

@@ -407,10 +407,21 @@ export function MembersList({
       );
   const goingVisible = [...going, ...overflowGuests];
 
-  // Pending/failed invitations for the Invited tab
+  // Pending/failed invitations for the Invited tab.
+  // An invitation whose phone already matches a member row (guest guestPhone
+  // or claimed member phoneNumber) is the same person — they're already
+  // listed as a member, so skip the duplicate phone row. The invite state
+  // lives on the member's profile sheet ("Invite sent ✓").
+  const memberPhones = new Set(
+    members
+      .map((m) => m.guestPhone ?? m.phoneNumber)
+      .filter((p): p is string => !!p),
+  );
   const pendingInvitations =
     invitations?.filter(
-      (inv) => inv.status === "pending" || inv.status === "failed",
+      (inv) =>
+        (inv.status === "pending" || inv.status === "failed") &&
+        !memberPhones.has(inv.inviteePhone),
     ) ?? [];
 
   const invitedCount = noResponse.length + pendingInvitations.length;

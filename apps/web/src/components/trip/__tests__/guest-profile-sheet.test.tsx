@@ -150,9 +150,11 @@ const renderSheet = (props?: Partial<React.ComponentProps<typeof MemberProfileSh
   );
 
 describe("MemberProfileSheet guest redesign", () => {
-  it("name blur-save PATCHes displayName", async () => {
+  it("name click-to-edit PATCHes displayName", async () => {
     const user = userEvent.setup();
     renderSheet();
+    // Header shows the name as static text (matches standard member sheet)
+    await user.click(screen.getByRole("button", { name: "Edit guest name" }));
     const nameInput = screen.getByLabelText("Guest name");
     expect(nameInput).toHaveProperty("value", "Mom");
     await user.clear(nameInput);
@@ -170,12 +172,16 @@ describe("MemberProfileSheet guest redesign", () => {
     expect("guestPhone" in sent.data).toBe(false);
   });
 
-  it("guest header matches the standard member header (left-aligned editable Playfair title)", () => {
+  it("guest header matches the standard member header (left-aligned Playfair title, click-to-edit)", () => {
     renderSheet();
-    const nameInput = screen.getByLabelText("Guest name") as HTMLInputElement;
-    expect(nameInput.className).toContain("text-left");
-    expect(nameInput.className).toContain("font-playfair");
-    expect(nameInput.className).not.toContain("text-center");
+    // At rest the name is static text in the header (no visible input)
+    expect(screen.queryByLabelText("Guest name")).toBeNull();
+    const titleButton = screen.getByRole("button", {
+      name: "Edit guest name",
+    });
+    expect(titleButton.className).toContain("text-left");
+    expect(titleButton.className).toContain("font-playfair");
+    expect(titleButton.className).not.toContain("text-center");
     expect(
       screen.getByText((_, el) => el?.textContent === "Guest · No response"),
     ).toBeDefined();
