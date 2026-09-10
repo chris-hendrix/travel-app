@@ -1,7 +1,7 @@
 "use client";
 
 import { toast } from "sonner";
-import { CircleCheck, CircleHelp, CircleX } from "lucide-react";
+import { CircleCheck, CircleDashed, CircleHelp, CircleX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   useUpdateRsvp,
@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 type RsvpStatus = "going" | "maybe" | "not_going" | "no_response";
 
 const pills: {
-  value: UpdateRsvpInput["status"];
+  value: RsvpStatus;
   label: string;
   icon: typeof CircleCheck;
   activeClass: string;
@@ -43,22 +43,85 @@ const pills: {
   },
 ];
 
+const noResponsePill: (typeof pills)[number] = {
+  value: "no_response",
+  label: "No response",
+  icon: CircleDashed,
+  activeClass: "bg-muted text-foreground",
+  hoverClass: "hover:bg-muted/60",
+};
+
 interface RsvpPillsProps {
-  tripId: string;
+  tripId?: string;
   status: RsvpStatus;
+  onSelect?: (status: RsvpStatus) => void;
+  pending?: string | null;
+  includeNoResponse?: boolean;
 }
 
-export function RsvpPills({ tripId, status }: RsvpPillsProps) {
+function PillsView({
+  status,
+  busy,
+  pendingValue,
+  visiblePills,
+  onPick,
+}: {
+  status: RsvpStatus;
+  busy: boolean;
+  pendingValue: string | null;
+  visiblePills: typeof pills;
+  onPick: (s: RsvpStatus) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {visiblePills.map((pill) => {
+        const isActive = status === pill.value;
+        const Icon = pill.icon;
+
+        return (
+          <Button
+            key={pill.value}
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={() => onPick(pill.value)}
+            className={cn(
+              "h-10",
+              isActive
+                ? cn(pill.activeClass, "border-transparent")
+                : pill.hoverClass,
+              pendingValue === pill.value && "opacity-60",
+            )}
+          >
+            <Icon className="size-4" />
+            {pill.label}
+          </Button>
+        );
+      })}
+    </div>
+  );
+}
+
+function UncontrolledPills({
+  tripId,
+  status,
+  visiblePills,
+}: {
+  tripId: string;
+  status: RsvpStatus;
+  visiblePills: typeof pills;
+}) {
   const { mutate: updateRsvp, isPending } = useUpdateRsvp(tripId);
 
-  const handleClick = (newStatus: UpdateRsvpInput["status"]) => {
+  const handleClick = (newStatus: RsvpStatus) => {
     if (newStatus === status || isPending) return;
     updateRsvp(
-      { status: newStatus },
+      { status: newStatus as UpdateRsvpInput["status"] },
       {
         onSuccess: () => {
           const label =
-            pills.find((p) => p.value === newStatus)?.label ?? newStatus;
+            visiblePills.find((p) => p.value === newStatus)?.label ?? newStatus;
           toast.success(`RSVP updated to "${label}"`);
         },
         onError: (error) => {
@@ -70,31 +133,45 @@ export function RsvpPills({ tripId, status }: RsvpPillsProps) {
   };
 
   return (
-    <div className="flex gap-2">
-      {pills.map((pill) => {
-        const isActive = status === pill.value;
-        const Icon = pill.icon;
+    <PillsView
+      status={status}
+      busy={isPending}
+      pendingValue={null}
+      visiblePills={visiblePills}
+      onPick={handleClick}
+    />
+  );
+}
 
-        return (
-          <Button
-            key={pill.value}
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={isPending}
-            onClick={() => handleClick(pill.value)}
-            className={cn(
-              "h-10",
-              isActive
-                ? cn(pill.activeClass, "border-transparent")
-                : pill.hoverClass,
-            )}
-          >
-            <Icon className="size-4" />
-            {pill.label}
-          </Button>
-        );
-      })}
-    </div>
+export function RsvpPills({
+  tripId,
+  status,
+  onSelect,
+  pending = null,
+  includeNoResponse = false,
+}: RsvpPillsProps) {
+  const visiblePills = includeNoResponse ? [...pills, noResponsePill] : pills;
+
+  if (typeof onSelect === "function") {
+    return (
+      <PillsView
+        status={status}
+        busy={pending != null}
+        pendingValue={pending}
+        visiblePills={visiblePills}
+        onPick={(next) => {
+          if (next === status || pending != null) return;
+          onSelect(next);
+        }}
+      />
+    );
+  }
+
+  return (
+    <UncontrolledPills
+      tripId={tripId ?? ""}
+      status={status}
+      visiblePills={visiblePills}
+    />
   );
 }

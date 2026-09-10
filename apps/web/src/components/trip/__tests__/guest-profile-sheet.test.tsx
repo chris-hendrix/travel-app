@@ -170,10 +170,28 @@ describe("MemberProfileSheet guest redesign", () => {
     expect("guestPhone" in sent.data).toBe(false);
   });
 
+  it("guest header matches the standard member header (left-aligned editable Playfair title)", () => {
+    renderSheet();
+    const nameInput = screen.getByLabelText("Guest name") as HTMLInputElement;
+    expect(nameInput.className).toContain("text-left");
+    expect(nameInput.className).toContain("font-playfair");
+    expect(nameInput.className).not.toContain("text-center");
+    expect(
+      screen.getByText((_, el) => el?.textContent === "Guest · No response"),
+    ).toBeDefined();
+  });
+
+  it("RSVP renders pill buttons including No response", () => {
+    renderSheet();
+    for (const name of ["Going", "Maybe", "No response", "Not Going"]) {
+      expect(screen.getByRole("button", { name })).toBeDefined();
+    }
+  });
+
   it("RSVP click PATCHes status instantly", async () => {
     const user = userEvent.setup();
     renderSheet();
-    await user.click(screen.getByRole("radio", { name: "Going" }));
+    await user.click(screen.getByRole("button", { name: "Going" }));
     await waitFor(() => {
       expect(mockUpdateMutate).toHaveBeenCalledWith({
         memberId: "member-guest-1",
@@ -290,7 +308,10 @@ describe("MemberProfileSheet guest redesign", () => {
     expect(screen.queryByRole("button", { name: "Send" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Invite" })).toBeNull();
     expect(screen.queryByRole("button", { name: /^remove guest/i })).toBeNull();
-    expect(screen.queryByRole("radiogroup")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Going" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Maybe" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "No response" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Not Going" })).toBeNull();
     // Guest identity chrome still renders (description line, no badge)
     expect(
       screen.getByText((_, el) => el?.textContent === "Guest · No response"),
@@ -301,7 +322,7 @@ describe("MemberProfileSheet guest redesign", () => {
     const user = userEvent.setup();
     mockUpdateMutate.mockRejectedValue(new Error("nope"));
     renderSheet();
-    await user.click(screen.getByRole("radio", { name: "Going" }));
+    await user.click(screen.getByRole("button", { name: "Going" }));
     await waitFor(() => {
       expect(screen.getByRole("alert")).toBeDefined();
     });

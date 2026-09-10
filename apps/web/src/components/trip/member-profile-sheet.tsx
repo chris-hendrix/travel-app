@@ -36,6 +36,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { isGuestMember } from "@/components/trip/guest-avatar";
+import { RsvpPills } from "@/components/trip/rsvp-pills";
 import { cn } from "@/lib/utils";
 import { VenmoIcon } from "@/components/icons/venmo-icon";
 import { InstagramIcon } from "@/components/icons/instagram-icon";
@@ -78,12 +79,6 @@ function statusSuffix(
   }
 }
 
-const RSVP_OPTIONS: { value: MemberWithProfile["status"]; label: string }[] = [
-  { value: "going", label: "Going" },
-  { value: "maybe", label: "Maybe" },
-  { value: "no_response", label: "No response" },
-  { value: "not_going", label: "Not going" },
-];
 
 function GuestEditor({
   member,
@@ -222,36 +217,12 @@ function GuestEditor({
         <p id={`rsvp-label-${member.id}`} className="text-sm font-medium">
           RSVP
         </p>
-        <div
-          role="radiogroup"
-          aria-labelledby={`rsvp-label-${member.id}`}
-          className="grid grid-cols-4 gap-1 rounded-lg bg-muted/60 p-1"
-        >
-          {RSVP_OPTIONS.map((opt) => {
-            const selected = member.status === opt.value;
-            const pending = rsvpPending === opt.value;
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                aria-label={opt.label}
-                disabled={rsvpPending !== null}
-                onClick={() => handleRsvp(opt.value)}
-                className={cn(
-                  "h-9 rounded-md px-1 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-                  selected
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                  pending && "opacity-60",
-                )}
-              >
-                {pending ? "…" : opt.label}
-              </button>
-            );
-          })}
-        </div>
+        <RsvpPills
+          includeNoResponse
+          onSelect={handleRsvp}
+          pending={rsvpPending}
+          status={member.status}
+        />
         {rsvpError && (
           <p role="alert" className="text-xs text-destructive">
             {rsvpError}
@@ -384,8 +355,10 @@ export function MemberProfileSheet({
       <SheetContent>
         {showGuestEditor ? (
           <>
-            {/* Identity zone */}
-            <SheetHeader className="items-center text-center">
+            {/* Identity zone — mirrors the standard member header:
+                left-aligned Playfair title, description below, avatar
+                centered in SheetBody */}
+            <SheetHeader>
               <GuestNameTitle member={member} tripId={tripId as string} />
               <SheetDescription>
                 Guest{statusSuffix(member?.status)}
@@ -538,17 +511,15 @@ function GuestNameTitle({
   };
 
   return (
-    <div className="flex w-full flex-col items-center gap-1">
+    <div className="flex w-full flex-col items-start gap-1">
       <SheetTitle className="sr-only">{member.displayName}</SheetTitle>
-      <div className="flex items-center justify-center">
-        <Input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={handleBlur}
-          aria-label="Guest name"
-          className="h-auto w-auto max-w-55 border-transparent bg-transparent p-0 text-center font-playfair text-3xl tracking-tight shadow-none focus-visible:border-transparent focus-visible:underline focus-visible:ring-0"
-        />
-      </div>
+      <Input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onBlur={handleBlur}
+        aria-label="Guest name"
+        className="h-auto w-full border-transparent bg-transparent p-0 text-left font-playfair text-3xl tracking-tight shadow-none focus-visible:border-transparent focus-visible:underline focus-visible:ring-0"
+      />
       {error && (
         <p role="alert" className="text-xs text-destructive">
           {error}
