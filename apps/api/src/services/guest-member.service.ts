@@ -1,5 +1,5 @@
 import { members, users, payments, invitations } from "@/db/schema/index.js";
-import { eq, and, count, isNull, ne } from "drizzle-orm";
+import { eq, and, count, ne, inArray } from "drizzle-orm";
 import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
 import type {
@@ -12,12 +12,16 @@ import {
   MemberLimitExceededError,
   DuplicateMemberError,
   MemberNotFoundError,
+  GuestHasPaymentsError,
 } from "../errors.js";
 
 export const MAX_TRIP_MEMBERS = 25;
 
-/** Executor supporting SELECT ... FOR UPDATE + UPDATEs (db or caller tx). */
-type ClaimExecutor = Pick<AppDatabase, "select" | "update">;
+/** Executor supporting SELECT ... FOR UPDATE + UPDATEs + savepoint tx (db or caller tx). */
+type ClaimExecutor = Pick<
+  AppDatabase,
+  "select" | "update" | "transaction"
+>;
 
 export interface ClaimGuestMemberInput {
   tripId: string;
@@ -132,6 +136,26 @@ export class GuestMemberService implements IGuestMemberService {
           "A guest with this phone number is already in this trip",
         );
       }
+
+      // Guard: guestPhone matches a pending/failed invitation for the same
+      // trip -> 409. Such a guest becomes a hidden member (excluded from
+      // getTripMembers, visible only in Invited).
+      const invitedPhoneMatch = await this.db
+        .select({ id: invitations.id })
+        .from(invitations)
+        .where(
+          and(
+            eq(invitations.tripId, tripId),
+            eq(invitations.inviteePhone, guestPhone),
+            inArray(invitations.status, ["pending", "failed"]),
+          ),
+        )
+        .limit(1);
+      if (invitedPhoneMatch.length > 0) {
+        throw new DuplicateMemberError(
+          "This phone number has a pending invitation for this trip",
+        );
+      }
     }
 
     const [guest] = await this.db
@@ -193,8 +217,9 @@ export class GuestMemberService implements IGuestMemberService {
     await this.requireOrganizer(requesterUserId, tripId);
     const guest = await this.requireGuestRow(tripId, memberId);
 
-    // Payer-protected: payments.member_id is ON DELETE RESTRICT — surface a
-    // 409 with a actionable message instead of a raw FK violation.
+    // Payer-protected: payments.member_id is ON DELETE RESTRICT regardless
+    // of soft-delete — include soft-deleted payments in the pre-check so the
+    // clean 409 path fires instead of a raw FK 500.
     const payerRows = await this.db
       .select({ id: payments.id })
       .from(payments)
@@ -202,13 +227,12 @@ export class GuestMemberService implements IGuestMemberService {
         and(
           eq(payments.tripId, tripId),
           eq(payments.memberId, guest.id),
-          isNull(payments.deletedAt),
         ),
       )
       .limit(1);
     if (payerRows.length > 0) {
-      throw new DuplicateMemberError(
-        "Cannot delete this guest: reassign or delete payments paid by this guest first",
+      throw new GuestHasPaymentsError(
+        "Guest has payments — reassign or delete them first",
       );
     }
 
@@ -263,16 +287,57 @@ export class GuestMemberService implements IGuestMemberService {
       return { claimed: false, alreadyClaimed: true, member: guest };
     }
 
-    const [claimed] = await tx
-      .update(members)
-      .set({
-        userId: input.userId,
-        claimedAt: new Date(),
-        guestDisplayName: null,
-        guestPhone: null,
-      })
-      .where(eq(members.id, guest.id))
-      .returning();
+    // Backstop for the concurrent-claim race: two txns can both pass the
+    // pre-check above; the loser hits the partial unique index
+    // members_trip_user_unique (23505) on UPDATE. Catch it and return the
+    // existing already-claimed semantics instead of an uncaught 500.
+    let claimed;
+    try {
+      // Savepoint: a 23505 aborts the surrounding tx (25P02) unless the
+      // failing statement is rolled back to a savepoint first.
+      claimed = await tx.transaction(async (sp) => {
+        const [row] = await sp
+          .update(members)
+          .set({
+            userId: input.userId,
+            claimedAt: new Date(),
+            guestDisplayName: null,
+            guestPhone: null,
+          })
+          .where(eq(members.id, guest.id))
+          .returning();
+        return row;
+      });
+    } catch (err) {
+      // Drizzle wraps driver errors: the 23505 may sit on err.code or
+      // err.cause.code depending on the wrap layer.
+      const pgCode =
+        err !== null && typeof err === "object"
+          ? ((err as { code?: unknown }).code ??
+            (err as { cause?: { code?: unknown } }).cause?.code)
+          : undefined;
+      if (pgCode === "23505") {
+        const [existing] = await tx
+          .select()
+          .from(members)
+          .where(
+            and(
+              eq(members.tripId, input.tripId),
+              eq(members.userId, input.userId),
+            ),
+          )
+          .limit(1);
+        if (!existing) {
+          // The winner's update is not yet visible to this tx snapshot and
+          // the guest row update was rejected — surface as a clean conflict.
+          throw new DuplicateMemberError(
+            "Member already claimed for this user",
+          );
+        }
+        return { claimed: false, alreadyClaimed: true, member: existing };
+      }
+      throw err;
+    }
 
     await tx
       .update(invitations)

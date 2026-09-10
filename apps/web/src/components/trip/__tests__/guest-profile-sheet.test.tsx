@@ -348,4 +348,90 @@ describe("MemberProfileSheet guest redesign", () => {
     });
     expect(mockToast.error).not.toHaveBeenCalled();
   });
+
+  it("Enter commits the name edit (Escape still cancels)", async () => {
+    const user = userEvent.setup();
+    renderSheet();
+    await user.click(screen.getByRole("button", { name: "Edit guest name" }));
+    const nameInput = screen.getByLabelText("Guest name");
+    await user.clear(nameInput);
+    await user.type(nameInput, "Mama{enter}");
+    await waitFor(() => {
+      expect(mockUpdateMutate).toHaveBeenCalledWith({
+        memberId: "member-guest-1",
+        data: { displayName: "Mama" },
+      });
+    });
+  });
+
+  it("phone draft re-syncs when the member row changes while not editing", async () => {
+    const onOpenChange = vi.fn();
+    const { rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <MemberProfileSheet
+          member={guestMom}
+          open={true}
+          onOpenChange={onOpenChange}
+          tripId="trip-123"
+          isOrganizer={true}
+        />
+      </QueryClientProvider>,
+    );
+    expect(screen.getByLabelText("Guest phone number")).toHaveProperty(
+      "value",
+      "+14155551111",
+    );
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <MemberProfileSheet
+          member={{ ...guestMom, guestPhone: "+14155559999" }}
+          open={true}
+          onOpenChange={onOpenChange}
+          tripId="trip-123"
+          isOrganizer={true}
+        />
+      </QueryClientProvider>,
+    );
+    await waitFor(() => {
+      expect(screen.getByLabelText("Guest phone number")).toHaveProperty(
+        "value",
+        "+14155559999",
+      );
+    });
+  });
+
+  it("routes post-update invite failures through the invite error message", async () => {
+    const user = userEvent.setup();
+    mockUpdateMutate.mockResolvedValue(guestMom);
+    mockInviteMutate.mockRejectedValueOnce(
+      Object.assign(new Error("invite boom"), { code: "RATE_LIMITED" }),
+    );
+    renderSheet();
+    const phoneInput = screen.getByLabelText("Guest phone number");
+    await user.clear(phoneInput);
+    await user.type(phoneInput, "+14155552222");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    await waitFor(() => {
+      expect(mockToast.error).toHaveBeenCalledWith("Failed to invite");
+    });
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("rsvp pills expose aria-pressed with the current status active", () => {
+    renderSheet();
+    expect(
+      screen.getByRole("button", { name: "No response" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(
+      screen.getByRole("button", { name: "Going" }).getAttribute("aria-pressed"),
+    ).toBe("false");
+  });
+
+  it("edit pencil is visible on touch (opacity-40 at rest)", () => {
+    renderSheet();
+    // Sheet content renders into a Radix portal — query via screen, not container
+    const editBtn = screen.getByRole("button", { name: "Edit guest name" });
+    const pencil = editBtn.querySelector("svg");
+    expect(pencil?.getAttribute("class") ?? "").toContain("opacity-40");
+  });
 });

@@ -35,6 +35,11 @@ export const CannotRemoveCreatorError = createError(
   400,
 );
 export const DuplicateMemberError = createError("DUPLICATE_MEMBER", "%s", 409);
+export const GuestHasPaymentsError = createError(
+  "GUEST_HAS_PAYMENTS",
+  "%s",
+  409,
+);
 export const CoOrganizerNotInTripError = createError(
   "CO_ORGANIZER_NOT_IN_TRIP",
   "Co-organizer not found in trip",

@@ -73,9 +73,9 @@ export function BalanceList({ tripId, onSettleUp }: BalanceListProps) {
         <BalanceItem
           key={i}
           entry={entry}
-                    // Balance person ids are member ids — pass the viewer's member id
+          // Balance person ids are member ids — pass the viewer's member id
           // so "You" labels resolve (guests never match).
-          {...(currentMember ? { currentUserId: currentMember.id } : {})}
+          {...(currentMember ? { currentMemberId: currentMember.id } : {})}
           {...(onSettleUp ? { onSettleUp } : {})}
         />
       ))}

@@ -505,6 +505,7 @@ describe("guest-member.service update/delete/get (Task 3.2)", () => {
 
   it("delete of a guest who is a payer -> 409 until the payment is deleted", async () => {
     const { payments } = await import("@/db/schema/index.js");
+    const { GuestHasPaymentsError } = await import("@/errors.js");
     const guest = await guestMemberService.createGuest(tripId, organizerId, {
       displayName: "Mom",
     });
@@ -521,7 +522,10 @@ describe("guest-member.service update/delete/get (Task 3.2)", () => {
 
     await expect(
       guestMemberService.deleteGuest(tripId, organizerId, guest.id),
-    ).rejects.toThrow(/reassign or delete payments paid by this guest first/);
+    ).rejects.toThrow(GuestHasPaymentsError);
+    await expect(
+      guestMemberService.deleteGuest(tripId, organizerId, guest.id),
+    ).rejects.toThrow(/reassign or delete them first/);
     // Guest row still present after the blocked delete
     expect(
       await db

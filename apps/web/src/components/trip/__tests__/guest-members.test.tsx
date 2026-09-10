@@ -260,11 +260,11 @@ describe("MembersList guest rows (Task 7.1)", () => {
     expect(screen.getByText("Mom")).toBeDefined();
     expect(screen.getByText("+14155551111")).toBeDefined();
     expect(
-      screen.getByLabelText("Revoke invitation to +14155551111"),
+      screen.getByLabelText("Actions for Mom"),
     ).toBeDefined();
     // Unrelated pending invitation still shows
     expect(
-      screen.getByLabelText("Revoke invitation to +15559990000"),
+      screen.getByLabelText("Actions for +15559990000"),
     ).toBeDefined();
   });
 

@@ -217,6 +217,27 @@ describe("InviteMembersDialog", () => {
       });
     });
 
+    it("dismiss (X) buttons expose a visible keyboard focus ring", async () => {
+      const user = userEvent.setup();
+      renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
+
+      const phoneInput = screen.getByTestId("phone-input");
+      const addButton = screen.getByRole("button", { name: /add phone number/i });
+
+      await user.type(phoneInput, "+14155552671");
+      await user.click(addButton);
+
+      await waitFor(() => {
+        expect(screen.getByText("+14155552671")).toBeDefined();
+      });
+
+      const removeButton = screen.getByRole("button", {
+        name: /remove \+14155552671/i,
+      });
+      expect(removeButton.className).toContain("focus-visible:outline-2");
+      expect(removeButton.className).toContain("focus-visible:outline-ring");
+    });
+
     it("removes phone chip when X button is clicked", async () => {
       const user = userEvent.setup();
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);

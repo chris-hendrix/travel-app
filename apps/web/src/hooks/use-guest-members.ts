@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, APIError } from "@/lib/api";
 import type { MemberWithProfile } from "@journiful/shared/types";
-import { memberKeys } from "./invitation-queries";
+import { memberKeys, invitationKeys } from "./invitation-queries";
 import { tripKeys } from "./trip-queries";
 
 export interface UpdateGuestInput {
@@ -37,6 +37,7 @@ export function useUpdateGuest(tripId: string) {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: memberKeys.list(tripId) });
+      queryClient.invalidateQueries({ queryKey: invitationKeys.list(tripId) });
       queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
     },
   });

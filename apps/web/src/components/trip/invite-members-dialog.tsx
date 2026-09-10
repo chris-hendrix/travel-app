@@ -74,7 +74,7 @@ function DismissButton({
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
-      className="flex size-6 shrink-0 items-center justify-center rounded-full bg-foreground/10 transition-colors hover:bg-foreground/20"
+      className="flex size-6 shrink-0 items-center justify-center rounded-full bg-foreground/10 transition-colors hover:bg-foreground/20 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
     >
       <X className="size-3.5" />
     </button>

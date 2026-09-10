@@ -105,6 +105,21 @@ function GuestEditor({
   const [rsvpError, setRsvpError] = useState<string | null>(null);
   const [phone, setPhone] = useState(savedPhone);
   const [phoneError, setPhoneError] = useState<string | null>(null);
+  const savedPhoneRef = useRef(savedPhone);
+
+  // Keep the phone draft in sync if the member row changes underneath us
+  // (refetch after claim / remote edit). Only adopt the server value when the
+  // draft is untouched — never clobber an in-progress edit. Focus is NOT the
+  // gate: clicking Send blurs the input and must not reset the draft.
+  useEffect(() => {
+    const nextSaved = member.guestPhone ?? member.phoneNumber ?? "";
+    if (nextSaved === savedPhoneRef.current) return;
+    const untouched = phone.trim() === savedPhoneRef.current.trim();
+    savedPhoneRef.current = nextSaved;
+    if (untouched) setPhone(nextSaved);
+    // Intentionally not listing `phone` in deps: this effect only reacts to
+    // server-side member row changes and reads the draft via a ref pattern.
+  }, [member.guestPhone, member.phoneNumber]);
   const [mutualError, setMutualError] = useState<string | null>(null);
   const [selectedMutualId, setSelectedMutualId] = useState<string>("");
   const [removeOpen, setRemoveOpen] = useState(false);
@@ -146,12 +161,14 @@ function GuestEditor({
       return;
     }
     setPhoneError(null);
+    let guestUpdated = false;
     try {
       if (trimmed !== savedPhone.trim()) {
         await updateGuest.mutateAsync({
           memberId: member.id,
           data: { guestPhone: trimmed },
         });
+        guestUpdated = true;
       }
       await inviteMembers.mutateAsync({
         phoneNumbers: [trimmed],
@@ -163,7 +180,14 @@ function GuestEditor({
       // on the Invited tab phone row.
       onClaimed();
     } catch (error) {
-      if (error instanceof Error && "code" in error) {
+      // Branch on which mutation threw: a post-update invite failure is an
+      // invite error even though the APIError carries a `code` field.
+      if (guestUpdated) {
+        toast.error(
+          getInviteMembersErrorMessage(error as Error) ??
+            "Failed to send invite",
+        );
+      } else if (error instanceof Error && "code" in error) {
         setPhoneError(
           getUpdateGuestErrorMessage(error as Error) ??
             "Failed to send invite",
@@ -244,7 +268,9 @@ function GuestEditor({
         {/* Phone row */}
         <div className="space-y-1">
           <div className="flex h-10 items-stretch overflow-hidden rounded-lg border border-input bg-background focus-within:border-ring">
-            <div className="flex min-w-0 flex-1 items-center gap-1 px-3">
+            <div
+              className="flex min-w-0 flex-1 items-center gap-1 px-3"
+            >
               <span aria-hidden className="text-muted-foreground">
                 📱
               </span>
@@ -529,7 +555,10 @@ function GuestNameTitle({
     key: string;
     preventDefault: () => void;
   }) => {
-    if (e.key === "Escape") {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      inputRef.current?.blur();
+    } else if (e.key === "Escape") {
       setName(member.displayName);
       setError(null);
       setEditing(false);
@@ -549,7 +578,7 @@ function GuestNameTitle({
           {member.displayName}
           <Pencil
             aria-hidden
-            className="size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+            className="size-4 shrink-0 text-muted-foreground opacity-40 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
           />
         </button>
         {error && (

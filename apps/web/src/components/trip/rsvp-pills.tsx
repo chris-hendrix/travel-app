@@ -51,13 +51,17 @@ const noResponsePill: (typeof pills)[number] = {
   hoverClass: "hover:bg-muted/60",
 };
 
-interface RsvpPillsProps {
-  tripId?: string;
+interface RsvpPillsCommon {
   status: RsvpStatus;
-  onSelect?: (status: RsvpStatus) => void;
   pending?: string | null;
   includeNoResponse?: boolean;
 }
+
+type RsvpPillsProps = RsvpPillsCommon &
+  (
+    | { onSelect: (status: RsvpStatus) => void; tripId?: string }
+    | { onSelect?: undefined; tripId: string }
+  );
 
 function PillsView({
   status,
@@ -85,6 +89,7 @@ function PillsView({
             variant="outline"
             size="sm"
             disabled={busy}
+            aria-pressed={isActive}
             onClick={() => onPick(pill.value)}
             className={cn(
               "h-10",
@@ -167,11 +172,15 @@ export function RsvpPills({
     );
   }
 
+  // Uncontrolled self-RSVP: the mutation only accepts going/maybe/not_going —
+  // never emit no_response down this path even if includeNoResponse is set.
+  const selfPills = visiblePills.filter((p) => p.value !== "no_response");
+
   return (
     <UncontrolledPills
-      tripId={tripId ?? ""}
+      tripId={tripId}
       status={status}
-      visiblePills={visiblePills}
+      visiblePills={selfPills}
     />
   );
 }

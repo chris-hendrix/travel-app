@@ -9,18 +9,16 @@ interface PaymentItemProps {
   onClick?: (payment: Payment) => void;
   /** Member id of the viewer (member-keyed; a guest row never matches). */
   currentMemberId?: string;
-  /** @deprecated — pass currentMemberId instead (ids are member ids). */
-  currentUserId?: string;
 }
 
 function formatCents(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-export function PaymentItem({ payment, onClick, currentMemberId, currentUserId }: PaymentItemProps) {
+export function PaymentItem({ payment, onClick, currentMemberId }: PaymentItemProps) {
   // Null-safe You-labels: member-keyed comparison only. Guests have
   // userId null and never equal the viewer's member id.
-  const viewerMemberId = currentMemberId ?? currentUserId;
+  const viewerMemberId = currentMemberId;
   const isCurrentUserPayer =
     !!viewerMemberId && payment.payerMemberId === viewerMemberId;
   const payerName = isCurrentUserPayer ? "You" : (payment.payerName ?? "Someone");

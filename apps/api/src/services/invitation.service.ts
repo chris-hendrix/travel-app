@@ -1573,6 +1573,17 @@ export class InvitationService implements IInvitationService {
           guestPhone: invitation.inviteePhone,
         });
         if (!claim.claimed) {
+          // Cap: the insert leg bypasses batch-create's limit check —
+          // enforce the same 25-member cap here.
+          const [countRow] = await tx
+            .select({ value: count() })
+            .from(members)
+            .where(eq(members.tripId, invitation.tripId));
+          if ((countRow?.value ?? 0) + 1 > 25) {
+            throw new MemberLimitExceededError(
+              "Member limit exceeded: trip already has 25 members",
+            );
+          }
           await tx.insert(members).values({
             tripId: invitation.tripId,
             userId,
