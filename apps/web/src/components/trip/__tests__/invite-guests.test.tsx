@@ -82,7 +82,7 @@ describe("InviteMembersDialog guest section (Task 7.5)", () => {
     expect(
       screen.getByText(/No app needed — you plan for them, they can claim their spot later/),
     ).toBeDefined();
-    expect(screen.getByRole("button", { name: /\+ add guest/i })).toHaveProperty("disabled", true);
+    expect(screen.getByRole("button", { name: /add guest/i })).toHaveProperty("disabled", true);
   });
 
   it("add guest name-only shows terracotta chip and submits to POST guests endpoint", async () => {
@@ -92,7 +92,7 @@ describe("InviteMembersDialog guest section (Task 7.5)", () => {
     renderDialog();
 
     await user.type(screen.getByLabelText("Guest name"), "Mom");
-    await user.click(screen.getByRole("button", { name: /\+ add guest/i }));
+    await user.click(screen.getByRole("button", { name: /add guest/i }));
 
     await waitFor(() => {
       expect(screen.getByTestId("guest-chips")).toBeDefined();
@@ -120,12 +120,12 @@ describe("InviteMembersDialog guest section (Task 7.5)", () => {
 
     await user.type(screen.getByLabelText("Guest name"), "Mom");
     await user.type(screen.getByTestId("guest-phone-input"), "+14155552671");
-    await user.click(screen.getByRole("button", { name: /\+ add guest/i }));
+    await user.click(screen.getByRole("button", { name: /add guest/i }));
     await waitFor(() => expect(screen.getByText("Mom")).toBeDefined());
 
     await user.type(screen.getByLabelText("Guest name"), "Grandma");
     await user.type(screen.getByTestId("guest-phone-input"), "+14155552671");
-    await user.click(screen.getByRole("button", { name: /\+ add guest/i }));
+    await user.click(screen.getByRole("button", { name: /add guest/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/this phone number is already added/i)).toBeDefined();
@@ -140,7 +140,7 @@ describe("InviteMembersDialog guest section (Task 7.5)", () => {
 
     await user.type(screen.getByLabelText("Guest name"), "Mom");
     await user.type(screen.getByTestId("guest-phone-input"), "+14155552671");
-    await user.click(screen.getByRole("button", { name: /\+ add guest/i }));
+    await user.click(screen.getByRole("button", { name: /add guest/i }));
     await waitFor(() => expect(screen.getByText("Mom")).toBeDefined());
 
     await user.click(screen.getByRole("button", { name: /send invitations/i }));

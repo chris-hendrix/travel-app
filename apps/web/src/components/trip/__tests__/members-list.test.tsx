@@ -480,7 +480,7 @@ describe("MembersList", () => {
       expect(sentTexts.length).toBe(2);
     });
 
-    it("shows revoke button on pending invitation rows", async () => {
+    it("shows actions menu on pending invitation rows", async () => {
       mockUseInvitations.mockReturnValue({
         data: mockInvitations,
         isPending: false,
@@ -495,17 +495,26 @@ describe("MembersList", () => {
 
       expect(
         screen.getByRole("button", {
-          name: "Revoke invitation to +14155550001",
+          name: "Actions for +14155550001",
         }),
       ).toBeDefined();
       expect(
         screen.getByRole("button", {
-          name: "Revoke invitation to +14155550002",
+          name: "Actions for +14155550002",
         }),
+      ).toBeDefined();
+
+      await user.click(
+        screen.getByRole("button", {
+          name: "Actions for +14155550001",
+        }),
+      );
+      expect(
+        screen.getByRole("menuitem", { name: /revoke invitation/i }),
       ).toBeDefined();
     });
 
-    it("calls revokeInvitation when revoke button is clicked", async () => {
+    it("calls revokeInvitation from the actions menu", async () => {
       mockUseInvitations.mockReturnValue({
         data: mockInvitations,
         isPending: false,
@@ -518,10 +527,14 @@ describe("MembersList", () => {
 
       await user.click(screen.getByRole("tab", { name: /Invited/ }));
 
-      const revokeButton = screen.getByRole("button", {
-        name: "Revoke invitation to +14155550001",
-      });
-      await user.click(revokeButton);
+      await user.click(
+        screen.getByRole("button", {
+          name: "Actions for +14155550001",
+        }),
+      );
+      await user.click(
+        screen.getByRole("menuitem", { name: /revoke invitation/i }),
+      );
 
       expect(mockRevokeInvitation.mutateAsync).toHaveBeenCalledWith("inv-1");
     });

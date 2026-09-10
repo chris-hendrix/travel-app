@@ -306,15 +306,28 @@ function PendingInvitationRow({
         </span>
       </div>
 
-      <Button
-        variant="ghost"
-        size="icon-xs"
-        onClick={() => onRevoke(invitation.id)}
-        disabled={isRevoking}
-        aria-label={`Revoke invitation to ${invitation.inviteePhone}`}
-      >
-        <X />
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="text-muted-foreground"
+            aria-label={`Actions for ${guestName ?? invitation.inviteePhone}`}
+          >
+            <EllipsisVertical />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            variant="destructive"
+            disabled={isRevoking}
+            onSelect={() => onRevoke(invitation.id)}
+          >
+            <X className="h-4 w-4" />
+            Revoke invitation
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }
