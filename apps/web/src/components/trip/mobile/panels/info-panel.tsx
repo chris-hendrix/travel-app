@@ -26,7 +26,6 @@ import { CalendarSyncCard } from "@/components/trip/calendar-sync-card";
 import { membersQueryOptions } from "@/hooks/invitation-queries";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/app/providers/auth-provider";
-import type { MemberWithProfile } from "@journiful/shared/types";
 import { TodaySection } from "./today-section";
 
 import { linkifyText } from "@/utils/linkify";
@@ -78,7 +77,7 @@ interface InfoPanelProps {
   weather: TripWeatherResponse | undefined;
   weatherLoading: boolean;
   temperatureUnit: TemperatureUnit;
-  currentMember: { id: string; userId: string | null; isMuted: boolean | undefined } | undefined;
+  currentMember: { id: string; userId: string | null; isMuted?: boolean } | undefined;
   onOpenInvite: () => void;
   onOpenEdit: () => void;
   onOpenSettings: () => void;
@@ -119,12 +118,18 @@ export function InfoPanel({
   const [editingAccommodation, setEditingAccommodation] = useState<Accommodation | null>(null);
   const [isCreateAccommodationOpen, setIsCreateAccommodationOpen] = useState(false);
   const [isCreateEventOpen, setIsCreateEventOpen] = useState(false);
-  const [profileMember, setProfileMember] = useState<MemberWithProfile | null>(null);
+  // Track the selected member by id and resolve the live row from the
+  // members query — a stored snapshot goes stale after PATCHes (RSVP/name),
+  // so the sheet would render old data until reopened.
+  const [profileMemberId, setProfileMemberId] = useState<string | null>(null);
 
   const { data: members } = useQuery({
     ...membersQueryOptions(tripId),
     enabled: !!tripId,
   });
+
+  const profileMember =
+    members?.find((m) => m.id === profileMemberId) ?? null;
 
   // Trip is locked one day after end date
   const isLocked = useMemo(() => {
@@ -285,7 +290,7 @@ export function InfoPanel({
                     <span key={org.id}>
                       {i > 0 && ", "}
                       <button
-                        onClick={() => member && setProfileMember(member)}
+                        onClick={() => member && setProfileMemberId(member.id)}
                         className="text-primary hover:underline transition-colors"
                       >
                         {org.displayName}
@@ -511,7 +516,7 @@ export function InfoPanel({
         tripId={tripId}
         isOrganizer={isOrganizer}
         onOpenChange={(open) => {
-          if (!open) setProfileMember(null);
+          if (!open) setProfileMemberId(null);
         }}
       />
     </div>

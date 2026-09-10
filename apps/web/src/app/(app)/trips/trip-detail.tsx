@@ -132,7 +132,10 @@ export function TripDetailShell() {
     member: MemberWithProfile;
   } | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [profileMember, setProfileMember] = useState<MemberWithProfile | null>(null);
+  // Track the selected member by id and resolve the live row from the
+  // members query — a stored snapshot goes stale after PATCHes (RSVP/name),
+  // so the sheet would render old data until reopened.
+  const [profileMemberId, setProfileMemberId] = useState<string | null>(null);
   const [selectedAccommodation, setSelectedAccommodation] =
     useState<Accommodation | null>(null);
   const [editingAccommodation, setEditingAccommodation] =
@@ -144,8 +147,6 @@ export function TripDetailShell() {
   const { data: members } = useQuery({
     ...membersQueryOptions(tripId),
     enabled: !!tripId,
-    select: (data) =>
-      data.map((m) => ({ id: m.id, userId: m.userId, isMuted: m.isMuted })),
   });
   // Null-safe: guests have userId null, so never match a logged-in user.
   // Without the user?.id guard, a logged-out viewer (user?.id undefined)
@@ -153,6 +154,10 @@ export function TripDetailShell() {
   const currentMember = user?.id
     ? members?.find((m) => m.userId === user.id)
     : undefined;
+  // Resolve the live member row for the profile sheet from the members query
+  // so PATCHes (RSVP, name, claim) re-render it instead of a stale snapshot.
+  const profileMember =
+    members?.find((m) => m.id === profileMemberId) ?? null;
   const isMobile = useIsMobile();
   const { data: weather, isLoading: weatherLoading } =
     useWeatherForecast(tripId);
@@ -569,7 +574,7 @@ export function TripDetailShell() {
                   }}
                   onRemove={(member) => setRemovingMember({ member })}
                   onUpdateRole={handleUpdateRole}
-                  onMemberClick={(member) => setProfileMember(member)}
+                  onMemberClick={(member) => setProfileMemberId(member.id)}
                 />
               )}
             </SheetBody>
@@ -641,7 +646,7 @@ export function TripDetailShell() {
           tripId={tripId}
           isOrganizer={isOrganizer}
           onOpenChange={(open) => {
-            if (!open) setProfileMember(null);
+            if (!open) setProfileMemberId(null);
           }}
         />
       </div>

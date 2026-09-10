@@ -15,7 +15,6 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
@@ -427,12 +426,7 @@ export function MemberProfileSheet({
           <>
             <SheetHeader>
               <SheetTitle className="text-3xl font-playfair tracking-tight">
-                {member?.displayName ?? ""}{" "}
-                {isGuest && (
-                  <Badge className="bg-accent text-accent-foreground align-middle">
-                    Guest
-                  </Badge>
-                )}
+                {member?.displayName ?? ""}
               </SheetTitle>
               <SheetDescription>
                 {isGuest ? (
@@ -546,7 +540,7 @@ function GuestNameTitle({
   return (
     <div className="flex w-full flex-col items-center gap-1">
       <SheetTitle className="sr-only">{member.displayName}</SheetTitle>
-      <div className="flex items-center justify-center gap-2">
+      <div className="flex items-center justify-center">
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -554,9 +548,6 @@ function GuestNameTitle({
           aria-label="Guest name"
           className="h-auto w-auto max-w-55 border-transparent bg-transparent p-0 text-center font-playfair text-3xl tracking-tight shadow-none focus-visible:border-transparent focus-visible:underline focus-visible:ring-0"
         />
-        <Badge className="bg-accent text-accent-foreground align-middle">
-          Guest
-        </Badge>
       </div>
       {error && (
         <p role="alert" className="text-xs text-destructive">

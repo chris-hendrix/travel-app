@@ -291,8 +291,10 @@ describe("MemberProfileSheet guest redesign", () => {
     expect(screen.queryByRole("button", { name: "Invite" })).toBeNull();
     expect(screen.queryByRole("button", { name: /^remove guest/i })).toBeNull();
     expect(screen.queryByRole("radiogroup")).toBeNull();
-    // Guest identity chrome still renders
-    expect(screen.getByText("Guest")).toBeDefined();
+    // Guest identity chrome still renders (description line, no badge)
+    expect(
+      screen.getByText((_, el) => el?.textContent === "Guest · No response"),
+    ).toBeDefined();
   });
 
   it("rsvp failure surfaces an inline error", async () => {
