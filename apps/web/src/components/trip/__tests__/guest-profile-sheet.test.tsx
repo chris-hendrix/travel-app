@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -21,6 +21,27 @@ vi.mock("@/lib/api", () => ({
     }
   },
   getUploadUrl: (u: string | null) => u || "",
+}));
+
+// Mock PhoneInput as a plain tel input (same seam as invite dialog tests)
+vi.mock("@/components/ui/phone-input", () => ({
+  PhoneInput: ({
+    value,
+    onChange,
+    placeholder,
+  }: {
+    value?: string;
+    onChange?: (value?: string) => void;
+    placeholder?: string;
+  }) => (
+    <input
+      type="tel"
+      value={value || ""}
+      onChange={(e) => onChange?.(e.target.value)}
+      placeholder={placeholder}
+      aria-label="Guest phone number"
+    />
+  ),
 }));
 
 const mockUseInvitations = vi.fn();
@@ -49,6 +70,31 @@ vi.mock("@/hooks/use-guest-members", () => ({
 }));
 
 let queryClient: QueryClient;
+
+// Radix Select calls hasPointerCapture/setPointerCapture/releasePointerCapture
+// which are not available in jsdom -- stub them on Element.prototype
+let originalHasPointerCapture: typeof Element.prototype.hasPointerCapture;
+let originalSetPointerCapture: typeof Element.prototype.setPointerCapture;
+let originalReleasePointerCapture: typeof Element.prototype.releasePointerCapture;
+let originalScrollIntoView: typeof Element.prototype.scrollIntoView;
+
+beforeEach(() => {
+  originalHasPointerCapture = Element.prototype.hasPointerCapture;
+  originalSetPointerCapture = Element.prototype.setPointerCapture;
+  originalReleasePointerCapture = Element.prototype.releasePointerCapture;
+  originalScrollIntoView = Element.prototype.scrollIntoView;
+  Element.prototype.hasPointerCapture = vi.fn(() => false);
+  Element.prototype.setPointerCapture = vi.fn();
+  Element.prototype.releasePointerCapture = vi.fn();
+  Element.prototype.scrollIntoView = vi.fn();
+});
+
+afterEach(() => {
+  Element.prototype.hasPointerCapture = originalHasPointerCapture;
+  Element.prototype.setPointerCapture = originalSetPointerCapture;
+  Element.prototype.releasePointerCapture = originalReleasePointerCapture;
+  Element.prototype.scrollIntoView = originalScrollIntoView;
+});
 
 const guestMom: MemberWithProfile = {
   id: "member-guest-1",
@@ -103,18 +149,90 @@ const renderSheet = (props?: Partial<React.ComponentProps<typeof MemberProfileSh
     </QueryClientProvider>,
   );
 
-describe("MemberProfileSheet guest claim actions (Task 7.3)", () => {
-  it("send-invite happy path toasts the guest phone", async () => {
+describe("MemberProfileSheet guest redesign", () => {
+  it("name blur-save PATCHes displayName", async () => {
     const user = userEvent.setup();
     renderSheet();
-    await user.click(screen.getByRole("button", { name: /send invite/i }));
+    const nameInput = screen.getByLabelText("Guest name");
+    expect(nameInput).toHaveProperty("value", "Mom");
+    await user.clear(nameInput);
+    await user.type(nameInput, "Mama");
+    await user.tab();
     await waitFor(() => {
-      expect(mockInviteMutate).toHaveBeenCalledWith({ phoneNumbers: ["+14155551111"], userIds: [] });
-      expect(mockToast.success).toHaveBeenCalledWith("Invite sent to +14155551111");
+      expect(mockUpdateMutate).toHaveBeenCalledWith({
+        memberId: "member-guest-1",
+        data: { displayName: "Mama" },
+      });
+      expect(mockToast.success).toHaveBeenCalledWith("Guest updated");
+    });
+    // Phone key omitted entirely (never null)
+    const sent = mockUpdateMutate.mock.calls[0][0] as { data: Record<string, unknown> };
+    expect("guestPhone" in sent.data).toBe(false);
+  });
+
+  it("RSVP click PATCHes status instantly", async () => {
+    const user = userEvent.setup();
+    renderSheet();
+    await user.click(screen.getByRole("radio", { name: "Going" }));
+    await waitFor(() => {
+      expect(mockUpdateMutate).toHaveBeenCalledWith({
+        memberId: "member-guest-1",
+        data: { status: "going" },
+      });
     });
   });
 
-  it("send-invite button is disabled while a pending invitation exists", () => {
+  it("phone row Send PATCHes then invites when number changed", async () => {
+    const user = userEvent.setup();
+    renderSheet();
+    const phoneInput = screen.getByLabelText("Guest phone number");
+    await user.clear(phoneInput);
+    await user.type(phoneInput, "+14155552222");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    await waitFor(() => {
+      expect(mockUpdateMutate).toHaveBeenCalledWith({
+        memberId: "member-guest-1",
+        data: { guestPhone: "+14155552222" },
+      });
+      expect(mockInviteMutate).toHaveBeenCalledWith({
+        phoneNumbers: ["+14155552222"],
+        userIds: [],
+      });
+      expect(mockToast.success).toHaveBeenCalledWith(
+        "Invite sent to +14155552222",
+      );
+    });
+  });
+
+  it("phone row Send invites only when number unchanged", async () => {
+    const user = userEvent.setup();
+    renderSheet();
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    await waitFor(() => {
+      expect(mockInviteMutate).toHaveBeenCalledWith({
+        phoneNumbers: ["+14155551111"],
+        userIds: [],
+      });
+      expect(mockToast.success).toHaveBeenCalledWith(
+        "Invite sent to +14155551111",
+      );
+    });
+    expect(mockUpdateMutate).not.toHaveBeenCalled();
+  });
+
+  it("Send is disabled when the phone field is empty", async () => {
+    const user = userEvent.setup();
+    renderSheet();
+    const phoneInput = screen.getByLabelText("Guest phone number");
+    await user.clear(phoneInput);
+    expect(screen.getByRole("button", { name: "Send" })).toHaveProperty(
+      "disabled",
+      true,
+    );
+    expect(mockInviteMutate).not.toHaveBeenCalled();
+  });
+
+  it("shows muted 'Invite sent ✓' when a pending invitation exists", () => {
     mockUseInvitations.mockReturnValue({
       data: [
         { id: "inv-1", tripId: "trip-123", inviterId: "u", inviteePhone: "+14155551111", status: "pending", sentAt: "", respondedAt: null, createdAt: "", updatedAt: "" },
@@ -122,41 +240,34 @@ describe("MemberProfileSheet guest claim actions (Task 7.3)", () => {
       isPending: false,
     });
     renderSheet();
-    const btn = screen.getByRole("button", { name: /invite sent/i });
-    expect(btn).toHaveProperty("disabled", true);
+    expect(
+      screen.getByRole("button", { name: /invite sent/i }),
+    ).toBeDefined();
   });
 
-  it("attach-to-mutual confirm claims and toasts 'Mom is now Sarah Chen'", async () => {
+  it("mutual row Invite is disabled until a mutual is selected, then claims", async () => {
     const user = userEvent.setup();
     const onOpenChange = vi.fn();
     renderSheet({ onOpenChange });
-    await user.click(screen.getByRole("button", { name: /attach to a mutual/i }));
-    await user.click(screen.getByRole("radio", { name: /sarah chen/i }));
-    await waitFor(() => {
-      expect(screen.getByText(/Attach Mom to Sarah Chen\?/)).toBeDefined();
-    });
-    await user.click(screen.getByRole("button", { name: /attach to sarah chen/i }));
-    await waitFor(() => {
-      expect(mockInviteMutate).toHaveBeenCalledWith({ phoneNumbers: [], userIds: ["user-9"] });
-      expect(mockToast.success).toHaveBeenCalledWith("Mom is now Sarah Chen");
-    });
-  });
+    const inviteBtn = screen.getByRole("button", { name: "Invite" });
+    expect(inviteBtn).toHaveProperty("disabled", true);
 
-  it("edit guest saves name/phone/rsvp via PATCH", async () => {
-    const user = userEvent.setup();
-    renderSheet();
-    await user.click(screen.getByRole("button", { name: /edit guest/i }));
-    const nameInput = screen.getByLabelText("Name");
-    await user.clear(nameInput);
-    await user.type(nameInput, "Mama");
-    await user.click(screen.getByRole("radio", { name: "Going" }));
-    await user.click(screen.getByRole("button", { name: /save changes/i }));
+    await user.click(screen.getByRole("combobox", { name: /choose a mutual/i }));
+    await user.click(await screen.findByRole("option", { name: "Sarah Chen" }));
+
     await waitFor(() => {
-      expect(mockUpdateMutate).toHaveBeenCalledWith({
-        memberId: "member-guest-1",
-        data: expect.objectContaining({ displayName: "Mama", status: "going" }),
+      expect(
+        screen.getByRole("button", { name: "Invite" }),
+      ).toHaveProperty("disabled", false);
+    });
+    await user.click(screen.getByRole("button", { name: "Invite" }));
+    await waitFor(() => {
+      expect(mockInviteMutate).toHaveBeenCalledWith({
+        phoneNumbers: [],
+        userIds: ["user-9"],
       });
-      expect(mockToast.success).toHaveBeenCalledWith("Guest updated");
+      expect(mockToast.success).toHaveBeenCalledWith("Mom is now Sarah Chen");
+      expect(onOpenChange).toHaveBeenCalledWith(false);
     });
   });
 
@@ -173,13 +284,25 @@ describe("MemberProfileSheet guest claim actions (Task 7.3)", () => {
     });
   });
 
-  it("non-organizer sees a read-only sheet (no claim/edit/remove)", () => {
+  it("non-organizer sees a read-only sheet (no invite rows or remove)", () => {
     renderSheet({ isOrganizer: false });
-    expect(screen.queryByRole("button", { name: /send invite/i })).toBeNull();
-    expect(screen.queryByRole("button", { name: /attach to a mutual/i })).toBeNull();
-    expect(screen.queryByRole("button", { name: /edit guest/i })).toBeNull();
+    expect(screen.queryByLabelText("Guest phone number")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Send" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Invite" })).toBeNull();
     expect(screen.queryByRole("button", { name: /^remove guest/i })).toBeNull();
+    expect(screen.queryByRole("radiogroup")).toBeNull();
     // Guest identity chrome still renders
     expect(screen.getByText("Guest")).toBeDefined();
+  });
+
+  it("rsvp failure surfaces an inline error", async () => {
+    const user = userEvent.setup();
+    mockUpdateMutate.mockRejectedValue(new Error("nope"));
+    renderSheet();
+    await user.click(screen.getByRole("radio", { name: "Going" }));
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toBeDefined();
+    });
+    expect(mockToast.error).not.toHaveBeenCalled();
   });
 });

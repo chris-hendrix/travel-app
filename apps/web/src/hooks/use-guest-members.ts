@@ -8,7 +8,7 @@ import { tripKeys } from "./trip-queries";
 
 export interface UpdateGuestInput {
   displayName?: string | undefined;
-  guestPhone?: string | null | undefined;
+  guestPhone?: string | undefined;
   status?: MemberWithProfile["status"];
 }
 

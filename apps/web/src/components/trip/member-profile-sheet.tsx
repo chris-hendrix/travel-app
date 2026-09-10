@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import type { MemberWithProfile } from "@journiful/shared/types";
+import { PHONE_REGEX } from "@journiful/shared/schemas";
 import { getUploadUrl } from "@/lib/api";
 import { getInitials } from "@/lib/format";
 import {
@@ -17,7 +18,14 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/ui/phone-input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -78,7 +86,7 @@ const RSVP_OPTIONS: { value: MemberWithProfile["status"]; label: string }[] = [
   { value: "not_going", label: "Not going" },
 ];
 
-function GuestActions({
+function GuestEditor({
   member,
   tripId,
   onRemove,
@@ -89,7 +97,7 @@ function GuestActions({
   onRemove?: (member: MemberWithProfile) => void;
   onClaimed: () => void;
 }) {
-  const guestPhone = member.guestPhone ?? member.phoneNumber ?? null;
+  const savedPhone = member.guestPhone ?? member.phoneNumber ?? "";
 
   const { data: invitations } = useInvitations(tripId, { enabled: true });
   const inviteMembers = useInviteMembers(tripId);
@@ -97,72 +105,95 @@ function GuestActions({
   const updateGuest = useUpdateGuest(tripId);
   const { data: suggestions } = useMutualSuggestions(tripId);
 
-  const [attachOpen, setAttachOpen] = useState(false);
-  const [attachSearch, setAttachSearch] = useState("");
-  const [selectedMutualId, setSelectedMutualId] = useState<string | null>(null);
-  const [editOpen, setEditOpen] = useState(false);
-  const [editName, setEditName] = useState(member.displayName);
-  const [editPhone, setEditPhone] = useState(guestPhone ?? "");
-  const [editStatus, setEditStatus] = useState<MemberWithProfile["status"]>(
-    member.status,
-  );
+  const [rsvpPending, setRsvpPending] =
+    useState<MemberWithProfile["status"] | null>(null);
+  const [rsvpError, setRsvpError] = useState<string | null>(null);
+  const [phone, setPhone] = useState(savedPhone);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [mutualError, setMutualError] = useState<string | null>(null);
+  const [selectedMutualId, setSelectedMutualId] = useState<string>("");
   const [removeOpen, setRemoveOpen] = useState(false);
 
   const pendingInviteExists =
-    !!guestPhone &&
+    !!savedPhone &&
     (invitations ?? []).some(
-      (inv) => inv.inviteePhone === guestPhone && inv.status === "pending",
+      (inv) => inv.inviteePhone === savedPhone && inv.status === "pending",
     );
+  const phoneEdited = phone.trim() !== savedPhone.trim();
+  const phoneValid = PHONE_REGEX.test(phone.trim());
 
   const mutuals =
     suggestions && "mutuals" in suggestions ? suggestions.mutuals : [];
-  const filteredMutuals = mutuals.filter((m) =>
-    m.displayName.toLowerCase().includes(attachSearch.toLowerCase()),
-  );
   const selectedMutual = mutuals.find((m) => m.id === selectedMutualId) ?? null;
 
-  const handleSendInvite = async () => {
-    if (!guestPhone) return;
-    try {
-      await inviteMembers.mutateAsync({ phoneNumbers: [guestPhone], userIds: [] });
-      toast.success(`Invite sent to ${guestPhone}`);
-    } catch (error) {
-      toast.error(
-        getInviteMembersErrorMessage(error as Error) ?? "Failed to send invite",
-      );
-    }
-  };
-
-  const handleAttach = async () => {
-    if (!selectedMutual) return;
-    try {
-      await inviteMembers.mutateAsync({ phoneNumbers: [], userIds: [selectedMutual.id] });
-      toast.success(`${member.displayName} is now ${selectedMutual.displayName}`);
-      setAttachOpen(false);
-      setSelectedMutualId(null);
-      onClaimed();
-    } catch (error) {
-      toast.error(
-        getInviteMembersErrorMessage(error as Error) ?? "Failed to attach member",
-      );
-    }
-  };
-
-  const handleSaveEdit = async () => {
+  const handleRsvp = async (value: MemberWithProfile["status"]) => {
+    if (value === member.status || rsvpPending) return;
+    setRsvpPending(value);
+    setRsvpError(null);
     try {
       await updateGuest.mutateAsync({
         memberId: member.id,
-        data: {
-          ...(editName.trim() ? { displayName: editName.trim() } : {}),
-          guestPhone: editPhone.trim() ? editPhone.trim() : null,
-          status: editStatus,
-        },
+        data: { status: value },
       });
-      toast.success("Guest updated");
-      setEditOpen(false);
     } catch (error) {
-      toast.error(
-        getUpdateGuestErrorMessage(error as Error) ?? "Failed to update guest",
+      setRsvpError(
+        getUpdateGuestErrorMessage(error as Error) ?? "Failed to update RSVP",
+      );
+    } finally {
+      setRsvpPending(null);
+    }
+  };
+
+  const handleSend = async () => {
+    const trimmed = phone.trim();
+    if (!PHONE_REGEX.test(trimmed)) {
+      setPhoneError("Enter a valid phone number");
+      return;
+    }
+    setPhoneError(null);
+    try {
+      if (trimmed !== savedPhone.trim()) {
+        await updateGuest.mutateAsync({
+          memberId: member.id,
+          data: { guestPhone: trimmed },
+        });
+      }
+      await inviteMembers.mutateAsync({
+        phoneNumbers: [trimmed],
+        userIds: [],
+      });
+      toast.success(`Invite sent to ${trimmed}`);
+    } catch (error) {
+      if (error instanceof Error && "code" in error) {
+        setPhoneError(
+          getUpdateGuestErrorMessage(error as Error) ??
+            "Failed to send invite",
+        );
+      } else {
+        toast.error(
+          getInviteMembersErrorMessage(error as Error) ??
+            "Failed to send invite",
+        );
+      }
+    }
+  };
+
+  const handleClaim = async () => {
+    if (!selectedMutual) return;
+    setMutualError(null);
+    try {
+      await inviteMembers.mutateAsync({
+        phoneNumbers: [],
+        userIds: [selectedMutual.id],
+      });
+      toast.success(
+        `${member.displayName} is now ${selectedMutual.displayName}`,
+      );
+      onClaimed();
+    } catch (error) {
+      setMutualError(
+        getInviteMembersErrorMessage(error as Error) ??
+          "Failed to attach member",
       );
     }
   };
@@ -183,154 +214,135 @@ function GuestActions({
     }
   };
 
+  const sendBusy = updateGuest.isPending || inviteMembers.isPending;
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
+      {/* RSVP */}
       <div className="space-y-2">
-        {guestPhone && (
-          <Button
-            variant="outline"
-            className="w-full justify-start"
-            disabled={pendingInviteExists || inviteMembers.isPending}
-            onClick={handleSendInvite}
-          >
-            <span aria-hidden>📱</span>
-            {pendingInviteExists ? "Invite sent" : "Send invite"}
-          </Button>
-        )}
-        <Button
-          variant="outline"
-          className="w-full justify-start"
-          aria-expanded={attachOpen}
-          onClick={() => setAttachOpen((v) => !v)}
+        <p id={`rsvp-label-${member.id}`} className="text-sm font-medium">
+          RSVP
+        </p>
+        <div
+          role="radiogroup"
+          aria-labelledby={`rsvp-label-${member.id}`}
+          className="grid grid-cols-4 gap-1 rounded-lg bg-muted/60 p-1"
         >
-          <span aria-hidden>👥</span>
-          Attach to a mutual {attachOpen ? "▴" : "▾"}
-        </Button>
-        {attachOpen && (
-          <div className="rounded-lg border border-border p-3 space-y-2">
-            <Input
-              placeholder="Search mutuals…"
-              value={attachSearch}
-              onChange={(e) => setAttachSearch(e.target.value)}
-              aria-label="Search mutuals"
-            />
-            {filteredMutuals.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
-                None of your mutuals match yet — try Send invite instead.
-              </p>
-            ) : (
-              <div className="space-y-1 max-h-48 overflow-y-auto">
-                {filteredMutuals.map((m) => (
-                  <label
-                    key={m.id}
-                    className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted/50 cursor-pointer"
-                  >
-                    <input
-                      type="radio"
-                      name={`attach-mutual-${member.id}`}
-                      checked={selectedMutualId === m.id}
-                      onChange={() => setSelectedMutualId(m.id)}
-                      aria-label={m.displayName}
-                    />
-                    <span className="font-medium">{m.displayName}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-            {selectedMutual && (
-              <div className="space-y-2 pt-1">
-                <p className="text-xs text-muted-foreground">
-                  Attach {member.displayName} to {selectedMutual.displayName}?{" "}
-                  {selectedMutual.displayName} gets a trip invite.
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    disabled={inviteMembers.isPending}
-                    onClick={handleAttach}
-                  >
-                    Attach to {selectedMutual.displayName}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setSelectedMutualId(null)}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
+          {RSVP_OPTIONS.map((opt) => {
+            const selected = member.status === opt.value;
+            const pending = rsvpPending === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                aria-label={opt.label}
+                disabled={rsvpPending !== null}
+                onClick={() => handleRsvp(opt.value)}
+                className={cn(
+                  "h-9 rounded-md px-1 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                  selected
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                  pending && "opacity-60",
+                )}
+              >
+                {pending ? "…" : opt.label}
+              </button>
+            );
+          })}
+        </div>
+        {rsvpError && (
+          <p role="alert" className="text-xs text-destructive">
+            {rsvpError}
+          </p>
         )}
       </div>
 
-      <div className="space-y-2">
-        <button
-          type="button"
-          className="flex w-full items-center justify-between text-sm font-medium text-foreground hover:underline"
-          aria-expanded={editOpen}
-          onClick={() => {
-            setEditOpen((v) => !v);
-            setEditName(member.displayName);
-            setEditPhone(guestPhone ?? "");
-            setEditStatus(member.status);
-          }}
-        >
-          Edit guest <span aria-hidden>{editOpen ? "▴" : "→"}</span>
-        </button>
-        {editOpen && (
-          <div className="space-y-3 rounded-lg border border-border p-3">
-            <div className="space-y-1">
-              <Label htmlFor={`guest-name-${member.id}`}>Name</Label>
-              <Input
-                id={`guest-name-${member.id}`}
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
+      <div className="border-t border-border/60" />
+
+      {/* Invite them */}
+      <div className="space-y-3">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          Invite them
+        </p>
+
+        {/* Phone row */}
+        <div className="space-y-1">
+          <div className="flex h-10 items-stretch overflow-hidden rounded-lg border border-input bg-background focus-within:border-ring">
+            <div className="flex min-w-0 flex-1 items-center gap-1 px-3">
+              <span aria-hidden className="text-muted-foreground">
+                📱
+              </span>
+              <PhoneInput
+                value={phone}
+                onChange={(v) => setPhone(v ?? "")}
+                placeholder="Phone number"
+                aria-label="Guest phone number"
+                className="min-w-0 flex-1 [&_input]:h-9 [&_input]:border-0 [&_input]:bg-transparent [&_input]:px-1 [&_input]:shadow-none [&_input]:focus-visible:ring-0"
               />
             </div>
-            <div className="space-y-1">
-              <Label htmlFor={`guest-phone-${member.id}`}>Phone</Label>
-              <Input
-                id={`guest-phone-${member.id}`}
-                type="tel"
-                value={editPhone}
-                onChange={(e) => setEditPhone(e.target.value)}
-                placeholder="+1 (555) 123-4567"
-              />
-            </div>
-            <fieldset className="space-y-1">
-              <legend className="text-sm font-medium">RSVP</legend>
-              <div className="flex flex-wrap gap-3">
-                {RSVP_OPTIONS.map((opt) => (
-                  <label
-                    key={opt.value}
-                    className="flex items-center gap-1.5 text-sm"
-                  >
-                    <input
-                      type="radio"
-                      name={`guest-rsvp-${member.id}`}
-                      checked={editStatus === opt.value}
-                      onChange={() => setEditStatus(opt.value)}
-                    />
-                    {opt.label}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
             <Button
-              size="sm"
-              disabled={updateGuest.isPending || !editName.trim()}
-              onClick={handleSaveEdit}
+              type="button"
+              onClick={handleSend}
+              disabled={!phoneValid || sendBusy}
+              variant={pendingInviteExists && !phoneEdited ? "ghost" : "default"}
+              className="h-full shrink-0 rounded-none rounded-r-[calc(var(--radius)-1px)] border-l border-input px-4 focus-visible:outline-2 focus-visible:outline-offset-[-2px]"
             >
-              Save changes
+              {pendingInviteExists && !phoneEdited ? "Invite sent ✓" : "Send"}
             </Button>
           </div>
-        )}
+          {phoneError && (
+            <p role="alert" className="text-xs text-destructive">
+              {phoneError}
+            </p>
+          )}
+        </div>
+
+        {/* Mutual row */}
+        <div className="space-y-1">
+          <div className="flex h-10 items-stretch overflow-hidden rounded-lg border border-input bg-background focus-within:border-ring">
+            <div className="flex min-w-0 flex-1 items-center px-1">
+              <Select value={selectedMutualId} onValueChange={setSelectedMutualId}>
+                <SelectTrigger
+                  aria-label="Choose a mutual"
+                  className="h-9 w-full border-0 bg-transparent shadow-none focus-visible:ring-0"
+                >
+                  <SelectValue placeholder="Choose a mutual…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {mutuals.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              type="button"
+              onClick={handleClaim}
+              disabled={!selectedMutual || inviteMembers.isPending}
+              className="h-full shrink-0 rounded-none rounded-r-[calc(var(--radius)-1px)] border-l border-input px-4 focus-visible:outline-2 focus-visible:outline-offset-[-2px]"
+            >
+              Invite
+            </Button>
+          </div>
+          {mutualError && (
+            <p role="alert" className="text-xs text-destructive">
+              {mutualError}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Remove */}
+      <div className="pt-1">
         <button
           type="button"
-          className="flex w-full items-center text-sm font-medium text-destructive hover:underline"
           onClick={() => setRemoveOpen(true)}
+          className="text-sm text-destructive/80 hover:text-destructive hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           Remove guest
         </button>
@@ -366,99 +378,191 @@ export function MemberProfileSheet({
   onRemove,
 }: MemberProfileSheetProps) {
   const isGuest = !!member && isGuestMember(member);
-  const showGuestActions = isGuest && isOrganizer && !!tripId && !!member;
+  const showGuestEditor = isGuest && isOrganizer && !!tripId && !!member;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent>
-        <SheetHeader>
-          <SheetTitle className="text-3xl font-playfair tracking-tight">
-            {member?.displayName ?? ""}{" "}
-            {isGuest && (
-              <Badge className="bg-accent text-accent-foreground align-middle">
-                Guest
-              </Badge>
-            )}
-          </SheetTitle>
-          <SheetDescription>
-            {isGuest ? (
-              <>Guest{statusSuffix(member?.status)}</>
-            ) : (
-              <>
-                {member?.isOrganizer ? "Organizer" : "Member"}
-                {statusSuffix(member?.status)}
-              </>
-            )}
-          </SheetDescription>
-        </SheetHeader>
-
-        <SheetBody>
-          {member && (
-            <div className="space-y-6 pb-6">
-              {/* Large Avatar — dashed ring for guests (claim-state signal) */}
-              <div className="flex justify-center">
-                <Avatar
-                  className={cn(
-                    "size-20 text-xl",
-                    isGuest && "border-2 border-dashed border-accent",
-                  )}
-                  data-testid={`member-avatar-${member.id}`}
-                  data-guest-ring={isGuest ? "dashed" : "solid"}
-                >
-                  {member.profilePhotoUrl && (
-                    <AvatarImage
-                      src={getUploadUrl(member.profilePhotoUrl)}
-                      alt={member.displayName}
-                    />
-                  )}
-                  <AvatarFallback className="text-xl">
-                    {getInitials(member.displayName)}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-
-              {/* Social handles — guests have no handles */}
-              {!isGuest &&
-                member.handles &&
-                Object.keys(member.handles).length > 0 && (
-                  <div className="space-y-2">
-                    {member.handles.venmo && (
-                      <a
-                        href={`https://venmo.com/${member.handles.venmo.replace(/^@/, "")}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted/50 transition-colors"
-                      >
-                        <VenmoIcon className="w-5 h-5 text-primary" />
-                        @{member.handles.venmo.replace(/^@/, "")}
-                      </a>
+        {showGuestEditor ? (
+          <>
+            {/* Identity zone */}
+            <SheetHeader className="items-center text-center">
+              <GuestNameTitle member={member} tripId={tripId as string} />
+              <SheetDescription>
+                Guest{statusSuffix(member?.status)}
+              </SheetDescription>
+            </SheetHeader>
+            <SheetBody>
+              <div className="space-y-5 pb-6">
+                <div className="flex justify-center">
+                  <Avatar
+                    className="size-20 border-2 border-dashed border-accent text-xl"
+                    data-testid={`member-avatar-${member.id}`}
+                    data-guest-ring="dashed"
+                  >
+                    {member.profilePhotoUrl && (
+                      <AvatarImage
+                        src={getUploadUrl(member.profilePhotoUrl)}
+                        alt={member.displayName}
+                      />
                     )}
-                    {member.handles.instagram && (
-                      <a
-                        href={`https://instagram.com/${member.handles.instagram.replace(/^@/, "")}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted/50 transition-colors"
-                      >
-                        <InstagramIcon className="w-5 h-5 text-primary" />
-                        @{member.handles.instagram.replace(/^@/, "")}
-                      </a>
-                    )}
-                  </div>
-                )}
+                    <AvatarFallback className="text-xl">
+                      {getInitials(member.displayName)}
+                    </AvatarFallback>
+                  </Avatar>
+                </div>
 
-              {showGuestActions && (
-                <GuestActions
+                <div className="border-t border-border/60" />
+
+                <GuestEditor
                   member={member}
                   tripId={tripId as string}
                   onClaimed={() => onOpenChange(false)}
                   {...(onRemove ? { onRemove } : {})}
                 />
+              </div>
+            </SheetBody>
+          </>
+        ) : (
+          <>
+            <SheetHeader>
+              <SheetTitle className="text-3xl font-playfair tracking-tight">
+                {member?.displayName ?? ""}{" "}
+                {isGuest && (
+                  <Badge className="bg-accent text-accent-foreground align-middle">
+                    Guest
+                  </Badge>
+                )}
+              </SheetTitle>
+              <SheetDescription>
+                {isGuest ? (
+                  <>Guest{statusSuffix(member?.status)}</>
+                ) : (
+                  <>
+                    {member?.isOrganizer ? "Organizer" : "Member"}
+                    {statusSuffix(member?.status)}
+                  </>
+                )}
+              </SheetDescription>
+            </SheetHeader>
+
+            <SheetBody>
+              {member && (
+                <div className="space-y-6 pb-6">
+                  {/* Large Avatar — dashed ring for guests (claim-state signal) */}
+                  <div className="flex justify-center">
+                    <Avatar
+                      className={cn(
+                        "size-20 text-xl",
+                        isGuest && "border-2 border-dashed border-accent",
+                      )}
+                      data-testid={`member-avatar-${member.id}`}
+                      data-guest-ring={isGuest ? "dashed" : "solid"}
+                    >
+                      {member.profilePhotoUrl && (
+                        <AvatarImage
+                          src={getUploadUrl(member.profilePhotoUrl)}
+                          alt={member.displayName}
+                        />
+                      )}
+                      <AvatarFallback className="text-xl">
+                        {getInitials(member.displayName)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+
+                  {/* Social handles — guests have no handles */}
+                  {!isGuest &&
+                    member.handles &&
+                    Object.keys(member.handles).length > 0 && (
+                      <div className="space-y-2">
+                        {member.handles.venmo && (
+                          <a
+                            href={`https://venmo.com/${member.handles.venmo.replace(/^@/, "")}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted/50 transition-colors"
+                          >
+                            <VenmoIcon className="w-5 h-5 text-primary" />
+                            @{member.handles.venmo.replace(/^@/, "")}
+                          </a>
+                        )}
+                        {member.handles.instagram && (
+                          <a
+                            href={`https://instagram.com/${member.handles.instagram.replace(/^@/, "")}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted/50 transition-colors"
+                          >
+                            <InstagramIcon className="w-5 h-5 text-primary" />
+                            @{member.handles.instagram.replace(/^@/, "")}
+                          </a>
+                        )}
+                      </div>
+                    )}
+                </div>
               )}
-            </div>
-          )}
-        </SheetBody>
+            </SheetBody>
+          </>
+        )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+function GuestNameTitle({
+  member,
+  tripId,
+}: {
+  member: MemberWithProfile;
+  tripId: string;
+}) {
+  const updateGuest = useUpdateGuest(tripId);
+  const [name, setName] = useState(member.displayName);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleBlur = async () => {
+    const trimmed = name.trim();
+    if (!trimmed || trimmed === member.displayName) {
+      setName(member.displayName);
+      setError(null);
+      return;
+    }
+    setError(null);
+    try {
+      await updateGuest.mutateAsync({
+        memberId: member.id,
+        data: { displayName: trimmed },
+      });
+      toast.success("Guest updated");
+    } catch (err) {
+      setError(
+        getUpdateGuestErrorMessage(err as Error) ?? "Failed to update guest",
+      );
+      setName(member.displayName);
+    }
+  };
+
+  return (
+    <div className="flex w-full flex-col items-center gap-1">
+      <SheetTitle className="sr-only">{member.displayName}</SheetTitle>
+      <div className="flex items-center justify-center gap-2">
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onBlur={handleBlur}
+          aria-label="Guest name"
+          className="h-auto w-auto max-w-55 border-transparent bg-transparent p-0 text-center font-playfair text-3xl tracking-tight shadow-none focus-visible:border-transparent focus-visible:underline focus-visible:ring-0"
+        />
+        <Badge className="bg-accent text-accent-foreground align-middle">
+          Guest
+        </Badge>
+      </div>
+      {error && (
+        <p role="alert" className="text-xs text-destructive">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }
