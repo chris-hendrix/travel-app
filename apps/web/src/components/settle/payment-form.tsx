@@ -15,6 +15,7 @@ import {
 } from "@/hooks/use-payments";
 import { Button } from "@/components/ui/button";
 import { GuestBadge } from "@/components/trip/guest-badge";
+import { isGuestMember } from "@/components/trip/guest-avatar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -85,7 +86,7 @@ export function PaymentForm({
     return members.map((m) => ({
       id: m.id,
       name: m.displayName,
-      isGuest: m.userId === null,
+      isGuest: isGuestMember(m),
     }));
   }, [members]);
 

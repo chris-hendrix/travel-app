@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { PaymentItem } from "./payment-item";
+import { isGuestMember } from "@/components/trip/guest-avatar";
 import type { Payment } from "@journiful/shared/types";
 
 interface PaymentListProps {
@@ -77,9 +78,9 @@ export function PaymentList({
           payment={payment}
           onClick={onPaymentClick}
           currentMemberId={currentMember?.id}
-          payerIsGuest={
-            members?.find((m) => m.id === payment.payerMemberId)?.userId === null
-          }
+          payerIsGuest={isGuestMember(
+            members?.find((m) => m.id === payment.payerMemberId),
+          )}
         />
       ))}
 

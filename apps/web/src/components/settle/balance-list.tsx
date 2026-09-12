@@ -8,6 +8,7 @@ import { tripBalancesQueryOptions } from "@/hooks/balance-queries";
 import { membersQueryOptions } from "@/hooks/invitation-queries";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BalanceItem } from "./balance-item";
+import { isGuestMember } from "@/components/trip/guest-avatar";
 import type { BalanceEntry } from "@journiful/shared/types";
 
 interface BalanceListProps {
@@ -71,14 +72,14 @@ export function BalanceList({ tripId, onSettleUp }: BalanceListProps) {
     <div className="space-y-2">
       {sorted.map((entry) => (
         <BalanceItem
-          key={`${entry.from.id}-${entry.to.id}`}
+          key={`${entry.from.id}-${entry.to.id}-${entry.amount}`}
           entry={entry}
           // Balance person ids are member ids — pass the viewer's member id
           // so "You" labels resolve (guests never match).
           currentMemberId={currentMember?.id}
           onSettleUp={onSettleUp}
-          fromIsGuest={members?.find((m) => m.id === entry.from.id)?.userId === null}
-          toIsGuest={members?.find((m) => m.id === entry.to.id)?.userId === null}
+          fromIsGuest={isGuestMember(members?.find((m) => m.id === entry.from.id))}
+          toIsGuest={isGuestMember(members?.find((m) => m.id === entry.to.id))}
         />
       ))}
     </div>

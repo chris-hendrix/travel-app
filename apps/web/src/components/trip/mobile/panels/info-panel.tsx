@@ -510,9 +510,13 @@ export function InfoPanel({
       />
 
       {/* Member profile sheet */}
+      {/* Member profile sheet — open keys off the selected id, not the
+          resolved row, so a members refetch (row briefly undefined) never
+          flashes the sheet closed. MemberProfileSheet accepts null and
+          renders a fallback shell while the row reloads. */}
       <MemberProfileSheet
         member={profileMember}
-        open={!!profileMember}
+        open={profileMemberId !== null}
         tripId={tripId}
         isOrganizer={isOrganizer}
         onOpenChange={(open) => {

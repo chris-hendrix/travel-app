@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { membersQueryOptions } from "@/hooks/invitation-queries";
 import { useCreatePayment, getPaymentErrorMessage, isAmountLimitError } from "@/hooks/use-payments";
 import { VenmoIcon } from "@/components/icons/venmo-icon";
+import { isGuestMember } from "@/components/trip/guest-avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -69,7 +70,7 @@ export function SettlementForm({
   // uniform copy — but they have no venmo/instagram handles, so no
   // payment links render for guest recipients.
   const recipientMember = members?.find((m) => m.id === toPerson.id);
-  const isGuestRecipient = recipientMember?.userId === null;
+  const isGuestRecipient = isGuestMember(recipientMember);
   const venmoHandle = isGuestRecipient
     ? undefined
     : recipientMember?.handles?.venmo;
