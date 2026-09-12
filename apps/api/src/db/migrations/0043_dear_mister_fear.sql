@@ -1,5 +1,23 @@
 -- Guest members Phase 1 Task 1.2: payments + payment_participants user_id -> member_id
--- Expand -> backfill -> contract in one atomic migration (single deploy window with Phase 6 code).
+-- NOT zero-downtime: this migration must run immediately before deploying the
+-- code that reads member_id, with no mixed-version serving in between. The
+-- old code reads user_id (dropped in the CONTRACT step); the new code reads
+-- member_id (added in the EXPAND step). There is no single revision that
+-- serves both, so: stop traffic / hold deploys, run this migration, then
+-- deploy the Phase 6 code that reads member_id.
+--
+-- Remediation if the orphan-abort DO block fires (migration rolled back):
+-- the backfill found a payment/participant whose user has no member row in
+-- its trip. Diagnose with:
+--   SELECT p.id, p.trip_id, p.user_id FROM payments p
+--     LEFT JOIN members m ON m.trip_id = p.trip_id AND m.user_id = p.user_id
+--     WHERE p.member_id IS NULL AND m.id IS NULL;
+--   SELECT pp.id, pp.payment_id, pp.user_id FROM payment_participants pp
+--     JOIN payments p ON p.id = pp.payment_id
+--     LEFT JOIN members m ON m.trip_id = p.trip_id AND m.user_id = pp.user_id
+--     WHERE pp.member_id IS NULL AND m.id IS NULL;
+-- Then either re-create the missing members row (trip_id + user_id, restoring
+-- the membership) or scrub the orphan payment/participant rows, and re-run.
 --> statement-breakpoint
 -- (1) EXPAND: add nullable member_id columns + FKs + indexes
 ALTER TABLE "payments" ADD COLUMN "member_id" uuid;--> statement-breakpoint

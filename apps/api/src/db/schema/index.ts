@@ -740,7 +740,7 @@ export const paymentParticipants = pgTable(
     // Participant — a trip member (guests allowed)
     memberId: uuid("member_id")
       .notNull()
-      .references(() => members.id, { onDelete: "cascade" }),
+      .references(() => members.id, { onDelete: "restrict" }),
     shareAmount: integer("share_amount").notNull(), // cents — computed at write time
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
