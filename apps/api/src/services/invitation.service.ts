@@ -4,6 +4,8 @@ import {
   users,
   trips,
   mutedMembers,
+  payments,
+  paymentParticipants,
   type Invitation as DBInvitation,
 } from "@/db/schema/index.js";
 import { eq, and, inArray, count, sql } from "drizzle-orm";
@@ -30,6 +32,7 @@ import {
   CannotDemoteCreatorError,
   CannotModifyOwnRoleError,
   LastOrganizerError,
+  MemberHasPaymentsError,
   NotAMutualError,
 } from "../errors.js";
 
@@ -926,6 +929,12 @@ export class InvitationService implements IInvitationService {
       }
     }
 
+    // Payer/participant-protected: payments.member_id is ON DELETE RESTRICT
+    // and payment_participants.member_id will be too — include soft-deleted
+    // payments in the pre-check (the FK applies regardless of deletedAt) so
+    // the clean 409 path fires instead of a raw FK 500.
+    await this.assertMemberHasNoPayments(memberId);
+
     // Delete invitation and member in a transaction for consistency
     await this.db.transaction(async (tx) => {
       // Task 4.4: guest rows have userId NULL — there is no users row to
@@ -954,6 +963,29 @@ export class InvitationService implements IInvitationService {
       // Delete the member record (cascades to member_travel)
       await tx.delete(members).where(eq(members.id, memberId));
     });
+  }
+
+  /**
+   * Throws MemberHasPaymentsError (409) if the member is referenced by any
+   * payment (as payer, including soft-deleted — the RESTRICT FK applies
+   * regardless of deletedAt) or any payment_participants row.
+   */
+  private async assertMemberHasNoPayments(memberId: string): Promise<void> {
+    const [payerRow] = await this.db
+      .select({ id: payments.id })
+      .from(payments)
+      .where(eq(payments.memberId, memberId))
+      .limit(1);
+    const [participantRow] = await this.db
+      .select({ id: paymentParticipants.id })
+      .from(paymentParticipants)
+      .where(eq(paymentParticipants.memberId, memberId))
+      .limit(1);
+    if (payerRow ?? participantRow) {
+      throw new MemberHasPaymentsError(
+        "Member has payments — reassign or delete them first",
+      );
+    }
   }
 
   /**

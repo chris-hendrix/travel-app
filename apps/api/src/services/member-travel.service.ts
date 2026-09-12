@@ -264,12 +264,14 @@ export class MemberTravelService implements IMemberTravelService {
       conditions.push(isNull(memberTravel.deletedAt));
     }
 
-    // leftJoin(users) + COALESCE: guest travel resolves the guest display
-    // name with a null userId instead of being dropped (Task 5.1).
+    // leftJoin(users) + COALESCE with a 'Guest' fallback: guest travel
+    // resolves the guest display name with a null userId instead of being
+    // dropped (Task 5.1). The literal fallback keeps the sql<string> type
+    // honest — COALESCE of two nullable columns alone could be NULL.
     return this.db
       .select({
         ...getTableColumns(memberTravel),
-        memberName: sql<string>`COALESCE(${users.displayName}, ${members.guestDisplayName})`,
+        memberName: sql<string>`COALESCE(${users.displayName}, ${members.guestDisplayName}, 'Guest')`,
         userId: members.userId,
       })
       .from(memberTravel)

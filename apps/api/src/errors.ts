@@ -100,6 +100,11 @@ export const MemberNotFoundError = createError(
   "Member not found",
   404,
 );
+export const MemberHasPaymentsError = createError(
+  "MEMBER_HAS_PAYMENTS",
+  "%s",
+  409,
+);
 export const LastOrganizerError = createError(
   "LAST_ORGANIZER",
   "Cannot remove the last organizer of a trip",
@@ -199,6 +204,11 @@ export const PaymentMemberNotInTripError = createError(
   "PAYMENT_MEMBER_NOT_IN_TRIP",
   "%s",
   409,
+);
+export const DuplicateParticipantError = createError(
+  "DUPLICATE_PARTICIPANT",
+  "%s",
+  400,
 );
 
 // Admin errors

@@ -3,7 +3,12 @@ import type { FastifyInstance } from "fastify";
 import { buildApp } from "../helpers.js";
 import { db } from "@/config/database.js";
 import { users, trips, members } from "@/db/schema/index.js";
+import { eq } from "drizzle-orm";
 import { generateUniquePhone } from "../test-utils.js";
+
+// Track fixtures per test for DB cleanup (members -> trips -> users).
+const createdTripIds: string[] = [];
+const createdUserIds: string[] = [];
 
 async function setupTripWithOrganizer() {
   const [organizer] = await db
@@ -29,6 +34,8 @@ async function setupTripWithOrganizer() {
     status: "going",
     isOrganizer: true,
   });
+  createdTripIds.push(trip!.id);
+  createdUserIds.push(organizer!.id);
   return { organizer: organizer!, trip: trip! };
 }
 
@@ -48,6 +55,7 @@ async function setupTripWithMember() {
     status: "going",
     isOrganizer: false,
   });
+  createdUserIds.push(member!.id);
   return { organizer, trip, member: member! };
 }
 
@@ -57,6 +65,14 @@ describe("Guest Member Routes", () => {
   afterEach(async () => {
     if (app) {
       await app.close();
+    }
+    // DB cleanup: members -> trips -> users (FK order)
+    for (const tripId of createdTripIds.splice(0)) {
+      await db.delete(members).where(eq(members.tripId, tripId));
+      await db.delete(trips).where(eq(trips.id, tripId));
+    }
+    for (const userId of createdUserIds.splice(0)) {
+      await db.delete(users).where(eq(users.id, userId));
     }
   });
 

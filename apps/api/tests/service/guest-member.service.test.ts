@@ -409,6 +409,46 @@ describe("guest-member.service update/delete/get (Task 3.2)", () => {
     expect(updated.guestPhone).toBe(phone);
   });
 
+  it("same-phone PATCH with a pending invitation for its own phone stays 200; changing to an invited phone -> 409", async () => {
+    const ownPhone = generateUniquePhone();
+    const guest = await guestMemberService.createGuest(tripId, organizerId, {
+      displayName: "Mom",
+      guestPhone: ownPhone,
+    });
+    // Inviting the existing guest creates a pending invitation for its own
+    // phone — same-phone PATCH must not 409 on that row.
+    await db.insert(invitations).values({
+      tripId,
+      inviterId: organizerId,
+      inviteePhone: ownPhone,
+      status: "pending",
+    });
+    const updated = await guestMemberService.updateGuest(
+      tripId,
+      organizerId,
+      guest.id,
+      { displayName: "Mom Updated", guestPhone: ownPhone },
+    );
+    expect(updated.guestDisplayName).toBe("Mom Updated");
+    expect(updated.guestPhone).toBe(ownPhone);
+
+    // Changing to a *different* phone with a pending invitation -> 409.
+    const otherPhone = generateUniquePhone();
+    await db.insert(invitations).values({
+      tripId,
+      inviterId: organizerId,
+      inviteePhone: otherPhone,
+      status: "pending",
+    });
+    await expect(
+      guestMemberService.updateGuest(tripId, organizerId, guest.id, {
+        guestPhone: otherPhone,
+      }),
+    ).rejects.toThrow(DuplicateMemberError);
+
+    await db.delete(invitations).where(eq(invitations.tripId, tripId));
+  });
+
   it("update/delete/get of a non-guest member row -> 404", async () => {
     const { MemberNotFoundError } = await import("@/errors.js");
     await expect(

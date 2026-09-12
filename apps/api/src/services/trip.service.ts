@@ -3,6 +3,8 @@ import {
   members,
   users,
   events,
+  payments,
+  paymentParticipants,
   weatherCache,
   type Trip,
   type Member,
@@ -35,6 +37,7 @@ import {
   CannotRemoveCreatorError,
   CoOrganizerNotInTripError,
   DuplicateMemberError,
+  MemberHasPaymentsError,
 } from "../errors.js";
 import { z } from "zod";
 import { encodeCursor, decodeCursorAs } from "@/utils/pagination.js";
@@ -422,21 +425,28 @@ export class TripService implements ITripService {
 
     const trip = tripResult[0]!;
 
-    // Load organizers with user info in a single JOIN query. leftJoin +
-    // COALESCE keeps guest rows (userId NULL) visible instead of dropping
-    // them; guests are never organizers (enforced in updateMemberRole), so
-    // organizer rows always resolve a users row in practice.
+    // Load organizers with user info in a single JOIN query. Guests can
+    // never be organizers (enforced in updateMemberRole), so filter to
+    // user-backed rows and innerJoin: selecting users.id directly keeps the
+    // id namespace honest (COALESCE(users.id, members.id) mixed user and
+    // member namespaces).
     const organizerUsers = await this.db
       .select({
-        id: sql<string>`COALESCE(${users.id}, ${members.id})`,
-        displayName: sql<string>`COALESCE(${users.displayName}, ${members.guestDisplayName})`,
+        id: users.id,
+        displayName: sql<string>`COALESCE(${users.displayName}, ${members.guestDisplayName}, 'Guest')`,
         phoneNumber: users.phoneNumber,
         profilePhotoUrl: users.profilePhotoUrl,
         timezone: users.timezone,
       })
       .from(members)
-      .leftJoin(users, eq(members.userId, users.id))
-      .where(and(eq(members.tripId, tripId), eq(members.isOrganizer, true)));
+      .innerJoin(users, eq(members.userId, users.id))
+      .where(
+        and(
+          eq(members.tripId, tripId),
+          eq(members.isOrganizer, true),
+          isNotNull(members.userId),
+        ),
+      );
 
     // Load member count
     const memberCount = await this.getMemberCount(tripId);
@@ -1061,6 +1071,25 @@ export class TripService implements ITripService {
       throw new CoOrganizerNotInTripError();
     }
 
+    // Payer/participant-protected: payments.member_id is ON DELETE RESTRICT
+    // (FK applies regardless of soft-delete) — pre-check so the clean 409
+    // path fires instead of a raw FK 500.
+    const [payerRow] = await this.db
+      .select({ id: payments.id })
+      .from(payments)
+      .where(eq(payments.memberId, memberRecord.id))
+      .limit(1);
+    const [participantRow] = await this.db
+      .select({ id: paymentParticipants.id })
+      .from(paymentParticipants)
+      .where(eq(paymentParticipants.memberId, memberRecord.id))
+      .limit(1);
+    if (payerRow ?? participantRow) {
+      throw new MemberHasPaymentsError(
+        "Member has payments — reassign or delete them first",
+      );
+    }
+
     // 5. Delete member record
     await this.db
       .delete(members)
@@ -1074,17 +1103,23 @@ export class TripService implements ITripService {
    * @returns Promise that resolves to array of User objects
    */
   async getCoOrganizers(tripId: string): Promise<User[]> {
-    // Single JOIN query: get members with isOrganizer=true and their user info.
-    // leftJoin so guest rows (userId NULL) never drop the join; guests are
-    // never organizers (enforced in updateMemberRole), so in practice every
-    // row resolves a users row. Guest rows without a user are skipped.
+    // Single JOIN query: members with isOrganizer=true and their user info.
+    // Guests are never organizers (enforced in updateMemberRole), so
+    // innerJoin + isNotNull keeps the User type assertion honest — every
+    // returned row resolves a non-null users row.
     const results = await this.db
       .select(getTableColumns(users))
       .from(members)
-      .leftJoin(users, eq(members.userId, users.id))
-      .where(and(eq(members.tripId, tripId), eq(members.isOrganizer, true)));
+      .innerJoin(users, eq(members.userId, users.id))
+      .where(
+        and(
+          eq(members.tripId, tripId),
+          eq(members.isOrganizer, true),
+          isNotNull(members.userId),
+        ),
+      );
 
-    return results.filter((u): u is User => u.id !== null);
+    return results;
   }
 
   /**

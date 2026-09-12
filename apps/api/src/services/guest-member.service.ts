@@ -90,84 +90,53 @@ export class GuestMemberService implements IGuestMemberService {
         ? phoneNumberSchema.parse(input.guestPhone)
         : undefined;
 
-    // Cap: count(*) FROM members WHERE trip_id (guests count too)
-    const [countRow] = await this.db
-      .select({ value: count() })
-      .from(members)
-      .where(eq(members.tripId, tripId));
-    if ((countRow?.value ?? 0) + 1 > MAX_TRIP_MEMBERS) {
-      throw new MemberLimitExceededError(
-        "Member limit exceeded: trip already has 25 members",
-      );
-    }
+    // Cap count + guards + insert run in one transaction so concurrent
+    // creates cannot breach the 25-member cap. The partial unique index
+    // members_trip_guest_phone_unique still backstops the race: the loser
+    // hits 23505 on INSERT, mapped to a clean 409 below.
+    try {
+      return await this.db.transaction(async (tx) => {
+        // Cap: count(*) FROM members WHERE trip_id (guests count too)
+        const [countRow] = await tx
+          .select({ value: count() })
+          .from(members)
+          .where(eq(members.tripId, tripId));
+        if ((countRow?.value ?? 0) + 1 > MAX_TRIP_MEMBERS) {
+          throw new MemberLimitExceededError(
+            "Member limit exceeded: trip already has 25 members",
+          );
+        }
 
-    if (guestPhone !== undefined) {
-      // Guard: guest phone matches an existing trip member's user phone -> 409
-      const memberPhoneMatch = await this.db
-        .select({ id: members.id })
-        .from(members)
-        .innerJoin(users, eq(members.userId, users.id))
-        .where(
-          and(
-            eq(members.tripId, tripId),
-            eq(users.phoneNumber, guestPhone),
-          ),
-        )
-        .limit(1);
-      if (memberPhoneMatch.length > 0) {
-        throw new DuplicateMemberError(
-          "A member with this phone number is already in this trip",
-        );
-      }
+        if (guestPhone !== undefined) {
+          await this.assertPhoneAvailableTx(tx, tripId, guestPhone);
+        }
 
-      // Guard: duplicate guestPhone on the same trip -> 409
-      const guestPhoneMatch = await this.db
-        .select({ id: members.id })
-        .from(members)
-        .where(
-          and(
-            eq(members.tripId, tripId),
-            eq(members.guestPhone, guestPhone),
-          ),
-        )
-        .limit(1);
-      if (guestPhoneMatch.length > 0) {
+        const [guest] = await tx
+          .insert(members)
+          .values({
+            tripId,
+            userId: null,
+            guestDisplayName: input.displayName,
+            ...(guestPhone !== undefined ? { guestPhone } : {}),
+          })
+          .returning();
+        return guest!;
+      });
+    } catch (err) {
+      if (err instanceof MemberLimitExceededError) throw err;
+      if (err instanceof DuplicateMemberError) throw err;
+      const pgCode =
+        err !== null && typeof err === "object"
+          ? ((err as { code?: unknown }).code ??
+            (err as { cause?: { code?: unknown } }).cause?.code)
+          : undefined;
+      if (pgCode === "23505") {
         throw new DuplicateMemberError(
           "A guest with this phone number is already in this trip",
         );
       }
-
-      // Guard: guestPhone matches a pending/failed invitation for the same
-      // trip -> 409. Such a guest becomes a hidden member (excluded from
-      // getTripMembers, visible only in Invited).
-      const invitedPhoneMatch = await this.db
-        .select({ id: invitations.id })
-        .from(invitations)
-        .where(
-          and(
-            eq(invitations.tripId, tripId),
-            eq(invitations.inviteePhone, guestPhone),
-            inArray(invitations.status, ["pending", "failed"]),
-          ),
-        )
-        .limit(1);
-      if (invitedPhoneMatch.length > 0) {
-        throw new DuplicateMemberError(
-          "This phone number has a pending invitation for this trip",
-        );
-      }
+      throw err;
     }
-
-    const [guest] = await this.db
-      .insert(members)
-      .values({
-        tripId,
-        userId: null,
-        guestDisplayName: input.displayName,
-        ...(guestPhone !== undefined ? { guestPhone } : {}),
-      })
-      .returning();
-    return guest!;
   }
 
   async getGuest(
@@ -192,21 +161,39 @@ export class GuestMemberService implements IGuestMemberService {
     let guestPhone: string | undefined;
     if (input.guestPhone !== undefined) {
       guestPhone = phoneNumberSchema.parse(input.guestPhone);
-      await this.assertPhoneAvailable(tripId, guestPhone, memberId);
+      // Inviting an existing guest creates a pending invitation for its own
+      // phone — only enforce the pending/failed-invitation collision guard
+      // when the phone is actually changing, so same-phone PATCH stays 200.
+      const phoneChanging = guestPhone !== guest.guestPhone;
+      await this.assertPhoneAvailable(tripId, guestPhone, guest.id, phoneChanging);
     }
 
-    const [updated] = await this.db
-      .update(members)
-      .set({
-        ...(input.displayName !== undefined
-          ? { guestDisplayName: input.displayName }
-          : {}),
-        ...(guestPhone !== undefined ? { guestPhone } : {}),
-        ...(input.status !== undefined ? { status: input.status } : {}),
-      })
-      .where(eq(members.id, guest.id))
-      .returning();
-    return updated!;
+    try {
+      const [updated] = await this.db
+        .update(members)
+        .set({
+          ...(input.displayName !== undefined
+            ? { guestDisplayName: input.displayName }
+            : {}),
+          ...(guestPhone !== undefined ? { guestPhone } : {}),
+          ...(input.status !== undefined ? { status: input.status } : {}),
+        })
+        .where(eq(members.id, guest.id))
+        .returning();
+      return updated!;
+    } catch (err) {
+      const pgCode =
+        err !== null && typeof err === "object"
+          ? ((err as { code?: unknown }).code ??
+            (err as { cause?: { code?: unknown } }).cause?.code)
+          : undefined;
+      if (pgCode === "23505") {
+        throw new DuplicateMemberError(
+          "A guest with this phone number is already in this trip",
+        );
+      }
+      throw err;
+    }
   }
 
   async deleteGuest(
@@ -387,9 +374,24 @@ export class GuestMemberService implements IGuestMemberService {
     tripId: string,
     guestPhone: string,
     excludeMemberId?: string,
+    checkInvitation = true,
+  ): Promise<void> {
+    await this.assertPhoneAvailableTx(this.db, tripId, guestPhone, excludeMemberId, checkInvitation);
+  }
+
+  /**
+   * Tx-scoped phone guards shared by createGuest (inside its transaction)
+   * and assertPhoneAvailable. Executor is db or caller tx.
+   */
+  private async assertPhoneAvailableTx(
+    tx: Pick<AppDatabase, "select">,
+    tripId: string,
+    guestPhone: string,
+    excludeMemberId?: string,
+    checkInvitation = true,
   ): Promise<void> {
     // Guard: guest phone matches an existing trip member's user phone -> 409
-    const memberPhoneMatch = await this.db
+    const memberPhoneMatch = await tx
       .select({ id: members.id })
       .from(members)
       .innerJoin(users, eq(members.userId, users.id))
@@ -407,7 +409,7 @@ export class GuestMemberService implements IGuestMemberService {
     }
 
     // Guard: duplicate guestPhone on the same trip -> 409 (excluding self)
-    const guestPhoneMatch = await this.db
+    const guestPhoneMatch = await tx
       .select({ id: members.id })
       .from(members)
       .where(
@@ -424,6 +426,28 @@ export class GuestMemberService implements IGuestMemberService {
       throw new DuplicateMemberError(
         "A guest with this phone number is already in this trip",
       );
+    }
+
+    // Guard: guestPhone matches a pending/failed invitation for the same
+    // trip -> 409. Such a guest becomes a hidden member (excluded from
+    // getTripMembers, visible only in Invited).
+    if (checkInvitation) {
+      const invitedPhoneMatch = await tx
+        .select({ id: invitations.id })
+        .from(invitations)
+        .where(
+          and(
+            eq(invitations.tripId, tripId),
+            eq(invitations.inviteePhone, guestPhone),
+            inArray(invitations.status, ["pending", "failed"]),
+          ),
+        )
+        .limit(1);
+      if (invitedPhoneMatch.length > 0) {
+        throw new DuplicateMemberError(
+          "This phone number has a pending invitation for this trip",
+        );
+      }
     }
   }
 }

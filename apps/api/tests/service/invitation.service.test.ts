@@ -26,6 +26,7 @@ import {
   MemberNotFoundError,
   CannotRemoveCreatorError,
   LastOrganizerError,
+  MemberHasPaymentsError,
   NotAMutualError,
 } from "@/errors.js";
 import { QUEUE } from "@/queues/types.js";
@@ -56,7 +57,9 @@ describe("invitation.service", () => {
 
   // Clean up test data (safe for parallel execution)
   const cleanup = async () => {
-    // Delete in reverse order of foreign key dependencies
+    // Delete in reverse order of foreign key dependencies.
+    // payments/member-scoped rows first: payment_participants.member_id is
+    // ON DELETE RESTRICT, so participant rows must go before members.
     if (testTripId) {
       await db
         .delete(notifications)
@@ -66,6 +69,19 @@ describe("invitation.service", () => {
         .where(eq(notificationPreferences.tripId, testTripId));
       await db.delete(invitations).where(eq(invitations.tripId, testTripId));
       await db.delete(events).where(eq(events.tripId, testTripId));
+      const tripPaymentIds = (
+        await db
+          .select({ id: payments.id })
+          .from(payments)
+          .where(eq(payments.tripId, testTripId))
+      ).map((r) => r.id);
+      for (const pid of tripPaymentIds) {
+        await db
+          .delete(paymentParticipants)
+          .where(eq(paymentParticipants.paymentId, pid));
+      }
+      await db.delete(payments).where(eq(payments.tripId, testTripId));
+      await db.delete(memberTravel).where(eq(memberTravel.tripId, testTripId));
       await db.delete(members).where(eq(members.tripId, testTripId));
       await db.delete(trips).where(eq(trips.id, testTripId));
     }
@@ -1299,7 +1315,90 @@ describe("invitation.service", () => {
       expect(membersAfter).toHaveLength(0);
     });
 
-    it("Task 4.4: organizer removes a guest by memberId — member+travel+participants gone", async () => {
+    it("removing a member who paid -> 409 MemberHasPaymentsError, member row survives", async () => {
+      const [memberRecord] = await db
+        .select()
+        .from(members)
+        .where(
+          and(eq(members.tripId, testTripId), eq(members.userId, testMemberId)),
+        );
+      await db.insert(payments).values({
+        tripId: testTripId,
+        description: "Member paid",
+        amount: 3000,
+        memberId: memberRecord.id,
+        createdBy: testOrganizerId,
+      });
+
+      const err = await invitationService
+        .removeMember(testOrganizerId, testTripId, memberRecord.id)
+        .catch((e) => e);
+      expect(err).toBeInstanceOf(MemberHasPaymentsError);
+      expect(err.statusCode).toBe(409);
+
+      // Member row survives the blocked removal
+      const membersAfter = await db
+        .select()
+        .from(members)
+        .where(eq(members.id, memberRecord.id));
+      expect(membersAfter).toHaveLength(1);
+
+      await db.delete(payments).where(eq(payments.tripId, testTripId));
+    });
+
+    it("removing a member with only participant rows -> 409 MemberHasPaymentsError", async () => {
+      const [organizerMember] = await db
+        .select()
+        .from(members)
+        .where(
+          and(
+            eq(members.tripId, testTripId),
+            eq(members.userId, testOrganizerId),
+          ),
+        );
+      const [memberRecord] = await db
+        .select()
+        .from(members)
+        .where(
+          and(eq(members.tripId, testTripId), eq(members.userId, testMemberId)),
+        );
+      const [payment] = await db
+        .insert(payments)
+        .values({
+          tripId: testTripId,
+          description: "Dinner",
+          amount: 4000,
+          memberId: organizerMember.id,
+          createdBy: testOrganizerId,
+        })
+        .returning();
+      await db.insert(paymentParticipants).values({
+        paymentId: payment.id,
+        memberId: memberRecord.id,
+        shareAmount: 4000,
+      });
+
+      await expect(
+        invitationService.removeMember(
+          testOrganizerId,
+          testTripId,
+          memberRecord.id,
+        ),
+      ).rejects.toThrow(MemberHasPaymentsError);
+
+      const membersAfter = await db
+        .select()
+        .from(members)
+        .where(eq(members.id, memberRecord.id));
+      expect(membersAfter).toHaveLength(1);
+
+      await db
+        .delete(paymentParticipants)
+        .where(eq(paymentParticipants.paymentId, payment.id));
+      await db.delete(payments).where(eq(payments.id, payment.id));
+    });
+
+    it("Task 4.4: organizer removes a guest by memberId — participant share blocks (409) until scrubbed, then member+travel gone", async () => {
       const guestPhone = generateUniquePhone();
       const [guest] = await db
         .insert(members)
@@ -1348,7 +1447,20 @@ describe("invitation.service", () => {
         shareAmount: 5000,
       });
 
-      // Must not throw on the users.phoneNumber lookup with NULL userId.
+      // Participant share blocks removal: clean 409, guest row survives.
+      await expect(
+        invitationService.removeMember(testOrganizerId, testTripId, guest.id),
+      ).rejects.toThrow(MemberHasPaymentsError);
+      expect(
+        await db.select().from(members).where(eq(members.id, guest.id)),
+      ).toHaveLength(1);
+
+      // "Reassign or delete them first": scrub the guest share, then the
+      // removal succeeds. Must not throw on the users.phoneNumber lookup
+      // with NULL userId.
+      await db
+        .delete(paymentParticipants)
+        .where(eq(paymentParticipants.paymentId, payment.id));
       await invitationService.removeMember(
         testOrganizerId,
         testTripId,
@@ -1758,7 +1870,14 @@ describe("invitation.service", () => {
     });
 
     afterEach(async () => {
-      // Clean up shared trip and mutual user
+      // Clean up shared trip and mutual user. Also scrub mutual_invite
+      // notification rows the claim tests leave on the main test trip
+      // (Task 4.2 phone path), so they don't leak across tests.
+      if (mutualUserId) {
+        await db
+          .delete(notifications)
+          .where(eq(notifications.userId, mutualUserId));
+      }
       if (sharedTripId) {
         await db
           .delete(notifications)

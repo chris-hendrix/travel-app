@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { db } from "@/config/database.js";
 import { users, trips, members, invitations, payments } from "@/db/schema/index.js";
 import { eq } from "drizzle-orm";
@@ -6,8 +6,9 @@ import { generateUniquePhone } from "../test-utils.js";
 import { GuestMemberService } from "@/services/guest-member.service.js";
 import { PermissionsService } from "@/services/permissions.service.js";
 import { InvitationService } from "@/services/invitation.service.js";
-import { SMSService } from "@/services/sms.service.js";
+import type { ISMSService } from "@/services/sms.service.js";
 import { NotificationService } from "@/services/notification.service.js";
+import type { PgBoss } from "pg-boss";
 import {
   DuplicateMemberError,
   MemberLimitExceededError,
@@ -25,11 +26,22 @@ import {
 describe("guest-member fixes sweep", () => {
   const permissionsService = new PermissionsService(db);
   const guestMemberService = new GuestMemberService(db, permissionsService);
+  // Mocked SMS + queue deps (boss-queue pattern from
+  // invitation.service.test.ts): no live SMS or queue jobs fire in tests.
+  const mockSmsService = {
+    sendMessage: vi.fn().mockResolvedValue(undefined),
+  } as unknown as ISMSService;
+  const mockBoss = {
+    send: vi.fn().mockResolvedValue(undefined),
+    insert: vi.fn().mockResolvedValue(undefined),
+  } as unknown as PgBoss;
   const invitationService = new InvitationService(
     db,
     permissionsService,
-    new SMSService(),
+    mockSmsService,
     new NotificationService(db),
+    undefined,
+    mockBoss,
   );
 
   let organizerId: string;
