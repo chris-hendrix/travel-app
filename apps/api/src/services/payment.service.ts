@@ -15,6 +15,7 @@ import type { IPermissionsService } from "./permissions.service.js";
 import {
   PaymentNotFoundError,
   PaymentMemberNotInTripError,
+  DuplicateParticipantError,
   PermissionDeniedError,
 } from "../errors.js";
 
@@ -82,6 +83,7 @@ export class PaymentService implements IPaymentService {
     // Guests are allowed as payer — the organizer records who paid;
     // `createdBy` stays the recording user.
     const participantMemberIds = data.participants.map((p) => p.memberId);
+    this.assertNoDuplicateParticipants(participantMemberIds);
     await this.assertMembersInTrip(
       tripId,
       [data.payerMemberId, ...participantMemberIds],
@@ -93,35 +95,41 @@ export class PaymentService implements IPaymentService {
       data.participants.length,
     );
 
-    // Create payment and participants in a transaction
-    const [payment] = await this.db
-      .insert(payments)
-      .values({
-        tripId,
-        description: data.description,
-        amount: data.amount,
-        memberId: data.payerMemberId,
-        date: data.date ? new Date(data.date) : new Date(),
-        createdBy: userId,
-      })
-      .returning();
+    // Payment + participants insert atomically: a participants-insert
+    // failure must not leave an orphan payment row.
+    const { payment, participantRows } = await this.db.transaction(
+      async (tx) => {
+        const [payment] = await tx
+          .insert(payments)
+          .values({
+            tripId,
+            description: data.description,
+            amount: data.amount,
+            memberId: data.payerMemberId,
+            date: data.date ? new Date(data.date) : new Date(),
+            createdBy: userId,
+          })
+          .returning();
 
-    if (!payment) {
-      throw new Error("Failed to create payment");
-    }
+        if (!payment) {
+          throw new Error("Failed to create payment");
+        }
 
-    const participantRows = await this.db
-      .insert(paymentParticipants)
-      .values(
-        data.participants.map((p, i) => ({
-          paymentId: payment.id,
-          memberId: p.memberId,
-          shareAmount: shares[i]!,
-        })),
-      )
-      .returning();
+        const participantRows = await tx
+          .insert(paymentParticipants)
+          .values(
+            data.participants.map((p, i) => ({
+              paymentId: payment.id,
+              memberId: p.memberId,
+              shareAmount: shares[i]!,
+            })),
+          )
+          .returning();
+        return { payment, participantRows };
+      },
+    );
 
-    return this.enrichPayment(payment, participantRows);
+    return this.enrichPayment(tripId, payment, participantRows);
   }
 
   async getPaymentsByTrip(
@@ -158,7 +166,7 @@ export class PaymentService implements IPaymentService {
       memberIds.add(pp.memberId);
     }
 
-    const nameMap = await this.buildMemberNameMap(Array.from(memberIds));
+    const nameMap = await this.buildMemberNameMap(tripId, Array.from(memberIds));
 
     // Group participants by payment
     const participantsByPayment = new Map<string, typeof participantRows>();
@@ -213,6 +221,9 @@ export class PaymentService implements IPaymentService {
       await this.assertMembersInTrip(existing.tripId, [data.payerMemberId]);
     }
     if (data.participants !== undefined) {
+      this.assertNoDuplicateParticipants(
+        data.participants.map((p) => p.memberId),
+      );
       await this.assertMembersInTrip(
         existing.tripId,
         data.participants.map((p) => p.memberId),
@@ -290,7 +301,7 @@ export class PaymentService implements IPaymentService {
         .where(eq(paymentParticipants.paymentId, paymentId));
     }
 
-    return this.enrichPayment(updated, participantRows);
+    return this.enrichPayment(existing.tripId, updated, participantRows);
   }
 
   async deletePayment(userId: string, paymentId: string): Promise<void> {
@@ -368,7 +379,7 @@ export class PaymentService implements IPaymentService {
       .from(paymentParticipants)
       .where(eq(paymentParticipants.paymentId, paymentId));
 
-    return this.enrichPayment(restored, participantRows);
+    return this.enrichPayment(existing.tripId, restored, participantRows);
   }
 
   /**
@@ -418,6 +429,7 @@ export class PaymentService implements IPaymentService {
   }
 
   private async enrichPayment(
+    tripId: string,
     payment: Payment,
     participantRows: {
       id: string;
@@ -434,7 +446,7 @@ export class PaymentService implements IPaymentService {
       memberIds.add(pp.memberId);
     }
 
-    const nameMap = await this.buildMemberNameMap(Array.from(memberIds));
+    const nameMap = await this.buildMemberNameMap(tripId, Array.from(memberIds));
 
     return {
       ...payment,
@@ -448,6 +460,7 @@ export class PaymentService implements IPaymentService {
   }
 
   private async buildMemberNameMap(
+    tripId: string,
     memberIds: string[],
   ): Promise<Map<string, string>> {
     const nameMap = new Map<string, string>();
@@ -460,12 +473,26 @@ export class PaymentService implements IPaymentService {
         })
         .from(members)
         .leftJoin(users, eq(members.userId, users.id))
-        .where(inArray(members.id, memberIds));
+        .where(
+          and(eq(members.tripId, tripId), inArray(members.id, memberIds)),
+        );
       for (const r of rows) {
         nameMap.set(r.id, r.name);
       }
     }
 
     return nameMap;
+  }
+
+  /**
+   * Reject duplicate participant memberIds (400): duplicates would double-
+   * count one member's share and silently short-change the others.
+   */
+  private assertNoDuplicateParticipants(memberIds: string[]): void {
+    if (new Set(memberIds).size !== memberIds.length) {
+      throw new DuplicateParticipantError(
+        "Duplicate participant: each member may appear only once per payment",
+      );
+    }
   }
 }

@@ -6,7 +6,7 @@ import { generateUniquePhone } from "../test-utils.js";
 import { PaymentService } from "@/services/payment.service.js";
 import { PermissionsService } from "@/services/permissions.service.js";
 import { GuestMemberService } from "@/services/guest-member.service.js";
-import { PaymentMemberNotInTripError } from "@/errors.js";
+import { PaymentMemberNotInTripError, DuplicateParticipantError } from "@/errors.js";
 
 /**
  * Task 6.1 RED: payment.service member-keyed write path.
@@ -87,6 +87,51 @@ describe("payment.service member-keyed write path (Task 6.1)", () => {
     for (const phone of createdUserPhones) {
       await db.delete(users).where(eq(users.phoneNumber, phone));
     }
+  });
+
+  it("rejects duplicate participant memberIds on create with 400", async () => {
+    const err = await paymentService
+      .createPayment(organizerId, tripId, {
+        description: "Dinner",
+        amount: 4000,
+        payerMemberId: organizerMemberId,
+        participants: [
+          { memberId: memberAMemberId },
+          { memberId: memberAMemberId },
+        ],
+      })
+      .catch((e) => e);
+    expect(err).toBeInstanceOf(DuplicateParticipantError);
+    expect(err.statusCode).toBe(400);
+
+    // No orphan payment row left behind
+    const rows = await db
+      .select()
+      .from(payments)
+      .where(eq(payments.tripId, tripId));
+    expect(rows).toHaveLength(0);
+  });
+
+  it("rejects duplicate participant memberIds on update with 400", async () => {
+    const payment = await paymentService.createPayment(
+      organizerId,
+      tripId,
+      {
+        description: "Dinner",
+        amount: 4000,
+        payerMemberId: organizerMemberId,
+        participants: [{ memberId: memberAMemberId }],
+      },
+    );
+
+    await expect(
+      paymentService.updatePayment(organizerId, payment.id, {
+        participants: [
+          { memberId: memberAMemberId },
+          { memberId: memberAMemberId },
+        ],
+      }),
+    ).rejects.toThrow(DuplicateParticipantError);
   });
 
   it("creates a payment with payerMemberId + guest participants: memberIds stored, equal split incl. guests", async () => {
