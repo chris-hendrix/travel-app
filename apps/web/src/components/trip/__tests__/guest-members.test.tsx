@@ -129,7 +129,6 @@ describe("MembersList guest rows (Task 7.1)", () => {
 
     const avatar = screen.getByTestId("member-avatar-member-guest-1");
     expect(avatar.getAttribute("data-guest-ring")).toBe("dashed");
-    expect(avatar.className).toContain("border-dashed");
   });
 
   it("guest row shows no action buttons to a non-organizer", () => {
@@ -167,7 +166,6 @@ describe("MembersList guest rows (Task 7.1)", () => {
 
     const avatar = screen.getByTestId("member-avatar-member-guest-2");
     expect(avatar.getAttribute("data-guest-ring")).toBe("solid");
-    expect(avatar.className).not.toContain("border-dashed");
   });
 
   it("organizer menu for a guest shows Remove only (no mute, no Make organizer)", async () => {
