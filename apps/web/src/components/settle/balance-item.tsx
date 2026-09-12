@@ -1,12 +1,16 @@
 "use client";
 
 import { ArrowRight } from "lucide-react";
+import { GuestBadge } from "@/components/trip/guest-badge";
 import type { BalanceEntry } from "@journiful/shared/types";
 
 interface BalanceItemProps {
   entry: BalanceEntry;
-  onSettleUp?: (entry: BalanceEntry) => void;
-  currentMemberId?: string;
+  onSettleUp?: ((entry: BalanceEntry) => void) | undefined;
+  currentMemberId?: string | undefined;
+  /** Set when the from/to person is a guest (no attached user account). */
+  fromIsGuest?: boolean;
+  toIsGuest?: boolean;
 }
 
 function formatCents(cents: number): string {
@@ -27,6 +31,8 @@ export function BalanceItem({
   entry,
   onSettleUp,
   currentMemberId,
+  fromIsGuest,
+  toIsGuest,
 }: BalanceItemProps) {
   const fromName = personName(entry.from, currentMemberId);
   const toName = personName(entry.to, currentMemberId);
@@ -53,9 +59,15 @@ export function BalanceItem({
 
       {/* Label */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">
+        <p
+          className="text-sm font-medium truncate"
+          title={`${fromName} ${verb} ${toName}`}
+        >
           {fromName} {verb} {toName}
         </p>
+        {(fromIsGuest || toIsGuest) && (
+          <GuestBadge className="mt-0.5" />
+        )}
         {onSettleUp && (
           <p className="text-xs text-primary group-hover:underline">
             Settle up

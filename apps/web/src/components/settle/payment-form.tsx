@@ -14,6 +14,7 @@ import {
   getPaymentErrorMessage,
 } from "@/hooks/use-payments";
 import { Button } from "@/components/ui/button";
+import { GuestBadge } from "@/components/trip/guest-badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -190,13 +191,27 @@ export function PaymentForm({
     setSelectedParticipants(new Set());
   }, []);
 
-  // Validation
-  const amountCents = Math.round(parseFloat(amountStr || "0") * 100);
+  // Validation: strict amount shape (digits with at most 2 decimals).
+  const amountTrimmed = amountStr.trim();
+  const amountShapeValid = /^\d+(\.\d{1,2})?$/.test(amountTrimmed);
+  const amountCents = amountShapeValid
+    ? Math.round(parseFloat(amountTrimmed) * 100)
+    : 0;
+  const descriptionValid = description.trim().length > 0;
+  const participantsValid = selectedParticipants.size > 0;
   const isValid =
-    description.trim().length > 0 &&
+    descriptionValid &&
+    amountShapeValid &&
     amountCents > 0 &&
     payerId !== "" &&
-    selectedParticipants.size > 0;
+    participantsValid;
+  // Show field hints only after the user typed something, so a fresh
+  // form does not open with errors already visible.
+  const showAmountError = amountTrimmed.length > 0 && (!amountShapeValid || amountCents <= 0);
+  const showDescriptionError =
+    description.length > 0 && !descriptionValid;
+  const showParticipantsHint =
+    participantOptions.length > 0 && !participantsValid;
 
   const handleSubmit = () => {
     if (!isValid) return;
@@ -269,7 +284,13 @@ export function PaymentForm({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 maxLength={500}
+                aria-describedby={showDescriptionError ? "payment-description-error" : undefined}
               />
+              {showDescriptionError && (
+                <p id="payment-description-error" className="text-sm text-destructive">
+                  Add a short description.
+                </p>
+              )}
             </div>
 
             {/* Amount */}
@@ -287,8 +308,14 @@ export function PaymentForm({
                   value={amountStr}
                   onChange={(e) => setAmountStr(e.target.value)}
                   className="pl-9"
+                  aria-describedby={showAmountError ? "payment-amount-error" : undefined}
                 />
               </div>
+              {showAmountError && (
+                <p id="payment-amount-error" className="text-sm text-destructive">
+                  Enter an amount greater than 0.
+                </p>
+              )}
             </div>
 
             {/* Paid by */}
@@ -302,13 +329,13 @@ export function PaymentForm({
                   {people.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
                       <span className="flex items-center gap-1.5">
-                        {p.isGuest && (
-                          <span
-                            aria-hidden
-                            className="inline-block h-2.5 w-2.5 rounded-full border border-dashed border-accent"
-                          />
-                        )}
                         {p.name}
+                        {p.isGuest && (
+                          <>
+                            {" "}
+                            <GuestBadge />
+                          </>
+                        )}
                       </span>
                     </SelectItem>
                   ))}
@@ -357,17 +384,12 @@ export function PaymentForm({
                       checked={p.checked}
                       onCheckedChange={() => toggleParticipant(p.id)}
                     />
-                    {p.isGuest && (
-                      <span
-                        aria-hidden
-                        className="inline-block h-2.5 w-2.5 shrink-0 rounded-full border border-dashed border-accent"
-                      />
-                    )}
                     <span className="text-sm">{p.name}</span>
                     {p.isGuest && (
-                      <span className="text-xs text-muted-foreground">
-                        guest
-                      </span>
+                      <>
+                        {" "}
+                        <GuestBadge />
+                      </>
                     )}
                   </label>
                 ))}
@@ -377,10 +399,15 @@ export function PaymentForm({
                   </p>
                 )}
               </div>
+              {showParticipantsHint && (
+                <p className="text-xs text-muted-foreground">
+                  Select who this expense is split with.
+                </p>
+              )}
               {payerPerson && selectedParticipants.has(payerId) && (
                 <p className="text-xs text-muted-foreground">
-                  {payerPerson.name} is both paying and splitting — their net
-                  cost will be reduced.
+                  {payerPerson.name} is both paying and splitting, so their net
+                  cost is reduced.
                 </p>
               )}
             </div>

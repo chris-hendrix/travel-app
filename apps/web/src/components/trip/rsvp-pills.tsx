@@ -92,7 +92,7 @@ function PillsView({
             aria-pressed={isActive}
             onClick={() => onPick(pill.value)}
             className={cn(
-              "h-10",
+              "h-10 shadow-none",
               isActive
                 ? cn(pill.activeClass, "border-transparent")
                 : pill.hoverClass,

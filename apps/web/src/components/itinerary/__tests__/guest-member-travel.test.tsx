@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { CreateMemberTravelDialog } from "../create-member-travel-dialog";
@@ -167,12 +167,12 @@ describe("guest member travel (Task 7.2)", () => {
           onClick={() => {}}
         />,
       );
-      expect(screen.getByText("Mom")).toBeDefined();
+      expect(screen.getByText("Mom")).toBeInTheDocument();
     });
   });
 
   describe("organizer travel dialog — guest options", () => {
-    it("guest option shows guest name without (You); self keeps (You)", async () => {
+    it("guest option shows Guest badge without (You); self keeps (You)", async () => {
       const user = userEvent.setup();
       renderWithQueryClient(
         <CreateMemberTravelDialog
@@ -184,18 +184,52 @@ describe("guest member travel (Task 7.2)", () => {
         />,
       );
 
-      // Default selection is self with (You) suffix
       const selector = screen.getByTestId("member-selector");
-      expect(selector.textContent).toContain("Liam");
-      expect(selector.textContent).toContain("(You)");
-
-      // Open the dropdown and verify guest option
       await user.click(selector);
-      await waitFor(() => {
-        expect(screen.getByRole("option", { name: /Mom/ })).toBeDefined();
+
+      const selfOption = await screen.findByRole("option", {
+        name: /Liam.*\(You\)/,
       });
-      const guestOption = screen.getByRole("option", { name: /Mom/ });
-      expect(guestOption.textContent).not.toContain("(You)");
+      expect(selfOption).toBeInTheDocument();
+      expect(selfOption).toHaveTextContent("(You)");
+
+      const guestOption = await screen.findByRole("option", {
+        name: /Mom.*Guest/,
+      });
+      expect(guestOption).toBeInTheDocument();
+      expect(guestOption).toHaveTextContent("Mom");
+      expect(guestOption).toHaveTextContent("Guest");
+      expect(guestOption).not.toHaveTextContent("(You)");
+    });
+
+    it("selecting a guest updates the title and shows the organizer-plans hint", async () => {
+      const user = userEvent.setup();
+      renderWithQueryClient(
+        <CreateMemberTravelDialog
+          open={true}
+          onOpenChange={() => {}}
+          tripId="trip-1"
+          timezone="America/New_York"
+          isOrganizer={true}
+        />,
+      );
+
+      expect(
+        screen.getByRole("heading", { name: "Add your travel details" }),
+      ).toBeInTheDocument();
+
+      await user.click(screen.getByTestId("member-selector"));
+      const guestOption = await screen.findByRole("option", {
+        name: /Mom.*Guest/,
+      });
+      await user.click(guestOption);
+
+      expect(
+        await screen.findByRole("heading", { name: "Add travel for Mom" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/has no app access/i),
+      ).toBeInTheDocument();
     });
   });
 });

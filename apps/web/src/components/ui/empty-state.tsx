@@ -14,7 +14,7 @@ interface EmptyStateProps {
   icon: LucideIcon;
   title: string;
   description?: string;
-  action?: EmptyStateAction;
+  action?: EmptyStateAction | undefined;
   variant?: "card" | "inline";
   className?: string;
   children?: ReactNode;

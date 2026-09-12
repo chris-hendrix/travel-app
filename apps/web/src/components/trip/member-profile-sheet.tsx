@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { toast } from "sonner";
-import { Pencil } from "lucide-react";
+import { Check, Pencil } from "lucide-react";
 import type { MemberWithProfile } from "@journiful/shared/types";
 import { PHONE_REGEX } from "@journiful/shared/schemas";
 import { getUploadUrl } from "@/lib/api";
@@ -18,6 +18,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
 import {
   Select,
@@ -154,7 +155,10 @@ function GuestEditor({
     }
   };
 
+  const inviteSent = pendingInviteExists && !phoneEdited;
+
   const handleSend = async () => {
+    if (inviteSent) return;
     const trimmed = phone.trim();
     if (!PHONE_REGEX.test(trimmed)) {
       setPhoneError("Enter a valid phone number");
@@ -237,6 +241,23 @@ function GuestEditor({
     }
   };
 
+  const handlePhoneChange = (v?: string) => {
+    const next = v ?? "";
+    setPhone(next);
+    if (phoneError && PHONE_REGEX.test(next.trim())) setPhoneError(null);
+  };
+
+  const handlePhoneBlur = () => {
+    const trimmed = phone.trim();
+    if (!trimmed) {
+      setPhoneError(null);
+      return;
+    }
+    setPhoneError(
+      PHONE_REGEX.test(trimmed) ? null : "Enter a valid phone number",
+    );
+  };
+
   const sendBusy = updateGuest.isPending || inviteMembers.isPending;
 
   return (
@@ -267,33 +288,43 @@ function GuestEditor({
 
         {/* Phone row */}
         <div className="space-y-1">
+          <Label htmlFor="guest-phone">Guest phone number</Label>
           <div className="flex h-10 items-stretch overflow-hidden rounded-lg border border-input bg-background focus-within:border-ring">
             <div
               className="flex min-w-0 flex-1 items-center gap-1 px-3"
             >
-              <span aria-hidden className="text-muted-foreground">
-                📱
-              </span>
               <PhoneInput
+                id="guest-phone"
                 value={phone}
-                onChange={(v) => setPhone(v ?? "")}
-                placeholder="Phone number"
+                onChange={handlePhoneChange}
+                onBlur={handlePhoneBlur}
+                placeholder="+1 555 123 4567"
                 aria-label="Guest phone number"
+                aria-invalid={phoneError ? true : false}
+                aria-describedby={phoneError ? "guest-phone-error" : undefined}
                 className="min-w-0 flex-1 [&_input]:h-9 [&_input]:border-0 [&_input]:bg-transparent [&_input]:px-1 [&_input]:shadow-none [&_input]:focus-visible:ring-0"
               />
             </div>
             <Button
               type="button"
               onClick={handleSend}
-              disabled={!phoneValid || sendBusy}
-              variant={pendingInviteExists && !phoneEdited ? "ghost" : "default"}
-              className="h-full shrink-0 rounded-none rounded-r-[calc(var(--radius)-1px)] border-l border-input px-4 focus-visible:outline-2 focus-visible:outline-offset-[-2px]"
+              disabled={inviteSent || !phoneValid || sendBusy}
+              aria-disabled={inviteSent || undefined}
+              variant="ghost"
+              className="h-full shrink-0 rounded-none rounded-r-[calc(var(--radius)-1px)] border-l border-input px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-[-2px]"
             >
-              {pendingInviteExists && !phoneEdited ? "Invite sent ✓" : "Send"}
+              {inviteSent ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <Check aria-hidden className="size-4" />
+                  Invite sent
+                </span>
+              ) : (
+                "Send"
+              )}
             </Button>
           </div>
           {phoneError && (
-            <p role="alert" className="text-xs text-destructive">
+            <p id="guest-phone-error" role="alert" className="text-xs text-destructive">
               {phoneError}
             </p>
           )}
@@ -313,7 +344,26 @@ function GuestEditor({
                 <SelectContent>
                   {mutuals.map((m) => (
                     <SelectItem key={m.id} value={m.id}>
-                      {m.displayName}
+                      <span className="flex items-center gap-2">
+                        <Avatar size="sm" className="size-6 text-[10px]">
+                          {m.profilePhotoUrl && (
+                            <AvatarImage
+                              src={getUploadUrl(m.profilePhotoUrl)}
+                              alt=""
+                            />
+                          )}
+                          <AvatarFallback>{getInitials(m.displayName)}</AvatarFallback>
+                        </Avatar>
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-medium">
+                            {m.displayName}
+                          </span>
+                          <span className="block text-xs text-muted-foreground">
+                            {m.sharedTripCount} shared trip
+                            {m.sharedTripCount !== 1 ? "s" : ""}
+                          </span>
+                        </span>
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -323,7 +373,8 @@ function GuestEditor({
               type="button"
               onClick={handleClaim}
               disabled={!selectedMutual || inviteMembers.isPending}
-              className="h-full shrink-0 rounded-none rounded-r-[calc(var(--radius)-1px)] border-l border-input px-4 focus-visible:outline-2 focus-visible:outline-offset-[-2px]"
+              variant="ghost"
+              className="h-full shrink-0 rounded-none rounded-r-[calc(var(--radius)-1px)] border-l border-input px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-[-2px]"
             >
               Invite
             </Button>
@@ -551,10 +602,7 @@ function GuestNameTitle({
     }
   };
 
-  const handleKeyDown = (e: {
-    key: string;
-    preventDefault: () => void;
-  }) => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       e.preventDefault();
       inputRef.current?.blur();

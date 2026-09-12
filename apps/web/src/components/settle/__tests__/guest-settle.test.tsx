@@ -36,6 +36,7 @@ vi.mock("@/hooks/use-payments", () => ({
     error: null,
   }),
   getPaymentErrorMessage: () => null,
+  isAmountLimitError: () => false,
 }));
 
 const mockUseAuth = vi.fn();
@@ -130,11 +131,10 @@ describe("PaymentForm with guests", () => {
       <PaymentForm tripId={TRIP_ID} open={true} onOpenChange={() => {}} />,
     );
 
-    // Guest appears in the split-between list with a guest label
-    // (the payer Select also renders the name — match any occurrence)
-    expect(await screen.findAllByText("Mom")).not.toHaveLength(0);
-    expect(screen.getByText("guest")).toBeDefined();
-    expect((await screen.findAllByText("Liam")).length).toBeGreaterThan(0);
+    // Guest appears in the split-with list with a visible Guest badge
+    expect(await screen.findByRole("checkbox", { name: /Mom Guest/ })).toBeInTheDocument();
+    expect(screen.getAllByText("Guest").length).toBeGreaterThan(0);
+    expect(await screen.findByRole("checkbox", { name: /Liam/ })).toBeInTheDocument();
   });
 
   it("submits a member-keyed payload including the guest participant", async () => {
@@ -231,9 +231,9 @@ describe("PaymentItem with guests", () => {
     render(
       <PaymentItem payment={makePayment()} currentMemberId="member-liam" />,
     );
-    expect(screen.getByText("Dinner")).toBeDefined();
-    expect(screen.getByText(/Mom/)).toBeDefined();
-    expect(screen.queryByText(/^You$/)).toBeNull();
+    expect(screen.getByText("Dinner")).toBeInTheDocument();
+    expect(screen.getByText(/Mom/)).toBeInTheDocument();
+    expect(screen.queryByText(/^You$/)).not.toBeInTheDocument();
   });
 
   it("shows 'You' when the viewer's member row paid", () => {
@@ -243,7 +243,7 @@ describe("PaymentItem with guests", () => {
         currentMemberId="member-liam"
       />,
     );
-    expect(screen.getByText(/You/)).toBeDefined();
+    expect(screen.getByText(/You/)).toBeInTheDocument();
   });
 });
 
@@ -280,8 +280,8 @@ describe("BalanceList with guests", () => {
     renderWithClient(<BalanceList tripId={TRIP_ID} />);
 
     // Viewer is Liam (member-liam): "Mom owes You $40.00"
-    expect(await screen.findByText(/Mom.*You/)).toBeDefined();
-    expect(screen.getByText("$40.00")).toBeDefined();
+    expect(await screen.findByText(/Mom.*You/)).toBeInTheDocument();
+    expect(screen.getByText("$40.00")).toBeInTheDocument();
   });
 
   it("sorts the viewer's balances (incl. guest debts) first", async () => {
@@ -291,8 +291,8 @@ describe("BalanceList with guests", () => {
     await screen.findByText(/Mom.*You/);
     const rows = screen.getAllByText(/owes?/);
     // First row involves the viewer (Mom owes You); unrelated debt sorts last
-    expect(rows[0]?.textContent).toMatch(/Mom/);
-    expect(rows[rows.length - 1]?.textContent).toMatch(/Sarah Chen/);
+    expect(rows[0]).toHaveTextContent(/Mom/);
+    expect(rows[rows.length - 1]).toHaveTextContent(/Sarah Chen/);
   });
 });
 
@@ -347,14 +347,8 @@ describe("SettlementForm with guests", () => {
     );
 
     await screen.findByText("Mom");
-    // Wait until the members query resolves so the assertion is meaningful
-    // (the guest row carries no handles, so no link may ever render).
-    await waitFor(() => {
-      const state = queryClient.getQueryState(["members", "list", TRIP_ID]);
-      expect(state?.status).toBe("success");
-    });
     // Guest has no handles — no Venmo quick link renders
-    expect(screen.queryByText(/Pay .* on Venmo/)).toBeNull();
+    expect(screen.queryByRole("link", { name: /Pay .* on Venmo/ })).not.toBeInTheDocument();
   });
 
   it("shows the Venmo link when the recipient is a full member with a handle", async () => {
@@ -373,6 +367,6 @@ describe("SettlementForm with guests", () => {
     );
 
     await screen.findByText("Mom");
-    expect(await screen.findByText("Pay Liam on Venmo")).toBeDefined();
+    expect(await screen.findByRole("link", { name: "Pay Liam on Venmo" })).toBeInTheDocument();
   });
 });

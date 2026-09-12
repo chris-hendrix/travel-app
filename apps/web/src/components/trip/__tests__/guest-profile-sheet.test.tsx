@@ -28,16 +28,22 @@ vi.mock("@/components/ui/phone-input", () => ({
   PhoneInput: ({
     value,
     onChange,
+    onBlur,
     placeholder,
+    id,
   }: {
     value?: string;
     onChange?: (value?: string) => void;
+    onBlur?: () => void;
     placeholder?: string;
+    id?: string;
   }) => (
     <input
       type="tel"
+      id={id}
       value={value || ""}
       onChange={(e) => onChange?.(e.target.value)}
+      onBlur={onBlur}
       placeholder={placeholder}
       aria-label="Guest phone number"
     />
@@ -270,7 +276,28 @@ describe("MemberProfileSheet guest redesign", () => {
     });
   });
 
-  it("shows muted 'Invite sent ✓' when a pending invitation exists", () => {
+  it("shows a disabled 'Invite sent' status when a pending invitation exists", async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+    mockUseInvitations.mockReturnValue({
+      data: [
+        { id: "inv-1", tripId: "trip-123", inviterId: "u", inviteePhone: "+14155551111", status: "pending", sentAt: "", respondedAt: null, createdAt: "", updatedAt: "" },
+      ],
+      isPending: false,
+    });
+    renderSheet({ onOpenChange });
+    const sentButton = screen.getByRole("button", { name: /invite sent/i });
+    expect(sentButton).toBeInTheDocument();
+    expect(sentButton).toHaveProperty("disabled", true);
+    expect(sentButton.querySelector("svg")).toBeInTheDocument();
+    await user.click(sentButton);
+    expect(mockInviteMutate).not.toHaveBeenCalled();
+    expect(mockToast.success).not.toHaveBeenCalled();
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
+  it("editing the phone number after an invite re-enables Send", async () => {
+    const user = userEvent.setup();
     mockUseInvitations.mockReturnValue({
       data: [
         { id: "inv-1", tripId: "trip-123", inviterId: "u", inviteePhone: "+14155551111", status: "pending", sentAt: "", respondedAt: null, createdAt: "", updatedAt: "" },
@@ -278,9 +305,35 @@ describe("MemberProfileSheet guest redesign", () => {
       isPending: false,
     });
     renderSheet();
+    const phoneInput = screen.getByLabelText("Guest phone number");
+    await user.clear(phoneInput);
+    await user.type(phoneInput, "+14155552222");
+    expect(screen.getByRole("button", { name: "Send" })).toHaveProperty(
+      "disabled",
+      false,
+    );
+  });
+
+  it("renders a visible label for the guest phone input", () => {
+    renderSheet();
+    expect(screen.getByText("Guest phone number")).toBeInTheDocument();
+  });
+
+  it("invalid phone number shows an error on blur and keeps Send disabled", async () => {
+    const user = userEvent.setup();
+    renderSheet();
+    const phoneInput = screen.getByLabelText("Guest phone number");
+    await user.clear(phoneInput);
+    await user.type(phoneInput, "123");
+    await user.tab();
     expect(
-      screen.getByRole("button", { name: /invite sent/i }),
-    ).toBeDefined();
+      await screen.findByRole("alert"),
+    ).toHaveTextContent("Enter a valid phone number");
+    expect(screen.getByRole("button", { name: "Send" })).toHaveProperty(
+      "disabled",
+      true,
+    );
+    expect(mockInviteMutate).not.toHaveBeenCalled();
   });
 
   it("mutual row Invite is disabled until a mutual is selected, then claims", async () => {
@@ -291,7 +344,9 @@ describe("MemberProfileSheet guest redesign", () => {
     expect(inviteBtn).toHaveProperty("disabled", true);
 
     await user.click(screen.getByRole("combobox", { name: /choose a mutual/i }));
-    await user.click(await screen.findByRole("option", { name: "Sarah Chen" }));
+    await user.click(
+      await screen.findByRole("option", { name: /Sarah Chen/ }),
+    );
 
     await waitFor(() => {
       expect(

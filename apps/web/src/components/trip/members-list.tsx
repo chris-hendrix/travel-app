@@ -437,16 +437,18 @@ export function MembersList({
   // or claimed member phoneNumber) is the same person — they're already
   // listed as a member, so skip the duplicate phone row. The invite state
   // lives on the member's profile sheet ("Invite sent ✓").
+  const normalizePhone = (phone: string) => phone.replace(/[\s-]/g, "");
   const memberPhones = new Set(
     members
       .map((m) => m.guestPhone ?? m.phoneNumber)
-      .filter((p): p is string => !!p),
+      .filter((p): p is string => !!p)
+      .map(normalizePhone),
   );
   const pendingInvitations =
     invitations?.filter(
       (inv) =>
         (inv.status === "pending" || inv.status === "failed") &&
-        !memberPhones.has(inv.inviteePhone),
+        !memberPhones.has(normalizePhone(inv.inviteePhone)),
     ) ?? [];
 
   const invitedCount = noResponse.length + pendingInvitations.length;

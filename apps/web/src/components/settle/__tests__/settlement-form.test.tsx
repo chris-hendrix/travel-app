@@ -22,6 +22,7 @@ const mockMutation = vi.hoisted(() => ({
 vi.mock("@/hooks/use-payments", () => ({
   useCreatePayment: () => mockMutation,
   getPaymentErrorMessage: vi.fn((error: Error | null) => error?.message ?? null),
+  isAmountLimitError: vi.fn(() => false),
 }));
 
 vi.mock("@/hooks/use-dialog-back", () => ({
@@ -128,20 +129,20 @@ describe("SettlementForm", () => {
       renderForm(entry, true);
 
       // Sheet title
-      expect(screen.getByText("Settle Up")).toBeDefined();
+      expect(screen.getByText("Settle Up")).toBeInTheDocument();
 
       // From/To display
-      expect(screen.getByText("Alice")).toBeDefined();
-      expect(screen.getByText("Bob")).toBeDefined();
+      expect(screen.getByText("Alice")).toBeInTheDocument();
+      expect(screen.getByText("Bob")).toBeInTheDocument();
 
       // Form fields
-      expect(screen.getByLabelText("Amount")).toBeDefined();
-      expect(screen.getByLabelText("Note (optional)")).toBeDefined();
+      expect(screen.getByLabelText("Amount")).toBeInTheDocument();
+      expect(screen.getByLabelText("Note (optional)")).toBeInTheDocument();
 
       // Submit button
       expect(
         screen.getByRole("button", { name: "Record Settlement" }),
-      ).toBeDefined();
+      ).toBeInTheDocument();
     });
 
     it("does not render form content when open is false", () => {
@@ -149,8 +150,8 @@ describe("SettlementForm", () => {
       renderForm(entry, false);
 
       // Radix Dialog does not mount content when closed
-      expect(screen.queryByText("Settle Up")).toBeNull();
-      expect(screen.queryByLabelText("Amount")).toBeNull();
+      expect(screen.queryByText("Settle Up")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Amount")).not.toBeInTheDocument();
     });
   });
 
@@ -179,11 +180,11 @@ describe("SettlementForm", () => {
     it("renders payment method suggestion chips", () => {
       renderForm(makeEntry());
 
-      expect(screen.getByText("Venmo")).toBeDefined();
-      expect(screen.getByText("Cash")).toBeDefined();
-      expect(screen.getByText("Zelle")).toBeDefined();
-      expect(screen.getByText("PayPal")).toBeDefined();
-      expect(screen.getByText("Apple Pay")).toBeDefined();
+      expect(screen.getByText("Venmo")).toBeInTheDocument();
+      expect(screen.getByText("Cash")).toBeInTheDocument();
+      expect(screen.getByText("Zelle")).toBeInTheDocument();
+      expect(screen.getByText("PayPal")).toBeInTheDocument();
+      expect(screen.getByText("Apple Pay")).toBeInTheDocument();
     });
 
     it("fills note when a suggestion chip is clicked", async () => {
@@ -201,10 +202,10 @@ describe("SettlementForm", () => {
     it("displays payer and recipient names", () => {
       renderForm(makeEntry());
 
-      expect(screen.getByText("From")).toBeDefined();
-      expect(screen.getByText("To")).toBeDefined();
-      expect(screen.getByText("Alice")).toBeDefined();
-      expect(screen.getByText("Bob")).toBeDefined();
+      expect(screen.getByText("From")).toBeInTheDocument();
+      expect(screen.getByText("To")).toBeInTheDocument();
+      expect(screen.getByText("Alice")).toBeInTheDocument();
+      expect(screen.getByText("Bob")).toBeInTheDocument();
     });
 
     it("disables submit button when amount is zero or invalid", () => {
@@ -238,7 +239,7 @@ describe("SettlementForm", () => {
         {
           tripId,
           data: {
-            description: "Settled up — Venmo",
+            description: "Settled up (Venmo)",
             amount: entry.amount,
             payerMemberId: "from-1",
             participants: [{ memberId: "to-1" }],
@@ -311,7 +312,7 @@ describe("SettlementForm", () => {
       renderForm(makeEntry());
 
       const button = screen.getByRole("button", { name: "Recording..." });
-      expect(button).toBeDefined();
+      expect(button).toBeInTheDocument();
       expect(button).toHaveProperty("disabled", true);
     });
 
@@ -322,7 +323,7 @@ describe("SettlementForm", () => {
       const button = screen.getByRole("button", {
         name: "Record Settlement",
       });
-      expect(button).toBeDefined();
+      expect(button).toBeInTheDocument();
       expect(button).toHaveProperty("disabled", false);
     });
   });
@@ -340,14 +341,69 @@ describe("SettlementForm", () => {
       mockMutation.error = new Error("server error");
       renderForm(makeEntry());
 
-      expect(screen.getByText("Something went wrong")).toBeDefined();
+      expect(screen.getByText("Something went wrong")).toBeInTheDocument();
+    });
+
+    it("re-syncs the amount when the sheet is reused for a different entry", () => {
+      const first = makeEntry({ amount: 2500 });
+      const { rerender } = render(
+        <QueryClientProvider client={queryClient}>
+          <SettlementForm
+            tripId={tripId}
+            open={true}
+            onOpenChange={mockOnOpenChange}
+            entry={first}
+          />
+        </QueryClientProvider>,
+      );
+      expect(
+        (screen.getByLabelText("Amount") as HTMLInputElement).value,
+      ).toBe("25.00");
+
+      rerender(
+        <QueryClientProvider client={queryClient}>
+          <SettlementForm
+            tripId={tripId}
+            open={true}
+            onOpenChange={mockOnOpenChange}
+            entry={makeEntry({ amount: 9999 })}
+          />
+        </QueryClientProvider>,
+      );
+      expect(
+        (screen.getByLabelText("Amount") as HTMLInputElement).value,
+      ).toBe("99.99");
+    });
+
+    it("renders an amount-cap error inline near the amount field", async () => {
+      const { getPaymentErrorMessage, isAmountLimitError } = await import(
+        "@/hooks/use-payments"
+      );
+      vi.mocked(getPaymentErrorMessage).mockReturnValue(
+        "This settlement is above the per-settlement limit. Try a smaller amount.",
+      );
+      vi.mocked(isAmountLimitError).mockReturnValue(true);
+
+      mockMutation.error = new Error("limit exceeded");
+      renderForm(makeEntry());
+
+      const amountInput = screen.getByLabelText("Amount");
+      expect(amountInput).toHaveAttribute(
+        "aria-describedby",
+        "settlement-amount-error",
+      );
+      expect(
+        screen.getByText(
+          "This settlement is above the per-settlement limit. Try a smaller amount.",
+        ),
+      ).toBeInTheDocument();
     });
 
     it("does not show error message when there is no mutation error", () => {
       mockMutation.error = null;
       renderForm(makeEntry());
 
-      expect(screen.queryByText("Something went wrong")).toBeNull();
+      expect(screen.queryByText("Something went wrong")).not.toBeInTheDocument();
     });
   });
 });

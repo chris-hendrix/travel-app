@@ -350,12 +350,20 @@ export function getPaymentErrorMessage(error: Error | null): string | null {
       case "PERMISSION_DENIED":
         return "You don't have permission to modify this expense.";
       case "NOT_FOUND":
+      case "PAYMENT_NOT_FOUND":
         return "Expense not found.";
+      case "PAYMENT_MEMBER_NOT_IN_TRIP":
+        return "Someone in this settlement is no longer on this trip. Refresh and try again.";
       case "VALIDATION_ERROR":
-        return "Please check your input and try again.";
+        return "Check your input and try again.";
       case "UNAUTHORIZED":
         return "You must be logged in to manage expenses.";
       default:
+        // Amount cap style codes (e.g. per-settlement limits) surface
+        // with amount-specific copy instead of the raw server message.
+        if (error.code.includes("LIMIT_EXCEEDED")) {
+          return "This settlement is above the per-settlement limit. Try a smaller amount.";
+        }
         return error.message;
     }
   }
@@ -369,4 +377,16 @@ export function getPaymentErrorMessage(error: Error | null): string | null {
   }
 
   return "An unexpected error occurred. Please try again.";
+}
+
+/**
+ * True when a payment mutation error is an amount-cap style failure.
+ * Lets forms render the message inline near the amount field.
+ */
+export function isAmountLimitError(error: Error | null): boolean {
+  if (!error) return false;
+  if (error instanceof APIError) {
+    return error.code.includes("LIMIT_EXCEEDED");
+  }
+  return false;
 }

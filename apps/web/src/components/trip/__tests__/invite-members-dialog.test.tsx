@@ -136,6 +136,22 @@ describe("InviteMembersDialog", () => {
   });
 
   describe("Form fields rendering", () => {
+    it("renders header copy without em-dashes and a visible guest name label", () => {
+      renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
+
+      expect(
+        screen.getByText(
+          "Three ways, one list. Pick mutuals, add phone numbers, or add guests without an account.",
+        ),
+      ).toBeDefined();
+      expect(
+        screen.getByText(
+          /No app needed\. You plan for them; they can claim their spot later\./,
+        ),
+      ).toBeDefined();
+      expect(screen.getByLabelText("Guest name")).toBeDefined();
+    });
+
     it("renders phone input", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 

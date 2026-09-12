@@ -69,14 +69,16 @@ export function BalanceList({ tripId, onSettleUp }: BalanceListProps) {
 
   return (
     <div className="space-y-2">
-      {sorted.map((entry, i) => (
+      {sorted.map((entry) => (
         <BalanceItem
-          key={i}
+          key={`${entry.from.id}-${entry.to.id}`}
           entry={entry}
           // Balance person ids are member ids — pass the viewer's member id
           // so "You" labels resolve (guests never match).
-          {...(currentMember ? { currentMemberId: currentMember.id } : {})}
-          {...(onSettleUp ? { onSettleUp } : {})}
+          currentMemberId={currentMember?.id}
+          onSettleUp={onSettleUp}
+          fromIsGuest={members?.find((m) => m.id === entry.from.id)?.userId === null}
+          toIsGuest={members?.find((m) => m.id === entry.to.id)?.userId === null}
         />
       ))}
     </div>

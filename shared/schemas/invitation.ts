@@ -137,16 +137,33 @@ export const guestRsvpStatusEnum = z.enum([
 export const createGuestSchema = z.object({
   displayName: z
     .string()
+    .trim()
     .min(1, { error: "Display name is required" })
     .max(50, { error: "Display name must be at most 50 characters" })
     .transform(stripControlChars),
   guestPhone: phoneNumberSchema.optional(),
 });
 
-/** Validates guest member update data (organizer-only); all fields optional */
-export const updateGuestSchema = createGuestSchema.partial().extend({
-  status: guestRsvpStatusEnum.optional(),
-});
+/**
+ * Validates guest member update data (organizer-only); all fields optional.
+ * displayName inherits the .trim() + length checks from createGuestSchema via
+ * .partial(). Rejects no-op PATCH payloads (cf. adminUpdateUserSchema's
+ * at-least-one-field refine) so empty objects fail fast at the boundary.
+ */
+export const updateGuestSchema = createGuestSchema
+  .partial()
+  .extend({
+    status: guestRsvpStatusEnum.optional(),
+  })
+  .refine(
+    (data) =>
+      data.displayName !== undefined ||
+      data.guestPhone !== undefined ||
+      data.status !== undefined,
+    {
+      message: "At least one field is required",
+    },
+  );
 
 // Inferred TypeScript types from schemas
 export type CreateInvitationsInput = z.infer<typeof createInvitationsSchema>;

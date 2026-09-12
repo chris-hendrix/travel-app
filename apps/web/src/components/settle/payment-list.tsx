@@ -53,7 +53,7 @@ export function PaymentList({
         icon={Wallet}
         title="Nothing to settle yet"
         description="Add your first expense to start splitting costs."
-        {...(onAddExpense ? { action: { label: "Add Expense", onClick: onAddExpense } } : {})}
+        action={onAddExpense ? { label: "Add Expense", onClick: onAddExpense } : undefined}
       />
     );
   }
@@ -75,8 +75,11 @@ export function PaymentList({
         <PaymentItem
           key={payment.id}
           payment={payment}
-          {...(onPaymentClick ? { onClick: onPaymentClick } : {})}
-          {...(currentMember ? { currentMemberId: currentMember.id } : {})}
+          onClick={onPaymentClick}
+          currentMemberId={currentMember?.id}
+          payerIsGuest={
+            members?.find((m) => m.id === payment.payerMemberId)?.userId === null
+          }
         />
       ))}
 

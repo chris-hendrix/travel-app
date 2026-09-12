@@ -26,7 +26,7 @@ describe("Dialog", () => {
     expect(overlay?.className).toContain("z-50");
   });
 
-  it("renders overlay with bg-black/80 backdrop class", () => {
+  it("renders overlay with bg-black/40 backdrop class", () => {
     render(
       <Dialog defaultOpen>
         <DialogContent>
@@ -40,7 +40,7 @@ describe("Dialog", () => {
 
     const overlay = document.querySelector('[data-slot="dialog-overlay"]');
     expect(overlay).toBeTruthy();
-    expect(overlay?.className).toContain("bg-black/80");
+    expect(overlay?.className).toContain("bg-black/40");
   });
 
   it("renders content with z-50 class", () => {

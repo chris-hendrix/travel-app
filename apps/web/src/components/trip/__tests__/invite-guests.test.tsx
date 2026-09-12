@@ -80,7 +80,7 @@ describe("InviteMembersDialog guest section (Task 7.5)", () => {
     renderDialog();
     expect(screen.getByTestId("guest-section")).toBeDefined();
     expect(
-      screen.getByText(/No app needed — you plan for them, they can claim their spot later/),
+      screen.getByText(/No app needed\. You plan for them; they can claim their spot later/),
     ).toBeDefined();
     expect(screen.getByRole("button", { name: /add guest/i })).toHaveProperty("disabled", true);
   });
@@ -114,21 +114,87 @@ describe("InviteMembersDialog guest section (Task 7.5)", () => {
     });
   });
 
-  it("duplicate phone shows inline error", async () => {
+  it("announces the guest count in a polite live region and labels terracotta chips", async () => {
     const user = userEvent.setup();
     renderDialog();
 
     await user.type(screen.getByLabelText("Guest name"), "Mom");
-    await user.type(screen.getByTestId("guest-phone-input"), "+14155552671");
-    await user.click(screen.getByRole("button", { name: /add guest/i }));
-    await waitFor(() => expect(screen.getByText("Mom")).toBeDefined());
-
-    await user.type(screen.getByLabelText("Guest name"), "Grandma");
-    await user.type(screen.getByTestId("guest-phone-input"), "+14155552671");
     await user.click(screen.getByRole("button", { name: /add guest/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/this phone number is already added/i)).toBeDefined();
+      expect(screen.getByText("Mom")).toBeDefined();
+    });
+    expect(
+      screen.getByText("Terracotta chips are guests without accounts."),
+    ).toBeDefined();
+    expect(screen.getByText("1 guest added")).toBeDefined();
+  });
+
+  it("rejects a case-insensitive duplicate guest name with inline error", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.type(screen.getByLabelText("Guest name"), "Mom");
+    await user.click(screen.getByRole("button", { name: /add guest/i }));
+    await waitFor(() => expect(screen.getByText("Mom")).toBeDefined());
+
+    await user.type(screen.getByLabelText("Guest name"), "mom");
+    await user.click(screen.getByRole("button", { name: /add guest/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("mom is already added.")).toBeDefined();
+    });
+    expect(screen.getByText("1 guest added")).toBeDefined();
+  });
+
+  it("caps queued guests at 15 with inline messaging", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+
+    for (let i = 0; i < 15; i++) {
+      await user.type(screen.getByLabelText("Guest name"), `Guest${i}`);
+      await user.click(screen.getByRole("button", { name: /add guest/i }));
+    }
+    await waitFor(() => {
+      expect(screen.getByText("15 guests added. You reached the 15 guest limit.")).toBeDefined();
+    });
+    expect(screen.getByRole("button", { name: /add guest/i })).toHaveProperty(
+      "disabled",
+      true,
+    );
+  });
+
+  it("shows the cap error when a 16th guest is attempted via Enter", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+
+    for (let i = 0; i < 15; i++) {
+      await user.type(screen.getByLabelText("Guest name"), `Guest${i}{enter}`);
+    }
+    await waitFor(() => {
+      expect(screen.getByText("15 guests added. You reached the 15 guest limit.")).toBeDefined();
+    });
+
+    await user.type(screen.getByLabelText("Guest name"), "Extra{enter}");
+    await waitFor(() => {
+      expect(
+        screen.getByText("You can add up to 15 guests. Remove one to add another."),
+      ).toBeDefined();
+    });
+    expect(screen.queryByText("Extra")).toBeNull();
+  });
+
+  it("Enter in the name field adds the guest and clears the input", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+
+    const nameInput = screen.getByLabelText("Guest name");
+    await user.type(nameInput, "Mom{enter}");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("guest-chips")).toBeDefined();
+      expect(screen.getByText("Mom")).toBeDefined();
+      expect(nameInput).toHaveProperty("value", "");
     });
   });
 
@@ -139,7 +205,6 @@ describe("InviteMembersDialog guest section (Task 7.5)", () => {
     renderDialog();
 
     await user.type(screen.getByLabelText("Guest name"), "Mom");
-    await user.type(screen.getByTestId("guest-phone-input"), "+14155552671");
     await user.click(screen.getByRole("button", { name: /add guest/i }));
     await waitFor(() => expect(screen.getByText("Mom")).toBeDefined());
 

@@ -36,6 +36,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -50,6 +51,8 @@ interface InviteMembersDialogProps {
   onOpenChange: (open: boolean) => void;
   tripId: string;
 }
+
+const MAX_GUESTS = 15;
 
 const SECTION_LABEL =
   "text-xs font-semibold uppercase tracking-widest text-muted-foreground";
@@ -90,9 +93,8 @@ export function InviteMembersDialog({
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [mutualSearch, setMutualSearch] = useState("");
   const [guestName, setGuestName] = useState("");
-  const [guestPhone, setGuestPhone] = useState("");
   const [guestError, setGuestError] = useState<string | null>(null);
-  const [guests, setGuests] = useState<Array<{ name: string; phone?: string }>>([]);
+  const [guests, setGuests] = useState<Array<{ name: string }>>([]);
 
   const queryClient = useQueryClient();
   const { mutateAsync: inviteMembersAsync, isPending } = useInviteMembers(tripId);
@@ -115,7 +117,6 @@ export function InviteMembersDialog({
       setPhoneError(null);
       setMutualSearch("");
       setGuestName("");
-      setGuestPhone("");
       setGuestError(null);
       setGuests([]);
     }
@@ -173,22 +174,16 @@ export function InviteMembersDialog({
       setGuestError("Guest name is required");
       return;
     }
-    const phone = guestPhone.trim() ? guestPhone.trim() : undefined;
-    if (phone && !PHONE_REGEX.test(phone)) {
-      setGuestError("Phone number must be in E.164 format (e.g., +14155552671)");
+    if (guests.length >= MAX_GUESTS) {
+      setGuestError("You can add up to 15 guests. Remove one to add another.");
       return;
     }
-    if (phone) {
-      const guestPhones = guests.map((g) => g.phone).filter(Boolean) as string[];
-      const invitePhones = form.getValues("phoneNumbers") || [];
-      if (guestPhones.includes(phone) || invitePhones.includes(phone)) {
-        setGuestError("This phone number is already added");
-        return;
-      }
+    if (guests.some((g) => g.name.toLowerCase() === name.toLowerCase())) {
+      setGuestError(`${name} is already added.`);
+      return;
     }
-    setGuests((prev) => [...prev, { name, ...(phone ? { phone } : {}) }]);
+    setGuests((prev) => [...prev, { name }]);
     setGuestName("");
-    setGuestPhone("");
   };
 
   const handleRemoveGuest = (index: number) => {
@@ -240,10 +235,7 @@ export function InviteMembersDialog({
         try {
           await apiRequest(`/trips/${tripId}/members/guests`, {
             method: "POST",
-            body: JSON.stringify({
-              displayName: g.name,
-              ...(g.phone ? { guestPhone: g.phone } : {}),
-            }),
+            body: JSON.stringify({ displayName: g.name }),
           });
           addedGuests.push(g.name);
         } catch (err) {
@@ -307,7 +299,7 @@ export function InviteMembersDialog({
             Invite members
           </SheetTitle>
           <SheetDescription>
-            Three ways, one list — pick mutuals, add phone numbers, or add
+            Three ways, one list. Pick mutuals, add phone numbers, or add
             guests without an account.
           </SheetDescription>
         </SheetHeader>
@@ -544,11 +536,12 @@ export function InviteMembersDialog({
               <div className="space-y-3" data-testid="guest-section">
                 <p className={SECTION_LABEL}>As a guest</p>
                 <p className="-mt-1 text-xs text-muted-foreground">
-                  No app needed — you plan for them, they can claim their spot
+                  No app needed. You plan for them; they can claim their spot
                   later.
                 </p>
 
                 {guests.length > 0 && (
+                  <>
                   <div className="flex flex-wrap gap-1.5" data-testid="guest-chips">
                     {guests.map((g, i) => (
                       <Badge
@@ -564,6 +557,16 @@ export function InviteMembersDialog({
                       </Badge>
                     ))}
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    Terracotta chips are guests without accounts.
+                  </p>
+                  <p aria-live="polite" className="text-xs text-muted-foreground">
+                    {guests.length} guest{guests.length !== 1 ? "s" : ""} added
+                    {guests.length >= MAX_GUESTS
+                      ? ". You reached the 15 guest limit."
+                      : ""}
+                  </p>
+                  </>
                 )}
 
                 <div
@@ -575,44 +578,35 @@ export function InviteMembersDialog({
                     }
                   }}
                 >
-                  <Input
-                    value={guestName}
-                    onChange={(e) => {
-                      setGuestName(e.target.value);
-                      setGuestError(null);
-                    }}
-                    disabled={isPending}
-                    placeholder="Guest name"
-                    aria-label="Guest name"
-                    className="h-12 rounded-lg"
-                  />
+                  <Label htmlFor="invite-guest-name">Guest name</Label>
                   <div className="flex h-12 items-stretch overflow-hidden rounded-lg border border-input bg-background focus-within:border-ring focus-within:outline-2 focus-within:outline-ring">
-                    <PhoneInput
-                      value={guestPhone}
-                      onChange={(val) => {
-                        setGuestPhone(val || "");
+                    <Input
+                      id="invite-guest-name"
+                      value={guestName}
+                      onChange={(e) => {
+                        setGuestName(e.target.value);
                         setGuestError(null);
                       }}
                       disabled={isPending}
-                      placeholder="Phone (optional)"
-                      className={JOINED_PHONE_INPUT}
-                      aria-label="Guest phone (optional)"
+                      placeholder="E.g. Mom"
                       aria-describedby={guestError ? "invite-guest-error" : undefined}
+                      className="h-11 flex-1 rounded-none border-0 bg-transparent px-3 shadow-none focus-visible:ring-0 md:h-11"
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       onClick={handleAddGuest}
-                      disabled={isPending || guestName.trim().length === 0}
+                      disabled={
+                        isPending ||
+                        guestName.trim().length === 0 ||
+                        guests.length >= MAX_GUESTS
+                      }
                       aria-label="Add guest"
                       className="h-full shrink-0 rounded-none rounded-r-lg border-l border-input px-4 text-sm font-semibold"
                     >
                       Add
                     </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Add saves name + phone together as one guest.
-                  </p>
                   {guestError && (
                     <p
                       id="invite-guest-error"

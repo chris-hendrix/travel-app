@@ -1,6 +1,4 @@
 import { test, expect } from "@playwright/test";
-import * as path from "path";
-import * as fs from "fs";
 import {
   authenticateViaAPIWithPhone,
   authenticateUserViaBrowserWithPhone,
@@ -425,7 +423,11 @@ test.describe("Invite Deep Link Journey", () => {
  * (Invitation + RSVP + deep-link), guest-claim variant. This is the only seam
  * that spans UI → invite pipeline → signup → in-place claim, unverifiable
  * below E2E (service tests cover claim logic, RTL covers the Sheet, neither
- * covers the signup handoff).
+ * covers the signup handoff). Travel and payment survival under the same
+ * member id are claim-integrity invariants of this flow: a claim that
+ * orphaned the guest's travel or expense rows would silently corrupt the
+ * itinerary and balances, and only the full-stack signup handoff can prove
+ * they survive.
  *
  * Flow: organizer adds a guest with guestPhone via the invite Sheet (mockup
  * §1) and taps Send invite; a travel row + expense row are seeded for the
@@ -464,17 +466,6 @@ test.describe("Guest Claim via Signup", () => {
         endDate: "2026-10-07",
       });
 
-      // PR-evidence screenshots (Task 7.6): raw page.screenshot() PNGs into
-      // repo-root .playwright-cli/ with <nn>-<surface>.png naming. Written
-      // unconditionally (unlike the snap() helper, which is a CI no-op).
-      const shot = async (name: string) => {
-        const dir = path.join(__dirname, "../../../../.playwright-cli");
-        fs.mkdirSync(dir, { recursive: true });
-        await page.screenshot({
-          path: path.join(dir, `${name}.png`),
-          fullPage: true,
-        });
-      };
       const apiHeaders = { cookie: organizerCookie };
 
       await test.step("organizer adds guest with phone via invite sheet", async () => {
@@ -507,9 +498,6 @@ test.describe("Guest Claim via Signup", () => {
           dialog.getByTestId("guest-chips").getByText(guestName),
         ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
 
-        // §1 evidence: invite Sheet with guest section + chips
-        await shot("01-invite-sheet-guest");
-
         await dialog
           .getByRole("button", { name: "Send invitations" })
           .click();
@@ -537,9 +525,6 @@ test.describe("Guest Claim via Signup", () => {
         await expect(
           membersSheet.getByText("Guest", { exact: true }).first(),
         ).toBeVisible();
-
-        // §3 evidence: members list with guest row
-        await shot("02-members-list-guest");
 
         const membersRes = await request.get(
           `${API_BASE}/trips/${tripId}/members`,
@@ -616,9 +601,6 @@ test.describe("Guest Claim via Signup", () => {
         await expect(
           claimedSheet.getByText(guestName, { exact: true }),
         ).not.toBeVisible();
-
-        // §2e evidence: claimed state after signup (profile name)
-        await shot("03-guest-claimed-state");
 
         // API: no duplicate row — exactly one member row carries the profile
         // name, under the SAME member id; no guest rows remain.

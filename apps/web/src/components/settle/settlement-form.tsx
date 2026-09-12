@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Handshake } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { membersQueryOptions } from "@/hooks/invitation-queries";
-import { useCreatePayment, getPaymentErrorMessage } from "@/hooks/use-payments";
+import { useCreatePayment, getPaymentErrorMessage, isAmountLimitError } from "@/hooks/use-payments";
 import { VenmoIcon } from "@/components/icons/venmo-icon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +49,14 @@ export function SettlementForm({
   const [amount, setAmount] = useState(formatCents(entry.amount));
   const [note, setNote] = useState("");
 
+  // Re-sync when the sheet is reused for a different debt row.
+  const entryKey = `${entry.from.id}-${entry.to.id}-${entry.amount}`;
+  useEffect(() => {
+    setAmount(formatCents(entry.amount));
+    setNote("");
+    // entryKey is derived from entry, so it stands in for the entry fields.
+  }, [entryKey]);
+
   const amountCents = Math.round(parseFloat(amount || "0") * 100);
   const isValid = amountCents > 0;
 
@@ -70,7 +78,7 @@ export function SettlementForm({
     if (!isValid) return;
 
     const description = note.trim()
-      ? `Settled up — ${note.trim()}`
+      ? `Settled up (${note.trim()})`
       : "Settled up";
 
     createPayment.mutate(
@@ -94,6 +102,10 @@ export function SettlementForm({
   };
 
   const error = getPaymentErrorMessage(createPayment.error);
+  const limitError = isAmountLimitError(createPayment.error)
+    ? error
+    : null;
+  const genericError = isAmountLimitError(createPayment.error) ? null : error;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -111,14 +123,24 @@ export function SettlementForm({
           <div className="space-y-6">
             {/* Who is paying whom */}
             <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-4">
-              <div className="flex-1 text-center">
+              <div className="flex-1 min-w-0 text-center">
                 <p className="text-sm text-muted-foreground">From</p>
-                <p className="text-base font-semibold">{fromPerson.name}</p>
+                <p
+                  className="text-base font-semibold truncate"
+                  title={fromPerson.name}
+                >
+                  {fromPerson.name}
+                </p>
               </div>
               <Handshake className="h-5 w-5 text-muted-foreground shrink-0" />
-              <div className="flex-1 text-center">
+              <div className="flex-1 min-w-0 text-center">
                 <p className="text-sm text-muted-foreground">To</p>
-                <p className="text-base font-semibold">{toPerson.name}</p>
+                <p
+                  className="text-base font-semibold truncate"
+                  title={toPerson.name}
+                >
+                  {toPerson.name}
+                </p>
               </div>
             </div>
 
@@ -152,8 +174,14 @@ export function SettlementForm({
                   onChange={(e) => setAmount(e.target.value)}
                   className="pl-7"
                   placeholder="0.00"
+                  aria-describedby={limitError ? "settlement-amount-error" : undefined}
                 />
               </div>
+              {limitError && (
+                <p id="settlement-amount-error" className="text-sm text-destructive">
+                  {limitError}
+                </p>
+              )}
             </div>
 
             {/* Note */}
@@ -179,7 +207,7 @@ export function SettlementForm({
               </div>
             </div>
 
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {genericError && <p className="text-sm text-destructive">{genericError}</p>}
           </div>
         </SheetBody>
 
