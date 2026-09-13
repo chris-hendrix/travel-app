@@ -34,9 +34,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   blacklistedTokens: many(blacklistedTokens),
   uploadedPhotos: many(tripPhotos),
   pushSubscriptions: many(pushSubscriptions),
-  payments: many(payments, { relationName: "paymentPayer" }),
   createdPayments: many(payments, { relationName: "paymentCreator" }),
-  paymentParticipations: many(paymentParticipants),
 }));
 
 export const tripsRelations = relations(trips, ({ one, many }) => ({
@@ -214,10 +212,10 @@ export const tripPhotosRelations = relations(tripPhotos, ({ one }) => ({
 
 export const paymentsRelations = relations(payments, ({ one, many }) => ({
   trip: one(trips, { fields: [payments.tripId], references: [trips.id] }),
-  payer: one(users, {
-    fields: [payments.userId],
-    references: [users.id],
-    relationName: "paymentPayer",
+  payerMember: one(members, {
+    fields: [payments.memberId],
+    references: [members.id],
+    relationName: "paymentPayerMember",
   }),
   creator: one(users, {
     fields: [payments.createdBy],
@@ -234,9 +232,9 @@ export const paymentParticipantsRelations = relations(
       fields: [paymentParticipants.paymentId],
       references: [payments.id],
     }),
-    user: one(users, {
-      fields: [paymentParticipants.userId],
-      references: [users.id],
+    member: one(members, {
+      fields: [paymentParticipants.memberId],
+      references: [members.id],
     }),
   }),
 );

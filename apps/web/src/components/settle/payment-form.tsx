@@ -14,6 +14,8 @@ import {
   getPaymentErrorMessage,
 } from "@/hooks/use-payments";
 import { Button } from "@/components/ui/button";
+import { GuestBadge } from "@/components/trip/guest-badge";
+import { isGuestMember } from "@/components/trip/guest-avatar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -39,11 +41,14 @@ import type { Payment } from "@journiful/shared/types";
 interface PayerOption {
   id: string;
   name: string;
+  /** Guests (userId === null) are selectable as payer AND participant. */
+  isGuest: boolean;
 }
 
 interface ParticipantOption {
   id: string;
   name: string;
+  isGuest: boolean;
   checked: boolean;
 }
 
@@ -71,11 +76,24 @@ export function PaymentForm({
   const updatePayment = useUpdatePayment();
   const deletePayment = useDeletePayment();
 
-  // Build payer/participant options (trip members only)
+  // Build payer/participant options (trip members only, guests included).
+  // One shared options array feeds both the payer Select and the
+  // participant checkbox list. Guests are full counterparties; the only
+  // visual distinction is the dashed-circle guest marker (echoes the
+  // avatar ring). "You" logic never matches a guest (userId === null).
   const people = useMemo<PayerOption[]>(() => {
     if (!members) return [];
-    return members.map((m) => ({ id: m.userId, name: m.displayName }));
+    return members.map((m) => ({
+      id: m.id,
+      name: m.displayName,
+      isGuest: isGuestMember(m),
+    }));
   }, [members]);
+
+  const currentMember = useMemo(
+    () => (user?.id ? members?.find((m) => m.userId === user.id) : undefined),
+    [members, user?.id],
+  );
 
   // Form state
   const [description, setDescription] = useState(
@@ -86,9 +104,9 @@ export function PaymentForm({
   );
   const [payerId, setPayerId] = useState<string>(() => {
     if (payment) {
-      return payment.userId ?? "";
+      return payment.payerMemberId ?? "";
     }
-    return user?.id ?? "";
+    return currentMember?.id ?? "";
   });
   const [date, setDate] = useState(
     payment
@@ -98,7 +116,7 @@ export function PaymentForm({
   const [selectedParticipants, setSelectedParticipants] = useState<Set<string>>(
     () => {
       if (payment) {
-        return new Set(payment.participants.map((p) => p.userId));
+        return new Set(payment.participants.map((p) => p.memberId));
       }
       // Default: all people selected
       return new Set(people.map((p) => p.id));
@@ -110,7 +128,7 @@ export function PaymentForm({
     if (open) {
       setDescription(payment?.description ?? "");
       setAmountStr(payment ? (payment.amount / 100).toFixed(2) : "");
-      setPayerId(payment?.userId ?? user?.id ?? "");
+      setPayerId(payment?.payerMemberId ?? currentMember?.id ?? "");
       setDate(
         payment
           ? format(new Date(payment.date), "yyyy-MM-dd")
@@ -118,7 +136,7 @@ export function PaymentForm({
       );
       if (payment) {
         setSelectedParticipants(
-          new Set(payment.participants.map((p) => p.userId)),
+          new Set(payment.participants.map((p) => p.memberId)),
         );
         setInitialized(true);
       } else {
@@ -135,7 +153,19 @@ export function PaymentForm({
     setInitialized(true);
   }
 
-  const payerPerson = people.find((p) => p.id === payerId);
+  // Default the payer to the viewer's own member row once members load
+  // (initial state runs before the query resolves; never a guest row).
+  useEffect(() => {
+    if (!payment && payerId === "" && currentMember) {
+      setPayerId(currentMember.id);
+    }
+  }, [payment, payerId, currentMember]);
+
+  // payerPerson falls back to the first member when the saved payerId no
+  // longer resolves (e.g. editing an expense whose payer member was
+  // removed): the select keeps showing a name instead of going blank, and
+  // isValid below stays false until the user picks a real payer.
+  const payerPerson = people.find((p) => p.id === payerId) ?? people[0];
 
   const participantOptions = useMemo<ParticipantOption[]>(
     () =>
@@ -166,13 +196,28 @@ export function PaymentForm({
     setSelectedParticipants(new Set());
   }, []);
 
-  // Validation
-  const amountCents = Math.round(parseFloat(amountStr || "0") * 100);
+  // Validation: strict amount shape (digits with at most 2 decimals).
+  const amountTrimmed = amountStr.trim();
+  const amountShapeValid = /^\d+(\.\d{1,2})?$/.test(amountTrimmed);
+  const amountCents = amountShapeValid
+    ? Math.round(parseFloat(amountTrimmed) * 100)
+    : 0;
+  const descriptionValid = description.trim().length > 0;
+  const participantsValid = selectedParticipants.size > 0;
   const isValid =
-    description.trim().length > 0 &&
+    descriptionValid &&
+    amountShapeValid &&
     amountCents > 0 &&
     payerId !== "" &&
-    selectedParticipants.size > 0;
+    people.some((p) => p.id === payerId) &&
+    participantsValid;
+  // Show field hints only after the user typed something, so a fresh
+  // form does not open with errors already visible.
+  const showAmountError = amountTrimmed.length > 0 && (!amountShapeValid || amountCents <= 0);
+  const showDescriptionError =
+    description.length > 0 && !descriptionValid;
+  const showParticipantsHint =
+    participantOptions.length > 0 && !participantsValid;
 
   const handleSubmit = () => {
     if (!isValid) return;
@@ -181,13 +226,13 @@ export function PaymentForm({
     if (!payer) return;
 
     const participants = Array.from(selectedParticipants).map((id) => ({
-      userId: id,
+      memberId: id,
     }));
 
     const payload = {
       description: description.trim(),
       amount: amountCents,
-      userId: payerId,
+      payerMemberId: payerId,
       participants,
       date: new Date(date + "T12:00:00").toISOString(),
     };
@@ -245,7 +290,13 @@ export function PaymentForm({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 maxLength={500}
+                aria-describedby={showDescriptionError ? "payment-description-error" : undefined}
               />
+              {showDescriptionError && (
+                <p id="payment-description-error" className="text-sm text-destructive">
+                  Add a short description.
+                </p>
+              )}
             </div>
 
             {/* Amount */}
@@ -263,21 +314,35 @@ export function PaymentForm({
                   value={amountStr}
                   onChange={(e) => setAmountStr(e.target.value)}
                   className="pl-9"
+                  aria-describedby={showAmountError ? "payment-amount-error" : undefined}
                 />
               </div>
+              {showAmountError && (
+                <p id="payment-amount-error" className="text-sm text-destructive">
+                  Enter an amount greater than 0.
+                </p>
+              )}
             </div>
 
             {/* Paid by */}
             <div className="space-y-2">
               <Label>Paid by</Label>
-              <Select value={payerId} onValueChange={setPayerId}>
+              <Select value={payerPerson?.id ?? ""} onValueChange={setPayerId}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select who paid" />
                 </SelectTrigger>
                 <SelectContent>
                   {people.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.name}
+                      <span className="flex items-center gap-1.5">
+                        {p.name}
+                        {p.isGuest && (
+                          <>
+                            {" "}
+                            <GuestBadge />
+                          </>
+                        )}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -326,6 +391,12 @@ export function PaymentForm({
                       onCheckedChange={() => toggleParticipant(p.id)}
                     />
                     <span className="text-sm">{p.name}</span>
+                    {p.isGuest && (
+                      <>
+                        {" "}
+                        <GuestBadge />
+                      </>
+                    )}
                   </label>
                 ))}
                 {participantOptions.length === 0 && (
@@ -334,10 +405,15 @@ export function PaymentForm({
                   </p>
                 )}
               </div>
+              {showParticipantsHint && (
+                <p className="text-xs text-muted-foreground">
+                  Select who this expense is split with.
+                </p>
+              )}
               {payerPerson && selectedParticipants.has(payerId) && (
                 <p className="text-xs text-muted-foreground">
-                  {payerPerson.name} is both paying and splitting — their net
-                  cost will be reduced.
+                  {payerPerson.name} is both paying and splitting, so their net
+                  cost is reduced.
                 </p>
               )}
             </div>

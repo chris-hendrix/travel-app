@@ -43,10 +43,15 @@ describe("Balance Routes", () => {
       })
       .returning();
 
-    await db.insert(members).values([
-      { tripId: trip!.id, userId: userA!.id, status: "going", isOrganizer: true },
-      { tripId: trip!.id, userId: userB!.id, status: "going" },
-    ]);
+    const memberRows = await db
+      .insert(members)
+      .values([
+        { tripId: trip!.id, userId: userA!.id, status: "going", isOrganizer: true },
+        { tripId: trip!.id, userId: userB!.id, status: "going" },
+      ])
+      .returning();
+    const memberAId = memberRows.find((m) => m.userId === userA!.id)!.id;
+    const memberBId = memberRows.find((m) => m.userId === userB!.id)!.id;
 
     // Alice pays $20 split between Alice and Bob
     const [payment] = await db
@@ -55,14 +60,14 @@ describe("Balance Routes", () => {
         tripId: trip!.id,
         description: "Dinner",
         amount: 2000,
-        userId: userA!.id,
+        memberId: memberAId,
         createdBy: userA!.id,
       })
       .returning();
 
     await db.insert(paymentParticipants).values([
-      { paymentId: payment!.id, userId: userA!.id, shareAmount: 1000 },
-      { paymentId: payment!.id, userId: userB!.id, shareAmount: 1000 },
+      { paymentId: payment!.id, memberId: memberAId, shareAmount: 1000 },
+      { paymentId: payment!.id, memberId: memberBId, shareAmount: 1000 },
     ]);
 
     return { userA: userA!, userB: userB!, trip: trip! };

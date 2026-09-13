@@ -8,7 +8,7 @@
 export interface PaymentParticipant {
   id: string;
   paymentId: string;
-  userId: string;
+  memberId: string;
   shareAmount: number;
   name?: string;
   createdAt: Date;
@@ -22,7 +22,7 @@ export interface Payment {
   tripId: string;
   description: string;
   amount: number;
-  userId: string;
+  payerMemberId: string;
   date: Date;
   createdBy: string;
   deletedAt: Date | null;

@@ -3,6 +3,8 @@ import {
   members,
   users,
   events,
+  payments,
+  paymentParticipants,
   weatherCache,
   type Trip,
   type Member,
@@ -35,6 +37,7 @@ import {
   CannotRemoveCreatorError,
   CoOrganizerNotInTripError,
   DuplicateMemberError,
+  MemberHasPaymentsError,
 } from "../errors.js";
 import { z } from "zod";
 import { encodeCursor, decodeCursorAs } from "@/utils/pagination.js";
@@ -422,18 +425,28 @@ export class TripService implements ITripService {
 
     const trip = tripResult[0]!;
 
-    // Load organizers with user info in a single JOIN query
+    // Load organizers with user info in a single JOIN query. Guests can
+    // never be organizers (enforced in updateMemberRole), so filter to
+    // user-backed rows and innerJoin: selecting users.id directly keeps the
+    // id namespace honest (COALESCE(users.id, members.id) mixed user and
+    // member namespaces).
     const organizerUsers = await this.db
       .select({
         id: users.id,
-        displayName: users.displayName,
+        displayName: sql<string>`COALESCE(${users.displayName}, ${members.guestDisplayName}, 'Guest')`,
         phoneNumber: users.phoneNumber,
         profilePhotoUrl: users.profilePhotoUrl,
         timezone: users.timezone,
       })
       .from(members)
       .innerJoin(users, eq(members.userId, users.id))
-      .where(and(eq(members.tripId, tripId), eq(members.isOrganizer, true)));
+      .where(
+        and(
+          eq(members.tripId, tripId),
+          eq(members.isOrganizer, true),
+          isNotNull(members.userId),
+        ),
+      );
 
     // Load member count
     const memberCount = await this.getMemberCount(tripId);
@@ -442,7 +455,9 @@ export class TripService implements ITripService {
       organizers: organizerUsers.map((u) => ({
         id: u.id,
         displayName: u.displayName,
-        ...(userIsOrganizer ? { phoneNumber: u.phoneNumber } : {}),
+        ...(userIsOrganizer && u.phoneNumber
+          ? { phoneNumber: u.phoneNumber }
+          : {}),
         profilePhotoUrl: u.profilePhotoUrl,
         timezone: u.timezone,
       })),
@@ -626,8 +641,8 @@ export class TripService implements ITripService {
         (memberCountByTrip.get(m.tripId) ?? 0) + 1,
       );
 
-      // Track organizer userIds (isOrganizer=true)
-      if (m.isOrganizer) {
+      // Track organizer userIds (isOrganizer=true; guests can never be organizers)
+      if (m.isOrganizer && m.userId) {
         if (!organizerMembersByTrip.has(m.tripId)) {
           organizerMembersByTrip.set(m.tripId, []);
         }
@@ -1056,6 +1071,25 @@ export class TripService implements ITripService {
       throw new CoOrganizerNotInTripError();
     }
 
+    // Payer/participant-protected: payments.member_id is ON DELETE RESTRICT
+    // (FK applies regardless of soft-delete) — pre-check so the clean 409
+    // path fires instead of a raw FK 500.
+    const [payerRow] = await this.db
+      .select({ id: payments.id })
+      .from(payments)
+      .where(eq(payments.memberId, memberRecord.id))
+      .limit(1);
+    const [participantRow] = await this.db
+      .select({ id: paymentParticipants.id })
+      .from(paymentParticipants)
+      .where(eq(paymentParticipants.memberId, memberRecord.id))
+      .limit(1);
+    if (payerRow ?? participantRow) {
+      throw new MemberHasPaymentsError(
+        "Member has payments — reassign or delete them first",
+      );
+    }
+
     // 5. Delete member record
     await this.db
       .delete(members)
@@ -1069,12 +1103,21 @@ export class TripService implements ITripService {
    * @returns Promise that resolves to array of User objects
    */
   async getCoOrganizers(tripId: string): Promise<User[]> {
-    // Single JOIN query: get members with isOrganizer=true and their user info
+    // Single JOIN query: members with isOrganizer=true and their user info.
+    // Guests are never organizers (enforced in updateMemberRole), so
+    // innerJoin + isNotNull keeps the User type assertion honest — every
+    // returned row resolves a non-null users row.
     const results = await this.db
       .select(getTableColumns(users))
       .from(members)
       .innerJoin(users, eq(members.userId, users.id))
-      .where(and(eq(members.tripId, tripId), eq(members.isOrganizer, true)));
+      .where(
+        and(
+          eq(members.tripId, tripId),
+          eq(members.isOrganizer, true),
+          isNotNull(members.userId),
+        ),
+      );
 
     return results;
   }

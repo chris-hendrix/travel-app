@@ -39,7 +39,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { MemberAvatar, isGuestMember } from "@/components/trip/guest-avatar";
+import { GuestBadge } from "@/components/trip/guest-badge";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import {
   useCreateMemberTravel,
@@ -47,8 +48,6 @@ import {
 } from "@/hooks/use-member-travel";
 import { useAuth } from "@/app/providers/auth-provider";
 import { useMembers } from "@/hooks/use-invitations";
-import { getInitials } from "@/lib/format";
-import { getUploadUrl } from "@/lib/api";
 import { TIMEZONES, getTimezoneAbbr } from "@/lib/constants";
 import { FlightLookupInput } from "@/components/itinerary/flight-lookup-input";
 import type { FlightLookupResult } from "@journiful/shared/types";
@@ -88,18 +87,44 @@ export function CreateMemberTravelDialog({
   const [selectedTimezone, setSelectedTimezone] = useState(timezone);
   const [selectedMemberId, setSelectedMemberId] = useState("self");
 
-  // Find the current user's member record
-  const currentMember = members?.find((m) => m.userId === user?.id);
+  // Find the current user's member record (null-safe: guest rows have
+  // userId null and never match a caller).
+  const currentMember = members?.find(
+    (m) => user?.id != null && m.userId != null && m.userId === user.id,
+  );
 
-  // Smart default: if user already has an arrival, default to departure and vice versa
+  // Resolved member id drives smart defaults: "self" maps to the caller
+  // member, otherwise the explicitly selected member (incl. guests).
+  const resolvedMemberId =
+    selectedMemberId === "self" ? currentMember?.id : selectedMemberId;
+
+  const selectedMember = members?.find((m) =>
+    selectedMemberId === "self"
+      ? currentMember != null && m.id === currentMember.id
+      : m.id === selectedMemberId,
+  );
+  const isGuestSelected =
+    selectedMember != null && selectedMember.userId === null;
+  const dialogTitle =
+    selectedMemberId !== "self" && selectedMember
+      ? `Add travel for ${selectedMember.displayName}`
+      : "Add your travel details";
+
+  // Smart default: if the selected member already has an arrival, default
+  // to departure and vice versa (keyed by member.id, the canonical travel
+  // identity).
   const defaultTravelType = useMemo(() => {
-    if (!existingTravels || !user?.id) return "arrival";
-    const userTravels = existingTravels.filter((t) => t.userId === user.id);
-    const hasArrival = userTravels.some((t) => t.travelType === "arrival");
-    const hasDeparture = userTravels.some((t) => t.travelType === "departure");
+    if (!existingTravels || !resolvedMemberId) return "arrival";
+    const memberTravels = existingTravels.filter(
+      (t) => t.memberId === resolvedMemberId,
+    );
+    const hasArrival = memberTravels.some((t) => t.travelType === "arrival");
+    const hasDeparture = memberTravels.some(
+      (t) => t.travelType === "departure",
+    );
     if (hasArrival && !hasDeparture) return "departure";
     return "arrival";
-  }, [existingTravels, user?.id]);
+  }, [existingTravels, resolvedMemberId]);
 
   const form = useForm<CreateMemberTravelInput>({
     resolver: zodResolver(createMemberTravelSchema),
@@ -188,11 +213,16 @@ export function CreateMemberTravelDialog({
       <SheetContent>
         <SheetHeader>
           <SheetTitle className="text-3xl font-playfair tracking-tight">
-            Add your travel details
+            {dialogTitle}
           </SheetTitle>
           <SheetDescription>
-            Share your arrival or departure information with the group · All times in {getTimezoneAbbr(selectedTimezone)}
+            Share {isGuestSelected ? "their" : "your"} arrival or departure information with the group · All times in {getTimezoneAbbr(selectedTimezone)}
           </SheetDescription>
+          {isGuestSelected && selectedMember ? (
+            <p className="text-sm text-muted-foreground">
+              {selectedMember.displayName} has no app access, so you plan and track travel on their behalf.
+            </p>
+          ) : null}
         </SheetHeader>
 
         <SheetBody>
@@ -221,30 +251,29 @@ export function CreateMemberTravelDialog({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {members.map((member) => (
-                        <SelectItem
-                          key={member.id}
-                          value={
-                            member.userId === user?.id ? "self" : member.id
-                          }
-                        >
+                      {members.map((member) => {
+                        const isSelf =
+                          user?.id != null &&
+                          member.userId != null &&
+                          member.userId === user.id;
+                        return (
+                          <SelectItem
+                            key={member.id}
+                            value={isSelf ? "self" : member.id}
+                          >
                           <span className="flex items-center gap-2">
-                            <Avatar size="sm">
-                              {member.profilePhotoUrl && (
-                                <AvatarImage
-                                  src={getUploadUrl(member.profilePhotoUrl)}
-                                  alt={member.displayName}
-                                />
-                              )}
-                              <AvatarFallback>
-                                {getInitials(member.displayName)}
-                              </AvatarFallback>
-                            </Avatar>
+                            <MemberAvatar member={member} size="sm" />
                             {member.displayName}
-                            {member.userId === user?.id ? " (You)" : ""}
+                            {user?.id != null &&
+                            member.userId != null &&
+                            member.userId === user.id
+                              ? " (You)"
+                              : ""}
+                            {isGuestMember(member) ? <GuestBadge /> : null}
                           </span>
-                        </SelectItem>
-                      ))}
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                   <FormDescription className="text-sm text-muted-foreground">
@@ -258,17 +287,7 @@ export function CreateMemberTravelDialog({
                       Member
                     </FormLabel>
                     <div className="flex items-center gap-2 h-12 px-3 rounded-md border border-input bg-muted/50">
-                      <Avatar size="sm">
-                        {currentMember.profilePhotoUrl && (
-                          <AvatarImage
-                            src={getUploadUrl(currentMember.profilePhotoUrl)}
-                            alt={currentMember.displayName}
-                          />
-                        )}
-                        <AvatarFallback>
-                          {getInitials(currentMember.displayName)}
-                        </AvatarFallback>
-                      </Avatar>
+                      <MemberAvatar member={currentMember} size="sm" />
                       <span className="text-base text-muted-foreground">
                         {currentMember.displayName}
                       </span>

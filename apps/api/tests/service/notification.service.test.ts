@@ -626,6 +626,35 @@ describe("notification.service", () => {
       expect(memCount).toBe(1);
       expect(mem2Count).toBe(1);
     });
+
+    it("should exclude guest rows (userId NULL) from fanout", async () => {
+      // Guest member: no user account, must never be notified
+      await db.insert(members).values({
+        tripId: testTripId,
+        userId: null,
+        guestDisplayName: "Guest Mom",
+        status: "going",
+      });
+
+      await notificationService.notifyTripMembers({
+        tripId: testTripId,
+        type: "trip_update",
+        title: "Trip Changed",
+        body: "Details changed",
+      });
+
+      // Only the 3 account members get notifications — no crash, no extra row
+      const allNotifs = await db
+        .select()
+        .from(notifications)
+        .where(eq(notifications.tripId, testTripId));
+      expect(allNotifs).toHaveLength(3);
+      expect(
+        await notificationService.getUnreadCount(testOrganizerId),
+      ).toBe(1);
+      expect(await notificationService.getUnreadCount(testMemberId)).toBe(1);
+      expect(await notificationService.getUnreadCount(testMember2Id)).toBe(1);
+    });
   });
 
   describe("notifyTripMembers (with boss queue)", () => {

@@ -2,21 +2,28 @@
 
 import { format } from "date-fns";
 import { Receipt, Handshake } from "lucide-react";
+import { GuestBadge } from "@/components/trip/guest-badge";
 import type { Payment } from "@journiful/shared/types";
 
 interface PaymentItemProps {
   payment: Payment;
-  onClick?: (payment: Payment) => void;
-  currentUserId?: string;
+  onClick?: ((payment: Payment) => void) | undefined;
+  /** Member id of the viewer (member-keyed; a guest row never matches). */
+  currentMemberId?: string | undefined;
+  /** Set when the payer row is a guest (no attached user account). */
+  payerIsGuest?: boolean;
 }
 
 function formatCents(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-export function PaymentItem({ payment, onClick, currentUserId }: PaymentItemProps) {
+export function PaymentItem({ payment, onClick, currentMemberId, payerIsGuest }: PaymentItemProps) {
+  // Null-safe You-labels: member-keyed comparison only. Guests have
+  // userId null and never equal the viewer's member id.
+  const viewerMemberId = currentMemberId;
   const isCurrentUserPayer =
-    !!currentUserId && payment.userId === currentUserId;
+    !!viewerMemberId && payment.payerMemberId === viewerMemberId;
   const payerName = isCurrentUserPayer ? "You" : (payment.payerName ?? "Someone");
   const participantCount = payment.participants.length;
   const date = new Date(payment.date);
@@ -29,7 +36,7 @@ export function PaymentItem({ payment, onClick, currentUserId }: PaymentItemProp
   if (isSettlement) {
     const recipient = payment.participants[0];
     const isRecipientCurrentUser =
-      !!currentUserId && recipient?.userId === currentUserId;
+      !!viewerMemberId && recipient?.memberId === viewerMemberId;
     const recipientName = isRecipientCurrentUser ? "you" : (recipient?.name ?? "Someone");
     return (
       <button
@@ -37,8 +44,12 @@ export function PaymentItem({ payment, onClick, currentUserId }: PaymentItemProp
         className="flex items-center gap-2 px-1 py-1.5 w-full text-left text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
       >
         <Handshake className="h-3 w-3 shrink-0" />
-        <span className="truncate">
+        <span
+          className="truncate"
+          title={`${payerName} paid ${recipientName} ${formatCents(payment.amount)}`}
+        >
           {payerName} paid {recipientName} {formatCents(payment.amount)}
+          {payerIsGuest && payerName !== "You" && <GuestBadge className="ml-1" />}
         </span>
         <span className="shrink-0">&middot; {format(date, "MMM d")}</span>
       </button>
@@ -46,7 +57,6 @@ export function PaymentItem({ payment, onClick, currentUserId }: PaymentItemProp
   }
 
   // Regular expense card
-  const verb = payerName === "You" ? "paid" : "paid";
   return (
     <button
       onClick={onClick ? () => onClick(payment) : undefined}
@@ -57,11 +67,20 @@ export function PaymentItem({ payment, onClick, currentUserId }: PaymentItemProp
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1">
-          <p className="text-sm font-medium truncate">{payment.description}</p>
+          <p
+            className="text-sm font-medium truncate"
+            title={payment.description}
+          >
+            {payment.description}
+          </p>
         </div>
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <span className="truncate">
-            {payerName} {verb}
+          <span
+            className="truncate"
+            title={`${payerName} paid`}
+          >
+            {payerName} paid
+            {payerIsGuest && payerName !== "You" && <GuestBadge className="ml-1" />}
           </span>
           <span className="shrink-0">
             {" "}&middot; {participantCount} {participantCount === 1 ? "person" : "people"}

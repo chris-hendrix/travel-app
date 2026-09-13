@@ -84,12 +84,24 @@ test.describe("Settle Journey", () => {
       // $50.00 (5000 cents) split between 2 participants
       // User A paid → User B owes $25.00
       await test.step("create expense via API", async () => {
+        const membersRes = await request.get(
+          `${API_BASE}/trips/${tripId}/members`,
+          { headers: { cookie: cookieA } },
+        );
+        expect(membersRes.ok()).toBe(true);
+        const membersJson = (await membersRes.json()) as {
+          members: Array<{ id: string; userId: string | null; displayName: string }>;
+        };
+        const memberA = membersJson.members.find((m) => m.userId === userIdA);
+        const memberB = membersJson.members.find((m) => m.userId === userIdB);
+        expect(memberA).toBeDefined();
+        expect(memberB).toBeDefined();
         const res = await request.post(`${API_BASE}/trips/${tripId}/payments`, {
           data: {
             description: "Dinner at restaurant",
             amount: 5000, // cents
-            userId: userIdA,
-            participants: [{ userId: userIdA }, { userId: userIdB }],
+            payerMemberId: memberA!.id,
+            participants: [{ memberId: memberA!.id }, { memberId: memberB!.id }],
           },
           headers: { cookie: cookieA },
         });

@@ -480,7 +480,7 @@ describe("MembersList", () => {
       expect(sentTexts.length).toBe(2);
     });
 
-    it("shows revoke button on pending invitation rows", async () => {
+    it("shows actions menu on pending invitation rows", async () => {
       mockUseInvitations.mockReturnValue({
         data: mockInvitations,
         isPending: false,
@@ -495,17 +495,26 @@ describe("MembersList", () => {
 
       expect(
         screen.getByRole("button", {
-          name: "Revoke invitation to +14155550001",
+          name: "Actions for +14155550001",
         }),
       ).toBeDefined();
       expect(
         screen.getByRole("button", {
-          name: "Revoke invitation to +14155550002",
+          name: "Actions for +14155550002",
         }),
+      ).toBeDefined();
+
+      await user.click(
+        screen.getByRole("button", {
+          name: "Actions for +14155550001",
+        }),
+      );
+      expect(
+        screen.getByRole("menuitem", { name: /revoke invitation/i }),
       ).toBeDefined();
     });
 
-    it("calls revokeInvitation when revoke button is clicked", async () => {
+    it("calls revokeInvitation from the actions menu", async () => {
       mockUseInvitations.mockReturnValue({
         data: mockInvitations,
         isPending: false,
@@ -518,12 +527,49 @@ describe("MembersList", () => {
 
       await user.click(screen.getByRole("tab", { name: /Invited/ }));
 
-      const revokeButton = screen.getByRole("button", {
-        name: "Revoke invitation to +14155550001",
-      });
-      await user.click(revokeButton);
+      await user.click(
+        screen.getByRole("button", {
+          name: "Actions for +14155550001",
+        }),
+      );
+      await user.click(
+        screen.getByRole("menuitem", { name: /revoke invitation/i }),
+      );
 
       expect(mockRevokeInvitation.mutateAsync).toHaveBeenCalledWith("inv-1");
+    });
+
+    it("suppresses pending invitations that match a member phone after normalization", async () => {
+      mockUseMembers.mockReturnValue({
+        data: [
+          {
+            id: "member-9",
+            userId: "user-9",
+            displayName: "Spaced Number",
+            profilePhotoUrl: null,
+            phoneNumber: "+1415 555 0001",
+            status: "going",
+            isOrganizer: false,
+            createdAt: "2026-01-05T00:00:00Z",
+            handles: null,
+          },
+        ],
+        isPending: false,
+      });
+      mockUseInvitations.mockReturnValue({
+        data: mockInvitations,
+        isPending: false,
+      });
+
+      const user = userEvent.setup();
+      renderWithQueryClient(
+        <MembersList tripId="trip-123" isOrganizer={true} />,
+      );
+
+      await user.click(screen.getByRole("tab", { name: /Invited/ }));
+
+      expect(screen.queryByText("+14155550001")).toBeNull();
+      expect(screen.getByText("+14155550002")).toBeDefined();
     });
 
     it("is not visible for non-organizers", () => {
@@ -1291,7 +1337,7 @@ describe("MembersList", () => {
         <MembersList tripId="trip-123" isOrganizer={false} />,
       );
 
-      const venmoLink = screen.getByTestId("member-venmo-user-1");
+      const venmoLink = screen.getByTestId("member-venmo-member-1");
       expect(venmoLink).toBeDefined();
       expect(venmoLink.getAttribute("href")).toBe("https://venmo.com/testuser");
       expect(venmoLink.getAttribute("target")).toBe("_blank");
@@ -1306,7 +1352,7 @@ describe("MembersList", () => {
         <MembersList tripId="trip-123" isOrganizer={false} />,
       );
 
-      expect(screen.queryByTestId("member-venmo-user-1")).toBeNull();
+      expect(screen.queryByTestId("member-venmo-member-1")).toBeNull();
     });
   });
 

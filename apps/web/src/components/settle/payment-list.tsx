@@ -1,12 +1,15 @@
 "use client";
 
 import { Wallet, RotateCcw, Plus } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/app/providers/auth-provider";
 import { usePayments, useRestorePayment } from "@/hooks/use-payments";
+import { membersQueryOptions } from "@/hooks/invitation-queries";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { PaymentItem } from "./payment-item";
+import { isGuestMember } from "@/components/trip/guest-avatar";
 import type { Payment } from "@journiful/shared/types";
 
 interface PaymentListProps {
@@ -26,6 +29,14 @@ export function PaymentList({
   const { user } = useAuth();
   const { data: payments, isPending } = usePayments(tripId);
   const restorePayment = useRestorePayment();
+  const { data: members } = useQuery({
+    ...membersQueryOptions(tripId),
+    enabled: !!tripId,
+  });
+  // Member-keyed You-labels (guests have userId null, never match).
+  const currentMember = user?.id
+    ? members?.find((m) => m.userId === user.id)
+    : undefined;
 
   if (isPending) {
     return (
@@ -43,7 +54,7 @@ export function PaymentList({
         icon={Wallet}
         title="Nothing to settle yet"
         description="Add your first expense to start splitting costs."
-        {...(onAddExpense ? { action: { label: "Add Expense", onClick: onAddExpense } } : {})}
+        action={onAddExpense ? { label: "Add Expense", onClick: onAddExpense } : undefined}
       />
     );
   }
@@ -65,8 +76,11 @@ export function PaymentList({
         <PaymentItem
           key={payment.id}
           payment={payment}
-          {...(onPaymentClick ? { onClick: onPaymentClick } : {})}
-          {...(user ? { currentUserId: user.id } : {})}
+          onClick={onPaymentClick}
+          currentMemberId={currentMember?.id}
+          payerIsGuest={isGuestMember(
+            members?.find((m) => m.id === payment.payerMemberId),
+          )}
         />
       ))}
 

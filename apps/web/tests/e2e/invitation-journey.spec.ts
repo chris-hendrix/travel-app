@@ -1,7 +1,9 @@
 import { test, expect } from "@playwright/test";
 import {
   authenticateViaAPIWithPhone,
+  authenticateUserViaBrowserWithPhone,
   createUserViaAPI,
+  generateUniquePhone,
 } from "./helpers/auth";
 import { removeNextjsDevOverlay, dismissPwaPrompts } from "./helpers/nextjs-dev";
 import { fillPhoneInput } from "./helpers/phone-input";
@@ -11,6 +13,7 @@ import {
   inviteViaAPI,
   rsvpViaAPI,
 } from "./helpers/invitations";
+import { API_BASE } from "./helpers/timeouts";
 import {
   NAVIGATION_TIMEOUT,
   ELEMENT_TIMEOUT,
@@ -411,5 +414,280 @@ test.describe("Invite Deep Link Journey", () => {
       });
     },
   );
+});
 
+/**
+ * E2E Journey: Guest Claim via Signup (Phase 8, Task 8.1)
+ *
+ * E2E justification (apps/web/tests/e2e/AGENTS.md): critical flow #3
+ * (Invitation + RSVP + deep-link), guest-claim variant. This is the only seam
+ * that spans UI → invite pipeline → signup → in-place claim, unverifiable
+ * below E2E (service tests cover claim logic, RTL covers the Sheet, neither
+ * covers the signup handoff). Travel and payment survival under the same
+ * member id are claim-integrity invariants of this flow: a claim that
+ * orphaned the guest's travel or expense rows would silently corrupt the
+ * itinerary and balances, and only the full-stack signup handoff can prove
+ * they survive.
+ *
+ * Flow: organizer adds a guest with guestPhone via the invite Sheet (mockup
+ * §1) and taps Send invite; a travel row + expense row are seeded for the
+ * guest; a new user signs up with that phone (fixed code 123456); the guest
+ * row is claimed in place — ONE member row with the profile name, travel and
+ * expense rows survived under the same member id.
+ */
+test.describe("Guest Claim via Signup", () => {
+  test.beforeEach(async ({ page }) => {
+    await removeNextjsDevOverlay(page);
+    await dismissPwaPrompts(page);
+    await page.context().clearCookies();
+  });
+
+  test(
+    "guest added in invite sheet is claimed in place when their phone signs up",
+    { tag: "@regression" },
+    async ({ page, request }) => {
+      test.slow();
+
+      const organizerPhone = generateUniquePhone();
+      const guestPhone = generateUniquePhone();
+      const guestName = "Guest Claimer";
+      const profileName = "Claimed Guest";
+      const tripName = `Guest Claim Trip ${Date.now()}`;
+
+      const organizerCookie = await createUserViaAPI(
+        request,
+        organizerPhone,
+        "Organizer GuestClaim",
+      );
+      const tripId = await createTripViaAPI(request, organizerCookie, {
+        name: tripName,
+        destination: "Lisbon, Portugal",
+        startDate: "2026-10-01",
+        endDate: "2026-10-07",
+      });
+
+      const apiHeaders = { cookie: organizerCookie };
+
+      await test.step("organizer adds guest via invite dialog", async () => {
+        await authenticateViaAPIWithPhone(
+          page,
+          request,
+          organizerPhone,
+          "Organizer GuestClaim",
+        );
+
+        await page.goto(`/trips?id=${tripId}`);
+        await expect(
+          page.getByRole("heading", { level: 1, name: tripName }),
+        ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
+
+        await page.getByRole("button", { name: /invite/i }).first().click();
+        const dialog = page.getByRole("dialog");
+        await expect(dialog.getByText("Invite members")).toBeVisible({
+          timeout: ELEMENT_TIMEOUT,
+        });
+        await expect(dialog.getByTestId("guest-section")).toBeVisible();
+
+        // The unified invite dialog's guest section collects name only;
+        // the phone is attached afterwards via the guest profile sheet.
+        await dialog.getByLabel("Guest name").fill(guestName);
+        await dialog.getByRole("button", { name: "Add guest" }).click();
+        await expect(
+          dialog.getByTestId("guest-chips").getByText(guestName),
+        ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+
+        await dialog
+          .getByRole("button", { name: "Send invitations" })
+          .click();
+        await expect(page.getByText(/guest added/i)).toBeVisible({
+          timeout: TOAST_TIMEOUT,
+        });
+        await expect(dialog).not.toBeVisible({ timeout: DIALOG_TIMEOUT });
+      });
+
+      let guestMemberId: string;
+      let organizerMemberId: string;
+
+      await test.step("organizer opens the guest profile sheet and seeds travel + expense", async () => {
+        await page.getByText(/\d+ going/).first().click();
+        // Members UI lives in a Sheet dialog on desktop, inline in the
+        // mobile info panel — locate the tabs/rows globally so both work.
+        const invitedTab = page.getByRole("tab", {
+          name: /^invited/i,
+        });
+        await expect(invitedTab).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+        await invitedTab.click();
+
+        // Capture ids and seed BEFORE the phone attach: once a pending
+        // invitation exists for the guest phone, the read-layer conversion
+        // hides the guest row from GET /members (presented as Invited).
+        const membersRes = await request.get(
+          `${API_BASE}/trips/${tripId}/members`,
+          { headers: apiHeaders },
+        );
+        expect(membersRes.ok()).toBe(true);
+        const membersJson = (await membersRes.json()) as {
+          members: Array<{ id: string; userId: string | null }>;
+        };
+        const guest = membersJson.members.find((m) => m.userId === null);
+        const organizer = membersJson.members.find((m) => m.userId !== null);
+        expect(guest).toBeDefined();
+        expect(organizer).toBeDefined();
+        guestMemberId = guest!.id;
+        organizerMemberId = organizer!.id;
+
+        const travelRes = await request.post(
+          `${API_BASE}/trips/${tripId}/member-travel`,
+          {
+            data: {
+              travelType: "arrival",
+              time: "2026-10-01T15:00:00.000Z",
+              location: "LIS",
+              memberId: guestMemberId,
+            },
+            headers: apiHeaders,
+          },
+        );
+        expect(travelRes.ok()).toBe(true);
+
+        const paymentRes = await request.post(
+          `${API_BASE}/trips/${tripId}/payments`,
+          {
+            data: {
+              description: "Guest dinner",
+              amount: 10000,
+              payerMemberId: organizerMemberId,
+              participants: [
+                { memberId: organizerMemberId },
+                { memberId: guestMemberId },
+              ],
+            },
+            headers: apiHeaders,
+          },
+        );
+        expect(paymentRes.ok()).toBe(true);
+
+        // Click the invited guest row (MemberRow) to open the profile sheet.
+        await page.getByText(guestName).first().click();
+        const phoneInput = page.getByLabel("Guest phone number");
+        await expect(phoneInput).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+        await fillPhoneInput(phoneInput, guestPhone);
+        await page
+          .getByRole("button", { name: "Send", exact: true })
+          .click();
+
+        // Send PATCHes guestPhone + creates the pending invitation, then
+        // the sheet closes (organizer lands back on the Invited tab).
+        await expect(
+          page.getByText(`Invite sent to ${guestPhone}`),
+        ).toBeVisible({ timeout: TOAST_TIMEOUT });
+      });
+
+      await test.step("converted guest row presents as Invited with pending badge", async () => {
+        // The Invited tab now shows the guest as a pending invitation (name
+        // + Pending badge) via the read-layer guest-to-invite conversion.
+        // The profile sheet (nested child on desktop) may still be
+        // animating closed, which keeps the parent subtree aria-hidden and
+        // role queries empty for a moment — retry instead of toggling.
+        const invitedTab = page.getByRole("tab", {
+          name: /^invited/i,
+        });
+        await expect(async () => {
+          await invitedTab.click({ timeout: 1000 });
+          await expect(page.getByText(guestName).first()).toBeVisible({
+            timeout: 1000,
+          });
+        }).toPass({ timeout: ELEMENT_TIMEOUT });
+        await expect(
+          page.getByText("Pending", { exact: true }).first(),
+        ).toBeVisible();
+      });
+
+      await test.step("signup with guest phone claims the row in place", async () => {
+        await page.context().clearCookies();
+        await authenticateUserViaBrowserWithPhone(
+          page,
+          guestPhone,
+          profileName,
+        );
+
+        // RSVP Going so the claimed member surfaces on the Going tab.
+        const browserCookies = await page.context().cookies();
+        const token =
+          browserCookies.find((c) => c.name === "auth_token")?.value ?? "";
+        expect(token.length).toBeGreaterThan(0);
+        await rsvpViaAPI(request, tripId, `auth_token=${token}`, "going");
+
+        await page.goto(`/trips?id=${tripId}`);
+        await expect(
+          page.getByRole("heading", { level: 1, name: tripName }),
+        ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
+        // Claimed member is now Going → visible on the Going tab (in the
+        // Members sheet on desktop, inline in the info panel on mobile).
+        await page.getByText(/\d+ going/).first().click();
+        await expect(page.getByText(profileName).first()).toBeVisible({
+          timeout: ELEMENT_TIMEOUT,
+        });
+        await expect(
+          page.getByText(guestName, { exact: true }),
+        ).not.toBeVisible();
+
+        // API: no duplicate row — exactly one member row carries the profile
+        // name, under the SAME member id; no guest rows remain.
+        const afterRes = await request.get(
+          `${API_BASE}/trips/${tripId}/members`,
+          { headers: apiHeaders },
+        );
+        expect(afterRes.ok()).toBe(true);
+        const afterJson = (await afterRes.json()) as {
+          members: Array<{
+            id: string;
+            userId: string | null;
+            displayName: string;
+          }>;
+        };
+        expect(afterJson.members).toHaveLength(2);
+        expect(
+          afterJson.members.filter((m) => m.userId === null),
+        ).toHaveLength(0);
+        const claimed = afterJson.members.find(
+          (m) => m.displayName === profileName,
+        );
+        expect(claimed).toBeDefined();
+        expect(claimed!.id).toBe(guestMemberId);
+
+        // Travel + expense rows survived under the same member id.
+        const travelAfter = await request.get(
+          `${API_BASE}/trips/${tripId}/member-travel`,
+          { headers: apiHeaders },
+        );
+        expect(travelAfter.ok()).toBe(true);
+        const travelJson = (await travelAfter.json()) as {
+          memberTravels: Array<{ memberId: string }>;
+        };
+        expect(
+          travelJson.memberTravels.some((t) => t.memberId === guestMemberId),
+        ).toBe(true);
+
+        const paymentsAfter = await request.get(
+          `${API_BASE}/trips/${tripId}/payments`,
+          { headers: apiHeaders },
+        );
+        expect(paymentsAfter.ok()).toBe(true);
+        const paymentsJson = (await paymentsAfter.json()) as {
+          payments: Array<{
+            description: string;
+            participants: Array<{ memberId: string }>;
+          }>;
+        };
+        const dinner = paymentsJson.payments.find(
+          (p) => p.description === "Guest dinner",
+        );
+        expect(dinner).toBeDefined();
+        expect(
+          dinner!.participants.some((pt) => pt.memberId === guestMemberId),
+        ).toBe(true);
+      });
+    },
+  );
 });

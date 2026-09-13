@@ -1,4 +1,4 @@
-import { eq, and, count, isNull, desc, sql, lt, or } from "drizzle-orm";
+import { eq, and, count, isNull, isNotNull, desc, sql, lt, or } from "drizzle-orm";
 import {
   notifications,
   notificationPreferences,
@@ -357,7 +357,10 @@ export class NotificationService implements INotificationService {
       return;
     }
 
-    // Fallback: inline member loop when no queue is available
+    // Fallback: inline member loop when no queue is available.
+    // Guest rows (userId IS NULL) are excluded: they have no account to notify.
+    // (innerJoin already drops NULL userIds; the explicit filter guards
+    // against future join changes.)
     const goingMembers = await this.db
       .select({
         userId: members.userId,
@@ -365,9 +368,18 @@ export class NotificationService implements INotificationService {
       })
       .from(members)
       .innerJoin(users, eq(members.userId, users.id))
-      .where(and(eq(members.tripId, tripId), eq(members.status, "going")));
+      .where(
+        and(
+          eq(members.tripId, tripId),
+          eq(members.status, "going"),
+          isNotNull(members.userId),
+        ),
+      );
 
     for (const member of goingMembers) {
+      if (member.userId === null) {
+        continue;
+      }
       if (excludeUserId && member.userId === excludeUserId) {
         continue;
       }

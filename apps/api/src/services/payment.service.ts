@@ -1,10 +1,11 @@
 import {
   payments,
   paymentParticipants,
+  members,
   users,
   type Payment,
 } from "@/db/schema/index.js";
-import { eq, and, isNull, inArray } from "drizzle-orm";
+import { eq, and, isNull, inArray, sql } from "drizzle-orm";
 import type {
   CreatePaymentInput,
   UpdatePaymentInput,
@@ -13,19 +14,24 @@ import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
 import {
   PaymentNotFoundError,
+  PaymentMemberNotInTripError,
+  DuplicateParticipantError,
   PermissionDeniedError,
 } from "../errors.js";
 
+interface PaymentParticipantView {
+  id: string;
+  paymentId: string;
+  memberId: string;
+  shareAmount: number;
+  name?: string;
+  createdAt: Date;
+}
+
 interface PaymentWithParticipants extends Payment {
+  payerMemberId: string;
   payerName?: string;
-  participants: {
-    id: string;
-    paymentId: string;
-    userId: string;
-    shareAmount: number;
-    name?: string;
-    createdAt: Date;
-  }[];
+  participants: PaymentParticipantView[];
 }
 
 export interface IPaymentService {
@@ -72,41 +78,57 @@ export class PaymentService implements IPaymentService {
       );
     }
 
+    // Validate payer + all participants belong to this trip.
+    // Guests are allowed as payer — the organizer records who paid;
+    // `createdBy` stays the recording user.
+    const participantMemberIds = data.participants.map((p) => p.memberId);
+    this.assertNoDuplicateParticipants(participantMemberIds);
+    await this.assertMembersInTrip(
+      tripId,
+      [data.payerMemberId, ...participantMemberIds],
+    );
+
     // Compute equal shares with cent rounding
     const shares = this.computeEqualShares(
       data.amount,
       data.participants.length,
     );
 
-    // Create payment and participants in a transaction
-    const [payment] = await this.db
-      .insert(payments)
-      .values({
-        tripId,
-        description: data.description,
-        amount: data.amount,
-        userId: data.userId!,
-        date: data.date ? new Date(data.date) : new Date(),
-        createdBy: userId,
-      })
-      .returning();
+    // Payment + participants insert atomically: a participants-insert
+    // failure must not leave an orphan payment row.
+    const { payment, participantRows } = await this.db.transaction(
+      async (tx) => {
+        const [payment] = await tx
+          .insert(payments)
+          .values({
+            tripId,
+            description: data.description,
+            amount: data.amount,
+            memberId: data.payerMemberId,
+            date: data.date ? new Date(data.date) : new Date(),
+            createdBy: userId,
+          })
+          .returning();
 
-    if (!payment) {
-      throw new Error("Failed to create payment");
-    }
+        if (!payment) {
+          throw new Error("Failed to create payment");
+        }
 
-    const participantRows = await this.db
-      .insert(paymentParticipants)
-      .values(
-        data.participants.map((p, i) => ({
-          paymentId: payment.id,
-          userId: p.userId!,
-          shareAmount: shares[i]!,
-        })),
-      )
-      .returning();
+        const participantRows = await tx
+          .insert(paymentParticipants)
+          .values(
+            data.participants.map((p, i) => ({
+              paymentId: payment.id,
+              memberId: p.memberId,
+              shareAmount: shares[i]!,
+            })),
+          )
+          .returning();
+        return { payment, participantRows };
+      },
+    );
 
-    return this.enrichPayment(payment, participantRows);
+    return this.enrichPayment(tripId, payment, participantRows);
   }
 
   async getPaymentsByTrip(
@@ -133,17 +155,17 @@ export class PaymentService implements IPaymentService {
       .from(paymentParticipants)
       .where(inArray(paymentParticipants.paymentId, paymentIds));
 
-    // Collect all user IDs for name lookup
-    const userIds = new Set<string>();
+    // Collect all member IDs for name lookup
+    const memberIds = new Set<string>();
 
     for (const p of paymentRows) {
-      if (p.userId) userIds.add(p.userId);
+      memberIds.add(p.memberId);
     }
     for (const pp of participantRows) {
-      if (pp.userId) userIds.add(pp.userId);
+      memberIds.add(pp.memberId);
     }
 
-    const nameMap = await this.buildNameMap(Array.from(userIds));
+    const nameMap = await this.buildMemberNameMap(tripId, Array.from(memberIds));
 
     // Group participants by payment
     const participantsByPayment = new Map<string, typeof participantRows>();
@@ -157,10 +179,11 @@ export class PaymentService implements IPaymentService {
       const pParticipants = participantsByPayment.get(p.id) ?? [];
       return {
         ...p,
-        payerName: nameMap.get(`user:${p.userId}`) ?? "Unknown",
+        payerMemberId: p.memberId,
+        payerName: nameMap.get(p.memberId) ?? "Unknown",
         participants: pParticipants.map((pp) => ({
           ...pp,
-          name: nameMap.get(`user:${pp.userId}`) ?? "Unknown",
+          name: nameMap.get(pp.memberId) ?? "Unknown",
         })),
       };
     });
@@ -193,11 +216,25 @@ export class PaymentService implements IPaymentService {
       );
     }
 
+    if (data.payerMemberId !== undefined) {
+      await this.assertMembersInTrip(existing.tripId, [data.payerMemberId]);
+    }
+    if (data.participants !== undefined) {
+      this.assertNoDuplicateParticipants(
+        data.participants.map((p) => p.memberId),
+      );
+      await this.assertMembersInTrip(
+        existing.tripId,
+        data.participants.map((p) => p.memberId),
+      );
+    }
+
     // Build update data
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
     if (data.description !== undefined) updateData.description = data.description;
     if (data.amount !== undefined) updateData.amount = data.amount;
-    if (data.userId !== undefined) updateData.userId = data.userId;
+    if (data.payerMemberId !== undefined)
+      updateData.memberId = data.payerMemberId;
     if (data.date !== undefined) updateData.date = new Date(data.date);
 
     const [updated] = await this.db
@@ -229,7 +266,7 @@ export class PaymentService implements IPaymentService {
         .values(
           data.participants.map((p, i) => ({
             paymentId,
-            userId: p.userId!,
+            memberId: p.memberId,
             shareAmount: shares[i]!,
           })),
         )
@@ -263,7 +300,7 @@ export class PaymentService implements IPaymentService {
         .where(eq(paymentParticipants.paymentId, paymentId));
     }
 
-    return this.enrichPayment(updated, participantRows);
+    return this.enrichPayment(existing.tripId, updated, participantRows);
   }
 
   async deletePayment(userId: string, paymentId: string): Promise<void> {
@@ -341,7 +378,7 @@ export class PaymentService implements IPaymentService {
       .from(paymentParticipants)
       .where(eq(paymentParticipants.paymentId, paymentId));
 
-    return this.enrichPayment(restored, participantRows);
+    return this.enrichPayment(existing.tripId, restored, participantRows);
   }
 
   /**
@@ -356,6 +393,32 @@ export class PaymentService implements IPaymentService {
     );
   }
 
+  /**
+   * Validate that every memberId belongs to the trip.
+   * Guests (userId NULL rows) are valid members — including as payer.
+   * Throws PaymentMemberNotInTripError (409) on the first mismatch.
+   */
+  private async assertMembersInTrip(
+    tripId: string,
+    memberIds: string[],
+  ): Promise<void> {
+    const uniqueIds = [...new Set(memberIds)];
+    if (uniqueIds.length === 0) return;
+
+    const rows = await this.db
+      .select({ id: members.id })
+      .from(members)
+      .where(and(eq(members.tripId, tripId), inArray(members.id, uniqueIds)));
+
+    if (rows.length !== uniqueIds.length) {
+      const found = new Set(rows.map((r) => r.id));
+      const missing = uniqueIds.find((id) => !found.has(id));
+      throw new PaymentMemberNotInTripError(
+        `Member ${missing} is not a member of this trip`,
+      );
+    }
+  }
+
   private async canModifyPayment(
     userId: string,
     payment: { tripId: string; createdBy: string },
@@ -365,47 +428,70 @@ export class PaymentService implements IPaymentService {
   }
 
   private async enrichPayment(
+    tripId: string,
     payment: Payment,
     participantRows: {
       id: string;
       paymentId: string;
-      userId: string;
+      memberId: string;
       shareAmount: number;
       createdAt: Date;
     }[],
   ): Promise<PaymentWithParticipants> {
-    const userIds = new Set<string>();
+    const memberIds = new Set<string>();
 
-    if (payment.userId) userIds.add(payment.userId);
+    memberIds.add(payment.memberId);
     for (const pp of participantRows) {
-      if (pp.userId) userIds.add(pp.userId);
+      memberIds.add(pp.memberId);
     }
 
-    const nameMap = await this.buildNameMap(Array.from(userIds));
+    const nameMap = await this.buildMemberNameMap(tripId, Array.from(memberIds));
 
     return {
       ...payment,
-      payerName: nameMap.get(`user:${payment.userId}`) ?? "Unknown",
+      payerMemberId: payment.memberId,
+      payerName: nameMap.get(payment.memberId) ?? "Unknown",
       participants: participantRows.map((pp) => ({
         ...pp,
-        name: nameMap.get(`user:${pp.userId}`) ?? "Unknown",
+        name: nameMap.get(pp.memberId) ?? "Unknown",
       })),
     };
   }
 
-  private async buildNameMap(userIds: string[]): Promise<Map<string, string>> {
+  private async buildMemberNameMap(
+    tripId: string,
+    memberIds: string[],
+  ): Promise<Map<string, string>> {
     const nameMap = new Map<string, string>();
 
-    if (userIds.length > 0) {
-      const userRows = await this.db
-        .select({ id: users.id, displayName: users.displayName })
-        .from(users)
-        .where(inArray(users.id, userIds));
-      for (const u of userRows) {
-        nameMap.set(`user:${u.id}`, u.displayName);
+    if (memberIds.length > 0) {
+      const rows = await this.db
+        .select({
+          id: members.id,
+          name: sql<string>`coalesce(${users.displayName}, ${members.guestDisplayName}, 'Unknown')`,
+        })
+        .from(members)
+        .leftJoin(users, eq(members.userId, users.id))
+        .where(
+          and(eq(members.tripId, tripId), inArray(members.id, memberIds)),
+        );
+      for (const r of rows) {
+        nameMap.set(r.id, r.name);
       }
     }
 
     return nameMap;
+  }
+
+  /**
+   * Reject duplicate participant memberIds (400): duplicates would double-
+   * count one member's share and silently short-change the others.
+   */
+  private assertNoDuplicateParticipants(memberIds: string[]): void {
+    if (new Set(memberIds).size !== memberIds.length) {
+      throw new DuplicateParticipantError(
+        "Duplicate participant: each member may appear only once per payment",
+      );
+    }
   }
 }

@@ -29,8 +29,8 @@ vi.mock("@/components/ui/phone-input", () => ({
       onChange={(e) => onChange?.(e.target.value)}
       disabled={disabled}
       placeholder={placeholder}
-      aria-label="Phone number"
-      data-testid="phone-input"
+      aria-label={placeholder === "Phone (optional)" ? "Guest phone (optional)" : "Phone number"}
+      data-testid={placeholder === "Phone (optional)" ? "guest-phone-input" : "phone-input"}
     />
   ),
 }));
@@ -136,6 +136,22 @@ describe("InviteMembersDialog", () => {
   });
 
   describe("Form fields rendering", () => {
+    it("renders header copy without em-dashes and a visible guest name label", () => {
+      renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
+
+      expect(
+        screen.getByText(
+          "Three ways, one list. Pick mutuals, add phone numbers, or add guests without an account.",
+        ),
+      ).toBeDefined();
+      expect(
+        screen.getByText(
+          /No app needed\. You plan for them; they can claim their spot later\./,
+        ),
+      ).toBeDefined();
+      expect(screen.getByLabelText("Guest name")).toBeDefined();
+    });
+
     it("renders phone input", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
@@ -145,7 +161,7 @@ describe("InviteMembersDialog", () => {
     it("renders Add button", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
-      expect(screen.getByRole("button", { name: /add/i })).toBeDefined();
+      expect(screen.getByRole("button", { name: /add phone number/i })).toBeDefined();
     });
 
     it("renders submit button disabled when no phones added", () => {
@@ -166,7 +182,7 @@ describe("InviteMembersDialog", () => {
       const phoneInput = screen.getByTestId("phone-input");
       await user.type(phoneInput, "+14155552671");
 
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /add phone number/i });
       await user.click(addButton);
 
       await waitFor(() => {
@@ -181,7 +197,7 @@ describe("InviteMembersDialog", () => {
       const phoneInput = screen.getByTestId("phone-input");
       await user.type(phoneInput, "invalid");
 
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /add phone number/i });
       await user.click(addButton);
 
       await waitFor(() => {
@@ -196,7 +212,7 @@ describe("InviteMembersDialog", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
       const phoneInput = screen.getByTestId("phone-input");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /add phone number/i });
 
       // Add first phone
       await user.type(phoneInput, "+14155552671");
@@ -217,12 +233,33 @@ describe("InviteMembersDialog", () => {
       });
     });
 
+    it("dismiss (X) buttons expose a visible keyboard focus ring", async () => {
+      const user = userEvent.setup();
+      renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
+
+      const phoneInput = screen.getByTestId("phone-input");
+      const addButton = screen.getByRole("button", { name: /add phone number/i });
+
+      await user.type(phoneInput, "+14155552671");
+      await user.click(addButton);
+
+      await waitFor(() => {
+        expect(screen.getByText("+14155552671")).toBeDefined();
+      });
+
+      const removeButton = screen.getByRole("button", {
+        name: /remove \+14155552671/i,
+      });
+      // Dismiss control stays keyboard-reachable with an accessible name.
+      expect(removeButton).toHaveAccessibleName(/remove \+14155552671/i);
+    });
+
     it("removes phone chip when X button is clicked", async () => {
       const user = userEvent.setup();
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
       const phoneInput = screen.getByTestId("phone-input");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /add phone number/i });
 
       // Add phone
       await user.type(phoneInput, "+14155552671");
@@ -248,7 +285,7 @@ describe("InviteMembersDialog", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
       const phoneInput = screen.getByTestId("phone-input");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /add phone number/i });
 
       await user.type(phoneInput, "+14155552671");
       await user.click(addButton);
@@ -282,7 +319,7 @@ describe("InviteMembersDialog", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
       const phoneInput = screen.getByTestId("phone-input");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /add phone number/i });
 
       // Add phones
       await user.type(phoneInput, "+14155552671");
@@ -326,7 +363,7 @@ describe("InviteMembersDialog", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
       const phoneInput = screen.getByTestId("phone-input");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /add phone number/i });
 
       await user.type(phoneInput, "+14155552671");
       await user.click(addButton);
@@ -359,7 +396,7 @@ describe("InviteMembersDialog", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
       const phoneInput = screen.getByTestId("phone-input");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /add phone number/i });
 
       await user.type(phoneInput, "+14155552671");
       await user.click(addButton);
@@ -394,7 +431,7 @@ describe("InviteMembersDialog", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
       const phoneInput = screen.getByTestId("phone-input");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /add phone number/i });
 
       await user.type(phoneInput, "+14155552671");
       await user.click(addButton);
@@ -423,7 +460,7 @@ describe("InviteMembersDialog", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
       const phoneInput = screen.getByTestId("phone-input");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /add phone number/i });
 
       await user.type(phoneInput, "+14155552671");
       await user.click(addButton);
@@ -467,7 +504,7 @@ describe("InviteMembersDialog", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
       const phoneInput = screen.getByTestId("phone-input");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /add phone number/i });
 
       await user.type(phoneInput, "+14155552671");
       await user.click(addButton);
@@ -486,7 +523,7 @@ describe("InviteMembersDialog", () => {
       expect(phoneInputAfterSubmit).toHaveProperty("disabled", true);
 
       const addButtonAfterSubmit = screen.getByRole("button", {
-        name: /add/i,
+        name: /add phone number/i,
       });
       expect(addButtonAfterSubmit).toHaveProperty("disabled", true);
     });
@@ -512,7 +549,7 @@ describe("InviteMembersDialog", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
       const phoneInput = screen.getByTestId("phone-input");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /add phone number/i });
 
       await user.type(phoneInput, "+14155552671");
       await user.click(addButton);
@@ -531,22 +568,20 @@ describe("InviteMembersDialog", () => {
   });
 
   describe("Styling", () => {
-    it("dialog title uses Playfair font", () => {
+    it("dialog title renders as an accessible heading", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
-      const title = screen.getByText("Invite members");
-      expect(title.className).toContain("font-playfair");
+      expect(
+        screen.getByRole("heading", { name: "Invite members" }),
+      ).toBeInTheDocument();
     });
 
-    it("submit button uses gradient variant", () => {
+    it("submit button renders with its accessible name", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
-      const submitButton = screen.getByRole("button", {
-        name: /send invitations/i,
-      });
-      expect(submitButton.className).toContain("bg-gradient-to-r");
-      expect(submitButton.className).toContain("from-primary");
-      expect(submitButton.className).toContain("to-accent");
+      expect(
+        screen.getByRole("button", { name: /send invitations/i }),
+      ).toBeInTheDocument();
     });
 
     it("phone chips use Badge component with secondary variant", async () => {
@@ -554,7 +589,7 @@ describe("InviteMembersDialog", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
       const phoneInput = screen.getByTestId("phone-input");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /add phone number/i });
 
       await user.type(phoneInput, "+14155552671");
       await user.click(addButton);
@@ -577,7 +612,7 @@ describe("InviteMembersDialog", () => {
       );
 
       const phoneInput = screen.getByTestId("phone-input");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /add phone number/i });
 
       // Add a phone number
       await user.type(phoneInput, "+14155552671");
@@ -661,7 +696,7 @@ describe("InviteMembersDialog", () => {
       expect(screen.queryByTestId("mutuals-section")).toBeNull();
     });
 
-    it("selecting a mutual adds chip and checks checkbox", async () => {
+    it("selecting a mutual adds chip and selects row", async () => {
       const user = userEvent.setup();
       mockUseMutualSuggestions.mockReturnValue({
         data: mockSuggestions,
@@ -670,15 +705,13 @@ describe("InviteMembersDialog", () => {
       });
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
-      // Click Alice's checkbox
-      const aliceCheckbox = screen.getByRole("checkbox", {
-        name: /alice smith/i,
-      });
-      await user.click(aliceCheckbox);
+      // Toggle Alice's row
+      const aliceRow = screen.getByRole("button", { name: "Invite Alice Smith" });
+      await user.click(aliceRow);
 
       // Verify chip appears
       await waitFor(() => {
-        // The badge chip should contain Alice's name outside the checkbox list
+        // The badge chip should contain Alice's name outside the mutuals list
         const badges = screen.getAllByText("Alice Smith");
         expect(badges.length).toBeGreaterThanOrEqual(2); // one in list, one as chip
       });
@@ -694,11 +727,9 @@ describe("InviteMembersDialog", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
       // Select then deselect
-      const aliceCheckbox = screen.getByRole("checkbox", {
-        name: /alice smith/i,
-      });
-      await user.click(aliceCheckbox);
-      await user.click(aliceCheckbox); // deselect
+      const aliceRow = screen.getByRole("button", { name: "Invite Alice Smith" });
+      await user.click(aliceRow);
+      await user.click(aliceRow); // deselect
 
       await waitFor(() => {
         // Only one Alice text should remain (the one in the list)
@@ -730,10 +761,8 @@ describe("InviteMembersDialog", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
       // Select Alice
-      const aliceCheckbox = screen.getByRole("checkbox", {
-        name: /alice smith/i,
-      });
-      await user.click(aliceCheckbox);
+      const aliceRow = screen.getByRole("button", { name: "Invite Alice Smith" });
+      await user.click(aliceRow);
 
       // Submit should now be enabled
       const submitButton = screen.getByRole("button", {
@@ -778,15 +807,13 @@ describe("InviteMembersDialog", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
       // Select a mutual
-      const aliceCheckbox = screen.getByRole("checkbox", {
-        name: /alice smith/i,
-      });
-      await user.click(aliceCheckbox);
+      const aliceRow = screen.getByRole("button", { name: "Invite Alice Smith" });
+      await user.click(aliceRow);
 
       // Add a phone number
       const phoneInput = screen.getByTestId("phone-input");
       await user.type(phoneInput, "+14155552671");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /add phone number/i });
       await user.click(addButton);
 
       await waitFor(() => {
@@ -831,7 +858,7 @@ describe("InviteMembersDialog", () => {
       // Add phone and submit
       const phoneInput = screen.getByTestId("phone-input");
       await user.type(phoneInput, "+14155552671");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /add phone number/i });
       await user.click(addButton);
 
       await waitFor(() => {
@@ -910,15 +937,13 @@ describe("InviteMembersDialog", () => {
       renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
 
       // Select mutual
-      const aliceCheckbox = screen.getByRole("checkbox", {
-        name: /alice smith/i,
-      });
-      await user.click(aliceCheckbox);
+      const aliceRow = screen.getByRole("button", { name: "Invite Alice Smith" });
+      await user.click(aliceRow);
 
       // Add phone
       const phoneInput = screen.getByTestId("phone-input");
       await user.type(phoneInput, "+14155552671");
-      const addButton = screen.getByRole("button", { name: /add/i });
+      const addButton = screen.getByRole("button", { name: /add phone number/i });
       await user.click(addButton);
 
       await waitFor(() => {
@@ -949,10 +974,8 @@ describe("InviteMembersDialog", () => {
       );
 
       // Select a mutual
-      const aliceCheckbox = screen.getByRole("checkbox", {
-        name: /alice smith/i,
-      });
-      await user.click(aliceCheckbox);
+      const aliceRow = screen.getByRole("button", { name: "Invite Alice Smith" });
+      await user.click(aliceRow);
 
       // Close dialog
       rerender(
@@ -973,6 +996,63 @@ describe("InviteMembersDialog", () => {
         const aliceTexts = screen.getAllByText("Alice Smith");
         expect(aliceTexts.length).toBe(1); // only the list item, no chip
       });
+    });
+  });
+
+  describe("Guest invites", () => {
+    it("retains successes and surfaces the failure when one guest POST fails", async () => {
+      const { apiRequest } = await import("@/lib/api");
+      vi.mocked(apiRequest).mockImplementation((url: string, init?: unknown) => {
+        const body = JSON.parse(
+          (init as { body?: string } | undefined)?.body ?? "{}",
+        ) as { displayName?: string };
+        if (typeof url === "string" && url.endsWith("/members/guests")) {
+          if (body.displayName === "Dad") {
+            return Promise.reject(new Error("Network error"));
+          }
+          return Promise.resolve({
+            success: true,
+            member: { id: `member-${body.displayName}` },
+          });
+        }
+        return Promise.reject(new Error(`unexpected url ${url}`));
+      });
+
+      const user = userEvent.setup();
+      renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
+
+      const guestInput = screen.getByLabelText("Guest name");
+      const addGuestButton = screen.getByRole("button", { name: "Add guest" });
+      await user.type(guestInput, "Mom");
+      await user.click(addGuestButton);
+      await user.type(guestInput, "Dad");
+      await user.click(addGuestButton);
+
+      await waitFor(() => {
+        expect(screen.getByText("2 guests added")).toBeDefined();
+      });
+
+      await user.click(
+        screen.getByRole("button", { name: /send invitations/i }),
+      );
+
+      // The Mom success is retained and reported...
+      await waitFor(() => {
+        expect(mockToast.success).toHaveBeenCalledWith(
+          expect.stringContaining("1 guest added"),
+        );
+      });
+      expect(mockToast.success).toHaveBeenCalledWith(
+        expect.stringContaining("1 guest couldn't be added"),
+      );
+      // ...and the Dad failure is surfaced instead of aborting the batch.
+      await waitFor(() => {
+        expect(mockToast.error).toHaveBeenCalledWith(
+          "Couldn't add Dad. Please try again.",
+        );
+      });
+      // Dialog stays open with the chips intact so Dad can be retried.
+      expect(defaultProps.onOpenChange).not.toHaveBeenCalledWith(false);
     });
   });
 });

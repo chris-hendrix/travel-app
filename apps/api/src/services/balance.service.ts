@@ -1,9 +1,10 @@
 import {
   payments,
   paymentParticipants,
+  members,
   users,
 } from "@/db/schema/index.js";
-import { eq, and, isNull, inArray } from "drizzle-orm";
+import { eq, and, isNull, inArray, sql } from "drizzle-orm";
 import type { AppDatabase } from "@/types/index.js";
 
 interface BalancePerson {
@@ -43,22 +44,31 @@ export class BalanceService implements IBalanceService {
     tripId: string,
     userId: string,
   ): Promise<{ netBalance: number; details: MyBalanceDetail[] }> {
+    // Resolve the caller via their member row first — guests (userId NULL
+    // rows) are never callers, and the caller key is member:<members.id>.
+    const [caller] = await this.db
+      .select({ id: members.id })
+      .from(members)
+      .where(and(eq(members.tripId, tripId), eq(members.userId, userId)))
+      .limit(1);
+
+    if (!caller) {
+      return { netBalance: 0, details: [] };
+    }
+
     const balances = await this.getTripBalances(tripId);
-    const userKey = `user:${userId}`;
+    const myId = caller.id;
 
     let netBalance = 0;
     const details: MyBalanceDetail[] = [];
 
     for (const entry of balances) {
-      const fromKey = `user:${entry.from.id}`;
-      const toKey = `user:${entry.to.id}`;
-
-      if (fromKey === userKey) {
-        // User owes this person
+      if (entry.from.id === myId) {
+        // User owes this person (incl. guests)
         netBalance -= entry.amount;
         details.push({ person: entry.to, amount: entry.amount });
-      } else if (toKey === userKey) {
-        // This person owes user
+      } else if (entry.to.id === myId) {
+        // This person (incl. guests) owes user
         netBalance += entry.amount;
         details.push({ person: entry.from, amount: -entry.amount });
       }
@@ -68,9 +78,10 @@ export class BalanceService implements IBalanceService {
   }
 
   /**
-   * Compute net balance per person across all non-deleted payments.
+   * Compute net balance per member across all non-deleted payments.
    * Positive = owed money (net payer). Negative = owes money (net debtor).
-   * Key format: "user:<id>"
+   * Key format: "member:<members.id>". The payer key comes straight from
+   * payments.memberId — no join-through-user needed.
    */
   private async computeNetBalances(
     tripId: string,
@@ -82,7 +93,7 @@ export class BalanceService implements IBalanceService {
       .select({
         id: payments.id,
         amount: payments.amount,
-        userId: payments.userId,
+        memberId: payments.memberId,
       })
       .from(payments)
       .where(and(eq(payments.tripId, tripId), isNull(payments.deletedAt)));
@@ -95,7 +106,7 @@ export class BalanceService implements IBalanceService {
     const participantRows = await this.db
       .select({
         paymentId: paymentParticipants.paymentId,
-        userId: paymentParticipants.userId,
+        memberId: paymentParticipants.memberId,
         shareAmount: paymentParticipants.shareAmount,
       })
       .from(paymentParticipants)
@@ -110,7 +121,7 @@ export class BalanceService implements IBalanceService {
     }
 
     for (const payment of paymentRows) {
-      const payerKey = `user:${payment.userId}`;
+      const payerKey = `member:${payment.memberId}`;
 
       // Payer gains credit for the full amount
       net.set(payerKey, (net.get(payerKey) ?? 0) + payment.amount);
@@ -118,7 +129,7 @@ export class BalanceService implements IBalanceService {
       // Each participant owes their share
       const pParticipants = participantsByPayment.get(payment.id) ?? [];
       for (const pp of pParticipants) {
-        const participantKey = `user:${pp.userId}`;
+        const participantKey = `member:${pp.memberId}`;
         net.set(
           participantKey,
           (net.get(participantKey) ?? 0) - pp.shareAmount,
@@ -188,60 +199,33 @@ export class BalanceService implements IBalanceService {
   }
 
   /**
-   * Build a lookup map of person keys to person info for all
-   * users involved in a trip's payments.
+   * Build a lookup map of member keys to person info for all members of
+   * the trip. Names resolve via members LEFT JOIN users with
+   * COALESCE(users.display_name, members.guest_display_name) — before a
+   * guest is claimed the guest name shows; after claim the profile name
+   * shows under the same member:<id> key.
    */
   private async buildPersonMap(
     tripId: string,
   ): Promise<Map<string, BalancePerson>> {
     const personMap = new Map<string, BalancePerson>();
 
-    // Get all non-deleted payments for user IDs
-    const paymentRows = await this.db
+    const memberRows = await this.db
       .select({
-        userId: payments.userId,
+        id: members.id,
+        name: sql<
+          string
+        >`coalesce(${users.displayName}, ${members.guestDisplayName}, 'Unknown')`,
       })
-      .from(payments)
-      .where(and(eq(payments.tripId, tripId), isNull(payments.deletedAt)));
+      .from(members)
+      .leftJoin(users, eq(members.userId, users.id))
+      .where(eq(members.tripId, tripId));
 
-    const paymentIds = (
-      await this.db
-        .select({ id: payments.id })
-        .from(payments)
-        .where(and(eq(payments.tripId, tripId), isNull(payments.deletedAt)))
-    ).map((p) => p.id);
-
-    const userIds = new Set<string>();
-
-    for (const p of paymentRows) {
-      if (p.userId) userIds.add(p.userId);
-    }
-
-    if (paymentIds.length > 0) {
-      const participantRows = await this.db
-        .select({
-          userId: paymentParticipants.userId,
-        })
-        .from(paymentParticipants)
-        .where(inArray(paymentParticipants.paymentId, paymentIds));
-
-      for (const pp of participantRows) {
-        if (pp.userId) userIds.add(pp.userId);
-      }
-    }
-
-    if (userIds.size > 0) {
-      const userRows = await this.db
-        .select({ id: users.id, displayName: users.displayName })
-        .from(users)
-        .where(inArray(users.id, Array.from(userIds)));
-
-      for (const u of userRows) {
-        personMap.set(`user:${u.id}`, {
-          id: u.id,
-          name: u.displayName,
-        });
-      }
+    for (const m of memberRows) {
+      personMap.set(`member:${m.id}`, {
+        id: m.id,
+        name: m.name,
+      });
     }
 
     return personMap;

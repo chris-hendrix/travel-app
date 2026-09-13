@@ -67,6 +67,17 @@ export function LocationInput({
   const [query, setQuery] = useState(value);
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear any pending blur timer on unmount so it never fires after teardown.
+  useEffect(() => {
+    return () => {
+      if (blurTimerRef.current !== null) {
+        clearTimeout(blurTimerRef.current);
+        blurTimerRef.current = null;
+      }
+    };
+  }, []);
 
   // Sync internal query when value prop changes externally (e.g. form.reset)
   useEffect(() => {
@@ -115,8 +126,20 @@ export function LocationInput({
           ref={inputRef}
           value={query}
           onChange={handleInputChange}
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          onBlur={() => {
+            if (blurTimerRef.current !== null) {
+              clearTimeout(blurTimerRef.current);
+            }
+            blurTimerRef.current = setTimeout(() => {
+              blurTimerRef.current = null;
+              setOpen(false);
+            }, 150);
+          }}
           onFocus={() => {
+            if (blurTimerRef.current !== null) {
+              clearTimeout(blurTimerRef.current);
+              blurTimerRef.current = null;
+            }
             if (query.length >= 2 && hasSuggestions) setOpen(true);
           }}
           placeholder={placeholder}

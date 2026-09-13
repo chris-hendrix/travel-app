@@ -354,7 +354,12 @@ export class PermissionsService implements IPermissionsService {
 
   /**
    * Checks if a user is a member of a trip
-   * A user is a member if they have any record in the members table for the trip
+   * A user is a member if they have any record in the members table for the trip.
+   *
+   * Guest null-audit (Task 5.2): matches on `eq(members.userId, userId)`;
+   * guest rows have `userId = NULL` which never matches, so nobody gains
+   * membership via a guest row and guests are denied self-service by
+   * construction.
    * @param userId - The UUID of the user to check
    * @param tripId - The UUID of the trip to check
    * @returns true if user is a member, false otherwise
@@ -416,7 +421,10 @@ export class PermissionsService implements IPermissionsService {
   /**
    * Helper method to check if a user is the owner of member travel
    * Member travel is owned by the user if memberTravel.memberId references a member record
-   * where members.userId = userId
+   * Guest null-audit (Task 5.2): guest member rows have `members.userId = NULL`.
+   * NULL never equals a caller userId, so a guest's travel can never be
+   * self-edited — only the organizer fallback in canEditMemberTravel grants
+   * access to guest travel. The explicit null guard below documents that.
    * @param userId - The UUID of the user to check
    * @param memberTravelId - The UUID of the member travel to check
    * @returns true if user owns the member travel, false otherwise
@@ -432,7 +440,12 @@ export class PermissionsService implements IPermissionsService {
       .where(eq(memberTravel.id, memberTravelId))
       .limit(1);
 
-    return result.length > 0 && result[0]!.userId === userId;
+    if (result.length === 0) return false;
+    const ownerUserId = result[0]!.userId;
+    // Guest null-audit (Task 5.2): guest rows have userId NULL, which never
+    // matches a caller — guest travel is organizer-only by construction.
+    if (ownerUserId === null) return false;
+    return ownerUserId === userId;
   }
 
   /**
@@ -628,7 +641,11 @@ export class PermissionsService implements IPermissionsService {
 
   /**
    * Checks if a user can update their RSVP for a trip
-   * Any member can update their RSVP
+   * Any member can update their RSVP.
+   *
+   * Guest null-audit (Task 5.2): delegates to isMember, which keys on
+   * `eq(members.userId, userId)` — guest rows (`userId = NULL`) never match,
+   * so guests cannot self-service RSVP; only organizers set guest status.
    */
   async canUpdateRsvp(userId: string, tripId: string): Promise<boolean> {
     return this.isMember(userId, tripId);
@@ -729,6 +746,10 @@ export class PermissionsService implements IPermissionsService {
    * @param userId - The UUID of the user to check
    * @param memberTravelData - Pre-loaded member travel data with tripId and memberId
    * @returns true if user can edit member travel, false otherwise
+   *
+   * Guest null-audit (Task 5.2): ownership resolves through the member row's
+   * userId; guest rows (`userId = NULL`) never match a caller, so the
+   * self-edit branch never applies to guests — guest travel is organizer-only.
    */
   async canEditMemberTravelWithData(
     userId: string,
@@ -741,7 +762,14 @@ export class PermissionsService implements IPermissionsService {
       .where(eq(members.id, memberTravelData.memberId))
       .limit(1);
 
-    if (memberResult.length > 0 && memberResult[0]!.userId === userId) {
+    // Guest null-audit (Task 5.2): guest rows have userId NULL and never
+    // match a caller — the memberId self-edit never applies to guests,
+    // so guest travel is editable only by organizers via the fallback below.
+    if (
+      memberResult.length > 0 &&
+      memberResult[0]!.userId !== null &&
+      memberResult[0]!.userId === userId
+    ) {
       return true;
     }
 
@@ -763,7 +791,12 @@ export class PermissionsService implements IPermissionsService {
   /**
    * Gets membership info for a user in a trip in a single query
    * Returns both isMember and isOrganizer status
-   * Checks both the members table (for isOrganizer flag) and trips table (for creator)
+   * Checks both the members table (for isOrganizer flag) and trips table (for creator).
+   *
+   * Guest null-audit (Task 5.2): the lookup keys on
+   * `eq(members.userId, userId)` and guest rows have `userId = NULL`, which
+   * never matches — a user whose only link to the trip is a guest row is
+   * (correctly) reported as `{ isMember: false, isOrganizer: false }`.
    * @param userId - The UUID of the user to check
    * @param tripId - The UUID of the trip to check
    * @returns { isMember, isOrganizer }

@@ -26,7 +26,6 @@ import { CalendarSyncCard } from "@/components/trip/calendar-sync-card";
 import { membersQueryOptions } from "@/hooks/invitation-queries";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/app/providers/auth-provider";
-import type { MemberWithProfile } from "@journiful/shared/types";
 import { TodaySection } from "./today-section";
 
 import { linkifyText } from "@/utils/linkify";
@@ -78,7 +77,7 @@ interface InfoPanelProps {
   weather: TripWeatherResponse | undefined;
   weatherLoading: boolean;
   temperatureUnit: TemperatureUnit;
-  currentMember: { id: string; userId: string; isMuted: boolean | undefined } | undefined;
+  currentMember: { id: string; userId: string | null; isMuted?: boolean } | undefined;
   onOpenInvite: () => void;
   onOpenEdit: () => void;
   onOpenSettings: () => void;
@@ -119,12 +118,18 @@ export function InfoPanel({
   const [editingAccommodation, setEditingAccommodation] = useState<Accommodation | null>(null);
   const [isCreateAccommodationOpen, setIsCreateAccommodationOpen] = useState(false);
   const [isCreateEventOpen, setIsCreateEventOpen] = useState(false);
-  const [profileMember, setProfileMember] = useState<MemberWithProfile | null>(null);
+  // Track the selected member by id and resolve the live row from the
+  // members query — a stored snapshot goes stale after PATCHes (RSVP/name),
+  // so the sheet would render old data until reopened.
+  const [profileMemberId, setProfileMemberId] = useState<string | null>(null);
 
   const { data: members } = useQuery({
     ...membersQueryOptions(tripId),
     enabled: !!tripId,
   });
+
+  const profileMember =
+    members?.find((m) => m.id === profileMemberId) ?? null;
 
   // Trip is locked one day after end date
   const isLocked = useMemo(() => {
@@ -276,12 +281,16 @@ export function InfoPanel({
               <>
                 {" · Organized by "}
                 {trip.organizers.map((org, i) => {
-                  const member = members?.find((m) => m.userId === org.id);
+                  // Organizers are user accounts; fall back to member-id match
+                  // so the sheet still opens if the id spaces ever diverge.
+                  const member =
+                    members?.find((m) => m.userId === org.id) ??
+                    members?.find((m) => m.id === org.id);
                   return (
                     <span key={org.id}>
                       {i > 0 && ", "}
                       <button
-                        onClick={() => member && setProfileMember(member)}
+                        onClick={() => member && setProfileMemberId(member.id)}
                         className="text-primary hover:underline transition-colors"
                       >
                         {org.displayName}
@@ -501,11 +510,17 @@ export function InfoPanel({
       />
 
       {/* Member profile sheet */}
+      {/* Member profile sheet — open keys off the selected id, not the
+          resolved row, so a members refetch (row briefly undefined) never
+          flashes the sheet closed. MemberProfileSheet accepts null and
+          renders a fallback shell while the row reloads. */}
       <MemberProfileSheet
         member={profileMember}
-        open={!!profileMember}
+        open={profileMemberId !== null}
+        tripId={tripId}
+        isOrganizer={isOrganizer}
         onOpenChange={(open) => {
-          if (!open) setProfileMember(null);
+          if (!open) setProfileMemberId(null);
         }}
       />
     </div>

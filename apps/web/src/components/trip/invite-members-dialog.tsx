@@ -14,6 +14,10 @@ import {
   getInviteMembersErrorMessage,
 } from "@/hooks/use-invitations";
 import { useMutualSuggestions } from "@/hooks/use-mutuals";
+import { useQueryClient } from "@tanstack/react-query";
+import { memberKeys } from "@/hooks/invitation-queries";
+import { tripKeys } from "@/hooks/trip-queries";
+import { apiRequest, APIError } from "@/lib/api";
 import {
   Sheet,
   SheetBody,
@@ -26,26 +30,58 @@ import {
   Form,
   FormField,
   FormItem,
-  FormLabel,
   FormControl,
   FormMessage,
 } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Loader2, X, UserPlus, Phone, Search, Users } from "lucide-react";
+import { Loader2, X, Search, Check } from "lucide-react";
 import { formatPhoneNumber, getInitials } from "@/lib/format";
 import { getUploadUrl } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 interface InviteMembersDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   tripId: string;
+}
+
+const MAX_GUESTS = 15;
+
+const SECTION_LABEL =
+  "text-xs font-semibold uppercase tracking-widest text-muted-foreground";
+
+// Borderless inner phone input for the joined [input | button] rows —
+// same pattern as GuestEditor in member-profile-sheet.tsx.
+const JOINED_PHONE_INPUT =
+  "min-w-0 flex-1 items-center px-3 [&_input]:h-11 [&_input]:border-0 [&_input]:bg-transparent [&_input]:px-1 [&_input]:shadow-none [&_input]:focus-visible:ring-0";
+
+function DismissButton({
+  label,
+  onClick,
+  disabled,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      className="flex size-6 shrink-0 items-center justify-center rounded-full bg-foreground/10 transition-colors hover:bg-foreground/20 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+    >
+      <X className="size-3.5" />
+    </button>
+  );
 }
 
 export function InviteMembersDialog({
@@ -56,8 +92,12 @@ export function InviteMembersDialog({
   const [currentPhone, setCurrentPhone] = useState("");
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [mutualSearch, setMutualSearch] = useState("");
+  const [guestName, setGuestName] = useState("");
+  const [guestError, setGuestError] = useState<string | null>(null);
+  const [guests, setGuests] = useState<Array<{ name: string }>>([]);
 
-  const { mutate: inviteMembers, isPending } = useInviteMembers(tripId);
+  const queryClient = useQueryClient();
+  const { mutateAsync: inviteMembersAsync, isPending } = useInviteMembers(tripId);
   const { data: suggestions, isPending: isSuggestionsLoading } =
     useMutualSuggestions(tripId);
 
@@ -76,6 +116,9 @@ export function InviteMembersDialog({
       setCurrentPhone("");
       setPhoneError(null);
       setMutualSearch("");
+      setGuestName("");
+      setGuestError(null);
+      setGuests([]);
     }
   }, [open, form]);
 
@@ -124,38 +167,133 @@ export function InviteMembersDialog({
     }
   };
 
-  const handleSubmit = (data: CreateInvitationsInput) => {
-    inviteMembers(data, {
-      onSuccess: (response) => {
+  const handleAddGuest = () => {
+    setGuestError(null);
+    const name = guestName.trim();
+    if (!name) {
+      setGuestError("Guest name is required");
+      return;
+    }
+    if (guests.length >= MAX_GUESTS) {
+      setGuestError("You can add up to 15 guests. Remove one to add another.");
+      return;
+    }
+    if (guests.some((g) => g.name.toLowerCase() === name.toLowerCase())) {
+      setGuestError(`${name} is already added.`);
+      return;
+    }
+    setGuests((prev) => [...prev, { name }]);
+    setGuestName("");
+  };
+
+  const handleRemoveGuest = (index: number) => {
+    setGuests((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSubmitInvalid = () => {
+    // zod refine requires ≥1 phone/userId; guests-only submits bypass
+    // validation via the submit button's onClick (onSubmitClick). If the
+    // native form submit lands here with guests queued, submit anyway.
+    if (guests.length > 0) {
+      void handleSubmit(form.getValues() as CreateInvitationsInput);
+    }
+  };
+
+  const onSubmitClick = () => {
+    const data = form.getValues() as CreateInvitationsInput;
+    void handleSubmit(data);
+  };
+
+  const handleSubmit = async (data: CreateInvitationsInput) => {
+    const hasInvites =
+      (data.phoneNumbers?.length ?? 0) > 0 || (data.userIds?.length ?? 0) > 0;
+    const pendingGuests = [...guests];
+    try {
+      const toastParts: string[] = [];
+      if (hasInvites) {
+        const response = await inviteMembersAsync(data);
         const invitedCount = response.invitations.length;
         const addedMembersCount = response.addedMembers?.length ?? 0;
         const skippedCount = response.skipped.length;
-        const parts: string[] = [];
         if (invitedCount > 0) {
-          parts.push(
+          toastParts.push(
             `${invitedCount} invitation${invitedCount !== 1 ? "s" : ""} sent`,
           );
         }
         if (addedMembersCount > 0) {
-          parts.push(
+          toastParts.push(
             `${addedMembersCount} member${addedMembersCount !== 1 ? "s" : ""} added`,
           );
         }
         if (skippedCount > 0) {
-          parts.push(`${skippedCount} already invited`);
+          toastParts.push(`${skippedCount} already invited`);
         }
-        const message =
-          parts.length > 0 ? parts.join(", ") : "Invitations processed";
-        toast.success(message);
-        onOpenChange(false);
-      },
-      onError: (error) => {
-        toast.error(
-          getInviteMembersErrorMessage(error) ??
-            "An unexpected error occurred.",
+      }
+      const addedGuests: string[] = [];
+      const skippedGuests: string[] = [];
+      // POST guests concurrently and settle every result: a single failure
+      // must not discard the sibling successes (allSettled, not a
+      // throw-aborts-the-loop for-loop).
+      const guestResults = await Promise.allSettled(
+        pendingGuests.map((g) =>
+          apiRequest(`/trips/${tripId}/members/guests`, {
+            method: "POST",
+            body: JSON.stringify({ displayName: g.name }),
+          }),
+        ),
+      );
+      const failedGuests: string[] = [];
+      guestResults.forEach((result, i) => {
+        const name = pendingGuests[i]!.name;
+        if (result.status === "fulfilled") {
+          addedGuests.push(name);
+          return;
+        }
+        const err = result.reason;
+        if (err instanceof APIError && err.code === "DUPLICATE_MEMBER") {
+          skippedGuests.push(name);
+          toast.error(`${name} is already in this trip`);
+        } else {
+          failedGuests.push(name);
+        }
+      });
+      if (addedGuests.length > 0) {
+        toastParts.push(
+          `${addedGuests.length} guest${addedGuests.length !== 1 ? "s" : ""} added`,
         );
-      },
-    });
+      }
+      if (skippedGuests.length > 0) {
+        toastParts.push(`Skipped: ${skippedGuests.join(", ")}`);
+      }
+      if (failedGuests.length > 0) {
+        toastParts.push(
+          `${failedGuests.length} guest${failedGuests.length !== 1 ? "s" : ""} couldn't be added`,
+        );
+      }
+      if (addedGuests.length > 0 || skippedGuests.length > 0 || hasInvites) {
+        queryClient.invalidateQueries({ queryKey: memberKeys.list(tripId) });
+        queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
+      }
+      if (failedGuests.length > 0) {
+        // Successes are retained (reported above and invalidated), but the
+        // dialog stays open with the guest chips intact so the failed names
+        // can be retried instead of being silently dropped.
+        toast.error(
+          `Couldn't add ${failedGuests.join(", ")}. Please try again.`,
+        );
+      }
+      const message =
+        toastParts.length > 0 ? toastParts.join(", ") : "Invitations processed";
+      toast.success(message);
+      if (failedGuests.length === 0) {
+        onOpenChange(false);
+      }
+    } catch (error) {
+      toast.error(
+        getInviteMembersErrorMessage(error as Error) ??
+          "An unexpected error occurred.",
+      );
+    }
   };
 
   const phoneNumbers = form.watch("phoneNumbers") ?? [];
@@ -186,28 +324,27 @@ export function InviteMembersDialog({
             Invite members
           </SheetTitle>
           <SheetDescription>
-            {hasMutuals || isSuggestionsLoading
-              ? "Select mutuals or add phone numbers to invite to this trip"
-              : "Add phone numbers of people you want to invite to this trip"}
+            Three ways, one list. Pick mutuals, add phone numbers, or add
+            guests without an account.
           </SheetDescription>
         </SheetHeader>
 
         <SheetBody>
           <Form {...form}>
             <form
-              onSubmit={form.handleSubmit(handleSubmit)}
-              className="space-y-6 pb-6"
+              onSubmit={form.handleSubmit(handleSubmit, handleSubmitInvalid)}
+              className="space-y-7 pb-6"
             >
               {/* Mutuals Section - loading skeleton */}
               {isSuggestionsLoading && (
                 <div className="space-y-3">
-                  <Skeleton className="h-5 w-40" />
-                  <Skeleton className="h-10 w-full rounded-md" />
-                  <div className="space-y-1 rounded-md border border-border p-2">
+                  <Skeleton className="h-4 w-36" />
+                  <Skeleton className="h-12 w-full rounded-lg" />
+                  <div className="space-y-1">
                     {[1, 2, 3].map((i) => (
                       <div key={i} className="flex items-center gap-3 p-2">
-                        <Skeleton className="h-4 w-4 rounded" />
-                        <Skeleton className="size-8 rounded-full" />
+                        <Skeleton className="size-5 rounded-full" />
+                        <Skeleton className="size-9 rounded-full" />
                         <div className="space-y-1.5">
                           <Skeleton className="h-4 w-24" />
                           <Skeleton className="h-3 w-16" />
@@ -215,42 +352,29 @@ export function InviteMembersDialog({
                       </div>
                     ))}
                   </div>
-                  <div className="relative py-2">
-                    <Separator />
-                    <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-3 text-xs text-muted-foreground">
-                      Or invite by phone number
-                    </span>
-                  </div>
                 </div>
               )}
 
               {/* Mutuals Section - show when suggestions loaded */}
               {hasMutuals && !isSuggestionsLoading && (
                 <div className="space-y-3" data-testid="mutuals-section">
-                  <label className="text-base font-semibold text-foreground">
-                    Suggest from mutuals
-                  </label>
+                  <p className={SECTION_LABEL}>From your mutuals · or</p>
 
                   {/* Selected mutual chips */}
                   {selectedMutuals.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       {selectedMutuals.map((mutual: Mutual) => (
                         <Badge
                           key={mutual.id}
                           variant="secondary"
-                          className="px-3 py-1.5 text-sm gap-1.5"
+                          className="gap-1.5 py-1.5 pl-3 pr-1.5 text-sm"
                         >
-                          <Users className="w-3 h-3" />
                           {mutual.displayName}
-                          <button
-                            type="button"
+                          <DismissButton
+                            label={`Remove ${mutual.displayName}`}
                             onClick={() => toggleMutual(mutual.id)}
                             disabled={isPending}
-                            className="ml-1 hover:text-destructive transition-colors"
-                            aria-label={`Remove ${mutual.displayName}`}
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
+                          />
                         </Badge>
                       ))}
                     </div>
@@ -258,65 +382,91 @@ export function InviteMembersDialog({
 
                   {/* Search input for filtering */}
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Search
+                      aria-hidden
+                      className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                    />
+                    <label htmlFor="invite-mutual-search" className="sr-only">
+                      Search mutuals
+                    </label>
                     <input
+                      id="invite-mutual-search"
                       type="text"
                       value={mutualSearch}
                       onChange={(e) => setMutualSearch(e.target.value)}
                       placeholder="Search mutuals..."
-                      className="w-full h-10 pl-9 pr-3 rounded-md border border-input bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      disabled={isPending}
+                      className="h-12 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:border-ring focus:outline-2 focus:outline-ring"
                     />
                   </div>
 
-                  {/* Scrollable checkbox list */}
-                  <div className="max-h-48 overflow-y-auto space-y-1 rounded-md border border-border p-2">
+                  {/* Tap-to-toggle rows */}
+                  <div
+                    role="group"
+                    aria-label="Mutuals to invite"
+                    className="max-h-48 space-y-0.5 overflow-y-auto"
+                  >
                     {filteredSuggestions.length === 0 && mutualSearch.trim() ? (
                       <div className="py-6 text-center text-sm text-muted-foreground">
-                        <Search className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
+                        <Search
+                          aria-hidden
+                          className="mx-auto mb-2 h-8 w-8 text-muted-foreground/50"
+                        />
                         No mutuals found
                       </div>
                     ) : (
-                      filteredSuggestions.map((mutual: Mutual) => (
-                        <label
-                          key={mutual.id}
-                          className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer"
-                        >
-                          <Checkbox
-                            checked={userIds.includes(mutual.id)}
-                            onCheckedChange={() => toggleMutual(mutual.id)}
-                            aria-label={mutual.displayName}
-                          />
-                          <Avatar size="sm">
-                            {mutual.profilePhotoUrl && (
-                              <AvatarImage
-                                src={getUploadUrl(mutual.profilePhotoUrl)}
-                                alt={mutual.displayName}
+                      filteredSuggestions.map((mutual: Mutual) => {
+                        const selected = userIds.includes(mutual.id);
+                        return (
+                          <button
+                            key={mutual.id}
+                            type="button"
+                            aria-pressed={selected}
+                            aria-label={`Invite ${mutual.displayName}`}
+                            onClick={() => toggleMutual(mutual.id)}
+                            disabled={isPending}
+                            className={cn(
+                              "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-muted/60 focus-visible:outline-2 focus-visible:outline-ring",
+                              selected && "bg-muted",
+                            )}
+                          >
+                            <Avatar size="sm">
+                              {mutual.profilePhotoUrl && (
+                                <AvatarImage
+                                  src={getUploadUrl(mutual.profilePhotoUrl)}
+                                  alt=""
+                                />
+                              )}
+                              <AvatarFallback>
+                                {getInitials(mutual.displayName)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-medium">
+                                {mutual.displayName}
+                              </span>
+                              <span className="block text-xs text-muted-foreground">
+                                {mutual.sharedTripCount} shared trip
+                                {mutual.sharedTripCount !== 1 ? "s" : ""}
+                              </span>
+                            </span>
+                            {selected ? (
+                              <span
+                                aria-hidden
+                                className="flex size-[22px] shrink-0 items-center justify-center rounded-full bg-foreground text-background"
+                              >
+                                <Check className="size-3.5" />
+                              </span>
+                            ) : (
+                              <span
+                                aria-hidden
+                                className="size-[22px] shrink-0 rounded-full border-[1.5px] border-muted-foreground"
                               />
                             )}
-                            <AvatarFallback>
-                              {getInitials(mutual.displayName)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">
-                              {mutual.displayName}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {mutual.sharedTripCount} shared trip
-                              {mutual.sharedTripCount !== 1 ? "s" : ""}
-                            </p>
-                          </div>
-                        </label>
-                      ))
+                          </button>
+                        );
+                      })
                     )}
-                  </div>
-
-                  {/* Divider before phone section */}
-                  <div className="relative py-2">
-                    <Separator />
-                    <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-3 text-xs text-muted-foreground">
-                      Or invite by phone number
-                    </span>
                   </div>
                 </div>
               )}
@@ -326,39 +476,32 @@ export function InviteMembersDialog({
                 name="phoneNumbers"
                 render={() => (
                   <FormItem>
-                    <FormLabel className="text-base font-semibold text-foreground">
-                      Phone numbers
-                    </FormLabel>
+                    <p className={SECTION_LABEL}>By phone number · or</p>
 
                     {/* Phone chips */}
                     {phoneNumbers.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-2">
+                      <div className="flex flex-wrap gap-1.5 pt-1">
                         {phoneNumbers.map((phone) => (
                           <Badge
                             key={phone}
                             variant="secondary"
-                            className="px-3 py-1.5 text-sm gap-1.5"
+                            className="gap-1.5 py-1.5 pl-3 pr-1.5 text-sm"
                           >
-                            <Phone className="w-3 h-3" />
                             {formatPhoneNumber(phone)}
-                            <button
-                              type="button"
+                            <DismissButton
+                              label={`Remove ${phone}`}
                               onClick={() => handleRemovePhone(phone)}
                               disabled={isPending}
-                              className="ml-1 hover:text-destructive transition-colors"
-                              aria-label={`Remove ${phone}`}
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
+                            />
                           </Badge>
                         ))}
                       </div>
                     )}
 
-                    {/* Phone input */}
-                    <div className="space-y-2 mt-2">
+                    {/* Joined phone row — mirrors the guest-sheet pattern */}
+                    <div className="space-y-2 pt-1">
                       <div
-                        className="flex gap-2"
+                        className="flex h-12 items-stretch overflow-hidden rounded-lg border border-input bg-background focus-within:border-ring focus-within:outline-2 focus-within:outline-ring"
                         onKeyDown={(e) => {
                           if (e.key === "Enter") {
                             e.preventDefault();
@@ -375,7 +518,7 @@ export function InviteMembersDialog({
                             }}
                             disabled={isPending}
                             placeholder="Enter phone number"
-                            className="flex-1 h-12 rounded-md"
+                            className={JOINED_PHONE_INPUT}
                             aria-describedby={
                               phoneError ? "invite-phone-error" : undefined
                             }
@@ -383,19 +526,19 @@ export function InviteMembersDialog({
                         </FormControl>
                         <Button
                           type="button"
+                          variant="ghost"
                           onClick={handleAddPhone}
                           disabled={isPending}
-                          variant="outline"
-                          size="lg"
+                          aria-label="Add phone number"
+                          className="h-full shrink-0 rounded-none rounded-r-lg border-l border-input px-4 text-sm font-semibold"
                         >
-                          <UserPlus className="w-5 h-5" />
                           Add
                         </Button>
                       </div>
                       {phoneError && (
                         <p
                           id="invite-phone-error"
-                          aria-live="polite"
+                          role="alert"
                           className="text-sm text-destructive"
                         >
                           {phoneError}
@@ -414,8 +557,95 @@ export function InviteMembersDialog({
                 )}
               />
 
+              {/* Guest section — no account needed */}
+              <div className="space-y-3" data-testid="guest-section">
+                <p className={SECTION_LABEL}>As a guest</p>
+                <p className="-mt-1 text-xs text-muted-foreground">
+                  No app needed. You plan for them; they can claim their spot
+                  later.
+                </p>
+
+                {guests.length > 0 && (
+                  <>
+                  <div className="flex flex-wrap gap-1.5" data-testid="guest-chips">
+                    {guests.map((g, i) => (
+                      <Badge
+                        key={`${g.name}-${i}`}
+                        className="gap-1.5 bg-accent py-1.5 pl-3 pr-1.5 text-sm text-accent-foreground hover:bg-accent/90"
+                      >
+                        {g.name}
+                        <DismissButton
+                          label={`Remove guest ${g.name}`}
+                          onClick={() => handleRemoveGuest(i)}
+                          disabled={isPending}
+                        />
+                      </Badge>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Terracotta chips are guests without accounts.
+                  </p>
+                  <p aria-live="polite" className="text-xs text-muted-foreground">
+                    {guests.length} guest{guests.length !== 1 ? "s" : ""} added
+                    {guests.length >= MAX_GUESTS
+                      ? ". You reached the 15 guest limit."
+                      : ""}
+                  </p>
+                  </>
+                )}
+
+                <div
+                  className="space-y-2"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddGuest();
+                    }
+                  }}
+                >
+                  <Label htmlFor="invite-guest-name">Guest name</Label>
+                  <div className="flex h-12 items-stretch overflow-hidden rounded-lg border border-input bg-background focus-within:border-ring focus-within:outline-2 focus-within:outline-ring">
+                    <Input
+                      id="invite-guest-name"
+                      value={guestName}
+                      onChange={(e) => {
+                        setGuestName(e.target.value);
+                        setGuestError(null);
+                      }}
+                      disabled={isPending}
+                      placeholder="E.g. Mom"
+                      aria-describedby={guestError ? "invite-guest-error" : undefined}
+                      className="h-11 flex-1 rounded-none border-0 bg-transparent px-3 shadow-none focus-visible:ring-0 md:h-11"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={handleAddGuest}
+                      disabled={
+                        isPending ||
+                        guestName.trim().length === 0 ||
+                        guests.length >= MAX_GUESTS
+                      }
+                      aria-label="Add guest"
+                      className="h-full shrink-0 rounded-none rounded-r-lg border-l border-input px-4 text-sm font-semibold"
+                    >
+                      Add
+                    </Button>
+                  </div>
+                  {guestError && (
+                    <p
+                      id="invite-guest-error"
+                      role="alert"
+                      className="text-sm text-destructive"
+                    >
+                      {guestError}
+                    </p>
+                  )}
+                </div>
+              </div>
+
               {/* Action Buttons */}
-              <div className="flex gap-4 pt-4">
+              <div className="flex gap-4 pt-1">
                 <Button
                   type="button"
                   variant="outline"
@@ -427,17 +657,20 @@ export function InviteMembersDialog({
                   Cancel
                 </Button>
                 <Button
-                  type="submit"
+                  type="button"
+                  onClick={onSubmitClick}
                   disabled={
                     isPending ||
-                    (phoneNumbers.length === 0 && userIds.length === 0)
+                    (phoneNumbers.length === 0 &&
+                      userIds.length === 0 &&
+                      guests.length === 0)
                   }
                   variant="gradient"
                   size="lg"
                   className="flex-1"
                 >
                   {isPending && (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
                   {isPending ? "Sending invitations..." : "Send invitations"}
                 </Button>

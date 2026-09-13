@@ -332,5 +332,38 @@ describe("mutuals.service", () => {
       expect(result.mutuals).toHaveLength(1);
       expect(result.mutuals[0].displayName).toBe("Alice");
     });
+
+    it("should still return candidates when the trip has guest rows (NOT IN NULL regression)", async () => {
+      const currentUserId = await createUser("Current User");
+      const aliceId = await createUser("Alice");
+      const bobId = await createUser("Bob");
+
+      // Trip 1 has current user, alice, and bob
+      const trip1Id = await createTrip("Trip 1", currentUserId);
+      await addMember(trip1Id, currentUserId, { isOrganizer: true });
+      await addMember(trip1Id, aliceId);
+      await addMember(trip1Id, bobId);
+
+      // Trip 2 has current user, alice, plus a guest row (userId NULL).
+      // Under NOT IN (SELECT user_id ...), the NULL would make the exclusion
+      // predicate UNKNOWN for every candidate and return zero rows.
+      const trip2Id = await createTrip("Trip 2", currentUserId);
+      await addMember(trip2Id, currentUserId, { isOrganizer: true });
+      await addMember(trip2Id, aliceId);
+      await db.insert(members).values({
+        tripId: trip2Id,
+        userId: null,
+        guestDisplayName: "Guest Mom",
+        status: "going",
+      });
+
+      const result = await mutualsService.getMutualSuggestions({
+        userId: currentUserId,
+        tripId: trip2Id,
+      });
+
+      expect(result.mutuals).toHaveLength(1);
+      expect(result.mutuals[0].displayName).toBe("Bob");
+    });
   });
 });

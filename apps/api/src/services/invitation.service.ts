@@ -4,6 +4,8 @@ import {
   users,
   trips,
   mutedMembers,
+  payments,
+  paymentParticipants,
   type Invitation as DBInvitation,
 } from "@/db/schema/index.js";
 import { eq, and, inArray, count, sql } from "drizzle-orm";
@@ -11,6 +13,10 @@ import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
 import type { ISMSService } from "./sms.service.js";
 import type { INotificationService } from "./notification.service.js";
+import {
+  GuestMemberService,
+  type IGuestMemberService,
+} from "./guest-member.service.js";
 import type { Logger } from "@/types/logger.js";
 import type { MemberWithProfile } from "@journiful/shared/types";
 import type { PgBoss } from "pg-boss";
@@ -26,6 +32,7 @@ import {
   CannotDemoteCreatorError,
   CannotModifyOwnRoleError,
   LastOrganizerError,
+  MemberHasPaymentsError,
   NotAMutualError,
 } from "../errors.js";
 
@@ -60,7 +67,7 @@ export interface IInvitationService {
    */
   getInvitationsByTrip(
     tripId: string,
-  ): Promise<(DBInvitation & { inviteeName?: string })[]>;
+  ): Promise<(DBInvitation & { inviteeName?: string; invitedGuestName?: string })[]>;
 
   /**
    * Revokes an invitation
@@ -194,7 +201,15 @@ export class InvitationService implements IInvitationService {
     private logger?: Logger,
     private boss: PgBoss | null = null,
     private frontendUrl: string = "https://journiful.app",
+    private guestMemberService?: IGuestMemberService,
   ) {}
+
+  private getGuestClaimService(): IGuestMemberService {
+    return (
+      this.guestMemberService ??
+      new GuestMemberService(this.db, this.permissionsService)
+    );
+  }
 
   /**
    * Creates batch invitations for a trip
@@ -316,7 +331,9 @@ export class InvitationService implements IInvitationService {
                 inArray(members.userId, existingUserIds),
               ),
             );
-          alreadyMemberUserIds = new Set(existingMembers.map((m) => m.userId));
+          alreadyMemberUserIds = new Set(
+            existingMembers.map((m) => m.userId).filter((id) => id !== null),
+          );
         }
 
         // Build skipped list for phones
@@ -327,15 +344,68 @@ export class InvitationService implements IInvitationService {
           }
         }
 
+        // Task 4.2 (phone path): a new phone that belongs to an existing
+        // user may match a guest row (guest_phone) on this trip. Claim the
+        // guest row in place instead of inserting a duplicate member.
+        // Claimed phones bypass both the invited/member skip and the
+        // invitation + member inserts below (cap-neutral: row already counted).
+        const claimedPhoneSet = new Set<string>();
+        if (phoneNumbers.length > 0) {
+          const guestRows = await tx
+            .select({ guestPhone: members.guestPhone })
+            .from(members)
+            .where(
+              and(
+                eq(members.tripId, tripId),
+                inArray(members.guestPhone, phoneNumbers),
+              ),
+            );
+          const guestPhoneSet = new Set(
+            guestRows
+              .map((r) => r.guestPhone)
+              .filter((p): p is string => p !== null),
+          );
+          if (guestPhoneSet.size > 0) {
+            const claimService = this.getGuestClaimService();
+            for (const phone of phoneNumbers) {
+              if (!guestPhoneSet.has(phone)) continue;
+              const existingUser = phoneToUserMap.get(phone);
+              if (
+                !existingUser ||
+                alreadyMemberUserIds.has(existingUser.id)
+              ) {
+                continue;
+              }
+              const claim = await claimService.claimGuestMember(tx, {
+                tripId,
+                userId: existingUser.id,
+                guestPhone: phone,
+              });
+              if (claim.claimed && claim.member) {
+                claimedPhoneSet.add(phone);
+                addedMembers.push({
+                  userId: existingUser.id,
+                  displayName: existingUser.displayName,
+                });
+                phoneAutoAddedUserIds.push(existingUser.id);
+              }
+            }
+          }
+        }
+
         const phoneSkipped = phoneNumbers.filter(
           (phone) =>
-            alreadyInvitedPhones.has(phone) || alreadyMemberPhones.has(phone),
+            !claimedPhoneSet.has(phone) &&
+            (alreadyInvitedPhones.has(phone) ||
+              alreadyMemberPhones.has(phone)),
         );
         skipped.push(...phoneSkipped);
 
         // Build newPhones
         const skippedSet = new Set(phoneSkipped);
-        newPhones = phoneNumbers.filter((phone) => !skippedSet.has(phone));
+        newPhones = phoneNumbers.filter(
+          (phone) => !skippedSet.has(phone) && !claimedPhoneSet.has(phone),
+        );
 
         if (newPhones.length > 0) {
           // Batch insert invitations
@@ -350,6 +420,23 @@ export class InvitationService implements IInvitationService {
               })),
             )
             .returning();
+
+          // Guest-to-invite conversion (read-layer only): a guest member row
+          // (user_id NULL, guest_phone set) with a pending/failed invitation
+          // for that phone is presented as INVITED, not as a member.
+          // Reset any matching guest row to no_response (idempotent).
+          if (newPhones.length > 0) {
+            await tx
+              .update(members)
+              .set({ status: "no_response", updatedAt: new Date() })
+              .where(
+                and(
+                  eq(members.tripId, tripId),
+                  sql`${members.userId} IS NULL`,
+                  inArray(members.guestPhone, newPhones),
+                ),
+              );
+          }
 
           // Create member records for phones that belong to existing users
           const newMemberValues: {
@@ -432,30 +519,81 @@ export class InvitationService implements IInvitationService {
         );
         skipped.push(...skippedMutualUserIds);
 
-        // Re-check limit after filtering both phone and mutual dedup
-        const totalNew = newPhones.length + newMutualUserIds.length;
+        // Fetch display names and phone numbers for the new mutual invitees
+        // (needed up-front so guest claims can match on phone).
+        const mutualUsers =
+          newMutualUserIds.length > 0
+            ? await tx
+                .select({
+                  id: users.id,
+                  displayName: users.displayName,
+                  phoneNumber: users.phoneNumber,
+                })
+                .from(users)
+                .where(inArray(users.id, newMutualUserIds))
+            : [];
+        const mutualUserMap = new Map(mutualUsers.map((u) => [u.id, u]));
+
+        // Task 4.2 (mutual path): organizer attaching a mutual whose phone
+        // matches a guest row (guest_phone) on this trip claims the guest in
+        // place — no new member row, no new invitation (cap-neutral).
+        const claimedMutualUserIds = new Set<string>();
+        if (mutualUsers.length > 0) {
+          const mutualPhones = mutualUsers.map((u) => u.phoneNumber);
+          const guestRows = await tx
+            .select({ guestPhone: members.guestPhone })
+            .from(members)
+            .where(
+              and(
+                eq(members.tripId, tripId),
+                inArray(members.guestPhone, mutualPhones),
+              ),
+            );
+          const guestPhoneSet = new Set(
+            guestRows
+              .map((r) => r.guestPhone)
+              .filter((p): p is string => p !== null),
+          );
+          if (guestPhoneSet.size > 0) {
+            const claimService = this.getGuestClaimService();
+            for (const u of mutualUsers) {
+              if (!guestPhoneSet.has(u.phoneNumber)) continue;
+              const claim = await claimService.claimGuestMember(tx, {
+                tripId,
+                userId: u.id,
+                guestPhone: u.phoneNumber,
+              });
+              if (claim.claimed && claim.member) {
+                claimedMutualUserIds.add(u.id);
+                addedMembers.push({
+                  userId: u.id,
+                  displayName: u.displayName,
+                });
+              }
+            }
+          }
+        }
+
+        // Re-check limit after filtering both phone and mutual dedup.
+        // Claimed mutuals reuse the existing guest row, so they don't count.
+        const unclaimedMutualUserIds = newMutualUserIds.filter(
+          (uid) => !claimedMutualUserIds.has(uid),
+        );
+        const totalNew = newPhones.length + unclaimedMutualUserIds.length;
         if (currentMemberCount + totalNew > 25) {
           throw new MemberLimitExceededError(
             `Member limit exceeded: current ${currentMemberCount} + ${totalNew} new invites would exceed 25`,
           );
         }
 
-        if (newMutualUserIds.length > 0) {
-          // Fetch display names and phone numbers for the new mutual invitees
-          const mutualUsers = await tx
-            .select({
-              id: users.id,
-              displayName: users.displayName,
-              phoneNumber: users.phoneNumber,
-            })
-            .from(users)
-            .where(inArray(users.id, newMutualUserIds));
-          const mutualUserMap = new Map(
-            mutualUsers.map((u) => [u.id, u]),
-          );
-
+        if (unclaimedMutualUserIds.length > 0) {
           // Check for already-invited phones among mutuals (dedup)
-          const mutualPhones = mutualUsers.map((u) => u.phoneNumber);
+          const unclaimedMutualUsers = mutualUsers.filter((u) =>
+            unclaimedMutualUserIds.includes(u.id),
+          );
+          const mutualPhones = unclaimedMutualUsers.map(
+            (u) => u.phoneNumber,
+          );
           const alreadyInvitedMutualRows = await tx
             .select({ inviteePhone: invitations.inviteePhone })
             .from(invitations)
@@ -471,7 +609,7 @@ export class InvitationService implements IInvitationService {
 
           // Find mutuals whose phones are already invited and add their userId to skipped
           const phonesToSkipUserIds = new Set<string>();
-          for (const u of mutualUsers) {
+          for (const u of unclaimedMutualUsers) {
             if (alreadyInvitedMutualPhones.has(u.phoneNumber)) {
               skipped.push(u.id);
               phonesToSkipUserIds.add(u.id);
@@ -479,7 +617,8 @@ export class InvitationService implements IInvitationService {
           }
 
           // Filter to mutuals whose phones are NOT already invited
-          const eligibleMutualUserIds = newMutualUserIds.filter(
+          // (claimed mutuals already attached above — never re-inserted)
+          const eligibleMutualUserIds = unclaimedMutualUserIds.filter(
             (uid) => !phonesToSkipUserIds.has(uid),
           );
 
@@ -633,7 +772,7 @@ export class InvitationService implements IInvitationService {
    */
   async getInvitationsByTrip(
     tripId: string,
-  ): Promise<(DBInvitation & { inviteeName?: string })[]> {
+  ): Promise<(DBInvitation & { inviteeName?: string; invitedGuestName?: string })[]> {
     const results = await this.db
       .select({
         invitation: invitations,
@@ -643,12 +782,35 @@ export class InvitationService implements IInvitationService {
       .leftJoin(users, eq(invitations.inviteePhone, users.phoneNumber))
       .where(eq(invitations.tripId, tripId));
 
+    const guestRows = await this.db
+      .select({
+        guestPhone: members.guestPhone,
+        guestDisplayName: members.guestDisplayName,
+      })
+      .from(members)
+      .where(
+        and(eq(members.tripId, tripId), sql`${members.userId} IS NULL`),
+      );
+    const guestNameByPhone = new Map<string, string>();
+    for (const g of guestRows) {
+      if (g.guestPhone !== null && g.guestDisplayName !== null) {
+        guestNameByPhone.set(g.guestPhone, g.guestDisplayName);
+      }
+    }
+
     return results.map((r) => {
-      const entry: DBInvitation & { inviteeName?: string } = {
+      const entry: DBInvitation & {
+        inviteeName?: string;
+        invitedGuestName?: string;
+      } = {
         ...r.invitation,
       };
       if (r.displayName) {
         entry.inviteeName = r.displayName;
+      }
+      const guestName = guestNameByPhone.get(r.invitation.inviteePhone);
+      if (guestName !== undefined) {
+        entry.invitedGuestName = guestName;
       }
       return entry;
     });
@@ -684,7 +846,10 @@ export class InvitationService implements IInvitationService {
       );
     }
 
-    // Look up user by phone to delete member record
+    // Look up user by phone to delete member record.
+    // Task 4.4: this matches only claimed (userId) member rows — unclaimed
+    // guest rows (userId NULL, guest_phone) are never touched here; the
+    // invitation row alone is deleted.
     const [inviteeUser] = await this.db
       .select({ id: users.id })
       .from(users)
@@ -764,29 +929,63 @@ export class InvitationService implements IInvitationService {
       }
     }
 
+    // Payer/participant-protected: payments.member_id is ON DELETE RESTRICT
+    // and payment_participants.member_id will be too — include soft-deleted
+    // payments in the pre-check (the FK applies regardless of deletedAt) so
+    // the clean 409 path fires instead of a raw FK 500.
+    await this.assertMemberHasNoPayments(memberId);
+
     // Delete invitation and member in a transaction for consistency
     await this.db.transaction(async (tx) => {
-      // Find and delete associated invitation via user's phone number
-      const [targetUser] = await tx
-        .select({ phoneNumber: users.phoneNumber })
-        .from(users)
-        .where(eq(users.id, member.userId))
-        .limit(1);
+      // Task 4.4: guest rows have userId NULL — there is no users row to
+      // resolve a phone number from, so skip the invitation cleanup and
+      // delete the member row directly (travel + participant shares cascade).
+      if (member.userId) {
+        // Find and delete associated invitation via user's phone number
+        const [targetUser] = await tx
+          .select({ phoneNumber: users.phoneNumber })
+          .from(users)
+          .where(eq(users.id, member.userId))
+          .limit(1);
 
-      if (targetUser) {
-        await tx
-          .delete(invitations)
-          .where(
-            and(
-              eq(invitations.tripId, tripId),
-              eq(invitations.inviteePhone, targetUser.phoneNumber),
-            ),
-          );
+        if (targetUser) {
+          await tx
+            .delete(invitations)
+            .where(
+              and(
+                eq(invitations.tripId, tripId),
+                eq(invitations.inviteePhone, targetUser.phoneNumber),
+              ),
+            );
+        }
       }
 
       // Delete the member record (cascades to member_travel)
       await tx.delete(members).where(eq(members.id, memberId));
     });
+  }
+
+  /**
+   * Throws MemberHasPaymentsError (409) if the member is referenced by any
+   * payment (as payer, including soft-deleted — the RESTRICT FK applies
+   * regardless of deletedAt) or any payment_participants row.
+   */
+  private async assertMemberHasNoPayments(memberId: string): Promise<void> {
+    const [payerRow] = await this.db
+      .select({ id: payments.id })
+      .from(payments)
+      .where(eq(payments.memberId, memberId))
+      .limit(1);
+    const [participantRow] = await this.db
+      .select({ id: paymentParticipants.id })
+      .from(paymentParticipants)
+      .where(eq(paymentParticipants.memberId, memberId))
+      .limit(1);
+    if (payerRow ?? participantRow) {
+      throw new MemberHasPaymentsError(
+        "Member has payments — reassign or delete them first",
+      );
+    }
   }
 
   /**
@@ -972,23 +1171,55 @@ export class InvitationService implements IInvitationService {
       .where(eq(trips.id, tripId))
       .limit(1);
 
-    // Query members with user profiles
+    // Query members with user profiles. Guest rows (userId NULL) have no
+    // users row, so leftJoin + COALESCE keeps them in the result set with
+    // the guest display name (Task 5.1).
     const results = await this.db
       .select({
         id: members.id,
         userId: members.userId,
-        displayName: users.displayName,
+        displayName: sql<string>`COALESCE(${users.displayName}, ${members.guestDisplayName})`,
         profilePhotoUrl: users.profilePhotoUrl,
         handles: users.handles,
         phoneNumber: users.phoneNumber,
+        guestPhone: members.guestPhone,
         sharePhone: members.sharePhone,
         status: members.status,
         isOrganizer: members.isOrganizer,
         createdAt: members.createdAt,
       })
       .from(members)
-      .innerJoin(users, eq(members.userId, users.id))
+      .leftJoin(users, eq(members.userId, users.id))
       .where(eq(members.tripId, tripId));
+
+    // Guest-to-invite conversion (read-layer presentation only): a guest
+    // member row (user_id NULL, guest_phone set) with a pending or failed
+    // invitation for that phone is presented as INVITED, not as a member.
+    // Applies to both organizer and non-organizer views. NULL-safe:
+    // claimed rows (guest_phone NULL) are never matched.
+    const pendingInviteRows = await this.db
+      .select({ inviteePhone: invitations.inviteePhone })
+      .from(invitations)
+      .where(
+        and(
+          eq(invitations.tripId, tripId),
+          inArray(invitations.status, ["pending", "failed"]),
+        ),
+      );
+    const pendingInvitePhones = new Set(
+      pendingInviteRows.map((r) => r.inviteePhone),
+    );
+    const visibleResults =
+      pendingInvitePhones.size > 0
+        ? results.filter(
+            (r) =>
+              !(
+                r.userId === null &&
+                r.guestPhone !== null &&
+                pendingInvitePhones.has(r.guestPhone)
+              ),
+          )
+        : results;
 
     // Get muted members for this trip (only when requesting user is organizer)
     let mutedUserIds: Set<string> = new Set();
@@ -1000,11 +1231,18 @@ export class InvitationService implements IInvitationService {
       mutedUserIds = new Set(mutedRows.map((r) => r.userId));
     }
 
-    // Filter members for non-organizers when showAllMembers is off
+    // Filter members for non-organizers when showAllMembers is off.
+    // Guest rows (userId NULL) are visible to everyone regardless of the
+    // going/maybe filter; claimed rows follow the existing filter.
     const filteredResults =
       !isOrg && !tripSettings[0]?.showAllMembers
-        ? results.filter((r) => r.status === "going" || r.status === "maybe")
-        : results;
+        ? visibleResults.filter(
+            (r) =>
+              r.userId === null ||
+              r.status === "going" ||
+              r.status === "maybe",
+          )
+        : visibleResults;
 
     return filteredResults.map((r) => ({
       id: r.id,
@@ -1012,10 +1250,19 @@ export class InvitationService implements IInvitationService {
       displayName: r.displayName,
       profilePhotoUrl: r.profilePhotoUrl,
       handles: r.handles ?? null,
-      ...(isOrg || r.sharePhone ? { phoneNumber: r.phoneNumber } : {}),
+      ...(isOrg || r.sharePhone
+        ? r.phoneNumber
+          ? { phoneNumber: r.phoneNumber }
+          : {}
+        : {}),
+      ...(isOrg && r.userId === null && r.guestPhone
+        ? { guestPhone: r.guestPhone }
+        : {}),
       status: r.status,
       isOrganizer: r.isOrganizer,
-      ...(isOrg ? { isMuted: mutedUserIds.has(r.userId) } : {}),
+      ...(isOrg
+        ? { isMuted: r.userId !== null && mutedUserIds.has(r.userId) }
+        : {}),
       ...(isOrg ? { sharePhone: r.sharePhone } : {}),
       createdAt: r.createdAt.toISOString(),
     }));
@@ -1075,6 +1322,13 @@ export class InvitationService implements IInvitationService {
       throw new MemberNotFoundError();
     }
 
+    // Guests (no attached user account) can never be organizers
+    if (member.userId === null) {
+      throw new PermissionDeniedError(
+        "Permission denied: guest members cannot be organizers",
+      );
+    }
+
     // Prevent self-promote/demote
     if (member.userId === userId) {
       throw new CannotModifyOwnRoleError();
@@ -1102,12 +1356,13 @@ export class InvitationService implements IInvitationService {
       .set({ isOrganizer, updatedAt: new Date() })
       .where(eq(members.id, memberId));
 
-    // Query updated member with profile info
+    // Query updated member with profile info (leftJoin so guest rows are
+    // never dropped by the join audit; guests are rejected above)
     const queryResult = await this.db
       .select({
         id: members.id,
         userId: members.userId,
-        displayName: users.displayName,
+        displayName: sql<string>`COALESCE(${users.displayName}, ${members.guestDisplayName})`,
         profilePhotoUrl: users.profilePhotoUrl,
         handles: users.handles,
         status: members.status,
@@ -1115,7 +1370,7 @@ export class InvitationService implements IInvitationService {
         createdAt: members.createdAt,
       })
       .from(members)
-      .innerJoin(users, eq(members.userId, users.id))
+      .leftJoin(users, eq(members.userId, users.id))
       .where(eq(members.id, memberId))
       .limit(1);
 
@@ -1152,9 +1407,20 @@ export class InvitationService implements IInvitationService {
         ),
       );
 
-    if (pendingInvitations.length === 0) return;
+    // Task 4.3: guest rows claim on phone match alone — even with no
+    // pending invitation for that phone (e.g. guest created name+phone,
+    // never sent an invite). Look up guest trips up-front so the early
+    // return only fires when there is truly nothing to do.
+    const guestTrips = await this.db
+      .select({ tripId: members.tripId })
+      .from(members)
+      .where(eq(members.guestPhone, phoneNumber));
+
+    if (pendingInvitations.length === 0 && guestTrips.length === 0) return;
 
     const tripIds = pendingInvitations.map((inv) => inv.tripId);
+    const guestTripIds = guestTrips.map((g) => g.tripId);
+    const allTripIds = [...new Set([...tripIds, ...guestTripIds])];
 
     await this.db.transaction(async (tx) => {
       // Batch: get all existing memberships for these trips
@@ -1162,14 +1428,35 @@ export class InvitationService implements IInvitationService {
         .select({ tripId: members.tripId })
         .from(members)
         .where(
-          and(inArray(members.tripId, tripIds), eq(members.userId, userId)),
+          and(inArray(members.tripId, allTripIds), eq(members.userId, userId)),
         );
 
       const existingTripIds = new Set(existingMembers.map((m) => m.tripId));
 
-      // Batch: insert new members for trips where user isn't already a member
+      const claimService = this.getGuestClaimService();
+
+      // Task 4.3: claim guest rows matching the phone before inserting.
+      // Claimed trips are cap-neutral (the guest row already counted) and
+      // must not get a second member row.
+      const claimedTripIds = new Set<string>();
+      for (const tripId of allTripIds) {
+        if (existingTripIds.has(tripId)) continue;
+        const claim = await claimService.claimGuestMember(tx, {
+          tripId,
+          userId,
+          guestPhone: phoneNumber,
+        });
+        if (claim.claimed) {
+          claimedTripIds.add(tripId);
+        }
+      }
+
+      // Batch: insert new members for trips where user isn't already a
+      // member AND no guest row was claimed (invitation-only trips).
       const newMemberTrips = pendingInvitations.filter(
-        (inv) => !existingTripIds.has(inv.tripId),
+        (inv) =>
+          !existingTripIds.has(inv.tripId) &&
+          !claimedTripIds.has(inv.tripId),
       );
 
       if (newMemberTrips.length > 0) {
@@ -1310,12 +1597,32 @@ export class InvitationService implements IInvitationService {
         .limit(1);
 
       if (existing.length === 0) {
-        await tx.insert(members).values({
+        // Task 4.3: convert the guest row in place when one matches the
+        // invite phone; only insert when no guest row existed.
+        const claim = await this.getGuestClaimService().claimGuestMember(tx, {
           tripId: invitation.tripId,
           userId,
-          status: "no_response",
-          isOrganizer: false,
+          guestPhone: invitation.inviteePhone,
         });
+        if (!claim.claimed) {
+          // Cap: the insert leg bypasses batch-create's limit check —
+          // enforce the same 25-member cap here.
+          const [countRow] = await tx
+            .select({ value: count() })
+            .from(members)
+            .where(eq(members.tripId, invitation.tripId));
+          if ((countRow?.value ?? 0) + 1 > 25) {
+            throw new MemberLimitExceededError(
+              "Member limit exceeded: trip already has 25 members",
+            );
+          }
+          await tx.insert(members).values({
+            tripId: invitation.tripId,
+            userId,
+            status: "no_response",
+            isOrganizer: false,
+          });
+        }
       }
 
       await tx

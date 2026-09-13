@@ -1,5 +1,5 @@
 import type { Job } from "pg-boss";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, isNotNull } from "drizzle-orm";
 import type { NotificationBatchPayload, WorkerDeps } from "@/queues/types.js";
 import { QUEUE } from "@/queues/types.js";
 import {
@@ -64,17 +64,31 @@ export async function handleNotificationBatch(
 ): Promise<void> {
   const { tripId, type, title, body, data, excludeUserId } = job.data;
 
-  // 1. Query going members with phone numbers
+  // 1. Query going members with phone numbers.
+  // Guest rows (userId IS NULL) are skipped: no account, no phone, no push.
+  // (innerJoin already drops NULL userIds; the explicit filter + type guard
+  // below keep the fanout null-safe against future join changes.)
   const goingMembers = await deps.db
     .select({ userId: members.userId, phoneNumber: users.phoneNumber })
     .from(members)
     .innerJoin(users, eq(members.userId, users.id))
-    .where(and(eq(members.tripId, tripId), eq(members.status, "going")));
+    .where(
+      and(
+        eq(members.tripId, tripId),
+        eq(members.status, "going"),
+        isNotNull(members.userId),
+      ),
+    );
+
+  // Null-safe narrowing: drop any guest rows that slipped through.
+  const notifyableMembers = goingMembers.filter(
+    (m): m is { userId: string; phoneNumber: string } => m.userId !== null,
+  );
 
   // 2. Filter out excludeUserId
   const targetMembers = excludeUserId
-    ? goingMembers.filter((m) => m.userId !== excludeUserId)
-    : goingMembers;
+    ? notifyableMembers.filter((m) => m.userId !== excludeUserId)
+    : notifyableMembers;
 
   if (targetMembers.length === 0) {
     return;

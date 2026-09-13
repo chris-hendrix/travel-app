@@ -3,9 +3,9 @@
 import { z } from "zod";
 import { stripControlChars } from "../utils/sanitize";
 
-/** A participant in a payment (a trip member user) */
+/** A participant in a payment (a trip member — guests allowed) */
 const participantSchema = z.object({
-  userId: z.string().uuid(),
+  memberId: z.string().uuid(),
 });
 
 /**
@@ -25,7 +25,7 @@ const basePaymentSchema = z.object({
     .number()
     .int({ message: "Amount must be a whole number (cents)" })
     .positive({ message: "Amount must be greater than 0" }),
-  userId: z.string().uuid(),
+  payerMemberId: z.string().uuid(),
   participants: z
     .array(participantSchema)
     .min(1, { message: "At least one participant is required" }),
@@ -36,8 +36,8 @@ const basePaymentSchema = z.object({
  * Validates payment creation data
  * - description: 1-500 characters (required)
  * - amount: positive integer in cents (required)
- * - userId: payer (required)
- * - participants: array of {userId} (at least 1)
+ * - payerMemberId: payer member (any trip member, guests allowed) (required)
+ * - participants: array of {memberId} (at least 1)
  * - date: ISO 8601 datetime (optional)
  */
 export const createPaymentSchema = basePaymentSchema;
@@ -54,7 +54,7 @@ export const updatePaymentSchema = basePaymentSchema.partial();
 const paymentParticipantEntitySchema = z.object({
   id: z.string(),
   paymentId: z.string(),
-  userId: z.string(),
+  memberId: z.string(),
   shareAmount: z.number(),
   name: z.string().optional(),
   createdAt: z.date(),
@@ -66,7 +66,7 @@ const paymentEntitySchema = z.object({
   tripId: z.string(),
   description: z.string(),
   amount: z.number(),
-  userId: z.string(),
+  payerMemberId: z.string(),
   date: z.date(),
   createdBy: z.string(),
   deletedAt: z.date().nullable(),

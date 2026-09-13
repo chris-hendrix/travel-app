@@ -5,7 +5,7 @@ import {
   trips,
   type MemberTravel,
 } from "@/db/schema/index.js";
-import { eq, and, isNull, getTableColumns, count } from "drizzle-orm";
+import { eq, and, isNull, getTableColumns, count, sql } from "drizzle-orm";
 import type {
   CreateMemberTravelInput,
   UpdateMemberTravelInput,
@@ -257,22 +257,26 @@ export class MemberTravelService implements IMemberTravelService {
   async getMemberTravelByTrip(
     tripId: string,
     includeDeleted = false,
-  ): Promise<(MemberTravel & { memberName: string; userId: string })[]> {
+  ): Promise<(MemberTravel & { memberName: string; userId: string | null })[]> {
     const conditions = [eq(memberTravel.tripId, tripId)];
 
     if (!includeDeleted) {
       conditions.push(isNull(memberTravel.deletedAt));
     }
 
+    // leftJoin(users) + COALESCE with a 'Guest' fallback: guest travel
+    // resolves the guest display name with a null userId instead of being
+    // dropped (Task 5.1). The literal fallback keeps the sql<string> type
+    // honest — COALESCE of two nullable columns alone could be NULL.
     return this.db
       .select({
         ...getTableColumns(memberTravel),
-        memberName: users.displayName,
+        memberName: sql<string>`COALESCE(${users.displayName}, ${members.guestDisplayName}, 'Guest')`,
         userId: members.userId,
       })
       .from(memberTravel)
       .innerJoin(members, eq(memberTravel.memberId, members.id))
-      .innerJoin(users, eq(members.userId, users.id))
+      .leftJoin(users, eq(members.userId, users.id))
       .where(and(...conditions));
   }
 

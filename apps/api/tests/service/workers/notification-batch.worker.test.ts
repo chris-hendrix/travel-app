@@ -606,5 +606,36 @@ describe("notification-batch.worker", () => {
       // But no SMS should be enqueued
       expect(mockDeps.boss.insert).not.toHaveBeenCalled();
     });
+
+    it("should skip guest rows (userId NULL) in fanout", async () => {
+      await db.insert(members).values({
+        tripId: testTripId,
+        userId: null,
+        guestDisplayName: "Guest Mom",
+        status: "going",
+      });
+
+      const job = createMockJob({ type: "trip_update" });
+
+      await handleNotificationBatch(job, mockDeps);
+
+      // Only the 3 account members get notifications — no crash, no NULL row
+      const allNotifs = await db
+        .select()
+        .from(notifications)
+        .where(eq(notifications.tripId, testTripId));
+      expect(allNotifs).toHaveLength(3);
+      expect(allNotifs.every((n) => n.userId !== null)).toBe(true);
+
+      // SMS jobs carry only real phone numbers
+      const smsInsertCall = vi
+        .mocked(mockDeps.boss.insert)
+        .mock.calls.find((c) => c[0] === QUEUE.NOTIFICATION_DELIVER)!;
+      const smsJobs = smsInsertCall[1] as { data: { phoneNumber: string } }[];
+      expect(smsJobs).toHaveLength(3);
+      expect(smsJobs.every((j) => typeof j.data.phoneNumber === "string")).toBe(
+        true,
+      );
+    });
   });
 });
