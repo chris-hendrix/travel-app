@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import dynamic from "next/dynamic";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +14,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { MembersList } from "@/components/trip/members-list";
+import { MemberProfileSheet } from "@/components/trip/member-profile-sheet";
+import { membersQueryOptions } from "@/hooks/invitation-queries";
 import { NotificationPreferences } from "@/components/notifications/notification-preferences";
 import { TripThemeProvider } from "@/components/trip/trip-theme-provider";
 import { useHasOpenDialog } from "@/hooks/use-has-open-dialog";
@@ -98,11 +101,18 @@ export function MobileTripLayout({
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isMembersOpen, setIsMembersOpen] = useState(false);
+  const [profileMemberId, setProfileMemberId] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(initialShowOnboarding ?? false);
   const [removingMember, setRemovingMember] = useState<{
     member: MemberWithProfile;
   } | null>(null);
+
+  // Resolve the selected member row for the profile sheet. Uses the same
+  // query key as MembersList, so TanStack dedupes the fetch.
+  const { data: members } = useQuery(membersQueryOptions(tripId));
+  const profileMember =
+    members?.find((m) => m.id === profileMemberId) ?? null;
 
   const swiperRef = useRef<MobileTripSwiperRef>(null);
 
@@ -330,8 +340,24 @@ export function MobileTripLayout({
                   }}
                   onRemove={(member) => setRemovingMember({ member })}
                   onUpdateRole={handleUpdateRole}
+                  onMemberClick={(member) => setProfileMemberId(member.id)}
                 />
               )}
+
+              {/* Member profile sheet — nested INSIDE the Members Sheet (same
+                  pattern as desktop trip-detail) so Radix stacks the dialogs
+                  correctly and member/guest rows are tappable on mobile:
+                  without onMemberClick a guest's phone could never be
+                  attached outside a desktop browser. */}
+              <MemberProfileSheet
+                member={profileMember}
+                open={profileMemberId !== null}
+                tripId={tripId}
+                isOrganizer={isOrganizer}
+                onOpenChange={(open) => {
+                  if (!open) setProfileMemberId(null);
+                }}
+              />
             </SheetBody>
           </SheetContent>
         </Sheet>

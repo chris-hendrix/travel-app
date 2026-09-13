@@ -577,6 +577,25 @@ export function TripDetailShell() {
                   onMemberClick={(member) => setProfileMemberId(member.id)}
                 />
               )}
+
+              {/* Member profile sheet — nested INSIDE the Members Sheet so
+                  Radix stacks the dialogs correctly. As a sibling portal it
+                  left the Members sheet subtree stuck with aria-hidden=true
+                  after the profile sheet closed (invisible to assistive
+                  tech and to role-based queries). Opening keys off the
+                  selected id, not the resolved row, so a members refetch
+                  (row briefly undefined) never flashes the sheet closed;
+                  MemberProfileSheet accepts null and renders a fallback
+                  shell while the row reloads. */}
+              <MemberProfileSheet
+                member={profileMember}
+                open={profileMemberId !== null}
+                tripId={tripId}
+                isOrganizer={isOrganizer}
+                onOpenChange={(open) => {
+                  if (!open) setProfileMemberId(null);
+                }}
+              />
             </SheetBody>
           </SheetContent>
         </Sheet>
@@ -639,19 +658,6 @@ export function TripDetailShell() {
           />
         )}
 
-        {/* Member profile sheet — open keys off the selected id, not the
-            resolved row, so a members refetch (row briefly undefined) never
-            flashes the sheet closed. MemberProfileSheet accepts null and
-            renders a fallback shell while the row reloads. */}
-        <MemberProfileSheet
-          member={profileMember}
-          open={profileMemberId !== null}
-          tripId={tripId}
-          isOrganizer={isOrganizer}
-          onOpenChange={(open) => {
-            if (!open) setProfileMemberId(null);
-          }}
-        />
       </div>
     </TripThemeProvider>
   );

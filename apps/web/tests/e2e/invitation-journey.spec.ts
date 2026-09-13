@@ -468,7 +468,7 @@ test.describe("Guest Claim via Signup", () => {
 
       const apiHeaders = { cookie: organizerCookie };
 
-      await test.step("organizer adds guest with phone via invite sheet", async () => {
+      await test.step("organizer adds guest via invite dialog", async () => {
         await authenticateViaAPIWithPhone(
           page,
           request,
@@ -488,11 +488,9 @@ test.describe("Guest Claim via Signup", () => {
         });
         await expect(dialog.getByTestId("guest-section")).toBeVisible();
 
+        // The unified invite dialog's guest section collects name only;
+        // the phone is attached afterwards via the guest profile sheet.
         await dialog.getByLabel("Guest name").fill(guestName);
-        await fillPhoneInput(
-          dialog.getByPlaceholder("Phone (optional)"),
-          guestPhone,
-        );
         await dialog.getByRole("button", { name: "Add guest" }).click();
         await expect(
           dialog.getByTestId("guest-chips").getByText(guestName),
@@ -510,22 +508,19 @@ test.describe("Guest Claim via Signup", () => {
       let guestMemberId: string;
       let organizerMemberId: string;
 
-      await test.step("guest row renders; seed guest travel + expense via API", async () => {
-        // Members live in the Members Sheet (opened via the "N going"
-        // summary); guests default to no_response → Invited tab for organizer.
+      await test.step("organizer opens the guest profile sheet and seeds travel + expense", async () => {
         await page.getByText(/\d+ going/).first().click();
-        const membersSheet = page.getByRole("dialog");
-        await expect(
-          membersSheet.getByRole("tab", { name: /^invited/i }),
-        ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
-        await membersSheet.getByRole("tab", { name: /^invited/i }).click();
-        await expect(membersSheet.getByText(guestName).first()).toBeVisible({
-          timeout: ELEMENT_TIMEOUT,
+        // Members UI lives in a Sheet dialog on desktop, inline in the
+        // mobile info panel — locate the tabs/rows globally so both work.
+        const invitedTab = page.getByRole("tab", {
+          name: /^invited/i,
         });
-        await expect(
-          membersSheet.getByText("Guest", { exact: true }).first(),
-        ).toBeVisible();
+        await expect(invitedTab).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+        await invitedTab.click();
 
+        // Capture ids and seed BEFORE the phone attach: once a pending
+        // invitation exists for the guest phone, the read-layer conversion
+        // hides the guest row from GET /members (presented as Invited).
         const membersRes = await request.get(
           `${API_BASE}/trips/${tripId}/members`,
           { headers: apiHeaders },
@@ -571,6 +566,41 @@ test.describe("Guest Claim via Signup", () => {
           },
         );
         expect(paymentRes.ok()).toBe(true);
+
+        // Click the invited guest row (MemberRow) to open the profile sheet.
+        await page.getByText(guestName).first().click();
+        const phoneInput = page.getByLabel("Guest phone number");
+        await expect(phoneInput).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+        await fillPhoneInput(phoneInput, guestPhone);
+        await page
+          .getByRole("button", { name: "Send", exact: true })
+          .click();
+
+        // Send PATCHes guestPhone + creates the pending invitation, then
+        // the sheet closes (organizer lands back on the Invited tab).
+        await expect(
+          page.getByText(`Invite sent to ${guestPhone}`),
+        ).toBeVisible({ timeout: TOAST_TIMEOUT });
+      });
+
+      await test.step("converted guest row presents as Invited with pending badge", async () => {
+        // The Invited tab now shows the guest as a pending invitation (name
+        // + Pending badge) via the read-layer guest-to-invite conversion.
+        // The profile sheet (nested child on desktop) may still be
+        // animating closed, which keeps the parent subtree aria-hidden and
+        // role queries empty for a moment — retry instead of toggling.
+        const invitedTab = page.getByRole("tab", {
+          name: /^invited/i,
+        });
+        await expect(async () => {
+          await invitedTab.click({ timeout: 1000 });
+          await expect(page.getByText(guestName).first()).toBeVisible({
+            timeout: 1000,
+          });
+        }).toPass({ timeout: ELEMENT_TIMEOUT });
+        await expect(
+          page.getByText("Pending", { exact: true }).first(),
+        ).toBeVisible();
       });
 
       await test.step("signup with guest phone claims the row in place", async () => {
@@ -592,14 +622,14 @@ test.describe("Guest Claim via Signup", () => {
         await expect(
           page.getByRole("heading", { level: 1, name: tripName }),
         ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
-        // Claimed member is now Going → visible on the Going tab.
+        // Claimed member is now Going → visible on the Going tab (in the
+        // Members sheet on desktop, inline in the info panel on mobile).
         await page.getByText(/\d+ going/).first().click();
-        const claimedSheet = page.getByRole("dialog");
-        await expect(claimedSheet.getByText(profileName).first()).toBeVisible({
+        await expect(page.getByText(profileName).first()).toBeVisible({
           timeout: ELEMENT_TIMEOUT,
         });
         await expect(
-          claimedSheet.getByText(guestName, { exact: true }),
+          page.getByText(guestName, { exact: true }),
         ).not.toBeVisible();
 
         // API: no duplicate row — exactly one member row carries the profile

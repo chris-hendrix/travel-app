@@ -1,4 +1,10 @@
-import { members, users, payments, invitations } from "@/db/schema/index.js";
+import {
+  members,
+  users,
+  payments,
+  paymentParticipants,
+  invitations,
+} from "@/db/schema/index.js";
 import { eq, and, count, ne, inArray } from "drizzle-orm";
 import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
@@ -190,9 +196,10 @@ export class GuestMemberService implements IGuestMemberService {
     await this.requireOrganizer(requesterUserId, tripId);
     const guest = await this.requireGuestRow(tripId, memberId);
 
-    // Payer-protected: payments.member_id is ON DELETE RESTRICT regardless
-    // of soft-delete — include soft-deleted payments in the pre-check so the
-    // clean 409 path fires instead of a raw FK 500.
+    // FK-protected: payments.member_id AND payment_participants.member_id
+    // are ON DELETE RESTRICT regardless of soft-delete — include soft-deleted
+    // payments in the pre-check so the clean 409 path fires instead of a raw
+    // FK 500.
     const payerRows = await this.db
       .select({ id: payments.id })
       .from(payments)
@@ -208,9 +215,20 @@ export class GuestMemberService implements IGuestMemberService {
         "Guest has payments — reassign or delete them first",
       );
     }
+    const participantRows = await this.db
+      .select({ id: paymentParticipants.id })
+      .from(paymentParticipants)
+      .where(eq(paymentParticipants.memberId, guest.id))
+      .limit(1);
+    if (participantRows.length > 0) {
+      throw new GuestHasPaymentsError(
+        "Guest has payments — reassign or delete them first",
+      );
+    }
 
-    // Member delete cascades to member_travel + payment_participants rows;
-    // balances recompute on read (member:<id> keys).
+    // Member delete cascades to member_travel rows (payments and payment
+    // participants are pre-checked above); balances recompute on read
+    // (member:<id> keys).
     await this.db.delete(members).where(eq(members.id, guest.id));
   }
 

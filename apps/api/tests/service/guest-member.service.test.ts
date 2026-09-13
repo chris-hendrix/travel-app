@@ -501,6 +501,24 @@ describe("guest-member.service update/delete (Task 3.2)", () => {
       shareAmount: 5000,
     });
 
+    // Guest is a participant: deletion is FK-restricted -> clean 409 until
+    // the share is reassigned/scrubbed.
+    const { GuestHasPaymentsError } = await import("@/errors.js");
+    await expect(
+      guestMemberService.deleteGuest(tripId, organizerId, guest.id),
+    ).rejects.toThrow(GuestHasPaymentsError);
+    expect(
+      await db
+        .select()
+        .from(members)
+        .where(eq(members.id, guest.id)),
+    ).toHaveLength(1);
+
+    // Scrub the share, then deletion succeeds.
+    await db
+      .delete(paymentParticipants)
+      .where(eq(paymentParticipants.memberId, guest.id));
+
     await guestMemberService.deleteGuest(tripId, organizerId, guest.id);
 
     expect(
@@ -515,20 +533,11 @@ describe("guest-member.service update/delete (Task 3.2)", () => {
         .from(memberTravel)
         .where(eq(memberTravel.memberId, guest.id)),
     ).toHaveLength(0);
-    expect(
-      await db
-        .select()
-        .from(paymentParticipants)
-        .where(eq(paymentParticipants.memberId, guest.id)),
-    ).toHaveLength(0);
-    // The payment itself survives (only the guest's share row cascades)
+    // The payment itself survives (only the guest's share row was scrubbed)
     expect(
       await db.select().from(payments).where(eq(payments.id, payment!.id)),
     ).toHaveLength(1);
     // Cleanup payment row (createdBy FK is user-keyed; delete explicitly)
-    await db
-      .delete(paymentParticipants)
-      .where(eq(paymentParticipants.paymentId, payment!.id));
     await db.delete(payments).where(eq(payments.id, payment!.id));
   });
 

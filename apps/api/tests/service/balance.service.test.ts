@@ -414,6 +414,13 @@ describe("balance.service", () => {
     expect(after[0]!.from.id).toBe(guestMemberId);
     expect(after[0]!.from.name).toBe("Dana");
     expect(after[0]!.amount).toBe(1000);
+    // Scrub the guest's participant rows before removing the user: deleting
+    // the user cascades the member row away, and payment_participants.member_id
+    // is ON DELETE RESTRICT.
+    await db
+      .delete(paymentParticipants)
+      .where(eq(paymentParticipants.memberId, guestMemberId));
+    await db.delete(payments).where(eq(payments.tripId, tripId));
     await db.delete(users).where(eq(users.id, newUser!.id));
   });
 
