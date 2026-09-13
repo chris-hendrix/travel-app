@@ -146,6 +146,13 @@ export function GuestEditor({
       // on the Invited tab phone row.
       onClaimed();
     } catch (error) {
+      // The updateGuest mutation rolls back its optimistic cache update on
+      // error, but the phone draft still holds the rejected number — reset
+      // it to the last server value so phoneEdited clears and the
+      // Invite-sent state can re-engage. Skip the reset when the phone
+      // update itself succeeded (guestUpdated): the draft already matches
+      // the server and only the invite failed.
+      const resyncDraft = () => setPhone(savedPhone);
       // Branch on which mutation threw: a post-update invite failure is an
       // invite error even though the APIError carries a `code` field.
       if (guestUpdated) {
@@ -154,11 +161,13 @@ export function GuestEditor({
             "Failed to send invite",
         );
       } else if (error instanceof Error && "code" in error) {
+        resyncDraft();
         setPhoneError(
           getUpdateGuestErrorMessage(error as Error) ??
             "Failed to send invite",
         );
       } else {
+        resyncDraft();
         toast.error(
           getInviteMembersErrorMessage(error as Error) ??
             "Failed to send invite",

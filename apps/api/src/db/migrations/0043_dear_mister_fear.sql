@@ -30,7 +30,8 @@ CREATE INDEX "payment_participants_member_id_idx" ON "payment_participants" USIN
 -- 1:1 join guaranteed by members_trip_user_unique (one member row per (trip,user)).
 UPDATE "payments" p SET "member_id" = m."id" FROM "members" m WHERE m."trip_id" = p."trip_id" AND m."user_id" = p."user_id";--> statement-breakpoint
 UPDATE "payment_participants" pp SET "member_id" = m."id" FROM "members" m, "payments" p WHERE p."id" = pp."payment_id" AND m."trip_id" = p."trip_id" AND m."user_id" = pp."user_id";--> statement-breakpoint
-DO $$ BEGIN IF EXISTS (SELECT 1 FROM "payments" WHERE "member_id" IS NULL) OR EXISTS (SELECT 1 FROM "payment_participants" WHERE "member_id" IS NULL) THEN RAISE EXCEPTION 'orphan payment row: user no longer a member of its trip'; END IF; END $$;--> statement-breakpoint
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM "payments" WHERE "member_id" IS NULL) THEN RAISE EXCEPTION 'orphan payment row in payments: user no longer a member of its trip'; END IF; END $$;--> statement-breakpoint
+DO $$ BEGIN IF EXISTS (SELECT 1 FROM "payment_participants" WHERE "member_id" IS NULL) THEN RAISE EXCEPTION 'orphan payment row in payment_participants: user no longer a member of its trip'; END IF; END $$;--> statement-breakpoint
 -- (3) CONTRACT: enforce NOT NULL, drop user_id + its FKs/indexes
 ALTER TABLE "payments" ALTER COLUMN "member_id" SET NOT NULL;--> statement-breakpoint
 ALTER TABLE "payment_participants" ALTER COLUMN "member_id" SET NOT NULL;--> statement-breakpoint

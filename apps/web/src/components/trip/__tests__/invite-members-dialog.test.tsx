@@ -998,4 +998,61 @@ describe("InviteMembersDialog", () => {
       });
     });
   });
+
+  describe("Guest invites", () => {
+    it("retains successes and surfaces the failure when one guest POST fails", async () => {
+      const { apiRequest } = await import("@/lib/api");
+      vi.mocked(apiRequest).mockImplementation((url: string, init?: unknown) => {
+        const body = JSON.parse(
+          (init as { body?: string } | undefined)?.body ?? "{}",
+        ) as { displayName?: string };
+        if (typeof url === "string" && url.endsWith("/members/guests")) {
+          if (body.displayName === "Dad") {
+            return Promise.reject(new Error("Network error"));
+          }
+          return Promise.resolve({
+            success: true,
+            member: { id: `member-${body.displayName}` },
+          });
+        }
+        return Promise.reject(new Error(`unexpected url ${url}`));
+      });
+
+      const user = userEvent.setup();
+      renderWithQueryClient(<InviteMembersDialog {...defaultProps} />);
+
+      const guestInput = screen.getByLabelText("Guest name");
+      const addGuestButton = screen.getByRole("button", { name: "Add guest" });
+      await user.type(guestInput, "Mom");
+      await user.click(addGuestButton);
+      await user.type(guestInput, "Dad");
+      await user.click(addGuestButton);
+
+      await waitFor(() => {
+        expect(screen.getByText("2 guests added")).toBeDefined();
+      });
+
+      await user.click(
+        screen.getByRole("button", { name: /send invitations/i }),
+      );
+
+      // The Mom success is retained and reported...
+      await waitFor(() => {
+        expect(mockToast.success).toHaveBeenCalledWith(
+          expect.stringContaining("1 guest added"),
+        );
+      });
+      expect(mockToast.success).toHaveBeenCalledWith(
+        expect.stringContaining("1 guest couldn't be added"),
+      );
+      // ...and the Dad failure is surfaced instead of aborting the batch.
+      await waitFor(() => {
+        expect(mockToast.error).toHaveBeenCalledWith(
+          "Couldn't add Dad. Please try again.",
+        );
+      });
+      // Dialog stays open with the chips intact so Dad can be retried.
+      expect(defaultProps.onOpenChange).not.toHaveBeenCalledWith(false);
+    });
+  });
 });

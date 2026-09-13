@@ -41,11 +41,6 @@ export interface IGuestMemberService {
     requesterUserId: string,
     input: CreateGuestInput,
   ): Promise<typeof members.$inferSelect>;
-  getGuest(
-    tripId: string,
-    requesterUserId: string,
-    memberId: string,
-  ): Promise<typeof members.$inferSelect>;
   updateGuest(
     tripId: string,
     requesterUserId: string,
@@ -137,15 +132,6 @@ export class GuestMemberService implements IGuestMemberService {
       }
       throw err;
     }
-  }
-
-  async getGuest(
-    tripId: string,
-    requesterUserId: string,
-    memberId: string,
-  ) {
-    await this.requireOrganizer(requesterUserId, tripId);
-    return this.requireGuestRow(tripId, memberId);
   }
 
   async updateGuest(

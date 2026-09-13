@@ -161,7 +161,11 @@ export function PaymentForm({
     }
   }, [payment, payerId, currentMember]);
 
-  const payerPerson = people.find((p) => p.id === payerId);
+  // payerPerson falls back to the first member when the saved payerId no
+  // longer resolves (e.g. editing an expense whose payer member was
+  // removed): the select keeps showing a name instead of going blank, and
+  // isValid below stays false until the user picks a real payer.
+  const payerPerson = people.find((p) => p.id === payerId) ?? people[0];
 
   const participantOptions = useMemo<ParticipantOption[]>(
     () =>
@@ -205,6 +209,7 @@ export function PaymentForm({
     amountShapeValid &&
     amountCents > 0 &&
     payerId !== "" &&
+    people.some((p) => p.id === payerId) &&
     participantsValid;
   // Show field hints only after the user typed something, so a fresh
   // form does not open with errors already visible.
@@ -322,7 +327,7 @@ export function PaymentForm({
             {/* Paid by */}
             <div className="space-y-2">
               <Label>Paid by</Label>
-              <Select value={payerId} onValueChange={setPayerId}>
+              <Select value={payerPerson?.id ?? ""} onValueChange={setPayerId}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select who paid" />
                 </SelectTrigger>

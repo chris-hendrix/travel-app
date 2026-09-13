@@ -277,7 +277,7 @@ describe("guest-member.service createGuest (Task 3.1)", () => {
  * until Phase 6, so cascade assertions are made at the DB level
  * (member_travel / payment_participants rows) rather than via getTripBalances.
  */
-describe("guest-member.service update/delete/get (Task 3.2)", () => {
+describe("guest-member.service update/delete (Task 3.2)", () => {
   const permissionsService = new PermissionsService(db);
   const guestMemberService = new GuestMemberService(db, permissionsService);
 
@@ -290,6 +290,7 @@ describe("guest-member.service update/delete/get (Task 3.2)", () => {
   let nonOrganizerMemberId: string;
   const createdUserPhones: string[] = [];
   void organizerPhone;
+  void nonOrganizerMemberId;
 
   const createUser = async (displayName: string) => {
     const phone = generateUniquePhone();
@@ -343,17 +344,11 @@ describe("guest-member.service update/delete/get (Task 3.2)", () => {
     }
   });
 
-  it("organizer gets a guest row", async () => {
+  it("organizer-created guest row is userless", async () => {
     const guest = await guestMemberService.createGuest(tripId, organizerId, {
       displayName: "Mom",
     });
-    const fetched = await guestMemberService.getGuest(
-      tripId,
-      organizerId,
-      guest.id,
-    );
-    expect(fetched.id).toBe(guest.id);
-    expect(fetched.userId).toBeNull();
+    expect(guest.userId).toBeNull();
   });
 
   it("organizer updates guest displayName/guestPhone/status", async () => {
@@ -449,7 +444,7 @@ describe("guest-member.service update/delete/get (Task 3.2)", () => {
     await db.delete(invitations).where(eq(invitations.tripId, tripId));
   });
 
-  it("update/delete/get of a non-guest member row -> 404", async () => {
+  it("update/delete of a non-guest member row -> 404", async () => {
     const { MemberNotFoundError } = await import("@/errors.js");
     await expect(
       guestMemberService.updateGuest(tripId, organizerId, organizerMemberId, {
@@ -459,12 +454,9 @@ describe("guest-member.service update/delete/get (Task 3.2)", () => {
     await expect(
       guestMemberService.deleteGuest(tripId, organizerId, organizerMemberId),
     ).rejects.toThrow(MemberNotFoundError);
-    await expect(
-      guestMemberService.getGuest(tripId, organizerId, nonOrganizerMemberId),
-    ).rejects.toThrow(MemberNotFoundError);
   });
 
-  it("non-organizer is denied update/delete/get", async () => {
+  it("non-organizer is denied update/delete", async () => {
     const guest = await guestMemberService.createGuest(tripId, organizerId, {
       displayName: "Mom",
     });
@@ -475,9 +467,6 @@ describe("guest-member.service update/delete/get (Task 3.2)", () => {
     ).rejects.toThrow(PermissionDeniedError);
     await expect(
       guestMemberService.deleteGuest(tripId, nonOrganizerId, guest.id),
-    ).rejects.toThrow(PermissionDeniedError);
-    await expect(
-      guestMemberService.getGuest(tripId, nonOrganizerId, guest.id),
     ).rejects.toThrow(PermissionDeniedError);
   });
 

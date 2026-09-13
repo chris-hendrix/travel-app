@@ -482,6 +482,27 @@ describe("MemberProfileSheet guest redesign", () => {
     ).toBe("false");
   });
 
+  it("send failure reverts the phone draft to the prior number", async () => {
+    const user = userEvent.setup();
+    mockUpdateMutate.mockRejectedValueOnce(
+      Object.assign(new Error("boom"), { code: "VALIDATION_ERROR" }),
+    );
+    renderSheet();
+    const phoneInput = screen.getByLabelText("Guest phone number");
+    await user.clear(phoneInput);
+    await user.type(phoneInput, "+14155552222");
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    // The mutation rollback restores the row; the draft must follow so
+    // phoneEdited clears instead of sticking on the rejected number.
+    await waitFor(() => {
+      expect(screen.getByLabelText("Guest phone number")).toHaveProperty(
+        "value",
+        "+14155551111",
+      );
+    });
+    expect(mockInviteMutate).not.toHaveBeenCalled();
+  });
+
   it("edit pencil affordance renders inside the name button", () => {
     renderSheet();
     // Sheet content renders into a Radix portal — query via screen, not container

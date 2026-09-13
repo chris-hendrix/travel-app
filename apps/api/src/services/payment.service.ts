@@ -28,8 +28,7 @@ interface PaymentParticipantView {
   createdAt: Date;
 }
 
-interface PaymentWithParticipants extends Omit<Payment, "memberId"> {
-  memberId: string;
+interface PaymentWithParticipants extends Payment {
   payerMemberId: string;
   payerName?: string;
   participants: PaymentParticipantView[];

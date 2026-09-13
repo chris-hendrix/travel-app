@@ -1,3 +1,4 @@
+import { ZodError } from "zod";
 import type { FastifyRequest, FastifyReply } from "fastify";
 import type {
   CreateGuestInput,
@@ -120,6 +121,17 @@ export const guestMemberController = {
         member: toGuestMemberResponse(guest),
       });
     } catch (error) {
+      // Same ZodError backstop as createGuest (updateGuestSchema validates
+      // at the route layer; this covers service-level re-validation).
+      if (error instanceof ZodError) {
+        return reply.status(400).send({
+          success: false,
+          error: {
+            code: "VALIDATION_ERROR",
+            message: "Invalid request data",
+          },
+        });
+      }
       if (error && typeof error === "object" && "statusCode" in error) {
         throw error;
       }

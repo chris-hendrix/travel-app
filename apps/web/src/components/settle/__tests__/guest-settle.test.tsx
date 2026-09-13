@@ -184,6 +184,32 @@ describe("PaymentForm with guests", () => {
     ];
     expect(args.data.payerMemberId).toBe("member-liam");
   });
+
+  it("blocks submit when the saved payer is no longer a member", async () => {
+    renderWithClient(
+      <PaymentForm
+        tripId={TRIP_ID}
+        open={true}
+        onOpenChange={() => {}}
+        payment={makePayment({
+          payerMemberId: "member-gone",
+          payerName: "Ghost",
+        })}
+      />,
+    );
+
+    await screen.findByText("Mom");
+
+    // Description + amount initialize valid from the payment; only the
+    // payer is stale, so the form must not submit until a real payer
+    // is picked.
+    const saveButton = screen.getByRole("button", { name: "Save Changes" });
+    expect(saveButton).toBeDisabled();
+    expect(mockUpdateMutate).not.toHaveBeenCalled();
+    // The payer select falls back to a resolvable member instead of a
+    // blank/stale value.
+    expect(screen.getByRole("combobox")).toHaveTextContent("Liam");
+  });
 });
 
 // ============================================================================

@@ -184,6 +184,22 @@ describe("Guest Member Routes", () => {
       });
       expect(second.statusCode).toBe(409);
     });
+
+    it("should return 400 (not 500) on invalid guestPhone", async () => {
+      app = await buildApp();
+      const { organizer, trip } = await setupTripWithOrganizer();
+      const token = app.jwt.sign({
+        sub: organizer.id,
+        name: organizer.displayName,
+      });
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/trips/${trip.id}/members/guests`,
+        cookies: { auth_token: token },
+        payload: { displayName: "Mom", guestPhone: "not-a-phone" },
+      });
+      expect(response.statusCode).toBe(400);
+    });
   });
 
   describe("PATCH /api/trips/:tripId/members/guests/:memberId", () => {
@@ -284,6 +300,29 @@ describe("Guest Member Routes", () => {
         url: `/api/trips/${trip.id}/members/guests/${guestId}`,
         cookies: { auth_token: token },
         payload: { status: "bogus" },
+      });
+      expect(response.statusCode).toBe(400);
+    });
+
+    it("should return 400 (not 500) on invalid guestPhone", async () => {
+      app = await buildApp();
+      const { organizer, trip } = await setupTripWithOrganizer();
+      const token = app.jwt.sign({
+        sub: organizer.id,
+        name: organizer.displayName,
+      });
+      const created = await app.inject({
+        method: "POST",
+        url: `/api/trips/${trip.id}/members/guests`,
+        cookies: { auth_token: token },
+        payload: { displayName: "Mom" },
+      });
+      const guestId = JSON.parse(created.body).member.id;
+      const response = await app.inject({
+        method: "PATCH",
+        url: `/api/trips/${trip.id}/members/guests/${guestId}`,
+        cookies: { auth_token: token },
+        payload: { guestPhone: "not-a-phone" },
       });
       expect(response.statusCode).toBe(400);
     });

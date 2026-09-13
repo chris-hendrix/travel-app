@@ -231,22 +231,32 @@ export function InviteMembersDialog({
       }
       const addedGuests: string[] = [];
       const skippedGuests: string[] = [];
-      for (const g of pendingGuests) {
-        try {
-          await apiRequest(`/trips/${tripId}/members/guests`, {
+      // POST guests concurrently and settle every result: a single failure
+      // must not discard the sibling successes (allSettled, not a
+      // throw-aborts-the-loop for-loop).
+      const guestResults = await Promise.allSettled(
+        pendingGuests.map((g) =>
+          apiRequest(`/trips/${tripId}/members/guests`, {
             method: "POST",
             body: JSON.stringify({ displayName: g.name }),
-          });
-          addedGuests.push(g.name);
-        } catch (err) {
-          if (err instanceof APIError && err.code === "DUPLICATE_MEMBER") {
-            skippedGuests.push(g.name);
-            toast.error(`${g.name} is already in this trip`);
-          } else {
-            throw err;
-          }
+          }),
+        ),
+      );
+      const failedGuests: string[] = [];
+      guestResults.forEach((result, i) => {
+        const name = pendingGuests[i]!.name;
+        if (result.status === "fulfilled") {
+          addedGuests.push(name);
+          return;
         }
-      }
+        const err = result.reason;
+        if (err instanceof APIError && err.code === "DUPLICATE_MEMBER") {
+          skippedGuests.push(name);
+          toast.error(`${name} is already in this trip`);
+        } else {
+          failedGuests.push(name);
+        }
+      });
       if (addedGuests.length > 0) {
         toastParts.push(
           `${addedGuests.length} guest${addedGuests.length !== 1 ? "s" : ""} added`,
@@ -255,14 +265,29 @@ export function InviteMembersDialog({
       if (skippedGuests.length > 0) {
         toastParts.push(`Skipped: ${skippedGuests.join(", ")}`);
       }
+      if (failedGuests.length > 0) {
+        toastParts.push(
+          `${failedGuests.length} guest${failedGuests.length !== 1 ? "s" : ""} couldn't be added`,
+        );
+      }
       if (addedGuests.length > 0 || skippedGuests.length > 0 || hasInvites) {
         queryClient.invalidateQueries({ queryKey: memberKeys.list(tripId) });
         queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) });
       }
+      if (failedGuests.length > 0) {
+        // Successes are retained (reported above and invalidated), but the
+        // dialog stays open with the guest chips intact so the failed names
+        // can be retried instead of being silently dropped.
+        toast.error(
+          `Couldn't add ${failedGuests.join(", ")}. Please try again.`,
+        );
+      }
       const message =
         toastParts.length > 0 ? toastParts.join(", ") : "Invitations processed";
       toast.success(message);
-      onOpenChange(false);
+      if (failedGuests.length === 0) {
+        onOpenChange(false);
+      }
     } catch (error) {
       toast.error(
         getInviteMembersErrorMessage(error as Error) ??
