@@ -262,8 +262,7 @@ describe("DiscoverView", () => {
     });
   });
 
-  describe("POI-to-event flow", () => {
-    it("opens create event dialog when Create Event is clicked in detail sheet", async () => {
+  describe("POI-to-event flow", () => {    it("opens create event dialog when Create Event is clicked in detail sheet", async () => {
       const user = userEvent.setup();
       render(<DiscoverView tripId={TRIP_ID} temperatureUnit={celsius} />);
 
@@ -284,6 +283,173 @@ describe("DiscoverView", () => {
       expect(screen.getByTestId("dialog-default-name").textContent).toBe(
         "Le Bistro",
       );
+    });
+  });
+
+  describe("accommodation anchor", () => {
+    const tripData = {
+      preferredTimezone: "Europe/Paris",
+      startDate: "2026-04-10",
+      endDate: "2026-04-13",
+      destinationLat: 48.8566,
+      destinationLon: 2.3522,
+      destination: "Paris, France",
+      createdBy: "user-1",
+      organizers: [],
+    };
+    const accNear = {
+      id: "acc-near",
+      name: "Sunset Villa",
+      address: "12 Coast Rd",
+      addressLat: 43.7,
+      addressLon: 7.27,
+      checkIn: "2026-09-15T14:00:00.000Z",
+    };
+    const accFar = {
+      id: "acc-far",
+      name: "Mountain Hut",
+      address: "99 Alpine Way",
+      addressLat: 46.5,
+      addressLon: 8.0,
+      checkIn: "2027-06-01T14:00:00.000Z",
+    };
+
+    beforeEach(() => {
+      mockUseTripDetail.mockReturnValue({ data: tripData });
+      mockUseAuth.mockReturnValue({
+        user: { id: "user-1" },
+        loading: false,
+        isAdmin: false,
+        impersonating: { active: false },
+      });
+    });
+
+    it("defaults to the time-nearest accommodation (useDiscover called with acc lat/lon)", () => {
+      mockUseAccommodations.mockReturnValue({ data: [accFar, accNear] });
+      render(<DiscoverView tripId={TRIP_ID} temperatureUnit={celsius} />);
+      expect(mockUseDiscover).toHaveBeenCalledWith(
+        TRIP_ID,
+        accNear.addressLat,
+        accNear.addressLon,
+        accNear.name,
+      );
+      expect(screen.getByText("Sunset Villa")).toBeDefined();
+    });
+
+    it("falls back to trip destination when no accommodation has coords", () => {
+      mockUseAccommodations.mockReturnValue({
+        data: [
+          {
+            id: "acc-nocoords",
+            name: "No Coords Hotel",
+            address: null,
+            addressLat: null,
+            addressLon: null,
+            checkIn: "2026-09-15T14:00:00.000Z",
+          },
+        ],
+      });
+      render(<DiscoverView tripId={TRIP_ID} temperatureUnit={celsius} />);
+      expect(mockUseDiscover).toHaveBeenCalledWith(
+        TRIP_ID,
+        tripData.destinationLat,
+        tripData.destinationLon,
+        tripData.destination,
+      );
+    });
+
+    it("picker lists accommodations before the trip destination", async () => {
+      const user = userEvent.setup();
+      mockUseAccommodations.mockReturnValue({ data: [accFar, accNear] });
+      render(<DiscoverView tripId={TRIP_ID} temperatureUnit={celsius} />);
+
+      const pickerButton = screen.getByText("Sunset Villa").closest("button");
+      expect(pickerButton).not.toBeNull();
+      await user.click(pickerButton!);
+
+      await waitFor(() => {
+        expect(screen.getByText("Mountain Hut")).toBeDefined();
+      });
+      const bodyText = document.body.textContent ?? "";
+      const nearIdx = bodyText.indexOf("Sunset Villa");
+      const farIdx = bodyText.indexOf("Mountain Hut");
+      const tripIdx = bodyText.lastIndexOf("Paris, France");
+      expect(nearIdx).toBeGreaterThanOrEqual(0);
+      expect(farIdx).toBeGreaterThanOrEqual(0);
+      expect(tripIdx).toBeGreaterThanOrEqual(0);
+      // Resolver order: nearest acc first, then farther acc, trip last
+      expect(nearIdx).toBeLessThan(farIdx);
+      expect(farIdx).toBeLessThan(tripIdx);
+    });
+
+    it("picking an accommodation drives the discover query with acc coords", async () => {
+      const user = userEvent.setup();
+      mockUseAccommodations.mockReturnValue({ data: [accFar, accNear] });
+      render(<DiscoverView tripId={TRIP_ID} temperatureUnit={celsius} />);
+
+      const pickerButton = screen.getByText("Sunset Villa").closest("button");
+      expect(pickerButton).not.toBeNull();
+      await user.click(pickerButton!);
+
+      const hutRow = await screen.findByText("Mountain Hut");
+      const hutButton = hutRow.closest("button");
+      expect(hutButton).not.toBeNull();
+      await user.click(hutButton!);
+
+      await waitFor(() => {
+        expect(mockUseDiscover).toHaveBeenLastCalledWith(
+          TRIP_ID,
+          accFar.addressLat,
+          accFar.addressLon,
+          accFar.name,
+        );
+      });
+    });
+
+    it("resets manual selection when tripId changes", async () => {
+      const user = userEvent.setup();
+      mockUseAccommodations.mockReturnValue({ data: [accFar, accNear] });
+      const { rerender } = render(
+        <DiscoverView tripId={TRIP_ID} temperatureUnit={celsius} />,
+      );
+
+      // Pick the farther accommodation as a manual override
+      const pickerButton = screen.getByText("Sunset Villa").closest("button");
+      expect(pickerButton).not.toBeNull();
+      await user.click(pickerButton!);
+      const hutRow = await screen.findByText("Mountain Hut");
+      await user.click(hutRow.closest("button")!);
+      await waitFor(() => {
+        expect(mockUseDiscover).toHaveBeenLastCalledWith(
+          TRIP_ID,
+          accFar.addressLat,
+          accFar.addressLon,
+          accFar.name,
+        );
+      });
+
+      // Switch trips: new trip with no accommodations -> trip fallback
+      const newTripId = "trip-456";
+      mockUseTripDetail.mockReturnValue({
+        data: {
+          ...tripData,
+          destinationLat: 40.7128,
+          destinationLon: -74.006,
+          destination: "New York, NY",
+        },
+      });
+      mockUseAccommodations.mockReturnValue({ data: [] });
+      mockUseDiscover.mockClear();
+      rerender(<DiscoverView tripId={newTripId} temperatureUnit={celsius} />);
+
+      await waitFor(() => {
+        expect(mockUseDiscover).toHaveBeenCalledWith(
+          newTripId,
+          40.7128,
+          -74.006,
+          "New York, NY",
+        );
+      });
     });
   });
 });

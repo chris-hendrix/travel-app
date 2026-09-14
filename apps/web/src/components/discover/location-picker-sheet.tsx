@@ -67,21 +67,6 @@ export function LocationPickerSheet({
         </SheetHeader>
         <SheetBody>
           <div className="space-y-1">
-            {tripDestination && (
-              <LocationRow
-                icon={MapPin}
-                name={tripDestination.name}
-                subtitle={null}
-                selected={isNearby(tripDestination, selectedLocation)}
-                onClick={() => {
-                  handleSelect({
-                    lat: tripDestination.lat,
-                    lon: tripDestination.lon,
-                    name: tripDestination.name,
-                  });
-                }}
-              />
-            )}
             {validAccommodations.map((a) => (
               <LocationRow
                 key={a.id}
@@ -101,6 +86,21 @@ export function LocationPickerSheet({
                 }}
               />
             ))}
+            {tripDestination && (
+              <LocationRow
+                icon={MapPin}
+                name={tripDestination.name}
+                subtitle={null}
+                selected={isNearby(tripDestination, selectedLocation)}
+                onClick={() => {
+                  handleSelect({
+                    lat: tripDestination.lat,
+                    lon: tripDestination.lon,
+                    name: tripDestination.name,
+                  });
+                }}
+              />
+            )}
           </div>
         </SheetBody>
       </SheetContent>

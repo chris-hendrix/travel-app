@@ -114,8 +114,7 @@ describe("LocationPickerSheet", () => {
       expect(checkIcons.length).toBeGreaterThan(0);
     });
 
-    it("calls onSelect with location when a row is clicked", async () => {
-      const user = userEvent.setup();
+    it("calls onSelect with location when a row is clicked", async () => {      const user = userEvent.setup();
       render(
         <LocationPickerSheet
           open={true}
@@ -133,6 +132,31 @@ describe("LocationPickerSheet", () => {
         lon: -96.80,
         name: "Marriott Downtown",
       });
+    });
+    it("renders rows in given order: accommodations before trip destination", () => {
+      render(
+        <LocationPickerSheet
+          open={true}
+          onOpenChange={onOpenChange}
+          tripDestination={tripDest}
+          accommodations={accommodations}
+          selectedLocation={{ lat: 32.79, lon: -96.81, name: "Dallas, TX" }}
+          onSelect={onSelect}
+        />,
+      );
+      const buttons = Array.from(document.querySelectorAll("button")).map(
+        (b) => b.textContent ?? "",
+      );
+      const marriottIdx = buttons.findIndex((t) =>
+        t.includes("Marriott Downtown"),
+      );
+      const airbnbIdx = buttons.findIndex((t) => t.includes("Airbnb Uptown"));
+      const tripIdx = buttons.findIndex((t) => t.includes("Dallas, TX"));
+      expect(marriottIdx).toBeGreaterThanOrEqual(0);
+      expect(airbnbIdx).toBeGreaterThanOrEqual(0);
+      expect(tripIdx).toBeGreaterThanOrEqual(0);
+      expect(marriottIdx).toBeLessThan(airbnbIdx);
+      expect(airbnbIdx).toBeLessThan(tripIdx);
     });
   });
 });

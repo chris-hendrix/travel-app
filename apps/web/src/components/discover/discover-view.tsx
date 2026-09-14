@@ -29,6 +29,7 @@ import {
 import { POICard } from "./poi-card";
 import { POIDetailSheet } from "./poi-detail-sheet";
 import { LocationPickerSheet } from "./location-picker-sheet";
+import { resolveDiscoverLocations, type DiscoverLocation } from "@/lib/discover-location";
 
 // ─── Category icons ──────────────────────────────────────────────────────────
 
@@ -44,12 +45,13 @@ const CATEGORY_ICONS: Record<POICategoryKey, typeof Utensils> = {
 
 // ─── Location type ───────────────────────────────────────────────────────────
 
-interface LocationOption {
-  lat: number;
-  lon: number;
-  name: string;
-  source: "trip" | "accommodation";
-  accommodationId?: string;
+type LocationOption = DiscoverLocation;
+
+function isNearbyCoords(
+  a: { lat: number; lon: number },
+  b: { lat: number; lon: number },
+): boolean {
+  return Math.abs(a.lat - b.lat) < 0.0001 && Math.abs(a.lon - b.lon) < 0.0001;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -66,43 +68,58 @@ export function DiscoverView({ tripId, temperatureUnit }: DiscoverViewProps) {
   const { data: accommodations } = useAccommodations(tripId);
   const { user } = useAuth();
 
-  // ── Location resolution: first accommodation with coords → trip destination ─
+  // ── Location resolution: time-nearest accommodation with coords → trip destination ─
 
-  const availableLocations = useMemo<LocationOption[]>(() => {
-    const locations: LocationOption[] = [];
+  const availableLocations = useMemo<LocationOption[]>(
+    () => resolveDiscoverLocations(trip ?? undefined, accommodations ?? undefined),
+    [trip, accommodations],
+  );
 
-    // Trip destination (if has coords)
-    if (trip?.destinationLat != null && trip?.destinationLon != null) {
-      locations.push({
-        lat: trip.destinationLat,
-        lon: trip.destinationLon,
-        name: trip.destination || "Trip destination",
-        source: "trip",
-      });
-    }
-
-    // Accommodations with coords
-    if (accommodations) {
-      for (const acc of accommodations) {
-        if (acc.addressLat != null && acc.addressLon != null) {
-          locations.push({
-            lat: acc.addressLat,
-            lon: acc.addressLon,
+  // Picker list: accommodation entries in resolver order (time-nearest first),
+  // trip destination passed separately and rendered last. Props unchanged.
+  const pickerAccommodations = useMemo(
+    () => {
+      const byId = new Map(
+        (accommodations ?? []).map((acc) => [acc.id, acc]),
+      );
+      const ordered: Array<{
+        id: string;
+        name: string;
+        address: string | null;
+        addressLat: number;
+        addressLon: number;
+      }> = [];
+      for (const loc of availableLocations) {
+        if (loc.source !== "accommodation" || !loc.accommodationId) continue;
+        const acc = byId.get(loc.accommodationId);
+        if (
+          acc &&
+          acc.addressLat != null &&
+          acc.addressLon != null
+        ) {
+          ordered.push({
+            id: acc.id,
             name: acc.name,
-            source: "accommodation",
-            accommodationId: acc.id,
+            address: acc.address ?? null,
+            addressLat: acc.addressLat,
+            addressLon: acc.addressLon,
           });
         }
       }
-    }
-
-    return locations;
-  }, [trip, accommodations]);
+      return ordered;
+    },
+    [accommodations, availableLocations],
+  );
 
   const defaultLocation = availableLocations.length > 0 ? availableLocations[0] : null;
 
   const [selectedLocation, setSelectedLocation] = useState<LocationOption | null>(null);
   const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
+
+  // Reset stale manual picks when switching trips (selection is ephemeral).
+  useEffect(() => {
+    setSelectedLocation(null);
+  }, [tripId]);
 
   const location = selectedLocation ?? defaultLocation;
 
@@ -368,31 +385,24 @@ export function DiscoverView({ tripId, temperatureUnit }: DiscoverViewProps) {
               }
             : null
         }
-        accommodations={
-          accommodations
-            ?.filter((acc): acc is typeof acc & { addressLat: number; addressLon: number } =>
-              acc.addressLat != null && acc.addressLon != null
-            )
-            .map((acc) => ({
-              id: acc.id,
-              name: acc.name,
-              address: acc.address ?? null,
-              addressLat: acc.addressLat,
-              addressLon: acc.addressLon,
-            })) ?? []
-        }
+        accommodations={pickerAccommodations}
         selectedLocation={
           location
             ? { lat: location.lat, lon: location.lon, name: location.name }
             : { lat: 0, lon: 0, name: "" }
         }
         onSelect={(loc) => {
-          setSelectedLocation({
-            lat: loc.lat,
-            lon: loc.lon,
-            name: loc.name,
-            source: "trip",
-          });
+          const matched = availableLocations.find((l) =>
+            isNearbyCoords(l, loc),
+          );
+          setSelectedLocation(
+            matched ?? {
+              lat: loc.lat,
+              lon: loc.lon,
+              name: loc.name,
+              source: "trip",
+            },
+          );
         }}
       />
 
