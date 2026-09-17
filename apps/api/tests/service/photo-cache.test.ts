@@ -13,10 +13,15 @@ function makeCache() {
 }
 
 describe("PhotoCacheService", () => {
-  it("builds S3-safe cache keys with per-segment encoding", () => {
-    expect(buildPhotoCacheKey("places/abc/photos/ref 1", 400, 280)).toBe(
-      "places-photos/places/abc/photos/ref%201/400x280",
-    );
+  it("builds short deterministic cache keys (sha256 — safe for filesystem-backed S3 stores)", () => {
+    const a = buildPhotoCacheKey("places/abc/photos/ref 1", 400, 280);
+    // 64-char hex digest + prefix + size: well under MinIO's per-component limit.
+    expect(a).toMatch(/^places-photos\/[0-9a-f]{64}\/400x280$/);
+    expect(a.length).toBeLessThan(100);
+    // Deterministic and size-sensitive.
+    expect(buildPhotoCacheKey("places/abc/photos/ref 1", 400, 280)).toBe(a);
+    expect(buildPhotoCacheKey("places/abc/photos/ref 1", 600, 400)).not.toBe(a);
+    expect(buildPhotoCacheKey("places/abc/photos/ref 2", 400, 280)).not.toBe(a);
   });
 
   it("deduplicates concurrent fetches for the same key", async () => {

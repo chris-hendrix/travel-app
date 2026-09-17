@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { IStorageService } from "@/services/storage.service.js";
 
 /** Prefix under which cached Place photo blobs are stored. */
@@ -11,20 +12,21 @@ export interface PhotoBlob {
 export type PhotoFetcher = () => Promise<PhotoBlob>;
 
 /**
- * Builds an S3-safe cache key for a Place photo.
- * Each photoRef segment is URI-encoded so slashes remain delimiters
- * while spaces/special chars stay key-safe.
+ * Builds a storage-safe cache key for a Place photo.
+ *
+ * Google photo refs are routinely 400-800 chars as a single path segment.
+ * Real S3 tolerates that (1024-byte total key limit), but S3-compatible
+ * stores backed by a filesystem (MinIO local dev) enforce a ~255-byte
+ * per-component filename limit and reject the key with
+ * `XMinioInvalidObjectName`. Hashing keeps keys short and backend-agnostic.
  */
 export function buildPhotoCacheKey(
   photoRef: string,
   width: number,
   height: number,
 ): string {
-  const encoded = photoRef
-    .split("/")
-    .map((segment) => encodeURIComponent(segment))
-    .join("/");
-  return `${PHOTO_CACHE_PREFIX}${encoded}/${width}x${height}`;
+  const digest = createHash("sha256").update(photoRef).digest("hex");
+  return `${PHOTO_CACHE_PREFIX}${digest}/${width}x${height}`;
 }
 
 /**

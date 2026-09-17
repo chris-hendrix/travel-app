@@ -268,7 +268,11 @@ export async function locationRoutes(fastify: FastifyInstance) {
         reply.header("Content-Type", contentType);
         reply.header("Cache-Control", "public, max-age=604800, immutable");
         return reply.send(buffer);
-      } catch {
+      } catch (err) {
+        request.log.error(
+          { err, photoRef, cacheKey },
+          "Place photo proxy failed (storage or upstream Google fetch)",
+        );
         return reply.code(404).send();
       }
     },
