@@ -1,13 +1,13 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { authenticate } from "@/middleware/auth.middleware.js";
 import { checkBanned } from "@/middleware/admin.middleware.js";
 import { defaultRateLimitConfig } from "@/middleware/rate-limit.middleware.js";
 import { TripNotFoundError } from "@/errors.js";
 import { poiCache, trips } from "@/db/schema/index.js";
 import { poiSuggestionsResponseSchema } from "@journiful/shared/schemas";
-import { groupByCategoryOnly } from "@/services/discover.service.js";
+import { groupByCategoryOnly, roundCoords } from "@/services/discover.service.js";
 
 const tripIdParams = z.object({
   tripId: z.string().uuid({ message: "Invalid trip ID format" }),
@@ -91,10 +91,11 @@ export async function discoverRoutes(fastify: FastifyInstance) {
       // If API key is not configured, serve from cache (if available)
       if (!request.server.config.GOOGLE_MAPS_API_KEY) {
         if (!refresh) {
+          const cell = roundCoords(lat, lon);
           const cached = await request.server.db
             .select()
             .from(poiCache)
-            .where(eq(poiCache.tripId, tripId));
+            .where(and(eq(poiCache.lat, cell.lat), eq(poiCache.lon, cell.lon)));
           if (cached.length > 0) {
             // Delegate to service — it will hit cache and return results
             const result =
