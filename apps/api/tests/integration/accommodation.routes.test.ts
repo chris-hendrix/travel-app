@@ -241,6 +241,72 @@ describe("Accommodation Routes", () => {
       expect(body.accommodations).toHaveLength(2);
     });
 
+    it("should return 200 with null dates for dateless accommodation", async () => {
+      app = await buildApp();
+
+      const testUserResult = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "Test User",
+          timezone: "UTC",
+        })
+        .returning();
+
+      const testUser = testUserResult[0];
+
+      const tripResult = await db
+        .insert(trips)
+        .values({
+          name: "Test Trip",
+          destination: "Paris",
+          preferredTimezone: "Europe/Paris",
+          createdBy: testUser.id,
+        })
+        .returning();
+
+      const trip = tripResult[0];
+
+      await db.insert(members).values({
+        tripId: trip.id,
+        userId: testUser.id,
+        status: "going",
+      });
+
+      const token = app.jwt.sign({
+        sub: testUser.id,
+        name: testUser.displayName,
+      });
+
+      const postResponse = await app.inject({
+        method: "POST",
+        url: `/api/trips/${trip.id}/accommodations`,
+        cookies: {
+          auth_token: token,
+        },
+        payload: {
+          name: "Dateless Stay",
+        },
+      });
+
+      const listResponse = await app.inject({
+        method: "GET",
+        url: `/api/trips/${trip.id}/accommodations`,
+        cookies: {
+          auth_token: token,
+        },
+      });
+
+      expect(listResponse.statusCode).toBe(200);
+
+      const body = JSON.parse(listResponse.body);
+      expect(body.accommodations[0]).toMatchObject({
+        checkIn: null,
+        checkOut: null,
+      });
+      expect(postResponse.statusCode).toBe(201);
+    });
+
     it("should return 401 if not authenticated", async () => {
       app = await buildApp();
 
