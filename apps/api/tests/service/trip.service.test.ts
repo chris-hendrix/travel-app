@@ -19,6 +19,7 @@ import type { CreateTripInput } from "@journiful/shared/schemas";
 const mockGeocodingService: IGeocodingService = {
   geocode: vi.fn().mockResolvedValue({ lat: 32.7157, lon: -117.1611 }),
   getTimezone: vi.fn().mockResolvedValue(null),
+  getTimezoneByCoords: vi.fn().mockResolvedValue(null),
 };
 
 // Create service instances with db for testing
@@ -1819,6 +1820,84 @@ describe("trip.service", () => {
       // Coordinates should remain unchanged
       expect(updated.destinationLat).toBe(32.7157);
       expect(updated.destinationLon).toBe(-117.1611);
+    });
+
+    it("createTrip without coords geocodes once and resolves timezone by coords", async () => {
+      vi.mocked(mockGeocodingService.geocode).mockResolvedValue({
+        lat: 21.3069,
+        lon: -157.8583,
+        displayName: "Honolulu, HI, USA",
+      });
+      vi.mocked(mockGeocodingService.getTimezoneByCoords).mockResolvedValue(
+        "Pacific/Honolulu",
+      );
+      vi.mocked(mockGeocodingService.getTimezone).mockClear();
+      vi.mocked(mockGeocodingService.getTimezoneByCoords).mockClear();
+      vi.mocked(mockGeocodingService.geocode).mockClear();
+
+      const trip = await tripService.createTrip(geoTestUserId, {
+        name: "Honolulu Trip",
+        destination: "Honolulu, HI",
+        timezone: "UTC",
+        allowMembersToAddEvents: true,
+      });
+      geoTestTripId = trip.id;
+
+      expect(mockGeocodingService.geocode).toHaveBeenCalledTimes(1);
+      expect(mockGeocodingService.geocode).toHaveBeenCalledWith("Honolulu, HI");
+      expect(
+        mockGeocodingService.getTimezoneByCoords,
+      ).toHaveBeenCalledTimes(1);
+      expect(mockGeocodingService.getTimezoneByCoords).toHaveBeenCalledWith(
+        21.3069,
+        -157.8583,
+      );
+      expect(mockGeocodingService.getTimezone).not.toHaveBeenCalled();
+      expect(trip.preferredTimezone).toBe("Pacific/Honolulu");
+    });
+
+    it("updateTrip with destination change geocodes once and resolves timezone by coords", async () => {
+      vi.mocked(mockGeocodingService.geocode).mockResolvedValue({
+        lat: 32.7157,
+        lon: -117.1611,
+        displayName: "San Diego, CA, USA",
+      });
+      vi.mocked(mockGeocodingService.getTimezoneByCoords).mockResolvedValue(null);
+      const trip = await tripService.createTrip(geoTestUserId, {
+        name: "SD Trip",
+        destination: "San Diego, CA",
+        timezone: "America/Los_Angeles",
+        allowMembersToAddEvents: true,
+      });
+      geoTestTripId = trip.id;
+
+      vi.mocked(mockGeocodingService.geocode).mockResolvedValue({
+        lat: 40.7128,
+        lon: -74.006,
+        displayName: "New York, NY, USA",
+      });
+      vi.mocked(mockGeocodingService.getTimezoneByCoords).mockResolvedValue(
+        "America/New_York",
+      );
+      vi.mocked(mockGeocodingService.getTimezone).mockClear();
+      vi.mocked(mockGeocodingService.getTimezoneByCoords).mockClear();
+      vi.mocked(mockGeocodingService.geocode).mockClear();
+
+      const updated = await tripService.updateTrip(trip.id, geoTestUserId, {
+        destination: "New York, NY",
+      });
+
+      expect(mockGeocodingService.geocode).toHaveBeenCalledTimes(1);
+      expect(mockGeocodingService.geocode).toHaveBeenCalledWith("New York, NY");
+      expect(
+        mockGeocodingService.getTimezoneByCoords,
+      ).toHaveBeenCalledTimes(1);
+      expect(mockGeocodingService.getTimezoneByCoords).toHaveBeenCalledWith(
+        40.7128,
+        -74.006,
+      );
+      expect(mockGeocodingService.getTimezone).not.toHaveBeenCalled();
+      expect(updated.preferredTimezone).toBe("America/New_York");
     });
   });
 

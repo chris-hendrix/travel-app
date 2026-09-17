@@ -60,6 +60,13 @@ const MemberOnboardingWizard = dynamic(() =>
   })),
 );
 
+/**
+ * Index of the Discover slide in the mobile swiper (info 0, itinerary 1,
+ * discover 2, messages 3, photos 4, settle 5). The discover query is enabled
+ * when the active slide is Discover or adjacent to it (prewarm).
+ */
+export const DISCOVER_SLIDE_INDEX = 2;
+
 interface MobileTripLayoutProps {
   trip: TripDetailWithMeta;
   tripId: string;
@@ -197,6 +204,7 @@ export function MobileTripLayout({
             <DiscoverPanel
               tripId={tripId}
               temperatureUnit={temperatureUnit}
+              enabled={Math.abs(activeIndex - DISCOVER_SLIDE_INDEX) <= 1}
             />
             <MessagesPanel
               tripId={tripId}

@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { authenticate } from "@/middleware/auth.middleware.js";
+import { buildPhotoCacheKey, PhotoNotCachedError } from "@/services/photo-cache.service.js";
 import { defaultRateLimitConfig, photoProxyRateLimitConfig } from "@/middleware/rate-limit.middleware.js";
 
 const autocompleteQuerySchema = z.object({
@@ -236,32 +237,43 @@ export async function locationRoutes(fastify: FastifyInstance) {
         return reply.code(404).send();
       }
 
-      const url = `${GOOGLE_PLACES_BASE}/${photoRef}/media?key=${key}&maxWidthPx=${w}&maxHeightPx=${h}`;
-
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000);
+      const cacheKey = buildPhotoCacheKey(photoRef, w, h);
 
       try {
-        const response = await fetch(url, { signal: controller.signal });
-        clearTimeout(timeout);
+        const { buffer, contentType } =
+          await request.server.photoCache.getOrFetch(cacheKey, async () => {
+            const url = `${GOOGLE_PLACES_BASE}/${photoRef}/media?key=${key}&maxWidthPx=${w}&maxHeightPx=${h}`;
 
-        if (!response.ok || !response.body) {
-          return reply.code(404).send();
-        }
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 5000);
 
-        const contentType = response.headers.get("content-type") ?? "image/jpeg";
+            try {
+              const response = await fetch(url, { signal: controller.signal });
+
+              if (!response.ok) {
+                throw new Error(`Google Places media returned ${response.status}`);
+              }
+
+              const bytes = Buffer.from(await response.arrayBuffer());
+              const upstreamContentType =
+                response.headers.get("content-type") ?? "image/jpeg";
+              return { buffer: bytes, contentType: upstreamContentType };
+            } finally {
+              clearTimeout(timeout);
+            }
+          });
 
         reply.header("Content-Type", contentType);
         reply.header("Cache-Control", "public, max-age=604800, immutable");
-
-        // Stream the response body using Node.js Readable.fromWeb
-        const { Readable } = await import("stream");
-        return reply.send(Readable.fromWeb(response.body as any));
-      } catch (err: any) {
-        clearTimeout(timeout);
-        if (err?.name === "AbortError") {
+        return reply.send(buffer);
+      } catch (err) {
+        if (err instanceof PhotoNotCachedError) {
           return reply.code(404).send();
         }
+        request.log.error(
+          { err, photoRef, cacheKey },
+          "Place photo proxy failed (storage or upstream Google fetch)",
+        );
         return reply.code(404).send();
       }
     },

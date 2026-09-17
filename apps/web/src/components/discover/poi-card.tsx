@@ -1,6 +1,6 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useEffect, useState } from "react";
 import type { POISuggestion, POICategoryKey, TemperatureUnit } from "@journiful/shared/types";
 import { cn } from "@/lib/utils";
 import { API_URL } from "@/lib/api";
@@ -47,7 +47,7 @@ interface POICardProps {
  *
  * The card is a landscape 3:2 photo in a white mat inside a cardboard frame.
  * When a Google Places photo is available (`poi.photoName`) it is loaded via the
- * backend photo proxy as a background-image; otherwise a themed gradient fills
+ * backend photo proxy as a lazy <img>; otherwise a themed gradient fills
  * the well. A thin category-coloured strip runs along the top of the image well,
  * and the place name (Playfair) + subcategory/distance sit over a bottom scrim.
  */
@@ -56,6 +56,15 @@ export const POICard = memo(function POICard({
   onSelect,
   temperatureUnit,
 }: POICardProps) {
+  const [imgError, setImgError] = useState(false);
+
+  // Reset the error fallback when the card switches to a different photo.
+  useEffect(() => {
+    setImgError(false);
+  }, [poi.photoName]);
+
+  const showPhoto = poi.photoName !== null && !imgError;
+
   const accentColor = CATEGORY_ACCENT_COLORS[poi.category];
 
   const ariaLabel = poi.photoAttribution
@@ -79,16 +88,20 @@ export const POICard = memo(function POICard({
       {/* Mat: white border around the photo */}
       <div className="postcard-mat bg-card" style={{ padding: 8 }}>
         <div className="postcard-image">
-          {/* Photo background (only when photoName present) */}
-          {poi.photoName ? (
-            <div
-              className="absolute inset-0 bg-cover bg-center"
-              style={{
-                backgroundImage: `url(${API_URL}/locations/photos/${encodeURIComponent(poi.photoName)}?maxWidthPx=400&maxHeightPx=280)`,
-              }}
+          {/* Photo (only when photoName present and not errored) */}
+          {showPhoto && poi.photoName ? (
+            <img
+              src={`${API_URL}/locations/photos/${encodeURIComponent(poi.photoName)}?maxWidthPx=400&maxHeightPx=280`}
+              alt={poi.name}
+              loading="lazy"
+              onError={() => setImgError(true)}
+              className="absolute inset-0 h-full w-full object-cover"
             />
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-accent/15 to-secondary/20" />
+            <div
+              data-testid="poi-photo-placeholder"
+              className="absolute inset-0 bg-gradient-to-br from-primary/20 via-accent/15 to-secondary/20"
+            />
           )}
 
           {/* Category accent strip */}

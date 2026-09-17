@@ -1,5 +1,5 @@
-import { eq, sql } from "drizzle-orm";
-import { trips, poiCache } from "@/db/schema/index.js";
+import { and, eq, isNull, sql } from "drizzle-orm";
+import { trips, poiCache, poiConversions, events } from "@/db/schema/index.js";
 import { POI_CATEGORIES, googleTypeLabels } from "@journiful/shared/types";
 import type { POISuggestion, POICategoryKey, POISuggestionsResponse } from "@journiful/shared/types";
 import { poiSuggestionSchema } from "@journiful/shared/schemas";
@@ -16,6 +16,30 @@ const GOOGLE_PLACES_BASE = "https://places.googleapis.com/v1/places:searchNearby
 const GOOGLE_MAX_RESULTS = 20;
 const GOOGLE_RADIUS = 50000;
 const CACHE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days per Google ToS
+
+/**
+ * Delete poi_cache rows older than 30 days (Google ToS TTL).
+ * Shared by the POI_CACHE_PURGE inline cron and service tests.
+ * @returns number of rows deleted.
+ */
+export async function purgeExpiredPoiCache(database: AppDatabase): Promise<number> {
+  const result = await database.execute(sql`
+    DELETE FROM poi_cache WHERE cached_at < now() - interval '30 days'
+  `);
+  return result.rowCount ?? 0;
+}
+
+/**
+ * Round coordinates to 2 decimal places (≈1.1 km cells at the equator).
+ * Single source of truth for cache-cell precision: all poi_cache lookups
+ * key on roundCoords output, never raw coords.
+ */
+export function roundCoords(lat: number, lon: number): { lat: number; lon: number } {
+  return {
+    lat: Math.round(lat * 100) / 100,
+    lon: Math.round(lon * 100) / 100,
+  };
+}
 
 // Generic Google types to filter before category matching
 const GENERIC_GOOGLE_TYPES = new Set([
@@ -60,12 +84,11 @@ export class DiscoverService implements IDiscoverService {
       return emptyResponse(location);
     }
 
-    // 3. Check cache
+    // 3. Check global coords cache (rounded cell, shared across trips)
+    const cell = roundCoords(lat, lon);
+    const cellFilter = and(eq(poiCache.lat, cell.lat), eq(poiCache.lon, cell.lon));
     if (!refresh) {
-      const cached = await this.db
-        .select()
-        .from(poiCache)
-        .where(eq(poiCache.tripId, tripId));
+      const cached = await this.db.select().from(poiCache).where(cellFilter);
 
       if (cached.length > 0) {
         const row = cached[0]!;
@@ -81,40 +104,13 @@ export class DiscoverService implements IDiscoverService {
               { tripId, issues: validation.error.issues.slice(0, 3) },
               "Stale POI cache schema, invalidating and refetching",
             );
-            await this.db.delete(poiCache).where(eq(poiCache.tripId, tripId));
+            await this.db.delete(poiCache).where(cellFilter);
             return this.fetchAndCache(tripId, location, lat, lon);
           }
           // No API key — can't refetch, normalize missing fields to null so
           // the response still passes Zod serialization (degraded but not 500).
           this.log.warn({ tripId }, "Stale POI cache schema but no API key, serving normalized cache");
           suggestions = suggestions.map(normalizeSuggestion);
-        }
-
-        // Stale cache detection: if destination coords changed, treat as cache miss
-        const DEST_COORD_EPSILON = 0.001; // ~111 meters
-        if (
-          Math.abs(row.searchLat - lat) > DEST_COORD_EPSILON ||
-          Math.abs(row.searchLon - lon) > DEST_COORD_EPSILON
-        ) {
-          this.log.info(
-            {
-              tripId,
-              oldLat: row.searchLat,
-              oldLon: row.searchLon,
-              newLat: lat,
-              newLon: lon,
-            },
-            "Destination changed, refreshing POI cache",
-          );
-          if (this.googleApiKey) {
-            return this.fetchAndCache(tripId, location, lat, lon);
-          }
-          this.log.warn(
-            { tripId },
-            "Destination changed but no API key configured, serving stale cache",
-          );
-          const unconverted = suggestions.filter((s) => s.eventId == null);
-          return groupByCategory(unconverted, location);
         }
 
         // 30-day TTL: if cache is too old, re-fetch per Google ToS
@@ -129,8 +125,11 @@ export class DiscoverService implements IDiscoverService {
           );
         }
 
-        // Filter out converted POIs
-        const unconverted = suggestions.filter((s) => s.eventId == null);
+        // Filter out converted POIs via the per-trip overlay, ignoring
+        // conversions whose event was soft-deleted (deleted_at IS NULL).
+        // The cache blob is global and immutable — never mutated here.
+        const converted = await this.getActiveConvertedSourceIds(tripId);
+        const unconverted = suggestions.filter((s) => !converted.has(s.sourceId));
         return groupByCategory(unconverted, location);
       }
     }
@@ -152,26 +151,7 @@ export class DiscoverService implements IDiscoverService {
       );
     }
 
-    // Read existing converted POIs
-    const existing = await this.db
-      .select()
-      .from(poiCache)
-      .where(eq(poiCache.tripId, tripId));
-
-    const convertedSourceIds = new Set<string>();
-    const preExistingConverted: POISuggestion[] = [];
-
-    if (existing.length > 0) {
-      const existingSuggestions = existing[0]!.suggestions as POISuggestion[];
-      for (const s of existingSuggestions) {
-        if (s.eventId != null) {
-          convertedSourceIds.add(s.sourceId);
-          preExistingConverted.push(s);
-        }
-      }
-    }
-
-    // 6 parallel Google Places searchNearby POST calls
+    const cell = roundCoords(lat, lon);
     const attributionSet = new Set<string>();
 
     const categoryResults = await Promise.all(
@@ -243,9 +223,10 @@ export class DiscoverService implements IDiscoverService {
       } else {
         allEmpty = false;
       }
-      // Filter out already-converted POIs and cross-category duplicates (first category wins)
+      // Filter out cross-category duplicates (first category wins).
+      // Converted POIs are NOT filtered from the blob here — the blob is
+      // global and immutable; the per-trip overlay is applied at read time.
       const filtered = results.filter((r) => {
-        if (convertedSourceIds.has(r.sourceId)) return false;
         if (seenSourceIds.has(r.sourceId)) return false;
         seenSourceIds.add(r.sourceId);
         return true;
@@ -264,84 +245,69 @@ export class DiscoverService implements IDiscoverService {
       };
     }
 
-    // Build new blob: fresh (filtered) + existing converted
-    let newBlob = [...allFresh, ...preExistingConverted];
+    // Build new blob: fresh results only. Conversions live in the
+    // poi_conversions overlay, so no re-read/rebuild window is needed —
+    // a conversion landing mid-fetch is picked up by the overlay read below.
+    const newBlob = [...allFresh];
     const hasErrors = Object.keys(errors).length > 0;
 
-    // Re-read to catch conversions that happened during Google Places fetches (0.5–5s window)
-    if (!allEmpty) {
-      const latest = await this.db
-        .select()
-        .from(poiCache)
-        .where(eq(poiCache.tripId, tripId));
-      if (latest.length > 0) {
-        const latestSuggestions = latest[0]!.suggestions as POISuggestion[];
-        const latestConverted = latestSuggestions.filter((s) => s.eventId != null);
-        const latestConvertedIds = new Set(latestConverted.map((s) => s.sourceId));
-        // Rebuild: fresh results (excluding now-converted) + latest conversions
-        newBlob = [
-          ...allFresh.filter((r) => !latestConvertedIds.has(r.sourceId)),
-          ...latestConverted,
-        ];
-      }
-    }
-
-    // Upsert cache
+    // Upsert global coords cell
     await this.db
       .insert(poiCache)
       .values({
-        tripId,
+        lat: cell.lat,
+        lon: cell.lon,
         source: "google",
-        searchLat: lat,
-        searchLon: lon,
-        searchLocation,
+        location: searchLocation,
         cachedAt: new Date(),
         suggestions: newBlob,
       })
       .onConflictDoUpdate({
-        target: poiCache.tripId,
+        target: [poiCache.lat, poiCache.lon],
         set: {
           suggestions: newBlob,
-          searchLat: lat,
-          searchLon: lon,
-          searchLocation,
+          location: searchLocation,
           cachedAt: new Date(),
         },
       });
 
-    // Return unconverted fresh results
+    // Return fresh results minus this trip's active conversions (read after
+    // the upsert so conversions landing mid-fetch are still honored).
+    const converted = await this.getActiveConvertedSourceIds(tripId);
+    const visible = allFresh.filter((r) => !converted.has(r.sourceId));
     return {
       destination: searchLocation,
       source: "google",
-      categories: groupByCategoryOnly(allFresh),
+      categories: groupByCategoryOnly(visible),
       attributions: [...attributionSet],
       ...(hasErrors ? { partial: true, errors } : {}),
     };
   }
 
+  /**
+   * Source IDs converted in this trip whose linked event is NOT soft-deleted.
+   * The LEFT JOIN + `deleted_at IS NULL` filter is the authoritative
+   * mechanism: events soft-delete, so FK cascade never fires in app flows.
+   */
+  private async getActiveConvertedSourceIds(tripId: string): Promise<Set<string>> {
+    const rows = await this.db
+      .select({ sourceId: poiConversions.sourceId })
+      .from(poiConversions)
+      .leftJoin(events, eq(poiConversions.eventId, events.id))
+      .where(and(eq(poiConversions.tripId, tripId), isNull(events.deletedAt)));
+    return new Set(rows.map((r) => r.sourceId));
+  }
+
+  // Overlay upsert: conversions leave the global cache blob untouched.
+  // Per-trip isolation + soft-delete filtering happen at read time.
   async convertPOI(tripId: string, sourceId: string, eventId: string): Promise<void> {
-    await this.db.transaction(async (tx) => {
-      await tx.execute(
-        sql`SELECT pg_advisory_xact_lock(hashtext('poi_convert_' || ${tripId}))`,
-      );
-
-      const rows = await tx
-        .select()
-        .from(poiCache)
-        .where(eq(poiCache.tripId, tripId));
-
-      if (rows.length === 0) return;
-
-      const suggestions = rows[0]!.suggestions as POISuggestion[];
-      const updated = suggestions.map((s) =>
-        s.sourceId === sourceId ? { ...s, eventId } : s,
-      );
-
-      await tx
-        .update(poiCache)
-        .set({ suggestions: updated })
-        .where(eq(poiCache.tripId, tripId));
-    });
+    await this.db
+      .insert(poiConversions)
+      .values({ tripId, sourceId, eventId })
+      .onConflictDoUpdate({
+        target: [poiConversions.tripId, poiConversions.sourceId],
+        set: { eventId },
+      });
   }
 
   private mapGoogleToSuggestion(category: POICategoryKey, centerLat: number, centerLon: number) {

@@ -20,6 +20,8 @@ export const QUEUE = {
   RATE_LIMIT_CLEANUP: "rate-limit/cleanup",
   AUTH_ATTEMPTS_CLEANUP: "auth-attempts/cleanup",
   TOKEN_BLACKLIST_CLEANUP: "token-blacklist/cleanup",
+  PLACE_PHOTOS_PURGE: "place-photos/cleanup",
+  POI_CACHE_PURGE: "poi-cache/cleanup",
 } as const;
 
 export interface NotificationBatchPayload {

@@ -2667,7 +2667,7 @@ describe("Timezone auto-population", () => {
         lon: 2.3522,
         displayName: "Paris, Île-de-France, France",
       });
-      vi.spyOn(app.geocodingService, "getTimezone").mockResolvedValueOnce(
+      vi.spyOn(app.geocodingService, "getTimezoneByCoords").mockResolvedValueOnce(
         "Europe/Paris",
       );
 
@@ -2710,7 +2710,7 @@ describe("Timezone auto-population", () => {
         lon: 2.3522,
         displayName: "Paris, Île-de-France, France",
       });
-      vi.spyOn(app.geocodingService, "getTimezone").mockRejectedValueOnce(
+      vi.spyOn(app.geocodingService, "getTimezoneByCoords").mockRejectedValueOnce(
         new Error("API error"),
       );
 
@@ -2781,7 +2781,7 @@ describe("Timezone auto-population", () => {
         lon: 139.6503,
         displayName: "Tokyo, Japan",
       });
-      vi.spyOn(app.geocodingService, "getTimezone").mockResolvedValueOnce(
+      vi.spyOn(app.geocodingService, "getTimezoneByCoords").mockResolvedValueOnce(
         "Asia/Tokyo",
       );
 
@@ -2841,7 +2841,7 @@ describe("Timezone auto-population", () => {
 
       // Spy on geocoding to ensure it's NOT called
       const geocodeSpy = vi.spyOn(app.geocodingService, "geocode");
-      const getTimezoneSpy = vi.spyOn(app.geocodingService, "getTimezone");
+      const getTimezoneSpy = vi.spyOn(app.geocodingService, "getTimezoneByCoords");
 
       const response = await app.inject({
         method: "PUT",
@@ -2896,7 +2896,7 @@ describe("Timezone auto-population", () => {
         lon: 139.6503,
         displayName: "Tokyo, Japan",
       });
-      vi.spyOn(app.geocodingService, "getTimezone").mockRejectedValueOnce(
+      vi.spyOn(app.geocodingService, "getTimezoneByCoords").mockRejectedValueOnce(
         new Error("Timezone API error"),
       );
 

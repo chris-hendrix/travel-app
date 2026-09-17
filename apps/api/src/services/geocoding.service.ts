@@ -1,4 +1,7 @@
 import type { Logger } from "@/types/logger.js";
+import type { AppDatabase } from "@/types/index.js";
+import { eq } from "drizzle-orm";
+import { geocodeCache } from "@/db/schema/index.js";
 
 /**
  * Geocoding Service Interface
@@ -63,6 +66,116 @@ export function stubLookup(query: string) {
   return { tz: "UTC", lat: 47.6062, lon: -122.3321 }; // fallback
 }
 
+/**
+ * 30-day TTL for geocode cache rows. TTL-on-read: a row older than this
+ * is treated as a miss — a fresh lookup is performed and the row is
+ * refreshed in place. No purge cron needed (bounded by query cardinality).
+ */
+export const GEOCODE_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * CachedGeocodingService — DB-backed decorator over an inner IGeocodingService.
+ *
+ * - `geocode()` serves fresh (<=30d) rows from `geocode_cache`; stale/missing
+ *   rows delegate to the inner service and are refreshed in place (existing
+ *   timezone preserved).
+ * - `getTimezone()` serves a cached timezone when the row is fresh; otherwise
+ *   it reuses cached coords (via `geocode()`, no second geocode fetch) and
+ *   resolves the timezone by coords, storing it back on the same row.
+ * - `getTimezoneByCoords()` always delegates (no coords-keyed cache).
+ *
+ * NOTE: `GEOCODING_STUB` short-circuits inside the inner
+ * `GoogleGeocodingService`, ABOVE this decorator — the plugin wires the raw
+ * inner service in stub mode so stub behavior is unchanged and the cache is
+ * never polluted by stub data.
+ */
+export class CachedGeocodingService implements IGeocodingService {
+  constructor(
+    private readonly database: AppDatabase,
+    private readonly inner: IGeocodingService,
+    private logger?: Logger,
+  ) {}
+
+  private cacheKey(query: string): string {
+    return query.trim();
+  }
+
+  private isFresh(cachedAt: Date): boolean {
+    return Date.now() - cachedAt.getTime() < GEOCODE_CACHE_TTL_MS;
+  }
+
+  async geocode(query: string): Promise<GeocodingResult | null> {
+    if (!query?.trim()) return null;
+    const key = this.cacheKey(query);
+
+    const rows = await this.database
+      .select()
+      .from(geocodeCache)
+      .where(eq(geocodeCache.query, key));
+    const cached = rows[0];
+    if (cached && this.isFresh(cached.cachedAt)) {
+      this.logger?.info({ query: key }, "Geocode cache hit");
+      return { lat: cached.lat, lon: cached.lon, displayName: cached.displayName };
+    }
+
+    const fresh = await this.inner.geocode(query);
+    if (!fresh) return null;
+
+    if (cached) {
+      await this.database
+        .update(geocodeCache)
+        .set({
+          lat: fresh.lat,
+          lon: fresh.lon,
+          displayName: fresh.displayName,
+          cachedAt: new Date(),
+        })
+        .where(eq(geocodeCache.query, key));
+    } else {
+      await this.database.insert(geocodeCache).values({
+        query: key,
+        lat: fresh.lat,
+        lon: fresh.lon,
+        displayName: fresh.displayName,
+        cachedAt: new Date(),
+      });
+    }
+    return fresh;
+  }
+
+  async getTimezone(query: string): Promise<string | null> {
+    if (!query?.trim()) return null;
+    const key = this.cacheKey(query);
+
+    const rows = await this.database
+      .select()
+      .from(geocodeCache)
+      .where(eq(geocodeCache.query, key));
+    const cached = rows[0];
+    if (cached && cached.timezone && this.isFresh(cached.cachedAt)) {
+      this.logger?.info({ query: key }, "Timezone cache hit");
+      return cached.timezone;
+    }
+
+    // Reuse cached coords (geocode() hits the cache — no second geocode fetch)
+    // then resolve the timezone by coords.
+    const geo = await this.geocode(query);
+    if (!geo) return null;
+
+    const tz = await this.inner.getTimezoneByCoords(geo.lat, geo.lon);
+    if (tz) {
+      await this.database
+        .update(geocodeCache)
+        .set({ timezone: tz, cachedAt: new Date() })
+        .where(eq(geocodeCache.query, key));
+    }
+    return tz;
+  }
+
+  async getTimezoneByCoords(lat: number, lon: number): Promise<string | null> {
+    return this.inner.getTimezoneByCoords(lat, lon);
+  }
+}
 /**
  * Google Geocoding Service Implementation
  * Uses Google Maps Geocoding API and Time Zone API to resolve
