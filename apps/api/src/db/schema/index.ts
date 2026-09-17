@@ -801,3 +801,18 @@ export const poiConversions = pgTable(
 
 export type PoiConversion = typeof poiConversions.$inferSelect;
 export type NewPoiConversion = typeof poiConversions.$inferInsert;
+
+// Geocode Cache (DB-backed dedupe for Google Geocoding; TTL-on-read, 30 days)
+export const geocodeCache = pgTable("geocode_cache", {
+  query: text("query").primaryKey(),
+  lat: doublePrecision("lat").notNull(),
+  lon: doublePrecision("lon").notNull(),
+  displayName: text("display_name").notNull(),
+  timezone: varchar("timezone", { length: 100 }),
+  cachedAt: timestamp("cached_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type GeocodeCache = typeof geocodeCache.$inferSelect;
+export type NewGeocodeCache = typeof geocodeCache.$inferInsert;
