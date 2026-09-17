@@ -332,6 +332,7 @@ describe("DiscoverView", () => {
         accNear.addressLat,
         accNear.addressLon,
         accNear.name,
+        true,
       );
       expect(screen.getByText("Sunset Villa")).toBeDefined();
     });
@@ -355,6 +356,7 @@ describe("DiscoverView", () => {
         tripData.destinationLat,
         tripData.destinationLon,
         tripData.destination,
+        true,
       );
     });
 
@@ -402,6 +404,7 @@ describe("DiscoverView", () => {
           accFar.addressLat,
           accFar.addressLon,
           accFar.name,
+          true,
         );
       });
     });
@@ -425,6 +428,7 @@ describe("DiscoverView", () => {
           accFar.addressLat,
           accFar.addressLon,
           accFar.name,
+          true,
         );
       });
 
@@ -448,6 +452,7 @@ describe("DiscoverView", () => {
           40.7128,
           -74.006,
           "New York, NY",
+          true,
         );
       });
     });

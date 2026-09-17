@@ -2,8 +2,9 @@ import { describe, it, expect, afterEach, beforeAll, vi } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../helpers.js";
 import { db } from "@/config/database.js";
-import { users, trips, members, poiCache } from "@/db/schema/index.js";
-import { eq } from "drizzle-orm";
+import { users, trips, members, events, poiCache, poiConversions } from "@/db/schema/index.js";
+import { and, eq } from "drizzle-orm";
+import { roundCoords } from "@/services/discover.service.js";
 import { generateUniquePhone } from "../test-utils.js";
 import { env } from "@/config/env.js";
 
@@ -70,6 +71,16 @@ describe("Discover Routes", () => {
         status: "going",
       });
 
+      // Ensure no shared global cache row exists for this cell (cache is
+      // coords-keyed and shared across trips/suite runs — a leftover row
+      // would serve a 200 instead of the expected 503).
+      const noKeyCell = roundCoords(48.8566, 2.3522);
+      await db
+        .delete(poiCache)
+        .where(
+          and(eq(poiCache.lat, noKeyCell.lat), eq(poiCache.lon, noKeyCell.lon)),
+        );
+
       const token = app.jwt.sign({
         sub: testUser.id,
         name: testUser.displayName,
@@ -93,7 +104,11 @@ describe("Discover Routes", () => {
         .where(eq(trips.name, "Discover Test Trip"))
         .limit(1);
       if (tripRows.length > 0) {
-        await db.delete(poiCache).where(eq(poiCache.tripId, tripRows[0]!.id));
+        await db
+          .delete(poiCache)
+          .where(
+            and(eq(poiCache.lat, noKeyCell.lat), eq(poiCache.lon, noKeyCell.lon)),
+          );
         await db
           .delete(members)
           .where(eq(members.tripId, tripRows[0]!.id));
@@ -268,13 +283,18 @@ describe("Discover Routes", () => {
         status: "going",
       });
 
-      // Insert a POI cache row directly
+      // Insert a global coords-keyed POI cache row directly (shared cell)
+      const cacheCell = roundCoords(48.8566, 2.3522);
+      await db
+        .delete(poiCache)
+        .where(
+          and(eq(poiCache.lat, cacheCell.lat), eq(poiCache.lon, cacheCell.lon)),
+        );
       await db.insert(poiCache).values({
-        tripId: trip.id,
+        lat: cacheCell.lat,
+        lon: cacheCell.lon,
         source: "google",
-        searchLat: 48.8566,
-        searchLon: 2.3522,
-        searchLocation: "Paris, France",
+        location: "Paris, France",
         cachedAt: new Date(),
         suggestions: [
           {
@@ -324,7 +344,11 @@ describe("Discover Routes", () => {
       expect(body.data.categories.shopping).toEqual([]);
 
       // Cleanup
-      await db.delete(poiCache).where(eq(poiCache.tripId, trip.id));
+      await db
+        .delete(poiCache)
+        .where(
+          and(eq(poiCache.lat, cacheCell.lat), eq(poiCache.lon, cacheCell.lon)),
+        );
       await db.delete(members).where(eq(members.tripId, trip.id));
       await db.delete(trips).where(eq(trips.id, trip.id));
       await db.delete(users).where(eq(users.id, testUser.id));
@@ -384,8 +408,13 @@ describe("Discover Routes", () => {
       expect(body.success).toBe(true);
       expect(body.data.source).toBe("google");
 
-      // Cleanup
-      await db.delete(poiCache).where(eq(poiCache.tripId, trip.id));
+      // Cleanup the shared global cell (refresh upserts it)
+      const refreshCell = roundCoords(48.8566, 2.3522);
+      await db
+        .delete(poiCache)
+        .where(
+          and(eq(poiCache.lat, refreshCell.lat), eq(poiCache.lon, refreshCell.lon)),
+        );
       await db.delete(members).where(eq(members.tripId, trip.id));
       await db.delete(trips).where(eq(trips.id, trip.id));
       await db.delete(users).where(eq(users.id, testUser.id));
@@ -437,13 +466,19 @@ describe("Discover Routes", () => {
         status: "going",
       });
 
-      // Insert cache row with a POI to convert
+      // Seed the shared global cell with a POI to convert (blob is global
+      // and immutable — conversions live in the poi_conversions overlay)
+      const convertCell = roundCoords(48.8566, 2.3522);
+      await db
+        .delete(poiCache)
+        .where(
+          and(eq(poiCache.lat, convertCell.lat), eq(poiCache.lon, convertCell.lon)),
+        );
       await db.insert(poiCache).values({
-        tripId: trip.id,
+        lat: convertCell.lat,
+        lon: convertCell.lon,
         source: "google",
-        searchLat: 48.8566,
-        searchLon: 2.3522,
-        searchLocation: "Paris",
+        location: "Paris",
         cachedAt: new Date(),
         suggestions: [
           {
@@ -461,9 +496,38 @@ describe("Discover Routes", () => {
             tel: null,
             subcategory: null,
             eventId: null,
+            photoName: null,
+            photoAttribution: null,
+            googleMapsUri: null,
+            businessStatus: null,
           },
         ],
       });
+      const blobBefore = JSON.stringify(
+        (
+          await db
+            .select()
+            .from(poiCache)
+            .where(
+              and(
+                eq(poiCache.lat, convertCell.lat),
+                eq(poiCache.lon, convertCell.lon),
+              ),
+            )
+        )[0]!.suggestions,
+      );
+
+      // Overlay rows reference events — create a real event for the FK
+      const [convertEvent] = await db
+        .insert(events)
+        .values({
+          tripId: trip.id,
+          createdBy: testUser.id,
+          name: "Converted POI Event",
+          eventType: "food_and_drink",
+          startTime: new Date(),
+        })
+        .returning();
 
       const token = app.jwt.sign({
         sub: testUser.id,
@@ -474,28 +538,57 @@ describe("Discover Routes", () => {
         method: "PATCH",
         url: `/api/trips/${trip.id}/discover/convert`,
         cookies: { auth_token: token },
-        payload: { sourceId: "ChIJ-convert-me", eventId: "evt-converted-123" },
+        payload: { sourceId: "ChIJ-convert-me", eventId: convertEvent!.id },
       });
 
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
       expect(body.success).toBe(true);
 
-      // Verify the POI now has eventId set
-      const cacheRow = await db
+      // Overlay row recorded for this trip
+      const overlay = await db
+        .select()
+        .from(poiConversions)
+        .where(
+          and(
+            eq(poiConversions.tripId, trip.id),
+            eq(poiConversions.sourceId, "ChIJ-convert-me"),
+          ),
+        );
+      expect(overlay).toHaveLength(1);
+      expect(overlay[0]!.eventId).toBe(convertEvent!.id);
+
+      // Global blob untouched by the conversion
+      const [cacheAfter] = await db
         .select()
         .from(poiCache)
-        .where(eq(poiCache.tripId, trip.id))
-        .limit(1);
-      expect(cacheRow.length).toBe(1);
-      const suggestion = (cacheRow[0]!.suggestions as Array<Record<string, unknown>>).find(
-        (s) => s.sourceId === "ChIJ-convert-me",
-      );
-      expect(suggestion).toBeDefined();
-      expect(suggestion!.eventId).toBe("evt-converted-123");
+        .where(
+          and(
+            eq(poiCache.lat, convertCell.lat),
+            eq(poiCache.lon, convertCell.lon),
+          ),
+        );
+      expect(JSON.stringify(cacheAfter!.suggestions)).toBe(blobBefore);
+
+      // Converted POI filtered from this trip's reads via the overlay
+      const getResponse = await app.inject({
+        method: "GET",
+        url: `/api/trips/${trip.id}/discover`,
+        cookies: { auth_token: token },
+      });
+      expect(getResponse.statusCode).toBe(200);
+      const getBody = JSON.parse(getResponse.body);
+      expect(getBody.success).toBe(true);
+      expect(getBody.data.categories.food_and_drink).toEqual([]);
 
       // Cleanup
-      await db.delete(poiCache).where(eq(poiCache.tripId, trip.id));
+      await db.delete(poiConversions).where(eq(poiConversions.tripId, trip.id));
+      await db.delete(events).where(eq(events.tripId, trip.id));
+      await db
+        .delete(poiCache)
+        .where(
+          and(eq(poiCache.lat, convertCell.lat), eq(poiCache.lon, convertCell.lon)),
+        );
       await db.delete(members).where(eq(members.tripId, trip.id));
       await db.delete(trips).where(eq(trips.id, trip.id));
       await db.delete(users).where(eq(users.id, testUser.id));
