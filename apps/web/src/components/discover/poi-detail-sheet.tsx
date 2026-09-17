@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { VisuallyHidden } from "radix-ui";
 import { MapPin, Navigation, ExternalLink, Phone, XIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import type { POISuggestion, POICategoryKey, TemperatureUnit } from "@journiful/shared/types";
@@ -170,6 +170,15 @@ function POIDetailBody({
     poi.googleMapsUri ??
     `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(poi.address ?? poi.name)}`;
 
+  const [imgError, setImgError] = useState(false);
+
+  // Reset the error fallback when the sheet switches to a different photo.
+  useEffect(() => {
+    setImgError(false);
+  }, [poi.photoName]);
+
+  const showPhoto = poi.photoName !== null && !imgError;
+
   return (
     <div className="flex flex-col h-full">
       <div className="space-y-4 flex-1">
@@ -180,12 +189,25 @@ function POIDetailBody({
               href={mapsHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="relative block w-full aspect-[3/2] bg-cover bg-center"
-              style={{
-                backgroundImage: `url(${API_URL}/locations/photos/${encodeURIComponent(poi.photoName)}?maxWidthPx=600&maxHeightPx=400)`,
-              }}
+              className="relative block w-full aspect-[3/2] bg-muted overflow-hidden"
               aria-label={`Open ${poi.name} in Google Maps`}
             >
+              {showPhoto ? (
+                <img
+                  src={`${API_URL}/locations/photos/${encodeURIComponent(poi.photoName)}?maxWidthPx=600&maxHeightPx=400`}
+                  alt={poi.name}
+                  loading="lazy"
+                  onError={() => setImgError(true)}
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              ) : (
+                <div
+                  data-testid="poi-hero-placeholder"
+                  className="absolute inset-0 bg-muted flex items-center justify-center"
+                >
+                  <MapPin className="w-8 h-8 text-muted-foreground/50" />
+                </div>
+              )}
               {/* Gradient overlay */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
               {/* "Open in Google Maps" overlay */}

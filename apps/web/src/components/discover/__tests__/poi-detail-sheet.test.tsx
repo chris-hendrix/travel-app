@@ -1,7 +1,8 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, within, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { POIDetailSheet } from "../poi-detail-sheet";
+import { API_URL } from "@/lib/api";
 import type { POISuggestion, POICategoryKey, TemperatureUnit } from "@journiful/shared/types";
 
 function makePOI(overrides: Partial<POISuggestion> = {}): POISuggestion {
@@ -278,7 +279,7 @@ describe("POIDetailSheet", () => {
   });
 
   describe("cover photo hero", () => {
-    it("renders cover hero with backgroundImage when photoName is provided", () => {
+    it("renders lazy img with photo-proxy src and POI name alt", () => {
       render(
         <POIDetailSheet
           poi={makePOI({ photoName: "places/x/y" })}
@@ -294,13 +295,36 @@ describe("POIDetailSheet", () => {
           totalPois={1}
         />,
       );
-      const heroLink = screen.getByLabelText(/Open Le Bistro Parisien in Google Maps/i);
-      expect(heroLink).toBeDefined();
-      const style = heroLink.style.backgroundImage;
-      expect(style).toContain("/locations/photos/");
-      expect(style).not.toContain("/api/api");
-      expect(style).toContain("maxWidthPx=600");
-      expect(style).toContain("maxHeightPx=400");
+      const img = screen.getByRole("img", { name: "Le Bistro Parisien" });
+      expect(img.tagName).toBe("IMG");
+      expect(img.getAttribute("loading")).toBe("lazy");
+      expect(img.getAttribute("src")).toBe(
+        `${API_URL}/locations/photos/${encodeURIComponent("places/x/y")}?maxWidthPx=600&maxHeightPx=400`,
+      );
+      expect(img.getAttribute("alt")).toBe("Le Bistro Parisien");
+      expect(img.className).toContain("object-cover");
+    });
+
+    it("falls back to placeholder when hero img errors", () => {
+      render(
+        <POIDetailSheet
+          poi={makePOI({ photoName: "places/x/y" })}
+          open={true}
+          onOpenChange={onOpenChange}
+          onCreateEvent={onCreateEvent}
+          temperatureUnit={celsius}
+          onPrev={onPrev}
+          onNext={onNext}
+          hasPrev={false}
+          hasNext={false}
+          poiIndex={0}
+          totalPois={1}
+        />,
+      );
+      const img = screen.getByRole("img", { name: "Le Bistro Parisien" });
+      fireEvent.error(img);
+      expect(screen.queryByRole("img", { name: "Le Bistro Parisien" })).toBeNull();
+      expect(screen.getByTestId("poi-hero-placeholder")).toBeDefined();
     });
 
     it("renders muted placeholder when photoName is null", () => {
