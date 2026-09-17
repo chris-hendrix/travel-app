@@ -9,7 +9,7 @@ import { PhotoCacheService } from "@/services/photo-cache.service.js";
  */
 export default fp(
   async function photoCacheServicePlugin(fastify: FastifyInstance) {
-    const photoCache = new PhotoCacheService(fastify.storage);
+    const photoCache = new PhotoCacheService(fastify.storage, fastify.log);
     fastify.decorate("photoCache", photoCache);
   },
   {

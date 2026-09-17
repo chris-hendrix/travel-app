@@ -1,8 +1,22 @@
 import { createHash } from "node:crypto";
 import type { IStorageService } from "@/services/storage.service.js";
+import type { Logger } from "@/types/logger.js";
 
 /** Prefix under which cached Place photo blobs are stored. */
 export const PHOTO_CACHE_PREFIX = "places-photos/";
+
+/** Content type marking a negatively-cached (tombstone) photo entry. */
+export const TOMBSTONE_CONTENT_TYPE = "application/x-photo-missing";
+
+/** How long a tombstone suppresses Google retries. Transient Google outages self-heal within the TTL. */
+export const PHOTO_NEGATIVE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+export class PhotoNotCachedError extends Error {
+  constructor(key: string) {
+    super(`Photo not cached (tombstone): ${key}`);
+    this.name = "PhotoNotCachedError";
+  }
+}
 
 export interface PhotoBlob {
   buffer: Buffer;
@@ -41,12 +55,35 @@ export function buildPhotoCacheKey(
 export class PhotoCacheService {
   private readonly inFlight = new Map<string, Promise<PhotoBlob>>();
 
-  constructor(private readonly storage: IStorageService) {}
+  constructor(
+    private readonly storage: IStorageService,
+    private readonly log?: Logger,
+  ) {}
 
   async getOrFetch(key: string, fetcher: PhotoFetcher): Promise<PhotoBlob> {
     const cached = await this.storage.getObjectBuffer(key);
     if (cached) {
-      return cached;
+      if (cached.contentType === TOMBSTONE_CONTENT_TYPE) {
+        const stat = await this.storage.statObject(key);
+        if (
+          stat &&
+          Date.now() - stat.lastModified.getTime() < PHOTO_NEGATIVE_TTL_MS
+        ) {
+          throw new PhotoNotCachedError(key);
+        }
+        try {
+          await this.storage.deleteObject(key);
+        } catch (err) {
+          // S3 deletes can fail transiently — don't let that turn the
+          // recoverable retry path into a hard error.
+          this.log?.warn(
+            { err, key },
+            "Photo tombstone delete failed, retrying fetch anyway",
+          );
+        }
+      } else {
+        return cached;
+      }
     }
 
     const existing = this.inFlight.get(key);
@@ -55,8 +92,32 @@ export class PhotoCacheService {
     }
 
     const pending = (async (): Promise<PhotoBlob> => {
-      const fresh = await fetcher();
-      await this.storage.putObject(key, fresh.buffer, fresh.contentType);
+      let fresh: PhotoBlob;
+      try {
+        fresh = await fetcher();
+      } catch (err) {
+        try {
+          await this.storage.putObject(
+            key,
+            Buffer.alloc(0),
+            TOMBSTONE_CONTENT_TYPE,
+          );
+        } catch (tombstoneErr) {
+          this.log?.warn(
+            { err: tombstoneErr, key },
+            "Photo tombstone persist failed",
+          );
+        }
+        throw err;
+      }
+      try {
+        await this.storage.putObject(key, fresh.buffer, fresh.contentType);
+      } catch (err) {
+        this.log?.warn(
+          { err, key },
+          "Photo cache persist failed, serving unpersisted bytes",
+        );
+      }
       return fresh;
     })();
     // Attach cleanup without creating an unhandled rejection: `finally`

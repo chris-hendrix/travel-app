@@ -97,4 +97,37 @@ describe("GET /api/locations/photos/:photoRef (photo proxy cache)", () => {
 
     expect(response.statusCode).toBe(400);
   });
+
+  it("negatively caches a failed Google fetch", async () => {
+    app = await buildApp();
+    app.config.GOOGLE_MAPS_API_KEY = "test-key";
+
+    const url = `/api/locations/photos/${ENCODED_REF}?maxWidthPx=400&maxHeightPx=280`;
+    const expectedKey = buildPhotoCacheKey(PHOTO_REF, 400, 280);
+
+    // Ensure a clean slate for this key.
+    await app.storage.deleteObject(expectedKey);
+
+    try {
+      // First request — Google returns 404.
+      vi.spyOn(global, "fetch").mockResolvedValueOnce(
+        new Response("not found", { status: 404 }),
+      );
+      const first = await app.inject({ method: "GET", url });
+
+      expect(first.statusCode).toBe(404);
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+
+      // Second request — served from the tombstone, Google must NOT be called.
+      vi.restoreAllMocks();
+      const fetchSpy = vi.spyOn(global, "fetch");
+      const second = await app.inject({ method: "GET", url });
+
+      expect(second.statusCode).toBe(404);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      // Cleanup so other suites are unaffected.
+      await app.storage.deleteObject(expectedKey);
+    }
+  });
 });

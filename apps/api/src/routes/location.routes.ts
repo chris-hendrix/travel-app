@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { authenticate } from "@/middleware/auth.middleware.js";
-import { buildPhotoCacheKey } from "@/services/photo-cache.service.js";
+import { buildPhotoCacheKey, PhotoNotCachedError } from "@/services/photo-cache.service.js";
 import { defaultRateLimitConfig, photoProxyRateLimitConfig } from "@/middleware/rate-limit.middleware.js";
 
 const autocompleteQuerySchema = z.object({
@@ -249,7 +249,6 @@ export async function locationRoutes(fastify: FastifyInstance) {
 
             try {
               const response = await fetch(url, { signal: controller.signal });
-              clearTimeout(timeout);
 
               if (!response.ok) {
                 throw new Error(`Google Places media returned ${response.status}`);
@@ -259,9 +258,8 @@ export async function locationRoutes(fastify: FastifyInstance) {
               const upstreamContentType =
                 response.headers.get("content-type") ?? "image/jpeg";
               return { buffer: bytes, contentType: upstreamContentType };
-            } catch (err: any) {
+            } finally {
               clearTimeout(timeout);
-              throw err;
             }
           });
 
@@ -269,6 +267,9 @@ export async function locationRoutes(fastify: FastifyInstance) {
         reply.header("Cache-Control", "public, max-age=604800, immutable");
         return reply.send(buffer);
       } catch (err) {
+        if (err instanceof PhotoNotCachedError) {
+          return reply.code(404).send();
+        }
         request.log.error(
           { err, photoRef, cacheKey },
           "Place photo proxy failed (storage or upstream Google fetch)",
