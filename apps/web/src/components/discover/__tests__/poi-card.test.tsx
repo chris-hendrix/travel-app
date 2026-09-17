@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { POICard } from "../poi-card";
+import { API_URL } from "@/lib/api";
 import type { POISuggestion, POICategoryKey, TemperatureUnit } from "@journiful/shared/types";
 
 function makePOI(overrides: Partial<POISuggestion> = {}): POISuggestion {
@@ -81,27 +82,37 @@ describe("POICard", () => {
     });
   });
 
-  describe("photo background", () => {
-    it("renders background-image when photoName is present", () => {
+  describe("photo image", () => {
+    it("renders lazy img with photo-proxy src and POI name alt", () => {
+      const poi = makePOI({ photoName: "places/x/photos/y" });
+      render(<POICard poi={poi} onSelect={onSelect} temperatureUnit={celsius} />);
+      const img = screen.getByRole("img", { name: "Le Bistro Parisien" });
+      expect(img.tagName).toBe("IMG");
+      expect(img.getAttribute("loading")).toBe("lazy");
+      expect(img.getAttribute("src")).toBe(
+        `${API_URL}/locations/photos/${encodeURIComponent("places/x/photos/y")}?maxWidthPx=400&maxHeightPx=280`,
+      );
+      expect(img.getAttribute("alt")).toBe("Le Bistro Parisien");
+      expect(img.className).toContain("object-cover");
+    });
+
+    it("does not render img when photoName is null", () => {
+      const poi = makePOI({ photoName: null });
+      render(<POICard poi={poi} onSelect={onSelect} temperatureUnit={celsius} />);
+      expect(screen.queryByRole("img")).toBeNull();
+    });
+
+    it("falls back to placeholder when img errors", () => {
       const poi = makePOI({ photoName: "places/x/photos/y" });
       const { container } = render(
         <POICard poi={poi} onSelect={onSelect} temperatureUnit={celsius} />,
       );
-      const bgDiv = container.querySelector('[style*="background-image"]');
-      expect(bgDiv).toBeTruthy();
-      const style = bgDiv!.getAttribute("style") ?? "";
-      expect(style).toContain("/locations/photos/");
-      expect(style).not.toContain("/api/api");
-      expect(style).toContain("maxWidthPx=400");
-      expect(style).toContain("maxHeightPx=280");
-    });
-
-    it("does not render background-image when photoName is null", () => {
-      const poi = makePOI({ photoName: null });
-      const { container } = render(
-        <POICard poi={poi} onSelect={onSelect} temperatureUnit={celsius} />,
-      );
-      expect(container.querySelector('[style*="background-image"]')).toBeNull();
+      const img = screen.getByRole("img", { name: "Le Bistro Parisien" });
+      fireEvent.error(img);
+      expect(screen.queryByRole("img")).toBeNull();
+      expect(
+        container.querySelector('[data-testid="poi-photo-placeholder"]'),
+      ).toBeTruthy();
     });
 
     it("has postcard frame and bg-card mat as fallback when no photo", () => {
