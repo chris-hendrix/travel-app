@@ -278,6 +278,21 @@ export default fp(
       );
     });
 
+    // Place photos purge (daily at 4am) — cleanup queues have no DLQ
+    // (matching the RATE_LIMIT_CLEANUP pattern: boss.schedule + boss.work
+    // inline; the purge logic lives in the testable PhotoCacheService).
+    await boss.createQueue(QUEUE.PLACE_PHOTOS_PURGE);
+    await boss.schedule(QUEUE.PLACE_PHOTOS_PURGE, "0 4 * * *");
+    await boss.work(QUEUE.PLACE_PHOTOS_PURGE, async () => {
+      const deleted = await fastify.photoCache.purgeOlderThan(
+        30 * 24 * 60 * 60 * 1000,
+      );
+      fastify.log.info(
+        { deleted: deleted.length },
+        "place-photos purge completed",
+      );
+    });
+
     fastify.log.info("queue workers registered");
   },
   {
@@ -291,6 +306,7 @@ export default fp(
       "upload-service",
       "image-processing-service",
       "photo-service",
+      "photo-cache-service",
     ],
   },
 );
