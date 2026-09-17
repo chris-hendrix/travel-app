@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { trips, poiCache, poiConversions, events } from "@/db/schema/index.js";
 import { POI_CATEGORIES, googleTypeLabels } from "@journiful/shared/types";
 import type { POISuggestion, POICategoryKey, POISuggestionsResponse } from "@journiful/shared/types";
@@ -16,6 +16,18 @@ const GOOGLE_PLACES_BASE = "https://places.googleapis.com/v1/places:searchNearby
 const GOOGLE_MAX_RESULTS = 20;
 const GOOGLE_RADIUS = 50000;
 const CACHE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days per Google ToS
+
+/**
+ * Delete poi_cache rows older than 30 days (Google ToS TTL).
+ * Shared by the POI_CACHE_PURGE inline cron and service tests.
+ * @returns number of rows deleted.
+ */
+export async function purgeExpiredPoiCache(database: AppDatabase): Promise<number> {
+  const result = await database.execute(sql`
+    DELETE FROM poi_cache WHERE cached_at < now() - interval '30 days'
+  `);
+  return result.rowCount ?? 0;
+}
 
 /**
  * Round coordinates to 2 decimal places (≈1.1 km cells at the equator).

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/config/database.js";
 import { trips, users, members, events, poiCache, poiConversions } from "@/db/schema/index.js";
-import { DiscoverService, roundCoords } from "@/services/discover.service.js";
+import { DiscoverService, purgeExpiredPoiCache, roundCoords } from "@/services/discover.service.js";
 import { EventService } from "@/services/event.service.js";
 import { PermissionsService } from "@/services/permissions.service.js";
 import { POI_CATEGORIES } from "@journiful/shared/types";
@@ -200,6 +200,51 @@ describe("discover.service coords cache (Task 3.2)", () => {
       expect(s).toHaveProperty("photoName");
       expect(s).toHaveProperty("googleMapsUri");
     }
+  });
+});
+
+describe("discover.service POI cache purge (Task 3.4)", () => {
+  // Far-off cells so rows never collide with other blocks.
+  const stale = { lat: 12.34, lon: 56.78 };
+  const fresh = { lat: 12.35, lon: 56.78 };
+
+  afterEach(async () => {
+    await db.delete(poiCache).where(and(eq(poiCache.lat, stale.lat), eq(poiCache.lon, stale.lon)));
+    await db.delete(poiCache).where(and(eq(poiCache.lat, fresh.lat), eq(poiCache.lon, fresh.lon)));
+  });
+
+  it("deletes rows cached 31 days ago, keeps rows cached 29 days ago", async () => {
+    await db.insert(poiCache).values({
+      lat: stale.lat,
+      lon: stale.lon,
+      source: "google",
+      location: "Stale",
+      cachedAt: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000),
+      suggestions: [],
+    });
+    await db.insert(poiCache).values({
+      lat: fresh.lat,
+      lon: fresh.lon,
+      source: "google",
+      location: "Fresh",
+      cachedAt: new Date(Date.now() - 29 * 24 * 60 * 60 * 1000),
+      suggestions: [],
+    });
+
+    const deleted = await purgeExpiredPoiCache(db);
+    expect(deleted).toBeGreaterThanOrEqual(1);
+
+    const staleRows = await db
+      .select()
+      .from(poiCache)
+      .where(and(eq(poiCache.lat, stale.lat), eq(poiCache.lon, stale.lon)));
+    expect(staleRows).toHaveLength(0);
+
+    const freshRows = await db
+      .select()
+      .from(poiCache)
+      .where(and(eq(poiCache.lat, fresh.lat), eq(poiCache.lon, fresh.lon)));
+    expect(freshRows).toHaveLength(1);
   });
 });
 

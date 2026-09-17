@@ -24,6 +24,7 @@ import {
 } from "./workers/photo-processing.worker.js";
 import { handleDlq } from "./workers/dlq.worker.js";
 import { S3StorageService } from "@/services/storage.service.js";
+import { purgeExpiredPoiCache } from "@/services/discover.service.js";
 
 /**
  * Queue workers plugin
@@ -291,6 +292,16 @@ export default fp(
         { deleted: deleted.length },
         "place-photos purge completed",
       );
+    });
+
+    // POI cache purge (daily at 4:30am) — cleanup queues have no DLQ
+    // (matching the RATE_LIMIT_CLEANUP pattern: boss.schedule + boss.work
+    // inline; the purge logic lives in the testable DiscoverService module).
+    await boss.createQueue(QUEUE.POI_CACHE_PURGE);
+    await boss.schedule(QUEUE.POI_CACHE_PURGE, "30 4 * * *");
+    await boss.work(QUEUE.POI_CACHE_PURGE, async () => {
+      const deleted = await purgeExpiredPoiCache(fastify.db);
+      fastify.log.info({ deleted }, "poi-cache purge completed");
     });
 
     fastify.log.info("queue workers registered");
