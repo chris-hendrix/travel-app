@@ -1,5 +1,5 @@
-import { and, eq } from "drizzle-orm";
-import { trips, poiCache, poiConversions } from "@/db/schema/index.js";
+import { and, eq, isNull } from "drizzle-orm";
+import { trips, poiCache, poiConversions, events } from "@/db/schema/index.js";
 import { POI_CATEGORIES, googleTypeLabels } from "@journiful/shared/types";
 import type { POISuggestion, POICategoryKey, POISuggestionsResponse } from "@journiful/shared/types";
 import { poiSuggestionSchema } from "@journiful/shared/schemas";
@@ -113,10 +113,11 @@ export class DiscoverService implements IDiscoverService {
           );
         }
 
-        // Filter out converted POIs
-        // (Task 3.3 moves this to the poi_conversions overlay read; the blob
-        // filter stays until then.)
-        const unconverted = suggestions.filter((s) => s.eventId == null);
+        // Filter out converted POIs via the per-trip overlay, ignoring
+        // conversions whose event was soft-deleted (deleted_at IS NULL).
+        // The cache blob is global and immutable — never mutated here.
+        const converted = await this.getActiveConvertedSourceIds(tripId);
+        const unconverted = suggestions.filter((s) => !converted.has(s.sourceId));
         return groupByCategory(unconverted, location);
       }
     }
@@ -126,7 +127,7 @@ export class DiscoverService implements IDiscoverService {
   }
 
   private async fetchAndCache(
-    _tripId: string,
+    tripId: string,
     searchLocation: string | null,
     lat: number,
     lon: number,
@@ -138,26 +139,7 @@ export class DiscoverService implements IDiscoverService {
       );
     }
 
-    // Read existing converted POIs from this coords cell (blob-carried until
-    // Task 3.3 moves conversions to the poi_conversions overlay).
     const cell = roundCoords(lat, lon);
-    const cellFilter = and(eq(poiCache.lat, cell.lat), eq(poiCache.lon, cell.lon));
-    const existing = await this.db.select().from(poiCache).where(cellFilter);
-
-    const convertedSourceIds = new Set<string>();
-    const preExistingConverted: POISuggestion[] = [];
-
-    if (existing.length > 0) {
-      const existingSuggestions = existing[0]!.suggestions as POISuggestion[];
-      for (const s of existingSuggestions) {
-        if (s.eventId != null) {
-          convertedSourceIds.add(s.sourceId);
-          preExistingConverted.push(s);
-        }
-      }
-    }
-
-    // 7 parallel Google Places searchNearby POST calls (one per POI_CATEGORIES entry)
     const attributionSet = new Set<string>();
 
     const categoryResults = await Promise.all(
@@ -229,9 +211,10 @@ export class DiscoverService implements IDiscoverService {
       } else {
         allEmpty = false;
       }
-      // Filter out already-converted POIs and cross-category duplicates (first category wins)
+      // Filter out cross-category duplicates (first category wins).
+      // Converted POIs are NOT filtered from the blob here — the blob is
+      // global and immutable; the per-trip overlay is applied at read time.
       const filtered = results.filter((r) => {
-        if (convertedSourceIds.has(r.sourceId)) return false;
         if (seenSourceIds.has(r.sourceId)) return false;
         seenSourceIds.add(r.sourceId);
         return true;
@@ -250,26 +233,11 @@ export class DiscoverService implements IDiscoverService {
       };
     }
 
-    // Build new blob: fresh (filtered) + existing converted
-    let newBlob = [...allFresh, ...preExistingConverted];
+    // Build new blob: fresh results only. Conversions live in the
+    // poi_conversions overlay, so no re-read/rebuild window is needed —
+    // a conversion landing mid-fetch is picked up by the overlay read below.
+    const newBlob = [...allFresh];
     const hasErrors = Object.keys(errors).length > 0;
-
-    // Re-read to catch conversions that happened during Google Places fetches (0.5–5s window)
-    // (Task 3.3 deletes this block along with the advisory lock in convertPOI;
-    // kept here so the file compiles and converted POIs survive refresh.)
-    if (!allEmpty) {
-      const latest = await this.db.select().from(poiCache).where(cellFilter);
-      if (latest.length > 0) {
-        const latestSuggestions = latest[0]!.suggestions as POISuggestion[];
-        const latestConverted = latestSuggestions.filter((s) => s.eventId != null);
-        const latestConvertedIds = new Set(latestConverted.map((s) => s.sourceId));
-        // Rebuild: fresh results (excluding now-converted) + latest conversions
-        newBlob = [
-          ...allFresh.filter((r) => !latestConvertedIds.has(r.sourceId)),
-          ...latestConverted,
-        ];
-      }
-    }
 
     // Upsert global coords cell
     await this.db
@@ -291,20 +259,35 @@ export class DiscoverService implements IDiscoverService {
         },
       });
 
-    // Return unconverted fresh results
+    // Return fresh results minus this trip's active conversions (read after
+    // the upsert so conversions landing mid-fetch are still honored).
+    const converted = await this.getActiveConvertedSourceIds(tripId);
+    const visible = allFresh.filter((r) => !converted.has(r.sourceId));
     return {
       destination: searchLocation,
       source: "google",
-      categories: groupByCategoryOnly(allFresh),
+      categories: groupByCategoryOnly(visible),
       attributions: [...attributionSet],
       ...(hasErrors ? { partial: true, errors } : {}),
     };
   }
 
-  // Minimal adaptation for the re-keyed schema: record the conversion in the
-  // per-trip overlay table. Task 3.3 rewrites the read path to join this
-  // overlay (soft-delete aware); the blob filter in getDiscoverPOIs stays
-  // until then, so the cache blob is intentionally left untouched here.
+  /**
+   * Source IDs converted in this trip whose linked event is NOT soft-deleted.
+   * The LEFT JOIN + `deleted_at IS NULL` filter is the authoritative
+   * mechanism: events soft-delete, so FK cascade never fires in app flows.
+   */
+  private async getActiveConvertedSourceIds(tripId: string): Promise<Set<string>> {
+    const rows = await this.db
+      .select({ sourceId: poiConversions.sourceId })
+      .from(poiConversions)
+      .leftJoin(events, eq(poiConversions.eventId, events.id))
+      .where(and(eq(poiConversions.tripId, tripId), isNull(events.deletedAt)));
+    return new Set(rows.map((r) => r.sourceId));
+  }
+
+  // Overlay upsert: conversions leave the global cache blob untouched.
+  // Per-trip isolation + soft-delete filtering happen at read time.
   async convertPOI(tripId: string, sourceId: string, eventId: string): Promise<void> {
     await this.db
       .insert(poiConversions)

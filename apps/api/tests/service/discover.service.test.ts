@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/config/database.js";
-import { trips, users, poiCache } from "@/db/schema/index.js";
+import { trips, users, members, events, poiCache, poiConversions } from "@/db/schema/index.js";
 import { DiscoverService, roundCoords } from "@/services/discover.service.js";
+import { EventService } from "@/services/event.service.js";
+import { PermissionsService } from "@/services/permissions.service.js";
 import { POI_CATEGORIES } from "@journiful/shared/types";
 import { generateUniquePhone } from "../test-utils.js";
 
@@ -198,5 +200,167 @@ describe("discover.service coords cache (Task 3.2)", () => {
       expect(s).toHaveProperty("photoName");
       expect(s).toHaveProperty("googleMapsUri");
     }
+  });
+});
+
+describe("discover.service conversion overlay (Task 3.3)", () => {
+  const permissionsService = new PermissionsService(db);
+  const eventService = new EventService(db, permissionsService);
+
+  let userId: string;
+  let tripAId: string;
+  let tripBId: string;
+  let fetchSpy: ReturnType<typeof vi.fn>;
+  let service: DiscoverService;
+  // Distinct cell (NYC) so rows never collide with the Task 3.2 block (Seattle).
+  const coords = { lat: 40.7128, lon: -74.006 };
+  const cell = roundCoords(coords.lat, coords.lon);
+  let n = 0;
+
+  const allSourceIds = (result: Awaited<ReturnType<DiscoverService["getDiscoverPOIs"]>>) =>
+    Object.values(result.categories).flat().map((s) => s.sourceId);
+
+  async function createEventFor(tripId: string, creatorId: string) {
+    const [event] = await db
+      .insert(events)
+      .values({
+        tripId,
+        createdBy: creatorId,
+        name: "Converted POI Event",
+        eventType: "food_and_drink",
+        startTime: new Date(),
+      })
+      .returning();
+    return event!;
+  }
+
+  beforeEach(async () => {
+    const [user] = await db
+      .insert(users)
+      .values({
+        phoneNumber: generateUniquePhone(),
+        displayName: "Overlay User",
+        timezone: "UTC",
+      })
+      .returning();
+    userId = user.id;
+    const [tripA] = await db
+      .insert(trips)
+      .values({
+        name: "Overlay Trip A",
+        destination: "New York, USA",
+        preferredTimezone: "America/New_York",
+        createdBy: userId,
+      })
+      .returning();
+    tripAId = tripA.id;
+    const [tripB] = await db
+      .insert(trips)
+      .values({
+        name: "Overlay Trip B",
+        destination: "New York, USA",
+        preferredTimezone: "America/New_York",
+        createdBy: userId,
+      })
+      .returning();
+    tripBId = tripB.id;
+    // Creator membership so the real EventService.deleteEvent path authorizes.
+    await db.insert(members).values({ tripId: tripAId, userId, status: "going" });
+    await db.insert(members).values({ tripId: tripBId, userId, status: "going" });
+
+    n = 0;
+    fetchSpy = vi.fn(async () => ({
+      ok: true,
+      json: async () => makeGooglePayload(`overlay-${n++}`),
+    }));
+    vi.stubGlobal("fetch", fetchSpy);
+    service = new DiscoverService(db, "test-google-key", log);
+  });
+
+  afterEach(async () => {
+    vi.unstubAllGlobals();
+    await db.delete(poiConversions).where(eq(poiConversions.tripId, tripAId));
+    await db.delete(poiConversions).where(eq(poiConversions.tripId, tripBId));
+    await db.delete(events).where(eq(events.tripId, tripAId));
+    await db.delete(events).where(eq(events.tripId, tripBId));
+    await db
+      .delete(poiCache)
+      .where(and(eq(poiCache.lat, cell.lat), eq(poiCache.lon, cell.lon)));
+    await db.delete(members).where(eq(members.tripId, tripAId));
+    await db.delete(members).where(eq(members.tripId, tripBId));
+    await db.delete(trips).where(eq(trips.id, tripAId));
+    await db.delete(trips).where(eq(trips.id, tripBId));
+    await db.delete(users).where(eq(users.id, userId));
+    vi.clearAllMocks();
+  });
+
+  it("(a) convertPOI writes the overlay and leaves the cache blob byte-identical", async () => {
+    const before = await service.getDiscoverPOIs(tripAId, coords.lat, coords.lon, "New York");
+    const target = allSourceIds(before)[0]!;
+    expect(target).toBeDefined();
+
+    const [cachedBefore] = await db
+      .select()
+      .from(poiCache)
+      .where(and(eq(poiCache.lat, cell.lat), eq(poiCache.lon, cell.lon)));
+    const blobBefore = JSON.stringify(cachedBefore!.suggestions);
+
+    const event = await createEventFor(tripAId, userId);
+    await service.convertPOI(tripAId, target, event.id);
+
+    // Overlay row recorded.
+    const overlay = await db
+      .select()
+      .from(poiConversions)
+      .where(and(eq(poiConversions.tripId, tripAId), eq(poiConversions.sourceId, target)));
+    expect(overlay).toHaveLength(1);
+    expect(overlay[0]!.eventId).toBe(event.id);
+
+    // Blob untouched by the conversion.
+    const [cachedAfter] = await db
+      .select()
+      .from(poiCache)
+      .where(and(eq(poiCache.lat, cell.lat), eq(poiCache.lon, cell.lon)));
+    expect(JSON.stringify(cachedAfter!.suggestions)).toBe(blobBefore);
+
+    // Converted POI hidden from trip A's reads (served from cache, 0 Google calls).
+    fetchSpy.mockClear();
+    const after = await service.getDiscoverPOIs(tripAId, coords.lat, coords.lon, "New York");
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(allSourceIds(after)).not.toContain(target);
+  });
+
+  it("(b) trip B sharing the cache row is unaffected by trip A's conversion", async () => {
+    const first = await service.getDiscoverPOIs(tripAId, coords.lat, coords.lon, "New York");
+    const target = allSourceIds(first)[0]!;
+    const event = await createEventFor(tripAId, userId);
+    await service.convertPOI(tripAId, target, event.id);
+
+    fetchSpy.mockClear();
+    const tripBResult = await service.getDiscoverPOIs(tripBId, coords.lat, coords.lon, "New York");
+    // Same shared row, zero refetch...
+    expect(fetchSpy).not.toHaveBeenCalled();
+    // ...and trip B still sees the POI trip A converted.
+    expect(allSourceIds(tripBResult)).toContain(target);
+  });
+
+  it("(c) soft-deleting the event via EventService returns the POI to trip A's results", async () => {
+    const first = await service.getDiscoverPOIs(tripAId, coords.lat, coords.lon, "New York");
+    const target = allSourceIds(first)[0]!;
+    const event = await createEventFor(tripAId, userId);
+    await service.convertPOI(tripAId, target, event.id);
+
+    const hidden = await service.getDiscoverPOIs(tripAId, coords.lat, coords.lon, "New York");
+    expect(allSourceIds(hidden)).not.toContain(target);
+
+    // Real service path — sets deletedAt, keeps the overlay row.
+    await eventService.deleteEvent(userId, event.id);
+    const [deleted] = await db.select().from(events).where(eq(events.id, event.id));
+    expect(deleted!.deletedAt).not.toBeNull();
+
+    fetchSpy.mockClear();
+    const restored = await service.getDiscoverPOIs(tripAId, coords.lat, coords.lon, "New York");
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(allSourceIds(restored)).toContain(target);
   });
 });
