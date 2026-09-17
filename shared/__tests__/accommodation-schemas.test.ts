@@ -4,6 +4,8 @@ import { describe, it, expect } from "vitest";
 import {
   createAccommodationSchema,
   updateAccommodationSchema,
+  accommodationListResponseSchema,
+  accommodationResponseSchema,
 } from "../schemas/index.js";
 
 describe("createAccommodationSchema", () => {
@@ -558,5 +560,59 @@ describe("updateAccommodationSchema", () => {
     };
 
     expect(() => updateAccommodationSchema.parse(update)).not.toThrow();
+  });
+});
+
+describe("accommodation response schemas (nullable dates)", () => {
+  const baseEntity = {
+    id: "5a5277ae-0e78-4d94-b90f-42f9098d9ad1",
+    tripId: "7ad93889-f2b1-4025-803b-7ef58110aaf9",
+    createdBy: "user-1",
+    name: "Jordans",
+    address: null,
+    addressLat: null,
+    addressLon: null,
+    description: null,
+    links: null,
+    deletedAt: null,
+    deletedBy: null,
+    createdAt: new Date("2026-07-01T12:00:00.000Z"),
+    updatedAt: new Date("2026-07-01T12:00:00.000Z"),
+  };
+
+  it("accommodationListResponseSchema accepts checkIn: null, checkOut: null", () => {
+    const result = accommodationListResponseSchema.safeParse({
+      success: true,
+      accommodations: [{ ...baseEntity, checkIn: null, checkOut: null }],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accommodationResponseSchema accepts checkIn: null, checkOut: null", () => {
+    const result = accommodationResponseSchema.safeParse({
+      success: true,
+      accommodation: { ...baseEntity, checkIn: null, checkOut: null },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("response schemas still parse entities with real Date checkIn/checkOut", () => {
+    const dated = {
+      ...baseEntity,
+      checkIn: new Date("2026-07-15T14:00:00.000Z"),
+      checkOut: new Date("2026-07-20T11:00:00.000Z"),
+    };
+    expect(
+      accommodationListResponseSchema.safeParse({
+        success: true,
+        accommodations: [dated],
+      }).success,
+    ).toBe(true);
+    expect(
+      accommodationResponseSchema.safeParse({
+        success: true,
+        accommodation: dated,
+      }).success,
+    ).toBe(true);
   });
 });
