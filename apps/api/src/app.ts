@@ -46,6 +46,7 @@ import paymentServicePlugin from "./plugins/payment-service.js";
 import balanceServicePlugin from "./plugins/balance-service.js";
 import adminServicePlugin from "./plugins/admin-service.js";
 import discoverServicePlugin from "./plugins/discover-service.js";
+import photoCacheServicePlugin from "./plugins/photo-cache-service.js";
 import queueWorkersPlugin from "./queues/index.js";
 
 // Middleware
@@ -255,6 +256,7 @@ export async function buildApp(
   await app.register(balanceServicePlugin);
   await app.register(adminServicePlugin);
   await app.register(discoverServicePlugin);
+  await app.register(photoCacheServicePlugin);
   await app.register(queueWorkersPlugin);
 
   // Register Swagger/OpenAPI documentation (non-production only)
