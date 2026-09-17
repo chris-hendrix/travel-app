@@ -59,9 +59,11 @@ function isNearbyCoords(
 interface DiscoverViewProps {
   tripId: string;
   temperatureUnit: TemperatureUnit;
+  /** Gate the /discover fetch (mobile: active/adjacent slide). Defaults to true. */
+  enabled?: boolean;
 }
 
-export function DiscoverView({ tripId, temperatureUnit }: DiscoverViewProps) {
+export function DiscoverView({ tripId, temperatureUnit, enabled = true }: DiscoverViewProps) {
   // ── Data ──────────────────────────────────────────────────────────────────
 
   const { data: trip } = useTripDetail(tripId);
@@ -134,6 +136,7 @@ export function DiscoverView({ tripId, temperatureUnit }: DiscoverViewProps) {
     location?.lat ?? null,
     location?.lon ?? null,
     location?.name,
+    enabled,
   );
 
   const convertPOI = useConvertPOI(tripId);

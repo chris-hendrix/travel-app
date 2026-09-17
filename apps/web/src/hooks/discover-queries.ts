@@ -22,11 +22,12 @@ export function discoverQueryOptions(
   lon: number | null,
   location?: string,
   refresh = false,
+  enabled = true,
 ) {
   return queryOptions({
     queryKey: [...discoverKeys.trip(tripId), { lat, lon, refresh }],
     staleTime: 5 * 60 * 1000, // 5 min (server caches for 7 days)
-    enabled: !!tripId && lat != null && lon != null,
+    enabled: enabled !== false && !!tripId && lat != null && lon != null,
     queryFn: async ({ signal }) => {
       const params = new URLSearchParams();
       if (lat != null) params.set("lat", lat.toString());

@@ -23,6 +23,8 @@ export { discoverKeys };
  * @param lat - Latitude for the search center
  * @param lon - Longitude for the search center
  * @param location - Optional location name
+ * @param enabled - Gate the query (mobile: only when the Discover slide or an
+ * adjacent slide is active). Defaults to true.
  * @returns Query object with data, loading, and error state
  */
 export function useDiscover(
@@ -30,11 +32,9 @@ export function useDiscover(
   lat: number | null,
   lon: number | null,
   location?: string,
+  enabled = true,
 ) {
-  return useQuery({
-    ...discoverQueryOptions(tripId, lat, lon, location),
-    enabled: !!tripId && lat != null && lon != null,
-  });
+  return useQuery(discoverQueryOptions(tripId, lat, lon, location, false, enabled));
 }
 
 /**
