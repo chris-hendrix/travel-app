@@ -13,6 +13,7 @@ import {
   PutObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   ListObjectsV2Command,
   type GetObjectCommandOutput,
 } from "@aws-sdk/client-s3";
@@ -64,6 +65,12 @@ export interface IStorageService {
    * Lists storage keys under a prefix (used by purge jobs).
    */
   listKeys(prefix: string): Promise<string[]>;
+
+  /**
+   * Returns last-modified metadata for a key, or `null` if missing.
+   * Local backend: file mtime. S3 backend: HeadObject LastModified.
+   */
+  statObject(key: string): Promise<{ lastModified: Date } | null>;
 
   /**
    * Deletes a blob by key (idempotent).
@@ -222,6 +229,22 @@ export class LocalStorageService implements IStorageService {
       } catch {
         // Idempotent deletion: ignore errors.
       }
+    }
+  }
+
+  async statObject(key: string): Promise<{ lastModified: Date } | null> {
+    const filePath = this.resolveKeyPath(key);
+    if (!filePath) {
+      return null;
+    }
+    try {
+      const stat = statSync(filePath);
+      return { lastModified: stat.mtime };
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException)?.code === "ENOENT") {
+        return null;
+      }
+      throw err;
     }
   }
 }
@@ -386,5 +409,26 @@ export class S3StorageService implements IStorageService {
         Key: key,
       }),
     );
+  }
+
+  async statObject(key: string): Promise<{ lastModified: Date } | null> {
+    let response;
+    try {
+      response = await this.client.send(
+        new HeadObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+        }),
+      );
+    } catch (err) {
+      if (isNotFoundError(err)) {
+        return null;
+      }
+      throw err;
+    }
+    if (!response.LastModified) {
+      return null;
+    }
+    return { lastModified: response.LastModified };
   }
 }
