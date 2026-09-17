@@ -175,7 +175,7 @@ export class LocalStorageService implements IStorageService {
       }
       return { buffer, contentType };
     } catch (err) {
-      if ((err as NodeJS.ErrnoException)?.code === "ENOENT") {
+      if ((err as { code?: unknown })?.code === "ENOENT") {
         return null;
       }
       throw err;
@@ -241,7 +241,7 @@ export class LocalStorageService implements IStorageService {
       const stat = statSync(filePath);
       return { lastModified: stat.mtime };
     } catch (err) {
-      if ((err as NodeJS.ErrnoException)?.code === "ENOENT") {
+      if ((err as { code?: unknown })?.code === "ENOENT") {
         return null;
       }
       throw err;
