@@ -1,10 +1,19 @@
-import { writeFileSync, unlinkSync, mkdirSync, existsSync } from "node:fs";
+import {
+  writeFileSync,
+  readFileSync,
+  unlinkSync,
+  mkdirSync,
+  existsSync,
+  readdirSync,
+  statSync,
+} from "node:fs";
 import { dirname, resolve } from "node:path";
 import {
   S3Client,
   PutObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  ListObjectsV2Command,
   type GetObjectCommandOutput,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl as awsGetSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -37,6 +46,29 @@ export interface IStorageService {
    * @returns A signed URL with temporary access
    */
   getSignedUrl?(key: string, expiresIn: number): Promise<string>;
+
+  /**
+   * Stores a raw blob under a storage key (photo-cache contract).
+   * Unlike `upload` (which returns a public URL), the key is used verbatim.
+   */
+  putObject(key: string, buffer: Buffer, contentType: string): Promise<void>;
+
+  /**
+   * Reads a raw blob. Returns `null` on NotFound/ENOENT instead of throwing.
+   */
+  getObjectBuffer(
+    key: string,
+  ): Promise<{ buffer: Buffer; contentType: string } | null>;
+
+  /**
+   * Lists storage keys under a prefix (used by purge jobs).
+   */
+  listKeys(prefix: string): Promise<string[]>;
+
+  /**
+   * Deletes a blob by key (idempotent).
+   */
+  deleteObject(key: string): Promise<void>;
 }
 
 /**
@@ -92,12 +124,117 @@ export class LocalStorageService implements IStorageService {
       // Silently handle errors (idempotent deletion)
     }
   }
+
+  private resolveKeyPath(key: string): string | null {
+    if (!key) {
+      return null;
+    }
+    const filePath = resolve(this.uploadsDir, key);
+    // Security check: prevent path traversal attacks
+    if (filePath !== this.uploadsDir && !filePath.startsWith(`${this.uploadsDir}/`)) {
+      return null;
+    }
+    return filePath;
+  }
+
+  async putObject(key: string, buffer: Buffer, contentType: string): Promise<void> {
+    const filePath = this.resolveKeyPath(key);
+    if (!filePath) {
+      throw new Error("Invalid storage key");
+    }
+    mkdirSync(dirname(filePath), { recursive: true });
+    writeFileSync(filePath, buffer);
+    writeFileSync(`${filePath}.meta`, JSON.stringify({ contentType }));
+  }
+
+  async getObjectBuffer(
+    key: string,
+  ): Promise<{ buffer: Buffer; contentType: string } | null> {
+    const filePath = this.resolveKeyPath(key);
+    if (!filePath) {
+      return null;
+    }
+    try {
+      const buffer = readFileSync(filePath);
+      let contentType = "application/octet-stream";
+      try {
+        const raw = readFileSync(`${filePath}.meta`, "utf-8");
+        const parsed = JSON.parse(raw) as { contentType?: unknown };
+        if (typeof parsed.contentType === "string" && parsed.contentType) {
+          contentType = parsed.contentType;
+        }
+      } catch {
+        // Missing/corrupt sidecar: fall back to default content type.
+      }
+      return { buffer, contentType };
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException)?.code === "ENOENT") {
+        return null;
+      }
+      throw err;
+    }
+  }
+
+  async listKeys(prefix: string): Promise<string[]> {
+    const keys: string[] = [];
+    const walk = (dir: string): void => {
+      let entries: string[];
+      try {
+        entries = readdirSync(dir);
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        const full = resolve(dir, entry);
+        let stat: ReturnType<typeof statSync>;
+        try {
+          stat = statSync(full);
+        } catch {
+          continue;
+        }
+        if (stat.isDirectory()) {
+          walk(full);
+        } else if (stat.isFile()) {
+          if (full.endsWith(".meta")) {
+            continue;
+          }
+          const rel = full.slice(this.uploadsDir.length + 1).replace(/\\/g, "/");
+          if (rel.startsWith(prefix)) {
+            keys.push(rel);
+          }
+        }
+      }
+    };
+    walk(this.uploadsDir);
+    return keys;
+  }
+
+  async deleteObject(key: string): Promise<void> {
+    const filePath = this.resolveKeyPath(key);
+    if (!filePath) {
+      return;
+    }
+    for (const target of [filePath, `${filePath}.meta`]) {
+      try {
+        if (existsSync(target)) {
+          unlinkSync(target);
+        }
+      } catch {
+        // Idempotent deletion: ignore errors.
+      }
+    }
+  }
 }
 
 /**
  * S3-compatible storage implementation
  * Works with AWS S3, Railway Storage Buckets, Cloudflare R2, etc.
  */
+function isNotFoundError(err: unknown): boolean {
+  const code = (err as { Code?: unknown; name?: unknown })?.Code
+    ?? (err as { name?: unknown })?.name;
+  return code === "NoSuchKey" || code === "NotFound" || code === "NoSuchBucket";
+}
 export interface S3StorageConfig {
   endpoint: string;
   bucket: string;
@@ -178,5 +315,76 @@ export class S3StorageService implements IStorageService {
       body: response.Body,
       contentType: response.ContentType,
     };
+  }
+
+  async putObject(key: string, buffer: Buffer, contentType: string): Promise<void> {
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: buffer,
+        ContentType: contentType,
+      }),
+    );
+  }
+
+  async getObjectBuffer(
+    key: string,
+  ): Promise<{ buffer: Buffer; contentType: string } | null> {
+    let response;
+    try {
+      response = await this.client.send(
+        new GetObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+        }),
+      );
+    } catch (err) {
+      if (isNotFoundError(err)) {
+        return null;
+      }
+      throw err;
+    }
+    if (!response.Body) {
+      return null;
+    }
+    const chunks: Buffer[] = [];
+    for await (const chunk of response.Body as AsyncIterable<Uint8Array>) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    return {
+      buffer: Buffer.concat(chunks),
+      contentType: response.ContentType ?? "application/octet-stream",
+    };
+  }
+
+  async listKeys(prefix: string): Promise<string[]> {
+    const keys: string[] = [];
+    let continuationToken: string | undefined;
+    do {
+      const response = await this.client.send(
+        new ListObjectsV2Command({
+          Bucket: this.bucket,
+          Prefix: prefix,
+          ContinuationToken: continuationToken,
+        }),
+      );
+      for (const obj of response.Contents ?? []) {
+        if (obj.Key !== undefined) {
+          keys.push(obj.Key);
+        }
+      }
+      continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
+    } while (continuationToken);
+    return keys;
+  }
+
+  async deleteObject(key: string): Promise<void> {
+    await this.client.send(
+      new DeleteObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+      }),
+    );
   }
 }
