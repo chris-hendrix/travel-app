@@ -133,9 +133,9 @@ test.describe("Invitation Journey", () => {
         // Skip past the phone sharing step
         await wizardDialog.getByRole("button", { name: "Skip" }).click();
 
-        // Step 1: arrival step
+        // Step 1: combined travel step
         await expect(
-          wizardDialog.getByText("When are you arriving?"),
+          wizardDialog.getByText("When are you traveling?"),
         ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
 
         // Dismiss the wizard by clicking the Sheet close button
@@ -541,8 +541,8 @@ test.describe("Guest Claim via Signup", () => {
           {
             data: {
               travelType: "arrival",
-              time: "2026-10-01T15:00:00.000Z",
-              location: "LIS",
+              arrivalTime: "2026-10-01T15:00:00.000Z",
+              arrivalLocation: "LIS",
               memberId: guestMemberId,
             },
             headers: apiHeaders,
