@@ -7,25 +7,25 @@ import {
 } from "../schemas/index.js";
 
 describe("createMemberTravelSchema", () => {
-  it("should accept valid member travel data with all required fields", () => {
+  it("should accept valid member travel data with pertinent time", () => {
     const validMemberTravels = [
       {
         travelType: "arrival" as const,
-        time: "2026-07-15T10:30:00Z",
+        arrivalTime: "2026-07-15T10:30:00Z",
       },
       {
         travelType: "departure" as const,
-        time: "2026-07-20T15:45:00Z",
+        departureTime: "2026-07-20T15:45:00Z",
       },
       {
         travelType: "arrival" as const,
-        time: "2026-07-15T10:30:00Z",
-        location: "Miami International Airport",
+        arrivalTime: "2026-07-15T10:30:00Z",
+        arrivalLocation: "Miami International Airport",
       },
       {
         travelType: "departure" as const,
-        time: "2026-07-20T15:45:00Z",
-        location: "MIA Terminal 3",
+        departureTime: "2026-07-20T15:45:00Z",
+        departureLocation: "MIA Terminal 3",
         details: "Flight AA123 to New York",
       },
     ];
@@ -35,11 +35,14 @@ describe("createMemberTravelSchema", () => {
     });
   });
 
-  it("should accept member travel with all optional fields", () => {
+  it("should accept full flight data (both sides + flight number)", () => {
     const memberTravel = {
       travelType: "arrival" as const,
-      time: "2026-07-15T10:30:00Z",
-      location: "San Francisco International Airport (SFO)",
+      arrivalTime: "2026-07-15T10:30:00Z",
+      arrivalLocation: "San Francisco International Airport (SFO)",
+      departureTime: "2026-07-15T07:00:00Z",
+      departureLocation: "JFK Airport",
+      flightNumber: "UA123",
       details:
         "United Airlines Flight 789, arrives at Terminal 3. Need pickup at baggage claim area.",
     };
@@ -47,10 +50,13 @@ describe("createMemberTravelSchema", () => {
     expect(() => createMemberTravelSchema.parse(memberTravel)).not.toThrow();
   });
 
-  it("should reject missing required fields", () => {
+  it("should reject missing pertinent time", () => {
     const invalidMemberTravels = [
-      { time: "2026-07-15T10:30:00Z" }, // Missing travelType
-      { travelType: "arrival" }, // Missing time
+      { arrivalTime: "2026-07-15T10:30:00Z" }, // Missing travelType
+      { travelType: "arrival" }, // Missing arrivalTime
+      { travelType: "departure" }, // Missing departureTime
+      { travelType: "arrival", departureTime: "2026-07-20T15:45:00Z" }, // Wrong side only
+      { travelType: "departure", arrivalTime: "2026-07-15T10:30:00Z" }, // Wrong side only
       {}, // Missing all required fields
     ];
 
@@ -58,6 +64,19 @@ describe("createMemberTravelSchema", () => {
       const result = createMemberTravelSchema.safeParse(memberTravel);
       expect(result.success).toBe(false);
     });
+  });
+
+  it("should reject legacy time/location fields", () => {
+    const memberTravel = {
+      // oxlint-disable-next-line no-explicit-any
+      travelType: "arrival" as const,
+      time: "2026-07-15T10:30:00Z",
+      location: "Miami International Airport",
+    };
+
+    const parsed = createMemberTravelSchema.safeParse(memberTravel);
+    // Legacy fields are stripped and pertinent time is missing → invalid
+    expect(parsed.success).toBe(false);
   });
 
   it("should reject invalid travel types", () => {
@@ -73,7 +92,7 @@ describe("createMemberTravelSchema", () => {
     invalidTravelTypes.forEach((travelType) => {
       const memberTravel = {
         travelType,
-        time: "2026-07-15T10:30:00Z",
+        arrivalTime: "2026-07-15T10:30:00Z",
       };
 
       const result = createMemberTravelSchema.safeParse(memberTravel);
@@ -87,22 +106,21 @@ describe("createMemberTravelSchema", () => {
   });
 
   it("should accept valid travel types", () => {
-    const validTravelTypes: Array<"arrival" | "departure"> = [
-      "arrival",
-      "departure",
-    ];
-
-    validTravelTypes.forEach((travelType) => {
-      const memberTravel = {
-        travelType,
-        time: "2026-07-15T10:30:00Z",
-      };
-
-      expect(() => createMemberTravelSchema.parse(memberTravel)).not.toThrow();
-    });
+    expect(() =>
+      createMemberTravelSchema.parse({
+        travelType: "arrival" as const,
+        arrivalTime: "2026-07-15T10:30:00Z",
+      }),
+    ).not.toThrow();
+    expect(() =>
+      createMemberTravelSchema.parse({
+        travelType: "departure" as const,
+        departureTime: "2026-07-20T15:45:00Z",
+      }),
+    ).not.toThrow();
   });
 
-  it("should reject invalid datetime formats for time", () => {
+  it("should reject invalid datetime formats", () => {
     const invalidDatetimes = [
       "2026-07-15", // Date only
       "2026-07-15T10:30:00", // Missing timezone
@@ -111,10 +129,10 @@ describe("createMemberTravelSchema", () => {
       "not-a-datetime", // Invalid format
     ];
 
-    invalidDatetimes.forEach((time) => {
+    invalidDatetimes.forEach((arrivalTime) => {
       const memberTravel = {
         travelType: "arrival" as const,
-        time,
+        arrivalTime,
       };
 
       const result = createMemberTravelSchema.safeParse(memberTravel);
@@ -122,17 +140,17 @@ describe("createMemberTravelSchema", () => {
     });
   });
 
-  it("should accept valid ISO 8601 datetime strings for time", () => {
+  it("should accept valid ISO 8601 datetime strings", () => {
     const validDatetimes = [
       "2026-07-15T10:30:00Z",
       "2026-07-15T10:30:00.123Z",
       "2026-12-31T23:59:59Z",
     ];
 
-    validDatetimes.forEach((time) => {
+    validDatetimes.forEach((arrivalTime) => {
       const memberTravel = {
         travelType: "arrival" as const,
-        time,
+        arrivalTime,
       };
 
       expect(() => createMemberTravelSchema.parse(memberTravel)).not.toThrow();
@@ -143,7 +161,7 @@ describe("createMemberTravelSchema", () => {
     const longDetails = "a".repeat(501);
     const memberTravel = {
       travelType: "arrival" as const,
-      time: "2026-07-15T10:30:00Z",
+      arrivalTime: "2026-07-15T10:30:00Z",
       details: longDetails,
     };
 
@@ -160,7 +178,7 @@ describe("createMemberTravelSchema", () => {
     const maxDetails = "a".repeat(500);
     const memberTravel = {
       travelType: "arrival" as const,
-      time: "2026-07-15T10:30:00Z",
+      arrivalTime: "2026-07-15T10:30:00Z",
       details: maxDetails,
     };
 
@@ -170,17 +188,8 @@ describe("createMemberTravelSchema", () => {
   it("should accept empty details", () => {
     const memberTravel = {
       travelType: "arrival" as const,
-      time: "2026-07-15T10:30:00Z",
+      arrivalTime: "2026-07-15T10:30:00Z",
       details: "",
-    };
-
-    expect(() => createMemberTravelSchema.parse(memberTravel)).not.toThrow();
-  });
-
-  it("should accept member travel without optional fields", () => {
-    const memberTravel = {
-      travelType: "departure" as const,
-      time: "2026-07-20T15:45:00Z",
     };
 
     expect(() => createMemberTravelSchema.parse(memberTravel)).not.toThrow();
@@ -189,7 +198,7 @@ describe("createMemberTravelSchema", () => {
   it("should accept valid create data with memberId (UUID)", () => {
     const memberTravel = {
       travelType: "arrival" as const,
-      time: "2026-07-15T10:30:00Z",
+      arrivalTime: "2026-07-15T10:30:00Z",
       memberId: "550e8400-e29b-41d4-a716-446655440000",
     };
 
@@ -201,8 +210,8 @@ describe("createMemberTravelSchema", () => {
   it("should accept valid create data without memberId (backward compatibility)", () => {
     const memberTravel = {
       travelType: "departure" as const,
-      time: "2026-07-20T15:45:00Z",
-      location: "Airport",
+      departureTime: "2026-07-20T15:45:00Z",
+      departureLocation: "Airport",
     };
 
     const parsed = createMemberTravelSchema.parse(memberTravel);
@@ -220,7 +229,7 @@ describe("createMemberTravelSchema", () => {
     invalidMemberIds.forEach((memberId) => {
       const memberTravel = {
         travelType: "arrival" as const,
-        time: "2026-07-15T10:30:00Z",
+        arrivalTime: "2026-07-15T10:30:00Z",
         memberId,
       };
 
@@ -239,8 +248,10 @@ describe("updateMemberTravelSchema", () => {
   it("should accept partial updates with any single field", () => {
     const partialUpdates = [
       { travelType: "departure" as const },
-      { time: "2026-08-01T12:00:00Z" },
-      { location: "New Airport" },
+      { arrivalTime: "2026-08-01T12:00:00Z" },
+      { departureTime: "2026-08-01T12:00:00Z" },
+      { arrivalLocation: "New Airport" },
+      { departureLocation: "New Airport" },
       { details: "Updated flight information" },
     ];
 
@@ -252,8 +263,8 @@ describe("updateMemberTravelSchema", () => {
   it("should accept partial updates with multiple fields", () => {
     const update = {
       travelType: "arrival" as const,
-      time: "2026-08-15T09:00:00Z",
-      location: "Updated Airport",
+      arrivalTime: "2026-08-15T09:00:00Z",
+      arrivalLocation: "Updated Airport",
       details: "New flight details",
     };
 
@@ -267,8 +278,8 @@ describe("updateMemberTravelSchema", () => {
   it("should still validate field constraints when provided", () => {
     const invalidUpdates = [
       { travelType: "invalid" }, // Invalid enum
-      { time: "not-a-datetime" }, // Invalid datetime format
-      { time: "2026-07-15" }, // Date only, missing time
+      { arrivalTime: "not-a-datetime" }, // Invalid datetime format
+      { departureTime: "2026-07-15" }, // Date only, missing time
       { details: "a".repeat(501) }, // Too long
     ];
 
@@ -276,38 +287,6 @@ describe("updateMemberTravelSchema", () => {
       const result = updateMemberTravelSchema.safeParse(update);
       expect(result.success).toBe(false);
     });
-  });
-
-  it("should accept valid partial update with travelType only", () => {
-    const update = {
-      travelType: "departure" as const,
-    };
-
-    expect(() => updateMemberTravelSchema.parse(update)).not.toThrow();
-  });
-
-  it("should accept valid partial update with time only", () => {
-    const update = {
-      time: "2026-08-01T14:30:00Z",
-    };
-
-    expect(() => updateMemberTravelSchema.parse(update)).not.toThrow();
-  });
-
-  it("should accept valid partial update with location only", () => {
-    const update = {
-      location: "JFK International Airport",
-    };
-
-    expect(() => updateMemberTravelSchema.parse(update)).not.toThrow();
-  });
-
-  it("should accept valid partial update with details only", () => {
-    const update = {
-      details: "Changed to earlier flight",
-    };
-
-    expect(() => updateMemberTravelSchema.parse(update)).not.toThrow();
   });
 
   it("should validate details length when provided", () => {
@@ -342,13 +321,13 @@ describe("updateMemberTravelSchema", () => {
 
   it("should validate time format when provided", () => {
     const validUpdate = {
-      time: "2026-07-15T10:30:00Z",
+      arrivalTime: "2026-07-15T10:30:00Z",
     };
 
     expect(() => updateMemberTravelSchema.parse(validUpdate)).not.toThrow();
 
     const invalidUpdate = {
-      time: "2026-07-15",
+      arrivalTime: "2026-07-15",
     };
 
     const result = updateMemberTravelSchema.safeParse(invalidUpdate);

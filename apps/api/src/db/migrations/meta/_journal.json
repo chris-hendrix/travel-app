@@ -330,6 +330,13 @@
       "when": 1789618384014,
       "tag": "0046_amazing_infant_terrible",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1789694589099,
+      "tag": "0047_flight_info_onboarding",
+      "breakpoints": true
     }
   ]
 }

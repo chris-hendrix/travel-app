@@ -56,7 +56,7 @@ describe("createTripSchema", () => {
     };
 
     const parsed = createTripSchema.parse(trip);
-    expect(parsed.allowMembersToAddEvents).toBe(true);
+    expect(parsed.allowMembersToAddEvents).toBe(false);
   });
 
   it("should apply default value for showAllMembers", () => {

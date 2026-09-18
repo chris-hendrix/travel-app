@@ -469,6 +469,49 @@ describe("useCreateTrip", () => {
       });
     });
 
+    it("defaults allowMembersToAddEvents to false in optimistic update", async () => {
+      const { apiRequest } = await import("@/lib/api");
+      vi.mocked(apiRequest).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            setTimeout(
+              () =>
+                resolve({
+                  success: true,
+                  trip: mockTripResponse,
+                }),
+              100,
+            );
+          }),
+      );
+
+      queryClient.setQueryData(["trips"], {
+        pages: [
+          {
+            success: true,
+            data: [],
+            meta: { total: 0, limit: 20, hasMore: false, nextCursor: null },
+          },
+        ],
+        pageParams: [undefined],
+      });
+
+      const { result } = renderHook(() => useCreateTrip(), { wrapper });
+
+      const { allowMembersToAddEvents: _omitted, ...inputWithoutDefault } =
+        mockTripInput;
+      result.current.mutate(inputWithoutDefault);
+
+      await waitFor(() => {
+        const cachedData = queryClient.getQueryData<
+          InfiniteData<GetTripsResponse>
+        >(["trips"]);
+        const cachedTrips = cachedData?.pages.flatMap((p) => p.data) ?? [];
+        expect(cachedTrips).toHaveLength(1);
+        expect(cachedTrips[0].allowMembersToAddEvents).toBe(false);
+      });
+    });
+
     it("cancels outgoing queries during optimistic update", async () => {
       const { apiRequest } = await import("@/lib/api");
       vi.mocked(apiRequest).mockResolvedValueOnce({

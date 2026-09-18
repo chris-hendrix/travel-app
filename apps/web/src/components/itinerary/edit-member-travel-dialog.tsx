@@ -60,6 +60,14 @@ import {
 import { TIMEZONES, getTimezoneAbbr } from "@/lib/constants";
 import { FlightLookupInput } from "@/components/itinerary/flight-lookup-input";
 import type { FlightLookupResult } from "@journiful/shared/types";
+import {
+  applyFlightLookup,
+  getPertinentTime,
+  getCounterpartTime,
+  getCounterpartLocation,
+  type FlightAutofillFields,
+} from "@journiful/shared/utils";
+import { formatInTimezone } from "@/lib/utils/timezone";
 
 const TRAVEL_TYPES = [
   { value: "arrival", label: "Arrival", icon: PlaneLanding },
@@ -94,8 +102,10 @@ export function EditMemberTravelDialog({
     resolver: zodResolver(updateMemberTravelSchema),
     defaultValues: {
       travelType: "arrival",
-      time: "",
-      location: "",
+      arrivalTime: "",
+      arrivalLocation: "",
+      departureTime: "",
+      departureLocation: "",
       details: "",
       flightNumber: "",
     },
@@ -103,24 +113,43 @@ export function EditMemberTravelDialog({
 
   const travelType = form.watch("travelType");
   const travelTypeLabel = travelType === "departure" ? "Departure" : "Arrival";
+  const timeFieldName =
+    travelType === "arrival" ? "arrivalTime" : "departureTime";
+  const locationFieldName =
+    travelType === "arrival" ? "arrivalLocation" : "departureLocation";
 
-  // Default date for flight lookup: from existing travel record
-  const flightLookupDefaultDate = memberTravel.time
-    ? new Date(memberTravel.time).toISOString().slice(0, 10)
+  // Hidden counterpart fields from flight lookup (persisted silently).
+  const [hiddenAutofill, setHiddenAutofill] =
+    useState<FlightAutofillFields | null>(null);
+
+  // Default date for flight lookup: from existing travel record (pertinent time)
+  const pertinentTimeForLookup = getPertinentTime(memberTravel);
+  const flightLookupDefaultDate = pertinentTimeForLookup
+    ? new Date(pertinentTimeForLookup).toISOString().slice(0, 10)
     : undefined;
 
+  // Stored counterpart (lookup-set origin/destination) shown read-only
+  const storedCounterpartTime = getCounterpartTime(memberTravel);
+  const storedCounterpartLocation = getCounterpartLocation(memberTravel);
+
   const handleFlightResult = (result: FlightLookupResult, flightNumber: string) => {
+    const filled = applyFlightLookup(travelType ?? "arrival", result, flightNumber);
     const isArrival = travelType === "arrival";
-    const airport = isArrival ? result.arrivalAirport : result.departureAirport;
-    const time = isArrival ? result.arrivalTime : result.departureTime;
-    const locationStr = airport.iata
-      ? `${airport.name} (${airport.iata})`
-      : airport.name;
-    form.setValue("location", locationStr);
-    // Convert to full UTC ISO string for Zod .datetime() validation and DateTimePicker
-    const utcIso = new Date(time).toISOString();
-    form.setValue("time", utcIso);
+    form.setValue(isArrival ? "arrivalLocation" : "departureLocation", isArrival ? filled.arrivalLocation : filled.departureLocation);
+    form.setValue(isArrival ? "arrivalTime" : "departureTime", (isArrival ? filled.arrivalTime : filled.departureTime) || "");
     form.setValue("flightNumber", flightNumber);
+    setHiddenAutofill({
+      flightNumber,
+      ...(isArrival
+        ? {
+            departureTime: filled.departureTime,
+            departureLocation: filled.departureLocation,
+          }
+        : {
+            arrivalTime: filled.arrivalTime,
+            arrivalLocation: filled.arrivalLocation,
+          }),
+    });
   };
 
   // Pre-populate form with existing member travel data when dialog opens
@@ -128,13 +157,18 @@ export function EditMemberTravelDialog({
     if (open && memberTravel) {
       form.reset({
         travelType: memberTravel.travelType,
-        time: memberTravel.time
-          ? new Date(memberTravel.time).toISOString()
+        arrivalTime: memberTravel.arrivalTime
+          ? new Date(memberTravel.arrivalTime).toISOString()
           : "",
-        location: memberTravel.location || "",
+        arrivalLocation: memberTravel.arrivalLocation || "",
+        departureTime: memberTravel.departureTime
+          ? new Date(memberTravel.departureTime).toISOString()
+          : "",
+        departureLocation: memberTravel.departureLocation || "",
         details: memberTravel.details || "",
         flightNumber: memberTravel.flightNumber || "",
       });
+      setHiddenAutofill(null);
       setSelectedTimezone(timezone);
     }
   }, [open, memberTravel, form, timezone]);
@@ -158,8 +192,20 @@ export function EditMemberTravelDialog({
   }, [tripStartDate, tripEndDate]);
 
   const handleSubmit = (data: UpdateMemberTravelInput) => {
+    const payload = { ...data };
+    // Merge hidden counterpart fields captured on flight lookup
+    if (hiddenAutofill) {
+      const isArrival = (data.travelType ?? memberTravel.travelType) === "arrival";
+      if (isArrival) {
+        if (hiddenAutofill.departureTime) payload.departureTime = hiddenAutofill.departureTime;
+        if (hiddenAutofill.departureLocation) payload.departureLocation = hiddenAutofill.departureLocation;
+      } else {
+        if (hiddenAutofill.arrivalTime) payload.arrivalTime = hiddenAutofill.arrivalTime;
+        if (hiddenAutofill.arrivalLocation) payload.arrivalLocation = hiddenAutofill.arrivalLocation;
+      }
+    }
     updateMemberTravel(
-      { memberTravelId: memberTravel.id, data },
+      { memberTravelId: memberTravel.id, data: payload },
       {
         onSuccess: () => {
           toast.success("Travel details updated successfully");
@@ -224,7 +270,10 @@ export function EditMemberTravelDialog({
                           key={type.value}
                           type="button"
                           disabled={isPending || isDeleting}
-                          onClick={() => field.onChange(type.value)}
+                          onClick={() => {
+                            field.onChange(type.value);
+                            setHiddenAutofill(null);
+                          }}
                           className={`p-3 rounded-lg border-2 flex flex-col items-center cursor-pointer transition-colors ${
                             field.value === type.value
                               ? "border-primary bg-primary/10"
@@ -257,7 +306,7 @@ export function EditMemberTravelDialog({
               {/* Time */}
               <FormField
                 control={form.control}
-                name="time"
+                name={timeFieldName}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-base font-semibold text-foreground">
@@ -288,7 +337,7 @@ export function EditMemberTravelDialog({
               {/* Location */}
               <FormField
                 control={form.control}
-                name="location"
+                name={locationFieldName}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-base font-semibold text-foreground">
@@ -310,6 +359,15 @@ export function EditMemberTravelDialog({
                   </FormItem>
                 )}
               />
+
+              {/* Stored counterpart (lookup-set origin/destination) */}
+              {storedCounterpartLocation && storedCounterpartTime && (
+                <p className="text-sm text-muted-foreground">
+                  {memberTravel.travelType === "arrival"
+                    ? `Departed from ${storedCounterpartLocation} at ${formatInTimezone(storedCounterpartTime, selectedTimezone, "time")}`
+                    : `Arriving at ${storedCounterpartLocation} at ${formatInTimezone(storedCounterpartTime, selectedTimezone, "time")}`}
+                </p>
+              )}
 
               {/* More details */}
               <CollapsibleSection label="More details" defaultOpen={!!memberTravel.details}>

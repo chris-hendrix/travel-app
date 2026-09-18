@@ -3,6 +3,7 @@
 import { memo } from "react";
 import { PlaneLanding, PlaneTakeoff } from "lucide-react";
 import type { MemberTravel } from "@journiful/shared/types";
+import { getPertinentTime } from "@journiful/shared/utils";
 import { formatInTimezone } from "@/lib/utils/timezone";
 
 interface MemberTravelLineItemProps {
@@ -21,7 +22,10 @@ export const MemberTravelLineItem = memo(function MemberTravelLineItem({
   const Icon =
     memberTravel.travelType === "arrival" ? PlaneLanding : PlaneTakeoff;
 
-  const time = formatInTimezone(memberTravel.time, timezone, "time");
+  const pertinentTime = getPertinentTime(memberTravel);
+  const time = pertinentTime
+    ? formatInTimezone(pertinentTime, timezone, "time")
+    : "--:--";
 
   return (
     <div

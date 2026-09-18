@@ -7,6 +7,7 @@ import type {
   DailyForecast,
   TemperatureUnit,
 } from "@journiful/shared/types";
+import { getPertinentTime } from "@journiful/shared/utils";
 import { EventCard } from "./event-card";
 import { MemberTravelLineItem } from "./member-travel-line-item";
 import { EventDetailSheet } from "./event-detail-sheet";
@@ -174,7 +175,9 @@ export function DayByDayView({
 
     // Add member travels to days
     memberTravels.forEach((travel) => {
-      const day = getDayInTimezone(travel.time, timezone);
+      const pertinentTime = getPertinentTime(travel);
+      if (!pertinentTime) return;
+      const day = getDayInTimezone(pertinentTime, timezone);
       ensureDay(day);
       if (travel.travelType === "arrival") {
         days.get(day)!.arrivals.push(travel);
@@ -217,12 +220,16 @@ export function DayByDayView({
         );
       });
 
-      // Sort travels by time
+      // Sort travels by pertinent time
       day.arrivals.sort(
-        (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime(),
+        (a, b) =>
+          new Date(getPertinentTime(a) ?? 0).getTime() -
+          new Date(getPertinentTime(b) ?? 0).getTime(),
       );
       day.departures.sort(
-        (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime(),
+        (a, b) =>
+          new Date(getPertinentTime(a) ?? 0).getTime() -
+          new Date(getPertinentTime(b) ?? 0).getTime(),
       );
     });
 
@@ -340,9 +347,11 @@ export function DayByDayView({
           });
 
         [...day.arrivals, ...day.departures].forEach((travel) => {
+          const pertinentTime = getPertinentTime(travel);
+          if (!pertinentTime) return;
           timedItems.push({
             kind: "travel",
-            time: new Date(travel.time).getTime(),
+            time: new Date(pertinentTime).getTime(),
             travel,
           });
         });
@@ -361,7 +370,8 @@ export function DayByDayView({
               />,
             );
           } else {
-            maybeInsertNow(item.travel.time);
+            const pertinentTime = getPertinentTime(item.travel);
+            if (pertinentTime) maybeInsertNow(pertinentTime);
             cardElements.push(
               <MemberTravelLineItem
                 key={item.travel.id}

@@ -10,8 +10,10 @@ export interface MemberTravel {
   tripId: string;
   memberId: string;
   travelType: "arrival" | "departure";
-  time: Date;
-  location: string | null;
+  departureLocation: string | null;
+  departureTime: Date | null;
+  arrivalLocation: string | null;
+  arrivalTime: Date | null;
   details: string | null;
   flightNumber: string | null;
   deletedAt: Date | null;

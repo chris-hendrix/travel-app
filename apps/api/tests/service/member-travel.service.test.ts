@@ -157,8 +157,8 @@ describe("member-travel.service", () => {
         tripId: testTripId,
         memberId: testMember1MemberId,
         travelType: "arrival",
-        time: new Date("2026-06-10T14:00:00Z"),
-        location: "Airport",
+        arrivalTime: new Date("2026-06-10T14:00:00Z"),
+        arrivalLocation: "Airport",
         details: "Flight AA123",
       })
       .returning();
@@ -171,8 +171,8 @@ describe("member-travel.service", () => {
     it("should create member travel as member", async () => {
       const travelData = {
         travelType: "departure" as const,
-        time: "2026-06-20T16:00:00Z",
-        location: "Train Station",
+        departureTime: "2026-06-20T16:00:00Z",
+        departureLocation: "Train Station",
         details: "Train to NYC",
       };
 
@@ -184,18 +184,64 @@ describe("member-travel.service", () => {
 
       expect(travel).toBeDefined();
       expect(travel.travelType).toBe(travelData.travelType);
-      expect(travel.time).toEqual(new Date(travelData.time));
-      expect(travel.location).toBe(travelData.location);
+      expect(travel.departureTime).toEqual(new Date(travelData.departureTime));
+      expect(travel.departureLocation).toBe(travelData.departureLocation);
       expect(travel.details).toBe(travelData.details);
       expect(travel.memberId).toBe(testMember1MemberId);
       expect(travel.tripId).toBe(testTripId);
     });
 
+    it("should persist flightNumber and all flight fields on create", async () => {
+      const travelData = {
+        travelType: "arrival" as const,
+        arrivalTime: "2026-06-10T14:00:00Z",
+        arrivalLocation: "JFK Airport",
+        departureTime: "2026-06-10T10:00:00Z",
+        departureLocation: "SFO Airport",
+        flightNumber: "UA123",
+        details: "Flight from SFO",
+      };
+
+      const travel = await memberTravelService.createMemberTravel(
+        testMember1Id,
+        testTripId,
+        travelData,
+      );
+
+      expect(travel.flightNumber).toBe("UA123");
+      expect(travel.arrivalTime).toEqual(new Date(travelData.arrivalTime));
+      expect(travel.arrivalLocation).toBe(travelData.arrivalLocation);
+      expect(travel.departureTime).toEqual(
+        new Date(travelData.departureTime),
+      );
+      expect(travel.departureLocation).toBe(travelData.departureLocation);
+    });
+
+    it("should persist counterpart fields on update", async () => {
+      const updateData = {
+        departureTime: "2026-06-10T10:00:00Z",
+        departureLocation: "SFO Airport",
+        flightNumber: "UA123",
+      };
+
+      const updatedTravel = await memberTravelService.updateMemberTravel(
+        testMember1Id,
+        testMemberTravelId,
+        updateData,
+      );
+
+      expect(updatedTravel.flightNumber).toBe("UA123");
+      expect(updatedTravel.departureTime).toEqual(
+        new Date(updateData.departureTime),
+      );
+      expect(updatedTravel.departureLocation).toBe("SFO Airport");
+    });
+
     it("should create member travel for member with any status", async () => {
       const travelData = {
         travelType: "arrival" as const,
-        time: "2026-06-11T10:00:00Z",
-        location: "Bus Station",
+        arrivalTime: "2026-06-11T10:00:00Z",
+        arrivalLocation: "Bus Station",
       };
 
       const travel = await memberTravelService.createMemberTravel(
@@ -211,7 +257,7 @@ describe("member-travel.service", () => {
     it("should throw PermissionDeniedError for non-member", async () => {
       const travelData = {
         travelType: "arrival" as const,
-        time: "2026-06-12T12:00:00Z",
+        arrivalTime: "2026-06-12T12:00:00Z",
       };
 
       await expect(
@@ -226,7 +272,7 @@ describe("member-travel.service", () => {
     it("should throw TripNotFoundError for non-existent trip", async () => {
       const travelData = {
         travelType: "arrival" as const,
-        time: "2026-06-12T12:00:00Z",
+        arrivalTime: "2026-06-12T12:00:00Z",
       };
 
       await expect(
@@ -241,7 +287,7 @@ describe("member-travel.service", () => {
     it("should create member travel without optional fields", async () => {
       const travelData = {
         travelType: "departure" as const,
-        time: "2026-06-21T08:00:00Z",
+        departureTime: "2026-06-21T08:00:00Z",
       };
 
       const travel = await memberTravelService.createMemberTravel(
@@ -251,7 +297,7 @@ describe("member-travel.service", () => {
       );
 
       expect(travel).toBeDefined();
-      expect(travel.location).toBeNull();
+      expect(travel.departureLocation).toBeNull();
       expect(travel.details).toBeNull();
     });
   });
@@ -264,7 +310,7 @@ describe("member-travel.service", () => {
       expect(travel).toBeDefined();
       expect(travel?.id).toBe(testMemberTravelId);
       expect(travel?.travelType).toBe("arrival");
-      expect(travel?.location).toBe("Airport");
+      expect(travel?.arrivalLocation).toBe("Airport");
     });
 
     it("should return null for non-existent member travel", async () => {
@@ -353,7 +399,7 @@ describe("member-travel.service", () => {
   describe("updateMemberTravel", () => {
     it("should update member travel as owner", async () => {
       const updateData = {
-        location: "Updated Airport",
+        arrivalLocation: "Updated Airport",
         details: "Updated Flight AA456",
       };
 
@@ -363,7 +409,7 @@ describe("member-travel.service", () => {
         updateData,
       );
 
-      expect(updatedTravel.location).toBe(updateData.location);
+      expect(updatedTravel.arrivalLocation).toBe(updateData.arrivalLocation);
       expect(updatedTravel.details).toBe(updateData.details);
       expect(updatedTravel.travelType).toBe("arrival"); // Unchanged
     });
@@ -384,7 +430,7 @@ describe("member-travel.service", () => {
 
     it("should throw PermissionDeniedError for different member", async () => {
       const updateData = {
-        location: "Unauthorized Update",
+        arrivalLocation: "Unauthorized Update",
       };
 
       await expect(
@@ -398,7 +444,7 @@ describe("member-travel.service", () => {
 
     it("should throw PermissionDeniedError for non-member", async () => {
       const updateData = {
-        location: "Unauthorized Update",
+        arrivalLocation: "Unauthorized Update",
       };
 
       await expect(
@@ -412,7 +458,7 @@ describe("member-travel.service", () => {
 
     it("should throw MemberTravelNotFoundError for non-existent record", async () => {
       const updateData = {
-        location: "Updated",
+        arrivalLocation: "Updated",
       };
 
       await expect(
@@ -436,12 +482,12 @@ describe("member-travel.service", () => {
       );
 
       expect(updatedTravel.travelType).toBe("departure");
-      expect(updatedTravel.location).toBe("Airport"); // Unchanged
+      expect(updatedTravel.arrivalLocation).toBe("Airport"); // Unchanged
     });
 
     it("should update time field correctly", async () => {
       const updateData = {
-        time: "2026-06-10T16:00:00Z",
+        arrivalTime: "2026-06-10T16:00:00Z",
       };
 
       const updatedTravel = await memberTravelService.updateMemberTravel(
@@ -450,7 +496,7 @@ describe("member-travel.service", () => {
         updateData,
       );
 
-      expect(updatedTravel.time).toEqual(new Date(updateData.time));
+      expect(updatedTravel.arrivalTime).toEqual(new Date(updateData.arrivalTime));
     });
   });
 
@@ -609,7 +655,7 @@ describe("member-travel.service", () => {
           tripId: testTripId,
           memberId: organizerMember.id,
           travelType: "arrival",
-          time: new Date("2026-06-15T10:00:00Z"),
+          arrivalTime: new Date("2026-06-15T10:00:00Z"),
         })
         .returning();
 
@@ -639,7 +685,7 @@ describe("member-travel.service", () => {
       const longDetails = "A".repeat(500);
       const travelData = {
         travelType: "departure" as const,
-        time: "2026-06-22T18:00:00Z",
+        departureTime: "2026-06-22T18:00:00Z",
         details: longDetails,
       };
 
@@ -656,8 +702,8 @@ describe("member-travel.service", () => {
       // Create additional travel for member 1
       const travelData = {
         travelType: "departure" as const,
-        time: "2026-06-25T20:00:00Z",
-        location: "Airport",
+        departureTime: "2026-06-25T20:00:00Z",
+        departureLocation: "Airport",
       };
 
       const travel = await memberTravelService.createMemberTravel(
@@ -678,7 +724,7 @@ describe("member-travel.service", () => {
       // Create travel for member 2
       const travelData = {
         travelType: "arrival" as const,
-        time: "2026-06-11T09:00:00Z",
+        arrivalTime: "2026-06-11T09:00:00Z",
       };
 
       const travel = await memberTravelService.createMemberTravel(
@@ -702,8 +748,8 @@ describe("member-travel.service", () => {
     it("should allow organizer to create travel for another member", async () => {
       const travelData = {
         travelType: "arrival" as const,
-        time: "2026-06-10T14:00:00Z",
-        location: "Airport",
+        arrivalTime: "2026-06-10T14:00:00Z",
+        arrivalLocation: "Airport",
         details: "Flight AA123",
         memberId: testMember1MemberId,
       };
@@ -717,7 +763,7 @@ describe("member-travel.service", () => {
       expect(travel).toBeDefined();
       expect(travel.memberId).toBe(testMember1MemberId);
       expect(travel.travelType).toBe("arrival");
-      expect(travel.location).toBe("Airport");
+      expect(travel.arrivalLocation).toBe("Airport");
       expect(travel.details).toBe("Flight AA123");
       expect(travel.tripId).toBe(testTripId);
     });
@@ -725,8 +771,8 @@ describe("member-travel.service", () => {
     it("should throw PermissionDeniedError when non-organizer creates travel for another member", async () => {
       const travelData = {
         travelType: "arrival" as const,
-        time: "2026-06-10T14:00:00Z",
-        location: "Airport",
+        arrivalTime: "2026-06-10T14:00:00Z",
+        arrivalLocation: "Airport",
         memberId: testMember2MemberId,
       };
 
@@ -772,7 +818,7 @@ describe("member-travel.service", () => {
 
       const travelData = {
         travelType: "arrival" as const,
-        time: "2026-06-10T14:00:00Z",
+        arrivalTime: "2026-06-10T14:00:00Z",
         memberId: otherMember.id,
       };
 
@@ -793,7 +839,7 @@ describe("member-travel.service", () => {
     it("should throw MemberNotFoundError when memberId is completely non-existent", async () => {
       const travelData = {
         travelType: "arrival" as const,
-        time: "2026-06-10T14:00:00Z",
+        arrivalTime: "2026-06-10T14:00:00Z",
         memberId: "00000000-0000-0000-0000-000000000000",
       };
 
@@ -809,8 +855,8 @@ describe("member-travel.service", () => {
     it("should still create travel for self without memberId (backward compatibility)", async () => {
       const travelData = {
         travelType: "departure" as const,
-        time: "2026-06-20T16:00:00Z",
-        location: "Train Station",
+        departureTime: "2026-06-20T16:00:00Z",
+        departureLocation: "Train Station",
       };
 
       const travel = await memberTravelService.createMemberTravel(

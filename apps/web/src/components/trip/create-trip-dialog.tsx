@@ -76,7 +76,7 @@ export function CreateTripDialog({
       coverImageUrl: null,
       themeId: null,
       themeFont: null,
-      allowMembersToAddEvents: true,
+      allowMembersToAddEvents: false,
       coOrganizerPhones: [],
     },
   });

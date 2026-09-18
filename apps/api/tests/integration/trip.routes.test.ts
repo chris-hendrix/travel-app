@@ -62,7 +62,7 @@ describe("POST /api/trips", () => {
         destination: "Paris, France",
         preferredTimezone: "Europe/Paris",
         createdBy: testUser.id,
-        allowMembersToAddEvents: true,
+        allowMembersToAddEvents: false,
       });
       expect(body.trip).toHaveProperty("id");
       expect(body.trip).toHaveProperty("createdAt");

@@ -173,7 +173,7 @@ export function useCreateTrip() {
         themeId: newTrip.themeId ?? null,
         themeFont: newTrip.themeFont ?? null,
         createdBy: "current-user", // Placeholder - will be replaced by server response
-        allowMembersToAddEvents: newTrip.allowMembersToAddEvents ?? true,
+        allowMembersToAddEvents: newTrip.allowMembersToAddEvents ?? false,
         showAllMembers: newTrip.showAllMembers ?? false,
         cancelled: false,
         createdAt: new Date(),

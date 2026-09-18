@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Sheet,
   SheetContent,
@@ -10,26 +10,22 @@ import {
   SheetDescription,
   SheetFooter,
 } from "@/components/ui/sheet";
-import { DateTimePicker } from "@/components/ui/datetime-picker";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import {
-  useCreateMemberTravel,
-  useUpdateMemberTravel,
-  useMemberTravels,
-} from "@/hooks/use-member-travel";
+import { useMemberTravels } from "@/hooks/use-member-travel";
 import { useMembers, useUpdateMySettings } from "@/hooks/use-invitations";
 import { useAuth } from "@/app/providers/auth-provider";
-import { useCreateEvent } from "@/hooks/use-events";
-import { localPartsToUTC, formatInTimezone } from "@/lib/utils/timezone";
+import { formatInTimezone } from "@/lib/utils/timezone";
+import { mapsSearchUrl } from "@journiful/shared/utils";
 import { toast } from "sonner";
-import { parse } from "date-fns";
 import type { TripDetailWithMeta } from "@/hooks/trip-queries";
-import { Loader2, X, Check, Plane, MapPin, Calendar } from "lucide-react";
-import { FlightLookupInput } from "@/components/itinerary/flight-lookup-input";
-import type { FlightLookupResult } from "@journiful/shared/types";
+import { Loader2, Check, Plane, MapPin } from "lucide-react";
+import {
+  TravelFormSections,
+  type TravelFormSectionsHandle,
+  type TravelSaveSummary,
+} from "@/components/trip/travel-form-sections";
 
 interface MemberOnboardingWizardProps {
   open: boolean;
@@ -46,14 +42,9 @@ export function MemberOnboardingWizard({
 }: MemberOnboardingWizardProps) {
   const [step, setStep] = useState(0);
   const [sharePhone, setSharePhone] = useState(false);
-  const [arrivalLocation, setArrivalLocation] = useState("");
-  const [arrivalTime, setArrivalTime] = useState("");
-  const [departureTime, setDepartureTime] = useState("");
-  const [arrivalFlightNumber, setArrivalFlightNumber] = useState("");
-  const [departureFlightNumber, setDepartureFlightNumber] = useState("");
-  const [addedEvents, setAddedEvents] = useState<
-    Array<{ name: string; startTime: string }>
-  >([]);
+  const [summary, setSummary] = useState<TravelSaveSummary | null>(null);
+  const [isSavingTravel, setIsSavingTravel] = useState(false);
+  const travelFormRef = useRef<TravelFormSectionsHandle>(null);
 
   const { user } = useAuth();
   const { data: members = [] } = useMembers(tripId);
@@ -64,115 +55,37 @@ export function MemberOnboardingWizard({
     : undefined;
 
   // Find existing arrival/departure for current member
-  const existingArrival = memberTravels.find(
-    (t) =>
-      t.memberId === currentMember?.id &&
-      t.travelType === "arrival" &&
-      !t.deletedAt,
-  );
-  const existingDeparture = memberTravels.find(
-    (t) =>
-      t.memberId === currentMember?.id &&
-      t.travelType === "departure" &&
-      !t.deletedAt,
-  );
+  const existingArrival =
+    memberTravels.find(
+      (t) =>
+        t.memberId === currentMember?.id &&
+        t.travelType === "arrival" &&
+        !t.deletedAt,
+    ) ?? null;
+  const existingDeparture =
+    memberTravels.find(
+      (t) =>
+        t.memberId === currentMember?.id &&
+        t.travelType === "departure" &&
+        !t.deletedAt,
+    ) ?? null;
 
-  const canAddEvents = trip.isOrganizer || trip.allowMembersToAddEvents;
-  const totalSteps = canAddEvents ? 5 : 4;
+  const totalSteps = 3;
+  const doneStepIndex = totalSteps - 1;
   const timezone =
     Intl.DateTimeFormat().resolvedOptions().timeZone || trip.preferredTimezone;
 
-  const createTravel = useCreateMemberTravel();
-  const updateTravel = useUpdateMemberTravel();
-  const createEvent = useCreateEvent();
   const updateMySettings = useUpdateMySettings(tripId);
 
-  // Arrival step form state
-  const initialArrivalDate = trip.startDate
-    ? localPartsToUTC(trip.startDate, "12:00", timezone)
-    : "";
-  const [arrivalDateValue, setArrivalDateValue] = useState(initialArrivalDate);
-  const [arrivalLocationValue, setArrivalLocationValue] = useState("");
-
-  // Departure step form state
-  const initialDepartureDate = trip.endDate
-    ? localPartsToUTC(trip.endDate, "12:00", timezone)
-    : "";
-  const [departureDateValue, setDepartureDateValue] =
-    useState(initialDepartureDate);
-  const [departureLocationValue, setDepartureLocationValue] = useState("");
-  const [departureLocationInitialized, setDepartureLocationInitialized] =
-    useState(false);
-
-  // Events step form state
-  const [eventName, setEventName] = useState("");
-  const [eventStartTime, setEventStartTime] = useState("");
-
-  // Reset all wizard state when the sheet opens, pre-filling from existing data
+  // Reset wizard state when the sheet opens
   useEffect(() => {
     if (open) {
       setStep(0);
       setSharePhone(false);
-      setAddedEvents([]);
-      setEventName("");
-      setEventStartTime("");
-      setArrivalFlightNumber("");
-      setDepartureFlightNumber("");
-
-      if (existingArrival) {
-        const arrivalISO = new Date(existingArrival.time).toISOString();
-        setArrivalDateValue(arrivalISO);
-        setArrivalLocationValue(existingArrival.location || "");
-        setArrivalTime(arrivalISO);
-        setArrivalLocation(existingArrival.location || "");
-      } else {
-        setArrivalDateValue(initialArrivalDate);
-        setArrivalLocationValue("");
-        setArrivalTime("");
-        setArrivalLocation("");
-      }
-
-      if (existingDeparture) {
-        const departureISO = new Date(existingDeparture.time).toISOString();
-        setDepartureDateValue(departureISO);
-        setDepartureLocationValue(existingDeparture.location || "");
-        setDepartureTime(departureISO);
-        setDepartureLocationInitialized(true);
-      } else {
-        setDepartureDateValue(initialDepartureDate);
-        setDepartureLocationValue("");
-        setDepartureTime("");
-        setDepartureLocationInitialized(false);
-      }
+      setSummary(null);
+      setIsSavingTravel(false);
     }
-  }, [open]);
-
-  // Flight lookup dates from trip dates
-  const arrivalLookupDate = trip.startDate || undefined;
-  const departureLookupDate = trip.endDate || undefined;
-
-  const handleArrivalFlightResult = (result: FlightLookupResult, flightNumber: string) => {
-    const airport = result.arrivalAirport;
-    const locationStr = airport.iata
-      ? `${airport.name} (${airport.iata})`
-      : airport.name;
-    setArrivalLocationValue(locationStr);
-    setArrivalDateValue(new Date(result.arrivalTime).toISOString());
-    setArrivalFlightNumber(flightNumber);
-  };
-
-  const handleDepartureFlightResult = (result: FlightLookupResult, flightNumber: string) => {
-    const airport = result.departureAirport;
-    const locationStr = airport.iata
-      ? `${airport.name} (${airport.iata})`
-      : airport.name;
-    setDepartureLocationValue(locationStr);
-    setDepartureDateValue(new Date(result.departureTime).toISOString());
-    setDepartureFlightNumber(flightNumber);
-  };
-
-  const doneStepIndex = totalSteps - 1;
-  const eventsStepIndex = canAddEvents ? 3 : -1;
+  }, [open ]);
 
   function handleNext() {
     if (step === 0) {
@@ -187,94 +100,25 @@ export function MemberOnboardingWizard({
         },
       );
     } else if (step === 1) {
-      // Arrival step
-      if (!arrivalDateValue) {
-        // Skip if no date entered
+      // Combined travel step — save via the form sections
+      const form = travelFormRef.current;
+      if (!form) {
         setStep((s) => s + 1);
         return;
       }
-
-      const onSuccess = () => {
-        setArrivalTime(arrivalDateValue);
-        setArrivalLocation(arrivalLocationValue);
-        setStep((s) => s + 1);
-      };
-      const onError = () => {
-        toast.error("Failed to save arrival details. Please try again.");
-      };
-
-      if (existingArrival) {
-        updateTravel.mutate(
-          {
-            memberTravelId: existingArrival.id,
-            data: {
-              travelType: "arrival",
-              time: arrivalDateValue,
-              location: arrivalLocationValue || undefined,
-              flightNumber: arrivalFlightNumber || undefined,
-            },
-          },
-          { onSuccess, onError },
-        );
-      } else {
-        createTravel.mutate(
-          {
-            tripId,
-            data: {
-              travelType: "arrival",
-              time: arrivalDateValue,
-              location: arrivalLocationValue || undefined,
-              flightNumber: arrivalFlightNumber || undefined,
-            },
-          },
-          { onSuccess, onError },
-        );
-      }
-    } else if (step === 2) {
-      // Departure step
-      if (!departureDateValue) {
-        setStep((s) => s + 1);
-        return;
-      }
-
-      const onSuccess = () => {
-        setDepartureTime(departureDateValue);
-        setStep((s) => s + 1);
-      };
-      const onError = () => {
-        toast.error("Failed to save departure details. Please try again.");
-      };
-
-      if (existingDeparture) {
-        updateTravel.mutate(
-          {
-            memberTravelId: existingDeparture.id,
-            data: {
-              travelType: "departure",
-              time: departureDateValue,
-              location: departureLocationValue || undefined,
-              flightNumber: departureFlightNumber || undefined,
-            },
-          },
-          { onSuccess, onError },
-        );
-      } else {
-        createTravel.mutate(
-          {
-            tripId,
-            data: {
-              travelType: "departure",
-              time: departureDateValue,
-              location: departureLocationValue || undefined,
-              flightNumber: departureFlightNumber || undefined,
-            },
-          },
-          { onSuccess, onError },
-        );
-      }
-    } else if (step === eventsStepIndex) {
-      // Events step - just advance
-      setStep((s) => s + 1);
+      setIsSavingTravel(true);
+      form
+        .save()
+        .then((result) => {
+          setSummary(result);
+          setStep((s) => s + 1);
+        })
+        .catch(() => {
+          toast.error("Failed to save travel details. Please try again.");
+        })
+        .finally(() => {
+          setIsSavingTravel(false);
+        });
     }
   }
 
@@ -286,69 +130,13 @@ export function MemberOnboardingWizard({
     setStep((s) => s - 1);
   }
 
-  function handleAddEvent() {
-    if (!eventName || !eventStartTime) return;
-    createEvent.mutate(
-      {
-        tripId,
-        data: {
-          name: eventName,
-          eventType: "misc",
-          startTime: eventStartTime,
-          allDay: false,
-        },
-      },
-      {
-        onSuccess: () => {
-          setAddedEvents((prev) => [
-            ...prev,
-            { name: eventName, startTime: eventStartTime },
-          ]);
-          setEventName("");
-          setEventStartTime("");
-        },
-        onError: () => {
-          toast.error("Failed to add event. Please try again.");
-        },
-      },
-    );
-  }
+  const isPending = updateMySettings.isPending || isSavingTravel;
 
-  function handleRemoveEvent(index: number) {
-    setAddedEvents((prev) => prev.filter((_, i) => i !== index));
-  }
-
-  // Pre-fill departure location from arrival when entering step 2
-  useEffect(() => {
-    if (step === 2 && !departureLocationInitialized && arrivalLocation) {
-      setDepartureLocationValue(arrivalLocation);
-      setDepartureLocationInitialized(true);
-    }
-  }, [step, arrivalLocation, departureLocationInitialized]);
-
-  const isPending =
-    createTravel.isPending ||
-    updateTravel.isPending ||
-    createEvent.isPending ||
-    updateMySettings.isPending;
-
-  // Trip-aware defaults
-  const tripRange = useMemo(() => {
-    if (!trip.startDate && !trip.endDate) return undefined;
-    return { start: trip.startDate, end: trip.endDate };
-  }, [trip.startDate, trip.endDate]);
-
-  const tripStartMonth = useMemo(() => {
-    if (!trip.startDate) return undefined;
-    const parsed = parse(trip.startDate, "yyyy-MM-dd", new Date());
-    return isNaN(parsed.getTime()) ? undefined : parsed;
-  }, [trip.startDate]);
-
-  const tripEndMonth = useMemo(() => {
-    if (!trip.endDate) return undefined;
-    const parsed = parse(trip.endDate, "yyyy-MM-dd", new Date());
-    return isNaN(parsed.getTime()) ? undefined : parsed;
-  }, [trip.endDate]);
+  const hasTravel =
+    !!summary?.arrivalTime ||
+    !!summary?.departureTime ||
+    !!existingArrival?.arrivalTime ||
+    !!existingDeparture?.departureTime;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -382,32 +170,10 @@ export function MemberOnboardingWizard({
           {step === 1 && (
             <>
               <SheetTitle className="text-3xl font-playfair tracking-tight">
-                When are you arriving?
+                When are you traveling?
               </SheetTitle>
               <SheetDescription>
                 Let the group know your travel plans
-              </SheetDescription>
-            </>
-          )}
-
-          {step === 2 && (
-            <>
-              <SheetTitle className="text-3xl font-playfair tracking-tight">
-                When are you leaving?
-              </SheetTitle>
-              <SheetDescription>
-                Help coordinate departure logistics
-              </SheetDescription>
-            </>
-          )}
-
-          {step === eventsStepIndex && (
-            <>
-              <SheetTitle className="text-3xl font-playfair tracking-tight">
-                Want to suggest any activities?
-              </SheetTitle>
-              <SheetDescription>
-                Add activities for the group to enjoy
               </SheetDescription>
             </>
           )}
@@ -451,154 +217,15 @@ export function MemberOnboardingWizard({
           )}
 
           {step === 1 && (
-            <div className="space-y-4">
-              <FlightLookupInput
-                defaultDate={arrivalLookupDate}
-                onResult={handleArrivalFlightResult}
-                disabled={isPending}
-              />
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Date & Time</label>
-                <DateTimePicker
-                  value={arrivalDateValue}
-                  onChange={setArrivalDateValue}
-                  timezone={timezone}
-                  placeholder="Pick arrival date & time"
-                  aria-label="Arrival date and time"
-                  defaultMonth={tripStartMonth}
-                  tripRange={tripRange}
-                />
-              </div>
-              <div className="space-y-2">
-                <label
-                  htmlFor="arrival-location"
-                  className="text-sm font-medium"
-                >
-                  Location
-                </label>
-                <Input
-                  id="arrival-location"
-                  value={arrivalLocationValue}
-                  onChange={(e) => setArrivalLocationValue(e.target.value)}
-                  placeholder="e.g., JFK Airport"
-                  className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
-                />
-              </div>
-            </div>
-          )}
-
-          {step === 2 && (
-            <div className="space-y-4">
-              <FlightLookupInput
-                defaultDate={departureLookupDate}
-                onResult={handleDepartureFlightResult}
-                disabled={isPending}
-              />
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Date & Time</label>
-                <DateTimePicker
-                  value={departureDateValue}
-                  onChange={setDepartureDateValue}
-                  timezone={timezone}
-                  placeholder="Pick departure date & time"
-                  aria-label="Departure date and time"
-                  defaultMonth={tripEndMonth}
-                  tripRange={tripRange}
-                />
-              </div>
-              <div className="space-y-2">
-                <label
-                  htmlFor="departure-location"
-                  className="text-sm font-medium"
-                >
-                  Location
-                </label>
-                <Input
-                  id="departure-location"
-                  value={departureLocationValue}
-                  onChange={(e) => setDepartureLocationValue(e.target.value)}
-                  placeholder="e.g., JFK Airport"
-                  className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
-                />
-              </div>
-            </div>
-          )}
-
-          {step === eventsStepIndex && (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label htmlFor="event-name" className="text-sm font-medium">
-                  Activity name
-                </label>
-                <Input
-                  id="event-name"
-                  value={eventName}
-                  onChange={(e) => setEventName(e.target.value)}
-                  placeholder="e.g., Beach day"
-                  className="h-12 text-base border-input focus-visible:border-ring focus-visible:ring-ring rounded-md"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Date & Time</label>
-                <DateTimePicker
-                  value={eventStartTime}
-                  onChange={setEventStartTime}
-                  timezone={timezone}
-                  placeholder="Pick event date & time"
-                  aria-label="Event date and time"
-                  defaultMonth={tripStartMonth}
-                  tripRange={tripRange}
-                />
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-12 rounded-md w-full"
-                onClick={handleAddEvent}
-                disabled={
-                  !eventName || !eventStartTime || createEvent.isPending
-                }
-              >
-                {createEvent.isPending && (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                )}
-                Add
-              </Button>
-
-              {addedEvents.length > 0 && (
-                <div className="space-y-2 mt-4">
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Added activities
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {addedEvents.map((event, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center gap-1.5 bg-muted rounded-full px-3 py-1.5 text-sm"
-                      >
-                        <Calendar className="w-3 h-3" />
-                        <span>{event.name}</span>
-                        <span className="text-muted-foreground">
-                          {formatInTimezone(
-                            event.startTime,
-                            timezone,
-                            "datetime",
-                          )}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveEvent(index)}
-                          className="ml-1 hover:text-destructive"
-                          aria-label={`Remove ${event.name}`}
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            <TravelFormSections
+              key={String(open)}
+              ref={travelFormRef}
+              tripId={tripId}
+              trip={trip}
+              timezone={timezone}
+              existingArrival={existingArrival}
+              existingDeparture={existingDeparture}
+            />
           )}
 
           {step === doneStepIndex && (
@@ -610,51 +237,73 @@ export function MemberOnboardingWizard({
               </div>
 
               <div className="space-y-3">
-                {arrivalTime && (
+                {(summary?.arrivalTime ?? existingArrival?.arrivalTime) && (
                   <div className="flex items-start gap-3 p-3 rounded-md bg-muted/50">
                     <Plane className="w-5 h-5 text-primary mt-0.5" />
                     <div>
                       <p className="text-sm font-medium">Arrival</p>
                       <p className="text-sm text-muted-foreground">
-                        {formatInTimezone(arrivalTime, timezone, "datetime")}
+                        {formatInTimezone(
+                          summary?.arrivalTime ??
+                            existingArrival!.arrivalTime!,
+                          timezone,
+                          "datetime",
+                        )}
                       </p>
-                      {arrivalLocation && (
-                        <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      {(summary?.arrivalLocation ??
+                        existingArrival?.arrivalLocation) && (
+                        <a
+                          href={mapsSearchUrl(
+                            summary?.arrivalLocation ??
+                              existingArrival!.arrivalLocation!,
+                          )}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+                        >
                           <MapPin className="w-3 h-3" />
-                          {arrivalLocation}
-                        </p>
+                          {summary?.arrivalLocation ??
+                            existingArrival!.arrivalLocation}
+                        </a>
                       )}
                     </div>
                   </div>
                 )}
 
-                {departureTime && (
+                {(summary?.departureTime ?? existingDeparture?.departureTime) && (
                   <div className="flex items-start gap-3 p-3 rounded-md bg-muted/50">
                     <Plane className="w-5 h-5 text-primary mt-0.5 rotate-90" />
                     <div>
                       <p className="text-sm font-medium">Departure</p>
                       <p className="text-sm text-muted-foreground">
-                        {formatInTimezone(departureTime, timezone, "datetime")}
+                        {formatInTimezone(
+                          summary?.departureTime ??
+                            existingDeparture!.departureTime!,
+                          timezone,
+                          "datetime",
+                        )}
                       </p>
+                      {(summary?.departureLocation ??
+                        existingDeparture?.departureLocation) && (
+                        <a
+                          href={mapsSearchUrl(
+                            summary?.departureLocation ??
+                              existingDeparture!.departureLocation!,
+                          )}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+                        >
+                          <MapPin className="w-3 h-3" />
+                          {summary?.departureLocation ??
+                            existingDeparture!.departureLocation}
+                        </a>
+                      )}
                     </div>
                   </div>
                 )}
 
-                {addedEvents.length > 0 && (
-                  <div className="flex items-start gap-3 p-3 rounded-md bg-muted/50">
-                    <Calendar className="w-5 h-5 text-primary mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium">Activities</p>
-                      <p className="text-sm text-muted-foreground">
-                        {addedEvents.length}{" "}
-                        {addedEvents.length === 1 ? "activity" : "activities"}{" "}
-                        added
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {!arrivalTime && !departureTime && addedEvents.length === 0 && (
+                {!hasTravel && (
                   <p className="text-sm text-muted-foreground text-center">
                     No travel details added yet. You can always add them later
                     from the trip page.

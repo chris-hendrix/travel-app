@@ -108,7 +108,7 @@ export const trips = pgTable(
       .references(() => users.id),
     allowMembersToAddEvents: boolean("allow_members_to_add_events")
       .notNull()
-      .default(true),
+      .default(false),
     showAllMembers: boolean("show_all_members").notNull().default(false),
     cancelled: boolean("cancelled").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -311,8 +311,10 @@ export const memberTravel = pgTable(
       .notNull()
       .references(() => members.id, { onDelete: "cascade" }),
     travelType: memberTravelTypeEnum("travel_type").notNull(),
-    time: timestamp("time", { withTimezone: true }).notNull(),
-    location: text("location"),
+    departureLocation: text("departure_location"),
+    departureTime: timestamp("departure_time", { withTimezone: true }),
+    arrivalLocation: text("arrival_location"),
+    arrivalTime: timestamp("arrival_time", { withTimezone: true }),
     details: text("details"),
     flightNumber: text("flight_number"),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
@@ -327,7 +329,8 @@ export const memberTravel = pgTable(
   (table) => [
     index("member_travel_trip_id_idx").on(table.tripId),
     index("member_travel_member_id_idx").on(table.memberId),
-    index("member_travel_time_idx").on(table.time),
+    index("member_travel_arrival_time_idx").on(table.arrivalTime),
+    index("member_travel_departure_time_idx").on(table.departureTime),
     index("member_travel_deleted_at_idx").on(table.deletedAt),
     index("member_travel_member_id_deleted_at_idx").on(
       table.memberId,
