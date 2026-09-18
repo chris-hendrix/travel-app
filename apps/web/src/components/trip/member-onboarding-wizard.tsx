@@ -325,12 +325,12 @@ export function MemberOnboardingWizard({
             </Button>
           </SheetFooter>
         ) : (
-          <SheetFooter className="sm:justify-between">
-            <div className="flex gap-2 w-full">
+          <SheetFooter>
+            <div className="flex gap-4 w-full">
               {step > 0 && (
                 <Button
                   variant="outline"
-                  className="h-12 rounded-md"
+                  className="h-12 rounded-md flex-1"
                   onClick={handleBack}
                   disabled={isPending}
                 >
@@ -338,8 +338,8 @@ export function MemberOnboardingWizard({
                 </Button>
               )}
               <Button
-                variant="ghost"
-                className="h-12 rounded-md"
+                variant="outline"
+                className="h-12 rounded-md flex-1"
                 onClick={handleSkip}
                 disabled={isPending}
               >

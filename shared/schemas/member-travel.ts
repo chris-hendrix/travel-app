@@ -3,11 +3,6 @@
 import { z } from "zod";
 
 const locationField = z.string().max(500).optional();
-/** Form-friendly: blank inputs validate as absent. */
-const optionalIsoDatetime = z.preprocess(
-  (v) => (v === "" || v === null ? undefined : v),
-  z.string().datetime().optional(),
-);
 
 /**
  * Base member travel data schema
@@ -21,9 +16,9 @@ const baseMemberTravelSchema = z.object({
     error: "Travel type must be one of: arrival, departure",
   }),
   departureLocation: locationField,
-  departureTime: optionalIsoDatetime,
+  departureTime: z.string().datetime().optional(),
   arrivalLocation: locationField,
-  arrivalTime: optionalIsoDatetime,
+  arrivalTime: z.string().datetime().optional(),
   details: z
     .string()
     .max(500, {

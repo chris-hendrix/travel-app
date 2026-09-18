@@ -134,9 +134,9 @@ export function CreateMemberTravelDialog({
     resolver: zodResolver(createMemberTravelSchema),
     defaultValues: {
       travelType: defaultTravelType,
-      arrivalTime: "",
+      arrivalTime: undefined,
       arrivalLocation: "",
-      departureTime: "",
+      departureTime: undefined,
       departureLocation: "",
       details: "",
       flightNumber: "",
@@ -165,7 +165,7 @@ export function CreateMemberTravelDialog({
     const isArrival = travelType === "arrival";
     // Visible side
     form.setValue(isArrival ? "arrivalLocation" : "departureLocation", isArrival ? filled.arrivalLocation : filled.departureLocation);
-    form.setValue(isArrival ? "arrivalTime" : "departureTime", (isArrival ? filled.arrivalTime : filled.departureTime) || "");
+    form.setValue(isArrival ? "arrivalTime" : "departureTime", (isArrival ? filled.arrivalTime : filled.departureTime) || undefined);
     form.setValue("flightNumber", flightNumber);
     // Counterpart side stored silently
     setHiddenAutofill({
@@ -185,7 +185,7 @@ export function CreateMemberTravelDialog({
   // Reset form when dialog opens/closes
   useEffect(() => {
     if (!open) {
-      form.reset({ travelType: defaultTravelType, arrivalTime: "", arrivalLocation: "", departureTime: "", departureLocation: "", details: "", flightNumber: "" });
+      form.reset({ travelType: defaultTravelType, arrivalTime: undefined, arrivalLocation: "", departureTime: undefined, departureLocation: "", details: "", flightNumber: "" });
       setHiddenAutofill(null);
       setSelectedTimezone(timezone);
       setSelectedMemberId("self");
@@ -211,7 +211,11 @@ export function CreateMemberTravelDialog({
   }, [tripStartDate, tripEndDate]);
 
   const handleSubmit = (formData: CreateMemberTravelInput) => {
-    const data = { ...formData };
+    // Strip blank form fields so optional datetimes validate as absent
+    const cleaned = Object.fromEntries(
+      Object.entries(formData).filter(([, v]) => v !== "" && v !== undefined),
+    ) as CreateMemberTravelInput;
+    const data = { ...cleaned };
     // Merge hidden counterpart fields captured on flight lookup
     if (hiddenAutofill) {
       const isArrival = formData.travelType === "arrival";
@@ -393,7 +397,7 @@ export function CreateMemberTravelDialog({
                     <FormControl>
                       <DateTimePicker
                         value={field.value || ""}
-                        onChange={field.onChange}
+                        onChange={(v) => field.onChange(v || undefined)}
                         timezone={selectedTimezone}
                         placeholder="Select date & time"
                         aria-label="Travel time"
