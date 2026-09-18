@@ -196,8 +196,8 @@ describe("permissions.service", () => {
         tripId: testTripId,
         memberId: testCoOrganizerMemberId,
         travelType: "arrival",
-        time: new Date("2026-06-10T14:00:00Z"),
-        location: "Airport",
+        arrivalTime: new Date("2026-06-10T14:00:00Z"),
+        arrivalLocation: "Airport",
       })
       .returning();
     testMemberTravelId = memberTravelResult[0].id;
@@ -553,6 +553,12 @@ describe("permissions.service", () => {
         .set({ status: "going" })
         .where(eq(members.userId, testMemberId));
 
+      // Enable member event adding (default is now false)
+      await db
+        .update(trips)
+        .set({ allowMembersToAddEvents: true })
+        .where(eq(trips.id, testTripId));
+
       const result = await permissionsService.canAddEvent(
         testMemberId,
         testTripId,
@@ -560,6 +566,10 @@ describe("permissions.service", () => {
       expect(result).toBe(true);
 
       // Restore settings
+      await db
+        .update(trips)
+        .set({ allowMembersToAddEvents: false })
+        .where(eq(trips.id, testTripId));
       await db
         .update(members)
         .set({ status: "maybe" })

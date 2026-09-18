@@ -213,8 +213,15 @@ export class MemberTravelService implements IMemberTravelService {
         tripId,
         memberId: resolvedMemberId,
         travelType: insertData.travelType,
-        time: new Date(insertData.time),
-        location: insertData.location || null,
+        departureTime: insertData.departureTime
+          ? new Date(insertData.departureTime)
+          : null,
+        departureLocation: insertData.departureLocation || null,
+        arrivalTime: insertData.arrivalTime
+          ? new Date(insertData.arrivalTime)
+          : null,
+        arrivalLocation: insertData.arrivalLocation || null,
+        flightNumber: insertData.flightNumber || null,
         details: insertData.details || null,
       })
       .returning();
@@ -331,9 +338,12 @@ export class MemberTravelService implements IMemberTravelService {
       updatedAt: new Date(),
     };
 
-    // Convert time string to Date object if provided
-    if (data.time) {
-      updateData.time = new Date(data.time);
+    // Convert time strings to Date objects if provided
+    if (data.arrivalTime) {
+      updateData.arrivalTime = new Date(data.arrivalTime);
+    }
+    if (data.departureTime) {
+      updateData.departureTime = new Date(data.departureTime);
     }
 
     // Perform update

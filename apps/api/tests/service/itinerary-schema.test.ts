@@ -122,8 +122,10 @@ describe("Itinerary Schema", () => {
       expect(columns.tripId).toBeDefined();
       expect(columns.memberId).toBeDefined();
       expect(columns.travelType).toBeDefined();
-      expect(columns.time).toBeDefined();
-      expect(columns.location).toBeDefined();
+      expect(columns.departureLocation).toBeDefined();
+      expect(columns.departureTime).toBeDefined();
+      expect(columns.arrivalLocation).toBeDefined();
+      expect(columns.arrivalTime).toBeDefined();
       expect(columns.details).toBeDefined();
       expect(columns.deletedAt).toBeDefined();
       expect(columns.deletedBy).toBeDefined();
@@ -136,7 +138,8 @@ describe("Itinerary Schema", () => {
       expect(columns.tripId.notNull).toBe(true);
       expect(columns.memberId.notNull).toBe(true);
       expect(columns.travelType.notNull).toBe(true);
-      expect(columns.time.notNull).toBe(true);
+      expect(columns.departureTime.notNull).toBe(false);
+      expect(columns.arrivalTime.notNull).toBe(false);
       expect(columns.createdAt.notNull).toBe(true);
       expect(columns.updatedAt.notNull).toBe(true);
     });

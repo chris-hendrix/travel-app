@@ -180,8 +180,10 @@ export function useCreateMemberTravel() {
         tripId,
         memberId: "current-member",
         travelType: data.travelType,
-        time: new Date(data.time),
-        location: data.location || null,
+        departureTime: data.departureTime ? new Date(data.departureTime) : null,
+        departureLocation: data.departureLocation || null,
+        arrivalTime: data.arrivalTime ? new Date(data.arrivalTime) : null,
+        arrivalLocation: data.arrivalLocation || null,
         details: data.details || null,
         flightNumber: data.flightNumber || null,
         deletedAt: null,
@@ -341,11 +343,26 @@ export function useUpdateMemberTravel() {
         const optimisticMemberTravel: MemberTravel = {
           ...previousMemberTravel,
           travelType: data.travelType ?? previousMemberTravel.travelType,
-          time: data.time ? new Date(data.time) : previousMemberTravel.time,
-          location:
-            data.location !== undefined
-              ? (data.location ?? null)
-              : previousMemberTravel.location,
+          departureTime:
+            data.departureTime !== undefined
+              ? data.departureTime
+                ? new Date(data.departureTime)
+                : null
+              : previousMemberTravel.departureTime,
+          departureLocation:
+            data.departureLocation !== undefined
+              ? (data.departureLocation ?? null)
+              : previousMemberTravel.departureLocation,
+          arrivalTime:
+            data.arrivalTime !== undefined
+              ? data.arrivalTime
+                ? new Date(data.arrivalTime)
+                : null
+              : previousMemberTravel.arrivalTime,
+          arrivalLocation:
+            data.arrivalLocation !== undefined
+              ? (data.arrivalLocation ?? null)
+              : previousMemberTravel.arrivalLocation,
           details:
             data.details !== undefined
               ? (data.details ?? null)

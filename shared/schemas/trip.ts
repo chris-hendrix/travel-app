@@ -74,7 +74,7 @@ const baseTripSchema = z.object({
     )
     .nullable()
     .optional(),
-  allowMembersToAddEvents: z.boolean().default(true),
+  allowMembersToAddEvents: z.boolean().default(false),
   showAllMembers: z.boolean().default(false),
   coOrganizerPhones: z.array(phoneNumberSchema).optional(),
   themeId: z.enum(THEME_IDS).nullable().optional(),
@@ -92,7 +92,7 @@ const baseTripSchema = z.object({
  * - timezone: IANA timezone string (required)
  * - description: max 2000 characters (optional)
  * - coverImageUrl: optional URL or null
- * - allowMembersToAddEvents: boolean (defaults to true)
+ * - allowMembersToAddEvents: boolean (defaults to false)
  * - coOrganizerPhones: array of E.164 phone numbers (optional)
  */
 export const createTripSchema = baseTripSchema.refine(

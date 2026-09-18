@@ -210,13 +210,13 @@ describe("input length validation", () => {
   describe("member-travel location (.max(500))", () => {
     const validTravel = {
       travelType: "arrival" as const,
-      time: "2026-03-01T10:00:00Z",
+      arrivalTime: "2026-03-01T10:00:00Z",
     };
 
     it("should accept a location at max length (500)", () => {
       const result = createMemberTravelSchema.safeParse({
         ...validTravel,
-        location: "a".repeat(500),
+        arrivalLocation: "a".repeat(500),
       });
       expect(result.success).toBe(true);
     });
@@ -224,12 +224,12 @@ describe("input length validation", () => {
     it("should reject a location exceeding max length", () => {
       const result = createMemberTravelSchema.safeParse({
         ...validTravel,
-        location: "a".repeat(501),
+        arrivalLocation: "a".repeat(501),
       });
       expect(result.success).toBe(false);
       if (!result.success) {
         const issue = result.error.issues.find((i) =>
-          i.path.includes("location"),
+          i.path.includes("arrivalLocation"),
         );
         expect(issue).toBeDefined();
       }

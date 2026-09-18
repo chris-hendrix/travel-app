@@ -2,16 +2,23 @@
 
 import { z } from "zod";
 
+const locationField = z.string().max(500).optional();
+
 /**
  * Base member travel data schema
  * - Used as the foundation for both create and update schemas
+ * - Direction-based columns: arrival records carry arrivalTime/arrivalLocation
+ *   as pertinent fields; departure records carry departureTime/departureLocation.
+ *   Flight-lookup autofill may also populate the counterpart side silently.
  */
 const baseMemberTravelSchema = z.object({
   travelType: z.enum(["arrival", "departure"], {
     error: "Travel type must be one of: arrival, departure",
   }),
-  time: z.string().datetime(),
-  location: z.string().max(500).optional(),
+  departureLocation: locationField,
+  departureTime: z.string().datetime().optional(),
+  arrivalLocation: locationField,
+  arrivalTime: z.string().datetime().optional(),
   details: z
     .string()
     .max(500, {
@@ -22,16 +29,36 @@ const baseMemberTravelSchema = z.object({
 });
 
 /**
+ * Server-side invariant: a record must carry at least the pertinent time
+ * for its travelType (arrival → arrivalTime, departure → departureTime).
+ */
+const pertinentTimeRefine = (data: {
+  travelType: "arrival" | "departure";
+  arrivalTime?: string | undefined;
+  departureTime?: string | undefined;
+}) => {
+  if (data.travelType === "arrival") return data.arrivalTime !== undefined;
+  return data.departureTime !== undefined;
+};
+
+const pertinentTimeMessage = {
+  error: "A record must include its pertinent time for its travel type",
+} as const;
+
+/**
  * Validates member travel creation data
  * - travelType: one of "arrival", "departure" (required)
- * - time: ISO 8601 datetime string (required)
- * - location: string (optional)
+ * - arrivalTime/arrivalLocation: pertinent for arrivals (arrivalTime required)
+ * - departureTime/departureLocation: pertinent for departures (departureTime required)
  * - details: max 500 characters (optional)
+ * - flightNumber: max 10 characters (optional)
  * - memberId: UUID of target member for delegation (optional, organizer-only)
  */
-export const createMemberTravelSchema = baseMemberTravelSchema.extend({
-  memberId: z.string().uuid("Invalid member ID format").optional(),
-});
+export const createMemberTravelSchema = baseMemberTravelSchema
+  .extend({
+    memberId: z.string().uuid("Invalid member ID format").optional(),
+  })
+  .refine(pertinentTimeRefine, pertinentTimeMessage);
 
 /**
  * Validates member travel update data (all fields optional)
@@ -48,8 +75,10 @@ const memberTravelEntitySchema = z.object({
   tripId: z.string(),
   memberId: z.string(),
   travelType: z.enum(["arrival", "departure"]),
-  time: z.date(),
-  location: z.string().nullable(),
+  departureLocation: z.string().nullable(),
+  departureTime: z.date().nullable(),
+  arrivalLocation: z.string().nullable(),
+  arrivalTime: z.date().nullable(),
   details: z.string().nullable(),
   flightNumber: z.string().nullable(),
   deletedAt: z.date().nullable(),

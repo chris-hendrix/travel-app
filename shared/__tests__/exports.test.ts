@@ -194,12 +194,12 @@ describe("Package Exports", () => {
 
     const createMemberTravelInput: CreateMemberTravelInput = {
       travelType: "arrival",
-      time: "2026-07-15T10:00:00Z",
+      arrivalTime: "2026-07-15T10:00:00Z",
     };
     expect(createMemberTravelInput).toBeDefined();
 
     const updateMemberTravelInput: UpdateMemberTravelInput = {
-      location: "Airport Terminal 3",
+      arrivalLocation: "Airport Terminal 3",
     };
     expect(updateMemberTravelInput).toBeDefined();
 

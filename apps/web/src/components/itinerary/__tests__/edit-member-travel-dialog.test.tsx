@@ -33,8 +33,8 @@ describe("EditMemberTravelDialog", () => {
     tripId: "trip-123",
     memberId: "user-123",
     travelType: "arrival",
-    time: new Date("2026-07-15T14:00:00.000Z"),
-    location: "Miami Airport",
+    arrivalTime: new Date("2026-07-15T14:00:00.000Z"),
+    arrivalLocation: "Miami Airport",
     details: "Flight AA123",
     flightNumber: "AA123",
     deletedAt: null,
@@ -184,7 +184,7 @@ describe("EditMemberTravelDialog", () => {
       vi.mocked(apiRequest).mockResolvedValueOnce({
         memberTravel: {
           ...mockMemberTravel,
-          location: "Updated Airport",
+          arrivalLocation: "Updated Airport",
         },
       });
 
@@ -362,6 +362,39 @@ describe("EditMemberTravelDialog", () => {
 
       const title = screen.getByText("Edit travel details");
       expect(title.className).toContain("font-playfair");
+    });
+  });
+
+  describe("Stored counterpart", () => {
+    it("renders stored counterpart as a quiet line when present", () => {
+      renderWithQueryClient(
+        <EditMemberTravelDialog
+          open={true}
+          onOpenChange={mockOnOpenChange}
+          memberTravel={{
+            ...mockMemberTravel,
+            departureTime: new Date("2026-07-15T10:00:00.000Z"),
+            departureLocation: "SFO Airport",
+          }}
+          timezone="America/New_York"
+        />,
+      );
+
+      expect(screen.getByText(/Departed from SFO Airport at /)).toBeDefined();
+    });
+
+    it("renders no counterpart line when counterpart is null", () => {
+      renderWithQueryClient(
+        <EditMemberTravelDialog
+          open={true}
+          onOpenChange={mockOnOpenChange}
+          memberTravel={mockMemberTravel}
+          timezone="America/New_York"
+        />,
+      );
+
+      expect(screen.queryByText(/Departed from /)).toBeNull();
+      expect(screen.queryByText(/Arriving at /)).toBeNull();
     });
   });
 });

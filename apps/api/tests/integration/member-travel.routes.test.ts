@@ -64,8 +64,8 @@ describe("Member Travel Routes", () => {
         },
         payload: {
           travelType: "arrival",
-          time: "2026-06-15T14:00:00Z",
-          location: "CDG Airport",
+          arrivalTime: "2026-06-15T14:00:00Z",
+          arrivalLocation: "CDG Airport",
           details: "Flight AF123 from JFK",
         },
       });
@@ -77,10 +77,91 @@ describe("Member Travel Routes", () => {
       expect(body).toHaveProperty("memberTravel");
       expect(body.memberTravel).toMatchObject({
         travelType: "arrival",
-        location: "CDG Airport",
+        arrivalLocation: "CDG Airport",
         details: "Flight AF123 from JFK",
         tripId: trip.id,
       });
+    });
+
+    it("should round-trip full flight data on POST/GET/PUT", async () => {
+      app = await buildApp();
+
+      const [testUser] = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "Round Trip User",
+          timezone: "UTC",
+        })
+        .returning();
+
+      const [trip] = await db
+        .insert(trips)
+        .values({
+          name: "Round Trip Trip",
+          destination: "Paris",
+          preferredTimezone: "Europe/Paris",
+          createdBy: testUser.id,
+        })
+        .returning();
+
+      await db.insert(members).values({
+        tripId: trip.id,
+        userId: testUser.id,
+        status: "going",
+      });
+
+      const token = app.jwt.sign({
+        sub: testUser.id,
+        name: testUser.displayName,
+      });
+
+      // POST with full flight data (both sides + flight number)
+      const postResponse = await app.inject({
+        method: "POST",
+        url: `/api/trips/${trip.id}/member-travel`,
+        cookies: { auth_token: token },
+        payload: {
+          travelType: "arrival",
+          arrivalTime: "2026-06-15T14:00:00Z",
+          arrivalLocation: "CDG Airport",
+          departureTime: "2026-06-15T10:00:00Z",
+          departureLocation: "JFK Airport",
+          flightNumber: "AF123",
+        },
+      });
+
+      expect(postResponse.statusCode).toBe(201);
+      const posted = JSON.parse(postResponse.body).memberTravel;
+      expect(posted.flightNumber).toBe("AF123");
+      expect(posted.arrivalLocation).toBe("CDG Airport");
+      expect(posted.departureLocation).toBe("JFK Airport");
+
+      // GET list returns the same fields
+      const getResponse = await app.inject({
+        method: "GET",
+        url: `/api/trips/${trip.id}/member-travel`,
+        cookies: { auth_token: token },
+      });
+      expect(getResponse.statusCode).toBe(200);
+      const listed = JSON.parse(getResponse.body).memberTravels;
+      expect(listed).toHaveLength(1);
+      expect(listed[0].flightNumber).toBe("AF123");
+      expect(listed[0].departureLocation).toBe("JFK Airport");
+
+      // PUT updates counterpart fields
+      const putResponse = await app.inject({
+        method: "PUT",
+        url: `/api/member-travel/${posted.id}`,
+        cookies: { auth_token: token },
+        payload: {
+          departureLocation: "EWR Airport",
+        },
+      });
+      expect(putResponse.statusCode).toBe(200);
+      expect(JSON.parse(putResponse.body).memberTravel.departureLocation).toBe(
+        "EWR Airport",
+      );
     });
 
     it("should return 401 if not authenticated", async () => {
@@ -91,7 +172,7 @@ describe("Member Travel Routes", () => {
         url: "/api/trips/550e8400-e29b-41d4-a716-446655440000/member-travel",
         payload: {
           travelType: "arrival",
-          time: "2026-06-15T14:00:00Z",
+          arrivalTime: "2026-06-15T14:00:00Z",
         },
       });
 
@@ -157,7 +238,7 @@ describe("Member Travel Routes", () => {
         },
         payload: {
           travelType: "arrival",
-          time: "2026-06-15T14:00:00Z",
+          arrivalTime: "2026-06-15T14:00:00Z",
         },
       });
 
@@ -229,14 +310,14 @@ describe("Member Travel Routes", () => {
           memberId: memberRecords[0].id,
           createdBy: testUser.id,
           travelType: "arrival",
-          time: new Date("2026-06-15T14:00:00Z"),
+          arrivalTime: new Date("2026-06-15T14:00:00Z"),
         },
         {
           tripId: trip.id,
           memberId: memberRecords[1].id,
           createdBy: testUser.id,
           travelType: "departure",
-          time: new Date("2026-06-15T10:00:00Z"),
+          departureTime: new Date("2026-06-15T10:00:00Z"),
         },
       ]);
 
@@ -316,7 +397,7 @@ describe("Member Travel Routes", () => {
           memberId: memberRecords[0].id,
           createdBy: testUser.id,
           travelType: "arrival",
-          time: new Date("2026-06-15T14:00:00Z"),
+          arrivalTime: new Date("2026-06-15T14:00:00Z"),
         })
         .returning();
 
@@ -417,7 +498,7 @@ describe("Member Travel Routes", () => {
           memberId: memberRecords[0].id,
           createdBy: testUser.id,
           travelType: "arrival",
-          time: new Date("2026-06-15T14:00:00Z"),
+          arrivalTime: new Date("2026-06-15T14:00:00Z"),
         })
         .returning();
 
@@ -435,7 +516,7 @@ describe("Member Travel Routes", () => {
           auth_token: token,
         },
         payload: {
-          location: "JFK Airport",
+          arrivalLocation: "JFK Airport",
           details: "Updated details",
         },
       });
@@ -444,7 +525,7 @@ describe("Member Travel Routes", () => {
 
       const body = JSON.parse(response.body);
       expect(body).toHaveProperty("success", true);
-      expect(body.memberTravel.location).toBe("JFK Airport");
+      expect(body.memberTravel.arrivalLocation).toBe("JFK Airport");
       expect(body.memberTravel.details).toBe("Updated details");
     });
 
@@ -491,7 +572,7 @@ describe("Member Travel Routes", () => {
           memberId: memberRecords[0].id,
           createdBy: owner.id,
           travelType: "arrival",
-          time: new Date("2026-06-15T14:00:00Z"),
+          arrivalTime: new Date("2026-06-15T14:00:00Z"),
         })
         .returning();
 
@@ -521,7 +602,7 @@ describe("Member Travel Routes", () => {
           auth_token: token,
         },
         payload: {
-          location: "Unauthorized",
+          arrivalLocation: "Unauthorized",
         },
       });
 
@@ -572,7 +653,7 @@ describe("Member Travel Routes", () => {
           memberId: memberRecords[0].id,
           createdBy: testUser.id,
           travelType: "arrival",
-          time: new Date("2026-06-15T14:00:00Z"),
+          arrivalTime: new Date("2026-06-15T14:00:00Z"),
         })
         .returning();
 
@@ -641,7 +722,7 @@ describe("Member Travel Routes", () => {
           memberId: memberRecords[0].id,
           createdBy: testUser.id,
           travelType: "arrival",
-          time: new Date("2026-06-15T14:00:00Z"),
+          arrivalTime: new Date("2026-06-15T14:00:00Z"),
           deletedAt: new Date(),
           deletedBy: testUser.id,
         })
@@ -712,7 +793,10 @@ describe("Member Travel Routes", () => {
           travelType: (i % 2 === 0 ? "arrival" : "departure") as
             | "arrival"
             | "departure",
-          time: new Date(
+          arrivalTime: new Date(
+            `2026-06-${String(15 + (i % 15)).padStart(2, "0")}T${String(i % 24).padStart(2, "0")}:00:00Z`,
+          ),
+          departureTime: new Date(
             `2026-06-${String(15 + (i % 15)).padStart(2, "0")}T${String(i % 24).padStart(2, "0")}:00:00Z`,
           ),
         })),
@@ -729,8 +813,8 @@ describe("Member Travel Routes", () => {
         cookies: { auth_token: token },
         payload: {
           travelType: "arrival",
-          time: "2026-07-01T14:00:00Z",
-          location: "Airport",
+          arrivalTime: "2026-07-01T14:00:00Z",
+          arrivalLocation: "Airport",
         },
       });
 
@@ -785,7 +869,10 @@ describe("Member Travel Routes", () => {
           travelType: (i % 2 === 0 ? "arrival" : "departure") as
             | "arrival"
             | "departure",
-          time: new Date(
+          arrivalTime: new Date(
+            `2026-06-${String(15 + (i % 15)).padStart(2, "0")}T${String(i % 24).padStart(2, "0")}:00:00Z`,
+          ),
+          departureTime: new Date(
             `2026-06-${String(15 + (i % 15)).padStart(2, "0")}T${String(i % 24).padStart(2, "0")}:00:00Z`,
           ),
         })),
@@ -797,7 +884,7 @@ describe("Member Travel Routes", () => {
         memberId: member.id,
         createdBy: testUser.id,
         travelType: "arrival" as const,
-        time: new Date("2026-07-01T12:00:00Z"),
+        arrivalTime: new Date("2026-07-01T12:00:00Z"),
         deletedAt: new Date(),
         deletedBy: testUser.id,
       });
@@ -813,8 +900,8 @@ describe("Member Travel Routes", () => {
         cookies: { auth_token: token },
         payload: {
           travelType: "arrival",
-          time: "2026-07-01T14:00:00Z",
-          location: "Airport",
+          arrivalTime: "2026-07-01T14:00:00Z",
+          arrivalLocation: "Airport",
         },
       });
 
@@ -889,8 +976,8 @@ describe("Member Travel Routes", () => {
         cookies: { auth_token: token },
         payload: {
           travelType: "arrival",
-          time: "2026-06-10T14:00:00Z",
-          location: "Airport",
+          arrivalTime: "2026-06-10T14:00:00Z",
+          arrivalLocation: "Airport",
           details: "Flight AA123",
           memberId: regularMember.id,
         },
@@ -902,7 +989,7 @@ describe("Member Travel Routes", () => {
       expect(body.success).toBe(true);
       expect(body.memberTravel.memberId).toBe(regularMember.id);
       expect(body.memberTravel.travelType).toBe("arrival");
-      expect(body.memberTravel.location).toBe("Airport");
+      expect(body.memberTravel.arrivalLocation).toBe("Airport");
     });
 
     it("should return 403 when non-organizer creates travel with memberId", async () => {
@@ -984,8 +1071,8 @@ describe("Member Travel Routes", () => {
         cookies: { auth_token: token },
         payload: {
           travelType: "arrival",
-          time: "2026-06-10T14:00:00Z",
-          location: "Airport",
+          arrivalTime: "2026-06-10T14:00:00Z",
+          arrivalLocation: "Airport",
           details: "Flight AA123",
           memberId: member2.id,
         },
@@ -1041,8 +1128,8 @@ describe("Member Travel Routes", () => {
         cookies: { auth_token: token },
         payload: {
           travelType: "arrival",
-          time: "2026-06-10T14:00:00Z",
-          location: "Airport",
+          arrivalTime: "2026-06-10T14:00:00Z",
+          arrivalLocation: "Airport",
           details: "Flight AA123",
           memberId: "00000000-0000-0000-0000-000000000000",
         },
@@ -1100,8 +1187,8 @@ describe("Member Travel Routes", () => {
         cookies: { auth_token: token },
         payload: {
           travelType: "arrival",
-          time: "2026-06-10T14:00:00Z",
-          location: "Airport",
+          arrivalTime: "2026-06-10T14:00:00Z",
+          arrivalLocation: "Airport",
           details: "Flight AA123",
         },
       });

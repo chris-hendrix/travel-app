@@ -279,8 +279,8 @@ async function main() {
         tripId: trip.id,
         memberId: m.id,
         travelType: "arrival",
-        time: daysFromNow(startDay, randInt(7, 16)),
-        location,
+        arrivalTime: daysFromNow(startDay, randInt(7, 16)),
+        arrivalLocation: location,
         details: pick([
           "Flight from SFO",
           "Flight from LAX",
@@ -296,8 +296,8 @@ async function main() {
           tripId: trip.id,
           memberId: m.id,
           travelType: "departure",
-          time: daysFromNow(startDay + days, randInt(8, 18)),
-          location,
+          departureTime: daysFromNow(startDay + days, randInt(8, 18)),
+          departureLocation: location,
         });
       }
     }
@@ -424,16 +424,16 @@ async function main() {
       tripId: lisbon!.id,
       memberId: bobMember.id,
       travelType: "arrival",
-      time: daysFromNow(7, 10),
-      location: "Lisbon Airport",
+      arrivalTime: daysFromNow(7, 10),
+      arrivalLocation: "Lisbon Airport",
       details: "Flight from LHR",
     },
     {
       tripId: lisbon!.id,
       memberId: bobMember.id,
       travelType: "departure",
-      time: daysFromNow(13, 16),
-      location: "Lisbon Airport",
+      departureTime: daysFromNow(13, 16),
+      departureLocation: "Lisbon Airport",
     },
   ]);
 

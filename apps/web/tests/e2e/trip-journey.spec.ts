@@ -374,8 +374,8 @@ test.describe("Trip Journey", () => {
           {
             data: {
               travelType: "arrival",
-              time: "2026-12-01T14:00:00.000Z",
-              location: "Seattle-Tacoma Airport",
+              arrivalTime: "2026-12-01T14:00:00.000Z",
+              arrivalLocation: "Seattle-Tacoma Airport",
               details: "Arriving via API",
             },
             headers: { cookie: organizerCookie },

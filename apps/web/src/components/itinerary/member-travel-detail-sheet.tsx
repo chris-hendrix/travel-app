@@ -14,6 +14,13 @@ import { toast } from "sonner";
 import { VisuallyHidden } from "radix-ui";
 import type { MemberTravel } from "@journiful/shared/types";
 import {
+  getPertinentTime,
+  getPertinentLocation,
+  getCounterpartTime,
+  getCounterpartLocation,
+  mapsSearchUrl,
+} from "@journiful/shared/utils";
+import {
   Sheet,
   SheetBody,
   SheetClose,
@@ -70,11 +77,13 @@ export function MemberTravelDetailSheet({
   const travelTypeLabel =
     memberTravel.travelType === "arrival" ? "Arrival" : "Departure";
   const title = `${memberName}'s ${travelTypeLabel}`;
-  const formattedDateTime = formatInTimezone(
-    memberTravel.time,
-    timezone,
-    "datetime",
-  );
+  const pertinentTime = getPertinentTime(memberTravel);
+  const pertinentLocation = getPertinentLocation(memberTravel);
+  const counterpartTime = getCounterpartTime(memberTravel);
+  const counterpartLocation = getCounterpartLocation(memberTravel);
+  const formattedDateTime = pertinentTime
+    ? formatInTimezone(pertinentTime, timezone, "datetime")
+    : null;
 
   const handleEdit = () => {
     onOpenChange(false);
@@ -185,9 +194,11 @@ export function MemberTravelDetailSheet({
           <h2 className="font-semibold text-lg">{title}</h2>
 
           {/* Date/time */}
-          <p className="text-sm text-muted-foreground mt-1">
-            {formattedDateTime}
-          </p>
+          {formattedDateTime && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {formattedDateTime}
+            </p>
+          )}
 
           {/* Flight number */}
           {memberTravel.flightNumber && (
@@ -204,17 +215,26 @@ export function MemberTravelDetailSheet({
           )}
 
           {/* Location */}
-          {memberTravel.location && (
+          {pertinentLocation && (
             <a
-              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(memberTravel.location)}`}
+              href={mapsSearchUrl(pertinentLocation)}
               target="_blank"
               rel="noopener noreferrer"
               className="mt-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
             >
               <MapPin className="w-3.5 h-3.5 shrink-0" />
-              <span>{memberTravel.location}</span>
+              <span>{pertinentLocation}</span>
               <span className="text-xs opacity-60">Google Maps</span>
             </a>
+          )}
+
+          {/* Counterpart (lookup-filled origin/destination) */}
+          {counterpartLocation && counterpartTime && (
+            <p className="mt-2 text-sm text-muted-foreground">
+              {memberTravel.travelType === "arrival"
+                ? `Departed from ${counterpartLocation} at ${formatInTimezone(counterpartTime, timezone, "time")}`
+                : `Arriving at ${counterpartLocation} at ${formatInTimezone(counterpartTime, timezone, "time")}`}
+            </p>
           )}
 
           {/* Details */}

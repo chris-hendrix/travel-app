@@ -365,8 +365,8 @@ describe("Itinerary Schema Integration", () => {
         tripId: testTripId,
         memberId: testMemberId,
         travelType: "arrival" as const,
-        time: new Date("2026-03-15T14:30:00Z"),
-        location: "LAX Airport",
+        arrivalTime: new Date("2026-03-15T14:30:00Z"),
+        arrivalLocation: "LAX Airport",
         details: "Flight AA123 from JFK",
       };
 
@@ -380,11 +380,11 @@ describe("Itinerary Schema Integration", () => {
         tripId: testTripId,
         memberId: testMemberId,
         travelType: "arrival",
-        location: travelData.location,
+        arrivalLocation: travelData.arrivalLocation,
         details: travelData.details,
       });
       expect(result[0]!.id).toBeDefined();
-      expect(result[0]!.time).toBeInstanceOf(Date);
+      expect(result[0]!.arrivalTime).toBeInstanceOf(Date);
       expect(result[0]!.createdAt).toBeInstanceOf(Date);
       expect(result[0]!.updatedAt).toBeInstanceOf(Date);
 
@@ -403,7 +403,7 @@ describe("Itinerary Schema Integration", () => {
         tripId: testTripId,
         memberId: testMemberId,
         travelType: "departure" as const,
-        time: new Date("2026-03-20T10:00:00Z"),
+        departureTime: new Date("2026-03-20T10:00:00Z"),
       };
 
       const result = await db
@@ -413,7 +413,7 @@ describe("Itinerary Schema Integration", () => {
 
       expect(result).toHaveLength(1);
       expect(result[0]!.travelType).toBe("departure");
-      expect(result[0]!.location).toBeNull();
+      expect(result[0]!.departureLocation).toBeNull();
       expect(result[0]!.details).toBeNull();
     });
 
@@ -422,7 +422,7 @@ describe("Itinerary Schema Integration", () => {
         tripId: testTripId,
         memberId: testMemberId,
         travelType: "arrival" as const,
-        time: new Date("2026-03-15T16:00:00Z"),
+        arrivalTime: new Date("2026-03-15T16:00:00Z"),
       };
 
       const result = await db
@@ -469,7 +469,7 @@ describe("Itinerary Schema Integration", () => {
         tripId: testTripId,
         memberId: testMemberId,
         travelType: "arrival" as const,
-        time: new Date("2026-03-15T12:00:00Z"),
+        arrivalTime: new Date("2026-03-15T12:00:00Z"),
       };
 
       await db.insert(memberTravel).values(travelData);
@@ -519,7 +519,7 @@ describe("Itinerary Schema Integration", () => {
         tripId: testTripId,
         memberId: testMemberId,
         travelType: "departure" as const,
-        time: new Date("2026-03-20T15:00:00Z"),
+        departureTime: new Date("2026-03-20T15:00:00Z"),
       };
 
       await db.insert(memberTravel).values(travelData);

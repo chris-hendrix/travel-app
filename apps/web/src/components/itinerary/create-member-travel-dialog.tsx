@@ -51,6 +51,10 @@ import { useMembers } from "@/hooks/use-invitations";
 import { TIMEZONES, getTimezoneAbbr } from "@/lib/constants";
 import { FlightLookupInput } from "@/components/itinerary/flight-lookup-input";
 import type { FlightLookupResult } from "@journiful/shared/types";
+import {
+  applyFlightLookup,
+  type FlightAutofillFields,
+} from "@journiful/shared/utils";
 
 const TRAVEL_TYPES = [
   { value: "arrival", label: "Arrival", icon: PlaneLanding },
@@ -130,8 +134,10 @@ export function CreateMemberTravelDialog({
     resolver: zodResolver(createMemberTravelSchema),
     defaultValues: {
       travelType: defaultTravelType,
-      time: "",
-      location: "",
+      arrivalTime: undefined,
+      arrivalLocation: "",
+      departureTime: undefined,
+      departureLocation: "",
       details: "",
       flightNumber: "",
     },
@@ -139,29 +145,48 @@ export function CreateMemberTravelDialog({
 
   const travelType = form.watch("travelType");
   const travelTypeLabel = travelType === "departure" ? "Departure" : "Arrival";
+  // Pertinent (visible) field names for the selected direction; the
+  // counterpart pair is captured silently on flight lookup.
+  const timeFieldName =
+    travelType === "arrival" ? "arrivalTime" : "departureTime";
+  const locationFieldName =
+    travelType === "arrival" ? "arrivalLocation" : "departureLocation";
+
+  // Hidden counterpart fields from flight lookup (persisted silently).
+  const [hiddenAutofill, setHiddenAutofill] =
+    useState<FlightAutofillFields | null>(null);
 
   // Default date for flight lookup: trip end date for departures, start date for arrivals
   const flightLookupDefaultDate =
     travelType === "departure" ? (tripEndDate ?? undefined) : (tripStartDate ?? undefined);
 
   const handleFlightResult = (result: FlightLookupResult, flightNumber: string) => {
+    const filled = applyFlightLookup(travelType, result, flightNumber);
     const isArrival = travelType === "arrival";
-    const airport = isArrival ? result.arrivalAirport : result.departureAirport;
-    const time = isArrival ? result.arrivalTime : result.departureTime;
-    const locationStr = airport.iata
-      ? `${airport.name} (${airport.iata})`
-      : airport.name;
-    form.setValue("location", locationStr);
-    // Convert to full UTC ISO string for Zod .datetime() validation and DateTimePicker
-    const utcIso = new Date(time).toISOString();
-    form.setValue("time", utcIso);
+    // Visible side
+    form.setValue(isArrival ? "arrivalLocation" : "departureLocation", isArrival ? filled.arrivalLocation : filled.departureLocation);
+    form.setValue(isArrival ? "arrivalTime" : "departureTime", (isArrival ? filled.arrivalTime : filled.departureTime) || undefined);
     form.setValue("flightNumber", flightNumber);
+    // Counterpart side stored silently
+    setHiddenAutofill({
+      flightNumber,
+      ...(isArrival
+        ? {
+            departureTime: filled.departureTime,
+            departureLocation: filled.departureLocation,
+          }
+        : {
+            arrivalTime: filled.arrivalTime,
+            arrivalLocation: filled.arrivalLocation,
+          }),
+    });
   };
 
   // Reset form when dialog opens/closes
   useEffect(() => {
     if (!open) {
-      form.reset({ travelType: defaultTravelType, time: "", location: "", details: "", flightNumber: "" });
+      form.reset({ travelType: defaultTravelType, arrivalTime: undefined, arrivalLocation: "", departureTime: undefined, departureLocation: "", details: "", flightNumber: "" });
+      setHiddenAutofill(null);
       setSelectedTimezone(timezone);
       setSelectedMemberId("self");
     }
@@ -186,7 +211,22 @@ export function CreateMemberTravelDialog({
   }, [tripStartDate, tripEndDate]);
 
   const handleSubmit = (formData: CreateMemberTravelInput) => {
-    const data = { ...formData };
+    // Strip blank form fields so optional datetimes validate as absent
+    const cleaned = Object.fromEntries(
+      Object.entries(formData).filter(([, v]) => v !== "" && v !== undefined),
+    ) as CreateMemberTravelInput;
+    const data = { ...cleaned };
+    // Merge hidden counterpart fields captured on flight lookup
+    if (hiddenAutofill) {
+      const isArrival = formData.travelType === "arrival";
+      if (isArrival) {
+        if (hiddenAutofill.departureTime) data.departureTime = hiddenAutofill.departureTime;
+        if (hiddenAutofill.departureLocation) data.departureLocation = hiddenAutofill.departureLocation;
+      } else {
+        if (hiddenAutofill.arrivalTime) data.arrivalTime = hiddenAutofill.arrivalTime;
+        if (hiddenAutofill.arrivalLocation) data.arrivalLocation = hiddenAutofill.arrivalLocation;
+      }
+    }
     if (selectedMemberId && selectedMemberId !== "self") {
       data.memberId = selectedMemberId;
     }
@@ -312,7 +352,10 @@ export function CreateMemberTravelDialog({
                           key={type.value}
                           type="button"
                           disabled={isPending}
-                          onClick={() => field.onChange(type.value)}
+                          onClick={() => {
+                            field.onChange(type.value);
+                            setHiddenAutofill(null);
+                          }}
                           className={`p-3 rounded-lg border-2 flex flex-col items-center cursor-pointer transition-colors ${
                             field.value === type.value
                               ? "border-primary bg-primary/10"
@@ -344,7 +387,7 @@ export function CreateMemberTravelDialog({
               {/* Time */}
               <FormField
                 control={form.control}
-                name="time"
+                name={timeFieldName}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-base font-semibold text-foreground">
@@ -354,7 +397,7 @@ export function CreateMemberTravelDialog({
                     <FormControl>
                       <DateTimePicker
                         value={field.value || ""}
-                        onChange={field.onChange}
+                        onChange={(v) => field.onChange(v || undefined)}
                         timezone={selectedTimezone}
                         placeholder="Select date & time"
                         aria-label="Travel time"
@@ -375,7 +418,7 @@ export function CreateMemberTravelDialog({
               {/* Location */}
               <FormField
                 control={form.control}
-                name="location"
+                name={locationFieldName}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-base font-semibold text-foreground">

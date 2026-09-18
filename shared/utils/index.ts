@@ -3,6 +3,18 @@
 import { fromZonedTime, formatInTimeZone as formatInTz } from "date-fns-tz";
 
 export { stripControlChars } from "./sanitize";
+export {
+  applyFlightLookup,
+  getPertinentTime,
+  getPertinentLocation,
+  getCounterpartTime,
+  getCounterpartLocation,
+  mapsSearchUrl,
+} from "./travel";
+export type {
+  MemberTravelType,
+  FlightAutofillFields,
+} from "./travel";
 
 /**
  * Converts a date/time from a specific timezone to UTC
