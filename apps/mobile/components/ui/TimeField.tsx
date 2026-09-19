@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { formatClock, timeOptions } from "@/lib/time";
 
@@ -29,7 +29,6 @@ export function TimeField({
   optional = false,
   noneLabel = "No end",
   error,
-  accessory,
 }: {
   label: string;
   /** 24-hour "20:30", or null when nothing is set yet. */
@@ -40,9 +39,6 @@ export function TimeField({
   /** What that row says: "No end" under Starts would be a lie. */
   noneLabel?: string;
   error?: string | undefined;
-  /** Sits at the end of the label row: something that qualifies the
-   *  value beside it rather than standing on its own. */
-  accessory?: ReactNode;
 }) {
   const scrollRef = useRef<ScrollView>(null);
   const options = timeOptions();
@@ -69,13 +65,7 @@ export function TimeField({
 
   return (
     <View className="gap-1">
-      {/* Pinned to the height of an accessory rather than left to the
-          text: a chip beside one label and not the other made the two
-          columns start their fields at different heights. */}
-      <View className="min-h-7 flex-row items-center justify-between gap-4">
-        <Text className="font-body-bold text-sm text-ink">{label}</Text>
-        {accessory}
-      </View>
+      <Text className="font-body-bold text-sm text-ink">{label}</Text>
       <View
         className="border border-ink bg-paper"
         style={{ height: ROW_HEIGHT * VISIBLE_ROWS }}

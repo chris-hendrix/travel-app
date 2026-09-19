@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { Stack } from "expo-router";
 import { Pressable, Text, View } from "react-native";
-import { ArrowDown, ArrowUp } from "lucide-react-native";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
-import { ChipToggle } from "@/components/ui/ChipToggle";
+import { Segmented } from "@/components/ui/Segmented";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { TimeField } from "@/components/ui/TimeField";
 import { dayLabel } from "@/lib/itinerary";
@@ -14,7 +13,9 @@ import { toIso } from "@/lib/dateRange";
 import { isFlightNumber, lookupFlight } from "@/lib/flights";
 import {
   emptyLeg,
+  farEndNote,
   legFromLookup,
+  legIsFiled,
   legSummary,
   validateNewTravel,
   type LegErrors,
@@ -31,6 +32,14 @@ const DIRECTIONS: Array<{ value: TravelDirection; heading: string }> = [
 ];
 
 const NOT_SHARED = "Not shared yet";
+
+/** How the times are being given: off a flight number, or typed. */
+type TravelMode = "flight" | "times";
+
+const MODES: Array<{ value: TravelMode; label: string }> = [
+  { value: "flight", label: "Flight number" },
+  { value: "times", label: "Enter times" },
+];
 
 /**
  * The travel form, in one place because there is one of it: one member,
@@ -109,10 +118,16 @@ export function TravelDialog({
     arrival: initial?.arrival ?? emptyLeg(),
     departure: initial?.departure ?? emptyLeg(),
   });
-  // Which direction the member already owes: the one that was tapped if
-  // there was one, the arrival otherwise — arrival is what a trip is
-  // waiting on.
-  const [open, setOpen] = useState<TravelDirection | null>(
+  // How each direction's times are being given: off a flight number, or
+  // typed. A record that already holds a number opens on the flight it
+  // came from, because that is how it was answered the first time.
+  const [modes, setModes] = useState<Record<TravelDirection, TravelMode>>({
+    arrival: initial?.arrival?.flightNumber ? "flight" : "times",
+    departure: initial?.departure?.flightNumber ? "flight" : "times",
+  });
+  // Which direction is on screen: the one that was tapped if there was
+  // one, the arrival otherwise — arrival is what a trip is waiting on.
+  const [direction, setDirection] = useState<TravelDirection>(
     initial?.direction ?? "arrival",
   );
   const [submitted, setSubmitted] = useState(false);
@@ -124,18 +139,20 @@ export function TravelDialog({
   };
   const errors = submitted ? validateNewTravel(input) : {};
 
-  function setLeg(direction: TravelDirection, next: TravelLeg) {
+  function setLeg(next: TravelLeg) {
     setLegs((current) => ({ ...current, [direction]: next }));
   }
+
+  const shown = legs[direction];
 
   function submit() {
     setSubmitted(true);
     const found = validateNewTravel(input);
     if (Object.keys(found).length > 0) {
-      // The fault may be in the closed direction: open it rather than
-      // failing silently behind a collapsed header.
-      if (found.arrival) setOpen("arrival");
-      else if (found.departure) setOpen("departure");
+      // The fault may be in the direction you are not looking at: switch
+      // to it rather than failing behind a screen you cannot see.
+      if (found.arrival) setDirection("arrival");
+      else if (found.departure) setDirection("departure");
       return;
     }
     onSubmit(input);
@@ -171,108 +188,52 @@ export function TravelDialog({
         </Text>
       )}
 
-      <View className="border-t border-ink">
-        {DIRECTIONS.map((option) => (
-          <DirectionPanel
-            key={option.value}
-            heading={option.heading}
-            direction={option.value}
-            leg={legs[option.value]}
-            open={open === option.value}
-            onToggle={() =>
-              setOpen((current) =>
-                current === option.value ? null : option.value,
-              )
-            }
-            onChange={(next) => setLeg(option.value, next)}
-            trip={trip}
-            whereSuggestions={whereSuggestions}
-            errors={submitted ? errors[option.value] : undefined}
-            onDelete={
-              onDelete && filed[option.value]
-                ? () => onDelete(option.value)
-                : undefined
-            }
+      {/* Which end of the trip you are filing. A toggle rather than a
+          disclosure: it is the first question and it is a choice, and one
+          control that says so is clearer than two panels that each imply
+          the other. A direction that already holds something is marked,
+          so the half you are not looking at is not simply gone. */}
+      <Segmented
+        options={DIRECTIONS.map((option) => ({
+          value: option.value,
+          label: legIsFiled(legs[option.value], option.value)
+            ? `${option.heading} ·`
+            : option.heading,
+        }))}
+        value={direction}
+        onChange={setDirection}
+      />
+
+      {/* The line under the toggle is the selection: what this direction
+          already holds, in the same words its row uses on the board. */}
+      <Text className="font-body text-base text-ink">
+        {legSummary(shown, direction) || NOT_SHARED}
+      </Text>
+
+      <LegFields
+        direction={direction}
+        leg={shown}
+        onChange={setLeg}
+        mode={modes[direction]}
+        onModeChange={(mode) =>
+          setModes((current) => ({ ...current, [direction]: mode }))
+        }
+        trip={trip}
+        whereSuggestions={whereSuggestions}
+        errors={submitted ? errors[direction] : undefined}
+      />
+
+      {onDelete && filed[direction] ? (
+        <View className="border-t border-ink pt-6">
+          <Button
+            title={`Delete ${direction === "arrival" ? "arrival" : "departure"}`}
+            variant="danger"
+            fullWidth
+            onPress={() => onDelete(direction)}
           />
-        ))}
-      </View>
-    </FullscreenDialog>
-  );
-}
-
-/**
- * One direction: a header that states its answer, and the fields behind
- * it. Collapsed, the header is the whole record — when it is, where it
- * is, and which flight — which is why the summary is worth computing
- * rather than being a count of empty fields.
- */
-function DirectionPanel({
-  heading,
-  direction,
-  leg,
-  open,
-  onToggle,
-  onChange,
-  trip,
-  whereSuggestions,
-  errors,
-  onDelete,
-}: {
-  heading: string;
-  direction: TravelDirection;
-  leg: TravelLeg;
-  open: boolean;
-  onToggle: () => void;
-  onChange: (leg: TravelLeg) => void;
-  trip: Trip;
-  whereSuggestions: string[];
-  errors: LegErrors | undefined;
-  onDelete: (() => void) | undefined;
-}) {
-  const Icon = open ? ArrowUp : ArrowDown;
-  const summary = legSummary(leg, direction);
-
-  return (
-    <View className="border-b border-b-ink">
-      <Pressable
-        accessibilityRole="button"
-        aria-expanded={open}
-        onPress={onToggle}
-        className="flex-row items-center justify-between gap-4 py-4"
-      >
-        <View className="flex-1 gap-0.5">
-          <Text className="font-body-bold text-base text-ink">{heading}</Text>
-          {/* The answer, or that there isn't one yet. A direction left
-              empty is a fact about the trip, so it is said rather than
-              left blank. */}
-          <Text className="font-body text-sm text-ink">
-            {summary || NOT_SHARED}
-          </Text>
-        </View>
-        <Icon color="#000000" size={20} />
-      </Pressable>
-
-      {open ? (
-        <View className="gap-4 pb-5">
-          <LegFields
-            direction={direction}
-            leg={leg}
-            onChange={onChange}
-            trip={trip}
-            whereSuggestions={whereSuggestions}
-            errors={errors}
-          />
-          {onDelete ? (
-            <Button
-              title={`Delete ${direction === "arrival" ? "arrival" : "departure"}`}
-              variant="danger"
-              fullWidth
-              onPress={onDelete}
-            />
-          ) : null}
         </View>
       ) : null}
-    </View>
+    </FullscreenDialog>
   );
 }
 
@@ -285,6 +246,8 @@ function LegFields({
   direction,
   leg,
   onChange,
+  mode,
+  onModeChange,
   trip,
   whereSuggestions,
   errors,
@@ -292,6 +255,8 @@ function LegFields({
   direction: TravelDirection;
   leg: TravelLeg;
   onChange: (leg: TravelLeg) => void;
+  mode: TravelMode;
+  onModeChange: (mode: TravelMode) => void;
   trip: Trip;
   whereSuggestions: string[];
   errors: LegErrors | undefined;
@@ -302,6 +267,16 @@ function LegFields({
   const today = toIso(new Date());
   const timeZone = trip.preferredTimezone ?? null;
   const arrival = direction === "arrival";
+  // The other end's day, said back under the field that owns it. Null
+  // when the leg does not cross midnight, where "the same day" would be
+  // noise the day line above already covers.
+  const departureNote = farEndNote(leg, direction);
+  const arrivalNote = farEndNote(leg, direction);
+  const hasTimes = Boolean(leg.departureTime.trim() || leg.arrivalTime.trim());
+  // Times show when they are the question, and stay once they are the
+  // answer: a looked-up time is a starting point, not a verdict, and
+  // hiding it would leave nothing to correct.
+  const showTimes = mode === "times" || hasTimes;
 
   // The lookup flies on the leg's own day: one date, one number, and the
   // time and the where fill themselves in.
@@ -316,7 +291,10 @@ function LegFields({
     const result = await lookupFlight(leg.flightNumber, leg.day);
     setLookingUp(false);
     if (!result) {
-      setLookupError("Flight not found for this date.");
+      // No dead end: the times are right below, so a lookup that finds
+      // nothing leaves you typing them instead of stuck.
+      setLookupError("Flight not found for this date — enter the times below.");
+      onModeChange("times");
       return;
     }
     onChange(
@@ -326,54 +304,14 @@ function LegFields({
 
   return (
     <View className="gap-4">
-      <Dropdown
-        label="Where"
-        options={whereSuggestions}
-        value={leg.location || null}
-        onChange={(location) => {
-          setLookupError(null);
-          onChange({ ...leg, location });
-        }}
-        placeholder={arrival ? "BCN T2" : "Sants station"}
-        error={errors?.location}
-        freeText
+      {/* How the times are being given. The two answers lead to different
+          fields, so it comes before them: a flight number and a day are
+          enough, or where and two times are. */}
+      <Segmented
+        options={MODES}
+        value={mode}
+        onChange={onModeChange}
       />
-
-      {/* A number and a day, and the rest fills itself in — the option
-          for those who flew, never a requirement. The button shares the
-          field's baseline rather than its box: both are bottom-aligned,
-          so the label above never pushes it out of line. */}
-      <View className="gap-1">
-        <View className="flex-row items-end gap-2">
-          <View className="flex-1">
-            <TextField
-              label="Flight number"
-              value={leg.flightNumber}
-              onChangeText={(flightNumber) => {
-                setLookupError(null);
-                onChange({ ...leg, flightNumber });
-              }}
-              placeholder="UA 1842"
-            />
-          </View>
-          <Button
-            title={lookingUp ? "Looking up…" : "Autofill"}
-            variant="secondary"
-            // "end" rather than the default "start": inside a row that
-            // puts `self-start` on it, which vertically top-aligns the
-            // button against a field that has a label above it.
-            align="end"
-            disabled={!canLookup}
-            onPress={autofill}
-          />
-        </View>
-        <Text className="font-body text-sm text-ink opacity-60">
-          Optional — a day below and a number fills the rest.
-        </Text>
-        {lookupError ? (
-          <Text className="font-body text-sm text-ink">{lookupError}</Text>
-        ) : null}
-      </View>
 
       <View className="gap-2">
         <Text className="font-body-bold text-sm text-ink">
@@ -394,47 +332,95 @@ function LegFields({
         ) : null}
       </View>
 
+      {/* The shortcut, and only in the mode that asks for it. Directly
+          under the day because the day is what the lookup needs: type a
+          number, press once, and the where and the times below fill in
+          without a scroll between them. */}
+      {mode === "flight" ? (
+      <View className="gap-1">
+        <TextField
+          label="Flight number"
+          value={leg.flightNumber}
+          onChangeText={(flightNumber) => {
+            setLookupError(null);
+            onChange({ ...leg, flightNumber });
+          }}
+          placeholder="UA 1842"
+          suffix={
+            <Pressable
+              accessibilityRole="button"
+              disabled={!canLookup}
+              onPress={autofill}
+              className={`justify-center border-l border-ink px-4 ${
+                canLookup ? "" : "opacity-40"
+              }`}
+            >
+              <Text className="font-body-bold text-sm text-ink">
+                {lookingUp ? "Looking up…" : "Autofill"}
+              </Text>
+            </Pressable>
+          }
+        />
+        {lookupError ? (
+          <Text className="font-body text-sm text-ink">{lookupError}</Text>
+        ) : null}
+      </View>
+      ) : null}
+
+      <Dropdown
+        label="Where"
+        options={whereSuggestions}
+        value={leg.location || null}
+        onChange={(location) => {
+          setLookupError(null);
+          onChange({ ...leg, location });
+        }}
+        placeholder={arrival ? "BCN T2" : "Sants station"}
+        error={errors?.location}
+        freeText
+      />
+
+      {showTimes ? (
+      <>
       {/* Both ends, the way a flight has both, side by side the way the
           event form puts Starts and Ends: two times being compared are
-          easier to compare next to each other. The far-day chip travels
-          with the time it moves, so it sits in that column's own label
-          row rather than between them. */}
+          easier to compare next to each other.
+
+          A leg that crosses midnight says so under the field that owns
+          the far end — "Left Thu Sep 18" under a departure, "Lands Sat
+          Sep 26" under an arrival. It is a readout, not a control: what
+          the two times already mean, said back, so it cannot disagree
+          with them. */}
       <View className="gap-4 md:flex-row">
-        <View className="md:flex-1">
+        <View className="gap-1 md:flex-1">
           <TimeField
             label="Departure time"
             value={leg.departureTime || null}
             onChange={(time) => onChange({ ...leg, departureTime: time ?? "" })}
             error={errors?.departureTime}
-            accessory={
-              arrival ? (
-                <ChipToggle
-                  label="Day before"
-                  selected={leg.farDay}
-                  onPress={() => onChange({ ...leg, farDay: !leg.farDay })}
-                />
-              ) : undefined
-            }
           />
+          {arrival && departureNote ? (
+            <Text className="font-body text-sm text-ink opacity-60">
+              {departureNote}
+            </Text>
+          ) : null}
         </View>
-        <View className="md:flex-1">
+        <View className="gap-1 md:flex-1">
           <TimeField
             label="Arrival time"
             value={leg.arrivalTime || null}
             onChange={(time) => onChange({ ...leg, arrivalTime: time ?? "" })}
             error={errors?.arrivalTime}
-            accessory={
-              arrival ? undefined : (
-                <ChipToggle
-                  label="Next day"
-                  selected={leg.farDay}
-                  onPress={() => onChange({ ...leg, farDay: !leg.farDay })}
-                />
-              )
-            }
           />
+          {!arrival && arrivalNote ? (
+            <Text className="font-body text-sm text-ink opacity-60">
+              {arrivalNote}
+            </Text>
+          ) : null}
         </View>
       </View>
+      </>
+      ) : null}
 
       <TextField
         label="Details"

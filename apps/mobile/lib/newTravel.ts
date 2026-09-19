@@ -1,7 +1,7 @@
 import { applyFlightLookup } from "@journiful/shared/utils";
 import type { FlightLookupResult } from "@journiful/shared/types";
 import { formatDay } from "@/lib/dateRange";
-import { formatClock, isClockTime } from "@/lib/time";
+import { formatClock, isClockTime, minutesOf } from "@/lib/time";
 import { wallClock } from "@/lib/timezone";
 import type { MockTravel } from "@/mocks/travel";
 
@@ -16,10 +16,12 @@ export type TravelDirection = "arrival" | "departure";
  * departure. Both of those fall inside the trip, which is what lets the
  * calendar be bounded by the trip's own dates.
  *
- * The other end of the leg is not always the same day, and the calendar
- * cannot say so without leaving the trip's range — an arrival that left
- * the evening before, a red-eye that lands the next morning. `farDay` is
- * that end, forward or back depending on which direction you are in.
+ * The other end is not always the same day. That is not a preference to
+ * ask for, it is arithmetic: an arrival earlier than its departure can
+ * only mean the leg crossed midnight, because a same-day one would have
+ * a negative duration. `crossesMidnight` is that sum — `null` to work it
+ * out from the two times, or a fact when the source already knows it,
+ * which a flight lookup does because it carries both timestamps.
  */
 export type TravelLeg = {
   day: string;
@@ -27,8 +29,11 @@ export type TravelLeg = {
   departureTime: string;
   /** The leg's end: when it lands. */
   arrivalTime: string;
-  /** The far end falls on the adjacent day, toward the trip. */
-  farDay: boolean;
+  /**
+   * Whether the leg crosses midnight. Null derives it from the two
+   * clocks; a lookup that carries real dates can state it outright.
+   */
+  crossesMidnight: boolean | null;
   /** Where this direction's own end is, as the member would say it. */
   location: string;
   /** The far end's location, when a lookup knew it. Never a field. */
@@ -58,7 +63,7 @@ export function emptyLeg(): TravelLeg {
     day: "",
     departureTime: "",
     arrivalTime: "",
-    farDay: false,
+    crossesMidnight: null,
     location: "",
     otherLocation: "",
     flightNumber: "",
@@ -109,11 +114,6 @@ export function validateLeg(
     errors[direction === "arrival" ? "departureTime" : "arrivalTime"] =
       "Times are HH:MM.";
   }
-  // A far end with no time to put on it says nothing.
-  if (leg.farDay && !other.trim()) {
-    errors[direction === "arrival" ? "departureTime" : "arrivalTime"] =
-      "A time for the other end.";
-  }
   if (!leg.location.trim()) errors.location = "Where?";
 
   return errors;
@@ -163,7 +163,10 @@ export function legFromLookup(
 
   const pertinent = pertinentIso ? wallClock(pertinentIso, timeZone) : null;
   const far = farIso ? wallClock(farIso, timeZone) : null;
-  const farDay = Boolean(pertinent && far && pertinent.date !== far.date);
+  // The lookup carries real instants, so it can state what the two
+  // clocks would otherwise have to be read for.
+  const crossesMidnight =
+    pertinent && far ? pertinent.date !== far.date : null;
 
   return {
     ...leg,
@@ -173,7 +176,7 @@ export function legFromLookup(
     arrivalTime: pertinent?.clock ?? leg.arrivalTime,
     location: pertinentLocation ?? leg.location,
     otherLocation: farLocation ?? leg.otherLocation,
-    farDay,
+    crossesMidnight,
   };
 }
 
@@ -198,8 +201,9 @@ export function buildLegRecord(
   const arrival = direction === "arrival";
   // Which way the far end sits: back for an arrival that left the
   // evening before, forward for a departure that lands in the morning.
-  const departureDay = leg.farDay && arrival ? shift(leg.day, -1) : leg.day;
-  const arrivalDay = leg.farDay && !arrival ? shift(leg.day, 1) : leg.day;
+  const crossed = legCrossesMidnight(leg);
+  const departureDay = crossed && arrival ? shift(leg.day, -1) : leg.day;
+  const arrivalDay = crossed && !arrival ? shift(leg.day, 1) : leg.day;
 
   return {
     id,
@@ -237,7 +241,9 @@ function shift(iso: string, days: number): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-/** A wall-clock time on a local day, as an instant. */
+/**
+ * A wall-clock time on a local day, as an instant.
+ */
 function stamp(day: string, clock: string, zoneOffsetMinutes: number): string {
   const [year, month, date] = day.split("-").map(Number) as [
     number,
@@ -251,6 +257,54 @@ function stamp(day: string, clock: string, zoneOffsetMinutes: number): string {
   return new Date(
     Date.UTC(year, month - 1, date, hour, minute) - zoneOffsetMinutes * 60_000,
   ).toISOString();
+}
+
+/**
+ * Whether the leg's two ends fall on different days.
+ *
+ * An arrival earlier than its departure can only be the morning after:
+ * a same-day leg with that shape would have a negative duration. So the
+ * two clocks are enough to say it, and a source that carries real dates
+ * can say it outright instead.
+ */
+export function legCrossesMidnight(leg: TravelLeg): boolean {
+  if (leg.crossesMidnight !== null) return leg.crossesMidnight;
+  if (!isClockTime(leg.departureTime.trim())) return false;
+  if (!isClockTime(leg.arrivalTime.trim())) return false;
+  return minutesOf(leg.arrivalTime) < minutesOf(leg.departureTime);
+}
+
+/**
+ * The day the leg's other end falls on: back a day for an arrival that
+ * left the evening before, on a day for a departure that lands in the
+ * morning, and the leg's own day when it does not cross at all. Null
+ * when there is no day picked yet.
+ */
+export function farEndDay(
+  leg: TravelLeg,
+  direction: TravelDirection,
+): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(leg.day)) return null;
+  if (!legCrossesMidnight(leg)) return leg.day;
+  return shift(leg.day, direction === "arrival" ? -1 : 1);
+}
+
+/**
+ * What the other end's day is, in words, for the line under the field
+ * that owns it. Null when the leg does not cross midnight: saying "the
+ * same day" under a field is noise, and the day line above already says
+ * which day that is.
+ */
+export function farEndNote(
+  leg: TravelLeg,
+  direction: TravelDirection,
+): string | null {
+  if (!legCrossesMidnight(leg)) return null;
+  const day = farEndDay(leg, direction);
+  if (!day) return null;
+  return direction === "arrival"
+    ? `Left ${formatDay(day)}`
+    : `Lands ${formatDay(day)}`;
 }
 
 /** A record as the form wants it back, in the trip's own zone. */
@@ -274,9 +328,9 @@ export function legFromRecord(
   const pertinent = pertinentIso ? wallClock(pertinentIso, timeZone) : null;
   const far = farIso ? wallClock(farIso, timeZone) : null;
 
-  // The far end is one day either side, which is also what the calendar
-  // refused to offer: read back as the flag plus the day beside it, so
-  // re-saving a red-eye does not quietly pull it onto the last day.
+  // The record carries real instants, so the two ends' dates are known
+  // rather than inferred — and reading them back is what lets the day
+  // stay inside the trip while the far end stays where it belongs.
   const day = pertinent?.date ?? "";
   const outsideTrip = Boolean(day && (day < tripStartDate || day > tripEndDate));
 
@@ -287,7 +341,7 @@ export function legFromRecord(
     // departure, and the far end only when it is an arrival.
     departureTime: (arrival ? far?.clock : pertinent?.clock) ?? "",
     arrivalTime: (arrival ? pertinent?.clock : far?.clock) ?? "",
-    farDay: Boolean(pertinent && far && pertinent.date !== far.date),
+    crossesMidnight: pertinent && far ? pertinent.date !== far.date : null,
     location: arrival
       ? (record.arrivalLocation ?? "")
       : (record.departureLocation ?? ""),

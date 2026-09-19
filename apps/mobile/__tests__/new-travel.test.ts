@@ -3,6 +3,7 @@ import type { FlightLookupResult } from "@journiful/shared/types";
 import {
   buildLegRecord,
   emptyLeg,
+  legCrossesMidnight,
   legFromLookup,
   legFromRecord,
   legSummary,
@@ -19,6 +20,13 @@ const ARRIVAL = {
   location: "BCN T2",
   otherLocation: "JFK T4",
   flightNumber: "UA 1842",
+};
+
+/** The same leg overnight: left the evening before, landed at lunchtime. */
+const OVERNIGHT_ARRIVAL = {
+  ...ARRIVAL,
+  departureTime: "22:50",
+  arrivalTime: "12:30",
 };
 
 const VALID: NewTravelInput = {
@@ -81,14 +89,6 @@ describe("validateNewTravel", () => {
     ).toEqual({});
   });
 
-  it("wants a time behind the far-day chip", () => {
-    const errors = validateNewTravel({
-      ...VALID,
-      arrival: { ...ARRIVAL, departureTime: "", farDay: true },
-    });
-    expect(errors.arrival?.departureTime).toBeTruthy();
-  });
-
   it("asks nothing of an untouched direction", () => {
     expect(validateNewTravel({ ...VALID, arrival: emptyLeg() })).toEqual({});
   });
@@ -100,13 +100,21 @@ describe("legFromLookup", () => {
     expect(leg.flightNumber).toBe("UA 1842");
     expect(leg.location).toBe("Barcelona (BCN)");
     expect(leg.otherLocation).toBe("Newark (EWR)");
-    expect(leg.farDay).toBe(false);
+    expect(leg.crossesMidnight).toBe(false);
   });
 
-  it("raises the far-day flag when the two ends fall on different days", () => {
+  it("pins the crossing when the two ends fall on different days", () => {
     expect(
-      legFromLookup(emptyLeg(), "arrival", OVERNIGHT, "UA 1842", null).farDay,
+      legFromLookup(emptyLeg(), "arrival", OVERNIGHT, "UA 1842", null)
+        .crossesMidnight,
     ).toBe(true);
+  });
+
+  it("pins the crossing as false when the lookup says same day", () => {
+    expect(
+      legFromLookup(emptyLeg(), "arrival", LOOKUP, "UA 1842", null)
+        .crossesMidnight,
+    ).toBe(false);
   });
 });
 
@@ -129,17 +137,18 @@ describe("buildLegRecord", () => {
   });
 
   it("puts the far end a day back for an overnight arrival", () => {
+    // Landed the 18th at lunchtime having left at 22:50: the clocks
+    // alone say the departure was the 17th, with nothing to tick.
     const record = buildLegRecord(
-      { ...ARRIVAL, day: "2026-09-18", arrivalTime: "07:15", farDay: true },
+      OVERNIGHT_ARRIVAL,
       "arrival",
       "t-1",
       "m-1",
       "Ana",
       0,
     );
-    // Landed the 18th, so it left the 17th.
-    expect(record?.arrivalTime).toBe("2026-09-18T07:15:00.000Z");
-    expect(record?.departureTime).toBe("2026-09-17T07:00:00.000Z");
+    expect(record?.arrivalTime).toBe("2026-09-18T12:30:00.000Z");
+    expect(record?.departureTime).toBe("2026-09-17T22:50:00.000Z");
   });
 
   it("puts the far end a day on for a red-eye home", () => {
@@ -149,7 +158,6 @@ describe("buildLegRecord", () => {
         day: "2026-09-25",
         departureTime: "23:30",
         arrivalTime: "07:15",
-        farDay: true,
         location: "BCN T2",
       },
       "departure",
@@ -188,7 +196,6 @@ describe("legSummary", () => {
           day: "2026-09-25",
           departureTime: "23:30",
           arrivalTime: "07:15",
-          farDay: true,
           location: "BCN T2",
         },
         "departure",
@@ -214,7 +221,7 @@ describe("legFromRecord", () => {
       "2026-09-25",
     );
     expect(leg.day).toBe("2026-09-25");
-    expect(leg.farDay).toBe(true);
+    expect(leg.crossesMidnight).toBe(true);
     // Both ends, from the side each belongs to. Reading them by position
     // put a departure's own time in its arrival field, and the form then
     // showed 09:15 for a 23:30 flight.
@@ -266,7 +273,10 @@ describe("legFromRecord", () => {
       "2026-09-25",
     );
     expect(leg.day).toBe("2026-09-18");
-    expect(leg.farDay).toBe(false);
+    // No far end on the record, so there is nothing to pin: it stays
+    // underived, and the effective answer is still "does not cross".
+    expect(leg.crossesMidnight).toBeNull();
+    expect(legCrossesMidnight(leg)).toBe(false);
     expect(leg.location).toBe("BCN T2");
   });
 });
