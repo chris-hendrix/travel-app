@@ -7,7 +7,7 @@
 /*
  * Journiful mobile design tokens v0 — "Elsewhere-inspired".
  * Palette + type roles lifted from elsewhere.club's system;
- * display is Rock Salt (rough marker print) standing in for
+ * display is Yellowtail (polished retro script) standing in for
  * their licensed Serial; body is Archivo for TWK Everett.
  */
 @theme {
@@ -32,8 +32,8 @@
   --color-acid: #cbfb6a;
 
   /* Type roles — family names match expo-font registrations.
-     Display is single-weight: headlines and kickers only. */
-  --font-display: "RockSalt_400Regular", cursive;
+     Display is single-weight: short headlines only. */
+  --font-display: "Yellowtail_400Regular", cursive;
   --font-body: "Archivo_400Regular", Arial, sans-serif;
   --font-body-bold: "Archivo_700Bold", Arial, sans-serif;
   --font-body-italic: "Archivo_400Regular_Italic", Arial, sans-serif;

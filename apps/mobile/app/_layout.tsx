@@ -7,13 +7,13 @@ import {
   Archivo_400Regular_Italic,
   Archivo_700Bold,
 } from "@expo-google-fonts/archivo";
-import { RockSalt_400Regular } from "@expo-google-fonts/rock-salt";
+import { Yellowtail_400Regular } from "@expo-google-fonts/yellowtail";
 import "../global.css";
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const [displayLoaded] = useFonts({ RockSalt_400Regular });
+  const [displayLoaded] = useFonts({ Yellowtail_400Regular });
   const [archivoLoaded] = useArchivo({
     Archivo_400Regular,
     Archivo_400Regular_Italic,

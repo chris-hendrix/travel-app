@@ -21,11 +21,11 @@ export default function Index() {
   return (
     <ScrollView className="flex-1 bg-sand">
       <View className="gap-4 p-6">
-        {/* Display face — rough marker print, headlines only */}
+        {/* Display face — short headlines only */}
         <Text className="font-display text-5xl leading-tight text-ink">
           Journiful
         </Text>
-        <Text className="font-display text-2xl leading-snug text-ink">
+        <Text className="font-body-bold text-2xl leading-snug text-ink">
           Zack Fox Presents: Uway
         </Text>
         <Text className="font-body text-lg leading-snug text-ink">
