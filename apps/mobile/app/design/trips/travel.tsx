@@ -90,12 +90,28 @@ function TripTravelDialog() {
     board.departures.days.length === 0 &&
     board.departures.unscheduled.length === 0;
 
+  // The action bar offers Add travel only while there is something to
+  // file: anyone unscheduled for the organizer, yourself unscheduled
+  // for a traveler. A complete board is done — no button.
+  const unscheduled = [
+    ...board.arrivals.unscheduled,
+    ...board.departures.unscheduled,
+  ];
+  const needsTravel = viewerIsOrganizer
+    ? unscheduled.length > 0
+    : unscheduled.some((row) => row.memberId === (viewerMember?.id ?? ""));
+
   return (
     <FullscreenDialog
       title="Travel"
-      primaryTitle="Add travel"
-      onPrimary={() =>
-        router.push(`/design/trips/travel/form?id=${trip.id}&as=${asParam}`)
+      primaryTitle={needsTravel ? "Add travel" : undefined}
+      onPrimary={
+        needsTravel
+          ? () =>
+              router.push(
+                `/design/trips/travel/form?id=${trip.id}&as=${asParam}`,
+              )
+          : undefined
       }
       dismissHref={`/design/trips/detail?id=${trip.id}`}
     >
