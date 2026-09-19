@@ -74,7 +74,7 @@ export default function Index() {
         <Text className="font-body text-sm text-ink">
           Viewport: {viewport}
         </Text>
-        <Link href="/design-system" className="font-body-bold text-sm text-ink">
+        <Link href="/design" className="font-body-bold text-sm text-ink">
           Design system →
         </Link>
       </View>

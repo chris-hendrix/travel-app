@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/Badge";
 import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { Accordion, AccordionItem } from "@/components/ui/Accordion";
+import { TripCard, TripGrid, type Trip } from "@/components/trip/TripCard";
 
 const COLORS: Array<[name: string, token: string, hex: string, swatch: string]> = [
   ["Chrome", "ink", "#000000", "bg-ink"],
@@ -30,6 +31,41 @@ const TYPE: Array<[name: string, token: string, use: string, face: string]> = [
 ];
 
 const VENUES = ["The Hall", "Zone One", "The Rooftop", "The Loft", "Full Venue"];
+
+const TRIPS: Trip[] = [
+  {
+    id: "picos",
+    title: "Los Picos Trail",
+    dateRange: "Sep 18–26",
+    location: "Mallorca",
+    image: "https://picsum.photos/seed/picos/900/600",
+    going: 6,
+  },
+  {
+    id: "lisbon",
+    title: "Dana's 30th",
+    dateRange: "Oct 3–6",
+    location: "Lisbon",
+    image: "https://picsum.photos/seed/lisbon/900/600",
+    going: 11,
+  },
+  {
+    id: "chamonix",
+    title: "Ski week",
+    dateRange: "Feb 12–19",
+    location: "Chamonix",
+    image: "https://picsum.photos/seed/chamonix/900/600",
+    going: 4,
+  },
+  {
+    id: "bigsur",
+    title: "Coast drive",
+    dateRange: "May 2–9",
+    location: "Big Sur",
+    image: "https://picsum.photos/seed/bigsur/900/600",
+    going: 3,
+  },
+];
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -102,8 +138,8 @@ export default function DesignSystem() {
             Design System
           </Text>
           <Text className="font-body text-base text-ink">
-            v1 — tokens and components. Every component below is the real
-            one, rendered live.
+            v1 — tokens, primitives, and patterns. Everything below is the
+            real component, rendered live.
           </Text>
         </View>
 
@@ -137,7 +173,7 @@ export default function DesignSystem() {
           </View>
         </Section>
 
-        <Section title="Components">
+        <Section title="Primitives">
           <View className="gap-4">
             <Specimen
               name="AppHeader"
@@ -277,11 +313,35 @@ export default function DesignSystem() {
           </View>
         </Section>
 
+        <Section title="Patterns">
+          <Text className="font-body text-base text-ink">
+            Product-level compositions built from primitives. One folder per
+            domain.
+          </Text>
+          <View className="gap-4">
+            <Specimen
+              name="TripCard · TripGrid"
+              contract="trip: { title, dateRange, location, image, going } · onPress?"
+              note="Locations hug the title. Hover the first card on a wide screen: photo and text both zoom."
+            >
+              <TripGrid>
+                {TRIPS.map((trip) => (
+                  <TripCard
+                    key={trip.id}
+                    trip={trip}
+                    onPress={() => setLog(`TripCard "${trip.title}" fired`)}
+                  />
+                ))}
+              </TripGrid>
+            </Specimen>
+          </View>
+        </Section>
+
         <Section title="Parking lot">
           <Text className="font-body text-base text-ink">
-            Itinerary day rows · photo cards · travel cards · invite flow —
-            not yet designed. They land here first as components, then in
-            screens.
+            Itinerary day rows · place photo cards · travel cards · invite
+            flow — not yet designed. Each lands here as a pattern first,
+            then in a screen.
           </Text>
         </Section>
       </View>
