@@ -24,15 +24,30 @@ const COLORS: Array<[name: string, token: string, hex: string, swatch: string]> 
   ["Highlight", "acid", "#cbfb6a", "bg-acid"],
 ];
 
-const TYPE: Array<[name: string, token: string, use: string, face: string]> = [
-  ["Display", "font-display", "Headlines. Short strings only.", "font-display"],
-  ["Wordmark", "font-wordmark", "Journiful. Nowhere else.", "font-wordmark"],
-  ["Body", "font-body", "Default text, dates, labels.", "font-body"],
-  ["Strong", "font-body-bold", "Emphasis, buttons, badges.", "font-body-bold"],
-  ["Aside", "font-body-italic", "Quotes, secondary info.", "font-body-italic"],
+const TYPE: Array<
+  [role: string, family: string, token: string, use: string, face: string]
+> = [
+  ["Display", "DotGothic16", "font-display", "Headlines. Short strings only.", "font-display"],
+  ["Wordmark", "Bungee Shade", "font-wordmark", "Journiful. Nowhere else.", "font-wordmark"],
+  ["Body", "Space Mono", "font-body", "Default text, dates, labels.", "font-body"],
+  ["Strong", "Space Mono Bold", "font-body-bold", "Emphasis, buttons, badges.", "font-body-bold"],
+  ["Aside", "Space Mono Italic", "font-body-italic", "Quotes, secondary info.", "font-body-italic"],
 ];
 
 const VENUES = ["The Hall", "Zone One", "The Rooftop", "The Loft", "Full Venue"];
+
+/**
+ * Display-face tryouts. Rendered with inline fontFamily rather than theme
+ * tokens so a rejected candidate leaves no trace in the system.
+ */
+const DISPLAY_CANDIDATES: Array<[name: string, family: string]> = [
+  ["DotGothic16 — current", "DotGothic16_400Regular"],
+  ["Pixelify Sans Bold", "PixelifySans_700Bold"],
+  ["Jersey 25", "Jersey25_400Regular"],
+  ["Press Start 2P", "PressStart2P_400Regular"],
+  ["Handjet ExtraBold", "Handjet_800ExtraBold"],
+  ["Doto Bold", "Doto_700Bold"],
+];
 
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -63,6 +78,32 @@ function TokenRow({
       <View className="flex-1 gap-0">
         <Text className="font-body-bold text-base text-ink">{name}</Text>
         <Text className="font-body text-sm text-ink">{detail}</Text>
+      </View>
+      <Text className="font-body text-sm text-ink">{token}</Text>
+    </View>
+  );
+}
+
+function TypeRow({
+  role,
+  family,
+  token,
+  use,
+  face,
+}: {
+  role: string;
+  family: string;
+  token: string;
+  use: string;
+  face: string;
+}) {
+  return (
+    <View className="flex-row items-center gap-3 border-b border-gravel py-3">
+      <Text className={`${face} w-28 text-2xl text-ink`}>Ag</Text>
+      <View className="flex-1">
+        <Text className="font-body-bold text-base text-ink">{role}</Text>
+        <Text className="font-body text-sm text-ink">{family}</Text>
+        <Text className="font-body text-sm text-ink">{use}</Text>
       </View>
       <Text className="font-body text-sm text-ink">{token}</Text>
     </View>
@@ -127,16 +168,48 @@ export default function DesignSystem() {
 
         <Section title="Type">
           <View>
-            {TYPE.map(([name, token, use, face]) => (
-              <TokenRow
+            {TYPE.map(([role, family, token, use, face]) => (
+              <TypeRow
                 key={token}
-                name={name}
+                role={role}
+                family={family}
                 token={token}
-                detail={use}
-                right={
-                  <Text className={`${face} w-24 text-2xl text-ink`}>Ag</Text>
-                }
+                use={use}
+                face={face}
               />
+            ))}
+          </View>
+          <Text className="font-body text-sm text-ink">
+            All three families are open licensed (SIL OFL) through Google
+            Fonts.
+          </Text>
+        </Section>
+
+        <Section title="Display candidates">
+          <Text className="font-body text-base text-ink">
+            Same headline, same size, five alternatives to DotGothic16.
+            Pick one and the rest come out.
+          </Text>
+          <View>
+            {DISPLAY_CANDIDATES.map(([name, family]) => (
+              <View
+                key={family}
+                className="gap-1 border-b border-gravel py-4"
+              >
+                <Text className="font-body text-sm text-ink">{name}</Text>
+                <Text
+                  style={{ fontFamily: family }}
+                  className="text-3xl uppercase leading-[1.1] text-ink"
+                >
+                  Los Picos Trail
+                </Text>
+                <Text
+                  style={{ fontFamily: family }}
+                  className="text-lg uppercase leading-snug text-ink"
+                >
+                  Kyoto in autumn · Ring road
+                </Text>
+              </View>
             ))}
           </View>
         </Section>

@@ -53,19 +53,16 @@ export default function TripsScreen() {
           </Pressable>
         </View>
 
-        <View className="flex-row items-center justify-between gap-4">
-          <Text className="font-display text-3xl uppercase leading-none text-ink">
-            Trips
-          </Text>
-          {trips.length > 0 ? (
-            <View>
-              <Button
-                title="Create trip"
-                onPress={() => setLog("Create trip pressed")}
-              />
-            </View>
-          ) : null}
-        </View>
+        {/* No page heading: the app wordmark bar already says where you
+            are, and the Upcoming/Past rules carry the structure. */}
+        {trips.length > 0 ? (
+          <View>
+            <Button
+              title="Create trip"
+              onPress={() => setLog("Create trip pressed")}
+            />
+          </View>
+        ) : null}
 
         {trips.length === 0 ? (
           <View className="gap-5 py-10">
