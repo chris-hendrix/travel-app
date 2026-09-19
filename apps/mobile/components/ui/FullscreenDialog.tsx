@@ -21,7 +21,7 @@ export function FullscreenDialog({
 }) {
   const router = useRouter();
   return (
-    <View className="flex-1 bg-paper">
+    <View className="flex-1 bg-gravel">
       <AppHeader title={title} onClose={() => router.back()} />
       <ScrollView className="flex-1">
         <View className="gap-4 p-6">{children}</View>

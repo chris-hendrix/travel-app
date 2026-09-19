@@ -17,7 +17,7 @@ export function ActionBar({
   backTitle?: string;
 }) {
   return (
-    <View className="flex-row items-center justify-between gap-3 border-t border-ink bg-paper px-6 py-4">
+    <View className="flex-row items-center justify-between gap-3 border-t border-ink bg-gravel px-6 py-4">
       <Pressable onPress={onBack}>
         <Text className="font-body-bold text-ink">← {backTitle}</Text>
       </Pressable>

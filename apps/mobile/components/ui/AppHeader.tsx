@@ -2,20 +2,28 @@ import type { ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Link } from "expo-router";
 import { Bell, User, X } from "lucide-react-native";
-import Svg, { Path } from "react-native-svg";
+import Svg, { Defs, Path, Pattern, Rect } from "react-native-svg";
 
+/**
+ * Scalloped bottom edge on the chrome band. A pattern tile keeps the
+ * wave period fixed instead of stretching it across the viewport.
+ */
 function WaveEdge() {
   return (
-    <Svg
-      height={10}
-      width="100%"
-      viewBox="0 0 120 10"
-      preserveAspectRatio="none"
-    >
-      <Path
-        d="M0 0 H120 V5 Q112.5 10 105 5 T90 5 T75 5 T60 5 T45 5 T30 5 T15 5 T0 5 Z"
-        fill="#000000"
-      />
+    <Svg height={12} width="100%">
+      <Defs>
+        <Pattern
+          id="wave"
+          x="0"
+          y="0"
+          width={28}
+          height={12}
+          patternUnits="userSpaceOnUse"
+        >
+          <Path d="M0 0 H28 V6 Q21 12 14 6 T0 6 Z" fill="#000000" />
+        </Pattern>
+      </Defs>
+      <Rect x="0" y="0" width="100%" height={12} fill="url(#wave)" />
     </Svg>
   );
 }
@@ -56,7 +64,7 @@ export function AppHeader({
 }) {
   if (title) {
     return (
-      <View className="flex-row items-center justify-between bg-paper px-6 py-4">
+      <View className="flex-row items-center justify-between border-b border-ink bg-gravel px-6 py-4">
         <Text className="font-display text-2xl leading-none text-ink">
           {title}
         </Text>
