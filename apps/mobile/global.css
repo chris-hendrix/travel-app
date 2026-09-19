@@ -7,8 +7,8 @@
 /*
  * Journiful mobile design tokens v0 — "Elsewhere-inspired".
  * Palette + type roles lifted from elsewhere.club's system;
- * display is Yellowtail (polished retro script) standing in for
- * their licensed Serial; body is Archivo for TWK Everett.
+ * display is DotGothic16 (retro pixel caps) for headlines;
+ * body is Space Mono (technical monospace) for everything else.
  */
 @theme {
   /* Surfaces + ink */
@@ -33,8 +33,8 @@
 
   /* Type roles — family names match expo-font registrations.
      Display is single-weight: short headlines only. */
-  --font-display: "Yellowtail_400Regular", cursive;
-  --font-body: "Archivo_400Regular", Arial, sans-serif;
-  --font-body-bold: "Archivo_700Bold", Arial, sans-serif;
-  --font-body-italic: "Archivo_400Regular_Italic", Arial, sans-serif;
+  --font-display: "DotGothic16_400Regular", monospace;
+  --font-body: "SpaceMono_400Regular", monospace;
+  --font-body-bold: "SpaceMono_700Bold", monospace;
+  --font-body-italic: "SpaceMono_400Regular_Italic", monospace;
 }

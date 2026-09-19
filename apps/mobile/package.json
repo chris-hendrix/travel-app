@@ -16,8 +16,8 @@
     "clean": "rm -rf .expo dist node_modules"
   },
   "dependencies": {
-    "@expo-google-fonts/archivo": "^0.4.2",
-    "@expo-google-fonts/yellowtail": "^0.4.1",
+    "@expo-google-fonts/dotgothic16": "^0.4.1",
+    "@expo-google-fonts/space-mono": "^0.4.2",
     "@journiful/shared": "workspace:*",
     "expo": "~57.0.24",
     "expo-font": "~57.0.4",

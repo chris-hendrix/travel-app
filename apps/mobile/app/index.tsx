@@ -21,7 +21,7 @@ export default function Index() {
   return (
     <ScrollView className="flex-1 bg-sand">
       <View className="gap-4 p-6">
-        {/* Display face — short headlines only */}
+        {/* Display face — pixel caps, short headlines only */}
         <Text className="font-display text-5xl leading-tight text-ink">
           Journiful
         </Text>
