@@ -114,6 +114,15 @@ export function formatTimeRange(
   return `${MONTHS[s.month]} ${s.day}, ${s.year} – ${MONTHS[e.month]} ${e.day}, ${e.year}`;
 }
 
+/** A local day, moved. Used one day at a time, for the edges of a trip. */
+export function addDays(iso: string, days: number): string {
+  // `parts` hands back a zero-based month, which is also what Date wants.
+  const { year, month, day } = parts(iso);
+  const date = new Date(year, month, day);
+  date.setDate(date.getDate() + days);
+  return toIso(date);
+}
+
 /**
  * Every local date from start to end, inclusive. The day options for
  * placing an event inside a trip.

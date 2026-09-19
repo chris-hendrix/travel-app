@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { Segmented } from "@/components/ui/Segmented";
-import { DayStrip } from "@/components/ui/DayStrip";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { TimeField } from "@/components/ui/TimeField";
 import { dayLabel } from "@/lib/itinerary";
-import { toIso } from "@/lib/dateRange";
+import { addDays, toIso } from "@/lib/dateRange";
 import { isFlightNumber, lookupFlight } from "@/lib/flights";
 import {
   emptyLeg,
@@ -327,11 +327,15 @@ function LegFields({
         <Text className="font-body-bold text-sm text-ink">
           {arrival ? "Day you land" : "Day you leave"}
         </Text>
-        <DayStrip
-          startDate={trip.startDate}
-          endDate={trip.endDate}
-          value={leg.day}
-          onChange={(day) => onChange({ ...leg, day })}
+        {/* Bounded by the trip, and one day past its end: a stay is
+            booked through its last night, so check-out and the flight
+            home are the morning after the last day. */}
+        <DatePicker
+          selection={{ start: leg.day || null, end: leg.day || null }}
+          onChange={(dates) => onChange({ ...leg, day: dates.start ?? "" })}
+          single
+          min={trip.startDate}
+          max={addDays(trip.endDate, 1)}
         />
         <Text className="font-body text-sm text-ink">
           {leg.day ? dayLabel(leg.day, today) : "Pick the day."}

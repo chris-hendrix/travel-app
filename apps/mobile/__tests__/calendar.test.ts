@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addMonths,
   applyDayTap,
+  applySingleTap,
   isEndpoint,
   isInRange,
   monthGrid,
@@ -102,5 +103,23 @@ describe("range helpers", () => {
     expect(isEndpoint(selection, "2026-09-10")).toBe(true);
     expect(isEndpoint(selection, "2026-09-14")).toBe(true);
     expect(isEndpoint(selection, "2026-09-12")).toBe(false);
+  });
+});
+
+describe("applySingleTap", () => {
+  it("puts both ends of the selection on the one day", () => {
+    expect(applySingleTap("2026-09-20")).toEqual({
+      start: "2026-09-20",
+      end: "2026-09-20",
+    });
+  });
+
+  it("replaces a whole range with the day tapped", () => {
+    const range = applyDayTap({ start: "2026-09-18", end: null }, "2026-09-22");
+    expect(applySingleTap("2026-09-20")).not.toEqual(range);
+    expect(applySingleTap("2026-09-20")).toEqual({
+      start: "2026-09-20",
+      end: "2026-09-20",
+    });
   });
 });

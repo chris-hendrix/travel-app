@@ -1,6 +1,6 @@
 import { applyFlightLookup } from "@journiful/shared/utils";
 import type { FlightLookupResult } from "@journiful/shared/types";
-import { formatDay } from "@/lib/dateRange";
+import { addDays as shift, formatDay } from "@/lib/dateRange";
 import { formatClock, isClockTime, minutesOf } from "@/lib/time";
 import { wallClock } from "@/lib/timezone";
 import type { MockTravel } from "@/mocks/travel";
@@ -226,19 +226,6 @@ export function buildLegRecord(
     details: leg.details.trim() ? leg.details.trim() : null,
     deletedAt: null,
   } satisfies MockTravel;
-}
-
-/** An ISO day shifted, used only one day at a time. */
-function shift(iso: string, days: number): string {
-  const [year, month, day] = iso.split("-").map(Number) as [
-    number,
-    number,
-    number,
-  ];
-  const date = new Date(year, month - 1, day);
-  date.setDate(date.getDate() + days);
-  const pad = (value: number) => `${value}`.padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
 /**

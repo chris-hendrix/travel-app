@@ -5,7 +5,8 @@ import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
-import { DayStrip } from "@/components/ui/DayStrip";
+import { DatePicker } from "@/components/ui/DatePicker";
+import type { Selection } from "@/lib/calendar";
 import { TimeField } from "@/components/ui/TimeField";
 import { dayLabel } from "@/lib/itinerary";
 import { toIso } from "@/lib/dateRange";
@@ -19,8 +20,9 @@ import { EVENT_PLACES } from "@/mocks/places";
  * of these fields would be two things to keep in step for no gain.
  *
  * Name, place, and day make the event; the times fill it in, and All day
- * is a real answer rather than an empty picker. The day comes off the
- * trip's own days, so an event can never land outside it.
+ * is a real answer rather than an empty picker. The day comes off a
+ * calendar bounded by the trip's own dates, so an event can never land
+ * outside it.
  *
  * The place is a Places lookup and the only field that also feeds the
  * event's type — a restaurant is a restaurant because Places says so,
@@ -55,12 +57,16 @@ export function EventDialog({
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [place, setPlace] = useState<string | null>(initial?.place ?? null);
-  const [day, setDay] = useState(initial?.day ?? "");
+  const [dates, setDates] = useState<Selection>({
+    start: initial?.day ?? null,
+    end: initial?.day ?? null,
+  });
   const [start, setStart] = useState<string | null>(initial?.start ?? null);
   const [end, setEnd] = useState<string | null>(initial?.end ?? null);
   const [submitted, setSubmitted] = useState(false);
 
   const today = toIso(new Date());
+  const day = dates.start ?? "";
 
   const input: NewEventInput = {
     name,
@@ -120,11 +126,12 @@ export function EventDialog({
 
       <View className="gap-2">
         <Text className="font-body-bold text-sm text-ink">Day</Text>
-        <DayStrip
-          startDate={trip.startDate}
-          endDate={trip.endDate}
-          value={day}
-          onChange={setDay}
+        <DatePicker
+          selection={dates}
+          onChange={setDates}
+          single
+          min={trip.startDate}
+          max={trip.endDate}
         />
         <Text className="font-body text-sm text-ink">
           {day ? dayLabel(day, today) : "Pick the day it happens."}
