@@ -13,6 +13,7 @@ import {
 } from "@/lib/travelBoard";
 import { useTrips } from "@/lib/tripsStore";
 import { useTravel } from "@/lib/travelStore";
+import { viewerMember } from "@/lib/members";
 import { membersFor } from "@/mocks/members";
 
 /**
@@ -53,18 +54,23 @@ function TripTravelDialog() {
   // The lab's stand-in for `isOrganizer` on the membership, threaded
   // down from the trip screen so the two can never disagree.
   const viewerIsOrganizer = as === "organizer";
-  // The lab has no signed-in identity: the first traveler on the
-  // roster stands in for "you".
+  // The lab has no signed-in identity: one member of the roster stands
+  // in for "you", and the board and the trip screen nudge share the
+  // same stand-in so the two can never disagree.
+  const records = travelForTrip(trip!);
   const going = trip
     ? membersFor(trip).filter((member) => member.status === "going")
     : [];
-  const viewerMember = going.find((member) => !member.isOrganizer) ?? null;
+  const viewer = viewerMember(
+    going,
+    viewerIsOrganizer,
+    records.filter((record) => record.time).map((record) => record.memberId),
+  );
   const asParam = viewerIsOrganizer ? "organizer" : "traveler";
   // The organizer corrects anyone; a traveler touches only their own.
   const canEditRow = (memberId: string) =>
-    viewerIsOrganizer || (viewerMember?.id ?? "") === memberId;
+    viewerIsOrganizer || (viewer?.id ?? "") === memberId;
 
-  const records = travelForTrip(trip!);
   const board = useMemo(
     () =>
       trip
@@ -72,7 +78,6 @@ function TripTravelDialog() {
         : null,
     [trip, records],
   );
-
   if (!trip || !board) {
     return (
       <FullscreenDialog title="Travel" dismissHref="/design/trips">
@@ -90,28 +95,12 @@ function TripTravelDialog() {
     board.departures.days.length === 0 &&
     board.departures.unscheduled.length === 0;
 
-  // The action bar offers Add travel only while there is something to
-  // file: anyone unscheduled for the organizer, yourself unscheduled
-  // for a traveler. A complete board is done — no button.
-  const unscheduled = [
-    ...board.arrivals.unscheduled,
-    ...board.departures.unscheduled,
-  ];
-  const needsTravel = viewerIsOrganizer
-    ? unscheduled.length > 0
-    : unscheduled.some((row) => row.memberId === (viewerMember?.id ?? ""));
-
   return (
     <FullscreenDialog
       title="Travel"
-      primaryTitle={needsTravel ? "Add travel" : undefined}
-      onPrimary={
-        needsTravel
-          ? () =>
-              router.push(
-                `/design/trips/travel/form?id=${trip.id}&as=${asParam}`,
-              )
-          : undefined
+      primaryTitle="Add travel"
+      onPrimary={() =>
+        router.push(`/design/trips/travel/form?id=${trip.id}&as=${asParam}`)
       }
       dismissHref={`/design/trips/detail?id=${trip.id}`}
     >
@@ -213,10 +202,10 @@ function TravelSection({
 }
 
 /**
- * One person's travel. The name leads, the time sits right-aligned,
- * the where hangs beneath — three facts, nothing else. The accordion
- * holds the flight, the details, and — for the organizer on any row,
- * for a traveler on their own — the Edit link.
+ * One person's travel. The name and the time are the row — who, and
+ * when they land — and nothing else, so the column reads straight down.
+ * Where sits in the accordion with the flight and the details: the
+ * location is what you look up once you have decided to care.
  */
 function TravelRowItem({
   row,
@@ -233,9 +222,9 @@ function TravelRowItem({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  // Every row opens: the accordion holds the flight, the details, and
-  // the Edit link — and an unscheduled row's Edit is how it gets a
-  // time at all, so those rows must open most of all.
+  // Every row opens: the accordion holds the where, the flight, the
+  // details, and the Edit link — and an unscheduled row's Edit is how
+  // it gets a time at all, so those rows must open most of all.
   const Icon = open ? ArrowUp : ArrowDown;
 
   return (
@@ -246,25 +235,23 @@ function TravelRowItem({
         onPress={() => setOpen((value) => !value)}
         className="flex-row items-center justify-between gap-4"
       >
-        <View className="flex-1 gap-0.5">
-          <View className="flex-row items-baseline justify-between gap-4">
-            <Text className="font-body-bold text-base text-ink">
-              {row.memberName}
-            </Text>
-            <Text className="font-body-bold text-base text-ink">
-              {row.time ? wallClock(row.time, timeZone).time : "No time yet"}
-            </Text>
-          </View>
-          {row.location ? (
-            <Text className="font-body text-sm text-ink opacity-60">
-              {row.location}
-            </Text>
-          ) : null}
+        <View className="flex-1 flex-row items-baseline justify-between gap-4">
+          <Text className="font-body-bold text-base text-ink">
+            {row.memberName}
+          </Text>
+          <Text className="font-body-bold text-base text-ink">
+            {row.time ? wallClock(row.time, timeZone).time : "No time yet"}
+          </Text>
         </View>
         <Icon color="#000000" size={20} />
       </Pressable>
       {open ? (
         <View className="gap-1 pt-2">
+          {row.location ? (
+            <Text className="font-body-bold text-sm text-ink">
+              {row.location}
+            </Text>
+          ) : null}
           {row.flightNumber ? (
             <Text className="font-body text-sm text-ink">
               {row.flightNumber}

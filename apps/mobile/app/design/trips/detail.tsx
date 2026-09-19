@@ -12,6 +12,9 @@ import { tripCountdown } from "@/lib/countdown";
 import { formatDateRange } from "@/lib/dateRange";
 import type { RsvpStatus } from "@/lib/rsvp";
 import { useTrips } from "@/lib/tripsStore";
+import { useTravel } from "@/lib/travelStore";
+import { viewerMember } from "@/lib/members";
+import { membersFor } from "@/mocks/members";
 
 type Variant = "organizer" | "traveler";
 
@@ -95,6 +98,40 @@ function TripDetailScreen() {
   // starts unreplied — the API's own default.
   const invited = !organizer && response === "no_response";
 
+  // Your own travel, filed or not: the organizer is the roster's
+  // organizer, everyone else is the lab's stand-in for "you".
+  const { travelForTrip } = useTravel();
+  // Filed means a time is on it: a row without one is still owed.
+  const filed = travelForTrip(trip).filter((record) => record.time);
+  const viewer = viewerMember(
+    membersFor(trip),
+    organizer,
+    filed.map((record) => record.memberId),
+  );
+  const viewerTravel = viewer
+    ? filed.filter((record) => record.memberId === viewer.id)
+    : [];
+  const owesTravel =
+    !invited &&
+    (!viewerTravel.some((record) => record.travelType === "arrival") ||
+      !viewerTravel.some((record) => record.travelType === "departure"));
+
+  // The nudge onto the trip screen, and only while you owe times: the
+  // board keeps its own Add travel either way. Same words as the board's
+  // button, because it is the same act.
+  const travelCta = owesTravel ? (
+    <Button
+      title="Add travel"
+      variant="secondary"
+      fullWidth
+      onPress={() =>
+        router.push(
+          `/design/trips/travel/form?id=${trip.id}&as=${variant}&member=${viewer?.id ?? ""}`,
+        )
+      }
+    />
+  ) : null;
+
   // Both variants end their action group with the same button: the
   // organizer's is the fourth in the stack, the traveler's sits directly
   // under the RSVP.
@@ -134,12 +171,14 @@ function TripDetailScreen() {
         onPress={() => router.push(`/design/trips/edit?id=${trip.id}`)}
       />
       {settingsButton}
+      {travelCta}
     </View>
   ) : (
     <View className="gap-2">
       {invited ? (
         // An unanswered invitation gets one answer and nothing else:
-        // settings for a trip you have not joined would be noise.
+        // settings for a trip you have not joined would be noise, and so
+        // would a nudge about travel you have not been asked for yet.
         <Button
           title="Accept invitation"
           variant="accent"
@@ -151,6 +190,7 @@ function TripDetailScreen() {
           {/* All three answers, always visible and always reachable — an
               RSVP you cannot take back is a worse RSVP. */}
           <RsvpControl value={response} onChange={setResponse} />
+          {travelCta}
           {settingsButton}
         </>
       )}
@@ -229,7 +269,9 @@ function TripDetailScreen() {
                 <QuietAction
                   label="Travel"
                   onPress={() =>
-                    router.push(`/design/trips/travel?id=${trip.id}`)
+                    router.push(
+                      `/design/trips/travel?id=${trip.id}&as=${variant}`,
+                    )
                   }
                 />
               </View>

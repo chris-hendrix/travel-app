@@ -42,3 +42,32 @@ export function visiblePhone(
 ): string | null {
   return viewerIsOrganizer || member.sharePhone ? member.phone : null;
 }
+
+/**
+ * Who "you" are in the lab.
+ *
+ * There is no signed-in identity here, so one member of the roster
+ * stands in for the viewer. The organizer is the roster's own
+ * organizer; a traveler is the first going member who still owes times
+ *, because that is the state with something to do in it — the same
+ * reason the trip screen defaults to the traveler.
+ *
+ * Both the trip screen's nudge and the board's Edit rule ask this
+ * question, so they ask it here: one stand-in, never two that disagree.
+ */
+export function viewerMember(
+  members: Member[],
+  viewerIsOrganizer: boolean,
+  filedMemberIds: string[],
+): Member | null {
+  const going = members.filter((member) => member.status === "going");
+  if (viewerIsOrganizer) {
+    return going.find((member) => member.isOrganizer) ?? null;
+  }
+  const filed = new Set(filedMemberIds);
+  return (
+    going.find((member) => !member.isOrganizer && !filed.has(member.id)) ??
+    going.find((member) => !member.isOrganizer) ??
+    null
+  );
+}
