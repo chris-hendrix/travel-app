@@ -69,7 +69,10 @@ export function TimeField({
 
   return (
     <View className="gap-1">
-      <View className="flex-row items-center justify-between gap-4">
+      {/* Pinned to the height of an accessory rather than left to the
+          text: a chip beside one label and not the other made the two
+          columns start their fields at different heights. */}
+      <View className="min-h-7 flex-row items-center justify-between gap-4">
         <Text className="font-body-bold text-sm text-ink">{label}</Text>
         {accessory}
       </View>
