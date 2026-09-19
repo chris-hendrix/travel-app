@@ -8,7 +8,7 @@ export default function Notifications() {
       primaryTitle="Mark all read"
       onPrimary={() => {}}
     >
-      <Text className="font-body text-base text-sand">
+      <Text className="font-body text-base text-ink">
         No new notifications. Invites and updates land here.
       </Text>
     </FullscreenDialog>
