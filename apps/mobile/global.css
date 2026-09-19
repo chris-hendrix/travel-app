@@ -34,6 +34,7 @@
   /* Type roles — family names match expo-font registrations.
      Display is single-weight: short headlines only. */
   --font-display: "DotGothic16_400Regular", monospace;
+  --font-wordmark: "BungeeShade_400Regular", sans-serif;
   --font-body: "SpaceMono_400Regular", monospace;
   --font-body-bold: "SpaceMono_700Bold", monospace;
   --font-body-italic: "SpaceMono_400Regular_Italic", monospace;

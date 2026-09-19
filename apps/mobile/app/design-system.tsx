@@ -21,14 +21,15 @@ const COLORS: Array<[name: string, token: string, hex: string, swatch: string]> 
 ];
 
 const TYPE: Array<[name: string, token: string, use: string, face: string]> = [
-  ["Display", "font-display", "Headlines, logo. Short strings only.", "font-display"],
+  ["Display", "font-display", "Headlines. Short strings only.", "font-display"],
+  ["Wordmark", "font-wordmark", "Journiful wordmark. Nowhere else.", "font-wordmark"],
   ["Body", "font-body", "Default text, dates, labels.", "font-body"],
   ["Strong", "font-body-bold", "Emphasis, buttons, badges.", "font-body-bold"],
   ["Aside", "font-body-italic", "Quotes, secondary info.", "font-body-italic"],
 ];
 
 const COMPONENTS: Array<[name: string, variants: string, use: string]> = [
-  ["AppHeader", "title · back · action", "Top bar for every screen."],
+  ["AppHeader", "wordmark · title", "Wordmark mode: seafoam band, bell, avatar. Title mode: dialog screens."],
   ["FullscreenDialog", "—", "Route-based dialog scaffold. Dialogs switch screens, never stack."],
   ["ActionBar", "—", "Pinned bottom bar: Back + one primary action."],
   ["Button", "Primary · Secondary · Accent", "The only action control."],
