@@ -394,41 +394,47 @@ function LegFields({
         ) : null}
       </View>
 
-      {/* Both ends, the way a flight has both. The calendar cannot say
-          that a red-eye lands past its last day or that an arrival left
-          the evening before, so the far end carries the chip that does:
-          it belongs to the time it moves, not to the leg. */}
-      <TimeField
-        label="Departure time"
-        value={leg.departureTime || null}
-        onChange={(time) => onChange({ ...leg, departureTime: time ?? "" })}
-        error={errors?.departureTime}
-        accessory={
-          arrival ? (
-            <ChipToggle
-              label="Day before"
-              selected={leg.farDay}
-              onPress={() => onChange({ ...leg, farDay: !leg.farDay })}
-            />
-          ) : undefined
-        }
-      />
-
-      <TimeField
-        label="Arrival time"
-        value={leg.arrivalTime || null}
-        onChange={(time) => onChange({ ...leg, arrivalTime: time ?? "" })}
-        error={errors?.arrivalTime}
-        accessory={
-          arrival ? undefined : (
-            <ChipToggle
-              label="Next day"
-              selected={leg.farDay}
-              onPress={() => onChange({ ...leg, farDay: !leg.farDay })}
-            />
-          )
-        }
-      />
+      {/* Both ends, the way a flight has both, side by side the way the
+          event form puts Starts and Ends: two times being compared are
+          easier to compare next to each other. The far-day chip travels
+          with the time it moves, so it sits in that column's own label
+          row rather than between them. */}
+      <View className="gap-4 md:flex-row">
+        <View className="md:flex-1">
+          <TimeField
+            label="Departure time"
+            value={leg.departureTime || null}
+            onChange={(time) => onChange({ ...leg, departureTime: time ?? "" })}
+            error={errors?.departureTime}
+            accessory={
+              arrival ? (
+                <ChipToggle
+                  label="Day before"
+                  selected={leg.farDay}
+                  onPress={() => onChange({ ...leg, farDay: !leg.farDay })}
+                />
+              ) : undefined
+            }
+          />
+        </View>
+        <View className="md:flex-1">
+          <TimeField
+            label="Arrival time"
+            value={leg.arrivalTime || null}
+            onChange={(time) => onChange({ ...leg, arrivalTime: time ?? "" })}
+            error={errors?.arrivalTime}
+            accessory={
+              arrival ? undefined : (
+                <ChipToggle
+                  label="Next day"
+                  selected={leg.farDay}
+                  onPress={() => onChange({ ...leg, farDay: !leg.farDay })}
+                />
+              )
+            }
+          />
+        </View>
+      </View>
 
       <TextField
         label="Details"
