@@ -6,6 +6,8 @@ export function TextField({
   onChangeText,
   placeholder,
   error,
+  multiline,
+  numberOfLines,
 }: {
   label: string;
   value: string;
@@ -14,6 +16,8 @@ export function TextField({
   /** Field-level error. Explicitly nullable so strict callers can pass
    *  an optional lookup straight through. */
   error?: string | undefined;
+  multiline?: boolean;
+  numberOfLines?: number;
 }) {
   return (
     <View className="gap-1">
@@ -24,6 +28,9 @@ export function TextField({
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor="#707070"
+        multiline={multiline}
+        numberOfLines={numberOfLines}
+        textAlignVertical={multiline ? "top" : undefined}
       />
       {error ? (
         <Text className="font-body text-sm text-ink">{error}</Text>

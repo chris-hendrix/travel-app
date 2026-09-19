@@ -14,7 +14,9 @@ import { AppHeader } from "@/components/ui/AppHeader";
 import { DIALOG_ROUTES } from "@/lib/routes";
 import { NotificationsProvider } from "@/lib/notificationsStore";
 import { ProfileProvider } from "@/lib/profileStore";
+import { TripSettingsProvider } from "@/lib/tripSettingsStore";
 import { TripsProvider } from "@/lib/tripsStore";
+import { EventsProvider } from "@/lib/eventsStore";
 import "../global.css";
 
 SplashScreen.preventAutoHideAsync();
@@ -40,21 +42,26 @@ export default function RootLayout() {
   const isDialog = DIALOG_ROUTES.includes(pathname);
   return (
     <TripsProvider>
+      <EventsProvider>
       <NotificationsProvider>
         <ProfileProvider>
-          <View className="flex-1 bg-sand">
-            {/* App shell: a fixed-height column so the screen scrolls under
-                the header instead of scrolling the whole document (web). */}
-            {isDialog ? null : <AppHeader />}
-            <View className="flex-1">
-              {/* Dialogs paint their own ground, and screens use the Screen
-                  primitive: the navigation container's default background
-                  covers anything painted underneath it. */}
-              <Stack screenOptions={{ headerShown: false }} />
+          <TripSettingsProvider>
+            <View className="flex-1 bg-sand">
+              {/* App shell: a fixed-height column so the screen scrolls
+                  under the header instead of scrolling the whole document
+                  (web). */}
+              {isDialog ? null : <AppHeader />}
+              <View className="flex-1">
+                {/* Dialogs paint their own ground, and screens use the
+                    Screen primitive: the navigation container's default
+                    background covers anything painted underneath it. */}
+                <Stack screenOptions={{ headerShown: false }} />
+              </View>
             </View>
-          </View>
+          </TripSettingsProvider>
         </ProfileProvider>
       </NotificationsProvider>
+      </EventsProvider>
     </TripsProvider>
   );
 }

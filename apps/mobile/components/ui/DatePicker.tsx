@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react-native";
 import {
   addMonths,
   applyDayTap,
+  applySingleTap,
   isEndpoint,
   isInRange,
   monthGrid,
@@ -16,25 +17,43 @@ import {
 import { toIso } from "@/lib/dateRange";
 
 /**
- * Range date picker. Inline, never a nested dialog: opening a second
- * dialog over the first is the one thing this system refuses.
+ * Date picker. Inline, never a nested dialog: opening a second dialog
+ * over the first is the one thing this system refuses.
  *
- * Two taps make a trip — first the start, then the end. The range fills
- * seafoam; the endpoints invert to ink.
+ * Range by default — two taps make a trip, the range fills seafoam, the
+ * endpoints invert to ink. With `single`, one tap picks one day, which
+ * is what an event needs.
+ *
+ * `min` and `max` are the days that make sense for what is being
+ * picked — a trip's own dates for an event inside it. Days outside them
+ * are inert rather than miscoloured: grey text is the calendar's word
+ * for "not a day you can pick here".
  */
 export function DatePicker({
   selection,
   onChange,
+  single = false,
+  min,
+  max,
 }: {
   selection: Selection;
   onChange: (next: Selection) => void;
+  /** One day instead of a range. */
+  single?: boolean;
+  /** Inclusive bounds, ISO. */
+  min?: string;
+  max?: string;
 }) {
   const today = toIso(new Date());
   const [cursor, setCursor] = useState<MonthCursor>(() =>
-    monthOf(selection.start ?? today),
+    monthOf(selection.start ?? min ?? today),
   );
 
   const weeks = monthGrid(cursor);
+
+  /** Outside the bounds, so not a day this picker can hand back. */
+  const isOutOfBounds = (iso: string) =>
+    (min !== undefined && iso < min) || (max !== undefined && iso > max);
 
   return (
     <View className="border border-ink bg-paper">
@@ -76,8 +95,15 @@ export function DatePicker({
                     day={Number(iso.slice(8, 10))}
                     isToday={iso === today}
                     selected={isEndpoint(selection, iso)}
-                    inRange={isInRange(selection, iso)}
-                    onPress={() => onChange(applyDayTap(selection, iso))}
+                    inRange={!single && isInRange(selection, iso)}
+                    disabled={isOutOfBounds(iso)}
+                    onPress={() =>
+                      onChange(
+                        single
+                          ? applySingleTap(iso)
+                          : applyDayTap(selection, iso),
+                      )
+                    }
                   />
                 ) : (
                   <View className="h-10" />
@@ -97,6 +123,7 @@ function Day({
   isToday,
   selected,
   inRange,
+  disabled,
   onPress,
 }: {
   iso: string;
@@ -104,25 +131,30 @@ function Day({
   isToday: boolean;
   selected: boolean;
   inRange: boolean;
+  /** Outside the picker's bounds — inert, and visibly not this trip's. */
+  disabled?: boolean;
   onPress: () => void;
 }) {
-  const surface = selected
-    ? "bg-ink"
-    : inRange
-      ? "bg-seafoam"
-      : "bg-transparent";
-  const label = selected ? "text-sand" : "text-ink";
+  const surface = disabled
+    ? "bg-transparent"
+    : selected
+      ? "bg-ink"
+      : inRange
+        ? "bg-seafoam"
+        : "bg-transparent";
+  const label = disabled ? "text-gravel" : selected ? "text-sand" : "text-ink";
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={disabled ? undefined : onPress}
+      disabled={disabled}
       aria-label={iso}
       aria-selected={selected}
       className={`h-10 items-center justify-center ${surface}`}
     >
       <Text
         className={`font-body text-sm ${label} ${
-          isToday && !selected ? "underline" : ""
+          isToday && !selected && !disabled ? "underline" : ""
         }`}
       >
         {day}

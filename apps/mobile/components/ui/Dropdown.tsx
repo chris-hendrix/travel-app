@@ -6,7 +6,17 @@ import { TextField } from "@/components/ui/TextField";
  * Single-select dropdown with autocomplete. The suggestion list overlays
  * what follows it rather than pushing it down — a field that reflows the
  * form as you type is unusable. Inline, never a nested dialog.
+ *
+ * An option is a plain string when its value reads well — a place name —
+ * and a { value, label } pair when it does not, which is how a day shows
+ * "Today · Fri Sep 19" while still committing an ISO date.
+ *
+ * With `freeText`, typing is itself an answer: the field is a suggestion
+ * machine, not a menu, which is how a place gets entered when Places has
+ * never heard of it.
  */
+export type DropdownOption = { value: string; label: string };
+
 export function Dropdown({
   label,
   options,
@@ -14,26 +24,34 @@ export function Dropdown({
   onChange,
   placeholder = "Type to filter…",
   error,
+  freeText = false,
 }: {
   label: string;
-  options: string[];
+  options: Array<string | DropdownOption>;
   value: string | null;
   onChange: (v: string) => void;
   placeholder?: string;
   error?: string | undefined;
+  /** Commit whatever is typed, matched or not. */
+  freeText?: boolean;
 }) {
   const [query, setQuery] = useState(value ?? "");
   const [open, setOpen] = useState(false);
   const [fieldHeight, setFieldHeight] = useState(0);
 
-  const matches = options.filter((o) =>
-    o.toLowerCase().includes(query.toLowerCase()),
+  const entries = options.map((option) =>
+    typeof option === "string"
+      ? { value: option, label: option }
+      : option,
+  );
+  const matches = entries.filter((option) =>
+    option.label.toLowerCase().includes(query.toLowerCase()),
   );
 
-  function select(option: string) {
-    setQuery(option);
+  function select(option: DropdownOption) {
+    setQuery(option.label);
     setOpen(false);
-    onChange(option);
+    onChange(option.value);
   }
 
   return (
@@ -51,6 +69,7 @@ export function Dropdown({
           onChangeText={(v) => {
             setQuery(v);
             setOpen(true);
+            if (freeText) onChange(v);
           }}
         />
       </View>
@@ -67,11 +86,13 @@ export function Dropdown({
           ) : (
             matches.map((option) => (
               <Pressable
-                key={option}
+                key={option.value}
                 onPress={() => select(option)}
                 className="border-b border-gravel p-3"
               >
-                <Text className="font-body text-base text-ink">{option}</Text>
+                <Text className="font-body text-base text-ink">
+                  {option.label}
+                </Text>
               </Pressable>
             ))
           )}

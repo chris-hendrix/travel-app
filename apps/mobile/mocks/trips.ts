@@ -22,7 +22,10 @@ export const TRIPS: Trip[] = [
     going: 6,
     description:
       "A hut-to-hut traverse of the Serra de Tramuntana. Long days and early starts, with one rest day on the coast in the middle.",
-    ...dates(5, 8),
+    preferredTimezone: "Europe/Madrid",
+    // Underway: started yesterday, so the itinerary opens on Today with a
+    // day behind it at the bottom.
+    ...dates(-1, 8),
   },
   {
     id: "lisbon",
@@ -32,7 +35,21 @@ export const TRIPS: Trip[] = [
     going: 11,
     description:
       "Three days for Dana's 30th. Two dinners booked, one day trip to Sintra, and nothing before noon.",
+    preferredTimezone: "Europe/Lisbon",
     ...dates(20, 3),
+  },
+  {
+    id: "amalfi",
+    title: "Amalfi coast",
+    location: "Amalfi",
+    image: "https://picsum.photos/seed/amalfi/900/600",
+    going: 5,
+    description:
+      "Six days along the coast, based in one town and moving slowly. Boats where the road gives up.",
+    preferredTimezone: "Europe/Rome",
+    // Underway: started two days ago, so the itinerary has a Today at the
+    // top and days behind it.
+    ...dates(-2, 6),
   },
   {
     id: "chamonix",
@@ -42,6 +59,7 @@ export const TRIPS: Trip[] = [
     going: 4,
     description:
       "Seven days in the Chamonix valley. Lift passes are sorted, two of us still need rentals, and the last day stays open for weather.",
+    preferredTimezone: "Europe/Paris",
     ...dates(150, 7),
   },
   {
@@ -52,6 +70,7 @@ export const TRIPS: Trip[] = [
     going: 3,
     description:
       "Driving the coast with no real itinerary. Two nights camping, the rest in motels wherever we end up.",
+    preferredTimezone: "America/Los_Angeles",
     ...dates(-60, 7),
   },
   {
@@ -62,6 +81,7 @@ export const TRIPS: Trip[] = [
     going: 5,
     description:
       "A long weekend in Kreuzberg. One gallery booked, everything else left to chance.",
+    preferredTimezone: "Europe/Berlin",
     ...dates(-200, 3),
   },
   {
@@ -72,6 +92,7 @@ export const TRIPS: Trip[] = [
     going: 4,
     description:
       "The full ring road, counter-clockwise, with two nights near the glacier lagoon. A 4x4 and two drivers.",
+    preferredTimezone: "Atlantic/Reykjavik",
     ...dates(-320, 9),
   },
   {
@@ -82,6 +103,7 @@ export const TRIPS: Trip[] = [
     going: 2,
     description:
       "Ten days in Kyoto for the autumn colours. Temples in the morning, markets in the afternoon.",
+    preferredTimezone: "Asia/Tokyo",
     ...dates(-700, 10),
   },
 ];

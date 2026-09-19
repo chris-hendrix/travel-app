@@ -13,5 +13,8 @@ export const DIALOG_ROUTES = [
   "/profile",
   "/design/profile",
   "/design/trips/members",
+  "/design/trips/settings",
+  "/design/trips/edit",
+  "/design/trips/events/new",
   "/design/trips/new",
 ];

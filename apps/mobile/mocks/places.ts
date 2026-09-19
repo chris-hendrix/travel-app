@@ -15,3 +15,24 @@ export const PLACES = [
   "Marrakesh, Morocco",
   "Tulum, Mexico",
 ];
+
+/**
+ * The same autocomplete, asked about a single event rather than a whole
+ * trip: the kind of places an itinerary holds, and the ones the mock
+ * itineraries already use, so a hand-made event reads like the rest of
+ * the day around it.
+ */
+export const EVENT_PLACES = [
+  "Mercat Central",
+  "Ridge trailhead",
+  "Cala Petita",
+  "Old town",
+  "Bodega Sole",
+  "South beach",
+  "Trattoria Nuova",
+  "Bar Centrale",
+  "Bath house",
+  "Corner market",
+  "Station",
+  "Museo Chico",
+];

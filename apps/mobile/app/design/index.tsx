@@ -6,17 +6,23 @@ import { ActionBar } from "@/components/ui/ActionBar";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { TextField } from "@/components/ui/TextField";
+import { ChipToggle } from "@/components/ui/ChipToggle";
 import { Segmented } from "@/components/ui/Segmented";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { Accordion, AccordionItem } from "@/components/ui/Accordion";
 import { Screen } from "@/components/ui/Screen";
 import { DatePicker } from "@/components/ui/DatePicker";
+import { TimeField } from "@/components/ui/TimeField";
 import type { Selection } from "@/lib/calendar";
 import { RSVP_ANSWERS, RSVP_LABEL, type RsvpStatus } from "@/lib/rsvp";
 import { formatDateRange } from "@/lib/dateRange";
-import { TripCard, TripGrid } from "@/components/trip/TripCard";
+import { TripCard } from "@/components/trip/TripCard";
+import { EventCard } from "@/components/trip/EventCard";
+import { Grid } from "@/components/ui/Grid";
+import { PhotoCard } from "@/components/ui/PhotoCard";
 import { NotificationRow } from "@/components/notification/NotificationRow";
 import { TRIPS } from "@/mocks/trips";
+import { eventsFor } from "@/mocks/events";
 import { NOTIFICATIONS } from "@/mocks/notifications";
 import { tripFor } from "@/lib/notifications";
 
@@ -135,10 +141,17 @@ export default function DesignSystem() {
   const [formName, setFormName] = useState("");
   const [venue, setVenue] = useState<string | null>(null);
   const [rsvp, setRsvp] = useState<RsvpStatus | null>(null);
+  const [pastEvents, setPastEvents] = useState(false);
   const [range, setRange] = useState<Selection>({
     start: null,
     end: null,
   });
+  const [singleDay, setSingleDay] = useState<Selection>({
+    start: null,
+    end: null,
+  });
+  const [startsAt, setStartsAt] = useState<string | null>(null);
+  const [endsAt, setEndsAt] = useState<string | null>(null);
   const [log, setLog] = useState("No interaction yet.");
 
   return (
@@ -216,8 +229,8 @@ export default function DesignSystem() {
 
             <Specimen
               name="DatePicker"
-              contract="selection · onChange"
-              note="Range picker, inline. Two taps make a trip; endpoints invert to ink, the days between fill seafoam. Never a nested dialog."
+              contract="selection · onChange · single? · min? · max?"
+              note="Range by default: two taps make a trip, endpoints invert to ink, the days between fill seafoam. single picks one day, which is what an event needs. min/max bound the days that make sense — a trip's own dates for an event inside it — and days outside them go gravel and stop responding. Never a nested dialog."
             >
               <DatePicker selection={range} onChange={setRange} />
               <Text className="font-body text-sm text-ink">
@@ -228,6 +241,42 @@ export default function DesignSystem() {
                     )
                   : "Tap the first day, then the last."}
               </Text>
+              <DatePicker
+                selection={singleDay}
+                onChange={setSingleDay}
+                single
+                min={TRIPS[0]!.startDate}
+                max={TRIPS[0]!.endDate}
+              />
+              <Text className="font-body text-sm text-ink">
+                {singleDay.start
+                  ? `Single: ${singleDay.start}`
+                  : "Single day, bounded by a trip."}
+              </Text>
+            </Specimen>
+
+            <Specimen
+              name="TimeField"
+              contract="label · value · onChange · optional? · error?"
+              note="A time off a column of slots, the chosen one inverted — a picker without a second dialog. Fifteen-minute steps across the whole day, because a red-eye is as much an event as a dinner. optional puts a No end row at the top, so an event that simply starts is a choice rather than an empty field. Rows read twelve-hour, exactly as the itinerary prints them."
+            >
+              <View className="gap-4 md:flex-row">
+                <View className="md:flex-1">
+                  <TimeField
+                    label="Starts"
+                    value={startsAt}
+                    onChange={setStartsAt}
+                  />
+                </View>
+                <View className="md:flex-1">
+                  <TimeField
+                    label="Ends"
+                    value={endsAt}
+                    onChange={setEndsAt}
+                    optional
+                  />
+                </View>
+              </View>
             </Specimen>
 
             <Specimen
@@ -278,13 +327,57 @@ export default function DesignSystem() {
             <Specimen
               name="Badge"
               contract="label · variant"
-              note="Event type and status. Venue renders as plain text beside the pills."
+              note="Event type and status. Venue renders as plain text beside the pills. Category is the neutral one, for classifying a thing rather than reporting its state — it shares ink with soldOut on purpose: roles differ, tones may not."
             >
               <View className="flex-row flex-wrap items-center gap-2">
                 <Badge label="club" variant="club" />
                 <Badge label="live" variant="live" />
                 <Badge label="sold out" variant="soldOut" />
+                <Badge label="Food" variant="category" />
                 <Badge label="The Rooftop" variant="venue" />
+              </View>
+            </Specimen>
+
+            <Specimen
+              name="PhotoCard"
+              contract="image · overlay? · meta · title · footnote? · onPress?"
+              note="The floating tile every card is built from: a 2:1 photo with an optional overlay, then a bold line, a display title, and a bold line. No fill, no border, no shadow, and no reserved height — which is why a card can drop its last line without the grid going wonky."
+            >
+              <Grid>
+                <PhotoCard
+                  image={TRIPS[0]!.image}
+                  meta="Sep 24 – Oct 1, 2026"
+                  title={TRIPS[0]!.title}
+                  footnote={TRIPS[0]!.location}
+                  onPress={() => setLog("PhotoCard fired")}
+                />
+                <PhotoCard
+                  image={eventsFor(TRIPS[0]!)[0]!.image}
+                  meta="8:30 AM – 9:45 AM"
+                  title={eventsFor(TRIPS[0]!)[0]!.name}
+                  footnote={eventsFor(TRIPS[0]!)[0]!.place}
+                />
+              </Grid>
+            </Specimen>
+
+            <Specimen
+              name="ChipToggle"
+              contract="label · selected? · onPress"
+              note="A filter you can press: filled ink when on, outlined when off. Used for independent filters (past events) and for exclusive choices (trip time / your time) alike, with a plain label above when the row needs one."
+            >
+              <View className="flex-row items-center gap-3">
+                <ChipToggle
+                  label="Past events"
+                  selected={pastEvents}
+                  onPress={() => {
+                    setPastEvents(!pastEvents);
+                    setLog(`ChipToggle "Past events" ${!pastEvents ? "on" : "off"}`);
+                  }}
+                />
+                <ChipToggle
+                  label="Nearby"
+                  onPress={() => setLog("ChipToggle \"Nearby\" pressed")}
+                />
               </View>
             </Specimen>
 
@@ -327,8 +420,8 @@ export default function DesignSystem() {
 
             <Specimen
               name="Dropdown"
-              contract="label · options · value · onChange · placeholder? · error?"
-              note="Single-select with autocomplete. The list expands inline — never a nested dialog. Stands in for Google Places on the location field."
+              contract="label · options · value · onChange · placeholder? · freeText? · error?"
+              note="Single-select with autocomplete. The list expands inline — never a nested dialog. Stands in for Google Places. An option is a string when its value reads well and a value-and-label pair when it does not, so a day can say Today · Fri Sep 19 while committing an ISO date. With freeText, typing is itself an answer: a suggestion machine rather than a menu, which is how a place gets entered when Places has never heard of it."
             >
               <Dropdown
                 label="Venue"
@@ -380,11 +473,11 @@ export default function DesignSystem() {
           </Text>
           <View className="gap-4">
             <Specimen
-              name="TripCard · TripGrid"
+              name="TripCard"
               contract="trip: { title, startDate, endDate, location, image } · onPress? · today?"
               note="Upcoming trips carry a countdown on the photo; finished trips say nothing. Locations hug the title. Hover the first card on a wide screen: photo and text both zoom."
             >
-              <TripGrid>
+              <Grid>
                 {TRIPS.map((trip) => (
                   <TripCard
                     key={trip.id}
@@ -392,7 +485,7 @@ export default function DesignSystem() {
                     onPress={() => setLog(`TripCard "${trip.title}" fired`)}
                   />
                 ))}
-              </TripGrid>
+              </Grid>
             </Specimen>
 
             <Specimen
@@ -413,6 +506,21 @@ export default function DesignSystem() {
                 ))}
               </View>
             </Specimen>
+            <Specimen
+              name="EventCard"
+              contract="event: { name, type, startTime, endTime, place, image } · onPress?"
+              note="The trip card's twin — same photo, same two bold lines — except the line above the title is the time, because the day it sits under is the date. Place photos come from Google Places through the API's photo proxy."
+            >
+              <Grid>
+                {eventsFor(TRIPS[0]!).slice(0, 2).map((event) => (
+                  <EventCard
+                    key={event.id}
+                    event={event}
+                    onPress={() => setLog(`EventCard "${event.name}" fired`)}
+                  />
+                ))}
+              </Grid>
+            </Specimen>
           </View>
         </Section>
 
@@ -429,6 +537,15 @@ export default function DesignSystem() {
           </Link>
           <Link href="/design/trips/members?id=picos" className="font-body-bold text-base text-ink underline">
             Who's coming
+          </Link>
+          <Link href="/design/trips/settings?id=picos" className="font-body-bold text-base text-ink underline">
+            Trip settings
+          </Link>
+          <Link href="/design/trips/edit?id=picos" className="font-body-bold text-base text-ink underline">
+            Edit trip
+          </Link>
+          <Link href="/design/trips/events/new?id=picos" className="font-body-bold text-base text-ink underline">
+            Add event
           </Link>
           <Link href="/notifications" className="font-body-bold text-base text-ink underline">
             Notifications

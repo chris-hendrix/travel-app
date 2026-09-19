@@ -12,6 +12,7 @@ import { TRIPS } from "@/mocks/trips";
 type TripsValue = {
   trips: Trip[];
   addTrip: (trip: Trip) => void;
+  updateTrip: (id: string, patch: Partial<Trip>) => void;
 };
 
 const TripsContext = createContext<TripsValue | null>(null);
@@ -33,7 +34,16 @@ export function TripsProvider({
     setTrips((current) => [trip, ...current]);
   }, []);
 
-  const value = useMemo(() => ({ trips, addTrip }), [trips, addTrip]);
+  const updateTrip = useCallback((id: string, patch: Partial<Trip>) => {
+    setTrips((current) =>
+      current.map((trip) => (trip.id === id ? { ...trip, ...patch } : trip)),
+    );
+  }, []);
+
+  const value = useMemo(
+    () => ({ trips, addTrip, updateTrip }),
+    [trips, addTrip, updateTrip],
+  );
 
   return (
     <TripsContext.Provider value={value}>{children}</TripsContext.Provider>

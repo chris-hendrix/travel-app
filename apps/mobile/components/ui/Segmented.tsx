@@ -12,6 +12,10 @@ import { Pressable, Text, View } from "react-native";
  * button. Ink would be quieter and would disappear next to the chrome
  * bar it sits under.
  *
+ * Cells are button-sized — the same p-4 rhythm and bold base label as a
+ * full-width Button — so the RSVP reads as the traveler's answer to the
+ * organizer's Invite people, not as a lesser control.
+ *
  * `value` is nullable on purpose — "nothing chosen yet" is a real state,
  * not an error.
  */
@@ -33,15 +37,11 @@ export function Segmented<T extends string>({
             key={option.value}
             onPress={() => onChange(option.value)}
             aria-pressed={chosen}
-            className={`flex-1 items-center border border-ink py-3 ${
+            className={`flex-1 items-center border border-ink py-4 ${
               index > 0 ? "border-l-0" : ""
             } ${chosen ? "bg-watermelon" : ""}`}
           >
-            <Text
-              className={`text-sm ${
-                chosen ? "font-body-bold text-ink" : "font-body text-ink"
-              }`}
-            >
+            <Text className="font-body-bold text-base text-ink">
               {option.label}
             </Text>
           </Pressable>

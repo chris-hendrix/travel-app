@@ -64,6 +64,9 @@ export function buildTrip(input: NewTripInput, id: string): Trip {
     // Nobody has written one yet: the description is the organizer's, and
     // the create flow does not ask for it.
     description: null,
+    // Nor has anyone said where it is: the device's zone stands in until
+    // the trip has a place.
+    preferredTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   };
 }
 

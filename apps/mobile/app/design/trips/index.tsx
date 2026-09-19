@@ -4,7 +4,8 @@ import { Pressable, Text, View } from "react-native";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
 import { Screen } from "@/components/ui/Screen";
-import { TripCard, TripGrid } from "@/components/trip/TripCard";
+import { TripCard } from "@/components/trip/TripCard";
+import { Grid } from "@/components/ui/Grid";
 import { groupTrips } from "@/lib/tripGroups";
 import { useTrips } from "@/lib/tripsStore";
 
@@ -114,7 +115,7 @@ function Section({
       <Text className="font-display text-xl uppercase leading-none text-ink">
         {title}
       </Text>
-      <TripGrid>{children}</TripGrid>
+      <Grid>{children}</Grid>
     </View>
   );
 }

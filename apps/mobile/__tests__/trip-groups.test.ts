@@ -9,6 +9,7 @@ function trip(over: Partial<Trip> & { id: string }): Trip {
     image: "",
     going: 1,
     description: null,
+    preferredTimezone: "Europe/Madrid",
     startDate: "2026-01-01",
     endDate: "2026-01-05",
     ...over,

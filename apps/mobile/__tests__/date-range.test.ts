@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDateRange } from "@/lib/dateRange";
+import { eachDay, formatDateRange } from "@/lib/dateRange";
 
 describe("formatDateRange", () => {
   it("collapses a range inside one month", () => {
@@ -20,5 +20,19 @@ describe("formatDateRange", () => {
 
   it("handles a single-day trip", () => {
     expect(formatDateRange("2026-03-05", "2026-03-05")).toBe("Mar 5–5, 2026");
+  });
+});
+
+describe("eachDay", () => {
+  it("lists every date from start to end, inclusive", () => {
+    expect(eachDay("2026-09-18", "2026-09-20")).toEqual([
+      "2026-09-18",
+      "2026-09-19",
+      "2026-09-20",
+    ]);
+  });
+
+  it("holds a single day", () => {
+    expect(eachDay("2026-09-18", "2026-09-18")).toEqual(["2026-09-18"]);
   });
 });

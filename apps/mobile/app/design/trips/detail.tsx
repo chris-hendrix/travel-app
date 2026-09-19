@@ -2,10 +2,11 @@ import { Suspense, useState } from "react";
 import { Image, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Screen } from "@/components/ui/Screen";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { QuietAction } from "@/components/ui/QuietAction";
 import { Segmented } from "@/components/ui/Segmented";
-import { Accordion, AccordionItem } from "@/components/ui/Accordion";
-import { CountdownChip } from "@/components/trip/CountdownChip";
+import { Itinerary } from "@/components/trip/Itinerary";
 import { tripCountdown } from "@/lib/countdown";
 import { formatDateRange } from "@/lib/dateRange";
 import { RSVP_ANSWERS, RSVP_LABEL, type RsvpStatus } from "@/lib/rsvp";
@@ -25,6 +26,15 @@ const VARIANTS: Array<{ value: Variant; label: string }> = [
  * on the cover, then the date, the name, and the place. The only thing
  * the detail adds is who is coming and what you are going to do about
  * it, so the card to detail move adds rather than re-teaches.
+ *
+ * A trip you have been invited to but not answered opens as an
+ * invitation rather than as a trip: this same header, one Accept
+ * invitation button, and nothing below it. Accepting swaps the button
+ * in place for the Going / Maybe / Not going control and reveals the
+ * rest. That is why the RSVP control is never seen empty — an
+ * unanswered invitation is a state of the screen, not of the control.
+ *
+ * Underneath sits the itinerary, a placeholder for now.
  *
  * Two columns once there is room, and the same two stacked on a
  * phone — no reordering, so there is nothing to keep in sync:
@@ -80,29 +90,77 @@ function TripDetailScreen() {
 
   const countdown = tripCountdown(trip.startDate, trip.endDate);
   const organizer = variant === "organizer";
+  // The organizer is never invited to their own trip, and everyone else
+  // starts unreplied — the API's own default.
+  const invited = !organizer && response === "no_response";
+
+  // Both variants end their action group with the same button: the
+  // organizer's is the fourth in the stack, the traveler's sits directly
+  // under the RSVP.
+  const settingsButton = (
+    <Button
+      title="Trip settings"
+      variant="secondary"
+      fullWidth
+      onPress={() => router.push(`/design/trips/settings?id=${trip.id}`)}
+    />
+  );
 
   const action = organizer ? (
-    <View className="gap-3">
+    // One tight group: gap-2, so the four read as a single block rather
+    // than four separate calls.
+    <View className="gap-2">
       <Button
         title="Invite people"
         variant="accent"
         fullWidth
         onPress={() => {}}
       />
-      <QuietAction label="Trip settings" onPress={() => {}} />
+      {/* Authoring sits under the ask: adding an event is how the
+          organizer fills the itinerary below, so it reads as building
+          rather than maintaining. */}
+      <Button
+        title="Add event"
+        variant="primary"
+        fullWidth
+        onPress={() => router.push(`/design/trips/events/new?id=${trip.id}`)}
+      />
+      {/* The trip's own maintenance, outlined under the coloured two. */}
+      <Button
+        title="Edit trip"
+        variant="secondary"
+        fullWidth
+        onPress={() => router.push(`/design/trips/edit?id=${trip.id}`)}
+      />
+      {settingsButton}
     </View>
   ) : (
-    // All three answers, always visible and always reachable — an RSVP
-    // you cannot take back is a worse RSVP. Nothing is filled until you
-    // answer, which is what `null` shows.
-    <Segmented
-      options={RSVP_ANSWERS.map((status) => ({
-        value: status,
-        label: RSVP_LABEL[status],
-      }))}
-      value={response === "no_response" ? null : response}
-      onChange={setResponse}
-    />
+    <View className="gap-2">
+      {invited ? (
+        // An unanswered invitation gets one answer and nothing else:
+        // settings for a trip you have not joined would be noise.
+        <Button
+          title="Accept invitation"
+          variant="accent"
+          fullWidth
+          onPress={() => setResponse("going")}
+        />
+      ) : (
+        <>
+          {/* All three answers, always visible and always reachable — an
+              RSVP you cannot take back is a worse RSVP. */}
+          <Segmented
+            options={RSVP_ANSWERS.map((status) => ({
+              value: status,
+              label: RSVP_LABEL[status],
+            }))}
+            value={response}
+            onChange={setResponse}
+          />
+          {settingsButton}
+        </>
+      )}
+    </View>
   );
 
   return (
@@ -128,24 +186,30 @@ function TripDetailScreen() {
         </View>
 
         <View className="gap-y-6 md:flex-row md:gap-12">
-          {/* Left: the cover carries the countdown, exactly as the card
-              does, and the action sits under it. */}
-          <View className="gap-6 md:w-1/2">
+          {/* Two columns of equal width. flex-1, not w-1/2: react-native
+              does not shrink flex items, so two halves plus the gutter
+              would overflow the content box by exactly the gutter and
+              every rule in the right column would end past the page's. */}
+          <View className="gap-6 md:flex-1">
             <View className="relative overflow-hidden">
               <Image
                 source={{ uri: trip.image }}
                 resizeMode="cover"
                 className="w-full aspect-[2/1]"
               />
-              {countdown ? <CountdownChip label={countdown} /> : null}
+              {countdown ? (
+                <View className="absolute left-3 top-3">
+                  <Badge label={countdown} variant="club" />
+                </View>
+              ) : null}
             </View>
 
             {action}
           </View>
 
           {/* Right: the card's own order — date, name, place — then who is
-              coming, then the prose. */}
-          <View className="gap-6 md:w-1/2">
+              coming, then the description. */}
+          <View className="gap-6 md:flex-1">
             <View className="gap-2">
               <Text className="font-body-bold text-lg text-ink">
                 {formatDateRange(trip.startDate, trip.endDate)}
@@ -164,36 +228,42 @@ function TripDetailScreen() {
               />
             </View>
 
-            {trip.description ? (
-              <Accordion>
-                <AccordionItem title="Description">
-                  <Text className="font-body text-base leading-relaxed text-ink">
-                    {trip.description}
-                  </Text>
-                </AccordionItem>
-              </Accordion>
-            ) : null}
+            {trip.description ? <Description text={trip.description} /> : null}
           </View>
         </View>
+
+        {/* The itinerary is the only thing an unanswered invitation
+            withholds: the description is what you decide on, it is what
+            you get for saying yes. */}
+        {invited ? null : <Itinerary trip={trip} />}
       </View>
     </Screen>
   );
 }
 
-/** Secondary action, quiet on purpose: the header carries one loud
- *  button and everything else steps back. */
-function QuietAction({
-  label,
-  onPress,
-}: {
-  label: string;
-  onPress: () => void;
-}) {
+/**
+ * The description as prose, not a disclosure: short ones read whole,
+ * long ones clamp at a few lines behind Read more. Character count
+ * rather than measured lines — predictable in the lab, and close
+ * enough on a phone.
+ */
+function Description({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const long = text.length > 160;
+  const shown =
+    expanded || !long ? text : `${text.slice(0, 160).trimEnd()}…`;
+
   return (
-    <Pressable onPress={onPress} className="self-start">
-      <Text className="font-body-bold text-sm text-ink underline">
-        {label}
+    <View className="gap-1">
+      <Text className="font-body text-base leading-relaxed text-ink">
+        {shown}
       </Text>
-    </Pressable>
+      {long ? (
+        <QuietAction
+          label={expanded ? "Show less" : "Read more"}
+          onPress={() => setExpanded(!expanded)}
+        />
+      ) : null}
+    </View>
   );
 }

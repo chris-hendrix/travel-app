@@ -77,3 +77,12 @@ export function isInRange(selection: Selection, iso: string): boolean {
 export function isEndpoint(selection: Selection, iso: string): boolean {
   return iso === selection.start || iso === selection.end;
 }
+
+/**
+ * One day, not a range. A day trip and an event both pick a single day,
+ * and the selection still speaks `Selection` so the calendar has one
+ * shape to render — start and end land on the same date.
+ */
+export function applySingleTap(iso: string): Selection {
+  return { start: iso, end: iso };
+}
