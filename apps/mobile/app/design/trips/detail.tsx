@@ -214,14 +214,25 @@ function TripDetailScreen() {
               {/* Where the trip is, and the one fact on this screen the
                   app has nothing to add to: Maps has the map. */}
               <PlaceLink label={trip.location} />
-              <QuietAction
-                label={`${trip.going} going`}
-                onPress={() =>
-                  router.push(
-                    `/design/trips/members?id=${trip.id}&as=${variant}`,
-                  )
-                }
-              />
+              {/* Who is coming, and when: the roll call and the travel
+                  board are two doors to two questions, side by side. */}
+              <View className="flex-row items-center gap-2">
+                <QuietAction
+                  label={`${trip.going} going`}
+                  onPress={() =>
+                    router.push(
+                      `/design/trips/members?id=${trip.id}&as=${variant}`,
+                    )
+                  }
+                />
+                <Text className="font-body text-sm text-ink">·</Text>
+                <QuietAction
+                  label="Travel"
+                  onPress={() =>
+                    router.push(`/design/trips/travel?id=${trip.id}`)
+                  }
+                />
+              </View>
             </View>
 
             {trip.description ? <Description text={trip.description} /> : null}
