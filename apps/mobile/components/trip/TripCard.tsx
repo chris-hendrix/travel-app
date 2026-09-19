@@ -1,14 +1,17 @@
 import { useState, type ReactNode } from "react";
 import { Image, Pressable, Text, View } from "react-native";
 import { useWideHover } from "@/hooks/useWideHover";
+import { formatDateRange } from "@/lib/dateRange";
 
 export type Trip = {
   id: string;
   title: string;
-  dateRange: string;
   location: string;
   image: string;
   going: number;
+  /** ISO yyyy-mm-dd — the card formats its own range. */
+  startDate: string;
+  endDate: string;
 };
 
 /**
@@ -67,7 +70,7 @@ export function TripCard({
         }`}
       >
         <Text numberOfLines={1} className="mt-3 font-body-bold text-lg text-ink">
-          {trip.dateRange}
+          {formatDateRange(trip.startDate, trip.endDate)}
         </Text>
         <Text
           numberOfLines={2}
