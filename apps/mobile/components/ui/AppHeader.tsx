@@ -3,6 +3,7 @@ import { Pressable, Text, View } from "react-native";
 import { Link } from "expo-router";
 import { Bell, User, X } from "lucide-react-native";
 import Svg, { Defs, Path, Pattern, Rect } from "react-native-svg";
+import { useNotifications } from "@/lib/notificationsStore";
 
 /**
  * Scalloped bottom edge on the chrome band. A pattern tile keeps the
@@ -28,13 +29,15 @@ function WaveEdge() {
   );
 }
 
-function BellButton({ unread = true }: { unread?: boolean }) {
+function BellButton() {
+  const { unreadCount } = useNotifications();
+
   return (
     <Link href="/notifications" asChild>
       <Pressable aria-label="Notifications" className="p-1">
         <View>
           <Bell color="#f5eacc" size={24} />
-          {unread ? (
+          {unreadCount > 0 ? (
             <View className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-strawberry" />
           ) : null}
         </View>
