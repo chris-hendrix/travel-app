@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { Link } from "expo-router";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { ActionBar } from "@/components/ui/ActionBar";
@@ -257,8 +257,8 @@ export default function DesignSystem() {
 
             <Specimen
               name="TimeField"
-              contract="label · value · onChange · optional? · error?"
-              note="A time off a column of slots, the chosen one inverted — a picker without a second dialog. Fifteen-minute steps across the whole day, because a red-eye is as much an event as a dinner. optional puts a No end row at the top, so an event that simply starts is a choice rather than an empty field. Rows read twelve-hour, exactly as the itinerary prints them."
+              contract="label · value · onChange · optional? · noneLabel? · error?"
+              note="One row shut — the time and a disclosure — opening the column of slots it has always been, already scrolled to where you are, and closing on the choice. A form with two times is two rows instead of two columns of ninety-six slots. Fifteen-minute steps across the whole day, because a red-eye is as much an event as a dinner. optional puts a No end row at the top, so an event that simply starts is a choice rather than an empty field. Rows read twelve-hour, exactly as the itinerary prints them."
             >
               <View className="gap-4 md:flex-row">
                 <View className="md:flex-1">
@@ -304,8 +304,8 @@ export default function DesignSystem() {
 
             <Specimen
               name="Button"
-              contract="title · variant? · onPress? · fullWidth? · align?"
-              note="Fills the width on a phone; from md up it hugs the edge it is aligned to."
+              contract="title · variant? · onPress? · fullWidth? · align? · disabled?"
+              note="Fills the width on a phone; from md up it hugs the edge it is aligned to. disabled keeps it in place rather than hiding it: a control that vanishes leaves nothing to aim at. Inside a row, align='end' is what lines a button up with the field beside it — the default hugs the start of the cross axis and sits high."
             >
               <Button
                 title="Create trip"
@@ -321,6 +321,12 @@ export default function DesignSystem() {
                 title="Add to club night"
                 variant="accent"
                 onPress={() => setLog("Button accent fired")}
+              />
+              <Button
+                title="Autofill"
+                variant="secondary"
+                disabled
+                onPress={() => setLog("unreachable")}
               />
             </Specimen>
 
@@ -388,8 +394,8 @@ export default function DesignSystem() {
 
             <Specimen
               name="Segmented"
-              contract="options (value · label · tone?) · value (nullable) · onChange"
-              note="One choice out of a few, all of them visible. Bordered cells, the chosen one filled with its tone — the same p-4 and text-sm as a button, so a row of these sits in a stack of buttons without a step. value is nullable because this was built for an RSVP, where having chosen nothing yet is a real state rather than an error."
+              contract="options (value · label · tone? · badge?) · value (nullable) · onChange"
+              note="One choice out of a few, all of them visible. Bordered cells, the chosen one filled with its tone — the same p-4 and text-sm as a button, so a row of these sits in a stack of buttons without a step. badge is content a caller attaches to a choice, which travel uses for a tick against a direction already filed; generic on purpose, like the tone, so the primitive knows a cell can carry something without knowing what. value is nullable because this was built for an RSVP, where having chosen nothing yet is a real state rather than an error."
             >
               <RsvpControl
                 value={rsvp ?? "no_response"}
@@ -402,8 +408,8 @@ export default function DesignSystem() {
 
             <Specimen
               name="TextField"
-              contract="label · value · onChangeText · placeholder? · error?"
-              note="Every dialog that collects input uses this. Errors sit under the field, never in a toast."
+              contract="label · value · onChangeText · placeholder? · error? · multiline? · numberOfLines? · suffix?"
+              note="Every dialog that collects input uses this. Errors sit under the field, never in a toast. suffix draws a control that acts on the field inside the field's own box — the Autofill button on a flight number is one — because two separately padded controls only line up until a font metric moves; stretching them inside one box cannot drift."
             >
               <TextField
                 label="Display name"
@@ -416,6 +422,22 @@ export default function DesignSystem() {
                 value="+1 555"
                 onChangeText={() => setLog("TextField onChangeText fired")}
                 error="Enter the full 10-digit number."
+              />
+              <TextField
+                label="Flight number"
+                value={formName}
+                onChangeText={setFormName}
+                placeholder="UA 1842"
+                suffix={
+                  <Pressable
+                    className="justify-center border-l border-ink px-4"
+                    onPress={() => setLog("suffix pressed")}
+                  >
+                    <Text className="font-body-bold text-sm text-ink">
+                      Autofill
+                    </Text>
+                  </Pressable>
+                }
               />
             </Specimen>
 
@@ -579,8 +601,8 @@ export default function DesignSystem() {
 
         <Section title="Parking lot">
           <Text className="font-body text-base text-ink">
-            Travel cards · invite flow · Discover · deleted items — not yet
-            designed. Each lands here as a pattern first, then in a screen.
+            Invite flow · Discover · deleted items — not yet designed. Each
+            lands here as a pattern first, then in a screen.
           </Text>
         </Section>
       </View>
