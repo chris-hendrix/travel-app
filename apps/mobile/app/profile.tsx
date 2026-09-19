@@ -8,7 +8,7 @@ export default function Profile() {
       primaryTitle="Save changes"
       onPrimary={() => {}}
     >
-      <Text className="font-body text-base text-ink">
+      <Text className="font-body text-base text-sand">
         Display name, photo, and phone-sharing consent live here.
       </Text>
     </FullscreenDialog>

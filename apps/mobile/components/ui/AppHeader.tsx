@@ -56,15 +56,15 @@ export function AppHeader({
 }) {
   if (title) {
     return (
-      <View className="flex-row items-center justify-between bg-gravel px-6 py-4">
-        <Text className="font-display text-2xl leading-none text-ink">
+      <View className="flex-row items-center justify-between bg-ink px-6 py-4">
+        <Text className="font-display text-2xl leading-none text-sand">
           {title}
         </Text>
         <View className="flex-row items-center gap-3">
           {action}
           {onClose ? (
             <Pressable aria-label="Close" onPress={onClose} className="p-1">
-              <X color="#000000" size={24} />
+              <X color="#f5eacc" size={24} />
             </Pressable>
           ) : null}
         </View>

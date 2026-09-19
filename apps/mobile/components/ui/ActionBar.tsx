@@ -17,11 +17,11 @@ export function ActionBar({
   backTitle?: string;
 }) {
   return (
-    <View className="flex-row items-center gap-3 border-t border-ink bg-sand px-6 py-4">
+    <View className="flex-row items-center justify-between gap-3 border-t border-sand bg-ink px-6 py-4">
       <Pressable onPress={onBack}>
-        <Text className="font-body-bold text-ink">← {backTitle}</Text>
+        <Text className="font-body-bold text-sand">← {backTitle}</Text>
       </Pressable>
-      <View className="flex-1">
+      <View>
         <Button title={primaryTitle} variant="primary" onPress={onPrimary} />
       </View>
     </View>
