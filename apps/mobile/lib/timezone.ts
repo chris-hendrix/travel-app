@@ -46,15 +46,24 @@ function deviceClock(date: Date): string {
   return `${hour}:${minutes} ${hours < 12 ? "AM" : "PM"}`;
 }
 
+/** The device's own zone, twenty-four hour, the way a field asks for it. */
+function deviceTwentyFour(date: Date): string {
+  return `${`${date.getHours()}`.padStart(2, "0")}:${`${date.getMinutes()}`.padStart(2, "0")}`;
+}
+
 export function wallClock(
   iso: string,
   timeZone: string | null,
-): { date: string; time: string } {
+): { date: string; time: string; clock: string } {
   const moment = new Date(iso);
   const formatter = timeZone ? formatterFor(timeZone) : null;
 
   if (!formatter) {
-    return { date: toIso(moment), time: deviceClock(moment) };
+    return {
+      date: toIso(moment),
+      time: deviceClock(moment),
+      clock: deviceTwentyFour(moment),
+    };
   }
 
   const parts = formatter.formatToParts(moment);
@@ -62,10 +71,16 @@ export function wallClock(
     parts.find((piece) => piece.type === type)?.value ?? "";
 
   const hour = Number(part("hour"));
+  const minute = part("minute");
+  const afternoon = part("dayPeriod") === "PM";
+  // The formatter reads twelve-hour, so midnight and noon need saying
+  // back in twenty-four.
+  const hour24 = hour === 12 ? (afternoon ? 12 : 0) : afternoon ? hour + 12 : hour;
 
   return {
     date: `${part("year")}-${part("month")}-${part("day")}`,
-    time: `${hour === 0 ? 12 : hour}:${part("minute")} ${part("dayPeriod")}`,
+    time: `${hour === 0 ? 12 : hour}:${minute} ${part("dayPeriod")}`,
+    clock: `${`${hour24}`.padStart(2, "0")}:${minute}`,
   };
 }
 

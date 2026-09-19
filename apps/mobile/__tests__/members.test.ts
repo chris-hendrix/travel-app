@@ -48,4 +48,52 @@ describe("membersFor", () => {
   it("is stable for the same trip", () => {
     expect(membersFor(trip())).toEqual(membersFor(trip()));
   });
+
+  it("marks one organizer, and only someone who is going", () => {
+    for (const candidate of [...TRIPS, trip({ id: "solo", going: 1 })]) {
+      const organizers = membersFor(candidate).filter((m) => m.isOrganizer);
+      expect(organizers).toHaveLength(1);
+      expect(organizers[0]!.status).toBe("going");
+    }
+  });
+
+  it("puts the organizer at the top", () => {
+    for (const candidate of [...TRIPS, trip({ id: "solo", going: 1 })]) {
+      expect(membersFor(candidate)[0]!.isOrganizer).toBe(true);
+    }
+  });
+
+  it("gives every member a number, and shows both sharing states", () => {
+    for (const candidate of TRIPS) {
+      const roster = membersFor(candidate);
+      expect(roster.every((m) => m.phone.length > 0)).toBe(true);
+      // Both states have to appear or the organizer's view and the
+      // traveler's would look identical and the rule would go unproven.
+      expect(roster.some((m) => m.sharePhone)).toBe(true);
+      expect(roster.some((m) => !m.sharePhone)).toBe(true);
+    }
+  });
+
+  it("gives handles that match the name, in all four states", () => {
+    const roster = membersFor(trip({ going: 8 }));
+
+    for (const person of roster) {
+      const slug = person.name.toLowerCase().replace(/[^a-z]+/g, "-");
+      if (person.handles?.venmo) expect(person.handles.venmo).toBe(slug);
+      if (person.handles?.instagram) {
+        expect(person.handles.instagram).toBe(slug.replace(/-/g, "."));
+      }
+    }
+
+    expect(roster.some((m) => m.handles?.venmo && m.handles?.instagram)).toBe(
+      true,
+    );
+    expect(roster.some((m) => m.handles?.instagram && !m.handles?.venmo)).toBe(
+      true,
+    );
+    expect(roster.some((m) => m.handles?.venmo && !m.handles?.instagram)).toBe(
+      true,
+    );
+    expect(roster.some((m) => m.handles === null)).toBe(true);
+  });
 });

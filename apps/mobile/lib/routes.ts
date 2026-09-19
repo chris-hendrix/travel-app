@@ -16,5 +16,7 @@ export const DIALOG_ROUTES = [
   "/design/trips/settings",
   "/design/trips/edit",
   "/design/trips/events/new",
+  "/design/trips/events/edit",
+  "/design/trips/events/detail",
   "/design/trips/new",
 ];

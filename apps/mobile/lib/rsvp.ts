@@ -19,3 +19,21 @@ export const RSVP_LABEL: Record<RsvpStatus, string> = {
   no_response: "No response",
   not_going: "Not going",
 };
+
+/**
+ * What the organizer's row says instead. An organizer is going by
+ * default — it is their own trip — so repeating it spends the column on
+ * the one answer nobody had to give.
+ */
+export const ORGANIZING_LABEL = "Organizing";
+
+/**
+ * The last column of a roll call: what this person's part in the trip is.
+ * For everyone else that is an answer; for the organizer it is the job.
+ */
+export function memberLabel(member: {
+  isOrganizer: boolean;
+  status: RsvpStatus;
+}): string {
+  return member.isOrganizer ? ORGANIZING_LABEL : RSVP_LABEL[member.status];
+}

@@ -20,6 +20,12 @@ type Template = {
   minute: number;
   /** Minutes, so a card can say when the thing ends. */
   minutes: number;
+  /**
+   * Only where there is something worth saying — a restaurant worth
+   * booking, a hike worth warning about. Most events have none, which is
+   * what makes the ones that do worth opening.
+   */
+  description?: string;
 };
 
 const POOL: Template[] = [
@@ -38,6 +44,8 @@ const POOL: Template[] = [
     hour: 10,
     minute: 0,
     minutes: 210,
+    description:
+      "Out and back along the ridge, about four hours with the stops. Bring two litres of water — the spring marked on the map is dry by September.",
   },
   {
     name: "Swim off the rocks",
@@ -62,6 +70,8 @@ const POOL: Template[] = [
     hour: 17,
     minute: 0,
     minutes: 90,
+    description:
+      "Booked for six at the long table. They pour five, and the terrace is the reason to go.",
   },
   {
     name: "Sunset swim",
@@ -78,6 +88,8 @@ const POOL: Template[] = [
     hour: 20,
     minute: 30,
     minutes: 120,
+    description:
+      "Table for eight under the vines. Cash only, and they stop seating at ten.",
   },
   {
     name: "Drinks after dinner",
@@ -118,6 +130,8 @@ const POOL: Template[] = [
     hour: 14,
     minute: 0,
     minutes: 150,
+    description:
+      "The permanent collection is upstairs; the temporary show downstairs is the one worth the queue.",
   },
 ];
 
@@ -217,6 +231,7 @@ export function eventsFor(trip: Trip): ItineraryEvent[] {
         id: `${trip.id}-${date}-${index}`,
         name: template.name,
         type: template.type,
+        description: template.description ?? null,
         startTime: new Date(startMs).toISOString(),
         // A late finish on a night out reads as "until", so the end time
         // is always carried: it is the card's second clock.
@@ -226,6 +241,7 @@ export function eventsFor(trip: Trip): ItineraryEvent[] {
         allDay: false,
         place: template.place,
         image: placePhoto(template.place),
+        deletedAt: null,
       });
     }
   });

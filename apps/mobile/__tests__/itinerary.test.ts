@@ -4,7 +4,9 @@ import {
   daysFrom,
   EVENT_TYPE_LABEL,
   groupEventsByDay,
+  liveEvents,
   tripIsOver,
+  withEdits,
   type EventType,
   type ItineraryEvent,
 } from "@/lib/itinerary";
@@ -28,8 +30,10 @@ function event(
     startTime: start.toISOString(),
     endTime: new Date(start.getTime() + minutes * 60_000).toISOString(),
     allDay: false,
+    description: null,
     place: "Somewhere",
     image: "photo.jpg",
+    deletedAt: null,
   };
 }
 
@@ -136,8 +140,59 @@ describe("EVENT_TYPE_LABEL", () => {
   });
 });
 
-describe("tripIsOver", () => {
-  it("is over once its last day has gone", () => {
+describe("liveEvents", () => {
+  it("holds back the deleted and keeps the rest", () => {
+    const live = liveEvents([
+      event("a", 19),
+      { ...event("b", 19), deletedAt: "2026-09-19T10:00:00.000Z" },
+    ]);
+    expect(live.map((e) => e.id)).toEqual(["a"]);
+  });
+
+  it("keeps nothing back when nothing is deleted", () => {
+    const all = [event("a", 19), event("b", 20)];
+    expect(liveEvents(all)).toEqual(all);
+  });
+});
+
+describe("withEdits", () => {
+  const base: ItineraryEvent[] = [
+    event("a", 19, 9),
+    event("b", 19, 18),
+    event("c", 20, 8),
+  ];
+
+  it("applies an edit over the row it belongs to", () => {
+    const edited = withEdits(base, { b: { name: "Renamed" } });
+    expect(edited.find((e) => e.id === "b")?.name).toBe("Renamed");
+    // The rows around it are the same objects, untouched.
+    expect(edited.find((e) => e.id === "a")).toEqual(base[0]);
+  });
+
+  it("keeps every event, edited or not", () => {
+    expect(withEdits(base, { b: { name: "Renamed" } })).toHaveLength(3);
+  });
+
+  it("no edits is the same list", () => {
+    expect(withEdits(base, {})).toEqual(base);
+  });
+
+  it("re-sorts after a time change, so an edit cannot unsort a day", () => {
+    // c moves from the next morning to before everything on its own day.
+    const edited = withEdits(base, {
+      c: { startTime: new Date(2026, 8, 19, 7).toISOString() },
+    });
+    expect(edited.map((e) => e.id)).toEqual(["c", "a", "b"]);
+  });
+
+  it("carries a soft delete through as an edit like any other", () => {
+    const deleted = withEdits(base, { b: { deletedAt: "2026-09-19T09:00:00.000Z" } });
+    expect(deleted.find((e) => e.id === "b")?.deletedAt).toBeTruthy();
+    expect(liveEvents(deleted).map((e) => e.id)).toEqual(["a", "c"]);
+  });
+});
+
+describe("tripIsOver", () => {  it("is over once its last day has gone", () => {
     expect(tripIsOver("2026-09-18", today)).toBe(true);
     expect(tripIsOver("2026-09-19", today)).toBe(false);
     expect(tripIsOver("2026-09-20", today)).toBe(false);

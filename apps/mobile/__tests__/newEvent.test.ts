@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   buildEvent,
+  draftFromEvent,
   validateNewEvent,
   type NewEventInput,
 } from "@/lib/newEvent";
+import type { ItineraryEvent } from "@/lib/itinerary";
 
 const INPUT: NewEventInput = {
   name: "Dinner in town",
+  description: "Table for eight under the vines.",
   day: "2026-09-20",
   start: "20:30",
   end: "22:30",
@@ -78,5 +81,53 @@ describe("buildEvent", () => {
     // printing "12:00 AM" at whatever the heading already said.
     expect(event.startTime.slice(11, 16)).toBe("00:00");
     expect(event.allDay).toBe(true);
+  });
+
+  it("keeps the description, and reads a blank one as no description", () => {
+    expect(buildEvent(INPUT, "e1", 0, "p.jpg").description).toBe(
+      "Table for eight under the vines.",
+    );
+    expect(
+      buildEvent({ ...INPUT, description: "   " }, "e1", 0, "p.jpg")
+        .description,
+    ).toBeNull();
+  });
+
+  it("builds a live event, never a deleted one", () => {
+    expect(buildEvent(INPUT, "e1", 0, "p.jpg").deletedAt).toBeNull();
+  });
+});
+
+describe("draftFromEvent", () => {
+  /** Built through the same path the form uses, so the two agree. */
+  const built = (over: Partial<NewEventInput> = {}): ItineraryEvent =>
+    buildEvent({ ...INPUT, ...over }, "e1", 120, "photo.jpg");
+
+  it("gives the form back the wall clock the trip runs on", () => {
+    // Stored as 18:30Z; in a UTC+2 trip that is the 20:30 that was typed.
+    expect(draftFromEvent(built(), "Europe/Madrid")).toEqual({
+      name: "Dinner in town",
+      description: "Table for eight under the vines.",
+      place: "Trattoria Nuova",
+      day: "2026-09-20",
+      start: "20:30",
+      end: "22:30",
+    });
+  });
+
+  it("leaves the times empty for an all-day event", () => {
+    const draft = draftFromEvent(
+      built({ start: "", end: "" }),
+      "Europe/Madrid",
+    );
+    // Not "00:00": the form's All day row is the answer, and a clock
+    // there would be a time nobody chose.
+    expect(draft.start).toBe("");
+    expect(draft.end).toBe("");
+    expect(draft.day).toBe("2026-09-20");
+  });
+
+  it("drops an end that was never set", () => {
+    expect(draftFromEvent(built({ end: "" }), "Europe/Madrid").end).toBe("");
   });
 });

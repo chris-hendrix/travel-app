@@ -9,15 +9,26 @@ describe("wallClock", () => {
     expect(wallClock(noonUtc, "Europe/Madrid")).toEqual({
       date: "2026-09-19",
       time: "2:00 PM",
+      clock: "14:00",
     });
     expect(wallClock(noonUtc, "Asia/Tokyo")).toEqual({
       date: "2026-09-19",
       time: "9:00 PM",
+      clock: "21:00",
     });
     expect(wallClock(noonUtc, "America/Los_Angeles")).toEqual({
       date: "2026-09-19",
       time: "5:00 AM",
+      clock: "05:00",
     });
+  });
+
+  it("says midnight and noon back in twenty-four hour, for the form", () => {
+    const midnight = new Date(Date.UTC(2026, 8, 19, 0, 5)).toISOString();
+    const noon = new Date(Date.UTC(2026, 8, 19, 12, 5)).toISOString();
+    // The trap: 12 AM is 00:00 and 12 PM is 12:00, not 12 and 0.
+    expect(wallClock(midnight, "UTC").clock).toBe("00:05");
+    expect(wallClock(noon, "UTC").clock).toBe("12:05");
   });
 
   it("crosses the date when the zones are far enough apart", () => {

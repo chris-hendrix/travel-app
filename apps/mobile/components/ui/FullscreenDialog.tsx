@@ -20,9 +20,11 @@ export function FullscreenDialog({
 }: {
   title: string;
   /** The dialog's one primary action. Omit it on a read-only dialog:
-   *  a bar with nothing worth pressing is chrome for its own sake. */
-  primaryTitle?: string;
-  onPrimary?: () => void;
+   *  a bar with nothing worth pressing is chrome for its own sake.
+   *  Explicitly nullable so a caller can pass an optional lookup
+   *  straight through — who is looking decides whether there is one. */
+  primaryTitle?: string | undefined;
+  onPrimary?: (() => void) | undefined;
   /** Where to land when there is no history to go back to. */
   dismissHref?: string;
   children: ReactNode;

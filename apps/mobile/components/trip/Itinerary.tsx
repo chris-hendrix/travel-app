@@ -1,4 +1,5 @@
 import { Text, View } from "react-native";
+import { useRouter } from "expo-router";
 import { EventCard } from "@/components/trip/EventCard";
 import { EventRow } from "@/components/trip/EventRow";
 import { Grid } from "@/components/ui/Grid";
@@ -20,18 +21,31 @@ import { todayIn } from "@/lib/timezone";
  * on, and whether it is cards or a table are Trip settings, which live
  * in the header's action group with the trip's other buttons. What is
  * left here is content.
+ *
+ * Every card and row opens the same event detail. Who is looking is
+ * carried down from the screen above rather than asked again, so the
+ * dialog cannot disagree with the trip it hangs over.
  */
 export function Itinerary({
   trip,
+  as = "traveler",
   now = new Date(),
 }: {
   trip: Trip;
+  /** Passed straight through to each event's dialog. */
+  as?: "organizer" | "traveler";
   /** Injected so the grouping and the labels agree on the moment. */
   now?: Date;
 }) {
+  const router = useRouter();
   const { for: settingsFor } = useTripSettings();
   const { eventsForTrip } = useEvents();
   const { showPast, clock, layout } = settingsFor(trip, now);
+
+  const openEvent = (eventId: string) =>
+    router.push(
+      `/design/trips/events/detail?id=${trip.id}&event=${eventId}&as=${as}`,
+    );
 
   // The zone drives the grouping as well as the clock: an evening in
   // Mallorca belongs to the day it is in Mallorca.
@@ -63,7 +77,12 @@ export function Itinerary({
                 {dayLabel(day.date, today)}
               </Text>
               {day.events.map((event) => (
-                <EventRow key={event.id} event={event} timeZone={timeZone} />
+                <EventRow
+                  key={event.id}
+                  event={event}
+                  timeZone={timeZone}
+                  onPress={() => openEvent(event.id)}
+                />
               ))}
             </View>
           ))}
@@ -76,7 +95,12 @@ export function Itinerary({
             </Text>
             <Grid>
               {day.events.map((event) => (
-                <EventCard key={event.id} event={event} timeZone={timeZone} />
+                <EventCard
+                  key={event.id}
+                  event={event}
+                  timeZone={timeZone}
+                  onPress={() => openEvent(event.id)}
+                />
               ))}
             </Grid>
           </View>

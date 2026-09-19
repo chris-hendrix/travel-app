@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { RSVP_ANSWERS, RSVP_LABEL, type RsvpStatus } from "@/lib/rsvp";
+import {
+  ORGANIZING_LABEL,
+  memberLabel,
+  RSVP_ANSWERS,
+  RSVP_LABEL,
+  type RsvpStatus,
+} from "@/lib/rsvp";
 
 /** The API's `rsvp_status`, written out here as the contract it is. */
 const API_STATUSES: RsvpStatus[] = [
@@ -38,5 +44,24 @@ describe("RSVP_LABEL", () => {
   it("gives every status its own word", () => {
     const words = Object.values(RSVP_LABEL);
     expect(new Set(words).size).toBe(words.length);
+  });
+});
+
+describe("memberLabel", () => {
+  it("says Organizing for the organizer, whatever their status", () => {
+    expect(memberLabel({ isOrganizer: true, status: "going" })).toBe(
+      ORGANIZING_LABEL,
+    );
+    expect(memberLabel({ isOrganizer: true, status: "maybe" })).toBe(
+      ORGANIZING_LABEL,
+    );
+  });
+
+  it("says the answer for everyone else", () => {
+    for (const status of API_STATUSES) {
+      expect(memberLabel({ isOrganizer: false, status })).toBe(
+        RSVP_LABEL[status],
+      );
+    }
   });
 });

@@ -1,8 +1,11 @@
 import type { ItineraryEvent } from "@/lib/itinerary";
 import { isClockTime, minutesOf } from "@/lib/time";
+import { wallClock } from "@/lib/timezone";
 
 export type NewEventInput = {
   name: string;
+  /** The organizer's prose. Optional: most events need none. */
+  description: string;
   day: string;
   start: string;
   end: string;
@@ -51,6 +54,29 @@ export function validateNewEvent(input: NewEventInput): NewEventErrors {
 export const UNTIMED = "00:00";
 
 /**
+ * An event as the form wants it back: wall-clock values in the trip's own
+ * zone, because that is what the fields ask for and what the organizer
+ * typed the first time round. An all-day event has no clock to fill in,
+ * so its times come back empty rather than as midnight.
+ */
+export function draftFromEvent(
+  event: ItineraryEvent,
+  timeZone: string | null,
+): NewEventInput {
+  return {
+    name: event.name,
+    description: event.description ?? "",
+    place: event.place,
+    day: wallClock(event.startTime, timeZone).date,
+    start: event.allDay ? "" : wallClock(event.startTime, timeZone).clock,
+    end:
+      event.allDay || !event.endTime
+        ? ""
+        : wallClock(event.endTime, timeZone).clock,
+  };
+}
+
+/**
  * Stamp a wall-clock time onto the trip's clock, the same trick the
  * mocks use: an 8:30 entered for Mallorca is 8:30 in Mallorca. The
  * offset and the photo come from the mocks until the API owns them.
@@ -95,6 +121,8 @@ export function buildEvent(
   return {
     id,
     name: input.name.trim(),
+    // An empty description is no description, not an empty string.
+    description: input.description.trim() ? input.description.trim() : null,
     // Until Places answers: an unclassified event.
     type: "misc",
     startTime: new Date(startMs).toISOString(),
@@ -102,6 +130,9 @@ export function buildEvent(
     allDay: untimed,
     place: input.place.trim(),
     image: photo,
+    // An edit arrives as a new event object, so the flag it carried has
+    // to be brought along or editing a deleted event would undelete it.
+    deletedAt: null,
   };
 }
 

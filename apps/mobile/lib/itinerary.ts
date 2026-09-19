@@ -44,6 +44,8 @@ export type ItineraryEvent = {
   id: string;
   name: string;
   type: EventType;
+  /** The organizer's prose, null until someone writes one. */
+  description: string | null;
   startTime: string;
   /** Null when nothing said when it ends. */
   endTime: string | null;
@@ -57,6 +59,12 @@ export type ItineraryEvent = {
   place: string;
   /** The place's photo, which the API proxies from Places. */
   image: string;
+  /**
+   * The API's soft delete, and why deleting needs no confirmation step:
+   * a deleted event is still there, waiting for the Deleted items screen
+   * the PRD asks for. Null while it is live.
+   */
+  deletedAt: string | null;
 };
 
 /**
@@ -70,6 +78,34 @@ export function eventTimeLabel(
 ): string {
   if (event.allDay) return "All day";
   return formatTimeRange(event.startTime, event.endTime, timeZone);
+}
+
+/**
+ * Edits applied over the events they belong to, earliest first.
+ *
+ * An edit is remembered against an id rather than written into the list,
+ * so a row that came from a mock pool can be edited without the pool
+ * being rebuilt — and an edit always wins over whatever is underneath
+ * it, mock or authored.
+ */
+export function withEdits(
+  events: ItineraryEvent[],
+  edits: Record<string, Partial<ItineraryEvent>>,
+): ItineraryEvent[] {
+  return events
+    .map((event) =>
+      edits[event.id] ? { ...event, ...edits[event.id] } : event,
+    )
+    .sort((a, b) => a.startTime.localeCompare(b.startTime));
+}
+
+/**
+ * What the itinerary shows: everything that has not been deleted. The
+ * deleted ones are not dropped, they are held back — the PRD's Deleted
+ * items screen is where they come back from.
+ */
+export function liveEvents(events: ItineraryEvent[]): ItineraryEvent[] {
+  return events.filter((event) => !event.deletedAt);
 }
 
 export type EventDay = {

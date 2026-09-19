@@ -7,14 +7,14 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { TextField } from "@/components/ui/TextField";
 import { ChipToggle } from "@/components/ui/ChipToggle";
-import { Segmented } from "@/components/ui/Segmented";
+import { RsvpControl } from "@/components/trip/RsvpControl";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { Accordion, AccordionItem } from "@/components/ui/Accordion";
 import { Screen } from "@/components/ui/Screen";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { TimeField } from "@/components/ui/TimeField";
 import type { Selection } from "@/lib/calendar";
-import { RSVP_ANSWERS, RSVP_LABEL, type RsvpStatus } from "@/lib/rsvp";
+import { RSVP_LABEL, type RsvpStatus } from "@/lib/rsvp";
 import { formatDateRange } from "@/lib/dateRange";
 import { TripCard } from "@/components/trip/TripCard";
 import { EventCard } from "@/components/trip/EventCard";
@@ -363,7 +363,7 @@ export default function DesignSystem() {
             <Specimen
               name="ChipToggle"
               contract="label · selected? · onPress"
-              note="A filter you can press: filled ink when on, outlined when off. Used for independent filters (past events) and for exclusive choices (trip time / your time) alike, with a plain label above when the row needs one."
+              note="A filter you can press: filled ink when on, outlined when off. Used for independent filters (past events) and for exclusive choices (trip time / your time) alike, with a plain label above when the row needs one. The outline is also the system's quiet chip: a member's Venmo and Instagram wear it on the roll call, where a label and a handle have to read as one thing."
             >
               <View className="flex-row items-center gap-3">
                 <ChipToggle
@@ -378,20 +378,17 @@ export default function DesignSystem() {
                   label="Nearby"
                   onPress={() => setLog("ChipToggle \"Nearby\" pressed")}
                 />
+                <Badge label="Instagram dana.mercer" variant="outline" />
               </View>
             </Specimen>
 
             <Specimen
               name="Segmented"
-              contract="options · value (nullable) · onChange"
-              note="One choice out of a few, all of them visible. Bordered cells, and the chosen one fills watermelon. value is nullable because this was built for an RSVP, where having chosen nothing yet is a real state rather than an error."
+              contract="options (value · label · tone?) · value (nullable) · onChange"
+              note="One choice out of a few, all of them visible. Bordered cells, the chosen one filled with its tone — the same p-4 and text-sm as a button, so a row of these sits in a stack of buttons without a step. value is nullable because this was built for an RSVP, where having chosen nothing yet is a real state rather than an error."
             >
-              <Segmented
-                options={RSVP_ANSWERS.map((status) => ({
-                  value: status,
-                  label: RSVP_LABEL[status],
-                }))}
-                value={rsvp}
+              <RsvpControl
+                value={rsvp ?? "no_response"}
                 onChange={(status) => {
                   setRsvp(status);
                   setLog(`RSVP "${RSVP_LABEL[status]}"`);
@@ -535,8 +532,17 @@ export default function DesignSystem() {
           <Link href="/design/trips/detail?id=picos" className="font-body-bold text-base text-ink underline">
             Trip detail
           </Link>
-          <Link href="/design/trips/members?id=picos" className="font-body-bold text-base text-ink underline">
-            Who's coming
+          <Link
+            href="/design/trips/members?id=picos&as=organizer"
+            className="font-body-bold text-base text-ink underline"
+          >
+            Who's coming · organizer
+          </Link>
+          <Link
+            href="/design/trips/members?id=picos&as=traveler"
+            className="font-body-bold text-base text-ink underline"
+          >
+            Who's coming · traveler
           </Link>
           <Link href="/design/trips/settings?id=picos" className="font-body-bold text-base text-ink underline">
             Trip settings
@@ -546,6 +552,18 @@ export default function DesignSystem() {
           </Link>
           <Link href="/design/trips/events/new?id=picos" className="font-body-bold text-base text-ink underline">
             Add event
+          </Link>
+          <Link
+            href="/design/trips/events/detail?id=picos&event=picos-2026-09-19-2&as=organizer"
+            className="font-body-bold text-base text-ink underline"
+          >
+            Event detail · organizer
+          </Link>
+          <Link
+            href="/design/trips/events/detail?id=picos&event=picos-2026-09-19-2&as=traveler"
+            className="font-body-bold text-base text-ink underline"
+          >
+            Event detail · traveler
           </Link>
           <Link href="/notifications" className="font-body-bold text-base text-ink underline">
             Notifications
@@ -557,9 +575,8 @@ export default function DesignSystem() {
 
         <Section title="Parking lot">
           <Text className="font-body text-base text-ink">
-            Itinerary day rows · place photo cards · travel cards · invite
-            flow — not yet designed. Each lands here as a pattern first,
-            then in a screen.
+            Travel cards · invite flow · Discover · deleted items — not yet
+            designed. Each lands here as a pattern first, then in a screen.
           </Text>
         </Section>
       </View>

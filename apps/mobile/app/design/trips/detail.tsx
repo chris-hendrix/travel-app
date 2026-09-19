@@ -5,11 +5,12 @@ import { Screen } from "@/components/ui/Screen";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { QuietAction } from "@/components/ui/QuietAction";
-import { Segmented } from "@/components/ui/Segmented";
+import { PlaceLink } from "@/components/ui/PlaceLink";
+import { RsvpControl } from "@/components/trip/RsvpControl";
 import { Itinerary } from "@/components/trip/Itinerary";
 import { tripCountdown } from "@/lib/countdown";
 import { formatDateRange } from "@/lib/dateRange";
-import { RSVP_ANSWERS, RSVP_LABEL, type RsvpStatus } from "@/lib/rsvp";
+import type { RsvpStatus } from "@/lib/rsvp";
 import { useTrips } from "@/lib/tripsStore";
 
 type Variant = "organizer" | "traveler";
@@ -149,14 +150,7 @@ function TripDetailScreen() {
         <>
           {/* All three answers, always visible and always reachable — an
               RSVP you cannot take back is a worse RSVP. */}
-          <Segmented
-            options={RSVP_ANSWERS.map((status) => ({
-              value: status,
-              label: RSVP_LABEL[status],
-            }))}
-            value={response}
-            onChange={setResponse}
-          />
+          <RsvpControl value={response} onChange={setResponse} />
           {settingsButton}
         </>
       )}
@@ -217,13 +211,15 @@ function TripDetailScreen() {
               <Text className="font-display text-5xl uppercase leading-[0.95] text-ink md:text-6xl">
                 {trip.title}
               </Text>
-              <Text className="font-body-bold text-lg text-ink">
-                {trip.location}
-              </Text>
+              {/* Where the trip is, and the one fact on this screen the
+                  app has nothing to add to: Maps has the map. */}
+              <PlaceLink label={trip.location} />
               <QuietAction
                 label={`${trip.going} going`}
                 onPress={() =>
-                  router.push(`/design/trips/members?id=${trip.id}`)
+                  router.push(
+                    `/design/trips/members?id=${trip.id}&as=${variant}`,
+                  )
                 }
               />
             </View>
@@ -235,7 +231,7 @@ function TripDetailScreen() {
         {/* The itinerary is the only thing an unanswered invitation
             withholds: the description is what you decide on, it is what
             you get for saying yes. */}
-        {invited ? null : <Itinerary trip={trip} />}
+        {invited ? null : <Itinerary trip={trip} as={variant} />}
       </View>
     </Screen>
   );
