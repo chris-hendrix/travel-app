@@ -13,6 +13,7 @@ import {
 } from "@/lib/travelBoard";
 import { useTrips } from "@/lib/tripsStore";
 import { useTravel } from "@/lib/travelStore";
+import { membersFor } from "@/mocks/members";
 
 /**
  * Travel, reached from "Travel" beside "N going" on the trip header.
@@ -42,19 +43,32 @@ export default function TripTravel() {
 }
 
 function TripTravelDialog() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, as } = useLocalSearchParams<{ id?: string; as?: string }>();
   const { trips } = useTrips();
   const { travelForTrip } = useTravel();
   const router = useRouter();
 
   const tripId = typeof id === "string" ? id : undefined;
   const trip = trips.find((candidate) => candidate.id === tripId) ?? trips[0];
+  // The lab's stand-in for `isOrganizer` on the membership, threaded
+  // down from the trip screen so the two can never disagree.
+  const viewerIsOrganizer = as === "organizer";
+  // The lab has no signed-in identity: the first traveler on the
+  // roster stands in for "you".
+  const going = trip
+    ? membersFor(trip).filter((member) => member.status === "going")
+    : [];
+  const viewerMember = going.find((member) => !member.isOrganizer) ?? null;
+  const asParam = viewerIsOrganizer ? "organizer" : "traveler";
+  // The organizer corrects anyone; a traveler touches only their own.
+  const canEditRow = (memberId: string) =>
+    viewerIsOrganizer || (viewerMember?.id ?? "") === memberId;
 
   const records = travelForTrip(trip!);
   const board = useMemo(
     () =>
       trip
-        ? travelBoard(records, trip.preferredTimezone ?? null)
+        ? travelBoard(records, trip.preferredTimezone ?? null, going)
         : null,
     [trip, records],
   );
@@ -80,7 +94,9 @@ function TripTravelDialog() {
     <FullscreenDialog
       title="Travel"
       primaryTitle="Add travel"
-      onPrimary={() => router.push(`/design/trips/travel/form?id=${trip.id}`)}
+      onPrimary={() =>
+        router.push(`/design/trips/travel/form?id=${trip.id}&as=${asParam}`)
+      }
       dismissHref={`/design/trips/detail?id=${trip.id}`}
     >
       {empty ? (
@@ -94,12 +110,16 @@ function TripTravelDialog() {
             direction={board.arrivals}
             timeZone={timeZone}
             tripId={trip.id}
+            asParam={asParam}
+            canEdit={canEditRow}
           />
           <TravelSection
             heading="Departing"
             direction={board.departures}
             timeZone={timeZone}
             tripId={trip.id}
+            asParam={asParam}
+            canEdit={canEditRow}
           />
         </View>
       )}
@@ -112,11 +132,15 @@ function TravelSection({
   direction,
   timeZone,
   tripId,
+  asParam,
+  canEdit,
 }: {
   heading: string;
   direction: TravelDirection;
   timeZone: string | null;
   tripId: string;
+  asParam: string;
+  canEdit: (memberId: string) => boolean;
 }) {
   if (direction.days.length === 0 && direction.unscheduled.length === 0) {
     return null;
@@ -128,10 +152,10 @@ function TravelSection({
         {heading}
       </Text>
       {direction.days.map((day) => (
-        <View key={day.date} className="gap-1">
-          {/* The day in display type: this is what separates one
-              arrival group from the next, not another rule. */}
-          <Text className="font-display text-2xl uppercase text-ink">
+        <View key={day.date} className="gap-2 pt-2">
+          {/* The day in display type, a size down from the section:
+              heads mark groups, they are not the content. */}
+          <Text className="font-display text-xl uppercase text-ink">
             {formatDay(day.date)}
           </Text>
           {/* Ruled rows, like every other list here. */}
@@ -142,14 +166,16 @@ function TravelSection({
                 row={row}
                 timeZone={timeZone}
                 tripId={tripId}
+                asParam={asParam}
+                canEdit={canEdit(row.memberId)}
               />
             ))}
           </View>
         </View>
       ))}
       {direction.unscheduled.length > 0 ? (
-        <View className="gap-1">
-          <Text className="font-display text-2xl uppercase text-ink">
+        <View className="gap-2 pt-2">
+          <Text className="font-display text-xl uppercase text-ink">
             No time shared
           </Text>
           <View className="border-t border-ink">
@@ -159,6 +185,8 @@ function TravelSection({
                 row={row}
                 timeZone={timeZone}
                 tripId={tripId}
+                asParam={asParam}
+                canEdit={canEdit(row.memberId)}
               />
             ))}
           </View>
@@ -171,17 +199,21 @@ function TravelSection({
 /**
  * One person's travel. The name leads, the time sits right-aligned,
  * the where hangs beneath — three facts, nothing else. The accordion
- * holds the flight, the details, and the Edit link; every row opens,
- * because an unscheduled row's Edit is how it gets a time at all.
+ * holds the flight, the details, and — for the organizer on any row,
+ * for a traveler on their own — the Edit link.
  */
 function TravelRowItem({
   row,
   timeZone,
   tripId,
+  asParam,
+  canEdit,
 }: {
   row: TravelRow;
   timeZone: string | null;
   tripId: string;
+  asParam: string;
+  canEdit: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -191,7 +223,7 @@ function TravelRowItem({
   const Icon = open ? ArrowUp : ArrowDown;
 
   return (
-    <View className="border-b border-b-ink py-3">
+    <View className="border-b border-b-ink py-4">
       <Pressable
         accessibilityRole="button"
         aria-expanded={open}
@@ -227,14 +259,18 @@ function TravelRowItem({
               {row.details}
             </Text>
           ) : null}
-          <QuietAction
-            label="Edit"
-            onPress={() =>
-              router.push(
-                `/design/trips/travel/form?id=${tripId}&travel=${row.id}`,
-              )
-            }
-          />
+          {canEdit ? (
+            <QuietAction
+              label={row.time ? "Edit" : "Add times"}
+              onPress={() =>
+                router.push(
+                  row.id.startsWith("pending-")
+                    ? `/design/trips/travel/form?id=${tripId}&as=${asParam}&member=${row.memberId}&direction=${row.travelType}`
+                    : `/design/trips/travel/form?id=${tripId}&travel=${row.id}&as=${asParam}`,
+                )
+              }
+            />
+          ) : null}
         </View>
       ) : null}
     </View>

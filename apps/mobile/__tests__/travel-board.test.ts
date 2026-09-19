@@ -103,6 +103,23 @@ describe("travelBoard", () => {
 
     expect(board.arrivals.days[0]!.rows).toHaveLength(2);
   });
+  it("lists members with no record as unscheduled, not absent", () => {
+    const board = travelBoard(
+      [record({ id: "a", time: "2026-09-18T15:40:00", memberName: "A" })],
+      null,
+      [
+        { id: "a", name: "A" },
+        { id: "b", name: "Bea" },
+      ],
+    );
+
+    expect(
+      board.arrivals.unscheduled.map((row) => row.memberName),
+    ).toEqual(["Bea"]);
+    expect(board.departures.unscheduled.map((row) => row.memberName)).toEqual(
+      ["A", "Bea"],
+    );
+  });
 });
 
 describe("travelRowLabel", () => {

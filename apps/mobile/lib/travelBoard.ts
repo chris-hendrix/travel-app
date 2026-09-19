@@ -59,12 +59,16 @@ function toRow(record: MockTravel): TravelRow {
  */
 function groupDirection(
   records: MockTravel[],
+  direction: "arrival" | "departure",
+  members: Array<{ id: string; name: string }>,
   timeZone: string | null,
 ): TravelDirection {
   const byDay = new Map<string, TravelRow[]>();
   const unscheduled: TravelRow[] = [];
+  const seen = new Set<string>();
 
   for (const record of records) {
+    seen.add(record.memberId);
     if (!record.time) {
       unscheduled.push(toRow(record));
       continue;
@@ -73,6 +77,23 @@ function groupDirection(
     const day = byDay.get(date);
     if (day) day.push(toRow(record));
     else byDay.set(date, [toRow(record)]);
+  }
+
+  // The whole roster reads here, not just whoever filed: a member with
+  // no record in this direction waits at the foot with the rest of the
+  // unscheduled, so the organizer sees who still owes times at a glance.
+  for (const member of members) {
+    if (seen.has(member.id)) continue;
+    unscheduled.push({
+      id: `pending-${direction}-${member.id}`,
+      memberId: member.id,
+      memberName: member.name,
+      travelType: direction,
+      time: null,
+      location: null,
+      flightNumber: null,
+      details: null,
+    });
   }
 
   const days = [...byDay]
@@ -93,21 +114,21 @@ function groupDirection(
 /**
  * What the travel screen shows: arrivals first, departures after, each
  * grouped by day. Arrivals are the coordination job; departures are the
- * same shape a day later.
+ * same shape a day later. Members ride along so nobody is missing: a
+ * member with no record waits unscheduled, not absent.
  */
 export function travelBoard(
   records: MockTravel[],
   timeZone: string | null = null,
+  members: Array<{ id: string; name: string }> = [],
 ): TravelBoard {
+  const arrivals = records.filter((record) => record.travelType === "arrival");
+  const departures = records.filter(
+    (record) => record.travelType === "departure",
+  );
   return {
-    arrivals: groupDirection(
-      records.filter((record) => record.travelType === "arrival"),
-      timeZone,
-    ),
-    departures: groupDirection(
-      records.filter((record) => record.travelType === "departure"),
-      timeZone,
-    ),
+    arrivals: groupDirection(arrivals, "arrival", members, timeZone),
+    departures: groupDirection(departures, "departure", members, timeZone),
   };
 }
 
