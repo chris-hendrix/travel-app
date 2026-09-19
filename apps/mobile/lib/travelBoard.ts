@@ -1,4 +1,5 @@
 import { wallClock } from "@/lib/timezone";
+import { getPertinentLocation, getPertinentTime } from "@journiful/shared/utils";
 import type { MockTravel } from "@/mocks/travel";
 
 /**
@@ -35,14 +36,25 @@ export type TravelBoard = {
   departures: TravelDirection;
 };
 
+/**
+ * The half of a record the board files: the arrival's arrival, the
+ * departure's departure, as an instant. Null when that side was never
+ * filled in — a row without a time is still owed.
+ */
+export function pertinentIso(record: MockTravel): string | null {
+  const pertinent = getPertinentTime(record);
+  return pertinent ? new Date(pertinent).toISOString() : null;
+}
+
 function toRow(record: MockTravel): TravelRow {
+  const location = getPertinentLocation(record);
   return {
     id: record.id,
     memberId: record.memberId,
     memberName: record.memberName,
     travelType: record.travelType,
-    time: record.time,
-    location: record.location,
+    time: pertinentIso(record),
+    location,
     flightNumber: record.flightNumber,
     details: record.details,
   };
@@ -69,11 +81,12 @@ function groupDirection(
 
   for (const record of records) {
     seen.add(record.memberId);
-    if (!record.time) {
+    const pertinent = pertinentIso(record);
+    if (!pertinent) {
       unscheduled.push(toRow(record));
       continue;
     }
-    const date = wallClock(record.time, timeZone).date;
+    const date = wallClock(pertinent, timeZone).date;
     const day = byDay.get(date);
     if (day) day.push(toRow(record));
     else byDay.set(date, [toRow(record)]);

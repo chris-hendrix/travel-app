@@ -2,17 +2,33 @@ import { describe, expect, it } from "vitest";
 import type { MockTravel } from "@/mocks/travel";
 import { travelBoard, travelRowLabel } from "@/lib/travelBoard";
 
-function record(overrides: Partial<MockTravel> & { id: string }): MockTravel {
+/**
+ * A record in the API's own shape: both ends exist as columns and the
+ * direction decides which one is pertinent. Tests give a `time` and a
+ * `location` in the direction's own terms, and this puts them on the
+ * side the board will read.
+ */
+function record(
+  overrides: Partial<MockTravel> & {
+    id: string;
+    time?: string | null;
+    location?: string | null;
+  },
+): MockTravel {
+  const { time = null, location = null, ...rest } = overrides;
+  const travelType = rest.travelType ?? "arrival";
   return {
     memberId: overrides.id,
     memberName: overrides.id,
-    travelType: "arrival",
-    time: null,
-    location: null,
+    travelType,
+    departureTime: travelType === "departure" ? time : null,
+    departureLocation: travelType === "departure" ? location : null,
+    arrivalTime: travelType === "arrival" ? time : null,
+    arrivalLocation: travelType === "arrival" ? location : null,
     flightNumber: null,
     details: null,
     deletedAt: null,
-    ...overrides,
+    ...rest,
   };
 }
 

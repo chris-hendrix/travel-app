@@ -14,6 +14,7 @@ import {
 import { useTrips } from "@/lib/tripsStore";
 import { useTravel } from "@/lib/travelStore";
 import { viewerMember } from "@/lib/members";
+import { pertinentIso } from "@/lib/travelBoard";
 import { membersFor } from "@/mocks/members";
 
 /**
@@ -64,7 +65,7 @@ function TripTravelDialog() {
   const viewer = viewerMember(
     going,
     viewerIsOrganizer,
-    records.filter((record) => record.time).map((record) => record.memberId),
+    records.filter((record) => pertinentIso(record)).map((record) => record.memberId),
   );
   const asParam = viewerIsOrganizer ? "organizer" : "traveler";
   // The organizer corrects anyone; a traveler touches only their own.

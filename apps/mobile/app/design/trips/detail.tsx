@@ -13,6 +13,7 @@ import { formatDateRange } from "@/lib/dateRange";
 import type { RsvpStatus } from "@/lib/rsvp";
 import { useTrips } from "@/lib/tripsStore";
 import { useTravel } from "@/lib/travelStore";
+import { getPertinentTime } from "@journiful/shared/utils";
 import { viewerMember } from "@/lib/members";
 import { membersFor } from "@/mocks/members";
 
@@ -102,7 +103,9 @@ function TripDetailScreen() {
   // organizer, everyone else is the lab's stand-in for "you".
   const { travelForTrip } = useTravel();
   // Filed means a time is on it: a row without one is still owed.
-  const filed = travelForTrip(trip).filter((record) => record.time);
+  const filed = travelForTrip(trip).filter((record) =>
+    getPertinentTime(record),
+  );
   const viewer = viewerMember(
     membersFor(trip),
     organizer,

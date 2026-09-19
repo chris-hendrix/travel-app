@@ -5,15 +5,19 @@ import {
   emptyLeg,
   legFromLookup,
   legFromRecord,
+  legSummary,
   validateNewTravel,
   type NewTravelInput,
 } from "@/lib/newTravel";
+import { wallClock } from "@/lib/timezone";
 
 const ARRIVAL = {
   ...emptyLeg(),
   day: "2026-09-18",
-  time: "15:40",
+  departureTime: "07:00",
+  arrivalTime: "15:40",
   location: "BCN T2",
+  otherLocation: "JFK T4",
   flightNumber: "UA 1842",
 };
 
@@ -45,7 +49,7 @@ describe("validateNewTravel", () => {
     expect(validateNewTravel({ ...VALID, memberId: "" }).memberId).toBeTruthy();
   });
 
-  it("requires day, time, and where on a direction that was started", () => {
+  it("requires where on a direction that was started", () => {
     const errors = validateNewTravel({
       ...VALID,
       arrival: { ...ARRIVAL, location: "  " },
@@ -54,19 +58,35 @@ describe("validateNewTravel", () => {
   });
 
   it("requires the day when a time was given without one", () => {
-    const errors = validateNewTravel({
-      ...VALID,
-      arrival: { ...ARRIVAL, day: "" },
-    });
-    expect(errors.arrival?.day).toBeTruthy();
+    expect(
+      validateNewTravel({ ...VALID, arrival: { ...ARRIVAL, day: "" } })
+        .arrival?.day,
+    ).toBeTruthy();
   });
 
-  it("requires the time when a day was given without one", () => {
+  it("requires the direction's own end, not just the far one", () => {
     const errors = validateNewTravel({
       ...VALID,
-      arrival: { ...ARRIVAL, time: "" },
+      arrival: { ...ARRIVAL, arrivalTime: "" },
     });
-    expect(errors.arrival?.time).toBeTruthy();
+    expect(errors.arrival?.arrivalTime).toBeTruthy();
+  });
+
+  it("accepts a leg with only its own end filled in", () => {
+    expect(
+      validateNewTravel({
+        ...VALID,
+        arrival: { ...ARRIVAL, departureTime: "" },
+      }),
+    ).toEqual({});
+  });
+
+  it("wants a time behind the far-day chip", () => {
+    const errors = validateNewTravel({
+      ...VALID,
+      arrival: { ...ARRIVAL, departureTime: "", farDay: true },
+    });
+    expect(errors.arrival?.departureTime).toBeTruthy();
   });
 
   it("asks nothing of an untouched direction", () => {
@@ -75,88 +95,178 @@ describe("validateNewTravel", () => {
 });
 
 describe("legFromLookup", () => {
-  it("fills the pertinent pair on the leg's own day", () => {
+  it("fills both ends of the leg", () => {
     const leg = legFromLookup(emptyLeg(), "arrival", LOOKUP, "UA 1842", null);
     expect(leg.flightNumber).toBe("UA 1842");
     expect(leg.location).toBe("Barcelona (BCN)");
-    expect(leg.nextDay).toBe(false);
+    expect(leg.otherLocation).toBe("Newark (EWR)");
+    expect(leg.farDay).toBe(false);
   });
 
-  it("raises Next day when the two ends fall on different days", () => {
+  it("raises the far-day flag when the two ends fall on different days", () => {
     expect(
-      legFromLookup(emptyLeg(), "arrival", OVERNIGHT, "UA 1842", null).nextDay,
+      legFromLookup(emptyLeg(), "arrival", OVERNIGHT, "UA 1842", null).farDay,
     ).toBe(true);
   });
 });
 
 describe("buildLegRecord", () => {
-  it("stamps the wall clock and trims the words", () => {
+  it("stamps both ends on the trip's own clock", () => {
     const record = buildLegRecord(
-      { ...ARRIVAL, location: "  BCN T2 ", flightNumber: "", details: " " },
+      { ...ARRIVAL, location: " BCN T2 " },
       "arrival",
       "t-1",
       "m-1",
       "Ana",
       0,
-      "2026-09-25",
     );
     expect(record?.memberName).toBe("Ana");
     expect(record?.travelType).toBe("arrival");
-    expect(record?.time).toBe("2026-09-18T15:40:00.000Z");
-    expect(record?.location).toBe("BCN T2");
-    expect(record?.flightNumber).toBeNull();
-    expect(record?.details).toBeNull();
-    expect(record?.deletedAt).toBeNull();
+    expect(record?.arrivalTime).toBe("2026-09-18T15:40:00.000Z");
+    expect(record?.arrivalLocation).toBe("BCN T2");
+    expect(record?.departureTime).toBe("2026-09-18T07:00:00.000Z");
+    expect(record?.departureLocation).toBe("JFK T4");
   });
 
-  it("puts a Next day leg on the morning after the last day", () => {
+  it("puts the far end a day back for an overnight arrival", () => {
     const record = buildLegRecord(
-      { ...ARRIVAL, day: "2026-09-25", time: "23:30", nextDay: true },
+      { ...ARRIVAL, day: "2026-09-18", arrivalTime: "07:15", farDay: true },
+      "arrival",
+      "t-1",
+      "m-1",
+      "Ana",
+      0,
+    );
+    // Landed the 18th, so it left the 17th.
+    expect(record?.arrivalTime).toBe("2026-09-18T07:15:00.000Z");
+    expect(record?.departureTime).toBe("2026-09-17T07:00:00.000Z");
+  });
+
+  it("puts the far end a day on for a red-eye home", () => {
+    const record = buildLegRecord(
+      {
+        ...emptyLeg(),
+        day: "2026-09-25",
+        departureTime: "23:30",
+        arrivalTime: "07:15",
+        farDay: true,
+        location: "BCN T2",
+      },
       "departure",
       "t-1",
       "m-1",
       "Ana",
       0,
-      "2026-09-25",
     );
-    expect(record?.time).toBe("2026-09-26T23:30:00.000Z");
+    expect(record?.departureTime).toBe("2026-09-25T23:30:00.000Z");
+    expect(record?.arrivalTime).toBe("2026-09-26T07:15:00.000Z");
   });
 
   it("returns null for a direction that was never touched", () => {
     expect(
-      buildLegRecord(emptyLeg(), "arrival", "t-1", "m-1", "Ana", 0, "2026-09-25"),
+      buildLegRecord(emptyLeg(), "arrival", "t-1", "m-1", "Ana", 0),
     ).toBeNull();
   });
 });
 
+describe("legSummary", () => {
+  it("is empty for a direction nobody has filled in", () => {
+    expect(legSummary(emptyLeg(), "arrival")).toBe("");
+  });
+
+  it("reads the direction's own end, not the far one", () => {
+    expect(legSummary(ARRIVAL, "arrival")).toBe(
+      "Fri Sep 18 · 3:40 PM · BCN T2",
+    );
+  });
+
+  it("states this direction's own day, not the day its far end lands", () => {
+    expect(
+      legSummary(
+        {
+          ...emptyLeg(),
+          day: "2026-09-25",
+          departureTime: "23:30",
+          arrivalTime: "07:15",
+          farDay: true,
+          location: "BCN T2",
+        },
+        "departure",
+      ),
+    ).toBe("Fri Sep 25 · 11:30 PM · BCN T2");
+  });
+});
+
 describe("legFromRecord", () => {
-  it("reads a red-eye home back as the last day plus Next day", () => {
+  it("reads a red-eye home back as the last day plus the flag", () => {
     const leg = legFromRecord(
       {
-        time: "2026-09-26T23:30:00.000Z",
-        location: "BCN T2",
+        departureTime: "2026-09-25T23:30:00.000Z",
+        departureLocation: "BCN T2",
+        arrivalTime: "2026-09-26T07:15:00.000Z",
+        arrivalLocation: "JFK T4",
         flightNumber: null,
         details: null,
       },
+      "departure",
       null,
+      "2026-09-18",
       "2026-09-25",
     );
     expect(leg.day).toBe("2026-09-25");
-    expect(leg.nextDay).toBe(true);
+    expect(leg.farDay).toBe(true);
+    // Both ends, from the side each belongs to. Reading them by position
+    // put a departure's own time in its arrival field, and the form then
+    // showed 09:15 for a 23:30 flight.
+    expect(leg.departureTime).toBe(
+      wallClock("2026-09-25T23:30:00.000Z", null).clock,
+    );
+    expect(leg.arrivalTime).toBe(
+      wallClock("2026-09-26T07:15:00.000Z", null).clock,
+    );
+  });
+
+  it("reads an arrival's own end as the arrival", () => {
+    const leg = legFromRecord(
+      {
+        departureTime: "2026-09-18T07:00:00.000Z",
+        departureLocation: "JFK T4",
+        arrivalTime: "2026-09-18T15:40:00.000Z",
+        arrivalLocation: "BCN T2",
+        flightNumber: null,
+        details: null,
+      },
+      "arrival",
+      null,
+      "2026-09-18",
+      "2026-09-25",
+    );
+    expect(leg.arrivalTime).toBe(
+      wallClock("2026-09-18T15:40:00.000Z", null).clock,
+    );
+    expect(leg.departureTime).toBe(
+      wallClock("2026-09-18T07:00:00.000Z", null).clock,
+    );
+    expect(leg.otherLocation).toBe("JFK T4");
   });
 
   it("leaves a leg inside the trip alone", () => {
     const leg = legFromRecord(
       {
-        time: "2026-09-18T15:40:00.000Z",
-        location: "BCN T2",
+        departureTime: null,
+        departureLocation: null,
+        arrivalTime: "2026-09-18T15:40:00.000Z",
+        arrivalLocation: "BCN T2",
         flightNumber: null,
         details: null,
       },
+      "arrival",
       null,
+      "2026-09-18",
       "2026-09-25",
     );
     expect(leg.day).toBe("2026-09-18");
-    expect(leg.nextDay).toBe(false);
+    expect(leg.farDay).toBe(false);
+    expect(leg.location).toBe("BCN T2");
   });
 });

@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Stack } from "expo-router";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
+import { ArrowDown, ArrowUp } from "lucide-react-native";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { ChipToggle } from "@/components/ui/ChipToggle";
-import { Segmented } from "@/components/ui/Segmented";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { TimeField } from "@/components/ui/TimeField";
 import { dayLabel } from "@/lib/itinerary";
@@ -15,8 +15,9 @@ import { isFlightNumber, lookupFlight } from "@/lib/flights";
 import {
   emptyLeg,
   legFromLookup,
-  legIsFiled,
+  legSummary,
   validateNewTravel,
+  type LegErrors,
   type NewTravelInput,
   type TravelDirection,
   type TravelLeg,
@@ -24,24 +25,34 @@ import {
 import type { Trip } from "@/components/trip/TripCard";
 import type { Member } from "@/lib/members";
 
-const DIRECTIONS: Array<{ value: TravelDirection; label: string }> = [
-  { value: "arrival", label: "Arriving" },
-  { value: "departure", label: "Departing" },
+const DIRECTIONS: Array<{ value: TravelDirection; heading: string }> = [
+  { value: "arrival", heading: "Arriving" },
+  { value: "departure", heading: "Departing" },
 ];
+
+const NOT_SHARED = "Not shared yet";
 
 /**
  * The travel form, in one place because there is one of it: one member,
- * both directions behind a tab each, and only the verb changes between
- * adding and editing.
+ * both directions, and only the verb changes between adding and
+ * editing.
  *
  * One dialog for everyone. The organizer gets the Who picker at the top;
  * a traveler is that member already, so the picker is simply absent —
  * the same form with one field fewer, not a second form.
  *
- * The tabs are the API's two directions, named the way the board's own
- * sections are named, so the word you press and the heading you land on
- * are the same word. Each tab asks the same four things: where, the
- * flight number for those who flew, the day, and the time.
+ * The two directions are a disclosure each, not a pair of tabs. They are
+ * not alternatives — most people have both, and both usually arrive in
+ * the same conversation — so the form shows the state of each at once
+ * and opens one at a time. Both headings carry their own answer, which
+ * is the thing a row of tabs cannot do: "Arriving — Fri Sep 18 · 3:40 PM
+ * · BCN T2" beside "Departing — Not shared yet" reads the whole record
+ * without opening anything, and an unfilled direction is visibly a state
+ * rather than a screen you have not visited.
+ *
+ * One panel open at a time is also the practical answer to bulk: a month
+ * of days and a column of times is most of a screen, and rendering two
+ * of each would be a scroll, not a form.
  *
  * The calendar is bounded by the trip, which cannot express the morning
  * after the last day — the red-eye home. Next day is that morning, and
@@ -80,7 +91,7 @@ export function TravelDialog({
         memberId: string;
         arrival: TravelLeg | undefined;
         departure: TravelLeg | undefined;
-        /** Which tab to open on — the direction that was tapped. */
+        /** Which direction to open on — the one that was tapped. */
         direction: TravelDirection;
       }
     | undefined;
@@ -88,19 +99,22 @@ export function TravelDialog({
   filed: { arrival: boolean; departure: boolean };
   /** Handed an input that has already passed validation. */
   onSubmit: (input: NewTravelInput) => void;
-  /** Deleting is per direction: the tab you are on is what goes. */
+  /** Deleting is per direction: the panel you are in is what goes. */
   onDelete: ((direction: TravelDirection) => void) | undefined;
 }) {
   const [memberId, setMemberId] = useState(
     initial?.memberId ?? lockedMember?.id ?? "",
   );
-  const [direction, setDirection] = useState<TravelDirection>(
-    initial?.direction ?? "arrival",
-  );
   const [legs, setLegs] = useState<Record<TravelDirection, TravelLeg>>({
     arrival: initial?.arrival ?? emptyLeg(),
     departure: initial?.departure ?? emptyLeg(),
   });
+  // Which direction the member already owes: the one that was tapped if
+  // there was one, the arrival otherwise — arrival is what a trip is
+  // waiting on.
+  const [open, setOpen] = useState<TravelDirection | null>(
+    initial?.direction ?? "arrival",
+  );
   const [submitted, setSubmitted] = useState(false);
 
   const input: NewTravelInput = {
@@ -109,15 +123,21 @@ export function TravelDialog({
     departure: legs.departure,
   };
   const errors = submitted ? validateNewTravel(input) : {};
-  const shown = legs[direction];
 
-  function setLeg(next: TravelLeg) {
+  function setLeg(direction: TravelDirection, next: TravelLeg) {
     setLegs((current) => ({ ...current, [direction]: next }));
   }
 
   function submit() {
     setSubmitted(true);
-    if (Object.keys(validateNewTravel(input)).length > 0) return;
+    const found = validateNewTravel(input);
+    if (Object.keys(found).length > 0) {
+      // The fault may be in the closed direction: open it rather than
+      // failing silently behind a collapsed header.
+      if (found.arrival) setOpen("arrival");
+      else if (found.departure) setOpen("departure");
+      return;
+    }
     onSubmit(input);
   }
 
@@ -151,39 +171,108 @@ export function TravelDialog({
         </Text>
       )}
 
-      {/* The two directions, one at a time. A tab that has been filled in
-          says so, or the other direction would hide silently. */}
-      <Segmented
-        options={DIRECTIONS.map((option) => ({
-          value: option.value,
-          label: legIsFiled(legs[option.value])
-            ? `${option.label} ·`
-            : option.label,
-        }))}
-        value={direction}
-        onChange={setDirection}
-      />
-
-      <LegFields
-        direction={direction}
-        leg={shown}
-        onChange={setLeg}
-        trip={trip}
-        whereSuggestions={whereSuggestions}
-        errors={submitted ? errors[direction] : undefined}
-      />
-
-      {onDelete && filed[direction] ? (
-        <View className="border-t border-ink pt-6">
-          <Button
-            title={`Delete ${direction === "arrival" ? "arrival" : "departure"}`}
-            variant="danger"
-            fullWidth
-            onPress={() => onDelete(direction)}
+      <View className="border-t border-ink">
+        {DIRECTIONS.map((option) => (
+          <DirectionPanel
+            key={option.value}
+            heading={option.heading}
+            direction={option.value}
+            leg={legs[option.value]}
+            open={open === option.value}
+            onToggle={() =>
+              setOpen((current) =>
+                current === option.value ? null : option.value,
+              )
+            }
+            onChange={(next) => setLeg(option.value, next)}
+            trip={trip}
+            whereSuggestions={whereSuggestions}
+            errors={submitted ? errors[option.value] : undefined}
+            onDelete={
+              onDelete && filed[option.value]
+                ? () => onDelete(option.value)
+                : undefined
+            }
           />
+        ))}
+      </View>
+    </FullscreenDialog>
+  );
+}
+
+/**
+ * One direction: a header that states its answer, and the fields behind
+ * it. Collapsed, the header is the whole record — when it is, where it
+ * is, and which flight — which is why the summary is worth computing
+ * rather than being a count of empty fields.
+ */
+function DirectionPanel({
+  heading,
+  direction,
+  leg,
+  open,
+  onToggle,
+  onChange,
+  trip,
+  whereSuggestions,
+  errors,
+  onDelete,
+}: {
+  heading: string;
+  direction: TravelDirection;
+  leg: TravelLeg;
+  open: boolean;
+  onToggle: () => void;
+  onChange: (leg: TravelLeg) => void;
+  trip: Trip;
+  whereSuggestions: string[];
+  errors: LegErrors | undefined;
+  onDelete: (() => void) | undefined;
+}) {
+  const Icon = open ? ArrowUp : ArrowDown;
+  const summary = legSummary(leg, direction);
+
+  return (
+    <View className="border-b border-b-ink">
+      <Pressable
+        accessibilityRole="button"
+        aria-expanded={open}
+        onPress={onToggle}
+        className="flex-row items-center justify-between gap-4 py-4"
+      >
+        <View className="flex-1 gap-0.5">
+          <Text className="font-body-bold text-base text-ink">{heading}</Text>
+          {/* The answer, or that there isn't one yet. A direction left
+              empty is a fact about the trip, so it is said rather than
+              left blank. */}
+          <Text className="font-body text-sm text-ink">
+            {summary || NOT_SHARED}
+          </Text>
+        </View>
+        <Icon color="#000000" size={20} />
+      </Pressable>
+
+      {open ? (
+        <View className="gap-4 pb-5">
+          <LegFields
+            direction={direction}
+            leg={leg}
+            onChange={onChange}
+            trip={trip}
+            whereSuggestions={whereSuggestions}
+            errors={errors}
+          />
+          {onDelete ? (
+            <Button
+              title={`Delete ${direction === "arrival" ? "arrival" : "departure"}`}
+              variant="danger"
+              fullWidth
+              onPress={onDelete}
+            />
+          ) : null}
         </View>
       ) : null}
-    </FullscreenDialog>
+    </View>
   );
 }
 
@@ -205,7 +294,7 @@ function LegFields({
   onChange: (leg: TravelLeg) => void;
   trip: Trip;
   whereSuggestions: string[];
-  errors: Partial<Record<"day" | "time" | "location", string>> | undefined;
+  errors: LegErrors | undefined;
 }) {
   const [lookingUp, setLookingUp] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
@@ -213,10 +302,9 @@ function LegFields({
   const today = toIso(new Date());
   const timeZone = trip.preferredTimezone ?? null;
   const arrival = direction === "arrival";
-  const label = arrival ? "Arrival time" : "Departure time";
 
-  // The lookup flies on the leg's own day: one date, one number, and
-  // the time and the where fill themselves in.
+  // The lookup flies on the leg's own day: one date, one number, and the
+  // time and the where fill themselves in.
   const canLookup =
     !lookingUp &&
     isFlightNumber(leg.flightNumber) &&
@@ -232,13 +320,7 @@ function LegFields({
       return;
     }
     onChange(
-      legFromLookup(
-        leg,
-        direction,
-        result,
-        leg.flightNumber.trim(),
-        timeZone,
-      ),
+      legFromLookup(leg, direction, result, leg.flightNumber.trim(), timeZone),
     );
   }
 
@@ -294,18 +376,9 @@ function LegFields({
       </View>
 
       <View className="gap-2">
-        <View className="flex-row items-center justify-between gap-4">
-          <Text className="font-body-bold text-sm text-ink">
-            {arrival ? "Day you land" : "Day you leave"}
-          </Text>
-          {/* The morning the calendar cannot reach: the last day is its
-              edge, and a red-eye home lands past it. */}
-          <ChipToggle
-            label="Next day"
-            selected={leg.nextDay}
-            onPress={() => onChange({ ...leg, nextDay: !leg.nextDay })}
-          />
-        </View>
+        <Text className="font-body-bold text-sm text-ink">
+          {arrival ? "Day you land" : "Day you leave"}
+        </Text>
         <DatePicker
           selection={{ start: leg.day || null, end: leg.day || null }}
           onChange={(dates) => onChange({ ...leg, day: dates.start ?? "" })}
@@ -314,22 +387,47 @@ function LegFields({
           max={trip.endDate}
         />
         <Text className="font-body text-sm text-ink">
-          {leg.day
-            ? leg.nextDay
-              ? `${dayLabel(leg.day, today)} + 1 day`
-              : dayLabel(leg.day, today)
-            : "Pick the day."}
+          {leg.day ? dayLabel(leg.day, today) : "Pick the day."}
         </Text>
         {errors?.day ? (
           <Text className="font-body text-sm text-ink">{errors.day}</Text>
         ) : null}
       </View>
 
+      {/* Both ends, the way a flight has both. The calendar cannot say
+          that a red-eye lands past its last day or that an arrival left
+          the evening before, so the far end carries the chip that does:
+          it belongs to the time it moves, not to the leg. */}
       <TimeField
-        label={label}
-        value={leg.time || null}
-        onChange={(time) => onChange({ ...leg, time: time ?? "" })}
-        error={errors?.time}
+        label="Departure time"
+        value={leg.departureTime || null}
+        onChange={(time) => onChange({ ...leg, departureTime: time ?? "" })}
+        error={errors?.departureTime}
+        accessory={
+          arrival ? (
+            <ChipToggle
+              label="Day before"
+              selected={leg.farDay}
+              onPress={() => onChange({ ...leg, farDay: !leg.farDay })}
+            />
+          ) : undefined
+        }
+      />
+
+      <TimeField
+        label="Arrival time"
+        value={leg.arrivalTime || null}
+        onChange={(time) => onChange({ ...leg, arrivalTime: time ?? "" })}
+        error={errors?.arrivalTime}
+        accessory={
+          arrival ? undefined : (
+            <ChipToggle
+              label="Next day"
+              selected={leg.farDay}
+              onPress={() => onChange({ ...leg, farDay: !leg.farDay })}
+            />
+          )
+        }
       />
 
       <TextField

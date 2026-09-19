@@ -9,10 +9,12 @@ import {
   type TravelDirection,
   type TravelLeg,
 } from "@/lib/newTravel";
+import { getPertinentLocation, getPertinentTime } from "@journiful/shared/utils";
 import { useTrips } from "@/lib/tripsStore";
 import { useTravel } from "@/lib/travelStore";
 import { viewerMember } from "@/lib/members";
 import { membersFor } from "@/mocks/members";
+import type { MockTravel } from "@/mocks/travel";
 import { zoneOffsetFor } from "@/mocks/events";
 import { useDismiss } from "@/hooks/useDismiss";
 
@@ -75,7 +77,7 @@ function TravelFormScreen() {
   // Whose form this is: the record's member, a linked row's member, or
   // the viewer themselves.
   const filedMemberIds = records
-    .filter((candidate) => candidate.time)
+    .filter((candidate) => getPertinentTime(candidate))
     .map((candidate) => candidate.memberId);
   const viewer = viewerMember(members, viewerIsOrganizer, filedMemberIds);
   const linkedMember =
@@ -122,12 +124,20 @@ function TravelFormScreen() {
     ? {
         memberId,
         arrival: arrivalRecord
-          ? legFromRecord(arrivalRecord, trip.preferredTimezone, trip.endDate)
+          ? legFromRecord(
+              arrivalRecord,
+              "arrival",
+              trip.preferredTimezone,
+              trip.startDate,
+              trip.endDate,
+            )
           : undefined,
         departure: departureRecord
           ? legFromRecord(
               departureRecord,
+              "departure",
               trip.preferredTimezone,
+              trip.startDate,
               trip.endDate,
             )
           : undefined,
@@ -185,7 +195,6 @@ function TravelFormScreen() {
             input.memberId,
             memberName,
             offset,
-            trip.endDate,
           );
           // An untouched direction is unshared: nothing to save.
           if (!next) continue;
@@ -199,12 +208,11 @@ function TravelFormScreen() {
 }
 
 /** Past wheres on this trip, so the field suggests rather than guesses. */
-function suggestionsFrom(
-  records: Array<{ location: string | null }>,
-): string[] {
+function suggestionsFrom(records: MockTravel[]): string[] {
   const seen = new Set<string>();
   for (const record of records) {
-    if (record.location) seen.add(record.location);
+    const location = getPertinentLocation(record);
+    if (location) seen.add(location);
   }
   return [...seen].sort();
 }
