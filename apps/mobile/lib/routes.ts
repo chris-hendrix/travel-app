@@ -19,4 +19,6 @@ export const DIALOG_ROUTES = [
   "/design/trips/events/edit",
   "/design/trips/events/detail",
   "/design/trips/new",
+  "/design/trips/travel",
+  "/design/trips/travel/form",
 ];

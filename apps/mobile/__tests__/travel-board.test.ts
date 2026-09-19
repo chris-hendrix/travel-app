@@ -11,6 +11,7 @@ function record(overrides: Partial<MockTravel> & { id: string }): MockTravel {
     location: null,
     flightNumber: null,
     details: null,
+    deletedAt: null,
     ...overrides,
   };
 }
@@ -110,7 +111,9 @@ describe("travelRowLabel", () => {
       travelRowLabel(
         {
           id: "a",
+          memberId: "a",
           memberName: "Ana",
+          travelType: "arrival",
           time: "2026-09-18T15:40:00",
           location: "BCN T2",
           flightNumber: "UA 1842",

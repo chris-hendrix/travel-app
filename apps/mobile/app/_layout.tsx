@@ -17,6 +17,7 @@ import { ProfileProvider } from "@/lib/profileStore";
 import { TripSettingsProvider } from "@/lib/tripSettingsStore";
 import { TripsProvider } from "@/lib/tripsStore";
 import { EventsProvider } from "@/lib/eventsStore";
+import { TravelProvider } from "@/lib/travelStore";
 import "../global.css";
 
 SplashScreen.preventAutoHideAsync();
@@ -43,6 +44,7 @@ export default function RootLayout() {
   return (
     <TripsProvider>
       <EventsProvider>
+      <TravelProvider>
       <NotificationsProvider>
         <ProfileProvider>
           <TripSettingsProvider>
@@ -61,6 +63,7 @@ export default function RootLayout() {
           </TripSettingsProvider>
         </ProfileProvider>
       </NotificationsProvider>
+      </TravelProvider>
       </EventsProvider>
     </TripsProvider>
   );

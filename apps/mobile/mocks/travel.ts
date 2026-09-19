@@ -22,6 +22,8 @@ export type MockTravel = {
   location: string | null;
   flightNumber: string | null;
   details: string | null;
+  /** The API's soft delete. Null while it is live. */
+  deletedAt: string | null;
 };
 
 function at(dateIso: string, clock: string): string {
@@ -81,8 +83,8 @@ export function travelFor(trip: Trip): MockTravel[] {
     // unscheduled footer is a real person, not an empty state.
     if (index === going.length - 1) {
       records.push(
-        { id: `${trip.id}-arrival-${member.id}`, memberId: member.id, memberName: member.name, travelType: "arrival", time: null, location: null, flightNumber: null, details: null },
-        { id: `${trip.id}-departure-${member.id}`, memberId: member.id, memberName: member.name, travelType: "departure", time: null, location: null, flightNumber: null, details: null },
+        { id: `${trip.id}-arrival-${member.id}`, memberId: member.id, memberName: member.name, travelType: "arrival", time: null, location: null, flightNumber: null, details: null, deletedAt: null },
+        { id: `${trip.id}-departure-${member.id}`, memberId: member.id, memberName: member.name, travelType: "departure", time: null, location: null, flightNumber: null, details: null, deletedAt: null },
       );
       return;
     }
@@ -97,6 +99,7 @@ export function travelFor(trip: Trip): MockTravel[] {
       location: arrival.location,
       flightNumber: arrival.flight,
       details: arrival.details,
+      deletedAt: null,
     });
 
     const departure = departures[index % departures.length]!;
@@ -109,6 +112,7 @@ export function travelFor(trip: Trip): MockTravel[] {
       location: departure.location,
       flightNumber: departure.flight,
       details: departure.details,
+      deletedAt: null,
     });
   });
 

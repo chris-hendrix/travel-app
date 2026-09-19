@@ -8,7 +8,9 @@ import type { MockTravel } from "@/mocks/travel";
  */
 export type TravelRow = {
   id: string;
+  memberId: string;
   memberName: string;
+  travelType: "arrival" | "departure";
   /** ISO datetime; null until the member shares it. */
   time: string | null;
   location: string | null;
@@ -36,7 +38,9 @@ export type TravelBoard = {
 function toRow(record: MockTravel): TravelRow {
   return {
     id: record.id,
+    memberId: record.memberId,
     memberName: record.memberName,
+    travelType: record.travelType,
     time: record.time,
     location: record.location,
     flightNumber: record.flightNumber,
@@ -108,12 +112,12 @@ export function travelBoard(
 }
 
 /**
- * The row in its fewest words: clock, flight, where. The accordion
- * holds the rest, so this is the only string the row ever needs.
+ * The row in its fewest words: clock, name, where. Flight number and
+ * details live behind the accordion, so this is the only string the
+ * row ever needs.
  */
 export function travelRowLabel(row: TravelRow, timeZone: string | null): string {
   const time = row.time ? wallClock(row.time, timeZone).time : "No time yet";
-  const flight = row.flightNumber ? ` · ${row.flightNumber}` : "";
   const where = row.location ? ` · ${row.location}` : "";
-  return `${time} · ${row.memberName}${flight}${where}`;
+  return `${row.memberName} · ${time}${where}`;
 }
