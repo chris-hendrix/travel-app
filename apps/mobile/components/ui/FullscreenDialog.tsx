@@ -35,11 +35,7 @@ export function FullscreenDialog({
           {children}
         </View>
       </ScrollView>
-      <ActionBar
-        primaryTitle={primaryTitle}
-        onPrimary={onPrimary}
-        onBack={dismiss}
-      />
+      <ActionBar primaryTitle={primaryTitle} onPrimary={onPrimary} />
     </View>
   );
 }

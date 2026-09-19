@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Stack } from "expo-router";
 import { Text, View } from "react-native";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { TextField } from "@/components/ui/TextField";
@@ -49,6 +50,10 @@ export default function NewTrip() {
       onPrimary={create}
       dismissHref="/design/trips"
     >
+      {/* Modals are routes, presented modally: iOS slides it up and
+          allows a swipe-down dismiss, Android maps its hardware back
+          to the same dismissal. */}
+      <Stack.Screen options={{ presentation: "modal" }} />
       <TextField
         label="Trip name"
         value={title}

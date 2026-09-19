@@ -13,21 +13,28 @@ export function Button({
   variant = "primary",
   onPress,
   fullWidth = false,
+  align = "start",
 }: {
   title: string;
   variant?: ButtonVariant;
   onPress?: () => void;
-  /** Hugs its content on wide screens; fills the width on a phone,
-   *  where a thumb target beats a tidy box. Pass true to always fill. */
+  /** Always fill the width, at every size. */
   fullWidth?: boolean;
+  /** Which edge it hugs on wide screens. Fills the width on a phone,
+   *  where a thumb target beats a tidy box. */
+  align?: "start" | "end";
 }) {
   const s = STYLES[variant];
+  const width = fullWidth
+    ? ""
+    : align === "end"
+      ? "md:self-end"
+      : "md:self-start";
+
   return (
     <Pressable
       onPress={onPress}
-      className={`items-center border p-4 ${s.box} ${
-        fullWidth ? "" : "md:self-start"
-      }`}
+      className={`items-center border p-4 ${s.box} ${width}`}
     >
       <Text className={`font-body-bold ${s.label}`}>{title}</Text>
     </Pressable>

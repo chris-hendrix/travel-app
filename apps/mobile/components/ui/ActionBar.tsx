@@ -1,33 +1,27 @@
-import { Pressable, Text, View } from "react-native";
+import { View } from "react-native";
 import { Button } from "@/components/ui/Button";
 
 /**
- * Pinned bottom bar for fullscreen dialogs: Back + one primary action.
- * No stacking — Back always returns to the previous screen.
+ * Pinned bottom bar for fullscreen dialogs: one primary action.
  *
- * Bar chrome spans the screen, like the dialog header. On a phone the
- * action stacks under Back and fills the width; on wide screens it sits
- * opposite Back and hugs its label.
+ * There is deliberately no Back here. Dismissal belongs to the header's
+ * close control and the platform's own gesture — swipe down on iOS,
+ * hardware back on Android — so a second Back control is redundant.
+ * Back only earns its place when a dialog is a multi-step wizard, where
+ * it would mean "previous step" rather than "leave".
+ *
+ * Fills the width on a phone; on wide screens it hugs the right edge.
  */
 export function ActionBar({
   primaryTitle,
   onPrimary,
-  onBack,
-  backTitle = "Back",
 }: {
   primaryTitle: string;
   onPrimary: () => void;
-  onBack: () => void;
-  backTitle?: string;
 }) {
   return (
-    <View className="gap-3 border-t border-ink bg-gravel px-6 py-4 md:flex-row md:items-center md:justify-between">
-      <Pressable onPress={onBack}>
-        <Text className="font-body-bold text-ink">← {backTitle}</Text>
-      </Pressable>
-      <View>
-        <Button title={primaryTitle} onPress={onPrimary} />
-      </View>
+    <View className="border-t border-ink bg-gravel px-6 py-4">
+      <Button title={primaryTitle} onPress={onPrimary} align="end" />
     </View>
   );
 }

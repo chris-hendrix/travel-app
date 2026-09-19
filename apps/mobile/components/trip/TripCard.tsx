@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Image, Pressable, Text, View } from "react-native";
 import { useWideHover } from "@/hooks/useWideHover";
+import { tripCountdown } from "@/lib/countdown";
 import { formatDateRange } from "@/lib/dateRange";
 
 export type Trip = {
@@ -15,11 +16,12 @@ export type Trip = {
 };
 
 /**
- * A trip in a grid. Floats on the page background — no card fill, no
- * border, no shadow; the photo and the type carry it.
+ * A trip in a grid. Upcoming trips carry a countdown on the photo;
+ * finished trips carry nothing, so the grid answers "what's next" at a
+ * glance. Floats on the page background — no card fill, no border, no
+ * shadow; the photo and the type carry it.
  *
  * Order follows the calendar convention: date, then title, then place.
- * The going count rides on the photo, so it is the one colour anchor.
  *
  * Fixed width (capped at 420px, full width on a phone) with a 2:1 photo
  * and a two-line title slot. Nothing reserves empty height: the card
@@ -33,13 +35,17 @@ export type Trip = {
 export function TripCard({
   trip,
   onPress,
+  today = new Date(),
 }: {
   trip: Trip;
   onPress?: () => void;
+  /** Injected so the countdown and the list grouping agree on "now". */
+  today?: Date;
 }) {
   const canHover = useWideHover();
   const [hovering, setHovering] = useState(false);
   const hovered = canHover && hovering;
+  const countdown = tripCountdown(trip.startDate, trip.endDate, today);
 
   return (
     <Pressable
@@ -57,11 +63,13 @@ export function TripCard({
             hovered ? "scale-105" : "scale-100"
           }`}
         />
-        <View className="absolute left-3 top-3 rounded-full bg-watermelon px-3 py-1">
-          <Text className="font-body-bold text-sm text-ink">
-            {trip.going} going
-          </Text>
-        </View>
+        {countdown ? (
+          <View className="absolute left-3 top-3 rounded-full bg-watermelon px-3 py-1">
+            <Text className="font-body-bold text-sm text-ink">
+              {countdown}
+            </Text>
+          </View>
+        ) : null}
       </View>
 
       <View

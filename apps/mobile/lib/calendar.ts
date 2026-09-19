@@ -1,3 +1,5 @@
+import { toIso } from "@/lib/dateRange";
+
 export type Selection = { start: string | null; end: string | null };
 export type MonthCursor = { year: number; month: number };
 
@@ -18,13 +20,6 @@ const MONTH_NAMES = [
   "November",
   "December",
 ];
-
-/** Local-date ISO (yyyy-mm-dd), never shifted by timezone. */
-export function toIso(date: Date): string {
-  const month = `${date.getMonth() + 1}`.padStart(2, "0");
-  const day = `${date.getDate()}`.padStart(2, "0");
-  return `${date.getFullYear()}-${month}-${day}`;
-}
 
 export function monthOf(iso: string): MonthCursor {
   return {

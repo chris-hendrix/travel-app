@@ -9,11 +9,11 @@ import {
   monthGrid,
   monthLabel,
   monthOf,
-  toIso,
   WEEKDAYS,
   type MonthCursor,
   type Selection,
 } from "@/lib/calendar";
+import { toIso } from "@/lib/dateRange";
 
 /**
  * Range date picker. Inline, never a nested dialog: opening a second

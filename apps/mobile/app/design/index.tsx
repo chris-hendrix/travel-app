@@ -238,20 +238,19 @@ export default function DesignSystem() {
 
             <Specimen
               name="ActionBar"
-              contract="primaryTitle · onPrimary · onBack · backTitle?"
-              note="Pinned to the bottom of every dialog. One primary action, always."
+              contract="primaryTitle · onPrimary"
+              note="One primary action, no Back: dismissal is the header close control and the platform gesture. Fills the width on a phone, hugs right on wide."
             >
               <ActionBar
                 primaryTitle="Save changes"
                 onPrimary={() => setLog("ActionBar onPrimary fired")}
-                onBack={() => setLog("ActionBar onBack fired")}
               />
             </Specimen>
 
             <Specimen
               name="Button"
-              contract="title · variant? · onPress? · fullWidth?"
-              note="Hugs its content by default; pass fullWidth to fill the container."
+              contract="title · variant? · onPress? · fullWidth? · align?"
+              note="Fills the width on a phone; from md up it hugs the edge it is aligned to."
             >
               <Button
                 title="Create trip"
@@ -358,8 +357,8 @@ export default function DesignSystem() {
           <View className="gap-4">
             <Specimen
               name="TripCard · TripGrid"
-              contract="trip: { title, startDate, endDate, location, image, going } · onPress?"
-              note="Dates come from startDate/endDate and are formatted by the card. Locations hug the title. Hover the first card on a wide screen: photo and text both zoom."
+              contract="trip: { title, startDate, endDate, location, image } · onPress? · today?"
+              note="Upcoming trips carry a countdown on the photo; finished trips say nothing. Locations hug the title. Hover the first card on a wide screen: photo and text both zoom."
             >
               <TripGrid>
                 {TRIPS.map((trip) => (

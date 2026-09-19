@@ -62,6 +62,7 @@ export default function TripsScreen() {
           <View>
             <Button
               title="Create trip"
+              align="end"
               onPress={() => router.push("/design/trips/new")}
             />
           </View>
