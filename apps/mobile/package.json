@@ -22,6 +22,7 @@
     "@journiful/shared": "workspace:*",
     "expo": "~57.0.24",
     "expo-font": "~57.0.4",
+    "expo-image-picker": "~57.0.19",
     "expo-router": "~57.0.22",
     "expo-splash-screen": "~57.0.9",
     "expo-system-ui": "~57.0.4",

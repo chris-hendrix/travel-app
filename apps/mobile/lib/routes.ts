@@ -11,5 +11,7 @@
 export const DIALOG_ROUTES = [
   "/notifications",
   "/profile",
+  "/design/profile",
+  "/design/trips/members",
   "/design/trips/new",
 ];

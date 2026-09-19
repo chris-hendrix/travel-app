@@ -1,16 +1,7 @@
-import { Text } from "react-native";
-import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
-
-export default function Profile() {
-  return (
-    <FullscreenDialog
-      title="Profile"
-      primaryTitle="Save changes"
-      onPrimary={() => {}}
-    >
-      <Text className="font-body text-base text-ink">
-        Display name, photo, and phone-sharing consent live here.
-      </Text>
-    </FullscreenDialog>
-  );
-}
+/**
+ * The profile dialog is still a mockup, so it lives under /design. This
+ * route is the address the app chrome points at, so the header keeps
+ * working while the screen is under construction; both render the same
+ * component, and nothing is duplicated.
+ */
+export { default } from "./design/profile";
