@@ -5,9 +5,9 @@ import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
-import { DatePicker } from "@/components/ui/DatePicker";
+import { DayStrip } from "@/components/ui/DayStrip";
 import { TimeField } from "@/components/ui/TimeField";
-import type { Selection } from "@/lib/calendar";
+import { applySingleTap, type Selection } from "@/lib/calendar";
 import { dayLabel } from "@/lib/itinerary";
 import { toIso } from "@/lib/dateRange";
 import { validateNewEvent, type NewEventInput } from "@/lib/newEvent";
@@ -126,12 +126,11 @@ export function EventDialog({
 
       <View className="gap-2">
         <Text className="font-body-bold text-sm text-ink">Day</Text>
-        <DatePicker
-          selection={dates}
-          onChange={setDates}
-          single
-          min={trip.startDate}
-          max={trip.endDate}
+        <DayStrip
+          startDate={trip.startDate}
+          endDate={trip.endDate}
+          value={day}
+          onChange={(next) => setDates(applySingleTap(next))}
         />
         <Text className="font-body text-sm text-ink">
           {day ? dayLabel(day, today) : "Pick the day it happens."}

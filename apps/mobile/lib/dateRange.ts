@@ -15,6 +15,21 @@ const MONTHS = [
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
 function parts(iso: string) {
   const [year, month, day] = iso.split("-").map(Number);
   return { year: year ?? 1970, month: (month ?? 1) - 1, day: day ?? 1 };
@@ -35,6 +50,27 @@ export function formatDay(iso: string): string {
   const { year, month, day } = parts(iso);
   const weekday = WEEKDAYS[new Date(year, month, day).getDay()];
   return `${weekday} ${MONTHS[month]} ${day}`;
+}
+
+/** The weekday, three letters: "Fri". */
+export function weekdayAbbrev(iso: string): string {
+  const { year, month, day } = parts(iso);
+  return WEEKDAYS[new Date(year, month, day).getDay()] ?? "";
+}
+
+/** The day of the month, as it is written: "18". */
+export function dayNumber(iso: string): string {
+  return `${parts(iso).day}`;
+}
+
+/** Which month a day is in, for grouping: "2026-09". */
+export function monthKey(iso: string): string {
+  return iso.slice(0, 7);
+}
+
+/** The month, spelled out, for a heading above its days. */
+export function monthName(iso: string): string {
+  return MONTH_NAMES[parts(iso).month] ?? "";
 }
 
 import { wallClock } from "@/lib/timezone";

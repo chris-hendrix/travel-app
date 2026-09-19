@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { Segmented } from "@/components/ui/Segmented";
-import { DatePicker } from "@/components/ui/DatePicker";
+import { DayStrip } from "@/components/ui/DayStrip";
 import { TimeField } from "@/components/ui/TimeField";
 import { dayLabel } from "@/lib/itinerary";
 import { toIso } from "@/lib/dateRange";
@@ -194,16 +194,22 @@ export function TravelDialog({
           control that says so is clearer than two panels that each imply
           the other.
           
-          A direction that already holds times is ticked in the toggle
-          itself, so the half you are not looking at is still legible —
-          and both ticks are the fastest answer to "have I done both?". */}
+          Each cell carries its own state: a tick once the direction
+          holds times, a dash while it does not. Two glyphs rather than
+          "Not shared yet" in each cell, because that phrase is a third
+          of a phone's half-width cell — the words appear in the line
+          below when you select the empty one. What matters is that
+          neither state is the absence of the other: an unfilled
+          direction reads as empty, not as unvisited. */}
       <Segmented
         options={DIRECTIONS.map((option) => ({
           value: option.value,
           label: option.heading,
           badge: legIsFiled(legs[option.value], option.value) ? (
             <Check color="#000000" size={16} />
-          ) : undefined,
+          ) : (
+            <Text className="font-body text-sm text-ink opacity-40">–</Text>
+          ),
         }))}
         value={direction}
         onChange={setDirection}
@@ -278,10 +284,18 @@ function LegFields({
   const departureNote = farEndNote(leg, direction);
   const arrivalNote = farEndNote(leg, direction);
   const hasTimes = Boolean(leg.departureTime.trim() || leg.arrivalTime.trim());
-  // Times show when they are the question, and stay once they are the
-  // answer: a looked-up time is a starting point, not a verdict, and
-  // hiding it would leave nothing to correct.
-  const showTimes = mode === "times" || hasTimes;
+  const hasWhere = Boolean(leg.location.trim());
+  // Where and the times are what a flight number answers, so in flight
+  // mode they wait until there is an answer to show — and then they stay,
+  // because a looked-up value is a starting point rather than a verdict
+  // and hiding it would leave nothing to correct. An error opens them
+  // too: a complaint about a field nobody can see is not a complaint.
+  const showWhere =
+    mode === "times" || hasWhere || Boolean(errors?.location);
+  const showTimes =
+    mode === "times" ||
+    hasTimes ||
+    Boolean(errors?.departureTime || errors?.arrivalTime);
 
   // The lookup flies on the leg's own day: one date, one number, and the
   // time and the where fill themselves in.
@@ -313,12 +327,11 @@ function LegFields({
         <Text className="font-body-bold text-sm text-ink">
           {arrival ? "Day you land" : "Day you leave"}
         </Text>
-        <DatePicker
-          selection={{ start: leg.day || null, end: leg.day || null }}
-          onChange={(dates) => onChange({ ...leg, day: dates.start ?? "" })}
-          single
-          min={trip.startDate}
-          max={trip.endDate}
+        <DayStrip
+          startDate={trip.startDate}
+          endDate={trip.endDate}
+          value={leg.day}
+          onChange={(day) => onChange({ ...leg, day })}
         />
         <Text className="font-body text-sm text-ink">
           {leg.day ? dayLabel(leg.day, today) : "Pick the day."}
@@ -368,18 +381,20 @@ function LegFields({
       </View>
       ) : null}
 
-      <Dropdown
-        label="Where"
-        options={whereSuggestions}
-        value={leg.location || null}
-        onChange={(location) => {
-          setLookupError(null);
-          onChange({ ...leg, location });
-        }}
-        placeholder={arrival ? "BCN T2" : "Sants station"}
-        error={errors?.location}
-        freeText
-      />
+      {showWhere ? (
+        <Dropdown
+          label="Where"
+          options={whereSuggestions}
+          value={leg.location || null}
+          onChange={(location) => {
+            setLookupError(null);
+            onChange({ ...leg, location });
+          }}
+          placeholder={arrival ? "BCN T2" : "Sants station"}
+          error={errors?.location}
+          freeText
+        />
+      ) : null}
 
       {showTimes ? (
       <>
