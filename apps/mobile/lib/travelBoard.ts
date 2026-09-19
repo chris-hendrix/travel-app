@@ -3,37 +3,32 @@ import { getPertinentLocation, getPertinentTime } from "@journiful/shared/utils"
 import type { MockTravel } from "@/mocks/travel";
 
 /**
- * One person's travel as the board reads it. The row carries what
- * coordination always needs — when, who, which flight, where — and the
- * accordion holds what it sometimes needs: the details prose.
+ * One person's travel as the board reads it: the day it happens, the
+ * clock, who, and where. The accordion behind the row holds the rest.
+ *
+ * The day is on the row rather than in a heading above a run of them.
+ * A heading repeats one fact per group and pushes the rows apart; a date
+ * column says the same thing once per row and stays true however far the
+ * list is scrolled. What it gives up is the tally — you can read that
+ * three people land on Friday by adjacency, not by a count.
  */
 export type TravelRow = {
   id: string;
   memberId: string;
   memberName: string;
   travelType: "arrival" | "departure";
-  /** ISO datetime; null until the member shares it. */
+  /** Local date, yyyy-mm-dd. Null until the member shares a time. */
+  date: string | null;
+  /** ISO instant; null until the member shares it. */
   time: string | null;
   location: string | null;
   flightNumber: string | null;
   details: string | null;
 };
 
-export type TravelDay = {
-  /** Local date, yyyy-mm-dd. */
-  date: string;
-  rows: TravelRow[];
-};
-
-export type TravelDirection = {
-  days: TravelDay[];
-  /** Shared nothing yet — the foot of the section, never among the days. */
-  unscheduled: TravelRow[];
-};
-
 export type TravelBoard = {
-  arrivals: TravelDirection;
-  departures: TravelDirection;
+  arrivals: TravelRow[];
+  departures: TravelRow[];
 };
 
 /**
@@ -46,62 +41,50 @@ export function pertinentIso(record: MockTravel): string | null {
   return pertinent ? new Date(pertinent).toISOString() : null;
 }
 
-function toRow(record: MockTravel): TravelRow {
-  const location = getPertinentLocation(record);
+function toRow(record: MockTravel, timeZone: string | null): TravelRow {
+  const time = pertinentIso(record);
   return {
     id: record.id,
     memberId: record.memberId,
     memberName: record.memberName,
     travelType: record.travelType,
-    time: pertinentIso(record),
-    location,
+    date: time ? wallClock(time, timeZone).date : null,
+    time,
+    location: getPertinentLocation(record),
     flightNumber: record.flightNumber,
     details: record.details,
   };
 }
 
 /**
- * One direction's rows, bucketed by day in the trip's zone and running
- * morning to night within each day. Untimed rows are held back for the
- * foot of the section: they have no day to belong to.
+ * One direction, in the order a person coordinates it: by day, then by
+ * the clock, then by name so two people landing together keep a stable
+ * order. Whoever has shared nothing waits at the foot — still on the
+ * roster, visibly owed rather than missing.
  *
- * No flight grouping — one row per person, always. Sharing a flight is
- * visible from adjacent rows with the same number, not from a merged
- * one.
+ * It is a flat list, not days of rows: the grouping lives on each row,
+ * so a day that runs past the bottom of the screen is still named on
+ * every line of it.
  */
-function groupDirection(
+function orderDirection(
   records: MockTravel[],
   direction: "arrival" | "departure",
   members: Array<{ id: string; name: string }>,
   timeZone: string | null,
-): TravelDirection {
-  const byDay = new Map<string, TravelRow[]>();
-  const unscheduled: TravelRow[] = [];
-  const seen = new Set<string>();
-
-  for (const record of records) {
-    seen.add(record.memberId);
-    const pertinent = pertinentIso(record);
-    if (!pertinent) {
-      unscheduled.push(toRow(record));
-      continue;
-    }
-    const date = wallClock(pertinent, timeZone).date;
-    const day = byDay.get(date);
-    if (day) day.push(toRow(record));
-    else byDay.set(date, [toRow(record)]);
-  }
+): TravelRow[] {
+  const rows = records.map((record) => toRow(record, timeZone));
+  const seen = new Set(rows.map((row) => row.memberId));
 
   // The whole roster reads here, not just whoever filed: a member with
-  // no record in this direction waits at the foot with the rest of the
-  // unscheduled, so the organizer sees who still owes times at a glance.
+  // no record in this direction is owed one, and an empty row says so.
   for (const member of members) {
     if (seen.has(member.id)) continue;
-    unscheduled.push({
+    rows.push({
       id: `pending-${direction}-${member.id}`,
       memberId: member.id,
       memberName: member.name,
       travelType: direction,
+      date: null,
       time: null,
       location: null,
       flightNumber: null,
@@ -109,49 +92,41 @@ function groupDirection(
     });
   }
 
-  const days = [...byDay]
-    .map(([date, rows]) => ({
-      date,
-      rows: rows.sort((a, b) => (a.time ?? "").localeCompare(b.time ?? "")),
-    }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const filed = rows.filter((row) => row.time !== null);
+  const owed = rows.filter((row) => row.time === null);
 
-  return {
-    days,
-    unscheduled: unscheduled.sort((a, b) =>
+  filed.sort(
+    (a, b) =>
+      (a.time ?? "").localeCompare(b.time ?? "") ||
       a.memberName.localeCompare(b.memberName),
-    ),
-  };
+  );
+  owed.sort((a, b) => a.memberName.localeCompare(b.memberName));
+
+  return [...filed, ...owed];
 }
 
 /**
- * What the travel screen shows: arrivals first, departures after, each
- * grouped by day. Arrivals are the coordination job; departures are the
- * same shape a day later. Members ride along so nobody is missing: a
- * member with no record waits unscheduled, not absent.
+ * What the travel screen shows: arrivals and departures, each in the
+ * order above. Members ride along so nobody is missing: a member with no
+ * record waits at the foot, not absent.
  */
 export function travelBoard(
   records: MockTravel[],
   timeZone: string | null = null,
   members: Array<{ id: string; name: string }> = [],
 ): TravelBoard {
-  const arrivals = records.filter((record) => record.travelType === "arrival");
-  const departures = records.filter(
-    (record) => record.travelType === "departure",
-  );
   return {
-    arrivals: groupDirection(arrivals, "arrival", members, timeZone),
-    departures: groupDirection(departures, "departure", members, timeZone),
+    arrivals: orderDirection(
+      records.filter((record) => record.travelType === "arrival"),
+      "arrival",
+      members,
+      timeZone,
+    ),
+    departures: orderDirection(
+      records.filter((record) => record.travelType === "departure"),
+      "departure",
+      members,
+      timeZone,
+    ),
   };
-}
-
-/**
- * The row in its fewest words: clock, name, where. Flight number and
- * details live behind the accordion, so this is the only string the
- * row ever needs.
- */
-export function travelRowLabel(row: TravelRow, timeZone: string | null): string {
-  const time = row.time ? wallClock(row.time, timeZone).time : "No time yet";
-  const where = row.location ? ` · ${row.location}` : "";
-  return `${row.memberName} · ${time}${where}`;
 }

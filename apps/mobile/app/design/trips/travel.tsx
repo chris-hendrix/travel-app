@@ -4,13 +4,9 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowDown, ArrowUp } from "lucide-react-native";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { QuietAction } from "@/components/ui/QuietAction";
-import { formatDay } from "@/lib/dateRange";
+import { dayNumber, weekdayAbbrev } from "@/lib/dateRange";
 import { wallClock } from "@/lib/timezone";
-import {
-  travelBoard,
-  type TravelDirection,
-  type TravelRow,
-} from "@/lib/travelBoard";
+import { travelBoard, type TravelRow } from "@/lib/travelBoard";
 import { useTrips } from "@/lib/tripsStore";
 import { useTravel } from "@/lib/travelStore";
 import { viewerMember } from "@/lib/members";
@@ -90,11 +86,13 @@ function TripTravelDialog() {
   }
 
   const timeZone = trip.preferredTimezone ?? null;
-  const empty =
-    board.arrivals.days.length === 0 &&
-    board.arrivals.unscheduled.length === 0 &&
-    board.departures.days.length === 0 &&
-    board.departures.unscheduled.length === 0;
+  // The roster is the list, so "empty" is never an empty screen: every
+  // direction lists whoever owes it. What is worth saying out loud is
+  // when nobody at all has filed, because then the dashes are the whole
+  // board rather than the exceptions in it.
+  const nothingFiled = [...board.arrivals, ...board.departures].every(
+    (row) => row.time === null,
+  );
 
   return (
     <FullscreenDialog
@@ -105,15 +103,16 @@ function TripTravelDialog() {
       }
       dismissHref={`/design/trips/detail?id=${trip.id}`}
     >
-      {empty ? (
+      {nothingFiled ? (
         <Text className="font-body text-base text-ink">
           Nobody has shared their times yet.
         </Text>
-      ) : (
-        <View className="gap-8">
+      ) : null}
+
+      <View className="gap-8">
           <TravelSection
             heading="Arriving"
-            direction={board.arrivals}
+            rows={board.arrivals}
             timeZone={timeZone}
             tripId={trip.id}
             asParam={asParam}
@@ -121,83 +120,54 @@ function TripTravelDialog() {
           />
           <TravelSection
             heading="Departing"
-            direction={board.departures}
+            rows={board.departures}
             timeZone={timeZone}
             tripId={trip.id}
             asParam={asParam}
             canEdit={canEditRow}
           />
-        </View>
-      )}
+      </View>
     </FullscreenDialog>
   );
 }
 
 function TravelSection({
   heading,
-  direction,
+  rows,
   timeZone,
   tripId,
   asParam,
   canEdit,
 }: {
   heading: string;
-  direction: TravelDirection;
+  rows: TravelRow[];
   timeZone: string | null;
   tripId: string;
   asParam: string;
   canEdit: (memberId: string) => boolean;
 }) {
-  if (direction.days.length === 0 && direction.unscheduled.length === 0) {
-    return null;
-  }
+  if (rows.length === 0) return null;
 
   return (
-    <View className="gap-6">
+    <View className="gap-4">
       <Text className="font-display text-3xl uppercase text-ink">
         {heading}
       </Text>
-      {direction.days.map((day) => (
-        <View key={day.date} className="gap-2 pt-2">
-          {/* The day in display type, a size down from the section:
-              heads mark groups, they are not the content. */}
-          <Text className="font-display text-xl uppercase text-ink">
-            {formatDay(day.date)}
-          </Text>
-          {/* Ruled rows, like every other list here. */}
-          <View className="border-t border-ink">
-            {day.rows.map((row) => (
-              <TravelRowItem
-                key={row.id}
-                row={row}
-                timeZone={timeZone}
-                tripId={tripId}
-                asParam={asParam}
-                canEdit={canEdit(row.memberId)}
-              />
-            ))}
-          </View>
-        </View>
-      ))}
-      {direction.unscheduled.length > 0 ? (
-        <View className="gap-2 pt-2">
-          <Text className="font-display text-xl uppercase text-ink">
-            No time shared
-          </Text>
-          <View className="border-t border-ink">
-            {direction.unscheduled.map((row) => (
-              <TravelRowItem
-                key={row.id}
-                row={row}
-                timeZone={timeZone}
-                tripId={tripId}
-                asParam={asParam}
-                canEdit={canEdit(row.memberId)}
-              />
-            ))}
-          </View>
-        </View>
-      ) : null}
+      {/* Ruled rows, like every other list here. One list per direction,
+          with the day carried on each row rather than on a heading above
+          a run of them. */}
+      <View className="border-t border-ink">
+        {rows.map((row) => (
+          <TravelRowItem
+            key={row.id}
+            row={row}
+            timeZone={timeZone}
+            tripId={tripId}
+            asParam={asParam}
+            canEdit={canEdit(row.memberId)}
+          />
+        ))}
+      </View>
     </View>
   );
 }
@@ -234,16 +204,33 @@ function TravelRowItem({
         accessibilityRole="button"
         aria-expanded={open}
         onPress={() => setOpen((value) => !value)}
-        className="flex-row items-center justify-between gap-4"
+        className="flex-row items-center gap-4"
       >
-        <View className="flex-1 flex-row items-baseline justify-between gap-4">
-          <Text className="font-body-bold text-base text-ink">
-            {row.memberName}
-          </Text>
-          <Text className="font-body-bold text-base text-ink">
-            {row.time ? wallClock(row.time, timeZone).time : "No time yet"}
-          </Text>
+        {/* The day's own column, narrow and fixed so it aligns down the
+            list. Every row names its day, so a run that outlives the
+            screen still says when it is. */}
+        <View className="w-10 items-center">
+          {row.date ? (
+            <>
+              <Text className="font-body text-[11px] text-ink opacity-60">
+                {weekdayAbbrev(row.date)}
+              </Text>
+              <Text className="font-body-bold text-base leading-none text-ink">
+                {dayNumber(row.date)}
+              </Text>
+            </>
+          ) : (
+            <Text className="font-body text-base text-ink opacity-40">–</Text>
+          )}
         </View>
+
+        <Text className="flex-1 font-body-bold text-base text-ink">
+          {row.memberName}
+        </Text>
+
+        <Text className="font-body-bold text-base text-ink">
+          {row.time ? wallClock(row.time, timeZone).time : "No time yet"}
+        </Text>
         <Icon color="#000000" size={20} />
       </Pressable>
       {open ? (
