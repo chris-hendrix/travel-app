@@ -1,6 +1,5 @@
 import { ScrollView, Text, View, useWindowDimensions } from "react-native";
 import { Link } from "expo-router";
-import { AppHeader } from "@/components/ui/AppHeader";
 import { emailSchema } from "@journiful/shared/schemas";
 
 const goodResult = emailSchema.safeParse("test@example.com").success
@@ -21,10 +20,8 @@ export default function Index() {
   const viewport = width >= 768 ? "wide" : "phone";
 
   return (
-    <View className="flex-1 bg-sand">
-      <AppHeader />
-      <ScrollView className="flex-1">
-        <View className="gap-4 p-6">
+    <ScrollView className="flex-1 bg-sand">
+      <View className="gap-4 p-6">
         {/* Display face — pixel caps, short headlines only */}
         <Text className="font-display text-5xl leading-tight text-ink">
           Journiful
@@ -77,11 +74,10 @@ export default function Index() {
         <Text className="font-body text-sm text-ink">
           Viewport: {viewport}
         </Text>
-          <Link href="/design-system" className="font-body-bold text-sm text-ink">
-            Design system →
-          </Link>
-        </View>
-      </ScrollView>
-    </View>
+        <Link href="/design-system" className="font-body-bold text-sm text-ink">
+          Design system →
+        </Link>
+      </View>
+    </ScrollView>
   );
 }
