@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "Journiful",
+    "slug": "journiful-mobile",
+    "scheme": "journiful",
+    "userInterfaceStyle": "automatic",
+    "web": {
+      "output": "static",
+      "bundler": "metro"
+    },
+    "plugins": ["expo-router"]
+  }
+}
