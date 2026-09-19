@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { TextField } from "@/components/ui/TextField";
 
@@ -35,15 +35,30 @@ export function Dropdown({
   /** Commit whatever is typed, matched or not. */
   freeText?: boolean;
 }) {
-  const [query, setQuery] = useState(value ?? "");
-  const [open, setOpen] = useState(false);
-  const [fieldHeight, setFieldHeight] = useState(0);
-
   const entries = options.map((option) =>
     typeof option === "string"
       ? { value: option, label: option }
       : option,
   );
+
+  // What the field shows for the current value: the chosen option's
+  // label, never its value. A caller handing over { value: id, label:
+  // name } is saying the name is what a person reads, and echoing the
+  // id back at them is how a field ends up showing a database key.
+  const selectedLabel =
+    entries.find((option) => option.value === value)?.label ?? value ?? "";
+
+  const [query, setQuery] = useState(selectedLabel);
+  const [open, setOpen] = useState(false);
+  const [fieldHeight, setFieldHeight] = useState(0);
+
+  // Typing is not interrupted: the value only moves on a choice, so this
+  // re-runs when the choice lands and stays out of the way while a query
+  // is being typed.
+  useEffect(() => {
+    setQuery(selectedLabel);
+  }, [selectedLabel]);
+
   const matches = entries.filter((option) =>
     option.label.toLowerCase().includes(query.toLowerCase()),
   );

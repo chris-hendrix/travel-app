@@ -394,8 +394,8 @@ export default function DesignSystem() {
 
             <Specimen
               name="Segmented"
-              contract="options (value · label · tone? · badge?) · value (nullable) · onChange"
-              note="One choice out of a few, all of them visible. Bordered cells, the chosen one filled with its tone — the same p-4 and text-sm as a button, so a row of these sits in a stack of buttons without a step. badge is content a caller attaches to a choice, which travel uses for a tick against a direction already filed; generic on purpose, like the tone, so the primitive knows a cell can carry something without knowing what. value is nullable because this was built for an RSVP, where having chosen nothing yet is a real state rather than an error."
+              contract="options (value · label · tone? · mark?) · value (nullable) · onChange"
+              note="One choice out of a few, all of them visible. Bordered cells, the chosen one inked by default — the same p-4 and text-sm as a button, so a row of these sits in a stack of buttons without a step. Ink rather than a colour, because choosing a direction is not an action: the calendar and the time column already invert what is chosen, and two coloured toggles left the form's one real button looking like one of them. tone is for answers that carry a meaning of their own, which the RSVP has. mark is a short mark after the label, drawn in the label's own colour — travel puts a tick against a direction already filed. value is nullable because having chosen nothing yet is a real state rather than an error."
             >
               <RsvpControl
                 value={rsvp ?? "no_response"}

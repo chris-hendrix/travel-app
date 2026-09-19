@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Stack } from "expo-router";
 import { Pressable, Text, View } from "react-native";
-import { Check } from "lucide-react-native";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
@@ -205,11 +204,10 @@ export function TravelDialog({
         options={DIRECTIONS.map((option) => ({
           value: option.value,
           label: option.heading,
-          badge: legIsFiled(legs[option.value], option.value) ? (
-            <Check color="#000000" size={16} />
-          ) : (
-            <Text className="font-body text-sm text-ink opacity-40">–</Text>
-          ),
+          // A tick once the direction holds times, a dash while it does
+          // not: two marks, so an unfilled direction reads as empty
+          // rather than as unvisited.
+          mark: legIsFiled(legs[option.value], option.value) ? "✓" : "–",
         }))}
         value={direction}
         onChange={setDirection}
