@@ -3,9 +3,9 @@ import { Pressable, Text, View } from "react-native";
 import { TextField } from "@/components/ui/TextField";
 
 /**
- * Single-select dropdown with autocomplete. Inline expanding list —
- * never a nested dialog. Selecting an option commits the value and
- * collapses the list.
+ * Single-select dropdown with autocomplete. The suggestion list overlays
+ * what follows it rather than pushing it down — a field that reflows the
+ * form as you type is unusable. Inline, never a nested dialog.
  */
 export function Dropdown({
   label,
@@ -13,15 +13,18 @@ export function Dropdown({
   value,
   onChange,
   placeholder = "Type to filter…",
+  error,
 }: {
   label: string;
   options: string[];
   value: string | null;
   onChange: (v: string) => void;
   placeholder?: string;
+  error?: string | undefined;
 }) {
   const [query, setQuery] = useState(value ?? "");
   const [open, setOpen] = useState(false);
+  const [fieldHeight, setFieldHeight] = useState(0);
 
   const matches = options.filter((o) =>
     o.toLowerCase().includes(query.toLowerCase()),
@@ -34,18 +37,29 @@ export function Dropdown({
   }
 
   return (
-    <View className="gap-0">
-      <TextField
-        label={label}
-        value={query}
-        placeholder={placeholder}
-        onChangeText={(v) => {
-          setQuery(v);
-          setOpen(true);
-        }}
-      />
-      {open ? (
-        <View className="border border-t-0 border-ink bg-paper">
+    <View className="relative z-40">
+      <View
+        onLayout={(event) =>
+          setFieldHeight(event.nativeEvent.layout.height)
+        }
+      >
+        <TextField
+          label={label}
+          value={query}
+          placeholder={placeholder}
+          error={error}
+          onChangeText={(v) => {
+            setQuery(v);
+            setOpen(true);
+          }}
+        />
+      </View>
+
+      {open && fieldHeight > 0 ? (
+        <View
+          className="absolute left-0 right-0 z-50 border border-ink bg-paper"
+          style={{ top: fieldHeight }}
+        >
           {matches.length === 0 ? (
             <Text className="font-body p-3 text-base text-ink">
               No matches

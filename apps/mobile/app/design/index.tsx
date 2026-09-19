@@ -9,6 +9,9 @@ import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { Accordion, AccordionItem } from "@/components/ui/Accordion";
 import { Screen } from "@/components/ui/Screen";
+import { DatePicker } from "@/components/ui/DatePicker";
+import type { Selection } from "@/lib/calendar";
+import { formatDateRange } from "@/lib/dateRange";
 import { TripCard, TripGrid } from "@/components/trip/TripCard";
 import { TRIPS } from "@/mocks/trips";
 
@@ -126,6 +129,10 @@ function Specimen({
 export default function DesignSystem() {
   const [formName, setFormName] = useState("");
   const [venue, setVenue] = useState<string | null>(null);
+  const [range, setRange] = useState<Selection>({
+    start: null,
+    end: null,
+  });
   const [log, setLog] = useState("No interaction yet.");
 
   return (
@@ -199,6 +206,22 @@ export default function DesignSystem() {
               >
                 Open the notifications dialog
               </Link>
+            </Specimen>
+
+            <Specimen
+              name="DatePicker"
+              contract="selection · onChange"
+              note="Range picker, inline. Two taps make a trip; endpoints invert to ink, the days between fill seafoam. Never a nested dialog."
+            >
+              <DatePicker selection={range} onChange={setRange} />
+              <Text className="font-body text-sm text-ink">
+                {range.start
+                  ? formatDateRange(
+                      range.start,
+                      range.end ?? range.start,
+                    )
+                  : "Tap the first day, then the last."}
+              </Text>
             </Specimen>
 
             <Specimen
@@ -281,8 +304,8 @@ export default function DesignSystem() {
 
             <Specimen
               name="Dropdown"
-              contract="label · options · value · onChange · placeholder?"
-              note="Single-select with autocomplete. The list expands inline — never a nested dialog."
+              contract="label · options · value · onChange · placeholder? · error?"
+              note="Single-select with autocomplete. The list expands inline — never a nested dialog. Stands in for Google Places on the location field."
             >
               <Dropdown
                 label="Venue"

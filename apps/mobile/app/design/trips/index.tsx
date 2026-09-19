@@ -1,11 +1,12 @@
 import { useState } from "react";
+import { useRouter } from "expo-router";
 import { Pressable, Text, View } from "react-native";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
 import { Screen } from "@/components/ui/Screen";
 import { TripCard, TripGrid } from "@/components/trip/TripCard";
 import { groupTrips } from "@/lib/tripGroups";
-import { TRIPS } from "@/mocks/trips";
+import { useTrips } from "@/lib/tripsStore";
 
 /**
  * Design lab: the trips screen under construction.
@@ -15,13 +16,15 @@ import { TRIPS } from "@/mocks/trips";
  * own year in the date line.
  */
 export default function TripsScreen() {
+  const router = useRouter();
+  const { trips: stored } = useTrips();
   const [empty, setEmpty] = useState(false);
   const [log, setLog] = useState("No interaction yet.");
 
-  const trips = empty ? [] : TRIPS;
+  const trips = empty ? [] : stored;
   const { upcoming, past } = groupTrips(trips, new Date());
 
-  const card = (trip: (typeof TRIPS)[number]) => (
+  const card = (trip: (typeof stored)[number]) => (
     <TripCard
       key={trip.id}
       trip={trip}
@@ -59,7 +62,7 @@ export default function TripsScreen() {
           <View>
             <Button
               title="Create trip"
-              onPress={() => setLog("Create trip pressed")}
+              onPress={() => router.push("/design/trips/new")}
             />
           </View>
         ) : null}
@@ -77,7 +80,7 @@ export default function TripsScreen() {
               <Button
                 title="Create your first trip"
                 fullWidth
-                onPress={() => setLog("Create first trip pressed")}
+                onPress={() => router.push("/design/trips/new")}
               />
             </View>
           </View>

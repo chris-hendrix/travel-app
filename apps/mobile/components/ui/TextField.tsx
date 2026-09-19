@@ -11,7 +11,9 @@ export function TextField({
   value: string;
   onChangeText: (v: string) => void;
   placeholder?: string;
-  error?: string;
+  /** Field-level error. Explicitly nullable so strict callers can pass
+   *  an optional lookup straight through. */
+  error?: string | undefined;
 }) {
   return (
     <View className="gap-1">

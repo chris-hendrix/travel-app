@@ -17,7 +17,8 @@ export function Button({
   title: string;
   variant?: ButtonVariant;
   onPress?: () => void;
-  /** Hugs its content by default; pass true to fill the container. */
+  /** Hugs its content on wide screens; fills the width on a phone,
+   *  where a thumb target beats a tidy box. Pass true to always fill. */
   fullWidth?: boolean;
 }) {
   const s = STYLES[variant];
@@ -25,7 +26,7 @@ export function Button({
     <Pressable
       onPress={onPress}
       className={`items-center border p-4 ${s.box} ${
-        fullWidth ? "" : "self-start"
+        fullWidth ? "" : "md:self-start"
       }`}
     >
       <Text className={`font-body-bold ${s.label}`}>{title}</Text>
