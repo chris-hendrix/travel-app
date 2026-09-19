@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Link } from "expo-router";
-import { Bell } from "lucide-react-native";
+import { Bell, User } from "lucide-react-native";
 import Svg, { Path } from "react-native-svg";
 
 function WaveEdge() {
@@ -35,14 +35,11 @@ function BellButton({ unread = true }: { unread?: boolean }) {
   );
 }
 
-function AvatarButton({ initials = "J" }: { initials?: string }) {
+function AvatarButton() {
   return (
     <Link href="/profile" asChild>
-      <Pressable
-        aria-label="Profile"
-        className="h-8 w-8 items-center justify-center rounded-full bg-ink"
-      >
-        <Text className="font-body-bold text-sm text-sand">{initials}</Text>
+      <Pressable aria-label="Profile" className="p-1">
+        <User color="#000000" size={24} />
       </Pressable>
     </Link>
   );
