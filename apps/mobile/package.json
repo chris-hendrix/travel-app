@@ -16,9 +16,13 @@
     "clean": "rm -rf .expo dist node_modules"
   },
   "dependencies": {
+    "@expo-google-fonts/anton": "^0.4.2",
+    "@expo-google-fonts/archivo": "^0.4.2",
     "@journiful/shared": "workspace:*",
     "expo": "~57.0.24",
+    "expo-font": "~57.0.4",
     "expo-router": "~57.0.22",
+    "expo-splash-screen": "~57.0.9",
     "expo-system-ui": "~57.0.4",
     "nativewind": "5.0.0-rc.0",
     "react": "19.2.3",

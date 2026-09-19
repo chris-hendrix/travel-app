@@ -1,23 +1,76 @@
-import { Text, View, useWindowDimensions } from "react-native";
+import { ScrollView, Text, View, useWindowDimensions } from "react-native";
 import { emailSchema } from "@journiful/shared/schemas";
 
 const goodResult = emailSchema.safeParse("test@example.com").success
   ? "valid"
   : "invalid";
 
+const SWATCHES = [
+  ["bg-seafoam", "seafoam"],
+  ["bg-watermelon", "watermelon"],
+  ["bg-strawberry", "strawberry"],
+  ["bg-concrete", "concrete"],
+  ["bg-ocean", "ocean"],
+  ["bg-acid", "acid"],
+] as const;
+
 export default function Index() {
   const { width } = useWindowDimensions();
   const viewport = width >= 768 ? "wide" : "phone";
 
   return (
-    <View className="flex-1 items-center justify-center bg-proof-bg">
-      <Text>Expo mockup scaffold</Text>
-      <View className="flex-row items-center">
-        <View className="h-4 w-4 bg-proof-accent" />
-        <Text>Token applies</Text>
+    <ScrollView className="flex-1 bg-sand">
+      <View className="gap-4 p-6">
+        {/* Display face — uppercase condensed, tight leading */}
+        <Text className="font-display text-6xl uppercase leading-none text-ink">
+          Journiful
+        </Text>
+        <Text className="font-body text-lg leading-snug text-ink">
+          Group trips, coordinated. Body copy sets in Archivo regular.
+        </Text>
+        <Text className="font-body-bold text-lg text-ink">
+          Bold for emphasis, never for headlines.
+        </Text>
+        <Text className="font-body-italic text-lg text-ink">
+          Italic for asides and quotes.
+        </Text>
+
+        {/* Badges — pill type, plain venue */}
+        <View className="flex-row gap-2">
+          <View className="rounded-full bg-watermelon px-3 py-1">
+            <Text className="font-body-bold text-sm text-ink">club</Text>
+          </View>
+          <View className="rounded-full bg-strawberry px-3 py-1">
+            <Text className="font-body-bold text-sm text-ink">live</Text>
+          </View>
+          <Text className="font-body self-center text-sm text-ink">
+            The Rooftop
+          </Text>
+        </View>
+
+        {/* Square button — pill on hover is a web-only flourish */}
+        <View className="items-center border border-ink bg-watermelon p-4">
+          <Text className="font-body-bold text-ink">Buy Tickets</Text>
+        </View>
+
+        {/* Palette strip */}
+        <View className="flex-row flex-wrap gap-2">
+          {SWATCHES.map(([bg, name]) => (
+            <View key={name} className="items-center gap-1">
+              <View className={`h-10 w-10 ${bg}`} />
+              <Text className="font-body text-xs text-ink">{name}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Plumbing proof — kept, restyled */}
+        <Text className="font-body text-sm text-ink">
+          Shared import resolves: {goodResult}
+        </Text>
+        <Text className="font-body text-sm text-ink">
+          Viewport: {viewport}
+        </Text>
       </View>
-      <Text>Shared import resolves: {goodResult}</Text>
-      <Text>Viewport: {viewport}</Text>
-    </View>
+    </ScrollView>
   );
 }

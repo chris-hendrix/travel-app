@@ -4,7 +4,36 @@
 
 @import "nativewind/theme";
 
+/*
+ * Journiful mobile design tokens v0 — "Elsewhere-inspired".
+ * Palette + type roles lifted from elsewhere.club's system;
+ * their licensed faces (Serial / TWK Everett) are substituted
+ * with open-licensed lookalikes (Anton / Archivo).
+ */
 @theme {
-  --color-proof-bg: #0e3b43;
-  --color-proof-accent: #ff6b4a;
+  /* Surfaces + ink */
+  --color-sand: #f5eacc;
+  --color-ink: #000000;
+  --color-gravel: #e2ded5;
+  --color-paper: #ffffff;
+
+  /* Accents */
+  --color-seafoam: #42d177;
+  --color-watermelon: #ef8ad4;
+  --color-strawberry: #ff6352;
+  --color-concrete: #b0ad9b;
+  --color-silver: #b3b3b3;
+  --color-ocean: #4281ff;
+  --color-amethyst: #8f8fb3;
+
+  /* Brand moments */
+  --color-babyblue: #9adee4;
+  --color-brandpink: #ffd1ed;
+  --color-acid: #cbfb6a;
+
+  /* Type roles — family names match expo-font registrations */
+  --font-display: "Anton_400Regular", "Arial Narrow", sans-serif;
+  --font-body: "Archivo_400Regular", Arial, sans-serif;
+  --font-body-bold: "Archivo_700Bold", Arial, sans-serif;
+  --font-body-italic: "Archivo_400Regular_Italic", Arial, sans-serif;
 }
