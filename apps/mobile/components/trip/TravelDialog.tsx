@@ -10,6 +10,7 @@ import { DatePicker } from "@/components/ui/DatePicker";
 import { TimeField } from "@/components/ui/TimeField";
 import { dayLabel } from "@/lib/itinerary";
 import { addDays, toIso } from "@/lib/dateRange";
+import { NOT_SHARED } from "@/lib/travelWording";
 import { isFlightNumber, lookupFlight } from "@/lib/flights";
 import {
   emptyLeg,
@@ -31,7 +32,7 @@ const DIRECTIONS: Array<{ value: TravelDirection; heading: string }> = [
   { value: "departure", heading: "Departing" },
 ];
 
-const NOT_SHARED = "Not shared yet";
+
 
 /** How the times are being given: off a flight number, or typed. */
 type TravelMode = "flight" | "times";
@@ -247,9 +248,11 @@ export function TravelDialog({
 }
 
 /**
- * One direction's four questions. Where first, because it is the one
- * everyone can answer; the flight number is the shortcut for those who
- * flew, and it is the only thing that needs a button.
+ * One direction's questions, in the order they are answered: the day,
+ * then how the times are being given, then whichever fields that choice
+ * asks for, then where and the two times — filled in by a lookup or by
+ * hand. The day leads because the lookup needs it, and the number sits
+ * directly under it so nothing scrolls between the two.
  */
 function LegFields({
   direction,
@@ -336,7 +339,7 @@ function LegFields({
           max={addDays(trip.endDate, 1)}
         />
         <Text className="font-body text-sm text-ink">
-          {leg.day ? dayLabel(leg.day, today) : "Pick the day."}
+          {leg.day ? dayLabel(leg.day, today) : "Pick the day"}
         </Text>
         {errors?.day ? (
           <Text className="font-body text-sm text-ink">{errors.day}</Text>

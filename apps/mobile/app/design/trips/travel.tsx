@@ -7,6 +7,7 @@ import { QuietAction } from "@/components/ui/QuietAction";
 import { dayNumber, weekdayAbbrev } from "@/lib/dateRange";
 import { wallClock } from "@/lib/timezone";
 import { travelBoard, type TravelRow } from "@/lib/travelBoard";
+import { NOT_SHARED } from "@/lib/travelWording";
 import { useTrips } from "@/lib/tripsStore";
 import { useTravel } from "@/lib/travelStore";
 import { viewerMember } from "@/lib/members";
@@ -229,7 +230,7 @@ function TravelRowItem({
         </Text>
 
         <Text className="font-body-bold text-base text-ink">
-          {row.time ? wallClock(row.time, timeZone).time : "No time yet"}
+          {row.time ? wallClock(row.time, timeZone).time : NOT_SHARED}
         </Text>
         <Icon color="#000000" size={20} />
       </Pressable>
