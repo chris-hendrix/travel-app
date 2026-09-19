@@ -304,15 +304,6 @@ function LegFields({
 
   return (
     <View className="gap-4">
-      {/* How the times are being given. The two answers lead to different
-          fields, so it comes before them: a flight number and a day are
-          enough, or where and two times are. */}
-      <Segmented
-        options={MODES}
-        value={mode}
-        onChange={onModeChange}
-      />
-
       <View className="gap-2">
         <Text className="font-body-bold text-sm text-ink">
           {arrival ? "Day you land" : "Day you leave"}
@@ -331,6 +322,11 @@ function LegFields({
           <Text className="font-body text-sm text-ink">{errors.day}</Text>
         ) : null}
       </View>
+
+      {/* How the times are being given, sitting with the number it
+          governs: below the day, above the field. The day is the leg's
+          first question; this one is about the field under it. */}
+      <Segmented options={MODES} value={mode} onChange={onModeChange} />
 
       {/* The shortcut, and only in the mode that asks for it. Directly
           under the day because the day is what the lookup needs: type a
