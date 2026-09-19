@@ -3,23 +3,29 @@ import { Text } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { TravelDialog } from "@/components/trip/TravelDialog";
-import { buildSectionRecord, type TravelSectionInput } from "@/lib/newTravel";
-import { wallClock } from "@/lib/timezone";
+import {
+  buildLegRecord,
+  legFromRecord,
+  type TravelDirection,
+  type TravelLeg,
+} from "@/lib/newTravel";
 import { useTrips } from "@/lib/tripsStore";
 import { useTravel } from "@/lib/travelStore";
+import { viewerMember } from "@/lib/members";
 import { membersFor } from "@/mocks/members";
 import { zoneOffsetFor } from "@/mocks/events";
 import { useDismiss } from "@/hooks/useDismiss";
 
 /**
- * Travel form — one screen for both verbs. With a `travel` param it
- * opens on that record's member and direction; without one it starts
- * blank. Saving upserts each ticked direction: a member with travel
- * that way already gets that row updated, not a second one beside it.
+ * Travel form — one screen for both verbs, and the same screen for both
+ * roles. With a `travel` param it opens on that record; with none,
+ * blank. Saving upserts each direction that has been filled in: a
+ * member with travel that way already gets that row updated, not a
+ * second one beside it.
  *
- * Who can file for whom is the API's rule, mirrored here: the
- * organizer files for anyone, a traveler is locked to self. The lab
- * threads the role down from the board so the two can never disagree.
+ * Who can file for whom is the API's rule, mirrored here: the organizer
+ * files for anyone, a traveler is locked to self. The lab threads the
+ * role down from the board so the two can never disagree.
  */
 export default function TravelForm() {
   return (
@@ -27,26 +33,6 @@ export default function TravelForm() {
       <TravelFormScreen />
     </Suspense>
   );
-}
-
-function sectionFromRecord(
-  record: {
-    time: string | null;
-    location: string | null;
-    flightNumber: string | null;
-    details: string | null;
-  },
-  timeZone: string | null,
-): Partial<TravelSectionInput> {
-  const clock = record.time ? wallClock(record.time, timeZone) : null;
-  return {
-    enabled: true,
-    day: clock?.date ?? "",
-    time: clock?.clock ?? "",
-    location: record.location ?? "",
-    flightNumber: record.flightNumber ?? "",
-    details: record.details ?? "",
-  };
 }
 
 function TravelFormScreen() {
@@ -70,13 +56,8 @@ function TravelFormScreen() {
   const viewerIsOrganizer = as === "organizer";
   const editingId = typeof travelId === "string" ? travelId : undefined;
   const record = trip ? travelById(trip, editingId) : undefined;
-  // A pending row links straight here with who and which way, so the
-  // form opens on the right member with the right section ticked.
-  const memberParam = typeof member === "string" ? member : undefined;
-  const directionParam =
-    direction === "arrival" || direction === "departure"
-      ? direction
-      : undefined;
+  const directionParam: TravelDirection | undefined =
+    direction === "arrival" || direction === "departure" ? direction : undefined;
 
   const members = useMemo(
     () =>
@@ -85,31 +66,36 @@ function TravelFormScreen() {
         : [],
     [trip],
   );
-  // The lab has no signed-in identity: the first traveler on the roster
-  // stands in for "you".
-  const lockedMember = members.find((member) => !member.isOrganizer) ?? null;
-  // A linked member is only honored when they are on the roster — a
-  // bad param falls back to the picker, never to a ghost record.
-  const linkedMember =
-    memberParam && members.some((m) => m.id === memberParam)
-      ? memberParam
-      : undefined;
 
   const records = useMemo(
     () => (trip ? travelForTrip(trip) : []),
     [trip?.id],
   );
-  const whereSuggestions = useMemo(() => {
-    const seen = new Set<string>();
-    for (const candidate of records) {
-      if (candidate.location) seen.add(candidate.location);
-    }
-    return [...seen].sort();
-  }, [records]);
 
-  // Deleting leaves nothing to go back to, so the board is where it
-  // ends — replacing, not dismissing, because dismissing would land on
-  // the form we just deleted from.
+  // Whose form this is: the record's member, a linked row's member, or
+  // the viewer themselves.
+  const filedMemberIds = records
+    .filter((candidate) => candidate.time)
+    .map((candidate) => candidate.memberId);
+  const viewer = viewerMember(members, viewerIsOrganizer, filedMemberIds);
+  const linkedMember =
+    member && members.some((candidate) => candidate.id === member)
+      ? member
+      : undefined;
+  const memberId = record?.memberId ?? linkedMember ?? viewer?.id ?? "";
+
+  // Both directions for that member, so the tabs open prefilled and
+  // saving keeps the pair in step.
+  const theirs = records.filter(
+    (candidate) => candidate.memberId === memberId,
+  );
+  const arrivalRecord = theirs.find(
+    (candidate) => candidate.travelType === "arrival",
+  );
+  const departureRecord = theirs.find(
+    (candidate) => candidate.travelType === "departure",
+  );
+
   const boardHref = `/design/trips/travel?id=${trip?.id ?? ""}&as=${viewerIsOrganizer ? "organizer" : "traveler"}`;
 
   if (!trip) {
@@ -132,46 +118,27 @@ function TravelFormScreen() {
     );
   }
 
-  const timeZone = trip.preferredTimezone ?? null;
-  // The record under edit, plus its counterpart when there is one, so
-  // both sections open prefilled and saving keeps the pair in step.
-  const counterpart = record
-    ? records.find(
-        (candidate) =>
-          candidate.id !== record.id &&
-          candidate.memberId === record.memberId &&
-          candidate.travelType !== record.travelType,
-      )
-    : undefined;
-  const arrivalRecord =
-    record?.travelType === "arrival" ? record : counterpart?.travelType === "arrival" ? counterpart : undefined;
-  const departureRecord =
-    record?.travelType === "departure"
-      ? record
-      : counterpart?.travelType === "departure"
-        ? counterpart
-        : undefined;
-
-  const initial =
-    record || !viewerIsOrganizer || linkedMember || directionParam
+  const initial = record
+    ? {
+        memberId,
+        arrival: arrivalRecord
+          ? legFromRecord(arrivalRecord, trip.preferredTimezone, trip.endDate)
+          : undefined,
+        departure: departureRecord
+          ? legFromRecord(
+              departureRecord,
+              trip.preferredTimezone,
+              trip.endDate,
+            )
+          : undefined,
+        direction: record.travelType,
+      }
+    : linkedMember || directionParam
       ? {
-          memberId:
-            record?.memberId ??
-            linkedMember ??
-            lockedMember?.id ??
-            "",
-          arrival:
-            arrivalRecord
-              ? sectionFromRecord(arrivalRecord, timeZone)
-              : directionParam === "arrival"
-                ? { enabled: true }
-                : undefined,
-          departure:
-            departureRecord
-              ? sectionFromRecord(departureRecord, timeZone)
-              : directionParam === "departure"
-                ? { enabled: true }
-                : undefined,
+          memberId,
+          arrival: undefined,
+          departure: undefined,
+          direction: directionParam ?? "arrival",
         }
       : undefined;
 
@@ -182,8 +149,12 @@ function TravelFormScreen() {
       trip={trip}
       members={members}
       viewerIsOrganizer={viewerIsOrganizer}
-      lockedMember={lockedMember}
-      whereSuggestions={whereSuggestions}
+      lockedMember={viewer}
+      whereSuggestions={suggestionsFrom(records)}
+      filed={{
+        arrival: Boolean(arrivalRecord),
+        departure: Boolean(departureRecord),
+      }}
       dismissHref={boardHref}
       initial={initial}
       onDelete={
@@ -195,26 +166,28 @@ function TravelFormScreen() {
           : undefined
       }
       onSubmit={(input) => {
-        const member = members.find((m) => m.id === input.memberId);
-        const memberName = member?.name ?? record?.memberName ?? "";
+        const target = members.find(
+          (candidate) => candidate.id === input.memberId,
+        );
+        const memberName = target?.name ?? record?.memberName ?? "";
         const offset = zoneOffsetFor(trip.id);
 
-        for (const direction of ["arrival", "departure"] as const) {
-          const section = input[direction];
+        for (const legDirection of ["arrival", "departure"] as const) {
           const existing = records.find(
             (candidate) =>
               candidate.memberId === input.memberId &&
-              candidate.travelType === direction,
+              candidate.travelType === legDirection,
           );
-          const next = buildSectionRecord(
-            section,
-            direction,
-            existing?.id ?? `custom-${direction}-${Date.now()}`,
+          const next = buildLegRecord(
+            input[legDirection],
+            legDirection,
+            existing?.id ?? `custom-${legDirection}-${Date.now()}`,
             input.memberId,
             memberName,
             offset,
+            trip.endDate,
           );
-          // Unticked or invalid means unshared: nothing to save.
+          // An untouched direction is unshared: nothing to save.
           if (!next) continue;
           if (existing) updateTravel(trip.id, existing.id, next);
           else addTravel(trip.id, next);
@@ -224,3 +197,16 @@ function TravelFormScreen() {
     />
   );
 }
+
+/** Past wheres on this trip, so the field suggests rather than guesses. */
+function suggestionsFrom(
+  records: Array<{ location: string | null }>,
+): string[] {
+  const seen = new Set<string>();
+  for (const record of records) {
+    if (record.location) seen.add(record.location);
+  }
+  return [...seen].sort();
+}
+
+export type { TravelLeg };

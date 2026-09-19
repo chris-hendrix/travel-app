@@ -17,6 +17,7 @@ export function Button({
   onPress,
   fullWidth = false,
   align = "start",
+  disabled = false,
 }: {
   title: string;
   variant?: ButtonVariant;
@@ -26,6 +27,9 @@ export function Button({
   /** Which edge it hugs on wide screens. Fills the width on a phone,
    *  where a thumb target beats a tidy box. */
   align?: "start" | "end";
+  /** Present but not yet available. Kept in place rather than hidden:
+   *  a control that vanishes leaves nothing to aim at. */
+  disabled?: boolean;
 }) {
   const s = STYLES[variant];
   const width = fullWidth
@@ -36,8 +40,13 @@ export function Button({
 
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={onPress}
-      className={`items-center border p-4 ${s.box} ${width}`}
+      className={`items-center border p-4 ${s.box} ${width} ${
+        disabled ? "opacity-40" : ""
+      }`}
     >
       {/* Pinned at text-sm rather than inherited: everything interactive
           in this system — buttons, badges, an RSVP — is one size, and

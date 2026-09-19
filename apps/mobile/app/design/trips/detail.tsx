@@ -122,7 +122,9 @@ function TripDetailScreen() {
   const travelCta = owesTravel ? (
     <Button
       title="Add travel"
-      variant="secondary"
+      // Coloured like the other asks on this screen: while you owe times
+      // it is the one thing here that is yours to do.
+      variant="accent"
       fullWidth
       onPress={() =>
         router.push(
