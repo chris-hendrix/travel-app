@@ -1,4 +1,5 @@
-import { Pressable, Text, View } from "react-native";
+import type { ReactNode } from "react";
+import { Text, View, Pressable } from "react-native";
 
 /**
  * One choice out of a few, all of them visible at once.
@@ -33,7 +34,7 @@ export function Segmented<T extends string>({
   value,
   onChange,
 }: {
-  options: Array<{ value: T; label: string; tone?: SegmentedTone }>;
+  options: Array<{ value: T; label: string; tone?: SegmentedTone; badge?: ReactNode }>;
   value: T | null;
   onChange: (value: T) => void;
 }) {
@@ -50,9 +51,16 @@ export function Segmented<T extends string>({
               index > 0 ? "border-l-0" : ""
             } ${chosen ? TONES[option.tone ?? "accent"] : ""}`}
           >
-            <Text className="font-body-bold text-sm text-ink">
-              {option.label}
-            </Text>
+            <View className="flex-row items-center gap-1.5">
+              <Text className="font-body-bold text-sm text-ink">
+                {option.label}
+              </Text>
+              {/* Content the caller attaches to a choice — a completion
+                  mark, say. Generic on purpose, like the tone: the
+                  primitive knows a cell can carry something, not what
+                  it means. */}
+              {option.badge}
+            </View>
           </Pressable>
         );
       })}

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Stack } from "expo-router";
 import { Pressable, Text, View } from "react-native";
+import { Check } from "lucide-react-native";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
@@ -191,14 +192,18 @@ export function TravelDialog({
       {/* Which end of the trip you are filing. A toggle rather than a
           disclosure: it is the first question and it is a choice, and one
           control that says so is clearer than two panels that each imply
-          the other. A direction that already holds something is marked,
-          so the half you are not looking at is not simply gone. */}
+          the other.
+          
+          A direction that already holds times is ticked in the toggle
+          itself, so the half you are not looking at is still legible —
+          and both ticks are the fastest answer to "have I done both?". */}
       <Segmented
         options={DIRECTIONS.map((option) => ({
           value: option.value,
-          label: legIsFiled(legs[option.value], option.value)
-            ? `${option.heading} ·`
-            : option.heading,
+          label: option.heading,
+          badge: legIsFiled(legs[option.value], option.value) ? (
+            <Check color="#000000" size={16} />
+          ) : undefined,
         }))}
         value={direction}
         onChange={setDirection}
