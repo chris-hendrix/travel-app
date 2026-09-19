@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Link } from "expo-router";
-import { Bell, User } from "lucide-react-native";
+import { Bell, User, X } from "lucide-react-native";
 import Svg, { Path } from "react-native-svg";
 
 function WaveEdge() {
@@ -47,27 +47,27 @@ function AvatarButton() {
 
 export function AppHeader({
   title,
-  backHref,
+  onClose,
   action,
 }: {
   title?: string;
-  backHref?: "/design-system";
+  onClose?: () => void;
   action?: ReactNode;
 }) {
   if (title) {
     return (
-      <View className="flex-row items-center justify-between border-b border-gravel bg-sand px-6 py-4">
+      <View className="flex-row items-center justify-between bg-gravel px-6 py-4">
+        <Text className="font-display text-2xl leading-none text-ink">
+          {title}
+        </Text>
         <View className="flex-row items-center gap-3">
-          {backHref ? (
-            <Link href={backHref} className="font-body-bold text-ink">
-              ← Back
-            </Link>
+          {action}
+          {onClose ? (
+            <Pressable aria-label="Close" onPress={onClose} className="p-1">
+              <X color="#000000" size={24} />
+            </Pressable>
           ) : null}
-          <Text className="font-display text-2xl leading-none text-ink">
-            {title}
-          </Text>
         </View>
-        {action}
       </View>
     );
   }
