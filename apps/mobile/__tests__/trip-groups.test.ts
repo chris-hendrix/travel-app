@@ -23,22 +23,24 @@ describe("groupTrips", () => {
       trip({ id: "near", startDate: "2026-09-25", endDate: "2026-09-28" }),
     ];
 
-    const { upcoming } = groupTrips(trips, today);
-
-    expect(upcoming[0]?.trips.map((t) => t.id)).toEqual(["near", "far"]);
+    expect(groupTrips(trips, today).upcoming.map((t) => t.id)).toEqual([
+      "near",
+      "far",
+    ]);
   });
 
-  it("orders past trips newest first and splits them by year", () => {
+  it("orders past trips newest first, across year boundaries", () => {
     const trips = [
       trip({ id: "lastYear", startDate: "2025-11-01", endDate: "2025-11-08" }),
       trip({ id: "thisYear", startDate: "2026-07-01", endDate: "2026-07-04" }),
       trip({ id: "older", startDate: "2024-05-01", endDate: "2024-05-10" }),
     ];
 
-    const { past } = groupTrips(trips, today);
-
-    expect(past.map((g) => g.year)).toEqual([2026, 2025, 2024]);
-    expect(past[0]?.trips.map((t) => t.id)).toEqual(["thisYear"]);
+    expect(groupTrips(trips, today).past.map((t) => t.id)).toEqual([
+      "thisYear",
+      "lastYear",
+      "older",
+    ]);
   });
 
   it("counts a trip that has started but not finished as upcoming", () => {
@@ -50,7 +52,7 @@ describe("groupTrips", () => {
 
     const { upcoming, past } = groupTrips([inProgress], today);
 
-    expect(upcoming[0]?.trips.map((t) => t.id)).toEqual(["now"]);
+    expect(upcoming.map((t) => t.id)).toEqual(["now"]);
     expect(past).toEqual([]);
   });
 
@@ -64,7 +66,7 @@ describe("groupTrips", () => {
     expect(groupTrips([endsToday], today).upcoming).toHaveLength(1);
   });
 
-  it("returns no groups for no trips", () => {
+  it("returns empty lists for no trips", () => {
     expect(groupTrips([], today)).toEqual({ upcoming: [], past: [] });
   });
 });

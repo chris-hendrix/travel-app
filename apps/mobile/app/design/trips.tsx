@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
+import { Screen } from "@/components/ui/Screen";
 import { TripCard, TripGrid } from "@/components/trip/TripCard";
 import { groupTrips } from "@/lib/tripGroups";
 import { TRIPS } from "@/mocks/trips";
@@ -9,9 +10,9 @@ import { TRIPS } from "@/mocks/trips";
 /**
  * Design lab: the trips screen under construction.
  *
- * Upcoming first, soonest first. Past below, newest first, split by
- * year. A year label is only worth its ink when a section actually
- * spans more than one year.
+ * Upcoming first, soonest first. Past below, newest first. The two are
+ * separated by a rule rather than year headings — each card carries its
+ * own year in the date line.
  */
 export default function TripsScreen() {
   const [empty, setEmpty] = useState(false);
@@ -29,7 +30,7 @@ export default function TripsScreen() {
   );
 
   return (
-    <ScrollView className="flex-1">
+    <Screen>
       <View className="gap-8 p-6">
         <View className="flex-row gap-5">
           <Pressable onPress={() => setEmpty(false)}>
@@ -85,47 +86,35 @@ export default function TripsScreen() {
         ) : (
           <>
             {upcoming.length > 0 ? (
-              <Section title="Upcoming" groups={upcoming} render={card} />
+              <Section title="Upcoming">
+                {upcoming.map((trip) => card(trip))}
+              </Section>
             ) : null}
             {past.length > 0 ? (
-              <Section title="Past" groups={past} render={card} />
+              <Section title="Past">{past.map((trip) => card(trip))}</Section>
             ) : null}
           </>
         )}
 
         <Text className="font-body text-sm text-ink">{log}</Text>
       </View>
-    </ScrollView>
+    </Screen>
   );
 }
 
 function Section({
   title,
-  groups,
-  render,
+  children,
 }: {
   title: string;
-  groups: ReturnType<typeof groupTrips>["upcoming"];
-  render: (trip: (typeof TRIPS)[number]) => ReactNode;
+  children: ReactNode;
 }) {
-  // One year needs no label; two or more need the signposts.
-  const showYears = groups.length > 1;
-
   return (
-    <View className="gap-6">
+    <View className="gap-6 border-t border-ink pt-6">
       <Text className="font-display text-xl uppercase leading-none text-ink">
         {title}
       </Text>
-      {groups.map((group) => (
-        <View key={group.year} className="gap-4">
-          {showYears ? (
-            <Text className="font-body-bold text-sm text-ink">
-              {group.year}
-            </Text>
-          ) : null}
-          <TripGrid>{group.trips.map(render)}</TripGrid>
-        </View>
-      ))}
+      <TripGrid>{children}</TripGrid>
     </View>
   );
 }

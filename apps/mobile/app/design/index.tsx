@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { Link } from "expo-router";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { ActionBar } from "@/components/ui/ActionBar";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/Badge";
 import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { Accordion, AccordionItem } from "@/components/ui/Accordion";
+import { Screen } from "@/components/ui/Screen";
 import { TripCard, TripGrid } from "@/components/trip/TripCard";
 import { TRIPS } from "@/mocks/trips";
 
@@ -98,7 +99,7 @@ export default function DesignSystem() {
   const [log, setLog] = useState("No interaction yet.");
 
   return (
-    <ScrollView className="flex-1">
+    <Screen>
       <View className="gap-8 p-6">
         <View className="gap-1">
           <Text className="font-display text-4xl leading-tight text-ink">
@@ -164,6 +165,18 @@ export default function DesignSystem() {
               >
                 Open the notifications dialog
               </Link>
+            </Specimen>
+
+            <Specimen
+              name="Screen"
+              contract="children"
+              note="The ground for every screen. Navigation containers paint their own background, so a screen must paint its own sand or it renders grey."
+            >
+              <Screen>
+                <Text className="font-body text-base text-ink">
+                  Screen content sits on the sand ground.
+                </Text>
+              </Screen>
             </Specimen>
 
             <Specimen
@@ -322,6 +335,6 @@ export default function DesignSystem() {
           </Text>
         </Section>
       </View>
-    </ScrollView>
+    </Screen>
   );
 }
