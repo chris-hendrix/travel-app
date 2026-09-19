@@ -5,9 +5,10 @@ import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { EventDialog } from "@/components/trip/EventDialog";
 import { buildEvent } from "@/lib/newEvent";
 import { useTrips } from "@/lib/tripsStore";
+import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useEvents } from "@/lib/eventsStore";
 import { useDismiss } from "@/hooks/useDismiss";
-import { placePhoto, zoneOffsetFor } from "@/mocks/events";
+import { placePhoto } from "@/mocks/events";
 
 /**
  * Add event — the organizer's way onto the itinerary. Every question it
@@ -25,11 +26,18 @@ export default function NewEvent() {
 function NewEventScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { trips } = useTrips();
+  const { for: settingsFor } = useTripSettings();
   const { addEvent } = useEvents();
   const dismiss = useDismiss("/design/trips");
 
   const tripId = typeof id === "string" ? id : undefined;
   const trip = trips.find((candidate) => candidate.id === tripId) ?? trips[0];
+  // The zone the fields mean: the trip's own clock setting, so what is
+  // typed is stamped in the zone it will be read in.
+  const { clock } = trip
+    ? settingsFor(trip, new Date())
+    : { clock: "trip" as const };
+  const timeZone = clock === "trip" ? trip?.preferredTimezone ?? null : null;
 
   if (!trip) {
     return (
@@ -46,12 +54,13 @@ function NewEventScreen() {
       title="Add event"
       primaryTitle="Add event"
       trip={trip}
+      timeZone={timeZone}
       dismissHref={`/design/trips/detail?id=${trip.id}`}
       onSubmit={(input) => {
         const event = buildEvent(
           input,
           `custom-${Date.now()}`,
-          zoneOffsetFor(trip.id),
+          timeZone,
           placePhoto(input.place),
         );
         addEvent(trip.id, event);

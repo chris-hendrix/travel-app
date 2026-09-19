@@ -2,7 +2,8 @@ import { applyFlightLookup } from "@journiful/shared/utils";
 import type { FlightLookupResult } from "@journiful/shared/types";
 import { addDays as shift, formatDay } from "@/lib/dateRange";
 import { formatClock, isClockTime, minutesOf } from "@/lib/time";
-import { wallClock } from "@/lib/timezone";
+import { wallClock, zoneAbbr, zoneOffsetMinutes } from "@/lib/timezone";
+import { joinFacts } from "@/lib/wording";
 import type { MockTravel } from "@/mocks/travel";
 
 export type TravelDirection = "arrival" | "departure";
@@ -193,7 +194,7 @@ export function buildLegRecord(
   id: string,
   memberId: string,
   memberName: string,
-  zoneOffsetMinutes: number,
+  timeZone: string | null,
 ): MockTravel | null {
   if (!legIsFiled(leg, direction)) return null;
   if (Object.keys(validateLeg(leg, direction)).length > 0) return null;
@@ -211,13 +212,13 @@ export function buildLegRecord(
     memberName,
     travelType: direction,
     departureTime: leg.departureTime.trim()
-      ? stamp(departureDay, leg.departureTime, zoneOffsetMinutes)
+      ? stamp(departureDay, leg.departureTime, timeZone)
       : null,
     departureLocation: arrival
       ? leg.otherLocation.trim() || null
       : leg.location.trim() || null,
     arrivalTime: leg.arrivalTime.trim()
-      ? stamp(arrivalDay, leg.arrivalTime, zoneOffsetMinutes)
+      ? stamp(arrivalDay, leg.arrivalTime, timeZone)
       : null,
     arrivalLocation: arrival
       ? leg.location.trim() || null
@@ -231,7 +232,7 @@ export function buildLegRecord(
 /**
  * A wall-clock time on a local day, as an instant.
  */
-function stamp(day: string, clock: string, zoneOffsetMinutes: number): string {
+function stamp(day: string, clock: string, timeZone: string | null): string {
   const [year, month, date] = day.split("-").map(Number) as [
     number,
     number,
@@ -241,8 +242,15 @@ function stamp(day: string, clock: string, zoneOffsetMinutes: number): string {
     number,
     number,
   ];
+  // The offset where the leg happens, on the day it happens: a red-eye
+  // that straddles a daylight boundary stamps each end in its own offset
+  // rather than borrowing its sibling's.
+  const offsetMinutes = zoneOffsetMinutes(
+    timeZone,
+    `${day}T12:00:00.000Z`,
+  );
   return new Date(
-    Date.UTC(year, month - 1, date, hour, minute) - zoneOffsetMinutes * 60_000,
+    Date.UTC(year, month - 1, date, hour, minute) - offsetMinutes * 60_000,
   ).toISOString();
 }
 
@@ -341,26 +349,30 @@ export function legFromRecord(
 }
 
 /**
- * A direction in one line, for the header of its panel: the day it
- * really lands or leaves, the clock, and where. Empty when nothing has
- * been filled in — that state is the caller's to word, because "Not
- * shared yet" is about the trip, not about the string.
+ * A direction in one line, for the line under the toggle: the day it
+ * really lands or leaves, the clock with its zone, and where. Empty
+ * when nothing has been filled in — that state is the caller's to word,
+ * because "Not shared yet" is about the trip, not about the string.
  *
  * The day is always this direction's own end, which is the day the
- * board files and the day the calendar picked. The far-day flag moves
- * the other end of the leg, so it does not move this.
+ * board files and the day the calendar picked. The clock carries the
+ * zone it was read in, because the board's rows do and the line claims
+ * to speak in their words.
  */
 export function legSummary(
   leg: TravelLeg,
   direction: TravelDirection,
+  timeZone: string | null,
 ): string {
   if (!legIsFiled(leg, direction)) return "";
   const parts: string[] = [];
 
   if (/^\d{4}-\d{2}-\d{2}$/.test(leg.day)) parts.push(formatDay(leg.day));
   const clock = pertinentClock(leg, direction);
-  if (isClockTime(clock.trim())) parts.push(formatClock(clock.trim()));
+  if (isClockTime(clock.trim())) {
+    parts.push(`${formatClock(clock.trim())} ${zoneAbbr(timeZone)}`);
+  }
   if (leg.location.trim()) parts.push(leg.location.trim());
 
-  return parts.join(" · ");
+  return joinFacts(...parts);
 }

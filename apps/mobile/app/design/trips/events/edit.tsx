@@ -9,9 +9,10 @@ import {
   validateNewEvent,
 } from "@/lib/newEvent";
 import { useTrips } from "@/lib/tripsStore";
+import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useEvents } from "@/lib/eventsStore";
 import { useDismiss } from "@/hooks/useDismiss";
-import { placePhoto, zoneOffsetFor } from "@/mocks/events";
+import { placePhoto } from "@/mocks/events";
 
 /**
  * Edit event — the same form as Add event, prefilled and one verb
@@ -38,12 +39,19 @@ function EditEventScreen() {
     event?: string;
   }>();
   const { trips } = useTrips();
+  const { for: settingsFor } = useTripSettings();
   const { eventById, updateEvent, deleteEvent } = useEvents();
   const dismiss = useDismiss("/design/trips");
   const router = useRouter();
 
   const tripId = typeof id === "string" ? id : undefined;
   const trip = trips.find((candidate) => candidate.id === tripId) ?? trips[0];
+  // The zone the fields mean: the trip's own clock setting, so what is
+  // typed is stamped in the zone it will be read in.
+  const { clock } = trip
+    ? settingsFor(trip, new Date())
+    : { clock: "trip" as const };
+  const timeZone = clock === "trip" ? trip?.preferredTimezone ?? null : null;
   const event = trip
     ? eventById(trip, typeof eventId === "string" ? eventId : undefined)
     : undefined;
@@ -72,6 +80,7 @@ function EditEventScreen() {
       title="Edit event"
       primaryTitle="Save changes"
       trip={trip}
+      timeZone={timeZone}
       dismissHref={`/design/trips/events/detail?id=${trip.id}&event=${event.id}`}
       initial={initial}
       onDelete={() => {
@@ -86,7 +95,7 @@ function EditEventScreen() {
         const next = buildEvent(
           input,
           event.id,
-          zoneOffsetFor(trip.id),
+          timeZone,
           event.place === input.place
             ? event.image
             : placePhoto(input.place),

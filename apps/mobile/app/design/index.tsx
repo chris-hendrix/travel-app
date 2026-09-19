@@ -258,7 +258,7 @@ export default function DesignSystem() {
             <Specimen
               name="TimeField"
               contract="label · value · onChange · optional? · noneLabel? · error?"
-              note="One row shut — the time and a disclosure — opening the column of slots it has always been, already scrolled to where you are, and closing on the choice. A form with two times is two rows instead of two columns of ninety-six slots. Fifteen-minute steps across the whole day, because a red-eye is as much an event as a dinner. optional puts a No end row at the top, so an event that simply starts is a choice rather than an empty field. Rows read twelve-hour, exactly as the itinerary prints them."
+              note="One row shut — the time and a disclosure — opening the column of slots it has always been, already scrolled to where you are, and closing on the choice. A form with two times is two rows instead of two columns of ninety-six slots. Fifteen-minute steps across the whole day, because a red-eye is as much an event as a dinner. optional puts a No end row at the top, so an event that simply starts is a choice rather than an empty field. Rows read twelve-hour, exactly as the itinerary prints them. The label names the zone the slots are read in, because a field whose meaning depends on a setting says which setting is on."
             >
               <View className="gap-4 md:flex-row">
                 <View className="md:flex-1">

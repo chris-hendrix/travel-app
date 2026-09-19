@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FlightLookupResult } from "@journiful/shared/types";
+import { getTimezoneAbbr } from "@journiful/shared/utils";
 import {
   buildLegRecord,
   emptyLeg,
@@ -126,7 +127,7 @@ describe("buildLegRecord", () => {
       "t-1",
       "m-1",
       "Ana",
-      0,
+      "UTC",
     );
     expect(record?.memberName).toBe("Ana");
     expect(record?.travelType).toBe("arrival");
@@ -145,7 +146,7 @@ describe("buildLegRecord", () => {
       "t-1",
       "m-1",
       "Ana",
-      0,
+      "UTC",
     );
     expect(record?.arrivalTime).toBe("2026-09-18T12:30:00.000Z");
     expect(record?.departureTime).toBe("2026-09-17T22:50:00.000Z");
@@ -164,7 +165,7 @@ describe("buildLegRecord", () => {
       "t-1",
       "m-1",
       "Ana",
-      0,
+      "UTC",
     );
     expect(record?.departureTime).toBe("2026-09-25T23:30:00.000Z");
     expect(record?.arrivalTime).toBe("2026-09-26T07:15:00.000Z");
@@ -172,19 +173,19 @@ describe("buildLegRecord", () => {
 
   it("returns null for a direction that was never touched", () => {
     expect(
-      buildLegRecord(emptyLeg(), "arrival", "t-1", "m-1", "Ana", 0),
+      buildLegRecord(emptyLeg(), "arrival", "t-1", "m-1", "Ana", "UTC"),
     ).toBeNull();
   });
 });
 
 describe("legSummary", () => {
   it("is empty for a direction nobody has filled in", () => {
-    expect(legSummary(emptyLeg(), "arrival")).toBe("");
+    expect(legSummary(emptyLeg(), "arrival", null)).toBe("");
   });
 
-  it("reads the direction's own end, not the far one", () => {
-    expect(legSummary(ARRIVAL, "arrival")).toBe(
-      "Fri Sep 18 · 3:40 PM · BCN T2",
+  it("reads the direction's own end, with the zone it was read in", () => {
+    expect(legSummary(ARRIVAL, "arrival", "Europe/Madrid")).toBe(
+      `Fri Sep 18 · 3:40 PM ${getTimezoneAbbr("Europe/Madrid")} · BCN T2`,
     );
   });
 
@@ -199,8 +200,9 @@ describe("legSummary", () => {
           location: "BCN T2",
         },
         "departure",
+        "Europe/Madrid",
       ),
-    ).toBe("Fri Sep 25 · 11:30 PM · BCN T2");
+    ).toBe(`Fri Sep 25 · 11:30 PM ${getTimezoneAbbr("Europe/Madrid")} · BCN T2`);
   });
 });
 

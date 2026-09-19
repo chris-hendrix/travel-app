@@ -10,7 +10,7 @@ import { DatePicker } from "@/components/ui/DatePicker";
 import { TimeField } from "@/components/ui/TimeField";
 import { dayLabel } from "@/lib/itinerary";
 import { addDays, toIso } from "@/lib/dateRange";
-import { NOT_SHARED } from "@/lib/travelWording";
+import { NOT_SHARED } from "@/lib/wording";
 import { isFlightNumber, lookupFlight } from "@/lib/flights";
 import {
   emptyLeg,
@@ -72,6 +72,7 @@ export function TravelDialog({
   title,
   primaryTitle,
   trip,
+  timeZone,
   members,
   viewerIsOrganizer,
   lockedMember,
@@ -86,6 +87,10 @@ export function TravelDialog({
   /** The dialog's one verb: "Add travel" or "Save changes". */
   primaryTitle: string;
   trip: Trip;
+  /** The zone the pickers name and the instants mean: the trip's own
+   *  clock setting, threaded down from the board so the two can never
+   *  disagree about what time it is. */
+  timeZone: string | null;
   /** Who travel can belong to — the trip's going members. */
   members: Member[];
   /** The organizer files for anyone; a traveler is the member already. */
@@ -215,9 +220,10 @@ export function TravelDialog({
       />
 
       {/* The line under the toggle is the selection: what this direction
-          already holds, in the same words its row uses on the board. */}
+          already holds, in the same words its row uses on the board —
+          clock and zone both, since a time with no place is a guess. */}
       <Text className="font-body text-base text-ink">
-        {legSummary(shown, direction) || NOT_SHARED}
+        {legSummary(shown, direction, timeZone) || NOT_SHARED}
       </Text>
 
       <LegFields
@@ -229,6 +235,7 @@ export function TravelDialog({
           setModes((current) => ({ ...current, [direction]: mode }))
         }
         trip={trip}
+        timeZone={timeZone}
         whereSuggestions={whereSuggestions}
         errors={submitted ? errors[direction] : undefined}
       />
@@ -261,6 +268,7 @@ function LegFields({
   mode,
   onModeChange,
   trip,
+  timeZone,
   whereSuggestions,
   errors,
 }: {
@@ -270,6 +278,7 @@ function LegFields({
   mode: TravelMode;
   onModeChange: (mode: TravelMode) => void;
   trip: Trip;
+  timeZone: string | null;
   whereSuggestions: string[];
   errors: LegErrors | undefined;
 }) {
@@ -277,7 +286,6 @@ function LegFields({
   const [lookupError, setLookupError] = useState<string | null>(null);
 
   const today = toIso(new Date());
-  const timeZone = trip.preferredTimezone ?? null;
   const arrival = direction === "arrival";
   // The other end's day, said back under the field that owns it. Null
   // when the leg does not cross midnight, where "the same day" would be
@@ -326,7 +334,7 @@ function LegFields({
     <View className="gap-4">
       <View className="gap-2">
         <Text className="font-body-bold text-sm text-ink">
-          {arrival ? "Day you land" : "Day you leave"}
+          {arrival ? "Arrival day" : "Departure day"}
         </Text>
         {/* Bounded by the trip, and one day past its end: a stay is
             booked through its last night, so check-out and the flight
@@ -416,6 +424,7 @@ function LegFields({
         <View className="gap-1 md:flex-1">
           <TimeField
             label="Departure time"
+            timeZone={timeZone}
             value={leg.departureTime || null}
             onChange={(time) => onChange({ ...leg, departureTime: time ?? "" })}
             error={errors?.departureTime}
@@ -429,6 +438,7 @@ function LegFields({
         <View className="gap-1 md:flex-1">
           <TimeField
             label="Arrival time"
+            timeZone={timeZone}
             value={leg.arrivalTime || null}
             onChange={(time) => onChange({ ...leg, arrivalTime: time ?? "" })}
             error={errors?.arrivalTime}

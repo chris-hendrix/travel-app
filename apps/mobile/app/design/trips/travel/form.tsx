@@ -12,10 +12,11 @@ import {
 import { getPertinentLocation, getPertinentTime } from "@journiful/shared/utils";
 import { useTrips } from "@/lib/tripsStore";
 import { useTravel } from "@/lib/travelStore";
+import { useTripSettings } from "@/lib/tripSettingsStore";
 import { viewerMember } from "@/lib/members";
 import { membersFor } from "@/mocks/members";
 import type { MockTravel } from "@/mocks/travel";
-import { zoneOffsetFor } from "@/mocks/events";
+
 import { useDismiss } from "@/hooks/useDismiss";
 
 /**
@@ -48,11 +49,19 @@ function TravelFormScreen() {
   const { trips } = useTrips();
   const { travelById, travelForTrip, addTravel, updateTravel, deleteTravel } =
     useTravel();
+  const { for: settingsFor } = useTripSettings();
   const dismiss = useDismiss("/design/trips");
   const router = useRouter();
 
   const tripId = typeof id === "string" ? id : undefined;
   const trip = trips.find((candidate) => candidate.id === tripId) ?? trips[0];
+  // The zone the fields mean: the trip's own clock setting, the same one
+  // the board behind this form is reading. What is typed is stamped in
+  // it, and what it stamps is read back in it.
+  const { clock } = trip
+    ? settingsFor(trip, new Date())
+    : { clock: "trip" as const };
+  const timeZone = clock === "trip" ? (trip?.preferredTimezone ?? null) : null;
   // The lab's stand-in for `isOrganizer` on the membership, threaded
   // down from the board so the two can never disagree.
   const viewerIsOrganizer = as === "organizer";
@@ -127,7 +136,7 @@ function TravelFormScreen() {
           ? legFromRecord(
               arrivalRecord,
               "arrival",
-              trip.preferredTimezone,
+              timeZone,
               trip.startDate,
               trip.endDate,
             )
@@ -136,7 +145,7 @@ function TravelFormScreen() {
           ? legFromRecord(
               departureRecord,
               "departure",
-              trip.preferredTimezone,
+              timeZone,
               trip.startDate,
               trip.endDate,
             )
@@ -157,6 +166,7 @@ function TravelFormScreen() {
       title={record ? "Edit travel" : "Add travel"}
       primaryTitle={record ? "Save changes" : "Add travel"}
       trip={trip}
+      timeZone={timeZone}
       members={members}
       viewerIsOrganizer={viewerIsOrganizer}
       lockedMember={viewer}
@@ -180,7 +190,6 @@ function TravelFormScreen() {
           (candidate) => candidate.id === input.memberId,
         );
         const memberName = target?.name ?? record?.memberName ?? "";
-        const offset = zoneOffsetFor(trip.id);
 
         for (const legDirection of ["arrival", "departure"] as const) {
           const existing = records.find(
@@ -194,7 +203,7 @@ function TravelFormScreen() {
             existing?.id ?? `custom-${legDirection}-${Date.now()}`,
             input.memberId,
             memberName,
-            offset,
+            timeZone,
           );
           // An untouched direction is unshared: nothing to save.
           if (!next) continue;

@@ -45,7 +45,7 @@ export default function NewTrip() {
 
   return (
     <FullscreenDialog
-      title="New trip"
+      title="Create trip"
       primaryTitle="Create trip"
       onPrimary={create}
       dismissHref="/design/trips"

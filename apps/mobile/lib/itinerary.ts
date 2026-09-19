@@ -1,6 +1,7 @@
 import { daysBetween } from "@/lib/countdown";
 import { formatDay, formatTimeRange } from "@/lib/dateRange";
-import { wallClock } from "@/lib/timezone";
+import { wallClock, zoneAbbr } from "@/lib/timezone";
+import { joinFacts } from "@/lib/wording";
 
 /**
  * The API's `event_type`, in full. An event's type is what decides
@@ -76,8 +77,13 @@ export function eventTimeLabel(
   event: ItineraryEvent,
   timeZone: string | null,
 ): string {
+  // All day has no clock, so there is no zone to name. Everything else
+  // reads with one: a time nobody can place is a time nobody trusts.
   if (event.allDay) return "All day";
-  return formatTimeRange(event.startTime, event.endTime, timeZone);
+  return joinFacts(
+    formatTimeRange(event.startTime, event.endTime, timeZone),
+    zoneAbbr(timeZone),
+  );
 }
 
 /**
@@ -146,7 +152,15 @@ export function groupEventsByDay(
   return [...byDay]
     .map(([date, dayEvents]) => ({
       date,
-      events: dayEvents.sort((a, b) => a.startTime.localeCompare(b.startTime)),
+      // All-day first, then by the clock. An all-day event happens all
+      // day, so it leads the day it belongs to rather than sorting by
+      // the midnight it is stamped with — the flag says that, and the
+      // order follows from it.
+      events: dayEvents.sort(
+        (a, b) =>
+          Number(b.allDay) - Number(a.allDay) ||
+          a.startTime.localeCompare(b.startTime),
+      ),
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
 }
@@ -168,11 +182,11 @@ export function dayLabel(date: string, today: string): string {
 
   switch (daysBetween(today, date)) {
     case 0:
-      return `Today · ${day}`;
+      return joinFacts("Today", day);
     case 1:
-      return `Tomorrow · ${day}`;
+      return joinFacts("Tomorrow", day);
     case -1:
-      return `Yesterday · ${day}`;
+      return joinFacts("Yesterday", day);
     default:
       return day;
   }

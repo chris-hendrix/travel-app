@@ -5,11 +5,12 @@ import { ArrowDown, ArrowUp } from "lucide-react-native";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { QuietAction } from "@/components/ui/QuietAction";
 import { dayNumber, weekdayAbbrev } from "@/lib/dateRange";
-import { wallClock } from "@/lib/timezone";
+import { clockLabel } from "@/lib/timezone";
 import { travelBoard, type TravelRow } from "@/lib/travelBoard";
-import { NOT_SHARED } from "@/lib/travelWording";
+import { NOT_SHARED } from "@/lib/wording";
 import { useTrips } from "@/lib/tripsStore";
 import { useTravel } from "@/lib/travelStore";
+import { useTripSettings } from "@/lib/tripSettingsStore";
 import { viewerMember } from "@/lib/members";
 import { pertinentIso } from "@/lib/travelBoard";
 import { membersFor } from "@/mocks/members";
@@ -45,10 +46,18 @@ function TripTravelDialog() {
   const { id, as } = useLocalSearchParams<{ id?: string; as?: string }>();
   const { trips } = useTrips();
   const { travelForTrip } = useTravel();
+  const { for: settingsFor } = useTripSettings();
   const router = useRouter();
 
   const tripId = typeof id === "string" ? id : undefined;
   const trip = trips.find((candidate) => candidate.id === tripId) ?? trips[0];
+  // The zone these rows are read in: the trip's own clock setting, the
+  // same one the itinerary behind this dialog is reading. A board and a
+  // form that disagreed about what time it is would be two trips.
+  const { clock } = trip
+    ? settingsFor(trip, new Date())
+    : { clock: "trip" as const };
+  const timeZone = clock === "trip" ? (trip?.preferredTimezone ?? null) : null;
   // The lab's stand-in for `isOrganizer` on the membership, threaded
   // down from the trip screen so the two can never disagree.
   const viewerIsOrganizer = as === "organizer";
@@ -70,11 +79,8 @@ function TripTravelDialog() {
     viewerIsOrganizer || (viewer?.id ?? "") === memberId;
 
   const board = useMemo(
-    () =>
-      trip
-        ? travelBoard(records, trip.preferredTimezone ?? null, going)
-        : null,
-    [trip, records],
+    () => (trip ? travelBoard(records, timeZone, going) : null),
+    [trip, records, timeZone],
   );
   if (!trip || !board) {
     return (
@@ -86,7 +92,6 @@ function TripTravelDialog() {
     );
   }
 
-  const timeZone = trip.preferredTimezone ?? null;
   // The roster is the list, so "empty" is never an empty screen: every
   // direction lists whoever owes it. What is worth saying out loud is
   // when nobody at all has filed, because then the dashes are the whole
@@ -230,7 +235,7 @@ function TravelRowItem({
         </Text>
 
         <Text className="font-body-bold text-base text-ink">
-          {row.time ? wallClock(row.time, timeZone).time : NOT_SHARED}
+          {row.time ? clockLabel(row.time, timeZone) : NOT_SHARED}
         </Text>
         <Icon color="#000000" size={20} />
       </Pressable>

@@ -11,18 +11,28 @@ const INPUT: NewEventInput = {
   name: "Dinner in town",
   description: "Table for eight under the vines.",
   day: "2026-09-20",
+  allDay: false,
   start: "20:30",
   end: "22:30",
   place: "Trattoria Nuova",
 };
+
+/** The same event with no time at all: the day is the event. */
+const ALL_DAY: NewEventInput = { ...INPUT, allDay: true, start: "", end: "" };
 
 describe("validateNewEvent", () => {
   it("passes a complete event", () => {
     expect(validateNewEvent(INPUT)).toEqual({});
   });
 
-  it("passes without either time — an event can be untimed", () => {
-    expect(validateNewEvent({ ...INPUT, start: "", end: "" })).toEqual({});
+  it("passes an all-day event with no times at all", () => {
+    expect(validateNewEvent(ALL_DAY)).toEqual({});
+  });
+
+  it("wants a start on an event that is not all day", () => {
+    // The blank is the thing being asked about now: an empty start used
+    // to mean all-day quietly, which is one state wearing two meanings.
+    expect(validateNewEvent({ ...INPUT, start: "" }).start).toBeTruthy();
   });
 
   it("passes with a start and no end", () => {
@@ -49,7 +59,7 @@ describe("validateNewEvent", () => {
 
 describe("buildEvent", () => {
   it("stamps the wall clock onto the trip clock", () => {
-    const event = buildEvent(INPUT, "e1", 120, "https://picsum.test/x");
+    const event = buildEvent(INPUT, "e1", "Europe/Madrid", "https://picsum.test/x");
     // 20:30 in a UTC+2 trip is 18:30Z.
     expect(event.startTime).toBe("2026-09-20T18:30:00.000Z");
     expect(event.endTime).toBe("2026-09-20T20:30:00.000Z");
@@ -64,19 +74,14 @@ describe("buildEvent", () => {
     const event = buildEvent(
       { ...INPUT, end: "" },
       "e1",
-      0,
+      "UTC",
       "https://picsum.test/x",
     );
     expect(event.endTime).toBeNull();
   });
 
-  it("carries an untimed event as all-day at its own midnight", () => {
-    const event = buildEvent(
-      { ...INPUT, start: "", end: "" },
-      "e1",
-      0,
-      "https://picsum.test/x",
-    );
+  it("carries an all-day event at its own midnight, and says so", () => {
+    const event = buildEvent(ALL_DAY, "e1", "UTC", "https://picsum.test/x");
     // Midnight in a UTC+0 trip, and the flag that stops the itinerary
     // printing "12:00 AM" at whatever the heading already said.
     expect(event.startTime.slice(11, 16)).toBe("00:00");
@@ -84,24 +89,24 @@ describe("buildEvent", () => {
   });
 
   it("keeps the description, and reads a blank one as no description", () => {
-    expect(buildEvent(INPUT, "e1", 0, "p.jpg").description).toBe(
+    expect(buildEvent(INPUT, "e1", "UTC", "p.jpg").description).toBe(
       "Table for eight under the vines.",
     );
     expect(
-      buildEvent({ ...INPUT, description: "   " }, "e1", 0, "p.jpg")
+      buildEvent({ ...INPUT, description: "   " }, "e1", "UTC", "p.jpg")
         .description,
     ).toBeNull();
   });
 
   it("builds a live event, never a deleted one", () => {
-    expect(buildEvent(INPUT, "e1", 0, "p.jpg").deletedAt).toBeNull();
+    expect(buildEvent(INPUT, "e1", "UTC", "p.jpg").deletedAt).toBeNull();
   });
 });
 
 describe("draftFromEvent", () => {
   /** Built through the same path the form uses, so the two agree. */
   const built = (over: Partial<NewEventInput> = {}): ItineraryEvent =>
-    buildEvent({ ...INPUT, ...over }, "e1", 120, "photo.jpg");
+    buildEvent({ ...INPUT, ...over }, "e1", "Europe/Madrid", "photo.jpg");
 
   it("gives the form back the wall clock the trip runs on", () => {
     // Stored as 18:30Z; in a UTC+2 trip that is the 20:30 that was typed.
@@ -110,18 +115,20 @@ describe("draftFromEvent", () => {
       description: "Table for eight under the vines.",
       place: "Trattoria Nuova",
       day: "2026-09-20",
+      allDay: false,
       start: "20:30",
       end: "22:30",
     });
   });
 
-  it("leaves the times empty for an all-day event", () => {
+  it("gives an all-day event back as all day, with no clocks", () => {
     const draft = draftFromEvent(
-      built({ start: "", end: "" }),
+      built({ allDay: true, start: "", end: "" }),
       "Europe/Madrid",
     );
-    // Not "00:00": the form's All day row is the answer, and a clock
-    // there would be a time nobody chose.
+    // Not "00:00": all-day is the answer, and a clock here would be a
+    // time nobody chose.
+    expect(draft.allDay).toBe(true);
     expect(draft.start).toBe("");
     expect(draft.end).toBe("");
     expect(draft.day).toBe("2026-09-20");

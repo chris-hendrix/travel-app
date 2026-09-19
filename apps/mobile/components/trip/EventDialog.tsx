@@ -7,6 +7,7 @@ import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { DatePicker } from "@/components/ui/DatePicker";
 import type { Selection } from "@/lib/calendar";
+import { ChipToggle } from "@/components/ui/ChipToggle";
 import { TimeField } from "@/components/ui/TimeField";
 import { dayLabel } from "@/lib/itinerary";
 import { toIso } from "@/lib/dateRange";
@@ -20,7 +21,10 @@ import { EVENT_PLACES } from "@/mocks/places";
  * of these fields would be two things to keep in step for no gain.
  *
  * Name, place, and day make the event; the times fill it in, and All day
- * is a real answer rather than an empty picker. The day comes off a
+ * is a real answer rather than an empty picker — a toggle beside the
+ * day, which parks the time selectors dimmed rather than hiding them.
+ * What was typed stays where it was for the toggle-off that brings it
+ * back, and hiding them would say they were gone. The day comes off a
  * calendar bounded by the trip's own dates, so an event can never land
  * outside it.
  *
@@ -32,6 +36,7 @@ export function EventDialog({
   title,
   primaryTitle,
   trip,
+  timeZone,
   dismissHref,
   initial,
   onSubmit,
@@ -41,6 +46,9 @@ export function EventDialog({
   /** The dialog's one verb: "Add event" or "Save changes". */
   primaryTitle: string;
   trip: Trip;
+  /** The zone the fields are read and written in. The pickers name it,
+   *  and the instant stamped on submit means the wall clock there. */
+  timeZone: string | null;
   dismissHref: string;
   /** Prefill, for editing. Nothing means a blank form. */
   initial?: Partial<NewEventInput>;
@@ -61,6 +69,10 @@ export function EventDialog({
     start: initial?.day ?? null,
     end: initial?.day ?? null,
   });
+  // All-day is its own answer, so the times below it are the timed
+  // case's fields rather than the place an all-day event is expressed by
+  // leaving them empty.
+  const [allDay, setAllDay] = useState(initial?.allDay ?? false);
   const [start, setStart] = useState<string | null>(initial?.start ?? null);
   const [end, setEnd] = useState<string | null>(initial?.end ?? null);
   const [submitted, setSubmitted] = useState(false);
@@ -72,8 +84,9 @@ export function EventDialog({
     name,
     description,
     day,
-    start: start ?? "",
-    end: end ?? "",
+    allDay,
+    start: allDay ? "" : (start ?? ""),
+    end: allDay ? "" : (end ?? ""),
     place: place ?? "",
   };
 
@@ -125,7 +138,17 @@ export function EventDialog({
       />
 
       <View className="gap-2">
-        <Text className="font-body-bold text-sm text-ink">Day</Text>
+        <View className="flex-row items-center justify-between gap-4">
+          <Text className="font-body-bold text-sm text-ink">Day</Text>
+          {/* The no-time case, asked outright. Without it, all-day is
+              what an empty Starts field means, and "no time" is then
+              indistinguishable from "not filled in yet". */}
+          <ChipToggle
+            label="All day"
+            selected={allDay}
+            onPress={() => setAllDay((current) => !current)}
+          />
+        </View>
         <DatePicker
           selection={dates}
           onChange={setDates}
@@ -141,14 +164,18 @@ export function EventDialog({
         ) : null}
       </View>
 
+      {/* The times are always here and never hidden: all-day parks them
+          dimmed rather than taking them away, so what was typed is what
+          comes back on toggle-off and nothing reads as gone. */}
       <View className="gap-4 md:flex-row">
         <View className="md:flex-1">
           <TimeField
             label="Starts"
             value={start}
             onChange={setStart}
-            optional
-            noneLabel="All day"
+            disabled={allDay}
+            error={errors.start}
+            timeZone={timeZone}
           />
         </View>
         <View className="md:flex-1">
@@ -157,7 +184,9 @@ export function EventDialog({
             value={end}
             onChange={setEnd}
             optional
+            disabled={allDay}
             error={errors.end}
+            timeZone={timeZone}
           />
         </View>
       </View>

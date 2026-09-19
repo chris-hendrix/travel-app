@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { getTimezoneAbbr } from "@journiful/shared/utils";
 import {
-  dayLabel,
+  eventTimeLabel,  dayLabel,
   daysFrom,
   EVENT_TYPE_LABEL,
   groupEventsByDay,
@@ -196,5 +197,62 @@ describe("tripIsOver", () => {  it("is over once its last day has gone", () => {
     expect(tripIsOver("2026-09-18", today)).toBe(true);
     expect(tripIsOver("2026-09-19", today)).toBe(false);
     expect(tripIsOver("2026-09-20", today)).toBe(false);
+  });
+});
+
+describe("eventTimeLabel", () => {
+  it("reads a timed event with the zone it is in", () => {
+    // An explicit instant, so the device zone the mocks build in cannot
+    // move it: 18:30Z is 20:30 on a Mallorca wall, whatever the lab runs.
+    // The zone's own name comes from the runtime, so the test reads the
+    // same helper the label does rather than pinning ICU's wording.
+    const zone = "Europe/Madrid";
+    expect(
+      eventTimeLabel(
+        {
+          ...event("dinner", 20, 12),
+          startTime: "2026-09-20T18:30:00.000Z",
+          endTime: null,
+        },
+        zone,
+      ),
+    ).toBe(`8:30 PM · ${getTimezoneAbbr(zone)}`);
+  });
+
+  it("reads all day with no zone, because there is no clock", () => {
+    expect(
+      eventTimeLabel(
+        { ...event("festival", 20, 12), allDay: true },
+        "Europe/Madrid",
+      ),
+    ).toBe("All day");
+  });
+});
+
+describe("all-day events lead their day", () => {
+  it("puts all-day above a timed event with an earlier clock", () => {
+    // Noon against 7am: if the order followed the stamp alone, the
+    // coffee would win. All-day happens all day, so it leads.
+    const allDay = { ...event("festival", 20, 12), allDay: true };
+    const coffee = event("coffee", 20, 7);
+
+    const day = groupEventsByDay([coffee, allDay]);
+
+    expect(day[0]!.events.map((each) => each.id)).toEqual([
+      "festival",
+      "coffee",
+    ]);
+  });
+
+  it("still orders the timed ones among themselves", () => {
+    const evening = event("dinner", 20, 19);
+    const morning = event("coffee", 20, 7);
+
+    const day = groupEventsByDay([evening, morning]);
+
+    expect(day[0]!.events.map((each) => each.id)).toEqual([
+      "coffee",
+      "dinner",
+    ]);
   });
 });

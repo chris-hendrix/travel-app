@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { ArrowDown, ArrowUp } from "lucide-react-native";
 import { formatClock, timeOptions } from "@/lib/time";
+import { zoneAbbr } from "@/lib/timezone";
+import { joinFacts } from "@/lib/wording";
 
 /** Row height is fixed so the picker can open on the right slot without
  *  measuring anything as it lays out. */
@@ -33,6 +35,8 @@ export function TimeField({
   optional = false,
   noneLabel = "No end",
   error,
+  disabled = false,
+  timeZone,
 }: {
   label: string;
   /** 24-hour "20:30", or null when nothing is set yet. */
@@ -43,10 +47,29 @@ export function TimeField({
   /** What that row says: "No end" under Starts would be a lie. */
   noneLabel?: string;
   error?: string | undefined;
+  /**
+   * Set aside without being cleared: the field keeps what was typed and
+   * shows it dimmed, and returns to it on re-enable. How an all-day
+   * event parks its times rather than wiping them — hiding them would
+   * say they are gone, and toggling back would say otherwise.
+   */
+  disabled?: boolean;
+  /**
+   * The zone the slots are read in. Named in the label, because a clock
+   * whose place is unstated is a number nobody can trust — and a field
+   * whose meaning depends on a setting must say which setting is on.
+   */
+  timeZone?: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const Icon = open ? ArrowUp : ArrowDown;
+
+  // Being set aside closes the list: a disabled field parks its value
+  // rather than its menu, so there is nothing open to choose from.
+  useEffect(() => {
+    if (disabled) setOpen(false);
+  }, [disabled]);
 
   const rows: Array<{ value: string; label: string }> = [
     ...(optional ? [{ value: NONE, label: noneLabel }] : []),
@@ -82,12 +105,18 @@ export function TimeField({
 
   return (
     <View className="gap-1">
-      <Text className="font-body-bold text-sm text-ink">{label}</Text>
+      <Text className="font-body-bold text-sm text-ink">
+        {timeZone === undefined ? label : joinFacts(label, zoneAbbr(timeZone))}
+      </Text>
       <Pressable
         accessibilityRole="button"
         aria-expanded={open}
+        aria-disabled={disabled}
+        disabled={disabled}
         onPress={() => setOpen((current) => !current)}
-        className="flex-row items-center justify-between border border-ink bg-paper p-4"
+        className={`flex-row items-center justify-between border border-ink bg-paper p-4 ${
+          disabled ? "opacity-40" : ""
+        }`}
       >
         <Text
           className={`font-body text-base text-ink ${

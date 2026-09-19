@@ -1,19 +1,27 @@
 import type { ItineraryEvent } from "@/lib/itinerary";
 import { isClockTime, minutesOf } from "@/lib/time";
-import { wallClock } from "@/lib/timezone";
+import { wallClock, zoneOffsetMinutes } from "@/lib/timezone";
 
 export type NewEventInput = {
   name: string;
   /** The organizer's prose. Optional: most events need none. */
   description: string;
   day: string;
+  /**
+   * No time at all: the event is the day. A real answer rather than an
+   * empty field, which is why the form asks it outright — a start time
+   * left blank used to be the way in, and that made "not finished
+   * filling this in" indistinguishable from "there is no time".
+   */
+  allDay: boolean;
   start: string;
+  /** Optional even on a timed event: a thing can simply begin. */
   end: string;
   place: string;
 };
 
 export type NewEventErrors = Partial<
-  Record<"name" | "day" | "end" | "place", string>
+  Record<"name" | "day" | "start" | "end" | "place", string>
 >;
 
 /**
@@ -30,7 +38,12 @@ export function validateNewEvent(input: NewEventInput): NewEventErrors {
   // place someone typed are the same answer to "where is it".
   if (!input.place.trim()) errors.place = "Where is it?";
 
-  if (input.end.trim()) {
+  // A timed event has a start; an all-day one has no clock to check.
+  if (!input.allDay && !isClockTime(input.start.trim())) {
+    errors.start = "What time?";
+  }
+
+  if (!input.allDay && input.end.trim()) {
     if (!isClockTime(input.end)) {
       errors.end = "End time as HH:MM.";
     } else if (
@@ -45,11 +58,12 @@ export function validateNewEvent(input: NewEventInput): NewEventErrors {
 }
 
 /**
- * A start time the API will accept when the organizer did not pick one:
- * the schema requires `startTime`, so an event whose time nobody set is
- * sent at the start of its day rather than refused here. Midnight is the
- * one hour that reads as "no particular time" once the day heading has
- * already said which day it is.
+ * A start time the API will accept when the event has no time of its
+ * own: the schema requires `startTime`, so an all-day event is stamped
+ * at the start of its day rather than refused here. Midnight is the one
+ * hour that reads as "no particular time" once the day heading has
+ * already said which day it is — and `allDay` is what says so, so no
+ * reader has to infer it from the hour.
  */
 export const UNTIMED = "00:00";
 
@@ -68,6 +82,7 @@ export function draftFromEvent(
     description: event.description ?? "",
     place: event.place,
     day: wallClock(event.startTime, timeZone).date,
+    allDay: event.allDay,
     start: event.allDay ? "" : wallClock(event.startTime, timeZone).clock,
     end:
       event.allDay || !event.endTime
@@ -82,15 +97,15 @@ export function draftFromEvent(
  * offset and the photo come from the mocks until the API owns them.
  *
  * The type is not asked for and not guessed: it is the place's Google
- * Places category, which is the API's to read. An event with no start
- * time is sent as all-day — the schema wants a `startTime` either way,
- * so an untimed event is stamped at its own midnight and says `allDay`,
- * which is the API's own word for "no particular time".
+ * Places category, which is the API's to read. An all-day event is sent
+ * with `allDay`, the API's own word for "no particular time" — the
+ * schema wants a `startTime` either way, so it is stamped at its own
+ * midnight and the flag says that hour means nothing.
  */
 export function buildEvent(
   input: NewEventInput,
   id: string,
-  zoneOffsetMinutes: number,
+  timeZone: string | null,
   photo: string,
 ): ItineraryEvent {
   const [year, month, day] = input.day.split("-").map(Number) as [
@@ -98,13 +113,21 @@ export function buildEvent(
     number,
     number,
   ];
-  const untimed = !input.start.trim();
+  // Validated input cannot get here timed and clockless. A caller that
+  // skipped validation still must not be handed an Invalid Date, so an
+  // unreadable start reads as the all-day it effectively is.
+  const untimed = input.allDay || !isClockTime(input.start.trim());
+  // The offset of the zone the fields were read in, on the day itself:
+  // what was typed means the wall clock there, not in UTC.
+  const offsetMinutes = zoneOffsetMinutes(
+    timeZone,
+    `${input.day}T12:00:00.000Z`,
+  );
   const [hour, minute] = (untimed ? UNTIMED : input.start.trim())
     .split(":")
     .map(Number) as [number, number];
   const startMs =
-    Date.UTC(year, month - 1, day, hour, minute) -
-    zoneOffsetMinutes * 60_000;
+    Date.UTC(year, month - 1, day, hour, minute) - offsetMinutes * 60_000;
 
   let endTime: string | null = null;
   if (input.end.trim()) {
@@ -114,7 +137,7 @@ export function buildEvent(
     ];
     endTime = new Date(
       Date.UTC(year, month - 1, day, endHour, endMinute) -
-        zoneOffsetMinutes * 60_000,
+        offsetMinutes * 60_000,
     ).toISOString();
   }
 

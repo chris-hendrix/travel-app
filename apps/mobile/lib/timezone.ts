@@ -1,4 +1,6 @@
+import { getDetectedTimezone, getTimezoneAbbr } from "@journiful/shared/utils";
 import { toIso } from "@/lib/dateRange";
+import { joinFacts } from "@/lib/wording";
 
 /**
  * A wall clock: what a moment reads as on a wall, somewhere.
@@ -87,4 +89,66 @@ export function wallClock(
 /** What day it is, somewhere. The grouping and the labels agree on this. */
 export function todayIn(timeZone: string | null, now: Date = new Date()): string {
   return wallClock(now.toISOString(), timeZone).date;
+}
+
+/**
+ * The zone a clock is read in, said out loud.
+ *
+ * Every rendered time carries one, because a clock without a place is a
+ * number nobody can trust: 8:30 could be dinner in Mallorca or lunch in
+ * New York, and the row will not say which. `null` is the device's own
+ * zone, so it names the detected one rather than printing nothing.
+ */
+export function zoneAbbr(timeZone: string | null): string {
+  return getTimezoneAbbr(timeZone ?? getDetectedTimezone());
+}
+
+/**
+ * One clock, with its zone: the only string a row ever needs for a
+ * moment. Joined through the one helper so a fact and its place are
+ * never punctuated two ways on two screens.
+ */
+export function clockLabel(iso: string, timeZone: string | null): string {
+  return joinFacts(wallClock(iso, timeZone).time, zoneAbbr(timeZone));
+}
+
+/**
+ * A zone's offset from UTC in minutes, at a moment. The device answers
+ * for itself off its own clock; any other zone is read off what `Intl`
+ * says the wall shows there, which is the same conversion `wallClock`
+ * already trusts. Forms stamp what was typed through this, so the
+ * offset and the label always agree about where a time was read.
+ */
+export function zoneOffsetMinutes(
+  timeZone: string | null,
+  atIso: string = new Date().toISOString(),
+): number {
+  const moment = new Date(atIso);
+  if (!timeZone) return -moment.getTimezoneOffset();
+
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "numeric",
+      minute: "numeric",
+      second: "numeric",
+      hour12: false,
+    }).formatToParts(moment);
+    const part = (type: Intl.DateTimeFormatPartTypes) =>
+      parts.find((piece) => piece.type === type)?.value ?? "";
+    const asUtc = Date.UTC(
+      Number(part("year")),
+      Number(part("month")) - 1,
+      Number(part("day")),
+      Number(part("hour")) % 24,
+      Number(part("minute")),
+      Number(part("second")),
+    );
+    return Math.round((asUtc - moment.getTime()) / 60_000);
+  } catch {
+    return -moment.getTimezoneOffset();
+  }
 }

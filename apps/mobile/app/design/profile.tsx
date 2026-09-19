@@ -5,6 +5,7 @@ import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { TextField } from "@/components/ui/TextField";
 import { Button } from "@/components/ui/Button";
 import { useDismiss } from "@/hooks/useDismiss";
+import { joinFacts } from "@/lib/wording";
 import {
   draftFromProfile,
   formatPhone,
@@ -174,7 +175,7 @@ export default function Profile() {
       <View className="gap-1">
         <Text className="font-body-bold text-sm text-ink">Timezone</Text>
         <Text className="font-body text-sm text-ink">
-          {profile.timezone ?? "Not set"} · automatic
+          {joinFacts(profile.timezone ?? "Not set", "automatic")}
         </Text>
       </View>
 
