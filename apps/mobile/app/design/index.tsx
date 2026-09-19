@@ -12,6 +12,7 @@ import { Dropdown } from "@/components/ui/Dropdown";
 import { Accordion, AccordionItem } from "@/components/ui/Accordion";
 import { Screen } from "@/components/ui/Screen";
 import { DatePicker } from "@/components/ui/DatePicker";
+import { DayStrip } from "@/components/ui/DayStrip";
 import { TimeField } from "@/components/ui/TimeField";
 import type { Selection } from "@/lib/calendar";
 import { RSVP_LABEL, type RsvpStatus } from "@/lib/rsvp";
@@ -229,8 +230,8 @@ export default function DesignSystem() {
 
             <Specimen
               name="DatePicker"
-              contract="selection · onChange · single? · min? · max?"
-              note="Range by default: two taps make a trip, endpoints invert to ink, the days between fill seafoam. single picks one day, which is what an event needs. min/max bound the days that make sense — a trip's own dates for an event inside it — and days outside them go gravel and stop responding. Never a nested dialog."
+              contract="selection · onChange"
+              note="A range, and only a range: two taps make a trip, endpoints invert to ink, the days between fill seafoam. It stopped asking for single days when the DayStrip below took that job — a calendar offered the whole month to answer a question whose every valid answer was already known. Never a nested dialog."
             >
               <DatePicker selection={range} onChange={setRange} />
               <Text className="font-body text-sm text-ink">
@@ -241,17 +242,23 @@ export default function DesignSystem() {
                     )
                   : "Tap the first day, then the last."}
               </Text>
-              <DatePicker
-                selection={singleDay}
-                onChange={setSingleDay}
-                single
-                min={TRIPS[0]!.startDate}
-                max={TRIPS[0]!.endDate}
+            </Specimen>
+
+            <Specimen
+              name="DayStrip"
+              contract="startDate · endDate · value · onChange"
+              note="One day inside a trip, which is every day that can be chosen and nothing else. A calendar here would draw four dead weeks to offer eight days, so the days are the control: seven across a phone, wrapping for a fortnight, weekday over number. A month heading appears only when a trip crosses one. Use this wherever a day inside a trip is picked; DatePicker is for the trip's own range."
+            >
+              <DayStrip
+                startDate={TRIPS[0]!.startDate}
+                endDate={TRIPS[0]!.endDate}
+                value={singleDay.start ?? ""}
+                onChange={(day) => setSingleDay({ start: day, end: day })}
               />
               <Text className="font-body text-sm text-ink">
                 {singleDay.start
-                  ? `Single: ${singleDay.start}`
-                  : "Single day, bounded by a trip."}
+                  ? `Chosen: ${singleDay.start}`
+                  : "Tap a day in the trip."}
               </Text>
             </Specimen>
 

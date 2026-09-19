@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   addMonths,
   applyDayTap,
-  applySingleTap,
   isEndpoint,
   isInRange,
   monthGrid,
@@ -89,26 +88,6 @@ describe("applyDayTap", () => {
   });
 });
 
-describe("applySingleTap", () => {
-  it("picks one day, start and end landing on it", () => {
-    expect(applySingleTap("2026-09-20")).toEqual({
-      start: "2026-09-20",
-      end: "2026-09-20",
-    });
-  });
-
-  it("replaces the day on the next tap rather than opening a range", () => {
-    const first = applySingleTap("2026-09-20");
-    expect(applySingleTap("2026-09-22")).not.toEqual({
-      start: first.start,
-      end: "2026-09-22",
-    });
-    expect(applySingleTap("2026-09-22")).toEqual({
-      start: "2026-09-22",
-      end: "2026-09-22",
-    });
-  });
-});
 
 describe("range helpers", () => {
   const selection: Selection = { start: "2026-09-10", end: "2026-09-14" };

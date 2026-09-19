@@ -7,7 +7,6 @@ import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { DayStrip } from "@/components/ui/DayStrip";
 import { TimeField } from "@/components/ui/TimeField";
-import { applySingleTap, type Selection } from "@/lib/calendar";
 import { dayLabel } from "@/lib/itinerary";
 import { toIso } from "@/lib/dateRange";
 import { validateNewEvent, type NewEventInput } from "@/lib/newEvent";
@@ -20,9 +19,8 @@ import { EVENT_PLACES } from "@/mocks/places";
  * of these fields would be two things to keep in step for no gain.
  *
  * Name, place, and day make the event; the times fill it in, and All day
- * is a real answer rather than an empty picker. The day comes off a
- * calendar bounded by the trip's own dates, so an event can never land
- * outside it.
+ * is a real answer rather than an empty picker. The day comes off the
+ * trip's own days, so an event can never land outside it.
  *
  * The place is a Places lookup and the only field that also feeds the
  * event's type — a restaurant is a restaurant because Places says so,
@@ -57,16 +55,12 @@ export function EventDialog({
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [place, setPlace] = useState<string | null>(initial?.place ?? null);
-  const [dates, setDates] = useState<Selection>({
-    start: initial?.day ?? null,
-    end: initial?.day ?? null,
-  });
+  const [day, setDay] = useState(initial?.day ?? "");
   const [start, setStart] = useState<string | null>(initial?.start ?? null);
   const [end, setEnd] = useState<string | null>(initial?.end ?? null);
   const [submitted, setSubmitted] = useState(false);
 
   const today = toIso(new Date());
-  const day = dates.start ?? "";
 
   const input: NewEventInput = {
     name,
@@ -130,7 +124,7 @@ export function EventDialog({
           startDate={trip.startDate}
           endDate={trip.endDate}
           value={day}
-          onChange={(next) => setDates(applySingleTap(next))}
+          onChange={setDay}
         />
         <Text className="font-body text-sm text-ink">
           {day ? dayLabel(day, today) : "Pick the day it happens."}
