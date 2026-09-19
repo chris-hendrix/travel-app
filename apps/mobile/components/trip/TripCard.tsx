@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Image, Pressable, Text, View } from "react-native";
+import { CountdownChip } from "@/components/trip/CountdownChip";
 import { useWideHover } from "@/hooks/useWideHover";
 import { tripCountdown } from "@/lib/countdown";
 import { formatDateRange } from "@/lib/dateRange";
@@ -10,6 +11,8 @@ export type Trip = {
   location: string;
   image: string;
   going: number;
+  /** Organizer-authored prose, null until someone writes it. */
+  description: string | null;
   /** ISO yyyy-mm-dd — the card formats its own range. */
   startDate: string;
   endDate: string;
@@ -63,13 +66,7 @@ export function TripCard({
             hovered ? "scale-105" : "scale-100"
           }`}
         />
-        {countdown ? (
-          <View className="absolute left-3 top-3 rounded-full bg-watermelon px-3 py-1">
-            <Text className="font-body-bold text-sm text-ink">
-              {countdown}
-            </Text>
-          </View>
-        ) : null}
+        {countdown ? <CountdownChip label={countdown} /> : null}
       </View>
 
       <View

@@ -6,14 +6,19 @@ import { ActionBar } from "@/components/ui/ActionBar";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { TextField } from "@/components/ui/TextField";
+import { Segmented } from "@/components/ui/Segmented";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { Accordion, AccordionItem } from "@/components/ui/Accordion";
 import { Screen } from "@/components/ui/Screen";
 import { DatePicker } from "@/components/ui/DatePicker";
 import type { Selection } from "@/lib/calendar";
+import { RSVP_ANSWERS, RSVP_LABEL, type RsvpStatus } from "@/lib/rsvp";
 import { formatDateRange } from "@/lib/dateRange";
 import { TripCard, TripGrid } from "@/components/trip/TripCard";
+import { NotificationRow } from "@/components/notification/NotificationRow";
 import { TRIPS } from "@/mocks/trips";
+import { NOTIFICATIONS } from "@/mocks/notifications";
+import { tripFor } from "@/lib/notifications";
 
 const COLORS: Array<[name: string, token: string, hex: string, swatch: string]> = [
   ["Chrome", "ink", "#000000", "bg-ink"],
@@ -129,6 +134,7 @@ function Specimen({
 export default function DesignSystem() {
   const [formName, setFormName] = useState("");
   const [venue, setVenue] = useState<string | null>(null);
+  const [rsvp, setRsvp] = useState<RsvpStatus | null>(null);
   const [range, setRange] = useState<Selection>({
     start: null,
     end: null,
@@ -197,8 +203,8 @@ export default function DesignSystem() {
 
             <Specimen
               name="FullscreenDialog"
-              contract="title · primaryTitle · onPrimary · children"
-              note="Composes AppHeader and ActionBar into a route. It fills the screen by definition, so it cannot be previewed in a frame — open one."
+              contract="title · primaryTitle? · onPrimary? · children"
+              note="Composes AppHeader and ActionBar into a route. Omit primaryTitle on a read-only dialog — a bar with nothing worth pressing is chrome for its own sake. It fills the screen by definition, so it cannot be previewed in a frame: open one."
             >
               <Link
                 href="/notifications"
@@ -280,6 +286,24 @@ export default function DesignSystem() {
                 <Badge label="sold out" variant="soldOut" />
                 <Badge label="The Rooftop" variant="venue" />
               </View>
+            </Specimen>
+
+            <Specimen
+              name="Segmented"
+              contract="options · value (nullable) · onChange"
+              note="One choice out of a few, all of them visible. Bordered cells, and the chosen one fills watermelon. value is nullable because this was built for an RSVP, where having chosen nothing yet is a real state rather than an error."
+            >
+              <Segmented
+                options={RSVP_ANSWERS.map((status) => ({
+                  value: status,
+                  label: RSVP_LABEL[status],
+                }))}
+                value={rsvp}
+                onChange={(status) => {
+                  setRsvp(status);
+                  setLog(`RSVP "${RSVP_LABEL[status]}"`);
+                }}
+              />
             </Specimen>
 
             <Specimen
@@ -370,6 +394,25 @@ export default function DesignSystem() {
                 ))}
               </TripGrid>
             </Specimen>
+
+            <Specimen
+              name="NotificationRow"
+              contract="notification: { type, title, body, tripId, data, readAt, createdAt } · trip? · onPress?"
+              note="Everything the row shows comes off the wire: the server's title is the eyebrow, its body is the message, and the cover is the client's lookup from the API's bare tripId. Unread is weight plus a strawberry edge, never a faded row. Rules, not cards."
+            >
+              <View className="border-t border-ink">
+                {NOTIFICATIONS.slice(0, 4).map((notification) => (
+                  <NotificationRow
+                    key={notification.id}
+                    notification={notification}
+                    trip={tripFor(TRIPS, notification)}
+                    onPress={() =>
+                      setLog(`NotificationRow "${notification.body}" fired`)
+                    }
+                  />
+                ))}
+              </View>
+            </Specimen>
           </View>
         </Section>
 
@@ -380,6 +423,18 @@ export default function DesignSystem() {
           </Text>
           <Link href="/design/trips" className="font-body-bold text-base text-ink underline">
             Trips
+          </Link>
+          <Link href="/design/trips/detail?id=picos" className="font-body-bold text-base text-ink underline">
+            Trip detail
+          </Link>
+          <Link href="/design/trips/members?id=picos" className="font-body-bold text-base text-ink underline">
+            Who's coming
+          </Link>
+          <Link href="/notifications" className="font-body-bold text-base text-ink underline">
+            Notifications
+          </Link>
+          <Link href="/design/profile" className="font-body-bold text-base text-ink underline">
+            Profile
           </Link>
         </Section>
 

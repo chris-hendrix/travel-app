@@ -19,7 +19,6 @@ export default function TripsScreen() {
   const router = useRouter();
   const { trips: stored } = useTrips();
   const [empty, setEmpty] = useState(false);
-  const [log, setLog] = useState("No interaction yet.");
 
   const trips = empty ? [] : stored;
   const { upcoming, past } = groupTrips(trips, new Date());
@@ -28,7 +27,7 @@ export default function TripsScreen() {
     <TripCard
       key={trip.id}
       trip={trip}
-      onPress={() => setLog(`Opened "${trip.title}"`)}
+      onPress={() => router.push(`/design/trips/detail?id=${trip.id}`)}
     />
   );
 
@@ -98,7 +97,6 @@ export default function TripsScreen() {
           </>
         )}
 
-        <Text className="font-body text-sm text-ink">{log}</Text>
       </View>
     </Screen>
   );

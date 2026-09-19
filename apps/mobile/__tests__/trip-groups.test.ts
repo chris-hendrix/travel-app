@@ -8,6 +8,7 @@ function trip(over: Partial<Trip> & { id: string }): Trip {
     location: "Somewhere",
     image: "",
     going: 1,
+    description: null,
     startDate: "2026-01-01",
     endDate: "2026-01-05",
     ...over,
