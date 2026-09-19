@@ -1,0 +1,34 @@
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css";
+
+@import "nativewind/theme";
+
+/*
+ * Journiful mobile design tokens v1.
+ *
+ * Three layers: ink chrome, sand ground, paper surfaces.
+ * Display is Handjet (pixel grid, set in caps) for headlines; the
+ * wordmark is Bungee Shade; body is Space Mono.
+ */
+@theme {
+  /* Structure and ground */
+  --color-ink: #000000; /* chrome band, text, borders */
+  --color-sand: #f5eacc; /* app ground */
+  --color-paper: #ffffff; /* raised surfaces: dialogs, cards */
+  --color-gravel: #e2ded5; /* muted fills, hairlines */
+
+  /* Roles */
+  --color-seafoam: #42d177; /* primary: actions, positive states */
+  --color-watermelon: #ef8ad4; /* secondary: category (club) */
+  --color-strawberry: #ff6352; /* accent: live, alerts, unread */
+  --color-ocean: #4281ff; /* info: links */
+  --color-acid: #cbfb6a; /* highlight, used sparingly */
+
+  /* Type roles — family names match expo-font registrations */
+  --font-display: "Handjet_800ExtraBold", monospace;
+  --font-wordmark: "BungeeShade_400Regular", sans-serif;
+  --font-body: "SpaceMono_400Regular", monospace;
+  --font-body-bold: "SpaceMono_700Bold", monospace;
+  --font-body-italic: "SpaceMono_400Regular_Italic", monospace;
+}

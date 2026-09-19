@@ -63,6 +63,9 @@ Thumbs.db
 # Turbo
 .turbo/
 
+# Expo
+.expo/
+
 # Database
 *.db
 *.sqlite

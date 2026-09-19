@@ -1,0 +1,70 @@
+import { useEffect } from "react";
+import { View } from "react-native";
+import { Stack, SplashScreen, usePathname } from "expo-router";
+import { useFonts } from "expo-font";
+import {
+  useFonts as useSpaceMono,
+  SpaceMono_400Regular,
+  SpaceMono_400Regular_Italic,
+  SpaceMono_700Bold,
+} from "@expo-google-fonts/space-mono";
+import { BungeeShade_400Regular } from "@expo-google-fonts/bungee-shade";
+import { Handjet_800ExtraBold } from "@expo-google-fonts/handjet";
+import { AppHeader } from "@/components/ui/AppHeader";
+import { DIALOG_ROUTES } from "@/lib/routes";
+import { NotificationsProvider } from "@/lib/notificationsStore";
+import { ProfileProvider } from "@/lib/profileStore";
+import { TripSettingsProvider } from "@/lib/tripSettingsStore";
+import { TripsProvider } from "@/lib/tripsStore";
+import { EventsProvider } from "@/lib/eventsStore";
+import { TravelProvider } from "@/lib/travelStore";
+import "../global.css";
+
+SplashScreen.preventAutoHideAsync();
+
+export default function RootLayout() {
+  const pathname = usePathname();
+  const [displayLoaded] = useFonts({
+    BungeeShade_400Regular,
+    Handjet_800ExtraBold,
+  });
+  const [monoLoaded] = useSpaceMono({
+    SpaceMono_400Regular,
+    SpaceMono_400Regular_Italic,
+    SpaceMono_700Bold,
+  });
+  const loaded = displayLoaded && monoLoaded;
+
+  useEffect(() => {
+    if (loaded) SplashScreen.hideAsync();
+  }, [loaded]);
+
+  if (!loaded) return null;
+  const isDialog = DIALOG_ROUTES.includes(pathname);
+  return (
+    <TripsProvider>
+      <EventsProvider>
+      <TravelProvider>
+      <NotificationsProvider>
+        <ProfileProvider>
+          <TripSettingsProvider>
+            <View className="flex-1 bg-sand">
+              {/* App shell: a fixed-height column so the screen scrolls
+                  under the header instead of scrolling the whole document
+                  (web). */}
+              {isDialog ? null : <AppHeader />}
+              <View className="flex-1">
+                {/* Dialogs paint their own ground, and screens use the
+                    Screen primitive: the navigation container's default
+                    background covers anything painted underneath it. */}
+                <Stack screenOptions={{ headerShown: false }} />
+              </View>
+            </View>
+          </TripSettingsProvider>
+        </ProfileProvider>
+      </NotificationsProvider>
+      </TravelProvider>
+      </EventsProvider>
+    </TripsProvider>
+  );
+}

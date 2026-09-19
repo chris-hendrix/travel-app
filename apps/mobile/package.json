@@ -1,0 +1,50 @@
+{
+  "name": "@journiful/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "lint": "eslint --config ../../eslint.config.js .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "clean": "rm -rf .expo dist node_modules"
+  },
+  "dependencies": {
+    "@expo-google-fonts/bungee-shade": "^0.4.1",
+    "@expo-google-fonts/handjet": "^0.4.2",
+    "@expo-google-fonts/space-mono": "^0.4.2",
+    "@journiful/shared": "workspace:*",
+    "expo": "~57.0.24",
+    "expo-font": "~57.0.4",
+    "expo-image-picker": "~57.0.19",
+    "expo-router": "~57.0.22",
+    "expo-splash-screen": "~57.0.9",
+    "expo-system-ui": "~57.0.4",
+    "lucide-react-native": "^1.47.0",
+    "nativewind": "5.0.0-rc.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-css": "3.1.0-rc.0",
+    "react-native-reanimated": "^4.5.1",
+    "react-native-safe-area-context": "^5.7.0",
+    "react-native-svg": "15.15.4",
+    "react-native-web": "~0.21.0",
+    "react-native-worklets": "^0.10.1",
+    "tailwindcss": "4.1.12"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.1.12",
+    "@types/react": "^19.1.0",
+    "lightningcss": "1.30.1",
+    "postcss": "^8.5.25",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10"
+  }
+}
