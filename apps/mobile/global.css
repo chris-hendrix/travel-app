@@ -7,8 +7,8 @@
 /*
  * Journiful mobile design tokens v0 — "Elsewhere-inspired".
  * Palette + type roles lifted from elsewhere.club's system;
- * their licensed faces (Serial / TWK Everett) are substituted
- * with open-licensed lookalikes (Anton / Archivo).
+ * display is Rock Salt (rough marker print) standing in for
+ * their licensed Serial; body is Archivo for TWK Everett.
  */
 @theme {
   /* Surfaces + ink */
@@ -31,8 +31,9 @@
   --color-brandpink: #ffd1ed;
   --color-acid: #cbfb6a;
 
-  /* Type roles — family names match expo-font registrations */
-  --font-display: "Anton_400Regular", "Arial Narrow", sans-serif;
+  /* Type roles — family names match expo-font registrations.
+     Display is single-weight: headlines and kickers only. */
+  --font-display: "RockSalt_400Regular", cursive;
   --font-body: "Archivo_400Regular", Arial, sans-serif;
   --font-body-bold: "Archivo_700Bold", Arial, sans-serif;
   --font-body-italic: "Archivo_400Regular_Italic", Arial, sans-serif;

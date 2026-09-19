@@ -16,8 +16,8 @@
     "clean": "rm -rf .expo dist node_modules"
   },
   "dependencies": {
-    "@expo-google-fonts/anton": "^0.4.2",
     "@expo-google-fonts/archivo": "^0.4.2",
+    "@expo-google-fonts/rock-salt": "^0.4.1",
     "@journiful/shared": "workspace:*",
     "expo": "~57.0.24",
     "expo-font": "~57.0.4",

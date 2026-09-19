@@ -21,9 +21,12 @@ export default function Index() {
   return (
     <ScrollView className="flex-1 bg-sand">
       <View className="gap-4 p-6">
-        {/* Display face — uppercase condensed, tight leading */}
-        <Text className="font-display text-6xl uppercase leading-none text-ink">
+        {/* Display face — rough marker print, headlines only */}
+        <Text className="font-display text-5xl leading-tight text-ink">
           Journiful
+        </Text>
+        <Text className="font-display text-2xl leading-snug text-ink">
+          Zack Fox Presents: Uway
         </Text>
         <Text className="font-body text-lg leading-snug text-ink">
           Group trips, coordinated. Body copy sets in Archivo regular.
