@@ -21,24 +21,41 @@ const STYLES: Record<BadgeVariant, { box: string; label: string }> = {
   venue: { box: "bg-transparent", label: "text-ink" },
 };
 
+/**
+ * Two sizes, because a chip sits at two distances: the ones in the
+ * content — an event's type, a countdown — are read, and the ones
+ * attached to a name in a list are glanced at. A size rather than a
+ * second chip: one pill with a scale beats two components that have to
+ * be kept looking like each other.
+ */
+const SIZES = {
+  md: { box: "px-3 py-1", label: "text-sm" },
+  sm: { box: "px-2 py-0.5", label: "text-xs" },
+} as const;
+
 export function Badge({
   label,
   variant,
+  size = "md",
 }: {
   label: string;
   variant: BadgeVariant;
+  size?: keyof typeof SIZES;
 }) {
   const s = STYLES[variant];
+  const z = SIZES[size];
+
   if (variant === "venue") {
     return (
-      <Text className={`font-body self-center text-sm ${s.label}`}>
+      <Text className={`font-body self-center ${z.label} text-ink`}>
         {label}
       </Text>
     );
   }
+
   return (
-    <View className={`rounded-full px-3 py-1 ${s.box}`}>
-      <Text className={`font-body-bold text-sm ${s.label}`}>{label}</Text>
+    <View className={`rounded-full ${z.box} ${s.box}`}>
+      <Text className={`font-body-bold ${z.label} ${s.label}`}>{label}</Text>
     </View>
   );
 }

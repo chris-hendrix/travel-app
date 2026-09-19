@@ -1,6 +1,6 @@
 import { Linking, Pressable, Text, View } from "react-native";
 import { ArrowUpRight } from "lucide-react-native";
-import { mapsSearchUrl } from "@/lib/maps";
+import { mapsSearchUrl } from "@/lib/links";
 
 /**
  * A place you can leave the app for.

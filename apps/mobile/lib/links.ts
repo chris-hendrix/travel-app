@@ -1,5 +1,13 @@
 /**
- * Where a place is, off the app: a Google Maps search.
+ * Where things live, off the app.
+ *
+ * One module because they are one concern — a place, an account, a
+ * profile — and all of them end in the same act: hand a URL to the
+ * platform and let it decide whether the app or the browser answers.
+ */
+
+/**
+ * A place, as a Google Maps search.
  *
  * A search rather than a pin, because the only thing the app reliably
  * has is a name. Once the API carries `externalPlaceId` — it already
@@ -25,4 +33,26 @@ export function placeQuery(place: string, near?: string | null): string {
   return trimmed.toLowerCase().includes(context.toLowerCase())
     ? trimmed
     : `${trimmed}, ${context}`;
+}
+
+/**
+ * Handles arrive with or without the @, depending on who typed them.
+ * Stripped rather than rejected: it is the same account either way, and
+ * a URL with "@" in it is a 404.
+ */
+function bareHandle(handle: string): string {
+  return handle.trim().replace(/^@/, "");
+}
+
+/**
+ * A Venmo profile. The `/u/` form: bare `venmo.com/<name>` still
+ * redirects but has been doing so for years.
+ */
+export function venmoUrl(handle: string): string {
+  return `https://venmo.com/u/${encodeURIComponent(bareHandle(handle))}`;
+}
+
+/** An Instagram profile. */
+export function instagramUrl(handle: string): string {
+  return `https://instagram.com/${encodeURIComponent(bareHandle(handle))}`;
 }

@@ -2,10 +2,11 @@ import { Suspense } from "react";
 import { Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
-import { Badge } from "@/components/ui/Badge";
+import { ChipLink } from "@/components/ui/ChipLink";
 import { useTrips } from "@/lib/tripsStore";
 import { memberLabel } from "@/lib/rsvp";
 import { visiblePhone, type Member } from "@/lib/members";
+import { instagramUrl, venmoUrl } from "@/lib/links";
 import { formatPhone } from "@/lib/profile";
 import { membersFor } from "@/mocks/members";
 
@@ -26,9 +27,10 @@ import { membersFor } from "@/mocks/members";
  * How much of a person you get is the API's decision, not this screen's:
  * an organizer sees every number, because they are running the trip and
  * someone has to be able to reach the group; a traveler sees the numbers
- * of the members who chose to share theirs. Handles are on the row for
- * everyone — an Instagram is a thing you put out in public, and a phone
- * number is not, which is the whole reason only one of them is gated.
+ * of the members who chose to share theirs. The account chips are on the
+ * row for everyone — an Instagram is a thing you put out in public, and a
+ * phone number is not, which is the whole reason only one of them is
+ * gated.
  */
 export default function TripMembers() {
   return (
@@ -79,9 +81,14 @@ function TripMembersDialog() {
 }
 
 /**
- * One person. The name and the part they play share the top line, and
- * everything else about them hangs below it — so the status column reads
- * down the page unbroken however much detail a row happens to carry.
+ * One person. The name and the accounts you can reach them on share a
+ * line; the number hangs below it; and the part they play is centred
+ * against the whole row, so the far column reads down the page however
+ * much detail a row happens to carry.
+ *
+ * A chip says where an account is, not what it is called — "Insta", not
+ * a username. The handle is the link's business, and a roster is not a
+ * place to publish everyone's usernames.
  */
 function MemberRow({
   member,
@@ -93,31 +100,29 @@ function MemberRow({
   const phone = visiblePhone(member, viewerIsOrganizer);
 
   return (
-    <View className="flex-row items-start justify-between gap-4 border-b border-b-ink py-3">
+    <View className="flex-row items-center justify-between gap-4 border-b border-b-ink py-3">
       <View className="flex-1 gap-1">
-        <Text className="font-body-bold text-base text-ink">
-          {member.name}
-        </Text>
+        <View className="flex-row flex-wrap items-center gap-3">
+          <Text className="font-body-bold text-base text-ink">
+            {member.name}
+          </Text>
+          {member.handles?.venmo ? (
+            <ChipLink
+              label="Venmo"
+              href={venmoUrl(member.handles.venmo)}
+            />
+          ) : null}
+          {member.handles?.instagram ? (
+            <ChipLink
+              label="Insta"
+              href={instagramUrl(member.handles.instagram)}
+            />
+          ) : null}
+        </View>
         {phone ? (
           <Text className="font-body text-sm text-ink">
             {formatPhone(phone)}
           </Text>
-        ) : null}
-        {member.handles ? (
-          <View className="flex-row flex-wrap items-center gap-2 pt-1">
-            {member.handles.venmo ? (
-              <Badge
-                label={`Venmo ${member.handles.venmo}`}
-                variant="outline"
-              />
-            ) : null}
-            {member.handles.instagram ? (
-              <Badge
-                label={`Instagram ${member.handles.instagram}`}
-                variant="outline"
-              />
-            ) : null}
-          </View>
         ) : null}
       </View>
       <Text className="font-body text-sm text-ink">

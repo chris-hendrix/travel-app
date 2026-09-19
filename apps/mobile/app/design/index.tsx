@@ -326,8 +326,8 @@ export default function DesignSystem() {
 
             <Specimen
               name="Badge"
-              contract="label · variant"
-              note="Event type and status. Venue renders as plain text beside the pills. Category is the neutral one, for classifying a thing rather than reporting its state — it shares ink with soldOut on purpose: roles differ, tones may not."
+              contract="label · variant · size?"
+              note="Event type and status. Venue renders as plain text beside the pills. Category is the neutral one, for classifying a thing rather than reporting its state — it shares ink with soldOut on purpose: roles differ, tones may not. Two sizes: md in the content, where a chip is read, and sm hanging off a name in a list, where it is glanced at."
             >
               <View className="flex-row flex-wrap items-center gap-2">
                 <Badge label="club" variant="club" />
@@ -335,6 +335,11 @@ export default function DesignSystem() {
                 <Badge label="sold out" variant="soldOut" />
                 <Badge label="Food" variant="category" />
                 <Badge label="The Rooftop" variant="venue" />
+              </View>
+              <View className="flex-row flex-wrap items-center gap-2">
+                <Badge label="Venmo" variant="category" size="sm" />
+                <Badge label="Insta" variant="category" size="sm" />
+                <Badge label="Outdoors" variant="category" size="sm" />
               </View>
             </Specimen>
 
@@ -363,7 +368,7 @@ export default function DesignSystem() {
             <Specimen
               name="ChipToggle"
               contract="label · selected? · onPress"
-              note="A filter you can press: filled ink when on, outlined when off. Used for independent filters (past events) and for exclusive choices (trip time / your time) alike, with a plain label above when the row needs one. The outline is also the system's quiet chip: a member's Venmo and Instagram wear it on the roll call, where a label and a handle have to read as one thing."
+              note="A filter you can press: filled ink when on, outlined when off. Used for independent filters (past events) and for exclusive choices (trip time / your time) alike, with a plain label above when the row needs one."
             >
               <View className="flex-row items-center gap-3">
                 <ChipToggle
@@ -378,7 +383,6 @@ export default function DesignSystem() {
                   label="Nearby"
                   onPress={() => setLog("ChipToggle \"Nearby\" pressed")}
                 />
-                <Badge label="Instagram dana.mercer" variant="outline" />
               </View>
             </Specimen>
 

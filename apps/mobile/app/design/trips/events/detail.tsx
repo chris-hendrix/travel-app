@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { Badge } from "@/components/ui/Badge";
 import { PlaceLink } from "@/components/ui/PlaceLink";
-import { placeQuery } from "@/lib/maps";
+import { placeQuery } from "@/lib/links";
 import {
   EVENT_TYPE_LABEL,
   dayLabel,
