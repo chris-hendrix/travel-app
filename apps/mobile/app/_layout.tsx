@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { View } from "react-native";
 import { Stack, SplashScreen, usePathname } from "expo-router";
 import { useFonts } from "expo-font";
 import {
@@ -36,10 +37,15 @@ export default function RootLayout() {
   }, [loaded]);
 
   if (!loaded) return null;
+  const isDialog = DIALOG_ROUTES.includes(pathname);
   return (
-    <>
-      {DIALOG_ROUTES.includes(pathname) ? null : <AppHeader />}
-      <Stack screenOptions={{ headerShown: false }} />
-    </>
+    <View className="flex-1 bg-sand">
+      {/* App shell: a fixed-height column so the screen scrolls under the
+          header instead of scrolling the whole document (web). */}
+      {isDialog ? null : <AppHeader />}
+      <View className="flex-1">
+        <Stack screenOptions={{ headerShown: false }} />
+      </View>
+    </View>
   );
 }
