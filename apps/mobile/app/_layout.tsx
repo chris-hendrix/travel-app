@@ -44,7 +44,15 @@ export default function RootLayout() {
           header instead of scrolling the whole document (web). */}
       {isDialog ? null : <AppHeader />}
       <View className="flex-1">
-        <Stack screenOptions={{ headerShown: false }} />
+        {/* Screens are transparent so the shell's sand ground shows
+            through. React Navigation paints #f2f2f2 on the screen
+            container by default, which hid the whole palette. */}
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: "transparent" },
+          }}
+        />
       </View>
     </View>
   );
