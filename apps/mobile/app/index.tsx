@@ -1,4 +1,5 @@
 import { ScrollView, Text, View, useWindowDimensions } from "react-native";
+import { Link } from "expo-router";
 import { emailSchema } from "@journiful/shared/schemas";
 
 const goodResult = emailSchema.safeParse("test@example.com").success
@@ -73,6 +74,9 @@ export default function Index() {
         <Text className="font-body text-sm text-ink">
           Viewport: {viewport}
         </Text>
+        <Link href="/design-system" className="font-body-bold text-sm text-ink">
+          Design system →
+        </Link>
       </View>
     </ScrollView>
   );
