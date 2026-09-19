@@ -203,9 +203,9 @@ importers:
       '@expo-google-fonts/bungee-shade':
         specifier: ^0.4.1
         version: 0.4.1
-      '@expo-google-fonts/dotgothic16':
-        specifier: ^0.4.1
-        version: 0.4.1
+      '@expo-google-fonts/handjet':
+        specifier: ^0.4.2
+        version: 0.4.2
       '@expo-google-fonts/space-mono':
         specifier: ^0.4.2
         version: 0.4.2
@@ -1805,8 +1805,8 @@ packages:
   '@expo-google-fonts/bungee-shade@0.4.1':
     resolution: {integrity: sha512-HiTCAYNrnrmRQIVVRRzuXv1WxDtNHZ8Dg+2g0lWGb8ehTnXcnvi4PFX7RoylGPQLnmHnQNZI3khyrqM2arHPmQ==}
 
-  '@expo-google-fonts/dotgothic16@0.4.1':
-    resolution: {integrity: sha512-ioNx6IGd+vFbFxWpNxtrOoiE8vecqIOQPsH72V3wyidMpf2AvQ3dUJEBgYoqOtcW7u54zJw39wXciP9yAA40EA==}
+  '@expo-google-fonts/handjet@0.4.2':
+    resolution: {integrity: sha512-fQqPmj6MNO06THzrYgD2asmW0+Jv8yCqG4TwHjyxcLt1ZuBnnK1cYlhCwE/QRNLBR2zaZ2C9kuzerp1RF3TtSQ==}
 
   '@expo-google-fonts/material-symbols@0.4.48':
     resolution: {integrity: sha512-aZztj44PyA/sj3TXSwwpLJwqMlTUJ49okbZJYURzEcuERxMQB0KbX7RrLBi8WJnuWz5HFOLlTRxORrJfNnUPNQ==}
@@ -10854,7 +10854,7 @@ snapshots:
 
   '@expo-google-fonts/bungee-shade@0.4.1': {}
 
-  '@expo-google-fonts/dotgothic16@0.4.1': {}
+  '@expo-google-fonts/handjet@0.4.2': {}
 
   '@expo-google-fonts/material-symbols@0.4.48': {}
 

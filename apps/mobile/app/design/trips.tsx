@@ -31,7 +31,7 @@ export default function TripsScreen() {
 
   return (
     <Screen>
-      <View className="gap-8 p-6">
+      <View className="gap-8">
         <View className="flex-row gap-5">
           <Pressable onPress={() => setEmpty(false)}>
             <Text
@@ -76,6 +76,7 @@ export default function TripsScreen() {
             <View>
               <Button
                 title="Create your first trip"
+                fullWidth
                 onPress={() => setLog("Create first trip pressed")}
               />
             </View>

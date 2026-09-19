@@ -8,8 +8,8 @@
  * Journiful mobile design tokens v1.
  *
  * Three layers: ink chrome, sand ground, paper surfaces.
- * Display is DotGothic16 (pixel caps) for headlines; the wordmark is
- * Bungee Shade (matches the web app); body is Space Mono.
+ * Display is Handjet (pixel grid, set in caps) for headlines; the
+ * wordmark is Bungee Shade; body is Space Mono.
  */
 @theme {
   /* Structure and ground */
@@ -26,7 +26,7 @@
   --color-acid: #cbfb6a; /* highlight, used sparingly */
 
   /* Type roles — family names match expo-font registrations */
-  --font-display: "DotGothic16_400Regular", monospace;
+  --font-display: "Handjet_800ExtraBold", monospace;
   --font-wordmark: "BungeeShade_400Regular", sans-serif;
   --font-body: "SpaceMono_400Regular", monospace;
   --font-body-bold: "SpaceMono_700Bold", monospace;

@@ -27,7 +27,7 @@ const COLORS: Array<[name: string, token: string, hex: string, swatch: string]> 
 const TYPE: Array<
   [role: string, family: string, token: string, use: string, face: string]
 > = [
-  ["Display", "DotGothic16", "font-display", "Headlines. Short strings only.", "font-display"],
+  ["Display", "Handjet ExtraBold", "font-display", "Headlines. Short strings only.", "font-display"],
   ["Wordmark", "Bungee Shade", "font-wordmark", "Journiful. Nowhere else.", "font-wordmark"],
   ["Body", "Space Mono", "font-body", "Default text, dates, labels.", "font-body"],
   ["Strong", "Space Mono Bold", "font-body-bold", "Emphasis, buttons, badges.", "font-body-bold"],
@@ -36,18 +36,7 @@ const TYPE: Array<
 
 const VENUES = ["The Hall", "Zone One", "The Rooftop", "The Loft", "Full Venue"];
 
-/**
- * Display-face tryouts. Rendered with inline fontFamily rather than theme
- * tokens so a rejected candidate leaves no trace in the system.
- */
-const DISPLAY_CANDIDATES: Array<[name: string, family: string]> = [
-  ["DotGothic16 — current", "DotGothic16_400Regular"],
-  ["Pixelify Sans Bold", "PixelifySans_700Bold"],
-  ["Jersey 25", "Jersey25_400Regular"],
-  ["Press Start 2P", "PressStart2P_400Regular"],
-  ["Handjet ExtraBold", "Handjet_800ExtraBold"],
-  ["Doto Bold", "Doto_700Bold"],
-];
+
 
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -141,7 +130,7 @@ export default function DesignSystem() {
 
   return (
     <Screen>
-      <View className="gap-8 p-6">
+      <View className="gap-8">
         <View className="gap-1">
           <Text className="font-display text-4xl leading-tight text-ink">
             Design System
@@ -185,34 +174,6 @@ export default function DesignSystem() {
           </Text>
         </Section>
 
-        <Section title="Display candidates">
-          <Text className="font-body text-base text-ink">
-            Same headline, same size, five alternatives to DotGothic16.
-            Pick one and the rest come out.
-          </Text>
-          <View>
-            {DISPLAY_CANDIDATES.map(([name, family]) => (
-              <View
-                key={family}
-                className="gap-1 border-b border-gravel py-4"
-              >
-                <Text className="font-body text-sm text-ink">{name}</Text>
-                <Text
-                  style={{ fontFamily: family }}
-                  className="text-3xl uppercase leading-[1.1] text-ink"
-                >
-                  Los Picos Trail
-                </Text>
-                <Text
-                  style={{ fontFamily: family }}
-                  className="text-lg uppercase leading-snug text-ink"
-                >
-                  Kyoto in autumn · Ring road
-                </Text>
-              </View>
-            ))}
-          </View>
-        </Section>
 
         <Section title="Primitives">
           <View className="gap-4">
@@ -266,8 +227,8 @@ export default function DesignSystem() {
 
             <Specimen
               name="Button"
-              contract="title · variant? · onPress?"
-              note="Primary confirms and commits. Secondary defers. Accent tags and labels."
+              contract="title · variant? · onPress? · fullWidth?"
+              note="Hugs its content by default; pass fullWidth to fill the container."
             >
               <Button
                 title="Create trip"

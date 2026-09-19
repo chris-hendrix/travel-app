@@ -22,7 +22,7 @@ export default function Index() {
 
   return (
     <Screen>
-      <View className="gap-4 p-6">
+      <View className="gap-4">
         {/* Display face — pixel caps, short headlines only */}
         <Text className="font-display text-5xl leading-tight text-ink">
           Journiful
