@@ -5,34 +5,27 @@
 @import "nativewind/theme";
 
 /*
- * Journiful mobile design tokens v0 — "Elsewhere-inspired".
- * Palette + type roles lifted from elsewhere.club's system;
- * display is DotGothic16 (retro pixel caps) for headlines;
- * body is Space Mono (technical monospace) for everything else.
+ * Journiful mobile design tokens v1.
+ *
+ * Three layers: ink chrome, sand ground, paper surfaces.
+ * Display is DotGothic16 (pixel caps) for headlines; the wordmark is
+ * Bungee Shade (matches the web app); body is Space Mono.
  */
 @theme {
-  /* Surfaces + ink */
-  --color-sand: #f5eacc;
-  --color-ink: #000000;
-  --color-gravel: #e2ded5;
-  --color-paper: #ffffff;
+  /* Structure and ground */
+  --color-ink: #000000; /* chrome band, text, borders */
+  --color-sand: #f5eacc; /* app ground */
+  --color-paper: #ffffff; /* raised surfaces: dialogs, cards */
+  --color-gravel: #e2ded5; /* muted fills, hairlines */
 
-  /* Accents */
-  --color-seafoam: #42d177;
-  --color-watermelon: #ef8ad4;
-  --color-strawberry: #ff6352;
-  --color-concrete: #b0ad9b;
-  --color-silver: #b3b3b3;
-  --color-ocean: #4281ff;
-  --color-amethyst: #8f8fb3;
+  /* Roles */
+  --color-seafoam: #42d177; /* primary: actions, positive states */
+  --color-watermelon: #ef8ad4; /* secondary: category (club) */
+  --color-strawberry: #ff6352; /* accent: live, alerts, unread */
+  --color-ocean: #4281ff; /* info: links */
+  --color-acid: #cbfb6a; /* highlight, used sparingly */
 
-  /* Brand moments */
-  --color-babyblue: #9adee4;
-  --color-brandpink: #ffd1ed;
-  --color-acid: #cbfb6a;
-
-  /* Type roles — family names match expo-font registrations.
-     Display is single-weight: short headlines only. */
+  /* Type roles — family names match expo-font registrations */
   --font-display: "DotGothic16_400Regular", monospace;
   --font-wordmark: "BungeeShade_400Regular", sans-serif;
   --font-body: "SpaceMono_400Regular", monospace;

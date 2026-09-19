@@ -10,7 +10,7 @@ const SWATCHES = [
   ["bg-seafoam", "seafoam"],
   ["bg-watermelon", "watermelon"],
   ["bg-strawberry", "strawberry"],
-  ["bg-concrete", "concrete"],
+  ["bg-ink", "ink"],
   ["bg-ocean", "ocean"],
   ["bg-acid", "acid"],
 ] as const;

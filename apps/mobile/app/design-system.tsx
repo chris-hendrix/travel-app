@@ -4,20 +4,15 @@ import { Stack } from "expo-router";
 import { Dropdown } from "@/components/ui/Dropdown";
 
 const COLORS: Array<[name: string, token: string, hex: string, swatch: string]> = [
+  ["Chrome", "ink", "#000000", "bg-ink"],
   ["Background", "sand", "#f5eacc", "bg-sand"],
   ["Surface", "paper", "#ffffff", "bg-paper"],
-  ["Ink", "ink", "#000000", "bg-ink"],
   ["Muted", "gravel", "#e2ded5", "bg-gravel"],
   ["Primary", "seafoam", "#42d177", "bg-seafoam"],
   ["Secondary", "watermelon", "#ef8ad4", "bg-watermelon"],
   ["Accent", "strawberry", "#ff6352", "bg-strawberry"],
   ["Info", "ocean", "#4281ff", "bg-ocean"],
   ["Highlight", "acid", "#cbfb6a", "bg-acid"],
-  ["Neutral", "concrete", "#b0ad9b", "bg-concrete"],
-  ["Faint", "silver", "#b3b3b3", "bg-silver"],
-  ["Violet", "amethyst", "#8f8fb3", "bg-amethyst"],
-  ["Sky", "babyblue", "#9adee4", "bg-babyblue"],
-  ["Blush", "brandpink", "#ffd1ed", "bg-brandpink"],
 ];
 
 const TYPE: Array<[name: string, token: string, use: string, face: string]> = [
@@ -29,7 +24,7 @@ const TYPE: Array<[name: string, token: string, use: string, face: string]> = [
 ];
 
 const COMPONENTS: Array<[name: string, variants: string, use: string]> = [
-  ["AppHeader", "wordmark · title", "Wordmark mode: seafoam band, bell, avatar. Title mode: dialog screens."],
+  ["AppHeader", "wordmark · title", "Wordmark mode: ink band, bell, avatar. Title mode: dialog screens."],
   ["FullscreenDialog", "—", "Route-based dialog scaffold. Dialogs switch screens, never stack."],
   ["ActionBar", "—", "Pinned bottom bar: Back + one primary action."],
   ["Button", "Primary · Secondary · Accent", "The only action control."],

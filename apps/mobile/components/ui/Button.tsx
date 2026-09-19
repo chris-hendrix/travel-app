@@ -3,9 +3,9 @@ import { Pressable, Text } from "react-native";
 export type ButtonVariant = "primary" | "secondary" | "accent";
 
 const STYLES: Record<ButtonVariant, { box: string; label: string }> = {
-  primary: { box: "border-ink bg-watermelon", label: "text-ink" },
+  primary: { box: "border-ink bg-seafoam", label: "text-ink" },
   secondary: { box: "border-ink bg-transparent", label: "text-ink" },
-  accent: { box: "border-transparent bg-strawberry", label: "text-ink" },
+  accent: { box: "border-transparent bg-watermelon", label: "text-ink" },
 };
 
 export function Button({
