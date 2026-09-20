@@ -29,6 +29,22 @@ type TravelValue = {
 
 const TravelContext = createContext<TravelValue | null>(null);
 
+/** An edit merges into the slot so a soft delete survives it. */
+export function mergeTravelEdit(
+  existing: Partial<MockTravel> | undefined,
+  patch: Partial<MockTravel>,
+): Partial<MockTravel> {
+  return { ...existing, ...patch };
+}
+
+/** A soft delete merges into the slot so an earlier edit survives it. */
+export function mergeTravelDelete(
+  existing: Partial<MockTravel> | undefined,
+  deletedAt: string,
+): Partial<MockTravel> {
+  return { ...existing, deletedAt };
+}
+
 /**
  * Authored and edited travel, in memory. Stands in for the API so
  * adding and editing are real end to end — the same call sites will hit
@@ -56,7 +72,10 @@ export function TravelProvider({ children }: { children: ReactNode }) {
     (tripId: string, travelId: string, patch: Partial<MockTravel>) => {
       setEdits((current) => ({
         ...current,
-        [tripId]: { ...(current[tripId] ?? {}), [travelId]: patch },
+        [tripId]: {
+          ...(current[tripId] ?? {}),
+          [travelId]: mergeTravelEdit(current[tripId]?.[travelId], patch),
+        },
       }));
     },
     [],
@@ -85,7 +104,10 @@ export function TravelProvider({ children }: { children: ReactNode }) {
         ...current,
         [tripId]: {
           ...(current[tripId] ?? {}),
-          [travelId]: { deletedAt: new Date().toISOString() },
+          [travelId]: mergeTravelDelete(
+            current[tripId]?.[travelId],
+            new Date().toISOString(),
+          ),
         },
       }));
     },

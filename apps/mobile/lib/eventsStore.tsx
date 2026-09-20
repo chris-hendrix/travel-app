@@ -30,6 +30,22 @@ type EventsValue = {
 
 const EventsContext = createContext<EventsValue | null>(null);
 
+/** An edit merges into the slot so a soft delete survives it. */
+export function mergeEventEdit(
+  existing: Partial<ItineraryEvent> | undefined,
+  patch: Partial<ItineraryEvent>,
+): Partial<ItineraryEvent> {
+  return { ...existing, ...patch };
+}
+
+/** A soft delete merges into the slot so an earlier edit survives it. */
+export function mergeEventDelete(
+  existing: Partial<ItineraryEvent> | undefined,
+  deletedAt: string,
+): Partial<ItineraryEvent> {
+  return { ...existing, deletedAt };
+}
+
 /**
  * Authored and edited events, in memory. Stands in for the API so adding
  * and editing are real end to end — the same call sites will hit the
@@ -57,7 +73,10 @@ export function EventsProvider({ children }: { children: ReactNode }) {
     (tripId: string, eventId: string, patch: Partial<ItineraryEvent>) => {
       setEdits((current) => ({
         ...current,
-        [tripId]: { ...(current[tripId] ?? {}), [eventId]: patch },
+        [tripId]: {
+          ...(current[tripId] ?? {}),
+          [eventId]: mergeEventEdit(current[tripId]?.[eventId], patch),
+        },
       }));
     },
     [],
@@ -82,7 +101,10 @@ export function EventsProvider({ children }: { children: ReactNode }) {
         ...current,
         [tripId]: {
           ...(current[tripId] ?? {}),
-          [eventId]: { deletedAt: new Date().toISOString() },
+          [eventId]: mergeEventDelete(
+            current[tripId]?.[eventId],
+            new Date().toISOString(),
+          ),
         },
       }));
     },

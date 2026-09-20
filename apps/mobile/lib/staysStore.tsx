@@ -27,6 +27,22 @@ type StaysValue = {
 
 const StaysContext = createContext<StaysValue | null>(null);
 
+/** An edit merges into the slot so a soft delete survives it. */
+export function mergeStayEdit(
+  existing: Partial<Stay> | undefined,
+  patch: Partial<Stay>,
+): Partial<Stay> {
+  return { ...existing, ...patch };
+}
+
+/** A soft delete merges into the slot so an earlier edit survives it. */
+export function mergeStayDelete(
+  existing: Partial<Stay> | undefined,
+  deletedAt: string,
+): Partial<Stay> {
+  return { ...existing, deletedAt };
+}
+
 /**
  * Authored and edited stays, in memory — the same two layers the events
  * keep, for the same reason: a new stay is appended, an edit is
@@ -54,7 +70,10 @@ export function StaysProvider({ children }: { children: ReactNode }) {
     (tripId: string, stayId: string, patch: Partial<Stay>) => {
       setEdits((current) => ({
         ...current,
-        [tripId]: { ...(current[tripId] ?? {}), [stayId]: patch },
+        [tripId]: {
+          ...(current[tripId] ?? {}),
+          [stayId]: mergeStayEdit(current[tripId]?.[stayId], patch),
+        },
       }));
     },
     [],
@@ -81,7 +100,10 @@ export function StaysProvider({ children }: { children: ReactNode }) {
       ...current,
       [tripId]: {
         ...(current[tripId] ?? {}),
-        [stayId]: { deletedAt: new Date().toISOString() },
+        [stayId]: mergeStayDelete(
+          current[tripId]?.[stayId],
+          new Date().toISOString(),
+        ),
       },
     }));
   }, []);
