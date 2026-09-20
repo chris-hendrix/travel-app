@@ -31,10 +31,16 @@ export const DIALOG_ROUTES = [
 ];
 
 /**
- * Routes whose band carries the wordmark and nothing else.
+ * Routes that take no person chrome, and which band they wear.
  *
  * The landing is read before anyone has signed in, so a bell, an avatar
- * and a clock have nothing to say; and it is a front door rather than a
- * workspace, so it takes none of the app's chrome.
+ * and a clock have nothing to say to them: it keeps the wordmark and
+ * the word for the way in. The three auth screens keep the wordmark
+ * alone, because the way in is the screen itself.
  */
-export const BARE_HEADER_ROUTES = ["/"];
+export const BARE_HEADER_ROUTES: Record<string, "landing" | "bare"> = {
+  "/": "landing",
+  "/login": "bare",
+  "/verify": "bare",
+  "/complete-profile": "bare",
+};

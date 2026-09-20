@@ -91,21 +91,22 @@ function AvatarButton() {
 }
 
 /**
- * Sign in, drawn but not yet wired — there is no auth flow to open yet.
- * Kept in place rather than hidden, because a control that vanishes
- * leaves nothing to aim at, and without the underline it would carry the
- * day it works: it reads as waiting rather than as broken.
+ * Sign in: the way in, for someone who has read the landing.
+ *
+ * No underline, unlike the quiet words inside a screen. The rule is
+ * that a word needs an underline when nothing else says it can be
+ * pressed; in the band, the slot says it. That is why the bell and the
+ * avatar here have never needed one either.
+ *
+ * The padding is the other half of that: the word is small, and a
+ * fourteen-pixel tap target is not one. Only vertical, so it stays on
+ * the band's own right edge.
  */
 function SignInWord() {
   return (
-    <Text
-      accessibilityRole="button"
-      accessibilityState={{ disabled: true }}
-      accessibilityLabel="Sign in — not yet available"
-      className="font-body-bold text-sm text-sand opacity-40"
-    >
+    <Link href="/login" className="py-2 font-body-bold text-sm text-sand">
       Sign in
-    </Text>
+    </Link>
   );
 }
 
@@ -119,12 +120,14 @@ export function AppHeader({
   onClose?: () => void;
   action?: ReactNode;
   /**
-   * `landing` is the front door: the wordmark and nothing else. A bell,
-   * an avatar and a clock have nothing to say to someone who is not
-   * signed in, and the wordmark stops being a link because you are
-   * already where it points.
+   * `landing` is the front door: the wordmark, and the word for the way
+   * in. `bare` is the auth screens, which keep the wordmark alone.
+   *
+   * The wordmark is home wherever home exists: the trips list once you
+   * are in the app, and the landing while you are still deciding. It is
+   * inert on the landing itself, because that is where it points.
    */
-  variant?: "app" | "landing";
+  variant?: "app" | "landing" | "bare";
 }) {
   if (title) {
     return (
@@ -146,27 +149,31 @@ export function AppHeader({
   }
 
   const landing = variant === "landing";
+  const app = variant === "app";
 
   return (
     <View className="bg-sand">
       <View className="flex-row items-center justify-between bg-ink px-6 pb-3 pt-4">
         {landing ? (
+          // Inert on the landing itself, because that is where it points.
           <Text className="font-wordmark text-2xl text-sand">Journiful</Text>
         ) : (
-          <Link href="/trips" className="font-wordmark text-2xl text-sand">
+          <Link
+            href={app ? "/trips" : "/"}
+            className="font-wordmark text-2xl text-sand"
+          >
             Journiful
           </Link>
         )}
         <View className="flex-row items-center gap-3">
-          {landing ? (
-            <SignInWord />
-          ) : (
+          {app ? (
             <>
               <ZoneToken onInk />
               <BellButton />
               <AvatarButton />
             </>
-          )}
+          ) : null}
+          {landing ? <SignInWord /> : null}
         </View>
       </View>
       <WaveEdge />

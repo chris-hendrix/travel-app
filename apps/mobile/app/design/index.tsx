@@ -10,6 +10,11 @@ import { ChipToggle } from "@/components/ui/ChipToggle";
 import { RsvpControl } from "@/components/trip/RsvpControl";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { Accordion, AccordionItem } from "@/components/ui/Accordion";
+import { Checkbox, CheckboxLabel } from "@/components/ui/Checkbox";
+import { ActionRow } from "@/components/ui/ActionRow";
+import { QuietAction } from "@/components/ui/QuietAction";
+import { PhoneField } from "@/components/ui/PhoneField";
+import { toE164 } from "@/lib/phone";
 import { Screen } from "@/components/ui/Screen";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { TimeField } from "@/components/ui/TimeField";
@@ -180,6 +185,8 @@ export default function DesignSystem() {
   const [startsAt, setStartsAt] = useState<string | null>(null);
   const [endsAt, setEndsAt] = useState<string | null>(null);
   const [log, setLog] = useState("No interaction yet.");
+  const [consent, setConsent] = useState(false);
+  const [labPhone, setLabPhone] = useState("");
   const { width } = useWindowDimensions();
 
   return (
@@ -436,8 +443,8 @@ export default function DesignSystem() {
 
             <Specimen
               name="TextField"
-              contract="label · value · onChangeText · placeholder? · error? · multiline? · numberOfLines? · suffix?"
-              note="Every dialog that collects input uses this. Errors sit under the field, never in a toast. suffix draws a control that acts on the field inside the field's own box — the Autofill button on a flight number is one — because two separately padded controls only line up until a font metric moves; stretching them inside one box cannot drift."
+              contract="label · value · onChangeText · placeholder? · error? · multiline? · numberOfLines? · suffix? · keyboardType? · centered? · autoFocus? · maxLength? · autoComplete? · textContentType?"
+              note="Every dialog that collects input uses this. Errors sit under the field, never in a toast. suffix draws a control that acts on the field inside the field's own box — the Autofill button on a flight number is one — because two separately padded controls only line up until a font metric moves; stretching them inside one box cannot drift. centered is the one-short-value shape: six digits of a code, centred and tracked, which is not a size but a shape. autoComplete and textContentType are the platform's own fill, a phone number or a code that just arrived by text, and they are worth more than any styling here because typing six digits correctly is the one thing a thumb is bad at. autoFocus is for the one field the reader came to fill in."
             >
               <TextField
                 label="Display name"
@@ -467,6 +474,55 @@ export default function DesignSystem() {
                   </Pressable>
                 }
               />
+            </Specimen>
+
+            <Specimen
+              name="PhoneField"
+              contract="value · onChangeText · error? · autoFocus?"
+              note="A number, parsed properly: the metadata is every country, so a leading + overrides the home country and the app takes the same numbers the web does. Type anything here and watch the E.164 underneath. One field for the whole app now: the invite dialog and the sign-in screen both use it, which they did not before, and a number that can sign up can therefore also be invited."
+            >
+              <PhoneField value={labPhone} onChangeText={setLabPhone} />
+              <Text className="font-body text-sm text-ink">
+                {toE164(labPhone) ?? "Not a number yet"}
+              </Text>
+            </Specimen>
+
+            <Specimen
+              name="Checkbox"
+              contract="checked · onToggle · disabled? · children"
+              note="Consent, which is not a filter: ChipToggle says show me these ones, this says I have read this. The whole row is the target rather than the box, since a twenty-pixel square is not something a thumb can be asked to hit, and the tick is drawn rather than implied by the fill, because an inked square on its own reads as a badge. Nothing uses it yet: the sign-in screen takes consent by continuing, and an unchecked box is the shape marketing consent wants, which this product does not ask for."
+            >
+              <Checkbox
+                checked={consent}
+                onToggle={() => {
+                  setConsent(!consent);
+                  setLog(`Consent ${!consent ? "given" : "withdrawn"}`);
+                }}
+              >
+                <CheckboxLabel>
+                  I agree to receive text messages from Journiful, including
+                  trip updates and verification codes. Message and data rates
+                  may apply. Reply STOP to opt out.
+                </CheckboxLabel>
+              </Checkbox>
+            </Specimen>
+
+            <Specimen
+              name="ActionRow"
+              contract="children"
+              note="The foot of a form: its one button, and the quiet words that go with it. Stacked on a phone, one row from md up. The button comes first, which is the opposite of the desktop habit of putting the secondary action on the left, because a content button hugs the start edge to line up with the fields above it and anything sharing its row has to come after it. Not ActionBar, which is a dialog's pinned bar and holds one action only."
+            >
+              <ActionRow>
+                <Button
+                  title="Save changes"
+                  onPress={() => setLog("ActionRow button fired")}
+                />
+                <QuietAction
+                  label="Back"
+                  align="center"
+                  onPress={() => setLog("ActionRow quiet action fired")}
+                />
+              </ActionRow>
             </Specimen>
 
             <Specimen
@@ -681,6 +737,16 @@ export default function DesignSystem() {
           <Link href="/" className="font-body-bold text-base text-ink underline">
             Landing
           </Link>
+          <Link href="/login" className="font-body-bold text-base text-ink underline">
+            Sign in
+          </Link>
+          <Text className="font-body text-base text-ink">
+            The code and profile screens sit behind the sign-in and are
+            deliberately not linked from here: each redirects back to it
+            without a number or a session between them. The mock takes any
+            valid number with the code 123456, and decides whether the
+            profile screen is needed from whether it knows the number.
+          </Text>
         </Section>
 
         <Section title="Plumbing">
@@ -703,10 +769,9 @@ export default function DesignSystem() {
 
         <Section title="Parking lot">
           <Text className="font-body text-base text-ink">
-            Auth — sign in, verify, complete profile — and the entry gate
-            that decides between it, the landing and the trips list.
-            Discover · deleted items · delete account. Each lands here as a
-            pattern first, then in a screen.
+            Discover · deleted items · delete account · session storage, since
+            the sign-in is a mock and nothing survives a reload. Each lands
+            here as a pattern first, then in a screen.
           </Text>
         </Section>
       </View>

@@ -109,7 +109,7 @@ function TripSettingsScreen() {
           </View>
         </Row>
 
-        <Text className="max-w-[46ch] font-body text-sm text-ink">
+        <Text className="font-body text-sm text-ink">
           This trip runs on {trip.preferredTimezone}.
         </Text>
       </Section>
@@ -159,7 +159,7 @@ function TripSettingsScreen() {
           />
         </Row>
 
-        <Text className="max-w-[46ch] font-body text-sm text-ink">
+        <Text className="font-body text-sm text-ink">
           Notifications reach you in the app, by push, and by text.
         </Text>
       </Section>
@@ -236,7 +236,7 @@ function Row({
       <View className="flex-1 gap-1">
         <Text className="font-body text-base text-ink">{label}</Text>
         {description ? (
-          <Text className="max-w-[46ch] font-body text-sm text-ink">
+          <Text className="font-body text-sm text-ink">
             {description}
           </Text>
         ) : null}

@@ -29,7 +29,7 @@ export default function Notifications() {
           <Text className="font-display text-3xl uppercase leading-tight text-ink">
             Nothing yet
           </Text>
-          <Text className="max-w-[46ch] font-body text-lg text-ink">
+          <Text className="font-body text-lg text-ink">
             Invites, messages, and itinerary changes land here.
           </Text>
         </View>

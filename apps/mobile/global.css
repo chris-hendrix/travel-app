@@ -32,3 +32,19 @@
   --font-body-bold: "SpaceMono_700Bold", monospace;
   --font-body-italic: "SpaceMono_400Regular_Italic", monospace;
 }
+
+/*
+ * Focus, and only on the web build.
+ *
+ * The browser draws its own ring, in a colour from outside this palette,
+ * around whatever has focus. On a field whose box is already bordered it
+ * reads as a second border in the wrong colour.
+ *
+ * Kept rather than removed, because focus has to stay visible for
+ * keyboard use. It is just ours now, and `currentColor` rather than ink
+ * because the band is ink: a black ring on it would be invisible.
+ */
+:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}

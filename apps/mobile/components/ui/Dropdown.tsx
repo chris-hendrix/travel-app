@@ -4,9 +4,9 @@ import { TextField } from "@/components/ui/TextField";
 import { SuggestionList } from "@/components/ui/SuggestionList";
 
 /**
- * Single-select dropdown with autocomplete. The suggestion list overlays
- * what follows it rather than pushing it down — a field that reflows the
- * form as you type is unusable. Inline, never a nested dialog.
+ * Single-select dropdown with autocomplete. The suggestion list takes
+ * its place in the flow, so the form moves down as you type rather than
+ * being covered. Inline, never a nested dialog.
  *
  * An option is a plain string when its value reads well — a place name —
  * and a { value, label } pair when it does not, which is how a day shows
@@ -51,7 +51,6 @@ export function Dropdown({
 
   const [query, setQuery] = useState(selectedLabel);
   const [open, setOpen] = useState(false);
-  const [fieldHeight, setFieldHeight] = useState(0);
 
   // Typing is not interrupted: the value only moves on a choice, so this
   // re-runs when the choice lands and stays out of the way while a query
@@ -71,29 +70,22 @@ export function Dropdown({
   }
 
   return (
-    <View className="relative z-40">
-      <View
-        onLayout={(event) =>
-          setFieldHeight(event.nativeEvent.layout.height)
-        }
-      >
-        <TextField
-          label={label}
-          value={query}
-          placeholder={placeholder}
-          error={error}
-          onChangeText={(v) => {
-            setQuery(v);
-            setOpen(true);
-            if (freeText) onChange(v);
-          }}
-        />
-      </View>
+    <View>
+      <TextField
+        label={label}
+        value={query}
+        placeholder={placeholder}
+        error={error}
+        onChangeText={(v) => {
+          setQuery(v);
+          setOpen(true);
+          if (freeText) onChange(v);
+        }}
+      />
 
-      {open && fieldHeight > 0 ? (
+      {open ? (
         <SuggestionList
           suggestions={matches}
-          top={fieldHeight}
           empty="No matches"
           onPick={(value) => {
             const option = entries.find((entry) => entry.value === value);

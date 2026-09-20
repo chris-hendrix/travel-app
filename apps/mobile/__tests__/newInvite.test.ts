@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   filterTripmates,
-  normalizePhone,
   phoneNumberError,
   sendInvitations,
 } from "@/lib/newInvite";
@@ -17,42 +16,37 @@ const MEMBERS = [
   { name: "Marcus Bell", phone: "+15550000411" },
 ];
 
-describe("normalizePhone", () => {
-  it("takes a number the way a person writes it", () => {
-    expect(normalizePhone("+34 600 123 456")).toBe("+34600123456");
-    expect(normalizePhone(" +1 (555) 123-4567 ")).toBe("+15551234567");
-  });
-
-  it("does not invent a country code", () => {
-    expect(normalizePhone("600 123 456")).toBe("600123456");
-  });
-});
-
 describe("phoneNumberError", () => {
   it("asks for a number when the field is empty", () => {
     expect(phoneNumberError("  ", [])).toBe("Enter a number.");
   });
 
-  it("asks for a country code rather than rejecting the number", () => {
-    expect(phoneNumberError("600 123 456", [])).toBe(
-      "A country code, like +1 555 123 4567.",
-    );
-  });
-
-  it("treats the country code it starts with as nothing typed yet", () => {
-    // The field arrives holding "+1 ", so this is the empty case.
-    expect(phoneNumberError("+1 ", [])).toBe("Enter a number.");
+  it("treats a lone country code as nothing typed yet", () => {
     expect(phoneNumberError("+1", [])).toBe("Enter a number.");
   });
 
   it("says so when the number is there and does not add up", () => {
+    // Nine digits, which is not a number anywhere, so the field asks
+    // rather than guessing which country it was meant for.
+    expect(phoneNumberError("600 123 456", [])).toBe(
+      "That does not look like a number.",
+    );
     expect(phoneNumberError("+1 555 123 4567 891 234", [])).toBe(
       "That does not look like a number.",
     );
   });
 
+  it("takes a number with no country code, now that one is not required", () => {
+    expect(phoneNumberError("415 555 2671", [])).toBeUndefined();
+  });
+
   it("refuses the same number twice, however it was typed", () => {
     expect(phoneNumberError("+34 600 123 456", ["+34600123456"])).toBe(
+      "That number is already added.",
+    );
+    // The same number in two shapes, which the old hand-rolled
+    // normalizer only caught when both happened to be typed the same way.
+    expect(phoneNumberError("4155552671", ["+14155552671"])).toBe(
       "That number is already added.",
     );
   });
@@ -151,5 +145,48 @@ describe("filterTripmates", () => {
 
   it("shows everyone when nothing has been typed", () => {
     expect(filterTripmates(TRIPMATES, "")).toHaveLength(TRIPMATES.length);
+  });
+
+  it("puts the people you have travelled with most at the top", () => {
+    const shared: Tripmate[] = [
+      { id: "a", name: "Ana", phone: "+15550000001", sharedTripCount: 1 },
+      { id: "b", name: "Ben", phone: "+15550000002", sharedTripCount: 4 },
+      { id: "c", name: "Cam", phone: "+15550000003", sharedTripCount: 2 },
+    ];
+
+    // The empty query is the case the section opens in, so it has to be
+    // ordered too: the early return used to hand back the raw rows.
+    expect(filterTripmates(shared, "").map((t) => t.name)).toEqual([
+      "Ben",
+      "Cam",
+      "Ana",
+    ]);
+  });
+
+  it("breaks a tie on the name, so the same list cannot reshuffle", () => {
+    const tied: Tripmate[] = [
+      { id: "a", name: "Zoe", phone: "+15550000001", sharedTripCount: 2 },
+      { id: "b", name: "Ada", phone: "+15550000002", sharedTripCount: 2 },
+    ];
+
+    expect(filterTripmates(tied, "").map((t) => t.name)).toEqual([
+      "Ada",
+      "Zoe",
+    ]);
+    // And the same answer from the other direction.
+    expect(filterTripmates([...tied].reverse(), "").map((t) => t.name)).toEqual([
+      "Ada",
+      "Zoe",
+    ]);
+  });
+
+  it("leaves the caller's array alone", () => {
+    const rows: Tripmate[] = [
+      { id: "a", name: "Ana", phone: "+15550000001", sharedTripCount: 1 },
+      { id: "b", name: "Ben", phone: "+15550000002", sharedTripCount: 4 },
+    ];
+
+    filterTripmates(rows, "");
+    expect(rows.map((t) => t.name)).toEqual(["Ana", "Ben"]);
   });
 });

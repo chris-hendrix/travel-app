@@ -140,7 +140,7 @@ function EventDetailDialog() {
           caption. */}
       {event.description ? (
         <View className="border-t border-ink pt-6">
-          <Text className="max-w-[68ch] font-body text-base leading-relaxed text-ink">
+          <Text className="font-body text-base leading-relaxed text-ink">
             {event.description}
           </Text>
         </View>

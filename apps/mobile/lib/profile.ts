@@ -41,16 +41,7 @@ export function initials(displayName: string): string {
 }
 
 /**
- * A number you can read back to someone. Placeholder: it only knows
- * North American E.164, and anything else passes through untouched
- * rather than being re-punctuated wrongly.
- */
-export function formatPhone(phoneNumber: string): string {
-  const match = /^\+1(\d{3})(\d{3})(\d{4})$/.exec(phoneNumber);
-  if (!match) return phoneNumber;
-  return `+1 ${match[1]} ${match[2]} ${match[3]}`;
-}
-
+ * The form's fields, off the profile the API returned. */
 export function draftFromProfile(profile: Profile): ProfileDraft {
   return {
     displayName: profile.displayName,

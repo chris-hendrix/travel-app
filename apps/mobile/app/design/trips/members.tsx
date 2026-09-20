@@ -7,7 +7,7 @@ import { useTrips } from "@/lib/tripsStore";
 import { memberLabel } from "@/lib/rsvp";
 import { visiblePhone, type Member } from "@/lib/members";
 import { instagramUrl, venmoUrl } from "@/lib/links";
-import { formatPhone } from "@/lib/profile";
+import { formatPhoneForDisplay } from "@/lib/phone";
 import { membersFor } from "@/mocks/members";
 
 /**
@@ -133,7 +133,7 @@ function MemberRow({
         </View>
         {phone ? (
           <Text className="font-body text-sm text-ink">
-            {formatPhone(phone)}
+            {formatPhoneForDisplay(phone)}
           </Text>
         ) : null}
       </View>

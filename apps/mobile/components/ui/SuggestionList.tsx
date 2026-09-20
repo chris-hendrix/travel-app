@@ -1,4 +1,4 @@
-import { Pressable, Text, View } from "react-native";
+import { Pressable, ScrollView, Text } from "react-native";
 
 /** One line of a suggestion list: what is committed, and what is read. */
 export type Suggestion = { value: string; label: string };
@@ -7,47 +7,44 @@ export type Suggestion = { value: string; label: string };
  * The suggestion list under a field, as one component.
  *
  * Two fields in this app autocomplete — a place, and a person to invite
- * — and they had drifted into two lists that were nearly the same: one
- * floating over the content, one pushing it down, and each with its own
- * idea of what a row looks like. What they have in common is the whole
- * of the look, so it lives here, and each caller keeps only what is
- * actually its own: whether a pick is a value or an addition.
+ * — and they had drifted into two lists that were nearly the same, each
+ * with its own idea of what a row looks like. What they have in common
+ * is the whole of the look, so it lives here, and each caller keeps only
+ * what is actually its own: whether a pick is a value or an addition.
  *
- * Floating is the default and is what a form wants: the list overlays
- * what follows rather than pushing it down, so the form does not reflow
- * as somebody types, and `top` — the field's own height, measured by the
- * caller — says where the field ends.
+ * It takes its place in the flow rather than floating over what follows.
+ * Floating needs the list to paint above a later sibling, and every View
+ * in this app is positioned with z-index 0, so that means a `relative
+ * z-10` on whichever section happens to hold the field. That rule has
+ * been missed twice already, and it fails silently: the list is simply
+ * crossed by the prose below it. A list in the flow cannot be crossed.
+ * It also cannot be clipped, which an absolutely positioned child inside
+ * a scroll view can be on Android.
  *
- * A caller can ask for it inline instead, and one does: where the next
- * thing below the field is another field, an overlay lands on that
- * field's label and the block below paints over the list's edge, so the
- * label wears the list's border like a strikethrough. A list that takes
- * its place in the flow cannot do that.
+ * The cost is that the form moves down when the list opens. Hence the
+ * cap: a jump that is always the same height is one the eye can follow,
+ * and one that grows with the number of matches is not. Inside the cap
+ * the list scrolls itself.
  */
 export function SuggestionList({
   suggestions,
-  top,
   empty,
   onPick,
-  floating = true,
 }: {
   suggestions: Suggestion[];
-  /** The field's height: where this list begins, when it floats. */
-  top?: number;
   /** What to say when nothing matches, in the caller's own words. */
   empty: string;
   onPick: (value: string) => void;
-  /** Overlay what follows, or take a place in the flow. */
-  floating?: boolean;
 }) {
-  const floats = floating && top !== undefined;
-
   return (
-    <View
-      className={`border border-ink bg-paper ${
-        floats ? "absolute left-0 right-0 z-50" : ""
-      }`}
-      {...(floats ? { style: { top } } : {})}
+    <ScrollView
+      // Five rows. Past that the field it belongs to would be pushed off
+      // the screen on a phone.
+      className="max-h-56 border border-ink bg-paper"
+      nestedScrollEnabled
+      // Without this the first tap only closes the keyboard, which reads
+      // as the row being unpressable.
+      keyboardShouldPersistTaps="handled"
     >
       {suggestions.length === 0 ? (
         <Text className="font-body p-3 text-base text-ink">{empty}</Text>
@@ -66,6 +63,6 @@ export function SuggestionList({
           </Pressable>
         ))
       )}
-    </View>
+    </ScrollView>
   );
 }

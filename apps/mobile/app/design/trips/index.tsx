@@ -62,7 +62,6 @@ export default function TripsScreen() {
           <View>
             <Button
               title="Create trip"
-              align="end"
               onPress={() => router.push("/design/trips/new")}
             />
           </View>
@@ -73,14 +72,13 @@ export default function TripsScreen() {
             <Text className="font-display text-3xl uppercase leading-tight text-ink">
               No trips yet
             </Text>
-            <Text className="max-w-[46ch] font-body text-lg text-ink">
+            <Text className="font-body text-lg text-ink">
               Start a trip, add the dates, and invite everyone. Everyone
               sees the same itinerary as it comes together.
             </Text>
             <View>
               <Button
                 title="Create your first trip"
-                fullWidth
                 onPress={() => router.push("/design/trips/new")}
               />
             </View>

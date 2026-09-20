@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { Image, Pressable, Text, View } from "react-native";
-import { Link } from "expo-router";
+import { Link, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { TextField } from "@/components/ui/TextField";
@@ -9,14 +9,15 @@ import { useDismiss } from "@/hooks/useDismiss";
 import { joinFacts } from "@/lib/wording";
 import {
   draftFromProfile,
-  formatPhone,
   initials,
   validateProfile,
   type ProfileDraft,
   type TemperatureUnit,
 } from "@/lib/profile";
+import { formatPhoneForDisplay } from "@/lib/phone";
 import { useProfile } from "@/lib/profileStore";
 import { LEGAL_ROWS } from "@/lib/legal";
+import { useAuth } from "@/lib/authStore";
 
 const UNITS: Array<{ value: TemperatureUnit; label: string }> = [
   { value: "celsius", label: "Celsius" },
@@ -37,10 +38,13 @@ const UNITS: Array<{ value: TemperatureUnit; label: string }> = [
  * an edit landed, without a toast.
  *
  * The phone number is the account, so it is shown and not edited. Sign
- * out only closes the dialog — there is no auth flow in the mockups yet.
+ * out closes the session and leaves the flow where it can be entered
+ * again, which is the login screen rather than the trips list.
  */
 export default function Profile() {
   const { profile, saveProfile, savePhoto } = useProfile();
+  const { signOut } = useAuth();
+  const router = useRouter();
   const dismiss = useDismiss("/trips");
 
   const [draft, setDraft] = useState<ProfileDraft>(() =>
@@ -107,7 +111,7 @@ export default function Profile() {
             {draft.displayName.trim() || "Your name"}
           </Text>
           <Text className="mt-1 font-body text-sm text-ink">
-            {formatPhone(profile.phoneNumber)}
+            {formatPhoneForDisplay(profile.phoneNumber)}
           </Text>
           {profile.profilePhotoUrl ? (
             <Pressable onPress={() => savePhoto(null)} className="mt-2 self-start">
@@ -205,7 +209,15 @@ export default function Profile() {
       </View>
 
       <View className="border-t border-ink pt-5">
-        <Button title="Sign out" variant="secondary" fullWidth onPress={dismiss} />
+        <Button
+          title="Sign out"
+          variant="secondary"
+          fullWidth
+          onPress={() => {
+            signOut();
+            router.replace("/login");
+          }}
+        />
       </View>
     </FullscreenDialog>
   );

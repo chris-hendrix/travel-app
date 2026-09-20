@@ -162,7 +162,7 @@ function StayDetailDialog() {
         <View className="border-t border-ink pt-6">
           <Text
             selectable
-            className="max-w-[68ch] font-body text-base leading-relaxed text-ink"
+            className="font-body text-base leading-relaxed text-ink"
           >
             {stay.description}
           </Text>

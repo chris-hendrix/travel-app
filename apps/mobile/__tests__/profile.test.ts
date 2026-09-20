@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   applyDraft,
   draftFromProfile,
-  formatPhone,
   initials,
   validateProfile,
   type Profile,
@@ -33,17 +32,6 @@ describe("initials", () => {
     expect(initials("  ada  ")).toBe("A");
     expect(initials("")).toBe("?");
     expect(initials("   ")).toBe("?");
-  });
-});
-
-describe("formatPhone", () => {
-  it("groups a North American number", () => {
-    expect(formatPhone("+15550000001")).toBe("+1 555 000 0001");
-  });
-
-  it("leaves anything else alone rather than punctuating it wrongly", () => {
-    expect(formatPhone("+447700900123")).toBe("+447700900123");
-    expect(formatPhone("+1555000")).toBe("+1555000");
   });
 });
 

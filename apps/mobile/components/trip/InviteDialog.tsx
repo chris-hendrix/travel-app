@@ -3,17 +3,17 @@ import { Pressable, Text, View } from "react-native";
 import { X } from "lucide-react-native";
 import { Button } from "@/components/ui/Button";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
+import { PhoneField } from "@/components/ui/PhoneField";
 import { SuggestionList } from "@/components/ui/SuggestionList";
 import { TextField } from "@/components/ui/TextField";
 import { useDismiss } from "@/hooks/useDismiss";
 import {
   filterTripmates,
-  normalizePhone,
   phoneNumberError,
   sendInvitations,
   type InviteOutcome,
 } from "@/lib/newInvite";
-import { formatPhone } from "@/lib/profile";
+import { formatPhoneForDisplay, toE164 } from "@/lib/phone";
 import { joinFacts } from "@/lib/wording";
 import { membersFor } from "@/mocks/members";
 import { tripmatesFor, type Tripmate } from "@/mocks/tripmates";
@@ -31,17 +31,6 @@ import type { Trip } from "@/components/trip/TripCard";
 const SUGGESTIONS = 20;
 
 /**
- * The country code the field starts with.
- *
- * The web's phone input defaults to US and lets you change it from a
- * picker; the lab has no picker, so it does the one thing a picker is
- * for in the common case and puts the code in the field, where it can be
- * selected over. Nobody types a country code from memory, and a field
- * that demands one before it accepts anything is a field people bounce
- * off.
- */
-const COUNTRY_CODE = "+1 ";
-
 /**
  * Invite people — the two ways onto a trip, and nothing else yet.
  *
@@ -85,8 +74,7 @@ export function InviteDialog({
   const [numbers, setNumbers] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
-  const [fieldHeight, setFieldHeight] = useState(0);
-  const [draft, setDraft] = useState(COUNTRY_CODE);
+  const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | undefined>(undefined);
   const [sent, setSent] = useState<InviteOutcome | null>(null);
   const dismiss = useDismiss(dismissHref);
@@ -119,10 +107,14 @@ export function InviteDialog({
     setError(problem);
     if (problem) return;
 
-    setNumbers((current) => [...current, normalizePhone(draft)]);
-    // Back to the country code rather than to nothing: the next number is
-    // another American one.
-    setDraft(COUNTRY_CODE);
+    const phone = toE164(draft);
+    if (!phone) return;
+
+    setNumbers((current) => [...current, phone]);
+    // Cleared rather than refilled with a country code: a bare ten-digit
+    // number is read as home, so the prefill only ever got in the way of
+    // the next person being abroad.
+    setDraft("");
   }
 
   function send() {
@@ -173,7 +165,7 @@ export function InviteDialog({
               })),
               ...numbers.map((phone) => ({
                 key: phone,
-                label: formatPhone(phone),
+                label: formatPhoneForDisplay(phone),
                 onRemove: () =>
                   setNumbers((current) =>
                     current.filter((number) => number !== phone),
@@ -182,13 +174,7 @@ export function InviteDialog({
             ]}
           />
 
-          {/* This section carries a z-index of its own, which is what
-              lets its suggestion list paint over the number field below.
-              Every View in this app is positioned with z-index 0, so each
-              section is its own stacking context and a list inside one
-              can never rise above a later sibling — however high its own
-              z-index. The context has to move, not the list. */}
-          <View className="relative z-10">
+          <View>
             <Section title="From your other trips">
               {tripmates.length === 0 ? (
                 <Text className="font-body text-base text-ink">
@@ -196,26 +182,20 @@ export function InviteDialog({
                 </Text>
               ) : (
                 <View>
-                  <View
-                    onLayout={(event) =>
-                      setFieldHeight(event.nativeEvent.layout.height)
-                    }
-                  >
-                    <TextField
-                      label="Name"
-                      value={query}
-                      placeholder="Start typing a name"
-                      // Opens on the empty field as well as on typing: the
-                      // list answers "who can I invite" too.
-                      onFocus={() => setOpen(true)}
-                      onChangeText={(value) => {
-                        setQuery(value);
-                        setOpen(true);
-                      }}
-                    />
-                  </View>
+                  <TextField
+                    label="Name"
+                    value={query}
+                    placeholder="Start typing a name"
+                    // Opens on the empty field as well as on typing: the
+                    // list answers "who can I invite" too.
+                    onFocus={() => setOpen(true)}
+                    onChangeText={(value) => {
+                      setQuery(value);
+                      setOpen(true);
+                    }}
+                  />
 
-                  {open && fieldHeight > 0 ? (
+                  {open ? (
                     <SuggestionList
                       suggestions={suggestions.map((tripmate) => ({
                         value: tripmate.id,
@@ -227,7 +207,6 @@ export function InviteDialog({
                           sharedTrips(tripmate),
                         ),
                       }))}
-                      top={fieldHeight}
                       empty="No one by that name."
                       onPick={(id) => {
                         const tripmate = tripmates.find(
@@ -261,16 +240,16 @@ export function InviteDialog({
               </Text>
               <View className="flex-row items-stretch gap-3">
                 <View className="flex-1">
-                  <TextField
+                  {/* The label is drawn above the row, so the field is
+                      asked for its own name and nothing else. */}
+                  <PhoneField
                     ariaLabel="Phone number"
                     value={draft}
                     onChangeText={(value) => {
                       setDraft(value);
                       setError(undefined);
                     }}
-                    placeholder="+1 555 123 4567"
                     error={error}
-                    keyboardType="phone-pad"
                   />
                 </View>
                 <Button title="Add" variant="accent" onPress={addNumber} />
@@ -339,13 +318,13 @@ function Sent({ outcome }: { outcome: InviteOutcome }) {
         {count === 1 ? "1 invitation sent." : `${count} invitations sent.`}
       </Text>
       {outcome.added.length > 0 ? (
-        <Text className="max-w-[46ch] font-body text-base text-ink">
+        <Text className="font-body text-base text-ink">
           {list(outcome.added)} joined straight away — that number already
           had an account.
         </Text>
       ) : null}
       {outcome.skipped.length > 0 ? (
-        <Text className="max-w-[46ch] font-body text-base text-ink">
+        <Text className="font-body text-base text-ink">
           {list(outcome.skipped)} is already on this trip.
         </Text>
       ) : null}

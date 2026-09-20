@@ -1,5 +1,4 @@
-import { PHONE_REGEX } from "@journiful/shared/schemas";
-import { formatPhone } from "@/lib/profile";
+import { formatPhoneForDisplay, phoneError, toE164 } from "@/lib/phone";
 import type { Tripmate } from "@/mocks/tripmates";
 
 /**
@@ -29,41 +28,20 @@ export type InviteInput = {
 };
 
 /**
- * A number as the API takes it: digits and a leading plus.
- *
- * The field has to accept what a person types — "+34 600 123 456", a
- * number pasted out of a message with a dash in it — because the machine
- * format is the endpoint's business and not theirs. The web does this
- * inside its phone input; the lab does it once, here, on the way in.
- */
-export function normalizePhone(raw: string): string {
-  const trimmed = raw.trim();
-  return (trimmed.startsWith("+") ? "+" : "") + trimmed.replace(/\D/g, "");
-}
-
-/**
  * Why a typed number cannot be added yet, or nothing.
  *
  * Empty and malformed are different problems with different fixes, so
- * they are different sentences, and the country code is a third: the
- * field arrives with one already in it, so "no country code" is only
- * ever something somebody deleted. "Already added" is checked on the
- * normalized number, or the same number typed twice in different shapes
- * would land twice.
+ * they are different sentences, and both come from the phone module, so
+ * the invite dialog and the sign-in screen cannot disagree about what a
+ * number is. "Already added" is checked on the E.164, or the same number
+ * typed twice in different shapes would land twice.
  */
 export function phoneNumberError(
   raw: string,
   already: string[],
 ): string | undefined {
-  const phone = normalizePhone(raw);
-  const digits = phone.replace("+", "");
-
-  // Nothing yet, or nothing but the country code the field starts with.
-  if (digits.length < 2) return "Enter a number.";
-  if (!phone.startsWith("+")) {
-    return "A country code, like +1 555 123 4567.";
-  }
-  if (!PHONE_REGEX.test(phone)) return "That does not look like a number.";
+  const phone = toE164(raw);
+  if (!phone) return phoneError(raw);
   if (already.includes(phone)) return "That number is already added.";
 
   return undefined;
@@ -77,19 +55,31 @@ export function phoneNumberError(
  * accepts more than the real one would is a filter that lets somebody
  * pick a person the next screen cannot find. Empty means everything.
  *
- * The server also sorts by shared trips first, so the people you have
- * travelled with most are at the top before anybody types anything.
+ * The order is the server's own three keys, in the server's order: most
+ * trips shared first, then the name, then the id. The second and third
+ * are not decoration. Most people share one trip with you, so the first
+ * key alone leaves a long tie, and a tie broken by whatever order the
+ * rows happened to arrive in is a list that reshuffles between two reads
+ * of the same data. The sort applies to the empty query too, which is
+ * the case the section opens in.
  */
 export function filterTripmates(
   tripmates: Tripmate[],
   query: string,
 ): Tripmate[] {
   const search = query.trim().toLowerCase();
-  if (!search) return tripmates;
 
-  return tripmates.filter((tripmate) =>
-    tripmate.name.toLowerCase().startsWith(search),
-  );
+  return tripmates
+    .filter(
+      (tripmate) =>
+        !search || tripmate.name.toLowerCase().startsWith(search),
+    )
+    .sort(
+      (a, b) =>
+        b.sharedTripCount - a.sharedTripCount ||
+        a.name.localeCompare(b.name) ||
+        a.id.localeCompare(b.id),
+    );
 }
 
 /**
@@ -138,7 +128,7 @@ export function sendInvitations({
 
     // Nobody we know: an invitation by text, and the number is what it
     // is addressed to.
-    invited.push(formatPhone(phone));
+    invited.push(formatPhoneForDisplay(phone));
   }
 
   return { invited, added, skipped };
