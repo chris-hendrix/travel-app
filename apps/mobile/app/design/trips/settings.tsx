@@ -2,6 +2,7 @@ import { Suspense, type ReactNode } from "react";
 import { Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
+import { Section } from "@/components/ui/Section";
 import { ChipToggle } from "@/components/ui/ChipToggle";
 import { useDismiss } from "@/hooks/useDismiss";
 import { useTrips } from "@/lib/tripsStore";
@@ -197,23 +198,6 @@ function TripSettingsScreen() {
   );
 }
 
-/** Mirrors the other screens' section: a rule, a display heading, content. */
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <View className="gap-5 border-t border-ink pt-6">
-      <Text className="font-display text-xl uppercase leading-none text-ink">
-        {title}
-      </Text>
-      {children}
-    </View>
-  );
-}
 
 /**
  * A setting: its name and why you would want it on the left, whatever

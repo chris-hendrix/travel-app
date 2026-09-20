@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useRouter } from "expo-router";
 import { Pressable, Text, View } from "react-native";
-import type { ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
+import { Section } from "@/components/ui/Section";
 import { Screen } from "@/components/ui/Screen";
 import { TripCard } from "@/components/trip/TripCard";
 import { Grid } from "@/components/ui/Grid";
@@ -87,33 +87,18 @@ export default function TripsScreen() {
           <>
             {upcoming.length > 0 ? (
               <Section title="Upcoming">
-                {upcoming.map((trip) => card(trip))}
+                <Grid>{upcoming.map((trip) => card(trip))}</Grid>
               </Section>
             ) : null}
             {past.length > 0 ? (
-              <Section title="Past">{past.map((trip) => card(trip))}</Section>
+              <Section title="Past">
+                <Grid>{past.map((trip) => card(trip))}</Grid>
+              </Section>
             ) : null}
           </>
         )}
 
       </View>
     </Screen>
-  );
-}
-
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <View className="gap-6 border-t border-ink pt-6">
-      <Text className="font-display text-xl uppercase leading-none text-ink">
-        {title}
-      </Text>
-      <Grid>{children}</Grid>
-    </View>
   );
 }

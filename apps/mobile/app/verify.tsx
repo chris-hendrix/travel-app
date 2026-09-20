@@ -96,55 +96,52 @@ export default function Verify() {
   if (!pendingPhone) return <Redirect href="/login" />;
 
   return (
-    <Screen>
-      <View className="gap-6 pt-4 md:pt-14">
-        <View className="gap-3">
-          <Text className="font-display text-4xl uppercase leading-none text-ink">
-            Verify your number
-          </Text>
-          <Text className="font-body text-base leading-snug text-ink">
-            {pendingPhone
-              ? `Enter the 6-digit code sent to ${formatPhoneForDisplay(pendingPhone)}.`
-              : "Enter the 6-digit code we sent you."}
-          </Text>
-        </View>
-
-        <TextField
-          label="Code"
-          value={code}
-          onChangeText={change}
-          placeholder="000000"
-          error={failure ?? undefined}
-          centered
-          maxLength={6}
-          autoFocus
-          keyboardType="number-pad"
-          autoComplete="sms-otp"
-          textContentType="oneTimeCode"
-        />
-
-        {note ? (
-          <Text className="font-body text-sm text-ink">{note}</Text>
-        ) : null}
-
-        <ActionRow>
-          <Button
-            title={busy ? "Checking" : "Verify"}
-            disabled={code.length !== 6 || busy}
-            onPress={() => void submit(code)}
-          />
-          <View className="flex-row gap-6 md:self-center">
-            <QuietAction
-              label="Use a different number"
-              onPress={() => router.replace("/login")}
-            />
-            <QuietAction
-              label={cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
-              onPress={() => void resend()}
-            />
-          </View>
-        </ActionRow>
+<Screen lead>      <View className="gap-3">
+        <Text className="font-display text-4xl uppercase leading-none text-ink">
+          Verify your number
+        </Text>
+        <Text className="font-body text-base leading-snug text-ink">
+          {pendingPhone
+            ? `Enter the 6-digit code sent to ${formatPhoneForDisplay(pendingPhone)}.`
+            : "Enter the 6-digit code we sent you."}
+        </Text>
       </View>
+
+      <TextField
+        label="Code"
+        value={code}
+        onChangeText={change}
+        placeholder="000000"
+        error={failure ?? undefined}
+        centered
+        maxLength={6}
+        autoFocus
+        keyboardType="number-pad"
+        autoComplete="sms-otp"
+        textContentType="oneTimeCode"
+      />
+
+      {note ? (
+        <Text className="font-body text-sm text-ink">{note}</Text>
+      ) : null}
+
+      <ActionRow>
+        <Button
+          title={busy ? "Checking" : "Verify"}
+          disabled={code.length !== 6 || busy}
+          onPress={() => void submit(code)}
+        />
+        <View className="flex-row gap-6 md:self-center">
+          <QuietAction
+            label="Use a different number"
+            onPress={() => router.replace("/login")}
+          />
+          <QuietAction
+            label={cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
+            onPress={() => void resend()}
+          />
+        </View>
+      </ActionRow>
     </Screen>
   );
 }

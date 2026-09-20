@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Stack } from "expo-router";
 import { Pressable, Text, View } from "react-native";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
-import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { Segmented } from "@/components/ui/Segmented";
@@ -172,6 +171,15 @@ export function TravelDialog({
       title={title}
       primaryTitle={primaryTitle}
       onPrimary={submit}
+      // The footer is the scaffold's now, and the label is the one thing
+      // the form still owns: this dialog deletes a direction rather than
+      // a record, so which one it is belongs in the title.
+      dangerTitle={
+        onDelete && filed[direction]
+          ? `Delete ${direction === "arrival" ? "arrival" : "departure"}`
+          : undefined
+      }
+      onDanger={onDelete ? () => onDelete(direction) : undefined}
       dismissHref={dismissHref}
     >
       <Stack.Screen options={{ presentation: "modal" }} />
@@ -242,17 +250,6 @@ export function TravelDialog({
         whereSuggestions={whereSuggestions}
         errors={submitted ? errors[direction] : undefined}
       />
-
-      {onDelete && filed[direction] ? (
-        <View className="border-t border-ink pt-6">
-          <Button
-            title={`Delete ${direction === "arrival" ? "arrival" : "departure"}`}
-            variant="danger"
-            fullWidth
-            onPress={() => onDelete(direction)}
-          />
-        </View>
-      ) : null}
     </FullscreenDialog>
   );
 }

@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Stack } from "expo-router";
 import { Text, View } from "react-native";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
-import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { DatePicker } from "@/components/ui/DatePicker";
@@ -99,6 +98,8 @@ export function EventDialog({
       title={title}
       primaryTitle={primaryTitle}
       onPrimary={submit}
+      dangerTitle={onDelete ? "Delete event" : undefined}
+      onDanger={onDelete}
       dismissHref={dismissHref}
     >
       <Stack.Screen options={{ presentation: "modal" }} />
@@ -184,17 +185,6 @@ export function EventDialog({
           />
         </View>
       </View>
-
-      {onDelete ? (
-        <View className="border-t border-ink pt-6">
-          <Button
-            title="Delete event"
-            variant="danger"
-            fullWidth
-            onPress={onDelete}
-          />
-        </View>
-      ) : null}
     </FullscreenDialog>
   );
 }

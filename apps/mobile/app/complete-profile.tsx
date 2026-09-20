@@ -65,69 +65,66 @@ export default function CompleteProfile() {
   if (!user) return <Redirect href="/login" />;
 
   return (
-    <Screen>
-      <View className="gap-6 pt-4 md:pt-14">
-        <View className="gap-3">
-          <Text className="font-display text-4xl uppercase leading-none text-ink">
-            Complete your profile
-          </Text>
-          <Text className="font-body text-base leading-snug text-ink">
-            Tell the group who you are. You can change it later.
-          </Text>
-        </View>
-
-        <View className="flex-row items-center gap-5">
-          <View className="h-16 w-16 items-center justify-center bg-ink">
-            <Text className="font-display text-3xl leading-none text-sand">
-              {initials(trimmed)}
-            </Text>
-          </View>
-          <View className="flex-1">
-            <Text className="font-display text-2xl uppercase leading-tight text-ink">
-              {trimmed || "Your name"}
-            </Text>
-            <Text className="font-body text-sm text-ink">
-              {formatPhoneForDisplay(user?.phoneNumber ?? "")}
-            </Text>
-          </View>
-        </View>
-
-        <TextField
-          label="Display name"
-          value={name}
-          onChangeText={setName}
-          placeholder="Ada Lovelace"
-          error={error}
-          maxLength={50}
-          autoFocus
-        />
-
-        <View className="gap-1">
-          <Text className="font-body-bold text-sm text-ink">Timezone</Text>
-          <Text className="font-body text-sm text-ink">
-            {joinFacts(profile.timezone ?? "Not set", "automatic")}
-          </Text>
-        </View>
-
-        <ActionRow>
-          <Button
-            title={busy ? "Saving" : "Continue"}
-            disabled={busy}
-            onPress={() => void save()}
-          />
-          {/* Signing out rather than navigating home: at this point the
-              session exists and the name does not, so the landing would
-              only send them straight back here. */}
-          <QuietAction
-            label="Sign out"
-            align="center"
-            onPress={() => {
-              signOut();
-              router.replace("/");
-            }}
-          />
-        </ActionRow>
+<Screen lead>      <View className="gap-3">
+        <Text className="font-display text-4xl uppercase leading-none text-ink">
+          Complete your profile
+        </Text>
+        <Text className="font-body text-base leading-snug text-ink">
+          Tell the group who you are. You can change it later.
+        </Text>
       </View>
+
+      <View className="flex-row items-center gap-5">
+        <View className="h-16 w-16 items-center justify-center bg-ink">
+          <Text className="font-display text-3xl leading-none text-sand">
+            {initials(trimmed)}
+          </Text>
+        </View>
+        <View className="flex-1">
+          <Text className="font-display text-2xl uppercase leading-tight text-ink">
+            {trimmed || "Your name"}
+          </Text>
+          <Text className="font-body text-sm text-ink">
+            {formatPhoneForDisplay(user?.phoneNumber ?? "")}
+          </Text>
+        </View>
+      </View>
+
+      <TextField
+        label="Display name"
+        value={name}
+        onChangeText={setName}
+        placeholder="Ada Lovelace"
+        error={error}
+        maxLength={50}
+        autoFocus
+      />
+
+      <View className="gap-1">
+        <Text className="font-body-bold text-sm text-ink">Timezone</Text>
+        <Text className="font-body text-sm text-ink">
+          {joinFacts(profile.timezone ?? "Not set", "automatic")}
+        </Text>
+      </View>
+
+      <ActionRow>
+        <Button
+          title={busy ? "Saving" : "Continue"}
+          disabled={busy}
+          onPress={() => void save()}
+        />
+        {/* Signing out rather than navigating home: at this point the
+            session exists and the name does not, so the landing would
+            only send them straight back here. */}
+        <QuietAction
+          label="Sign out"
+          align="center"
+          onPress={() => {
+            signOut();
+            router.replace("/");
+          }}
+        />
+      </ActionRow>
     </Screen>
   );
 }

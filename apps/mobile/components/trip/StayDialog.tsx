@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Stack } from "expo-router";
 import { Text, View } from "react-native";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
-import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/ui/TextField";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { TimeField } from "@/components/ui/TimeField";
@@ -90,6 +89,8 @@ export function StayDialog({
       title={title}
       primaryTitle={primaryTitle}
       onPrimary={submit}
+      dangerTitle={onDelete ? "Delete stay" : undefined}
+      onDanger={onDelete}
       dismissHref={dismissHref}
     >
       <Stack.Screen options={{ presentation: "modal" }} />
@@ -179,17 +180,6 @@ export function StayDialog({
         multiline
         numberOfLines={6}
       />
-
-      {onDelete ? (
-        <View className="border-t border-ink pt-6">
-          <Button
-            title="Delete stay"
-            variant="danger"
-            fullWidth
-            onPress={onDelete}
-          />
-        </View>
-      ) : null}
     </FullscreenDialog>
   );
 }

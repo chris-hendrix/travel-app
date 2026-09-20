@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { ScrollView, View } from "react-native";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { ActionBar } from "@/components/ui/ActionBar";
+import { Button } from "@/components/ui/Button";
 import { useDismiss } from "@/hooks/useDismiss";
 
 /**
@@ -16,6 +17,8 @@ export function FullscreenDialog({
   primaryTitle,
   onPrimary,
   primaryDisabled = false,
+  dangerTitle,
+  onDanger,
   dismissHref = "/trips",
   children,
 }: {
@@ -28,6 +31,15 @@ export function FullscreenDialog({
   onPrimary?: (() => void) | undefined;
   /** Present, not yet available. */
   primaryDisabled?: boolean;
+  /**
+   * The destructive action, when there is one. It is the scaffold's
+   * rather than the form's because its position is the point: the foot
+   * of the body, under a rule, as far from the primary button as the
+   * dialog allows. Three dialogs drew that footer by hand and they had
+   * already started to differ.
+   */
+  dangerTitle?: string | undefined;
+  onDanger?: (() => void) | undefined;
   /** Where to land when there is no history to go back to. The app's
    *  own home by default: a dialog opened from nowhere belongs to the
    *  app, not to a document. */
@@ -42,6 +54,16 @@ export function FullscreenDialog({
       <ScrollView className="flex-1">
         <View className="mx-auto w-full max-w-[960px] gap-5 p-6 md:px-12 md:py-10">
           {children}
+          {dangerTitle && onDanger ? (
+            <View className="border-t border-ink pt-6">
+              <Button
+                title={dangerTitle}
+                variant="danger"
+                fullWidth
+                onPress={onDanger}
+              />
+            </View>
+          ) : null}
         </View>
       </ScrollView>
       {primaryTitle && onPrimary ? (

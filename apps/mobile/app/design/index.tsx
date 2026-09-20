@@ -16,6 +16,9 @@ import { QuietAction } from "@/components/ui/QuietAction";
 import { PhoneField } from "@/components/ui/PhoneField";
 import { toE164 } from "@/lib/phone";
 import { Screen } from "@/components/ui/Screen";
+// Aliased: this file's own `Section` is the lab's documentation frame, and
+// the product's is the ruled block the frame documents.
+import { Section as RuledSection } from "@/components/ui/Section";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { TimeField } from "@/components/ui/TimeField";
 import type { Selection } from "@/lib/calendar";
@@ -29,6 +32,7 @@ import { PhotoCard } from "@/components/ui/PhotoCard";
 import { NotificationRow } from "@/components/notification/NotificationRow";
 import { TRIPS } from "@/mocks/trips";
 import { eventsFor } from "@/mocks/events";
+import { staysFor } from "@/mocks/stays";
 import { NOTIFICATIONS } from "@/mocks/notifications";
 import { INVITATIONS } from "@/mocks/invitations";
 import { tripFor } from "@/lib/notifications";
@@ -52,6 +56,18 @@ const PRIVACY = legalDocument("privacy");
  * anyone scroll a policy inside a page about components — the whole
  * document is one link away, and the copy is never invented for a demo.
  */
+/**
+ * The sample trip's first event and first stay, for the links below.
+ *
+ * Derived rather than written down. The mocks lay their dates out
+ * relative to today, so an id like `picos-2026-09-19-2` is right on the
+ * day it is written and wrong the next one, and a lab link that lands on
+ * "that event is not on this trip any more" teaches nobody anything.
+ */
+const SAMPLE_TRIP = TRIPS[0]!;
+const SAMPLE_EVENT = eventsFor(SAMPLE_TRIP)[0]!;
+const SAMPLE_STAY = staysFor(SAMPLE_TRIP)[0]!;
+
 const PROSE_SAMPLE: LegalDocument = {
   ...PRIVACY,
   body: (() => {
@@ -253,8 +269,8 @@ export default function DesignSystem() {
 
             <Specimen
               name="FullscreenDialog"
-              contract="title · primaryTitle? · onPrimary? · children"
-              note="Composes AppHeader and ActionBar into a route. Omit primaryTitle on a read-only dialog — a bar with nothing worth pressing is chrome for its own sake. It fills the screen by definition, so it cannot be previewed in a frame: open one."
+              contract="title · primaryTitle? · onPrimary? · dangerTitle? · onDanger? · children"
+              note="Composes AppHeader and ActionBar into a route. Omit primaryTitle on a read-only dialog — a bar with nothing worth pressing is chrome for its own sake. The destructive action belongs to the scaffold rather than to the form, because its position is the point: the foot of the body, under a rule, as far from the primary button as the dialog allows. It fills the screen by definition, so it cannot be previewed in a frame: open one."
             >
               <Link
                 href="/notifications"
@@ -318,14 +334,26 @@ export default function DesignSystem() {
 
             <Specimen
               name="Screen"
-              contract="children"
-              note="The ground for every screen. Navigation containers paint their own background, so a screen must paint its own sand or it renders grey."
+              contract="children · lead?"
+              note="The ground for every screen. Navigation containers paint their own background, so a screen must paint its own sand or it renders grey. `lead` is for the screens that open on a display heading rather than on content, the landing, the way in and the invitation: they want air above the first line that a list of rows does not."
             >
               <Screen>
                 <Text className="font-body text-base text-ink">
                   Screen content sits on the sand ground.
                 </Text>
               </Screen>
+            </Specimen>
+
+            <Specimen
+              name="Section"
+              contract="title · children?"
+              note="A titled block, ruled off from the one above it. The rule sits on top of the block rather than under it, so a stack of them shares its rules instead of doubling them at every boundary. It replaced four local copies that had already drifted apart on gap and heading size. The landing's sections are deliberately not this: they are tables of rows closed by a rule underneath, at the hero's own scale."
+            >
+              <RuledSection title="What goes in the trip">
+                <Text className="font-body text-base text-ink">
+                  Ruled off from whatever sits above it.
+                </Text>
+              </RuledSection>
             </Specimen>
 
             <Specimen
@@ -728,13 +756,13 @@ export default function DesignSystem() {
             Add event
           </Link>
           <Link
-            href="/design/trips/events/detail?id=picos&event=picos-2026-09-19-2&as=organizer"
+            href={`/design/trips/events/detail?id=picos&event=${SAMPLE_EVENT.id}&as=organizer`}
             className="font-body-bold text-base text-ink underline"
           >
             Event detail · organizer
           </Link>
           <Link
-            href="/design/trips/events/detail?id=picos&event=picos-2026-09-19-2&as=traveler"
+            href={`/design/trips/events/detail?id=picos&event=${SAMPLE_EVENT.id}&as=traveler`}
             className="font-body-bold text-base text-ink underline"
           >
             Event detail · traveler
@@ -749,13 +777,13 @@ export default function DesignSystem() {
             Add stay
           </Link>
           <Link
-            href="/design/trips/stay/detail?id=picos&stay=picos-stay-4&as=organizer"
+            href={`/design/trips/stay/detail?id=picos&stay=${SAMPLE_STAY.id}&as=organizer`}
             className="font-body-bold text-base text-ink underline"
           >
             Stay detail · organizer
           </Link>
           <Link
-            href="/design/trips/stay/detail?id=picos&stay=picos-stay-4&as=traveler"
+            href={`/design/trips/stay/detail?id=picos&stay=${SAMPLE_STAY.id}&as=traveler`}
             className="font-body-bold text-base text-ink underline"
           >
             Stay detail · traveler

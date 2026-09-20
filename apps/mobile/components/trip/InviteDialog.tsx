@@ -19,6 +19,7 @@ import { membersFor } from "@/mocks/members";
 import { tripmatesFor, type Tripmate } from "@/mocks/tripmates";
 import type { Trip } from "@/components/trip/TripCard";
 import { SAND } from "@/lib/theme";
+import { Section } from "@/components/ui/Section";
 
 /**
  * How many suggestions the field offers at once.
@@ -339,20 +340,3 @@ function list(names: string[]): string {
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
-/** A titled block of the dialog, ruled off from the one above it. */
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <View className="gap-5 border-t border-ink pt-6">
-      <Text className="font-display text-xl uppercase leading-none text-ink">
-        {title}
-      </Text>
-      {children}
-    </View>
-  );
-}

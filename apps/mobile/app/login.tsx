@@ -70,73 +70,70 @@ export default function Login() {
   if (user) return <Redirect href="/trips" />;
 
   return (
-    <Screen>
-      <View className="gap-6 pt-4 md:pt-14">
-        <View className="gap-3">
-          <Text className="font-display text-4xl uppercase leading-none text-ink">
-            Get started
-          </Text>
-          <Text className="font-body text-base leading-snug text-ink">
-            Enter your phone number to sign in or create an account. We send a
-            code by text, so there is no password to remember.
-          </Text>
-        </View>
-
-        <PhoneField
-          value={phone}
-          onChangeText={(next) => {
-            setPhone(next);
-            setFailure(null);
-          }}
-          error={error}
-          autoFocus
-        />
-
-        {phone && !e164 ? (
-          <Text className="font-body text-sm text-ink">
-            In the US, ten digits is enough. Anywhere else, start with + and
-            the country code.
-          </Text>
-        ) : null}
-
-        {failure ? (
-          <Text className="font-body text-sm text-ink">{failure}</Text>
-        ) : null}
-
-        <View className="gap-3">
-          <Checkbox checked={consent} onToggle={() => setConsent(!consent)}>
-            <CheckboxLabel>
-              I agree to receive text messages from Journiful: a one-time code
-              now, and trip updates, event reminders and invites after that.
-              Message frequency varies. Message and data rates may apply.
-              Reply STOP to opt out. Consent is not required to use Journiful.
-            </CheckboxLabel>
-          </Checkbox>
-          <View className="flex-row gap-4 pl-8">
-            <Link
-              href="/design/legal/sms-terms"
-              className="font-body text-sm text-ink underline"
-            >
-              SMS Terms
-            </Link>
-            <Link
-              href="/design/legal/privacy"
-              className="font-body text-sm text-ink underline"
-            >
-              Privacy Policy
-            </Link>
-          </View>
-        </View>
-
-        <ActionRow>
-          <Button
-            title={busy ? "Sending" : "Continue"}
-            disabled={!e164 || !consent || busy}
-            onPress={send}
-          />
-          <QuietAction label="Back" onPress={leave} align="center" />
-        </ActionRow>
+<Screen lead>      <View className="gap-3">
+        <Text className="font-display text-4xl uppercase leading-none text-ink">
+          Get started
+        </Text>
+        <Text className="font-body text-base leading-snug text-ink">
+          Enter your phone number to sign in or create an account. We send a
+          code by text, so there is no password to remember.
+        </Text>
       </View>
+
+      <PhoneField
+        value={phone}
+        onChangeText={(next) => {
+          setPhone(next);
+          setFailure(null);
+        }}
+        error={error}
+        autoFocus
+      />
+
+      {phone && !e164 ? (
+        <Text className="font-body text-sm text-ink">
+          In the US, ten digits is enough. Anywhere else, start with + and
+          the country code.
+        </Text>
+      ) : null}
+
+      {failure ? (
+        <Text className="font-body text-sm text-ink">{failure}</Text>
+      ) : null}
+
+      <View className="gap-3">
+        <Checkbox checked={consent} onToggle={() => setConsent(!consent)}>
+          <CheckboxLabel>
+            I agree to receive text messages from Journiful: a one-time code
+            now, and trip updates, event reminders and invites after that.
+            Message frequency varies. Message and data rates may apply.
+            Reply STOP to opt out. Consent is not required to use Journiful.
+          </CheckboxLabel>
+        </Checkbox>
+        <View className="flex-row gap-4 pl-8">
+          <Link
+            href="/design/legal/sms-terms"
+            className="font-body text-sm text-ink underline"
+          >
+            SMS Terms
+          </Link>
+          <Link
+            href="/design/legal/privacy"
+            className="font-body text-sm text-ink underline"
+          >
+            Privacy Policy
+          </Link>
+        </View>
+      </View>
+
+      <ActionRow>
+        <Button
+          title={busy ? "Sending" : "Continue"}
+          disabled={!e164 || !consent || busy}
+          onPress={send}
+        />
+        <QuietAction label="Back" onPress={leave} align="center" />
+      </ActionRow>
     </Screen>
   );
 }
