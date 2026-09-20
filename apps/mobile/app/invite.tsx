@@ -84,34 +84,32 @@ function InviteScreen() {
   }
 
   return (
-    <Screen>
-      <View className="gap-6 pt-4 md:pt-14">
-        <InviteCard
-          inviterName={invitation.inviterName}
-          tripName={trip.title}
-          destination={trip.location}
-          startDate={trip.startDate}
-          endDate={trip.endDate}
+    <Screen lead>
+      <InviteCard
+        inviterName={invitation.inviterName}
+        tripName={trip.title}
+        destination={trip.location}
+        startDate={trip.startDate}
+        endDate={trip.endDate}
+      />
+      {user ? (
+        // Signed in already, so there is no number to ask for. The trip
+        // is the only thing left, and whether it is in their trips is
+        // the server's business rather than this screen's.
+        <Button
+          title="Go to the trip"
+          variant="accent"
+          onPress={() =>
+            router.replace(`/trips/detail?id=${trip.id}`)
+          }
         />
-        {user ? (
-          // Signed in already, so there is no number to ask for. The trip
-          // is the only thing left, and whether it is in their trips is
-          // the server's business rather than this screen's.
-          <Button
-            title="Go to the trip"
-            variant="accent"
-            onPress={() =>
-              router.replace(`/design/trips/detail?id=${trip.id}`)
-            }
-          />
-        ) : (
-          <Button
-            title="Sign in to join"
-            variant="accent"
-            onPress={() => router.push("/login")}
-          />
-        )}
-      </View>
+      ) : (
+        <Button
+          title="Sign in to join"
+          variant="accent"
+          onPress={() => router.push("/login")}
+        />
+      )}
     </Screen>
   );
 }

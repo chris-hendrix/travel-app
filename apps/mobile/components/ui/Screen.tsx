@@ -13,8 +13,11 @@ import { ScrollView, View } from "react-native";
  *
  * `lead` is for the screens that open on a display heading rather than on
  * content: the landing, the way in, and the invitation. They want air
- * above the first line that a list of rows does not, and before this it
- * was a magic `pt-4 md:pt-14` wrapper repeated in four screens.
+ * above the first line that a list of rows does not, and the same 24px
+ * rhythm between the blocks that the repeated wrapper carried before it.
+ * Before this it was a magic `gap-6 pt-4 md:pt-14` wrapper repeated in
+ * four screens, and the gap is load-bearing: without it the field, the
+ * consent and the button stack with nothing between them.
  */
 export function Screen({
   children,
@@ -27,7 +30,7 @@ export function Screen({
     <ScrollView className="flex-1 bg-sand">
       <View
         className={`mx-auto w-full max-w-[960px] px-6 md:px-12 ${
-          lead ? "pb-6 pt-10 md:pb-10 md:pt-24" : "py-6 md:py-10"
+          lead ? "gap-6 pb-6 pt-10 md:pb-10 md:pt-24" : "py-6 md:py-10"
         }`}
       >
         {children}
