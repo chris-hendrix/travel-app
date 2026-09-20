@@ -9,24 +9,39 @@ import { useZoneToken } from "@/lib/displayZone";
 /**
  * Scalloped bottom edge on the chrome band. A pattern tile keeps the
  * wave period fixed instead of stretching it across the viewport.
+ *
+ * The tile is exactly as deep as the wave, so the band's edge is the
+ * wave and nothing else. Anything deeper than the curve leaves a strip
+ * of ground running under the black across the full width, and the first
+ * line of the page is cut off precisely at that line, which reads as the
+ * header lying over the text rather than as a wavy edge the text passes
+ * beneath.
+ *
+ * The pattern fills the ground between the crests with nothing: those
+ * gaps are transparent, so what shows through them is whatever sits
+ * behind the header, and the header paints only ink.
  */
+const WAVE_DEPTH = 10;
+
 function WaveEdge() {
   return (
-    <Svg height={12} width="100%">
-      <Defs>
-        <Pattern
-          id="wave"
-          x="0"
-          y="0"
-          width={28}
-          height={12}
-          patternUnits="userSpaceOnUse"
-        >
-          <Path d="M0 0 H28 V6 Q21 12 14 6 T0 6 Z" fill="#000000" />
-        </Pattern>
-      </Defs>
-      <Rect x="0" y="0" width="100%" height={12} fill="url(#wave)" />
-    </Svg>
+    <View className="h-2.5 w-full">
+      <Svg height={WAVE_DEPTH} width="100%">
+        <Defs>
+          <Pattern
+            id="wave"
+            x="0"
+            y="0"
+            width={28}
+            height={WAVE_DEPTH}
+            patternUnits="userSpaceOnUse"
+          >
+            <Path d="M0 0 H28 V6 Q21 14 14 6 Q7 0 0 6 Z" fill="#000000" />
+          </Pattern>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height={WAVE_DEPTH} fill="url(#wave)" />
+      </Svg>
+    </View>
   );
 }
 
@@ -124,8 +139,10 @@ export function AppHeader({
    * in. `bare` is the auth screens, which keep the wordmark alone.
    *
    * The wordmark is home wherever home exists: the trips list once you
-   * are in the app, and the landing while you are still deciding. It is
-   * inert on the landing itself, because that is where it points.
+   * are in the app, and the landing everywhere else, including on the
+   * landing itself, where it is a no-op. A wordmark that is dead on one
+   * screen and alive on the next reads as a broken link, and the cost of
+   * the alternative is nothing.
    */
   variant?: "app" | "landing" | "bare";
 }) {
@@ -151,12 +168,23 @@ export function AppHeader({
   const landing = variant === "landing";
   const app = variant === "app";
 
+  // No ground of its own: the band paints ink and the wave is a
+  // silhouette on transparent, so the negative space between the
+  // scallops is whatever is behind the header rather than a sand bar
+  // drawn across the top of the screen. Today that is the shell's sand,
+  // which is why it looked right anyway; it stops being right the moment
+  // a screen whose ground is not sand sits under this band, and a full
+  // bleed photo or a coloured edge is exactly that.
   return (
-    <View className="bg-sand">
+    <View>
       <View className="flex-row items-center justify-between bg-ink px-6 pb-3 pt-4">
         {landing ? (
-          // Inert on the landing itself, because that is where it points.
-          <Text className="font-wordmark text-2xl text-sand">Journiful</Text>
+          // Still a link on the landing, where it points at the page you
+          // are already on: the same word behaves the same way
+          // everywhere it appears.
+          <Link href="/" className="font-wordmark text-2xl text-sand">
+            Journiful
+          </Link>
         ) : (
           <Link
             href={app ? "/trips" : "/"}
