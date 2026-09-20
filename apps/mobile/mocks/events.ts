@@ -1,5 +1,6 @@
 import type { Trip } from "@/components/trip/TripCard";
 import type { EventType, ItineraryEvent } from "@/lib/itinerary";
+import { UNPLANNED_TRIP_ID } from "@/mocks/trips";
 
 /**
  * Mock events, laid onto the days the trip actually runs — a trip that
@@ -202,6 +203,10 @@ function daysOf(trip: Trip): string[] {
 }
 
 export function eventsFor(trip: Trip): ItineraryEvent[] {
+  // A trip nobody has planned yet, which the walk below cannot produce:
+  // it has a template for every trip and would happily fill this one.
+  if (trip.id === UNPLANNED_TRIP_ID) return [];
+
   const events: ItineraryEvent[] = [];
   // A cursor, not a per-day index: multiplying the day by that day's
   // count walks the pool unevenly and puts the same dinner on two

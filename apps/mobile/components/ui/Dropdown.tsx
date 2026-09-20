@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { View } from "react-native";
 import { TextField } from "@/components/ui/TextField";
+import { SuggestionList } from "@/components/ui/SuggestionList";
 
 /**
  * Single-select dropdown with autocomplete. The suggestion list overlays
@@ -90,28 +91,15 @@ export function Dropdown({
       </View>
 
       {open && fieldHeight > 0 ? (
-        <View
-          className="absolute left-0 right-0 z-50 border border-ink bg-paper"
-          style={{ top: fieldHeight }}
-        >
-          {matches.length === 0 ? (
-            <Text className="font-body p-3 text-base text-ink">
-              No matches
-            </Text>
-          ) : (
-            matches.map((option) => (
-              <Pressable
-                key={option.value}
-                onPress={() => select(option)}
-                className="border-b border-gravel p-3"
-              >
-                <Text className="font-body text-base text-ink">
-                  {option.label}
-                </Text>
-              </Pressable>
-            ))
-          )}
-        </View>
+        <SuggestionList
+          suggestions={matches}
+          top={fieldHeight}
+          empty="No matches"
+          onPick={(value) => {
+            const option = entries.find((entry) => entry.value === value);
+            if (option) select(option);
+          }}
+        />
       ) : null}
     </View>
   );

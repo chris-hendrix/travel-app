@@ -13,6 +13,7 @@ export const DIALOG_ROUTES = [
   "/profile",
   "/design/profile",
   "/design/trips/members",
+  "/design/trips/invite",
   "/design/trips/settings",
   "/design/trips/edit",
   "/design/trips/events/new",
@@ -21,4 +22,7 @@ export const DIALOG_ROUTES = [
   "/design/trips/new",
   "/design/trips/travel",
   "/design/trips/travel/form",
+  "/design/trips/stay/new",
+  "/design/trips/stay/detail",
+  "/design/trips/stay/edit",
 ];

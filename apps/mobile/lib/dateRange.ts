@@ -114,6 +114,28 @@ export function formatTimeRange(
   return `${MONTHS[s.month]} ${s.day}, ${s.year} – ${MONTHS[e.month]} ${e.day}, ${e.year}`;
 }
 
+/**
+ * A span of days, as compactly as it stays accurate: the month is named
+ * once when both ends are in it.
+ *
+ *   same month   "Sep 17–23"
+ *   across one   "Sep 28 – Oct 3"
+ *
+ * The en dash, the same mark the trip card's own range uses and the same
+ * one a clock range uses: the app has one way of writing a range, and a
+ * stay is a range. A year is left off because a stay's days sit inside a
+ * trip whose dates the screen has already said.
+ */
+export function formatDaySpan(startIso: string, endIso: string): string {
+  const s = parts(startIso);
+  const e = parts(endIso);
+
+  if (s.year === e.year && s.month === e.month) {
+    return `${MONTHS[s.month]} ${s.day}–${e.day}`;
+  }
+  return `${MONTHS[s.month]} ${s.day} – ${MONTHS[e.month]} ${e.day}`;
+}
+
 /** A local day, moved. Used one day at a time, for the edges of a trip. */
 export function addDays(iso: string, days: number): string {
   // `parts` hands back a zero-based month, which is also what Date wants.

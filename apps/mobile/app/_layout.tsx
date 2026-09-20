@@ -18,6 +18,7 @@ import { TripSettingsProvider } from "@/lib/tripSettingsStore";
 import { TripsProvider } from "@/lib/tripsStore";
 import { EventsProvider } from "@/lib/eventsStore";
 import { TravelProvider } from "@/lib/travelStore";
+import { StaysProvider } from "@/lib/staysStore";
 import { DisplayZoneProvider } from "@/lib/displayZone";
 import "../global.css";
 
@@ -46,6 +47,7 @@ export default function RootLayout() {
     <TripsProvider>
       <EventsProvider>
       <TravelProvider>
+      <StaysProvider>
       <DisplayZoneProvider>
       <NotificationsProvider>
         <ProfileProvider>
@@ -66,6 +68,7 @@ export default function RootLayout() {
         </ProfileProvider>
       </NotificationsProvider>
       </DisplayZoneProvider>
+      </StaysProvider>
       </TravelProvider>
       </EventsProvider>
     </TripsProvider>

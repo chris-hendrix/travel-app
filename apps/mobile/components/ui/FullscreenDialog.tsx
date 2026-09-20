@@ -15,6 +15,7 @@ export function FullscreenDialog({
   title,
   primaryTitle,
   onPrimary,
+  primaryDisabled = false,
   dismissHref = "/",
   children,
 }: {
@@ -25,6 +26,8 @@ export function FullscreenDialog({
    *  straight through — who is looking decides whether there is one. */
   primaryTitle?: string | undefined;
   onPrimary?: (() => void) | undefined;
+  /** Present, not yet available. */
+  primaryDisabled?: boolean;
   /** Where to land when there is no history to go back to. */
   dismissHref?: string;
   children: ReactNode;
@@ -40,7 +43,11 @@ export function FullscreenDialog({
         </View>
       </ScrollView>
       {primaryTitle && onPrimary ? (
-        <ActionBar primaryTitle={primaryTitle} onPrimary={onPrimary} />
+        <ActionBar
+          primaryTitle={primaryTitle}
+          onPrimary={onPrimary}
+          disabled={primaryDisabled}
+        />
       ) : null}
     </View>
   );

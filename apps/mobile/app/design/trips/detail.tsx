@@ -10,9 +10,14 @@ import { RsvpControl } from "@/components/trip/RsvpControl";
 import { Itinerary } from "@/components/trip/Itinerary";
 import { tripCountdown } from "@/lib/countdown";
 import { formatDateRange } from "@/lib/dateRange";
+import { todayIn } from "@/lib/timezone";
 import type { RsvpStatus } from "@/lib/rsvp";
 import { useTrips } from "@/lib/tripsStore";
 import { useTravel } from "@/lib/travelStore";
+import { useEvents } from "@/lib/eventsStore";
+import { useStays } from "@/lib/staysStore";
+import { currentStay } from "@/lib/stays";
+import { useTripSettings } from "@/lib/tripSettingsStore";
 import { getPertinentTime } from "@journiful/shared/utils";
 import { viewerMember } from "@/lib/members";
 import { membersFor } from "@/mocks/members";
@@ -82,6 +87,33 @@ function TripDetailScreen() {
   // a requirement: with no trip named, show the first one.
   const tripId = typeof id === "string" ? id : undefined;
   const trip = trips.find((candidate) => candidate.id === tripId) ?? trips[0];
+
+  // Both of these are read before the guard: a hook called after a
+  // return is a hook called a different number of times.
+  const { eventsForTrip } = useEvents();
+  const { staysForTrip } = useStays();
+  const { for: settingsFor } = useTripSettings();
+
+  // Nothing on the itinerary yet. That is the one case its own head
+  // cannot help with: the itinerary sits below the fold, and the empty
+  // block that carries the same two verbs is under it. So the stack
+  // keeps a nudge only while there is nothing to look at — the same
+  // bargain the travel nudge makes while you owe times.
+  const planIsEmpty = trip
+    ? eventsForTrip(trip).length === 0 && staysForTrip(trip).length === 0
+    : false;
+  // The roof the trip page knows about, so its fact row can open the
+  // one screen that holds the wifi, the code and the address. The run
+  // owns the content; this is the door to it from the top, and it is the
+  // live stay — tonight's, or the next to begin — which is the only
+  // instance a door called Stay has to stand for.
+  const { clock } = trip
+    ? settingsFor(trip, new Date())
+    : { clock: "trip" as const };
+  const timeZone = clock === "trip" ? (trip?.preferredTimezone ?? null) : null;
+  const stay = trip
+    ? currentStay(staysForTrip(trip), todayIn(timeZone), timeZone)
+    : undefined;
 
   if (!trip) {
     return (
@@ -157,17 +189,22 @@ function TripDetailScreen() {
         title="Invite people"
         variant="accent"
         fullWidth
-        onPress={() => {}}
+        onPress={() => router.push(`/design/trips/invite?id=${trip.id}`)}
       />
-      {/* Authoring sits under the ask: adding an event is how the
-          organizer fills the itinerary below, so it reads as building
-          rather than maintaining. */}
-      <Button
-        title="Add event"
-        variant="primary"
-        fullWidth
-        onPress={() => router.push(`/design/trips/events/new?id=${trip.id}`)}
-      />
+      {/* Authoring used to sit here, and moved down to the list it
+          fills: Add event and Add stay are at the head of the itinerary
+          now, which is one scroll away and changes what is directly
+          under them. What stays is the nudge, and only while the
+          itinerary is empty — a button that vanishes once you have used
+          it is a nudge, and a button that never leaves is a fixture. */}
+      {planIsEmpty ? (
+        <Button
+          title="Add the first event"
+          variant="primary"
+          fullWidth
+          onPress={() => router.push(`/design/trips/events/new?id=${trip.id}`)}
+        />
+      ) : null}
       {/* The trip's own maintenance, outlined under the coloured two. */}
       <Button
         title="Edit trip"
@@ -279,6 +316,30 @@ function TripDetailScreen() {
                     )
                   }
                 />
+                {/* The third door, and deliberately the categorical
+                    one: Stay, not a name. A name is only clear to
+                    somebody who already knows which roof is which, and
+                    on a five-hut traverse it is a word you have to
+                    decode before you can use it. What the door opens
+                    is nonetheless one particular stay — whichever you
+                    are in tonight, or the next to begin — and that is
+                    the only stay the label needs to be true about:
+                    there is one answer to where am I sleeping tonight.
+                    The rest are at the head of the itinerary, with the
+                    wifi and the code behind this one. */}
+                {stay ? (
+                  <>
+                    <Text className="font-body text-sm text-ink">·</Text>
+                    <QuietAction
+                      label="Stay"
+                      onPress={() =>
+                        router.push(
+                          `/design/trips/stay/detail?id=${trip.id}&stay=${stay.id}&as=${variant}`,
+                        )
+                      }
+                    />
+                  </>
+                ) : null}
               </View>
             </View>
 

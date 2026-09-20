@@ -591,6 +591,27 @@ export default function DesignSystem() {
           >
             Event detail · traveler
           </Link>
+          <Link
+            href="/design/trips/invite?id=picos"
+            className="font-body-bold text-base text-ink underline"
+          >
+            Invite people
+          </Link>
+          <Link href="/design/trips/stay/new?id=picos" className="font-body-bold text-base text-ink underline">
+            Add stay
+          </Link>
+          <Link
+            href="/design/trips/stay/detail?id=picos&stay=picos-stay-4&as=organizer"
+            className="font-body-bold text-base text-ink underline"
+          >
+            Stay detail · organizer
+          </Link>
+          <Link
+            href="/design/trips/stay/detail?id=picos&stay=picos-stay-4&as=traveler"
+            className="font-body-bold text-base text-ink underline"
+          >
+            Stay detail · traveler
+          </Link>
           <Link href="/notifications" className="font-body-bold text-base text-ink underline">
             Notifications
           </Link>

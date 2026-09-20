@@ -15,13 +15,25 @@ import { Button } from "@/components/ui/Button";
 export function ActionBar({
   primaryTitle,
   onPrimary,
+  disabled = false,
 }: {
   primaryTitle: string;
   onPrimary: () => void;
+  /**
+   * The action is real and not yet available: a dialog that needs
+   * something picked before it can be sent says so in place rather than
+   * hiding the bar, which would leave the thumb with nowhere to land.
+   */
+  disabled?: boolean;
 }) {
   return (
     <View className="border-t border-ink bg-gravel px-6 py-4">
-      <Button title={primaryTitle} onPress={onPrimary} align="end" />
+      <Button
+        title={primaryTitle}
+        onPress={onPrimary}
+        align="end"
+        disabled={disabled}
+      />
     </View>
   );
 }

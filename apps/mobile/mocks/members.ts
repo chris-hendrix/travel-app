@@ -29,6 +29,14 @@ const FRIENDS = [
   "Sam Whitfield",
 ];
 
+/**
+ * The pool itself, exported for the invite dialog: the people you have
+ * travelled with are these people minus whoever is already on this trip.
+ * One pool, so a suggestion and a roster entry can never be two
+ * different spellings of one friend.
+ */
+export { FRIENDS };
+
 /** Deterministic, so a trip always shows the same faces. */
 function offsetFor(tripId: string): number {
   let sum = 0;
@@ -61,7 +69,7 @@ function handlesFor(
 }
 
 /** A number that formats, and that only ever belongs to one person. */
-function phoneFor(index: number): string {
+export function phoneFor(index: number): string {
   return `+1555${`${1000000 + index * 137}`.slice(0, 7)}`;
 }
 

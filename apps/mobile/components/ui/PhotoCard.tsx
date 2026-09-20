@@ -32,7 +32,7 @@ export function PhotoCard({
   meta: string;
   title: string;
   /** The bold line under the title: where it is. */
-  footnote?: string;
+  footnote?: string | undefined;
   onPress?: (() => void) | undefined;
 }) {
   const { hoverProps, zoom } = useHoverZoom();

@@ -13,6 +13,17 @@ function dates(startOffsetDays: number, lengthDays: number) {
   return { startDate: toIso(start), endDate: toIso(end) };
 }
 
+/**
+ * A trip nobody has planned yet: no events and no stay.
+ *
+ * The state every trip is in for the first minute of its life, and the
+ * one the itinerary's empty block is written for — which no other mock
+ * can show, because every other trip gets an itinerary walked off a
+ * template. It is the same reason the mocks carry a finished trip and
+ * one that is underway.
+ */
+export const UNPLANNED_TRIP_ID = "unplanned";
+
 export const TRIPS: Trip[] = [
   {
     id: "picos",
@@ -105,5 +116,17 @@ export const TRIPS: Trip[] = [
       "Ten days in Kyoto for the autumn colours. Temples in the morning, markets in the afternoon.",
     preferredTimezone: "Asia/Tokyo",
     ...dates(-700, 10),
+  },
+  {
+    id: UNPLANNED_TRIP_ID,
+    title: "Loire Valley",
+    location: "Loire Valley",
+    image: "https://picsum.photos/seed/loire/900/600",
+    going: 4,
+    // Nothing written yet, so no prose either: a trip in its first
+    // minute has a name a place and some dates, and that is all.
+    description: null,
+    preferredTimezone: "Europe/Paris",
+    ...dates(45, 5),
   },
 ];

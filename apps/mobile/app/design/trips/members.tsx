@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { Text, View } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { ChipLink } from "@/components/ui/ChipLink";
 import { useTrips } from "@/lib/tripsStore";
@@ -14,9 +14,11 @@ import { membersFor } from "@/mocks/members";
  * The roll call, reached from "6 going" on the trip header.
  *
  * A dialog rather than a screen: it is a disclosure of one line on the
- * screen behind it, and nothing gets authored here. No action bar, for
- * the same reason — with the invite flow built, the organizer's version
- * of this dialog is where "Invite people" would sit.
+ * screen behind it, which is why there is nothing to author here. The
+ * one action the dialog does carry is the organizer's, and it is not
+ * authoring this list either — it is the way to make it longer:
+ * Invite people, which is also the trip screen's loudest button, and the
+ * same screen whichever door you come through.
  *
  * The organizer is first and is labeled Organizing: the far column says
  * what each person's part in the trip is, and for the organizer that is
@@ -43,6 +45,7 @@ export default function TripMembers() {
 function TripMembersDialog() {
   const { id, as } = useLocalSearchParams<{ id?: string; as?: string }>();
   const { trips } = useTrips();
+  const router = useRouter();
 
   const tripId = typeof id === "string" ? id : undefined;
   const trip = trips.find((candidate) => candidate.id === tripId) ?? trips[0];
@@ -63,6 +66,15 @@ function TripMembersDialog() {
   return (
     <FullscreenDialog
       title="Who's coming"
+      // The traveler gets no bar at all: an action bar with nothing in it
+      // is chrome, and there is nothing here a traveler may do.
+      primaryTitle={viewerIsOrganizer ? "Invite people" : undefined}
+      onPrimary={
+        viewerIsOrganizer
+          ? () =>
+              router.push(`/design/trips/invite?id=${trip.id}&from=members`)
+          : undefined
+      }
       dismissHref={`/design/trips/detail?id=${trip.id}`}
     >
       {/* Ruled rows, like every other list here: the part each person
