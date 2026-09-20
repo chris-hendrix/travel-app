@@ -19,6 +19,9 @@ import { Screen } from "@/components/ui/Screen";
 // Aliased: this file's own `Section` is the lab's documentation frame, and
 // the product's is the ruled block the frame documents.
 import { Section as RuledSection } from "@/components/ui/Section";
+import { InlineError } from "@/components/ui/InlineError";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
+import { OfflineBlock } from "@/components/ui/OfflineBlock";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { TimeField } from "@/components/ui/TimeField";
 import type { Selection } from "@/lib/calendar";
@@ -354,6 +357,33 @@ export default function DesignSystem() {
                   Ruled off from whatever sits above it.
                 </Text>
               </RuledSection>
+            </Specimen>
+
+            <Specimen
+              name="InlineError"
+              contract="message · retryTitle? · onRetry?"
+              note="A request that failed, where its content would have been. The message is the caller's sentence about what is missing, not the error's: what the fetch threw is for the console. With a way to ask again, because a failure with nowhere to go is a dead end."
+            >
+              <InlineError
+                message="The itinerary could not be loaded."
+                onRetry={() => setLog("InlineError asked again")}
+              />
+            </Specimen>
+
+            <Specimen
+              name="LoadingBlock"
+              contract="label"
+              note="A screen that is getting there says so where its content will be. A plain line, not a spinner and not a skeleton: there is no motion language here, and a skeleton promises a shape the request has not returned yet. The label is what is loading, never a bare Loading on its own."
+            >
+              <LoadingBlock label="Loading the itinerary." />
+            </Specimen>
+
+            <Specimen
+              name="OfflineBlock"
+              contract="message? · retryTitle? · onRetry?"
+              note="No connection, where the connection's content would have been. Not a banner at the top of the screen, which would be a second header: it sits inside the block that asked, like the error does."
+            >
+              <OfflineBlock onRetry={() => setLog("OfflineBlock asked again")} />
             </Specimen>
 
             <Specimen
@@ -855,9 +885,8 @@ export default function DesignSystem() {
         <Section title="Parking lot">
           <Text className="font-body text-base text-ink">
             Discover · deleted items · delete account · session storage, since
-            the sign-in is a mock and nothing survives a reload · the inline
-            error with a retry, which is what a failed request gets instead of
-            a message. Each lands here as a pattern first, then in a screen.
+            the sign-in is a mock and nothing survives a reload. Each lands
+            here as a pattern first, then in a screen.
           </Text>
         </Section>
       </View>
