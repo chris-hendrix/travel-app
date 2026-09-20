@@ -42,7 +42,7 @@ function EditEventScreen() {
   const { trips } = useTrips();
   const { for: settingsFor, update } = useTripSettings();
   const { eventById, updateEvent, deleteEvent } = useEvents();
-  const dismiss = useDismiss("/design/trips");
+  const dismiss = useDismiss("/trips");
   const router = useRouter();
 
   const tripId = typeof id === "string" ? id : undefined;
@@ -63,11 +63,11 @@ function EditEventScreen() {
   // Deleting leaves nothing to go back to, so the trip is where it ends
   // — replacing, not dismissing, because dismissing would land on the
   // event detail we just deleted.
-  const tripHref = `/design/trips/detail?id=${trip?.id ?? ""}`;
+  const tripHref = `/trips/detail?id=${trip?.id ?? ""}`;
 
   if (!trip || !event) {
     return (
-      <FullscreenDialog title="Edit event" dismissHref="/design/trips">
+      <FullscreenDialog title="Edit event" dismissHref="/trips">
         <Text className="font-body text-base text-ink">
           That event is not on this trip any more.
         </Text>
@@ -84,7 +84,7 @@ function EditEventScreen() {
       title="Edit event"
       primaryTitle="Save changes"
       trip={trip}
-      dismissHref={`/design/trips/events/detail?id=${trip.id}&event=${event.id}`}
+      dismissHref={`/trips/events/detail?id=${trip.id}&event=${event.id}`}
       initial={initial}
       onDelete={() => {
         deleteEvent(trip.id, event.id);

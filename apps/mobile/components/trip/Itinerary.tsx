@@ -78,14 +78,14 @@ export function Itinerary({
   const cards = layout === "cards";
   const openEvent = (eventId: string) =>
     router.push(
-      `/design/trips/events/detail?id=${trip.id}&event=${eventId}&as=${as}`,
+      `/trips/events/detail?id=${trip.id}&event=${eventId}&as=${as}`,
     );
   const openStay = (stayId: string) =>
     router.push(
-      `/design/trips/stay/detail?id=${trip.id}&stay=${stayId}&as=${as}`,
+      `/trips/stay/detail?id=${trip.id}&stay=${stayId}&as=${as}`,
     );
-  const addEvent = () => router.push(`/design/trips/events/new?id=${trip.id}`);
-  const addStay = () => router.push(`/design/trips/stay/new?id=${trip.id}`);
+  const addEvent = () => router.push(`/trips/events/new?id=${trip.id}`);
+  const addStay = () => router.push(`/trips/stay/new?id=${trip.id}`);
 
   // The zone drives the grouping as well as the clock: an evening in
   // Mallorca belongs to the day it is in Mallorca.

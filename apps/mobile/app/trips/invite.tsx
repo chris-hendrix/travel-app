@@ -34,7 +34,7 @@ function InvitePeopleDialog() {
 
   if (!trip) {
     return (
-      <FullscreenDialog title="Invite people" dismissHref="/design/trips">
+      <FullscreenDialog title="Invite people" dismissHref="/trips">
         <Text className="font-body text-base text-ink">
           No trip to invite anyone to. Start one from the trips screen.
         </Text>
@@ -47,8 +47,8 @@ function InvitePeopleDialog() {
       trip={trip}
       dismissHref={
         from === "members"
-          ? `/design/trips/members?id=${trip.id}&as=organizer`
-          : `/design/trips/detail?id=${trip.id}`
+          ? `/trips/members?id=${trip.id}&as=organizer`
+          : `/trips/detail?id=${trip.id}`
       }
     />
   );

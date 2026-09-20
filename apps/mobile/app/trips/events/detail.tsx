@@ -55,7 +55,7 @@ function EventDetailDialog() {
   const { eventById } = useEvents();
   const { for: settingsFor, update } = useTripSettings();
   const router = useRouter();
-  const dismiss = useDismiss("/design/trips");
+  const dismiss = useDismiss("/trips");
 
   const tripId = typeof id === "string" ? id : undefined;
   const trip = trips.find((candidate) => candidate.id === tripId) ?? trips[0];
@@ -74,7 +74,7 @@ function EventDetailDialog() {
 
   if (!trip || !event) {
     return (
-      <FullscreenDialog title="Event" dismissHref="/design/trips">
+      <FullscreenDialog title="Event" dismissHref="/trips">
         <Text className="font-body text-base text-ink">
           That event is not on this trip any more.
         </Text>
@@ -93,11 +93,11 @@ function EventDetailDialog() {
         organizer
           ? () =>
               router.push(
-                `/design/trips/events/edit?id=${trip.id}&event=${event.id}`,
+                `/trips/events/edit?id=${trip.id}&event=${event.id}`,
               )
           : dismiss
       }
-      dismissHref={`/design/trips/detail?id=${trip.id}`}
+      dismissHref={`/trips/detail?id=${trip.id}`}
     >
       <View className="gap-y-6 md:flex-row md:gap-12">
         <View className="relative overflow-hidden md:flex-1">

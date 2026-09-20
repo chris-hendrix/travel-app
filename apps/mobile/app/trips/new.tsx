@@ -18,7 +18,7 @@ import { PLACES } from "@/mocks/places";
 
 export default function NewTrip() {
   const { addTrip, trips } = useTrips();
-  const dismiss = useDismiss("/design/trips");
+  const dismiss = useDismiss("/trips");
 
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState<string | null>(null);
@@ -48,7 +48,7 @@ export default function NewTrip() {
       title="Create trip"
       primaryTitle="Create trip"
       onPrimary={create}
-      dismissHref="/design/trips"
+      dismissHref="/trips"
     >
       {/* Modals are routes, presented modally: iOS slides it up and
           allows a swipe-down dismiss, Android maps its hardware back

@@ -70,7 +70,8 @@ export default function Login() {
   if (user) return <Redirect href="/trips" />;
 
   return (
-<Screen lead>      <View className="gap-3">
+    <Screen lead>
+      <View className="gap-3">
         <Text className="font-display text-4xl uppercase leading-none text-ink">
           Get started
         </Text>
@@ -112,13 +113,13 @@ export default function Login() {
         </Checkbox>
         <View className="flex-row gap-4 pl-8">
           <Link
-            href="/design/legal/sms-terms"
+            href="/legal/sms-terms"
             className="font-body text-sm text-ink underline"
           >
             SMS Terms
           </Link>
           <Link
-            href="/design/legal/privacy"
+            href="/legal/privacy"
             className="font-body text-sm text-ink underline"
           >
             Privacy Policy

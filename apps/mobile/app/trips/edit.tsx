@@ -34,7 +34,7 @@ export default function EditTrip() {
 function EditTripScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { trips, updateTrip } = useTrips();
-  const dismiss = useDismiss("/design/trips");
+  const dismiss = useDismiss("/trips");
 
   const tripId = typeof id === "string" ? id : undefined;
   const trip = trips.find((candidate) => candidate.id === tripId) ?? trips[0];
@@ -65,7 +65,7 @@ function EditTripScreen() {
 
   if (!trip) {
     return (
-      <FullscreenDialog title="Edit trip" dismissHref="/design/trips">
+      <FullscreenDialog title="Edit trip" dismissHref="/trips">
         <Text className="font-body text-base text-ink">
           No trip to edit. Start one from the trips screen.
         </Text>
@@ -104,7 +104,7 @@ function EditTripScreen() {
       title="Edit trip"
       primaryTitle="Save changes"
       onPrimary={save}
-      dismissHref={`/design/trips/detail?id=${trip.id}`}
+      dismissHref={`/trips/detail?id=${trip.id}`}
     >
       <Stack.Screen options={{ presentation: "modal" }} />
 

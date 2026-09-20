@@ -1,6 +1,7 @@
+/* global __DEV__ */
 import { useState, type ReactNode } from "react";
 import { Pressable, Text, View, useWindowDimensions } from "react-native";
-import { Link } from "expo-router";
+import { Link, Redirect } from "expo-router";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { ActionBar } from "@/components/ui/ActionBar";
 import { Button } from "@/components/ui/Button";
@@ -190,7 +191,20 @@ function Specimen({
   );
 }
 
+/**
+ * The lab, which exists only in development. In a release build or in the
+ * exported web app it answers with the same nothing a mistyped address
+ * gets, which is why this is a wrapper rather than a check inside the
+ * screen: the screen's hooks must run unconditionally, and the guard
+ * needs nothing else. `__DEV__` is compile-time on both targets, so
+ * there is no runtime config to forget and no conditional in the layout.
+ */
 export default function DesignSystem() {
+  if (!__DEV__) return <Redirect href="/+not-found" />;
+  return <DesignSystemScreen />;
+}
+
+function DesignSystemScreen() {
   const [formName, setFormName] = useState("");
   const [venue, setVenue] = useState<string | null>(null);
   const [rsvp, setRsvp] = useState<RsvpStatus | null>(null);
@@ -641,7 +655,7 @@ export default function DesignSystem() {
                 onLink={(href) => setLog(`Prose link "${href}" pressed`)}
               />
               <Link
-                href="/design/legal/privacy"
+                href="/legal/privacy"
                 className="font-body-bold text-base text-ink underline"
               >
                 Open the Privacy Policy
@@ -758,62 +772,62 @@ export default function DesignSystem() {
             Full screens under construction, composed from the tokens,
             primitives, and patterns above.
           </Text>
-          <Link href="/design/trips" className="font-body-bold text-base text-ink underline">
+          <Link href="/trips" className="font-body-bold text-base text-ink underline">
             Trips
           </Link>
-          <Link href="/design/trips/detail?id=picos" className="font-body-bold text-base text-ink underline">
+          <Link href="/trips/detail?id=picos" className="font-body-bold text-base text-ink underline">
             Trip detail
           </Link>
           <Link
-            href="/design/trips/members?id=picos&as=organizer"
+            href="/trips/members?id=picos&as=organizer"
             className="font-body-bold text-base text-ink underline"
           >
             Who's coming · organizer
           </Link>
           <Link
-            href="/design/trips/members?id=picos&as=traveler"
+            href="/trips/members?id=picos&as=traveler"
             className="font-body-bold text-base text-ink underline"
           >
             Who's coming · traveler
           </Link>
-          <Link href="/design/trips/settings?id=picos" className="font-body-bold text-base text-ink underline">
+          <Link href="/trips/settings?id=picos" className="font-body-bold text-base text-ink underline">
             Trip settings
           </Link>
-          <Link href="/design/trips/edit?id=picos" className="font-body-bold text-base text-ink underline">
+          <Link href="/trips/edit?id=picos" className="font-body-bold text-base text-ink underline">
             Edit trip
           </Link>
-          <Link href="/design/trips/events/new?id=picos" className="font-body-bold text-base text-ink underline">
+          <Link href="/trips/events/new?id=picos" className="font-body-bold text-base text-ink underline">
             Add event
           </Link>
           <Link
-            href={`/design/trips/events/detail?id=picos&event=${SAMPLE_EVENT.id}&as=organizer`}
+            href={`/trips/events/detail?id=picos&event=${SAMPLE_EVENT.id}&as=organizer`}
             className="font-body-bold text-base text-ink underline"
           >
             Event detail · organizer
           </Link>
           <Link
-            href={`/design/trips/events/detail?id=picos&event=${SAMPLE_EVENT.id}&as=traveler`}
+            href={`/trips/events/detail?id=picos&event=${SAMPLE_EVENT.id}&as=traveler`}
             className="font-body-bold text-base text-ink underline"
           >
             Event detail · traveler
           </Link>
           <Link
-            href="/design/trips/invite?id=picos"
+            href="/trips/invite?id=picos"
             className="font-body-bold text-base text-ink underline"
           >
             Invite people
           </Link>
-          <Link href="/design/trips/stay/new?id=picos" className="font-body-bold text-base text-ink underline">
+          <Link href="/trips/stay/new?id=picos" className="font-body-bold text-base text-ink underline">
             Add stay
           </Link>
           <Link
-            href={`/design/trips/stay/detail?id=picos&stay=${SAMPLE_STAY.id}&as=organizer`}
+            href={`/trips/stay/detail?id=picos&stay=${SAMPLE_STAY.id}&as=organizer`}
             className="font-body-bold text-base text-ink underline"
           >
             Stay detail · organizer
           </Link>
           <Link
-            href={`/design/trips/stay/detail?id=picos&stay=${SAMPLE_STAY.id}&as=traveler`}
+            href={`/trips/stay/detail?id=picos&stay=${SAMPLE_STAY.id}&as=traveler`}
             className="font-body-bold text-base text-ink underline"
           >
             Stay detail · traveler
@@ -827,16 +841,16 @@ export default function DesignSystem() {
           <Link href="/notifications" className="font-body-bold text-base text-ink underline">
             Notifications
           </Link>
-          <Link href="/design/profile" className="font-body-bold text-base text-ink underline">
+          <Link href="/profile" className="font-body-bold text-base text-ink underline">
             Profile
           </Link>
-          <Link href="/design/legal/terms" className="font-body-bold text-base text-ink underline">
+          <Link href="/legal/terms" className="font-body-bold text-base text-ink underline">
             Terms of Service
           </Link>
-          <Link href="/design/legal/privacy" className="font-body-bold text-base text-ink underline">
+          <Link href="/legal/privacy" className="font-body-bold text-base text-ink underline">
             Privacy Policy
           </Link>
-          <Link href="/design/legal/sms-terms" className="font-body-bold text-base text-ink underline">
+          <Link href="/legal/sms-terms" className="font-body-bold text-base text-ink underline">
             SMS Terms
           </Link>
           <Text className="font-body text-base text-ink">

@@ -55,7 +55,7 @@ function TripMembersDialog() {
 
   if (!trip) {
     return (
-      <FullscreenDialog title="Who's coming" dismissHref="/design/trips">
+      <FullscreenDialog title="Who's coming" dismissHref="/trips">
         <Text className="font-body text-base text-ink">
           No trip to show. Start one from the trips screen.
         </Text>
@@ -72,10 +72,10 @@ function TripMembersDialog() {
       onPrimary={
         viewerIsOrganizer
           ? () =>
-              router.push(`/design/trips/invite?id=${trip.id}&from=members`)
+              router.push(`/trips/invite?id=${trip.id}&from=members`)
           : undefined
       }
-      dismissHref={`/design/trips/detail?id=${trip.id}`}
+      dismissHref={`/trips/detail?id=${trip.id}`}
     >
       {/* Ruled rows, like every other list here: the part each person
           plays sits at the far edge so the column can be read down. */}

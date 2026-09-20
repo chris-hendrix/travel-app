@@ -28,7 +28,7 @@ export default function TripsScreen() {
     <TripCard
       key={trip.id}
       trip={trip}
-      onPress={() => router.push(`/design/trips/detail?id=${trip.id}`)}
+      onPress={() => router.push(`/trips/detail?id=${trip.id}`)}
     />
   );
 
@@ -62,7 +62,7 @@ export default function TripsScreen() {
           <View>
             <Button
               title="Create trip"
-              onPress={() => router.push("/design/trips/new")}
+              onPress={() => router.push("/trips/new")}
             />
           </View>
         ) : null}
@@ -79,7 +79,7 @@ export default function TripsScreen() {
             <View>
               <Button
                 title="Create your first trip"
-                onPress={() => router.push("/design/trips/new")}
+                onPress={() => router.push("/trips/new")}
               />
             </View>
           </View>

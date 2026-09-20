@@ -87,7 +87,7 @@ function TripTravelDialog() {
   );
   if (!trip || !board) {
     return (
-      <FullscreenDialog title="Travel" dismissHref="/design/trips">
+      <FullscreenDialog title="Travel" dismissHref="/trips">
         <Text className="font-body text-base text-ink">
           No trip to show. Start one from the trips screen.
         </Text>
@@ -108,9 +108,9 @@ function TripTravelDialog() {
       title="Travel"
       primaryTitle="Add travel"
       onPrimary={() =>
-        router.push(`/design/trips/travel/form?id=${trip.id}&as=${asParam}`)
+        router.push(`/trips/travel/form?id=${trip.id}&as=${asParam}`)
       }
-      dismissHref={`/design/trips/detail?id=${trip.id}`}
+      dismissHref={`/trips/detail?id=${trip.id}`}
     >
       {nothingFiled ? (
         <Text className="font-body text-base text-ink">
@@ -270,8 +270,8 @@ function TravelRowItem({
               onPress={() =>
                 router.push(
                   row.id.startsWith("pending-")
-                    ? `/design/trips/travel/form?id=${tripId}&as=${asParam}&member=${row.memberId}&direction=${row.travelType}`
-                    : `/design/trips/travel/form?id=${tripId}&travel=${row.id}&as=${asParam}`,
+                    ? `/trips/travel/form?id=${tripId}&as=${asParam}&member=${row.memberId}&direction=${row.travelType}`
+                    : `/trips/travel/form?id=${tripId}&travel=${row.id}&as=${asParam}`,
                 )
               }
             />

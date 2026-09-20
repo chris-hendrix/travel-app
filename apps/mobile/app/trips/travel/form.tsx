@@ -51,7 +51,7 @@ function TravelFormScreen() {
   const { travelById, travelForTrip, addTravel, updateTravel, deleteTravel } =
     useTravel();
   const { for: settingsFor, update } = useTripSettings();
-  const dismiss = useDismiss("/design/trips");
+  const dismiss = useDismiss("/trips");
   const router = useRouter();
 
   const tripId = typeof id === "string" ? id : undefined;
@@ -111,11 +111,11 @@ function TravelFormScreen() {
     (candidate) => candidate.travelType === "departure",
   );
 
-  const boardHref = `/design/trips/travel?id=${trip?.id ?? ""}&as=${viewerIsOrganizer ? "organizer" : "traveler"}`;
+  const boardHref = `/trips/travel?id=${trip?.id ?? ""}&as=${viewerIsOrganizer ? "organizer" : "traveler"}`;
 
   if (!trip) {
     return (
-      <FullscreenDialog title="Travel" dismissHref="/design/trips">
+      <FullscreenDialog title="Travel" dismissHref="/trips">
         <Text className="font-body text-base text-ink">
           No trip to add to. Start one from the trips screen.
         </Text>
@@ -125,7 +125,7 @@ function TravelFormScreen() {
 
   if (editingId && !record) {
     return (
-      <FullscreenDialog title="Travel" dismissHref="/design/trips">
+      <FullscreenDialog title="Travel" dismissHref="/trips">
         <Text className="font-body text-base text-ink">
           That travel is not on this trip any more.
         </Text>

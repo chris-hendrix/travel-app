@@ -11,9 +11,9 @@ import type { LegalDocumentId } from "@journiful/shared/legal";
  * to prove each one still lands on a screen that exists.
  */
 export const LEGAL_ROUTE: Record<LegalDocumentId, string> = {
-  terms: "/design/legal/terms",
-  privacy: "/design/legal/privacy",
-  "sms-terms": "/design/legal/sms-terms",
+  terms: "/legal/terms",
+  privacy: "/legal/privacy",
+  "sms-terms": "/legal/sms-terms",
 };
 
 /**

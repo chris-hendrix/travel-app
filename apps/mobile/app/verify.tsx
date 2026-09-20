@@ -96,7 +96,8 @@ export default function Verify() {
   if (!pendingPhone) return <Redirect href="/login" />;
 
   return (
-<Screen lead>      <View className="gap-3">
+    <Screen lead>
+      <View className="gap-3">
         <Text className="font-display text-4xl uppercase leading-none text-ink">
           Verify your number
         </Text>

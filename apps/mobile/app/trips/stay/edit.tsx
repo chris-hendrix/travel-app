@@ -37,7 +37,7 @@ function EditStayScreen() {
   const { trips } = useTrips();
   const { for: settingsFor, update } = useTripSettings();
   const { stayById, updateStay, deleteStay } = useStays();
-  const dismiss = useDismiss("/design/trips");
+  const dismiss = useDismiss("/trips");
   const router = useRouter();
 
   const tripId = typeof id === "string" ? id : undefined;
@@ -54,11 +54,11 @@ function EditStayScreen() {
   // Deleting leaves nothing to go back to, so the trip is where it ends
   // — replacing, not dismissing, because dismissing would land on the
   // sheet we just deleted.
-  const tripHref = `/design/trips/detail?id=${trip?.id ?? ""}`;
+  const tripHref = `/trips/detail?id=${trip?.id ?? ""}`;
 
   if (!trip || !stay) {
     return (
-      <FullscreenDialog title="Edit stay" dismissHref="/design/trips">
+      <FullscreenDialog title="Edit stay" dismissHref="/trips">
         <Text className="font-body text-base text-ink">
           That stay is not on this trip any more.
         </Text>
@@ -71,7 +71,7 @@ function EditStayScreen() {
       title="Edit stay"
       primaryTitle="Save changes"
       trip={trip}
-      dismissHref={`/design/trips/stay/detail?id=${trip.id}&stay=${stay.id}`}
+      dismissHref={`/trips/stay/detail?id=${trip.id}&stay=${stay.id}`}
       initial={draftFromStay(stay, timeZone)}
       onDelete={() => {
         deleteStay(trip.id, stay.id);

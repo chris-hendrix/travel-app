@@ -58,7 +58,7 @@ function StayDetailDialog() {
   const { stayById } = useStays();
   const { for: settingsFor, update } = useTripSettings();
   const router = useRouter();
-  const dismiss = useDismiss("/design/trips");
+  const dismiss = useDismiss("/trips");
 
   const tripId = typeof id === "string" ? id : undefined;
   const trip = trips.find((candidate) => candidate.id === tripId) ?? trips[0];
@@ -76,7 +76,7 @@ function StayDetailDialog() {
 
   if (!trip || !stay) {
     return (
-      <FullscreenDialog title="Stay" dismissHref="/design/trips">
+      <FullscreenDialog title="Stay" dismissHref="/trips">
         <Text className="font-body text-base text-ink">
           That stay is not on this trip any more.
         </Text>
@@ -96,11 +96,11 @@ function StayDetailDialog() {
         organizer
           ? () =>
               router.push(
-                `/design/trips/stay/edit?id=${trip.id}&stay=${stay.id}`,
+                `/trips/stay/edit?id=${trip.id}&stay=${stay.id}`,
               )
           : dismiss
       }
-      dismissHref={`/design/trips/detail?id=${trip.id}`}
+      dismissHref={`/trips/detail?id=${trip.id}`}
     >
       <View className="gap-y-6 md:flex-row md:gap-12">
         <View className="md:flex-1">

@@ -164,7 +164,7 @@ function TripDetailScreen() {
       fullWidth
       onPress={() =>
         router.push(
-          `/design/trips/travel/form?id=${trip.id}&as=${variant}&member=${viewer?.id ?? ""}`,
+          `/trips/travel/form?id=${trip.id}&as=${variant}&member=${viewer?.id ?? ""}`,
         )
       }
     />
@@ -178,7 +178,7 @@ function TripDetailScreen() {
       title="Trip settings"
       variant="secondary"
       fullWidth
-      onPress={() => router.push(`/design/trips/settings?id=${trip.id}`)}
+      onPress={() => router.push(`/trips/settings?id=${trip.id}`)}
     />
   );
 
@@ -190,7 +190,7 @@ function TripDetailScreen() {
         title="Invite people"
         variant="accent"
         fullWidth
-        onPress={() => router.push(`/design/trips/invite?id=${trip.id}`)}
+        onPress={() => router.push(`/trips/invite?id=${trip.id}`)}
       />
       {/* Authoring used to sit here, and moved down to the list it
           fills: Add event and Add stay are at the head of the itinerary
@@ -203,7 +203,7 @@ function TripDetailScreen() {
           title="Add the first event"
           variant="primary"
           fullWidth
-          onPress={() => router.push(`/design/trips/events/new?id=${trip.id}`)}
+          onPress={() => router.push(`/trips/events/new?id=${trip.id}`)}
         />
       ) : null}
       {/* The trip's own maintenance, outlined under the coloured two. */}
@@ -211,7 +211,7 @@ function TripDetailScreen() {
         title="Edit trip"
         variant="secondary"
         fullWidth
-        onPress={() => router.push(`/design/trips/edit?id=${trip.id}`)}
+        onPress={() => router.push(`/trips/edit?id=${trip.id}`)}
       />
       {settingsButton}
       {travelCta}
@@ -290,7 +290,7 @@ function TripDetailScreen() {
                   label={`${trip.going} going`}
                   onPress={() =>
                     router.push(
-                      `/design/trips/members?id=${trip.id}&as=${variant}`,
+                      `/trips/members?id=${trip.id}&as=${variant}`,
                     )
                   }
                 />
@@ -299,7 +299,7 @@ function TripDetailScreen() {
                   label="Travel"
                   onPress={() =>
                     router.push(
-                      `/design/trips/travel?id=${trip.id}&as=${variant}`,
+                      `/trips/travel?id=${trip.id}&as=${variant}`,
                     )
                   }
                 />
@@ -321,7 +321,7 @@ function TripDetailScreen() {
                       label="Stay"
                       onPress={() =>
                         router.push(
-                          `/design/trips/stay/detail?id=${trip.id}&stay=${stay.id}&as=${variant}`,
+                          `/trips/stay/detail?id=${trip.id}&stay=${stay.id}&as=${variant}`,
                         )
                       }
                     />

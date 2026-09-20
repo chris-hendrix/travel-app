@@ -49,14 +49,14 @@ function TripSettingsScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { trips } = useTrips();
   const { for: settingsFor, update } = useTripSettings();
-  const dismiss = useDismiss("/design/trips");
+  const dismiss = useDismiss("/trips");
 
   const tripId = typeof id === "string" ? id : undefined;
   const trip = trips.find((candidate) => candidate.id === tripId) ?? trips[0];
 
   if (!trip) {
     return (
-      <FullscreenDialog title="Trip settings" dismissHref="/design/trips">
+      <FullscreenDialog title="Trip settings" dismissHref="/trips">
         <Text className="font-body text-base text-ink">
           No trip to set up. Start one from the trips screen.
         </Text>
@@ -71,7 +71,7 @@ function TripSettingsScreen() {
       title="Trip settings"
       primaryTitle="Done"
       onPrimary={dismiss}
-      dismissHref={`/design/trips/detail?id=${trip.id}`}
+      dismissHref={`/trips/detail?id=${trip.id}`}
     >
       <Text className="font-body text-sm text-ink">{trip.title}</Text>
 
