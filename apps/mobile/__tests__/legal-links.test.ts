@@ -44,12 +44,13 @@ describe("legal copy, as this app renders it", () => {
     for (const href of hrefs) expect(DIALOG_ROUTES).toContain(href);
   });
 
-  it("keeps the landing, and the auth flow, without person chrome", () => {
+  it("keeps the landing, the auth flow, and the invitation bare", () => {
     expect(Object.keys(BARE_HEADER_ROUTES)).toEqual([
       "/",
       "/login",
       "/verify",
       "/complete-profile",
+      "/invite",
     ]);
     expect(BARE_HEADER_ROUTES["/"]).toBe("landing");
   });

@@ -14,6 +14,7 @@ import { Checkbox, CheckboxLabel } from "@/components/ui/Checkbox";
 import { ActionRow } from "@/components/ui/ActionRow";
 import { QuietAction } from "@/components/ui/QuietAction";
 import { PhoneField } from "@/components/ui/PhoneField";
+import { PhoneStep } from "@/components/auth/PhoneStep";
 import { toE164 } from "@/lib/phone";
 import { Screen } from "@/components/ui/Screen";
 import { DatePicker } from "@/components/ui/DatePicker";
@@ -22,6 +23,7 @@ import type { Selection } from "@/lib/calendar";
 import { RSVP_LABEL, type RsvpStatus } from "@/lib/rsvp";
 import { formatDateRange } from "@/lib/dateRange";
 import { TripCard } from "@/components/trip/TripCard";
+import { InviteCard } from "@/components/trip/InviteCard";
 import { EventCard } from "@/components/trip/EventCard";
 import { Grid } from "@/components/ui/Grid";
 import { PhotoCard } from "@/components/ui/PhotoCard";
@@ -29,6 +31,7 @@ import { NotificationRow } from "@/components/notification/NotificationRow";
 import { TRIPS } from "@/mocks/trips";
 import { eventsFor } from "@/mocks/events";
 import { NOTIFICATIONS } from "@/mocks/notifications";
+import { INVITATIONS } from "@/mocks/invitations";
 import { tripFor } from "@/lib/notifications";
 import { emailSchema } from "@journiful/shared/schemas";
 import { legalDocument } from "@journiful/shared/legal";
@@ -490,7 +493,7 @@ export default function DesignSystem() {
             <Specimen
               name="Checkbox"
               contract="checked · onToggle · disabled? · children"
-              note="Consent, which is not a filter: ChipToggle says show me these ones, this says I have read this. The whole row is the target rather than the box, since a twenty-pixel square is not something a thumb can be asked to hit, and the tick is drawn rather than implied by the fill, because an inked square on its own reads as a badge. Nothing uses it yet: the sign-in screen takes consent by continuing, and an unchecked box is the shape marketing consent wants, which this product does not ask for."
+              note="Consent, which is not a filter: ChipToggle says show me these ones, this says I have read this. The whole row is the target rather than the box, since a twenty-pixel square is not something a thumb can be asked to hit, and the tick is drawn rather than implied by the fill, because an inked square on its own reads as a badge. It gates the sign-in button, and the same block appears on an invitation, because both collect a number and both need the same disclosure. It is a control rather than a sentence because the carriers ask for one: Twilio rejects a campaign whose form has no separate consent control (30925)."
             >
               <Checkbox
                 checked={consent}
@@ -523,6 +526,19 @@ export default function DesignSystem() {
                   onPress={() => setLog("ActionRow quiet action fired")}
                 />
               </ActionRow>
+            </Specimen>
+
+            <Specimen
+              name="PhoneStep"
+              contract="title? · body? · submitLabel? · leaveLabel? · onSent · onLeave"
+              note="The number and the consent, which is one body with two doors: the sign-in screen, and an invitation. The consent block lives in here rather than in each screen because the disclosure is a legal artefact with a registered campaign behind it, and a second copy is a second thing to keep in step. The heading is optional: the sign-in screen supplies one because it is the page's subject, and an invitation supplies a card instead. CodeStep and NameStep are the same bargain for the two steps behind it."
+            >
+              <PhoneStep
+                title="Get started"
+                body="Enter your phone number to sign in or create an account."
+                onSent={() => setLog("PhoneStep sent a code")}
+                onLeave={() => setLog("PhoneStep left the flow")}
+              />
             </Specimen>
 
             <Specimen
@@ -610,6 +626,20 @@ export default function DesignSystem() {
                   />
                 ))}
               </Grid>
+            </Specimen>
+
+            <Specimen
+              name="InviteCard"
+              contract="inviterName · tripName · destination · startDate · endDate"
+              note="The trip as somebody who has not signed in reads it: the four facts the invitation preview returns, in the same order the trip page's own column uses, because this is that page seen through a keyhole. No itinerary, no roll call, no cover: those are what joining is for, and the endpoint does not send them."
+            >
+              <InviteCard
+                inviterName={INVITATIONS[0]!.inviterName}
+                tripName={TRIPS[0]!.title}
+                destination={TRIPS[0]!.location}
+                startDate={TRIPS[0]!.startDate}
+                endDate={TRIPS[0]!.endDate}
+              />
             </Specimen>
 
             <Specimen
@@ -713,6 +743,12 @@ export default function DesignSystem() {
           >
             Stay detail · traveler
           </Link>
+          <Link href="/invite?id=invite-pending" className="font-body-bold text-base text-ink underline">
+            Invitation
+          </Link>
+          <Link href="/invite?id=invite-gone" className="font-body-bold text-base text-ink underline">
+            Invitation · gone
+          </Link>
           <Link href="/notifications" className="font-body-bold text-base text-ink underline">
             Notifications
           </Link>
@@ -732,7 +768,9 @@ export default function DesignSystem() {
             The landing is not under /design: it is the app's front door, so
             it lives at / and renders the wordmark band without the person
             chrome. Same for /trips — the app's home, a re-export of the
-            trips screen.
+            trips screen. The invitation is that case in reverse: it is the
+            one screen a stranger reaches first, and the address a friend's
+            text points at, so it lives at /invite and wears the bare band.
           </Text>
           <Link href="/" className="font-body-bold text-base text-ink underline">
             Landing
@@ -745,7 +783,9 @@ export default function DesignSystem() {
             deliberately not linked from here: each redirects back to it
             without a number or a session between them. The mock takes any
             valid number with the code 123456, and decides whether the
-            profile screen is needed from whether it knows the number.
+            profile screen is needed from whether it knows the number. An
+            invitation drives those same three steps in place, which is the
+            other reason not to link them.
           </Text>
         </Section>
 

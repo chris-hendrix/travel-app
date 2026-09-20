@@ -43,4 +43,8 @@ export const BARE_HEADER_ROUTES: Record<string, "landing" | "bare"> = {
   "/login": "bare",
   "/verify": "bare",
   "/complete-profile": "bare",
+  // The invitation is the only screen a stranger reaches first, and it
+  // is deliberately not under /design: the link in the text points here,
+  // so the address has to be one that survives the lab being deleted.
+  "/invite": "bare",
 };
