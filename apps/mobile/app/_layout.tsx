@@ -11,7 +11,7 @@ import {
 import { BungeeShade_400Regular } from "@expo-google-fonts/bungee-shade";
 import { Handjet_800ExtraBold } from "@expo-google-fonts/handjet";
 import { AppHeader } from "@/components/ui/AppHeader";
-import { DIALOG_ROUTES } from "@/lib/routes";
+import { BARE_HEADER_ROUTES, DIALOG_ROUTES } from "@/lib/routes";
 import { NotificationsProvider } from "@/lib/notificationsStore";
 import { ProfileProvider } from "@/lib/profileStore";
 import { TripSettingsProvider } from "@/lib/tripSettingsStore";
@@ -43,6 +43,7 @@ export default function RootLayout() {
 
   if (!loaded) return null;
   const isDialog = DIALOG_ROUTES.includes(pathname);
+  const isLanding = BARE_HEADER_ROUTES.includes(pathname);
   return (
     <TripsProvider>
       <EventsProvider>
@@ -55,8 +56,11 @@ export default function RootLayout() {
             <View className="flex-1 bg-sand">
               {/* App shell: a fixed-height column so the screen scrolls
                   under the header instead of scrolling the whole document
-                  (web). */}
-              {isDialog ? null : <AppHeader />}
+                  (web). The landing renders the band without the person
+                  chrome — nobody has signed in yet. */}
+              {isDialog ? null : (
+                <AppHeader variant={isLanding ? "landing" : "app"} />
+              )}
               <View className="flex-1">
                 {/* Dialogs paint their own ground, and screens use the
                     Screen primitive: the navigation container's default

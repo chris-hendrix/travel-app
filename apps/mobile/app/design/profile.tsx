@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { Image, Pressable, Text, View } from "react-native";
+import { Link } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { TextField } from "@/components/ui/TextField";
@@ -15,6 +16,7 @@ import {
   type TemperatureUnit,
 } from "@/lib/profile";
 import { useProfile } from "@/lib/profileStore";
+import { LEGAL_ROWS } from "@/lib/legal";
 
 const UNITS: Array<{ value: TemperatureUnit; label: string }> = [
   { value: "celsius", label: "Celsius" },
@@ -23,11 +25,12 @@ const UNITS: Array<{ value: TemperatureUnit; label: string }> = [
 
 /**
  * Profile. Who you are, what you are called, and the two preferences the
- * app keeps about you — plus the way out.
+ * app keeps about you — then the documents you agreed to, then the way
+ * out.
  *
- * No section headings: the fields are short enough to read as one list,
+ * No heading on the fields: they are short enough to read as one list,
  * and a rule only earns its place where the content changes kind — in
- * front of Sign out.
+ * front of the legal list, and in front of Sign out.
  *
  * The identity block reads from the draft, not the saved profile, so
  * typing a new name sets the headline as you go: the clearest proof that
@@ -38,7 +41,7 @@ const UNITS: Array<{ value: TemperatureUnit; label: string }> = [
  */
 export default function Profile() {
   const { profile, saveProfile, savePhoto } = useProfile();
-  const dismiss = useDismiss("/");
+  const dismiss = useDismiss("/trips");
 
   const [draft, setDraft] = useState<ProfileDraft>(() =>
     draftFromProfile(profile),
@@ -177,6 +180,28 @@ export default function Profile() {
         <Text className="font-body text-sm text-ink">
           {joinFacts(profile.timezone ?? "Not set", "automatic")}
         </Text>
+      </View>
+
+      {/* The documents belong to the person, not to a trip: the consent
+          is yours, and these are the ones you gave it to. A rule, because
+          it is a different kind of content from the fields above —
+          nothing on this side of it is edited. */}
+      <View className="border-t border-ink pt-5">
+        <Text className="font-body-bold text-sm text-ink">
+          Legal & privacy
+        </Text>
+        <View className="mt-2">
+          {LEGAL_ROWS.map((row) => (
+            <View key={row.href} className="py-1">
+              <Link
+                href={row.href}
+                className="font-body-bold text-base text-ink underline"
+              >
+                {row.title}
+              </Link>
+            </View>
+          ))}
+        </View>
       </View>
 
       <View className="border-t border-ink pt-5">

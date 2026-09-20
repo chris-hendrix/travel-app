@@ -25,4 +25,16 @@ export const DIALOG_ROUTES = [
   "/design/trips/stay/new",
   "/design/trips/stay/detail",
   "/design/trips/stay/edit",
+  "/design/legal/terms",
+  "/design/legal/privacy",
+  "/design/legal/sms-terms",
 ];
+
+/**
+ * Routes whose band carries the wordmark and nothing else.
+ *
+ * The landing is read before anyone has signed in, so a bell, an avatar
+ * and a clock have nothing to say; and it is a front door rather than a
+ * workspace, so it takes none of the app's chrome.
+ */
+export const BARE_HEADER_ROUTES = ["/"];

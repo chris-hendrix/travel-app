@@ -90,14 +90,41 @@ function AvatarButton() {
   );
 }
 
+/**
+ * Sign in, drawn but not yet wired — there is no auth flow to open yet.
+ * Kept in place rather than hidden, because a control that vanishes
+ * leaves nothing to aim at, and without the underline it would carry the
+ * day it works: it reads as waiting rather than as broken.
+ */
+function SignInWord() {
+  return (
+    <Text
+      accessibilityRole="button"
+      accessibilityState={{ disabled: true }}
+      accessibilityLabel="Sign in — not yet available"
+      className="font-body-bold text-sm text-sand opacity-40"
+    >
+      Sign in
+    </Text>
+  );
+}
+
 export function AppHeader({
   title,
   onClose,
   action,
+  variant = "app",
 }: {
   title?: string;
   onClose?: () => void;
   action?: ReactNode;
+  /**
+   * `landing` is the front door: the wordmark and nothing else. A bell,
+   * an avatar and a clock have nothing to say to someone who is not
+   * signed in, and the wordmark stops being a link because you are
+   * already where it points.
+   */
+  variant?: "app" | "landing";
 }) {
   if (title) {
     return (
@@ -118,16 +145,28 @@ export function AppHeader({
     );
   }
 
+  const landing = variant === "landing";
+
   return (
     <View className="bg-sand">
       <View className="flex-row items-center justify-between bg-ink px-6 pb-3 pt-4">
-        <Link href="/" className="font-wordmark text-2xl text-sand">
-          Journiful
-        </Link>
+        {landing ? (
+          <Text className="font-wordmark text-2xl text-sand">Journiful</Text>
+        ) : (
+          <Link href="/trips" className="font-wordmark text-2xl text-sand">
+            Journiful
+          </Link>
+        )}
         <View className="flex-row items-center gap-3">
-          <ZoneToken onInk />
-          <BellButton />
-          <AvatarButton />
+          {landing ? (
+            <SignInWord />
+          ) : (
+            <>
+              <ZoneToken onInk />
+              <BellButton />
+              <AvatarButton />
+            </>
+          )}
         </View>
       </View>
       <WaveEdge />

@@ -16,7 +16,7 @@ export function FullscreenDialog({
   primaryTitle,
   onPrimary,
   primaryDisabled = false,
-  dismissHref = "/",
+  dismissHref = "/trips",
   children,
 }: {
   title: string;
@@ -28,7 +28,9 @@ export function FullscreenDialog({
   onPrimary?: (() => void) | undefined;
   /** Present, not yet available. */
   primaryDisabled?: boolean;
-  /** Where to land when there is no history to go back to. */
+  /** Where to land when there is no history to go back to. The app's
+   *  own home by default: a dialog opened from nowhere belongs to the
+   *  app, not to a document. */
   dismissHref?: string;
   children: ReactNode;
 }) {

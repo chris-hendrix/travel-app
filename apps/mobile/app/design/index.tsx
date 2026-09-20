@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, Text, View, useWindowDimensions } from "react-native";
 import { Link } from "expo-router";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { ActionBar } from "@/components/ui/ActionBar";
@@ -25,6 +25,33 @@ import { TRIPS } from "@/mocks/trips";
 import { eventsFor } from "@/mocks/events";
 import { NOTIFICATIONS } from "@/mocks/notifications";
 import { tripFor } from "@/lib/notifications";
+import { emailSchema } from "@journiful/shared/schemas";
+import { legalDocument } from "@journiful/shared/legal";
+import type { LegalDocument } from "@journiful/shared/legal";
+import { Prose } from "@/components/ui/Prose";
+
+/** Metro resolving a bare package import and a font actually being the
+ *  font are the two things a bundle can fail at silently, and neither
+ *  shows up in a test: this is the proof a person can see. */
+const SHARED_IMPORT = emailSchema.safeParse("test@example.com").success
+  ? "resolved"
+  : "failed";
+
+const PRIVACY = legalDocument("privacy");
+
+/**
+ * The real document, cut to its opening: preamble, first heading, the
+ * list under it. The specimen is here to show the component, not to make
+ * anyone scroll a policy inside a page about components — the whole
+ * document is one link away, and the copy is never invented for a demo.
+ */
+const PROSE_SAMPLE: LegalDocument = {
+  ...PRIVACY,
+  body: (() => {
+    const sections = PRIVACY.body.split(/^\s*## /m);
+    return `${sections[0] ?? ""}\n## ${sections[1] ?? ""}`;
+  })(),
+};
 
 const COLORS: Array<[name: string, token: string, hex: string, swatch: string]> = [
   ["Chrome", "ink", "#000000", "bg-ink"],
@@ -153,6 +180,7 @@ export default function DesignSystem() {
   const [startsAt, setStartsAt] = useState<string | null>(null);
   const [endsAt, setEndsAt] = useState<string | null>(null);
   const [log, setLog] = useState("No interaction yet.");
+  const { width } = useWindowDimensions();
 
   return (
     <Screen>
@@ -205,8 +233,8 @@ export default function DesignSystem() {
           <View className="gap-4">
             <Specimen
               name="AppHeader"
-              contract="title? · onClose? · action?"
-              note="Title mode, shown here. Wordmark mode is the same component with no title, rendered globally above this page."
+              contract="title? · onClose? · action? · variant?"
+              note="Title mode, shown here. Wordmark mode is the same component with no title, rendered globally above this page. Landing mode is the wordmark alone — no bell, no avatar, no clock, because nobody has signed in yet — and the wordmark stops being a link, because on the landing you are already where it points."
             >
               <AppHeader
                 title="Notification settings"
@@ -486,6 +514,23 @@ export default function DesignSystem() {
               <Text className="font-body-bold text-base text-ink">Events</Text>
               <Text className="font-body text-sm text-ink">{log}</Text>
             </View>
+
+            <Specimen
+              name="Prose"
+              contract="document: LegalDocument · onLink?"
+              note="Long-form copy. The documents are stored as Markdown — the thing a person reads, edits and proofs against the published page — and this is the only component in the system that turns it into type. Headings take the display face, because a heading is a short string; the body takes the body face at a size that survives a screenful of it; links are underlined and left in ink, since colour here is a role and a cross-link is doing none of them. The excerpt below is the real Privacy Policy, cut to its opening."
+            >
+              <Prose
+                document={PROSE_SAMPLE}
+                onLink={(href) => setLog(`Prose link "${href}" pressed`)}
+              />
+              <Link
+                href="/design/legal/privacy"
+                className="font-body-bold text-base text-ink underline"
+              >
+                Open the Privacy Policy
+              </Link>
+            </Specimen>
           </View>
         </Section>
 
@@ -618,12 +663,50 @@ export default function DesignSystem() {
           <Link href="/design/profile" className="font-body-bold text-base text-ink underline">
             Profile
           </Link>
+          <Link href="/design/legal/terms" className="font-body-bold text-base text-ink underline">
+            Terms of Service
+          </Link>
+          <Link href="/design/legal/privacy" className="font-body-bold text-base text-ink underline">
+            Privacy Policy
+          </Link>
+          <Link href="/design/legal/sms-terms" className="font-body-bold text-base text-ink underline">
+            SMS Terms
+          </Link>
+          <Text className="font-body text-base text-ink">
+            The landing is not under /design: it is the app's front door, so
+            it lives at / and renders the wordmark band without the person
+            chrome. Same for /trips — the app's home, a re-export of the
+            trips screen.
+          </Text>
+          <Link href="/" className="font-body-bold text-base text-ink underline">
+            Landing
+          </Link>
+        </Section>
+
+        <Section title="Plumbing">
+          <Text className="font-body text-base text-ink">
+            What a mockup cannot prove by looking at it: that the bundle
+            resolved a workspace import, and that the fonts loaded. The
+            first is the thing Metro has historically got wrong.
+          </Text>
+          <TokenRow
+            name="@journiful/shared"
+            token={SHARED_IMPORT}
+            detail="A bare package import, resolved through the exports map"
+          />
+          <TokenRow
+            name="Viewport"
+            token={width >= 768 ? "wide" : "phone"}
+            detail="One layout above 768px, not a second design"
+          />
         </Section>
 
         <Section title="Parking lot">
           <Text className="font-body text-base text-ink">
-            Invite flow · Discover · deleted items — not yet designed. Each
-            lands here as a pattern first, then in a screen.
+            Auth — sign in, verify, complete profile — and the entry gate
+            that decides between it, the landing and the trips list.
+            Discover · deleted items · delete account. Each lands here as a
+            pattern first, then in a screen.
           </Text>
         </Section>
       </View>
