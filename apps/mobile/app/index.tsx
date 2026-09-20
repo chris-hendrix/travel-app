@@ -1,64 +1,81 @@
 import type { ReactNode } from "react";
 import { Text, View } from "react-native";
-import { Link, useRouter } from "expo-router";
+import { Link, Redirect, useRouter } from "expo-router";
 import { Building2, Calendar, Plane, Users } from "lucide-react-native";
 import { Button } from "@/components/ui/Button";
 import { Screen } from "@/components/ui/Screen";
 import { LEGAL_ROWS } from "@/lib/legal";
+import { useAuth } from "@/lib/authStore";
 
 /**
  * The landing: what the app is, for someone who has not signed in.
  *
  * The page's shape follows the pitch rather than the feature list: the
- * promise, the four things it holds, the mess it replaces, what goes in
- * the trip, how a trip gets there, then the same door again at the
- * bottom. Body copy runs the full column at every width, the same way
- * the rules and the card grid do.
+ * promise, the three things the trip holds, the mess it replaces, what
+ * goes in the trip, how a trip gets there, then the same door again at
+ * the bottom. Body copy runs the full column at every width, the same
+ * way the rules and the card grid do.
  *
- * Every claim on it is held to what the app does. Two that the copy
- * used to make are gone because the app does the opposite: the group
- * does not contribute to the itinerary (the organizer authors it), and
- * there is no group vote on lodging (an organizer adds the stay, and
- * everyone reads it). The one thing the old copy left out was the
- * coordination itself (invites, answers, who's coming), which is the
- * product's whole reason for existing.
+ * Every claim on it is held to what the app does. Three claims are
+ * gone: the group does not contribute to the itinerary (the organizer
+ * authors it), there is no group vote on lodging (an organizer adds the
+ * stay, and everyone reads it), and knowing who is coming is not the
+ * draw (the organizer invited them, so they already know). What the
+ * group gets is the plan in front of them, which is why the invitation
+ * and the sign-in are both a text, and why the hero states the category
+ * rather than the container.
  *
- * Not gated on anything yet. When the sign-in screen lands this becomes
- * the branch it takes when nobody is signed in, and the trips list the
- * branch it takes when somebody is. The same shape as the web's home
- * page, which sends a signed-in reader to /trips.
+ * The entry gate is here: somebody already signed in has no business
+ * reading the pitch, so they go to the trips list. A first run and a
+ * returning signed-out reader both get the landing for now, since
+ * nothing is persisted that could tell the two apart.
  */
 export default function Landing() {
   const router = useRouter();
+  const { user } = useAuth();
+
+  // Somebody signed in has no business reading the pitch, and somebody
+  // signed in without a name belongs on the screen that asks for it.
+  if (user) {
+    return <Redirect href={user.profileComplete ? "/trips" : "/complete-profile"} />;
+  }
 
   return (
     <Screen>
       <View className="gap-16 pb-12 pt-4 md:pt-14">
         <View className="gap-6">
           <Text className="font-display text-6xl uppercase leading-[0.85] text-ink md:text-7xl">
-            One place for the whole trip
+            Group trips made easy
           </Text>
           <Text className="font-body text-lg leading-snug text-ink">
-            The itinerary, the hotel or Airbnb, the flights, and who's in.
-            All in one place.
+            The itinerary, the hotel or Airbnb, and the flights. All in one
+            place.
           </Text>
           {/* No `fullWidth`: the button already fills the width on a phone
               and hugs its edge from md up, which is the behaviour a hero
               wants. A full-width bar on a desktop column reads as a
               banner, not a button. */}
-          <Button title="Get started" onPress={() => router.push("/trips")} />
+          <Button title="Get started" onPress={() => router.push("/login")} />
+          {/* The friction answer, directly under the button, where the
+              closing band puts the cost answer under its own. Getting in
+              is the question a reader has while their thumb is over this
+              one. */}
+          <Text className="font-body text-sm text-ink">
+            No passwords. Sign in via text.
+          </Text>
         </View>
 
-        {/* The deck lists the four things; this section says where they
-            live instead of listing them again. Agitation, not a mirror. */}
+        {/* The hero names the three things the trip holds; this section
+            says what it is like without them, rather than listing them a
+            second time. Agitation, not a mirror. */}
         <View className="gap-4">
           <Text className="font-display text-2xl uppercase leading-tight text-ink">
             It starts in the group chat
           </Text>
           <Text className="font-body text-base leading-relaxed text-ink">
-            Then it moves to a spreadsheet, and ends with a forwarded booking
-            confirmation. By the time everyone lands, nobody is looking at the
-            same plan.
+            Then the confirmations land in six different inboxes. By the time
+            everyone lands, everyone is digging through their inbox for the
+            same address.
           </Text>
         </View>
 
@@ -103,12 +120,22 @@ export default function Landing() {
         </Section>
 
         {/* The closing band repeats the hero's ask rather than inventing a
-            second one: one goal, one label, twice down the page. */}
+            second one: one goal, one label, twice down the page. The line
+            above it is the outcome rather than the promise, so the hero's
+            "in one place" is not said a second time. */}
         <View className="gap-6">
           <Text className="font-display text-2xl uppercase leading-tight text-ink">
-            One place, from the first text to the last flight
+            Everyone on the trip, from the first text to the last flight
           </Text>
-          <Button title="Get started" onPress={() => router.push("/trips")} />
+          <Button title="Get started" onPress={() => router.push("/login")} />
+          {/* The one trust claim available before there are any users, and
+              the one a reader is most likely to be assuming the opposite
+              of: a new app is assumed to have a subscription in it. The
+              hero's note answers the other question, the effort of getting
+              in, because that is the one at the first button. */}
+          <Text className="font-body text-sm text-ink">
+            Free, with no ads.
+          </Text>
         </View>
 
         <View className="flex-row flex-wrap gap-x-6 gap-y-2">
@@ -151,9 +178,9 @@ function Section({
 
 /**
  * The four things the app is for, in the order they come up while a trip
- * is being planned: the plan, the roof, the travel, and everyone's
- * answers. Titles are sentence case because the display face uppercases
- * them anyway, and this copy gets reused verbatim where it does not.
+ * is being planned: the plan, the roof, the travel, and everyone else.
+ * Titles are sentence case because the display face uppercases them
+ * anyway, and this copy gets reused verbatim where it does not.
  */
 const WHAT_GOES_IN = [
   {
@@ -173,8 +200,8 @@ const WHAT_GOES_IN = [
   },
   {
     icon: Users,
-    title: "Who's in",
-    description: "An answer from everyone, and invites by name or number.",
+    title: "Everyone else",
+    description: "Invited by name or number, and looking at the same trip.",
   },
 ] as const;
 
@@ -187,7 +214,8 @@ const STEPS = [
   {
     number: "2",
     title: "Invite your friends",
-    description: "By name or by number. They get a text, and they're in.",
+    description:
+      "By name or by number. They get a text with a link, and they can see the trip before they sign up.",
   },
   {
     number: "3",
