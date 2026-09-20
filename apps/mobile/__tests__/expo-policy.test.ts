@@ -48,3 +48,25 @@ describe("expo policy: router peer dependencies", () => {
     expect(mobile.dependencies).toHaveProperty("expo-linking");
   });
 });
+
+describe("expo policy: CI can see the package", () => {
+  const repoRoot = path.resolve(mobileDir, "..", "..");
+  const ciYml = fs.readFileSync(
+    path.join(repoRoot, ".github", "workflows", "ci.yml"),
+    "utf8",
+  );
+
+  it("declares a mobile output on the changes job matching apps/mobile/**", () => {
+    expect(ciYml).toContain("mobile: ${{ steps.filter.outputs.mobile }}");
+    expect(ciYml).toContain("apps/mobile/**");
+  });
+
+  it("declares a job that runs the mobile lint/typecheck/test and expo-doctor", () => {
+    expect(ciYml).toContain("mobile-checks");
+    expect(ciYml).toContain("needs.changes.outputs.mobile");
+    expect(ciYml).toContain(
+      "pnpm turbo lint typecheck test --filter=@journiful/mobile",
+    );
+    expect(ciYml).toContain("expo-doctor");
+  });
+});
