@@ -70,6 +70,9 @@ function ZoneToken({ onInk = false }: { onInk?: boolean }) {
       }
       disabled={!zone.onFlip}
       onPress={() => zone.onFlip?.()}
+      // The word is small; the touch area reaches the 44pt floor via
+      // hitSlop, so the picture does not move.
+      hitSlop={12}
       className="p-1"
     >
       <Text className={`font-body-bold text-sm ${colour} underline`}>
@@ -84,7 +87,7 @@ function BellButton() {
 
   return (
     <Link href="/notifications" asChild>
-      <Pressable aria-label="Notifications" className="p-1">
+      <Pressable aria-label="Notifications" hitSlop={8} className="p-1">
         <View>
           <Bell color={SAND} size={24} />
           {unreadCount > 0 ? (
@@ -99,7 +102,7 @@ function BellButton() {
 function AvatarButton() {
   return (
     <Link href="/profile" asChild>
-      <Pressable aria-label="Profile" className="p-1">
+      <Pressable aria-label="Profile" hitSlop={8} className="p-1">
         <User color={SAND} size={24} />
       </Pressable>
     </Link>
@@ -120,8 +123,12 @@ function AvatarButton() {
  */
 function SignInWord() {
   return (
-    <Link href="/login" className="py-2 font-body-bold text-sm text-sand">
-      Sign in
+    // asChild so the target can carry hitSlop: the word plus its py-2
+    // is shorter than the 44pt floor, and padding would move the band.
+    <Link href="/login" asChild>
+      <Pressable hitSlop={12} className="py-2">
+        <Text className="font-body-bold text-sm text-sand">Sign in</Text>
+      </Pressable>
     </Link>
   );
 }
@@ -157,7 +164,7 @@ export function AppHeader({
           <ZoneToken />
           {action}
           {onClose ? (
-            <Pressable aria-label="Close" onPress={onClose} className="p-1">
+            <Pressable aria-label="Close" onPress={onClose} hitSlop={8} className="p-1">
               <X color={INK} size={24} />
             </Pressable>
           ) : null}

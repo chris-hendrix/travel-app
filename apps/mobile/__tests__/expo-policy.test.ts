@@ -70,6 +70,49 @@ describe("expo policy: an unknown trip is not another trip", () => {
   });
 });
 
+describe("expo policy: every target is a thumb's size", () => {
+  // The 44pt floor, measured two ways. Where a number exists it is read
+  // as a number; tailwind-sized cells assert the class that encodes 44pt
+  // (h-11) and the absence of the 40pt one (h-10). Lone targets assert
+  // the hit-area mechanism, not the geometry: hitSlop (or padding with
+  // a matching negative margin) leaves the picture unchanged, which is
+  // the property the screenshot check would verify by hand.
+  function source(rel: string): string {
+    return fs.readFileSync(path.join(mobileDir, rel), "utf8");
+  }
+
+  it("TimeField rows are 44pt: ROW_HEIGHT === 44", () => {
+    const match = source("components/ui/TimeField.tsx").match(
+      /ROW_HEIGHT\s*=\s*(\d+)/,
+    );
+    expect(match, "ROW_HEIGHT must be a literal number").not.toBeNull();
+    expect(Number(match![1])).toBe(44);
+  });
+
+  it("DatePicker day cells are 44pt (h-11) with no 40pt (h-10) left", () => {
+    const picker = source("components/ui/DatePicker.tsx");
+    expect(picker).toContain("h-11");
+    expect(picker).not.toContain("h-10");
+  });
+
+  it("the month arrows reach the floor without moving the picture", () => {
+    expect(source("components/ui/DatePicker.tsx")).toContain("hitSlop");
+  });
+
+  it("every enumerated header target carries a hit-area mechanism", () => {
+    // Bell, avatar, close, zone token and sign-in word: each must reach
+    // 44x44pt via hitSlop or via padding with a matching negative
+    // margin (p-*-m-*), never by growing the visible control.
+    const header = source("components/ui/AppHeader.tsx");
+    const hitSlopCount = (header.match(/hitSlop=/g) ?? []).length;
+    const negMarginCount = (header.match(/-m-\d/g) ?? []).length;
+    expect(
+      hitSlopCount + negMarginCount,
+      `expected a hit-area mechanism on each of the 5 header targets, found ${hitSlopCount} hitSlop + ${negMarginCount} negative-margin`,
+    ).toBeGreaterThanOrEqual(5);
+  });
+});
+
 describe("expo policy: CI can see the package", () => {
   const repoRoot = path.resolve(mobileDir, "..", "..");
   const ciYml = fs.readFileSync(

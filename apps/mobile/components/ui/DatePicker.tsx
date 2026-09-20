@@ -108,7 +108,7 @@ export function DatePicker({
                     }
                   />
                 ) : (
-                  <View className="h-10" />
+                  <View className="h-11" />
                 )}
               </View>
             ))}
@@ -153,7 +153,7 @@ function Day({
       role="button"
       aria-label={iso}
       aria-selected={selected}
-      className={`h-10 items-center justify-center ${surface}`}
+      className={`h-11 items-center justify-center ${surface}`}
     >
       <Text
         className={`font-body text-sm ${label} ${
@@ -177,7 +177,10 @@ function Arrow({
 }) {
   const Icon = icon === "left" ? ChevronLeft : ChevronRight;
   return (
-    <Pressable aria-label={label} onPress={onPress} className="p-1">
+    // hitSlop, not padding: the arrows sit in a bordered header row, so
+    // padding would move the border. The touch area reaches 44pt with
+    // no change to the picture.
+    <Pressable aria-label={label} onPress={onPress} hitSlop={8} className="p-1">
       <Icon color={INK} size={24} />
     </Pressable>
   );

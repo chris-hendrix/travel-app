@@ -5,8 +5,10 @@ import { formatClock, timeOptions } from "@/lib/time";
 import { INK } from "@/lib/theme";
 
 /** Row height is fixed so the picker can open on the right slot without
- *  measuring anything as it lays out. */
-const ROW_HEIGHT = 40;
+ *  measuring anything as it lays out. 44pt is the thumb floor: a slot row
+ *  cannot borrow a neighbour's hit area the way a lone button can, so it
+ *  is the row itself that grows, and the open column is taller for it. */
+export const ROW_HEIGHT = 44;
 const VISIBLE_ROWS = 5;
 /** Why the "no end" row exists: an event may simply start. */
 const NONE = "";
