@@ -182,7 +182,7 @@ function Arrow({
     // arrows measured 32x32 in a browser. Padding grows the box to
     // 44pt and the negative margin pulls the margin box back, so the
     // bordered header row does not move.
-    <Pressable aria-label={label} onPress={onPress} className="p-2.5 -m-2.5">
+    <Pressable aria-label={label} onPress={onPress} className="p-2.5 -m-1.5">
       <Icon color={INK} size={24} />
     </Pressable>
   );

@@ -106,36 +106,43 @@ describe("expo policy: every target is a thumb's size", () => {
       expect(picker, `${label} must exist`).toContain(label);
     }
     // … and the component's own Pressable (found via aria-label={label})
-    // carries its own padding plus a matching negative margin.
+    // carries padding to the 44pt floor plus the padding DELTA as a
+    // negative margin: p-2.5 (10px) over the original p-1 (4px) is a
+    // 6px delta, i.e. -m-1.5. A -m-2.5 would shrink the margin box to
+    // 24px and pull the bordered row up.
     const at = picker.indexOf("aria-label={label}");
     expect(at, "Arrow must forward its label to aria-label").toBeGreaterThanOrEqual(0);
     const window = picker.slice(Math.max(0, at - 800), at + 800);
     expect(window, "arrows: expected padding reaching 44pt").toMatch(/p-2\.5/);
-    expect(window, "arrows: expected a matching negative margin").toMatch(/-m-2\.5/);
+    expect(window, "arrows: expected the delta (-m-1.5), not a matching -m-2.5").toMatch(/-m-1\.5/);
+    expect(window, "arrows: the negative margin must be smaller than the padding, or the margin box shrinks").not.toMatch(/-m-2\.5/);
     expect(picker, "no hitSlop prop: it does not enlarge the box on web").not.toMatch(/hitSlop=/);
   });
 
   it("every enumerated header target carries its own hit area", () => {
-    // Per-target: each named target element carries its own padding
-    // plus a matching negative margin in the JSX around it, so the
-    // assertion names the target that lost its hit area instead of
-    // passing on a file-wide count clustered elsewhere.
+    // Per-target: each named target element carries its own padding to
+    // the 44pt floor plus the padding DELTA as a negative margin, so
+    // the margin box is exactly what it was before. The negative margin
+    // is always smaller than the padding — a margin as large as the
+    // padding shrinks the margin box and pulls the page up.
     const header = source("components/ui/AppHeader.tsx");
-    const targets = [
-      'aria-label="Notifications"',
-      'aria-label="Profile"',
-      'aria-label="Close"',
-      // The zone token names itself through accessibilityLabel, and the
-      // sign-in word through its own text: neither takes an aria-label.
-      "Times in",
-      ">Sign in<",
+    const targets: Array<{ marker: string; padding: RegExp; margin: RegExp }> = [
+      // 24px icon in p-1 -> p-2.5; delta 6px = -m-1.5.
+      { marker: 'aria-label="Notifications"', padding: /p-2\.5/, margin: /-m-1\.5/ },
+      { marker: 'aria-label="Profile"', padding: /p-2\.5/, margin: /-m-1\.5/ },
+      { marker: 'aria-label="Close"', padding: /p-2\.5/, margin: /-m-1\.5/ },
+      // Zone token: p-1 -> p-3; delta 8px = -m-2.
+      // (marker: the token names itself through accessibilityLabel.)
+      { marker: "Times in", padding: /p-3/, margin: /-m-2(?!\.5)/ },
+      // Sign-in word: py-2 -> py-3; vertical delta 4px = -my-1.
+      { marker: ">Sign in<", padding: /py-3/, margin: /-my-1/ },
     ];
-    for (const marker of targets) {
+    for (const { marker, padding, margin } of targets) {
       const at = header.indexOf(marker);
       expect(at, `${marker} must exist`).toBeGreaterThanOrEqual(0);
       const window = header.slice(Math.max(0, at - 800), at + 800);
-      expect(window, `${marker}: expected padding reaching 44pt`).toMatch(/p-(2\.5|3)/);
-      expect(window, `${marker}: expected a matching negative margin`).toMatch(/-m-(2\.5|3)/);
+      expect(window, `${marker}: expected padding reaching 44pt`).toMatch(padding);
+      expect(window, `${marker}: expected the delta as negative margin`).toMatch(margin);
     }
     expect(header, "no hitSlop prop: it does not enlarge the box on web").not.toMatch(/hitSlop=/);
   });

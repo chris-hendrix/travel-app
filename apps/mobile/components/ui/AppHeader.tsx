@@ -74,7 +74,7 @@ function ZoneToken({ onInk = false }: { onInk?: boolean }) {
       // padding with a matching negative margin, so the picture does
       // not move. hitSlop would also work on native but does nothing
       // to the element's box on the web build.
-      className="p-3 -m-3"
+      className="p-3 -m-2"
     >
       <Text className={`font-body-bold text-sm ${colour} underline`}>
         {zone.abbr}
@@ -88,7 +88,7 @@ function BellButton() {
 
   return (
     <Link href="/notifications" asChild>
-      <Pressable aria-label="Notifications" className="p-2.5 -m-2.5">
+      <Pressable aria-label="Notifications" className="p-2.5 -m-1.5">
         <View>
           <Bell color={SAND} size={24} />
           {unreadCount > 0 ? (
@@ -103,7 +103,7 @@ function BellButton() {
 function AvatarButton() {
   return (
     <Link href="/profile" asChild>
-      <Pressable aria-label="Profile" className="p-2.5 -m-2.5">
+      <Pressable aria-label="Profile" className="p-2.5 -m-1.5">
         <User color={SAND} size={24} />
       </Pressable>
     </Link>
@@ -128,7 +128,7 @@ function SignInWord() {
     // reaches the 44pt floor, and the matching negative margin keeps
     // the band where it was.
     <Link href="/login" asChild>
-      <Pressable className="p-3 -m-3">
+      <Pressable className="py-3 -my-1">
         <Text className="font-body-bold text-sm text-sand">Sign in</Text>
       </Pressable>
     </Link>
@@ -166,7 +166,7 @@ export function AppHeader({
           <ZoneToken />
           {action}
           {onClose ? (
-            <Pressable aria-label="Close" onPress={onClose} className="p-2.5 -m-2.5">
+            <Pressable aria-label="Close" onPress={onClose} className="p-2.5 -m-1.5">
               <X color={INK} size={24} />
             </Pressable>
           ) : null}
