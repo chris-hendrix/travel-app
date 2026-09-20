@@ -27,22 +27,27 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const pathname = usePathname();
-  const [displayLoaded] = useFonts({
+  const [displayLoaded, displayError] = useFonts({
     BungeeShade_400Regular,
     Handjet_800ExtraBold,
   });
-  const [monoLoaded] = useSpaceMono({
+  const [monoLoaded, monoError] = useSpaceMono({
     SpaceMono_400Regular,
     SpaceMono_400Regular_Italic,
     SpaceMono_700Bold,
   });
   const loaded = displayLoaded && monoLoaded;
+  const fontError = displayError ?? monoError;
 
   useEffect(() => {
-    if (loaded) SplashScreen.hideAsync();
-  }, [loaded]);
+    if (loaded || fontError) SplashScreen.hideAsync().catch(() => {});
+  }, [loaded, fontError]);
 
-  if (!loaded) return null;
+  useEffect(() => {
+    if (fontError) console.warn("Fonts failed to load, using system fallbacks.", fontError);
+  }, [fontError]);
+
+  if (!loaded && !fontError) return null;
   const isDialog = DIALOG_ROUTES.includes(pathname);
   const bare = BARE_HEADER_ROUTES[pathname];
   return (
