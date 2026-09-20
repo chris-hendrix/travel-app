@@ -2,6 +2,7 @@ import type {
   FlightLookupResponse,
   FlightLookupResult,
 } from "@journiful/shared/types";
+import { ApiError, apiFetch } from "@/lib/api";
 
 const FLIGHT_NUMBER_REGEX = /^[A-Z\d]{2,3}\d{1,4}$/i;
 
@@ -10,17 +11,17 @@ export function isFlightNumber(value: string): boolean {
   return FLIGHT_NUMBER_REGEX.test(value.trim());
 }
 
-function apiBase(): string {
-  const fromEnv = process.env.EXPO_PUBLIC_API_URL;
-  if (fromEnv && fromEnv.trim()) return fromEnv.trim().replace(/\/+$/, "");
-  return "http://localhost:8000/api";
-}
-
 /**
  * One flight on one date, or null when there is nothing to fill in
- * with — unknown flight, no date, API down, API unconfigured. Null is
- * an answer, not an error: the form stays fillable by hand either way,
- * which is the whole point of lookup being optional.
+ * with — unknown flight or unparseable input. Null is an answer, not
+ * an error: the form stays fillable by hand either way, which is the
+ * whole point of lookup being optional.
+ *
+ * Everything else — transport failures, timeouts, non-404 statuses —
+ * is thrown to the caller (`NetworkError`, `TimeoutError`, `ApiError`
+ * from `@/lib/api`), so a down API never reads as "no such flight".
+ * Rides `apiFetch`, so the base URL, the timeout and the auth header
+ * all live at the one network boundary.
  */
 export async function lookupFlight(
   flightNumber: string,
@@ -30,16 +31,15 @@ export async function lookupFlight(
     return null;
   }
   try {
-    const response = await fetch(`${apiBase()}/flights/lookup`, {
+    const body = await apiFetch<FlightLookupResponse>(`/flights/lookup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ flightNumber: flightNumber.trim(), date }),
     });
-    if (!response.ok) return null;
-    const body = (await response.json()) as FlightLookupResponse;
     if (!body.available || !body.flight) return null;
     return body.flight;
-  } catch {
-    return null;
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
   }
 }

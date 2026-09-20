@@ -4,6 +4,7 @@ vi.mock("@/lib/session", () => ({ getToken: vi.fn() }));
 
 import { getToken } from "@/lib/session";
 import { ApiError, NetworkError, TimeoutError, apiFetch } from "@/lib/api";
+import { lookupFlight } from "@/lib/flights";
 
 const mockedGetToken = vi.mocked(getToken);
 
@@ -90,5 +91,67 @@ describe("apiFetch", () => {
     const headers = new Headers(seen[0]!.init?.headers);
     expect(headers.get("Authorization")).toBe("Bearer mock-token-abc");
     expect(seen[0]!.url).toBe("http://api.test/api/ping");
+  });
+});
+
+describe("lookupFlight", () => {
+  const flight = {
+    departureAirport: { iata: "SFO", name: "San Francisco International" },
+    departureTime: "2026-07-15T14:00:00Z",
+    arrivalAirport: { iata: "JFK", name: "John F. Kennedy International" },
+    arrivalTime: "2026-07-15T22:30:00Z",
+  };
+
+  it("returns the flight for a known flight", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => okJson({ available: true, flight })),
+    );
+    await expect(lookupFlight("UA123", "2026-07-15")).resolves.toEqual(flight);
+  });
+
+  it("returns null for an unknown flight", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => okJson({ available: false })),
+    );
+    await expect(lookupFlight("UA9999", "2026-07-15")).resolves.toBeNull();
+  });
+
+  it("returns null when the server answers 404", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: false, status: 404, json: async () => ({}) }) as Response),
+    );
+    await expect(lookupFlight("UA9999", "2026-07-15")).resolves.toBeNull();
+  });
+
+  it("propagates transport failures instead of collapsing them into null", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("fetch failed");
+      }),
+    );
+    await expect(lookupFlight("UA123", "2026-07-15")).rejects.toBeInstanceOf(NetworkError);
+  });
+
+  it("propagates timeouts instead of collapsing them into null", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        (_url: string, init?: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => {
+              reject(new DOMException("aborted", "AbortError"));
+            });
+          }),
+      ),
+    );
+    const pending = lookupFlight("UA123", "2026-07-15");
+    const assertion = expect(pending).rejects.toBeInstanceOf(TimeoutError);
+    await vi.advanceTimersByTimeAsync(11_000);
+    await assertion;
   });
 });
