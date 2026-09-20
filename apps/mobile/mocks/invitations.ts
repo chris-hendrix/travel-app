@@ -58,21 +58,3 @@ export function invitationById(
   const found = INVITATIONS.find((invitation) => invitation.id === id);
   return found && found.status === "pending" ? found : undefined;
 }
-
-/**
- * Whether the signed-in number is the one the invitation was sent to.
- *
- * Compared on the last four digits, which is all the client ever has:
- * the preview masks the rest. The real answer is the server's, at the
- * moment the invitation is accepted, and this only decides which of two
- * screens is worth showing before that.
- */
-export function addressedTo(
-  invitation: MockInvitation,
-  phoneNumber: string | null | undefined,
-): boolean {
-  if (!phoneNumber) return false;
-  return (
-    invitation.inviteePhone.slice(-4) === phoneNumber.replace(/\D/g, "").slice(-4)
-  );
-}

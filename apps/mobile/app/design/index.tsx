@@ -14,7 +14,6 @@ import { Checkbox, CheckboxLabel } from "@/components/ui/Checkbox";
 import { ActionRow } from "@/components/ui/ActionRow";
 import { QuietAction } from "@/components/ui/QuietAction";
 import { PhoneField } from "@/components/ui/PhoneField";
-import { PhoneStep } from "@/components/auth/PhoneStep";
 import { toE164 } from "@/lib/phone";
 import { Screen } from "@/components/ui/Screen";
 import { DatePicker } from "@/components/ui/DatePicker";
@@ -493,7 +492,7 @@ export default function DesignSystem() {
             <Specimen
               name="Checkbox"
               contract="checked · onToggle · disabled? · children"
-              note="Consent, which is not a filter: ChipToggle says show me these ones, this says I have read this. The whole row is the target rather than the box, since a twenty-pixel square is not something a thumb can be asked to hit, and the tick is drawn rather than implied by the fill, because an inked square on its own reads as a badge. It gates the sign-in button, and the same block appears on an invitation, because both collect a number and both need the same disclosure. It is a control rather than a sentence because the carriers ask for one: Twilio rejects a campaign whose form has no separate consent control (30925)."
+              note="Consent, which is not a filter: ChipToggle says show me these ones, this says I have read this. The whole row is the target rather than the box, since a twenty-pixel square is not something a thumb can be asked to hit, and the tick is drawn rather than implied by the fill, because an inked square on its own reads as a badge. It gates the sign-in button: a control rather than a sentence, because the carriers ask for one, and Twilio rejects a campaign whose form has no separate consent control (30925)."
             >
               <Checkbox
                 checked={consent}
@@ -526,19 +525,6 @@ export default function DesignSystem() {
                   onPress={() => setLog("ActionRow quiet action fired")}
                 />
               </ActionRow>
-            </Specimen>
-
-            <Specimen
-              name="PhoneStep"
-              contract="title? · body? · submitLabel? · leaveLabel? · onSent · onLeave"
-              note="The number and the consent, which is one body with two doors: the sign-in screen, and an invitation. The consent block lives in here rather than in each screen because the disclosure is a legal artefact with a registered campaign behind it, and a second copy is a second thing to keep in step. The heading is optional: the sign-in screen supplies one because it is the page's subject, and an invitation supplies a card instead. CodeStep and NameStep are the same bargain for the two steps behind it."
-            >
-              <PhoneStep
-                title="Get started"
-                body="Enter your phone number to sign in or create an account."
-                onSent={() => setLog("PhoneStep sent a code")}
-                onLeave={() => setLog("PhoneStep left the flow")}
-              />
             </Specimen>
 
             <Specimen
@@ -783,9 +769,9 @@ export default function DesignSystem() {
             deliberately not linked from here: each redirects back to it
             without a number or a session between them. The mock takes any
             valid number with the code 123456, and decides whether the
-            profile screen is needed from whether it knows the number. An
-            invitation drives those same three steps in place, which is the
-            other reason not to link them.
+            profile screen is needed from whether it knows the number.
+            Nothing else in the app runs those steps: an invitation hands a
+            friend to this sign-in rather than repeating it.
           </Text>
         </Section>
 
