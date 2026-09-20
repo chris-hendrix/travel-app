@@ -214,14 +214,16 @@ function TravelRowItem({
       >
         {/* The day's own column, narrow and fixed so it aligns down the
             list. Every row names its day, so a run that outlives the
-            screen still says when it is. */}
+            screen still says when it is. The number reads at the same
+            weight as the facts beside it: the column's position already
+            says it is a date. */}
         <View className="w-10 items-center">
           {row.date ? (
             <>
               <Text className="font-body text-[11px] text-ink opacity-60">
                 {weekdayAbbrev(row.date)}
               </Text>
-              <Text className="font-body-bold text-base leading-none text-ink">
+              <Text className="font-body text-base leading-none text-ink">
                 {dayNumber(row.date)}
               </Text>
             </>
@@ -234,7 +236,10 @@ function TravelRowItem({
           {row.memberName}
         </Text>
 
-        <Text className="font-body-bold text-base text-ink">
+        {/* The clock is a fact about the row, like the members dialog's
+            status: read, not announced. Bold here made every row shout
+            and left the name with nothing to anchor against. */}
+        <Text className="font-body text-base text-ink">
           {row.time ? clockLabel(row.time, timeZone) : NOT_SHARED}
         </Text>
         <Icon color="#000000" size={20} />
@@ -242,7 +247,7 @@ function TravelRowItem({
       {open ? (
         <View className="gap-1 pt-2">
           {row.location ? (
-            <Text className="font-body-bold text-sm text-ink">
+            <Text className="font-body text-sm text-ink">
               {row.location}
             </Text>
           ) : null}
