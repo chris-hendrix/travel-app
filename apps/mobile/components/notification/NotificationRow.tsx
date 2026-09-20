@@ -36,7 +36,6 @@ export function NotificationRow({
   return (
     <Pressable
       onPress={onPress}
-      aria-label={notification.body}
       className={`flex-row items-center gap-4 border-b border-b-ink border-l-4 py-4 pl-4 pr-2 ${
         unread ? "border-l-strawberry" : "border-l-transparent"
       }`}

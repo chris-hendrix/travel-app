@@ -44,7 +44,6 @@ export function ScheduleRow({
     <Pressable
       onPress={onPress}
       {...hoverProps}
-      aria-label={title}
       className="cursor-pointer flex-row flex-wrap items-center gap-4 border-b border-b-ink py-4"
     >
       <View className="overflow-hidden">

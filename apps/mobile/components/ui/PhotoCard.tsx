@@ -41,7 +41,6 @@ export function PhotoCard({
     <Pressable
       onPress={onPress}
       {...hoverProps}
-      aria-label={title}
       className="w-full max-w-[420px] cursor-pointer"
     >
       <View className="relative overflow-hidden">
