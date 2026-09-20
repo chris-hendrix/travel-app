@@ -1,76 +1,18 @@
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { EventCard } from "@/components/trip/EventCard";
 import { EventRow } from "@/components/trip/EventRow";
 import { StayCard } from "@/components/trip/StayCard";
 import { StayRow } from "@/components/trip/StayRow";
+import { Button } from "@/components/ui/Button";
 import { Grid } from "@/components/ui/Grid";
-import { QuietAction } from "@/components/ui/QuietAction";
 import type { Trip } from "@/components/trip/TripCard";
 import { dayLabel, daysFrom, groupEventsByDay } from "@/lib/itinerary";
-import { currentStay, staySpan, type Stay } from "@/lib/stays";
 import { useStays } from "@/lib/staysStore";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { useEvents } from "@/lib/eventsStore";
 import { todayIn } from "@/lib/timezone";
-
-/**
- * The base at the head of the run: a tile in the cards layout, a row in
- * the list — the base is not exempt from the setting that governs
- * everything under it.
- */
-function Base({
-  stay,
-  cards,
-  timeZone,
-  onPress,
-}: {
-  stay: Stay;
-  cards: boolean;
-  timeZone: string | null;
-  onPress: () => void;
-}) {
-  return cards ? (
-    <StayCard stay={stay} timeZone={timeZone} onPress={onPress} />
-  ) : (
-    <StayRow stay={stay} timeZone={timeZone} onPress={onPress} />
-  );
-}
-
-/**
- * One of the other roofs, as a line rather than a tile.
- *
- * The head can carry one roof whole and a second when there are exactly
- * two; past that it carries a line each, because five tiles above Today
- * is the itinerary before the itinerary starts. The line is the name and
- * the span it covers, which is the whole of what the other roof has to
- * say until you are in it.
- */
-function StayIndexLine({
-  stay,
-  span,
-  onPress,
-}: {
-  stay: Stay;
-  span: string | null;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      aria-label={stay.name}
-      className="cursor-pointer flex-row items-center gap-3 py-1"
-    >
-      <Text className="flex-1 font-body-bold text-base text-ink underline">
-        {stay.name}
-      </Text>
-      {span ? (
-        <Text className="font-body text-sm text-ink opacity-60">{span}</Text>
-      ) : null}
-    </Pressable>
-  );
-}
 
 /**
  * A trip's days, each one a section holding that day's events.
@@ -80,25 +22,31 @@ function StayIndexLine({
  * days. So the top of an itinerary is always the day you are on, and
  * what has already happened piles up at the bottom when you ask for it.
  *
- * Before the first day sits the roof you are under. Not a day and not a
- * row in the table: it is the base every day below departs from, and it
- * wears whatever the layout says a thing wears — the run's own tile, or
- * the run's own row.
+ * Before the first day sit the roofs, earliest first. Not days, and not
+ * rows in the table by right: they are the base every day below departs
+ * from, and each one wears what the layout says a thing wears, the run's
+ * own tile or the run's own row.
  *
- * One roof is the ordinary case; two fit at the head, because a trip in
- * two towns has two answers and neither is second-class. Past that the
- * head carries the live roof and a line for each of the others, in the
- * order you will sleep in them: nothing is dropped, and nothing is
- * repeated later in the run, where a base change would read as a day.
+ * A roof is not promoted and not indexed. There was a version where the
+ * live one was a tile and the others were lines under it, on the
+ * argument that five tiles above Today is the itinerary before the
+ * itinerary starts. The argument was wrong in the same way it would be
+ * for events: a roof is a thing in the run, so it is drawn by the same
+ * component every other thing is, and the only difference is data. The
+ * chip reads Stay, and the column an event spends on a clock carries the
+ * span instead.
  *
- * The run also owns the way to add to it. Add event and Add stay are
- * quiet words in the section head rather than buttons in the stack at
- * the top of the screen — the same rule the travel board follows with
- * its own Add travel: the surface that holds a list holds the way onto
- * it. Words rather than boxes because they are the run's, not the
- * screen's: the trip page spends its loud button on Invite people, and a
- * pair of outlined boxes at the top of a section reads as a toolbar
- * sitting on the content.
+ * The run also owns the way to add to it. Add event and Add stay sit in
+ * the section head rather than in the stack at the top of the screen:
+ * the surface that holds a list holds the way onto it.
+ *
+ * They are buttons, and they were quiet words. The words were the two
+ * most-used verbs on this screen wearing the quietest treatment in the
+ * system, where an underlined label in a section head reads as a link in
+ * a paragraph. They are secondary rather than primary, because the trip
+ * page spends its one loud button on Invite people, and each fills the
+ * width on a phone and hugs its label from md, where the two of them sit
+ * in a row.
  *
  * No other controls in view: how much of it you read, whose clock you
  * read it on, and whether it is cards or a table are Trip settings,
@@ -152,66 +100,50 @@ export function Itinerary({
   // its last; with it off, it starts at today.
   const shown = showPast ? days : daysFrom(days, today);
 
+  // Earliest first: the store already holds them in the order you will
+  // sleep in them.
   const stays = staysForTrip(trip);
-  const head = currentStay(stays, today, timeZone);
-  // One roof is the ordinary case and two fit whole. Past that, the live
-  // one, in the order you will sleep in them: this one first, because it
-  // is the one whose address you need tonight.
-  const listed = stays.length <= 2 ? stays : head ? [head] : [];
-  const rest =
-    stays.length <= 2 ? [] : stays.filter((stay) => !listed.includes(stay));
-
-  // The other roofs, as lines rather than tiles.
-  const restLines =
-    rest.length > 0 ? (
-      <View>
-        {rest.map((stay) => (
-          <StayIndexLine
-            key={stay.id}
-            stay={stay}
-            span={staySpan(stay, timeZone)}
-            onPress={() => openStay(stay.id)}
-          />
-        ))}
-      </View>
-    ) : null;
 
   return (
     <View className="gap-6">
       {/* The run's head. The label names the one block on this screen
           that is a list of many things rather than a fact about the
-          trip, and it is what keeps the organizer's two words from
-          floating: a pair of actions on their own line reads as chrome
-          that fell off something else. */}
+          trip, and it is what anchors the organizer's two actions: a
+          pair of boxes on their own line, with nothing above them, reads
+          as chrome that fell off something else. */}
       <View className="gap-3">
         <Text className="font-body-bold text-sm uppercase tracking-widest text-ink">
           Itinerary
         </Text>
         {organizer ? (
-          <View className="flex-row flex-wrap items-center gap-4">
-            <QuietAction label="Add event" onPress={addEvent} />
-            <QuietAction label="Add stay" onPress={addStay} />
+          <View className="flex-col gap-3 md:flex-row md:items-center md:gap-4">
+            <Button
+              title="Add event"
+              variant="secondary"
+              onPress={addEvent}
+            />
+            <Button
+              title="Add stay"
+              variant="secondary"
+              onPress={addStay}
+            />
           </View>
         ) : null}
       </View>
 
       {cards ? (
         <>
-          {listed.length > 0 || rest.length > 0 ? (
-            <View className="gap-4">
-              <Grid>
-                {listed.map((stay) => (
-                  <Base
-                    key={stay.id}
-                    stay={stay}
-                    cards
-                    timeZone={timeZone}
-                    onPress={() => openStay(stay.id)}
-                  />
-                ))}
-              </Grid>
-              {restLines}
-            </View>
+          {stays.length > 0 ? (
+            <Grid>
+              {stays.map((stay) => (
+                <StayCard
+                  key={stay.id}
+                  stay={stay}
+                  timeZone={timeZone}
+                  onPress={() => openStay(stay.id)}
+                />
+              ))}
+            </Grid>
           ) : null}
           <View className="gap-8">
             {shown.map((day) => (
@@ -239,16 +171,14 @@ export function Itinerary({
         // boundary. The heading lumps a day together and the gap above
         // it separates it from the day before.
         <View className="border-t border-ink">
-          {listed.map((stay) => (
-            <Base
+          {stays.map((stay) => (
+            <StayRow
               key={stay.id}
               stay={stay}
-              cards={false}
               timeZone={timeZone}
               onPress={() => openStay(stay.id)}
             />
           ))}
-          {restLines}
           {shown.map((day, index) => (
             <View
               key={day.date}
