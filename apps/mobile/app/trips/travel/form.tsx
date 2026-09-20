@@ -11,6 +11,8 @@ import {
 } from "@/lib/newTravel";
 import { getPertinentLocation, getPertinentTime } from "@journiful/shared/utils";
 import { useTrips } from "@/lib/tripsStore";
+import { tripFor } from "@/lib/tripLookup";
+import NotFound from "@/app/+not-found";
 import { useTravel } from "@/lib/travelStore";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
@@ -55,7 +57,7 @@ function TravelFormScreen() {
   const router = useRouter();
 
   const tripId = typeof id === "string" ? id : undefined;
-  const trip = trips.find((candidate) => candidate.id === tripId) ?? trips[0];
+  const trip = tripFor(trips, tripId);
   // The zone the fields mean: the trip's own clock setting, the same one
   // the board behind this form is reading. What is typed is stamped in
   // it, and what it stamps is read back in it.
@@ -114,13 +116,7 @@ function TravelFormScreen() {
   const boardHref = `/trips/travel?id=${trip?.id ?? ""}&as=${viewerIsOrganizer ? "organizer" : "traveler"}`;
 
   if (!trip) {
-    return (
-      <FullscreenDialog title="Travel" dismissHref="/trips">
-        <Text className="font-body text-base text-ink">
-          No trip to add to. Start one from the trips screen.
-        </Text>
-      </FullscreenDialog>
-    );
+    return <NotFound />;
   }
 
   if (editingId && !record) {

@@ -1,9 +1,9 @@
 import { Suspense } from "react";
-import { Text } from "react-native";
 import { useLocalSearchParams } from "expo-router";
-import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { InviteDialog } from "@/components/trip/InviteDialog";
 import { useTrips } from "@/lib/tripsStore";
+import { tripFor } from "@/lib/tripLookup";
+import NotFound from "@/app/+not-found";
 
 /**
  * Invite people, as a dialog.
@@ -30,16 +30,10 @@ function InvitePeopleDialog() {
   const { trips } = useTrips();
 
   const tripId = typeof id === "string" ? id : undefined;
-  const trip = trips.find((candidate) => candidate.id === tripId) ?? trips[0];
+  const trip = tripFor(trips, tripId);
 
   if (!trip) {
-    return (
-      <FullscreenDialog title="Invite people" dismissHref="/trips">
-        <Text className="font-body text-base text-ink">
-          No trip to invite anyone to. Start one from the trips screen.
-        </Text>
-      </FullscreenDialog>
-    );
+    return <NotFound />;
   }
 
   return (

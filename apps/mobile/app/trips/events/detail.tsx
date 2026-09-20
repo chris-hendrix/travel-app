@@ -15,6 +15,8 @@ import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { todayIn, wallClock } from "@/lib/timezone";
 import { useTrips } from "@/lib/tripsStore";
+import { tripFor } from "@/lib/tripLookup";
+import NotFound from "@/app/+not-found";
 import { useDismiss } from "@/hooks/useDismiss";
 
 /**
@@ -58,7 +60,7 @@ function EventDetailDialog() {
   const dismiss = useDismiss("/trips");
 
   const tripId = typeof id === "string" ? id : undefined;
-  const trip = trips.find((candidate) => candidate.id === tripId) ?? trips[0];
+  const trip = tripFor(trips, tripId);
   const event = trip
     ? eventById(trip, typeof eventId === "string" ? eventId : undefined)
     : undefined;
@@ -72,7 +74,11 @@ function EventDetailDialog() {
   const timeZone = trip && clock === "trip" ? trip.preferredTimezone : null;
   useDisplayZone(trip ? zoneFor(trip, clock, update) : null);
 
-  if (!trip || !event) {
+  if (!trip) {
+    return <NotFound />;
+  }
+
+  if (!event) {
     return (
       <FullscreenDialog title="Event" dismissHref="/trips">
         <Text className="font-body text-base text-ink">

@@ -1,10 +1,10 @@
 import { Suspense } from "react";
-import { Text } from "react-native";
 import { useLocalSearchParams } from "expo-router";
-import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { EventDialog } from "@/components/trip/EventDialog";
 import { buildEvent } from "@/lib/newEvent";
 import { useTrips } from "@/lib/tripsStore";
+import { tripFor } from "@/lib/tripLookup";
+import NotFound from "@/app/+not-found";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { useEvents } from "@/lib/eventsStore";
@@ -32,7 +32,7 @@ function NewEventScreen() {
   const dismiss = useDismiss("/trips");
 
   const tripId = typeof id === "string" ? id : undefined;
-  const trip = trips.find((candidate) => candidate.id === tripId) ?? trips[0];
+  const trip = tripFor(trips, tripId);
   // The zone the fields mean: the trip's own clock setting, so what is
   // typed is stamped in the zone it will be read in.
   const { clock } = trip
@@ -44,13 +44,7 @@ function NewEventScreen() {
   useDisplayZone(trip ? zoneFor(trip, clock, update) : null);
 
   if (!trip) {
-    return (
-      <FullscreenDialog title="Add event" dismissHref="/trips">
-        <Text className="font-body text-base text-ink">
-          No trip to add to. Start one from the trips screen.
-        </Text>
-      </FullscreenDialog>
-    );
+    return <NotFound />;
   }
 
   return (

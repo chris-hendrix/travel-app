@@ -13,7 +13,9 @@ import { formatDateRange } from "@/lib/dateRange";
 import { todayIn } from "@/lib/timezone";
 import type { RsvpStatus } from "@/lib/rsvp";
 import { useTrips } from "@/lib/tripsStore";
+import { tripFor } from "@/lib/tripLookup";
 import { useTravel } from "@/lib/travelStore";
+import NotFound from "@/app/+not-found";
 import { useEvents } from "@/lib/eventsStore";
 import { useStays } from "@/lib/staysStore";
 import { currentStay } from "@/lib/stays";
@@ -88,16 +90,19 @@ function TripDetailScreen() {
   // Everyone starts unreplied, exactly as the API's default has it.
   const [response, setResponse] = useState<RsvpStatus>("no_response");
 
-  // Every card on the trips screen opens here, so the id is a lookup, not
-  // a requirement: with no trip named, show the first one.
+  // Every card on the trips screen opens here, but the id is still a
+  // lookup, not a requirement that always names something: an address
+  // can name a trip that is gone, or none at all, and then this screen
+  // answers with the not-found state rather than another trip.
   const tripId = typeof id === "string" ? id : undefined;
-  const trip = trips.find((candidate) => candidate.id === tripId) ?? trips[0];
+  const trip = tripFor(trips, tripId);
 
-  // Both of these are read before the guard: a hook called after a
+  // All of these are read before the guard: a hook called after a
   // return is a hook called a different number of times.
   const { eventsForTrip } = useEvents();
   const { staysForTrip } = useStays();
   const { for: settingsFor } = useTripSettings();
+  const { travelForTrip } = useTravel();
 
   // Nothing on the itinerary yet. That is the one case its own head
   // cannot help with: the itinerary sits below the fold, and the empty
@@ -121,13 +126,7 @@ function TripDetailScreen() {
     : undefined;
 
   if (!trip) {
-    return (
-      <Screen>
-        <Text className="font-body text-base text-ink">
-          No trip to show. Start one from the trips screen.
-        </Text>
-      </Screen>
-    );
+    return <NotFound />;
   }
 
   const countdown = tripCountdown(trip.startDate, trip.endDate);
@@ -135,7 +134,6 @@ function TripDetailScreen() {
 
   // Your own travel, filed or not: the organizer is the roster's
   // organizer, everyone else is the lab's stand-in for "you".
-  const { travelForTrip } = useTravel();
   // Filed means a time is on it: a row without one is still owed.
   const filed = travelForTrip(trip).filter((record) =>
     getPertinentTime(record),

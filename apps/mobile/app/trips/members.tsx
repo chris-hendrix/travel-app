@@ -4,6 +4,8 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { ChipLink } from "@/components/ui/ChipLink";
 import { useTrips } from "@/lib/tripsStore";
+import { tripFor } from "@/lib/tripLookup";
+import NotFound from "@/app/+not-found";
 import { memberLabel } from "@/lib/rsvp";
 import { visiblePhone, type Member } from "@/lib/members";
 import { instagramUrl, venmoUrl } from "@/lib/links";
@@ -48,19 +50,13 @@ function TripMembersDialog() {
   const router = useRouter();
 
   const tripId = typeof id === "string" ? id : undefined;
-  const trip = trips.find((candidate) => candidate.id === tripId) ?? trips[0];
+  const trip = tripFor(trips, tripId);
   // The lab's stand-in for `isOrganizer` on the membership, threaded down
   // from the trip screen so the two can never disagree.
   const viewerIsOrganizer = as === "organizer";
 
   if (!trip) {
-    return (
-      <FullscreenDialog title="Who's coming" dismissHref="/trips">
-        <Text className="font-body text-base text-ink">
-          No trip to show. Start one from the trips screen.
-        </Text>
-      </FullscreenDialog>
-    );
+    return <NotFound />;
   }
 
   return (

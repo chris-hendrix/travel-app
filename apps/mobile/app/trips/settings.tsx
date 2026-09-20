@@ -6,6 +6,8 @@ import { Section } from "@/components/ui/Section";
 import { ChipToggle } from "@/components/ui/ChipToggle";
 import { useDismiss } from "@/hooks/useDismiss";
 import { useTrips } from "@/lib/tripsStore";
+import { tripFor } from "@/lib/tripLookup";
+import NotFound from "@/app/+not-found";
 import {
   useTripSettings,
   type Clock,
@@ -52,16 +54,10 @@ function TripSettingsScreen() {
   const dismiss = useDismiss("/trips");
 
   const tripId = typeof id === "string" ? id : undefined;
-  const trip = trips.find((candidate) => candidate.id === tripId) ?? trips[0];
+  const trip = tripFor(trips, tripId);
 
   if (!trip) {
-    return (
-      <FullscreenDialog title="Trip settings" dismissHref="/trips">
-        <Text className="font-body text-base text-ink">
-          No trip to set up. Start one from the trips screen.
-        </Text>
-      </FullscreenDialog>
-    );
+    return <NotFound />;
   }
 
   const settings = settingsFor(trip, new Date());

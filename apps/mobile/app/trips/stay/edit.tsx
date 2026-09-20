@@ -5,6 +5,8 @@ import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { StayDialog } from "@/components/trip/StayDialog";
 import { buildStay, draftFromStay } from "@/lib/newStay";
 import { useTrips } from "@/lib/tripsStore";
+import { tripFor } from "@/lib/tripLookup";
+import NotFound from "@/app/+not-found";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { useStays } from "@/lib/staysStore";
@@ -41,7 +43,7 @@ function EditStayScreen() {
   const router = useRouter();
 
   const tripId = typeof id === "string" ? id : undefined;
-  const trip = trips.find((candidate) => candidate.id === tripId) ?? trips[0];
+  const trip = tripFor(trips, tripId);
   const { clock } = trip
     ? settingsFor(trip, new Date())
     : { clock: "trip" as const };
@@ -56,7 +58,11 @@ function EditStayScreen() {
   // sheet we just deleted.
   const tripHref = `/trips/detail?id=${trip?.id ?? ""}`;
 
-  if (!trip || !stay) {
+  if (!trip) {
+    return <NotFound />;
+  }
+
+  if (!stay) {
     return (
       <FullscreenDialog title="Edit stay" dismissHref="/trips">
         <Text className="font-body text-base text-ink">

@@ -49,6 +49,27 @@ describe("expo policy: router peer dependencies", () => {
   });
 });
 
+describe("expo policy: an unknown trip is not another trip", () => {
+  it("never falls back to trips[0] under app/", () => {
+    const appDir = path.join(mobileDir, "app");
+    const offenders: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (/\.(tsx?|jsx?)$/.test(entry.name)) {
+          const source = fs.readFileSync(full, "utf8");
+          if (source.includes("?? trips[0]")) {
+            offenders.push(path.relative(mobileDir, full));
+          }
+        }
+      }
+    };
+    walk(appDir);
+    expect(offenders, `?? trips[0] must not appear under app/`).toEqual([]);
+  });
+});
+
 describe("expo policy: CI can see the package", () => {
   const repoRoot = path.resolve(mobileDir, "..", "..");
   const ciYml = fs.readFileSync(

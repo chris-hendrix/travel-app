@@ -9,6 +9,8 @@ import { wallClock } from "@/lib/timezone";
 import { travelBoard, type TravelRow } from "@/lib/travelBoard";
 import { NOT_SHARED } from "@/lib/wording";
 import { useTrips } from "@/lib/tripsStore";
+import { tripFor } from "@/lib/tripLookup";
+import NotFound from "@/app/+not-found";
 import { useTravel } from "@/lib/travelStore";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
@@ -52,7 +54,7 @@ function TripTravelDialog() {
   const router = useRouter();
 
   const tripId = typeof id === "string" ? id : undefined;
-  const trip = trips.find((candidate) => candidate.id === tripId) ?? trips[0];
+  const trip = tripFor(trips, tripId);
   // The zone these rows are read in: the trip's own clock setting, the
   // same one the itinerary behind this dialog is reading. A board and a
   // form that disagreed about what time it is would be two trips.
@@ -67,7 +69,7 @@ function TripTravelDialog() {
   // The lab has no signed-in identity: one member of the roster stands
   // in for "you", and the board and the trip screen nudge share the
   // same stand-in so the two can never disagree.
-  const records = travelForTrip(trip!);
+  const records = trip ? travelForTrip(trip) : [];
   const going = trip
     ? membersFor(trip).filter((member) => member.status === "going")
     : [];
@@ -85,7 +87,10 @@ function TripTravelDialog() {
     () => (trip ? travelBoard(records, timeZone, going) : null),
     [trip, records, timeZone],
   );
-  if (!trip || !board) {
+  if (!trip) {
+    return <NotFound />;
+  }
+  if (!board) {
     return (
       <FullscreenDialog title="Travel" dismissHref="/trips">
         <Text className="font-body text-base text-ink">

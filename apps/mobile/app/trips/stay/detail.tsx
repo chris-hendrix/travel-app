@@ -16,6 +16,8 @@ import { useStays } from "@/lib/staysStore";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { useTrips } from "@/lib/tripsStore";
+import { tripFor } from "@/lib/tripLookup";
+import NotFound from "@/app/+not-found";
 import { useDismiss } from "@/hooks/useDismiss";
 import { joinFacts } from "@/lib/wording";
 
@@ -61,7 +63,7 @@ function StayDetailDialog() {
   const dismiss = useDismiss("/trips");
 
   const tripId = typeof id === "string" ? id : undefined;
-  const trip = trips.find((candidate) => candidate.id === tripId) ?? trips[0];
+  const trip = tripFor(trips, tripId);
   const stay = trip
     ? stayById(trip, typeof stayId === "string" ? stayId : undefined)
     : undefined;
@@ -74,7 +76,11 @@ function StayDetailDialog() {
   const timeZone = trip && clock === "trip" ? trip.preferredTimezone : null;
   useDisplayZone(trip ? zoneFor(trip, clock, update) : null);
 
-  if (!trip || !stay) {
+  if (!trip) {
+    return <NotFound />;
+  }
+
+  if (!stay) {
     return (
       <FullscreenDialog title="Stay" dismissHref="/trips">
         <Text className="font-body text-base text-ink">

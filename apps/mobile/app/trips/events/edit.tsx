@@ -9,6 +9,8 @@ import {
   validateNewEvent,
 } from "@/lib/newEvent";
 import { useTrips } from "@/lib/tripsStore";
+import { tripFor } from "@/lib/tripLookup";
+import NotFound from "@/app/+not-found";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { useEvents } from "@/lib/eventsStore";
@@ -46,7 +48,7 @@ function EditEventScreen() {
   const router = useRouter();
 
   const tripId = typeof id === "string" ? id : undefined;
-  const trip = trips.find((candidate) => candidate.id === tripId) ?? trips[0];
+  const trip = tripFor(trips, tripId);
   // The zone the fields mean: the trip's own clock setting, so what is
   // typed is stamped in the zone it will be read in.
   const { clock } = trip
@@ -65,7 +67,11 @@ function EditEventScreen() {
   // event detail we just deleted.
   const tripHref = `/trips/detail?id=${trip?.id ?? ""}`;
 
-  if (!trip || !event) {
+  if (!trip) {
+    return <NotFound />;
+  }
+
+  if (!event) {
     return (
       <FullscreenDialog title="Edit event" dismissHref="/trips">
         <Text className="font-body text-base text-ink">

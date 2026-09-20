@@ -104,6 +104,11 @@ function InviteScreen() {
           }
         />
       ) : (
+        // Open question for the invite wiring: whether the invitation
+        // token must survive sign-in depends on the endpoint contract —
+        // whether verify expects the token presented, or resolves the
+        // invitee by number (processPendingInvitations) with nothing to
+        // carry across. Until that contract exists, nothing is carried.
         <Button
           title="Sign in to join"
           variant="accent"

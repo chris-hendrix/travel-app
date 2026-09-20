@@ -10,6 +10,8 @@ import type { Selection } from "@/lib/calendar";
 import { formatDateRange } from "@/lib/dateRange";
 import { validateNewTrip, type NewTripInput } from "@/lib/newTrip";
 import { useTrips } from "@/lib/tripsStore";
+import { tripFor } from "@/lib/tripLookup";
+import NotFound from "@/app/+not-found";
 import { useDismiss } from "@/hooks/useDismiss";
 import { PLACES } from "@/mocks/places";
 
@@ -37,7 +39,7 @@ function EditTripScreen() {
   const dismiss = useDismiss("/trips");
 
   const tripId = typeof id === "string" ? id : undefined;
-  const trip = trips.find((candidate) => candidate.id === tripId) ?? trips[0];
+  const trip = tripFor(trips, tripId);
 
   const [title, setTitle] = useState(trip?.title ?? "");
   const [location, setLocation] = useState<string | null>(
@@ -64,13 +66,7 @@ function EditTripScreen() {
   }, []);
 
   if (!trip) {
-    return (
-      <FullscreenDialog title="Edit trip" dismissHref="/trips">
-        <Text className="font-body text-base text-ink">
-          No trip to edit. Start one from the trips screen.
-        </Text>
-      </FullscreenDialog>
-    );
+    return <NotFound />;
   }
 
   const defaultCover = `https://picsum.photos/seed/${encodeURIComponent(trip.id)}/900/600`;
