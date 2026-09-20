@@ -50,10 +50,11 @@ pnpm docker:up        # Start PostgreSQL + MinIO
 # Development (host)
 make migrate          # Run pending migrations (after git pull with schema changes)
 make dev              # Start both servers (web:3000, api:8000)
+make mockup           # The design mockup in a browser (design system at /design)
 pnpm dev:web          # Frontend only
 pnpm dev:api          # Backend only
 
-# Mobile / Capacitor (host)
+# Mobile / Capacitor (host) — this is apps/web shipped as an APK, not apps/mobile
 make cap-apk                  # Full pipeline: static export → cap sync → assembleDebug APK
 make cap-install              # Install APK on emulator + launch
 make cap-run                  # cap-apk + cap-install combined (requires live reload config)

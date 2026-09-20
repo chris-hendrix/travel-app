@@ -39,4 +39,17 @@ make test-exec CMD="cd apps/mobile && pnpm typecheck"
 make test-exec CMD="cd apps/mobile && pnpm lint"
 ```
 
-On this branch a commit needs the mobile suite only. To look at the app: `cd apps/mobile && pnpm web`, then open the route you want, the lab included.
+On this branch a commit needs the mobile suite only.
+
+### Looking at it
+
+```bash
+make mockup     # from the repo root, on the host — not in the devcontainer
+```
+
+Then open the route you want: the app at `http://localhost:8081`, the design system at `http://localhost:8081/design`, or any other route by its path.
+
+Two traps, both of which have cost real time:
+
+- It has to run **on the host**. The devcontainer publishes only 3000 and 8000, so a server started inside it is invisible to the browser.
+- It has to be the **dev server**. A static export (`npx expo export --platform web`) compiles `__DEV__` to false, and the lab's first line is `if (!__DEV__) return <Redirect href="/+not-found" />` — so in any export `/design` lands on "Nothing here", which reads as a broken route rather than as a guarded one.
