@@ -8,6 +8,7 @@ import {
 } from "react";
 import { PHONE_REGEX } from "@journiful/shared/schemas";
 import { PROFILE } from "@/mocks/profile";
+import { clearToken, setToken } from "@/lib/session";
 
 /**
  * Who is signed in, standing in for `POST /auth/request-code`,
@@ -75,6 +76,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         displayName: known ? PROFILE.displayName : "",
         profileComplete: known,
       });
+      // The mock stands in for POST /auth/verify, which returns the
+      // token the real endpoint will. Writing it through session.ts now
+      // means the call site exists before the endpoints do.
+      await setToken(`mock-token-${pendingPhone}`);
 
       return { requiresProfile: !known };
     },
@@ -88,6 +93,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(() => {
+    // Fire-and-forget on purpose: signOut stays synchronous so its
+    // public shape does not change when the endpoints arrive.
+    void clearToken().catch(() => {});
     setUser(null);
     setPendingPhone(null);
   }, []);
