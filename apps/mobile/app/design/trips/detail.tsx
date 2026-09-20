@@ -37,12 +37,17 @@ const VARIANTS: Array<{ value: Variant; label: string }> = [
  * the detail adds is who is coming and what you are going to do about
  * it, so the card to detail move adds rather than re-teaches.
  *
- * A trip you have been invited to but not answered opens as an
- * invitation rather than as a trip: this same header, one Accept
- * invitation button, and nothing below it. Accepting swaps the button
- * in place for the Going / Maybe / Not going control and reveals the
- * rest. That is why the RSVP control is never seen empty — an
- * unanswered invitation is a state of the screen, not of the control.
+ * There is no invited state. There was one, with an Accept invitation
+ * button standing in for the RSVP control and the itinerary hidden
+ * until it was pressed, and it modelled something the server never
+ * produces: a membership is created when the invited number signs in
+ * (`processPendingInvitations`), so by the time a traveler can see this
+ * screen they are already on the trip. What the server does produce is
+ * a member who has not answered yet, and that is the RSVP control's own
+ * empty state, not a state of the screen. The consequence is that the
+ * itinerary is readable before anybody answers, which is the rule:
+ * trip-level things are the organizer's to author and everyone's to
+ * read.
  *
  * Underneath sits the itinerary, a placeholder for now.
  *
@@ -127,9 +132,6 @@ function TripDetailScreen() {
 
   const countdown = tripCountdown(trip.startDate, trip.endDate);
   const organizer = variant === "organizer";
-  // The organizer is never invited to their own trip, and everyone else
-  // starts unreplied — the API's own default.
-  const invited = !organizer && response === "no_response";
 
   // Your own travel, filed or not: the organizer is the roster's
   // organizer, everyone else is the lab's stand-in for "you".
@@ -147,9 +149,8 @@ function TripDetailScreen() {
     ? filed.filter((record) => record.memberId === viewer.id)
     : [];
   const owesTravel =
-    !invited &&
-    (!viewerTravel.some((record) => record.travelType === "arrival") ||
-      !viewerTravel.some((record) => record.travelType === "departure"));
+    !viewerTravel.some((record) => record.travelType === "arrival") ||
+    !viewerTravel.some((record) => record.travelType === "departure");
 
   // The nudge onto the trip screen, and only while you owe times: the
   // board keeps its own Add travel either way. Same words as the board's
@@ -217,25 +218,11 @@ function TripDetailScreen() {
     </View>
   ) : (
     <View className="gap-2">
-      {invited ? (
-        // An unanswered invitation gets one answer and nothing else:
-        // settings for a trip you have not joined would be noise, and so
-        // would a nudge about travel you have not been asked for yet.
-        <Button
-          title="Accept invitation"
-          variant="accent"
-          fullWidth
-          onPress={() => setResponse("going")}
-        />
-      ) : (
-        <>
-          {/* All three answers, always visible and always reachable — an
-              RSVP you cannot take back is a worse RSVP. */}
-          <RsvpControl value={response} onChange={setResponse} />
-          {travelCta}
-          {settingsButton}
-        </>
-      )}
+      {/* All three answers, always visible and always reachable — an
+          RSVP you cannot take back is a worse RSVP. */}
+      <RsvpControl value={response} onChange={setResponse} />
+      {travelCta}
+      {settingsButton}
     </View>
   );
 
@@ -350,7 +337,7 @@ function TripDetailScreen() {
         {/* The itinerary is the only thing an unanswered invitation
             withholds: the description is what you decide on, it is what
             you get for saying yes. */}
-        {invited ? null : <Itinerary trip={trip} as={variant} />}
+        <Itinerary trip={trip} as={variant} />
       </View>
     </Screen>
   );
