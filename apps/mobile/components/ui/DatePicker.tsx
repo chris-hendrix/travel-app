@@ -177,10 +177,12 @@ function Arrow({
 }) {
   const Icon = icon === "left" ? ChevronLeft : ChevronRight;
   return (
-    // hitSlop, not padding: the arrows sit in a bordered header row, so
-    // padding would move the border. The touch area reaches 44pt with
-    // no change to the picture.
-    <Pressable aria-label={label} onPress={onPress} hitSlop={8} className="p-1">
+    // Padding with a matching negative margin, not hitSlop: hitSlop
+    // does not enlarge the element's box on the web build, so the
+    // arrows measured 32x32 in a browser. Padding grows the box to
+    // 44pt and the negative margin pulls the margin box back, so the
+    // bordered header row does not move.
+    <Pressable aria-label={label} onPress={onPress} className="p-2.5 -m-2.5">
       <Icon color={INK} size={24} />
     </Pressable>
   );

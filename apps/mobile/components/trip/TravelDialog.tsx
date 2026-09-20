@@ -318,18 +318,28 @@ function LegFields({
   async function autofill() {
     setLookingUp(true);
     setLookupError(null);
-    const result = await lookupFlight(leg.flightNumber, leg.day);
-    setLookingUp(false);
-    if (!result) {
-      // No dead end: the times are right below, so a lookup that finds
-      // nothing leaves you typing them instead of stuck.
-      setLookupError("Flight not found for this date. Enter the times below.");
+    try {
+      const result = await lookupFlight(leg.flightNumber, leg.day);
+      if (!result) {
+        // No dead end: the times are right below, so a lookup that finds
+        // nothing leaves you typing them instead of stuck.
+        setLookupError("Flight not found for this date. Enter the times below.");
+        onModeChange("times");
+        return;
+      }
+      onChange(
+        legFromLookup(leg, direction, result, leg.flightNumber.trim(), timeZone),
+      );
+    } catch {
+      // lookupFlight propagates transport and timeout failures by design
+      // (lib/flights.ts): a down API is not "no such flight", but the
+      // field-level answer is the same — the times below, by hand. The
+      // flag always clears so the spinner cannot stick.
+      setLookupError("Flight lookup failed. Enter the times below.");
       onModeChange("times");
-      return;
+    } finally {
+      setLookingUp(false);
     }
-    onChange(
-      legFromLookup(leg, direction, result, leg.flightNumber.trim(), timeZone),
-    );
   }
 
   return (

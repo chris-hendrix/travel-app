@@ -96,20 +96,69 @@ describe("expo policy: every target is a thumb's size", () => {
   });
 
   it("the month arrows reach the floor without moving the picture", () => {
-    expect(source("components/ui/DatePicker.tsx")).toContain("hitSlop");
+    // Per-target, not file-wide: the window around each arrow's own
+    // aria-label must carry its own padding plus a matching negative
+    // margin. A file-wide hitSlop/-m- count can pass with the mechanism
+    // clustered on one target; this one fails unless both arrows do.
+    const picker = source("components/ui/DatePicker.tsx");
+    // Both arrows exist as usages of the one Arrow component …
+    for (const label of ['label="Previous month"', 'label="Next month"']) {
+      expect(picker, `${label} must exist`).toContain(label);
+    }
+    // … and the component's own Pressable (found via aria-label={label})
+    // carries its own padding plus a matching negative margin.
+    const at = picker.indexOf("aria-label={label}");
+    expect(at, "Arrow must forward its label to aria-label").toBeGreaterThanOrEqual(0);
+    const window = picker.slice(Math.max(0, at - 800), at + 800);
+    expect(window, "arrows: expected padding reaching 44pt").toMatch(/p-2\.5/);
+    expect(window, "arrows: expected a matching negative margin").toMatch(/-m-2\.5/);
+    expect(picker, "no hitSlop prop: it does not enlarge the box on web").not.toMatch(/hitSlop=/);
   });
 
-  it("every enumerated header target carries a hit-area mechanism", () => {
-    // Bell, avatar, close, zone token and sign-in word: each must reach
-    // 44x44pt via hitSlop or via padding with a matching negative
-    // margin (p-*-m-*), never by growing the visible control.
+  it("every enumerated header target carries its own hit area", () => {
+    // Per-target: each named target element carries its own padding
+    // plus a matching negative margin in the JSX around it, so the
+    // assertion names the target that lost its hit area instead of
+    // passing on a file-wide count clustered elsewhere.
     const header = source("components/ui/AppHeader.tsx");
-    const hitSlopCount = (header.match(/hitSlop=/g) ?? []).length;
-    const negMarginCount = (header.match(/-m-\d/g) ?? []).length;
-    expect(
-      hitSlopCount + negMarginCount,
-      `expected a hit-area mechanism on each of the 5 header targets, found ${hitSlopCount} hitSlop + ${negMarginCount} negative-margin`,
-    ).toBeGreaterThanOrEqual(5);
+    const targets = [
+      'aria-label="Notifications"',
+      'aria-label="Profile"',
+      'aria-label="Close"',
+      // The zone token names itself through accessibilityLabel, and the
+      // sign-in word through its own text: neither takes an aria-label.
+      "Times in",
+      ">Sign in<",
+    ];
+    for (const marker of targets) {
+      const at = header.indexOf(marker);
+      expect(at, `${marker} must exist`).toBeGreaterThanOrEqual(0);
+      const window = header.slice(Math.max(0, at - 800), at + 800);
+      expect(window, `${marker}: expected padding reaching 44pt`).toMatch(/p-(2\.5|3)/);
+      expect(window, `${marker}: expected a matching negative margin`).toMatch(/-m-(2\.5|3)/);
+    }
+    expect(header, "no hitSlop prop: it does not enlarge the box on web").not.toMatch(/hitSlop=/);
+  });
+});
+
+describe("expo policy: the trips store takes data from an injected source", () => {
+  // Scoped to the one store that has the seam on purpose. tripsStore
+  // proves the wiring interface; the seven other stores still import
+  // their mock pools directly (see lib/sources.ts), and giving each a
+  // seam is the wiring plan's job — not something this assertion
+  // should pretend already happened by passing vacuously.
+  function libSource(rel: string): string {
+    return fs.readFileSync(path.join(mobileDir, rel), "utf8");
+  }
+
+  it("tripsStore takes data from an injected source, not a mock-pool import", () => {
+    const store = libSource("lib/tripsStore.tsx");
+    expect(store).toContain("@/lib/sources");
+    expect(store).not.toMatch(/from\s+["']@\/mocks\//);
+  });
+
+  it("the mock pool lives in lib/sources.ts", () => {
+    expect(libSource("lib/sources.ts")).toMatch(/from\s+["']@\/mocks\/trips["']/);
   });
 });
 
