@@ -74,21 +74,62 @@ export function getTimezoneLabel(tz: string): string {
 
 /**
  * The zone's short name for display next to a clock ("EST", "CEST").
- * A clock without one is a number with no place: 8:30 could be dinner
- * in Mallorca or lunch in New York, and the reader cannot tell which.
- * Falls back to the identifier when the runtime cannot say it — Hermes
- * ships without full ICU on some builds, and a zone that reads raw is
- * still better than a time that reads zoneless.
+ *
+ * `Intl` knows these names, but not in one locale: `en-US` calls New
+ * York `EDT` and Madrid `GMT+2`, `en-GB` does the reverse. So the
+ * locales are tried in turn and the first *name* wins — an offset is not
+ * a name, and it is what the reader already failed to convert.
+ *
+ * A zone no locale names (Tokyo is `GMT+9` everywhere) falls back to the
+ * abbreviation in our own list, which is the one source that works on a
+ * runtime without full ICU. Then the offset, then the identifier: both
+ * honest, neither an answer.
  */
-export function getTimezoneAbbr(tz: string): string {
+export function getTimezoneAbbr(tz: string, at: Date = new Date()): string {
+  // Cached per zone and per day: the answer changes with the season, and
+  // a session that runs into November must not keep saying CEST.
+  const key = `${tz}|${at.toISOString().slice(0, 10)}`;
+  const cached = ABBR_CACHE.get(key);
+  if (cached) return cached;
+
+  const answer = resolveAbbr(tz, at);
+  ABBR_CACHE.set(key, answer);
+  return answer;
+}
+
+/** Locales that name zones, in the order worth trying. */
+const SHORT_NAME_LOCALES = ["en-US", "en-GB", "en-CA", "en-AU"];
+
+/** A bare offset, or nothing at all — what ICU says when it has no name. */
+const OFFSET_FORM = /^(GMT|UTC)$|^(GMT|UTC)[+-]\d{1,2}(:\d{2})?$/;
+
+/** What a name looks like: letters, and only a few of them. */
+const NAME_FORM = /^[A-Za-z]{2,6}$/;
+
+const ABBR_CACHE = new Map<string, string>();
+
+function resolveAbbr(tz: string, at: Date): string {
+  for (const locale of SHORT_NAME_LOCALES) {
+    const name = shortName(tz, at, locale);
+    if (name && NAME_FORM.test(name) && !OFFSET_FORM.test(name)) return name;
+  }
+
+  const curated = /\(([A-Z]{2,6})\)\s*$/.exec(getTimezoneLabel(tz))?.[1];
+  if (curated) return curated;
+
+  return shortName(tz, at, "en-US") ?? tz;
+}
+
+/** What one locale calls the zone, or null when it cannot say. */
+function shortName(tz: string, at: Date, locale: string): string | null {
   try {
-    const parts = new Intl.DateTimeFormat("en-US", {
+    const parts = new Intl.DateTimeFormat(locale, {
       timeZone: tz,
       timeZoneName: "short",
-    }).formatToParts(new Date());
-    return parts.find((p) => p.type === "timeZoneName")?.value || tz;
+    }).formatToParts(at);
+    return parts.find((p) => p.type === "timeZoneName")?.value ?? null;
   } catch {
-    return tz;
+    return null;
   }
 }
 

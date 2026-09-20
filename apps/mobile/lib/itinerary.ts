@@ -1,6 +1,6 @@
 import { daysBetween } from "@/lib/countdown";
 import { formatDay, formatTimeRange } from "@/lib/dateRange";
-import { wallClock, zoneAbbr } from "@/lib/timezone";
+import { wallClock } from "@/lib/timezone";
 import { joinFacts } from "@/lib/wording";
 
 /**
@@ -77,13 +77,11 @@ export function eventTimeLabel(
   event: ItineraryEvent,
   timeZone: string | null,
 ): string {
-  // All day has no clock, so there is no zone to name. Everything else
-  // reads with one: a time nobody can place is a time nobody trusts.
+  // All day has no clock, so there is no clock to read. Everything else
+  // is a time and nothing more: the zone the times are in is stated once,
+  // by the chrome above them, rather than repeated on every row.
   if (event.allDay) return "All day";
-  return joinFacts(
-    formatTimeRange(event.startTime, event.endTime, timeZone),
-    zoneAbbr(timeZone),
-  );
+  return formatTimeRange(event.startTime, event.endTime, timeZone);
 }
 
 /**

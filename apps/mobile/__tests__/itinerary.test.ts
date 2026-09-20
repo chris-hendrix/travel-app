@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { getTimezoneAbbr } from "@journiful/shared/utils";
 import {
   eventTimeLabel,  dayLabel,
   daysFrom,
@@ -201,12 +200,11 @@ describe("tripIsOver", () => {  it("is over once its last day has gone", () => {
 });
 
 describe("eventTimeLabel", () => {
-  it("reads a timed event with the zone it is in", () => {
+  it("reads a timed event on the zone's own clock, and says no more", () => {
     // An explicit instant, so the device zone the mocks build in cannot
     // move it: 18:30Z is 20:30 on a Mallorca wall, whatever the lab runs.
-    // The zone's own name comes from the runtime, so the test reads the
-    // same helper the label does rather than pinning ICU's wording.
-    const zone = "Europe/Madrid";
+    // The zone is not repeated here — the screen names it once, above
+    // every time it governs.
     expect(
       eventTimeLabel(
         {
@@ -214,9 +212,9 @@ describe("eventTimeLabel", () => {
           startTime: "2026-09-20T18:30:00.000Z",
           endTime: null,
         },
-        zone,
+        "Europe/Madrid",
       ),
-    ).toBe(`8:30 PM · ${getTimezoneAbbr(zone)}`);
+    ).toBe("8:30 PM");
   });
 
   it("reads all day with no zone, because there is no clock", () => {

@@ -1,6 +1,5 @@
 import { getDetectedTimezone, getTimezoneAbbr } from "@journiful/shared/utils";
 import { toIso } from "@/lib/dateRange";
-import { joinFacts } from "@/lib/wording";
 
 /**
  * A wall clock: what a moment reads as on a wall, somewhere.
@@ -92,24 +91,14 @@ export function todayIn(timeZone: string | null, now: Date = new Date()): string
 }
 
 /**
- * The zone a clock is read in, said out loud.
+ * The zone a clock is read in, as an abbreviation: "CEST", "EDT".
  *
- * Every rendered time carries one, because a clock without a place is a
- * number nobody can trust: 8:30 could be dinner in Mallorca or lunch in
- * New York, and the row will not say which. `null` is the device's own
- * zone, so it names the detected one rather than printing nothing.
+ * Kept for the one line that names it for a whole screen. Individual
+ * times stopped carrying it — a zone repeated on every row is a zone
+ * nobody reads, and one statement at the top says it once.
  */
 export function zoneAbbr(timeZone: string | null): string {
   return getTimezoneAbbr(timeZone ?? getDetectedTimezone());
-}
-
-/**
- * One clock, with its zone: the only string a row ever needs for a
- * moment. Joined through the one helper so a fact and its place are
- * never punctuated two ways on two screens.
- */
-export function clockLabel(iso: string, timeZone: string | null): string {
-  return joinFacts(wallClock(iso, timeZone).time, zoneAbbr(timeZone));
 }
 
 /**

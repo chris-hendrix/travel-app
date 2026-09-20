@@ -5,12 +5,13 @@ import { ArrowDown, ArrowUp } from "lucide-react-native";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { QuietAction } from "@/components/ui/QuietAction";
 import { dayNumber, weekdayAbbrev } from "@/lib/dateRange";
-import { clockLabel } from "@/lib/timezone";
+import { wallClock } from "@/lib/timezone";
 import { travelBoard, type TravelRow } from "@/lib/travelBoard";
 import { NOT_SHARED } from "@/lib/wording";
 import { useTrips } from "@/lib/tripsStore";
 import { useTravel } from "@/lib/travelStore";
 import { useTripSettings } from "@/lib/tripSettingsStore";
+import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { viewerMember } from "@/lib/members";
 import { pertinentIso } from "@/lib/travelBoard";
 import { membersFor } from "@/mocks/members";
@@ -46,7 +47,7 @@ function TripTravelDialog() {
   const { id, as } = useLocalSearchParams<{ id?: string; as?: string }>();
   const { trips } = useTrips();
   const { travelForTrip } = useTravel();
-  const { for: settingsFor } = useTripSettings();
+  const { for: settingsFor, update } = useTripSettings();
   const router = useRouter();
 
   const tripId = typeof id === "string" ? id : undefined;
@@ -58,6 +59,7 @@ function TripTravelDialog() {
     ? settingsFor(trip, new Date())
     : { clock: "trip" as const };
   const timeZone = clock === "trip" ? (trip?.preferredTimezone ?? null) : null;
+  useDisplayZone(trip ? zoneFor(trip, clock, update) : null);
   // The lab's stand-in for `isOrganizer` on the membership, threaded
   // down from the trip screen so the two can never disagree.
   const viewerIsOrganizer = as === "organizer";
@@ -240,7 +242,7 @@ function TravelRowItem({
             status: read, not announced. Bold here made every row shout
             and left the name with nothing to anchor against. */}
         <Text className="font-body text-base text-ink">
-          {row.time ? clockLabel(row.time, timeZone) : NOT_SHARED}
+          {row.time ? wallClock(row.time, timeZone).time : NOT_SHARED}
         </Text>
         <Icon color="#000000" size={20} />
       </Pressable>

@@ -6,6 +6,7 @@ import { Grid } from "@/components/ui/Grid";
 import type { Trip } from "@/components/trip/TripCard";
 import { dayLabel, daysFrom, groupEventsByDay } from "@/lib/itinerary";
 import { useTripSettings } from "@/lib/tripSettingsStore";
+import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { useEvents } from "@/lib/eventsStore";
 import { todayIn } from "@/lib/timezone";
 
@@ -38,7 +39,7 @@ export function Itinerary({
   now?: Date;
 }) {
   const router = useRouter();
-  const { for: settingsFor } = useTripSettings();
+  const { for: settingsFor, update } = useTripSettings();
   const { eventsForTrip } = useEvents();
   const { showPast, clock, layout } = settingsFor(trip, now);
 
@@ -50,6 +51,9 @@ export function Itinerary({
   // The zone drives the grouping as well as the clock: an evening in
   // Mallorca belongs to the day it is in Mallorca.
   const timeZone = clock === "trip" ? trip.preferredTimezone : null;
+  // And it is the one place a time's zone is stated: the chrome above
+  // these rows names it for all of them.
+  useDisplayZone(zoneFor(trip, clock, update));
   const today = todayIn(timeZone, now);
 
   const days = groupEventsByDay(eventsForTrip(trip), timeZone);

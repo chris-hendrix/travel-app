@@ -10,6 +10,7 @@ import {
 } from "@/lib/newEvent";
 import { useTrips } from "@/lib/tripsStore";
 import { useTripSettings } from "@/lib/tripSettingsStore";
+import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { useEvents } from "@/lib/eventsStore";
 import { useDismiss } from "@/hooks/useDismiss";
 import { placePhoto } from "@/mocks/events";
@@ -39,7 +40,7 @@ function EditEventScreen() {
     event?: string;
   }>();
   const { trips } = useTrips();
-  const { for: settingsFor } = useTripSettings();
+  const { for: settingsFor, update } = useTripSettings();
   const { eventById, updateEvent, deleteEvent } = useEvents();
   const dismiss = useDismiss("/design/trips");
   const router = useRouter();
@@ -52,6 +53,9 @@ function EditEventScreen() {
     ? settingsFor(trip, new Date())
     : { clock: "trip" as const };
   const timeZone = clock === "trip" ? trip?.preferredTimezone ?? null : null;
+  // A form sets times on the same clock the screen behind it reads them
+  // on, so the zone it is writing in is the zone the chrome names.
+  useDisplayZone(trip ? zoneFor(trip, clock, update) : null);
   const event = trip
     ? eventById(trip, typeof eventId === "string" ? eventId : undefined)
     : undefined;
@@ -80,7 +84,6 @@ function EditEventScreen() {
       title="Edit event"
       primaryTitle="Save changes"
       trip={trip}
-      timeZone={timeZone}
       dismissHref={`/design/trips/events/detail?id=${trip.id}&event=${event.id}`}
       initial={initial}
       onDelete={() => {

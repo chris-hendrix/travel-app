@@ -87,9 +87,12 @@ export function TravelDialog({
   /** The dialog's one verb: "Add travel" or "Save changes". */
   primaryTitle: string;
   trip: Trip;
-  /** The zone the pickers name and the instants mean: the trip's own
-   *  clock setting, threaded down from the board so the two can never
-   *  disagree about what time it is. */
+  /**
+   * The zone the trip is being read in. Not shown anywhere here: it is
+   * what a flight lookup's instants are read back into the fields
+   * through, so that a looked-up 18:30Z lands as the wall clock the
+   * member will see.
+   */
   timeZone: string | null;
   /** Who travel can belong to — the trip's going members. */
   members: Member[];
@@ -223,7 +226,7 @@ export function TravelDialog({
           already holds, in the same words its row uses on the board —
           clock and zone both, since a time with no place is a guess. */}
       <Text className="font-body text-base text-ink">
-        {legSummary(shown, direction, timeZone) || NOT_SHARED}
+        {legSummary(shown, direction) || NOT_SHARED}
       </Text>
 
       <LegFields
@@ -278,6 +281,8 @@ function LegFields({
   mode: TravelMode;
   onModeChange: (mode: TravelMode) => void;
   trip: Trip;
+  /** See the dialog: for reading a lookup back into the fields, nothing
+   *  more. The pickers and the summary say the time and nothing else. */
   timeZone: string | null;
   whereSuggestions: string[];
   errors: LegErrors | undefined;
@@ -424,7 +429,6 @@ function LegFields({
         <View className="gap-1 md:flex-1">
           <TimeField
             label="Departure time"
-            timeZone={timeZone}
             value={leg.departureTime || null}
             onChange={(time) => onChange({ ...leg, departureTime: time ?? "" })}
             error={errors?.departureTime}
@@ -438,7 +442,6 @@ function LegFields({
         <View className="gap-1 md:flex-1">
           <TimeField
             label="Arrival time"
-            timeZone={timeZone}
             value={leg.arrivalTime || null}
             onChange={(time) => onChange({ ...leg, arrivalTime: time ?? "" })}
             error={errors?.arrivalTime}

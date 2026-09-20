@@ -2,8 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { ArrowDown, ArrowUp } from "lucide-react-native";
 import { formatClock, timeOptions } from "@/lib/time";
-import { zoneAbbr } from "@/lib/timezone";
-import { joinFacts } from "@/lib/wording";
 
 /** Row height is fixed so the picker can open on the right slot without
  *  measuring anything as it lays out. */
@@ -36,7 +34,6 @@ export function TimeField({
   noneLabel = "No end",
   error,
   disabled = false,
-  timeZone,
 }: {
   label: string;
   /** 24-hour "20:30", or null when nothing is set yet. */
@@ -54,12 +51,6 @@ export function TimeField({
    * say they are gone, and toggling back would say otherwise.
    */
   disabled?: boolean;
-  /**
-   * The zone the slots are read in. Named in the label, because a clock
-   * whose place is unstated is a number nobody can trust — and a field
-   * whose meaning depends on a setting must say which setting is on.
-   */
-  timeZone?: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
@@ -105,9 +96,7 @@ export function TimeField({
 
   return (
     <View className="gap-1">
-      <Text className="font-body-bold text-sm text-ink">
-        {timeZone === undefined ? label : joinFacts(label, zoneAbbr(timeZone))}
-      </Text>
+      <Text className="font-body-bold text-sm text-ink">{label}</Text>
       <Pressable
         accessibilityRole="button"
         aria-expanded={open}

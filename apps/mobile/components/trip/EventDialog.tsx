@@ -36,7 +36,6 @@ export function EventDialog({
   title,
   primaryTitle,
   trip,
-  timeZone,
   dismissHref,
   initial,
   onSubmit,
@@ -46,9 +45,6 @@ export function EventDialog({
   /** The dialog's one verb: "Add event" or "Save changes". */
   primaryTitle: string;
   trip: Trip;
-  /** The zone the fields are read and written in. The pickers name it,
-   *  and the instant stamped on submit means the wall clock there. */
-  timeZone: string | null;
   dismissHref: string;
   /** Prefill, for editing. Nothing means a blank form. */
   initial?: Partial<NewEventInput>;
@@ -175,7 +171,6 @@ export function EventDialog({
             onChange={setStart}
             disabled={allDay}
             error={errors.start}
-            timeZone={timeZone}
           />
         </View>
         <View className="md:flex-1">
@@ -186,7 +181,6 @@ export function EventDialog({
             optional
             disabled={allDay}
             error={errors.end}
-            timeZone={timeZone}
           />
         </View>
       </View>

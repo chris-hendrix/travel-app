@@ -4,6 +4,7 @@ import { Link } from "expo-router";
 import { Bell, User, X } from "lucide-react-native";
 import Svg, { Defs, Path, Pattern, Rect } from "react-native-svg";
 import { useNotifications } from "@/lib/notificationsStore";
+import { useZoneToken } from "@/lib/displayZone";
 
 /**
  * Scalloped bottom edge on the chrome band. A pattern tile keeps the
@@ -26,6 +27,39 @@ function WaveEdge() {
       </Defs>
       <Rect x="0" y="0" width="100%" height={12} fill="url(#wave)" />
     </Svg>
+  );
+}
+
+/**
+ * The zone the times on screen are in, stated once by the chrome rather
+ * than on every time. Underlined, because a word with no affordance is a
+ * word: this one flips between the trip's clock and your own.
+ *
+ * Renders nothing when no surface has registered a zone — the trips list
+ * has no trip and no times, so it has nothing to say here.
+ */
+function ZoneToken({ onInk = false }: { onInk?: boolean }) {
+  const zone = useZoneToken();
+  if (!zone) return null;
+
+  const colour = onInk ? "text-sand" : "text-ink";
+
+  return (
+    <Pressable
+      accessibilityRole={zone.onFlip ? "button" : undefined}
+      accessibilityLabel={
+        zone.onFlip
+          ? `Times in ${zone.label}, ${zone.abbr}. Switch clock`
+          : `Times in ${zone.label}, ${zone.abbr}`
+      }
+      disabled={!zone.onFlip}
+      onPress={() => zone.onFlip?.()}
+      className="p-1"
+    >
+      <Text className={`font-body-bold text-sm ${colour} underline`}>
+        {zone.abbr}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -72,6 +106,7 @@ export function AppHeader({
           {title}
         </Text>
         <View className="flex-row items-center gap-3">
+          <ZoneToken />
           {action}
           {onClose ? (
             <Pressable aria-label="Close" onPress={onClose} className="p-1">
@@ -90,6 +125,7 @@ export function AppHeader({
           Journiful
         </Link>
         <View className="flex-row items-center gap-3">
+          <ZoneToken onInk />
           <BellButton />
           <AvatarButton />
         </View>

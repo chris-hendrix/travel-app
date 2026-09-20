@@ -13,6 +13,7 @@ import { getPertinentLocation, getPertinentTime } from "@journiful/shared/utils"
 import { useTrips } from "@/lib/tripsStore";
 import { useTravel } from "@/lib/travelStore";
 import { useTripSettings } from "@/lib/tripSettingsStore";
+import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { viewerMember } from "@/lib/members";
 import { membersFor } from "@/mocks/members";
 import type { MockTravel } from "@/mocks/travel";
@@ -49,7 +50,7 @@ function TravelFormScreen() {
   const { trips } = useTrips();
   const { travelById, travelForTrip, addTravel, updateTravel, deleteTravel } =
     useTravel();
-  const { for: settingsFor } = useTripSettings();
+  const { for: settingsFor, update } = useTripSettings();
   const dismiss = useDismiss("/design/trips");
   const router = useRouter();
 
@@ -62,6 +63,9 @@ function TravelFormScreen() {
     ? settingsFor(trip, new Date())
     : { clock: "trip" as const };
   const timeZone = clock === "trip" ? (trip?.preferredTimezone ?? null) : null;
+  // A form sets times on the same clock the screen behind it reads them
+  // on, so the zone it is writing in is the zone the chrome names.
+  useDisplayZone(trip ? zoneFor(trip, clock, update) : null);
   // The lab's stand-in for `isOrganizer` on the membership, threaded
   // down from the board so the two can never disagree.
   const viewerIsOrganizer = as === "organizer";

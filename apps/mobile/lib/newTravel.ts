@@ -2,7 +2,7 @@ import { applyFlightLookup } from "@journiful/shared/utils";
 import type { FlightLookupResult } from "@journiful/shared/types";
 import { addDays as shift, formatDay } from "@/lib/dateRange";
 import { formatClock, isClockTime, minutesOf } from "@/lib/time";
-import { wallClock, zoneAbbr, zoneOffsetMinutes } from "@/lib/timezone";
+import { wallClock, zoneOffsetMinutes } from "@/lib/timezone";
 import { joinFacts } from "@/lib/wording";
 import type { MockTravel } from "@/mocks/travel";
 
@@ -350,28 +350,24 @@ export function legFromRecord(
 
 /**
  * A direction in one line, for the line under the toggle: the day it
- * really lands or leaves, the clock with its zone, and where. Empty
- * when nothing has been filled in — that state is the caller's to word,
- * because "Not shared yet" is about the trip, not about the string.
+ * really lands or leaves, the clock, and where. Empty when nothing has
+ * been filled in — that state is the caller's to word, because "Not
+ * shared yet" is about the trip, not about the string.
  *
  * The day is always this direction's own end, which is the day the
- * board files and the day the calendar picked. The clock carries the
- * zone it was read in, because the board's rows do and the line claims
- * to speak in their words.
+ * board files and the day the calendar picked. No zone on the clock:
+ * the screen states it once, above everything it governs.
  */
 export function legSummary(
   leg: TravelLeg,
   direction: TravelDirection,
-  timeZone: string | null,
 ): string {
   if (!legIsFiled(leg, direction)) return "";
   const parts: string[] = [];
 
   if (/^\d{4}-\d{2}-\d{2}$/.test(leg.day)) parts.push(formatDay(leg.day));
   const clock = pertinentClock(leg, direction);
-  if (isClockTime(clock.trim())) {
-    parts.push(`${formatClock(clock.trim())} ${zoneAbbr(timeZone)}`);
-  }
+  if (isClockTime(clock.trim())) parts.push(formatClock(clock.trim()));
   if (leg.location.trim()) parts.push(leg.location.trim());
 
   return joinFacts(...parts);

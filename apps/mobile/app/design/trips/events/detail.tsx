@@ -12,6 +12,7 @@ import {
 } from "@/lib/itinerary";
 import { useEvents } from "@/lib/eventsStore";
 import { useTripSettings } from "@/lib/tripSettingsStore";
+import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { todayIn, wallClock } from "@/lib/timezone";
 import { useTrips } from "@/lib/tripsStore";
 import { useDismiss } from "@/hooks/useDismiss";
@@ -52,7 +53,7 @@ function EventDetailDialog() {
   }>();
   const { trips } = useTrips();
   const { eventById } = useEvents();
-  const { for: settingsFor } = useTripSettings();
+  const { for: settingsFor, update } = useTripSettings();
   const router = useRouter();
   const dismiss = useDismiss("/design/trips");
 
@@ -61,6 +62,15 @@ function EventDetailDialog() {
   const event = trip
     ? eventById(trip, typeof eventId === "string" ? eventId : undefined)
     : undefined;
+
+  // The same clock the day behind this dialog is reading, so the two can
+  // never disagree about what time it is. Read before the guard: a hook
+  // called after a return is a hook called a different number of times.
+  const { clock } = trip
+    ? settingsFor(trip, new Date())
+    : { clock: "trip" as const };
+  const timeZone = trip && clock === "trip" ? trip.preferredTimezone : null;
+  useDisplayZone(trip ? zoneFor(trip, clock, update) : null);
 
   if (!trip || !event) {
     return (
@@ -73,10 +83,6 @@ function EventDetailDialog() {
   }
 
   const organizer = as === "organizer";
-  // The same clock the day behind this dialog is reading, so the two can
-  // never disagree about what time it is.
-  const { clock } = settingsFor(trip, new Date());
-  const timeZone = clock === "trip" ? trip.preferredTimezone : null;
   const today = todayIn(timeZone);
 
   return (

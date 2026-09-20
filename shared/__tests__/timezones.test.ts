@@ -43,14 +43,30 @@ describe("getTimezoneLabel", () => {
 });
 
 describe("getTimezoneAbbr", () => {
-  it("shortens a zone to its display name", () => {
-    // Node ships full ICU, so these are stable here. On Hermes without
-    // it, the helper falls back to the identifier instead of throwing.
-    expect(getTimezoneAbbr("America/New_York")).toMatch(/EST|EDT/);
+  const summer = new Date("2026-09-20T12:00:00Z");
+  const winter = new Date("2026-01-20T12:00:00Z");
+
+  it("names the zones no single locale names", () => {
+    // en-US calls New York EDT and Madrid GMT+2; en-GB does the reverse.
+    // The helper tries both, so each gets its own name.
+    expect(getTimezoneAbbr("America/New_York", summer)).toBe("EDT");
+    expect(getTimezoneAbbr("Europe/Madrid", summer)).toBe("CEST");
+    expect(getTimezoneAbbr("Australia/Sydney", summer)).toBe("AEST");
   });
 
-  it("reads the identifier back when the runtime cannot say it", () => {
-    expect(getTimezoneAbbr("Not/AZone")).toBe("Not/AZone");
+  it("follows the season, rather than naming one of the two", () => {
+    expect(getTimezoneAbbr("America/New_York", summer)).toBe("EDT");
+    expect(getTimezoneAbbr("America/New_York", winter)).toBe("EST");
+    expect(getTimezoneAbbr("Europe/Madrid", winter)).toBe("CET");
+  });
+
+  it("uses our own abbreviation where no locale has one", () => {
+    // Tokyo is GMT+9 in every locale tried, and JST in our list.
+    expect(getTimezoneAbbr("Asia/Tokyo", summer)).toBe("JST");
+  });
+
+  it("reads the identifier back when nothing can say it", () => {
+    expect(getTimezoneAbbr("Not/AZone", summer)).toBe("Not/AZone");
   });
 });
 

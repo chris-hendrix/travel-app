@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import type { FlightLookupResult } from "@journiful/shared/types";
-import { getTimezoneAbbr } from "@journiful/shared/utils";
 import {
   buildLegRecord,
   emptyLeg,
@@ -180,12 +179,14 @@ describe("buildLegRecord", () => {
 
 describe("legSummary", () => {
   it("is empty for a direction nobody has filled in", () => {
-    expect(legSummary(emptyLeg(), "arrival", null)).toBe("");
+    expect(legSummary(emptyLeg(), "arrival")).toBe("");
   });
 
-  it("reads the direction's own end, with the zone it was read in", () => {
-    expect(legSummary(ARRIVAL, "arrival", "Europe/Madrid")).toBe(
-      `Fri Sep 18 · 3:40 PM ${getTimezoneAbbr("Europe/Madrid")} · BCN T2`,
+  it("reads the direction's own end, and no zone", () => {
+    // The zone belongs to the screen, not to the row: repeating it here
+    // would be the sixth time it was said on one screen.
+    expect(legSummary(ARRIVAL, "arrival")).toBe(
+      "Fri Sep 18 · 3:40 PM · BCN T2",
     );
   });
 
@@ -200,9 +201,8 @@ describe("legSummary", () => {
           location: "BCN T2",
         },
         "departure",
-        "Europe/Madrid",
       ),
-    ).toBe(`Fri Sep 25 · 11:30 PM ${getTimezoneAbbr("Europe/Madrid")} · BCN T2`);
+    ).toBe("Fri Sep 25 · 11:30 PM · BCN T2");
   });
 });
 

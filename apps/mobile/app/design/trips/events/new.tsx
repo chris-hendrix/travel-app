@@ -6,6 +6,7 @@ import { EventDialog } from "@/components/trip/EventDialog";
 import { buildEvent } from "@/lib/newEvent";
 import { useTrips } from "@/lib/tripsStore";
 import { useTripSettings } from "@/lib/tripSettingsStore";
+import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { useEvents } from "@/lib/eventsStore";
 import { useDismiss } from "@/hooks/useDismiss";
 import { placePhoto } from "@/mocks/events";
@@ -26,7 +27,7 @@ export default function NewEvent() {
 function NewEventScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { trips } = useTrips();
-  const { for: settingsFor } = useTripSettings();
+  const { for: settingsFor, update } = useTripSettings();
   const { addEvent } = useEvents();
   const dismiss = useDismiss("/design/trips");
 
@@ -38,6 +39,9 @@ function NewEventScreen() {
     ? settingsFor(trip, new Date())
     : { clock: "trip" as const };
   const timeZone = clock === "trip" ? trip?.preferredTimezone ?? null : null;
+  // A form sets times on the same clock the screen behind it reads them
+  // on, so the zone it is writing in is the zone the chrome names.
+  useDisplayZone(trip ? zoneFor(trip, clock, update) : null);
 
   if (!trip) {
     return (
@@ -54,7 +58,6 @@ function NewEventScreen() {
       title="Add event"
       primaryTitle="Add event"
       trip={trip}
-      timeZone={timeZone}
       dismissHref={`/design/trips/detail?id=${trip.id}`}
       onSubmit={(input) => {
         const event = buildEvent(
