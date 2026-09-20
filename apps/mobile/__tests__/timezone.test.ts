@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
+import { toIso } from "@/lib/dateRange";
 import { todayIn, wallClock } from "@/lib/timezone";
 
 /** Noon UTC on a September day: morning in the Americas, evening in Asia. */
@@ -56,5 +59,33 @@ describe("todayIn", () => {
     const now = new Date(Date.UTC(2026, 8, 19, 23, 30));
     expect(todayIn("Asia/Tokyo", now)).toBe("2026-09-20");
     expect(todayIn("America/Los_Angeles", now)).toBe("2026-09-19");
+  });
+});
+
+describe("no require cycle between timezone and dateRange", () => {
+  const mobileDir = path.resolve(__dirname, "..");
+
+  it("imports run one way: exactly one module may import the other", () => {
+    const tz = fs.readFileSync(
+      path.join(mobileDir, "lib/timezone.ts"),
+      "utf8",
+    );
+    const dr = fs.readFileSync(
+      path.join(mobileDir, "lib/dateRange.ts"),
+      "utf8",
+    );
+    const tzImportsDr =
+      tz.includes("@/lib/dateRange") || tz.includes("lib/dateRange");
+    const drImportsTz =
+      dr.includes("@/lib/timezone") || dr.includes("lib/timezone");
+    expect(
+      [tzImportsDr, drImportsTz].filter(Boolean),
+      "timezone.ts and dateRange.ts must not import each other",
+    ).toHaveLength(1);
+  });
+
+  it("the guarded values are unchanged: local-date ISO never shifts", () => {
+    expect(toIso(new Date(2026, 8, 19, 15, 30))).toBe("2026-09-19");
+    expect(toIso(new Date(2026, 0, 5, 0, 5))).toBe("2026-01-05");
   });
 });

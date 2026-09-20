@@ -1,3 +1,11 @@
+import { toIso, wallClock } from "@/lib/timezone";
+
+/** Local-date ISO (yyyy-mm-dd), never shifted by timezone.
+ *
+ * Owned by `@/lib/timezone`, re-exported here so existing imports keep
+ * working; the one-way dependency runs dateRange -> timezone. */
+export { toIso };
+
 const MONTHS = [
   "Jan",
   "Feb",
@@ -35,13 +43,6 @@ function parts(iso: string) {
   return { year: year ?? 1970, month: (month ?? 1) - 1, day: day ?? 1 };
 }
 
-/** Local-date ISO (yyyy-mm-dd), never shifted by timezone. */
-export function toIso(date: Date): string {
-  const month = `${date.getMonth() + 1}`.padStart(2, "0");
-  const day = `${date.getDate()}`.padStart(2, "0");
-  return `${date.getFullYear()}-${month}-${day}`;
-}
-
 /**
  * Compact day for a section heading. No year: an itinerary's days sit
  * inside a trip whose dates the header already carries.
@@ -72,8 +73,6 @@ export function monthKey(iso: string): string {
 export function monthName(iso: string): string {
   return MONTH_NAMES[parts(iso).month] ?? "";
 }
-
-import { wallClock } from "@/lib/timezone";
 
 /**
  * When something is, in the fewest words that stay accurate: one clock

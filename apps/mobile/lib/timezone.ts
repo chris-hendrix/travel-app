@@ -1,5 +1,11 @@
 import { getDetectedTimezone, getTimezoneAbbr } from "@journiful/shared/utils";
-import { toIso } from "@/lib/dateRange";
+
+/** Local-date ISO (yyyy-mm-dd), never shifted by timezone. */
+export function toIso(date: Date): string {
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
+}
 
 /**
  * A wall clock: what a moment reads as on a wall, somewhere.
