@@ -8,6 +8,8 @@ import { lookupFlight } from "@/lib/flights";
 
 const mockedGetToken = vi.mocked(getToken);
 
+type RequestInitLike = NonNullable<Parameters<typeof fetch>[1]>;
+
 function okJson(body: unknown) {
   return { ok: true, status: 200, json: async () => body } as Response;
 }
@@ -43,7 +45,7 @@ describe("apiFetch", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(
-        (_url: string, init?: RequestInit) =>
+        (_url: string, init?: RequestInitLike) =>
           new Promise((_resolve, reject) => {
             init?.signal?.addEventListener("abort", () => {
               reject(new DOMException("aborted", "AbortError"));
@@ -79,10 +81,10 @@ describe("apiFetch", () => {
 
   it("carries Authorization: Bearer <token> when lib/session holds one", async () => {
     mockedGetToken.mockResolvedValue("mock-token-abc");
-    const seen: Array<{ url: string; init?: RequestInit }> = [];
+    const seen: Array<{ url: string; init?: RequestInitLike }> = [];
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (url: string, init: RequestInit = {}) => {
+      vi.fn(async (url: string, init: RequestInitLike = {}) => {
         seen.push({ url, init });
         return okJson({});
       }),
@@ -141,7 +143,7 @@ describe("lookupFlight", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(
-        (_url: string, init?: RequestInit) =>
+        (_url: string, init?: RequestInitLike) =>
           new Promise((_resolve, reject) => {
             init?.signal?.addEventListener("abort", () => {
               reject(new DOMException("aborted", "AbortError"));
