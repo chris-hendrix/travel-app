@@ -30,6 +30,7 @@ export function QuietAction({
   return (
     <Pressable
       onPress={onPress}
+      role="button"
       className={
         align === "center" ? "self-start md:self-center" : "self-start"
       }

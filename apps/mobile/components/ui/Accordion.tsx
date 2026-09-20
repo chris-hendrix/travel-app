@@ -27,6 +27,7 @@ export function AccordionItem({
   return (
     <View className="border-b border-ink">
       <Pressable
+        role="button"
         aria-expanded={open}
         onPress={() => setOpen((v) => !v)}
         className="flex-row items-center justify-between gap-4 py-5"

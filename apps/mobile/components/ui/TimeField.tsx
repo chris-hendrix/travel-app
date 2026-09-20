@@ -100,6 +100,7 @@ export function TimeField({
       <Text className="font-body-bold text-sm text-ink">{label}</Text>
       <Pressable
         accessibilityRole="button"
+        role="button"
         aria-expanded={open}
         aria-disabled={disabled}
         disabled={disabled}
@@ -134,6 +135,7 @@ export function TimeField({
                     setOpen(false);
                   }}
                   aria-selected={chosen}
+                  role="radio"
                   style={{ height: ROW_HEIGHT }}
                   className={`items-center justify-center ${
                     chosen ? "bg-ink" : ""

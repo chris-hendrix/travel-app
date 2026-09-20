@@ -65,7 +65,7 @@ export function Segmented<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <View className="flex-row">
+    <View className="flex-row" role="radiogroup">
       {options.map((option, index) => {
         const chosen = option.value === value;
         const fill = TONES[option.tone ?? "ink"];
@@ -73,7 +73,8 @@ export function Segmented<T extends string>({
           <Pressable
             key={option.value}
             onPress={() => onChange(option.value)}
-            aria-pressed={chosen}
+            role="radio"
+            aria-selected={chosen}
             className={`flex-1 items-center border border-ink py-4 ${
               index > 0 ? "border-l-0" : ""
             } ${chosen ? fill.box : ""}`}

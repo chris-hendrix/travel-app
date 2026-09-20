@@ -91,3 +91,60 @@ describe("expo policy: CI can see the package", () => {
     expect(ciYml).toContain("expo-doctor");
   });
 });
+
+describe("expo policy: the accessible state reaches the phone", () => {
+  // Source files only: tests assert on source, node_modules is not ours.
+  function sourceFiles(): string[] {
+    const roots = ["app", "components", "lib"].map((d) =>
+      path.join(mobileDir, d),
+    );
+    const out: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (/\.(tsx?|jsx?)$/.test(entry.name)) out.push(full);
+      }
+    };
+    for (const root of roots) walk(root);
+    return out;
+  }
+
+  it("uses aria-pressed nowhere: it does not exist in React Native", () => {
+    const offenders = sourceFiles().filter((full) =>
+      fs.readFileSync(full, "utf8").includes("aria-pressed"),
+    );
+    expect(
+      offenders.map((f) => path.relative(mobileDir, f)),
+      "aria-pressed is web-only and a silent no-op on a phone; use role + aria-selected",
+    ).toEqual([]);
+  });
+
+  it("every file under components/ui using an aria-* state prop also sets role", () => {
+    // The state props this phase migrates: pressed/selected/expanded/disabled.
+    // aria-label is a name, not a state, so it does not count. Scoped to
+    // components/ui because app/trips/travel.tsx:219 (aria-expanded) and
+    // components/ui/Checkbox.tsx:40 (aria-checked) are the same family but
+    // outside this task's file list — recorded follow-ups, not exceptions.
+    const stateProp = /aria-(pressed|selected|expanded|disabled)\b/;
+    const uiDir = path.join(mobileDir, "components", "ui");
+    const offenders: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (/\.(tsx?|jsx?)$/.test(entry.name)) {
+          const source = fs.readFileSync(full, "utf8");
+          if (stateProp.test(source) && !/\brole=/.test(source)) {
+            offenders.push(path.relative(mobileDir, full));
+          }
+        }
+      }
+    };
+    walk(uiDir);
+    expect(
+      offenders,
+      "role + aria-* is the cross-platform form; an aria-* state prop without role is silent on a phone",
+    ).toEqual([]);
+  });
+});

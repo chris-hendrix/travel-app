@@ -150,6 +150,7 @@ function Day({
     <Pressable
       onPress={disabled ? undefined : onPress}
       disabled={disabled}
+      role="button"
       aria-label={iso}
       aria-selected={selected}
       className={`h-10 items-center justify-center ${surface}`}
