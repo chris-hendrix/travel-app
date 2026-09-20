@@ -1,6 +1,7 @@
 import { Linking, Pressable, Text, View } from "react-native";
 import { ArrowUpRight } from "lucide-react-native";
 import { mapsSearchUrl } from "@/lib/links";
+import { INK } from "@/lib/theme";
 
 /**
  * A place you can leave the app for.
@@ -37,7 +38,7 @@ export function PlaceLink({
         <Text className="font-body-bold text-lg text-ink underline">
           {label}
         </Text>
-        <ArrowUpRight color="#000000" size={18} />
+        <ArrowUpRight color={INK} size={18} />
       </View>
     </Pressable>
   );

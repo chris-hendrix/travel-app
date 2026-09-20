@@ -15,6 +15,7 @@ import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { viewerMember } from "@/lib/members";
 import { pertinentIso } from "@/lib/travelBoard";
 import { membersFor } from "@/mocks/members";
+import { INK } from "@/lib/theme";
 
 /**
  * Travel, reached from "Travel" beside "N going" on the trip header.
@@ -222,7 +223,7 @@ function TravelRowItem({
         <View className="w-10 items-center">
           {row.date ? (
             <>
-              <Text className="font-body text-[11px] text-ink opacity-60">
+              <Text className="font-body text-xs text-ink opacity-60">
                 {weekdayAbbrev(row.date)}
               </Text>
               <Text className="font-body text-base leading-none text-ink">
@@ -244,7 +245,7 @@ function TravelRowItem({
         <Text className="font-body text-base text-ink">
           {row.time ? wallClock(row.time, timeZone).time : NOT_SHARED}
         </Text>
-        <Icon color="#000000" size={20} />
+        <Icon color={INK} size={20} />
       </Pressable>
       {open ? (
         <View className="gap-1 pt-2">

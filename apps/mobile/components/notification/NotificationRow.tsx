@@ -45,7 +45,7 @@ export function NotificationRow({
         <Image
           source={{ uri: trip.image }}
           resizeMode="cover"
-          className="h-[72px] w-[72px]"
+          className="h-18 w-18"
         />
       ) : null}
       <View className="flex-1 gap-1">

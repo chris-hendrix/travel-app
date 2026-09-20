@@ -6,6 +6,7 @@ Journiful is a collaborative trip planning platform. Monorepo managed with pnpm 
 
 - `apps/api` — Fastify 5 REST API, PostgreSQL 16 via Drizzle ORM, JWT auth. Pattern: `buildApp` factory, route → controller → service.
 - `apps/web` — Next.js 16 App Router, React 19, Tailwind CSS 4, shadcn/ui. Wraps into a native Android app via Capacitor 8 static export. Pattern: App Router pages with TanStack Query for server state.
+- `apps/mobile` — Expo 57 design mockup, in-memory mock data only, no backend wiring. Lane rules live in `apps/mobile/AGENTS.md`.
 - `shared` — Cross-cutting types, Zod schemas, and pure utilities consumed by both apps.
 
 Design system: **Vivid Capri** (Mediterranean aesthetic). Tokens live in `apps/web/src/app/globals.css`.

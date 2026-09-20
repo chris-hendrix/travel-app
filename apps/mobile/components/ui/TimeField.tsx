@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { ArrowDown, ArrowUp } from "lucide-react-native";
 import { formatClock, timeOptions } from "@/lib/time";
+import { INK } from "@/lib/theme";
 
 /** Row height is fixed so the picker can open on the right slot without
  *  measuring anything as it lays out. */
@@ -114,7 +115,7 @@ export function TimeField({
         >
           {shown}
         </Text>
-        <Icon color="#000000" size={20} />
+        <Icon color={INK} size={20} />
       </Pressable>
 
       {open ? (

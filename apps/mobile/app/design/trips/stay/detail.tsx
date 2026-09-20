@@ -114,7 +114,7 @@ function StayDetailDialog() {
           {/* The photo is the place's, which the API proxies from Google
               Places, and Places is owed the credit — a term of the
               licence rather than a preference. */}
-          <Text className="pt-1 font-body text-[11px] text-ink opacity-60">
+          <Text className="pt-1 font-body text-xs text-ink opacity-60">
             Photo: Google Places
           </Text>
         </View>

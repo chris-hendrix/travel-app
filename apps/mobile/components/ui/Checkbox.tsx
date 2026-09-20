@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Check } from "lucide-react-native";
+import { SAND } from "@/lib/theme";
 
 /**
  * A box, a sentence, and the decision between them.
@@ -46,7 +47,7 @@ export function Checkbox({
           checked ? "bg-ink" : "bg-paper"
         }`}
       >
-        {checked ? <Check color="#f5eacc" size={14} strokeWidth={3} /> : null}
+        {checked ? <Check color={SAND} size={14} strokeWidth={3} /> : null}
       </View>
       <View className="flex-1">{children}</View>
     </Pressable>

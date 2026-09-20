@@ -6,6 +6,7 @@ import {
   type KeyboardTypeOptions,
   type TextInputProps,
 } from "react-native";
+import { PLACEHOLDER } from "@/lib/theme";
 
 /**
  * A labelled text input, with room for a control that belongs to it.
@@ -102,7 +103,7 @@ export function TextField({
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor="#707070"
+          placeholderTextColor={PLACEHOLDER}
           multiline={multiline}
           numberOfLines={numberOfLines}
           keyboardType={keyboardType}

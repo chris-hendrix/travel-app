@@ -326,7 +326,7 @@ function LegFields({
     if (!result) {
       // No dead end: the times are right below, so a lookup that finds
       // nothing leaves you typing them instead of stuck.
-      setLookupError("Flight not found for this date — enter the times below.");
+      setLookupError("Flight not found for this date. Enter the times below.");
       onModeChange("times");
       return;
     }

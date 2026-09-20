@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import { ArrowDown, ArrowUp } from "lucide-react-native";
+import { INK } from "@/lib/theme";
 
 /**
  * Accordion group. Rules only — no card, no fill, no radius. Items carry
@@ -31,7 +32,7 @@ export function AccordionItem({
         className="flex-row items-center justify-between gap-4 py-5"
       >
         <Text className="font-body-bold text-xl text-ink">{title}</Text>
-        <Icon color="#000000" size={24} />
+        <Icon color={INK} size={24} />
       </Pressable>
       {open ? <View className="pb-5">{children}</View> : null}
     </View>

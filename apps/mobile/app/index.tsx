@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Screen } from "@/components/ui/Screen";
 import { LEGAL_ROWS } from "@/lib/legal";
 import { useAuth } from "@/lib/authStore";
+import { INK } from "@/lib/theme";
 
 /**
  * The landing: what the app is, for someone who has not signed in.
@@ -85,7 +86,7 @@ export default function Landing() {
               key={feature.title}
               className="flex-row gap-4 border-t border-ink py-5"
             >
-              <feature.icon color="#000000" size={24} />
+              <feature.icon color={INK} size={24} />
               <View className="flex-1 gap-1">
                 <Text className="font-display text-xl uppercase leading-none text-ink">
                   {feature.title}

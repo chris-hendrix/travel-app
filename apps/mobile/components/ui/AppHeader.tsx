@@ -5,6 +5,7 @@ import { Bell, User, X } from "lucide-react-native";
 import Svg, { Defs, Path, Pattern, Rect } from "react-native-svg";
 import { useNotifications } from "@/lib/notificationsStore";
 import { useZoneToken } from "@/lib/displayZone";
+import { INK, SAND } from "@/lib/theme";
 
 /**
  * Scalloped bottom edge on the chrome band. A pattern tile keeps the
@@ -85,7 +86,7 @@ function BellButton() {
     <Link href="/notifications" asChild>
       <Pressable aria-label="Notifications" className="p-1">
         <View>
-          <Bell color="#f5eacc" size={24} />
+          <Bell color={SAND} size={24} />
           {unreadCount > 0 ? (
             <View className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-strawberry" />
           ) : null}
@@ -99,7 +100,7 @@ function AvatarButton() {
   return (
     <Link href="/profile" asChild>
       <Pressable aria-label="Profile" className="p-1">
-        <User color="#f5eacc" size={24} />
+        <User color={SAND} size={24} />
       </Pressable>
     </Link>
   );
@@ -157,7 +158,7 @@ export function AppHeader({
           {action}
           {onClose ? (
             <Pressable aria-label="Close" onPress={onClose} className="p-1">
-              <X color="#000000" size={24} />
+              <X color={INK} size={24} />
             </Pressable>
           ) : null}
         </View>

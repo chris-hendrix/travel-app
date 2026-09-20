@@ -18,6 +18,7 @@ import { joinFacts } from "@/lib/wording";
 import { membersFor } from "@/mocks/members";
 import { tripmatesFor, type Tripmate } from "@/mocks/tripmates";
 import type { Trip } from "@/components/trip/TripCard";
+import { SAND } from "@/lib/theme";
 
 /**
  * How many suggestions the field offers at once.
@@ -293,7 +294,7 @@ function Chips({
           className="cursor-pointer flex-row items-center gap-3 bg-ink px-3 py-2"
         >
           <Text className="font-body text-base text-sand">{label}</Text>
-          <X color="#f5eacc" size={14} />
+          <X color={SAND} size={14} />
         </Pressable>
       ))}
     </View>

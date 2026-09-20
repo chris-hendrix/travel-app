@@ -15,6 +15,7 @@ import {
   type Selection,
 } from "@/lib/calendar";
 import { toIso } from "@/lib/dateRange";
+import { INK } from "@/lib/theme";
 
 /**
  * Date picker. Inline, never a nested dialog: opening a second dialog
@@ -176,7 +177,7 @@ function Arrow({
   const Icon = icon === "left" ? ChevronLeft : ChevronRight;
   return (
     <Pressable aria-label={label} onPress={onPress} className="p-1">
-      <Icon color="#000000" size={24} />
+      <Icon color={INK} size={24} />
     </Pressable>
   );
 }
