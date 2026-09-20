@@ -4,6 +4,8 @@
 
 `apps/mobile` is the Expo 57 app: React Native, NativeWind v5 (Tailwind 4), expo-router, with a static web build for review. It is a **design mockup**: every store is in-memory mock data, there is no backend wiring, and the one real network call is the flight lookup. A reload signs you out, because nothing persists.
 
+It is also where the product is going. `apps/web` is being deprecated in its favour (see the root `AGENTS.md`), and the backend wiring happens here — screen by screen, in the order the screens were designed.
+
 It is also the design system. The system is the components plus the lab that documents them, not a document about them.
 
 ## HOW
