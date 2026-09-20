@@ -49,6 +49,11 @@ next-env.d.ts
 # Claude
 .claude/
 
+# Agent skills installed by the skills CLI. Not source: the same set is
+# regenerated from the lockfile, which is written on every install.
+.agents/
+skills-lock.json
+
 # IDEs
 .vscode/
 .idea/
