@@ -163,14 +163,11 @@ describe("expo policy: the accessible state reaches the phone", () => {
     ).toEqual([]);
   });
 
-  it("every file under components/ui using an aria-* state prop also sets role", () => {
-    // The state props this phase migrates: pressed/selected/expanded/disabled.
-    // aria-label is a name, not a state, so it does not count. Scoped to
-    // components/ui because app/trips/travel.tsx:219 (aria-expanded) and
-    // components/ui/Checkbox.tsx:40 (aria-checked) are the same family but
-    // outside this task's file list — recorded follow-ups, not exceptions.
-    const stateProp = /aria-(pressed|selected|expanded|disabled)\b/;
-    const uiDir = path.join(mobileDir, "components", "ui");
+  it("every file under components/ and app/ using an aria-* state prop also sets role", () => {
+    // The state props this phase migrates: pressed/selected/expanded/disabled/checked.
+    // aria-label is a name, not a state, so it does not count.
+    const stateProp = /aria-(pressed|selected|expanded|disabled|checked)\b/;
+    const roots = ["app", "components"].map((d) => path.join(mobileDir, d));
     const offenders: string[] = [];
     const walk = (dir: string) => {
       for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -184,7 +181,7 @@ describe("expo policy: the accessible state reaches the phone", () => {
         }
       }
     };
-    walk(uiDir);
+    for (const root of roots) walk(root);
     expect(
       offenders,
       "role + aria-* is the cross-platform form; an aria-* state prop without role is silent on a phone",

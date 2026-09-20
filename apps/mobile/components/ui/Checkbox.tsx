@@ -31,6 +31,7 @@ export function Checkbox({
 }) {
   return (
     <Pressable
+      role="checkbox"
       accessibilityRole="checkbox"
       // Both, because they are read by different layers: the state prop
       // is what native answers, and react-native-web emits aria-checked

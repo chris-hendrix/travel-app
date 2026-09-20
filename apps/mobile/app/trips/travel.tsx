@@ -215,6 +215,7 @@ function TravelRowItem({
   return (
     <View className="border-b border-b-ink py-4">
       <Pressable
+        role="button"
         accessibilityRole="button"
         aria-expanded={open}
         onPress={() => setOpen((value) => !value)}
