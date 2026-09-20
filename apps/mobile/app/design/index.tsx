@@ -664,6 +664,37 @@ export default function DesignSystem() {
           </View>
         </Section>
 
+        <Section title="Feedback">
+          <Text className="font-body text-base text-ink">
+            There is no toast, and no component for one. A message that
+            disappears is not a record: anything a person might need twice
+            belongs in the state of the screen rather than in a line that
+            fades. The web app fires toasts from its mutation hooks because a
+            corner of a large screen is free; on a phone the top is the band
+            and the bottom is the keyboard and the form's button, so a
+            transient message has nowhere to sit that is not over something.
+          </Text>
+          <Text className="font-body text-base text-ink">
+            What each kind of feedback is instead. An answer inverts the
+            control that gave it, which is the RSVP. An authored thing appears
+            in the list you were already reading, which is a trip, an event and
+            a stay. An endpoint with three outcomes states all three where the
+            send happened, which is the invite dialog. A failure belongs at the
+            field that caused it, and a request that fails belongs where its
+            content would have been, with a way to ask again.
+          </Text>
+          <Text className="font-body text-base text-ink">
+            The one case that earns a transient message is a destructive action
+            with no way back, and even there it is second best: the API
+            soft-deletes and restores, so the answer is the Deleted items
+            screen. If one is ever added it carries an action, appears alone,
+            never auto-dismisses under five seconds, and never covers the
+            form's button or the keyboard. Screen readers announce
+            auto-dismissing content inconsistently on both platforms, which is
+            the strongest argument against it here.
+          </Text>
+        </Section>
+
         <Section title="Screens">
           <Text className="font-body text-base text-ink">
             Full screens under construction, composed from the tokens,
@@ -796,8 +827,9 @@ export default function DesignSystem() {
         <Section title="Parking lot">
           <Text className="font-body text-base text-ink">
             Discover · deleted items · delete account · session storage, since
-            the sign-in is a mock and nothing survives a reload. Each lands
-            here as a pattern first, then in a screen.
+            the sign-in is a mock and nothing survives a reload · the inline
+            error with a retry, which is what a failed request gets instead of
+            a message. Each lands here as a pattern first, then in a screen.
           </Text>
         </Section>
       </View>
