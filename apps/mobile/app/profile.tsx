@@ -3,6 +3,9 @@ import { Image, Pressable, Text, View } from "react-native";
 import { Link, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
+import { InlineError } from "@/components/ui/InlineError";
+import { OfflineBlock } from "@/components/ui/OfflineBlock";
 import { TextField } from "@/components/ui/TextField";
 import { Button } from "@/components/ui/Button";
 import { useDismiss } from "@/hooks/useDismiss";
@@ -11,11 +14,13 @@ import {
   draftFromProfile,
   initials,
   validateProfile,
+  type Profile,
   type ProfileDraft,
   type TemperatureUnit,
 } from "@/lib/profile";
 import { formatPhoneForDisplay } from "@/lib/phone";
 import { useProfile } from "@/lib/profileStore";
+import { toErrorCopy } from "@/lib/queries/errors";
 import { LEGAL_ROWS } from "@/lib/legal";
 import { useAuth } from "@/lib/authStore";
 
@@ -40,9 +45,62 @@ const UNITS: Array<{ value: TemperatureUnit; label: string }> = [
  * The phone number is the account, so it is shown and not edited. Sign
  * out closes the session and leaves the flow where it can be entered
  * again, which is the login screen rather than the trips list.
+ *
+ * The read is the screen: loading, error, and offline are explicit —
+ * the store hook cannot suspend because the provider sits above the
+ * Suspense boundary in `app/_layout.tsx` (same constraint as the
+ * notifications screen).
  */
-export default function Profile() {
-  const { profile, saveProfile, savePhoto } = useProfile();
+export default function ProfileScreen() {
+  const { profile, status, error, retry } = useProfile();
+
+  if (status === "pending" || profile === null) {
+    return (
+      <FullscreenDialog title="Profile">
+        <LoadingBlock label="Profile" />
+      </FullscreenDialog>
+    );
+  }
+  if (status === "error") {
+    return (
+      <FullscreenDialog title="Profile">
+        <ProfileFailure error={error} onRetry={retry} />
+      </FullscreenDialog>
+    );
+  }
+  return <ProfileForm profile={profile} />;
+}
+
+/**
+ * Where the me request failed, in place of the form. Offline renders
+ * `OfflineBlock` with its default copy; anything else renders the
+ * screen's sentence. Copy follows the trips-list gate: loading
+ * `"Profile"`, error `"Couldn't load your profile"` + `Try again`.
+ */
+function ProfileFailure({
+  error,
+  onRetry,
+}: {
+  error: unknown;
+  onRetry: () => void;
+}) {
+  const copy = toErrorCopy(error);
+  // `exactOptionalPropertyTypes` is on: only pass `onRetry` when the
+  // copy offers a retry, never an explicit `undefined`.
+  const retryProps = copy.retry ? { onRetry } : {};
+  if (copy.offline) {
+    return <OfflineBlock {...retryProps} />;
+  }
+  return (
+    <InlineError
+      message={copy.message ?? "Couldn't load your profile"}
+      {...retryProps}
+    />
+  );
+}
+
+function ProfileForm({ profile }: { profile: Profile }) {
+  const { saveProfile, savePhoto } = useProfile();
   const { signOut } = useAuth();
   const router = useRouter();
   const dismiss = useDismiss("/trips");
@@ -51,6 +109,8 @@ export default function Profile() {
     draftFromProfile(profile),
   );
   const [submitted, setSubmitted] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const errors = submitted ? validateProfile(draft) : {};
 
   /**
@@ -70,19 +130,41 @@ export default function Profile() {
     if (uri) savePhoto(uri);
   }, [savePhoto]);
 
-  function save() {
+  async function save() {
     setSubmitted(true);
+    setFailure(null);
     if (Object.keys(validateProfile(draft)).length > 0) return;
 
-    saveProfile(draft);
-    dismiss();
+    // The write goes through `PUT /users/me` (failure rolls back in
+    // the mutation and reads here, in the screen's existing
+    // submit-area style — the edit-trip precedent).
+    setBusy(true);
+    try {
+      await saveProfile(draft);
+      dismiss();
+    } catch (caught) {
+      const copy = toErrorCopy(caught);
+      if (copy.offline) {
+        setFailure("You're offline. Check your connection and try again.");
+      } else {
+        setFailure(
+          copy.message ??
+            (caught instanceof Error
+              ? caught.message
+              : "Couldn't save your profile."),
+        );
+      }
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
     <FullscreenDialog
       title="Profile"
-      primaryTitle="Save changes"
-      onPrimary={save}
+      primaryTitle={busy ? "Saving changes" : "Save changes"}
+      onPrimary={() => void save()}
+      primaryDisabled={busy}
     >
       {/* Identity. A square of ink rather than a circle: nothing else in
           the system is round except the countdown pill. */}
@@ -175,6 +257,10 @@ export default function Profile() {
           ))}
         </View>
       </View>
+
+      {failure ? (
+        <Text className="font-body text-sm text-ink">{failure}</Text>
+      ) : null}
 
       {/* The timezone is detected, so this is information rather than a
           field — and the wording stays device-agnostic, since the same
