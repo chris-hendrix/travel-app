@@ -7,6 +7,7 @@ import { QuietAction } from "@/components/ui/QuietAction";
 import { Screen } from "@/components/ui/Screen";
 import { TextField } from "@/components/ui/TextField";
 import { formatPhoneForDisplay } from "@/lib/phone";
+import { destinationForRequiresProfile } from "@/lib/queries/auth";
 import { useAuth } from "@/lib/authStore";
 
 /** Seconds before the code may be asked for again. The API has its own
@@ -53,8 +54,10 @@ export default function Verify() {
       setBusy(true);
       setFailure(null);
       try {
+        // The next route comes from the server's `requiresProfile` flag:
+        // first-time users finish onboarding, everyone else lands on trips.
         const { requiresProfile } = await verifyCode(value);
-        router.replace(requiresProfile ? "/complete-profile" : "/trips");
+        router.replace(destinationForRequiresProfile(requiresProfile));
       } catch (caught) {
         setFailure(
           caught instanceof Error ? caught.message : "Verification failed.",

@@ -16,9 +16,13 @@
  */
 
 import { mutationOptions } from "@tanstack/react-query";
-import type { RequestCodeInput } from "@journiful/shared/schemas";
+import type {
+  RequestCodeInput,
+  VerifyCodeInput,
+} from "@journiful/shared/schemas";
 import { apiFetch } from "@/lib/api";
 import { toE164 } from "@/lib/phone";
+import { setToken } from "@/lib/session";
 
 /** Mirrors `requestCodeResponseSchema`: `{success: true, message}`. */
 export type RequestCodeResponse = { success: true; message: string };
@@ -57,3 +61,78 @@ export const requestCodeOptions = () =>
 
 /** Alias kept so call sites can name the mutation, not the options. */
 export { requestCodeOptions as requestCodeMutation };
+
+/** The user row inside `verifyCodeResponseSchema`, trimmed to what the
+ *  auth store keeps. The full row rides along untouched. */
+export type VerifyUser = {
+  id: string;
+  phoneNumber: string;
+  displayName: string;
+  profilePhotoUrl?: string | null;
+  timezone?: string | null;
+  [key: string]: unknown;
+};
+
+/** Mirrors `verifyCodeResponseSchema` minus the envelope: the caller gets
+ *  the user and the profile flag; the token is persisted, not returned. */
+export type VerifyCodeResult = {
+  user: VerifyUser;
+  requiresProfile: boolean;
+};
+
+/** Where the verify screen goes next, decided by the server's
+ *  `requiresProfile` flag — never by a client-side guess. */
+export function destinationForRequiresProfile(
+  requiresProfile: boolean,
+): "/complete-profile" | "/trips" {
+  return requiresProfile ? "/complete-profile" : "/trips";
+}
+
+/**
+ * `POST /auth/verify-code` with `{phoneNumber, code, smsConsent}` (all
+ * three required by `verifyCodeSchema`; `smsConsent` must be `true`).
+ *
+ * On success the bearer token is persisted via `setToken` (SecureStore
+ * natively, `localStorage` on web) and the caller receives the user plus
+ * the server's `requiresProfile` flag, which decides the next route.
+ *
+ * Client-side validation stays in front of the network, as with
+ * `requestCode`: an unreadable number or a malformed code throws before
+ * `apiFetch` is ever called, so neither reaches the server.
+ */
+export async function verifyCode(
+  input: VerifyCodeInput,
+): Promise<VerifyCodeResult> {
+  const e164 = toE164(input.phoneNumber);
+  if (!e164) {
+    throw new Error("That does not look like a number.");
+  }
+  if (!/^\d{6}$/.test(input.code)) {
+    throw new Error("That code is not right, or it has expired.");
+  }
+  if (input.smsConsent !== true) {
+    throw new Error("SMS consent is required.");
+  }
+  const body = await apiFetch<{
+    success: true;
+    user: VerifyUser;
+    token: string;
+    requiresProfile: boolean;
+  }>("/auth/verify-code", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phoneNumber: e164, code: input.code, smsConsent: true }),
+  });
+  await setToken(body.token);
+  return { user: body.user, requiresProfile: body.requiresProfile };
+}
+
+/** Mutation wrapper for screens that fire `verifyCode` via TanStack Query. */
+export const verifyCodeOptions = () =>
+  mutationOptions({
+    mutationKey: ["auth", "verify-code"],
+    mutationFn: verifyCode,
+  });
+
+/** Alias kept so call sites can name the mutation, not the options. */
+export { verifyCodeOptions as verifyCodeMutation };

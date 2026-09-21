@@ -6,9 +6,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { PROFILE } from "@/mocks/profile";
-import { requestCode as requestAuthCode } from "@/lib/queries/auth";
-import { clearToken, setToken } from "@/lib/session";
+import {
+  requestCode as requestAuthCode,
+  verifyCode as verifyAuthCode,
+} from "@/lib/queries/auth";
+import { clearToken } from "@/lib/session";
 
 /**
  * Who is signed in, standing in for `POST /auth/request-code`,
@@ -24,7 +26,9 @@ import { clearToken, setToken } from "@/lib/session";
  * repeated wrong codes, which the API does enforce with a `Retry-After`.
  */
 
-/** What the dev SMS sender always sends (`ENABLE_FIXED_VERIFICATION_CODE`). */
+/** What the dev SMS sender always sends (`ENABLE_FIXED_VERIFICATION_CODE`).
+ *  Kept for the lab only: the real verify path below never compares codes
+ *  locally — the server decides, via its `requiresProfile` flag. */
 export const DEV_CODE = "123456";
 
 export type AuthUser = {
@@ -62,26 +66,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const verifyCode = useCallback(
     async (code: string) => {
       if (!pendingPhone) throw new Error("Ask for a code first.");
-      if (code !== DEV_CODE) {
-        throw new Error("That code is not right, or it has expired.");
-      }
-
-      // The one account that exists: the seeded one is already a person,
-      // anyone else is arriving for the first time. The API decides this
-      // from the database, not from a magic number.
-      const known = pendingPhone === PROFILE.phoneNumber;
-      setUser({
-        id: known ? PROFILE.id : `user-${pendingPhone.slice(-4)}`,
+      // The real endpoint: `verifyCode` persists the bearer token via
+      // `setToken` and returns the server's `requiresProfile` flag, which
+      // decides the next route (see `destinationForRequiresProfile`).
+      // No magic-number equality here — a wrong code surfaces as the
+      // API's error, mapped to field copy by the caller.
+      const { user: apiUser, requiresProfile } = await verifyAuthCode({
         phoneNumber: pendingPhone,
-        displayName: known ? PROFILE.displayName : "",
-        profileComplete: known,
+        code,
+        smsConsent: true,
       });
-      // The mock stands in for POST /auth/verify, which returns the
-      // token the real endpoint will. Writing it through session.ts now
-      // means the call site exists before the endpoints do.
-      await setToken(`mock-token-${pendingPhone}`);
+      setUser({
+        id: apiUser.id,
+        phoneNumber: apiUser.phoneNumber,
+        displayName: apiUser.displayName ?? "",
+        profileComplete: !requiresProfile,
+      });
 
-      return { requiresProfile: !known };
+      return { requiresProfile };
     },
     [pendingPhone],
   );
