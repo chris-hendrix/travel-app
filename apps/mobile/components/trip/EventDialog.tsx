@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Stack } from "expo-router";
 import { Text, View } from "react-native";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
+import { InlineError } from "@/components/ui/InlineError";
 import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { DatePicker } from "@/components/ui/DatePicker";
@@ -38,6 +39,7 @@ export function EventDialog({
   dismissHref,
   initial,
   onSubmit,
+  serverError,
   onDelete,
 }: {
   title: string;
@@ -49,6 +51,12 @@ export function EventDialog({
   initial?: Partial<NewEventInput>;
   /** Handed an input that has already passed validation. */
   onSubmit: (input: NewEventInput) => void;
+  /**
+   * The last server write's failure, when there is one. The section
+   * already renders error states (Task 1); this feeds them without a
+   * redesign — a statement, not a way back (retry is the primary).
+   */
+  serverError?: string | null;
   /**
    * Editing only: a new event has nothing to delete. Sits at the foot of
    * the form, as far from the primary as the dialog allows, and needs no
@@ -104,6 +112,8 @@ export function EventDialog({
     >
       <Stack.Screen options={{ presentation: "modal" }} />
       <Text className="font-body text-sm text-ink">{trip.title}</Text>
+
+      {serverError ? <InlineError message={serverError} /> : null}
 
       <TextField
         label="Event name"

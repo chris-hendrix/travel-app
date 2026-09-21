@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Text } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { EventDialog } from "@/components/trip/EventDialog";
 import {
   buildEvent,
@@ -8,6 +10,8 @@ import {
   validateNewEvent,
 } from "@/lib/newEvent";
 import { useTrip } from "@/lib/tripsStore";
+import { useEvents as useEventsSection } from "@/lib/queries/events";
+import { toErrorCopy } from "@/lib/queries/errors";
 import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { useTripSettings } from "@/lib/tripSettingsStore";
@@ -44,9 +48,15 @@ function EditEventScreen() {
   const { eventById, updateEvent, deleteEvent } = useEvents();
   const dismiss = useDismiss("/trips");
   const router = useRouter();
+  // The last save's or delete's failure, fed to the dialog's
+  // InlineError. The dialog stays open on failure.
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const tripId = typeof id === "string" ? id : undefined;
   const { trip } = useTrip(tripId);
+  // Warms the section query the store reads from, so a cold load
+  // (deep link straight here) still finds the event once it lands.
+  const { status: sectionStatus } = useEventsSection(trip?.id);
   // The zone the fields mean: the trip's own clock setting, so what is
   // typed is stamped in the zone it will be read in.
   const { clock } = trip
@@ -70,6 +80,15 @@ function EditEventScreen() {
   }
 
   if (!event) {
+    // While the section loads the event may simply not have arrived
+    // yet: only the landed read gets to say it is gone.
+    if (sectionStatus === "loading") {
+      return (
+        <FullscreenDialog title="Edit event" dismissHref="/trips">
+          <LoadingBlock label="Event" />
+        </FullscreenDialog>
+      );
+    }
     return (
       <FullscreenDialog title="Edit event" dismissHref="/trips">
         <Text className="font-body text-base text-ink">
@@ -90,15 +109,26 @@ function EditEventScreen() {
       trip={trip}
       dismissHref={`/trips/events/detail?id=${trip.id}&event=${event.id}`}
       initial={initial}
+      serverError={serverError}
       onDelete={() => {
-        deleteEvent(trip.id, event.id);
-        router.replace(tripHref);
+        // Deleting is soft with no confirmation; a failed delete
+        // stays on the form with the failure instead of leaving.
+        setServerError(null);
+        void deleteEvent(trip.id, event.id).then(
+          () => router.replace(tripHref),
+          (error: unknown) =>
+            setServerError(
+              toErrorCopy(error).message ?? "Couldn't delete the event.",
+            ),
+        );
       }}
       onSubmit={(input) => {
         if (Object.keys(validateNewEvent(input)).length > 0) return;
 
         // Rebuilt rather than patched: the form sets every field the
-        // event has, so what it returns is the event.
+        // event has, so what it returns is the event. The rebuilt
+        // row is the optimistic paint the store swaps the server
+        // event in by.
         const next = buildEvent(
           input,
           event.id,
@@ -107,8 +137,14 @@ function EditEventScreen() {
             ? event.image
             : placePhoto(input.place),
         );
-        updateEvent(trip.id, event.id, next);
-        dismiss();
+        setServerError(null);
+        void updateEvent(trip.id, event.id, next).then(
+          () => dismiss(),
+          (error: unknown) =>
+            setServerError(
+              toErrorCopy(error).message ?? "Couldn't save the event.",
+            ),
+        );
       }}
     />
   );

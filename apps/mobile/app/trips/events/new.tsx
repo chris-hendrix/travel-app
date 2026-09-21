@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { useLocalSearchParams } from "expo-router";
 import { EventDialog } from "@/components/trip/EventDialog";
 import { buildEvent } from "@/lib/newEvent";
+import { toErrorCopy } from "@/lib/queries/errors";
 import { useTrip } from "@/lib/tripsStore";
 import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
@@ -28,6 +30,9 @@ function NewEventScreen() {
   const { for: settingsFor, update } = useTripSettings();
   const { addEvent } = useEvents();
   const dismiss = useDismiss("/trips");
+  // The last save's failure, fed to the dialog's InlineError. The
+  // dialog stays open on failure: dismissing would pretend it saved.
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const tripId = typeof id === "string" ? id : undefined;
   const { trip } = useTrip(tripId);
@@ -51,6 +56,7 @@ function NewEventScreen() {
       primaryTitle="Add event"
       trip={trip}
       dismissHref={`/trips/detail?id=${trip.id}`}
+      serverError={serverError}
       onSubmit={(input) => {
         const event = buildEvent(
           input,
@@ -58,8 +64,16 @@ function NewEventScreen() {
           timeZone,
           placePhoto(input.place),
         );
-        addEvent(trip.id, event);
-        dismiss();
+        // The built event is the optimistic row (its custom id is
+        // the stand-in the store swaps the server event in by).
+        setServerError(null);
+        void addEvent(trip.id, event).then(
+          () => dismiss(),
+          (error: unknown) =>
+            setServerError(
+              toErrorCopy(error).message ?? "Couldn't save the event.",
+            ),
+        );
       }}
     />
   );

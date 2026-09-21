@@ -1,6 +1,7 @@
 import { Image, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { Badge } from "@/components/ui/Badge";
 import { PlaceLink } from "@/components/ui/PlaceLink";
 import { placeQuery } from "@/lib/links";
@@ -10,6 +11,7 @@ import {
   eventTimeLabel,
 } from "@/lib/itinerary";
 import { useEvents } from "@/lib/eventsStore";
+import { useEvents as useEventsSection } from "@/lib/queries/events";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { todayIn, wallClock } from "@/lib/timezone";
@@ -59,6 +61,9 @@ function EventDetailDialog() {
 
   const tripId = typeof id === "string" ? id : undefined;
   const { trip } = useTrip(tripId);
+  // Warms the section query the store reads from, so a cold load
+  // (deep link straight here) still finds the event once it lands.
+  const { status: sectionStatus } = useEventsSection(trip?.id);
   const event = trip
     ? eventById(trip, typeof eventId === "string" ? eventId : undefined)
     : undefined;
@@ -77,6 +82,15 @@ function EventDetailDialog() {
   }
 
   if (!event) {
+    // While the section loads the event may simply not have arrived
+    // yet: only the landed read gets to say it is gone.
+    if (sectionStatus === "loading") {
+      return (
+        <FullscreenDialog title="Event" dismissHref="/trips">
+          <LoadingBlock label="Event" />
+        </FullscreenDialog>
+      );
+    }
     return (
       <FullscreenDialog title="Event" dismissHref="/trips">
         <Text className="font-body text-base text-ink">
