@@ -7,7 +7,11 @@ import {
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { authKeys, meOptions } from "@/lib/queries/auth";
-import { updateProfile } from "@/lib/queries/profile";
+import {
+  removePhotoOptions,
+  updateProfile,
+  uploadPhotoOptions,
+} from "@/lib/queries/profile";
 import { applyDraft, type Profile, type ProfileDraft } from "@/lib/profile";
 
 type ProfileValue = {
@@ -16,8 +20,10 @@ type ProfileValue = {
   profile: Profile | null;
   saveProfile: (draft: ProfileDraft) => Promise<void>;
   /** The picture is uploaded there and then, not staged with the form.
-   *  Null removes it — `DELETE /me/photo`. */
-  savePhoto: (uri: string | null) => void;
+   *  A URI uploads (`POST /users/me/photo`); null removes it
+   *  (`DELETE /users/me/photo`). Optimistic with rollback — the
+   *  trips cover flow shape. */
+  savePhoto: (uri: string | null) => Promise<void>;
   /**
    * The me read's state, for the screen gate. Explicit rather than
    * Suspense on purpose: the provider sits above the Suspense
@@ -92,17 +98,67 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     [updateMutation],
   );
 
-  const savePhoto = useCallback(
-    (uri: string | null) => {
-      // Local cache paint only: the photo endpoints (`POST/DELETE
-      // /users/me/photo`) are Task 4's, so no network here — but the
-      // picture must still survive closing the dialog, which means it
-      // lives in the me cache, not in component state.
-      queryClient.setQueryData<Profile>(authKeys.me(), (current) =>
-        current ? { ...current, profilePhotoUrl: uri } : current,
-      );
+  // The optimistic image is the picker's local URI (the screen
+  // renders it while the upload flies); `onSuccess` swaps in the
+  // server URL. Removal paints `null`, which the screen already
+  // renders as initials.
+  const uploadPhotoMutation = useMutation({
+    ...uploadPhotoOptions(),
+    onMutate: async ({ uri }: { uri: string }) => {
+      await queryClient.cancelQueries({ queryKey: authKeys.me() });
+      const previous = queryClient.getQueryData<Profile>(authKeys.me());
+      if (previous) {
+        queryClient.setQueryData<Profile>(authKeys.me(), {
+          ...previous,
+          profilePhotoUrl: uri,
+        });
+      }
+      return { previous };
     },
-    [queryClient],
+    onSuccess: (updated) => {
+      queryClient.setQueryData<Profile>(authKeys.me(), updated);
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(authKeys.me(), context.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: authKeys.me() });
+    },
+  });
+  const removePhotoMutation = useMutation({
+    ...removePhotoOptions(),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: authKeys.me() });
+      const previous = queryClient.getQueryData<Profile>(authKeys.me());
+      if (previous) {
+        queryClient.setQueryData<Profile>(authKeys.me(), {
+          ...previous,
+          profilePhotoUrl: null,
+        });
+      }
+      return { previous };
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData<Profile>(authKeys.me(), updated);
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(authKeys.me(), context.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: authKeys.me() });
+    },
+  });
+
+  const savePhoto = useCallback(
+    (uri: string | null) =>
+      uri === null
+        ? removePhotoMutation.mutateAsync().then(() => {})
+        : uploadPhotoMutation.mutateAsync({ uri }).then(() => {}),
+    [uploadPhotoMutation, removePhotoMutation],
   );
 
   const value = useMemo(

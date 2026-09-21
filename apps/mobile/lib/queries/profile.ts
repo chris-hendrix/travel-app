@@ -84,3 +84,96 @@ export const updateProfileOptions = () =>
 
 /** Alias kept so call sites can name the mutation, not the options. */
 export { updateProfileOptions as updateProfileMutation };
+
+function photoMime(filename: string): string {
+  const ext = filename.split(".").pop()?.toLowerCase();
+  if (ext === "png") return "image/png";
+  if (ext === "webp") return "image/webp";
+  return "image/jpeg";
+}
+
+/**
+ * Build the multipart body for `POST /users/me/photo` from the
+ * picker's URI. The trips cover sibling (`buildCoverFormData` in
+ * `lib/queries/trips.ts`), copied verbatim: the URI is read into a
+ * blob first (on Expo web the picker hands back a `blob:` URI
+ * `fetch` resolves, and on native `fetch` resolves `file://` URIs
+ * through the Expo networking stack), falling back to the React
+ * Native `{uri, name, type}` file object the native uploader
+ * accepts. The field name is `"file"` (the controller reads the
+ * first multipart file either way). Never set `Content-Type` —
+ * `apiFetch` passes the `FormData` through untouched and the
+ * boundary is generated at send time.
+ */
+export async function buildPhotoFormData(uri: string): Promise<FormData> {
+  const filename =
+    uri.split("/").pop()?.split("?")[0]?.split("#")[0] || "photo.jpg";
+  const form = new FormData();
+  try {
+    const blob = await (await fetch(uri)).blob();
+    form.append("file", blob, filename);
+  } catch {
+    form.append("file", {
+      uri,
+      name: filename,
+      type: photoMime(filename),
+    } as unknown as Blob);
+  }
+  return form;
+}
+
+/**
+ * `POST /users/me/photo`
+ * (`apps/api/src/routes/user.routes.ts:50-61`, registered under
+ * `/api/users` in `apps/api/src/app.ts:282`; controller
+ * `uploadProfilePhoto` in
+ * `apps/api/src/controllers/user.controller.ts:106` — reads the
+ * first multipart file, uploads through the image service, writes
+ * `profilePhotoUrl`, and answers `{success: true, user}` — the same
+ * `userProfileResponseSchema` as the update endpoint, so it maps
+ * back through `toProfile` into the shared `authKeys.me()` cache).
+ */
+export async function uploadPhoto(uri: string): Promise<Profile> {
+  const body = await apiFetch<UpdateProfileResponse>("/users/me/photo", {
+    method: "POST",
+    body: await buildPhotoFormData(uri),
+  });
+  return toProfile(body.user);
+}
+
+/** Mutation wrapper for callers that fire `uploadPhoto` via TanStack Query. */
+export const uploadPhotoOptions = () =>
+  mutationOptions({
+    mutationKey: ["profile", "uploadPhoto"],
+    mutationFn: ({ uri }: { uri: string }) => uploadPhoto(uri),
+  });
+
+/** Alias kept so call sites can name the mutation, not the options. */
+export { uploadPhotoOptions as uploadPhotoMutation };
+
+/**
+ * `DELETE /users/me/photo`
+ * (`apps/api/src/routes/user.routes.ts:65-74`; controller
+ * `removeProfilePhoto` in
+ * `apps/api/src/controllers/user.controller.ts:245` — deletes the
+ * stored image, nulls `profilePhotoUrl`, same `{success, user}`
+ * response shape as `uploadPhoto`). A nulled photo maps to `null`
+ * in the profile, and the screen renders `initials(displayName)` —
+ * never a broken image.
+ */
+export async function removePhoto(): Promise<Profile> {
+  const body = await apiFetch<UpdateProfileResponse>("/users/me/photo", {
+    method: "DELETE",
+  });
+  return toProfile(body.user);
+}
+
+/** Mutation wrapper for callers that fire `removePhoto` via TanStack Query. */
+export const removePhotoOptions = () =>
+  mutationOptions({
+    mutationKey: ["profile", "removePhoto"],
+    mutationFn: () => removePhoto(),
+  });
+
+/** Alias kept so call sites can name the mutation, not the options. */
+export { removePhotoOptions as removePhotoMutation };

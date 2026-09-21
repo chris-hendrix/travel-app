@@ -127,7 +127,9 @@ function ProfileForm({ profile }: { profile: Profile }) {
     });
 
     const uri = result.canceled ? null : result.assets[0]?.uri;
-    if (uri) savePhoto(uri);
+    // Pick → upload (`POST /users/me/photo` through the store's
+    // optimistic mutation); the me cache carries the server URL back.
+    if (uri) void savePhoto(uri);
   }, [savePhoto]);
 
   async function save() {
@@ -196,7 +198,7 @@ function ProfileForm({ profile }: { profile: Profile }) {
             {formatPhoneForDisplay(profile.phoneNumber)}
           </Text>
           {profile.profilePhotoUrl ? (
-            <Pressable onPress={() => savePhoto(null)} className="mt-2 self-start">
+            <Pressable onPress={() => void savePhoto(null)} className="mt-2 self-start">
               <Text className="font-body-bold text-sm text-ink underline">
                 Remove photo
               </Text>

@@ -283,22 +283,45 @@ describe("useProfile() write (profileStore)", () => {
     );
   });
 
-  it("savePhoto writes the me cache locally with no network (Task 4 wires the upload)", async () => {
+  it("savePhoto uploads/removes through the photo endpoints (Task 4)", async () => {
     mockedApiFetch.mockReset();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        blob: () =>
+          Promise.resolve(new Blob(["bytes"], { type: "image/jpeg" })),
+      }),
+    );
+    mockedApiFetch.mockResolvedValue({
+      success: true,
+      user: userRow({ profilePhotoUrl: "https://cdn.example/avatar.jpg" }),
+    });
 
     const { client, actions } = captureProfile();
 
-    actions.savePhoto("file:///avatar.jpg");
+    await actions.savePhoto("file:///avatar.jpg");
 
-    expect(mockedApiFetch).not.toHaveBeenCalled();
+    expect(mockedApiFetch).toHaveBeenCalledWith(
+      "/users/me/photo",
+      expect.objectContaining({ method: "POST" }),
+    );
     expect(
       client.getQueryData<Profile>(authKeys.me())?.profilePhotoUrl,
-    ).toBe("file:///avatar.jpg");
+    ).toBe("https://cdn.example/avatar.jpg");
 
-    actions.savePhoto(null);
+    mockedApiFetch.mockResolvedValue({
+      success: true,
+      user: userRow({ profilePhotoUrl: null }),
+    });
+    await actions.savePhoto(null);
 
+    expect(mockedApiFetch).toHaveBeenCalledWith(
+      "/users/me/photo",
+      expect.objectContaining({ method: "DELETE" }),
+    );
     expect(
       client.getQueryData<Profile>(authKeys.me())?.profilePhotoUrl,
     ).toBeNull();
+    vi.unstubAllGlobals();
   });
 });
