@@ -179,15 +179,22 @@ function StayDetailDialog() {
         <View className="gap-4 border-t border-ink pt-6">
           {checkInDay ? (
             <Fact label="Check in">
-              {joinFacts(formatDay(checkInDay), stayTime(stay.checkIn, timeZone))}
+              <Text className="font-body text-base text-ink">
+                {joinFacts(
+                  formatDay(checkInDay),
+                  stayTime(stay.checkIn, timeZone),
+                )}
+              </Text>
             </Fact>
           ) : null}
           {checkOutDay ? (
             <Fact label="Check out">
-              {joinFacts(
-                formatDay(checkOutDay),
-                stayTime(stay.checkOut, timeZone),
-              )}
+              <Text className="font-body text-base text-ink">
+                {joinFacts(
+                  formatDay(checkOutDay),
+                  stayTime(stay.checkOut, timeZone),
+                )}
+              </Text>
             </Fact>
           ) : null}
         </View>
