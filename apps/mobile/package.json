@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
     "clean": "rm -rf .expo dist node_modules"
   },
   "dependencies": {
@@ -45,6 +46,7 @@
     "tailwindcss": "4.1.12"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "4.1.12",
     "@types/react": "^19.1.0",
     "expo-doctor": "^1.20.4",
