@@ -1,4 +1,4 @@
-import { Suspense, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Image, Linking, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
@@ -15,8 +15,8 @@ import {
 import { useStays } from "@/lib/staysStore";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
-import { useTrips } from "@/lib/tripsStore";
-import { tripFor } from "@/lib/tripLookup";
+import { useTrip } from "@/lib/tripsStore";
+import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { useDismiss } from "@/hooks/useDismiss";
 import { joinFacts } from "@/lib/wording";
@@ -44,9 +44,9 @@ import { joinFacts } from "@/lib/wording";
  */
 export default function StayDetail() {
   return (
-    <Suspense fallback={null}>
+    <TripGate label="Stay details">
       <StayDetailDialog />
-    </Suspense>
+    </TripGate>
   );
 }
 
@@ -56,14 +56,13 @@ function StayDetailDialog() {
     stay?: string;
     as?: string;
   }>();
-  const { trips } = useTrips();
   const { stayById } = useStays();
   const { for: settingsFor, update } = useTripSettings();
   const router = useRouter();
   const dismiss = useDismiss("/trips");
 
   const tripId = typeof id === "string" ? id : undefined;
-  const trip = tripFor(trips, tripId);
+  const { trip } = useTrip(tripId);
   const stay = trip
     ? stayById(trip, typeof stayId === "string" ? stayId : undefined)
     : undefined;

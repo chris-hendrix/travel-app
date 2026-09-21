@@ -110,6 +110,76 @@ describe("tripDetailOptions", () => {
   });
 });
 
+describe("event/stay route params", () => {
+  it("the event route's id param resolves the trip the event belongs to", async () => {
+    mockedApiFetch.mockReset();
+    const body = { success: true, trip: detail() } as GetTripResponse;
+    mockedApiFetch.mockResolvedValue(body);
+
+    // The event detail route carries `?id=<tripId>&event=<eventId>`:
+    // the trip read is driven by `id` alone, the event param rides
+    // along for the (still mock-backed) event lookup in Phase 6.
+    const params = { id: "trip-1", event: "trip-1-2026-06-04-0" };
+    const client = makeQueryClient();
+    await client.fetchQuery(tripDetailOptions(params.id));
+
+    const seen: { current: { trip: unknown } | null } = {
+      current: null,
+    };
+    function Probe() {
+      const value = useTrip(params.id);
+      seen.current = { trip: value.trip };
+      return null;
+    }
+    renderToString(
+      createElement(
+        QueryClientProvider,
+        { client },
+        createElement(Suspense, { fallback: null }, createElement(Probe)),
+      ),
+    );
+
+    expect(mockedApiFetch).toHaveBeenCalledWith("/trips/trip-1");
+    expect(seen.current?.trip).toMatchObject({
+      id: "trip-1",
+      title: "Croatia",
+    });
+  });
+
+  it("the stay route's id param resolves the trip the stay belongs to", async () => {
+    mockedApiFetch.mockReset();
+    const body = { success: true, trip: detail() } as GetTripResponse;
+    mockedApiFetch.mockResolvedValue(body);
+
+    // Same shape as the event route: `?id=<tripId>&stay=<stayId>`.
+    const params = { id: "trip-1", stay: "trip-1-stay-1" };
+    const client = makeQueryClient();
+    await client.fetchQuery(tripDetailOptions(params.id));
+
+    const seen: { current: { trip: unknown } | null } = {
+      current: null,
+    };
+    function Probe() {
+      const value = useTrip(params.id);
+      seen.current = { trip: value.trip };
+      return null;
+    }
+    renderToString(
+      createElement(
+        QueryClientProvider,
+        { client },
+        createElement(Suspense, { fallback: null }, createElement(Probe)),
+      ),
+    );
+
+    expect(mockedApiFetch).toHaveBeenCalledWith("/trips/trip-1");
+    expect(seen.current?.trip).toMatchObject({
+      id: "trip-1",
+      title: "Croatia",
+    });
+  });
+});
+
 describe("useTrip", () => {
   it("exposes the same {trip} shape from the detail query", async () => {
     mockedApiFetch.mockReset();

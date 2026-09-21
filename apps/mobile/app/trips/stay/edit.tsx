@@ -1,11 +1,10 @@
-import { Suspense } from "react";
 import { Text } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { StayDialog } from "@/components/trip/StayDialog";
 import { buildStay, draftFromStay } from "@/lib/newStay";
-import { useTrips } from "@/lib/tripsStore";
-import { tripFor } from "@/lib/tripLookup";
+import { useTrip } from "@/lib/tripsStore";
+import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
@@ -25,9 +24,9 @@ import { placePhoto } from "@/mocks/events";
  */
 export default function EditStay() {
   return (
-    <Suspense fallback={null}>
+    <TripGate label="Edit stay">
       <EditStayScreen />
-    </Suspense>
+    </TripGate>
   );
 }
 
@@ -36,14 +35,13 @@ function EditStayScreen() {
     id?: string;
     stay?: string;
   }>();
-  const { trips } = useTrips();
   const { for: settingsFor, update } = useTripSettings();
   const { stayById, updateStay, deleteStay } = useStays();
   const dismiss = useDismiss("/trips");
   const router = useRouter();
 
   const tripId = typeof id === "string" ? id : undefined;
-  const trip = tripFor(trips, tripId);
+  const { trip } = useTrip(tripId);
   const { clock } = trip
     ? settingsFor(trip, new Date())
     : { clock: "trip" as const };

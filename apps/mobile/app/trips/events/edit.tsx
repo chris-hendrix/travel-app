@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import { Text } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
@@ -8,8 +7,8 @@ import {
   draftFromEvent,
   validateNewEvent,
 } from "@/lib/newEvent";
-import { useTrips } from "@/lib/tripsStore";
-import { tripFor } from "@/lib/tripLookup";
+import { useTrip } from "@/lib/tripsStore";
+import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
@@ -30,9 +29,9 @@ import { placePhoto } from "@/mocks/events";
  */
 export default function EditEvent() {
   return (
-    <Suspense fallback={null}>
+    <TripGate label="Edit event">
       <EditEventScreen />
-    </Suspense>
+    </TripGate>
   );
 }
 
@@ -41,14 +40,13 @@ function EditEventScreen() {
     id?: string;
     event?: string;
   }>();
-  const { trips } = useTrips();
   const { for: settingsFor, update } = useTripSettings();
   const { eventById, updateEvent, deleteEvent } = useEvents();
   const dismiss = useDismiss("/trips");
   const router = useRouter();
 
   const tripId = typeof id === "string" ? id : undefined;
-  const trip = tripFor(trips, tripId);
+  const { trip } = useTrip(tripId);
   // The zone the fields mean: the trip's own clock setting, so what is
   // typed is stamped in the zone it will be read in.
   const { clock } = trip

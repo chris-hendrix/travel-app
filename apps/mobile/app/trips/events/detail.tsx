@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import { Image, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
@@ -14,8 +13,8 @@ import { useEvents } from "@/lib/eventsStore";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { todayIn, wallClock } from "@/lib/timezone";
-import { useTrips } from "@/lib/tripsStore";
-import { tripFor } from "@/lib/tripLookup";
+import { useTrip } from "@/lib/tripsStore";
+import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { useDismiss } from "@/hooks/useDismiss";
 
@@ -41,9 +40,9 @@ import { useDismiss } from "@/hooks/useDismiss";
  */
 export default function EventDetail() {
   return (
-    <Suspense fallback={null}>
+    <TripGate label="Event details">
       <EventDetailDialog />
-    </Suspense>
+    </TripGate>
   );
 }
 
@@ -53,14 +52,13 @@ function EventDetailDialog() {
     event?: string;
     as?: string;
   }>();
-  const { trips } = useTrips();
   const { eventById } = useEvents();
   const { for: settingsFor, update } = useTripSettings();
   const router = useRouter();
   const dismiss = useDismiss("/trips");
 
   const tripId = typeof id === "string" ? id : undefined;
-  const trip = tripFor(trips, tripId);
+  const { trip } = useTrip(tripId);
   const event = trip
     ? eventById(trip, typeof eventId === "string" ? eventId : undefined)
     : undefined;
