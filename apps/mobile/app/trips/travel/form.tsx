@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Text } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { TravelDialog } from "@/components/trip/TravelDialog";
 import {
   buildLegRecord,
@@ -14,6 +15,8 @@ import { useTrip } from "@/lib/tripsStore";
 import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { useTravel } from "@/lib/travelStore";
+import { useTravel as useTravelSection } from "@/lib/queries/travel";
+import { toErrorCopy } from "@/lib/queries/errors";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { viewerMember } from "@/lib/members";
@@ -51,12 +54,18 @@ function TravelFormScreen() {
   }>();
   const { travelById, travelForTrip, addTravel, updateTravel, deleteTravel } =
     useTravel();
+  // The last save's or delete's failure, fed to the dialog's
+  // InlineError. The dialog stays open on failure.
+  const [serverError, setServerError] = useState<string | null>(null);
   const { for: settingsFor, update } = useTripSettings();
   const dismiss = useDismiss("/trips");
   const router = useRouter();
 
   const tripId = typeof id === "string" ? id : undefined;
   const { trip } = useTrip(tripId);
+  // Warms the section query the store reads from, so a cold load
+  // (deep link straight here) still finds the record once it lands.
+  const { status: sectionStatus } = useTravelSection(trip?.id);
   // The zone the fields mean: the trip's own clock setting, the same one
   // the board behind this form is reading. What is typed is stamped in
   // it, and what it stamps is read back in it.
@@ -119,6 +128,15 @@ function TravelFormScreen() {
   }
 
   if (editingId && !record) {
+    // While the section loads the record may simply not have arrived
+    // yet: only the landed read gets to say it is gone.
+    if (sectionStatus === "loading") {
+      return (
+        <FullscreenDialog title="Travel" dismissHref="/trips">
+          <LoadingBlock label="Travel" />
+        </FullscreenDialog>
+      );
+    }
     return (
       <FullscreenDialog title="Travel" dismissHref="/trips">
         <Text className="font-body text-base text-ink">
@@ -176,11 +194,26 @@ function TravelFormScreen() {
       }}
       dismissHref={boardHref}
       initial={initial}
+      serverError={serverError}
       onDelete={
         record
-          ? () => {
-              deleteTravel(trip.id, record.id);
-              router.replace(boardHref);
+          ? (direction) => {
+              // Deleting is per direction: the panel you are in is what
+              // goes, and each direction is its own server row.
+              const existing =
+                direction === "arrival" ? arrivalRecord : departureRecord;
+              if (!existing) return;
+              // A failed delete stays on the form with the failure
+              // instead of leaving.
+              setServerError(null);
+              void deleteTravel(trip.id, existing.id).then(
+                () => router.replace(boardHref),
+                (error: unknown) =>
+                  setServerError(
+                    toErrorCopy(error).message ??
+                      "Couldn't delete the travel.",
+                  ),
+              );
             }
           : undefined
       }
@@ -190,6 +223,7 @@ function TravelFormScreen() {
         );
         const memberName = target?.name ?? record?.memberName ?? "";
 
+        const saves: Array<Promise<unknown>> = [];
         for (const legDirection of ["arrival", "departure"] as const) {
           const existing = records.find(
             (candidate) =>
@@ -206,10 +240,24 @@ function TravelFormScreen() {
           );
           // An untouched direction is unshared: nothing to save.
           if (!next) continue;
-          if (existing) updateTravel(trip.id, existing.id, next);
-          else addTravel(trip.id, next);
+          // The built row is the optimistic paint the store swaps the
+          // server record in by.
+          saves.push(
+            existing
+              ? updateTravel(trip.id, existing.id, next)
+              : addTravel(trip.id, next),
+          );
         }
-        dismiss();
+        // The dialog stays open on failure: dismissing would pretend
+        // it saved.
+        setServerError(null);
+        void Promise.all(saves).then(
+          () => dismiss(),
+          (error: unknown) =>
+            setServerError(
+              toErrorCopy(error).message ?? "Couldn't save the travel.",
+            ),
+        );
       }}
     />
   );

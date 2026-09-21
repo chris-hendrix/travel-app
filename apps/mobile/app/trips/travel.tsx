@@ -3,6 +3,9 @@ import { Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowDown, ArrowUp } from "lucide-react-native";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
+import { InlineError } from "@/components/ui/InlineError";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
+import { OfflineBlock } from "@/components/ui/OfflineBlock";
 import { QuietAction } from "@/components/ui/QuietAction";
 import { dayNumber, weekdayAbbrev } from "@/lib/dateRange";
 import { wallClock } from "@/lib/timezone";
@@ -12,6 +15,7 @@ import { useTrip } from "@/lib/tripsStore";
 import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { useTravel } from "@/lib/travelStore";
+import { useTravel as useTravelSection } from "@/lib/queries/travel";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { viewerMember } from "@/lib/members";
@@ -68,6 +72,12 @@ function TripTravelDialog() {
   // The lab has no signed-in identity: one member of the roster stands
   // in for "you", and the board and the trip screen nudge share the
   // same stand-in so the two can never disagree.
+  // The board rows are server state now (GET
+  // /trips/:tripId/member-travel), explicit — the dialog chrome above
+  // never blanks while they load, and the board owns its own copy.
+  const { status: travelStatus, retry: retryTravel } = useTravelSection(
+    trip?.id,
+  );
   const records = trip ? travelForTrip(trip) : [];
   // The board's name column is server state now, suspended under the
   // same gate as the trip above.
@@ -117,13 +127,23 @@ function TripTravelDialog() {
       }
       dismissHref={`/trips/detail?id=${trip.id}`}
     >
-      {nothingFiled ? (
+      {travelStatus === "loading" ? (
+        <LoadingBlock label="Travel" />
+      ) : travelStatus === "offline" ? (
+        <OfflineBlock onRetry={retryTravel} />
+      ) : travelStatus === "error" ? (
+        <InlineError
+          message="Couldn't load the travel"
+          onRetry={retryTravel}
+        />
+      ) : nothingFiled ? (
         <Text className="font-body text-base text-ink">
           Nobody has shared their times yet.
         </Text>
       ) : null}
 
-      <View className="gap-8">
+      {travelStatus === "success" ? (
+        <View className="gap-8">
           <TravelSection
             heading="Arriving"
             rows={board.arrivals}
@@ -140,7 +160,8 @@ function TripTravelDialog() {
             asParam={asParam}
             canEdit={canEditRow}
           />
-      </View>
+        </View>
+      ) : null}
     </FullscreenDialog>
   );
 }

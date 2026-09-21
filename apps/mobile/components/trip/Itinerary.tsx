@@ -77,8 +77,9 @@ export function Itinerary({
   // The events and stays reads are server state now (GET
   // /trips/:tripId/events and /trips/:tripId/accommodations),
   // explicit per section — the header above never blanks while they
-  // load, and one section's failure never blanks the other. Travel
-  // still reads its mock (Phase 6 Task 4 rewires that).
+  // load, and one section's failure never blanks the other. Travel is
+  // server state too (GET /trips/:tripId/member-travel); its board
+  // dialog owns that query, so it renders nowhere here.
   const { events, status: eventsStatus, retry: retryEvents } =
     useEventsSection(trip.id);
   const { status: staysStatus, retry: retryStays } = useStaysSection(trip.id);

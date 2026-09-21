@@ -7,6 +7,7 @@ import { Dropdown } from "@/components/ui/Dropdown";
 import { Segmented } from "@/components/ui/Segmented";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { TimeField } from "@/components/ui/TimeField";
+import { InlineError } from "@/components/ui/InlineError";
 import { dayLabel } from "@/lib/itinerary";
 import { addDays, toIso } from "@/lib/dateRange";
 import { NOT_SHARED } from "@/lib/wording";
@@ -79,6 +80,7 @@ export function TravelDialog({
   initial,
   filed,
   dismissHref,
+  serverError,
   onSubmit,
   onDelete,
 }: {
@@ -102,6 +104,8 @@ export function TravelDialog({
   /** Past wheres, so the field autocompletes instead of guessing. */
   whereSuggestions: string[];
   dismissHref: string;
+  /** The last save's or delete's failure: the dialog stays open on it. */
+  serverError?: string | null;
   /** Prefill, for editing. Nothing means a blank form. */
   initial:
     | {
@@ -183,6 +187,7 @@ export function TravelDialog({
       dismissHref={dismissHref}
     >
       <Stack.Screen options={{ presentation: "modal" }} />
+      {serverError ? <InlineError message={serverError} /> : null}
       <Text className="font-body text-sm text-ink">{trip.title}</Text>
 
       {/* Who: the organizer's field, and only theirs. A traveler is

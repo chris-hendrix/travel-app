@@ -18,6 +18,7 @@ import { memberKeys, useMembers } from "@/lib/queries/members";
 import { setRsvpOptions } from "@/lib/queries/rsvp";
 import { TripGate } from "@/components/trip/TripGate";
 import { useTravel } from "@/lib/travelStore";
+import { useTravel as useTravelSection } from "@/lib/queries/travel";
 import NotFound from "@/app/+not-found";
 import { useEvents as useEventsSection } from "@/lib/queries/events";
 import { useStays } from "@/lib/staysStore";
@@ -113,6 +114,9 @@ function TripDetailScreen() {
   // (same queries the itinerary below renders — one cache each, no
   // second source).
   const { events } = useEventsSection(trip?.id);
+  // Warms the travel list the nudge below reads, so a cold detail
+  // still knows whether you owe times once it lands.
+  useTravelSection(trip?.id);
   const { staysForTrip } = useStays();
   const { for: settingsFor } = useTripSettings();
   const { travelForTrip } = useTravel();
