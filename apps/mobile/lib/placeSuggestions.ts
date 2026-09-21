@@ -1,6 +1,6 @@
 /**
  * Static place suggestions for the pickers, until live Places
- * autocomplete lands (the `TODO(BE)` at each call site names the
+ * autocomplete lands (the ledger-tracked backend-gap comment at each call site names the
  * missing `photos[].name` field mask).
  *
  * Moved here from the mocks folder in Phase 8: these lists are live
