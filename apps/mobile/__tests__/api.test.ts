@@ -112,7 +112,7 @@ describe("apiFetch", () => {
             json: async () => {
               throw new SyntaxError("Unexpected token");
             },
-          }) as Response,
+          }) as unknown as Response,
       ),
     );
     const error = await apiFetch("/boom").catch((e) => e);

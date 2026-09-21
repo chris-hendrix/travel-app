@@ -21,7 +21,7 @@ export const REQUEST_TIMEOUT_MS = 10_000;
  */
 export class ApiError extends Error {
   status: number;
-  code?: string;
+  code?: string | undefined;
 
   constructor(status: number, message?: string, code?: string) {
     super(message ?? `Request failed with status ${status}`);
