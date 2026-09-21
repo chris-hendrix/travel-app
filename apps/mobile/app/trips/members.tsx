@@ -38,7 +38,7 @@ import { useMembers } from "@/lib/queries/members";
  */
 export default function TripMembers() {
   return (
-    <TripGate label="Trip members">
+    <TripGate label="Loading trip members">
       <TripMembersDialog />
     </TripGate>
   );

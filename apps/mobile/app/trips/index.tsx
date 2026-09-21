@@ -25,7 +25,7 @@ export default function TripsScreen() {
   return (
     <Screen>
       {/* The list read is the screen: Suspense owns the loading copy
-          ("Your trips"), the boundary below owns the failure copy, and
+          ("Loading your trips"), the boundary below owns the failure copy, and
           the content owns the empty state. The root layout's Suspense
           stays as the outer fallback; this boundary makes the copy
           screen-specific. */}
@@ -37,7 +37,7 @@ export default function TripsScreen() {
               <TripsFailure error={error} onRetry={retry} />
             )}
           >
-            <Suspense fallback={<LoadingBlock label="Your trips" />}>
+            <Suspense fallback={<LoadingBlock label="Loading your trips" />}>
               <TripsContent />
             </Suspense>
           </TripsErrorBoundary>
@@ -51,7 +51,7 @@ export default function TripsScreen() {
  * Where the list request failed, in place of the list. Offline renders
  * `OfflineBlock` with its default copy; anything else renders the
  * screen's sentence. Copy is verbatim from the mockup: loading
- * `"Your trips"`, error `"Couldn't load your trips"` + `Try again`.
+ * `"Loading your trips"`, error `"Couldn't load your trips"` + `Try again`.
  */
 function TripsFailure({
   error,

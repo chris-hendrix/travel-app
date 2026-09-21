@@ -67,7 +67,7 @@ function InviteScreen() {
   if (status === "pending") {
     return (
       <Screen>
-        <LoadingBlock label="This invitation" />
+        <LoadingBlock label="Loading this invitation" />
       </Screen>
     );
   }

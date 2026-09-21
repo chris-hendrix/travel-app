@@ -39,7 +39,7 @@ import { useDismiss } from "@/hooks/useDismiss";
  */
 export default function TravelForm() {
   return (
-    <TripGate label="Travel details">
+    <TripGate label="Loading travel details">
       <TravelFormScreen />
     </TripGate>
   );
@@ -129,7 +129,7 @@ function TravelFormScreen() {
     if (sectionStatus === "loading") {
       return (
         <FullscreenDialog title="Travel" dismissHref="/trips">
-          <LoadingBlock label="Travel" />
+          <LoadingBlock label="Loading travel details" />
         </FullscreenDialog>
       );
     }

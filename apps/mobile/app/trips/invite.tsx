@@ -18,7 +18,7 @@ import NotFound from "@/app/+not-found";
  */
 export default function InvitePeople() {
   return (
-    <TripGate label="Invite people">
+    <TripGate label="Loading people to invite">
       <InvitePeopleDialog />
     </TripGate>
   );

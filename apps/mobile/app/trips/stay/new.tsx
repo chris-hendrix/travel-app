@@ -23,7 +23,7 @@ import { placeholderPhoto } from "@/lib/placeholder";
  */
 export default function NewStay() {
   return (
-    <TripGate label="New stay">
+    <TripGate label="Loading new stay">
       <NewStayScreen />
     </TripGate>
   );

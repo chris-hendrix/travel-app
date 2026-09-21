@@ -29,12 +29,12 @@ export default function Notifications() {
 
   return (
     <FullscreenDialog
-      title="Notifications"
+      title="Loading notifications"
       primaryTitle="Mark all read"
       onPrimary={() => void markAllRead()}
     >
       {status === "pending" ? (
-        <LoadingBlock label="Notifications" />
+        <LoadingBlock label="Loading notifications" />
       ) : status === "error" ? (
         <NotificationsFailure error={error} onRetry={retry} />
       ) : notifications.length === 0 ? (
@@ -70,7 +70,7 @@ export default function Notifications() {
  * Where the list request failed, in place of the list. Offline renders
  * `OfflineBlock` with its default copy; anything else renders the
  * screen's sentence. Copy is verbatim from the mockup: loading
- * `"Notifications"`, error `"Couldn't load"` + `Try again`.
+ * `"Loading notifications"`, error `"Couldn't load"` + `Try again`.
  */
 function NotificationsFailure({
   error,

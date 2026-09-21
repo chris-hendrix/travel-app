@@ -44,7 +44,7 @@ import { INK } from "@/lib/theme";
  */
 export default function TripTravel() {
   return (
-    <TripGate label="Travel">
+    <TripGate label="Loading travel">
       <TripTravelDialog />
     </TripGate>
   );
@@ -121,7 +121,7 @@ function TripTravelDialog() {
       dismissHref={`/trips/detail?id=${trip.id}`}
     >
       {travelStatus === "loading" ? (
-        <LoadingBlock label="Travel" />
+        <LoadingBlock label="Loading travel details" />
       ) : travelStatus === "offline" ? (
         <OfflineBlock onRetry={retryTravel} />
       ) : travelStatus === "error" ? (

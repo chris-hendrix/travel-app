@@ -72,7 +72,7 @@ import { getPertinentTime } from "@journiful/shared/utils";
  */
 export default function TripDetail() {
   return (
-    <TripGate label="Trip details">
+    <TripGate label="Loading trip details">
       <TripDetailScreen />
     </TripGate>
   );
@@ -84,8 +84,7 @@ function TripDetailScreen() {
   // The header read is the screen gate: the trip comes from the
   // detail query, suspended above. The events section reads the live
   // query under the rendered header (its own loading/error states);
-  // stays and travel still read their mocks, so those sections below
-  // stay as-is.
+  // stays and travel read their live queries the same way.
   const { trip } = useTrip(tripId);
   const { user } = useAuth();
   const router = useRouter();

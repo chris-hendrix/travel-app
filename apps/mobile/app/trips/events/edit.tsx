@@ -33,7 +33,7 @@ import { placeholderPhoto } from "@/lib/placeholder";
  */
 export default function EditEvent() {
   return (
-    <TripGate label="Edit event">
+    <TripGate label="Loading event to edit">
       <EditEventScreen />
     </TripGate>
   );
@@ -84,13 +84,13 @@ function EditEventScreen() {
     // yet: only the landed read gets to say it is gone.
     if (sectionStatus === "loading") {
       return (
-        <FullscreenDialog title="Edit event" dismissHref="/trips">
-          <LoadingBlock label="Event" />
+        <FullscreenDialog title="Loading event to edit" dismissHref="/trips">
+          <LoadingBlock label="Loading event details" />
         </FullscreenDialog>
       );
     }
     return (
-      <FullscreenDialog title="Edit event" dismissHref="/trips">
+      <FullscreenDialog title="Loading event to edit" dismissHref="/trips">
         <Text className="font-body text-base text-ink">
           That event is not on this trip any more.
         </Text>
@@ -104,7 +104,7 @@ function EditEventScreen() {
 
   return (
     <EventDialog
-      title="Edit event"
+      title="Loading event to edit"
       primaryTitle="Save changes"
       trip={trip}
       dismissHref={`/trips/events/detail?id=${trip.id}&event=${event.id}`}

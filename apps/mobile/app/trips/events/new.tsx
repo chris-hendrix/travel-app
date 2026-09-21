@@ -19,7 +19,7 @@ import { placeholderPhoto } from "@/lib/placeholder";
  */
 export default function NewEvent() {
   return (
-    <TripGate label="New event">
+    <TripGate label="Loading new event">
       <NewEventScreen />
     </TripGate>
   );

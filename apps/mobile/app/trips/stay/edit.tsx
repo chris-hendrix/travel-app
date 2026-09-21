@@ -28,7 +28,7 @@ import { placeholderPhoto } from "@/lib/placeholder";
  */
 export default function EditStay() {
   return (
-    <TripGate label="Edit stay">
+    <TripGate label="Loading stay to edit">
       <EditStayScreen />
     </TripGate>
   );
@@ -75,13 +75,13 @@ function EditStayScreen() {
     // yet: only the landed read gets to say it is gone.
     if (sectionStatus === "loading") {
       return (
-        <FullscreenDialog title="Edit stay" dismissHref="/trips">
-          <LoadingBlock label="Stay" />
+        <FullscreenDialog title="Loading stay to edit" dismissHref="/trips">
+          <LoadingBlock label="Loading stay details" />
         </FullscreenDialog>
       );
     }
     return (
-      <FullscreenDialog title="Edit stay" dismissHref="/trips">
+      <FullscreenDialog title="Loading stay to edit" dismissHref="/trips">
         <Text className="font-body text-base text-ink">
           That stay is not on this trip any more.
         </Text>
@@ -91,7 +91,7 @@ function EditStayScreen() {
 
   return (
     <StayDialog
-      title="Edit stay"
+      title="Loading stay to edit"
       primaryTitle="Save changes"
       trip={trip}
       dismissHref={`/trips/stay/detail?id=${trip.id}&stay=${stay.id}`}

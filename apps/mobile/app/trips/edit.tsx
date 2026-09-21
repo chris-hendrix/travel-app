@@ -36,7 +36,7 @@ import { PLACES } from "@/lib/placeSuggestions";
  */
 export default function EditTrip() {
   return (
-    <TripGate label="Edit trip">
+    <TripGate label="Loading trip to edit">
       <EditTripScreen />
     </TripGate>
   );
@@ -176,7 +176,7 @@ function EditTripScreen() {
 
   return (
     <FullscreenDialog
-      title="Edit trip"
+      title="Loading trip to edit"
       primaryTitle={busy ? "Saving changes" : "Save changes"}
       onPrimary={() => void save()}
       primaryDisabled={busy}

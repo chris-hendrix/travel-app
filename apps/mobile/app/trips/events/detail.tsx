@@ -44,7 +44,7 @@ import { useDismiss } from "@/hooks/useDismiss";
  */
 export default function EventDetail() {
   return (
-    <TripGate label="Event details">
+    <TripGate label="Loading event details">
       <EventDetailDialog />
     </TripGate>
   );
@@ -93,7 +93,7 @@ function EventDetailDialog() {
     if (sectionStatus === "loading") {
       return (
         <FullscreenDialog title="Event" dismissHref="/trips">
-          <LoadingBlock label="Event" />
+          <LoadingBlock label="Loading event details" />
         </FullscreenDialog>
       );
     }

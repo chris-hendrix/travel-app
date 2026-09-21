@@ -57,7 +57,7 @@ export default function ProfileScreen() {
   if (status === "pending" || profile === null) {
     return (
       <FullscreenDialog title="Profile">
-        <LoadingBlock label="Profile" />
+        <LoadingBlock label="Loading profile" />
       </FullscreenDialog>
     );
   }

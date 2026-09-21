@@ -47,7 +47,7 @@ import { joinFacts } from "@/lib/wording";
  */
 export default function StayDetail() {
   return (
-    <TripGate label="Stay details">
+    <TripGate label="Loading stay details">
       <StayDetailDialog />
     </TripGate>
   );

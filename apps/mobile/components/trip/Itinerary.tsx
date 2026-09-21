@@ -141,7 +141,7 @@ export function Itinerary({
       {cards ? (
         <>
           {staysStatus === "loading" ? (
-            <LoadingBlock label="Stays" />
+            <LoadingBlock label="Loading stays" />
           ) : staysStatus === "offline" ? (
             <OfflineBlock onRetry={retryStays} />
           ) : staysStatus === "error" ? (
@@ -162,7 +162,7 @@ export function Itinerary({
             </Grid>
           ) : null}
           {eventsStatus === "loading" ? (
-            <LoadingBlock label="The run" />
+            <LoadingBlock label="Loading the run" />
           ) : eventsStatus === "offline" ? (
             <OfflineBlock onRetry={retryEvents} />
           ) : eventsStatus === "error" ? (
@@ -202,7 +202,7 @@ export function Itinerary({
         // it separates it from the day before.
         <View className="border-t border-ink">
           {staysStatus === "loading" ? (
-            <LoadingBlock label="Stays" />
+            <LoadingBlock label="Loading stays" />
           ) : staysStatus === "offline" ? (
             <OfflineBlock onRetry={retryStays} />
           ) : staysStatus === "error" ? (
@@ -221,7 +221,7 @@ export function Itinerary({
             ))
           )}
           {eventsStatus === "loading" ? (
-            <LoadingBlock label="The run" />
+            <LoadingBlock label="Loading the run" />
           ) : eventsStatus === "offline" ? (
             <OfflineBlock onRetry={retryEvents} />
           ) : eventsStatus === "error" ? (

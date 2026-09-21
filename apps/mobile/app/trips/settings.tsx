@@ -42,7 +42,7 @@ const LAYOUTS: Array<{ value: Layout; label: string }> = [
  */
 export default function TripSettingsDialog() {
   return (
-    <TripGate label="Trip settings">
+    <TripGate label="Loading trip settings">
       <TripSettingsScreen />
     </TripGate>
   );
@@ -90,7 +90,7 @@ function TripSettingsScreen() {
 
   return (
     <FullscreenDialog
-      title="Trip settings"
+      title="Loading trip settings"
       primaryTitle="Done"
       onPrimary={dismiss}
       dismissHref={`/trips/detail?id=${trip.id}`}
