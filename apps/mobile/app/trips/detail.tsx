@@ -1,4 +1,4 @@
-import { Suspense, useState } from "react";
+import { useState } from "react";
 import { Image, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Screen } from "@/components/ui/Screen";
@@ -12,8 +12,8 @@ import { tripCountdown } from "@/lib/countdown";
 import { formatDateRange } from "@/lib/dateRange";
 import { todayIn } from "@/lib/timezone";
 import type { RsvpStatus } from "@/lib/rsvp";
-import { useTrips } from "@/lib/tripsStore";
-import { tripFor } from "@/lib/tripLookup";
+import { useTrip } from "@/lib/tripsStore";
+import { TripGate } from "@/components/trip/TripGate";
 import { useTravel } from "@/lib/travelStore";
 import NotFound from "@/app/+not-found";
 import { useEvents } from "@/lib/eventsStore";
@@ -76,27 +76,27 @@ const VARIANTS: Array<{ value: Variant; label: string }> = [
  */
 export default function TripDetail() {
   return (
-    <Suspense fallback={null}>
+    <TripGate label="Trip details">
       <TripDetailScreen />
-    </Suspense>
+    </TripGate>
   );
 }
 
 function TripDetailScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { trips } = useTrips();
+  const tripId = typeof id === "string" ? id : undefined;
+  // The header read is the screen gate: the trip comes from the
+  // detail query, suspended above. Sections still read their mocks;
+  // Phases 5–6 rewire those, so every section below stays as-is.
+  const { trip } = useTrip(tripId);
   const router = useRouter();
   const [variant, setVariant] = useState<Variant>("traveler");
   // Everyone starts unreplied, exactly as the API's default has it.
   const [response, setResponse] = useState<RsvpStatus>("no_response");
 
-  // Every card on the trips screen opens here, but the id is still a
-  // lookup, not a requirement that always names something: an address
-  // can name a trip that is gone, or none at all, and then this screen
-  // answers with the not-found state rather than another trip.
-  const tripId = typeof id === "string" ? id : undefined;
-  const trip = tripFor(trips, tripId);
-
+  // An address can name a trip that is gone, or none at all, and then
+  // this screen answers with the not-found state rather than another
+  // trip. A 404 from the query lands there too, via the gate above.
   // All of these are read before the guard: a hook called after a
   // return is a hook called a different number of times.
   const { eventsForTrip } = useEvents();

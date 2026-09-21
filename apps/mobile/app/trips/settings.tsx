@@ -1,12 +1,12 @@
-import { Suspense, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { Section } from "@/components/ui/Section";
 import { ChipToggle } from "@/components/ui/ChipToggle";
 import { useDismiss } from "@/hooks/useDismiss";
-import { useTrips } from "@/lib/tripsStore";
-import { tripFor } from "@/lib/tripLookup";
+import { useTrip } from "@/lib/tripsStore";
+import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import {
   useTripSettings,
@@ -41,20 +41,20 @@ const LAYOUTS: Array<{ value: Layout; label: string }> = [
  */
 export default function TripSettingsDialog() {
   return (
-    <Suspense fallback={null}>
+    <TripGate label="Trip settings">
       <TripSettingsScreen />
-    </Suspense>
+    </TripGate>
   );
 }
 
 function TripSettingsScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { trips } = useTrips();
+  const tripId = typeof id === "string" ? id : undefined;
+  // The trip read moves to the detail query; the settings
+  // write-through is Task 6's territory and stays as-is here.
+  const { trip } = useTrip(tripId);
   const { for: settingsFor, update } = useTripSettings();
   const dismiss = useDismiss("/trips");
-
-  const tripId = typeof id === "string" ? id : undefined;
-  const trip = tripFor(trips, tripId);
 
   if (!trip) {
     return <NotFound />;

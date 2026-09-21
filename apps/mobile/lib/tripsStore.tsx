@@ -7,8 +7,13 @@ import {
 } from "react";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import type { Trip } from "@/components/trip/TripCard";
+import { ApiError } from "@/lib/api";
 import { MockTripsSource, type TripsSource } from "@/lib/sources";
-import { tripKeys, tripsListOptions } from "@/lib/queries/trips";
+import {
+  tripDetailOptions,
+  tripKeys,
+  tripsListOptions,
+} from "@/lib/queries/trips";
 
 export type TripsData = {
   trips: Trip[];
@@ -134,6 +139,25 @@ export function useTripsActions(): {
 export function useTripsData(): TripsData {
   const { data } = useSuspenseQuery(tripsListOptions());
   return useMemo(() => ({ trips: data }), [data]);
+}
+
+/**
+ * The read half for one trip: the detail query, suspended until it
+ * resolves. An absent id names nothing, so the query rejects as a
+ * 404 without touching the network and the gate answers with the
+ * not-found state; a server 404 lands on the same branch via
+ * `toErrorCopy`'s pass-through.
+ */
+export function useTrip(id: string | undefined): {
+  trip: Trip | undefined;
+} {
+  const { data } = useSuspenseQuery({
+    ...tripDetailOptions(id ?? ""),
+    queryFn: id
+      ? tripDetailOptions(id).queryFn
+      : () => Promise.reject(new ApiError(404, "Not found")),
+  });
+  return useMemo(() => ({ trip: data }), [data]);
 }
 
 export function useTrips(): TripsData & {

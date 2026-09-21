@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import { Image, Pressable, Text, View } from "react-native";
 import { Stack, useLocalSearchParams } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
@@ -9,8 +9,8 @@ import { DatePicker } from "@/components/ui/DatePicker";
 import type { Selection } from "@/lib/calendar";
 import { formatDateRange } from "@/lib/dateRange";
 import { validateNewTrip, type NewTripInput } from "@/lib/newTrip";
-import { useTrips } from "@/lib/tripsStore";
-import { tripFor } from "@/lib/tripLookup";
+import { useTrip, useTripsActions } from "@/lib/tripsStore";
+import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { useDismiss } from "@/hooks/useDismiss";
 import { PLACES } from "@/mocks/places";
@@ -27,19 +27,20 @@ import { PLACES } from "@/mocks/places";
  */
 export default function EditTrip() {
   return (
-    <Suspense fallback={null}>
+    <TripGate label="Edit trip">
       <EditTripScreen />
-    </Suspense>
+    </TripGate>
   );
 }
 
 function EditTripScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { trips, updateTrip } = useTrips();
-  const dismiss = useDismiss("/trips");
-
   const tripId = typeof id === "string" ? id : undefined;
-  const trip = tripFor(trips, tripId);
+  // The trip read moves to the detail query; the write stays
+  // cache-local until the update mutation lands (Tasks 4–5).
+  const { trip } = useTrip(tripId);
+  const { updateTrip } = useTripsActions();
+  const dismiss = useDismiss("/trips");
 
   const [title, setTitle] = useState(trip?.title ?? "");
   const [location, setLocation] = useState<string | null>(
