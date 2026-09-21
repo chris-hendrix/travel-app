@@ -31,7 +31,114 @@ export const invitationKeys = {
   all: ["invitations"] as const,
   suggestions: (tripId: string, search = "") =>
     [...invitationKeys.all, "suggestions", tripId, search] as const,
+  preview: (id: string) => [...invitationKeys.all, "preview", id] as const,
 };
+
+/**
+ * One invitation preview, mirroring what `getInvitationPreview` in
+ * `apps/api/src/services/invitation.service.ts:1491-1548` selects:
+ * the trip's name, destination, dates, the inviter's name, the
+ * invitee phone masked to its last four digits, and the trip id the
+ * signed-in card navigates to. There is no shared preview schema, so
+ * the shape is declared inline (the trips/auth precedent). Dates are
+ * ISO yyyy-mm-dd, null when nobody has set them yet.
+ */
+export type InvitationPreview = {
+  tripName: string;
+  destination: string;
+  startDate: string | null;
+  endDate: string | null;
+  inviterName: string;
+  inviteePhone: string;
+  tripId: string;
+};
+
+/**
+ * Inline mirror of the preview response body: the controller
+ * (`invitation.controller.ts:getInvitationPreview`) spreads the
+ * service row flat under `{success: true}` — no `data` wrapper — or
+ * returns the `{status: "accepted", tripId}` redirect hint for an
+ * already-accepted row.
+ */
+export type InvitationPreviewResponse =
+  | ({ success: true } & InvitationPreview)
+  | { success: true; status: "accepted"; tripId: string };
+
+/**
+ * `GET /invitations/:id/preview`
+ * (`apps/api/src/routes/invitation.routes.ts:56-61`).
+ *
+ * Public on purpose: the route carries no `authenticate` preHandler,
+ * and `apiFetch` sends a bearer token only when one is staged, so
+ * this query fetches signed out. `enabled` follows the id alone —
+ * never auth state — so the signed-out card cannot be gated behind a
+ * sign-in it is meant to precede.
+ *
+ * A pending invitation maps to the invite card. An accepted one maps
+ * to null (the screen has no card facts for it, and the gone copy
+ * already covers it: "someone has already used it"). A 404 rejects
+ * with the `ApiError`, which the screen matches to the gone state
+ * directly, never via `toErrorCopy`.
+ */
+export const invitationPreviewOptions = (id: string | undefined) =>
+  queryOptions({
+    queryKey: invitationKeys.preview(typeof id === "string" ? id : ""),
+    queryFn: async (): Promise<InvitationPreview | null> => {
+      if (!id) return null;
+      const body = await apiFetch<InvitationPreviewResponse>(
+        `/invitations/${id}/preview`,
+      );
+      if ("status" in body) return null;
+      return {
+        tripName: body.tripName,
+        destination: body.destination,
+        startDate: body.startDate,
+        endDate: body.endDate,
+        inviterName: body.inviterName,
+        inviteePhone: body.inviteePhone,
+        tripId: body.tripId,
+      };
+    },
+    enabled: typeof id === "string" && id.length > 0,
+  });
+
+/**
+ * Inline mirror of the accept response body: the controller
+ * (`invitation.controller.ts:acceptInvitation`) replies
+ * `{success: true, tripId}`. The route takes no body, so none is
+ * sent.
+ */
+export type AcceptInvitationResponse = {
+  success: true;
+  tripId: string;
+};
+
+/**
+ * `POST /invitations/:id/accept`
+ * (`apps/api/src/routes/invitation.routes.ts:72-77`, authenticated).
+ *
+ * A phone mismatch surfaces as 404 `INVITATION_NOT_FOUND` — the
+ * service returns null for not-found, not-pending, and mismatch
+ * alike, and the controller folds all three into one 404 — with its
+ * own copy in `lib/queries/errors.ts`, distinct from the generic 403.
+ */
+export async function acceptInvitation(
+  id: string,
+): Promise<AcceptInvitationResponse> {
+  return apiFetch<AcceptInvitationResponse>(`/invitations/${id}/accept`, {
+    method: "POST",
+  });
+}
+
+/** Mutation wrapper for callers that fire `acceptInvitation` via TanStack Query. */
+export const acceptInvitationOptions = () =>
+  mutationOptions({
+    mutationKey: ["invitations", "accept"],
+    mutationFn: ({ id }: { id: string }) => acceptInvitation(id),
+  });
+
+/** Alias kept so call sites can name the mutation, not the options. */
+export { acceptInvitationOptions as acceptInvitationMutation };
 
 /**
  * Suggestions query: `GET /trips/:tripId/mutual-suggestions`

@@ -64,6 +64,20 @@ export function toErrorCopy(err: unknown): ErrorCopy {
           retry: true,
           offline: false,
         };
+      case "INVITATION_NOT_FOUND":
+        // The accept endpoint folds not-found, not-pending, and
+        // phone-mismatch into one 404 (the service returns null for
+        // all three; the controller replies `INVITATION_NOT_FOUND`),
+        // so this copy names the number: it is the accept-mismatch
+        // read, deliberately distinct from the generic 403 below.
+        // (The invite screen does NOT route its preview 404 through
+        // here — it matches 404 to the gone state directly.)
+        return {
+          message:
+            "This invitation isn't for this number. Sign in with the number it was sent to.",
+          retry: false,
+          offline: false,
+        };
       default:
         break;
     }
