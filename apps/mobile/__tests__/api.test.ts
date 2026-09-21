@@ -69,6 +69,58 @@ describe("apiFetch", () => {
     expect((error as ApiError).status).toBe(404);
   });
 
+  it("carries the server code and message from the error envelope", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          ({
+            ok: false,
+            status: 403,
+            statusText: "Forbidden",
+            json: async () => ({
+              success: false,
+              error: { code: "FORBIDDEN", message: "You cannot do that" },
+            }),
+          }) as Response,
+      ),
+    );
+    const error = await apiFetch("/nope").catch((e) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).status).toBe(403);
+    expect((error as ApiError).code).toBe("FORBIDDEN");
+    expect((error as ApiError).message).toBe("You cannot do that");
+  });
+
+  it("resolves undefined on a 204 with no body", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, status: 204 }) as Response),
+    );
+    await expect(apiFetch("/empty")).resolves.toBeUndefined();
+  });
+
+  it("falls back to the status text when the error body is not JSON", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          ({
+            ok: false,
+            status: 500,
+            statusText: "Internal Server Error",
+            json: async () => {
+              throw new SyntaxError("Unexpected token");
+            },
+          }) as Response,
+      ),
+    );
+    const error = await apiFetch("/boom").catch((e) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).status).toBe(500);
+    expect((error as ApiError).message).toBe("Internal Server Error");
+  });
+
   it("throws NetworkError on transport failure", async () => {
     vi.stubGlobal(
       "fetch",

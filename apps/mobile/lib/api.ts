@@ -14,14 +14,20 @@
 
 export const REQUEST_TIMEOUT_MS = 10_000;
 
-/** The server answered with a non-2xx status. */
+/**
+ * The server answered with a non-2xx status. `code`/`message` come
+ * from the API error envelope `{success:false,error:{code,message}}`;
+ * both fall back when the body is missing or is not JSON.
+ */
 export class ApiError extends Error {
   status: number;
+  code?: string;
 
-  constructor(status: number, message?: string) {
+  constructor(status: number, message?: string, code?: string) {
     super(message ?? `Request failed with status ${status}`);
     this.name = "ApiError";
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -68,11 +74,38 @@ function isAbort(error: unknown, signal: AbortSignal): boolean {
   return error instanceof Error && error.name === "AbortError";
 }
 
+type ErrorEnvelope = {
+  success?: boolean;
+  error?: { code?: unknown; message?: unknown };
+};
+
+/**
+ * Build the `ApiError` for a non-ok response. Reads the API error
+ * envelope; a non-JSON or missing body falls back to the status text
+ * (or the status-number default in `ApiError`), never a parse crash.
+ */
+async function toApiError(response: Response): Promise<ApiError> {
+  const fallback = response.statusText || undefined;
+  try {
+    const body = (await response.json()) as ErrorEnvelope | null;
+    const code =
+      typeof body?.error?.code === "string" ? body.error.code : undefined;
+    const message =
+      typeof body?.error?.message === "string"
+        ? body.error.message
+        : undefined;
+    return new ApiError(response.status, message ?? fallback, code);
+  } catch {
+    return new ApiError(response.status, fallback);
+  }
+}
+
 /**
  * `fetch` against the API origin with a ~10s `AbortController` timeout,
  * the staged session token as `Authorization: Bearer <token>`, and
- * typed failures: `ApiError { status }` for non-ok responses,
- * `TimeoutError` past the timeout, `NetworkError` for anything else.
+ * typed failures: `ApiError { status, code?, message }` for non-ok
+ * responses, `TimeoutError` past the timeout, `NetworkError` for
+ * anything else.
  */
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const base = apiBase();
@@ -90,7 +123,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
       headers,
       signal: controller.signal,
     });
-    if (!response.ok) throw new ApiError(response.status);
+    if (!response.ok) throw await toApiError(response);
     if (response.status === 204) return undefined as T;
     return (await response.json()) as T;
   } catch (error) {
