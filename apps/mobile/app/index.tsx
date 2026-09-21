@@ -3,9 +3,11 @@ import { Text, View } from "react-native";
 import { Link, Redirect, useRouter } from "expo-router";
 import { Building2, Calendar, Plane, Users } from "lucide-react-native";
 import { Button } from "@/components/ui/Button";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { Screen } from "@/components/ui/Screen";
 import { LEGAL_ROWS } from "@/lib/legal";
 import { useAuth } from "@/lib/authStore";
+import { destinationForRequiresProfile } from "@/lib/queries/auth";
 import { INK } from "@/lib/theme";
 
 /**
@@ -31,15 +33,39 @@ import { INK } from "@/lib/theme";
  * returning signed-out reader both get the landing for now, since
  * nothing is persisted that could tell the two apart.
  */
-export default function Landing() {
-  const router = useRouter();
-  const { user } = useAuth();
+/**
+ * The cold-start gate: while the stored token is being revalidated
+ * (`restoring`) no route decision is made yet, so a token-holder is
+ * never bounced through the pitch on the way in. Signed out gets the
+ * landing; signed in goes to the trips list, or to the screen that
+ * asks for a name when the profile is still empty.
+ */
+export default function Index() {
+  const { status, user } = useAuth();
+
+  if (status === "restoring") {
+    return (
+      <Screen>
+        <LoadingBlock label="Signing you in" />
+      </Screen>
+    );
+  }
 
   // Somebody signed in has no business reading the pitch, and somebody
   // signed in without a name belongs on the screen that asks for it.
-  if (user) {
-    return <Redirect href={user.profileComplete ? "/trips" : "/complete-profile"} />;
+  if (status === "signed-in" && user) {
+    return (
+      <Redirect
+        href={destinationForRequiresProfile(!user.profileComplete)}
+      />
+    );
   }
+
+  return <Landing />;
+}
+
+function Landing() {
+  const router = useRouter();
 
   return (
     <Screen>

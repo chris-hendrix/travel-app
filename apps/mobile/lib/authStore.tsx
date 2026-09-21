@@ -2,16 +2,20 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
+import { ApiError } from "@/lib/api";
 import {
+  meOptions,
   requestCode as requestAuthCode,
   verifyCode as verifyAuthCode,
   completeProfile as completeAuthProfile,
 } from "@/lib/queries/auth";
-import { clearToken } from "@/lib/session";
+import type { Profile } from "@/lib/profile";
+import { clearToken, getToken } from "@/lib/session";
 
 /**
  * Who is signed in, standing in for `POST /auth/request-code`,
@@ -40,7 +44,56 @@ export type AuthUser = {
   profileComplete: boolean;
 };
 
+/**
+ * Where the cold start stands: `restoring` until the stored token has
+ * been checked against `GET /auth/me`, then one of the two settled
+ * states. Screens gate on this, never on `user` alone — a null user
+ * while `restoring` means "not known yet", not "signed out".
+ */
+export type AuthStatus = "restoring" | "signed-in" | "signed-out";
+
+export type RestoreResult =
+  | { status: "signed-in"; user: AuthUser }
+  | { status: "signed-out"; user: null };
+
+function authUserFromProfile(profile: Profile): AuthUser {
+  return {
+    id: profile.id,
+    phoneNumber: profile.phoneNumber,
+    displayName: profile.displayName,
+    // The server's own signal: a fresh account comes back from
+    // `GET /auth/me` with an empty name until complete-profile runs.
+    profileComplete: profile.displayName.trim().length > 0,
+  };
+}
+
+/**
+ * The cold-start check, run once by `AuthProvider` on mount. A stored
+ * token is validated through `meOptions` (one source of truth, not a
+ * cached user); no token means signed-out without touching the
+ * network. A 401 clears the stale token and signs out — anything else
+ * signs out but keeps the token, so a transient failure does not
+ * destroy the session (retry behaviour belongs to its own task).
+ */
+export async function restoreSession(): Promise<RestoreResult> {
+  const token = await getToken();
+  if (!token) return { status: "signed-out", user: null };
+  try {
+    const options = meOptions();
+    const profile = await options.queryFn!({
+      queryKey: options.queryKey,
+    } as never);
+    return { status: "signed-in", user: authUserFromProfile(profile) };
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) {
+      await clearToken();
+    }
+    return { status: "signed-out", user: null };
+  }
+}
+
 type AuthValue = {
+  status: AuthStatus;
   user: AuthUser | null;
   /** The number between the two screens: a code has been asked for and
    *  not yet verified. The verify screen is the only thing that reads it. */
@@ -54,8 +107,28 @@ type AuthValue = {
 const AuthContext = createContext<AuthValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const [status, setStatus] = useState<AuthStatus>("restoring");
   const [user, setUser] = useState<AuthUser | null>(null);
   const [pendingPhone, setPendingPhone] = useState<string | null>(null);
+
+  // Cold start: a stored token is revalidated once, then the gate in
+  // `app/index.tsx` decides. The cancel flag is for the unmount race
+  // only — nothing here retries or refreshes.
+  useEffect(() => {
+    let cancelled = false;
+    restoreSession()
+      .then((result) => {
+        if (cancelled) return;
+        setUser(result.user);
+        setStatus(result.status);
+      })
+      .catch(() => {
+        if (!cancelled) setStatus("signed-out");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const requestCode = useCallback(async (phoneNumber: string) => {
     // Real endpoint now: client-side validation lives in lib/phone.ts
@@ -83,6 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         displayName: apiUser.displayName ?? "",
         profileComplete: !requiresProfile,
       });
+      setStatus("signed-in");
 
       return { requiresProfile };
     },
@@ -100,6 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       displayName: profile.displayName,
       profileComplete: true,
     });
+    setStatus("signed-in");
   }, []);
 
   const signOut = useCallback(() => {
@@ -108,10 +183,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void clearToken().catch(() => {});
     setUser(null);
     setPendingPhone(null);
+    // One line only: the logout POST and cache clear belong to the
+    // sign-out task. The gate reads `status`, so it must follow `user`.
+    setStatus("signed-out");
   }, []);
 
   const value = useMemo(
     () => ({
+      status,
       user,
       pendingPhone,
       requestCode,
@@ -119,7 +198,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       completeProfile,
       signOut,
     }),
-    [user, pendingPhone, requestCode, verifyCode, completeProfile, signOut],
+    [
+      status,
+      user,
+      pendingPhone,
+      requestCode,
+      verifyCode,
+      completeProfile,
+      signOut,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
