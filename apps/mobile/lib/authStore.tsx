@@ -6,8 +6,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { PHONE_REGEX } from "@journiful/shared/schemas";
 import { PROFILE } from "@/mocks/profile";
+import { requestCode as requestAuthCode } from "@/lib/queries/auth";
 import { clearToken, setToken } from "@/lib/session";
 
 /**
@@ -53,9 +53,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [pendingPhone, setPendingPhone] = useState<string | null>(null);
 
   const requestCode = useCallback(async (phoneNumber: string) => {
-    if (!PHONE_REGEX.test(phoneNumber)) {
-      throw new Error("That does not look like a number.");
-    }
+    // Real endpoint now: client-side validation lives in lib/phone.ts
+    // (via lib/queries/auth), so a bad number throws before any fetch.
+    await requestAuthCode({ phoneNumber, smsConsent: true });
     setPendingPhone(phoneNumber);
   }, []);
 
