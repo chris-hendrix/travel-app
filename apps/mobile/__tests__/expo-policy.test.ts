@@ -59,14 +59,17 @@ describe("expo policy: an unknown trip is not another trip", () => {
         if (entry.isDirectory()) walk(full);
         else if (/\.(tsx?|jsx?)$/.test(entry.name)) {
           const source = fs.readFileSync(full, "utf8");
-          if (source.includes("?? trips[0]")) {
+          if (/\?\?\s*trips\[0\]|\|\|\s*trips\[0\]/.test(source)) {
             offenders.push(path.relative(mobileDir, full));
           }
         }
       }
     };
     walk(appDir);
-    expect(offenders, `?? trips[0] must not appear under app/`).toEqual([]);
+    expect(
+      offenders,
+      "no '?? trips[0]' fallback in any spelling (?? / ||, with or without a space) under app/",
+    ).toEqual([]);
   });
 });
 
@@ -231,9 +234,15 @@ describe("expo policy: the accessible state reaches the phone", () => {
     ).toEqual([]);
   });
 
-  it("every file under components/ and app/ using an aria-* state prop also sets role", () => {
-    // The state props this phase migrates: pressed/selected/expanded/disabled/checked.
-    // aria-label is a name, not a state, so it does not count.
+  it("every aria-* state prop sits on an element that also sets role", () => {
+    // Per element, not per file: a `role` on some other element in the same
+    // file does not make an aria-* state prop announce. For each state prop
+    // the scan takes the element it belongs to — from its own opening `<`
+    // up to the next opening tag — and requires `role=` inside that span.
+    // The span is a superset of the element's attributes (they all precede
+    // its first child tag) which keeps it honest about `=>` inside an
+    // attribute. It is a backstop: the browser measurement is the evidence
+    // that the state actually reaches the DOM.
     const stateProp = /aria-(pressed|selected|expanded|disabled|checked)\b/;
     const roots = ["app", "components"].map((d) => path.join(mobileDir, d));
     const offenders: string[] = [];
@@ -243,8 +252,18 @@ describe("expo policy: the accessible state reaches the phone", () => {
         if (entry.isDirectory()) walk(full);
         else if (/\.(tsx?|jsx?)$/.test(entry.name)) {
           const source = fs.readFileSync(full, "utf8");
-          if (stateProp.test(source) && !/\brole=/.test(source)) {
-            offenders.push(path.relative(mobileDir, full));
+          const rel = path.relative(mobileDir, full);
+          for (const match of source.matchAll(new RegExp(stateProp, "g"))) {
+            const at = match.index ?? 0;
+            const tagStart = source.lastIndexOf("<", at);
+            if (tagStart === -1) continue;
+            const nextTag = source.indexOf("<", tagStart + 1);
+            const element = source.slice(tagStart, nextTag === -1 ? source.length : nextTag);
+            if (!/\brole=/.test(element)) {
+              offenders.push(
+                `${rel}: ${element.replace(/\s+/g, " ").trim().slice(0, 70)}`,
+              );
+            }
           }
         }
       }
@@ -252,7 +271,7 @@ describe("expo policy: the accessible state reaches the phone", () => {
     for (const root of roots) walk(root);
     expect(
       offenders,
-      "role + aria-* is the cross-platform form; an aria-* state prop without role is silent on a phone",
+      "role + aria-* is the cross-platform form; an aria-* state prop without role on the same element is silent on a phone",
     ).toEqual([]);
   });
 });
