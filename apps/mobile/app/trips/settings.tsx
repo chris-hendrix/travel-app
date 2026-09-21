@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
@@ -6,6 +6,7 @@ import { Section } from "@/components/ui/Section";
 import { ChipToggle } from "@/components/ui/ChipToggle";
 import { useDismiss } from "@/hooks/useDismiss";
 import { useTrip } from "@/lib/tripsStore";
+import { toErrorCopy } from "@/lib/queries/errors";
 import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import {
@@ -53,14 +54,39 @@ function TripSettingsScreen() {
   // The trip read moves to the detail query; the settings
   // write-through is Task 6's territory and stays as-is here.
   const { trip } = useTrip(tripId);
-  const { for: settingsFor, update } = useTripSettings();
+  const {
+    for: settingsFor,
+    update,
+    setSharePhone,
+    setNotificationPreference,
+  } = useTripSettings();
   const dismiss = useDismiss("/trips");
+  const [failure, setFailure] = useState<string | null>(null);
 
   if (!trip) {
     return <NotFound />;
   }
 
   const settings = settingsFor(trip, new Date());
+
+  // Server rows toggle optimistically (the store paints first) and
+  // the failure reads here, in the screen's existing error style,
+  // mapped through the same copies every other screen uses.
+  async function saveServerRow(work: () => Promise<void>) {
+    setFailure(null);
+    try {
+      await work();
+    } catch (caught) {
+      const copy = toErrorCopy(caught);
+      if (copy.offline) {
+        setFailure("You're offline. Check your connection and try again.");
+      } else {
+        setFailure(
+          copy.message ?? "Couldn't save the setting. Try again.",
+        );
+      }
+    }
+  }
 
   return (
     <FullscreenDialog
@@ -70,6 +96,10 @@ function TripSettingsScreen() {
       dismissHref={`/trips/detail?id=${trip.id}`}
     >
       <Text className="font-body text-sm text-ink">{trip.title}</Text>
+
+      {failure ? (
+        <Text className="font-body text-sm text-ink">{failure}</Text>
+      ) : null}
 
       <Section title="Itinerary">
         <Row label="Past events">
@@ -125,7 +155,11 @@ function TripSettingsScreen() {
             label={settings.dailyItinerary ? "On" : "Off"}
             selected={settings.dailyItinerary}
             onPress={() =>
-              update(trip.id, { dailyItinerary: !settings.dailyItinerary })
+              void saveServerRow(() =>
+                setNotificationPreference(trip.id, {
+                  dailyItinerary: !settings.dailyItinerary,
+                }),
+              )
             }
           />
         </Row>
@@ -138,7 +172,11 @@ function TripSettingsScreen() {
             label={settings.tripMessages ? "On" : "Off"}
             selected={settings.tripMessages}
             onPress={() =>
-              update(trip.id, { tripMessages: !settings.tripMessages })
+              void saveServerRow(() =>
+                setNotificationPreference(trip.id, {
+                  tripMessages: !settings.tripMessages,
+                }),
+              )
             }
           />
         </Row>
@@ -170,12 +208,15 @@ function TripSettingsScreen() {
             label={settings.sharePhone ? "On" : "Off"}
             selected={settings.sharePhone}
             onPress={() =>
-              update(trip.id, { sharePhone: !settings.sharePhone })
+              void saveServerRow(() =>
+                setSharePhone(trip.id, !settings.sharePhone),
+              )
             }
           />
         </Row>
       </Section>
 
+      {/* TODO(BE): `calendarIncluded` has no mobile write path: `PATCH /trips/:tripId/my-settings` covers only `sharePhone`; calendar exclusion lives in the calendar router. */}
       <Section title="Calendar">
         <Row
           label="Include in calendar"

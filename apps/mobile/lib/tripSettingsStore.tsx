@@ -9,6 +9,11 @@ import {
 import { tripIsOver } from "@/lib/itinerary";
 import { todayIn } from "@/lib/timezone";
 import type { Trip } from "@/components/trip/TripCard";
+import {
+  updateNotificationPreference,
+  updateSharePhone,
+  type NotificationPreferences,
+} from "@/lib/queries/trip-settings";
 
 /** Whose clock the times are read on. */
 export type Clock = "trip" | "device";
@@ -44,6 +49,19 @@ export type TripSettings = {
 type TripSettingsValue = {
   for: (trip: Trip, now: Date) => TripSettings;
   update: (tripId: string, patch: Partial<TripSettings>) => void;
+  /**
+   * Server write-through for the three server-backed rows, with the
+   * Task 4 flow shape: paint the local override optimistically,
+   * roll it back on failure, and rethrow so the screen reads the
+   * failure through `toErrorCopy`. Local-only keys (`clock`,
+   * `layout`, `showPast`, `pushEnabled`, `calendarIncluded`) never
+   * leave `update` and never touch the network.
+   */
+  setSharePhone: (tripId: string, value: boolean) => Promise<void>;
+  setNotificationPreference: (
+    tripId: string,
+    patch: Partial<NotificationPreferences>,
+  ) => Promise<void>;
 };
 
 const TripSettingsContext = createContext<TripSettingsValue | null>(null);
@@ -70,6 +88,70 @@ export function TripSettingsProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  /**
+   * Restore one row to its pre-paint override after a failed write.
+   * An absent override deletes the key (the `for()` defaults answer
+   * again). The value type admits an explicit `undefined` so a
+   * previously-unset row can be expressed; `Partial<TripSettings>`
+   * cannot under `exactOptionalPropertyTypes`.
+   */
+  type RollbackPatch = {
+    [K in keyof TripSettings]?: TripSettings[K] | undefined;
+  };
+  const restore = useCallback((tripId: string, patch: RollbackPatch) => {
+    setByTrip((current) => {
+      // Merged through `unknown` records: an explicit `undefined`
+      // deletes the key (one cast, contained here) so `for()` falls
+      // back to its defaults for a previously-unset row.
+      const merged: Record<string, unknown> = { ...current[tripId] };
+      for (const [key, value] of Object.entries(patch)) {
+        if (value === undefined) delete merged[key];
+        else merged[key] = value;
+      }
+      return {
+        ...current,
+        [tripId]: merged as Partial<TripSettings>,
+      };
+    });
+  }, []);
+
+  const setSharePhone = useCallback(
+    async (tripId: string, value: boolean) => {
+      const previous = byTrip[tripId]?.sharePhone;
+      setByTrip((current) => ({
+        ...current,
+        [tripId]: { ...current[tripId], sharePhone: value },
+      }));
+      try {
+        await updateSharePhone(tripId, value);
+      } catch (err) {
+        restore(tripId, { sharePhone: previous });
+        throw err;
+      }
+    },
+    [byTrip, restore],
+  );
+
+  const setNotificationPreference = useCallback(
+    async (tripId: string, patch: Partial<NotificationPreferences>) => {
+      const previous = {
+        dailyItinerary: byTrip[tripId]?.dailyItinerary,
+        tripMessages: byTrip[tripId]?.tripMessages,
+      };
+      setByTrip((current) => ({
+        ...current,
+        [tripId]: { ...current[tripId], ...patch },
+      }));
+      try {
+        await updateNotificationPreference(tripId, patch);
+      } catch (err) {
+        restore(tripId, previous);
+        throw err;
+      }
+    },
+    [byTrip, restore],
+  );
+
   const value = useMemo<TripSettingsValue>(
     () => ({
       for: (trip, now) => ({
@@ -86,8 +168,10 @@ export function TripSettingsProvider({ children }: { children: ReactNode }) {
         pushEnabled: byTrip[trip.id]?.pushEnabled ?? false,
       }),
       update,
+      setSharePhone,
+      setNotificationPreference,
     }),
-    [byTrip, update],
+    [byTrip, update, setSharePhone, setNotificationPreference],
   );
 
   return (
