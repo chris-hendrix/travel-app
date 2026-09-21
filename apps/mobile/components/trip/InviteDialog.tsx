@@ -1,36 +1,25 @@
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
+import { useMutation, useQuery, keepPreviousData } from "@tanstack/react-query";
 import { X } from "lucide-react-native";
 import { Button } from "@/components/ui/Button";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
+import { InlineError } from "@/components/ui/InlineError";
 import { PhoneField } from "@/components/ui/PhoneField";
 import { SuggestionList } from "@/components/ui/SuggestionList";
 import { TextField } from "@/components/ui/TextField";
 import { useDismiss } from "@/hooks/useDismiss";
-import {
-  filterTripmates,
-  phoneNumberError,
-  sendInvitations,
-  type InviteOutcome,
-} from "@/lib/newInvite";
+import { phoneNumberError, type InviteOutcome } from "@/lib/newInvite";
 import { formatPhoneForDisplay, toE164 } from "@/lib/phone";
 import { joinFacts } from "@/lib/wording";
-import { useMembers } from "@/lib/queries/members";
-import { tripmatesFor, type Tripmate } from "@/mocks/tripmates";
+import {
+  createInvitationsOptions,
+  mutualSuggestionsOptions,
+  type MutualSuggestion,
+} from "@/lib/queries/invitations";
 import type { Trip } from "@/components/trip/TripCard";
 import { SAND } from "@/lib/theme";
 import { Section } from "@/components/ui/Section";
-
-/**
- * How many suggestions the field offers at once.
- *
- * Twenty, because an empty field is a question too: "who can I invite"
- * is answered by the list rather than by a letter typed to prove you
- * mean it. It is the same twenty the server pages by, and the same order
- * — most trips shared first — so the field opens on the people most
- * likely to be picked.
- */
-const SUGGESTIONS = 20;
 
 /**
 /**
@@ -48,12 +37,10 @@ const SUGGESTIONS = 20;
  * "who am I about to invite" had two answers in two places, and the same
  * question looked like two different questions.
  *
- * By name picks from the trips you have already taken, through the same
- * suggestion list the Place field opens — one component, so the two
- * cannot drift into nearly the same list. It opens on the empty field,
- * because the list is also the answer to "who can I invite". By number
- * names somebody the app cannot look up, and the field arrives holding
- * the country code.
+ * By name picks from the trips you have already taken, suggested by
+ * the server minus the people already on this one. It opens on the
+ * empty field, because the list is also the answer to "who can I
+ * invite". By number names somebody the app cannot look up.
  *
  * What happens to a number is not explained here. That an existing
  * account joins straight away rather than being asked is the one thing
@@ -79,28 +66,72 @@ export function InviteDialog({
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | undefined>(undefined);
   const [sent, setSent] = useState<InviteOutcome | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
   const dismiss = useDismiss(dismissHref);
 
-  const tripmates = tripmatesFor(trip);
-  // The already-on-trip subtraction is server state now (suggestions
-  // stay mock-backed until Task 2); the dialog renders under the
-  // invite screen's gate, so the roster suspends alongside the trip.
-  const { members } = useMembers(trip.id);
-  // The field offers who is left, so tapping a suggestion always adds.
-  const remaining = tripmates.filter(
-    (tripmate) => !picked.includes(tripmate.id),
+  // Suggestions are server state now: `GET
+  // /trips/:tripId/mutual-suggestions` subtracts the trip's members on
+  // the server, so the field offers who is left and tapping a
+  // suggestion always adds. A plain `useQuery` rather than the
+  // suspense read, so typing a letter refines the list in place
+  // instead of flashing the screen's loading gate; the previous page
+  // stays visible while the next one loads.
+  const {
+    data: suggestionsData,
+    isPending: suggestionsPending,
+    isError: suggestionsFailed,
+    refetch: retrySuggestions,
+  } = useQuery({
+    ...mutualSuggestionsOptions(trip.id, query),
+    placeholderData: keepPreviousData,
+  });
+  const remaining = (suggestionsData ?? []).filter(
+    (suggestion) => !picked.includes(suggestion.id),
   );
-  const suggestions = filterTripmates(remaining, query).slice(0, SUGGESTIONS);
-  const pickedTripmates = picked
-    .map((id) => tripmates.find((tripmate) => tripmate.id === id))
-    .filter((tripmate): tripmate is Tripmate => Boolean(tripmate));
+  const pickedSuggestions = picked
+    .map((id) =>
+      (suggestionsData ?? []).find((suggestion) => suggestion.id === id),
+    )
+    .filter((suggestion): suggestion is MutualSuggestion =>
+      Boolean(suggestion),
+    );
   const chosen = picked.length + numbers.length;
+
+  const inviteMutation = useMutation({
+    ...createInvitationsOptions(),
+    onSuccess: (body) => {
+      const pickedNames = new Map(
+        pickedSuggestions.map((suggestion) => [
+          suggestion.id,
+          suggestion.displayName,
+        ]),
+      );
+      setSendError(null);
+      setSent({
+        // The screen's order — the people picked, then the numbers
+        // typed — so what comes back reads like the thing sent.
+        invited: [
+          ...picked.map(
+            (id) => pickedNames.get(id) ?? "Someone you picked",
+          ),
+          ...body.invitations.map((invitation) =>
+            formatPhoneForDisplay(invitation.inviteePhone),
+          ),
+        ],
+        added: body.addedMembers.map((member) => member.displayName),
+        skipped: body.skipped.map((phone) => formatPhoneForDisplay(phone)),
+      });
+    },
+    onError: () => {
+      setSendError("Couldn't send those invitations.");
+    },
+  });
 
   const remove = (id: string) =>
     setPicked((current) => current.filter((pickedId) => pickedId !== id));
 
-  function addTripmate(tripmate: Tripmate) {
-    setPicked((current) => [...current, tripmate.id]);
+  function addSuggestion(suggestion: MutualSuggestion) {
+    setPicked((current) => [...current, suggestion.id]);
     // Cleared rather than kept: the name is a chip now, and leaving it in
     // the field would read as a filter over a list that has closed.
     setQuery("");
@@ -123,16 +154,14 @@ export function InviteDialog({
   }
 
   function send() {
-    setSent(
-      sendInvitations({
-        input: { tripmateIds: picked, phoneNumbers: numbers },
-        tripmates,
-        members: members.map((member) => ({
-          name: member.name,
-          phone: member.phone,
-        })),
-      }),
-    );
+    // The batch shape the route schema requires (`{phoneNumbers,
+    // userIds}`): picked suggestions ride as user ids, typed numbers as
+    // phone numbers, and the server sorts invitation texts from instant
+    // joins in the response.
+    inviteMutation.mutate({
+      tripId: trip.id,
+      input: { phoneNumbers: numbers, userIds: picked },
+    });
   }
 
   return (
@@ -150,7 +179,7 @@ export function InviteDialog({
               : "Send invitations"
       }
       onPrimary={sent ? dismiss : send}
-      primaryDisabled={!sent && chosen === 0}
+      primaryDisabled={!sent && (chosen === 0 || inviteMutation.isPending)}
       dismissHref={dismissHref}
     >
       <Text className="font-body text-sm text-ink">{trip.title}</Text>
@@ -163,10 +192,10 @@ export function InviteDialog({
               were picked, then numbers as they were typed. */}
           <Chips
             labels={[
-              ...pickedTripmates.map((tripmate) => ({
-                key: tripmate.id,
-                label: tripmate.name,
-                onRemove: () => remove(tripmate.id),
+              ...pickedSuggestions.map((suggestion) => ({
+                key: suggestion.id,
+                label: suggestion.displayName,
+                onRemove: () => remove(suggestion.id),
               })),
               ...numbers.map((phone) => ({
                 key: phone,
@@ -179,9 +208,27 @@ export function InviteDialog({
             ]}
           />
 
+          {sendError ? (
+            <InlineError
+              message={sendError}
+              retryTitle="Try again"
+              onRetry={send}
+            />
+          ) : null}
+
           <View>
             <Section title="From your other trips">
-              {tripmates.length === 0 ? (
+              {suggestionsFailed ? (
+                <InlineError
+                  message="Couldn't load suggestions."
+                  retryTitle="Try again"
+                  onRetry={() => retrySuggestions()}
+                />
+              ) : suggestionsPending ? (
+                <Text className="font-body text-base text-ink">
+                  Looking up your other trips…
+                </Text>
+              ) : remaining.length === 0 && query.trim() === "" ? (
                 <Text className="font-body text-base text-ink">
                   Nobody from your other trips to suggest.
                 </Text>
@@ -200,24 +247,24 @@ export function InviteDialog({
                     }}
                   />
 
-                  {open ? (
+                  {open && remaining.length > 0 ? (
                     <SuggestionList
-                      suggestions={suggestions.map((tripmate) => ({
-                        value: tripmate.id,
+                      suggestions={remaining.map((suggestion) => ({
+                        value: suggestion.id,
                         // Name and count on one line, joined the way this
                         // app joins two facts — the shape a place and its
                         // region have in the same list.
                         label: joinFacts(
-                          tripmate.name,
-                          sharedTrips(tripmate),
+                          suggestion.displayName,
+                          sharedTrips(suggestion),
                         ),
                       }))}
                       empty="No one by that name."
                       onPick={(id) => {
-                        const tripmate = tripmates.find(
+                        const suggestion = remaining.find(
                           (candidate) => candidate.id === id,
                         );
-                        if (tripmate) addTripmate(tripmate);
+                        if (suggestion) addSuggestion(suggestion);
                       }}
                     />
                   ) : null}
@@ -268,10 +315,10 @@ export function InviteDialog({
 }
 
 /** "4 shared trips", or the singular. */
-function sharedTrips(tripmate: Tripmate): string {
-  return tripmate.sharedTripCount === 1
+function sharedTrips(suggestion: MutualSuggestion): string {
+  return suggestion.sharedTripCount === 1
     ? "1 shared trip"
-    : `${tripmate.sharedTripCount} shared trips`;
+    : `${suggestion.sharedTripCount} shared trips`;
 }
 
 /**
