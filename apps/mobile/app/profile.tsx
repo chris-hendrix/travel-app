@@ -213,10 +213,10 @@ export default function Profile() {
           title="Sign out"
           variant="secondary"
           fullWidth
-          onPress={() => {
-            signOut();
-            router.replace("/login");
-          }}
+          // Await the real sign-out (server POST, token drop, cache
+          // clear) before leaving: navigating first would let the
+          // login screen render while signed-in data is still cached.
+          onPress={() => void signOut().then(() => router.replace("/login"))}
         />
       </View>
     </FullscreenDialog>

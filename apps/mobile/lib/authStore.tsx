@@ -7,12 +7,15 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import type { QueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api";
 import {
   meOptions,
   requestCode as requestAuthCode,
   verifyCode as verifyAuthCode,
   completeProfile as completeAuthProfile,
+  signOutServer,
 } from "@/lib/queries/auth";
 import type { Profile } from "@/lib/profile";
 import { clearToken, getToken } from "@/lib/session";
@@ -92,6 +95,38 @@ export async function restoreSession(): Promise<RestoreResult> {
   }
 }
 
+/**
+ * The full sign-out, testable without React: tell the server
+ * (best-effort — a dead network still signs out locally), drop the
+ * bearer token, and empty the whole query cache so no signed-in data
+ * survives for the next account. The provider's `signOut` is a thin
+ * wrapper that supplies its own `useQueryClient()` client and then
+ * resets the local auth state.
+ */
+export async function performSignOut(client?: QueryClient): Promise<void> {
+  try {
+    await signOutServer();
+  } catch {
+    // Local sign-out wins: the token is dropped and the cache cleared
+    // below regardless, so an offline sign-out still lands signed-out.
+    // Banned/locked copy stays a Task 6 concern — sign-out never
+    // surfaces a code-specific message.
+  }
+  // `try/await` rather than `clearToken().catch()`: under the
+  // `importOriginal` seam a bare `vi.fn()` stub returns `undefined`,
+  // and `await undefined` is fine where `.catch` on it is not.
+  try {
+    await clearToken();
+  } catch {
+    // The token store is best-effort on web review builds by design
+    // (see `lib/session.ts`); a failure here never blocks sign-out.
+  }
+  // No client in bare node renders (no QueryClientProvider above the
+  // store); in the app the provider always supplies one, so the cache
+  // clear only ever skips where there is no cache to clear.
+  client?.clear();
+}
+
 type AuthValue = {
   status: AuthStatus;
   user: AuthUser | null;
@@ -101,7 +136,7 @@ type AuthValue = {
   requestCode: (phoneNumber: string) => Promise<void>;
   verifyCode: (code: string) => Promise<{ requiresProfile: boolean }>;
   completeProfile: (displayName: string) => Promise<void>;
-  signOut: () => void;
+  signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -177,16 +212,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus("signed-in");
   }, []);
 
-  const signOut = useCallback(() => {
-    // Fire-and-forget on purpose: signOut stays synchronous so its
-    // public shape does not change when the endpoints arrive.
-    void clearToken().catch(() => {});
+  // `AuthProvider` renders beneath the `QueryClientProvider` in
+  // `app/_layout.tsx`, so the client comes from the hook — never from a
+  // module singleton (the layout makes a fresh client per mount). The
+  // `try` is for bare node renders with no provider above the store
+  // (the restore test renders `AuthProvider` alone): the hook call
+  // itself is unconditional, so hook order never changes — only the
+  // "no client" throw is absorbed, and `performSignOut` then skips
+  // the clear it has no cache for.
+  let queryClient: QueryClient | undefined;
+  try {
+    queryClient = useQueryClient();
+  } catch {
+    queryClient = undefined;
+  }
+
+  const signOut = useCallback(async () => {
+    // Server POST, token drop, and cache clear live in `performSignOut`
+    // (best-effort server half: an offline sign-out still clears
+    // locally). The gate reads `status`, so it must follow `user`.
+    await performSignOut(queryClient);
     setUser(null);
     setPendingPhone(null);
-    // One line only: the logout POST and cache clear belong to the
-    // sign-out task. The gate reads `status`, so it must follow `user`.
     setStatus("signed-out");
-  }, []);
+  }, [queryClient]);
 
   const value = useMemo(
     () => ({

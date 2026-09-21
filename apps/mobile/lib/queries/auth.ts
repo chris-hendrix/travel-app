@@ -210,3 +210,36 @@ export const completeProfileOptions = () =>
 
 /** Alias kept so call sites can name the mutation, not the options. */
 export { completeProfileOptions as completeProfileMutation };
+
+/** Mirrors `logoutResponseSchema`: `{success: true, message}`. */
+export type SignOutServerResponse = { success: true; message: string };
+
+/**
+ * `POST /auth/logout` — the server half of sign-out only. It never
+ * touches the token or the query cache, on purpose.
+ *
+ * Cache-clear placement (kept consistent for later phases): `lib/queries/*`
+ * stays node-importable — plain functions plus `queryOptions`/
+ * `mutationOptions`, no React, no `useQueryClient`. The `QueryClient`
+ * itself lives per-mount in `app/_layout.tsx` (`useState(() =>
+ * makeQueryClient())`, no module singleton to import), and `AuthProvider`
+ * already renders beneath that provider, so the store owns the
+ * composition: `performSignOut` in `lib/authStore.tsx` calls this,
+ * then `clearToken`, then `queryClient.clear()`. Screens never clear
+ * the cache at their own call site.
+ */
+export async function signOutServer(): Promise<SignOutServerResponse> {
+  return apiFetch<SignOutServerResponse>("/auth/logout", {
+    method: "POST",
+  });
+}
+
+/** Mutation wrapper for callers that fire sign-out via TanStack Query. */
+export const signOutOptions = () =>
+  mutationOptions({
+    mutationKey: ["auth", "sign-out"],
+    mutationFn: signOutServer,
+  });
+
+/** Alias kept so call sites can name the mutation, not the options. */
+export { signOutOptions as signOutMutation };
