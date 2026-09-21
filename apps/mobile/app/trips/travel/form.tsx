@@ -17,7 +17,7 @@ import { useTravel } from "@/lib/travelStore";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { viewerMember } from "@/lib/members";
-import { membersFor } from "@/mocks/members";
+import { useMembers } from "@/lib/queries/members";
 import type { MockTravel } from "@/mocks/travel";
 
 import { useDismiss } from "@/hooks/useDismiss";
@@ -75,12 +75,12 @@ function TravelFormScreen() {
   const directionParam: TravelDirection | undefined =
     direction === "arrival" || direction === "departure" ? direction : undefined;
 
+  // The member picker is server state now, suspended under the same
+  // gate as the trip above.
+  const { members: roster } = useMembers(trip?.id);
   const members = useMemo(
-    () =>
-      trip
-        ? membersFor(trip).filter((member) => member.status === "going")
-        : [],
-    [trip],
+    () => roster.filter((member) => member.status === "going"),
+    [roster],
   );
 
   const records = useMemo(

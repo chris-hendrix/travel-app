@@ -15,7 +15,7 @@ import {
 } from "@/lib/newInvite";
 import { formatPhoneForDisplay, toE164 } from "@/lib/phone";
 import { joinFacts } from "@/lib/wording";
-import { membersFor } from "@/mocks/members";
+import { useMembers } from "@/lib/queries/members";
 import { tripmatesFor, type Tripmate } from "@/mocks/tripmates";
 import type { Trip } from "@/components/trip/TripCard";
 import { SAND } from "@/lib/theme";
@@ -82,7 +82,10 @@ export function InviteDialog({
   const dismiss = useDismiss(dismissHref);
 
   const tripmates = tripmatesFor(trip);
-  const members = membersFor(trip);
+  // The already-on-trip subtraction is server state now (suggestions
+  // stay mock-backed until Task 2); the dialog renders under the
+  // invite screen's gate, so the roster suspends alongside the trip.
+  const { members } = useMembers(trip.id);
   // The field offers who is left, so tapping a suggestion always adds.
   const remaining = tripmates.filter(
     (tripmate) => !picked.includes(tripmate.id),

@@ -16,7 +16,7 @@ import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { viewerMember } from "@/lib/members";
 import { pertinentIso } from "@/lib/travelBoard";
-import { membersFor } from "@/mocks/members";
+import { useMembers } from "@/lib/queries/members";
 import { INK } from "@/lib/theme";
 
 /**
@@ -69,9 +69,10 @@ function TripTravelDialog() {
   // in for "you", and the board and the trip screen nudge share the
   // same stand-in so the two can never disagree.
   const records = trip ? travelForTrip(trip) : [];
-  const going = trip
-    ? membersFor(trip).filter((member) => member.status === "going")
-    : [];
+  // The board's name column is server state now, suspended under the
+  // same gate as the trip above.
+  const { members: roster } = useMembers(trip?.id);
+  const going = roster.filter((member) => member.status === "going");
   const viewer = viewerMember(
     going,
     viewerIsOrganizer,

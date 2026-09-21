@@ -9,7 +9,7 @@ import { memberLabel } from "@/lib/rsvp";
 import { visiblePhone, type Member } from "@/lib/members";
 import { instagramUrl, venmoUrl } from "@/lib/links";
 import { formatPhoneForDisplay } from "@/lib/phone";
-import { membersFor } from "@/mocks/members";
+import { useMembers } from "@/lib/queries/members";
 
 /**
  * The roll call, reached from "6 going" on the trip header.
@@ -49,6 +49,9 @@ function TripMembersDialog() {
 
   const tripId = typeof id === "string" ? id : undefined;
   const { trip } = useTrip(tripId);
+  // The roll call is server state now, suspended under the same gate
+  // as the trip above — the dialog never renders without it.
+  const { members } = useMembers(trip?.id);
   // The lab's stand-in for `isOrganizer` on the membership, threaded down
   // from the trip screen so the two can never disagree.
   const viewerIsOrganizer = as === "organizer";
@@ -74,7 +77,7 @@ function TripMembersDialog() {
       {/* Ruled rows, like every other list here: the part each person
           plays sits at the far edge so the column can be read down. */}
       <View className="border-t border-ink">
-        {membersFor(trip).map((member) => (
+        {members.map((member) => (
           <MemberRow
             key={member.id}
             member={member}

@@ -22,7 +22,7 @@ import { currentStay } from "@/lib/stays";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { getPertinentTime } from "@journiful/shared/utils";
 import { viewerMember } from "@/lib/members";
-import { membersFor } from "@/mocks/members";
+import { useMembers } from "@/lib/queries/members";
 
 type Variant = "organizer" | "traveler";
 
@@ -103,6 +103,10 @@ function TripDetailScreen() {
   const { staysForTrip } = useStays();
   const { for: settingsFor } = useTripSettings();
   const { travelForTrip } = useTravel();
+  // The roster is server state now, suspended under the same gate as
+  // the trip above — the header never renders without it, and the
+  // viewer stand-in below reads the roster, never a mock.
+  const { members } = useMembers(trip?.id);
 
   // Nothing on the itinerary yet. That is the one case its own head
   // cannot help with: the itinerary sits below the fold, and the empty
@@ -139,7 +143,7 @@ function TripDetailScreen() {
     getPertinentTime(record),
   );
   const viewer = viewerMember(
-    membersFor(trip),
+    members,
     organizer,
     filed.map((record) => record.memberId),
   );
