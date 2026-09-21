@@ -29,6 +29,8 @@ import type { Selection } from "@/lib/calendar";
 import { RSVP_LABEL, type RsvpStatus } from "@/lib/rsvp";
 import { formatDateRange } from "@/lib/dateRange";
 import { TripCard } from "@/components/trip/TripCard";
+import { TripActions } from "@/components/trip/TripActions";
+import { RunLocked } from "@/components/trip/RunLocked";
 import { InviteCard } from "@/components/trip/InviteCard";
 import { EventCard } from "@/components/trip/EventCard";
 import { Grid } from "@/components/ui/Grid";
@@ -387,9 +389,9 @@ function DesignSystemScreen() {
             <Specimen
               name="LoadingBlock"
               contract="label"
-              note="A screen that is getting there says so where its content will be. A plain line, not a spinner and not a skeleton: there is no motion language here, and a skeleton promises a shape the request has not returned yet. The label is what is loading, never a bare Loading on its own — and verb-led, never a bare noun: a noun that names the screen (Trip details) reads as a broken heading while it loads, where Loading trip details reads as waiting."
+              note="A screen that is getting there says so where its content will be. A plain line, not a spinner and not a skeleton: there is no motion language here, and a skeleton promises a shape the request has not returned yet. The label is what is arriving, in the product's own voice — the person's verb and the actual thing. Never a bare Loading on its own (a screen that will not say what is late), and never a category noun: Trip details reads as a broken heading while it loads, where Getting your trip reads as waiting."
             >
-              <LoadingBlock label="Loading the itinerary." />
+              <LoadingBlock label="Getting the run." />
             </Specimen>
 
             <Specimen
@@ -413,8 +415,8 @@ function DesignSystemScreen() {
 
             <Specimen
               name="Button"
-              contract="title · variant? · onPress? · fullWidth? · align? · disabled?"
-              note="Fills the width on a phone; from md up it hugs the edge it is aligned to. disabled keeps it in place rather than hiding it: a control that vanishes leaves nothing to aim at. Inside a row, align='end' is what lines a button up with the field beside it — the default hugs the start of the cross axis and sits high."
+              contract="title · variant? · onPress? · fullWidth? · align? · size? · disabled?"
+              note="Fills the width on a phone; from md up it hugs the edge it is aligned to. disabled keeps it in place rather than hiding it: a control that vanishes leaves nothing to aim at. Inside a row, align='end' is what lines a button up with the field beside it — the default hugs the start of the cross axis and sits high. size='sm' is a cell of a row of equal cells, where three of them have to fit across a phone: the sides and the label step down, the height does not."
             >
               <Button
                 title="Create trip"
@@ -483,7 +485,7 @@ function DesignSystemScreen() {
             <Specimen
               name="ChipToggle"
               contract="label · selected? · onPress"
-              note="A filter you can press: filled ink when on, outlined when off. Used for independent filters (past events) and for exclusive choices (trip time / your time) alike, with a plain label above when the row needs one."
+              note="A filter you can press: filled ink when on, outlined when off. Used for independent filters (past events) and for exclusive choices (grid / list) alike, with a plain label above when the row needs one — the run's head does not, because the chips say what they are. There they are the run's only controls: flipping one shows you what it did, which is why they are not in Trip settings. A row holding both kinds puts them at the two edges rather than shoulder to shoulder: three identical pills in one row read as one choice of three, and a word in front would have to say two different things at once. The filter is only offered while a trip is under way — before it starts there is nothing behind you, and after it ends the whole run is, so a finished run is always whole and the chip is not there to hide it."
             >
               <View className="flex-row items-center gap-3">
                 <ChipToggle
@@ -684,6 +686,41 @@ function DesignSystemScreen() {
                   />
                 ))}
               </Grid>
+            </Specimen>
+
+            <Specimen
+              name="TripActions"
+              contract="tripId · organizer · owesTravel · memberId? · ask?"
+              note="The trip page's verbs in one block, in three tiers: the ask, the adds, the maintenance. One loud control and only one — the organizer is asked to bring people in, everyone else answers their own RSVP, which is why ask arrives as a node. The adds put Add travel first and on a line of its own, because it is the one that is a question rather than a standing verb (it is there while somebody still owes a time, and the screen decides whose), with Add event and Add stay as a pair of halves under it. The maintenance pair is words, because the system carries one loud button per screen. First the organizer's block, then a traveler's."
+            >
+              <TripActions
+                tripId={SAMPLE_TRIP.id}
+                organizer
+                travelOwed
+                memberId="member-1"
+              />
+              <TripActions
+                tripId={SAMPLE_TRIP.id}
+                organizer={false}
+                travelOwed
+                ask={
+                  <RsvpControl
+                    value={rsvp ?? "no_response"}
+                    onChange={(status) => {
+                      setRsvp(status);
+                      setLog(`RSVP "${RSVP_LABEL[status]}"`);
+                    }}
+                  />
+                }
+              />
+            </Specimen>
+
+            <Specimen
+              name="RunLocked"
+              contract="(no props)"
+              note="The run, for a member the server will not read it to: full trip data needs a Going answer (`canViewFullTrip` in the API's event controller), so the trip page renders this in place of the run rather than a section that 403s, and the run's own reads are never fetched. It states the rule and points at the RSVP control above, in that control's own word, because a run that is simply absent reads as a trip with nothing in it."
+            >
+              <RunLocked />
             </Specimen>
 
             <Specimen

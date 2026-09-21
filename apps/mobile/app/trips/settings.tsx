@@ -9,36 +9,28 @@ import { useTrip } from "@/lib/tripsStore";
 import { toErrorCopy } from "@/lib/queries/errors";
 import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
-import {
-  useTripSettings,
-  type Clock,
-  type Layout,
-} from "@/lib/tripSettingsStore";
-
-const CLOCKS: Array<{ value: Clock; label: string }> = [
-  { value: "trip", label: "Trip time" },
-  { value: "device", label: "Your time" },
-];
-
-const LAYOUTS: Array<{ value: Layout; label: string }> = [
-  { value: "cards", label: "Cards" },
-  { value: "list", label: "List" },
-];
+import { useTripSettings } from "@/lib/tripSettingsStore";
 
 /**
  * Your settings for one trip — Trip settings, and every member has
  * them. The organizer has a separate surface for the trip itself, called
  * Edit trip; this one is not that.
  *
- * Named for the itinerary because everything here answers something
- * about it: how far down it you read, whose clock its times are on, how
- * it is laid out, and whether the daily digest or the message alerts
- * reach you at all.
+ * Every row here is about you rather than about the trip: whether the
+ * daily digest and the trip's messages reach you, whether the others can
+ * see your number, and whether your calendar follows this trip. All of
+ * them are server rows (`PATCH /trips/:tripId/my-settings` and the
+ * notification pair beside it), and all of them are things you cannot
+ * see from where you are standing.
  *
- * Two sections, and each row is a label with its control at the far
- * edge, which is what a settings list is. The controls used to sit at
- * the head of the itinerary itself, where on a phone they cost three
- * rows before any content.
+ * The run's own two switches are not here. Past events and grid-or-list
+ * sit at the head of the run itself, because flipping one and watching
+ * the page answer is the whole point of them, and the clock is the
+ * header's zone token, on every screen that shows a time. A screen you
+ * have to leave to flip a switch is a switch you flip blind.
+ *
+ * Each row is a label with its control at the far edge, which is what a
+ * settings list is.
  */
 export default function TripSettingsDialog() {
   return (
@@ -101,51 +93,6 @@ function TripSettingsScreen() {
         <Text className="font-body text-sm text-ink">{failure}</Text>
       ) : null}
 
-      <Section title="Itinerary">
-        <Row label="Past events">
-          <ChipToggle
-            label={settings.showPast ? "On" : "Off"}
-            selected={settings.showPast}
-            onPress={() => update(trip.id, { showPast: !settings.showPast })}
-          />
-        </Row>
-
-        <Row label="Times">
-          <View className="flex-row items-center gap-3">
-            {CLOCKS.map((option) => (
-              <ChipToggle
-                key={option.value}
-                label={option.label}
-                selected={settings.clock === option.value}
-                onPress={() => update(trip.id, { clock: option.value })}
-              />
-            ))}
-          </View>
-        </Row>
-
-        <Row label="Layout">
-          <View className="flex-row items-center gap-3">
-            {LAYOUTS.map((option) => (
-              <ChipToggle
-                key={option.value}
-                label={option.label}
-                selected={settings.layout === option.value}
-                onPress={() => update(trip.id, { layout: option.value })}
-              />
-            ))}
-          </View>
-        </Row>
-
-        <Text className="font-body text-sm text-ink">
-          This trip runs on {trip.preferredTimezone}.
-        </Text>
-      </Section>
-
-      {/* The web dialog's ground, which is all per user per trip: the
-          notification pair from the server's notification_preferences,
-          phone sharing from the member row, calendar from the same row
-          said the other way round, and a push permission that is the
-          device's to grant. */}
       <Section title="Notifications">
         <Row
           label="Daily itinerary"

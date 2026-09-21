@@ -19,8 +19,7 @@ import { useTravel as useTravelSection } from "@/lib/queries/travel";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { useAuth } from "@/lib/authStore";
-import { viewerOf } from "@/lib/members";
-import { useMembers } from "@/lib/queries/members";
+import { viewerOf, goingMembers } from "@/lib/members";import { useMembers } from "@/lib/queries/members";
 import { INK } from "@/lib/theme";
 
 /**
@@ -77,7 +76,7 @@ function TripTravelDialog() {
   // The board's name column is server state now, suspended under the
   // same gate as the trip above.
   const { members: roster } = useMembers(trip?.id);
-  const going = roster.filter((member) => member.status === "going");
+  const going = goingMembers(roster);
   // Who you are comes from the server: your own roster row, matched
   // by account, carries your role — never a query param.
   const viewer = viewerOf(roster, user?.id);

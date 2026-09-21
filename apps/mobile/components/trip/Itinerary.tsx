@@ -4,19 +4,33 @@ import { EventCard } from "@/components/trip/EventCard";
 import { EventRow } from "@/components/trip/EventRow";
 import { StayCard } from "@/components/trip/StayCard";
 import { StayRow } from "@/components/trip/StayRow";
-import { Button } from "@/components/ui/Button";
 import { Grid } from "@/components/ui/Grid";
 import type { Trip } from "@/components/trip/TripCard";
-import { dayLabel, daysFrom, groupEventsByDay, liveEvents } from "@/lib/itinerary";
+import { dayLabel, daysFrom, groupEventsByDay, liveEvents, tripIsOver } from "@/lib/itinerary";
 import { useEvents as useEventsSection } from "@/lib/queries/events";
 import { InlineError } from "@/components/ui/InlineError";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
+import { ChipToggle } from "@/components/ui/ChipToggle";
+import type { Layout } from "@/lib/tripSettingsStore";
 import { useStays } from "@/lib/staysStore";
 import { useStays as useStaysSection } from "@/lib/queries/stays";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { todayIn } from "@/lib/timezone";
+
+/**
+ * The two layouts, as the head's chips read them.
+ *
+ * List leads because it is the default (`lib/tripSettingsStore.tsx`):
+ * the first chip is the one you are already in, so nothing moves under
+ * your thumb when the run answers with what you expect. Grid second, as
+ * the one you go to.
+ */
+const LAYOUTS: Array<{ value: Layout; label: string }> = [
+  { value: "list", label: "List" },
+  { value: "grid", label: "Grid" },
+];
 
 /**
  * A trip's days, each one a section holding that day's events.
@@ -40,22 +54,38 @@ import { todayIn } from "@/lib/timezone";
  * chip reads Stay, and the column an event spends on a clock carries the
  * span instead.
  *
- * The run also owns the way to add to it. Add event and Add stay sit in
- * the section head rather than in the stack at the top of the screen:
- * the surface that holds a list holds the way onto it.
+ * The run used to own the way to add to it: Add event and Add stay sat
+ * in this section's head, on the argument that the surface that holds a
+ * list holds the way onto it. They moved up to the trip page's action
+ * block (components/trip/TripActions.tsx), because the page's verbs
+ * belong in one place and this head was the second of the three homes
+ * they had — with Add the first event a third while the run was empty,
+ * which existed only because this head sat below the fold.
  *
- * They are buttons, and they were quiet words. The words were the two
- * most-used verbs on this screen wearing the quietest treatment in the
- * system, where an underlined label in a section head reads as a link in
- * a paragraph. They are secondary rather than primary, because the trip
- * page spends its one loud button on Invite people, and each fills the
- * width on a phone and hugs its label from md, where the two of them sit
- * in a row.
+ * The head went with them, and the run's structure is now its own
+ * headings: STAYS over the roofs, then a heading per day, all in the
+ * display face at the same size, because they are the run's shape rather
+ * than chrome about it. The eyebrow above them read ITINERARY, which is
+ * the name of the block the day headings had already named one line
+ * further down, and it existed to anchor the buttons that are no longer
+ * here. What is left at the top of the run is a heading that says what
+ * is under it.
  *
- * No other controls in view: how much of it you read, whose clock you
- * read it on, and whether it is cards or a table are Trip settings,
- * which live in the header's action group with the trip's other buttons.
- * What is left here is content.
+ * No other controls in view than the run's own two, at its head: how far
+ * down it you read, and whether it is a grid of cards or a list of rows.
+ * Both were rows in Trip settings, which is where you go to change a
+ * thing you are looking at — the switch belongs beside what it switches,
+ * so you see what it did. The clock is not among them: the header's zone
+ * token flips that, one tap away on every screen that shows a time.
+ *
+ * The two sit at the two edges of one row rather than shoulder to
+ * shoulder, because they are not the same kind of thing: past events is
+ * a filter, grid-or-list is the shape of everything below it. A single
+ * row of three identical pills reads as a choice of three, and a word in
+ * front of them would have to say two things at once.
+ *
+ * What is left here is content, and the two chips that decide how much
+ * of it you are reading at once.
  *
  * Every card and row opens the same detail. Who is looking is read
  * from the server there, so the dialog cannot disagree with the trip
@@ -67,7 +97,7 @@ export function Itinerary({
   now = new Date(),
 }: {
   trip: Trip;
-  /** Your server-side role: organizers get the Add event/Add stay head. */
+  /** Your server-side role: organizers are the ones who can add to the run. */
   organizer?: boolean;
   /** Injected so the grouping and the labels agree on the moment. */
   now?: Date;
@@ -86,13 +116,11 @@ export function Itinerary({
   const { staysForTrip } = useStays();
   const { showPast, clock, layout } = settingsFor(trip, now);
 
-  const cards = layout === "cards";
+  const cards = layout === "grid";
   const openEvent = (eventId: string) =>
     router.push(`/trips/events/detail?id=${trip.id}&event=${eventId}`);
   const openStay = (stayId: string) =>
     router.push(`/trips/stay/detail?id=${trip.id}&stay=${stayId}`);
-  const addEvent = () => router.push(`/trips/events/new?id=${trip.id}`);
-  const addStay = () => router.push(`/trips/stay/new?id=${trip.id}`);
 
   // The zone drives the grouping as well as the clock: an evening in
   // Mallorca belongs to the day it is in Mallorca.
@@ -102,10 +130,21 @@ export function Itinerary({
   useDisplayZone(zoneFor(trip, clock, update));
   const today = todayIn(timeZone, now);
 
+  // Past events is only a question while the trip is under way. Before it
+  // starts there is nothing behind you to filter; once it is over
+  // everything is, and a finished run is always whole — the switch cannot
+  // be left off in a way that hides the trip, which is also why it is not
+  // offered then. So: the chip renders in the middle of the trip and
+  // nowhere else, and the stored answer only ever narrows an unfinished
+  // run. (The store's default says the same thing for a first visit;
+  // this is the rule, that is the starting point.)
+  const over = tripIsOver(trip.endDate, today);
+  const underway = today >= trip.startDate && !over;
+
   const days = groupEventsByDay(liveEvents(events), timeZone);
   // With the past on, the trip reads as one run from its first day to
   // its last; with it off, it starts at today.
-  const shown = showPast ? days : daysFrom(days, today);
+  const shown = showPast || over ? days : daysFrom(days, today);
 
   // Earliest first: the store already holds them in the order you will
   // sleep in them.
@@ -113,35 +152,49 @@ export function Itinerary({
 
   return (
     <View className="gap-6">
-      {/* The run's head. The label names the one block on this screen
-          that is a list of many things rather than a fact about the
-          trip, and it is what anchors the organizer's two actions: a
-          pair of boxes on their own line, with nothing above them, reads
-          as chrome that fell off something else. */}
-      <View className="gap-3">
-        <Text className="font-body-bold text-sm uppercase tracking-widest text-ink">
-          Itinerary
-        </Text>
-        {organizer ? (
-          <View className="flex-col gap-3 md:flex-row md:items-center md:gap-4">
-            <Button
-              title="Add event"
-              variant="secondary"
-              onPress={addEvent}
-            />
-            <Button
-              title="Add stay"
-              variant="secondary"
-              onPress={addStay}
-            />
-          </View>
+      {/* No head label, and no controls of the page's: the run's structure
+          is its own headings — the roofs, then the days — and what they
+          are is what they say. There was an ITINERARY eyebrow above this
+          block, which named a list that the day headings had already
+          named one line further down, and it was there to anchor the two
+          buttons that used to sit in it. Those moved to the page's
+          action block (components/trip/TripActions.tsx), and the eyebrow
+          went with them. */}
+
+      {/* The run's own two controls, at the head of the block they
+          change: how much of it you read, and whether it is cards or
+          rows. Two groups at the two edges, the way a settings row puts
+          a name at one edge and its control at the other — past events
+          is a filter you turn on, grid-or-list is the shape of what sits
+          below, and three pills in a single row read as one choice of
+          three rather than as two controls. No word in front: a chip
+          names its own thing, and a label here would have to say two
+          different things at once ("show" the filter, "view" the
+          layout) or lie about one of them. */}
+      <View className="flex-row flex-wrap items-center justify-between gap-3">
+        {underway ? (
+          <ChipToggle
+            label="Past events"
+            selected={showPast}
+            onPress={() => update(trip.id, { showPast: !showPast })}
+          />
         ) : null}
+        <View className="flex-row items-center gap-3">
+          {LAYOUTS.map((option) => (
+            <ChipToggle
+              key={option.value}
+              label={option.label}
+              selected={layout === option.value}
+              onPress={() => update(trip.id, { layout: option.value })}
+            />
+          ))}
+        </View>
       </View>
 
       {cards ? (
         <>
           {staysStatus === "loading" ? (
-            <LoadingBlock label="Loading stays" />
+            <LoadingBlock label="Getting the stays" />
           ) : staysStatus === "offline" ? (
             <OfflineBlock onRetry={retryStays} />
           ) : staysStatus === "error" ? (
@@ -150,19 +203,26 @@ export function Itinerary({
               onRetry={retryStays}
             />
           ) : stays.length > 0 ? (
-            <Grid>
-              {stays.map((stay) => (
-                <StayCard
-                  key={stay.id}
-                  stay={stay}
-                  timeZone={timeZone}
-                  onPress={() => openStay(stay.id)}
-                />
-              ))}
-            </Grid>
+            // A heading of the run's own, in the days' own face: the
+            // roofs are the first block of it, not a preamble to it.
+            <View className="gap-6 border-t border-ink pt-6">
+              <Text className="font-display text-xl uppercase leading-none text-ink">
+                Stays
+              </Text>
+              <Grid>
+                {stays.map((stay) => (
+                  <StayCard
+                    key={stay.id}
+                    stay={stay}
+                    timeZone={timeZone}
+                    onPress={() => openStay(stay.id)}
+                  />
+                ))}
+              </Grid>
+            </View>
           ) : null}
           {eventsStatus === "loading" ? (
-            <LoadingBlock label="Loading the run" />
+            <LoadingBlock label="Getting the run" />
           ) : eventsStatus === "offline" ? (
             <OfflineBlock onRetry={retryEvents} />
           ) : eventsStatus === "error" ? (
@@ -202,7 +262,7 @@ export function Itinerary({
         // it separates it from the day before.
         <View className="border-t border-ink">
           {staysStatus === "loading" ? (
-            <LoadingBlock label="Loading stays" />
+            <LoadingBlock label="Getting the stays" />
           ) : staysStatus === "offline" ? (
             <OfflineBlock onRetry={retryStays} />
           ) : staysStatus === "error" ? (
@@ -210,18 +270,25 @@ export function Itinerary({
               message="Couldn't load the stays"
               onRetry={retryStays}
             />
-          ) : (
-            stays.map((stay) => (
-              <StayRow
-                key={stay.id}
-                stay={stay}
-                timeZone={timeZone}
-                onPress={() => openStay(stay.id)}
-              />
-            ))
-          )}
+          ) : stays.length > 0 ? (
+            // The table's first heading is the roofs, in the same face
+            // as the days below it: the run opens with where you sleep.
+            <View className="pt-6">
+              <Text className="pb-3 font-display text-xl uppercase leading-none text-ink">
+                Stays
+              </Text>
+              {stays.map((stay) => (
+                <StayRow
+                  key={stay.id}
+                  stay={stay}
+                  timeZone={timeZone}
+                  onPress={() => openStay(stay.id)}
+                />
+              ))}
+            </View>
+          ) : null}
           {eventsStatus === "loading" ? (
-            <LoadingBlock label="Loading the run" />
+            <LoadingBlock label="Getting the run" />
           ) : eventsStatus === "offline" ? (
             <OfflineBlock onRetry={retryEvents} />
           ) : eventsStatus === "error" ? (
@@ -235,8 +302,11 @@ export function Itinerary({
                 key={day.date}
                 // The heading needs air under the rule; a day break then
                 // has to be roomier than a row break, or the two read the
-                // same.
-                className={index === 0 ? "pt-6" : "pt-10"}
+                // same. A day following the stays is a block break too,
+                // so it takes the roomy one either way the run opens.
+                className={
+                  index === 0 && stays.length === 0 ? "pt-6" : "pt-10"
+                }
               >
                 <Text className="pb-3 font-display text-xl uppercase leading-none text-ink">
                   {dayLabel(day.date, today)}
@@ -258,10 +328,12 @@ export function Itinerary({
       {/* Empty is two different states, and they used to share one line
           of copy: a trip with nothing on it yet, and a trip whose days
           have all been and gone. The first is an invitation, the second
-          is a hint about a setting. The ways in are in the head, so
-          neither block repeats them. Only once both reads have
-          landed: while either loads or fails its section above owns
-          the copy, and an empty read before arrival would flash. */}
+          is a hint about a setting. The ways in are in the action block
+          at the top of the page, so the organizer's line names them
+          rather than repeating them as controls a second time. Only once
+          both reads have landed: while either loads or fails its section
+          above owns the copy, and an empty read before arrival would
+          flash. */}
       {eventsStatus !== "success" || staysStatus !== "success" ? null : days.length === 0 &&
         stays.length === 0 ? (
         <View className="gap-1 border-t border-ink pt-6">
@@ -270,7 +342,7 @@ export function Itinerary({
           </Text>
           <Text className="font-body text-base text-ink">
             {organizer
-              ? "Start with the first event, or add where you're sleeping."
+              ? "Add event and Add stay are at the top of the trip."
               : "Nothing has been added to this trip yet."}
           </Text>
         </View>
@@ -280,7 +352,8 @@ export function Itinerary({
             Nothing ahead
           </Text>
           <Text className="font-body text-base text-ink">
-            This trip is behind you. Turn on Past events to read it.
+            Everything on this trip has already happened. Turn on Past
+            events to read it.
           </Text>
         </View>
       ) : null}

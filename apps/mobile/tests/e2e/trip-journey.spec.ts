@@ -148,13 +148,12 @@ test.describe("Trip Journey", () => {
       await expect(page.getByText(tripName).last()).toBeVisible({
         timeout: ELEMENT_TIMEOUT,
       });
-      // components/trip/Itinerary.tsx: the section head labels the
-      // block "Itinerary", which proves the sections rendered. No
-      // empty-copy assertion: itinerary sections are still mock-backed
-      // (Phase 6), and mocks/events.ts generates per-trip events for
-      // any real id — "Nothing planned yet" only renders for the
-      // lab's UNPLANNED_TRIP_ID, never for a created trip.
-      await expect(page.getByText("Itinerary")).toBeVisible();
+      // components/trip/Itinerary.tsx: the run has no section head any
+      // more — its structure is its own display headings (STAYS, then
+      // the days) — so a trip that was just created proves the block
+      // rendered by its empty state: no events and no roofs. Both reads
+      // are server-backed now, so a fresh trip is genuinely empty here.
+      await expect(page.getByText("Nothing planned yet")).toBeVisible();
       // app/trips/detail.tsx: the trip creator is the organizer
       // server-side, so the organizer action group (Button titled
       // "Edit trip") renders with no toggle.

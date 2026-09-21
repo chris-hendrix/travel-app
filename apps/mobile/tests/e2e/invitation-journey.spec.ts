@@ -348,9 +348,15 @@ test.describe("Invitation Journey", () => {
       await expect(page.getByText(tripName).last()).toBeVisible({
         timeout: NAVIGATION_TIMEOUT,
       });
-      // components/trip/Itinerary.tsx: the section head labels the
-      // block "Itinerary", proving the sections rendered.
-      await expect(page.getByText("Itinerary")).toBeVisible();
+      // components/trip/RunLocked.tsx: the guest has not answered the
+      // RSVP, and the API reads full trip data only to members who are
+      // going (`canViewFullTrip`, 403 PREVIEW_ACCESS_ONLY for the rest),
+      // so the trip page renders the locked state in place of the run.
+      // Asserting it proves the screen mounted and that the server's rule
+      // is honoured rather than shown as a failed section.
+      await expect(
+        page.getByText("The run opens when you are going"),
+      ).toBeVisible();
     });
   });
 

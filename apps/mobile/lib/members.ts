@@ -46,7 +46,7 @@ export function visiblePhone(
 }
 
 /**
- * Who "you" are: the roster row whose account matches the signed-in
+ * Who you are: the roster row whose account matches the signed-in
  * user. The role comes from the server that way — `isOrganizer` on
  * your own row — never from a query param.
  */
@@ -56,4 +56,17 @@ export function viewerOf(
 ): Member | null {
   if (!userId) return null;
   return members.find((member) => member.userId === userId) ?? null;
+}
+
+/**
+ * Who the trip is waiting on: the members who said they are going.
+ *
+ * One answer rather than one per surface, because two surfaces ask it —
+ * the travel board, whose rows are this roster plus whoever filed, and
+ * the trip page's Add travel, which stays while anybody in this set
+ * still owes a time. A member who has not answered, or answered no, is
+ * not somebody whose flights the trip is holding a seat on.
+ */
+export function goingMembers(members: Member[]): Member[] {
+  return members.filter((member) => member.status === "going");
 }

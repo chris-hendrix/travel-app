@@ -18,8 +18,8 @@ import {
 /** Whose clock the times are read on. */
 export type Clock = "trip" | "device";
 
-/** How the days are laid out. */
-export type Layout = "cards" | "list";
+/** How the days are laid out: a grid of cards, or a list of rows. */
+export type Layout = "grid" | "list";
 
 /**
  * What one person has decided about one trip. Not the trip's own
@@ -27,9 +27,10 @@ export type Layout = "cards" | "list";
  * trip. These are yours, which is why every member has them.
  *
  * The notification pair is the server's own `notification_preferences`,
- * which is per user per trip and both true until turned off. It is why
- * this dialog is called Itinerary settings: the daily digest and the
- * message alerts are both about the itinerary.
+ * which is per user per trip and both true until turned off. They stay
+ * in Trip settings, with phone sharing and the calendar; the run's own
+ * two switches — past events, and grid or list — live on the run itself,
+ * because they change what is in front of you as you flip them.
  */
 export type TripSettings = {
   showPast: boolean;
@@ -74,7 +75,11 @@ const TripSettingsContext = createContext<TripSettingsValue | null>(null);
  * Defaults are a decision, not a blank: a trip you are still on opens on
  * today with its past out of the way, and a trip that is over opens with
  * everything showing, because a finished itinerary with the past hidden
- * is a blank page.
+ * is a blank page. It opens as a list, because a run is a schedule you
+ * read rather than a gallery you browse: a card is most of a phone
+ * screen per thing, where a row keeps the photo at 56 points, shows the
+ * clock, and fits five where the grid fits one. The grid is a chip away
+ * for anyone who came to look at the pictures.
  */
 export function TripSettingsProvider({ children }: { children: ReactNode }) {
   const [byTrip, setByTrip] = useState<Record<string, Partial<TripSettings>>>(
@@ -160,7 +165,7 @@ export function TripSettingsProvider({ children }: { children: ReactNode }) {
           todayIn(trip.preferredTimezone, now),
         ),
         clock: byTrip[trip.id]?.clock ?? "trip",
-        layout: byTrip[trip.id]?.layout ?? "cards",
+        layout: byTrip[trip.id]?.layout ?? "list",
         dailyItinerary: byTrip[trip.id]?.dailyItinerary ?? true,
         tripMessages: byTrip[trip.id]?.tripMessages ?? true,
         sharePhone: byTrip[trip.id]?.sharePhone ?? false,

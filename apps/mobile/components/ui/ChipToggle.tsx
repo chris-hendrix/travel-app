@@ -1,19 +1,28 @@
-import { Pressable } from "react-native";
-import { Badge } from "@/components/ui/Badge";
+import { Pressable, Text } from "react-native";
 
 /**
- * A filter you can press.
+ * A filter you can press: a box, inked when on and outlined when off.
  *
- * The reference's device, borrowed: pills in a row, filled ink when on
- * and outlined when off, with one plain word in front saying what the
- * row is choosing between. It replaces the bordered cells that were
- * here for two reasons — a row of chips reads as one control family
- * with the badges already on the cards, and a pill says "press me"
- * without needing a box around the whole thing.
+ * It was a pill, to sit in the same family as the badges already on the
+ * cards. That is now the bug rather than the feature: a badge says what
+ * a thing *is* (Food, Stay, sold out, a countdown), a chip says what you
+ * have *chosen* to see, and the run's own head puts the two in one view
+ * — a filled chip reads exactly like a filled badge, so a reader has to
+ * press a pill to find out whether it does anything. The shape is the
+ * distinction this system already uses everywhere else, so the chip
+ * borrows the right thing this time: boxes are controls (a button, a
+ * segmented cell, this), pills are labels.
+ *
+ * Square corners and the label at the button size, because that is what
+ * makes it read as a control rather than as a tag. It stays compact —
+ * the run's head carries two of these groups above its first heading —
+ * so it is smaller than a button rather than a button.
  *
  * A single pressable chip, not a group: several of these in a row can
  * be independent (a filter) or exclusive (a choice), and the caller
- * knows which.
+ * knows which. Independent filters are the common case; a choice among
+ * visible options is `Segmented`, which draws the chosen cell in ink and
+ * says `role="radio"` while it does it.
  */
 export function ChipToggle({
   label,
@@ -29,9 +38,15 @@ export function ChipToggle({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected }}
-      className="cursor-pointer"
+      className={`cursor-pointer border border-ink px-3 py-2 ${
+        selected ? "bg-ink" : ""
+      }`}
     >
-      <Badge label={label} variant={selected ? "category" : "outline"} />
+      <Text
+        className={`font-body-bold text-sm ${selected ? "text-sand" : "text-ink"}`}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }

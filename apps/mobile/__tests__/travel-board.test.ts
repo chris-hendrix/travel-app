@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MockTravel } from "@/mocks/travel";
-import { travelBoard } from "@/lib/travelBoard";
+import { anyTravelOwed, travelBoard } from "@/lib/travelBoard";
 
 /**
  * A record in the API's own shape: both ends exist as columns and the
@@ -142,5 +142,53 @@ describe("travelBoard", () => {
     );
 
     expect(board.arrivals).toHaveLength(2);
+  });
+});
+
+describe("anyTravelOwed", () => {
+  it("is true while a travelling member owes a direction", () => {
+    const records = [
+      // Ana has both ends; Bo has filed only an arrival; nobody has filed
+      // anything for Cleo.
+      record({ id: "ana-arrival", memberName: "Ana", time: "2026-09-18T15:40:00" }),
+      record({
+        id: "ana-departure",
+        memberId: "ana-arrival",
+        memberName: "Ana",
+        travelType: "departure",
+        time: "2026-09-25T11:00:00",
+      }),
+      record({ id: "bo-arrival", memberName: "Bo", time: "2026-09-18T16:10:00" }),
+    ];
+    const going = [
+      { id: "ana-arrival", name: "Ana" },
+      { id: "bo-arrival", name: "Bo" },
+      { id: "cleo", name: "Cleo" },
+    ];
+
+    expect(anyTravelOwed(records, going)).toBe(true);
+  });
+
+  it("is false when every travelling member has both ends", () => {
+    const records = [
+      record({ id: "ana-arrival", memberName: "Ana", time: "2026-09-18T15:40:00" }),
+      record({
+        id: "ana-departure",
+        memberId: "ana-arrival",
+        memberName: "Ana",
+        travelType: "departure",
+        time: "2026-09-25T11:00:00",
+      }),
+    ];
+
+    expect(anyTravelOwed(records, [{ id: "ana-arrival", name: "Ana" }])).toBe(
+      false,
+    );
+  });
+
+  it("counts nobody who is not on the travelling roster", () => {
+    // The roster is the set: a member who is not going never owes a time,
+    // and a trip with no travellers is not waiting on anybody.
+    expect(anyTravelOwed([], [])).toBe(false);
   });
 });
