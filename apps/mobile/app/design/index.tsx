@@ -387,7 +387,7 @@ function DesignSystemScreen() {
             <Specimen
               name="LoadingBlock"
               contract="label"
-              note="A screen that is getting there says so where its content will be. A plain line, not a spinner and not a skeleton: there is no motion language here, and a skeleton promises a shape the request has not returned yet. The label is what is loading, never a bare Loading on its own."
+              note="A screen that is getting there says so where its content will be. A plain line, not a spinner and not a skeleton: there is no motion language here, and a skeleton promises a shape the request has not returned yet. The label is what is loading, never a bare Loading on its own — and verb-led, never a bare noun: a noun that names the screen (Trip details) reads as a broken heading while it loads, where Loading trip details reads as waiting."
             >
               <LoadingBlock label="Loading the itinerary." />
             </Specimen>
