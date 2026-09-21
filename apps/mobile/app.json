@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Journiful",
+    "slug": "journiful-mobile",
+    "scheme": "journiful",
+    "userInterfaceStyle": "automatic",
+    "web": {
+      "output": "static",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-splash-screen",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Journiful uses your photos so you can choose a profile picture.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      "expo-secure-store"
+    ]
+  }
+}

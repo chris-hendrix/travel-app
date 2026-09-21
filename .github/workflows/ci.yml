@@ -24,6 +24,7 @@ jobs:
     outputs:
       api: ${{ steps.filter.outputs.api }}
       web: ${{ steps.filter.outputs.web }}
+      mobile: ${{ steps.filter.outputs.mobile }}
       shared: ${{ steps.filter.outputs.shared }}
       devcontainer: ${{ steps.filter.outputs.devcontainer }}
     steps:
@@ -37,6 +38,8 @@ jobs:
               - 'apps/api/**'
             web:
               - 'apps/web/**'
+            mobile:
+              - 'apps/mobile/**'
             shared:
               - 'package.json'
               - 'pnpm-lock.yaml'
@@ -108,6 +111,42 @@ jobs:
 
       - name: Validate devcontainer config
         run: bash .github/scripts/test-devcontainer.test.sh
+
+  # Step 2c: Mobile checks
+  mobile-checks:
+    name: Mobile Checks
+    runs-on: ubuntu-latest
+    needs: changes
+    if: |
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/master' ||
+      needs.changes.outputs.mobile == 'true'
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Turbo
+        uses: actions/cache@v6
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
+      - name: Lint, typecheck and test (mobile)
+        run: pnpm turbo lint typecheck test --filter=@journiful/mobile
+
+      - name: Expo doctor
+        run: pnpm --filter @journiful/mobile exec expo-doctor
 
   # Step 3: Unit Tests (API)
   unit-tests:

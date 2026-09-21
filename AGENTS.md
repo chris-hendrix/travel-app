@@ -4,11 +4,31 @@
 
 Journiful is a collaborative trip planning platform. Monorepo managed with pnpm + Turbo:
 
-- `apps/api` — Fastify 5 REST API, PostgreSQL 16 via Drizzle ORM, JWT auth. Pattern: `buildApp` factory, route → controller → service.
-- `apps/web` — Next.js 16 App Router, React 19, Tailwind CSS 4, shadcn/ui. Wraps into a native Android app via Capacitor 8 static export. Pattern: App Router pages with TanStack Query for server state.
+- `apps/mobile` — Expo 57. **The product is moving here.** Today it is a design mockup: in-memory stores, one real network call (the flight lookup), no backend wiring. Lane rules live in `apps/mobile/AGENTS.md`.
+- `apps/api` — Fastify 5 REST API, PostgreSQL 16 via Drizzle ORM, JWT auth. Pattern: `buildApp` factory, route → controller → service. The backend for both surfaces.
+- `apps/web` — Next.js 16 App Router, React 19, Tailwind CSS 4, shadcn/ui. Wraps into a native Android app via Capacitor 8 static export. Pattern: App Router pages with TanStack Query for server state. **Being deprecated** — see Direction below.
 - `shared` — Cross-cutting types, Zod schemas, and pure utilities consumed by both apps.
 
-Design system: **Vivid Capri** (Mediterranean aesthetic). Tokens live in `apps/web/src/app/globals.css`.
+Design system: **Vivid Capri** (Mediterranean aesthetic). The source of truth is `apps/mobile`: its tokens in `global.css`, its components, and the lab at `/design` that documents them. `apps/web/src/app/globals.css` carries the web app's own tokens, which go with the web app.
+
+### Direction — the product is moving from the web app to the Expo app
+
+Stated up front because it decides where work goes, and it is easy to infer the opposite from the repo as it stands:
+
+| | Today | Where it is going |
+| --- | --- | --- |
+| `apps/mobile` | design mockup, in-memory data | the product; backend wiring in progress |
+| `apps/web` | the shipped web app, and through Capacitor the shipped Android app | deprecated |
+| `apps/api` | the backend | unchanged; both surfaces talk to it |
+| `shared` | cross-cutting types and schemas | unchanged |
+
+Until the cutover is planned, this means:
+
+- **New product work goes in `apps/mobile`.** A change to `apps/web` should be a bug fix, a security or compliance fix, or something that keeps the current release working.
+- **`apps/web` is not migrated feature by feature.** The wiring order is the order the screens were designed in, and it wants a plan of its own.
+- **The Capacitor pipeline is frozen, not dead.** `make cap-*` is how the current APK ships and keeps working until the Expo app is on the store.
+- **`make build-mobile` and `make cap-*` are `apps/web`, not `apps/mobile`.** The name is a trap: they build the Next.js static export for Capacitor.
+- **The cutover is not planned.** Where the marketing site, the web PWA and desktop sign-in end up is an open question rather than a decision — do not infer one from this section.
 
 ## WHY
 
@@ -30,10 +50,11 @@ pnpm docker:up        # Start PostgreSQL + MinIO
 # Development (host)
 make migrate          # Run pending migrations (after git pull with schema changes)
 make dev              # Start both servers (web:3000, api:8000)
+make mockup           # The design mockup in a browser (design system at /design)
 pnpm dev:web          # Frontend only
 pnpm dev:api          # Backend only
 
-# Mobile / Capacitor (host)
+# Mobile / Capacitor (host) — this is apps/web shipped as an APK, not apps/mobile
 make cap-apk                  # Full pipeline: static export → cap sync → assembleDebug APK
 make cap-install              # Install APK on emulator + launch
 make cap-run                  # cap-apk + cap-install combined (requires live reload config)

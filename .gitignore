@@ -46,8 +46,17 @@ pnpm-debug.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Claude
+# Claude Code is deprecated for this repo. Kept as a guard: the skills CLI
+# recreates .claude/skills on install unless it is passed an explicit -a agent.
 .claude/
+
+# Agent skills installed by the skills CLI. Not source: the same set is
+# regenerated from the lockfile, which is written on every install.
+.agents/
+skills-lock.json
+
+# Pi-native skill/config location. Machine-local, same rationale as above.
+.pi/
 
 # IDEs
 .vscode/
@@ -62,6 +71,9 @@ Thumbs.db
 
 # Turbo
 .turbo/
+
+# Expo
+.expo/
 
 # Database
 *.db

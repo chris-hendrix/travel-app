@@ -1,4 +1,4 @@
-.PHONY: help install dev dev-web dev-api build-mobile android-setup adb-reverse cap-dev cap-run cap-apk cap-install cap-logs cap-crash pwa migrate seed studio generate up down clean reset-db test-up test-down test-exec test-run test-status test-setup test-clean test-static-smoke
+.PHONY: help install dev dev-web dev-api mockup build-mobile android-setup adb-reverse cap-dev cap-run cap-apk cap-install cap-logs cap-crash pwa migrate seed studio generate up down clean reset-db test-up test-down test-exec test-run test-status test-setup test-clean test-static-smoke
 
 .DEFAULT_GOAL := help
 
@@ -20,6 +20,22 @@ dev-web: ## Start web dev server only
 
 dev-api: ## Start API dev server only (with Docker)
 	pnpm dev:api
+
+# The design mockup is apps/mobile — not the Capacitor shell that build-mobile
+# produces. Two things about it are easy to get wrong, and both have cost real
+# time: it must run on the host (the devcontainer publishes only 3000 and 8000,
+# so a server started inside it is invisible to the browser), and it must be the
+# dev server (a static export compiles __DEV__ to false, and the lab's first
+# line redirects /design away in that build).
+mockup: ## Serve the design mockup on the host (design system at /design)
+	@cd apps/mobile && \
+		echo "" && \
+		echo "  mockup          http://localhost:8081" && \
+		echo "  design system   http://localhost:8081/design" && \
+		WSL_IP=$$(hostname -I 2>/dev/null | awk '{print $$1}'); \
+		if [ -n "$$WSL_IP" ]; then echo "  from Windows    http://$$WSL_IP:8081"; fi; \
+		echo ""
+	@cd apps/mobile && npx expo start --web --port 8081
 
 migrate: ## Run database migrations
 	cd apps/api && pnpm db:migrate

@@ -56,3 +56,6 @@ export {
   deriveDarkPaletteVariants,
   readableForeground,
 } from "./color-utils";
+
+export { TIMEZONES, getDetectedTimezone, getTimezoneAbbr, getTimezoneLabel } from "./timezones";
+export type { TimezoneOption } from "./timezones";
