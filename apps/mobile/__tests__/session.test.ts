@@ -55,7 +55,7 @@ describe("requestCode", () => {
     expect(mockedApiFetch).toHaveBeenCalledTimes(1);
     const [path, init] = mockedApiFetch.mock.calls[0] as [
       string,
-      RequestInit | undefined,
+      NonNullable<Parameters<typeof fetch>[1]> | undefined,
     ];
     expect(path).toBe("/auth/request-code");
     expect(init).toMatchObject({ method: "POST" });

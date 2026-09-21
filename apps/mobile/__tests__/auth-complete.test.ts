@@ -55,7 +55,7 @@ describe("completeProfile", () => {
     expect(mockedApiFetch).toHaveBeenCalledTimes(2);
     const [postPath, postInit] = mockedApiFetch.mock.calls[0] as [
       string,
-      RequestInit | undefined,
+      NonNullable<Parameters<typeof fetch>[1]> | undefined,
     ];
     expect(postPath).toBe("/auth/complete-profile");
     expect(postInit).toMatchObject({ method: "POST" });

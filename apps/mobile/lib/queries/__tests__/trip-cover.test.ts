@@ -105,7 +105,7 @@ describe("uploadCover", () => {
     expect(mockedApiFetch).toHaveBeenCalledTimes(1);
     const [path, init] = mockedApiFetch.mock.calls[0] as [
       string,
-      RequestInit,
+      NonNullable<Parameters<typeof fetch>[1]>,
     ];
     expect(path).toBe("/trips/trip-1/cover-image");
     expect(init.method).toBe("POST");
