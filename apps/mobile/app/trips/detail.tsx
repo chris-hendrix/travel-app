@@ -109,9 +109,9 @@ function TripDetailScreen() {
   // trip. A 404 from the query lands there too, via the gate above.
   // All of these are read before the guard: a hook called after a
   // return is a hook called a different number of times.
-  // The empty-plan nudge reads the live events section (same query the
-  // itinerary below suspends on — one cache, no second source). Stays
-  // still read their mock (Phase 6 Task 3 rewires those).
+  // The empty-plan nudge reads the live events and stays sections
+  // (same queries the itinerary below renders — one cache each, no
+  // second source).
   const { events } = useEventsSection(trip?.id);
   const { staysForTrip } = useStays();
   const { for: settingsFor } = useTripSettings();

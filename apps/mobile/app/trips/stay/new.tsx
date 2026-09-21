@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { useLocalSearchParams } from "expo-router";
 import { StayDialog } from "@/components/trip/StayDialog";
 import { buildStay } from "@/lib/newStay";
+import { toErrorCopy } from "@/lib/queries/errors";
 import { useTrip } from "@/lib/tripsStore";
 import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
@@ -32,6 +34,9 @@ function NewStayScreen() {
   const { for: settingsFor, update } = useTripSettings();
   const { addStay } = useStays();
   const dismiss = useDismiss("/trips");
+  // The last save's failure, fed to the dialog's InlineError. The
+  // dialog stays open on failure: dismissing would pretend it saved.
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const tripId = typeof id === "string" ? id : undefined;
   const { trip } = useTrip(tripId);
@@ -55,15 +60,24 @@ function NewStayScreen() {
       primaryTitle="Add stay"
       trip={trip}
       dismissHref={`/trips/detail?id=${trip.id}`}
+      serverError={serverError}
       onSubmit={(input) => {
         const stay = buildStay(
           input,
-          `stay-${Date.now()}`,
+          `custom-${Date.now()}`,
           timeZone,
           placePhoto(input.name),
         );
-        addStay(trip.id, stay);
-        dismiss();
+        // The built stay is the optimistic row (its custom id is
+        // the stand-in the store swaps the server stay in by).
+        setServerError(null);
+        void addStay(trip.id, stay).then(
+          () => dismiss(),
+          (error: unknown) =>
+            setServerError(
+              toErrorCopy(error).message ?? "Couldn't save the stay.",
+            ),
+        );
       }}
     />
   );

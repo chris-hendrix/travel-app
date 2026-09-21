@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Stack } from "expo-router";
 import { Text, View } from "react-native";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
+import { InlineError } from "@/components/ui/InlineError";
 import { TextField } from "@/components/ui/TextField";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { TimeField } from "@/components/ui/TimeField";
@@ -37,6 +38,7 @@ export function StayDialog({
   trip,
   dismissHref,
   initial,
+  serverError,
   onSubmit,
   onDelete,
 }: {
@@ -46,6 +48,8 @@ export function StayDialog({
   dismissHref: string;
   /** Prefill, for editing. Nothing means a blank form. */
   initial?: Partial<NewStayInput>;
+  /** The last save's or delete's failure. The dialog stays open on failure. */
+  serverError?: string | null;
   /** Handed an input that has already passed validation. */
   onSubmit: (input: NewStayInput) => void;
   /** Editing only. Soft, so it needs no confirmation step. */
@@ -94,6 +98,7 @@ export function StayDialog({
       dismissHref={dismissHref}
     >
       <Stack.Screen options={{ presentation: "modal" }} />
+      {serverError ? <InlineError message={serverError} /> : null}
       <Text className="font-body text-sm text-ink">{trip.title}</Text>
 
       <TextField

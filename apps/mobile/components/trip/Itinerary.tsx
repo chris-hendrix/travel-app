@@ -13,6 +13,7 @@ import { InlineError } from "@/components/ui/InlineError";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
 import { useStays } from "@/lib/staysStore";
+import { useStays as useStaysSection } from "@/lib/queries/stays";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { todayIn } from "@/lib/timezone";
@@ -73,12 +74,14 @@ export function Itinerary({
 }) {
   const router = useRouter();
   const { for: settingsFor, update } = useTripSettings();
-  // The events read is server state now (GET /trips/:tripId/events),
-  // explicit per section — the header above never blanks while it
-  // loads. Stays and travel still read their mocks (Phase 6 Tasks
-  // 3–4 rewire those), so only the events half below is query-backed.
+  // The events and stays reads are server state now (GET
+  // /trips/:tripId/events and /trips/:tripId/accommodations),
+  // explicit per section — the header above never blanks while they
+  // load, and one section's failure never blanks the other. Travel
+  // still reads its mock (Phase 6 Task 4 rewires that).
   const { events, status: eventsStatus, retry: retryEvents } =
     useEventsSection(trip.id);
+  const { status: staysStatus, retry: retryStays } = useStaysSection(trip.id);
   const { staysForTrip } = useStays();
   const { showPast, clock, layout } = settingsFor(trip, now);
 
@@ -141,7 +144,16 @@ export function Itinerary({
 
       {cards ? (
         <>
-          {stays.length > 0 ? (
+          {staysStatus === "loading" ? (
+            <LoadingBlock label="Stays" />
+          ) : staysStatus === "offline" ? (
+            <OfflineBlock onRetry={retryStays} />
+          ) : staysStatus === "error" ? (
+            <InlineError
+              message="Couldn't load the stays"
+              onRetry={retryStays}
+            />
+          ) : stays.length > 0 ? (
             <Grid>
               {stays.map((stay) => (
                 <StayCard
@@ -193,14 +205,25 @@ export function Itinerary({
         // boundary. The heading lumps a day together and the gap above
         // it separates it from the day before.
         <View className="border-t border-ink">
-          {stays.map((stay) => (
-            <StayRow
-              key={stay.id}
-              stay={stay}
-              timeZone={timeZone}
-              onPress={() => openStay(stay.id)}
+          {staysStatus === "loading" ? (
+            <LoadingBlock label="Stays" />
+          ) : staysStatus === "offline" ? (
+            <OfflineBlock onRetry={retryStays} />
+          ) : staysStatus === "error" ? (
+            <InlineError
+              message="Couldn't load the stays"
+              onRetry={retryStays}
             />
-          ))}
+          ) : (
+            stays.map((stay) => (
+              <StayRow
+                key={stay.id}
+                stay={stay}
+                timeZone={timeZone}
+                onPress={() => openStay(stay.id)}
+              />
+            ))
+          )}
           {eventsStatus === "loading" ? (
             <LoadingBlock label="The run" />
           ) : eventsStatus === "offline" ? (
@@ -240,10 +263,11 @@ export function Itinerary({
           of copy: a trip with nothing on it yet, and a trip whose days
           have all been and gone. The first is an invitation, the second
           is a hint about a setting. The ways in are in the head, so
-          neither block repeats them. Only once the events read has
-          landed: while it loads or fails the section above owns the
-          copy, and an empty read before arrival would flash. */}
-      {eventsStatus !== "success" ? null : days.length === 0 ? (
+          neither block repeats them. Only once both reads have
+          landed: while either loads or fails its section above owns
+          the copy, and an empty read before arrival would flash. */}
+      {eventsStatus !== "success" || staysStatus !== "success" ? null : days.length === 0 &&
+        stays.length === 0 ? (
         <View className="gap-1 border-t border-ink pt-6">
           <Text className="font-display text-xl uppercase leading-none text-ink">
             Nothing planned yet
