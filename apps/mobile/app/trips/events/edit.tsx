@@ -18,7 +18,7 @@ import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { useEvents } from "@/lib/eventsStore";
 import { useDismiss } from "@/hooks/useDismiss";
-import { placePhoto } from "@/mocks/events";
+import { placeholderPhoto } from "@/lib/placeholder";
 
 /**
  * Edit event — the same form as Add event, prefilled and one verb
@@ -135,7 +135,7 @@ function EditEventScreen() {
           timeZone,
           event.place === input.place
             ? event.image
-            : placePhoto(input.place),
+            : placeholderPhoto(input.place),
         );
         setServerError(null);
         void updateEvent(trip.id, event.id, next).then(

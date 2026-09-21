@@ -26,14 +26,10 @@ import type {
   User,
 } from "@journiful/shared/types";
 
-// TODO(phase-6): move into lib/placeholder.ts. Phase 6 Task 5 relocates
-// this helper without changing call sites; until then it lives here so
-// the mapping stays pure and node-importable.
-/** Deterministic stand-in photo for a seed (trip, event, or stay id). */
-export function placeholderPhoto(seed: string): string {
-  const slug = seed.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-  return `https://picsum.photos/seed/${slug}/900/450`;
-}
+import { placeholderPhoto } from "@/lib/placeholder";
+// Re-exported so existing `placeholderPhoto` call sites keep working;
+// new code should import from `@/lib/placeholder` directly.
+export { placeholderPhoto };
 
 /** The API hands back `Date`s; the wire hands back ISO strings. */
 function iso(value: Date | string): string {

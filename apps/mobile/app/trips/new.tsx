@@ -90,6 +90,7 @@ export default function NewTrip() {
         error={errors.title}
       />
 
+      {/* TODO(BE): `GET /api/locations/autocomplete` and `/details` do not request `photos[].name` (field masks at `location.routes.ts:88-130`, `:178`), so a picked place has no image reference even though `/locations/photos/:photoRef` exists. */}
       <Dropdown
         label="Where"
         options={PLACES}

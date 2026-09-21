@@ -10,7 +10,7 @@ import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { useStays } from "@/lib/staysStore";
 import { useDismiss } from "@/hooks/useDismiss";
-import { placePhoto } from "@/mocks/events";
+import { placeholderPhoto } from "@/lib/placeholder";
 
 /**
  * Add stay — the organizer's way onto the run's opening row. Every
@@ -66,7 +66,7 @@ function NewStayScreen() {
           input,
           `custom-${Date.now()}`,
           timeZone,
-          placePhoto(input.name),
+          placeholderPhoto(input.name),
         );
         // The built stay is the optimistic row (its custom id is
         // the stand-in the store swaps the server stay in by).

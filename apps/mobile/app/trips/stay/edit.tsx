@@ -14,7 +14,7 @@ import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { useStays } from "@/lib/staysStore";
 import { useDismiss } from "@/hooks/useDismiss";
-import { placePhoto } from "@/mocks/events";
+import { placeholderPhoto } from "@/lib/placeholder";
 
 /**
  * Edit stay — the same form as Add stay, prefilled and one verb changed.
@@ -120,7 +120,7 @@ function EditStayScreen() {
           timeZone,
           stay.address === input.address
             ? stay.image
-            : placePhoto(input.name),
+            : placeholderPhoto(input.name),
           stay.links,
         );
         setServerError(null);
