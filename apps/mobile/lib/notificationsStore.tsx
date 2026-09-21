@@ -92,6 +92,13 @@ export function NotificationsProvider({
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: notificationKeys.list() });
+      // The header bell reads the server count
+      // (`unreadCountOptions`), not the list rows — so the count key
+      // must invalidate alongside the list, or the badge goes stale
+      // while the center is fresh.
+      queryClient.invalidateQueries({
+        queryKey: notificationKeys.unreadCount(),
+      });
     },
   });
 
@@ -124,6 +131,11 @@ export function NotificationsProvider({
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: notificationKeys.list() });
+      // Same server-count badge as the single read: invalidate the
+      // count key alongside the list.
+      queryClient.invalidateQueries({
+        queryKey: notificationKeys.unreadCount(),
+      });
     },
   });
 

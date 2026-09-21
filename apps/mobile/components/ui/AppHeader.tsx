@@ -3,7 +3,8 @@ import { Pressable, Text, View } from "react-native";
 import { Link } from "expo-router";
 import { Bell, User, X } from "lucide-react-native";
 import Svg, { Defs, Path, Pattern, Rect } from "react-native-svg";
-import { useNotifications } from "@/lib/notificationsStore";
+import { useQuery } from "@tanstack/react-query";
+import { unreadCountOptions } from "@/lib/queries/notifications";
 import { useZoneToken } from "@/lib/displayZone";
 import { INK, SAND } from "@/lib/theme";
 
@@ -86,7 +87,15 @@ function ZoneToken({ onInk = false }: { onInk?: boolean }) {
 }
 
 function BellButton() {
-  const { unreadCount } = useNotifications();
+  // Server-count badge (`GET /notifications/unread-count`). Explicit
+  // state on purpose: this header renders OUTSIDE the layout's
+  // `<Suspense>` (which wraps only `<Stack>` in `app/_layout.tsx`),
+  // so a suspending read (`useSuspenseQuery`) would crash the chrome.
+  // While loading the badge shows nothing; a failed count never
+  // paints an error state in the header — the last known count (or
+  // nothing) stays.
+  const { data } = useQuery(unreadCountOptions());
+  const unreadCount = data ?? 0;
 
   return (
     <Link href="/notifications" asChild>

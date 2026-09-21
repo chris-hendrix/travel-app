@@ -2,7 +2,7 @@ import { mutationOptions, queryOptions } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import { toNotification } from "@/lib/mapping";
 import type { Notification } from "@/lib/notifications";
-import type { GetNotificationsResponse } from "@journiful/shared/types";
+import type { GetNotificationsResponse, GetUnreadCountResponse } from "@journiful/shared/types";
 
 /**
  * Inline mirror of `successResponseSchema`
@@ -16,10 +16,11 @@ export type MarkReadResponse = {
   success: true;
 };
 
-/** Key factory for the notifications domain: `all` / `list`. */
+/** Key factory for the notifications domain: `all` / `list` / `unreadCount`. */
 export const notificationKeys = {
   all: ["notifications"] as const,
   list: () => [...notificationKeys.all, "list"] as const,
+  unreadCount: () => [...notificationKeys.all, "unread-count"] as const,
 };
 
 /**
@@ -41,6 +42,28 @@ export const notificationsListOptions = () =>
     queryFn: async (): Promise<Notification[]> =>
       (await apiFetch<GetNotificationsResponse>("/notifications"))
         .notifications.map(toNotification),
+  });
+
+/**
+ * Unread-count query: `GET /notifications/unread-count`
+ * (`apps/api/src/routes/notification.routes.ts:88`, response
+ * `unreadCountResponseSchema` in `shared/schemas/notification.ts:50`:
+ * `{success: true, count}` — the wire field is `count`, and the
+ * queryFn unwraps it to a plain number).
+ *
+ * No `staleTime` is set on purpose: the app-wide default
+ * (`staleTime: 30_000` in `lib/queries/client.ts`) is what makes the
+ * `AppState` → `focusManager` foreground refetch in `app/_layout.tsx`
+ * actually fire — a count older than 30s refetches on foreground
+ * automatically. A longer `staleTime` here would silently stop the
+ * badge refreshing, so do not add one.
+ */
+export const unreadCountOptions = () =>
+  queryOptions({
+    queryKey: notificationKeys.unreadCount(),
+    queryFn: async (): Promise<number> =>
+      (await apiFetch<GetUnreadCountResponse>("/notifications/unread-count"))
+        .count,
   });
 
 /**
