@@ -7,11 +7,14 @@ import { StayRow } from "@/components/trip/StayRow";
 import { Button } from "@/components/ui/Button";
 import { Grid } from "@/components/ui/Grid";
 import type { Trip } from "@/components/trip/TripCard";
-import { dayLabel, daysFrom, groupEventsByDay } from "@/lib/itinerary";
+import { dayLabel, daysFrom, groupEventsByDay, liveEvents } from "@/lib/itinerary";
+import { useEvents as useEventsSection } from "@/lib/queries/events";
+import { InlineError } from "@/components/ui/InlineError";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
+import { OfflineBlock } from "@/components/ui/OfflineBlock";
 import { useStays } from "@/lib/staysStore";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
-import { useEvents } from "@/lib/eventsStore";
 import { todayIn } from "@/lib/timezone";
 
 /**
@@ -70,7 +73,12 @@ export function Itinerary({
 }) {
   const router = useRouter();
   const { for: settingsFor, update } = useTripSettings();
-  const { eventsForTrip } = useEvents();
+  // The events read is server state now (GET /trips/:tripId/events),
+  // explicit per section — the header above never blanks while it
+  // loads. Stays and travel still read their mocks (Phase 6 Tasks
+  // 3–4 rewire those), so only the events half below is query-backed.
+  const { events, status: eventsStatus, retry: retryEvents } =
+    useEventsSection(trip.id);
   const { staysForTrip } = useStays();
   const { showPast, clock, layout } = settingsFor(trip, now);
 
@@ -95,7 +103,7 @@ export function Itinerary({
   useDisplayZone(zoneFor(trip, clock, update));
   const today = todayIn(timeZone, now);
 
-  const days = groupEventsByDay(eventsForTrip(trip), timeZone);
+  const days = groupEventsByDay(liveEvents(events), timeZone);
   // With the past on, the trip reads as one run from its first day to
   // its last; with it off, it starts at today.
   const shown = showPast ? days : daysFrom(days, today);
@@ -145,25 +153,39 @@ export function Itinerary({
               ))}
             </Grid>
           ) : null}
-          <View className="gap-8">
-            {shown.map((day) => (
-              <View key={day.date} className="gap-6 border-t border-ink pt-6">
-                <Text className="font-display text-xl uppercase leading-none text-ink">
-                  {dayLabel(day.date, today)}
-                </Text>
-                <Grid>
-                  {day.events.map((event) => (
-                    <EventCard
-                      key={event.id}
-                      event={event}
-                      timeZone={timeZone}
-                      onPress={() => openEvent(event.id)}
-                    />
-                  ))}
-                </Grid>
-              </View>
-            ))}
-          </View>
+          {eventsStatus === "loading" ? (
+            <LoadingBlock label="The run" />
+          ) : eventsStatus === "offline" ? (
+            <OfflineBlock onRetry={retryEvents} />
+          ) : eventsStatus === "error" ? (
+            <InlineError
+              message="Couldn't load the run"
+              onRetry={retryEvents}
+            />
+          ) : (
+            <View className="gap-8">
+              {shown.map((day) => (
+                <View
+                  key={day.date}
+                  className="gap-6 border-t border-ink pt-6"
+                >
+                  <Text className="font-display text-xl uppercase leading-none text-ink">
+                    {dayLabel(day.date, today)}
+                  </Text>
+                  <Grid>
+                    {day.events.map((event) => (
+                      <EventCard
+                        key={event.id}
+                        event={event}
+                        timeZone={timeZone}
+                        onPress={() => openEvent(event.id)}
+                      />
+                    ))}
+                  </Grid>
+                </View>
+              ))}
+            </View>
+          )}
         </>
       ) : (
         // One table for the whole itinerary, with the days inside it:
@@ -179,27 +201,38 @@ export function Itinerary({
               onPress={() => openStay(stay.id)}
             />
           ))}
-          {shown.map((day, index) => (
-            <View
-              key={day.date}
-              // The heading needs air under the rule; a day break then
-              // has to be roomier than a row break, or the two read the
-              // same.
-              className={index === 0 ? "pt-6" : "pt-10"}
-            >
-              <Text className="pb-3 font-display text-xl uppercase leading-none text-ink">
-                {dayLabel(day.date, today)}
-              </Text>
-              {day.events.map((event) => (
-                <EventRow
-                  key={event.id}
-                  event={event}
-                  timeZone={timeZone}
-                  onPress={() => openEvent(event.id)}
-                />
-              ))}
-            </View>
-          ))}
+          {eventsStatus === "loading" ? (
+            <LoadingBlock label="The run" />
+          ) : eventsStatus === "offline" ? (
+            <OfflineBlock onRetry={retryEvents} />
+          ) : eventsStatus === "error" ? (
+            <InlineError
+              message="Couldn't load the run"
+              onRetry={retryEvents}
+            />
+          ) : (
+            shown.map((day, index) => (
+              <View
+                key={day.date}
+                // The heading needs air under the rule; a day break then
+                // has to be roomier than a row break, or the two read the
+                // same.
+                className={index === 0 ? "pt-6" : "pt-10"}
+              >
+                <Text className="pb-3 font-display text-xl uppercase leading-none text-ink">
+                  {dayLabel(day.date, today)}
+                </Text>
+                {day.events.map((event) => (
+                  <EventRow
+                    key={event.id}
+                    event={event}
+                    timeZone={timeZone}
+                    onPress={() => openEvent(event.id)}
+                  />
+                ))}
+              </View>
+            ))
+          )}
         </View>
       )}
 
@@ -207,8 +240,10 @@ export function Itinerary({
           of copy: a trip with nothing on it yet, and a trip whose days
           have all been and gone. The first is an invitation, the second
           is a hint about a setting. The ways in are in the head, so
-          neither block repeats them. */}
-      {days.length === 0 ? (
+          neither block repeats them. Only once the events read has
+          landed: while it loads or fails the section above owns the
+          copy, and an empty read before arrival would flash. */}
+      {eventsStatus !== "success" ? null : days.length === 0 ? (
         <View className="gap-1 border-t border-ink pt-6">
           <Text className="font-display text-xl uppercase leading-none text-ink">
             Nothing planned yet

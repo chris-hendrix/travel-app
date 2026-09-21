@@ -19,7 +19,7 @@ import { setRsvpOptions } from "@/lib/queries/rsvp";
 import { TripGate } from "@/components/trip/TripGate";
 import { useTravel } from "@/lib/travelStore";
 import NotFound from "@/app/+not-found";
-import { useEvents } from "@/lib/eventsStore";
+import { useEvents as useEventsSection } from "@/lib/queries/events";
 import { useStays } from "@/lib/staysStore";
 import { currentStay } from "@/lib/stays";
 import { useTripSettings } from "@/lib/tripSettingsStore";
@@ -88,8 +88,10 @@ function TripDetailScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const tripId = typeof id === "string" ? id : undefined;
   // The header read is the screen gate: the trip comes from the
-  // detail query, suspended above. Sections still read their mocks;
-  // Phases 5–6 rewire those, so every section below stays as-is.
+  // detail query, suspended above. The events section reads the live
+  // query under the rendered header (its own loading/error states);
+  // stays and travel still read their mocks, so those sections below
+  // stay as-is.
   const { trip } = useTrip(tripId);
   const router = useRouter();
   const [variant, setVariant] = useState<Variant>("traveler");
@@ -107,7 +109,10 @@ function TripDetailScreen() {
   // trip. A 404 from the query lands there too, via the gate above.
   // All of these are read before the guard: a hook called after a
   // return is a hook called a different number of times.
-  const { eventsForTrip } = useEvents();
+  // The empty-plan nudge reads the live events section (same query the
+  // itinerary below suspends on — one cache, no second source). Stays
+  // still read their mock (Phase 6 Task 3 rewires those).
+  const { events } = useEventsSection(trip?.id);
   const { staysForTrip } = useStays();
   const { for: settingsFor } = useTripSettings();
   const { travelForTrip } = useTravel();
@@ -122,7 +127,7 @@ function TripDetailScreen() {
   // keeps a nudge only while there is nothing to look at — the same
   // bargain the travel nudge makes while you owe times.
   const planIsEmpty = trip
-    ? eventsForTrip(trip).length === 0 && staysForTrip(trip).length === 0
+    ? events.length === 0 && staysForTrip(trip).length === 0
     : false;
   // The roof the trip page knows about, so its fact row can open the
   // one screen that holds the wifi, the code and the address. The run
