@@ -3,11 +3,12 @@ import {
   useContext,
   useMemo,
   useState,
-  useSyncExternalStore,
   type ReactNode,
 } from "react";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import type { Trip } from "@/components/trip/TripCard";
 import { MockTripsSource, type TripsSource } from "@/lib/sources";
+import { tripKeys, tripsListOptions } from "@/lib/queries/trips";
 
 export type TripsData = {
   trips: Trip[];
@@ -24,6 +25,11 @@ export type TripsActions = {
  * `useSyncExternalStore` warns when the snapshot changes identity
  * without a store update. `getActions()` is created once and never
  * changes identity, so a screen that only writes never re-subscribes.
+ *
+ * Pre-query seam, kept for the `trips-source` unit test and the lab:
+ * the app's reads now come from `tripsListOptions` below, not from a
+ * source. Do not extend — Phase 8 deletes this once every store is
+ * query-backed.
  */
 export function createTripsStore(source: TripsSource) {
   const listeners = new Set<() => void>();
@@ -68,31 +74,44 @@ export function createTripsStore(source: TripsSource) {
 export type TripsStore = ReturnType<typeof createTripsStore>;
 
 const TripsActionsContext = createContext<TripsActions | null>(null);
-const TripsDataContext = createContext<TripsData | null>(null);
 
 /**
- * Trips data comes from the injected `source`, never a module-level
- * mock import. Defaults to the mock; the wiring passes an API source.
+ * Reads are server state now (`tripsListOptions`, Suspense for the
+ * pending state — the screen owns the loading copy). Writes stay
+ * cache-local until the create/edit tasks land their mutations: they
+ * prepend/patch the list query's data so the lab and the new/edit
+ * screens keep working with no screen changes.
+ *
+ * The `source` prop is accepted but no longer read: it exists only so
+ * existing providers keep mounting. Do not pass one.
  */
 export function TripsProvider({
   children,
-  source = MockTripsSource,
+  source: _source = MockTripsSource,
 }: {
   children: ReactNode;
   source?: TripsSource;
 }) {
-  const [store] = useState(() => createTripsStore(source));
-  const data = useSyncExternalStore(
-    store.subscribe,
-    store.getData,
-    store.getData,
-  );
+  void _source;
+  const queryClient = useQueryClient();
+  const [actions] = useState<TripsActions>(() => ({
+    create: (trip: Trip) => {
+      queryClient.setQueryData<Trip[]>(tripKeys.list(), (old) =>
+        old ? [trip, ...old] : [trip],
+      );
+    },
+    update: (id: string, patch: Partial<Trip>) => {
+      queryClient.setQueryData<Trip[]>(tripKeys.list(), (old) =>
+        old?.map((trip) =>
+          trip.id === id ? { ...trip, ...patch } : trip,
+        ),
+      );
+    },
+  }));
 
   return (
-    <TripsActionsContext.Provider value={store.getActions()}>
-      <TripsDataContext.Provider value={data}>
-        {children}
-      </TripsDataContext.Provider>
+    <TripsActionsContext.Provider value={actions}>
+      {children}
     </TripsActionsContext.Provider>
   );
 }
@@ -111,11 +130,10 @@ export function useTripsActions(): {
   );
 }
 
-/** The read half: re-renders only when the trips change. */
+/** The read half: the list query, suspended until it resolves. */
 export function useTripsData(): TripsData {
-  const data = useContext(TripsDataContext);
-  if (!data) throw new Error("useTripsData must be used inside TripsProvider");
-  return data;
+  const { data } = useSuspenseQuery(tripsListOptions());
+  return useMemo(() => ({ trips: data }), [data]);
 }
 
 export function useTrips(): TripsData & {
