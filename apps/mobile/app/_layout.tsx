@@ -1,5 +1,7 @@
-import { useEffect } from "react";
-import { View } from "react-native";
+import { Suspense, useEffect, useState } from "react";
+import { AppState, View } from "react-native";
+import { QueryClientProvider, focusManager } from "@tanstack/react-query";
+import { makeQueryClient } from "@/lib/queries/client";
 import { Stack, SplashScreen, usePathname } from "expo-router";
 import { useFonts } from "expo-font";
 import {
@@ -11,6 +13,7 @@ import {
 import { BungeeShade_400Regular } from "@expo-google-fonts/bungee-shade";
 import { Handjet_800ExtraBold } from "@expo-google-fonts/handjet";
 import { AppHeader } from "@/components/ui/AppHeader";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { BARE_HEADER_ROUTES, DIALOG_ROUTES } from "@/lib/routes";
 import { AuthProvider } from "@/lib/authStore";
 import { NotificationsProvider } from "@/lib/notificationsStore";
@@ -27,6 +30,16 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const pathname = usePathname();
+  // One client per layout mount; QueryClientProvider holds it steady.
+  const [queryClient] = useState(() => makeQueryClient());
+
+  // Refetch stale queries when the app comes back to the foreground.
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (status) => {
+      focusManager.setFocused(status === "active");
+    });
+    return () => subscription.remove();
+  }, []);
   const [displayLoaded, displayError] = useFonts({
     BungeeShade_400Regular,
     Handjet_800ExtraBold,
@@ -50,7 +63,12 @@ export default function RootLayout() {
   if (!loaded && !fontError) return null;
   const isDialog = DIALOG_ROUTES.includes(pathname);
   const bare = BARE_HEADER_ROUTES[pathname];
+  // The lab runs on mocks under the same provider: it gets its own
+  // Suspense fallback so a suspended lab specimen never shows an
+  // app screen's copy, and vice versa.
+  const isLab = pathname === "/design" || pathname.startsWith("/design/");
   return (
+    <QueryClientProvider client={queryClient}>
     <AuthProvider>
     <TripsProvider>
       <EventsProvider>
@@ -70,7 +88,17 @@ export default function RootLayout() {
                 {/* Dialogs paint their own ground, and screens use the
                     Screen primitive: the navigation container's default
                     background covers anything painted underneath it. */}
-                <Stack screenOptions={{ headerShown: false }} />
+                <Suspense
+                  fallback={
+                    isLab ? (
+                      <LoadingBlock label="Loading the lab." />
+                    ) : (
+                      <LoadingBlock label="Loading." />
+                    )
+                  }
+                >
+                  <Stack screenOptions={{ headerShown: false }} />
+                </Suspense>
               </View>
             </View>
           </TripSettingsProvider>
@@ -82,5 +110,6 @@ export default function RootLayout() {
       </EventsProvider>
     </TripsProvider>
     </AuthProvider>
+    </QueryClientProvider>
   );
 }
