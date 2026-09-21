@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { Text, View } from "react-native";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { TextField } from "@/components/ui/TextField";
@@ -7,23 +7,21 @@ import { Dropdown } from "@/components/ui/Dropdown";
 import { DatePicker } from "@/components/ui/DatePicker";
 import type { Selection } from "@/lib/calendar";
 import { formatDateRange } from "@/lib/dateRange";
-import {
-  buildTrip,
-  validateNewTrip,
-  type NewTripInput,
-} from "@/lib/newTrip";
+import { validateNewTrip, type NewTripInput } from "@/lib/newTrip";
 import { useTrips } from "@/lib/tripsStore";
-import { useDismiss } from "@/hooks/useDismiss";
+import { toErrorCopy } from "@/lib/queries/errors";
 import { PLACES } from "@/mocks/places";
 
 export default function NewTrip() {
-  const { addTrip, trips } = useTrips();
-  const dismiss = useDismiss("/trips");
+  const { addTrip } = useTrips();
+  const router = useRouter();
 
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState<string | null>(null);
   const [dates, setDates] = useState<Selection>({ start: null, end: null });
   const [submitted, setSubmitted] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   // One tap is a day trip, so a start with no end closes on itself.
   const input: NewTripInput = {
@@ -35,19 +33,49 @@ export default function NewTrip() {
 
   const errors = submitted ? validateNewTrip(input) : {};
 
-  function create() {
+  async function create() {
     setSubmitted(true);
+    setFailure(null);
     if (Object.keys(validateNewTrip(input)).length > 0) return;
 
-    addTrip(buildTrip(input, `trip-${trips.length + 1}-${Date.now()}`));
-    dismiss();
+    // No client-side id: the trip's identity comes back from
+    // `POST /trips`, and success lands on its detail screen.
+    setBusy(true);
+    try {
+      const trip = await addTrip({
+        name: input.title.trim(),
+        destination: input.location.trim(),
+        // The create schema requires a timezone; the device's zone
+        // stands in until the trip has a place, as `buildTrip` did.
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        startDate: input.startDate,
+        endDate: input.endDate,
+      });
+      router.replace(`/trips/detail?id=${trip.id}`);
+    } catch (caught) {
+      // The failure reads at the submit area (the lab's Feedback rule:
+      // it belongs where its content would have been — the new trip),
+      // mapped through the same copies every other screen uses.
+      const copy = toErrorCopy(caught);
+      if (copy.offline) {
+        setFailure("You're offline. Check your connection and try again.");
+      } else {
+        setFailure(
+          copy.message ??
+            (caught instanceof Error ? caught.message : "Couldn't create the trip."),
+        );
+      }
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
     <FullscreenDialog
       title="Create trip"
-      primaryTitle="Create trip"
-      onPrimary={create}
+      primaryTitle={busy ? "Creating trip" : "Create trip"}
+      onPrimary={() => void create()}
+      primaryDisabled={busy}
       dismissHref="/trips"
     >
       {/* Modals are routes, presented modally: iOS slides it up and
@@ -85,6 +113,10 @@ export default function NewTrip() {
           </Text>
         ) : null}
       </View>
+
+      {failure ? (
+        <Text className="font-body text-sm text-ink">{failure}</Text>
+      ) : null}
 
       <View className="gap-1">
         <Text className="font-body-bold text-sm text-ink">

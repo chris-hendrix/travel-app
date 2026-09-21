@@ -2,17 +2,23 @@ import {
   createContext,
   useContext,
   useMemo,
-  useState,
   type ReactNode,
 } from "react";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import type { Trip } from "@/components/trip/TripCard";
 import { ApiError } from "@/lib/api";
+import { placeholderPhoto } from "@/lib/mapping";
 import { MockTripsSource, type TripsSource } from "@/lib/sources";
 import {
+  createTripOptions,
   tripDetailOptions,
   tripKeys,
   tripsListOptions,
+  type CreateTripRequest,
 } from "@/lib/queries/trips";
 
 export type TripsData = {
@@ -20,9 +26,37 @@ export type TripsData = {
 };
 
 export type TripsActions = {
-  create: (trip: Trip) => void;
+  /**
+   * Server create now: resolves with the mapped trip (its id routes to
+   * the detail screen), so the promise form replaces the old
+   * cache-local `(trip: Trip) => void`. `update` stays cache-local
+   * until Task 4 lands the edit mutation.
+   */
+  create: (input: CreateTripRequest) => Promise<Trip>;
   update: (id: string, patch: Partial<Trip>) => void;
 };
+
+/**
+ * The optimistic stand-in `onMutate` prepends before the server
+ * answers. It is never the trip's identity: `onSuccess` swaps in the
+ * server trip by this id, and `onSettled` invalidates the list so the
+ * next mount reads server truth. Dates map defensively to `""` even
+ * though the form always sends user-entered ones.
+ */
+function optimisticTrip(input: CreateTripRequest): Trip {
+  const id = `optimistic-${Date.now()}`;
+  return {
+    id,
+    title: input.name.trim(),
+    location: input.destination.trim(),
+    image: placeholderPhoto(id),
+    going: 1,
+    startDate: input.startDate ?? "",
+    endDate: input.endDate ?? input.startDate ?? "",
+    description: input.description ?? null,
+    preferredTimezone: input.timezone,
+  };
+}
 
 /**
  * The store core the provider subscribes to. `getData()` returns a
@@ -60,9 +94,13 @@ export function createTripsStore(source: TripsSource) {
     emit();
   }
 
-  const actions: TripsActions = { create, update };
+  // Own type on purpose: the query-backed `TripsActions` below sends
+  // `create` to the server (a `CreateTripRequest` in, a promise out),
+  // while this pre-query seam keeps the cache-local `(trip: Trip)`
+  // shape for the `trips-source` test and the lab. Phase 8 deletes this.
+  const actions: { create: (trip: Trip) => void; update: (id: string, patch: Partial<Trip>) => void } = { create, update };
 
-  function getActions(): TripsActions {
+  function getActions(): typeof actions {
     return actions;
   }
 
@@ -82,10 +120,10 @@ const TripsActionsContext = createContext<TripsActions | null>(null);
 
 /**
  * Reads are server state now (`tripsListOptions`, Suspense for the
- * pending state — the screen owns the loading copy). Writes stay
- * cache-local until the create/edit tasks land their mutations: they
- * prepend/patch the list query's data so the lab and the new/edit
- * screens keep working with no screen changes.
+ * pending state — the screen owns the loading copy). Create writes
+ * through `POST /trips` with an optimistic prepend, rollback, and
+ * invalidate; `update` stays cache-local until Task 4 lands the edit
+ * mutation.
  *
  * The `source` prop is accepted but no longer read: it exists only so
  * existing providers keep mounting. Do not pass one.
@@ -99,20 +137,46 @@ export function TripsProvider({
 }) {
   void _source;
   const queryClient = useQueryClient();
-  const [actions] = useState<TripsActions>(() => ({
-    create: (trip: Trip) => {
+  const createMutation = useMutation({
+    ...createTripOptions(),
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: tripKeys.list() });
+      const previous = queryClient.getQueryData<Trip[]>(tripKeys.list());
+      const optimistic = optimisticTrip(input);
       queryClient.setQueryData<Trip[]>(tripKeys.list(), (old) =>
-        old ? [trip, ...old] : [trip],
+        old ? [optimistic, ...old] : [optimistic],
       );
+      return { previous, optimisticId: optimistic.id };
     },
-    update: (id: string, patch: Partial<Trip>) => {
+    onError: (_error, _input, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(tripKeys.list(), context.previous);
+      }
+    },
+    onSuccess: (trip, _input, context) => {
       queryClient.setQueryData<Trip[]>(tripKeys.list(), (old) =>
-        old?.map((trip) =>
-          trip.id === id ? { ...trip, ...patch } : trip,
+        old?.map((cached) =>
+          cached.id === context?.optimisticId ? trip : cached,
         ),
       );
     },
-  }));
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: tripKeys.list() });
+    },
+  });
+  const actions = useMemo<TripsActions>(
+    () => ({
+      create: (input: CreateTripRequest) => createMutation.mutateAsync(input),
+      update: (id: string, patch: Partial<Trip>) => {
+        queryClient.setQueryData<Trip[]>(tripKeys.list(), (old) =>
+          old?.map((trip) =>
+            trip.id === id ? { ...trip, ...patch } : trip,
+          ),
+        );
+      },
+    }),
+    [createMutation, queryClient],
+  );
 
   return (
     <TripsActionsContext.Provider value={actions}>
@@ -123,7 +187,7 @@ export function TripsProvider({
 
 /** The write half: stable across renders, never re-subscribes. */
 export function useTripsActions(): {
-  addTrip: (trip: Trip) => void;
+  addTrip: (input: CreateTripRequest) => Promise<Trip>;
   updateTrip: (id: string, patch: Partial<Trip>) => void;
 } {
   const actions = useContext(TripsActionsContext);
@@ -161,7 +225,7 @@ export function useTrip(id: string | undefined): {
 }
 
 export function useTrips(): TripsData & {
-  addTrip: (trip: Trip) => void;
+  addTrip: (input: CreateTripRequest) => Promise<Trip>;
   updateTrip: (id: string, patch: Partial<Trip>) => void;
 } {
   const data = useTripsData();

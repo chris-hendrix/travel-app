@@ -16,10 +16,14 @@
  *   `useSuspenseQuery`).
  */
 
-import { queryOptions } from "@tanstack/react-query";
+import { mutationOptions, queryOptions } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import { toTrip, toTripSummary } from "@/lib/mapping";
-import type { GetTripResponse, GetTripsResponse } from "@journiful/shared/types";
+import type {
+  CreateTripResponse,
+  GetTripResponse,
+  GetTripsResponse,
+} from "@journiful/shared/types";
 
 /** Key factory for the trips domain: `all` / `list` / `detail(id)`. */
 export const tripKeys = {
@@ -43,3 +47,47 @@ export const tripDetailOptions = (id: string) =>
     queryFn: async () =>
       toTrip((await apiFetch<GetTripResponse>(`/trips/${id}`)).trip),
   });
+
+/**
+ * Mirrors `createTripSchema`'s shape (`shared/schemas/trip.ts`):
+ * `name`, `destination`, and `timezone` are required; dates and the
+ * description ride along when the form collected them. zod is not a
+ * mobile dep, so the shape is declared inline — the same precedent as
+ * `requestCodeResponseSchema` in `lib/queries/auth.ts`.
+ */
+export type CreateTripRequest = {
+  name: string;
+  destination: string;
+  timezone: string;
+  startDate?: string;
+  endDate?: string;
+  description?: string;
+};
+
+/**
+ * `POST /trips`, mapped through `toTrip`.
+ *
+ * The create endpoint returns the base trip entity (`CreateTripResponse`),
+ * which carries no `memberCount` yet — the creator is the trip's sole
+ * member at this point, so it maps as a one-member detail. Nullable
+ * dates map defensively to `""` (the Task 4 convention), even though a
+ * form-created trip always carries user-entered dates.
+ */
+export async function createTrip(input: CreateTripRequest) {
+  const body = await apiFetch<CreateTripResponse>("/trips", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return toTrip({ ...body.trip, memberCount: 1, organizers: [] });
+}
+
+/** Mutation wrapper for callers that fire `createTrip` via TanStack Query. */
+export const createTripOptions = () =>
+  mutationOptions({
+    mutationKey: ["trips", "create"],
+    mutationFn: createTrip,
+  });
+
+/** Alias kept so call sites can name the mutation, not the options. */
+export { createTripOptions as createTripMutation };
