@@ -141,3 +141,93 @@ export const updateTripOptions = () =>
 
 /** Alias kept so call sites can name the mutation, not the options. */
 export { updateTripOptions as updateTripMutation };
+
+function coverMime(filename: string): string {
+  const ext = filename.split(".").pop()?.toLowerCase();
+  if (ext === "png") return "image/png";
+  if (ext === "webp") return "image/webp";
+  return "image/jpeg";
+}
+
+/**
+ * Build the multipart body for `POST /trips/:id/cover-image` from the
+ * picker's URI. The URI is read into a blob first (the plan's
+ * task-level fallback made primary): on Expo web the picker hands
+ * back a `blob:` URI `fetch` resolves, and on native `fetch` resolves
+ * `file://` URIs through the Expo networking stack. If that read
+ * fails, fall back to the React Native `{uri, name, type}` file
+ * object the native uploader accepts. The field name is `"file"`
+ * (the web app's `image-upload.tsx` precedent; the controller reads
+ * the first multipart file either way). Never set `Content-Type` —
+ * `apiFetch` passes the `FormData` through untouched and the
+ * boundary is generated at send time.
+ */
+export async function buildCoverFormData(uri: string): Promise<FormData> {
+  const filename =
+    uri.split("/").pop()?.split("?")[0]?.split("#")[0] || "cover.jpg";
+  const form = new FormData();
+  try {
+    const blob = await (await fetch(uri)).blob();
+    form.append("file", blob, filename);
+  } catch {
+    form.append("file", {
+      uri,
+      name: filename,
+      type: coverMime(filename),
+    } as unknown as Blob);
+  }
+  return form;
+}
+
+/**
+ * `POST /trips/:id/cover-image`, mapped through `toTrip`.
+ *
+ * Both cover endpoints return the base trip entity
+ * (`tripResponseSchema` in `shared/schemas/trip.ts`, served by
+ * `POST|DELETE /:id/cover-image` in
+ * `apps/api/src/routes/trip.routes.ts`) — like PUT, with no
+ * `memberCount`. It maps here as `going: 0`, a placeholder the
+ * provider's `onSuccess` merge replaces with the cached count.
+ */
+export async function uploadCover(id: string, uri: string) {
+  const body = await apiFetch<UpdateTripResponse>(
+    `/trips/${id}/cover-image`,
+    { method: "POST", body: await buildCoverFormData(uri) },
+  );
+  return toTrip({ ...body.trip, memberCount: 0, organizers: [] });
+}
+
+/** Mutation wrapper for callers that fire `uploadCover` via TanStack Query. */
+export const uploadCoverOptions = () =>
+  mutationOptions({
+    mutationKey: ["trips", "uploadCover"],
+    mutationFn: ({ id, uri }: { id: string; uri: string }) =>
+      uploadCover(id, uri),
+  });
+
+/** Alias kept so call sites can name the mutation, not the options. */
+export { uploadCoverOptions as uploadCoverMutation };
+
+/**
+ * `DELETE /trips/:id/cover-image`, mapped through `toTrip` — a nulled
+ * `coverImageUrl` maps to `placeholderPhoto(trip.id)`, never a broken
+ * box. Same `{success, trip}` response shape and `going: 0`
+ * placeholder convention as `uploadCover`.
+ */
+export async function removeCover(id: string) {
+  const body = await apiFetch<UpdateTripResponse>(
+    `/trips/${id}/cover-image`,
+    { method: "DELETE" },
+  );
+  return toTrip({ ...body.trip, memberCount: 0, organizers: [] });
+}
+
+/** Mutation wrapper for callers that fire `removeCover` via TanStack Query. */
+export const removeCoverOptions = () =>
+  mutationOptions({
+    mutationKey: ["trips", "removeCover"],
+    mutationFn: ({ id }: { id: string }) => removeCover(id),
+  });
+
+/** Alias kept so call sites can name the mutation, not the options. */
+export { removeCoverOptions as removeCoverMutation };

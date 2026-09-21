@@ -10,6 +10,7 @@ import type { Selection } from "@/lib/calendar";
 import { formatDateRange } from "@/lib/dateRange";
 import { validateNewTrip, type NewTripInput } from "@/lib/newTrip";
 import { useTrip, useTripsActions } from "@/lib/tripsStore";
+import { placeholderPhoto } from "@/lib/mapping";
 import type { UpdateTripRequest } from "@/lib/queries/trips";
 import { toErrorCopy } from "@/lib/queries/errors";
 import { TripGate } from "@/components/trip/TripGate";
@@ -42,7 +43,7 @@ function EditTripScreen() {
   // `PUT /trips/:id` (failure rolls back in the mutation and reads
   // here, in the screen's existing submit-area style).
   const { trip } = useTrip(tripId);
-  const { updateTrip } = useTripsActions();
+  const { updateTrip, uploadCover, removeCover } = useTripsActions();
   const dismiss = useDismiss("/trips");
 
   const [title, setTitle] = useState(trip?.title ?? "");
@@ -89,8 +90,12 @@ function EditTripScreen() {
     setFailure(null);
     if (Object.keys(validateNewTrip(input)).length > 0) return;
 
-    // Covers ride the cover endpoints (Task 5), never this patch —
-    // the picker state above stays local until then.
+    // Covers ride the cover endpoints, never this patch. The picker
+    // state stays local until save: a picked local URI uploads, an
+    // emptied field deletes (when the trip had a real cover), and an
+    // unchanged remote URL or placeholder sends nothing. A null
+    // cover maps to `placeholderPhoto` — never a broken box — so
+    // "no cover" needs no separate state.
     const patch: UpdateTripRequest = {
       name: input.title.trim(),
       destination: input.location.trim(),
@@ -103,6 +108,14 @@ function EditTripScreen() {
     setBusy(true);
     try {
       await updateTrip(trip!.id, patch);
+      const hadCover = trip!.image !== placeholderPhoto(trip!.id);
+      const isLocalUri =
+        cover !== "" && /^(file:|blob:|data:|content:)/.test(cover);
+      if (cover === "" && hadCover) {
+        await removeCover(trip!.id);
+      } else if (isLocalUri) {
+        await uploadCover(trip!.id, cover);
+      }
       dismiss();
     } catch (caught) {
       // The failure reads at the submit area (the lab's Feedback rule:

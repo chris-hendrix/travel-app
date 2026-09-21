@@ -15,10 +15,12 @@ import { placeholderPhoto } from "@/lib/mapping";
 import { MockTripsSource, type TripsSource } from "@/lib/sources";
 import {
   createTripOptions,
+  removeCoverOptions,
   tripDetailOptions,
   tripKeys,
   tripsListOptions,
   updateTripOptions,
+  uploadCoverOptions,
   type CreateTripRequest,
   type UpdateTripRequest,
 } from "@/lib/queries/trips";
@@ -35,6 +37,12 @@ export type TripsActions = {
    */
   create: (input: CreateTripRequest) => Promise<Trip>;
   update: (id: string, patch: UpdateTripRequest) => Promise<Trip>;
+  /**
+   * Cover writes ride the cover endpoints (Task 5), never the PUT
+   * patch. Both resolve with the mapped trip.
+   */
+  uploadCover: (id: string, uri: string) => Promise<Trip>;
+  removeCover: (id: string) => Promise<Trip>;
 };
 
 /**
@@ -239,13 +247,101 @@ export function TripsProvider({
       queryClient.invalidateQueries({ queryKey: tripKeys.list() });
     },
   });
+  /**
+   * Cover-merge shared by both cover mutations: the cover response
+   * carries no `memberCount`, so the merge keeps the cached `going`
+   * (the Task 4 update-mutation convention).
+   */
+  const mergeCover = (serverTrip: Trip, id: string) => {
+    queryClient.setQueryData<Trip>(tripKeys.detail(id), (old) =>
+      old ? { ...serverTrip, going: old.going } : serverTrip,
+    );
+    queryClient.setQueryData<Trip[]>(tripKeys.list(), (old) =>
+      old?.map((trip) =>
+        trip.id === id ? { ...serverTrip, going: trip.going } : trip,
+      ),
+    );
+  };
+  /**
+   * Optimistic cover paint shared by both mutations: cancel both
+   * caches, snapshot for rollback, paint `image`, return the context
+   * `onError` restores. Same flow shape as the update mutation.
+   */
+  const paintCover = async (id: string, image: string) => {
+    await Promise.all([
+      queryClient.cancelQueries({ queryKey: tripKeys.detail(id) }),
+      queryClient.cancelQueries({ queryKey: tripKeys.list() }),
+    ]);
+    const previousDetail = queryClient.getQueryData<Trip>(tripKeys.detail(id));
+    const previousList = queryClient.getQueryData<Trip[]>(tripKeys.list());
+    if (previousDetail) {
+      queryClient.setQueryData<Trip>(tripKeys.detail(id), {
+        ...previousDetail,
+        image,
+      });
+    }
+    if (previousList) {
+      queryClient.setQueryData<Trip[]>(
+        tripKeys.list(),
+        previousList.map((trip) =>
+          trip.id === id ? { ...trip, image } : trip,
+        ),
+      );
+    }
+    return { previousDetail, previousList, id };
+  };
+  const restoreCover = (context: {
+    previousDetail: Trip | undefined;
+    previousList: Trip[] | undefined;
+    id: string;
+  }) => {
+    if (context.previousDetail) {
+      queryClient.setQueryData(
+        tripKeys.detail(context.id),
+        context.previousDetail,
+      );
+    }
+    if (context.previousList) {
+      queryClient.setQueryData(tripKeys.list(), context.previousList);
+    }
+  };
+  const invalidateCover = (id: string) => {
+    queryClient.invalidateQueries({ queryKey: tripKeys.detail(id) });
+    queryClient.invalidateQueries({ queryKey: tripKeys.list() });
+  };
+  // The optimistic image is the picker's local URI (the screen
+  // renders it while the upload flies); `onSuccess` swaps in the
+  // server URL via the shared merge.
+  const uploadCoverMutation = useMutation({
+    ...uploadCoverOptions(),
+    onMutate: ({ id, uri }) => paintCover(id, uri),
+    onError: (_error, _input, context) => {
+      if (context) restoreCover(context);
+    },
+    onSuccess: (serverTrip, { id }) => mergeCover(serverTrip, id),
+    onSettled: (_data, _error, { id }) => invalidateCover(id),
+  });
+  // The optimistic image is the placeholder (a nulled cover maps
+  // through `toTrip` to `placeholderPhoto` on success anyway).
+  const removeCoverMutation = useMutation({
+    ...removeCoverOptions(),
+    onMutate: ({ id }) => paintCover(id, placeholderPhoto(id)),
+    onError: (_error, _input, context) => {
+      if (context) restoreCover(context);
+    },
+    onSuccess: (serverTrip, { id }) => mergeCover(serverTrip, id),
+    onSettled: (_data, _error, { id }) => invalidateCover(id),
+  });
   const actions = useMemo<TripsActions>(
     () => ({
       create: (input: CreateTripRequest) => createMutation.mutateAsync(input),
       update: (id: string, patch: UpdateTripRequest) =>
         updateMutation.mutateAsync({ id, patch }),
+      uploadCover: (id: string, uri: string) =>
+        uploadCoverMutation.mutateAsync({ id, uri }),
+      removeCover: (id: string) => removeCoverMutation.mutateAsync({ id }),
     }),
-    [createMutation, updateMutation],
+    [createMutation, updateMutation, uploadCoverMutation, removeCoverMutation],
   );
 
   return (
@@ -259,12 +355,19 @@ export function TripsProvider({
 export function useTripsActions(): {
   addTrip: (input: CreateTripRequest) => Promise<Trip>;
   updateTrip: (id: string, patch: UpdateTripRequest) => Promise<Trip>;
+  uploadCover: (id: string, uri: string) => Promise<Trip>;
+  removeCover: (id: string) => Promise<Trip>;
 } {
   const actions = useContext(TripsActionsContext);
   if (!actions)
     throw new Error("useTripsActions must be used inside TripsProvider");
   return useMemo(
-    () => ({ addTrip: actions.create, updateTrip: actions.update }),
+    () => ({
+      addTrip: actions.create,
+      updateTrip: actions.update,
+      uploadCover: actions.uploadCover,
+      removeCover: actions.removeCover,
+    }),
     [actions],
   );
 }
@@ -297,6 +400,8 @@ export function useTrip(id: string | undefined): {
 export function useTrips(): TripsData & {
   addTrip: (input: CreateTripRequest) => Promise<Trip>;
   updateTrip: (id: string, patch: UpdateTripRequest) => Promise<Trip>;
+  uploadCover: (id: string, uri: string) => Promise<Trip>;
+  removeCover: (id: string) => Promise<Trip>;
 } {
   const data = useTripsData();
   const actions = useTripsActions();
