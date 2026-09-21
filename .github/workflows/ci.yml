@@ -146,8 +146,7 @@ jobs:
         run: pnpm turbo lint typecheck test --filter=@journiful/mobile
 
       - name: Expo doctor
-        run: npx expo-doctor
-        working-directory: apps/mobile
+        run: pnpm --filter @journiful/mobile exec expo-doctor
 
   # Step 3: Unit Tests (API)
   unit-tests:
