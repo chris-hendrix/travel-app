@@ -1,4 +1,4 @@
-import { Suspense, useMemo } from "react";
+import { useMemo } from "react";
 import { Text } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
@@ -10,8 +10,8 @@ import {
   type TravelLeg,
 } from "@/lib/newTravel";
 import { getPertinentLocation, getPertinentTime } from "@journiful/shared/utils";
-import { useTrips } from "@/lib/tripsStore";
-import { tripFor } from "@/lib/tripLookup";
+import { useTrip } from "@/lib/tripsStore";
+import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { useTravel } from "@/lib/travelStore";
 import { useTripSettings } from "@/lib/tripSettingsStore";
@@ -35,9 +35,9 @@ import { useDismiss } from "@/hooks/useDismiss";
  */
 export default function TravelForm() {
   return (
-    <Suspense fallback={null}>
+    <TripGate label="Travel details">
       <TravelFormScreen />
-    </Suspense>
+    </TripGate>
   );
 }
 
@@ -49,7 +49,6 @@ function TravelFormScreen() {
     member?: string;
     direction?: string;
   }>();
-  const { trips } = useTrips();
   const { travelById, travelForTrip, addTravel, updateTravel, deleteTravel } =
     useTravel();
   const { for: settingsFor, update } = useTripSettings();
@@ -57,7 +56,7 @@ function TravelFormScreen() {
   const router = useRouter();
 
   const tripId = typeof id === "string" ? id : undefined;
-  const trip = tripFor(trips, tripId);
+  const { trip } = useTrip(tripId);
   // The zone the fields mean: the trip's own clock setting, the same one
   // the board behind this form is reading. What is typed is stamped in
   // it, and what it stamps is read back in it.

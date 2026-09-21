@@ -1,10 +1,9 @@
-import { Suspense } from "react";
 import { Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { ChipLink } from "@/components/ui/ChipLink";
-import { useTrips } from "@/lib/tripsStore";
-import { tripFor } from "@/lib/tripLookup";
+import { useTrip } from "@/lib/tripsStore";
+import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { memberLabel } from "@/lib/rsvp";
 import { visiblePhone, type Member } from "@/lib/members";
@@ -38,19 +37,18 @@ import { membersFor } from "@/mocks/members";
  */
 export default function TripMembers() {
   return (
-    <Suspense fallback={null}>
+    <TripGate label="Trip members">
       <TripMembersDialog />
-    </Suspense>
+    </TripGate>
   );
 }
 
 function TripMembersDialog() {
   const { id, as } = useLocalSearchParams<{ id?: string; as?: string }>();
-  const { trips } = useTrips();
   const router = useRouter();
 
   const tripId = typeof id === "string" ? id : undefined;
-  const trip = tripFor(trips, tripId);
+  const { trip } = useTrip(tripId);
   // The lab's stand-in for `isOrganizer` on the membership, threaded down
   // from the trip screen so the two can never disagree.
   const viewerIsOrganizer = as === "organizer";

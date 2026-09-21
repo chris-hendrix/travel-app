@@ -1,8 +1,7 @@
-import { Suspense } from "react";
 import { useLocalSearchParams } from "expo-router";
 import { InviteDialog } from "@/components/trip/InviteDialog";
-import { useTrips } from "@/lib/tripsStore";
-import { tripFor } from "@/lib/tripLookup";
+import { useTrip } from "@/lib/tripsStore";
+import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 
 /**
@@ -19,18 +18,17 @@ import NotFound from "@/app/+not-found";
  */
 export default function InvitePeople() {
   return (
-    <Suspense fallback={null}>
+    <TripGate label="Invite people">
       <InvitePeopleDialog />
-    </Suspense>
+    </TripGate>
   );
 }
 
 function InvitePeopleDialog() {
   const { id, from } = useLocalSearchParams<{ id?: string; from?: string }>();
-  const { trips } = useTrips();
 
   const tripId = typeof id === "string" ? id : undefined;
-  const trip = tripFor(trips, tripId);
+  const { trip } = useTrip(tripId);
 
   if (!trip) {
     return <NotFound />;

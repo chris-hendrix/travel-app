@@ -1,4 +1,4 @@
-import { Suspense, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowDown, ArrowUp } from "lucide-react-native";
@@ -8,8 +8,8 @@ import { dayNumber, weekdayAbbrev } from "@/lib/dateRange";
 import { wallClock } from "@/lib/timezone";
 import { travelBoard, type TravelRow } from "@/lib/travelBoard";
 import { NOT_SHARED } from "@/lib/wording";
-import { useTrips } from "@/lib/tripsStore";
-import { tripFor } from "@/lib/tripLookup";
+import { useTrip } from "@/lib/tripsStore";
+import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { useTravel } from "@/lib/travelStore";
 import { useTripSettings } from "@/lib/tripSettingsStore";
@@ -40,21 +40,20 @@ import { INK } from "@/lib/theme";
  */
 export default function TripTravel() {
   return (
-    <Suspense fallback={null}>
+    <TripGate label="Travel">
       <TripTravelDialog />
-    </Suspense>
+    </TripGate>
   );
 }
 
 function TripTravelDialog() {
   const { id, as } = useLocalSearchParams<{ id?: string; as?: string }>();
-  const { trips } = useTrips();
   const { travelForTrip } = useTravel();
   const { for: settingsFor, update } = useTripSettings();
   const router = useRouter();
 
   const tripId = typeof id === "string" ? id : undefined;
-  const trip = tripFor(trips, tripId);
+  const { trip } = useTrip(tripId);
   // The zone these rows are read in: the trip's own clock setting, the
   // same one the itinerary behind this dialog is reading. A board and a
   // form that disagreed about what time it is would be two trips.
