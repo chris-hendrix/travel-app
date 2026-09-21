@@ -15,12 +15,16 @@
  *   `@/lib/queries/client`, wrapped in `Suspense`.
  */
 
-import { mutationOptions } from "@tanstack/react-query";
+import { mutationOptions, queryOptions } from "@tanstack/react-query";
 import type {
+  CompleteProfileInput,
   RequestCodeInput,
   VerifyCodeInput,
 } from "@journiful/shared/schemas";
+import type { User } from "@journiful/shared/types";
 import { apiFetch } from "@/lib/api";
+import { toProfile } from "@/lib/mapping";
+import type { Profile } from "@/lib/profile";
 import { toE164 } from "@/lib/phone";
 import { setToken } from "@/lib/session";
 
@@ -136,3 +140,73 @@ export const verifyCodeOptions = () =>
 
 /** Alias kept so call sites can name the mutation, not the options. */
 export { verifyCodeOptions as verifyCodeMutation };
+
+/** Key factory for the auth domain: `all` / `me`. */
+export const authKeys = {
+  all: ["auth"] as const,
+  me: () => [...authKeys.all, "me"] as const,
+};
+
+/**
+ * `GET /auth/me` mapped through `toProfile` — the one source of truth
+ * for who is signed in. The complete-profile mutation reads the user
+ * back through this same path instead of keeping a local flag.
+ */
+export const meOptions = () =>
+  queryOptions({
+    queryKey: authKeys.me(),
+    queryFn: async (): Promise<Profile> =>
+      toProfile((await apiFetch<{ success: true; user: User }>("/auth/me")).user),
+  });
+
+/** Mirrors `completeProfileResponseSchema` minus the envelope: the caller
+ *  gets the `me` profile; the refreshed token is persisted, not returned. */
+export type CompleteProfileResult = Profile;
+
+/**
+ * `POST /auth/complete-profile` with `{displayName, timezone?}`
+ * (`completeProfileSchema`: displayName is 3–50 chars).
+ *
+ * On success the REFRESHED token is persisted via `setToken`, then the
+ * user is read back from `GET /auth/me` and mapped through `toProfile` —
+ * one source of truth, not a local flag.
+ *
+ * Client-side validation stays in front of the network, as with
+ * `requestCode`/`verifyCode`: a too-short name throws before `apiFetch`
+ * is ever called, so it never reaches the server.
+ */
+export async function completeProfile(
+  input: CompleteProfileInput,
+): Promise<CompleteProfileResult> {
+  const displayName = input.displayName.trim();
+  if (displayName.length < 3 || displayName.length > 50) {
+    throw new Error("At least three characters, so the group knows who you are.");
+  }
+  const body = await apiFetch<{
+    success: true;
+    user: User;
+    token: string;
+  }>("/auth/complete-profile", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(
+      input.timezone !== undefined
+        ? { displayName, timezone: input.timezone }
+        : { displayName },
+    ),
+  });
+  await setToken(body.token);
+  return toProfile(
+    (await apiFetch<{ success: true; user: User }>("/auth/me")).user,
+  );
+}
+
+/** Mutation wrapper for screens that fire `completeProfile` via TanStack Query. */
+export const completeProfileOptions = () =>
+  mutationOptions({
+    mutationKey: ["auth", "complete-profile"],
+    mutationFn: completeProfile,
+  });
+
+/** Alias kept so call sites can name the mutation, not the options. */
+export { completeProfileOptions as completeProfileMutation };

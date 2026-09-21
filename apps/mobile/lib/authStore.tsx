@@ -9,6 +9,7 @@ import {
 import {
   requestCode as requestAuthCode,
   verifyCode as verifyAuthCode,
+  completeProfile as completeAuthProfile,
 } from "@/lib/queries/auth";
 import { clearToken } from "@/lib/session";
 
@@ -89,9 +90,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const completeProfile = useCallback(async (displayName: string) => {
-    setUser((current) =>
-      current ? { ...current, displayName, profileComplete: true } : current,
-    );
+    // The real endpoint: POSTs `/auth/complete-profile`, persists the
+    // refreshed token via `setToken`, and reads the user back from
+    // `GET /auth/me` (one source of truth, not a local flag).
+    const profile = await completeAuthProfile({ displayName });
+    setUser({
+      id: profile.id,
+      phoneNumber: profile.phoneNumber,
+      displayName: profile.displayName,
+      profileComplete: true,
+    });
   }, []);
 
   const signOut = useCallback(() => {

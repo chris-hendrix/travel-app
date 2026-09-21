@@ -7,8 +7,7 @@ import { QuietAction } from "@/components/ui/QuietAction";
 import { Screen } from "@/components/ui/Screen";
 import { TextField } from "@/components/ui/TextField";
 import { useAuth } from "@/lib/authStore";
-import { useProfile } from "@/lib/profileStore";
-import { draftFromProfile, initials } from "@/lib/profile";
+import { initials } from "@/lib/profile";
 import { formatPhoneForDisplay } from "@/lib/phone";
 import { joinFacts } from "@/lib/wording";
 
@@ -27,13 +26,17 @@ import { joinFacts } from "@/lib/wording";
 export default function CompleteProfile() {
   const router = useRouter();
   const { user, completeProfile, signOut } = useAuth();
-  const { profile, saveProfile } = useProfile();
 
   const [name, setName] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const trimmed = name.trim();
+  // The app detects the timezone rather than asking for it (see the
+  // header comment); the server row is the source of truth once the
+  // profile screen is wired (Phase 7), so this is display-only here.
+  const deviceTimezone =
+    Intl.DateTimeFormat().resolvedOptions().timeZone ?? "Not set";
   const error =
     submitted && trimmed.length < 3
       ? "At least three characters, so the group knows who you are."
@@ -52,9 +55,6 @@ export default function CompleteProfile() {
     setBusy(true);
     try {
       await completeProfile(trimmed);
-      // The name belongs to the person, not to the session: the profile
-      // screen reads this store, so the mock writes both.
-      saveProfile({ ...draftFromProfile(profile), displayName: trimmed });
       router.replace("/trips");
     } finally {
       setBusy(false);
@@ -104,7 +104,7 @@ export default function CompleteProfile() {
       <View className="gap-1">
         <Text className="font-body-bold text-sm text-ink">Timezone</Text>
         <Text className="font-body text-sm text-ink">
-          {joinFacts(profile.timezone ?? "Not set", "automatic")}
+          {joinFacts(deviceTimezone, "automatic")}
         </Text>
       </View>
 
