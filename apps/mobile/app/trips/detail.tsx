@@ -13,6 +13,9 @@ import { formatDateRange } from "@/lib/dateRange";
 import { todayIn } from "@/lib/timezone";
 import type { RsvpStatus } from "@/lib/rsvp";
 import { useTrip } from "@/lib/tripsStore";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { memberKeys, useMembers } from "@/lib/queries/members";
+import { setRsvpOptions } from "@/lib/queries/rsvp";
 import { TripGate } from "@/components/trip/TripGate";
 import { useTravel } from "@/lib/travelStore";
 import NotFound from "@/app/+not-found";
@@ -22,7 +25,6 @@ import { currentStay } from "@/lib/stays";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { getPertinentTime } from "@journiful/shared/utils";
 import { viewerMember } from "@/lib/members";
-import { useMembers } from "@/lib/queries/members";
 
 type Variant = "organizer" | "traveler";
 
@@ -91,8 +93,14 @@ function TripDetailScreen() {
   const { trip } = useTrip(tripId);
   const router = useRouter();
   const [variant, setVariant] = useState<Variant>("traveler");
-  // Everyone starts unreplied, exactly as the API's default has it.
-  const [response, setResponse] = useState<RsvpStatus>("no_response");
+  // TODO(BE): updateRsvpSchema accepts only `going|not_going|maybe`; `no_response` is expressed as absence. Documented in code, not a bug.
+  // The RSVP answer is server state (POST /trips/:tripId/rsvp), painted
+  // optimistically and rolled back on failure — the update-mutation flow
+  // shape. `no_response` is the control's unselected state (no row yet):
+  // it is never sent (setRsvp refuses it), only read from the roster.
+  const [rsvpOverride, setRsvpOverride] = useState<RsvpStatus | null>(null);
+  const queryClient = useQueryClient();
+  const rsvpMutation = useMutation({ ...setRsvpOptions() });
 
   // An address can name a trip that is gone, or none at all, and then
   // this screen answers with the not-found state rather than another
@@ -153,6 +161,30 @@ function TripDetailScreen() {
   const owesTravel =
     !viewerTravel.some((record) => record.travelType === "arrival") ||
     !viewerTravel.some((record) => record.travelType === "departure");
+
+  // The control's value: what you just tapped while it flies, else the
+  // roster's answer for the viewer, else unreplied (no row yet).
+  const response: RsvpStatus = rsvpOverride ?? viewer?.status ?? "no_response";
+  const answerRsvp = (status: RsvpStatus) => {
+    // Unreachable through the control (RSVP_ANSWERS never offers
+    // no_response), but the type carries all four states: absence is
+    // read, never sent.
+    if (status === "no_response") return;
+    const tripId = trip.id;
+    setRsvpOverride(status);
+    rsvpMutation.mutate(
+      { tripId, status },
+      {
+        onError: () => setRsvpOverride(null),
+        onSuccess: () => setRsvpOverride(null),
+        onSettled: () => {
+          queryClient.invalidateQueries({
+            queryKey: memberKeys.list(tripId),
+          });
+        },
+      },
+    );
+  };
 
   // The nudge onto the trip screen, and only while you owe times: the
   // board keeps its own Add travel either way. Same words as the board's
@@ -222,7 +254,7 @@ function TripDetailScreen() {
     <View className="gap-2">
       {/* All three answers, always visible and always reachable — an
           RSVP you cannot take back is a worse RSVP. */}
-      <RsvpControl value={response} onChange={setResponse} />
+      <RsvpControl value={response} onChange={answerRsvp} />
       {travelCta}
       {settingsButton}
     </View>
