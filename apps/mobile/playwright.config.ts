@@ -71,6 +71,11 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       stdout: "pipe",
       stderr: "pipe",
+      // The CI job exports NODE_ENV=test, which Expo would inherit — and
+      // @react-native/dev-middleware throws under NODE_ENV=test
+      // ("DefaultToolLauncher must be mocked"). A dev server is a
+      // development server, so pin it back explicitly.
+      env: { NODE_ENV: "development" },
     },
   ],
 });
