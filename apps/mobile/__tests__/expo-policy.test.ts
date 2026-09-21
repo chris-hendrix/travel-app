@@ -74,9 +74,13 @@ describe("expo policy: every target is a thumb's size", () => {
   // The 44pt floor, measured two ways. Where a number exists it is read
   // as a number; tailwind-sized cells assert the class that encodes 44pt
   // (h-11) and the absence of the 40pt one (h-10). Lone targets assert
-  // the hit-area mechanism, not the geometry: hitSlop (or padding with
-  // a matching negative margin) leaves the picture unchanged, which is
-  // the property the screenshot check would verify by hand.
+  // the real-box mechanism, not just the geometry: each target's own
+  // box grows to 44x44 with padding and NO negative margin, so the box
+  // sits inside its row; the icon or text inside does not move, and the
+  // surface grows where it must (band 72, title row 77, calendar
+  // header 60). hitSlop leaves the box unchanged on web and is
+  // unverifiable in a browser; padding plus a negative margin pulls
+  // the box back out of its row and overflows it.
   function source(rel: string): string {
     return fs.readFileSync(path.join(mobileDir, rel), "utf8");
   }
@@ -95,54 +99,62 @@ describe("expo policy: every target is a thumb's size", () => {
     expect(picker).not.toContain("h-10");
   });
 
-  it("the month arrows reach the floor without moving the picture", () => {
+  it("the month arrows are real 44pt boxes with no negative margin", () => {
     // Per-target, not file-wide: the window around each arrow's own
-    // aria-label must carry its own padding plus a matching negative
-    // margin. A file-wide hitSlop/-m- count can pass with the mechanism
-    // clustered on one target; this one fails unless both arrows do.
+    // aria-label must carry its own padding to 44pt and no negative
+    // margin. A file-wide -m- count can pass with the bleed clustered
+    // on one target; this one fails unless both arrows sit inside
+    // their row.
     const picker = source("components/ui/DatePicker.tsx");
     // Both arrows exist as usages of the one Arrow component …
     for (const label of ['label="Previous month"', 'label="Next month"']) {
       expect(picker, `${label} must exist`).toContain(label);
     }
     // … and the component's own Pressable (found via aria-label={label})
-    // carries padding to the 44pt floor plus the padding DELTA as a
-    // negative margin: p-2.5 (10px) over the original p-1 (4px) is a
-    // 6px delta, i.e. -m-1.5. A -m-2.5 would shrink the margin box to
-    // 24px and pull the bordered row up.
+    // is a real box whose padding sits on the side facing the row's
+    // interior: the left arrow grows right, the right arrow grows left,
+    // so the outer edge and the icon stay put while the bordered header
+    // row grows to hold the box (8 + 44 + 8 = 60). Symmetric padding
+    // was measured moving both icons 6pt inward.
     const at = picker.indexOf("aria-label={label}");
     expect(at, "Arrow must forward its label to aria-label").toBeGreaterThanOrEqual(0);
     const window = picker.slice(Math.max(0, at - 800), at + 800);
-    expect(window, "arrows: expected padding reaching 44pt").toMatch(/p-2\.5/);
-    expect(window, "arrows: expected the delta (-m-1.5), not a matching -m-2.5").toMatch(/-m-1\.5/);
-    expect(window, "arrows: the negative margin must be smaller than the padding, or the margin box shrinks").not.toMatch(/-m-2\.5/);
+    expect(
+      window,
+      "arrows: the left arrow's padding pair, outer edge fixed",
+    ).toMatch(/pl-1 pr-4 pt-2\.5 pb-2\.5/);
+    expect(
+      window,
+      "arrows: and the mirrored pair for the right arrow",
+    ).toMatch(/pl-4 pr-1 pt-2\.5 pb-2\.5/);
+    expect(window, "arrows: no negative margin — the box sits inside its row").not.toMatch(/-m-/);
     expect(picker, "no hitSlop prop: it does not enlarge the box on web").not.toMatch(/hitSlop=/);
   });
 
-  it("every enumerated header target carries its own hit area", () => {
-    // Per-target: each named target element carries its own padding to
-    // the 44pt floor plus the padding DELTA as a negative margin, so
-    // the margin box is exactly what it was before. The negative margin
-    // is always smaller than the padding — a margin as large as the
-    // padding shrinks the margin box and pulls the page up.
+  it("every enumerated header target is a real 44pt box with no negative margin", () => {
+    // Per-target: each named target element carries its own asymmetric
+    // padding to a real 44x44 box, and no negative margin anywhere on
+    // these targets — the box sits inside its row, the icon or text
+    // does not move, and the surface grows (band 72, title row 77).
     const header = source("components/ui/AppHeader.tsx");
-    const targets: Array<{ marker: string; padding: RegExp; margin: RegExp }> = [
-      // 24px icon in p-1 -> p-2.5; delta 6px = -m-1.5.
-      { marker: 'aria-label="Notifications"', padding: /p-2\.5/, margin: /-m-1\.5/ },
-      { marker: 'aria-label="Profile"', padding: /p-2\.5/, margin: /-m-1\.5/ },
-      { marker: 'aria-label="Close"', padding: /p-2\.5/, margin: /-m-1\.5/ },
-      // Zone token: p-1 -> p-3; delta 8px = -m-2.
-      // (marker: the token names itself through accessibilityLabel.)
-      { marker: "Times in", padding: /p-3/, margin: /-m-2(?!\.5)/ },
-      // Sign-in word: py-2 -> py-3; vertical delta 4px = -my-1.
-      { marker: ">Sign in<", padding: /py-3/, margin: /-my-1/ },
+    const targets: Array<{ marker: string; padding: RegExp }> = [
+      // 24px icon; 16 left + 4 right keeps the outer edge and the icon.
+      { marker: 'aria-label="Notifications"', padding: /pl-4 pr-1 pt-1 pb-4/ },
+      { marker: 'aria-label="Profile"', padding: /pl-4 pr-1 pt-1 pb-4/ },
+      { marker: 'aria-label="Close"', padding: /pl-4 pr-1 pt-1 pb-4/ },
+      // Zone token: 12 left + 4 right keeps the text where it was, and
+      // 6 above / 18 below makes a full 44pt box. (marker: the token
+      // names itself through accessibilityLabel.)
+      { marker: "Times in", padding: /pl-3 pr-1 pt-1\.5 pb-4\.5/ },
+      // Sign-in word: grows leftward from the band's right edge.
+      { marker: ">Sign in<", padding: /pl-4 pt-2 pb-4/ },
     ];
-    for (const { marker, padding, margin } of targets) {
+    for (const { marker, padding } of targets) {
       const at = header.indexOf(marker);
       expect(at, `${marker} must exist`).toBeGreaterThanOrEqual(0);
       const window = header.slice(Math.max(0, at - 800), at + 800);
-      expect(window, `${marker}: expected padding reaching 44pt`).toMatch(padding);
-      expect(window, `${marker}: expected the delta as negative margin`).toMatch(margin);
+      expect(window, `${marker}: expected the real-box padding pair`).toMatch(padding);
+      expect(window, `${marker}: no negative margin — the box sits inside its row`).not.toMatch(/-m[trblxy]?-/);
     }
     expect(header, "no hitSlop prop: it does not enlarge the box on web").not.toMatch(/hitSlop=/);
   });

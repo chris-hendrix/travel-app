@@ -70,11 +70,13 @@ function ZoneToken({ onInk = false }: { onInk?: boolean }) {
       }
       disabled={!zone.onFlip}
       onPress={() => zone.onFlip?.()}
-      // The word is small; the touch area reaches the 44pt floor via
-      // padding with a matching negative margin, so the picture does
-      // not move. hitSlop would also work on native but does nothing
-      // to the element's box on the web build.
-      className="p-3 -m-2"
+      // The word is small; the touch area is a real 44pt box: the
+      // padding grows the element itself (pl-3 pr-1 pt-1.5 pb-4.5
+      // around the 20px word), with no negative margin, so the box
+      // sits inside its row and the row grows to hold it. The text
+      // stays where it was: left padding 12 keeps its x, and 6 above
+      // it keeps its y once the box is a full 44 tall and centred.
+      className="pl-3 pr-1 pt-1.5 pb-4.5"
     >
       <Text className={`font-body-bold text-sm ${colour} underline`}>
         {zone.abbr}
@@ -88,7 +90,7 @@ function BellButton() {
 
   return (
     <Link href="/notifications" asChild>
-      <Pressable aria-label="Notifications" className="p-2.5 -m-1.5">
+      <Pressable aria-label="Notifications" className="pl-4 pr-1 pt-1 pb-4">
         <View>
           <Bell color={SAND} size={24} />
           {unreadCount > 0 ? (
@@ -103,7 +105,7 @@ function BellButton() {
 function AvatarButton() {
   return (
     <Link href="/profile" asChild>
-      <Pressable aria-label="Profile" className="p-2.5 -m-1.5">
+      <Pressable aria-label="Profile" className="pl-4 pr-1 pt-1 pb-4">
         <User color={SAND} size={24} />
       </Pressable>
     </Link>
@@ -125,10 +127,11 @@ function AvatarButton() {
 function SignInWord() {
   return (
     // asChild so the target keeps its size: the word plus its padding
-    // reaches the 44pt floor, and the matching negative margin keeps
-    // the band where it was.
+    // is a real 44pt box (pt-2 pb-4 around the word, pl-4 growing
+    // leftward from the band's right edge, which does not move), with
+    // no negative margin, so the band grows to hold it.
     <Link href="/login" asChild>
-      <Pressable className="py-3 -my-1">
+      <Pressable className="pl-4 pt-2 pb-4">
         <Text className="font-body-bold text-sm text-sand">Sign in</Text>
       </Pressable>
     </Link>
@@ -162,11 +165,11 @@ export function AppHeader({
         <Text className="font-display text-2xl leading-none text-ink">
           {title}
         </Text>
-        <View className="flex-row items-center gap-3">
+        <View className="flex-row items-center gap-0">
           <ZoneToken />
           {action}
           {onClose ? (
-            <Pressable aria-label="Close" onPress={onClose} className="p-2.5 -m-1.5">
+            <Pressable aria-label="Close" onPress={onClose} className="pl-4 pr-1 pt-1 pb-4">
               <X color={INK} size={24} />
             </Pressable>
           ) : null}
@@ -203,7 +206,7 @@ export function AppHeader({
             Journiful
           </Link>
         )}
-        <View className="flex-row items-center gap-3">
+        <View className="flex-row items-center gap-0">
           {app ? (
             <>
               <ZoneToken onInk />

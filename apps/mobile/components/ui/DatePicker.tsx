@@ -177,12 +177,21 @@ function Arrow({
 }) {
   const Icon = icon === "left" ? ChevronLeft : ChevronRight;
   return (
-    // Padding with a matching negative margin, not hitSlop: hitSlop
-    // does not enlarge the element's box on the web build, so the
-    // arrows measured 32x32 in a browser. Padding grows the box to
-    // 44pt and the negative margin pulls the margin box back, so the
-    // bordered header row does not move.
-    <Pressable aria-label={label} onPress={onPress} className="p-2.5 -m-1.5">
+    // A real 44pt box with no negative margin, with the padding on the
+    // side facing the row's interior: the left arrow grows right and
+    // the right arrow grows left, so each one's outer edge — and the
+    // icon inside it — stays exactly where it was while the bordered
+    // header row grows to hold the box (8 + 44 + 8 = 60). Symmetric
+    // padding here moved both icons 6pt inward.
+    <Pressable
+      aria-label={label}
+      onPress={onPress}
+      className={
+        icon === "left"
+          ? "pl-1 pr-4 pt-2.5 pb-2.5"
+          : "pl-4 pr-1 pt-2.5 pb-2.5"
+      }
+    >
       <Icon color={INK} size={24} />
     </Pressable>
   );
