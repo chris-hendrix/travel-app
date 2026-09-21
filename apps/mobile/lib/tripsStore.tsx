@@ -18,7 +18,9 @@ import {
   tripDetailOptions,
   tripKeys,
   tripsListOptions,
+  updateTripOptions,
   type CreateTripRequest,
+  type UpdateTripRequest,
 } from "@/lib/queries/trips";
 
 export type TripsData = {
@@ -27,13 +29,12 @@ export type TripsData = {
 
 export type TripsActions = {
   /**
-   * Server create now: resolves with the mapped trip (its id routes to
-   * the detail screen), so the promise form replaces the old
-   * cache-local `(trip: Trip) => void`. `update` stays cache-local
-   * until Task 4 lands the edit mutation.
+   * Server update now: resolves with the mapped trip. The mutation
+   * key stays `updateTrip`, so screens that only write never
+   * re-subscribe. `addTrip` (Task 3) untouched.
    */
   create: (input: CreateTripRequest) => Promise<Trip>;
-  update: (id: string, patch: Partial<Trip>) => void;
+  update: (id: string, patch: UpdateTripRequest) => Promise<Trip>;
 };
 
 /**
@@ -55,6 +56,29 @@ function optimisticTrip(input: CreateTripRequest): Trip {
     endDate: input.endDate ?? input.startDate ?? "",
     description: input.description ?? null,
     preferredTimezone: input.timezone,
+  };
+}
+
+/**
+ * The optimistic stand-in an update `onMutate` paints over both
+ * caches before the server answers. API field names (`name`,
+ * `destination`) translate to the mobile `Trip` fields (`title`,
+ * `location`); absent patch fields leave the cached trip untouched.
+ * `onSuccess` swaps in the server trip (keeping the cached `going`),
+ * and `onSettled` invalidates so the next mount reads server truth.
+ */
+function applyUpdatePatch(trip: Trip, patch: UpdateTripRequest): Trip {
+  return {
+    ...trip,
+    ...(patch.name !== undefined ? { title: patch.name.trim() } : null),
+    ...(patch.destination !== undefined
+      ? { location: patch.destination.trim() }
+      : null),
+    ...(patch.startDate !== undefined ? { startDate: patch.startDate } : null),
+    ...(patch.endDate !== undefined ? { endDate: patch.endDate } : null),
+    ...(patch.description !== undefined
+      ? { description: patch.description }
+      : null),
   };
 }
 
@@ -120,10 +144,9 @@ const TripsActionsContext = createContext<TripsActions | null>(null);
 
 /**
  * Reads are server state now (`tripsListOptions`, Suspense for the
- * pending state — the screen owns the loading copy). Create writes
- * through `POST /trips` with an optimistic prepend, rollback, and
- * invalidate; `update` stays cache-local until Task 4 lands the edit
- * mutation.
+ * pending state — the screen owns the loading copy). Both writes go
+ * through the API with optimistic cache edits, rollback, and
+ * invalidate.
  *
  * The `source` prop is accepted but no longer read: it exists only so
  * existing providers keep mounting. Do not pass one.
@@ -164,18 +187,65 @@ export function TripsProvider({
       queryClient.invalidateQueries({ queryKey: tripKeys.list() });
     },
   });
+  const updateMutation = useMutation({
+    ...updateTripOptions(),
+    onMutate: async ({ id, patch }) => {
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: tripKeys.detail(id) }),
+        queryClient.cancelQueries({ queryKey: tripKeys.list() }),
+      ]);
+      const previousDetail = queryClient.getQueryData<Trip>(
+        tripKeys.detail(id),
+      );
+      const previousList = queryClient.getQueryData<Trip[]>(tripKeys.list());
+      const apply = (trip: Trip) => applyUpdatePatch(trip, patch);
+      if (previousDetail) {
+        queryClient.setQueryData<Trip>(tripKeys.detail(id), apply(previousDetail));
+      }
+      if (previousList) {
+        queryClient.setQueryData<Trip[]>(
+          tripKeys.list(),
+          previousList.map((trip) => (trip.id === id ? apply(trip) : trip)),
+        );
+      }
+      return { previousDetail, previousList, id };
+    },
+    onError: (_error, _input, context) => {
+      if (!context) return;
+      if (context.previousDetail) {
+        queryClient.setQueryData(
+          tripKeys.detail(context.id),
+          context.previousDetail,
+        );
+      }
+      if (context.previousList) {
+        queryClient.setQueryData(tripKeys.list(), context.previousList);
+      }
+    },
+    onSuccess: (serverTrip, { id }) => {
+      // The PUT response carries no `memberCount`, so the mapped
+      // `going` is a placeholder: the merge keeps the cached count.
+      const merge = (old: Trip | undefined) =>
+        old ? { ...serverTrip, going: old.going } : serverTrip;
+      queryClient.setQueryData<Trip>(tripKeys.detail(id), (old) => merge(old));
+      queryClient.setQueryData<Trip[]>(tripKeys.list(), (old) =>
+        old?.map((trip) =>
+          trip.id === id ? { ...serverTrip, going: trip.going } : trip,
+        ),
+      );
+    },
+    onSettled: (_data, _error, { id }) => {
+      queryClient.invalidateQueries({ queryKey: tripKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: tripKeys.list() });
+    },
+  });
   const actions = useMemo<TripsActions>(
     () => ({
       create: (input: CreateTripRequest) => createMutation.mutateAsync(input),
-      update: (id: string, patch: Partial<Trip>) => {
-        queryClient.setQueryData<Trip[]>(tripKeys.list(), (old) =>
-          old?.map((trip) =>
-            trip.id === id ? { ...trip, ...patch } : trip,
-          ),
-        );
-      },
+      update: (id: string, patch: UpdateTripRequest) =>
+        updateMutation.mutateAsync({ id, patch }),
     }),
-    [createMutation, queryClient],
+    [createMutation, updateMutation],
   );
 
   return (
@@ -188,7 +258,7 @@ export function TripsProvider({
 /** The write half: stable across renders, never re-subscribes. */
 export function useTripsActions(): {
   addTrip: (input: CreateTripRequest) => Promise<Trip>;
-  updateTrip: (id: string, patch: Partial<Trip>) => void;
+  updateTrip: (id: string, patch: UpdateTripRequest) => Promise<Trip>;
 } {
   const actions = useContext(TripsActionsContext);
   if (!actions)
@@ -226,7 +296,7 @@ export function useTrip(id: string | undefined): {
 
 export function useTrips(): TripsData & {
   addTrip: (input: CreateTripRequest) => Promise<Trip>;
-  updateTrip: (id: string, patch: Partial<Trip>) => void;
+  updateTrip: (id: string, patch: UpdateTripRequest) => Promise<Trip>;
 } {
   const data = useTripsData();
   const actions = useTripsActions();

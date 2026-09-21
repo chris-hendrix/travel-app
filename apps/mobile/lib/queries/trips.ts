@@ -23,6 +23,7 @@ import type {
   CreateTripResponse,
   GetTripResponse,
   GetTripsResponse,
+  UpdateTripResponse,
 } from "@journiful/shared/types";
 
 /** Key factory for the trips domain: `all` / `list` / `detail(id)`. */
@@ -91,3 +92,52 @@ export const createTripOptions = () =>
 
 /** Alias kept so call sites can name the mutation, not the options. */
 export { createTripOptions as createTripMutation };
+
+/**
+ * Mirrors `updateTripSchema`'s shape (`shared/schemas/trip.ts` =
+ * `baseTripSchema.partial()`): every field optional. The edit screen
+ * sends `name`, `destination`, dates, and `description`; covers ride
+ * the cover endpoints (Task 5), never this patch. zod is not a
+ * mobile dep, so the shape is declared inline (Task 3 precedent).
+ */
+export type UpdateTripRequest = {
+  name?: string;
+  destination?: string;
+  timezone?: string;
+  startDate?: string;
+  endDate?: string;
+  description?: string;
+  coverImageUrl?: string | null;
+  allowMembersToAddEvents?: boolean;
+  showAllMembers?: boolean;
+};
+
+/**
+ * `PUT /trips/:id`, mapped through `toTrip`.
+ *
+ * The update endpoint returns the base trip entity
+ * (`tripResponseSchema` in `shared/schemas/trip.ts`, served by
+ * `PUT /:id` in `apps/api/src/routes/trip.routes.ts`) — like POST,
+ * with no `memberCount`. It maps here as `going: 0`, a placeholder
+ * the provider's `onSuccess` merge replaces with the cached count,
+ * so the header and the roster can never disagree.
+ */
+export async function updateTrip(id: string, patch: UpdateTripRequest) {
+  const body = await apiFetch<UpdateTripResponse>(`/trips/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  return toTrip({ ...body.trip, memberCount: 0, organizers: [] });
+}
+
+/** Mutation wrapper for callers that fire `updateTrip` via TanStack Query. */
+export const updateTripOptions = () =>
+  mutationOptions({
+    mutationKey: ["trips", "update"],
+    mutationFn: ({ id, patch }: { id: string; patch: UpdateTripRequest }) =>
+      updateTrip(id, patch),
+  });
+
+/** Alias kept so call sites can name the mutation, not the options. */
+export { updateTripOptions as updateTripMutation };

@@ -10,6 +10,8 @@ import type { Selection } from "@/lib/calendar";
 import { formatDateRange } from "@/lib/dateRange";
 import { validateNewTrip, type NewTripInput } from "@/lib/newTrip";
 import { useTrip, useTripsActions } from "@/lib/tripsStore";
+import type { UpdateTripRequest } from "@/lib/queries/trips";
+import { toErrorCopy } from "@/lib/queries/errors";
 import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { useDismiss } from "@/hooks/useDismiss";
@@ -36,8 +38,9 @@ export default function EditTrip() {
 function EditTripScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const tripId = typeof id === "string" ? id : undefined;
-  // The trip read moves to the detail query; the write stays
-  // cache-local until the update mutation lands (Tasks 4–5).
+  // The trip read is the detail query; the write goes through
+  // `PUT /trips/:id` (failure rolls back in the mutation and reads
+  // here, in the screen's existing submit-area style).
   const { trip } = useTrip(tripId);
   const { updateTrip } = useTripsActions();
   const dismiss = useDismiss("/trips");
@@ -53,6 +56,8 @@ function EditTripScreen() {
   const [description, setDescription] = useState(trip?.description ?? "");
   const [cover, setCover] = useState(trip?.image ?? "");
   const [submitted, setSubmitted] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const pickCover = useCallback(async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -70,8 +75,6 @@ function EditTripScreen() {
     return <NotFound />;
   }
 
-  const defaultCover = `https://picsum.photos/seed/${encodeURIComponent(trip.id)}/900/600`;
-
   const input: NewTripInput = {
     title,
     location: location ?? "",
@@ -81,26 +84,50 @@ function EditTripScreen() {
 
   const errors = submitted ? validateNewTrip(input) : {};
 
-  function save() {
+  async function save() {
     setSubmitted(true);
+    setFailure(null);
     if (Object.keys(validateNewTrip(input)).length > 0) return;
 
-    updateTrip(trip!.id, {
-      title: input.title.trim(),
-      location: input.location.trim(),
+    // Covers ride the cover endpoints (Task 5), never this patch —
+    // the picker state above stays local until then.
+    const patch: UpdateTripRequest = {
+      name: input.title.trim(),
+      destination: input.location.trim(),
       startDate: input.startDate,
       endDate: input.endDate,
-      description: description.trim() ? description.trim() : null,
-      image: cover || defaultCover,
-    });
-    dismiss();
+      // `description` is optional-but-not-nullable server-side, so an
+      // emptied field is omitted (no change) rather than nulled.
+      ...(description.trim() ? { description: description.trim() } : null),
+    };
+    setBusy(true);
+    try {
+      await updateTrip(trip!.id, patch);
+      dismiss();
+    } catch (caught) {
+      // The failure reads at the submit area (the lab's Feedback rule:
+      // it belongs where its content would have been — the saved
+      // trip), mapped through the same copies every other screen uses.
+      const copy = toErrorCopy(caught);
+      if (copy.offline) {
+        setFailure("You're offline. Check your connection and try again.");
+      } else {
+        setFailure(
+          copy.message ??
+            (caught instanceof Error ? caught.message : "Couldn't save the trip."),
+        );
+      }
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
     <FullscreenDialog
       title="Edit trip"
-      primaryTitle="Save changes"
-      onPrimary={save}
+      primaryTitle={busy ? "Saving changes" : "Save changes"}
+      onPrimary={() => void save()}
+      primaryDisabled={busy}
       dismissHref={`/trips/detail?id=${trip.id}`}
     >
       <Stack.Screen options={{ presentation: "modal" }} />
@@ -145,6 +172,10 @@ function EditTripScreen() {
         multiline
         numberOfLines={4}
       />
+
+      {failure ? (
+        <Text className="font-body text-sm text-ink">{failure}</Text>
+      ) : null}
 
       <View className="gap-2">
         <Text className="font-body-bold text-sm text-ink">Cover photo</Text>
