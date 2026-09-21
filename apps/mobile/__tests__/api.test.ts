@@ -4,7 +4,7 @@ vi.mock("@/lib/session", () => ({ getToken: vi.fn() }));
 
 import { getToken } from "@/lib/session";
 import { ApiError, NetworkError, TimeoutError, apiFetch } from "@/lib/api";
-import { lookupFlight } from "@/lib/flights";
+import { isFlightNumber, lookupFlight, normalizeFlightNumber } from "@/lib/flights";
 
 const mockedGetToken = vi.mocked(getToken);
 
@@ -148,6 +148,28 @@ describe("apiFetch", () => {
   });
 });
 
+describe("isFlightNumber", () => {
+    it.each(["UA123", "UA 1842", "ua-1842", " ua1842 ", "BA2490"])(
+      "accepts %s",
+      (value) => {
+        expect(isFlightNumber(value)).toBe(true);
+      },
+    );
+
+    it.each(["", "U", "12345", "UA12345", "UA-  ", "U A"])(
+      "rejects %s",
+      (value) => {
+        expect(isFlightNumber(value)).toBe(false);
+      },
+    );
+
+    it("normalizes to the compact form", () => {
+      expect(normalizeFlightNumber("UA 1842")).toBe("UA1842");
+      expect(normalizeFlightNumber("ua-1842")).toBe("UA1842");
+      expect(normalizeFlightNumber("UA1842")).toBe("UA1842");
+    });
+  });
+
 describe("lookupFlight", () => {
   const flight = {
     departureAirport: { iata: "SFO", name: "San Francisco International" },
@@ -162,6 +184,54 @@ describe("lookupFlight", () => {
       vi.fn(async () => okJson({ available: true, flight })),
     );
     await expect(lookupFlight("UA123", "2026-07-15")).resolves.toEqual(flight);
+  });
+
+  it("sends the normalized compact body for spaced input", async () => {
+    const seen: Array<{ init: RequestInitLike | undefined }> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init?: RequestInitLike) => {
+        seen.push({ init });
+        return okJson({ available: true, flight });
+      }),
+    );
+    await expect(lookupFlight("UA 1842", "2026-07-15")).resolves.toEqual(flight);
+    expect(JSON.parse(String(seen[0]!.init?.body))).toEqual({
+      flightNumber: "UA1842",
+      date: "2026-07-15",
+    });
+  });
+
+  it("sends the normalized compact body for hyphenated lowercase input", async () => {
+    const seen: Array<{ init: RequestInitLike | undefined }> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init?: RequestInitLike) => {
+        seen.push({ init });
+        return okJson({ available: true, flight });
+      }),
+    );
+    await expect(lookupFlight("ua-1842", "2026-07-15")).resolves.toEqual(flight);
+    expect(JSON.parse(String(seen[0]!.init?.body))).toEqual({
+      flightNumber: "UA1842",
+      date: "2026-07-15",
+    });
+  });
+
+  it("leaves the wire body unchanged for already-compact input", async () => {
+    const seen: Array<{ init: RequestInitLike | undefined }> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init?: RequestInitLike) => {
+        seen.push({ init });
+        return okJson({ available: true, flight });
+      }),
+    );
+    await expect(lookupFlight("UA123", "2026-07-15")).resolves.toEqual(flight);
+    expect(JSON.parse(String(seen[0]!.init?.body))).toEqual({
+      flightNumber: "UA123",
+      date: "2026-07-15",
+    });
   });
 
   it("returns null for an unknown flight", async () => {

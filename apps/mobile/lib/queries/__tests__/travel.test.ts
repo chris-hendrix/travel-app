@@ -27,7 +27,7 @@ import type {
   FlightLookupResponse,
   MemberTravel,
 } from "@journiful/shared/types";
-import { lookupFlight } from "@/lib/flights";
+import { isFlightNumber, lookupFlight } from "@/lib/flights";
 import {
   createTravel,
   createTravelOptions,
@@ -288,6 +288,30 @@ describe("flight lookup (lib/flights.ts, untouched)", () => {
     expect(leg.location).toBe("Barcelona El Prat (BCN)");
     expect(leg.otherLocation).toBe("New York JFK (JFK)");
     expect(leg.flightNumber).toBe("UA1842");
+  });
+
+  it("normalizes spaced/hyphenated/lowercase input to the compact wire body", async () => {
+    for (const input of ["UA 1842", "ua-1842", "ua 1842"]) {
+      mockedApiFetch.mockReset();
+      mockedApiFetch.mockResolvedValue(lookupBody);
+
+      const flight = await lookupFlight(input, "2026-06-04");
+      expect(flight).toMatchObject({
+        departureTime: "2026-06-04T11:00:00.000Z",
+      });
+      expect(mockedApiFetch).toHaveBeenCalledWith("/flights/lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ flightNumber: "UA1842", date: "2026-06-04" }),
+      });
+    }
+  });
+
+  it("accepts the placeholder form via isFlightNumber", () => {
+    expect(isFlightNumber("UA 1842")).toBe(true);
+    expect(isFlightNumber("ua-1842")).toBe(true);
+    expect(isFlightNumber("")).toBe(false);
+    expect(isFlightNumber("12345")).toBe(false);
   });
 
   it("still answers null for an unknown flight (404)", async () => {
