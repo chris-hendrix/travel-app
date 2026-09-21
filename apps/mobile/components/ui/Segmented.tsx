@@ -54,6 +54,7 @@ export function Segmented<T extends string>({
   options,
   value,
   onChange,
+  size = "md",
 }: {
   options: Array<{
     value: T;
@@ -63,7 +64,21 @@ export function Segmented<T extends string>({
   }>;
   value: T | null;
   onChange: (value: T) => void;
+  /**
+   * Which row it sits in, and the two come together: `md` is button-sized
+   * — the same p-4 as a button, filling the width of its block — for a
+   * control that is a tier of that block, which the RSVP is. `sm` is a
+   * chrome row's height and a chrome row's width: the cells take only the
+   * room their labels need, and the same px-3 py-2 box ChipToggle draws,
+   * so a switch and a chip on one line are the same size rather than a
+   * step — and so a label sits as far inside one as inside the other.
+   * The label is text-sm at either size, because the label size is the
+   * system's and not the row's.
+   */
+  size?: "md" | "sm";
 }) {
+  const box = size === "sm" ? "px-3 py-2" : "flex-1 py-4";
+
   return (
     <View className="flex-row" role="radiogroup">
       {options.map((option, index) => {
@@ -75,7 +90,7 @@ export function Segmented<T extends string>({
             onPress={() => onChange(option.value)}
             role="radio"
             aria-selected={chosen}
-            className={`flex-1 items-center border border-ink py-4 ${
+            className={`items-center border border-ink ${box} ${
               index > 0 ? "border-l-0" : ""
             } ${chosen ? fill.box : ""}`}
           >

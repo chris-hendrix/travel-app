@@ -12,6 +12,7 @@ import { InlineError } from "@/components/ui/InlineError";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
 import { ChipToggle } from "@/components/ui/ChipToggle";
+import { Segmented } from "@/components/ui/Segmented";
 import type { Layout } from "@/lib/tripSettingsStore";
 import { useStays } from "@/lib/staysStore";
 import { useStays as useStaysSection } from "@/lib/queries/stays";
@@ -20,10 +21,10 @@ import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { todayIn } from "@/lib/timezone";
 
 /**
- * The two layouts, as the head's chips read them.
+ * The two layouts, as the run's toggle reads them.
  *
  * List leads because it is the default (`lib/tripSettingsStore.tsx`):
- * the first chip is the one you are already in, so nothing moves under
+ * the first cell is the one you are already in, so nothing moves under
  * your thumb when the run answers with what you expect. Grid second, as
  * the one you go to.
  */
@@ -79,10 +80,10 @@ const LAYOUTS: Array<{ value: Layout; label: string }> = [
  * token flips that, one tap away on every screen that shows a time.
  *
  * The two sit at the two edges of one row rather than shoulder to
- * shoulder, because they are not the same kind of thing: past events is
- * a filter, grid-or-list is the shape of everything below it. A single
- * row of three identical pills reads as a choice of three, and a word in
- * front of them would have to say two things at once.
+ * shoulder, because they are not the same kind of thing: the layout
+ * switch is a choice out of a few, the filter is a switch you turn on
+ * separately from it. A single run of three identical cells reads as one
+ * choice of three.
  *
  * What is left here is content, and the two chips that decide how much
  * of it you are reading at once.
@@ -162,16 +163,25 @@ export function Itinerary({
           went with them. */}
 
       {/* The run's own two controls, at the head of the block they
-          change: how much of it you read, and whether it is cards or
-          rows. Two groups at the two edges, the way a settings row puts
-          a name at one edge and its control at the other — past events
-          is a filter you turn on, grid-or-list is the shape of what sits
-          below, and three pills in a single row read as one choice of
-          three rather than as two controls. No word in front: a chip
-          names its own thing, and a label here would have to say two
-          different things at once ("show" the filter, "view" the
-          layout) or lie about one of them. */}
+          change: whether it is cards or rows, and how much of it you
+          read. The switch leads and always leads — it is the control for
+          the thing you are looking at, and it is there every time this
+          block is; the filter is the extra one, and it sits at the far
+          edge so the two never read as one set. The switch is the same
+          cells as every other choice in the app (`Segmented`), because a
+          control that sometimes holds a value and sometimes does not is
+          one control in this system, not two. */}
       <View className="flex-row flex-wrap items-center justify-between gap-3">
+        <View className="flex-1">
+          <Segmented
+            options={LAYOUTS}
+            value={layout}
+            onChange={(next) => update(trip.id, { layout: next })}
+            // A chrome row's height, not a button's: it shares this line
+            // with the filter chip, and the two are one size.
+            size="sm"
+          />
+        </View>
         {underway ? (
           <ChipToggle
             label="Past events"
@@ -179,16 +189,6 @@ export function Itinerary({
             onPress={() => update(trip.id, { showPast: !showPast })}
           />
         ) : null}
-        <View className="flex-row items-center gap-3">
-          {LAYOUTS.map((option) => (
-            <ChipToggle
-              key={option.value}
-              label={option.label}
-              selected={layout === option.value}
-              onPress={() => update(trip.id, { layout: option.value })}
-            />
-          ))}
-        </View>
       </View>
 
       {cards ? (
@@ -204,8 +204,10 @@ export function Itinerary({
             />
           ) : stays.length > 0 ? (
             // A heading of the run's own, in the days' own face: the
-            // roofs are the first block of it, not a preamble to it.
-            <View className="gap-6 border-t border-ink pt-6">
+            // roofs are the first block of it, not a preamble to it. No
+            // rule above it — the page draws the one seam, under both of
+            // its columns, and this block begins the run on its far side.
+            <View className="gap-6">
               <Text className="font-display text-xl uppercase leading-none text-ink">
                 Stays
               </Text>
@@ -259,8 +261,9 @@ export function Itinerary({
         // One table for the whole itinerary, with the days inside it:
         // a table per day would put two rules 24px apart at every day
         // boundary. The heading lumps a day together and the gap above
-        // it separates it from the day before.
-        <View className="border-t border-ink">
+        // it separates it from the day before. No rule above the table:
+        // the page's seam is the run's opening line.
+        <View>
           {staysStatus === "loading" ? (
             <LoadingBlock label="Getting the stays" />
           ) : staysStatus === "offline" ? (
@@ -336,7 +339,7 @@ export function Itinerary({
           flash. */}
       {eventsStatus !== "success" || staysStatus !== "success" ? null : days.length === 0 &&
         stays.length === 0 ? (
-        <View className="gap-1 border-t border-ink pt-6">
+        <View className="gap-1">
           <Text className="font-display text-xl uppercase leading-none text-ink">
             Nothing planned yet
           </Text>
@@ -347,7 +350,7 @@ export function Itinerary({
           </Text>
         </View>
       ) : shown.length === 0 ? (
-        <View className="gap-1 border-t border-ink pt-6">
+        <View className="gap-1">
           <Text className="font-display text-xl uppercase leading-none text-ink">
             Nothing ahead
           </Text>

@@ -8,6 +8,7 @@ import { InlineError } from "@/components/ui/InlineError";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
 import { TextField } from "@/components/ui/TextField";
 import { Button } from "@/components/ui/Button";
+import { Segmented } from "@/components/ui/Segmented";
 import { useDismiss } from "@/hooks/useDismiss";
 import { joinFacts } from "@/lib/wording";
 import {
@@ -24,9 +25,14 @@ import { toErrorCopy } from "@/lib/queries/errors";
 import { LEGAL_ROWS } from "@/lib/legal";
 import { useAuth } from "@/lib/authStore";
 
+/**
+ * Fahrenheit first, because it is the default the API answers with
+ * (`lib/mapping.ts`): the value you are most likely to already be on is
+ * the one under the thumb that goes looking for it.
+ */
 const UNITS: Array<{ value: TemperatureUnit; label: string }> = [
-  { value: "celsius", label: "Celsius" },
   { value: "fahrenheit", label: "Fahrenheit" },
+  { value: "celsius", label: "Celsius" },
 ];
 
 /**
@@ -235,29 +241,19 @@ function ProfileForm({ profile }: { profile: Profile }) {
 
       <View className="gap-2">
         <Text className="font-body-bold text-sm text-ink">Temperature</Text>
-        <View className="flex-row gap-2">
-          {UNITS.map((unit) => (
-            <Pressable
-              key={unit.value}
-              onPress={() =>
-                setDraft((current) => ({
-                  ...current,
-                  temperatureUnit: unit.value,
-                }))
-              }
-            >
-              <Text
-                className={`px-4 py-2 text-base ${
-                  draft.temperatureUnit === unit.value
-                    ? "bg-ink font-body-bold text-sand"
-                    : "font-body text-ink"
-                }`}
-              >
-                {unit.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+        {/* A value, so it wears the cells every other choice in the app
+            wears (components/ui/Segmented.tsx) — bordered, the chosen one
+            inked — rather than bare words: a word with no box and no
+            underline is a label, not something a thumb can be asked to
+            press. It was a pair of Pressables built here, which is also
+            why the run's layout switch had nothing to copy. */}
+        <Segmented
+          options={UNITS}
+          value={draft.temperatureUnit}
+          onChange={(unit) =>
+            setDraft((current) => ({ ...current, temperatureUnit: unit }))
+          }
+        />
       </View>
 
       {failure ? (

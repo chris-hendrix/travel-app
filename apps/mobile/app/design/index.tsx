@@ -7,8 +7,8 @@ import { ActionBar } from "@/components/ui/ActionBar";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { TextField } from "@/components/ui/TextField";
-import { ChipToggle } from "@/components/ui/ChipToggle";
-import { RsvpControl } from "@/components/trip/RsvpControl";
+import { ChipToggle } from "@/components/ui/ChipToggle";import { RsvpControl } from "@/components/trip/RsvpControl";
+import { Segmented } from "@/components/ui/Segmented";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { Accordion, AccordionItem } from "@/components/ui/Accordion";
 import { Checkbox, CheckboxLabel } from "@/components/ui/Checkbox";
@@ -210,6 +210,7 @@ function DesignSystemScreen() {
   const [formName, setFormName] = useState("");
   const [venue, setVenue] = useState<string | null>(null);
   const [rsvp, setRsvp] = useState<RsvpStatus | null>(null);
+  const [layout, setLayout] = useState<"list" | "grid">("list");
   const [pastEvents, setPastEvents] = useState(false);
   const [range, setRange] = useState<Selection>({
     start: null,
@@ -485,7 +486,7 @@ function DesignSystemScreen() {
             <Specimen
               name="ChipToggle"
               contract="label · selected? · onPress"
-              note="A filter you can press: filled ink when on, outlined when off. Used for independent filters (past events) and for exclusive choices (grid / list) alike, with a plain label above when the row needs one — the run's head does not, because the chips say what they are. There they are the run's only controls: flipping one shows you what it did, which is why they are not in Trip settings. A row holding both kinds puts them at the two edges rather than shoulder to shoulder: three identical pills in one row read as one choice of three, and a word in front would have to say two different things at once. The filter is only offered while a trip is under way — before it starts there is nothing behind you, and after it ends the whole run is, so a finished run is always whole and the chip is not there to hide it."
+              note="A filter you can press: a box, filled ink when on and outlined when off. For switches you turn on and off (past events), never for a choice among options — that is `Segmented`, whose cells are joined and which holds one value out of a few. A row holding a filter and a choice puts them at the two edges rather than shoulder to shoulder, so they never read as one set. The run's head is the only place the two meet, and the filter is offered only while a trip is under way — before it starts there is nothing behind you, and after it ends the whole run is, so a finished run is always whole and the chip is not there to hide it."
             >
               <View className="flex-row items-center gap-3">
                 <ChipToggle
@@ -505,8 +506,8 @@ function DesignSystemScreen() {
 
             <Specimen
               name="Segmented"
-              contract="options (value · label · tone? · mark?) · value (nullable) · onChange"
-              note="One choice out of a few, all of them visible. Bordered cells, the chosen one inked by default — the same p-4 and text-sm as a button, so a row of these sits in a stack of buttons without a step. Ink rather than a colour, because choosing a direction is not an action: the calendar and the time column already invert what is chosen, and two coloured toggles left the form's one real button looking like one of them. tone is for answers that carry a meaning of their own, which the RSVP has. mark is a short mark after the label, drawn in the label's own colour — travel puts a tick against a direction already filed. value is nullable because having chosen nothing yet is a real state rather than an error."
+              contract="options (value · label · tone? · mark?) · value (nullable) · onChange · size?"
+              note="One choice out of a few, all of them visible. Bordered cells in a row rather than bare words: a word with no box and no underline is a label, not something a thumb can be asked to press, and every control in this system is a box. The cells are button-sized — the same p-4 and text-sm as a button, so a row of these sits in a stack of buttons without a step — and ink rather than a colour, because choosing a direction is not an action: the calendar and the time column already invert what is chosen, and two coloured toggles left the form's one real button looking like one of them. tone is for answers that carry a meaning of their own, which the RSVP has; mark is a short mark after the label, drawn in the label's own colour, for a choice with something to say about itself (travel puts a tick against a direction already filed). value is nullable because having chosen nothing yet is a real state rather than an error — and an always-set value wears the same cells (the profile's temperature, the run's list or grid), because a control that looks different depending on whether a value has been chosen yet would be two controls for one idea."
             >
               <RsvpControl
                 value={rsvp ?? "no_response"}
@@ -515,6 +516,31 @@ function DesignSystemScreen() {
                   setLog(`RSVP "${RSVP_LABEL[status]}"`);
                 }}
               />
+              {/* size="sm": a chrome row's switch, the same box as a chip. */}
+              <View className="flex-row items-center gap-3">
+                <View className="flex-1">
+                  <Segmented
+                    size="sm"
+                    options={[
+                      { value: "list", label: "List" },
+                      { value: "grid", label: "Grid" },
+                    ]}
+                    value={layout}
+                    onChange={(next) => {
+                      setLayout(next);
+                      setLog(`Segmented "${next}"`);
+                    }}
+                  />
+                </View>
+                <ChipToggle
+                  label="Past events"
+                  selected={pastEvents}
+                  onPress={() => {
+                    setPastEvents(!pastEvents);
+                    setLog(`ChipToggle "Past events" ${!pastEvents ? "on" : "off"}`);
+                  }}
+                />
+              </View>
             </Specimen>
 
             <Specimen
@@ -691,7 +717,7 @@ function DesignSystemScreen() {
             <Specimen
               name="TripActions"
               contract="tripId · organizer · owesTravel · memberId? · ask?"
-              note="The trip page's verbs in one block, in three tiers: the ask, the adds, the maintenance. One loud control and only one — the organizer is asked to bring people in, everyone else answers their own RSVP, which is why ask arrives as a node. The adds put Add travel first and on a line of its own, because it is the one that is a question rather than a standing verb (it is there while somebody still owes a time, and the screen decides whose), with Add event and Add stay as a pair of halves under it. The maintenance pair is words, because the system carries one loud button per screen. First the organizer's block, then a traveler's."
+              note="The trip page's verbs in one block, in two tiers: the ask and the adds. One loud control and only one — the organizer is asked to bring people in, everyone else answers their own RSVP, which is why ask arrives as a node. The adds put Add travel first and on a line of its own, because it is the one that is a question rather than a standing verb (it is there while somebody still owes a time, and the screen decides whose), with Add event and Add stay as a pair of halves under it. The trip's maintenance — Edit trip, Trip settings — is not here: it sits at the foot of the trip's own column on the page, under the description it edits, with the rule that opens the run under it. First the organizer's block, then a traveler's."
             >
               <TripActions
                 tripId={SAMPLE_TRIP.id}

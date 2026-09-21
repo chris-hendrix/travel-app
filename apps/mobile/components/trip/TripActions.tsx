@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 import { useRouter } from "expo-router";
 import { Button } from "@/components/ui/Button";
-import { QuietAction } from "@/components/ui/QuietAction";
 
 /**
  * A cell of the adds block: the whole width of the block on its own, half
@@ -29,7 +28,7 @@ function Add({
 }
 
 /**
- * Every verb the trip page has, in one block under the cover, in three
+ * Every verb the trip page has, in one block under the cover, in two
  * tiers.
  *
  *   ask     one control   who you are decides it: the organizer's
@@ -37,21 +36,25 @@ function Add({
  *   adds    one block     Add travel on its own line while anybody still
  *                         owes a time, then Add event and Add stay
  *                         side by side for the organizer
- *   admin   two words     Edit trip, Trip settings
  *
- * One place, because the alternative was three. The adds were split:
- * Add travel sat in the stack under the cover, Add event and Add stay in
- * the itinerary's own head, and Add the first event was a third copy for
- * as long as the run was empty and that head was below the fold. Three
- * homes for one family of verbs, two conventions between them, and a
- * nudge that moved the boxes under it every time it appeared and
- * vanished.
+ * One place, because the alternative was three. The adds were split: Add
+ * travel sat in the stack under the cover, Add event and Add stay in the
+ * itinerary's own head, and Add the first event was a third copy for as
+ * long as the run was empty and that head was below the fold. Three homes
+ * for one family of verbs, two conventions between them, and a nudge that
+ * moved the boxes under it every time it appeared and vanished.
  *
- * Travel leads, and has a line to itself. It is the one of the three that
+ * Two tiers and not three: the trip's own maintenance — Edit trip, Trip
+ * settings — used to close this block, and it moved up the page to sit
+ * under the description it edits, with the rule that opens the run under
+ * it. It was never one of these verbs (nothing here adds anything), and
+ * last place in a column of boxes gave it the weight of a thing to do.
+ *
+ * Travel leads, and has a line to itself. It is the one of the two that
  * is a question rather than a standing verb — it appears while somebody
  * still owes a time and goes when nobody does — so it is the thing to do
- * first and the thing to read first, and a half-width cell in a row
- * would bury it beside two permanent ones. Whose times it is about is the
+ * first and the thing to read first, and a half-width cell in a row would
+ * bury it beside two permanent ones. Whose times it is about is the
  * caller's (`travelOwed`, computed off the travelling roster in
  * `app/trips/detail.tsx`), because the answer differs by role: yours, or
  * the whole group's if you are the one who files for them.
@@ -62,22 +65,9 @@ function Add({
  * equal halves reads as one control with two verbs, where a column of
  * full-width boxes reads as a menu.
  *
- * Add travel is in the row while its viewer still owes a time, organizer
- * or not — it is every member's own row, and the trip page is where the
- * app tells you that yours is not in yet. Once it is, the row loses that
- * cell and the Travel door in the fact row is how you get back to your
- * own record (the board edits what you filed; this only ever adds). The
- * two cells of the organizer's row are fixtures, because authoring the
- * run is not something you finish.
- *
  * They are boxes rather than words because they are the most-used verbs
  * on this screen — the itinerary head tried them as words first, and an
  * underlined label in a head read as a link in a paragraph.
- *
- * The maintenance pair is words, because the system carries one loud
- * button per screen (QuietAction's own rule) and Edit trip and Trip
- * settings are the trip's configuration rather than things you do on a
- * visit. Invite people is the loud one, and it is the role's own tier.
  *
  * `ask` arrives as a node rather than as RSVP props because the block
  * does not own the answer: the trip page does, off the roster, painted
@@ -152,24 +142,6 @@ export function TripActions({
           ) : null}
         </View>
       ) : null}
-
-      {/* The block's floor: the trip's configuration, as words. Every
-          member has Trip settings; only the organizer has Edit trip. */}
-      <View className="flex-row flex-wrap items-center gap-2">
-        {organizer ? (
-          <>
-            <QuietAction
-              label="Edit trip"
-              onPress={() => router.push(`/trips/edit?id=${tripId}`)}
-            />
-            <Text className="font-body text-sm text-ink">·</Text>
-          </>
-        ) : null}
-        <QuietAction
-          label="Trip settings"
-          onPress={() => router.push(`/trips/settings?id=${tripId}`)}
-        />
-      </View>
     </View>
   );
 }

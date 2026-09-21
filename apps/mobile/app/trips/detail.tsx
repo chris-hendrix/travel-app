@@ -63,13 +63,17 @@ import { getPertinentTime } from "@journiful/shared/utils";
  * The action sits under the cover in both, which is where the invite
  * belongs: you see the trip, then you answer, then you read.
  *
- * It is one block, and TripActions is where its three tiers are argued:
- * the ask, the adds, the maintenance. Only the ask changes with who you
- * are, which is the PRD's rule — trip-level things are the organizer's,
- * person-level things are your own:
+ * It is one block, and TripActions is where its two tiers are argued:
+ * the ask and the adds. Only the ask changes with who you are, which is
+ * the PRD's rule — trip-level things are the organizer's, person-level
+ * things are your own:
  *
  *   organizer  the trip is authored, so the ask is bringing people in
  *   traveler   the trip is not yours, so the ask is your own RSVP
+ *
+ * The trip's own maintenance is not in it: Edit trip and Trip settings
+ * close the facts column instead, under the description, with the rule
+ * that opens the run under them.
  *
  * The itinerary below used to carry Add event and Add stay in its own
  * head, on the argument that the surface holding a list holds the way
@@ -303,8 +307,55 @@ function TripDetailScreen() {
             </View>
 
             {trip.description ? <Description text={trip.description} /> : null}
+
+            {/* The trip's own maintenance, under the facts it edits: what
+                the trip is (its name, dates, place, cover) and how its
+                run behaves (the itinerary, notifications, privacy,
+                calendar) are the two screens a member opens least often,
+                so they are words at the foot of this column rather than
+                a tier of the action block — nothing here adds anything,
+                and last place in a column of boxes read as a thing to
+                do. Every member has Trip settings; only the organizer
+                has Edit trip.
+
+                The rule that closes them is the page's own seam, drawn
+                below both columns, and the run's controls sit under it.
+
+                The pair is sent to the bottom of this column from md up
+                (`mt-auto`), because the column is as tall as the cover and
+                the action block beside it and its own content is shorter:
+                left to flow, the words sat high above the seam and the
+                trip's own line did not line up with the foot of the
+                column it belongs to. */}
+            <View className="gap-6 md:mt-auto">
+              <View className="flex-row flex-wrap items-center gap-2">
+                {organizer ? (
+                  <>
+                    <QuietAction
+                      label="Edit trip"
+                      onPress={() => router.push(`/trips/edit?id=${trip.id}`)}
+                    />
+                    <Text className="font-body text-sm text-ink">·</Text>
+                  </>
+                ) : null}
+                <QuietAction
+                  label="Trip settings"
+                  onPress={() => router.push(`/trips/settings?id=${trip.id}`)}
+                />
+              </View>
+            </View>
           </View>
         </View>
+
+        {/* The seam between the two halves of the page: the trip above —
+            cover, verbs, facts, description, its own two words at the
+            foot of the column — and the run below, whose own controls sit
+            under this line. It is the page's rule rather than the run's,
+            because only the page can draw one that closes both columns
+            and opens what comes under them; the run's first block
+            therefore brings no rule of its own
+            (components/trip/Itinerary.tsx). */}
+        <View className="h-px w-full bg-ink" />
 
         {/* The run, or the state that says why it is not here: an
             unanswered RSVP withholds it, because the server reads full

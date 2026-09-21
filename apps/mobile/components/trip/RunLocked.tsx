@@ -19,12 +19,14 @@ import { Text, View } from "react-native";
  * press agree, and they point at it rather than repeating it: the RSVP
  * control sits above this, under the cover.
  *
- * The same frame as the run's other states — a rule, a display heading
- * for the fact, body copy for what to do about it.
+ * The same frame as the run's other states — a display heading for the
+ * fact, body copy for what to do about it — and no rule of its own: the
+ * page draws the seam above it, which is the run's opening line
+ * (`app/trips/detail.tsx`).
  */
 export function RunLocked() {
   return (
-    <View className="gap-1 border-t border-ink pt-6">
+    <View className="gap-1">
       <Text className="font-display text-xl uppercase leading-none text-ink">
         The run opens when you are going
       </Text>
