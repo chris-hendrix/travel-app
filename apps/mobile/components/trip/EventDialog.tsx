@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Stack } from "expo-router";
 import { Text, View } from "react-native";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
@@ -14,6 +14,12 @@ import { toIso } from "@/lib/dateRange";
 import { validateNewEvent, type NewEventInput } from "@/lib/newEvent";
 import type { Trip } from "@/components/trip/TripCard";
 import { EVENT_PLACES } from "@/lib/placeSuggestions";
+import {
+  toPlaceOption,
+  usePlaceDetails,
+  usePlaceSessionToken,
+  usePlaceSuggestions,
+} from "@/lib/queries/places";
 
 /**
  * The event form, in one place because there is one of it: adding and
@@ -80,6 +86,39 @@ export function EventDialog({
   const [end, setEnd] = useState<string | null>(initial?.end ?? null);
   const [submitted, setSubmitted] = useState(false);
 
+  // Live Places suggestions sit above the static list; a lookup
+  // failure falls back to `EVENT_PLACES` silently, and free text
+  // keeps working throughout — the failure never blocks submit. The
+  // event keeps the display string only: it carries no lat/lon.
+  const [search, setSearch] = useState("");
+  const [sessionToken, rotateSessionToken] = usePlaceSessionToken();
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(
+    null,
+  );
+  const { data: suggestions } = usePlaceSuggestions(search, sessionToken);
+  const details = usePlaceDetails(selectedPlaceId, sessionToken);
+  const liveById = useMemo(
+    () => new Map((suggestions ?? []).map((s) => [s.placeId, s])),
+    [suggestions],
+  );
+  const placeOptions = useMemo(
+    () =>
+      suggestions?.length ? suggestions.map(toPlaceOption) : EVENT_PLACES,
+    [suggestions],
+  );
+
+  // Details only canonicalize the committed label (and close the
+  // input session) — they never block submit.
+  useEffect(() => {
+    if (!selectedPlaceId) return;
+    if (details.data?.placeId === selectedPlaceId) {
+      setPlace(details.data.name);
+    }
+    if (details.data?.placeId === selectedPlaceId || details.isError) {
+      rotateSessionToken();
+    }
+  }, [details.data, details.isError, selectedPlaceId, rotateSessionToken]);
+
   const today = toIso(new Date());
   const day = dates.start ?? "";
 
@@ -128,9 +167,23 @@ export function EventDialog({
       {/* TODO(BE): `GET /api/locations/autocomplete` and `/details` do not request `photos[].name` (field masks at `location.routes.ts:88-130`, `:178`), so a picked place has no image reference even though `/locations/photos/:photoRef` exists. */}
       <Dropdown
         label="Place"
-        options={EVENT_PLACES}
+        options={placeOptions}
         value={place}
-        onChange={setPlace}
+        onSearchText={setSearch}
+        onChange={(picked) => {
+          // Free text: every keystroke arrives here as well as every
+          // pick, so a value that is not a live placeId is typed prose
+          // (which abandons the session) rather than a selection.
+          const hit = liveById.get(picked);
+          if (hit) {
+            setSelectedPlaceId(hit.placeId);
+            setPlace(hit.name);
+          } else {
+            setSelectedPlaceId(null);
+            setPlace(picked);
+            rotateSessionToken();
+          }
+        }}
         placeholder="Search for a place…"
         error={errors.place}
         freeText

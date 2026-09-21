@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Stack } from "expo-router";
 import { Text, View } from "react-native";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { InlineError } from "@/components/ui/InlineError";
 import { TextField } from "@/components/ui/TextField";
+import { Dropdown } from "@/components/ui/Dropdown";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { TimeField } from "@/components/ui/TimeField";
 import type { Selection } from "@/lib/calendar";
@@ -14,6 +15,12 @@ import {
   type NewStayInput,
 } from "@/lib/newStay";
 import type { Trip } from "@/components/trip/TripCard";
+import {
+  toPlaceOption,
+  usePlaceDetails,
+  usePlaceSessionToken,
+  usePlaceSuggestions,
+} from "@/lib/queries/places";
 
 /**
  * The stay form, in one place because there is one of it: adding and
@@ -68,6 +75,40 @@ export function StayDialog({
   const [description, setDescription] = useState(initial?.description ?? "");
   const [submitted, setSubmitted] = useState(false);
 
+  // Live Places suggestions for the address. There is no static list
+  // for street addresses, so the fallback here is free text alone:
+  // a lookup failure leaves an empty suggestion list, typing keeps
+  // working, and the failure never blocks submit. The stay keeps the
+  // display string only — `addressLat`/`addressLon` stay null (the
+  // `newStay.ts` mapping), so this wires no coordinates.
+  const [search, setSearch] = useState("");
+  const [sessionToken, rotateSessionToken] = usePlaceSessionToken();
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(
+    null,
+  );
+  const { data: suggestions } = usePlaceSuggestions(search, sessionToken);
+  const details = usePlaceDetails(selectedPlaceId, sessionToken);
+  const liveById = useMemo(
+    () => new Map((suggestions ?? []).map((s) => [s.placeId, s])),
+    [suggestions],
+  );
+  const addressOptions = useMemo(
+    () => (suggestions ?? []).map(toPlaceOption),
+    [suggestions],
+  );
+
+  // Details only canonicalize the committed label (and close the
+  // input session) — they never block submit.
+  useEffect(() => {
+    if (!selectedPlaceId) return;
+    if (details.data?.placeId === selectedPlaceId) {
+      setAddress(details.data.name);
+    }
+    if (details.data?.placeId === selectedPlaceId || details.isError) {
+      rotateSessionToken();
+    }
+  }, [details.data, details.isError, selectedPlaceId, rotateSessionToken]);
+
   const input: NewStayInput = {
     name,
     address,
@@ -110,12 +151,28 @@ export function StayDialog({
       />
 
       {/* TODO(BE): `GET /api/locations/autocomplete` and `/details` do not request `photos[].name` (field masks at `location.routes.ts:88-130`, `:178`), so a picked place has no image reference even though `/locations/photos/:photoRef` exists. */}
-      <TextField
+      <Dropdown
         label="Address"
-        value={address}
-        onChangeText={setAddress}
+        options={addressOptions}
+        value={address || null}
+        onSearchText={setSearch}
+        onChange={(picked) => {
+          // Free text: every keystroke arrives here as well as every
+          // pick, so a value that is not a live placeId is typed prose
+          // (which abandons the session) rather than a selection.
+          const hit = liveById.get(picked);
+          if (hit) {
+            setSelectedPlaceId(hit.placeId);
+            setAddress(hit.name);
+          } else {
+            setSelectedPlaceId(null);
+            setAddress(picked);
+            rotateSessionToken();
+          }
+        }}
         placeholder="Carrer de la Mar 14, 07100 Sóller"
         error={errors.address}
+        freeText
       />
 
       <View className="gap-2">

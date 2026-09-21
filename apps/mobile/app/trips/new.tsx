@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Stack, useRouter } from "expo-router";
 import { Text, View } from "react-native";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
@@ -10,6 +10,12 @@ import { formatDateRange } from "@/lib/dateRange";
 import { validateNewTrip, type NewTripInput } from "@/lib/newTrip";
 import { useTrips } from "@/lib/tripsStore";
 import { toErrorCopy } from "@/lib/queries/errors";
+import {
+  toPlaceOption,
+  usePlaceDetails,
+  usePlaceSessionToken,
+  usePlaceSuggestions,
+} from "@/lib/queries/places";
 import { PLACES } from "@/lib/placeSuggestions";
 
 export default function NewTrip() {
@@ -22,6 +28,39 @@ export default function NewTrip() {
   const [submitted, setSubmitted] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Live Places suggestions sit above the static list; offline, an
+  // empty key, or a 503 falls back to `PLACES` silently, and the
+  // required-pick still accepts a static pick. The field keeps the
+  // display string only — the trip carries no lat/lon.
+  const [search, setSearch] = useState("");
+  const [sessionToken, rotateSessionToken] = usePlaceSessionToken();
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(
+    null,
+  );
+  const { data: suggestions } = usePlaceSuggestions(search, sessionToken);
+  const details = usePlaceDetails(selectedPlaceId, sessionToken);
+  const liveById = useMemo(
+    () => new Map((suggestions ?? []).map((s) => [s.placeId, s])),
+    [suggestions],
+  );
+  const placeOptions = useMemo(
+    () =>
+      suggestions?.length ? suggestions.map(toPlaceOption) : PLACES,
+    [suggestions],
+  );
+
+  // Details only canonicalize the committed label (and close the
+  // input session) — they never block submit.
+  useEffect(() => {
+    if (!selectedPlaceId) return;
+    if (details.data?.placeId === selectedPlaceId) {
+      setLocation(details.data.name);
+    }
+    if (details.data?.placeId === selectedPlaceId || details.isError) {
+      rotateSessionToken();
+    }
+  }, [details.data, details.isError, selectedPlaceId, rotateSessionToken]);
 
   // One tap is a day trip, so a start with no end closes on itself.
   const input: NewTripInput = {
@@ -93,9 +132,20 @@ export default function NewTrip() {
       {/* TODO(BE): `GET /api/locations/autocomplete` and `/details` do not request `photos[].name` (field masks at `location.routes.ts:88-130`, `:178`), so a picked place has no image reference even though `/locations/photos/:photoRef` exists. */}
       <Dropdown
         label="Where"
-        options={PLACES}
+        options={placeOptions}
         value={location}
-        onChange={setLocation}
+        onSearchText={setSearch}
+        onChange={(picked) => {
+          const hit = liveById.get(picked);
+          if (hit) {
+            setSelectedPlaceId(hit.placeId);
+            setLocation(hit.name);
+          } else {
+            setSelectedPlaceId(null);
+            setLocation(picked);
+            rotateSessionToken();
+          }
+        }}
         placeholder="Start typing a place…"
         error={errors.location}
       />
