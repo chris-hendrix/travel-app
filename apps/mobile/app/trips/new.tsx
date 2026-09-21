@@ -10,7 +10,7 @@ import { formatDateRange } from "@/lib/dateRange";
 import { validateNewTrip, type NewTripInput } from "@/lib/newTrip";
 import { useTrips } from "@/lib/tripsStore";
 import { toErrorCopy } from "@/lib/queries/errors";
-import { PLACES } from "@/mocks/places";
+import { PLACES } from "@/lib/placeSuggestions";
 
 export default function NewTrip() {
   const { addTrip } = useTrips();

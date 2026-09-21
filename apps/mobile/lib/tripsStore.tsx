@@ -12,7 +12,6 @@ import {
 import type { Trip } from "@/components/trip/TripCard";
 import { ApiError } from "@/lib/api";
 import { placeholderPhoto } from "@/lib/mapping";
-import { MockTripsSource, type TripsSource } from "@/lib/sources";
 import {
   createTripOptions,
   removeCoverOptions,
@@ -90,64 +89,6 @@ function applyUpdatePatch(trip: Trip, patch: UpdateTripRequest): Trip {
   };
 }
 
-/**
- * The store core the provider subscribes to. `getData()` returns a
- * CACHED snapshot — the same object until a real write — because
- * `useSyncExternalStore` warns when the snapshot changes identity
- * without a store update. `getActions()` is created once and never
- * changes identity, so a screen that only writes never re-subscribes.
- *
- * Pre-query seam, kept for the `trips-source` unit test and the lab:
- * the app's reads now come from `tripsListOptions` below, not from a
- * source. Do not extend — Phase 8 deletes this once every store is
- * query-backed.
- */
-export function createTripsStore(source: TripsSource) {
-  const listeners = new Set<() => void>();
-  let cached: TripsData | null = null;
-
-  function getData(): TripsData {
-    if (!cached) cached = { trips: source.list() };
-    return cached;
-  }
-
-  function emit() {
-    cached = null;
-    listeners.forEach((listener) => listener());
-  }
-
-  function create(trip: Trip) {
-    source.create(trip);
-    emit();
-  }
-
-  function update(id: string, patch: Partial<Trip>) {
-    source.update(id, patch);
-    emit();
-  }
-
-  // Own type on purpose: the query-backed `TripsActions` below sends
-  // `create` to the server (a `CreateTripRequest` in, a promise out),
-  // while this pre-query seam keeps the cache-local `(trip: Trip)`
-  // shape for the `trips-source` test and the lab. Phase 8 deletes this.
-  const actions: { create: (trip: Trip) => void; update: (id: string, patch: Partial<Trip>) => void } = { create, update };
-
-  function getActions(): typeof actions {
-    return actions;
-  }
-
-  function subscribe(listener: () => void) {
-    listeners.add(listener);
-    return () => {
-      listeners.delete(listener);
-    };
-  }
-
-  return { subscribe, getData, getActions, create, update };
-}
-
-export type TripsStore = ReturnType<typeof createTripsStore>;
-
 const TripsActionsContext = createContext<TripsActions | null>(null);
 
 /**
@@ -156,17 +97,11 @@ const TripsActionsContext = createContext<TripsActions | null>(null);
  * through the API with optimistic cache edits, rollback, and
  * invalidate.
  *
- * The `source` prop is accepted but no longer read: it exists only so
- * existing providers keep mounting. Do not pass one.
+ * Phase 8: the injected-source seam is gone — the seam module and its
+ * store factory are deleted. Data comes from the query cache;
+ * the lab renders from the mocks directory directly, never through this provider.
  */
-export function TripsProvider({
-  children,
-  source: _source = MockTripsSource,
-}: {
-  children: ReactNode;
-  source?: TripsSource;
-}) {
-  void _source;
+export function TripsProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const createMutation = useMutation({
     ...createTripOptions(),

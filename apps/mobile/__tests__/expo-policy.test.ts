@@ -163,24 +163,26 @@ describe("expo policy: every target is a thumb's size", () => {
   });
 });
 
-describe("expo policy: the trips store takes data from an injected source", () => {
-  // Scoped to the one store that has the seam on purpose. tripsStore
-  // proves the wiring interface; the seven other stores still import
-  // their mock pools directly (see lib/sources.ts), and giving each a
-  // seam is the wiring plan's job — not something this assertion
-  // should pretend already happened by passing vacuously.
+describe("expo policy: the trips store is query-backed, not mock-backed", () => {
+  // Phase 8: the injected-source seam is deleted (lib/sources.ts and
+  // createTripsStore are gone). Data comes from the query cache; the
+  // lab renders from @/mocks directly, never through a store.
   function libSource(rel: string): string {
     return fs.readFileSync(path.join(mobileDir, rel), "utf8");
   }
 
-  it("tripsStore takes data from an injected source, not a mock-pool import", () => {
+  it("tripsStore reads from query options, not a mock pool or a source seam", () => {
     const store = libSource("lib/tripsStore.tsx");
-    expect(store).toContain("@/lib/sources");
+    expect(store).toContain("tripsListOptions");
     expect(store).not.toMatch(/from\s+["']@\/mocks\//);
+    expect(store).not.toMatch(/@\/lib\/sources/);
+    expect(store).not.toMatch(/createTripsStore/);
   });
 
-  it("the mock pool lives in lib/sources.ts", () => {
-    expect(libSource("lib/sources.ts")).toMatch(/from\s+["']@\/mocks\/trips["']/);
+  it("the source seam file is gone", () => {
+    expect(fs.existsSync(path.join(mobileDir, "lib/sources.ts"))).toBe(
+      false,
+    );
   });
 });
 

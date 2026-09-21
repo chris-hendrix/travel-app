@@ -13,7 +13,7 @@ import { dayLabel } from "@/lib/itinerary";
 import { toIso } from "@/lib/dateRange";
 import { validateNewEvent, type NewEventInput } from "@/lib/newEvent";
 import type { Trip } from "@/components/trip/TripCard";
-import { EVENT_PLACES } from "@/mocks/places";
+import { EVENT_PLACES } from "@/lib/placeSuggestions";
 
 /**
  * The event form, in one place because there is one of it: adding and

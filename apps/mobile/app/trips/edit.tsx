@@ -16,7 +16,7 @@ import { toErrorCopy } from "@/lib/queries/errors";
 import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { useDismiss } from "@/hooks/useDismiss";
-import { PLACES } from "@/mocks/places";
+import { PLACES } from "@/lib/placeSuggestions";
 
 /**
  * Edit trip — the organizer's surface for the trip itself. The create
