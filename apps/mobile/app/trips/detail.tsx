@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Image, Pressable, Text, View } from "react-native";
+import { Image, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Screen } from "@/components/ui/Screen";
 import { Badge } from "@/components/ui/Badge";
@@ -23,16 +23,11 @@ import NotFound from "@/app/+not-found";
 import { useEvents as useEventsSection } from "@/lib/queries/events";
 import { useStays } from "@/lib/staysStore";
 import { currentStay } from "@/lib/stays";
+import { useAuth } from "@/lib/authStore";
 import { useTripSettings } from "@/lib/tripSettingsStore";
+import { viewerOf } from "@/lib/members";
+
 import { getPertinentTime } from "@journiful/shared/utils";
-import { viewerMember } from "@/lib/members";
-
-type Variant = "organizer" | "traveler";
-
-const VARIANTS: Array<{ value: Variant; label: string }> = [
-  { value: "organizer", label: "Organizer" },
-  { value: "traveler", label: "Traveler" },
-];
 
 /**
  * Trip detail, header only — the itinerary comes after this lands.
@@ -72,10 +67,8 @@ const VARIANTS: Array<{ value: Variant; label: string }> = [
  *   organizer  the trip is authored, so the action is bringing people in
  *   traveler   the trip is not yours, so the action is your own RSVP
  *
- * The variant switch at the top is a lab control, not a product one: it
- * exists so both halves of that rule can be seen side by side. It
- * defaults to the traveler because that is the state with a decision in
- * it.
+ * Who you are comes from the server: your own roster row, matched by
+ * account, carries your role.
  */
 export default function TripDetail() {
   return (
@@ -94,8 +87,8 @@ function TripDetailScreen() {
   // stays and travel still read their mocks, so those sections below
   // stay as-is.
   const { trip } = useTrip(tripId);
+  const { user } = useAuth();
   const router = useRouter();
-  const [variant, setVariant] = useState<Variant>("traveler");
   // TODO(BE): updateRsvpSchema accepts only `going|not_going|maybe`; `no_response` is expressed as absence. Documented in code, not a bug.
   // The RSVP answer is server state (POST /trips/:tripId/rsvp), painted
   // optimistically and rolled back on failure — the update-mutation flow
@@ -151,18 +144,16 @@ function TripDetailScreen() {
   }
 
   const countdown = tripCountdown(trip.startDate, trip.endDate);
-  const organizer = variant === "organizer";
 
-  // Your own travel, filed or not: the organizer is the roster's
-  // organizer, everyone else is the lab's stand-in for "you".
-  // Filed means a time is on it: a row without one is still owed.
+  // Who you are comes from the server: your own roster row, matched
+  // by account, carries your role — never a query param.
+  const viewer = viewerOf(members, user?.id);
+  const organizer = viewer?.isOrganizer ?? false;
+
+  // Your own travel, filed or not. Filed means a time is on it: a
+  // row without one is still owed.
   const filed = travelForTrip(trip).filter((record) =>
     getPertinentTime(record),
-  );
-  const viewer = viewerMember(
-    members,
-    organizer,
-    filed.map((record) => record.memberId),
   );
   const viewerTravel = viewer
     ? filed.filter((record) => record.memberId === viewer.id)
@@ -207,7 +198,7 @@ function TripDetailScreen() {
       fullWidth
       onPress={() =>
         router.push(
-          `/trips/travel/form?id=${trip.id}&as=${variant}&member=${viewer?.id ?? ""}`,
+          `/trips/travel/form?id=${trip.id}&member=${viewer?.id ?? ""}`,
         )
       }
     />
@@ -272,25 +263,6 @@ function TripDetailScreen() {
   return (
     <Screen>
       <View className="gap-6 md:gap-8">
-        <View className="flex-row gap-6">
-          {VARIANTS.map((option) => (
-            <Pressable
-              key={option.value}
-              onPress={() => setVariant(option.value)}
-            >
-              <Text
-                className={`text-sm text-ink ${
-                  variant === option.value
-                    ? "font-body-bold underline"
-                    : "font-body"
-                }`}
-              >
-                {option.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
         <View className="gap-y-6 md:flex-row md:gap-12">
           {/* Two columns of equal width. flex-1, not w-1/2: react-native
               does not shrink flex items, so two halves plus the gutter
@@ -332,18 +304,14 @@ function TripDetailScreen() {
                 <QuietAction
                   label={`${trip.going} going`}
                   onPress={() =>
-                    router.push(
-                      `/trips/members?id=${trip.id}&as=${variant}`,
-                    )
+                    router.push(`/trips/members?id=${trip.id}`)
                   }
                 />
                 <Text className="font-body text-sm text-ink">·</Text>
                 <QuietAction
                   label="Travel"
                   onPress={() =>
-                    router.push(
-                      `/trips/travel?id=${trip.id}&as=${variant}`,
-                    )
+                    router.push(`/trips/travel?id=${trip.id}`)
                   }
                 />
                 {/* The third door, and deliberately the categorical
@@ -364,7 +332,7 @@ function TripDetailScreen() {
                       label="Stay"
                       onPress={() =>
                         router.push(
-                          `/trips/stay/detail?id=${trip.id}&stay=${stay.id}&as=${variant}`,
+                          `/trips/stay/detail?id=${trip.id}&stay=${stay.id}`,
                         )
                       }
                     />
@@ -380,7 +348,7 @@ function TripDetailScreen() {
         {/* The itinerary is the only thing an unanswered invitation
             withholds: the description is what you decide on, it is what
             you get for saying yes. */}
-        <Itinerary trip={trip} as={variant} />
+        <Itinerary trip={trip} organizer={organizer} />
       </View>
     </Screen>
   );

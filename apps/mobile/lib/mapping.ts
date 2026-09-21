@@ -162,6 +162,7 @@ export function toTravel(travel: MemberTravel): MockTravel {
 export function toMember(member: MemberWithProfile): Member {
   return {
     id: member.id,
+    userId: member.userId,
     name: member.displayName,
     status: member.status,
     isOrganizer: member.isOrganizer,

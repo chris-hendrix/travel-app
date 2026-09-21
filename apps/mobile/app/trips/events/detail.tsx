@@ -16,6 +16,9 @@ import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { todayIn, wallClock } from "@/lib/timezone";
 import { useTrip } from "@/lib/tripsStore";
+import { useAuth } from "@/lib/authStore";
+import { viewerOf } from "@/lib/members";
+import { useMembers } from "@/lib/queries/members";
 import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { useDismiss } from "@/hooks/useDismiss";
@@ -36,9 +39,8 @@ import { useDismiss } from "@/hooks/useDismiss";
  * have finished reading. A bar with nothing in it would be chrome; a bar
  * with the way out is where the thumb already is. The trip's rule is
  * that trip-level things are organizer-authored, so nothing else is on
- * offer here. Where the variant comes from is the lab's business: `?as=`,
- * threaded down from the trip screen's own toggle, standing in for what
- * the API will answer with `isOrganizer`.
+ * offer here. Your role comes from the server: your own roster row,
+ * matched by account.
  */
 export default function EventDetail() {
   return (
@@ -49,10 +51,9 @@ export default function EventDetail() {
 }
 
 function EventDetailDialog() {
-  const { id, event: eventId, as } = useLocalSearchParams<{
+  const { id, event: eventId } = useLocalSearchParams<{
     id?: string;
     event?: string;
-    as?: string;
   }>();
   const { eventById } = useEvents();
   const { for: settingsFor, update } = useTripSettings();
@@ -61,6 +62,7 @@ function EventDetailDialog() {
 
   const tripId = typeof id === "string" ? id : undefined;
   const { trip } = useTrip(tripId);
+  const { user } = useAuth();
   // Warms the section query the store reads from, so a cold load
   // (deep link straight here) still finds the event once it lands.
   const { status: sectionStatus } = useEventsSection(trip?.id);
@@ -76,6 +78,10 @@ function EventDetailDialog() {
     : { clock: "trip" as const };
   const timeZone = trip && clock === "trip" ? trip.preferredTimezone : null;
   useDisplayZone(trip ? zoneFor(trip, clock, update) : null);
+  // Your role comes from the server: your own roster row, matched by
+  // account — never a query param.
+  const { members } = useMembers(trip?.id);
+  const organizer = viewerOf(members, user?.id)?.isOrganizer ?? false;
 
   if (!trip) {
     return <NotFound />;
@@ -100,7 +106,6 @@ function EventDetailDialog() {
     );
   }
 
-  const organizer = as === "organizer";
   const today = todayIn(timeZone);
 
   return (

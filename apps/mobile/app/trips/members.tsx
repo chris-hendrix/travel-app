@@ -5,8 +5,9 @@ import { ChipLink } from "@/components/ui/ChipLink";
 import { useTrip } from "@/lib/tripsStore";
 import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
+import { useAuth } from "@/lib/authStore";
+import { visiblePhone, viewerOf, type Member } from "@/lib/members";
 import { memberLabel } from "@/lib/rsvp";
-import { visiblePhone, type Member } from "@/lib/members";
 import { instagramUrl, venmoUrl } from "@/lib/links";
 import { formatPhoneForDisplay } from "@/lib/phone";
 import { useMembers } from "@/lib/queries/members";
@@ -44,17 +45,18 @@ export default function TripMembers() {
 }
 
 function TripMembersDialog() {
-  const { id, as } = useLocalSearchParams<{ id?: string; as?: string }>();
+  const { id } = useLocalSearchParams<{ id?: string }>();
   const router = useRouter();
 
   const tripId = typeof id === "string" ? id : undefined;
   const { trip } = useTrip(tripId);
+  const { user } = useAuth();
   // The roll call is server state now, suspended under the same gate
   // as the trip above — the dialog never renders without it.
   const { members } = useMembers(trip?.id);
-  // The lab's stand-in for `isOrganizer` on the membership, threaded down
-  // from the trip screen so the two can never disagree.
-  const viewerIsOrganizer = as === "organizer";
+  // Who you are comes from the server: your own roster row, matched
+  // by account, carries your role — never a query param.
+  const viewerIsOrganizer = viewerOf(members, user?.id)?.isOrganizer ?? false;
 
   if (!trip) {
     return <NotFound />;

@@ -1,6 +1,6 @@
-import { Component, Suspense, useState, type ReactNode } from "react";
+import { Component, Suspense, type ReactNode } from "react";
 import { useRouter } from "expo-router";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { QueryErrorResetBoundary } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
 import { Section } from "@/components/ui/Section";
@@ -111,13 +111,10 @@ class TripsErrorBoundary extends Component<{
 
 function TripsContent() {
   const router = useRouter();
-  const { trips: stored } = useTrips();
-  const [empty, setEmpty] = useState(false);
-
-  const trips = empty ? [] : stored;
+  const { trips } = useTrips();
   const { upcoming, past } = groupTrips(trips, new Date());
 
-  const card = (trip: (typeof stored)[number]) => (
+  const card = (trip: (typeof trips)[number]) => (
     <TripCard
       key={trip.id}
       trip={trip}
@@ -127,27 +124,6 @@ function TripsContent() {
 
   return (
     <View className="gap-8">
-      <View className="flex-row gap-5">
-        <Pressable onPress={() => setEmpty(false)}>
-          <Text
-            className={`text-sm text-ink ${
-              empty ? "font-body" : "font-body-bold underline"
-            }`}
-          >
-            With trips
-          </Text>
-        </Pressable>
-        <Pressable onPress={() => setEmpty(true)}>
-          <Text
-            className={`text-sm text-ink ${
-              empty ? "font-body-bold underline" : "font-body"
-            }`}
-          >
-            Empty
-          </Text>
-        </Pressable>
-      </View>
-
       {/* No page heading: the app wordmark bar already says where you
           are, and the Upcoming/Past rules carry the structure. */}
       {trips.length > 0 ? (

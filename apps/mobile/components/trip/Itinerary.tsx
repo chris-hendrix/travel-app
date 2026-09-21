@@ -57,18 +57,18 @@ import { todayIn } from "@/lib/timezone";
  * which live in the header's action group with the trip's other buttons.
  * What is left here is content.
  *
- * Every card and row opens the same detail. Who is looking is carried
- * down from the screen above rather than asked again, so the dialog
- * cannot disagree with the trip it hangs over.
+ * Every card and row opens the same detail. Who is looking is read
+ * from the server there, so the dialog cannot disagree with the trip
+ * it hangs over.
  */
 export function Itinerary({
   trip,
-  as = "traveler",
+  organizer = false,
   now = new Date(),
 }: {
   trip: Trip;
-  /** Passed straight through to each detail dialog. */
-  as?: "organizer" | "traveler";
+  /** Your server-side role: organizers get the Add event/Add stay head. */
+  organizer?: boolean;
   /** Injected so the grouping and the labels agree on the moment. */
   now?: Date;
 }) {
@@ -86,16 +86,11 @@ export function Itinerary({
   const { staysForTrip } = useStays();
   const { showPast, clock, layout } = settingsFor(trip, now);
 
-  const organizer = as === "organizer";
   const cards = layout === "cards";
   const openEvent = (eventId: string) =>
-    router.push(
-      `/trips/events/detail?id=${trip.id}&event=${eventId}&as=${as}`,
-    );
+    router.push(`/trips/events/detail?id=${trip.id}&event=${eventId}`);
   const openStay = (stayId: string) =>
-    router.push(
-      `/trips/stay/detail?id=${trip.id}&stay=${stayId}&as=${as}`,
-    );
+    router.push(`/trips/stay/detail?id=${trip.id}&stay=${stayId}`);
   const addEvent = () => router.push(`/trips/events/new?id=${trip.id}`);
   const addStay = () => router.push(`/trips/stay/new?id=${trip.id}`);
 

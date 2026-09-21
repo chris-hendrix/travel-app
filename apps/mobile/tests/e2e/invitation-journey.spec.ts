@@ -204,8 +204,9 @@ test.describe("Invitation Journey", () => {
       // member is filtered out of the roster a traveler sees — the API
       // returns only going/maybe rows to non-organizers by default
       // (invitation.service.ts:getTripMembers, the showAllMembers-off
-      // branch) — so the guest's own row vanishes, `viewerMember`
-      // (lib/members.ts, the lab stand-in) falls back to null, and the
+      // branch) — so the guest's own row vanishes, `viewerOf`
+      // (lib/members.ts, the account-matched viewer) falls back to
+      // null, and the
       // control renders its no_response empty state. The decline POST
       // still succeeds (verified 200 + status not_going during
       // development); the traveler control just cannot display it.

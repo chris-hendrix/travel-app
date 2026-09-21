@@ -7,6 +7,8 @@ import type { RsvpStatus } from "@/lib/rsvp";
  */
 export type Member = {
   id: string;
+  /** The account behind the row; null for guest members. */
+  userId: string | null;
   name: string;
   status: RsvpStatus;
   /**
@@ -44,30 +46,14 @@ export function visiblePhone(
 }
 
 /**
- * Who "you" are in the lab.
- *
- * There is no signed-in identity here, so one member of the roster
- * stands in for the viewer. The organizer is the roster's own
- * organizer; a traveler is the first going member who still owes times
- *, because that is the state with something to do in it — the same
- * reason the trip screen defaults to the traveler.
- *
- * Both the trip screen's nudge and the board's Edit rule ask this
- * question, so they ask it here: one stand-in, never two that disagree.
+ * Who "you" are: the roster row whose account matches the signed-in
+ * user. The role comes from the server that way — `isOrganizer` on
+ * your own row — never from a query param.
  */
-export function viewerMember(
+export function viewerOf(
   members: Member[],
-  viewerIsOrganizer: boolean,
-  filedMemberIds: string[],
+  userId: string | undefined | null,
 ): Member | null {
-  const going = members.filter((member) => member.status === "going");
-  if (viewerIsOrganizer) {
-    return going.find((member) => member.isOrganizer) ?? null;
-  }
-  const filed = new Set(filedMemberIds);
-  return (
-    going.find((member) => !member.isOrganizer && !filed.has(member.id)) ??
-    going.find((member) => !member.isOrganizer) ??
-    null
-  );
+  if (!userId) return null;
+  return members.find((member) => member.userId === userId) ?? null;
 }

@@ -160,11 +160,9 @@ test.describe("Itinerary Journey", () => {
       await expect(page.getByText(tripName).last()).toBeVisible({
         timeout: NAVIGATION_TIMEOUT,
       });
-      // app/trips/detail.tsx: the screen defaults to the traveler
-      // variant, and Add event lives in the organizer head of
-      // components/trip/Itinerary.tsx — so switch first via the
-      // "Organizer"/"Traveler" toggle row (the trip spec's pattern).
-      await page.getByText("Organizer").click();
+      // The trip was seeded by this user, who is the organizer
+      // server-side, so the organizer head of
+      // components/trip/Itinerary.tsx renders "Add event" directly.
       // components/trip/Itinerary.tsx organizer head: Button titled
       // "Add event" routes to /trips/events/new?id=….
       await page.getByRole("button", { name: "Add event" }).click();

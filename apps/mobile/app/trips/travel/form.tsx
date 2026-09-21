@@ -10,7 +10,7 @@ import {
   type TravelDirection,
   type TravelLeg,
 } from "@/lib/newTravel";
-import { getPertinentLocation, getPertinentTime } from "@journiful/shared/utils";
+import { getPertinentLocation } from "@journiful/shared/utils";
 import { useTrip } from "@/lib/tripsStore";
 import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
@@ -19,7 +19,8 @@ import { useTravel as useTravelSection } from "@/lib/queries/travel";
 import { toErrorCopy } from "@/lib/queries/errors";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
-import { viewerMember } from "@/lib/members";
+import { useAuth } from "@/lib/authStore";
+import { viewerOf } from "@/lib/members";
 import { useMembers } from "@/lib/queries/members";
 import type { MockTravel } from "@/mocks/travel";
 
@@ -33,8 +34,8 @@ import { useDismiss } from "@/hooks/useDismiss";
  * second one beside it.
  *
  * Who can file for whom is the API's rule, mirrored here: the organizer
- * files for anyone, a traveler is locked to self. The lab threads the
- * role down from the board so the two can never disagree.
+ * files for anyone, a traveler is locked to self. The role comes from
+ * the server — your own roster row, matched by account.
  */
 export default function TravelForm() {
   return (
@@ -45,10 +46,9 @@ export default function TravelForm() {
 }
 
 function TravelFormScreen() {
-  const { id, travel: travelId, as, member, direction } = useLocalSearchParams<{
+  const { id, travel: travelId, member, direction } = useLocalSearchParams<{
     id?: string;
     travel?: string;
-    as?: string;
     member?: string;
     direction?: string;
   }>();
@@ -76,9 +76,7 @@ function TravelFormScreen() {
   // A form sets times on the same clock the screen behind it reads them
   // on, so the zone it is writing in is the zone the chrome names.
   useDisplayZone(trip ? zoneFor(trip, clock, update) : null);
-  // The lab's stand-in for `isOrganizer` on the membership, threaded
-  // down from the board so the two can never disagree.
-  const viewerIsOrganizer = as === "organizer";
+  const { user } = useAuth();
   const editingId = typeof travelId === "string" ? travelId : undefined;
   const record = trip ? travelById(trip, editingId) : undefined;
   const directionParam: TravelDirection | undefined =
@@ -98,11 +96,9 @@ function TravelFormScreen() {
   );
 
   // Whose form this is: the record's member, a linked row's member, or
-  // the viewer themselves.
-  const filedMemberIds = records
-    .filter((candidate) => getPertinentTime(candidate))
-    .map((candidate) => candidate.memberId);
-  const viewer = viewerMember(members, viewerIsOrganizer, filedMemberIds);
+  // the viewer themselves — your own roster row, matched by account.
+  const viewer = viewerOf(members, user?.id);
+  const viewerIsOrganizer = viewer?.isOrganizer ?? false;
   const linkedMember =
     member && members.some((candidate) => candidate.id === member)
       ? member
@@ -121,7 +117,7 @@ function TravelFormScreen() {
     (candidate) => candidate.travelType === "departure",
   );
 
-  const boardHref = `/trips/travel?id=${trip?.id ?? ""}&as=${viewerIsOrganizer ? "organizer" : "traveler"}`;
+  const boardHref = `/trips/travel?id=${trip?.id ?? ""}`;
 
   if (!trip) {
     return <NotFound />;

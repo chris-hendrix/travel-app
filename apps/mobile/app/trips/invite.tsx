@@ -39,7 +39,7 @@ function InvitePeopleDialog() {
       trip={trip}
       dismissHref={
         from === "members"
-          ? `/trips/members?id=${trip.id}&as=organizer`
+          ? `/trips/members?id=${trip.id}`
           : `/trips/detail?id=${trip.id}`
       }
     />

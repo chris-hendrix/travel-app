@@ -96,11 +96,12 @@ test.describe("Auth Journey", () => {
     });
 
     await test.step("lands on trips", async () => {
-      // app/trips/index.tsx: the "With trips"/"Empty" toggle row is
-      // always rendered, so it proves the list screen mounted.
-      await expect(page.getByText("With trips")).toBeVisible({
-        timeout: ELEMENT_TIMEOUT,
-      });
+      // app/trips/index.tsx: a fresh user has no trips, so the empty
+      // state renders Button titled "Create your first trip" — the
+      // mount proof for the list screen.
+      await expect(
+        page.getByRole("button", { name: "Create your first trip" }),
+      ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
     });
   });
 
@@ -108,7 +109,12 @@ test.describe("Auth Journey", () => {
     await test.step("seeded session lands on trips", async () => {
       await authenticateViaAPI(page, request, "Test User");
       await page.goto("/trips");
-      await expect(page.getByText("With trips")).toBeVisible({
+      // app/trips/index.tsx: a fresh seed has no trips — the empty
+      // state's "Create your first trip" button proves the list
+      // screen mounted.
+      await expect(
+        page.getByRole("button", { name: "Create your first trip" }),
+      ).toBeVisible({
         timeout: NAVIGATION_TIMEOUT,
       });
     });
@@ -162,7 +168,11 @@ test.describe("Auth Journey", () => {
       await page.goto("/complete-profile");
       // app/complete-profile.tsx: `profileComplete` redirects to /trips.
       await page.waitForURL("**/trips", { timeout: NAVIGATION_TIMEOUT });
-      await expect(page.getByText("With trips")).toBeVisible({
+      // The fresh seed has no trips: the empty state's button is the
+      // mount proof (see the signup test above).
+      await expect(
+        page.getByRole("button", { name: "Create your first trip" }),
+      ).toBeVisible({
         timeout: ELEMENT_TIMEOUT,
       });
     });

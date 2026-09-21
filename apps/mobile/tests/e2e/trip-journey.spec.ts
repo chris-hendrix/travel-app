@@ -36,9 +36,12 @@ test.describe("Trip Journey", () => {
     await test.step("seeded session lands on trips", async () => {
       await authenticateViaAPI(page, request, "Trip User");
       await page.goto("/trips");
-      // app/trips/index.tsx: the "With trips"/"Empty" toggle row is
-      // always rendered, so it proves the list screen mounted.
-      await expect(page.getByText("With trips")).toBeVisible({
+      // app/trips/index.tsx: a freshly seeded user has no trips, so
+      // the empty state's Button titled "Create your first trip"
+      // proves the list screen mounted.
+      await expect(
+        page.getByRole("button", { name: "Create your first trip" }),
+      ).toBeVisible({
         timeout: NAVIGATION_TIMEOUT,
       });
     });
@@ -152,11 +155,9 @@ test.describe("Trip Journey", () => {
       // any real id — "Nothing planned yet" only renders for the
       // lab's UNPLANNED_TRIP_ID, never for a created trip.
       await expect(page.getByText("Itinerary")).toBeVisible();
-      // app/trips/detail.tsx: the edit affordance lives in the
-      // organizer variant's action group (Button titled "Edit trip");
-      // the screen defaults to the traveler variant, so switch first
-      // via the "Organizer"/"Traveler" lab toggle row.
-      await page.getByText("Organizer").click();
+      // app/trips/detail.tsx: the trip creator is the organizer
+      // server-side, so the organizer action group (Button titled
+      // "Edit trip") renders with no toggle.
       await expect(
         page.getByRole("button", { name: "Edit trip" }),
       ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
@@ -177,9 +178,8 @@ test.describe("Trip Journey", () => {
       await expect(page.getByText(tripName).last()).toBeVisible({
         timeout: NAVIGATION_TIMEOUT,
       });
-      await page.getByText("Organizer").click();
       // app/trips/detail.tsx: Button titled "Edit trip" routes to
-      // /trips/edit?id=….
+      // /trips/edit?id=… (visible directly: the creator is organizer).
       await page.getByRole("button", { name: "Edit trip" }).click();
       await page.waitForURL("**/trips/edit?id=*", {
         timeout: NAVIGATION_TIMEOUT,

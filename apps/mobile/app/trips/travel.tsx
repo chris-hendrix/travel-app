@@ -18,8 +18,8 @@ import { useTravel } from "@/lib/travelStore";
 import { useTravel as useTravelSection } from "@/lib/queries/travel";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
-import { viewerMember } from "@/lib/members";
-import { pertinentIso } from "@/lib/travelBoard";
+import { useAuth } from "@/lib/authStore";
+import { viewerOf } from "@/lib/members";
 import { useMembers } from "@/lib/queries/members";
 import { INK } from "@/lib/theme";
 
@@ -51,13 +51,14 @@ export default function TripTravel() {
 }
 
 function TripTravelDialog() {
-  const { id, as } = useLocalSearchParams<{ id?: string; as?: string }>();
+  const { id } = useLocalSearchParams<{ id?: string }>();
   const { travelForTrip } = useTravel();
   const { for: settingsFor, update } = useTripSettings();
   const router = useRouter();
 
   const tripId = typeof id === "string" ? id : undefined;
   const { trip } = useTrip(tripId);
+  const { user } = useAuth();
   // The zone these rows are read in: the trip's own clock setting, the
   // same one the itinerary behind this dialog is reading. A board and a
   // form that disagreed about what time it is would be two trips.
@@ -66,12 +67,6 @@ function TripTravelDialog() {
     : { clock: "trip" as const };
   const timeZone = clock === "trip" ? (trip?.preferredTimezone ?? null) : null;
   useDisplayZone(trip ? zoneFor(trip, clock, update) : null);
-  // The lab's stand-in for `isOrganizer` on the membership, threaded
-  // down from the trip screen so the two can never disagree.
-  const viewerIsOrganizer = as === "organizer";
-  // The lab has no signed-in identity: one member of the roster stands
-  // in for "you", and the board and the trip screen nudge share the
-  // same stand-in so the two can never disagree.
   // The board rows are server state now (GET
   // /trips/:tripId/member-travel), explicit — the dialog chrome above
   // never blanks while they load, and the board owns its own copy.
@@ -83,12 +78,10 @@ function TripTravelDialog() {
   // same gate as the trip above.
   const { members: roster } = useMembers(trip?.id);
   const going = roster.filter((member) => member.status === "going");
-  const viewer = viewerMember(
-    going,
-    viewerIsOrganizer,
-    records.filter((record) => pertinentIso(record)).map((record) => record.memberId),
-  );
-  const asParam = viewerIsOrganizer ? "organizer" : "traveler";
+  // Who you are comes from the server: your own roster row, matched
+  // by account, carries your role — never a query param.
+  const viewer = viewerOf(roster, user?.id);
+  const viewerIsOrganizer = viewer?.isOrganizer ?? false;
   // The organizer corrects anyone; a traveler touches only their own.
   const canEditRow = (memberId: string) =>
     viewerIsOrganizer || (viewer?.id ?? "") === memberId;
@@ -123,7 +116,7 @@ function TripTravelDialog() {
       title="Travel"
       primaryTitle="Add travel"
       onPrimary={() =>
-        router.push(`/trips/travel/form?id=${trip.id}&as=${asParam}`)
+        router.push(`/trips/travel/form?id=${trip.id}`)
       }
       dismissHref={`/trips/detail?id=${trip.id}`}
     >
@@ -149,7 +142,6 @@ function TripTravelDialog() {
             rows={board.arrivals}
             timeZone={timeZone}
             tripId={trip.id}
-            asParam={asParam}
             canEdit={canEditRow}
           />
           <TravelSection
@@ -157,7 +149,6 @@ function TripTravelDialog() {
             rows={board.departures}
             timeZone={timeZone}
             tripId={trip.id}
-            asParam={asParam}
             canEdit={canEditRow}
           />
         </View>
@@ -171,14 +162,12 @@ function TravelSection({
   rows,
   timeZone,
   tripId,
-  asParam,
   canEdit,
 }: {
   heading: string;
   rows: TravelRow[];
   timeZone: string | null;
   tripId: string;
-  asParam: string;
   canEdit: (memberId: string) => boolean;
 }) {
   if (rows.length === 0) return null;
@@ -198,7 +187,6 @@ function TravelSection({
             row={row}
             timeZone={timeZone}
             tripId={tripId}
-            asParam={asParam}
             canEdit={canEdit(row.memberId)}
           />
         ))}
@@ -217,13 +205,11 @@ function TravelRowItem({
   row,
   timeZone,
   tripId,
-  asParam,
   canEdit,
 }: {
   row: TravelRow;
   timeZone: string | null;
   tripId: string;
-  asParam: string;
   canEdit: boolean;
 }) {
   const router = useRouter();
@@ -297,8 +283,8 @@ function TravelRowItem({
               onPress={() =>
                 router.push(
                   row.id.startsWith("pending-")
-                    ? `/trips/travel/form?id=${tripId}&as=${asParam}&member=${row.memberId}&direction=${row.travelType}`
-                    : `/trips/travel/form?id=${tripId}&travel=${row.id}&as=${asParam}`,
+                    ? `/trips/travel/form?id=${tripId}&member=${row.memberId}&direction=${row.travelType}`
+                    : `/trips/travel/form?id=${tripId}&travel=${row.id}`,
                 )
               }
             />

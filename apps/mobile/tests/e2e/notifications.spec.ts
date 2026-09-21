@@ -229,11 +229,13 @@ test.describe("Notifications", () => {
     await test.step("bell badge: the header bell renders with 2 unread behind it", async () => {
       await seedPageWithToken(page, guestToken);
       await page.goto("/trips");
-      // app/trips/index.tsx: the "With trips"/"Empty" toggle row is
-      // always rendered, so it proves the list screen mounted (same
-      // mount proof the trip spec uses). The guest is a member of two
-      // trips now, so the list is non-empty.
-      await expect(page.getByText("With trips")).toBeVisible({
+      // app/trips/index.tsx: the guest is a member of two trips, so
+      // the list is non-empty and the "Create trip" button proves
+      // the list screen mounted (same mount-proof pattern as the
+      // trip spec's empty-state button).
+      await expect(
+        page.getByRole("button", { name: "Create trip", exact: true }),
+      ).toBeVisible({
         timeout: NAVIGATION_TIMEOUT,
       });
       // components/ui/AppHeader.tsx BellButton: Pressable with
