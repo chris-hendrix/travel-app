@@ -1,6 +1,7 @@
 import { Component, Suspense, type ReactNode } from "react";
 import { QueryErrorResetBoundary } from "@tanstack/react-query";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
+import { Screen } from "@/components/ui/Screen";
 import { InlineError } from "@/components/ui/InlineError";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
 import NotFound from "@/app/+not-found";
@@ -35,7 +36,21 @@ export function TripGate({
             <TripFailure error={error} onRetry={retry} />
           )}
         >
-          <Suspense fallback={<LoadingBlock label={label} />}>
+          <Suspense
+            fallback={
+              // The screen's own frame, not a line on its own. The
+              // navigation container paints a white background on every
+              // screen it holds, and this fallback renders inside one
+              // while the screen's own `Screen` has not mounted yet — so
+              // a bare block flashed a white page and then jumped to
+              // sand with the line in a different place. Same ground,
+              // same column, same first line: the wait looks like the
+              // page it is waiting to be.
+              <Screen>
+                <LoadingBlock label={label} />
+              </Screen>
+            }
+          >
             {children}
           </Suspense>
         </TripErrorBoundary>

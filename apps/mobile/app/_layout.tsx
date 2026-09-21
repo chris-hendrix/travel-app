@@ -93,7 +93,10 @@ export default function RootLayout() {
                     isLab ? (
                       <LoadingBlock label="Loading the lab." />
                     ) : (
-                      <LoadingBlock label="Loading." />
+                      // What is arriving here is the app, not a thing in
+                      // it: this fallback covers the boot, before any
+                      // screen's own read has started.
+                      <LoadingBlock label="Opening Journiful" />
                     )
                   }
                 >
