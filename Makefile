@@ -21,6 +21,22 @@ dev-web: ## Start web dev server only
 dev-api: ## Start API dev server only (with Docker)
 	pnpm dev:api
 
+# Like `make dev`, but for the Expo app instead of the web app: API + Expo
+# side by side (api:8000, expo:8081). Same host-only rule as `make mockup` —
+# the devcontainer publishes only 3000 and 8000, so both servers must run on
+# the host. Ctrl-C stops both (the trap kills the backgrounded API).
+dev-mobile: ## Start API + Expo for mobile wiring (api:8000, expo:8081)
+	pnpm docker:up
+	@cd apps/mobile && \
+		echo "" && \
+		echo "  api               http://localhost:8000" && \
+		echo "  expo (mobile)     http://localhost:8081" && \
+		echo "  design system     http://localhost:8081/design" && \
+		echo ""
+	@trap 'kill 0' INT TERM; \
+		pnpm --filter @journiful/api dev & \
+		cd apps/mobile && npx expo start --web --port 8081
+
 # The design mockup is apps/mobile — not the Capacitor shell that build-mobile
 # produces. Two things about it are easy to get wrong, and both have cost real
 # time: it must run on the host (the devcontainer publishes only 3000 and 8000,
