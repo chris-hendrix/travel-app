@@ -10,7 +10,16 @@
  * module's static graph stays free of `react-native`,
  * `expo-secure-store` and every other native module. Unit tests run in
  * plain node with no renderer; keep it that way.
+ *
+ * The origin rule and upload-path resolution are re-exported from
+ * `lib/uploads.ts`, their pure home: mappers render images, and a
+ * mapper that imported this module would break every test that mocks
+ * `@/lib/api` wholesale (28 of them).
  */
+
+import { apiBase, resolveUploadUrl } from "@/lib/uploads";
+
+export { apiBase, resolveUploadUrl };
 
 export const REQUEST_TIMEOUT_MS = 10_000;
 
@@ -45,28 +54,6 @@ export class NetworkError extends Error {
     super(message);
     this.name = "NetworkError";
   }
-}
-
-function isDev(): boolean {
-  const flag = (globalThis as { __DEV__?: boolean }).__DEV__;
-  if (typeof flag === "boolean") return flag;
-  return process.env.NODE_ENV === "development";
-}
-
-/**
- * The API origin. Same variable `lib/flights.ts` already reads
- * (`EXPO_PUBLIC_API_URL`); the localhost fallback exists for local
- * development only and throws loudly anywhere else, so a missing
- * production URL fails at the call site instead of silently hitting
- * a laptop that is not there.
- */
-export function apiBase(): string {
-  const fromEnv = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/+$/, "");
-  if (fromEnv) return fromEnv;
-  if (isDev()) return "http://localhost:8000/api";
-  throw new Error(
-    "EXPO_PUBLIC_API_URL is not configured. Set it to the API origin.",
-  );
 }
 
 function isAbort(error: unknown, signal: AbortSignal): boolean {

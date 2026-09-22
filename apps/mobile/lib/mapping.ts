@@ -26,6 +26,7 @@ import type {
   User,
 } from "@journiful/shared/types";
 
+import { resolveUploadUrl } from "@/lib/uploads";
 import { placeholderPhoto } from "@/lib/placeholder";
 // Re-exported so existing `placeholderPhoto` call sites keep working;
 // new code should import from `@/lib/placeholder` directly.
@@ -69,7 +70,7 @@ export function toTrip(detail: TripDetail): Trip {
     id: detail.id,
     title: detail.name,
     location: detail.destination,
-    image: detail.coverImageUrl ?? placeholderPhoto(detail.id),
+    image: resolveUploadUrl(detail.coverImageUrl) ?? placeholderPhoto(detail.id),
     going: detail.memberCount,
     startDate: detail.startDate ?? "",
     endDate: detail.endDate ?? "",
@@ -84,7 +85,7 @@ export function toTripSummary(summary: TripSummary): Trip {
     id: summary.id,
     title: summary.name,
     location: summary.destination,
-    image: summary.coverImageUrl ?? placeholderPhoto(summary.id),
+    image: resolveUploadUrl(summary.coverImageUrl) ?? placeholderPhoto(summary.id),
     going: summary.memberCount,
     startDate: summary.startDate ?? "",
     endDate: summary.endDate ?? "",
@@ -192,7 +193,7 @@ export function toProfile(user: User): Profile {
     id: user.id,
     displayName: user.displayName,
     phoneNumber: user.phoneNumber,
-    profilePhotoUrl: user.profilePhotoUrl ?? null,
+    profilePhotoUrl: resolveUploadUrl(user.profilePhotoUrl),
     handles: handlesOf(user.handles),
     timezone: user.timezone,
     temperatureUnit: user.temperatureUnit ?? "fahrenheit",

@@ -3,7 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/session", () => ({ getToken: vi.fn() }));
 
 import { getToken } from "@/lib/session";
-import { ApiError, NetworkError, TimeoutError, apiFetch } from "@/lib/api";
+import {
+  ApiError,
+  NetworkError,
+  TimeoutError,
+  apiFetch,
+} from "@/lib/api";
 import { isFlightNumber, lookupFlight, normalizeFlightNumber } from "@/lib/flights";
 
 const mockedGetToken = vi.mocked(getToken);

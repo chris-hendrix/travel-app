@@ -97,6 +97,14 @@ describe("toTrip", () => {
       placeholderPhoto("trip-1"),
     );
   });
+
+  it("prefixes a relative upload path with the API origin", () => {
+    process.env.EXPO_PUBLIC_API_URL = "http://localhost:8000/api";
+    expect(
+      toTrip({ ...tripDetail, coverImageUrl: "/uploads/abc.jpg" }).image,
+    ).toBe("http://localhost:8000/uploads/abc.jpg");
+    delete process.env.EXPO_PUBLIC_API_URL;
+  });
 });
 
 describe("toTripSummary", () => {
