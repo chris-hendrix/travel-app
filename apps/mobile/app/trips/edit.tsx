@@ -67,10 +67,16 @@ function EditTripScreen() {
   const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Live Places suggestions sit above the static list; offline, an
-  // empty key, or a 503 falls back to `PLACES` silently, and the
-  // required-pick still accepts a static pick. The field keeps the
-  // display string only — the trip carries no lat/lon.
+  // Live Places suggestions sit above the static list; offline, an empty
+  // key, or a 503 falls back to `PLACES` silently, and the required-pick
+  // still accepts a static pick. The field keeps the display string only
+  // — the trip carries no lat/lon.
+  //
+  // It is `suggestions` being absent that falls back, not it being empty.
+  // An empty array is an answer — the live source was asked and has
+  // nothing for that query — and answering it with ten unrelated static
+  // places is worse than answering it with nothing, which is what the
+  // picker says for itself (`No matches`).
   const [search, setSearch] = useState("");
   const [sessionToken, rotateSessionToken] = usePlaceSessionToken();
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(
@@ -83,8 +89,7 @@ function EditTripScreen() {
     [suggestions],
   );
   const placeOptions = useMemo(
-    () =>
-      suggestions?.length ? suggestions.map(toPlaceOption) : PLACES,
+    () => (suggestions ? suggestions.map(toPlaceOption) : PLACES),
     [suggestions],
   );
 

@@ -90,10 +90,15 @@ export function EventDialog({
   const [end, setEnd] = useState<string | null>(initial?.end ?? null);
   const [submitted, setSubmitted] = useState(false);
 
-  // Live Places suggestions sit above the static list; a lookup
-  // failure falls back to `EVENT_PLACES` silently, and free text
-  // keeps working throughout — the failure never blocks submit. The
-  // event keeps the display string only: it carries no lat/lon.
+  // Live Places suggestions sit above the static list; a lookup failure
+  // falls back to `EVENT_PLACES` silently, and free text keeps working
+  // throughout — the failure never blocks submit. The event keeps the
+  // display string only: it carries no lat/lon.
+  //
+  // It is `suggestions` being absent that falls back, not it being empty:
+  // an empty array means the live source was asked and has nothing, and
+  // answering that with a dozen unrelated static places is worse than
+  // answering it with the picker's own `No matches`.
   const [search, setSearch] = useState("");
   const [sessionToken, rotateSessionToken] = usePlaceSessionToken();
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(
@@ -106,8 +111,7 @@ export function EventDialog({
     [suggestions],
   );
   const placeOptions = useMemo(
-    () =>
-      suggestions?.length ? suggestions.map(toPlaceOption) : EVENT_PLACES,
+    () => (suggestions ? suggestions.map(toPlaceOption) : EVENT_PLACES),
     [suggestions],
   );
 

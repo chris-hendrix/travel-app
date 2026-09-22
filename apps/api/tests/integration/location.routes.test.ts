@@ -113,7 +113,7 @@ describe("Location Routes", () => {
       expect(body[0].lon).toBeUndefined();
     });
 
-    it("returns [] when GOOGLE_MAPS_API_KEY not set", async () => {
+    it("returns 503 when GOOGLE_MAPS_API_KEY not set", async () => {
       const { token } = await createAuthenticatedApp();
 
       // Temporarily clear the API key (env config is a singleton shared across app instances)
@@ -129,9 +129,15 @@ describe("Location Routes", () => {
       // Restore the original key so subsequent tests are not affected
       app.config.GOOGLE_MAPS_API_KEY = originalKey;
 
-      expect(response.statusCode).toBe(200);
+      // Not `200 []`: that says "asked and there are none", which is a
+      // different answer from "the key is missing", and the pickers need
+      // to tell them apart — one falls back to its own list, the other
+      // must not invent places for a query it actually asked. `/details`
+      // has answered 503 for this condition all along; this is the one
+      // that disagreed with itself.
+      expect(response.statusCode).toBe(503);
       const body = JSON.parse(response.body);
-      expect(body).toEqual([]);
+      expect(body.error.message).toBe("Google API key is not configured");
     });
 
     it("includes locationBias when lat/lon present", async () => {
