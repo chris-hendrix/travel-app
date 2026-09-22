@@ -38,26 +38,32 @@ const UNITS: Array<{ value: TemperatureUnit; label: string }> = [
 ];
 
 /**
- * Profile. Who you are, what you are called, and the two preferences the
- * app keeps about you — then the way out, then the documents you agreed
- * to.
+ * Profile. Who you are, what you are called, and the preferences the app
+ * keeps about you — then the two things you can do about your account
+ * from here, then the documents you agreed to.
  *
- * No heading on the fields: they are short enough to read as one list,
- * and a rule only earns its place where the content changes kind — in
- * front of Sign out, and in front of the legal list.
+ * No heading on the fields: they are short enough to read as one list.
  *
- * The way out sits above the documents rather than under them. Both are
- * ruled off and the order is verbs before paperwork: a person scrolling
- * this screen to sign out was passing two read-once documents to reach a
- * routine action, which is what made it read as hidden. It stays at the
- * foot of the fields rather than at the top of the screen, because the
- * top is your own face and name, the avatar in that band is already a
- * control, and the way back in is a texted code — a way out does not
- * belong where the thumb lands by accident. The foot also keeps the last
- * slot free, which is where a destructive action goes the day this
- * account has one. It does not yet: the lab's parking lot carries delete
- * account as a pattern waiting on a route, and an account here can only
- * be banned.
+ * No rules either. There were three across the bottom half — one per
+ * block — and at that density a line stops marking anything: the eye
+ * reads a ladder rather than two seams. What separates the three groups
+ * below the fields is their headings ("Calendar", "Legal & privacy") and
+ * the distance between them, which is four times the distance between two
+ * buttons in one group. A very loud device used for everything is a very
+ * quiet one.
+ *
+ * The way out sits above the documents rather than under them, and behind
+ * a rule of its own: the order is verbs before paperwork, and a person
+ * scrolling this screen to sign out was passing two read-once documents
+ * to reach a routine action, which is what made it read as hidden. It
+ * stays at the foot of the fields rather than at the top of the screen,
+ * because the top is your own face and name, the avatar in that band is
+ * already a control, and the way back in is a texted code — a way out
+ * does not belong where the thumb lands by accident. The foot also keeps
+ * the last slot free, which is where a destructive action goes the day
+ * this account has one. It does not yet: the lab's parking lot carries
+ * delete account as a pattern waiting on a route, and an account here can
+ * only be banned.
  *
  * The identity block reads from the draft, not the saved profile, so
  * typing a new name sets the headline as you go: the clearest proof that
@@ -135,7 +141,9 @@ function ProfileForm({ profile }: { profile: Profile }) {
   // The calendar's own two states, separate from the form's: subscribing
   // is not a save, and a failure in it must not read as one — the form
   // above is unsaved while this happens.
-  const [calendarBusy, setCalendarBusy] = useState(false);
+  const [calendarBusy, setCalendarBusy] = useState<"google" | "apple" | null>(
+    null,
+  );
   const [calendarFailure, setCalendarFailure] = useState<string | null>(null);
   const errors = submitted ? validateProfile(draft) : {};
 
@@ -165,9 +173,12 @@ function ProfileForm({ profile }: { profile: Profile }) {
    * `appleCalendarUrl` are the two clients of the one URL the API hands
    * back, and both are pure (`lib/calendarLinks.ts`).
    */
-  async function subscribe(toLink: (feedUrl: string) => string) {
+  async function subscribe(
+    which: "google" | "apple",
+    toLink: (feedUrl: string) => string,
+  ) {
     setCalendarFailure(null);
-    setCalendarBusy(true);
+    setCalendarBusy(which);
     try {
       const { calendarUrl } = await enableCalendar();
       await Linking.openURL(toLink(calendarUrl));
@@ -179,7 +190,7 @@ function ProfileForm({ profile }: { profile: Profile }) {
           : (copy.message ?? "Couldn't open your calendar."),
       );
     } finally {
-      setCalendarBusy(false);
+      setCalendarBusy(null);
     }
   }
 
@@ -315,39 +326,49 @@ function ProfileForm({ profile }: { profile: Profile }) {
         </Text>
       </View>
 
-      {/* The calendar, on a rule of its own: everything above describes
-          you and everything below acts.
+      {/* The calendar, opened by its heading rather than by a rule: the
+          heading already says the screen changes here, and a line above it
+          was the third of three in the bottom half of the screen, which is
+          when a rule stops meaning anything.
 
-          Two buttons rather than a switch and a link. There is a
-          subscription to make and a calendar to make it in, and the two
-          are one choice each — a toggle plus a "get the link" step asks
-          the same question twice. Enabling is idempotent, so a press
-          ensures the feed exists and then opens it, and no state has to
-          be read or shown: what the person came for is their calendar. */}
-      <View className="gap-1 border-t border-ink pt-5">
+          Full width on a phone, one under the other, like every other
+          button in this system: a pair of halves would fit the labels but
+          not the thumb, and the two are alternatives rather than a row to
+          scan across. Enabling is idempotent, so a press ensures the feed
+          exists and then opens it — there is no state to read and none to
+          show, and no race between the two. */}
+      <View className="gap-1 pt-6">
         <Text className="font-body-bold text-sm text-ink">Calendar</Text>
         <Text className="mt-1 font-body text-sm text-ink">
-          Every trip you are on, in the calendar you already read. The link
-          is yours alone — anyone who has it can see your trips.
+          Subscribe to every trip you are on, in the calendar you already
+          read.
         </Text>
         <View className="mt-3 gap-3">
           <Button
-            title="Subscribe in Google Calendar"
+            title={
+              calendarBusy === "google"
+                ? "Opening Google Calendar"
+                : "Subscribe in Google Calendar"
+            }
             variant="secondary"
             fullWidth
-            disabled={calendarBusy}
-            onPress={() => void subscribe(googleCalendarUrl)}
+            disabled={calendarBusy === "google"}
+            onPress={() => void subscribe("google", googleCalendarUrl)}
           />
-          {/* Apple's Calendar claims `webcal:`, and it is the one
-              platform whose calendar app is the point: Android has no
-              Apple Calendar to open, so it is not offered one. */}
+          {/* Apple's Calendar claims `webcal:`, and it is the one platform
+              whose calendar app is the point: Android has no Apple
+              Calendar to open, so it is not offered one. */}
           {Platform.OS === "android" ? null : (
             <Button
-              title="Subscribe in Apple Calendar"
+              title={
+                calendarBusy === "apple"
+                  ? "Opening Apple Calendar"
+                  : "Subscribe in Apple Calendar"
+              }
               variant="secondary"
               fullWidth
-              disabled={calendarBusy}
-              onPress={() => void subscribe(appleCalendarUrl)}
+              disabled={calendarBusy === "apple"}
+              onPress={() => void subscribe("apple", appleCalendarUrl)}
             />
           )}
         </View>
@@ -358,10 +379,23 @@ function ProfileForm({ profile }: { profile: Profile }) {
         ) : null}
       </View>
 
-      {/* The way out, before the paperwork. A rule, because it is a
-          different kind of content from the fields above — nothing on
-          this side of it is edited. */}
-      <View className="border-t border-ink pt-5">
+      {/* The way out, a group of its own: the distance in front of it is
+          four times the space between the calendar's two buttons, which is
+          what separates it now that nothing is drawn between them. With
+          the same gap it read as a third way to subscribe — two cells and
+          then a third that means something else entirely.
+
+          No heading. A heading over one button whose own label says the
+          same word is the restating this system already took out once
+          (the ITINERARY eyebrow over the run's day headings), and there is
+          no better word for it than the one on the button.
+
+          Not the alert colour. `Button`'s own note reserves `danger` for
+          what cannot be taken back; signing out can, with a code, and the
+          one action on this screen that really cannot — deleting the
+          account — has no route behind it yet. Spending the red here
+          would leave it nothing to wear when it arrives. */}
+      <View className="pt-6">
         <Button
           title="Sign out"
           variant="secondary"
@@ -374,9 +408,9 @@ function ProfileForm({ profile }: { profile: Profile }) {
       </View>
 
       {/* The documents belong to the person, not to a trip: the consent
-          is yours, and these are the ones you gave it to. A rule, because
-          it is a different kind of content again from the way out above. */}
-      <View className="border-t border-ink pt-5">
+          is yours, and these are the ones you gave it to. Their heading is
+          what sets them apart — the same device as the calendar's above. */}
+      <View className="pt-6">
         <Text className="font-body-bold text-sm text-ink">
           Legal & privacy
         </Text>
