@@ -3,6 +3,14 @@ import { AppState, View } from "react-native";
 import { QueryClientProvider, focusManager } from "@tanstack/react-query";
 import { makeQueryClient } from "@/lib/queries/client";
 import { Stack, SplashScreen, usePathname } from "expo-router";
+// The web tab's own label. Expo's shell ships an empty <title>, which
+// reads as the URL on a tab strip; the mark beside it says which product,
+// this says what to call it. A default import, not a named one:
+// `expo-router/head` is `export { Head as default }`, so `{ Head }` is
+// undefined and takes the whole tree down with it. It is the root
+// layout's rather than a screen's, so it holds everywhere — a screen that
+// wants its own title renders a Head of its own and the deepest wins.
+import Head from "expo-router/head";
 import { useFonts } from "expo-font";
 import {
   useFonts as useSpaceMono,
@@ -78,6 +86,9 @@ export default function RootLayout() {
       <NotificationsProvider>
         <ProfileProvider>
           <TripSettingsProvider>
+            <Head>
+              <title>Journiful</title>
+            </Head>
             <View className="flex-1 bg-sand">
               {/* App shell: a fixed-height column so the screen scrolls
                   under the header instead of scrolling the whole document
@@ -100,7 +111,12 @@ export default function RootLayout() {
                     )
                   }
                 >
-                  <Stack screenOptions={{ headerShown: false }} />
+                  <Stack
+                    screenOptions={{
+                      headerShown: false,
+                      title: "Journiful",
+                    }}
+                  />
                 </Suspense>
               </View>
             </View>
