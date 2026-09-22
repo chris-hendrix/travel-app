@@ -8,6 +8,7 @@ import { Dropdown } from "@/components/ui/Dropdown";
 import { DatePicker } from "@/components/ui/DatePicker";
 import type { Selection } from "@/lib/calendar";
 import { ChipToggle } from "@/components/ui/ChipToggle";
+import { FieldError } from "@/components/ui/FieldError";
 import { TimeField } from "@/components/ui/TimeField";
 import { dayLabel } from "@/lib/itinerary";
 import { toIso } from "@/lib/dateRange";
@@ -47,6 +48,7 @@ export function EventDialog({
   onSubmit,
   serverError,
   onDelete,
+  pending = false,
 }: {
   title: string;
   /** The dialog's one verb: "Add event" or "Save changes". */
@@ -70,6 +72,8 @@ export function EventDialog({
    * dropped, and Deleted items is where it comes back from.
    */
   onDelete?: (() => void) | undefined;
+  /** A write is in flight: the dialog's own two buttons stop. */
+  pending?: boolean;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
@@ -145,6 +149,7 @@ export function EventDialog({
       title={title}
       primaryTitle={primaryTitle}
       onPrimary={submit}
+      pending={pending}
       dangerTitle={onDelete ? "Delete event" : undefined}
       onDanger={onDelete}
       dismissHref={dismissHref}
@@ -217,12 +222,12 @@ export function EventDialog({
           min={trip.startDate}
           max={trip.endDate}
         />
-        <Text className="font-body text-sm text-ink">
-          {day ? dayLabel(day, today) : "Pick the day it happens."}
-        </Text>
-        {errors.day ? (
-          <Text className="font-body text-sm text-ink">{errors.day}</Text>
+        {day ? (
+          <Text className="font-body text-sm text-ink">
+            {dayLabel(day, today)}
+          </Text>
         ) : null}
+        <FieldError message={errors.day} />
       </View>
 
       {/* The times are always here and never hidden: all-day parks them

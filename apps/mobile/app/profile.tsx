@@ -172,7 +172,7 @@ function ProfileForm({ profile }: { profile: Profile }) {
       title="Profile"
       primaryTitle={busy ? "Saving changes" : "Save changes"}
       onPrimary={() => void save()}
-      primaryDisabled={busy}
+      pending={busy}
     >
       {/* Identity. A square of ink rather than a circle: nothing else in
           the system is round except the countdown pill. */}

@@ -6,6 +6,7 @@ import {
   type KeyboardTypeOptions,
   type TextInputProps,
 } from "react-native";
+import { FieldError } from "@/components/ui/FieldError";
 import { PLACEHOLDER } from "@/lib/theme";
 
 /**
@@ -122,9 +123,7 @@ export function TextField({
         />
         {suffix}
       </View>
-      {error ? (
-        <Text className="font-body text-sm text-ink">{error}</Text>
-      ) : null}
+      <FieldError message={error} />
     </View>
   );
 }

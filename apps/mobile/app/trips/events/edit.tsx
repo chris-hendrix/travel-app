@@ -51,6 +51,9 @@ function EditEventScreen() {
   // The last save's or delete's failure, fed to the dialog's
   // InlineError. The dialog stays open on failure.
   const [serverError, setServerError] = useState<string | null>(null);
+  // A write in flight. The dialog's buttons stop on it, so a second
+  // press cannot save twice or delete a row being saved.
+  const [saving, setSaving] = useState(false);
 
   const tripId = typeof id === "string" ? id : undefined;
   const { trip } = useTrip(tripId);
@@ -105,22 +108,26 @@ function EditEventScreen() {
   return (
     <EventDialog
       title="Loading event to edit"
-      primaryTitle="Save changes"
+      primaryTitle={saving ? "Saving changes" : "Save changes"}
       trip={trip}
       dismissHref={`/trips/events/detail?id=${trip.id}&event=${event.id}`}
       initial={initial}
       serverError={serverError}
+      pending={saving}
       onDelete={() => {
         // Deleting is soft with no confirmation; a failed delete
         // stays on the form with the failure instead of leaving.
         setServerError(null);
-        void deleteEvent(trip.id, event.id).then(
-          () => router.replace(tripHref),
-          (error: unknown) =>
-            setServerError(
-              toErrorCopy(error).message ?? "Couldn't delete the event.",
-            ),
-        );
+        setSaving(true);
+        void deleteEvent(trip.id, event.id)
+          .then(
+            () => router.replace(tripHref),
+            (error: unknown) =>
+              setServerError(
+                toErrorCopy(error).message ?? "Couldn't delete the event.",
+              ),
+          )
+          .finally(() => setSaving(false));
       }}
       onSubmit={(input) => {
         if (Object.keys(validateNewEvent(input)).length > 0) return;
@@ -138,13 +145,16 @@ function EditEventScreen() {
             : placeholderPhoto(input.place),
         );
         setServerError(null);
-        void updateEvent(trip.id, event.id, next).then(
-          () => dismiss(),
-          (error: unknown) =>
-            setServerError(
-              toErrorCopy(error).message ?? "Couldn't save the event.",
-            ),
-        );
+        setSaving(true);
+        void updateEvent(trip.id, event.id, next)
+          .then(
+            () => dismiss(),
+            (error: unknown) =>
+              setServerError(
+                toErrorCopy(error).message ?? "Couldn't save the event.",
+              ),
+          )
+          .finally(() => setSaving(false));
       }}
     />
   );

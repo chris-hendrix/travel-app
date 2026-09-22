@@ -5,6 +5,7 @@ import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { DatePicker } from "@/components/ui/DatePicker";
+import { FieldError } from "@/components/ui/FieldError";
 import type { Selection } from "@/lib/calendar";
 import { formatDateRange } from "@/lib/dateRange";
 import { validateNewTrip, type NewTripInput } from "@/lib/newTrip";
@@ -114,7 +115,7 @@ export default function NewTrip() {
       title="Create trip"
       primaryTitle={busy ? "Creating trip" : "Create trip"}
       onPrimary={() => void create()}
-      primaryDisabled={busy}
+      pending={busy}
       dismissHref="/trips"
     >
       {/* Modals are routes, presented modally: iOS slides it up and
@@ -153,16 +154,18 @@ export default function NewTrip() {
       <View className="gap-2">
         <Text className="font-body-bold text-sm text-ink">Dates</Text>
         <DatePicker selection={dates} onChange={setDates} />
-        <Text className="font-body text-sm text-ink">
-          {dates.start
-            ? formatDateRange(input.startDate, input.endDate)
-            : "Tap the first day, then the last. One tap is a day trip."}
-        </Text>
-        {errors.startDate ? (
+        {/* A readout, not an instruction: the calendar already shows what
+            is chosen, and a line telling you to tap one was both the
+            picker repeating itself and — in the same black as the error
+            under it — the reason an empty form looked like it had said
+            nothing. */}
+        {dates.start ? (
           <Text className="font-body text-sm text-ink">
-            {errors.startDate}
+            {formatDateRange(input.startDate, input.endDate)}
           </Text>
         ) : null}
+        <FieldError message={errors.startDate} />
+        <FieldError message={errors.endDate} />
       </View>
 
       {failure ? (

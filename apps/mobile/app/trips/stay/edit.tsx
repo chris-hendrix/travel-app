@@ -46,6 +46,9 @@ function EditStayScreen() {
   // The last save's or delete's failure, fed to the dialog's
   // InlineError. The dialog stays open on failure.
   const [serverError, setServerError] = useState<string | null>(null);
+  // A write in flight. The dialog's buttons stop on it, so a second
+  // press cannot save twice or delete a row being saved.
+  const [saving, setSaving] = useState(false);
 
   const tripId = typeof id === "string" ? id : undefined;
   const { trip } = useTrip(tripId);
@@ -92,22 +95,26 @@ function EditStayScreen() {
   return (
     <StayDialog
       title="Loading stay to edit"
-      primaryTitle="Save changes"
+      primaryTitle={saving ? "Saving changes" : "Save changes"}
       trip={trip}
       dismissHref={`/trips/stay/detail?id=${trip.id}&stay=${stay.id}`}
       initial={draftFromStay(stay, timeZone)}
       serverError={serverError}
+      pending={saving}
       onDelete={() => {
         // Deleting is soft with no confirmation; a failed delete
         // stays on the form with the failure instead of leaving.
         setServerError(null);
-        void deleteStay(trip.id, stay.id).then(
-          () => router.replace(tripHref),
-          (error: unknown) =>
-            setServerError(
-              toErrorCopy(error).message ?? "Couldn't delete the stay.",
-            ),
-        );
+        setSaving(true);
+        void deleteStay(trip.id, stay.id)
+          .then(
+            () => router.replace(tripHref),
+            (error: unknown) =>
+              setServerError(
+                toErrorCopy(error).message ?? "Couldn't delete the stay.",
+              ),
+          )
+          .finally(() => setSaving(false));
       }}
       onSubmit={(input) => {
         // Rebuilt rather than patched: the form sets every field the
@@ -124,13 +131,16 @@ function EditStayScreen() {
           stay.links,
         );
         setServerError(null);
-        void updateStay(trip.id, stay.id, next).then(
-          () => dismiss(),
-          (error: unknown) =>
-            setServerError(
-              toErrorCopy(error).message ?? "Couldn't save the stay.",
-            ),
-        );
+        setSaving(true);
+        void updateStay(trip.id, stay.id, next)
+          .then(
+            () => dismiss(),
+            (error: unknown) =>
+              setServerError(
+                toErrorCopy(error).message ?? "Couldn't save the stay.",
+              ),
+          )
+          .finally(() => setSaving(false));
       }}
     />
   );

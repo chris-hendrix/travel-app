@@ -21,7 +21,8 @@
   /* Roles */
   --color-seafoam: #42d177; /* primary: actions, positive states */
   --color-watermelon: #ef8ad4; /* secondary: category (club) */
-  --color-strawberry: #ff6352; /* accent: live, alerts, unread */
+  --color-strawberry: #ff6352; /* accent: live, alerts, unread — as a fill */
+  --color-strawberry-deep: #b8271a; /* the alert as text: 4.7:1 on gravel */
   --color-ocean: #4281ff; /* info: links */
   --color-acid: #cbfb6a; /* highlight, used sparingly */
 

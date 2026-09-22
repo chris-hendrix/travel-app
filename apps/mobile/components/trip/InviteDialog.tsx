@@ -179,7 +179,12 @@ export function InviteDialog({
               : "Send invitations"
       }
       onPrimary={sent ? dismiss : send}
-      primaryDisabled={!sent && (chosen === 0 || inviteMutation.isPending)}
+      // Two different reasons to be unavailable, kept apart: nothing
+      // chosen is the action not having anything to act on, sending is a
+      // write in flight. Only the second one stops the dialog's own
+      // destructive action, of which it has none.
+      primaryDisabled={!sent && chosen === 0}
+      pending={!sent && inviteMutation.isPending}
       dismissHref={dismissHref}
     >
       <Text className="font-body text-sm text-ink">{trip.title}</Text>

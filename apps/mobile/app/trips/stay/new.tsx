@@ -37,6 +37,9 @@ function NewStayScreen() {
   // The last save's failure, fed to the dialog's InlineError. The
   // dialog stays open on failure: dismissing would pretend it saved.
   const [serverError, setServerError] = useState<string | null>(null);
+  // A write in flight. The dialog's buttons stop on it, so a second
+  // press cannot make a second stay.
+  const [saving, setSaving] = useState(false);
 
   const tripId = typeof id === "string" ? id : undefined;
   const { trip } = useTrip(tripId);
@@ -57,10 +60,11 @@ function NewStayScreen() {
   return (
     <StayDialog
       title="Add stay"
-      primaryTitle="Add stay"
+      primaryTitle={saving ? "Adding stay" : "Add stay"}
       trip={trip}
       dismissHref={`/trips/detail?id=${trip.id}`}
       serverError={serverError}
+      pending={saving}
       onSubmit={(input) => {
         const stay = buildStay(
           input,
@@ -71,13 +75,16 @@ function NewStayScreen() {
         // The built stay is the optimistic row (its custom id is
         // the stand-in the store swaps the server stay in by).
         setServerError(null);
-        void addStay(trip.id, stay).then(
-          () => dismiss(),
-          (error: unknown) =>
-            setServerError(
-              toErrorCopy(error).message ?? "Couldn't save the stay.",
-            ),
-        );
+        setSaving(true);
+        void addStay(trip.id, stay)
+          .then(
+            () => dismiss(),
+            (error: unknown) =>
+              setServerError(
+                toErrorCopy(error).message ?? "Couldn't save the stay.",
+              ),
+          )
+          .finally(() => setSaving(false));
       }}
     />
   );

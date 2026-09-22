@@ -57,6 +57,9 @@ function TravelFormScreen() {
   // The last save's or delete's failure, fed to the dialog's
   // InlineError. The dialog stays open on failure.
   const [serverError, setServerError] = useState<string | null>(null);
+  // A write in flight. The dialog's buttons stop on it, so a second
+  // press cannot save twice or delete a direction being saved.
+  const [saving, setSaving] = useState(false);
   const { for: settingsFor, update } = useTripSettings();
   const dismiss = useDismiss("/trips");
   const router = useRouter();
@@ -177,7 +180,15 @@ function TravelFormScreen() {
   return (
     <TravelDialog
       title={record ? "Edit travel" : "Add travel"}
-      primaryTitle={record ? "Save changes" : "Add travel"}
+      primaryTitle={
+        record
+          ? saving
+            ? "Saving changes"
+            : "Save changes"
+          : saving
+            ? "Adding travel"
+            : "Add travel"
+      }
       trip={trip}
       timeZone={timeZone}
       members={members}
@@ -191,6 +202,7 @@ function TravelFormScreen() {
       dismissHref={boardHref}
       initial={initial}
       serverError={serverError}
+      pending={saving}
       onDelete={
         record
           ? (direction) => {
@@ -202,14 +214,17 @@ function TravelFormScreen() {
               // A failed delete stays on the form with the failure
               // instead of leaving.
               setServerError(null);
-              void deleteTravel(trip.id, existing.id).then(
-                () => router.replace(boardHref),
-                (error: unknown) =>
-                  setServerError(
-                    toErrorCopy(error).message ??
-                      "Couldn't delete the travel.",
-                  ),
-              );
+              setSaving(true);
+              void deleteTravel(trip.id, existing.id)
+                .then(
+                  () => router.replace(boardHref),
+                  (error: unknown) =>
+                    setServerError(
+                      toErrorCopy(error).message ??
+                        "Couldn't delete the travel.",
+                    ),
+                )
+                .finally(() => setSaving(false));
             }
           : undefined
       }
@@ -247,13 +262,16 @@ function TravelFormScreen() {
         // The dialog stays open on failure: dismissing would pretend
         // it saved.
         setServerError(null);
-        void Promise.all(saves).then(
-          () => dismiss(),
-          (error: unknown) =>
-            setServerError(
-              toErrorCopy(error).message ?? "Couldn't save the travel.",
-            ),
-        );
+        setSaving(true);
+        void Promise.all(saves)
+          .then(
+            () => dismiss(),
+            (error: unknown) =>
+              setServerError(
+                toErrorCopy(error).message ?? "Couldn't save the travel.",
+              ),
+          )
+          .finally(() => setSaving(false));
       }}
     />
   );

@@ -6,6 +6,7 @@ import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { DatePicker } from "@/components/ui/DatePicker";
+import { FieldError } from "@/components/ui/FieldError";
 import type { Selection } from "@/lib/calendar";
 import { formatDateRange } from "@/lib/dateRange";
 import { validateNewTrip, type NewTripInput } from "@/lib/newTrip";
@@ -179,7 +180,7 @@ function EditTripScreen() {
       title="Loading trip to edit"
       primaryTitle={busy ? "Saving changes" : "Save changes"}
       onPrimary={() => void save()}
-      primaryDisabled={busy}
+      pending={busy}
       dismissHref={`/trips/detail?id=${trip.id}`}
     >
       <Stack.Screen options={{ presentation: "modal" }} />
@@ -216,16 +217,13 @@ function EditTripScreen() {
       <View className="gap-2">
         <Text className="font-body-bold text-sm text-ink">Dates</Text>
         <DatePicker selection={dates} onChange={setDates} />
-        <Text className="font-body text-sm text-ink">
-          {dates.start
-            ? formatDateRange(input.startDate, input.endDate)
-            : "Tap the first day, then the last. One tap is a day trip."}
-        </Text>
-        {errors.startDate ? (
+        {dates.start ? (
           <Text className="font-body text-sm text-ink">
-            {errors.startDate}
+            {formatDateRange(input.startDate, input.endDate)}
           </Text>
         ) : null}
+        <FieldError message={errors.startDate} />
+        <FieldError message={errors.endDate} />
       </View>
 
       <TextField

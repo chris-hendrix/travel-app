@@ -33,6 +33,9 @@ function NewEventScreen() {
   // The last save's failure, fed to the dialog's InlineError. The
   // dialog stays open on failure: dismissing would pretend it saved.
   const [serverError, setServerError] = useState<string | null>(null);
+  // A write in flight. The dialog's buttons stop on it, so a second
+  // press cannot make a second event.
+  const [saving, setSaving] = useState(false);
 
   const tripId = typeof id === "string" ? id : undefined;
   const { trip } = useTrip(tripId);
@@ -53,10 +56,11 @@ function NewEventScreen() {
   return (
     <EventDialog
       title="Add event"
-      primaryTitle="Add event"
+      primaryTitle={saving ? "Adding event" : "Add event"}
       trip={trip}
       dismissHref={`/trips/detail?id=${trip.id}`}
       serverError={serverError}
+      pending={saving}
       onSubmit={(input) => {
         const event = buildEvent(
           input,
@@ -67,13 +71,16 @@ function NewEventScreen() {
         // The built event is the optimistic row (its custom id is
         // the stand-in the store swaps the server event in by).
         setServerError(null);
-        void addEvent(trip.id, event).then(
-          () => dismiss(),
-          (error: unknown) =>
-            setServerError(
-              toErrorCopy(error).message ?? "Couldn't save the event.",
-            ),
-        );
+        setSaving(true);
+        void addEvent(trip.id, event)
+          .then(
+            () => dismiss(),
+            (error: unknown) =>
+              setServerError(
+                toErrorCopy(error).message ?? "Couldn't save the event.",
+              ),
+          )
+          .finally(() => setSaving(false));
       }}
     />
   );

@@ -23,15 +23,19 @@ import { toErrorCopy } from "@/lib/queries/errors";
  * bell reads it outside any Suspense boundary.
  */
 export default function Notifications() {
-  const { notifications, markRead, markAllRead, status, error, retry } =
+  const { notifications, markRead, markAllRead, unreadCount, status, error, retry } =
     useNotifications();
   const { trips } = useTrips();
 
   return (
     <FullscreenDialog
       title="Loading notifications"
-      primaryTitle="Mark all read"
-      onPrimary={() => void markAllRead()}
+      // Nothing to mark until there is something unread. The bar belongs to
+      // the scaffold and does not wait for a query, so the action does:
+      // measured, Mark all read sat live over a list still saying
+      // "Loading notifications".
+      primaryTitle={unreadCount > 0 ? "Mark all read" : undefined}
+      onPrimary={unreadCount > 0 ? () => void markAllRead() : undefined}
     >
       {status === "pending" ? (
         <LoadingBlock label="Loading notifications" />

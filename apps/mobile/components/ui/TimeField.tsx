@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { ArrowDown, ArrowUp } from "lucide-react-native";
+import { FieldError } from "@/components/ui/FieldError";
 import { formatClock, timeOptions } from "@/lib/time";
 import { INK } from "@/lib/theme";
 
@@ -157,9 +158,7 @@ export function TimeField({
         </View>
       ) : null}
 
-      {error ? (
-        <Text className="font-body text-sm text-ink">{error}</Text>
-      ) : null}
+      <FieldError message={error} />
     </View>
   );
 }

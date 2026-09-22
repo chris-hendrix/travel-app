@@ -20,6 +20,7 @@ import { Screen } from "@/components/ui/Screen";
 // Aliased: this file's own `Section` is the lab's documentation frame, and
 // the product's is the ruled block the frame documents.
 import { Section as RuledSection } from "@/components/ui/Section";
+import { FieldError } from "@/components/ui/FieldError";
 import { InlineError } from "@/components/ui/InlineError";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
@@ -90,6 +91,7 @@ const COLORS: Array<[name: string, token: string, hex: string, swatch: string]> 
   ["Primary", "seafoam", "#42d177", "bg-seafoam"],
   ["Secondary", "watermelon", "#ef8ad4", "bg-watermelon"],
   ["Accent", "strawberry", "#ff6352", "bg-strawberry"],
+  ["Alert", "strawberry-deep", "#b8271a", "bg-strawberry-deep"],
   ["Info", "ocean", "#4281ff", "bg-ocean"],
   ["Highlight", "acid", "#cbfb6a", "bg-acid"],
 ];
@@ -303,17 +305,14 @@ function DesignSystemScreen() {
             <Specimen
               name="DatePicker"
               contract="selection · onChange · single? · min? · max?"
-              note="Range by default: two taps make a trip, endpoints invert to ink, the days between fill seafoam. single picks one day, which is what an event needs and what a leg of travel needs. min/max bound the days that make sense — a trip's own dates for an event inside it, a day past the end for the flight home, since a stay is booked through its last night. Days outside them go gravel and stop responding. Never a nested dialog."
+              note="Range by default: two taps make a trip, endpoints invert to ink, the days between fill seafoam. single picks one day, which is what an event needs and what a leg of travel needs. min/max bound the days that make sense — a trip's own dates for an event inside it, a day past the end for the flight home, since a stay is booked through its last night. Days outside them go gravel and stop responding. Never a nested dialog. The line a caller draws under it is a readout of what is chosen, never an instruction to choose: the calendar already inverts the days that are picked, so `Tap the first day, then the last.` under it was the control repeating itself — and, set in the same black as the error that appears when you submit without one, the reason an empty form read as though it had said nothing at all."
             >
               <DatePicker selection={range} onChange={setRange} />
-              <Text className="font-body text-sm text-ink">
-                {range.start
-                  ? formatDateRange(
-                      range.start,
-                      range.end ?? range.start,
-                    )
-                  : "Tap the first day, then the last."}
-              </Text>
+              {range.start ? (
+                <Text className="font-body text-sm text-ink">
+                  {formatDateRange(range.start, range.end ?? range.start)}
+                </Text>
+              ) : null}
               <DatePicker
                 selection={singleDay}
                 onChange={setSingleDay}
@@ -321,11 +320,11 @@ function DesignSystemScreen() {
                 min={TRIPS[0]!.startDate}
                 max={TRIPS[0]!.endDate}
               />
-              <Text className="font-body text-sm text-ink">
-                {singleDay.start
-                  ? `Single: ${singleDay.start}`
-                  : "Single day, bounded by a trip."}
-              </Text>
+              {singleDay.start ? (
+                <Text className="font-body text-sm text-ink">
+                  {`Single: ${singleDay.start}`}
+                </Text>
+              ) : null}
             </Specimen>
 
             <Specimen
@@ -374,6 +373,21 @@ function DesignSystemScreen() {
                   Ruled off from whatever sits above it.
                 </Text>
               </RuledSection>
+            </Specimen>
+
+            <Specimen
+              name="FieldError"
+              contract="message?"
+              note="What a field says about what it is missing: under its field, where the field's own helper line sits, and the one line down there that is not ink. That is the whole component. A complaint set in the same black, at the same size, in the same face as the helper sentence above it does not read as a complaint — it reads as a second sentence of the help, which is how a form came to look like it had said nothing. The colour is `strawberry-deep` rather than `strawberry`: the alert at the weight text can be read in. On the dialog's own ground the accent measures 2.19:1, under half of what 14px needs, and this is 4.7:1 in the same hue. Nothing else marks an error, no icon and no border on the field, because a field is wrong in one place and this is it. It also registers itself with the dialog, which scrolls to the first one to appear: the primary button is pinned to the foot and the fields are in the body above it, so a form submitted from a scrolled position put two of its three errors above the viewport with nothing moving to them. No message means no line and no registration, so a caller hands it a validator's `string | undefined` straight through. A field's own complaint, not a request's: a save that failed is a sentence about the request and stays ink, in InlineError below."
+            >
+              <View className="gap-1">
+                <Text className="font-body text-sm text-ink">
+                  A field's own helper line, still ink.
+                </Text>
+                <FieldError message="And its complaint under it, in the alert." />
+              </View>
+              {/* No message, no line — and no registration either. */}
+              <FieldError message={undefined} />
             </Specimen>
 
             <Specimen
@@ -546,7 +560,7 @@ function DesignSystemScreen() {
             <Specimen
               name="TextField"
               contract="label · value · onChangeText · placeholder? · error? · multiline? · numberOfLines? · suffix? · keyboardType? · centered? · autoFocus? · maxLength? · autoComplete? · textContentType?"
-              note="Every dialog that collects input uses this. Errors sit under the field, never in a toast. suffix draws a control that acts on the field inside the field's own box — the Autofill button on a flight number is one — because two separately padded controls only line up until a font metric moves; stretching them inside one box cannot drift. centered is the one-short-value shape: six digits of a code, centred and tracked, which is not a size but a shape. autoComplete and textContentType are the platform's own fill, a phone number or a code that just arrived by text, and they are worth more than any styling here because typing six digits correctly is the one thing a thumb is bad at. autoFocus is for the one field the reader came to fill in."
+              note="Every dialog that collects input uses this. Errors sit under the field, never in a toast, and they are FieldError's — the alert, not ink. suffix draws a control that acts on the field inside the field's own box — the Autofill button on a flight number is one — because two separately padded controls only line up until a font metric moves; stretching them inside one box cannot drift. centered is the one-short-value shape: six digits of a code, centred and tracked, which is not a size but a shape. autoComplete and textContentType are the platform's own fill, a phone number or a code that just arrived by text, and they are worth more than any styling here because typing six digits correctly is the one thing a thumb is bad at. autoFocus is for the one field the reader came to fill in."
             >
               <TextField
                 label="Display name"
@@ -815,8 +829,10 @@ function DesignSystemScreen() {
             in the list you were already reading, which is a trip, an event and
             a stay. An endpoint with three outcomes states all three where the
             send happened, which is the invite dialog. A failure belongs at the
-            field that caused it, and a request that fails belongs where its
-            content would have been, with a way to ask again.
+            field that caused it, which is `FieldError` — the one line under a
+            field that is not ink — and a request that fails belongs where its
+            content would have been, with a way to ask again, which is
+            `InlineError`.
           </Text>
           <Text className="font-body text-base text-ink">
             The one case that earns a transient message is a destructive action

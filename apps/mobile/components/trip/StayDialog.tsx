@@ -6,6 +6,7 @@ import { InlineError } from "@/components/ui/InlineError";
 import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { DatePicker } from "@/components/ui/DatePicker";
+import { FieldError } from "@/components/ui/FieldError";
 import { TimeField } from "@/components/ui/TimeField";
 import type { Selection } from "@/lib/calendar";
 import { addDays, formatDaySpan } from "@/lib/dateRange";
@@ -48,6 +49,7 @@ export function StayDialog({
   serverError,
   onSubmit,
   onDelete,
+  pending = false,
 }: {
   title: string;
   primaryTitle: string;
@@ -61,6 +63,8 @@ export function StayDialog({
   onSubmit: (input: NewStayInput) => void;
   /** Editing only. Soft, so it needs no confirmation step. */
   onDelete?: (() => void) | undefined;
+  /** A write is in flight: the dialog's own two buttons stop. */
+  pending?: boolean;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [address, setAddress] = useState(initial?.address ?? "");
@@ -134,6 +138,7 @@ export function StayDialog({
       title={title}
       primaryTitle={primaryTitle}
       onPrimary={submit}
+      pending={pending}
       dangerTitle={onDelete ? "Delete stay" : undefined}
       onDanger={onDelete}
       dismissHref={dismissHref}
@@ -183,23 +188,13 @@ export function StayDialog({
           min={trip.startDate}
           max={addDays(trip.endDate, 1)}
         />
-        <Text className="font-body text-sm text-ink">
-          {dates.start
-            ? dates.end
-              ? formatDaySpan(dates.start, dates.end)
-              : "Now pick the day you leave."
-            : "Pick the day you arrive, then the day you leave."}
-        </Text>
-        {errors.checkInDay ? (
+        {dates.start && dates.end ? (
           <Text className="font-body text-sm text-ink">
-            {errors.checkInDay}
+            {formatDaySpan(dates.start, dates.end)}
           </Text>
         ) : null}
-        {errors.checkOutDay ? (
-          <Text className="font-body text-sm text-ink">
-            {errors.checkOutDay}
-          </Text>
-        ) : null}
+        <FieldError message={errors.checkInDay} />
+        <FieldError message={errors.checkOutDay} />
       </View>
 
       {/* Both times are optional and both are often unknown: a host says
