@@ -49,8 +49,16 @@ function WaveEdge() {
 
 /**
  * The zone the times on screen are in, stated once by the chrome rather
- * than on every time. Underlined, because a word with no affordance is a
- * word: this one flips between the trip's clock and your own.
+ * than on every time.
+ *
+ * Underlined when it can be pressed, and only then, because that is what
+ * the underline means here: a word with no affordance is a word, and this
+ * one flips between the trip's clock and your own. When the two clocks
+ * read the same wall there is nothing to flip, so it is a readout — plain
+ * ink, no press, no underline — rather than a button whose whole effect is
+ * invisible. The bell and the avatar beside it need no underline because
+ * the band's slot says they can be pressed; this is the one control in the
+ * band that sometimes cannot be, so it is the one that has to say so.
  *
  * Renders nothing when no surface has registered a zone — the trips list
  * has no trip and no times, so it has nothing to say here.
@@ -60,16 +68,17 @@ function ZoneToken({ onInk = false }: { onInk?: boolean }) {
   if (!zone) return null;
 
   const colour = onInk ? "text-sand" : "text-ink";
+  const flippable = zone.canFlip;
 
   return (
     <Pressable
-      accessibilityRole={zone.onFlip ? "button" : undefined}
+      accessibilityRole={flippable ? "button" : undefined}
       accessibilityLabel={
-        zone.onFlip
+        flippable
           ? `Times in ${zone.label}, ${zone.abbr}. Switch clock`
           : `Times in ${zone.label}, ${zone.abbr}`
       }
-      disabled={!zone.onFlip}
+      disabled={!flippable}
       onPress={() => zone.onFlip?.()}
       // The word is small; the touch area is a real 44pt box: the
       // padding grows the element itself (pl-3 pr-1 py-3 around the
@@ -81,7 +90,11 @@ function ZoneToken({ onInk = false }: { onInk?: boolean }) {
       // centre sat from the word's.
       className="pl-3 pr-1 py-3"
     >
-      <Text className={`font-body-bold text-sm ${colour} underline`}>
+      <Text
+        className={`font-body-bold text-sm ${colour} ${
+          flippable ? "underline" : ""
+        }`}
+      >
         {zone.abbr}
       </Text>
     </Pressable>

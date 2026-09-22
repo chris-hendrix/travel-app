@@ -2,12 +2,14 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
 import { tripIsOver } from "@/lib/itinerary";
 import { todayIn } from "@/lib/timezone";
+import { readTripState, writeTripState } from "@/lib/tripState";
 import type { Trip } from "@/components/trip/TripCard";
 import {
   updateNotificationPreference,
@@ -83,6 +85,54 @@ export function TripSettingsProvider({ children }: { children: ReactNode }) {
   const [byTrip, setByTrip] = useState<Record<string, Partial<TripSettings>>>(
     {},
   );
+
+  /**
+   * The two keys that are this device's rather than the server's, kept
+   * across reloads: whose clock a trip's times are read on, and whether
+   * its past is showing.
+   *
+   * The clock is the one that mattered. It lived in memory alone, so the
+   * flip the chrome offers — the token in the header, one tap — was
+   * forgotten by the next reload, and a setting that does not survive a
+   * reload reads as a control that does not work. `showPast` came along
+   * because it is the same kind of thing, one line away.
+   *
+   * Read once, on mount: until it lands, `for()` answers its defaults, so
+   * a slow read shows the right screen a moment late rather than an empty
+   * one. Written whole on every change — a handful of trips is smaller
+   * than the bookkeeping that would update it in place.
+   */
+  type DeviceState = Record<
+    string,
+    Partial<Pick<TripSettings, "clock" | "showPast">>
+  >;
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void readTripState().then((stored) => {
+      if (cancelled) return;
+      if (stored && typeof stored === "object") {
+        setByTrip((current) => ({ ...(stored as DeviceState), ...current }));
+      }
+      setHydrated(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    const mine: DeviceState = {};
+    for (const [tripId, patch] of Object.entries(byTrip)) {
+      const held: Partial<Pick<TripSettings, "clock" | "showPast">> = {};
+      if (patch.clock !== undefined) held.clock = patch.clock;
+      if (patch.showPast !== undefined) held.showPast = patch.showPast;
+      if (Object.keys(held).length > 0) mine[tripId] = held;
+    }
+    void writeTripState(mine);
+  }, [byTrip, hydrated]);
 
   const update = useCallback((tripId: string, patch: Partial<TripSettings>) => {
     setByTrip((current) => ({

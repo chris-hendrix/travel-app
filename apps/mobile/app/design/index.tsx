@@ -281,7 +281,7 @@ function DesignSystemScreen() {
             <Specimen
               name="AppHeader"
               contract="title? · onClose? · action? · variant?"
-              note="Title mode, shown here. Wordmark mode is the same component with no title, rendered globally above this page. Landing mode is the wordmark alone — no bell, no avatar, no clock, because nobody has signed in yet — and the wordmark stops being a link, because on the landing you are already where it points."
+              note="Title mode, shown here. Wordmark mode is the same component with no title, rendered globally above this page. Landing mode is the wordmark alone — no bell, no avatar, no clock, because nobody has signed in yet — and the wordmark stops being a link, because on the landing you are already where it points. The clock beside the title is the ZoneToken, and it is the one control in the band that is sometimes not a control: underlined and pressable while the two clocks read differently, a plain readout the moment they agree, because its only effect is to change the reading and a tap that changes nothing is worse than no tap. It registers itself with the surface that shows the times (lib/displayZone.tsx), which stacks registrations, so covering a screen and coming back restores its zone rather than losing it."
             >
               <AppHeader
                 title="Notification settings"
