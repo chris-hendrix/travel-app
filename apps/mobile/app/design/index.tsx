@@ -21,6 +21,7 @@ import { Screen } from "@/components/ui/Screen";
 // the product's is the ruled block the frame documents.
 import { Section as RuledSection } from "@/components/ui/Section";
 import { FieldError } from "@/components/ui/FieldError";
+import { InlineAction } from "@/components/ui/InlineAction";
 import { InlineError } from "@/components/ui/InlineError";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
@@ -688,9 +689,29 @@ function DesignSystemScreen() {
             </View>
 
             <Specimen
+              name="InlineAction"
+              contract="label · onPress"
+              note="One action as a word inside a sentence: pressed, not followed. Inline by necessity — an empty state says what is missing in a sentence, and the way out of that state belongs in the same sentence; lifted into a row of controls it becomes the toolbar the sentence replaced, and a row of underlined words is a toolbar. Bold and underlined, `QuietAction`'s two marks, because both are words the system asks a thumb to press and neither has a box to say so; no colour, because a colour in this palette is a role and a word mid-sentence is doing neither job. The target is the line it sits in rather than a 44pt box — inside a 16pt paragraph padding would push the line apart — which is a deliberate deviation from the target-size rule, and the reason labels want to stay to two words. `Prose`'s links are this component; the weight had drifted between the two callers and nothing had said they should."
+            >
+              <Text className="font-body text-base text-ink">
+                Nothing planned yet. Add{" "}
+                <InlineAction
+                  label="a stay"
+                  onPress={() => setLog("InlineAction a stay pressed")}
+                />{" "}
+                or{" "}
+                <InlineAction
+                  label="an event"
+                  onPress={() => setLog("InlineAction an event pressed")}
+                />{" "}
+                to get started.
+              </Text>
+            </Specimen>
+
+            <Specimen
               name="Prose"
               contract="document: LegalDocument · onLink?"
-              note="Long-form copy. The documents are stored as Markdown — the thing a person reads, edits and proofs against the published page — and this is the only component in the system that turns it into type. Headings take the display face, because a heading is a short string; the body takes the body face at a size that survives a screenful of it; links are underlined and left in ink, since colour here is a role and a cross-link is doing none of them. The excerpt below is the real Privacy Policy, cut to its opening."
+              note="Long-form copy. The documents are stored as Markdown — the thing a person reads, edits and proofs against the published page — and this is the only component in the system that turns it into type. Headings take the display face, because a heading is a short string; the body takes the body face at a size that survives a screenful of it; links are `InlineAction`, so they carry the same two marks as every other pressable word with no box to say so, and stay in ink because colour here is a role. The excerpt below is the real Privacy Policy, cut to its opening."
             >
               <Prose
                 document={PROSE_SAMPLE}

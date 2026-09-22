@@ -9,6 +9,7 @@ import { InlineError } from "@/components/ui/InlineError";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
 import { ChipToggle } from "@/components/ui/ChipToggle";
+import { InlineAction } from "@/components/ui/InlineAction";
 import { useStays } from "@/lib/staysStore";
 import { useStays as useStaysSection } from "@/lib/queries/stays";
 import { useTripSettings } from "@/lib/tripSettingsStore";
@@ -339,42 +340,5 @@ export function Itinerary({
         </View>
       )}
     </View>
-  );
-}
-
-/**
- * One action as a word inside a sentence: pressed, not followed.
- *
- * Inline by necessity, not by preference. The empty run states what is
- * missing in a sentence, and the way out of it belongs in that sentence;
- * lifted out into a row of controls it becomes the toolbar this replaced.
- *
- * Bold and underlined, `QuietAction`'s two marks, because both are words
- * the system asks a thumb to press and neither has a box to say so. No
- * colour: in this palette a colour is a role — primary for the thing that
- * finishes a job, accent for the thing to notice — and a cross-reference
- * inside a sentence is doing neither, which is the same reason `Prose`
- * leaves its links in ink.
- *
- * The target is the line the word sits in rather than a 44pt box: it is
- * inside a paragraph of 16pt type, where padding would push the line
- * apart and a box would break the sentence. Both labels are two words
- * long for that reason.
- */
-function InlineAction({
-  label,
-  onPress,
-}: {
-  label: string;
-  onPress: () => void;
-}) {
-  return (
-    <Text
-      role="link"
-      onPress={onPress}
-      className="font-body-bold text-ink underline"
-    >
-      {label}
-    </Text>
   );
 }
