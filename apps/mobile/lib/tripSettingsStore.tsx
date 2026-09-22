@@ -18,24 +18,20 @@ import {
 /** Whose clock the times are read on. */
 export type Clock = "trip" | "device";
 
-/** How the days are laid out: a grid of cards, or a list of rows. */
-export type Layout = "grid" | "list";
-
 /**
  * What one person has decided about one trip. Not the trip's own
- * settings — those are the organizer's, and that surface is called Edit
- * trip. These are yours, which is why every member has them.
+ * settings — those are the organizer's, and that surface is called Trip
+ * details. These are yours, which is why every member has them.
  *
  * The notification pair is the server's own `notification_preferences`,
  * which is per user per trip and both true until turned off. They stay
  * in Trip settings, with phone sharing and the calendar; the run's own
- * two switches — past events, and grid or list — live on the run itself,
- * because they change what is in front of you as you flip them.
+ * switch — past events — lives on the run itself, because it changes
+ * what is in front of you as you flip it.
  */
 export type TripSettings = {
   showPast: boolean;
   clock: Clock;
-  layout: Layout;
   dailyItinerary: boolean;
   tripMessages: boolean;
   /** `members.sharePhone`: whether the others can see your number. */
@@ -55,7 +51,7 @@ type TripSettingsValue = {
    * Task 4 flow shape: paint the local override optimistically,
    * roll it back on failure, and rethrow so the screen reads the
    * failure through `toErrorCopy`. Local-only keys (`clock`,
-   * `layout`, `showPast`, `pushEnabled`, `calendarIncluded`) never
+   * `showPast`, `pushEnabled`, `calendarIncluded`) never
    * leave `update` and never touch the network.
    */
   setSharePhone: (tripId: string, value: boolean) => Promise<void>;
@@ -75,11 +71,13 @@ const TripSettingsContext = createContext<TripSettingsValue | null>(null);
  * Defaults are a decision, not a blank: a trip you are still on opens on
  * today with its past out of the way, and a trip that is over opens with
  * everything showing, because a finished itinerary with the past hidden
- * is a blank page. It opens as a list, because a run is a schedule you
- * read rather than a gallery you browse: a card is most of a phone
- * screen per thing, where a row keeps the photo at 56 points, shows the
- * clock, and fits five where the grid fits one. The grid is a chip away
- * for anyone who came to look at the pictures.
+ * is a blank page. It opens as a list of rows, and it stays one: a run
+ * is a schedule you read rather than a gallery you browse, a card is
+ * most of a phone screen per thing where a row keeps the photo at 56
+ * points and shows the clock, and the toggle that offered the other one
+ * was a second way to draw the same screen — with a state to persist, a
+ * control to hide whenever the run was empty, and no answer for a run
+ * holding only a stay.
  */
 export function TripSettingsProvider({ children }: { children: ReactNode }) {
   const [byTrip, setByTrip] = useState<Record<string, Partial<TripSettings>>>(
@@ -165,7 +163,6 @@ export function TripSettingsProvider({ children }: { children: ReactNode }) {
           todayIn(trip.preferredTimezone, now),
         ),
         clock: byTrip[trip.id]?.clock ?? "trip",
-        layout: byTrip[trip.id]?.layout ?? "list",
         dailyItinerary: byTrip[trip.id]?.dailyItinerary ?? true,
         tripMessages: byTrip[trip.id]?.tripMessages ?? true,
         sharePhone: byTrip[trip.id]?.sharePhone ?? false,

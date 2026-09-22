@@ -1,10 +1,7 @@
 import { Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { EventCard } from "@/components/trip/EventCard";
 import { EventRow } from "@/components/trip/EventRow";
-import { StayCard } from "@/components/trip/StayCard";
 import { StayRow } from "@/components/trip/StayRow";
-import { Grid } from "@/components/ui/Grid";
 import type { Trip } from "@/components/trip/TripCard";
 import { dayLabel, daysFrom, groupEventsByDay, liveEvents, tripIsOver } from "@/lib/itinerary";
 import { useEvents as useEventsSection } from "@/lib/queries/events";
@@ -12,26 +9,11 @@ import { InlineError } from "@/components/ui/InlineError";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
 import { ChipToggle } from "@/components/ui/ChipToggle";
-import { Segmented } from "@/components/ui/Segmented";
-import type { Layout } from "@/lib/tripSettingsStore";
 import { useStays } from "@/lib/staysStore";
 import { useStays as useStaysSection } from "@/lib/queries/stays";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { todayIn } from "@/lib/timezone";
-
-/**
- * The two layouts, as the run's toggle reads them.
- *
- * List leads because it is the default (`lib/tripSettingsStore.tsx`):
- * the first cell is the one you are already in, so nothing moves under
- * your thumb when the run answers with what you expect. Grid second, as
- * the one you go to.
- */
-const LAYOUTS: Array<{ value: Layout; label: string }> = [
-  { value: "list", label: "List" },
-  { value: "grid", label: "Grid" },
-];
 
 /**
  * A trip's days, each one a section holding that day's events.
@@ -43,8 +25,7 @@ const LAYOUTS: Array<{ value: Layout; label: string }> = [
  *
  * Before the first day sit the roofs, earliest first. Not days, and not
  * rows in the table by right: they are the base every day below departs
- * from, and each one wears what the layout says a thing wears, the run's
- * own tile or the run's own row.
+ * from, and each one wears the run's own row.
  *
  * A roof is not promoted and not indexed. There was a version where the
  * live one was a tile and the others were lines under it, on the
@@ -72,20 +53,21 @@ const LAYOUTS: Array<{ value: Layout; label: string }> = [
  * here. What is left at the top of the run is a heading that says what
  * is under it.
  *
- * No other controls in view than the run's own two, at its head: how far
- * down it you read, and whether it is a grid of cards or a list of rows.
- * Both were rows in Trip settings, which is where you go to change a
- * thing you are looking at — the switch belongs beside what it switches,
- * so you see what it did. The clock is not among them: the header's zone
- * token flips that, one tap away on every screen that shows a time.
+ * No other control in view than the run's own filter, at its head: how
+ * far down it you read. It was a row in Trip settings, which is where you
+ * go to change a thing you are looking at — the switch belongs beside
+ * what it switches, so you see what it did. The clock is not here either:
+ * the header's zone token flips that, one tap away on every screen that
+ * shows a time.
  *
- * The two sit at the two edges of one row rather than shoulder to
- * shoulder, because they are not the same kind of thing: the layout
- * switch is a choice out of a few, the filter is a switch you turn on
- * separately from it. A single run of three identical cells reads as one
- * choice of three.
+ * There was a second control beside it, grid or list, and it is gone. A
+ * run is a schedule you read rather than a gallery you browse, and the
+ * two renderings were a second way to draw the same screen: a state to
+ * persist, a switch to hide whenever the run was empty, and no answer at
+ * all for a run holding only a stay — which is the arrangement that had
+ * shipped. One way to draw it has none of those questions.
  *
- * What is left here is content, and the two chips that decide how much
+ * What is left here is content, and the one chip that decides how much
  * of it you are reading at once.
  *
  * Every card and row opens the same detail. Who is looking is read
@@ -115,9 +97,7 @@ export function Itinerary({
     useEventsSection(trip.id);
   const { status: staysStatus, retry: retryStays } = useStaysSection(trip.id);
   const { staysForTrip } = useStays();
-  const { showPast, clock, layout } = settingsFor(trip, now);
-
-  const cards = layout === "grid";
+  const { showPast, clock } = settingsFor(trip, now);
   const openEvent = (eventId: string) =>
     router.push(`/trips/events/detail?id=${trip.id}&event=${eventId}`);
   const openStay = (stayId: string) =>
@@ -170,124 +150,36 @@ export function Itinerary({
           action block (components/trip/TripActions.tsx), and the eyebrow
           went with them. */}
 
-      {/* The run's own two controls, at the head of the block they
-          change: whether it is cards or rows, and how much of it you
-          read. The switch leads and always leads — it is the control for
-          the thing you are looking at, and it is there every time this
-          block is; the filter is the extra one, and it sits at the far
-          edge so the two never read as one set. The switch is the same
-          cells as every other choice in the app (`Segmented`), because a
-          control that sometimes holds a value and sometimes does not is
-          one control in this system, not two.
+      {/* The run's own filter, at the head of the block it changes: how
+          much of the run you are reading. It was a row in Trip settings,
+          which is where you go to change a thing you are looking at —
+          the switch belongs beside what it switches, so you see what it
+          did. There was a grid-or-list switch beside it and there is not
+          any more: see the note above the component.
 
-          A run with no days gets neither. Both controls are about a list
-          that is not there: there is no grid to choose between and
-          nothing behind you to filter, so the head of an empty run was
-          two cells and a chip over the word "nothing" — the loudest
-          thing on the quietest screen, and both of them inert. The row
-          is held back until the events read has landed, because until it
-          has, "no days" and "not arrived yet" are the same picture: the
-          run arrives whole instead, its controls with its first heading
-          rather than ahead of a loading block.
-
-          Note this is the days, not the whole run: a trip holding only
-          a stay loses the layout switch too, though `cards` still
-          governs how that stay draws. */}
-      {eventsStatus === "success" && !missingEvents ? (
-        <View className="flex-row flex-wrap items-center justify-between gap-3">
-          <View className="flex-1">
-            <Segmented
-              options={LAYOUTS}
-              value={layout}
-              onChange={(next) => update(trip.id, { layout: next })}
-              // A chrome row's height, not a button's: it shares this line
-              // with the filter chip, and the two are one size.
-              size="sm"
-            />
-          </View>
-          {underway ? (
-            <ChipToggle
-              label="Past events"
-              selected={showPast}
-              onPress={() => update(trip.id, { showPast: !showPast })}
-            />
-          ) : null}
+          A run with no days gets nothing. The chip is about a list that
+          is not there, so the head of an empty run was a cell and a chip
+          over the word "nothing" — the loudest thing on the quietest
+          screen, and inert. It is held back until the events read has
+          landed, because until it has, "no days" and "not arrived yet"
+          are the same picture: the run arrives whole, its control with
+          its first heading rather than ahead of a loading block. */}
+      {eventsStatus === "success" && !missingEvents && underway ? (
+        <View className="flex-row justify-end">
+          <ChipToggle
+            label="Past events"
+            selected={showPast}
+            onPress={() => update(trip.id, { showPast: !showPast })}
+          />
         </View>
       ) : null}
 
-      {cards ? (
-        <>
-          {staysStatus === "loading" ? (
-            <LoadingBlock label="Getting the stays" />
-          ) : staysStatus === "offline" ? (
-            <OfflineBlock onRetry={retryStays} />
-          ) : staysStatus === "error" ? (
-            <InlineError
-              message="Couldn't load the stays"
-              onRetry={retryStays}
-            />
-          ) : stays.length > 0 ? (
-            // A heading of the run's own, in the days' own face: the
-            // roofs are the first block of it, not a preamble to it. No
-            // rule above it — the page draws the one seam, under both of
-            // its columns, and this block begins the run on its far side.
-            <View className="gap-6">
-              <Text className="font-display text-xl uppercase leading-none text-ink">
-                Stays
-              </Text>
-              <Grid>
-                {stays.map((stay) => (
-                  <StayCard
-                    key={stay.id}
-                    stay={stay}
-                    timeZone={timeZone}
-                    onPress={() => openStay(stay.id)}
-                  />
-                ))}
-              </Grid>
-            </View>
-          ) : null}
-          {eventsStatus === "loading" ? (
-            <LoadingBlock label="Getting the run" />
-          ) : eventsStatus === "offline" ? (
-            <OfflineBlock onRetry={retryEvents} />
-          ) : eventsStatus === "error" ? (
-            <InlineError
-              message="Couldn't load the run"
-              onRetry={retryEvents}
-            />
-          ) : (
-            <View className="gap-8">
-              {shown.map((day) => (
-                <View
-                  key={day.date}
-                  className="gap-6 border-t border-ink pt-6"
-                >
-                  <Text className="font-display text-xl uppercase leading-none text-ink">
-                    {dayLabel(day.date, today)}
-                  </Text>
-                  <Grid>
-                    {day.events.map((event) => (
-                      <EventCard
-                        key={event.id}
-                        event={event}
-                        timeZone={timeZone}
-                        onPress={() => openEvent(event.id)}
-                      />
-                    ))}
-                  </Grid>
-                </View>
-              ))}
-            </View>
-          )}
-        </>
-      ) : (
-        // One table for the whole itinerary, with the days inside it:
-        // a table per day would put two rules 24px apart at every day
-        // boundary. The heading lumps a day together and the gap above
-        // it separates it from the day before. No rule above the table:
-        // the page's seam is the run's opening line.
-        <View>
+      {/* One table for the whole itinerary, with the days inside it:
+          a table per day would put two rules 24px apart at every day
+          boundary. The heading lumps a day together and the gap above
+          it separates it from the day before. No rule above the table:
+          the page's seam is the run's opening line. */}
+      <View>
           {staysStatus === "loading" ? (
             <LoadingBlock label="Getting the stays" />
           ) : staysStatus === "offline" ? (
@@ -349,8 +241,7 @@ export function Itinerary({
               </View>
             ))
           )}
-        </View>
-      )}
+      </View>
 
       {/* The foot of the run: what it is missing, and the words for it.
 

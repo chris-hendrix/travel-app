@@ -44,7 +44,7 @@ function Add({
  * for one family of verbs, two conventions between them, and a nudge that
  * moved the boxes under it every time it appeared and vanished.
  *
- * Two tiers and not three: the trip's own maintenance — Edit trip, Trip
+ * Two tiers and not three: the trip's own maintenance — Trip details, Trip
  * settings — used to close this block, and it moved up the page to sit
  * under the description it edits, with the rule that opens the run under
  * it. It was never one of these verbs (nothing here adds anything), and

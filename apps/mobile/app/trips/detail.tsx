@@ -71,7 +71,7 @@ import { getPertinentTime } from "@journiful/shared/utils";
  *   organizer  the trip is authored, so the ask is bringing people in
  *   traveler   the trip is not yours, so the ask is your own RSVP
  *
- * The trip's own maintenance is not in it: Edit trip and Trip settings
+ * The trip's own maintenance is not in it: Trip details and Trip settings
  * close the facts column instead, under the description, with the rule
  * that opens the run under them.
  *
@@ -214,7 +214,7 @@ function TripDetailScreen() {
   //   organizer  Invite people · Add travel, then Add event and Add stay
   //   traveler   their own RSVP · Add travel while they owe a time
   //
-  // Both roles end on the same two words: Edit trip, Trip settings.
+  // Both roles end on the same two words: Trip details, Trip settings.
   const action = (
     <TripActions
       tripId={trip.id}
@@ -316,7 +316,7 @@ function TripDetailScreen() {
                 a tier of the action block — nothing here adds anything,
                 and last place in a column of boxes read as a thing to
                 do. Every member has Trip settings; only the organizer
-                has Edit trip.
+                has Trip details.
 
                 The rule that closes them is the page's own seam, drawn
                 below both columns, and the run's controls sit under it.
@@ -332,7 +332,7 @@ function TripDetailScreen() {
                 {organizer ? (
                   <>
                     <QuietAction
-                      label="Edit trip"
+                      label="Trip details"
                       onPress={() => router.push(`/trips/edit?id=${trip.id}`)}
                     />
                     <Text className="font-body text-sm text-ink">·</Text>

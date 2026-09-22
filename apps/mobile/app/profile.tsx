@@ -37,12 +37,25 @@ const UNITS: Array<{ value: TemperatureUnit; label: string }> = [
 
 /**
  * Profile. Who you are, what you are called, and the two preferences the
- * app keeps about you — then the documents you agreed to, then the way
- * out.
+ * app keeps about you — then the way out, then the documents you agreed
+ * to.
  *
  * No heading on the fields: they are short enough to read as one list,
  * and a rule only earns its place where the content changes kind — in
- * front of the legal list, and in front of Sign out.
+ * front of Sign out, and in front of the legal list.
+ *
+ * The way out sits above the documents rather than under them. Both are
+ * ruled off and the order is verbs before paperwork: a person scrolling
+ * this screen to sign out was passing two read-once documents to reach a
+ * routine action, which is what made it read as hidden. It stays at the
+ * foot of the fields rather than at the top of the screen, because the
+ * top is your own face and name, the avatar in that band is already a
+ * control, and the way back in is a texted code — a way out does not
+ * belong where the thumb lands by accident. The foot also keeps the last
+ * slot free, which is where a destructive action goes the day this
+ * account has one. It does not yet: the lab's parking lot carries delete
+ * account as a pattern waiting on a route, and an account here can only
+ * be banned.
  *
  * The identity block reads from the draft, not the saved profile, so
  * typing a new name sets the headline as you go: the clearest proof that
@@ -270,10 +283,24 @@ function ProfileForm({ profile }: { profile: Profile }) {
         </Text>
       </View>
 
+      {/* The way out, before the paperwork. A rule, because it is a
+          different kind of content from the fields above — nothing on
+          this side of it is edited. */}
+      <View className="border-t border-ink pt-5">
+        <Button
+          title="Sign out"
+          variant="secondary"
+          fullWidth
+          // Await the real sign-out (server POST, token drop, cache
+          // clear) before leaving: navigating first would let the
+          // login screen render while signed-in data is still cached.
+          onPress={() => void signOut().then(() => router.replace("/login"))}
+        />
+      </View>
+
       {/* The documents belong to the person, not to a trip: the consent
           is yours, and these are the ones you gave it to. A rule, because
-          it is a different kind of content from the fields above —
-          nothing on this side of it is edited. */}
+          it is a different kind of content again from the way out above. */}
       <View className="border-t border-ink pt-5">
         <Text className="font-body-bold text-sm text-ink">
           Legal & privacy
@@ -290,18 +317,6 @@ function ProfileForm({ profile }: { profile: Profile }) {
             </View>
           ))}
         </View>
-      </View>
-
-      <View className="border-t border-ink pt-5">
-        <Button
-          title="Sign out"
-          variant="secondary"
-          fullWidth
-          // Await the real sign-out (server POST, token drop, cache
-          // clear) before leaving: navigating first would let the
-          // login screen render while signed-in data is still cached.
-          onPress={() => void signOut().then(() => router.replace("/login"))}
-        />
       </View>
     </FullscreenDialog>
   );

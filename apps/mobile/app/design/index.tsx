@@ -731,7 +731,7 @@ function DesignSystemScreen() {
             <Specimen
               name="TripActions"
               contract="tripId · organizer · owesTravel · memberId? · ask?"
-              note="The trip page's verbs in one block, in two tiers: the ask and the adds. One loud control and only one — the organizer is asked to bring people in, everyone else answers their own RSVP, which is why ask arrives as a node. The adds put Add travel first and on a line of its own, because it is the one that is a question rather than a standing verb (it is there while somebody still owes a time, and the screen decides whose), with Add event and Add stay as a pair of halves under it. The trip's maintenance — Edit trip, Trip settings — is not here: it sits at the foot of the trip's own column on the page, under the description it edits, with the rule that opens the run under it. First the organizer's block, then a traveler's."
+              note="The trip page's verbs in one block, in two tiers: the ask and the adds. One loud control and only one — the organizer is asked to bring people in, everyone else answers their own RSVP, which is why ask arrives as a node. The adds put Add travel first and on a line of its own, because it is the one that is a question rather than a standing verb (it is there while somebody still owes a time, and the screen decides whose), with Add event and Add stay as a pair of halves under it. The trip's maintenance — Trip details, Trip settings — is not here: it sits at the foot of the trip's own column on the page, under the description it edits, with the rule that opens the run under it. First the organizer's block, then a traveler's."
             >
               <TripActions
                 tripId={SAMPLE_TRIP.id}
@@ -873,7 +873,7 @@ function DesignSystemScreen() {
             Trip settings
           </Link>
           <Link href="/trips/edit?id=picos" className="font-body-bold text-base text-ink underline">
-            Edit trip
+            Trip details
           </Link>
           <Link href="/trips/events/new?id=picos" className="font-body-bold text-base text-ink underline">
             Add event
@@ -980,6 +980,17 @@ function DesignSystemScreen() {
             Discover · deleted items · delete account · session storage, since
             the sign-in is a mock and nothing survives a reload. Each lands
             here as a pattern first, then in a screen.
+          </Text>
+          <Text className="font-body text-base text-ink">
+            Delete account is the one with a backend behind it rather than
+            beside it, and it is not a route: an admin can ban an account and
+            nothing anywhere can remove one, and `users` has no `deleted_at`
+            where every other deletable thing in the schema has one. Two
+            decisions come before any screen. `payments` and
+            `payment_participants` have to outlive the person they name, so
+            deleting the account cannot mean deleting the rows. And the phone
+            number is the account, so the row that lets somebody sign up again
+            must not be reachable from the row that was deleted.
           </Text>
         </Section>
       </View>
