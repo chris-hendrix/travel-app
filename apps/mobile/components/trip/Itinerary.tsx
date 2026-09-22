@@ -151,6 +151,14 @@ export function Itinerary({
   // sleep in them.
   const stays = staysForTrip(trip);
 
+  // What the run is missing. An absent event list and an absent stay are
+  // two different states that want two different verbs, so they are two
+  // questions rather than one. `days`, not `shown`: a trip whose events
+  // have all happened still has events, and its foot is not the place to
+  // offer a first one.
+  const missingEvents = days.length === 0;
+  const missingStays = stays.length === 0;
+
   return (
     <View className="gap-6">
       {/* No head label, and no controls of the page's: the run's structure
@@ -170,26 +178,42 @@ export function Itinerary({
           edge so the two never read as one set. The switch is the same
           cells as every other choice in the app (`Segmented`), because a
           control that sometimes holds a value and sometimes does not is
-          one control in this system, not two. */}
-      <View className="flex-row flex-wrap items-center justify-between gap-3">
-        <View className="flex-1">
-          <Segmented
-            options={LAYOUTS}
-            value={layout}
-            onChange={(next) => update(trip.id, { layout: next })}
-            // A chrome row's height, not a button's: it shares this line
-            // with the filter chip, and the two are one size.
-            size="sm"
-          />
+          one control in this system, not two.
+
+          A run with no days gets neither. Both controls are about a list
+          that is not there: there is no grid to choose between and
+          nothing behind you to filter, so the head of an empty run was
+          two cells and a chip over the word "nothing" — the loudest
+          thing on the quietest screen, and both of them inert. The row
+          is held back until the events read has landed, because until it
+          has, "no days" and "not arrived yet" are the same picture: the
+          run arrives whole instead, its controls with its first heading
+          rather than ahead of a loading block.
+
+          Note this is the days, not the whole run: a trip holding only
+          a stay loses the layout switch too, though `cards` still
+          governs how that stay draws. */}
+      {eventsStatus === "success" && !missingEvents ? (
+        <View className="flex-row flex-wrap items-center justify-between gap-3">
+          <View className="flex-1">
+            <Segmented
+              options={LAYOUTS}
+              value={layout}
+              onChange={(next) => update(trip.id, { layout: next })}
+              // A chrome row's height, not a button's: it shares this line
+              // with the filter chip, and the two are one size.
+              size="sm"
+            />
+          </View>
+          {underway ? (
+            <ChipToggle
+              label="Past events"
+              selected={showPast}
+              onPress={() => update(trip.id, { showPast: !showPast })}
+            />
+          ) : null}
         </View>
-        {underway ? (
-          <ChipToggle
-            label="Past events"
-            selected={showPast}
-            onPress={() => update(trip.id, { showPast: !showPast })}
-          />
-        ) : null}
-      </View>
+      ) : null}
 
       {cards ? (
         <>
@@ -328,38 +352,138 @@ export function Itinerary({
         </View>
       )}
 
-      {/* Empty is two different states, and they used to share one line
-          of copy: a trip with nothing on it yet, and a trip whose days
-          have all been and gone. The first is an invitation, the second
-          is a hint about a setting. The ways in are in the action block
-          at the top of the page, so the organizer's line names them
-          rather than repeating them as controls a second time. Only once
-          both reads have landed: while either loads or fails its section
-          above owns the copy, and an empty read before arrival would
-          flash. */}
-      {eventsStatus !== "success" || staysStatus !== "success" ? null : days.length === 0 &&
-        stays.length === 0 ? (
-        <View className="gap-1">
-          <Text className="font-display text-xl uppercase leading-none text-ink">
-            Nothing planned yet
-          </Text>
-          <Text className="font-body text-base text-ink">
-            {organizer
-              ? "Add event and Add stay are at the top of the trip."
-              : "Nothing has been added to this trip yet."}
-          </Text>
+      {/* The foot of the run: what it is missing, and the words for it.
+
+          Two states, and they used to share one condition and one line
+          of copy. A trip with nothing on it is an invitation; a trip
+          whose days have all been and gone is a hint about a setting.
+          The condition used to be "no events AND no stays", which meant
+          a trip holding a stay and no events fell through to the second
+          state and was told its events had already happened — of a list
+          that never existed. The two questions are asked separately now,
+          so the run says only what is true of it.
+
+          A sentence, with the way out of it inside the line. The verbs
+          are words in the prose rather than a row of controls under it:
+          a row of underlined words is a toolbar, and this is an empty
+          state talking, not a menu. They are still pressed rather than
+          followed — each opens the same dialog the block's boxes do —
+          and they carry `QuietAction`'s two marks, bold and underlined.
+          No colour: a colour here is a role, and a link in a sentence is
+          doing neither of the jobs the palette's two name.
+
+          What the sentence offers follows what is missing, and nothing
+          more: a run with no events offers the event, and offers the
+          stay too only when it has none. A run that holds events and no
+          stay is offered nothing — it is working, and a stay prompt
+          under a full itinerary points at the top of the page, which is
+          where stays actually render.
+
+          Only once both reads have landed: while either loads or fails
+          its section above owns the copy, and an empty read before
+          arrival would flash. */}
+      {eventsStatus !== "success" || staysStatus !== "success" ? null : (
+        <View className="gap-4">
+          {missingEvents ? (
+            <View className="gap-1">
+              {/* The heading is the state, and it is only said when the
+                  state is whole: a trip holding a stay and no events is
+                  not "nothing planned", it is missing a plan, and the
+                  sentence below says exactly that on its own. */}
+              {missingStays ? (
+                <Text className="font-display text-xl uppercase leading-none text-ink">
+                  Nothing planned yet
+                </Text>
+              ) : null}
+              {organizer ? (
+                <Text className="font-body text-base text-ink">
+                  {missingStays ? (
+                    <>
+                      Add{" "}
+                      <InlineAction
+                        label="a stay"
+                        onPress={() =>
+                          router.push(`/trips/stay/new?id=${trip.id}`)
+                        }
+                      />{" "}
+                      or{" "}
+                      <InlineAction
+                        label="an event"
+                        onPress={() =>
+                          router.push(`/trips/events/new?id=${trip.id}`)
+                        }
+                      />{" "}
+                      to get started.
+                    </>
+                  ) : (
+                    <>
+                      Add{" "}
+                      <InlineAction
+                        label="an event"
+                        onPress={() =>
+                          router.push(`/trips/events/new?id=${trip.id}`)
+                        }
+                      />{" "}
+                      to get started.
+                    </>
+                  )}
+                </Text>
+              ) : missingStays ? (
+                <Text className="font-body text-base text-ink">
+                  Nothing has been added to this trip yet.
+                </Text>
+              ) : null}
+            </View>
+          ) : shown.length === 0 ? (
+            <View className="gap-1">
+              <Text className="font-display text-xl uppercase leading-none text-ink">
+                Nothing ahead
+              </Text>
+              <Text className="font-body text-base text-ink">
+                Everything on this trip has already happened. Turn on Past
+                events to read it.
+              </Text>
+            </View>
+          ) : null}
         </View>
-      ) : shown.length === 0 ? (
-        <View className="gap-1">
-          <Text className="font-display text-xl uppercase leading-none text-ink">
-            Nothing ahead
-          </Text>
-          <Text className="font-body text-base text-ink">
-            Everything on this trip has already happened. Turn on Past
-            events to read it.
-          </Text>
-        </View>
-      ) : null}
+      )}
     </View>
+  );
+}
+
+/**
+ * One action as a word inside a sentence: pressed, not followed.
+ *
+ * Inline by necessity, not by preference. The empty run states what is
+ * missing in a sentence, and the way out of it belongs in that sentence;
+ * lifted out into a row of controls it becomes the toolbar this replaced.
+ *
+ * Bold and underlined, `QuietAction`'s two marks, because both are words
+ * the system asks a thumb to press and neither has a box to say so. No
+ * colour: in this palette a colour is a role — primary for the thing that
+ * finishes a job, accent for the thing to notice — and a cross-reference
+ * inside a sentence is doing neither, which is the same reason `Prose`
+ * leaves its links in ink.
+ *
+ * The target is the line the word sits in rather than a 44pt box: it is
+ * inside a paragraph of 16pt type, where padding would push the line
+ * apart and a box would break the sentence. Both labels are two words
+ * long for that reason.
+ */
+function InlineAction({
+  label,
+  onPress,
+}: {
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Text
+      role="link"
+      onPress={onPress}
+      className="font-body-bold text-ink underline"
+    >
+      {label}
+    </Text>
   );
 }
