@@ -4,9 +4,17 @@ import type {
   CalendarExcludedInput,
 } from "@journiful/shared/schemas";
 
+/**
+ * The feed's URL, as the thing a calendar app is handed.
+ *
+ * `host`, not `hostname`: `hostname` is the host without the port, so
+ * everywhere the API is not on 80 or 443 — which is every development
+ * machine — this handed out `webcal://localhost/api/calendar/…` for a
+ * server listening on 8000. Nothing consumed it until the profile
+ * screen grew buttons that open it.
+ */
 function buildWebcalUrl(request: FastifyRequest, token: string): string {
-  const host = request.hostname;
-  return `webcal://${host}/api/calendar/${token}.ics`;
+  return `webcal://${request.host}/api/calendar/${token}.ics`;
 }
 
 export const calendarController = {

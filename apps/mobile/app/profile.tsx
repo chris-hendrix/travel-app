@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Image, Pressable, Text, View } from "react-native";
+import { Image, Linking, Platform, Pressable, Text, View } from "react-native";
 import { Link, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
@@ -20,6 +20,8 @@ import {
   type TemperatureUnit,
 } from "@/lib/profile";
 import { formatPhoneForDisplay } from "@/lib/phone";
+import { appleCalendarUrl, googleCalendarUrl } from "@/lib/calendarLinks";
+import { enableCalendar } from "@/lib/queries/calendar";
 import { useProfile } from "@/lib/profileStore";
 import { toErrorCopy } from "@/lib/queries/errors";
 import { LEGAL_ROWS } from "@/lib/legal";
@@ -130,6 +132,11 @@ function ProfileForm({ profile }: { profile: Profile }) {
   const [submitted, setSubmitted] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // The calendar's own two states, separate from the form's: subscribing
+  // is not a save, and a failure in it must not read as one — the form
+  // above is unsaved while this happens.
+  const [calendarBusy, setCalendarBusy] = useState(false);
+  const [calendarFailure, setCalendarFailure] = useState<string | null>(null);
   const errors = submitted ? validateProfile(draft) : {};
 
   /**
@@ -150,6 +157,31 @@ function ProfileForm({ profile }: { profile: Profile }) {
     // optimistic mutation); the me cache carries the server URL back.
     if (uri) void savePhoto(uri);
   }, [savePhoto]);
+
+  /**
+   * Ensure the feed exists, then hand its URL to the calendar chosen.
+   *
+   * The link is built rather than fetched: `googleCalendarUrl` and
+   * `appleCalendarUrl` are the two clients of the one URL the API hands
+   * back, and both are pure (`lib/calendarLinks.ts`).
+   */
+  async function subscribe(toLink: (feedUrl: string) => string) {
+    setCalendarFailure(null);
+    setCalendarBusy(true);
+    try {
+      const { calendarUrl } = await enableCalendar();
+      await Linking.openURL(toLink(calendarUrl));
+    } catch (caught) {
+      const copy = toErrorCopy(caught);
+      setCalendarFailure(
+        copy.offline
+          ? "You're offline. Check your connection and try again."
+          : (copy.message ?? "Couldn't open your calendar."),
+      );
+    } finally {
+      setCalendarBusy(false);
+    }
+  }
 
   async function save() {
     setSubmitted(true);
@@ -281,6 +313,49 @@ function ProfileForm({ profile }: { profile: Profile }) {
         <Text className="font-body text-sm text-ink">
           {joinFacts(profile.timezone ?? "Not set", "automatic")}
         </Text>
+      </View>
+
+      {/* The calendar, on a rule of its own: everything above describes
+          you and everything below acts.
+
+          Two buttons rather than a switch and a link. There is a
+          subscription to make and a calendar to make it in, and the two
+          are one choice each — a toggle plus a "get the link" step asks
+          the same question twice. Enabling is idempotent, so a press
+          ensures the feed exists and then opens it, and no state has to
+          be read or shown: what the person came for is their calendar. */}
+      <View className="gap-1 border-t border-ink pt-5">
+        <Text className="font-body-bold text-sm text-ink">Calendar</Text>
+        <Text className="mt-1 font-body text-sm text-ink">
+          Every trip you are on, in the calendar you already read. The link
+          is yours alone — anyone who has it can see your trips.
+        </Text>
+        <View className="mt-3 gap-3">
+          <Button
+            title="Subscribe in Google Calendar"
+            variant="secondary"
+            fullWidth
+            disabled={calendarBusy}
+            onPress={() => void subscribe(googleCalendarUrl)}
+          />
+          {/* Apple's Calendar claims `webcal:`, and it is the one
+              platform whose calendar app is the point: Android has no
+              Apple Calendar to open, so it is not offered one. */}
+          {Platform.OS === "android" ? null : (
+            <Button
+              title="Subscribe in Apple Calendar"
+              variant="secondary"
+              fullWidth
+              disabled={calendarBusy}
+              onPress={() => void subscribe(appleCalendarUrl)}
+            />
+          )}
+        </View>
+        {calendarFailure ? (
+          <Text className="mt-3 font-body text-sm text-ink">
+            {calendarFailure}
+          </Text>
+        ) : null}
       </View>
 
       {/* The way out, before the paperwork. A rule, because it is a
