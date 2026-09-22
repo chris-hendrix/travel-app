@@ -9,7 +9,7 @@ import {
   TimeoutError,
   apiFetch,
 } from "@/lib/api";
-import { isFlightNumber, lookupFlight, normalizeFlightNumber } from "@/lib/flights";
+import { isFlightNumber, lookupFlight, normalizeFlightNumber, formatFlightNumber } from "@/lib/flights";
 
 const mockedGetToken = vi.mocked(getToken);
 
@@ -174,6 +174,59 @@ describe("isFlightNumber", () => {
       expect(normalizeFlightNumber("UA1842")).toBe("UA1842");
     });
   });
+
+describe("formatFlightNumber", () => {
+  it("puts the space in, uppercased, however it was typed", () => {
+    // The placeholder's own shape is the promise this keeps: a space in
+    // the field is accepted rather than eaten.
+    expect(formatFlightNumber("UA 1842")).toBe("UA 1842");
+    expect(formatFlightNumber("ua1842")).toBe("UA 1842");
+    expect(formatFlightNumber("ua-1842")).toBe("UA 1842");
+    expect(formatFlightNumber("  ua   1842 ")).toBe("UA 1842");
+  });
+
+  it.each([
+    ["UAL123", "UAL 123"],
+    ["BA2490", "BA 2490"],
+    ["U2123", "U2 123"],
+    ["4U123", "4U 123"],
+  ])("splits %s as %s", (input, expected) => {
+    expect(formatFlightNumber(input)).toBe(expected);
+  });
+
+  it("reads three letters as the code before two characters", () => {
+    // "U2123" must be U2 + 123, never a one-letter code: the same order
+    // isFlightNumber reads the split in, and the same reason.
+    expect(formatFlightNumber("UAL123456")).toBe("UAL 123456");
+    expect(formatFlightNumber("U2123")).toBe("U2 123");
+  });
+
+  it("holds an unfinished number rather than rejecting it", () => {
+    // Runs on every keystroke: "UA" is an unfinished number, not a wrong
+    // one. No trailing space either, so the field never holds "UA ".
+    expect(formatFlightNumber("")).toBe("");
+    expect(formatFlightNumber("U")).toBe("U");
+    expect(formatFlightNumber("UA")).toBe("UA");
+    expect(formatFlightNumber("UA ")).toBe("UA");
+    expect(formatFlightNumber("UAL")).toBe("UAL");
+    expect(formatFlightNumber("U2")).toBe("U2");
+  });
+
+  it("is idempotent, so reading a record back is a no-op", () => {
+    for (const value of ["UA 1842", "UAL 123", "U2 123", "", "UA"]) {
+      expect(formatFlightNumber(formatFlightNumber(value))).toBe(
+        formatFlightNumber(value),
+      );
+    }
+  });
+
+  it("agrees with isFlightNumber on what it formats", () => {
+    for (const value of ["UA1842", "UAL123", "U2123", "4U123", "BA2490"]) {
+      expect(isFlightNumber(formatFlightNumber(value))).toBe(true);
+      expect(formatFlightNumber(value)).toMatch(/^[A-Z\d]{2,3} \d+$/);
+    }
+  });
+});
 
 describe("lookupFlight", () => {
   const flight = {

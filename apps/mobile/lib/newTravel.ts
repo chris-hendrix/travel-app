@@ -1,6 +1,7 @@
 import { applyFlightLookup } from "@journiful/shared/utils";
 import type { FlightLookupResult } from "@journiful/shared/types";
 import { addDays as shift, formatDay } from "@/lib/dateRange";
+import { formatFlightNumber, normalizeFlightNumber } from "@/lib/flights";
 import { formatClock, isClockTime, minutesOf } from "@/lib/time";
 import { wallClock, zoneOffsetMinutes } from "@/lib/timezone";
 import { joinFacts } from "@/lib/wording";
@@ -223,7 +224,13 @@ export function buildLegRecord(
     arrivalLocation: arrival
       ? leg.location.trim() || null
       : leg.otherLocation.trim() || null,
-    flightNumber: leg.flightNumber.trim() ? leg.flightNumber.trim() : null,
+    // Stored the way the lookup asks for it — compact, no space. The
+    // field and the board write the space back in (`formatFlightNumber`),
+    // the same split the phone numbers use: E.164 in the row, the way a
+    // person writes it on screen.
+    flightNumber: leg.flightNumber.trim()
+      ? normalizeFlightNumber(leg.flightNumber)
+      : null,
     details: leg.details.trim() ? leg.details.trim() : null,
     deletedAt: null,
   } satisfies MockTravel;
@@ -343,7 +350,7 @@ export function legFromRecord(
     otherLocation: arrival
       ? (record.departureLocation ?? "")
       : (record.arrivalLocation ?? ""),
-    flightNumber: record.flightNumber ?? "",
+    flightNumber: formatFlightNumber(record.flightNumber ?? ""),
     details: record.details ?? "",
   };
 }

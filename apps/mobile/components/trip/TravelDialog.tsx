@@ -11,7 +11,7 @@ import { InlineError } from "@/components/ui/InlineError";
 import { dayLabel } from "@/lib/itinerary";
 import { addDays, toIso } from "@/lib/dateRange";
 import { NOT_SHARED } from "@/lib/wording";
-import { isFlightNumber, lookupFlight } from "@/lib/flights";
+import { formatFlightNumber, isFlightNumber, lookupFlight } from "@/lib/flights";
 import {
   emptyLeg,
   farEndNote,
@@ -32,8 +32,6 @@ const DIRECTIONS: Array<{ value: TravelDirection; heading: string }> = [
   { value: "departure", heading: "Departing" },
 ];
 
-
-
 /** How the times are being given: off a flight number, or typed. */
 type TravelMode = "flight" | "times";
 
@@ -41,6 +39,19 @@ const MODES: Array<{ value: TravelMode; label: string }> = [
   { value: "flight", label: "Flight number" },
   { value: "times", label: "Enter times" },
 ];
+
+/**
+ * Which way a direction opens, given how it was answered: a number it
+ * can be looked up from, times somebody typed, or nothing at all. The
+ * blank case is the one this rule exists for, and it is the flight.
+ */
+function openingMode(leg: TravelLeg | undefined): TravelMode {
+  if (leg?.flightNumber) return "flight";
+  const hasTimes = Boolean(
+    leg?.departureTime.trim() || leg?.arrivalTime.trim(),
+  );
+  return hasTimes ? "times" : "flight";
+}
 
 /**
  * The travel form, in one place because there is one of it: one member,
@@ -131,11 +142,14 @@ export function TravelDialog({
     departure: initial?.departure ?? emptyLeg(),
   });
   // How each direction's times are being given: off a flight number, or
-  // typed. A record that already holds a number opens on the flight it
-  // came from, because that is how it was answered the first time.
+  // typed. A direction that already holds a number opens on the flight it
+  // came from, and one whose times were typed by hand opens on the times,
+  // because that is how each was answered the first time. A blank
+  // direction opens on the flight number: it is the shorter way to answer
+  // the question, and it is the one the placeholder offers.
   const [modes, setModes] = useState<Record<TravelDirection, TravelMode>>({
-    arrival: initial?.arrival?.flightNumber ? "flight" : "times",
-    departure: initial?.departure?.flightNumber ? "flight" : "times",
+    arrival: openingMode(initial?.arrival),
+    departure: openingMode(initial?.departure),
   });
   // Which direction is on screen: the one that was tapped if there was
   // one, the arrival otherwise — arrival is what a trip is waiting on.
@@ -387,7 +401,11 @@ function LegFields({
           value={leg.flightNumber}
           onChangeText={(flightNumber) => {
             setLookupError(null);
-            onChange({ ...leg, flightNumber });
+            // Formatted as it is typed, so the field always shows the
+            // shape the placeholder promises: the code, a space, the
+            // number. A space typed by hand is accepted rather than
+            // fought — it is stripped and put back in the right place.
+            onChange({ ...leg, flightNumber: formatFlightNumber(flightNumber) });
           }}
           placeholder="UA 1842"
           suffix={

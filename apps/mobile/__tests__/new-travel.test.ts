@@ -175,6 +175,20 @@ describe("buildLegRecord", () => {
       buildLegRecord(emptyLeg(), "arrival", "t-1", "m-1", "Ana", "UTC"),
     ).toBeNull();
   });
+
+  it("stores the number compact, whatever the field showed", () => {
+    // The row holds what the lookup asks for ("UA1842"); the space is
+    // the app's, put back wherever the number is read.
+    const record = buildLegRecord(
+      { ...ARRIVAL, flightNumber: "ua 1842" },
+      "arrival",
+      "t-1",
+      "m-1",
+      "Ana",
+      "UTC",
+    );
+    expect(record?.flightNumber).toBe("UA1842");
+  });
 });
 
 describe("legSummary", () => {
@@ -280,5 +294,25 @@ describe("legFromRecord", () => {
     expect(leg.crossesMidnight).toBeNull();
     expect(legCrossesMidnight(leg)).toBe(false);
     expect(leg.location).toBe("BCN T2");
+  });
+
+  it("reads a stored number back in the field's own shape", () => {
+    // Built compact, shown spaced: `buildLegRecord` and this are the two
+    // ends of that, and a record that came from the API is compact.
+    const leg = legFromRecord(
+      {
+        departureTime: null,
+        departureLocation: null,
+        arrivalTime: "2026-09-18T15:40:00.000Z",
+        arrivalLocation: "BCN T2",
+        flightNumber: "UA1842",
+        details: null,
+      },
+      "arrival",
+      null,
+      "2026-09-18",
+      "2026-09-25",
+    );
+    expect(leg.flightNumber).toBe("UA 1842");
   });
 });

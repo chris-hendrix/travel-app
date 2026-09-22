@@ -8,6 +8,7 @@ import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
 import { QuietAction } from "@/components/ui/QuietAction";
 import { dayNumber, weekdayAbbrev } from "@/lib/dateRange";
+import { formatFlightNumber } from "@/lib/flights";
 import { wallClock } from "@/lib/timezone";
 import { travelBoard, type TravelRow } from "@/lib/travelBoard";
 import { NOT_SHARED } from "@/lib/wording";
@@ -268,7 +269,10 @@ function TravelRowItem({
           ) : null}
           {row.flightNumber ? (
             <Text className="font-body text-sm text-ink">
-              {row.flightNumber}
+              {/* The row holds the compact form the lookup wants
+                  ("UA1842"); the space is the app's, put back where a
+                  person expects to see it. */}
+              {formatFlightNumber(row.flightNumber)}
             </Text>
           ) : null}
           {row.details ? (
