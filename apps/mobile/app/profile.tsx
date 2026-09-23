@@ -52,18 +52,17 @@ const UNITS: Array<{ value: TemperatureUnit; label: string }> = [
  * buttons in one group. A very loud device used for everything is a very
  * quiet one.
  *
- * The way out sits above the documents rather than under them, and behind
- * a rule of its own: the order is verbs before paperwork, and a person
- * scrolling this screen to sign out was passing two read-once documents
- * to reach a routine action, which is what made it read as hidden. It
- * stays at the foot of the fields rather than at the top of the screen,
- * because the top is your own face and name, the avatar in that band is
- * already a control, and the way back in is a texted code — a way out
- * does not belong where the thumb lands by accident. The foot also keeps
- * the last slot free, which is where a destructive action goes the day
- * this account has one. It does not yet: the lab's parking lot carries
- * delete account as a pattern waiting on a route, and an account here can
- * only be banned.
+ * The way out is the last thing on the screen, under its one rule, below
+ * the documents. Both platforms keep sign-out at the bottom of the
+ * account screen, so that is where a thumb goes looking for it, and what
+ * made it read as buried before was the three rules above it rather than
+ * the position. It is not at the very top because the top is your own
+ * face and name, the avatar in that band is already a control, and the
+ * way back in is a texted code — a way out does not belong where the
+ * thumb lands by accident. The foot also keeps the last slot free, which
+ * is where a destructive action goes the day this account has one. It
+ * does not yet: the lab's parking lot carries delete account as a pattern
+ * waiting on a route, and an account here can only be banned.
  *
  * The identity block reads from the draft, not the saved profile, so
  * typing a new name sets the headline as you go: the clearest proof that
@@ -379,34 +378,6 @@ function ProfileForm({ profile }: { profile: Profile }) {
         ) : null}
       </View>
 
-      {/* The way out, a group of its own: the distance in front of it is
-          four times the space between the calendar's two buttons, which is
-          what separates it now that nothing is drawn between them. With
-          the same gap it read as a third way to subscribe — two cells and
-          then a third that means something else entirely.
-
-          No heading. A heading over one button whose own label says the
-          same word is the restating this system already took out once
-          (the ITINERARY eyebrow over the run's day headings), and there is
-          no better word for it than the one on the button.
-
-          Not the alert colour. `Button`'s own note reserves `danger` for
-          what cannot be taken back; signing out can, with a code, and the
-          one action on this screen that really cannot — deleting the
-          account — has no route behind it yet. Spending the red here
-          would leave it nothing to wear when it arrives. */}
-      <View className="pt-6">
-        <Button
-          title="Sign out"
-          variant="secondary"
-          fullWidth
-          // Await the real sign-out (server POST, token drop, cache
-          // clear) before leaving: navigating first would let the
-          // login screen render while signed-in data is still cached.
-          onPress={() => void signOut().then(() => router.replace("/login"))}
-        />
-      </View>
-
       {/* The documents belong to the person, not to a trip: the consent
           is yours, and these are the ones you gave it to. Their heading is
           what sets them apart — the same device as the calendar's above. */}
@@ -426,6 +397,35 @@ function ProfileForm({ profile }: { profile: Profile }) {
             </View>
           ))}
         </View>
+      </View>
+
+      {/* The way out, last and under the screen's one rule.
+
+          It was above the documents, then between them and the calendar,
+          and the operator has put it here: the bottom of the scroll is
+          where both platforms keep it, so it is where a thumb goes looking
+          for it. What made it read as buried the first time was not its
+          position — it was three rules stacked in the bottom half, so no
+          line meant anything, and nothing at all marked the way out as its
+          own thing. One rule, and the screen ends.
+
+          No heading, and no colour. A heading over a button whose label
+          says the same word is the restating this system took out once
+          already — the ITINERARY eyebrow over the run's own day headings —
+          and `Button`'s note reserves the alert for what cannot be taken
+          back. Signing out can, with a code, and the action that really
+          cannot — deleting the account — has no route behind it yet and
+          would have nothing left to wear. */}
+      <View className="border-t border-ink pt-6">
+        <Button
+          title="Sign out"
+          variant="secondary"
+          fullWidth
+          // Await the real sign-out (server POST, token drop, cache
+          // clear) before leaving: navigating first would let the
+          // login screen render while signed-in data is still cached.
+          onPress={() => void signOut().then(() => router.replace("/login"))}
+        />
       </View>
     </FullscreenDialog>
   );
