@@ -26,7 +26,7 @@ import { useDismiss } from "@/hooks/useDismiss";
 import { PLACES } from "@/lib/placeSuggestions";
 
 /**
- * Trip details — the organizer's surface for the trip itself. The create
+ * Edit trip — the organizer's surface for the trip itself. The create
  * form plus the two things only an existing trip has: a description and
  * a cover photo. Nothing else: style personalization lives nowhere.
  *
@@ -182,7 +182,7 @@ function EditTripScreen() {
 
   return (
     <FullscreenDialog
-      title="Trip details"
+      title="Edit trip"
       primaryTitle={busy ? "Saving changes" : "Save changes"}
       onPrimary={() => void save()}
       pending={busy}

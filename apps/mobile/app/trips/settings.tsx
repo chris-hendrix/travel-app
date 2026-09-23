@@ -14,7 +14,7 @@ import { useTripSettings } from "@/lib/tripSettingsStore";
 /**
  * Your settings for one trip — Trip settings, and every member has
  * them. The organizer has a separate surface for the trip itself,
- * called Trip details; this one is not that.
+ * called Edit trip; this one is not that.
  *
  * Every row here is about you rather than about the trip: whether the
  * daily digest and the trip's messages reach you, whether the others can

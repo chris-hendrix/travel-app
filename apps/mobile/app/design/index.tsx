@@ -752,7 +752,7 @@ function DesignSystemScreen() {
             <Specimen
               name="TripActions"
               contract="tripId · organizer · owesTravel · memberId? · ask?"
-              note="The trip page's verbs in one block, in two tiers: the ask and the adds. One loud control and only one — the organizer is asked to bring people in, everyone else answers their own RSVP, which is why ask arrives as a node. The adds put Add travel first and on a line of its own, because it is the one that is a question rather than a standing verb (it is there while somebody still owes a time, and the screen decides whose), with Add event and Add stay as a pair of halves under it. The trip's maintenance — Trip details, Trip settings — is not here: it sits at the foot of the trip's own column on the page, under the description it edits, with the rule that opens the run under it. First the organizer's block, then a traveler's."
+              note="The trip page's verbs in one block, in two tiers: the ask and the adds. One loud control and only one — the organizer is asked to bring people in, everyone else answers their own RSVP, which is why ask arrives as a node. The adds put Add travel first and on a line of its own, because it is the one that is a question rather than a standing verb (it is there while somebody still owes a time, and the screen decides whose), with Add event and Add stay as a pair of halves under it. The trip's maintenance — Edit trip, Trip settings — is not here: it sits at the foot of the trip's own column on the page, under the description it edits, with the rule that opens the run under it. First the organizer's block, then a traveler's."
             >
               <TripActions
                 tripId={SAMPLE_TRIP.id}
@@ -894,7 +894,7 @@ function DesignSystemScreen() {
             Trip settings
           </Link>
           <Link href="/trips/edit?id=picos" className="font-body-bold text-base text-ink underline">
-            Trip details
+            Edit trip
           </Link>
           <Link href="/trips/events/new?id=picos" className="font-body-bold text-base text-ink underline">
             Add event

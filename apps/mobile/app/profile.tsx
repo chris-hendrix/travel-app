@@ -330,45 +330,49 @@ function ProfileForm({ profile }: { profile: Profile }) {
           was the third of three in the bottom half of the screen, which is
           when a rule stops meaning anything.
 
-          Full width on a phone, one under the other, like every other
-          button in this system: a pair of halves would fit the labels but
-          not the thumb, and the two are alternatives rather than a row to
-          scan across. Enabling is idempotent, so a press ensures the feed
-          exists and then opens it — there is no state to read and none to
-          show, and no race between the two. */}
-      <View className="gap-1 pt-6">
+          Full width on a phone, one under the other; side by side from md
+          up, where there is room for a pair of halves — the shape the trip
+          page uses for Add event and Add stay, which is the same question
+          of one choice with two answers. Enabling is idempotent, so a
+          press ensures the feed exists and then opens it: no state to
+          read, none to show, and no race between the two. */}
+      <View className="gap-1">
         <Text className="font-body-bold text-sm text-ink">Calendar</Text>
         <Text className="mt-1 font-body text-sm text-ink">
           Subscribe to every trip you are on, in the calendar you already
           read.
         </Text>
-        <View className="mt-3 gap-3">
-          <Button
-            title={
-              calendarBusy === "google"
-                ? "Opening Google Calendar"
-                : "Subscribe in Google Calendar"
-            }
-            variant="secondary"
-            fullWidth
-            disabled={calendarBusy === "google"}
-            onPress={() => void subscribe("google", googleCalendarUrl)}
-          />
+        <View className="mt-3 gap-3 md:flex-row">
+          <View className="md:flex-1">
+            <Button
+              title={
+                calendarBusy === "google"
+                  ? "Opening Google Calendar"
+                  : "Subscribe in Google Calendar"
+              }
+              variant="secondary"
+              fullWidth
+              disabled={calendarBusy === "google"}
+              onPress={() => void subscribe("google", googleCalendarUrl)}
+            />
+          </View>
           {/* Apple's Calendar claims `webcal:`, and it is the one platform
               whose calendar app is the point: Android has no Apple
               Calendar to open, so it is not offered one. */}
           {Platform.OS === "android" ? null : (
-            <Button
-              title={
-                calendarBusy === "apple"
-                  ? "Opening Apple Calendar"
-                  : "Subscribe in Apple Calendar"
-              }
-              variant="secondary"
-              fullWidth
-              disabled={calendarBusy === "apple"}
-              onPress={() => void subscribe("apple", appleCalendarUrl)}
-            />
+            <View className="md:flex-1">
+              <Button
+                title={
+                  calendarBusy === "apple"
+                    ? "Opening Apple Calendar"
+                    : "Subscribe in Apple Calendar"
+                }
+                variant="secondary"
+                fullWidth
+                disabled={calendarBusy === "apple"}
+                onPress={() => void subscribe("apple", appleCalendarUrl)}
+              />
+            </View>
           )}
         </View>
         {calendarFailure ? (
@@ -381,7 +385,7 @@ function ProfileForm({ profile }: { profile: Profile }) {
       {/* The documents belong to the person, not to a trip: the consent
           is yours, and these are the ones you gave it to. Their heading is
           what sets them apart — the same device as the calendar's above. */}
-      <View className="pt-6">
+      <View>
         <Text className="font-body-bold text-sm text-ink">
           Legal & privacy
         </Text>
@@ -416,11 +420,14 @@ function ProfileForm({ profile }: { profile: Profile }) {
           back. Signing out can, with a code, and the action that really
           cannot — deleting the account — has no route behind it yet and
           would have nothing left to wear. */}
-      <View className="border-t border-ink pt-6">
+      <View className="border-t border-ink pt-5">
         <Button
           title="Sign out"
           variant="secondary"
-          fullWidth
+          // No fullWidth: it fills a phone and hugs the start edge from md
+          // up, which is what every other content button in this system
+          // does — a lone action stretched across a wide screen is a band,
+          // not a button.
           // Await the real sign-out (server POST, token drop, cache
           // clear) before leaving: navigating first would let the
           // login screen render while signed-in data is still cached.
