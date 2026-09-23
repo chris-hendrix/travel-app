@@ -38,29 +38,67 @@ export const FIXED_CODE = "123456";
  */
 export const RATE_LIMIT_COPY = "Too many tries. Wait a minute.";
 
-let phoneCounter = 0;
+let phoneCounter = Math.floor(Math.random() * 100);
+
+/**
+ * One worker-identity digit shared by the phone and label generators.
+ * Hashes the Playwright worker/shard ids when present and always mixes
+ * in the pid, so parallel shards and local workers land on different
+ * digits while a single worker stays stable within its run.
+ */
+function workerDigit(): string {
+  const raw = `${process.env.TEST_WORKER_INDEX ?? ""}:${process.env.PLAYWRIGHT_WORKER_INDEX ?? ""}:${process.env.PLAYWRIGHT_SHARD_INDEX ?? ""}:${process.pid}`;
+  let hash = 0;
+  for (let i = 0; i < raw.length; i += 1) {
+    hash = (hash * 31 + raw.charCodeAt(i)) >>> 0;
+  }
+  return (hash % 10).toString();
+}
+
+function randomDigits(count: number): string {
+  let out = "";
+  for (let i = 0; i < count; i += 1) {
+    out += Math.floor(Math.random() * 10).toString();
+  }
+  return out;
+}
+
+let labelCounter = 0;
+
+/**
+ * Collision-free label for generated trip, event, stay and place names.
+ * Combines the wall clock with the worker identity, real entropy, and
+ * a per-process counter, so two shards or two workers generating the
+ * same prefix in the same millisecond still get distinct names and a
+ * getByText assertion can never match a sibling worker's row.
+ */
+export function uniqueLabel(prefix: string): string {
+  const worker = process.env.TEST_WORKER_INDEX ?? process.env.PLAYWRIGHT_WORKER_INDEX ?? process.pid.toString();
+  const rand = Math.random().toString(36).slice(2, 8);
+  labelCounter += 1;
+  return `${prefix} ${Date.now()}-${worker}-${rand}-${labelCounter}`;
+}
 
 /**
  * Generate a unique E.164 phone number that the mobile client accepts.
  * Differs from the web helper's shape on purpose: the mobile login
  * screen gates Continue on `toE164` (`lib/phone.ts`, `isPossible`), and
  * a +1 number is only possible with exactly 10 digits after the country
- * code — the web's 12-digit `+1555…` suffix parses but is never
- * possible, so Continue stays disabled (seen in the failure screenshot:
- * number typed, consent ticked, hint line up, button disabled).
- * The "555" substring is required by the API's test-number bypass
- * (`phone.includes("555")`), so 555 stays the area code and uniqueness
- * lives in the remaining 7 digits: 1 worker digit (`pid % 10`) + 4
- * timestamp digits + 2 counter digits. Two calls in the same process
- * and millisecond still differ by the counter; cross-worker collision
- * needs the same worker digit, millisecond, and counter at once.
- * Format: +1555{w:1}{ts:4}{counter:2} = 11 chars, 10 digits after +1.
+ * code — the web's longer `+1555…` suffix parses but is never
+ * possible, so Continue stays disabled. The "555" substring is required
+ * by the API's test-number bypass (`phone.includes("555")`), so 555
+ * stays the area code and uniqueness lives in the remaining 7 digits:
+ * 1 worker-identity digit plus 4 random digits plus 2 counter digits.
+ * The worker digit separates parallel shards and workers, the random
+ * part separates processes sharing a worker digit, and the counter
+ * (from a random start) separates rapid calls inside one process.
+ * Format: +1555{w:1}{rand:4}{counter:2} = 11 chars, 10 digits after +1.
  */
 export function generateUniquePhone(): string {
-  const worker = (process.pid % 10).toString();
-  const ts = Date.now().toString().slice(-4);
+  const worker = workerDigit();
+  const rand = randomDigits(4);
   const counter = (++phoneCounter % 100).toString().padStart(2, "0");
-  return `+1555${worker}${ts}${counter}`;
+  return `+1555${worker}${rand}${counter}`;
 }
 
 function throwOnRateLimit(status: number, which: string): void {

@@ -1,28 +1,28 @@
 /**
- * E2E Journey: Invitation + RSVP + deep link (mobile) — Phase 5, Task 5.
+ * E2E Journey: Invitation + RSVP + deep link (mobile).
  *
  * Three flows, one scenario shape: an organizer seeds a trip through
  * the API (`POST /api/trips`), invites a second number through the
  * real batch endpoint (`POST /api/trips/:tripId/invitations` with
- * `{phoneNumbers: [phone], userIds: []}` — the exact batch shape Task 2
- * verified), and reads the invitation id straight out of the create
- * response (`{success, invitations: [{id, ...}], ...}` — see
- * `apps/api/src/controllers/invitation.controller.ts:57-64`, which
+ * `{phoneNumbers: [phone], userIds: []}` — the exact batch shape the
+ * invite mutation sends), and reads the invitation id straight out of
+ * the create response (`{success, invitations: [{id, ...}], ...}` — see
+ * `createInvitation` in the invitation controller, which
  * replies 201 with the service's created rows). No list fallback is
  * needed: the create response carries the ids.
  *
  * The deep link is `/invite?id=...` — the param name comes from
  * `useLocalSearchParams<{ id }>()` in `app/invite.tsx`, not a guess.
  *
- * RSVP drives the REAL `RsvpControl` in `trips/detail.tsx` (Task 3
- * wired it): the `Segmented` radios `Going` / `Maybe` / `Not going`
+ * RSVP drives the REAL `RsvpControl` in `trips/detail.tsx` (already
+ * wired into the detail screen): the `Segmented` radios `Going` / `Maybe` / `Not going`
  * (`RSVP_LABEL` in `lib/rsvp.ts`), asserted via the radio selected
  * state AND reload persistence (server round-trip, not cache).
  *
  * Selectors are `getByRole`/`getByText` only; every selector names the
  * screen file and line-shape it matches in a comment.
  *
- * TODO (parked, apps/mobile/docs/PRD.md:45): guest members stay
+ * TODO (parked): guest members stay
  * deferred, so there is no guest-claim spec here — add one (invite a
  * guest link, claim it without a full account) once guests exist.
  */
@@ -33,6 +33,7 @@ import {
   FIXED_CODE,
   generateUniquePhone,
   seedUserViaAPI,
+  uniqueLabel,
 } from "./helpers/auth";
 import { API_BASE } from "./helpers/timeouts";
 import {
@@ -133,7 +134,7 @@ test.describe("Invitation Journey", () => {
     page,
     request,
   }) => {
-    const tripName = `E2E Invite ${Date.now()}`;
+    const tripName = uniqueLabel("E2E Invite");
     const orgPhone = generateUniquePhone();
     const guestPhone = generateUniquePhone();
     let tripId: string;
@@ -203,8 +204,8 @@ test.describe("Invitation Journey", () => {
       // Why the roster, not the control's selected state: a declined
       // member is filtered out of the roster a traveler sees — the API
       // returns only going/maybe rows to non-organizers by default
-      // (invitation.service.ts:getTripMembers, the showAllMembers-off
-      // branch) — so the guest's own row vanishes, `viewerOf`
+      // (`getTripMembers` in the invitation service, the
+      // show-all-members-off branch) — so the guest's own row vanishes, `viewerOf`
       // (lib/members.ts, the account-matched viewer) falls back to
       // null, and the
       // control renders its no_response empty state. The decline POST
@@ -261,7 +262,7 @@ test.describe("Invitation Journey", () => {
     page,
     request,
   }) => {
-    const tripName = `E2E Deep Link ${Date.now()}`;
+    const tripName = uniqueLabel("E2E Deep Link");
     const guestPhone = generateUniquePhone();
     let inviteId: string;
     let tripId: string;
@@ -364,7 +365,7 @@ test.describe("Invitation Journey", () => {
     page,
     request,
   }) => {
-    const tripName = `E2E Signed Link ${Date.now()}`;
+    const tripName = uniqueLabel("E2E Signed Link");
     const guestPhone = generateUniquePhone();
     let inviteId: string;
     let tripId: string;

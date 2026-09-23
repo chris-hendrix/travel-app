@@ -1,5 +1,5 @@
 /**
- * E2E: Notifications (mobile) — Phase 7, Task 5.
+ * E2E: Notifications (mobile).
  *
  * Bell badge → center → tap → marked read, plus mark-all-read.
  *
@@ -9,10 +9,9 @@
  * (`POST /api/trips/:tripId/invitations` with
  * `{phoneNumbers: [phone], userIds: []}`). Server-side, an invited
  * phone that belongs to an existing user is auto-added as a member
- * (`apps/api/src/services/invitation.service.ts:372-390`, the
- * `phoneAutoAddedUserIds` push) and each auto-added id gets a
+ * (the invitation service's phone-auto-add push) and each auto-added id gets a
  * `sms_invite` row via `notificationService.createNotification`
- * (`invitation.service.ts:732-744`: type `sms_invite`, title
+ * (the invitation service's notify-invitees step: type `sms_invite`, title
  * `"Trip invitation"`, body `` `${inviter} invited you to ${trip}` ``).
  * The invite POST awaits the insert, so the notification exists as
  * soon as the seeding request returns. Ordering matters: the guest
@@ -54,6 +53,7 @@ import {
   AUTH_TOKEN_KEY,
   generateUniquePhone,
   seedUserViaAPI,
+  uniqueLabel,
 } from "./helpers/auth";
 import {
   API_BASE,
@@ -189,10 +189,9 @@ test.describe("Notifications", () => {
     page,
     request,
   }) => {
-    const stamp = Date.now();
-    const tripA = `E2E Notify A ${stamp}`;
-    const tripB = `E2E Notify B ${stamp}`;
-    // invitation.service.ts:737-741 — body is the inviter display name
+    const tripA = uniqueLabel("E2E Notify A");
+    const tripB = uniqueLabel("E2E Notify B");
+    // The notification body is the inviter display name
     // + the FULL trip name (truncation is SMS-only).
     const bodyA = `${HOST_NAME} invited you to ${tripA}`;
     const bodyB = `${HOST_NAME} invited you to ${tripB}`;

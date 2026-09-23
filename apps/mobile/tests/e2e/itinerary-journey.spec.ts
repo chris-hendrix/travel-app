@@ -1,5 +1,5 @@
 /**
- * E2E Journey: Itinerary event CRUD (mobile) — Phase 6, Task 6.
+ * E2E Journey: Itinerary event CRUD (mobile).
  *
  * The one critical flow: seed a trip via API, create a meal event
  * through the UI (typed place, all-day), edit its name, delete it,
@@ -28,7 +28,7 @@
  * dependent — the all-day path exercises the same create/edit/delete
  * round-trip without it.
  *
- * TODO (parked, plan Phase 6 Task 6 / parking lot): Deleted-items
+ * TODO (parked): Deleted-items
  * restore has no UI surface (`includeDeleted` stays off —
  * `lib/queries/events.ts`), so there is no restore spec here — add one
  * once the UI exists.
@@ -38,6 +38,7 @@ import { test, expect, type APIRequestContext } from "@playwright/test";
 import {
   generateUniquePhone,
   seedUserViaAPI,
+  uniqueLabel,
 } from "./helpers/auth";
 import { API_BASE } from "./helpers/timeouts";
 import {
@@ -110,12 +111,12 @@ test.describe("Itinerary Journey", () => {
     page,
     request,
   }) => {
-    const tripName = `E2E Itinerary ${Date.now()}`;
-    const eventName = `Harbour dinner ${Date.now()}`;
+    const tripName = uniqueLabel("E2E Itinerary");
+    const eventName = uniqueLabel("Harbour dinner");
     const editedName = `${eventName} feast`;
     // Free text, never a suggestion pick (see header): a string no
     // EVENT_PLACES row contains, so no suggestion row can steal the tap.
-    const placeText = `Konoba Free Text ${Date.now()}`;
+    const placeText = uniqueLabel("Konoba Free Text");
     let tripId: string;
     let tripStart: string;
     let token: string;

@@ -1,5 +1,5 @@
 /**
- * E2E Journey: Trips (mobile) — Phase 4, Task 7.
+ * E2E Journey: Trips (mobile).
  *
  * The one critical flow: create via UI → detail (sections present, edit
  * affordance) → list → edit the name → reload and confirm the edit
@@ -9,15 +9,15 @@
  * auth journey spec. Selectors are `getByRole`/`getByText` only; every
  * selector names the screen file and line-shape it matches in a comment.
  *
- * TODO (parked, apps/mobile/docs/PRD.md:45 / plan parking lot):
+ * TODO (parked):
  * delete-trip has no UI surface yet — add a spec here once it does.
- * TODO (parked, apps/mobile/docs/PRD.md:45 / plan parking lot):
+ * TODO (parked):
  * co-organizer promote/demote has no UI surface yet — add a spec here
  * once it does.
  */
 
 import { test, expect } from "@playwright/test";
-import { authenticateViaAPI } from "./helpers/auth";
+import { authenticateViaAPI, uniqueLabel } from "./helpers/auth";
 import {
   ELEMENT_TIMEOUT,
   NAVIGATION_TIMEOUT,
@@ -29,7 +29,7 @@ test.describe("Trip Journey", () => {
     page,
     request,
   }) => {
-    const tripName = `E2E Trip ${Date.now()}`;
+    const tripName = uniqueLabel("E2E Trip");
     const editedName = `${tripName} II`;
     let tripId: string;
 
