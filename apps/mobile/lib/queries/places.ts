@@ -7,9 +7,9 @@
  * are bare (no `{success}` envelope): autocomplete returns an array of
  * `{placeId, shortName, displayName, displayAddress}`, details returns
  * one `{placeId, shortName, displayName, displayPlace, displayAddress,
- * lat, lon}`. A missing key degrades, not errors: autocomplete answers
- * `[]`, details answers 503 — so the pickers treat "no live results"
- * as "fall back to the static list", never as a submit blocker.
+ * lat, lon}`. A missing key degrades, not errors: both answer 503 — so
+ * the pickers treat "no live results" as "fall back to the static list",
+ * never as a submit blocker.
  *
  * Session tokens are Google's billing rule, not ours: one token per
  * input session, sent with every keystroke's autocomplete request AND

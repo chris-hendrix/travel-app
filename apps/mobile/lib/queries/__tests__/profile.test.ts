@@ -31,6 +31,11 @@ import {
   updateProfile,
   updateProfileOptions,
 } from "@/lib/queries/profile";
+import {
+  disableCalendar,
+  enableCalendar,
+  regenerateCalendar,
+} from "@/lib/queries/calendar";
 import { makeQueryClient } from "@/lib/queries/client";
 import {
   draftFromProfile,
@@ -323,5 +328,61 @@ describe("useProfile() write (profileStore)", () => {
       client.getQueryData<Profile>(authKeys.me())?.profilePhotoUrl,
     ).toBeNull();
     vi.unstubAllGlobals();
+  });
+});
+
+describe("calendar revoke and regenerate (profile calendar block)", () => {
+  function feedBody() {
+    return {
+      success: true as const,
+      calendarUrl: "webcal://example.test/api/calendar/token-1.ics",
+      calendarToken: "token-1",
+    };
+  }
+
+  it("disableCalendar DELETES /users/me/calendar with no body", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({ success: true });
+
+    await disableCalendar();
+
+    expect(mockedApiFetch).toHaveBeenCalledTimes(1);
+    expect(mockedApiFetch).toHaveBeenCalledWith("/users/me/calendar", {
+      method: "DELETE",
+    });
+  });
+
+  it("regenerateCalendar POSTs the regenerate route and returns the new feed", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue(feedBody());
+
+    const feed = await regenerateCalendar();
+
+    expect(mockedApiFetch).toHaveBeenCalledTimes(1);
+    expect(mockedApiFetch).toHaveBeenCalledWith(
+      "/users/me/calendar/regenerate",
+      { method: "POST" },
+    );
+    expect(feed.calendarUrl).toContain("token-1");
+  });
+
+  it("enableCalendar still POSTs /users/me/calendar (the subscribe path)", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue(feedBody());
+
+    const feed = await enableCalendar();
+
+    expect(mockedApiFetch).toHaveBeenCalledWith("/users/me/calendar", {
+      method: "POST",
+    });
+    expect(feed.calendarToken).toBe("token-1");
+  });
+
+  it("a revoked feed surfaces its ApiError, so the block keeps field-level copy", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockRejectedValue(new ApiError(401, "Sign in again"));
+
+    await expect(disableCalendar()).rejects.toBeInstanceOf(ApiError);
+    await expect(regenerateCalendar()).rejects.toBeInstanceOf(ApiError);
   });
 });

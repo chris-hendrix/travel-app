@@ -1,7 +1,6 @@
 /**
  * Static place suggestions for the pickers, until live Places
- * autocomplete lands (the ledger-tracked backend-gap comment at each call site names the
- * missing `photos[].name` field mask).
+ * autocomplete lands.
  *
  * Moved here from the mocks folder in Phase 8: these lists are live
  * app behavior, not lab fixtures — the trip and event forms render

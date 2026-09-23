@@ -9,7 +9,7 @@ import {
 } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
-import { ApiError } from "@/lib/api";
+import { ApiError, onUnauthorized } from "@/lib/api";
 import {
   meOptions,
   requestCode as requestAuthCode,
@@ -235,6 +235,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setPendingPhone(null);
     setStatus("signed-out");
+  }, [queryClient]);
+
+  // Mid-session 401 recovery: the shared boundary (`lib/api.ts`)
+  // reports a dead token here, and the provider signs out through
+  // the same path the button above uses — so every screen stops
+  // replaying its failure and the gate lands back on sign-in.
+  useEffect(() => {
+    return onUnauthorized(() => {
+      void performSignOut(queryClient).then(() => {
+        setUser(null);
+        setPendingPhone(null);
+        setStatus("signed-out");
+      });
+    });
   }, [queryClient]);
 
   const value = useMemo(

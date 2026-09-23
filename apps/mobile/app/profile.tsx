@@ -20,7 +20,7 @@ import {
 } from "@/lib/profile";
 import { formatPhoneForDisplay } from "@/lib/phone";
 import { appleCalendarUrl, googleCalendarUrl } from "@/lib/calendarLinks";
-import { enableCalendar } from "@/lib/queries/calendar";
+import { disableCalendar, enableCalendar, regenerateCalendar } from "@/lib/queries/calendar";
 import { useProfile } from "@/lib/profileStore";
 import { toErrorCopy } from "@/lib/queries/errors";
 import { LEGAL_ROWS } from "@/lib/legal";
@@ -139,10 +139,16 @@ function ProfileForm({ profile }: { profile: Profile }) {
   // The calendar's own two states, separate from the form's: subscribing
   // is not a save, and a failure in it must not read as one — the form
   // above is unsaved while this happens.
-  const [calendarBusy, setCalendarBusy] = useState<"google" | "apple" | null>(
-    null,
-  );
+  const [calendarBusy, setCalendarBusy] = useState<
+    "google" | "apple" | "disable" | "reset" | null
+  >(null);
   const [calendarFailure, setCalendarFailure] = useState<string | null>(null);
+  // Resetting breaks every existing subscription, so it takes two
+  // presses: the first arms the confirm, the second sends it. The
+  // scaffold's destructive foot fires on one press with no confirm
+  // step, so the confirm lives here, in the block, as a second row of
+  // the buttons this screen already uses — no new dialog to learn.
+  const [confirmingReset, setConfirmingReset] = useState(false);
   const errors = submitted ? validateProfile(draft) : {};
 
   /**
@@ -186,6 +192,53 @@ function ProfileForm({ profile }: { profile: Profile }) {
         copy.offline
           ? "You're offline. Check your connection and try again."
           : (copy.message ?? "Couldn't open your calendar."),
+      );
+    } finally {
+      setCalendarBusy(null);
+    }
+  }
+
+  /**
+   * Revoke the feed: the URL stops working, and no new one is issued.
+   * Arming a reset is abandoned with it — there is nothing left whose
+   * replacement could break a subscription.
+   */
+  async function unsubscribe() {
+    setCalendarFailure(null);
+    setConfirmingReset(false);
+    setCalendarBusy("disable");
+    try {
+      await disableCalendar();
+    } catch (caught) {
+      const copy = toErrorCopy(caught);
+      setCalendarFailure(
+        copy.offline
+          ? "You're offline. Check your connection and try again."
+          : (copy.message ?? "Couldn't unsubscribe your calendar."),
+      );
+    } finally {
+      setCalendarBusy(null);
+    }
+  }
+
+  /**
+   * Replace the feed URL after the second press. The first press only
+   * arms the confirm above the buttons; the old link dies here, so
+   * every calendar subscribed to it must be set up again.
+   */
+  async function resetLink() {
+    setCalendarFailure(null);
+    setCalendarBusy("reset");
+    try {
+      const { calendarUrl } = await regenerateCalendar();
+      setConfirmingReset(false);
+      await Linking.openURL(googleCalendarUrl(calendarUrl));
+    } catch (caught) {
+      const copy = toErrorCopy(caught);
+      setCalendarFailure(
+        copy.offline
+          ? "You're offline. Check your connection and try again."
+          : (copy.message ?? "Couldn't reset your calendar link."),
       );
     } finally {
       setCalendarBusy(null);
@@ -338,7 +391,7 @@ function ProfileForm({ profile }: { profile: Profile }) {
         <Text className="font-body-bold text-sm text-ink">Calendar</Text>
         <Text className="mt-1 font-body text-sm text-ink">
           Subscribe to every trip you are on, in the calendar you already
-          read.
+          read. Your link is a secret: anyone with it can read your trips.
         </Text>
         <View className="mt-3 gap-3 md:flex-row">
           <View className="md:flex-1">
@@ -378,6 +431,51 @@ function ProfileForm({ profile }: { profile: Profile }) {
             {calendarFailure}
           </Text>
         ) : null}
+        {/* Taking the link back. Unsubscribing revokes it outright;
+            resetting replaces it, which breaks every calendar already
+            subscribed — so the reset asks twice, in place, before it
+            sends anything. */}
+        {confirmingReset ? (
+          <View className="mt-3 gap-2">
+            <Text className="font-body text-sm text-ink">
+              This will invalidate your current calendar link. You will
+              need to re-subscribe in your calendar app with the new link.
+            </Text>
+            <View className="flex-row gap-3">
+              <Button
+                title="Cancel"
+                variant="secondary"
+                disabled={calendarBusy === "reset"}
+                onPress={() => setConfirmingReset(false)}
+              />
+              <Button
+                title={calendarBusy === "reset" ? "Resetting..." : "Reset"}
+                variant="danger"
+                disabled={calendarBusy === "reset"}
+                onPress={() => void resetLink()}
+              />
+            </View>
+          </View>
+        ) : (
+          <View className="mt-3 flex-row gap-3">
+            <Button
+              title={
+                calendarBusy === "disable"
+                  ? "Unsubscribing..."
+                  : "Unsubscribe"
+              }
+              variant="secondary"
+              disabled={calendarBusy !== null}
+              onPress={() => void unsubscribe()}
+            />
+            <Button
+              title="Reset calendar link"
+              variant="secondary"
+              disabled={calendarBusy !== null}
+              onPress={() => setConfirmingReset(true)}
+            />
+          </View>
+        )}
       </View>
 
       {/* The documents belong to the person, not to a trip: the consent

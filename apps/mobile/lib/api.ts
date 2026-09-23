@@ -24,6 +24,43 @@ export { apiBase, resolveUploadUrl };
 export const REQUEST_TIMEOUT_MS = 10_000;
 
 /**
+ * A 401 reached the shared boundary: the stored token is dead (expired
+ * or revoked server-side) and staying signed in only replays the same
+ * failure on every screen. Listeners run once per 401 — the auth
+ * provider subscribes and signs out through `performSignOut` (token
+ * drop, cache clear, state reset), which is what routes back to
+ * sign-in. Field-level 401 copy (`lib/queries/errors.ts`) is untouched:
+ * it still describes the failure where its content would have been.
+ */
+type UnauthorizedListener = () => void;
+
+let unauthorizedListener: UnauthorizedListener | null = null;
+
+/** Subscribe to 401 recovery. Returns an unsubscribe. Last one wins. */
+export function onUnauthorized(listener: UnauthorizedListener): () => void {
+  unauthorizedListener = listener;
+  return () => {
+    if (unauthorizedListener === listener) unauthorizedListener = null;
+  };
+}
+
+/** Clear the dead token and tell the subscriber, never throwing. */
+async function handleUnauthorized(): Promise<void> {
+  try {
+    const { clearToken } = await import("@/lib/session");
+    await clearToken();
+  } catch {
+    // The token store is best-effort on web review builds (see
+    // `lib/session.ts`); a failure here never blocks the sign-out.
+  }
+  try {
+    unauthorizedListener?.();
+  } catch {
+    // A listener must never turn a failed request into a crash.
+  }
+}
+
+/**
  * The server answered with a non-2xx status. `code`/`message` come
  * from the API error envelope `{success:false,error:{code,message}}`;
  * both fall back when the body is missing or is not JSON.
@@ -110,7 +147,14 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
       headers,
       signal: controller.signal,
     });
-    if (!response.ok) throw await toApiError(response);
+    if (!response.ok) {
+      const failure = await toApiError(response);
+      // Exactly one recovery path for a dead session, here at the
+      // shared boundary: fire and forget (the request itself still
+      // throws, so callers keep their field-level copy).
+      if (failure.status === 401) void handleUnauthorized();
+      throw failure;
+    }
     if (response.status === 204) return undefined as T;
     return (await response.json()) as T;
   } catch (error) {

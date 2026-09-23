@@ -1,17 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/session", () => ({ getToken: vi.fn() }));
+vi.mock("@/lib/session", () => ({ getToken: vi.fn(), clearToken: vi.fn() }));
 
-import { getToken } from "@/lib/session";
+import { getToken, clearToken } from "@/lib/session";
 import {
   ApiError,
   NetworkError,
   TimeoutError,
   apiFetch,
+  onUnauthorized,
 } from "@/lib/api";
 import { isFlightNumber, lookupFlight, normalizeFlightNumber, formatFlightNumber } from "@/lib/flights";
 
 const mockedGetToken = vi.mocked(getToken);
+const mockedClearToken = vi.mocked(clearToken);
+
+// The 401 subscriber under test. Reset in `beforeEach` so a listener
+// never leaks from one recovery test into the next.
+let unsubscribe401: (() => void) | null = null;
 
 type RequestInitLike = NonNullable<Parameters<typeof fetch>[1]>;
 
@@ -23,6 +29,11 @@ beforeEach(() => {
   vi.unstubAllGlobals();
   mockedGetToken.mockReset();
   mockedGetToken.mockResolvedValue(null);
+  mockedClearToken.mockReset();
+  // No stale 401 subscriber across tests: each recovery test
+  // subscribes its own listener, which unsubscribes on teardown.
+  unsubscribe401?.();
+  unsubscribe401 = null;
   delete process.env.EXPO_PUBLIC_API_URL;
   (globalThis as { __DEV__?: boolean }).__DEV__ = false;
   process.env.EXPO_PUBLIC_API_URL = "http://api.test/api";
@@ -150,6 +161,39 @@ describe("apiFetch", () => {
     const headers = new Headers(seen[0]!.init?.headers);
     expect(headers.get("Authorization")).toBe("Bearer mock-token-abc");
     expect(seen[0]!.url).toBe("http://api.test/api/ping");
+  });
+
+  it("clears the dead token and notifies the 401 subscriber, then still throws", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: false, status: 401, json: async () => ({}) }) as Response),
+    );
+    const notified = vi.fn();
+    unsubscribe401 = onUnauthorized(notified);
+
+    const error = await apiFetch("/me").catch((e) => e);
+    // Recovery runs detached from the throw, so let it land.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).status).toBe(401);
+    expect(mockedClearToken).toHaveBeenCalledTimes(1);
+    expect(notified).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the token and the subscriber alone on any other status", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: false, status: 403, json: async () => ({}) }) as Response),
+    );
+    const notified = vi.fn();
+    unsubscribe401 = onUnauthorized(notified);
+
+    await expect(apiFetch("/nope")).rejects.toBeInstanceOf(ApiError);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(mockedClearToken).not.toHaveBeenCalled();
+    expect(notified).not.toHaveBeenCalled();
   });
 });
 
