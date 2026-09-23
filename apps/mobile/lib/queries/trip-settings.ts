@@ -1,4 +1,4 @@
-import { mutationOptions } from "@tanstack/react-query";
+import { mutationOptions, queryOptions } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 
 /**
@@ -46,6 +46,47 @@ type MySettingsResponse = {
  * one the caller already knows.
  */
 type CalendarExclusionResponse = { success: true };
+
+/** Key factory for the trip-settings domain. */
+export const tripSettingsKeys = {
+  all: ["tripSettings"] as const,
+  mySettings: (tripId: string) =>
+    [...tripSettingsKeys.all, "mySettings", tripId] as const,
+  notificationPreferences: (tripId: string) =>
+    [...tripSettingsKeys.all, "notificationPreferences", tripId] as const,
+};
+
+/**
+ * `GET /trips/:tripId/my-settings`, mapped to the member's own pair.
+ * The only per-member own-settings read: it carries both `sharePhone`
+ * and `calendarExcluded` (the roster's rows carry `sharePhone` alone,
+ * and trip detail carries neither).
+ */
+export async function getMySettings(
+  tripId: string,
+): Promise<{ sharePhone: boolean; calendarExcluded: boolean }> {
+  const body = await apiFetch<MySettingsResponse>(
+    `/trips/${tripId}/my-settings`,
+  );
+  return {
+    sharePhone: body.sharePhone,
+    calendarExcluded: body.calendarExcluded,
+  };
+}
+
+/** Query read for the member's own pair, backing the settings screen. */
+export const mySettingsOptions = (tripId: string) =>
+  queryOptions({
+    queryKey: tripSettingsKeys.mySettings(tripId),
+    queryFn: () => getMySettings(tripId),
+  });
+
+/** Query read for the notification pair, backing the settings screen. */
+export const notificationPreferencesOptions = (tripId: string) =>
+  queryOptions({
+    queryKey: tripSettingsKeys.notificationPreferences(tripId),
+    queryFn: () => getNotificationPreferences(tripId),
+  });
 
 /**
  * `GET /trips/:tripId/notification-preferences`, mapped to the

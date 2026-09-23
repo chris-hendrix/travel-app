@@ -20,10 +20,15 @@ vi.mock("@/lib/api", async (importOriginal) => {
 import { ApiError, apiFetch } from "@/lib/api";
 import {
   getNotificationPreferences,
+  getMySettings,
+  mySettingsOptions,
+  notificationPreferencesOptions,
   updateNotificationPreference,
   updateSharePhone,
 } from "@/lib/queries/trip-settings";
 import {
+  applyRollback,
+  mergeServerSettings,
   TripSettingsProvider,
   useTripSettings,
 } from "@/lib/tripSettingsStore";
@@ -276,5 +281,109 @@ describe("local-only prefs", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sharePhone: true }),
     });
+  });
+});
+
+describe("getMySettings", () => {
+  it("GETs /trips/:tripId/my-settings and returns the member's own pair", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({
+      success: true,
+      sharePhone: true,
+      calendarExcluded: true,
+    });
+
+    await expect(getMySettings("trip-1")).resolves.toEqual({
+      sharePhone: true,
+      calendarExcluded: true,
+    });
+    expect(mockedApiFetch).toHaveBeenCalledTimes(1);
+    expect(mockedApiFetch).toHaveBeenCalledWith("/trips/trip-1/my-settings");
+  });
+
+  it("exposes query options keyed per trip for the settings screen", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({
+      success: true,
+      sharePhone: false,
+      calendarExcluded: true,
+    });
+
+    const options = mySettingsOptions("trip-1");
+    expect(options.queryKey).toEqual(["tripSettings", "mySettings", "trip-1"]);
+    await expect(
+      (options.queryFn as () => Promise<unknown>)(),
+    ).resolves.toEqual({ sharePhone: false, calendarExcluded: true });
+    expect(mockedApiFetch).toHaveBeenCalledWith("/trips/trip-1/my-settings");
+  });
+
+  it("exposes notification-preference query options keyed per trip", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({
+      success: true,
+      preferences: { dailyItinerary: false, tripMessages: true },
+    });
+
+    const options = notificationPreferencesOptions("trip-1");
+    expect(options.queryKey).toEqual([
+      "tripSettings",
+      "notificationPreferences",
+      "trip-1",
+    ]);
+    await expect(
+      (options.queryFn as () => Promise<unknown>)(),
+    ).resolves.toEqual({ dailyItinerary: false, tripMessages: true });
+  });
+});
+
+describe("mergeServerSettings", () => {
+  it("lets a server value that differs from the default win", () => {
+    // The calendar default is included (true); the server says this
+    // trip was removed from the feed, and that answer must stand.
+    expect(
+      mergeServerSettings(undefined, {
+        sharePhone: true,
+        calendarIncluded: false,
+      }),
+    ).toEqual({ sharePhone: true, calendarIncluded: false });
+  });
+
+  it("keeps the current fallback where the read has nothing to say", () => {
+    expect(
+      mergeServerSettings({ sharePhone: true }, { dailyItinerary: false }),
+    ).toEqual({ sharePhone: true, dailyItinerary: false });
+    // A pending or failed read never reaches hydration: an empty
+    // server patch leaves the overrides untouched.
+    expect(mergeServerSettings({ sharePhone: true }, {})).toEqual({
+      sharePhone: true,
+    });
+  });
+
+  it("never moves the device-local keys", () => {
+    expect(
+      mergeServerSettings(
+        { clock: "device", showPast: true },
+        { sharePhone: true },
+      ),
+    ).toEqual({ clock: "device", showPast: true, sharePhone: true });
+  });
+});
+
+describe("applyRollback", () => {
+  it("restores only the field the failed write owns", () => {
+    // A share-phone failure must not undo a concurrent calendar paint:
+    // the rollback patch names exactly the fields its write painted.
+    expect(
+      applyRollback(
+        { sharePhone: true, calendarIncluded: false },
+        { sharePhone: undefined },
+      ),
+    ).toEqual({ calendarIncluded: false });
+  });
+
+  it("restores the pre-paint value rather than the default", () => {
+    expect(
+      applyRollback({ sharePhone: true }, { sharePhone: false }),
+    ).toEqual({ sharePhone: false });
   });
 });

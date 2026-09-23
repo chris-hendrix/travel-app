@@ -28,19 +28,27 @@ export function ChipToggle({
   label,
   selected = false,
   onPress,
+  disabled = false,
 }: {
   label: string;
   selected?: boolean;
   onPress: () => void;
+  /**
+   * While the row's write is in flight. A disabled chip keeps its fill
+   * — the value has not changed, only the control is quiet — at half
+   * strength so the quiet reads as busy rather than as off.
+   */
+  disabled?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       accessibilityRole="button"
-      accessibilityState={{ selected }}
+      accessibilityState={{ selected, disabled }}
       className={`cursor-pointer border border-ink px-3 py-2 ${
         selected ? "bg-ink" : ""
-      }`}
+      } ${disabled ? "opacity-50" : ""}`}
     >
       <Text
         className={`font-body-bold text-sm ${selected ? "text-sand" : "text-ink"}`}

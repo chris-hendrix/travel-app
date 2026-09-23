@@ -1,12 +1,17 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
+import { useQuery } from "@tanstack/react-query";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { Section } from "@/components/ui/Section";
 import { ChipToggle } from "@/components/ui/ChipToggle";
 import { useDismiss } from "@/hooks/useDismiss";
 import { useTrip } from "@/lib/tripsStore";
 import { toErrorCopy } from "@/lib/queries/errors";
+import {
+  mySettingsOptions,
+  notificationPreferencesOptions,
+} from "@/lib/queries/trip-settings";
 import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { useTripSettings } from "@/lib/tripSettingsStore";
@@ -48,6 +53,8 @@ function TripSettingsScreen() {
   const { trip } = useTrip(tripId);
   const {
     for: settingsFor,
+    hydrate,
+    isBusy,
     setSharePhone,
     setCalendarIncluded,
     setNotificationPreference,
@@ -55,9 +62,40 @@ function TripSettingsScreen() {
   const dismiss = useDismiss("/trips");
   const [failure, setFailure] = useState<string | null>(null);
 
+  // The server-backed rows, read through the query layer beside the
+  // device-local store: the screen paints the fallbacks first, and a
+  // successful read wins over them. A pending or failed read never
+  // reaches `hydrate`, so the fallbacks stand rather than flashing a
+  // value the server never held.
+  const { data: mySettings } = useQuery({
+    ...mySettingsOptions(tripId ?? ""),
+    enabled: tripId !== undefined,
+  });
+  const { data: notificationPreferences } = useQuery({
+    ...notificationPreferencesOptions(tripId ?? ""),
+    enabled: tripId !== undefined,
+  });
+
+  useEffect(() => {
+    if (tripId === undefined || mySettings === undefined) return;
+    hydrate(tripId, {
+      sharePhone: mySettings.sharePhone,
+      calendarIncluded: !mySettings.calendarExcluded,
+    });
+  }, [tripId, mySettings, hydrate]);
+
+  useEffect(() => {
+    if (tripId === undefined || notificationPreferences === undefined) return;
+    hydrate(tripId, { ...notificationPreferences });
+  }, [tripId, notificationPreferences, hydrate]);
+
   if (!trip) {
     return <NotFound />;
   }
+
+  // A write in flight quiets its row: the store drops a second press
+  // on the same field, and the disabled chip tells the thumb first.
+  const busy = trip ? isBusy(trip.id) : false;
 
   const settings = settingsFor(trip, new Date());
 
@@ -82,7 +120,7 @@ function TripSettingsScreen() {
 
   return (
     <FullscreenDialog
-      title="Loading trip settings"
+      title="Trip settings"
       primaryTitle="Done"
       onPrimary={dismiss}
       dismissHref={`/trips/detail?id=${trip.id}`}
@@ -101,6 +139,7 @@ function TripSettingsScreen() {
           <ChipToggle
             label={settings.dailyItinerary ? "On" : "Off"}
             selected={settings.dailyItinerary}
+            disabled={busy}
             onPress={() =>
               void saveServerRow(() =>
                 setNotificationPreference(trip.id, {
@@ -118,6 +157,7 @@ function TripSettingsScreen() {
           <ChipToggle
             label={settings.tripMessages ? "On" : "Off"}
             selected={settings.tripMessages}
+            disabled={busy}
             onPress={() =>
               void saveServerRow(() =>
                 setNotificationPreference(trip.id, {
@@ -152,6 +192,7 @@ function TripSettingsScreen() {
           <ChipToggle
             label={settings.sharePhone ? "On" : "Off"}
             selected={settings.sharePhone}
+            disabled={busy}
             onPress={() =>
               void saveServerRow(() =>
                 setSharePhone(trip.id, !settings.sharePhone),
@@ -174,6 +215,7 @@ function TripSettingsScreen() {
           <ChipToggle
             label={settings.calendarIncluded ? "On" : "Off"}
             selected={settings.calendarIncluded}
+            disabled={busy}
             onPress={() =>
               void saveServerRow(() =>
                 setCalendarIncluded(trip.id, !settings.calendarIncluded),

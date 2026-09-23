@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -48,6 +49,18 @@ type TripSettingsValue = {
   for: (trip: Trip, now: Date) => TripSettings;
   update: (tripId: string, patch: Partial<TripSettings>) => void;
   /**
+   * Merge a successful server read over the local overrides. Only the
+   * defined keys move — a pending or failed read never reaches here,
+   * so the fallbacks stand until the server has actually answered.
+   */
+  hydrate: (tripId: string, server: Partial<TripSettings>) => void;
+  /**
+   * Whether a server write is in flight for this trip. Screens read it
+   * to disable the row that sent the write, so a second tap cannot fire
+   * while the first is still flying.
+   */
+  isBusy: (tripId: string) => boolean;
+  /**
    * Server write-through for the three server-backed rows, with the
    * Task 4 flow shape: paint the local override optimistically,
    * roll it back on failure, and rethrow so the screen reads the
@@ -66,6 +79,46 @@ type TripSettingsValue = {
     patch: Partial<NotificationPreferences>,
   ) => Promise<void>;
 };
+
+/**
+ * Overlay the defined keys of a server read onto the local overrides.
+ * Pure so the merge reads the same in the store and in tests: a server
+ * value always wins over the default, and an absent key leaves the
+ * current override (or the default) exactly as it was.
+ */
+export function mergeServerSettings(
+  current: Partial<TripSettings> | undefined,
+  server: Partial<TripSettings>,
+): Partial<TripSettings> {
+  const next: Record<string, unknown> = { ...(current ?? {}) };
+  for (const [key, value] of Object.entries(server)) {
+    if (value !== undefined) next[key] = value;
+  }
+  return next as Partial<TripSettings>;
+}
+
+/**
+ * Undo an optimistic paint field by field. An explicit `undefined`
+ * deletes the key (the `for()` defaults answer again); every key the
+ * failed write did not own is left alone, so a concurrent write to a
+ * neighbouring row survives the rollback.
+ */
+export function applyRollback(
+  current: Partial<TripSettings> | undefined,
+  patch: {
+    [K in keyof TripSettings]?: TripSettings[K] | undefined;
+  },
+): Partial<TripSettings> {
+  // Merged through `unknown` records: an explicit `undefined`
+  // deletes the key (one cast, contained here) so `for()` falls
+  // back to its defaults for a previously-unset row.
+  const next: Record<string, unknown> = { ...(current ?? {}) };
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === undefined) delete next[key];
+    else next[key] = value;
+  }
+  return next as Partial<TripSettings>;
+}
 
 const TripSettingsContext = createContext<TripSettingsValue | null>(null);
 
@@ -155,58 +208,114 @@ export function TripSettingsProvider({ children }: { children: ReactNode }) {
   type RollbackPatch = {
     [K in keyof TripSettings]?: TripSettings[K] | undefined;
   };
+
+  // A synchronous mirror of `byTrip`, updated alongside every paint.
+  // State updaters run when React gets to them, so reading `byTrip`
+  // at call time hands a second toggle the first toggle's optimistic
+  // value as its previous — and a failure then restores a value the
+  // server never had. The mirror is written in the same tick as the
+  // paint, so `previous` is always the value before this write.
+  const latestRef = useRef<Record<string, Partial<TripSettings>>>({});
+  latestRef.current = byTrip;
+
+  // Which server writes are in flight, by trip and field. The ref is
+  // the guard (a second press while the first flies is dropped); the
+  // state beside it repaints the screens that disable the busy row.
+  const guardRef = useRef<Set<string>>(new Set());
+  const [busyCount, setBusyCount] = useState<Record<string, number>>({});
+
   const restore = useCallback((tripId: string, patch: RollbackPatch) => {
-    setByTrip((current) => {
-      // Merged through `unknown` records: an explicit `undefined`
-      // deletes the key (one cast, contained here) so `for()` falls
-      // back to its defaults for a previously-unset row.
-      const merged: Record<string, unknown> = { ...current[tripId] };
-      for (const [key, value] of Object.entries(patch)) {
-        if (value === undefined) delete merged[key];
-        else merged[key] = value;
-      }
-      return {
-        ...current,
-        [tripId]: merged as Partial<TripSettings>,
-      };
-    });
+    latestRef.current = {
+      ...latestRef.current,
+      [tripId]: applyRollback(latestRef.current[tripId], patch),
+    };
+    setByTrip((current) => ({
+      ...current,
+      [tripId]: applyRollback(current[tripId], patch),
+    }));
   }, []);
 
-  const setSharePhone = useCallback(
-    async (tripId: string, value: boolean) => {
-      const previous = byTrip[tripId]?.sharePhone;
-      setByTrip((current) => ({
-        ...current,
-        [tripId]: { ...current[tripId], sharePhone: value },
-      }));
-      try {
-        await updateSharePhone(tripId, value);
-      } catch (err) {
-        restore(tripId, { sharePhone: previous });
-        throw err;
-      }
-    },
-    [byTrip, restore],
+  const hydrate = useCallback((tripId: string, server: Partial<TripSettings>) => {
+    latestRef.current = {
+      ...latestRef.current,
+      [tripId]: mergeServerSettings(latestRef.current[tripId], server),
+    };
+    setByTrip((current) => ({
+      ...current,
+      [tripId]: mergeServerSettings(current[tripId], server),
+    }));
+  }, []);
+
+  const isBusy = useCallback(
+    (tripId: string) => (busyCount[tripId] ?? 0) > 0,
+    [busyCount],
   );
 
-  const setNotificationPreference = useCallback(
-    async (tripId: string, patch: Partial<NotificationPreferences>) => {
-      const previous = {
-        dailyItinerary: byTrip[tripId]?.dailyItinerary,
-        tripMessages: byTrip[tripId]?.tripMessages,
+  /**
+   * One guarded server write: drop the call when this trip's field is
+   * already flying, else capture the pre-paint values for exactly the
+   * fields owned, paint, send, and roll back only those fields.
+   */
+  const runServerWrite = useCallback(
+    async (
+      tripId: string,
+      field: string,
+      paint: Partial<TripSettings>,
+      work: () => Promise<unknown>,
+    ) => {
+      const key = `${tripId}:${field}`;
+      if (guardRef.current.has(key)) return;
+      guardRef.current.add(key);
+      setBusyCount((current) => ({
+        ...current,
+        [tripId]: (current[tripId] ?? 0) + 1,
+      }));
+      const previous: RollbackPatch = {};
+      for (const owned of Object.keys(paint) as Array<keyof TripSettings>) {
+        (previous as Record<string, unknown>)[owned] =
+          latestRef.current[tripId]?.[owned];
+      }
+      latestRef.current = {
+        ...latestRef.current,
+        [tripId]: { ...latestRef.current[tripId], ...paint },
       };
       setByTrip((current) => ({
         ...current,
-        [tripId]: { ...current[tripId], ...patch },
+        [tripId]: { ...current[tripId], ...paint },
       }));
       try {
-        await updateNotificationPreference(tripId, patch);
+        await work();
       } catch (err) {
         restore(tripId, previous);
         throw err;
+      } finally {
+        guardRef.current.delete(key);
+        setBusyCount((current) => ({
+          ...current,
+          [tripId]: Math.max(0, (current[tripId] ?? 1) - 1),
+        }));
       }
     },
-    [byTrip, restore],
+    [restore],
+  );
+
+  const setSharePhone = useCallback(
+    (tripId: string, value: boolean) =>
+      runServerWrite(tripId, "sharePhone", { sharePhone: value }, () =>
+        updateSharePhone(tripId, value),
+      ),
+    [runServerWrite],
+  );
+
+  const setNotificationPreference = useCallback(
+    (tripId: string, patch: Partial<NotificationPreferences>) =>
+      runServerWrite(
+        tripId,
+        "notifications",
+        { ...patch },
+        () => updateNotificationPreference(tripId, patch),
+      ),
+    [runServerWrite],
   );
 
   /**
@@ -215,20 +324,14 @@ export function TripSettingsProvider({ children }: { children: ReactNode }) {
    * Same shape as `setSharePhone` above.
    */
   const setCalendarIncluded = useCallback(
-    async (tripId: string, value: boolean) => {
-      const previous = byTrip[tripId]?.calendarIncluded;
-      setByTrip((current) => ({
-        ...current,
-        [tripId]: { ...current[tripId], calendarIncluded: value },
-      }));
-      try {
-        await updateCalendarIncluded(tripId, value);
-      } catch (err) {
-        restore(tripId, { calendarIncluded: previous });
-        throw err;
-      }
-    },
-    [byTrip, restore],
+    (tripId: string, value: boolean) =>
+      runServerWrite(
+        tripId,
+        "calendarIncluded",
+        { calendarIncluded: value },
+        () => updateCalendarIncluded(tripId, value),
+      ),
+    [runServerWrite],
   );
 
   const value = useMemo<TripSettingsValue>(
@@ -245,6 +348,8 @@ export function TripSettingsProvider({ children }: { children: ReactNode }) {
         calendarIncluded: byTrip[trip.id]?.calendarIncluded ?? true,
       }),
       update,
+      hydrate,
+      isBusy,
       setSharePhone,
       setCalendarIncluded,
       setNotificationPreference,
@@ -252,6 +357,8 @@ export function TripSettingsProvider({ children }: { children: ReactNode }) {
     [
       byTrip,
       update,
+      hydrate,
+      isBusy,
       setSharePhone,
       setCalendarIncluded,
       setNotificationPreference,

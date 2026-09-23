@@ -185,11 +185,18 @@ function TripDetailScreen() {
   // The control's value: what you just tapped while it flies, else the
   // roster's answer for the viewer, else unreplied (no row yet).
   const response: RsvpStatus = rsvpOverride ?? viewer?.status ?? "no_response";
+  // A write in flight quiets the control: the mutation holds the paint
+  // until the roster refetch lands, so a second answer while it flies
+  // would paint over a value the server has not confirmed yet. The
+  // control itself takes no disabled prop, so the wrapper holds the
+  // presses instead — the same busy shape the profile screen keeps.
+  const rsvpBusy = rsvpMutation.isPending;
   const answerRsvp = (status: RsvpStatus) => {
     // Unreachable through the control (RSVP_ANSWERS never offers
     // no_response), but the type carries all four states: absence is
     // read, never sent.
     if (status === "no_response") return;
+    if (rsvpMutation.isPending) return;
     const tripId = trip.id;
     setRsvpOverride(status);
     rsvpMutation.mutate(
@@ -221,7 +228,15 @@ function TripDetailScreen() {
       organizer={organizer}
       travelOwed={travelOwed}
       memberId={viewer?.id}
-      ask={<RsvpControl value={response} onChange={answerRsvp} />}
+      ask={
+        <View
+          aria-busy={rsvpBusy}
+          pointerEvents={rsvpBusy ? "none" : "auto"}
+          style={rsvpBusy ? { opacity: 0.6 } : undefined}
+        >
+          <RsvpControl value={response} onChange={answerRsvp} />
+        </View>
+      }
     />
   );
 
