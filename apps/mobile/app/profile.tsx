@@ -224,15 +224,18 @@ function ProfileForm({ profile }: { profile: Profile }) {
   /**
    * Replace the feed URL after the second press. The first press only
    * arms the confirm above the buttons; the old link dies here, so
-   * every calendar subscribed to it must be set up again.
+   * every calendar subscribed to it must be set up again. Which calendar
+   * re-opens is the chooser's call, the same as the subscribe above —
+   * an Apple subscription reset into Google is a link that opens on
+   * nothing — so this takes the same target the subscribe buttons pass.
    */
-  async function resetLink() {
+  async function resetLink(toLink: (feedUrl: string) => string) {
     setCalendarFailure(null);
     setCalendarBusy("reset");
     try {
       const { calendarUrl } = await regenerateCalendar();
       setConfirmingReset(false);
-      await Linking.openURL(googleCalendarUrl(calendarUrl));
+      await Linking.openURL(toLink(calendarUrl));
     } catch (caught) {
       const copy = toErrorCopy(caught);
       setCalendarFailure(
@@ -441,7 +444,7 @@ function ProfileForm({ profile }: { profile: Profile }) {
               This will invalidate your current calendar link. You will
               need to re-subscribe in your calendar app with the new link.
             </Text>
-            <View className="flex-row gap-3">
+            <View className="flex-row flex-wrap gap-3">
               <Button
                 title="Cancel"
                 variant="secondary"
@@ -449,11 +452,30 @@ function ProfileForm({ profile }: { profile: Profile }) {
                 onPress={() => setConfirmingReset(false)}
               />
               <Button
-                title={calendarBusy === "reset" ? "Resetting..." : "Reset"}
+                title={
+                  calendarBusy === "reset"
+                    ? "Resetting..."
+                    : "Reset in Google Calendar"
+                }
                 variant="danger"
                 disabled={calendarBusy === "reset"}
-                onPress={() => void resetLink()}
+                onPress={() => void resetLink(googleCalendarUrl)}
               />
+              {/* The same platform parity as the subscribe above:
+                  Android has no Apple Calendar to re-open, so it is not
+                  offered one. */}
+              {Platform.OS === "android" ? null : (
+                <Button
+                  title={
+                    calendarBusy === "reset"
+                      ? "Resetting..."
+                      : "Reset in Apple Calendar"
+                  }
+                  variant="danger"
+                  disabled={calendarBusy === "reset"}
+                  onPress={() => void resetLink(appleCalendarUrl)}
+                />
+              )}
             </View>
           </View>
         ) : (

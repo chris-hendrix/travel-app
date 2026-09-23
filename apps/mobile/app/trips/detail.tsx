@@ -188,8 +188,9 @@ function TripDetailScreen() {
   // A write in flight quiets the control: the mutation holds the paint
   // until the roster refetch lands, so a second answer while it flies
   // would paint over a value the server has not confirmed yet. The
-  // control itself takes no disabled prop, so the wrapper holds the
-  // presses instead — the same busy shape the profile screen keeps.
+  // quiet is a real disable — announced on both platforms — with the
+  // dimmed look the screen already had, and the early return below
+  // keeps the single send even where a press gets through.
   const rsvpBusy = rsvpMutation.isPending;
   const answerRsvp = (status: RsvpStatus) => {
     // Unreachable through the control (RSVP_ANSWERS never offers
@@ -231,10 +232,13 @@ function TripDetailScreen() {
       ask={
         <View
           aria-busy={rsvpBusy}
-          pointerEvents={rsvpBusy ? "none" : "auto"}
           style={rsvpBusy ? { opacity: 0.6 } : undefined}
         >
-          <RsvpControl value={response} onChange={answerRsvp} />
+          <RsvpControl
+            value={response}
+            onChange={answerRsvp}
+            disabled={rsvpBusy}
+          />
         </View>
       }
     />

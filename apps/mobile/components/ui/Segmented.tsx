@@ -55,6 +55,7 @@ export function Segmented<T extends string>({
   value,
   onChange,
   size = "md",
+  disabled = false,
 }: {
   options: Array<{
     value: T;
@@ -76,6 +77,13 @@ export function Segmented<T extends string>({
    * system's and not the row's.
    */
   size?: "md" | "sm";
+  /**
+   * The answer is on its way, so there is nothing to choose yet. A real
+   * disable rather than a pointer guard: assistive technology announces
+   * it on both platforms, and the pressable itself refuses the second
+   * tap instead of a wrapper swallowing it.
+   */
+  disabled?: boolean;
 }) {
   const box = size === "sm" ? "px-3 py-2" : "flex-1 py-4";
 
@@ -90,6 +98,8 @@ export function Segmented<T extends string>({
             onPress={() => onChange(option.value)}
             role="radio"
             aria-selected={chosen}
+            aria-disabled={disabled}
+            disabled={disabled}
             className={`items-center border border-ink ${box} ${
               index > 0 ? "border-l-0" : ""
             } ${chosen ? fill.box : ""}`}

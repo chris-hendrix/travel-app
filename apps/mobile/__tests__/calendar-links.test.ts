@@ -44,3 +44,19 @@ describe("appleCalendarUrl", () => {
     );
   });
 });
+
+describe("the reset link", () => {
+  it("re-subscribes in the calendar it came from, from the one regenerated feed", () => {
+    // Resetting replaces the feed every subscriber holds, so the
+    // confirm offers the same two targets the subscribe does: a reset
+    // that always opened Google would strand an Apple subscription on
+    // a dead link. Both open the same regenerated feed, each in its
+    // own client's shape.
+    const fresh =
+      "webcal://api.journiful.app/api/calendar/9e8d7c6b-5a4f-4e3d-8c2b-1a0f9e8d7c6b.ics";
+    expect(new URL(googleCalendarUrl(fresh)).searchParams.get("cid")).toBe(
+      fresh,
+    );
+    expect(appleCalendarUrl(fresh)).toBe(fresh);
+  });
+});
