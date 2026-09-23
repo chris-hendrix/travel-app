@@ -1,66 +1,122 @@
-import { Suspense, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
+import { useQuery } from "@tanstack/react-query";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { Section } from "@/components/ui/Section";
 import { ChipToggle } from "@/components/ui/ChipToggle";
 import { useDismiss } from "@/hooks/useDismiss";
-import { useTrips } from "@/lib/tripsStore";
-import { tripFor } from "@/lib/tripLookup";
-import NotFound from "@/app/+not-found";
+import { useTrip } from "@/lib/tripsStore";
+import { toErrorCopy } from "@/lib/queries/errors";
 import {
-  useTripSettings,
-  type Clock,
-  type Layout,
-} from "@/lib/tripSettingsStore";
-
-const CLOCKS: Array<{ value: Clock; label: string }> = [
-  { value: "trip", label: "Trip time" },
-  { value: "device", label: "Your time" },
-];
-
-const LAYOUTS: Array<{ value: Layout; label: string }> = [
-  { value: "cards", label: "Cards" },
-  { value: "list", label: "List" },
-];
+  mySettingsOptions,
+  notificationPreferencesOptions,
+} from "@/lib/queries/trip-settings";
+import { TripGate } from "@/components/trip/TripGate";
+import NotFound from "@/app/+not-found";
+import { useTripSettings } from "@/lib/tripSettingsStore";
 
 /**
  * Your settings for one trip — Trip settings, and every member has
- * them. The organizer has a separate surface for the trip itself, called
- * Edit trip; this one is not that.
+ * them. The organizer has a separate surface for the trip itself,
+ * called Edit trip; this one is not that.
  *
- * Named for the itinerary because everything here answers something
- * about it: how far down it you read, whose clock its times are on, how
- * it is laid out, and whether the daily digest or the message alerts
- * reach you at all.
+ * Every row here is about you rather than about the trip: whether the
+ * daily digest and the trip's messages reach you, whether the others can
+ * see your number, and whether your calendar follows this trip. All of
+ * them are server rows (`PATCH /trips/:tripId/my-settings` and the
+ * notification pair beside it), and all of them are things you cannot
+ * see from where you are standing.
  *
- * Two sections, and each row is a label with its control at the far
- * edge, which is what a settings list is. The controls used to sit at
- * the head of the itinerary itself, where on a phone they cost three
- * rows before any content.
+ * The run's own two switches are not here. Past events and grid-or-list
+ * sit at the head of the run itself, because flipping one and watching
+ * the page answer is the whole point of them, and the clock is the
+ * header's zone token, on every screen that shows a time. A screen you
+ * have to leave to flip a switch is a switch you flip blind.
+ *
+ * Each row is a label with its control at the far edge, which is what a
+ * settings list is.
  */
 export default function TripSettingsDialog() {
   return (
-    <Suspense fallback={null}>
+    <TripGate label="Loading trip settings">
       <TripSettingsScreen />
-    </Suspense>
+    </TripGate>
   );
 }
 
 function TripSettingsScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { trips } = useTrips();
-  const { for: settingsFor, update } = useTripSettings();
-  const dismiss = useDismiss("/trips");
-
   const tripId = typeof id === "string" ? id : undefined;
-  const trip = tripFor(trips, tripId);
+  // The trip read moves to the detail query; the settings
+  // write-through is Task 6's territory and stays as-is here.
+  const { trip } = useTrip(tripId);
+  const {
+    for: settingsFor,
+    hydrate,
+    isBusy,
+    setSharePhone,
+    setCalendarIncluded,
+    setNotificationPreference,
+  } = useTripSettings();
+  const dismiss = useDismiss("/trips");
+  const [failure, setFailure] = useState<string | null>(null);
+
+  // The server-backed rows, read through the query layer beside the
+  // device-local store: the screen paints the fallbacks first, and a
+  // successful read wins over them. A pending or failed read never
+  // reaches `hydrate`, so the fallbacks stand rather than flashing a
+  // value the server never held.
+  const { data: mySettings } = useQuery({
+    ...mySettingsOptions(tripId ?? ""),
+    enabled: tripId !== undefined,
+  });
+  const { data: notificationPreferences } = useQuery({
+    ...notificationPreferencesOptions(tripId ?? ""),
+    enabled: tripId !== undefined,
+  });
+
+  useEffect(() => {
+    if (tripId === undefined || mySettings === undefined) return;
+    hydrate(tripId, {
+      sharePhone: mySettings.sharePhone,
+      calendarIncluded: !mySettings.calendarExcluded,
+    });
+  }, [tripId, mySettings, hydrate]);
+
+  useEffect(() => {
+    if (tripId === undefined || notificationPreferences === undefined) return;
+    hydrate(tripId, { ...notificationPreferences });
+  }, [tripId, notificationPreferences, hydrate]);
 
   if (!trip) {
     return <NotFound />;
   }
 
+  // A write in flight quiets its row: the store drops a second press
+  // on the same field, and the disabled chip tells the thumb first.
+  const busy = trip ? isBusy(trip.id) : false;
+
   const settings = settingsFor(trip, new Date());
+
+  // Server rows toggle optimistically (the store paints first) and
+  // the failure reads here, in the screen's existing error style,
+  // mapped through the same copies every other screen uses.
+  async function saveServerRow(work: () => Promise<void>) {
+    setFailure(null);
+    try {
+      await work();
+    } catch (caught) {
+      const copy = toErrorCopy(caught);
+      if (copy.offline) {
+        setFailure("You're offline. Check your connection and try again.");
+      } else {
+        setFailure(
+          copy.message ?? "Couldn't save the setting. Try again.",
+        );
+      }
+    }
+  }
 
   return (
     <FullscreenDialog
@@ -71,51 +127,10 @@ function TripSettingsScreen() {
     >
       <Text className="font-body text-sm text-ink">{trip.title}</Text>
 
-      <Section title="Itinerary">
-        <Row label="Past events">
-          <ChipToggle
-            label={settings.showPast ? "On" : "Off"}
-            selected={settings.showPast}
-            onPress={() => update(trip.id, { showPast: !settings.showPast })}
-          />
-        </Row>
+      {failure ? (
+        <Text className="font-body text-sm text-ink">{failure}</Text>
+      ) : null}
 
-        <Row label="Times">
-          <View className="flex-row items-center gap-3">
-            {CLOCKS.map((option) => (
-              <ChipToggle
-                key={option.value}
-                label={option.label}
-                selected={settings.clock === option.value}
-                onPress={() => update(trip.id, { clock: option.value })}
-              />
-            ))}
-          </View>
-        </Row>
-
-        <Row label="Layout">
-          <View className="flex-row items-center gap-3">
-            {LAYOUTS.map((option) => (
-              <ChipToggle
-                key={option.value}
-                label={option.label}
-                selected={settings.layout === option.value}
-                onPress={() => update(trip.id, { layout: option.value })}
-              />
-            ))}
-          </View>
-        </Row>
-
-        <Text className="font-body text-sm text-ink">
-          This trip runs on {trip.preferredTimezone}.
-        </Text>
-      </Section>
-
-      {/* The web dialog's ground, which is all per user per trip: the
-          notification pair from the server's notification_preferences,
-          phone sharing from the member row, calendar from the same row
-          said the other way round, and a push permission that is the
-          device's to grant. */}
       <Section title="Notifications">
         <Row
           label="Daily itinerary"
@@ -124,8 +139,13 @@ function TripSettingsScreen() {
           <ChipToggle
             label={settings.dailyItinerary ? "On" : "Off"}
             selected={settings.dailyItinerary}
+            disabled={busy}
             onPress={() =>
-              update(trip.id, { dailyItinerary: !settings.dailyItinerary })
+              void saveServerRow(() =>
+                setNotificationPreference(trip.id, {
+                  dailyItinerary: !settings.dailyItinerary,
+                }),
+              )
             }
           />
         </Row>
@@ -137,27 +157,30 @@ function TripSettingsScreen() {
           <ChipToggle
             label={settings.tripMessages ? "On" : "Off"}
             selected={settings.tripMessages}
+            disabled={busy}
             onPress={() =>
-              update(trip.id, { tripMessages: !settings.tripMessages })
+              void saveServerRow(() =>
+                setNotificationPreference(trip.id, {
+                  tripMessages: !settings.tripMessages,
+                }),
+              )
             }
           />
         </Row>
 
-        <Row
-          label="Push notifications"
-          description="Your device asks the first time you turn this on"
-        >
-          <ChipToggle
-            label={settings.pushEnabled ? "On" : "Off"}
-            selected={settings.pushEnabled}
-            onPress={() =>
-              update(trip.id, { pushEnabled: !settings.pushEnabled })
-            }
-          />
-        </Row>
+        {/* No push switch. There was one, and its own copy promised the
+            device would ask permission the first time it was turned on —
+            while the handler wrote a boolean into a store that nothing
+            reads, with no permission request, no device token and no
+            registration call behind it (`app.json` carries no
+            notification plugin). A control that reports success and does
+            nothing is worse than an absent one, and this is the same
+            reason `disabled` in this system means "real, its input is not
+            here yet": a push switch with no push behind it is neither.
+            It comes back in ten lines, on the day push does. */}
 
         <Text className="font-body text-sm text-ink">
-          Notifications reach you in the app, by push, and by text.
+          Notifications reach you in the app, and invitations by text.
         </Text>
       </Section>
 
@@ -169,13 +192,21 @@ function TripSettingsScreen() {
           <ChipToggle
             label={settings.sharePhone ? "On" : "Off"}
             selected={settings.sharePhone}
+            disabled={busy}
             onPress={() =>
-              update(trip.id, { sharePhone: !settings.sharePhone })
+              void saveServerRow(() =>
+                setSharePhone(trip.id, !settings.sharePhone),
+              )
             }
           />
         </Row>
       </Section>
 
+      {/* The per-trip half of the calendar feed, through its own
+          endpoint — not the my-settings PATCH, which is what the TODO
+          that used to sit here assumed and stopped at. The server has
+          filtered the feed on this flag all along, and the web app has
+          called this route since before this screen existed. */}
       <Section title="Calendar">
         <Row
           label="Include in calendar"
@@ -184,8 +215,11 @@ function TripSettingsScreen() {
           <ChipToggle
             label={settings.calendarIncluded ? "On" : "Off"}
             selected={settings.calendarIncluded}
+            disabled={busy}
             onPress={() =>
-              update(trip.id, { calendarIncluded: !settings.calendarIncluded })
+              void saveServerRow(() =>
+                setCalendarIncluded(trip.id, !settings.calendarIncluded),
+              )
             }
           />
         </Row>

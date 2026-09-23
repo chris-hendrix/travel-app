@@ -1,18 +1,26 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Stack } from "expo-router";
 import { Text, View } from "react-native";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
+import { InlineError } from "@/components/ui/InlineError";
 import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { DatePicker } from "@/components/ui/DatePicker";
 import type { Selection } from "@/lib/calendar";
 import { ChipToggle } from "@/components/ui/ChipToggle";
+import { FieldError } from "@/components/ui/FieldError";
 import { TimeField } from "@/components/ui/TimeField";
 import { dayLabel } from "@/lib/itinerary";
 import { toIso } from "@/lib/dateRange";
 import { validateNewEvent, type NewEventInput } from "@/lib/newEvent";
 import type { Trip } from "@/components/trip/TripCard";
-import { EVENT_PLACES } from "@/mocks/places";
+import { EVENT_PLACES } from "@/lib/placeSuggestions";
+import {
+  toPlaceOption,
+  usePlaceDetails,
+  usePlaceSessionToken,
+  usePlaceSuggestions,
+} from "@/lib/queries/places";
 
 /**
  * The event form, in one place because there is one of it: adding and
@@ -38,7 +46,9 @@ export function EventDialog({
   dismissHref,
   initial,
   onSubmit,
+  serverError,
   onDelete,
+  pending = false,
 }: {
   title: string;
   /** The dialog's one verb: "Add event" or "Save changes". */
@@ -50,12 +60,20 @@ export function EventDialog({
   /** Handed an input that has already passed validation. */
   onSubmit: (input: NewEventInput) => void;
   /**
+   * The last server write's failure, when there is one. The section
+   * already renders error states (Task 1); this feeds them without a
+   * redesign — a statement, not a way back (retry is the primary).
+   */
+  serverError?: string | null;
+  /**
    * Editing only: a new event has nothing to delete. Sits at the foot of
    * the form, as far from the primary as the dialog allows, and needs no
    * confirmation because deleting is soft — the row is dated, not
    * dropped, and Deleted items is where it comes back from.
    */
   onDelete?: (() => void) | undefined;
+  /** A write is in flight: the dialog's own two buttons stop. */
+  pending?: boolean;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
@@ -72,6 +90,64 @@ export function EventDialog({
   const [end, setEnd] = useState<string | null>(initial?.end ?? null);
   const [submitted, setSubmitted] = useState(false);
 
+  // Live Places suggestions sit above the static list; a lookup failure
+  // falls back to `EVENT_PLACES` silently, and free text keeps working
+  // throughout — the failure never blocks submit. A picked suggestion's
+  // details resolve the event's coordinates, which ride on the submitted
+  // input; typed prose and static picks carry none, so they submit bare.
+  //
+  // It is `suggestions` being absent that falls back, not it being empty:
+  // an empty array means the live source was asked and has nothing, and
+  // answering that with a dozen unrelated static places is worse than
+  // answering it with the picker's own `No matches`.
+  const [search, setSearch] = useState("");
+  const [sessionToken, rotateSessionToken] = usePlaceSessionToken();
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(
+    null,
+  );
+  // The live lookup's coordinates for the picked place, when there is
+  // one. Seeded from the draft on edit so an untouched place keeps its
+  // coordinates; cleared the moment the place is re-picked or typed,
+  // so no coordinate outlives the place it belonged to.
+  const [coords, setCoords] = useState<{
+    lat: number;
+    lon: number;
+  } | null>(() =>
+    typeof initial?.locationLat === "number" &&
+    typeof initial?.locationLon === "number"
+      ? { lat: initial.locationLat, lon: initial.locationLon }
+      : null,
+  );
+  const { data: suggestions } = usePlaceSuggestions(search, sessionToken);
+  const details = usePlaceDetails(selectedPlaceId, sessionToken);
+  const liveById = useMemo(
+    () => new Map((suggestions ?? []).map((s) => [s.placeId, s])),
+    [suggestions],
+  );
+  const placeOptions = useMemo(
+    () => (suggestions ? suggestions.map(toPlaceOption) : EVENT_PLACES),
+    [suggestions],
+  );
+
+  // Details canonicalize the committed label (and close the input
+  // session), and resolve the event's coordinates — they never block
+  // submit. A place with no live details submits bare.
+  useEffect(() => {
+    if (!selectedPlaceId) return;
+    if (details.data?.placeId === selectedPlaceId) {
+      setPlace(details.data.name);
+      setCoords(
+        Number.isFinite(details.data.lat) &&
+          Number.isFinite(details.data.lon)
+          ? { lat: details.data.lat, lon: details.data.lon }
+          : null,
+      );
+    }
+    if (details.data?.placeId === selectedPlaceId || details.isError) {
+      rotateSessionToken();
+    }
+  }, [details.data, details.isError, selectedPlaceId, rotateSessionToken]);
+
   const today = toIso(new Date());
   const day = dates.start ?? "";
 
@@ -83,6 +159,11 @@ export function EventDialog({
     start: allDay ? "" : (start ?? ""),
     end: allDay ? "" : (end ?? ""),
     place: place ?? "",
+    // Present only when a live lookup resolved them: typed prose and
+    // static picks submit bare, and nothing defaults to 0.
+    ...(coords
+      ? { locationLat: coords.lat, locationLon: coords.lon }
+      : null),
   };
 
   const errors = submitted ? validateNewEvent(input) : {};
@@ -98,12 +179,15 @@ export function EventDialog({
       title={title}
       primaryTitle={primaryTitle}
       onPrimary={submit}
+      pending={pending}
       dangerTitle={onDelete ? "Delete event" : undefined}
       onDanger={onDelete}
       dismissHref={dismissHref}
     >
       <Stack.Screen options={{ presentation: "modal" }} />
       <Text className="font-body text-sm text-ink">{trip.title}</Text>
+
+      {serverError ? <InlineError message={serverError} /> : null}
 
       <TextField
         label="Event name"
@@ -115,11 +199,30 @@ export function EventDialog({
 
       {/* Second, because it is the other half of what the event is: a
           name and a place. Everything below is detail about that. */}
+      {/* TODO(BE): `GET /api/locations/autocomplete` and `/details` do not request `photos[].name` (field masks at `location.routes.ts:88-130`, `:178`), so a picked place has no image reference even though `/locations/photos/:photoRef` exists. */}
       <Dropdown
         label="Place"
-        options={EVENT_PLACES}
+        options={placeOptions}
         value={place}
-        onChange={setPlace}
+        onSearchText={setSearch}
+        onChange={(picked) => {
+          // Free text: every keystroke arrives here as well as every
+          // pick, so a value that is not a live placeId is typed prose
+          // (which abandons the session) rather than a selection.
+          const hit = liveById.get(picked);
+          if (hit) {
+            setSelectedPlaceId(hit.placeId);
+            setPlace(hit.name);
+            // The coordinates arrive with the details lookup; until
+            // then the pick carries none, not the previous place's.
+            setCoords(null);
+          } else {
+            setSelectedPlaceId(null);
+            setPlace(picked);
+            setCoords(null);
+            rotateSessionToken();
+          }
+        }}
         placeholder="Search for a place…"
         error={errors.place}
         freeText
@@ -153,12 +256,12 @@ export function EventDialog({
           min={trip.startDate}
           max={trip.endDate}
         />
-        <Text className="font-body text-sm text-ink">
-          {day ? dayLabel(day, today) : "Pick the day it happens."}
-        </Text>
-        {errors.day ? (
-          <Text className="font-body text-sm text-ink">{errors.day}</Text>
+        {day ? (
+          <Text className="font-body text-sm text-ink">
+            {dayLabel(day, today)}
+          </Text>
         ) : null}
+        <FieldError message={errors.day} />
       </View>
 
       {/* The times are always here and never hidden: all-day parks them

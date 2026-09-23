@@ -6,11 +6,13 @@ import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { Segmented } from "@/components/ui/Segmented";
 import { DatePicker } from "@/components/ui/DatePicker";
+import { FieldError } from "@/components/ui/FieldError";
 import { TimeField } from "@/components/ui/TimeField";
+import { InlineError } from "@/components/ui/InlineError";
 import { dayLabel } from "@/lib/itinerary";
 import { addDays, toIso } from "@/lib/dateRange";
 import { NOT_SHARED } from "@/lib/wording";
-import { isFlightNumber, lookupFlight } from "@/lib/flights";
+import { formatFlightNumber, isFlightNumber, lookupFlight } from "@/lib/flights";
 import {
   emptyLeg,
   farEndNote,
@@ -31,8 +33,6 @@ const DIRECTIONS: Array<{ value: TravelDirection; heading: string }> = [
   { value: "departure", heading: "Departing" },
 ];
 
-
-
 /** How the times are being given: off a flight number, or typed. */
 type TravelMode = "flight" | "times";
 
@@ -40,6 +40,19 @@ const MODES: Array<{ value: TravelMode; label: string }> = [
   { value: "flight", label: "Flight number" },
   { value: "times", label: "Enter times" },
 ];
+
+/**
+ * Which way a direction opens, given how it was answered: a number it
+ * can be looked up from, times somebody typed, or nothing at all. The
+ * blank case is the one this rule exists for, and it is the flight.
+ */
+function openingMode(leg: TravelLeg | undefined): TravelMode {
+  if (leg?.flightNumber) return "flight";
+  const hasTimes = Boolean(
+    leg?.departureTime.trim() || leg?.arrivalTime.trim(),
+  );
+  return hasTimes ? "times" : "flight";
+}
 
 /**
  * The travel form, in one place because there is one of it: one member,
@@ -79,8 +92,10 @@ export function TravelDialog({
   initial,
   filed,
   dismissHref,
+  serverError,
   onSubmit,
   onDelete,
+  pending = false,
 }: {
   title: string;
   /** The dialog's one verb: "Add travel" or "Save changes". */
@@ -102,6 +117,8 @@ export function TravelDialog({
   /** Past wheres, so the field autocompletes instead of guessing. */
   whereSuggestions: string[];
   dismissHref: string;
+  /** The last save's or delete's failure: the dialog stays open on it. */
+  serverError?: string | null;
   /** Prefill, for editing. Nothing means a blank form. */
   initial:
     | {
@@ -118,6 +135,8 @@ export function TravelDialog({
   onSubmit: (input: NewTravelInput) => void;
   /** Deleting is per direction: the panel you are in is what goes. */
   onDelete: ((direction: TravelDirection) => void) | undefined;
+  /** A write is in flight: the dialog's own two buttons stop. */
+  pending?: boolean;
 }) {
   const [memberId, setMemberId] = useState(
     initial?.memberId ?? lockedMember?.id ?? "",
@@ -127,11 +146,14 @@ export function TravelDialog({
     departure: initial?.departure ?? emptyLeg(),
   });
   // How each direction's times are being given: off a flight number, or
-  // typed. A record that already holds a number opens on the flight it
-  // came from, because that is how it was answered the first time.
+  // typed. A direction that already holds a number opens on the flight it
+  // came from, and one whose times were typed by hand opens on the times,
+  // because that is how each was answered the first time. A blank
+  // direction opens on the flight number: it is the shorter way to answer
+  // the question, and it is the one the placeholder offers.
   const [modes, setModes] = useState<Record<TravelDirection, TravelMode>>({
-    arrival: initial?.arrival?.flightNumber ? "flight" : "times",
-    departure: initial?.departure?.flightNumber ? "flight" : "times",
+    arrival: openingMode(initial?.arrival),
+    departure: openingMode(initial?.departure),
   });
   // Which direction is on screen: the one that was tapped if there was
   // one, the arrival otherwise — arrival is what a trip is waiting on.
@@ -139,6 +161,11 @@ export function TravelDialog({
     initial?.direction ?? "arrival",
   );
   const [submitted, setSubmitted] = useState(false);
+  // Neither direction has anything in it. That is not the same as a
+  // direction left unshared, which is a real answer: a form sent with
+  // both blank would close having written nothing, which reads exactly
+  // like having written something.
+  const [blank, setBlank] = useState(false);
 
   const input: NewTravelInput = {
     memberId,
@@ -148,6 +175,7 @@ export function TravelDialog({
   const errors = submitted ? validateNewTravel(input) : {};
 
   function setLeg(next: TravelLeg) {
+    setBlank(false);
     setLegs((current) => ({ ...current, [direction]: next }));
   }
 
@@ -155,6 +183,15 @@ export function TravelDialog({
 
   function submit() {
     setSubmitted(true);
+    // Nothing in either direction: the dialog would dismiss on an empty
+    // save. Saying so is the whole of the fix — `legIsFiled` is what the
+    // validator already uses to tell "unshared" from "not filled in yet",
+    // and it says an untouched direction is not an error, which is true
+    // of one direction and not of two.
+    if (!legIsFiled(legs.arrival, "arrival") && !legIsFiled(legs.departure, "departure")) {
+      setBlank(true);
+      return;
+    }
     const found = validateNewTravel(input);
     if (Object.keys(found).length > 0) {
       // The fault may be in the direction you are not looking at: switch
@@ -171,6 +208,7 @@ export function TravelDialog({
       title={title}
       primaryTitle={primaryTitle}
       onPrimary={submit}
+      pending={pending}
       // The footer is the scaffold's now, and the label is the one thing
       // the form still owns: this dialog deletes a direction rather than
       // a record, so which one it is belongs in the title.
@@ -183,6 +221,7 @@ export function TravelDialog({
       dismissHref={dismissHref}
     >
       <Stack.Screen options={{ presentation: "modal" }} />
+      {serverError ? <InlineError message={serverError} /> : null}
       <Text className="font-body text-sm text-ink">{trip.title}</Text>
 
       {/* Who: the organizer's field, and only theirs. A traveler is
@@ -236,6 +275,17 @@ export function TravelDialog({
       <Text className="font-body text-base text-ink">
         {legSummary(shown, direction) || NOT_SHARED}
       </Text>
+
+      {/* The whole form's complaint, which is why it sits under the
+          switch rather than under a field: no single field is at fault
+          when none of them has been answered. */}
+      <FieldError
+        message={
+          blank
+            ? "Add a day or a time to the arrival or the departure."
+            : undefined
+        }
+      />
 
       <LegFields
         direction={direction}
@@ -358,12 +408,12 @@ function LegFields({
           min={trip.startDate}
           max={addDays(trip.endDate, 1)}
         />
-        <Text className="font-body text-sm text-ink">
-          {leg.day ? dayLabel(leg.day, today) : "Pick the day"}
-        </Text>
-        {errors?.day ? (
-          <Text className="font-body text-sm text-ink">{errors.day}</Text>
+        {leg.day ? (
+          <Text className="font-body text-sm text-ink">
+            {dayLabel(leg.day, today)}
+          </Text>
         ) : null}
+        <FieldError message={errors?.day} />
       </View>
 
       {/* How the times are being given, sitting with the number it
@@ -382,7 +432,11 @@ function LegFields({
           value={leg.flightNumber}
           onChangeText={(flightNumber) => {
             setLookupError(null);
-            onChange({ ...leg, flightNumber });
+            // Formatted as it is typed, so the field always shows the
+            // shape the placeholder promises: the code, a space, the
+            // number. A space typed by hand is accepted rather than
+            // fought — it is stripped and put back in the right place.
+            onChange({ ...leg, flightNumber: formatFlightNumber(flightNumber) });
           }}
           placeholder="UA 1842"
           suffix={

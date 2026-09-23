@@ -135,22 +135,30 @@ describe("expo policy: every target is a thumb's size", () => {
   });
 
   it("every enumerated header target is a real 44pt box with no negative margin", () => {
-    // Per-target: each named target element carries its own asymmetric
-    // padding to a real 44x44 box, and no negative margin anywhere on
-    // these targets — the box sits inside its row, the icon or text
-    // does not move, and the surface grows (band 72, title row 77).
+    // Per-target: each named target element carries its own padding to a
+    // real 44x44 box, and no negative margin anywhere on these targets —
+    // the box sits inside its row and the surface grows (band 72).
+    //
+    // The padding is symmetric top and bottom, which is the correction
+    // this test was written around: the row centres boxes, not their
+    // contents, so an asymmetric pair (6 above the word, 18 below) put
+    // every right-hand target 6pt above the wordmark's centre line —
+    // icons visibly off the line the eye reads across the band. Equal
+    // padding puts the content at the centre of a 44pt box, and the box
+    // is what the row centres. Horizontal padding stays asymmetric: it
+    // grows the box leftward from the band's right edge, which is where
+    // the 44pt of width comes from without moving the icon or the word.
     const header = source("components/ui/AppHeader.tsx");
     const targets: Array<{ marker: string; padding: RegExp }> = [
-      // 24px icon; 16 left + 4 right keeps the outer edge and the icon.
-      { marker: 'aria-label="Notifications"', padding: /pl-4 pr-1 pt-1 pb-4/ },
-      { marker: 'aria-label="Profile"', padding: /pl-4 pr-1 pt-1 pb-4/ },
-      { marker: 'aria-label="Close"', padding: /pl-4 pr-1 pt-1 pb-4/ },
-      // Zone token: 12 left + 4 right keeps the text where it was, and
-      // 6 above / 18 below makes a full 44pt box. (marker: the token
-      // names itself through accessibilityLabel.)
-      { marker: "Times in", padding: /pl-3 pr-1 pt-1\.5 pb-4\.5/ },
+      // 24px icon: 10 + 24 + 10 = 44.
+      { marker: 'aria-label="Notifications"', padding: /pl-4 pr-1 py-2\.5/ },
+      { marker: 'aria-label="Profile"', padding: /pl-4 pr-1 py-2\.5/ },
+      { marker: 'aria-label="Close"', padding: /pl-4 pr-1 py-2\.5/ },
+      // Zone token: 12 + 20 + 12 = 44, on the word's own centre line.
+      // (marker: the token names itself through accessibilityLabel.)
+      { marker: "Times in", padding: /pl-3 pr-1 py-3/ },
       // Sign-in word: grows leftward from the band's right edge.
-      { marker: ">Sign in<", padding: /pl-4 pt-2 pb-4/ },
+      { marker: ">Sign in<", padding: /pl-4 py-3/ },
     ];
     for (const { marker, padding } of targets) {
       const at = header.indexOf(marker);
@@ -163,24 +171,26 @@ describe("expo policy: every target is a thumb's size", () => {
   });
 });
 
-describe("expo policy: the trips store takes data from an injected source", () => {
-  // Scoped to the one store that has the seam on purpose. tripsStore
-  // proves the wiring interface; the seven other stores still import
-  // their mock pools directly (see lib/sources.ts), and giving each a
-  // seam is the wiring plan's job — not something this assertion
-  // should pretend already happened by passing vacuously.
+describe("expo policy: the trips store is query-backed, not mock-backed", () => {
+  // Phase 8: the injected-source seam is deleted (lib/sources.ts and
+  // createTripsStore are gone). Data comes from the query cache; the
+  // lab renders from @/mocks directly, never through a store.
   function libSource(rel: string): string {
     return fs.readFileSync(path.join(mobileDir, rel), "utf8");
   }
 
-  it("tripsStore takes data from an injected source, not a mock-pool import", () => {
+  it("tripsStore reads from query options, not a mock pool or a source seam", () => {
     const store = libSource("lib/tripsStore.tsx");
-    expect(store).toContain("@/lib/sources");
+    expect(store).toContain("tripsListOptions");
     expect(store).not.toMatch(/from\s+["']@\/mocks\//);
+    expect(store).not.toMatch(/@\/lib\/sources/);
+    expect(store).not.toMatch(/createTripsStore/);
   });
 
-  it("the mock pool lives in lib/sources.ts", () => {
-    expect(libSource("lib/sources.ts")).toMatch(/from\s+["']@\/mocks\/trips["']/);
+  it("the source seam file is gone", () => {
+    expect(fs.existsSync(path.join(mobileDir, "lib/sources.ts"))).toBe(
+      false,
+    );
   });
 });
 

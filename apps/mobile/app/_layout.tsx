@@ -1,6 +1,16 @@
-import { useEffect } from "react";
-import { View } from "react-native";
+import { Suspense, useEffect, useState } from "react";
+import { AppState, View } from "react-native";
+import { QueryClientProvider, focusManager } from "@tanstack/react-query";
+import { makeQueryClient } from "@/lib/queries/client";
 import { Stack, SplashScreen, usePathname } from "expo-router";
+// The web tab's own label. Expo's shell ships an empty <title>, which
+// reads as the URL on a tab strip; the mark beside it says which product,
+// this says what to call it. A default import, not a named one:
+// `expo-router/head` is `export { Head as default }`, so `{ Head }` is
+// undefined and takes the whole tree down with it. It is the root
+// layout's rather than a screen's, so it holds everywhere — a screen that
+// wants its own title renders a Head of its own and the deepest wins.
+import Head from "expo-router/head";
 import { useFonts } from "expo-font";
 import {
   useFonts as useSpaceMono,
@@ -11,6 +21,7 @@ import {
 import { BungeeShade_400Regular } from "@expo-google-fonts/bungee-shade";
 import { Handjet_800ExtraBold } from "@expo-google-fonts/handjet";
 import { AppHeader } from "@/components/ui/AppHeader";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { BARE_HEADER_ROUTES, DIALOG_ROUTES } from "@/lib/routes";
 import { AuthProvider } from "@/lib/authStore";
 import { NotificationsProvider } from "@/lib/notificationsStore";
@@ -27,6 +38,16 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const pathname = usePathname();
+  // One client per layout mount; QueryClientProvider holds it steady.
+  const [queryClient] = useState(() => makeQueryClient());
+
+  // Refetch stale queries when the app comes back to the foreground.
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (status) => {
+      focusManager.setFocused(status === "active");
+    });
+    return () => subscription.remove();
+  }, []);
   const [displayLoaded, displayError] = useFonts({
     BungeeShade_400Regular,
     Handjet_800ExtraBold,
@@ -50,7 +71,12 @@ export default function RootLayout() {
   if (!loaded && !fontError) return null;
   const isDialog = DIALOG_ROUTES.includes(pathname);
   const bare = BARE_HEADER_ROUTES[pathname];
+  // The lab runs on mocks under the same provider: it gets its own
+  // Suspense fallback so a suspended lab specimen never shows an
+  // app screen's copy, and vice versa.
+  const isLab = pathname === "/design" || pathname.startsWith("/design/");
   return (
+    <QueryClientProvider client={queryClient}>
     <AuthProvider>
     <TripsProvider>
       <EventsProvider>
@@ -60,6 +86,9 @@ export default function RootLayout() {
       <NotificationsProvider>
         <ProfileProvider>
           <TripSettingsProvider>
+            <Head>
+              <title>Journiful</title>
+            </Head>
             <View className="flex-1 bg-sand">
               {/* App shell: a fixed-height column so the screen scrolls
                   under the header instead of scrolling the whole document
@@ -70,7 +99,25 @@ export default function RootLayout() {
                 {/* Dialogs paint their own ground, and screens use the
                     Screen primitive: the navigation container's default
                     background covers anything painted underneath it. */}
-                <Stack screenOptions={{ headerShown: false }} />
+                <Suspense
+                  fallback={
+                    isLab ? (
+                      <LoadingBlock label="Loading the lab." />
+                    ) : (
+                      // What is arriving here is the app, not a thing in
+                      // it: this fallback covers the boot, before any
+                      // screen's own read has started.
+                      <LoadingBlock label="Opening Journiful" />
+                    )
+                  }
+                >
+                  <Stack
+                    screenOptions={{
+                      headerShown: false,
+                      title: "Journiful",
+                    }}
+                  />
+                </Suspense>
               </View>
             </View>
           </TripSettingsProvider>
@@ -82,5 +129,6 @@ export default function RootLayout() {
       </EventsProvider>
     </TripsProvider>
     </AuthProvider>
+    </QueryClientProvider>
   );
 }

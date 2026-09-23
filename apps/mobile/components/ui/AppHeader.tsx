@@ -3,7 +3,8 @@ import { Pressable, Text, View } from "react-native";
 import { Link } from "expo-router";
 import { Bell, User, X } from "lucide-react-native";
 import Svg, { Defs, Path, Pattern, Rect } from "react-native-svg";
-import { useNotifications } from "@/lib/notificationsStore";
+import { useQuery } from "@tanstack/react-query";
+import { unreadCountOptions } from "@/lib/queries/notifications";
 import { useZoneToken } from "@/lib/displayZone";
 import { INK, SAND } from "@/lib/theme";
 
@@ -48,8 +49,16 @@ function WaveEdge() {
 
 /**
  * The zone the times on screen are in, stated once by the chrome rather
- * than on every time. Underlined, because a word with no affordance is a
- * word: this one flips between the trip's clock and your own.
+ * than on every time.
+ *
+ * Underlined when it can be pressed, and only then, because that is what
+ * the underline means here: a word with no affordance is a word, and this
+ * one flips between the trip's clock and your own. When the two clocks
+ * read the same wall there is nothing to flip, so it is a readout — plain
+ * ink, no press, no underline — rather than a button whose whole effect is
+ * invisible. The bell and the avatar beside it need no underline because
+ * the band's slot says they can be pressed; this is the one control in the
+ * band that sometimes cannot be, so it is the one that has to say so.
  *
  * Renders nothing when no surface has registered a zone — the trips list
  * has no trip and no times, so it has nothing to say here.
@@ -59,26 +68,33 @@ function ZoneToken({ onInk = false }: { onInk?: boolean }) {
   if (!zone) return null;
 
   const colour = onInk ? "text-sand" : "text-ink";
+  const flippable = zone.canFlip;
 
   return (
     <Pressable
-      accessibilityRole={zone.onFlip ? "button" : undefined}
+      accessibilityRole={flippable ? "button" : undefined}
       accessibilityLabel={
-        zone.onFlip
+        flippable
           ? `Times in ${zone.label}, ${zone.abbr}. Switch clock`
           : `Times in ${zone.label}, ${zone.abbr}`
       }
-      disabled={!zone.onFlip}
+      disabled={!flippable}
       onPress={() => zone.onFlip?.()}
       // The word is small; the touch area is a real 44pt box: the
-      // padding grows the element itself (pl-3 pr-1 pt-1.5 pb-4.5
-      // around the 20px word), with no negative margin, so the box
-      // sits inside its row and the row grows to hold it. The text
-      // stays where it was: left padding 12 keeps its x, and 6 above
-      // it keeps its y once the box is a full 44 tall and centred.
-      className="pl-3 pr-1 pt-1.5 pb-4.5"
+      // padding grows the element itself (pl-3 pr-1 py-3 around the
+      // 20px word), with no negative margin, so the box sits inside its
+      // row and the row grows to hold it. The padding is the same top
+      // and bottom on purpose: a row centres boxes, not their contents,
+      // so asymmetric padding puts the word off the centre line — 6px
+      // above the wordmark beside it, which is exactly how far the box's
+      // centre sat from the word's.
+      className="pl-3 pr-1 py-3"
     >
-      <Text className={`font-body-bold text-sm ${colour} underline`}>
+      <Text
+        className={`font-body-bold text-sm ${colour} ${
+          flippable ? "underline" : ""
+        }`}
+      >
         {zone.abbr}
       </Text>
     </Pressable>
@@ -86,11 +102,22 @@ function ZoneToken({ onInk = false }: { onInk?: boolean }) {
 }
 
 function BellButton() {
-  const { unreadCount } = useNotifications();
+  // Server-count badge (`GET /notifications/unread-count`). Explicit
+  // state on purpose: this header renders OUTSIDE the layout's
+  // `<Suspense>` (which wraps only `<Stack>` in `app/_layout.tsx`),
+  // so a suspending read (`useSuspenseQuery`) would crash the chrome.
+  // While loading the badge shows nothing; a failed count never
+  // paints an error state in the header — the last known count (or
+  // nothing) stays.
+  const { data } = useQuery(unreadCountOptions());
+  const unreadCount = data ?? 0;
 
+  // 24px icon in a 44pt box, so 10 above and 10 below: the band's row
+  // centres boxes, and a box whose icon is not centred in it puts the
+  // icon off the wordmark's line.
   return (
     <Link href="/notifications" asChild>
-      <Pressable aria-label="Notifications" className="pl-4 pr-1 pt-1 pb-4">
+      <Pressable aria-label="Notifications" className="pl-4 pr-1 py-2.5">
         <View>
           <Bell color={SAND} size={24} />
           {unreadCount > 0 ? (
@@ -105,7 +132,7 @@ function BellButton() {
 function AvatarButton() {
   return (
     <Link href="/profile" asChild>
-      <Pressable aria-label="Profile" className="pl-4 pr-1 pt-1 pb-4">
+      <Pressable aria-label="Profile" className="pl-4 pr-1 py-2.5">
         <User color={SAND} size={24} />
       </Pressable>
     </Link>
@@ -122,16 +149,17 @@ function AvatarButton() {
  *
  * The padding is the other half of that: the word is small, and a
  * fourteen-pixel tap target is not one. Only vertical, so it stays on
- * the band's own right edge.
+ * the band's own right edge — and equal above and below, so the word
+ * sits on the same centre line as the wordmark and the icons.
  */
 function SignInWord() {
   return (
     // asChild so the target keeps its size: the word plus its padding
-    // is a real 44pt box (pt-2 pb-4 around the word, pl-4 growing
-    // leftward from the band's right edge, which does not move), with
-    // no negative margin, so the band grows to hold it.
+    // is a real 44pt box (py-3 around the word, pl-4 growing leftward
+    // from the band's right edge, which does not move), with no negative
+    // margin, so the band grows to hold it.
     <Link href="/login" asChild>
-      <Pressable className="pl-4 pt-2 pb-4">
+      <Pressable className="pl-4 py-3">
         <Text className="font-body-bold text-sm text-sand">Sign in</Text>
       </Pressable>
     </Link>
@@ -169,7 +197,7 @@ export function AppHeader({
           <ZoneToken />
           {action}
           {onClose ? (
-            <Pressable aria-label="Close" onPress={onClose} className="pl-4 pr-1 pt-1 pb-4">
+            <Pressable aria-label="Close" onPress={onClose} className="pl-4 pr-1 py-2.5">
               <X color={INK} size={24} />
             </Pressable>
           ) : null}

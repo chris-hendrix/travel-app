@@ -1,4 +1,4 @@
-import { Suspense, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Image, Linking, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
@@ -15,8 +15,11 @@ import {
 import { useStays } from "@/lib/staysStore";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
-import { useTrips } from "@/lib/tripsStore";
-import { tripFor } from "@/lib/tripLookup";
+import { useTrip } from "@/lib/tripsStore";
+import { useAuth } from "@/lib/authStore";
+import { viewerOf } from "@/lib/members";
+import { useMembers } from "@/lib/queries/members";
+import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { useDismiss } from "@/hooks/useDismiss";
 import { joinFacts } from "@/lib/wording";
@@ -44,26 +47,25 @@ import { joinFacts } from "@/lib/wording";
  */
 export default function StayDetail() {
   return (
-    <Suspense fallback={null}>
+    <TripGate label="Loading stay details">
       <StayDetailDialog />
-    </Suspense>
+    </TripGate>
   );
 }
 
 function StayDetailDialog() {
-  const { id, stay: stayId, as } = useLocalSearchParams<{
+  const { id, stay: stayId } = useLocalSearchParams<{
     id?: string;
     stay?: string;
-    as?: string;
   }>();
-  const { trips } = useTrips();
   const { stayById } = useStays();
   const { for: settingsFor, update } = useTripSettings();
   const router = useRouter();
   const dismiss = useDismiss("/trips");
 
   const tripId = typeof id === "string" ? id : undefined;
-  const trip = tripFor(trips, tripId);
+  const { trip } = useTrip(tripId);
+  const { user } = useAuth();
   const stay = trip
     ? stayById(trip, typeof stayId === "string" ? stayId : undefined)
     : undefined;
@@ -75,6 +77,10 @@ function StayDetailDialog() {
     : { clock: "trip" as const };
   const timeZone = trip && clock === "trip" ? trip.preferredTimezone : null;
   useDisplayZone(trip ? zoneFor(trip, clock, update) : null);
+  // Your role comes from the server: your own roster row, matched by
+  // account — never a query param.
+  const { members } = useMembers(trip?.id);
+  const organizer = viewerOf(members, user?.id)?.isOrganizer ?? false;
 
   if (!trip) {
     return <NotFound />;
@@ -90,7 +96,6 @@ function StayDetailDialog() {
     );
   }
 
-  const organizer = as === "organizer";
   const checkInDay = stayStart(stay, timeZone);
   const checkOutDay = stayEnd(stay, timeZone);
 

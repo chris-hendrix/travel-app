@@ -26,6 +26,7 @@ export function Dropdown({
   placeholder = "Type to filter…",
   error,
   freeText = false,
+  onSearchText,
 }: {
   label: string;
   options: Array<string | DropdownOption>;
@@ -35,6 +36,8 @@ export function Dropdown({
   error?: string | undefined;
   /** Commit whatever is typed, matched or not. */
   freeText?: boolean;
+  /** Every keystroke, for callers fetching live suggestions. Never commits. */
+  onSearchText?: ((text: string) => void) | undefined;
 }) {
   const entries = options.map((option) =>
     typeof option === "string"
@@ -79,6 +82,7 @@ export function Dropdown({
         onChangeText={(v) => {
           setQuery(v);
           setOpen(true);
+          onSearchText?.(v);
           if (freeText) onChange(v);
         }}
       />

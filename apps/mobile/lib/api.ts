@@ -10,18 +10,82 @@
  * module's static graph stays free of `react-native`,
  * `expo-secure-store` and every other native module. Unit tests run in
  * plain node with no renderer; keep it that way.
+ *
+ * The origin rule and upload-path resolution are re-exported from
+ * `lib/uploads.ts`, their pure home: mappers render images, and a
+ * mapper that imported this module would break every test that mocks
+ * `@/lib/api` wholesale (28 of them).
  */
+
+import { apiBase, resolveUploadUrl } from "@/lib/uploads";
+
+export { apiBase, resolveUploadUrl };
 
 export const REQUEST_TIMEOUT_MS = 10_000;
 
-/** The server answered with a non-2xx status. */
+/**
+ * A 401 reached the shared boundary: the stored token is dead (expired
+ * or revoked server-side) and staying signed in only replays the same
+ * failure on every screen. Listeners run once per 401 — the auth
+ * provider subscribes and signs out through `performSignOut` (token
+ * drop, cache clear, state reset), which is what routes back to
+ * sign-in. Field-level 401 copy (`lib/queries/errors.ts`) is untouched:
+ * it still describes the failure where its content would have been.
+ */
+type UnauthorizedListener = () => void;
+
+let unauthorizedListener: UnauthorizedListener | null = null;
+
+/**
+ * The one request whose 401 means "already signed out" rather than "the
+ * session died".
+ *
+ * `POST /auth/logout` answers 401 once the token is gone, so treating
+ * that status as death made sign-out restart itself — the listener
+ * signs out, the sign-out call answers 401, the listener signs out
+ * again — a loop that hammered the API until the E2E harness timed
+ * out. A 401 from sign-out is the expected answer, not a signal.
+ */
+const SIGN_OUT_PATH = "/auth/logout";
+
+/** Subscribe to 401 recovery. Returns an unsubscribe. Last one wins. */
+export function onUnauthorized(listener: UnauthorizedListener): () => void {
+  unauthorizedListener = listener;
+  return () => {
+    if (unauthorizedListener === listener) unauthorizedListener = null;
+  };
+}
+
+/** Clear the dead token and tell the subscriber, never throwing. */
+async function handleUnauthorized(): Promise<void> {
+  try {
+    const { clearToken } = await import("@/lib/session");
+    await clearToken();
+  } catch {
+    // The token store is best-effort on web review builds (see
+    // `lib/session.ts`); a failure here never blocks the sign-out.
+  }
+  try {
+    unauthorizedListener?.();
+  } catch {
+    // A listener must never turn a failed request into a crash.
+  }
+}
+
+/**
+ * The server answered with a non-2xx status. `code`/`message` come
+ * from the API error envelope `{success:false,error:{code,message}}`;
+ * both fall back when the body is missing or is not JSON.
+ */
 export class ApiError extends Error {
   status: number;
+  code?: string | undefined;
 
-  constructor(status: number, message?: string) {
+  constructor(status: number, message?: string, code?: string) {
     super(message ?? `Request failed with status ${status}`);
     this.name = "ApiError";
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -41,38 +105,43 @@ export class NetworkError extends Error {
   }
 }
 
-function isDev(): boolean {
-  const flag = (globalThis as { __DEV__?: boolean }).__DEV__;
-  if (typeof flag === "boolean") return flag;
-  return process.env.NODE_ENV === "development";
-}
-
-/**
- * The API origin. Same variable `lib/flights.ts` already reads
- * (`EXPO_PUBLIC_API_URL`); the localhost fallback exists for local
- * development only and throws loudly anywhere else, so a missing
- * production URL fails at the call site instead of silently hitting
- * a laptop that is not there.
- */
-export function apiBase(): string {
-  const fromEnv = process.env.EXPO_PUBLIC_API_URL?.trim().replace(/\/+$/, "");
-  if (fromEnv) return fromEnv;
-  if (isDev()) return "http://localhost:8000/api";
-  throw new Error(
-    "EXPO_PUBLIC_API_URL is not configured. Set it to the API origin.",
-  );
-}
-
 function isAbort(error: unknown, signal: AbortSignal): boolean {
   if (signal.aborted) return true;
   return error instanceof Error && error.name === "AbortError";
 }
 
+type ErrorEnvelope = {
+  success?: boolean;
+  error?: { code?: unknown; message?: unknown };
+};
+
+/**
+ * Build the `ApiError` for a non-ok response. Reads the API error
+ * envelope; a non-JSON or missing body falls back to the status text
+ * (or the status-number default in `ApiError`), never a parse crash.
+ */
+async function toApiError(response: Response): Promise<ApiError> {
+  const fallback = response.statusText || undefined;
+  try {
+    const body = (await response.json()) as ErrorEnvelope | null;
+    const code =
+      typeof body?.error?.code === "string" ? body.error.code : undefined;
+    const message =
+      typeof body?.error?.message === "string"
+        ? body.error.message
+        : undefined;
+    return new ApiError(response.status, message ?? fallback, code);
+  } catch {
+    return new ApiError(response.status, fallback);
+  }
+}
+
 /**
  * `fetch` against the API origin with a ~10s `AbortController` timeout,
  * the staged session token as `Authorization: Bearer <token>`, and
- * typed failures: `ApiError { status }` for non-ok responses,
- * `TimeoutError` past the timeout, `NetworkError` for anything else.
+ * typed failures: `ApiError { status, code?, message }` for non-ok
+ * responses, `TimeoutError` past the timeout, `NetworkError` for
+ * anything else.
  */
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const base = apiBase();
@@ -90,7 +159,22 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
       headers,
       signal: controller.signal,
     });
-    if (!response.ok) throw new ApiError(response.status);
+    if (!response.ok) {
+      const failure = await toApiError(response);
+      // Exactly one recovery path for a dead session, here at the
+      // shared boundary: fire and forget (the request itself still
+      // throws, so callers keep their field-level copy).
+      //
+      // Two things a 401 must not be: the sign-out call's own answer
+      // (see `SIGN_OUT_PATH`), and a request that carried no token —
+      // there is no session left to end, and the recovery listener
+      // would only run sign-out again on every anonymous 401 the app
+      // makes on its way to sign-in.
+      if (failure.status === 401 && token && path !== SIGN_OUT_PATH) {
+        void handleUnauthorized();
+      }
+      throw failure;
+    }
     if (response.status === 204) return undefined as T;
     return (await response.json()) as T;
   } catch (error) {

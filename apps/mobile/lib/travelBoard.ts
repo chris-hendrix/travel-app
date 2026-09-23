@@ -106,6 +106,27 @@ function orderDirection(
 }
 
 /**
+ * Whether anybody still owes a time, in either direction.
+ *
+ * The trip page's Add travel is a nudge, and whose travel it nudges
+ * depends on who is looking: your own, or — for the organizer, who is
+ * the one who files for everybody — the whole travelling roster's. The
+ * board already answers it: it lists every member in both directions,
+ * and a row without a time is a row that is owed. So this asks the
+ * board rather than re-deriving who counts.
+ */
+export function anyTravelOwed(
+  records: MockTravel[],
+  members: Array<{ id: string; name: string }> = [],
+): boolean {
+  const board = travelBoard(records, null, members);
+  return (
+    board.arrivals.some((row) => row.time === null) ||
+    board.departures.some((row) => row.time === null)
+  );
+}
+
+/**
  * What the travel screen shows: arrivals and departures, each in the
  * order above. Members ride along so nobody is missing: a member with no
  * record waits at the foot, not absent.

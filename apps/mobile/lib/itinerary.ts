@@ -58,6 +58,16 @@ export type ItineraryEvent = {
   allDay: boolean;
   /** Where it is, as a person would say it. */
   place: string;
+  /**
+   * Where it is, as Maps would take it: the live Places details lookup
+   * resolves these when the place was picked from a suggestion, and
+   * they ride to the API on create/update. Null when the place was
+   * typed or came from the static list, which carry no coordinates —
+   * never defaulted, never 0. Optional so rows built before the
+   * lookup existed keep compiling; absent reads as no coordinates.
+   */
+  locationLat?: number | null;
+  locationLon?: number | null;
   /** The place's photo, which the API proxies from Places. */
   image: string;
   /**

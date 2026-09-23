@@ -4,6 +4,7 @@ import { visiblePhone, type Member } from "@/lib/members";
 function member(over: Partial<Member> = {}): Member {
   return {
     id: "m1",
+    userId: null,
     name: "Dana Mercer",
     status: "going",
     isOrganizer: false,

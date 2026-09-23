@@ -95,6 +95,8 @@ export function membersFor(trip: Trip): Member[] {
 
   const going: Member[] = Array.from({ length: trip.going }, (_, index) => ({
     id: `${trip.id}-${index}`,
+    // The lab has no signed-in identity, so no row claims one.
+    userId: null,
     name: name(index),
     status: "going",
     isOrganizer: index === 0,
@@ -108,6 +110,7 @@ export function membersFor(trip: Trip): Member[] {
     .slice(0, 1 + (offset % rest.length))
     .map((status, index) => ({
       id: `${trip.id}-${index}-${status}`,
+      userId: null,
       name: name(trip.going + index),
       status,
       isOrganizer: false,

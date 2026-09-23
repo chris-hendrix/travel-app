@@ -1,16 +1,16 @@
-import { Suspense } from "react";
 import { Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { ChipLink } from "@/components/ui/ChipLink";
-import { useTrips } from "@/lib/tripsStore";
-import { tripFor } from "@/lib/tripLookup";
+import { useTrip } from "@/lib/tripsStore";
+import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
+import { useAuth } from "@/lib/authStore";
+import { visiblePhone, viewerOf, type Member } from "@/lib/members";
 import { memberLabel } from "@/lib/rsvp";
-import { visiblePhone, type Member } from "@/lib/members";
 import { instagramUrl, venmoUrl } from "@/lib/links";
 import { formatPhoneForDisplay } from "@/lib/phone";
-import { membersFor } from "@/mocks/members";
+import { useMembers } from "@/lib/queries/members";
 
 /**
  * The roll call, reached from "6 going" on the trip header.
@@ -38,22 +38,25 @@ import { membersFor } from "@/mocks/members";
  */
 export default function TripMembers() {
   return (
-    <Suspense fallback={null}>
+    <TripGate label="Loading trip members">
       <TripMembersDialog />
-    </Suspense>
+    </TripGate>
   );
 }
 
 function TripMembersDialog() {
-  const { id, as } = useLocalSearchParams<{ id?: string; as?: string }>();
-  const { trips } = useTrips();
+  const { id } = useLocalSearchParams<{ id?: string }>();
   const router = useRouter();
 
   const tripId = typeof id === "string" ? id : undefined;
-  const trip = tripFor(trips, tripId);
-  // The lab's stand-in for `isOrganizer` on the membership, threaded down
-  // from the trip screen so the two can never disagree.
-  const viewerIsOrganizer = as === "organizer";
+  const { trip } = useTrip(tripId);
+  const { user } = useAuth();
+  // The roll call is server state now, suspended under the same gate
+  // as the trip above — the dialog never renders without it.
+  const { members } = useMembers(trip?.id);
+  // Who you are comes from the server: your own roster row, matched
+  // by account, carries your role — never a query param.
+  const viewerIsOrganizer = viewerOf(members, user?.id)?.isOrganizer ?? false;
 
   if (!trip) {
     return <NotFound />;
@@ -76,7 +79,7 @@ function TripMembersDialog() {
       {/* Ruled rows, like every other list here: the part each person
           plays sits at the far edge so the column can be read down. */}
       <View className="border-t border-ink">
-        {membersFor(trip).map((member) => (
+        {members.map((member) => (
           <MemberRow
             key={member.id}
             member={member}

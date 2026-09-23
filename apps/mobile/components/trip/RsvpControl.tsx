@@ -25,9 +25,16 @@ const TONES: Record<RsvpStatus, SegmentedTone> = {
 export function RsvpControl({
   value,
   onChange,
+  disabled = false,
 }: {
   value: RsvpStatus;
   onChange: (status: RsvpStatus) => void;
+  /**
+   * The answer is in flight, so the control reports itself disabled:
+   * announced on both platforms, and the pressables refuse the second
+   * tap — which is what keeps one answer to one send.
+   */
+  disabled?: boolean;
 }) {
   return (
     <Segmented
@@ -38,6 +45,7 @@ export function RsvpControl({
       }))}
       value={value}
       onChange={onChange}
+      disabled={disabled}
     />
   );
 }

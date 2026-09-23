@@ -3,67 +3,153 @@ import {
   useCallback,
   useContext,
   useMemo,
-  useState,
   type ReactNode,
 } from "react";
-import { NOTIFICATIONS } from "@/mocks/notifications";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   unreadCount as countUnread,
   type Notification,
 } from "@/lib/notifications";
+import {
+  markAllNotificationsRead,
+  markNotificationRead,
+  notificationKeys,
+  notificationsListOptions,
+} from "@/lib/queries/notifications";
 
 type NotificationsValue = {
   notifications: Notification[];
   unreadCount: number;
-  markRead: (id: string) => void;
-  markAllRead: () => void;
+  markRead: (id: string) => Promise<void>;
+  markAllRead: () => Promise<void>;
+  /**
+   * The list read's state, for the screen gate. Explicit rather than
+   * Suspense on purpose: the header's bell reads this same hook
+   * outside any Suspense boundary, so a suspending read would crash
+   * the chrome. The screen owns the loading/error copy off these.
+   */
+  status: "pending" | "error" | "success";
+  error: unknown;
+  retry: () => void;
 };
 
 const NotificationsContext = createContext<NotificationsValue | null>(null);
 
 /**
- * In-memory notifications. Stands in for the API so read state is real —
- * the header's unread dot and the dialog read the same store, so marking
- * read is visible in both places. Same call sites will hit the server
- * later.
+ * Reads are server state now (`notificationsListOptions`, explicit —
+ * see `status` above for why not Suspense). Writes go through the API
+ * with optimistic cache edits, rollback, and invalidate — the Task 4
+ * trips flow shape.
+ *
+ * The key shape is unchanged, so the notifications screen and the
+ * header's bell keep the accessors they already call; only the engine
+ * is server instead of memory. The unread count is still derived from
+ * the list rows — the server-count badge is Task 2's.
  */
 export function NotificationsProvider({
   children,
-  initial = NOTIFICATIONS,
 }: {
   children: ReactNode;
-  initial?: Notification[];
 }) {
-  const [notifications, setNotifications] = useState<Notification[]>(initial);
+  const queryClient = useQueryClient();
+  const listQuery = useQuery(notificationsListOptions());
+  const notifications = useMemo(
+    () => listQuery.data ?? [],
+    [listQuery.data],
+  );
 
-  const markRead = useCallback((id: string) => {
-    const readAt = new Date().toISOString();
-    setNotifications((current) =>
-      current.map((notification) =>
-        notification.id === id && notification.readAt === null
-          ? { ...notification, readAt }
-          : notification,
-      ),
-    );
-  }, []);
+  const retry = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: notificationKeys.list() });
+  }, [queryClient]);
 
-  const markAllRead = useCallback(() => {
-    const readAt = new Date().toISOString();
-    setNotifications((current) =>
-      current.map((notification) =>
-        notification.readAt === null ? { ...notification, readAt } : notification,
-      ),
-    );
-  }, []);
+  const markReadMutation = useMutation({
+    mutationKey: ["notifications", "markRead"],
+    mutationFn: (id: string) => markNotificationRead(id),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: notificationKeys.list() });
+      const previous =
+        queryClient.getQueryData<Notification[]>(notificationKeys.list());
+      // The single-read endpoint answers `{success: true}` with no
+      // entity, so the optimistic paint IS the read state: stamp
+      // `readAt` now, keep the paint on success, restore on failure.
+      const readAt = new Date().toISOString();
+      if (previous) {
+        queryClient.setQueryData<Notification[]>(
+          notificationKeys.list(),
+          previous.map((notification) =>
+            notification.id === id && notification.readAt === null
+              ? { ...notification, readAt }
+              : notification,
+          ),
+        );
+      }
+      return { previous };
+    },
+    onError: (_error, _id, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(notificationKeys.list(), context.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: notificationKeys.list() });
+      // The header bell reads the server count
+      // (`unreadCountOptions`), not the list rows — so the count key
+      // must invalidate alongside the list, or the badge goes stale
+      // while the center is fresh.
+      queryClient.invalidateQueries({
+        queryKey: notificationKeys.unreadCount(),
+      });
+    },
+  });
+
+  const markAllReadMutation = useMutation({
+    mutationKey: ["notifications", "markAllRead"],
+    mutationFn: () => markAllNotificationsRead(),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: notificationKeys.list() });
+      const previous =
+        queryClient.getQueryData<Notification[]>(notificationKeys.list());
+      // Same `{success: true}` answer shape as the single read: stamp
+      // every unread row now. Already-read rows keep their own stamp.
+      const readAt = new Date().toISOString();
+      if (previous) {
+        queryClient.setQueryData<Notification[]>(
+          notificationKeys.list(),
+          previous.map((notification) =>
+            notification.readAt === null
+              ? { ...notification, readAt }
+              : notification,
+          ),
+        );
+      }
+      return { previous };
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(notificationKeys.list(), context.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: notificationKeys.list() });
+      // Same server-count badge as the single read: invalidate the
+      // count key alongside the list.
+      queryClient.invalidateQueries({
+        queryKey: notificationKeys.unreadCount(),
+      });
+    },
+  });
 
   const value = useMemo(
     () => ({
       notifications,
       unreadCount: countUnread(notifications),
-      markRead,
-      markAllRead,
+      markRead: (id: string) => markReadMutation.mutateAsync(id),
+      markAllRead: () => markAllReadMutation.mutateAsync(),
+      status: listQuery.status,
+      error: listQuery.error,
+      retry,
     }),
-    [notifications, markRead, markAllRead],
+    [notifications, markReadMutation, markAllReadMutation, listQuery.status, listQuery.error, retry],
   );
 
   return (

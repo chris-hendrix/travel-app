@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
     "clean": "rm -rf .expo dist node_modules"
   },
   "dependencies": {
@@ -20,6 +21,7 @@
     "@expo-google-fonts/handjet": "^0.4.2",
     "@expo-google-fonts/space-mono": "^0.4.2",
     "@journiful/shared": "workspace:*",
+    "@tanstack/react-query": "^5.101.4",
     "expo": "~57.0.24",
     "expo-constants": "~57.0.19",
     "expo-font": "~57.0.4",
@@ -44,6 +46,7 @@
     "tailwindcss": "4.1.12"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "4.1.12",
     "@types/react": "^19.1.0",
     "expo-doctor": "^1.20.4",

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Text, View } from "react-native";
+import { InlineAction } from "@/components/ui/InlineAction";
 import { documentBlocks, parseInline } from "@journiful/shared/legal";
 import type { LegalDocument, MarkdownBlock } from "@journiful/shared/legal";
 
@@ -12,10 +13,11 @@ import type { LegalDocument, MarkdownBlock } from "@journiful/shared/legal";
  * is the only component that turns that into type. Headings take the
  * display face, because a heading is a short string and short strings
  * are all the display face is for. The body takes the body face at a
- * size that survives a screenful of it. Links are underlined and left
- * in ink: colour here is a role — primary for the thing to press, accent
- * for the thing to notice — and a cross-link inside a policy is doing
- * neither job.
+ * size that survives a screenful of it. Links are `InlineAction`: bold
+ * and underlined, in ink, like every other pressable word in the system
+ * that has no box to say so. They were underlined and *not* bold here,
+ * which was drift rather than a decision — the note above them only ever
+ * justified the colour.
  */
 export function Prose({
   document,
@@ -109,14 +111,11 @@ function runsOf(
 
     if (run.kind === "link") {
       return (
-        <Text
+        <InlineAction
           key={index}
-          accessibilityRole="link"
+          label={run.label}
           onPress={() => onLink?.(run.href)}
-          className="font-body underline"
-        >
-          {run.label}
-        </Text>
+        />
       );
     }
 

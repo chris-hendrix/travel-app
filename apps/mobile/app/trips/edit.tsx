@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Image, Pressable, Text, View } from "react-native";
 import { Stack, useLocalSearchParams } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
@@ -6,14 +6,24 @@ import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { DatePicker } from "@/components/ui/DatePicker";
+import { FieldError } from "@/components/ui/FieldError";
 import type { Selection } from "@/lib/calendar";
 import { formatDateRange } from "@/lib/dateRange";
 import { validateNewTrip, type NewTripInput } from "@/lib/newTrip";
-import { useTrips } from "@/lib/tripsStore";
-import { tripFor } from "@/lib/tripLookup";
+import { useTrip, useTripsActions } from "@/lib/tripsStore";
+import { placeholderPhoto } from "@/lib/mapping";
+import type { UpdateTripRequest } from "@/lib/queries/trips";
+import { toErrorCopy } from "@/lib/queries/errors";
+import {
+  toPlaceOption,
+  usePlaceDetails,
+  usePlaceSessionToken,
+  usePlaceSuggestions,
+} from "@/lib/queries/places";
+import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { useDismiss } from "@/hooks/useDismiss";
-import { PLACES } from "@/mocks/places";
+import { PLACES } from "@/lib/placeSuggestions";
 
 /**
  * Edit trip — the organizer's surface for the trip itself. The create
@@ -27,19 +37,21 @@ import { PLACES } from "@/mocks/places";
  */
 export default function EditTrip() {
   return (
-    <Suspense fallback={null}>
+    <TripGate label="Loading trip details">
       <EditTripScreen />
-    </Suspense>
+    </TripGate>
   );
 }
 
 function EditTripScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { trips, updateTrip } = useTrips();
-  const dismiss = useDismiss("/trips");
-
   const tripId = typeof id === "string" ? id : undefined;
-  const trip = tripFor(trips, tripId);
+  // The trip read is the detail query; the write goes through
+  // `PUT /trips/:id` (failure rolls back in the mutation and reads
+  // here, in the screen's existing submit-area style).
+  const { trip } = useTrip(tripId);
+  const { updateTrip, uploadCover, removeCover } = useTripsActions();
+  const dismiss = useDismiss("/trips");
 
   const [title, setTitle] = useState(trip?.title ?? "");
   const [location, setLocation] = useState<string | null>(
@@ -52,6 +64,46 @@ function EditTripScreen() {
   const [description, setDescription] = useState(trip?.description ?? "");
   const [cover, setCover] = useState(trip?.image ?? "");
   const [submitted, setSubmitted] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  // Live Places suggestions sit above the static list; offline, an empty
+  // key, or a 503 falls back to `PLACES` silently, and the required-pick
+  // still accepts a static pick. The field keeps the display string only
+  // — the trip carries no lat/lon.
+  //
+  // It is `suggestions` being absent that falls back, not it being empty.
+  // An empty array is an answer — the live source was asked and has
+  // nothing for that query — and answering it with ten unrelated static
+  // places is worse than answering it with nothing, which is what the
+  // picker says for itself (`No matches`).
+  const [search, setSearch] = useState("");
+  const [sessionToken, rotateSessionToken] = usePlaceSessionToken();
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(
+    null,
+  );
+  const { data: suggestions } = usePlaceSuggestions(search, sessionToken);
+  const details = usePlaceDetails(selectedPlaceId, sessionToken);
+  const liveById = useMemo(
+    () => new Map((suggestions ?? []).map((s) => [s.placeId, s])),
+    [suggestions],
+  );
+  const placeOptions = useMemo(
+    () => (suggestions ? suggestions.map(toPlaceOption) : PLACES),
+    [suggestions],
+  );
+
+  // Details only canonicalize the committed label (and close the
+  // input session) — they never block submit.
+  useEffect(() => {
+    if (!selectedPlaceId) return;
+    if (details.data?.placeId === selectedPlaceId) {
+      setLocation(details.data.name);
+    }
+    if (details.data?.placeId === selectedPlaceId || details.isError) {
+      rotateSessionToken();
+    }
+  }, [details.data, details.isError, selectedPlaceId, rotateSessionToken]);
 
   const pickCover = useCallback(async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -69,8 +121,6 @@ function EditTripScreen() {
     return <NotFound />;
   }
 
-  const defaultCover = `https://picsum.photos/seed/${encodeURIComponent(trip.id)}/900/600`;
-
   const input: NewTripInput = {
     title,
     location: location ?? "",
@@ -80,26 +130,62 @@ function EditTripScreen() {
 
   const errors = submitted ? validateNewTrip(input) : {};
 
-  function save() {
+  async function save() {
     setSubmitted(true);
+    setFailure(null);
     if (Object.keys(validateNewTrip(input)).length > 0) return;
 
-    updateTrip(trip!.id, {
-      title: input.title.trim(),
-      location: input.location.trim(),
+    // Covers ride the cover endpoints, never this patch. The picker
+    // state stays local until save: a picked local URI uploads, an
+    // emptied field deletes (when the trip had a real cover), and an
+    // unchanged remote URL or placeholder sends nothing. A null
+    // cover maps to `placeholderPhoto` — never a broken box — so
+    // "no cover" needs no separate state.
+    const patch: UpdateTripRequest = {
+      name: input.title.trim(),
+      destination: input.location.trim(),
       startDate: input.startDate,
       endDate: input.endDate,
-      description: description.trim() ? description.trim() : null,
-      image: cover || defaultCover,
-    });
-    dismiss();
+      // `description` is optional-but-not-nullable server-side, so an
+      // emptied field is omitted (no change) rather than nulled.
+      ...(description.trim() ? { description: description.trim() } : null),
+    };
+    setBusy(true);
+    try {
+      await updateTrip(trip!.id, patch);
+      const hadCover = trip!.image !== placeholderPhoto(trip!.id);
+      const isLocalUri =
+        cover !== "" && /^(file:|blob:|data:|content:)/.test(cover);
+      if (cover === "" && hadCover) {
+        await removeCover(trip!.id);
+      } else if (isLocalUri) {
+        await uploadCover(trip!.id, cover);
+      }
+      dismiss();
+    } catch (caught) {
+      // The failure reads at the submit area (the lab's Feedback rule:
+      // it belongs where its content would have been — the saved
+      // trip), mapped through the same copies every other screen uses.
+      const copy = toErrorCopy(caught);
+      if (copy.offline) {
+        setFailure("You're offline. Check your connection and try again.");
+      } else {
+        setFailure(
+          copy.message ??
+            (caught instanceof Error ? caught.message : "Couldn't save the trip."),
+        );
+      }
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
     <FullscreenDialog
       title="Edit trip"
-      primaryTitle="Save changes"
-      onPrimary={save}
+      primaryTitle={busy ? "Saving changes" : "Save changes"}
+      onPrimary={() => void save()}
+      pending={busy}
       dismissHref={`/trips/detail?id=${trip.id}`}
     >
       <Stack.Screen options={{ presentation: "modal" }} />
@@ -112,11 +198,23 @@ function EditTripScreen() {
         error={errors.title}
       />
 
+      {/* TODO(BE): `GET /api/locations/autocomplete` and `/details` do not request `photos[].name` (field masks at `location.routes.ts:88-130`, `:178`), so a picked place has no image reference even though `/locations/photos/:photoRef` exists. */}
       <Dropdown
         label="Where"
-        options={PLACES}
+        options={placeOptions}
         value={location}
-        onChange={setLocation}
+        onSearchText={setSearch}
+        onChange={(picked) => {
+          const hit = liveById.get(picked);
+          if (hit) {
+            setSelectedPlaceId(hit.placeId);
+            setLocation(hit.name);
+          } else {
+            setSelectedPlaceId(null);
+            setLocation(picked);
+            rotateSessionToken();
+          }
+        }}
         placeholder="Start typing a place…"
         error={errors.location}
       />
@@ -124,16 +222,13 @@ function EditTripScreen() {
       <View className="gap-2">
         <Text className="font-body-bold text-sm text-ink">Dates</Text>
         <DatePicker selection={dates} onChange={setDates} />
-        <Text className="font-body text-sm text-ink">
-          {dates.start
-            ? formatDateRange(input.startDate, input.endDate)
-            : "Tap the first day, then the last. One tap is a day trip."}
-        </Text>
-        {errors.startDate ? (
+        {dates.start ? (
           <Text className="font-body text-sm text-ink">
-            {errors.startDate}
+            {formatDateRange(input.startDate, input.endDate)}
           </Text>
         ) : null}
+        <FieldError message={errors.startDate} />
+        <FieldError message={errors.endDate} />
       </View>
 
       <TextField
@@ -144,6 +239,10 @@ function EditTripScreen() {
         multiline
         numberOfLines={4}
       />
+
+      {failure ? (
+        <Text className="font-body text-sm text-ink">{failure}</Text>
+      ) : null}
 
       <View className="gap-2">
         <Text className="font-body-bold text-sm text-ink">Cover photo</Text>

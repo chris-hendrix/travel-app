@@ -55,6 +55,7 @@ The `build:web` script includes copying static assets into the Next.js standalon
 | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` | Railway reference variable           |
 | `JWT_SECRET`   | (generated)                  | Min 32 characters                    |
 | `FRONTEND_URL` | `https://journiful.app`         | Comma-separated for multiple origins |
+| `PUBLIC_API_ORIGIN` | `https://api.journiful.app` | Server-owned origin for absolute URLs handed to external clients (calendar webcal links). Leave unset in development to fall back to the request host |
 
 #### Twilio Verify (production SMS auth)
 

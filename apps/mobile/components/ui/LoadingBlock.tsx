@@ -9,8 +9,11 @@ import { Text, View } from "react-native";
  * block the content will fill, ruled the same way, so arrival does not
  * rearrange the page.
  *
- * The label is what is loading, never "Loading…" on its own. A bare
- * "Loading…" with no noun is a screen that will not say what is late.
+ * The label is what is arriving, in the product's own voice: the
+ * person's verb and the actual thing — "Getting the run", not
+ * "Loading…" on its own, and not a category the reader already knows
+ * ("trip details"). A bare "Loading…" is a screen that will not say
+ * what is late; a bare noun reads as a broken heading while it loads.
  */
 export function LoadingBlock({ label }: { label: string }) {
   return (

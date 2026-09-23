@@ -1,13 +1,17 @@
-import { Suspense } from "react";
 import { Link, useLocalSearchParams, useRouter } from "expo-router";
 import { Text, View } from "react-native";
+import { useQuery } from "@tanstack/react-query";
 import { InviteCard } from "@/components/trip/InviteCard";
 import { Button } from "@/components/ui/Button";
+import { InlineError } from "@/components/ui/InlineError";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
+import { OfflineBlock } from "@/components/ui/OfflineBlock";
 import { Screen } from "@/components/ui/Screen";
+import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/authStore";
 import { LEGAL_ROWS } from "@/lib/legal";
-import { useTrips } from "@/lib/tripsStore";
-import { invitationById } from "@/mocks/invitations";
+import { toErrorCopy } from "@/lib/queries/errors";
+import { invitationPreviewOptions } from "@/lib/queries/invitations";
 
 /**
  * The invitation: what a friend's text opens.
@@ -30,67 +34,77 @@ import { invitationById } from "@/mocks/invitations";
  * the trips list, with the trip in it.
  */
 export default function Invite() {
-  return (
-    <Suspense fallback={null}>
-      <InviteScreen />
-    </Suspense>
-  );
+  return <InviteScreen />;
 }
 
 function InviteScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const router = useRouter();
   const { user } = useAuth();
-  const { trips } = useTrips();
-
-  const invitation = invitationById(typeof id === "string" ? id : undefined);
-  const trip = invitation
-    ? trips.find((candidate) => candidate.id === invitation.tripId)
-    : undefined;
+  const inviteId = typeof id === "string" && id.length > 0 ? id : undefined;
+  // Public query: it fetches signed out (`GET
+  // /invitations/:id/preview` carries no auth), so it is gated on the
+  // id alone and never on auth state.
+  const {
+    status,
+    data: preview,
+    error,
+    refetch,
+  } = useQuery(invitationPreviewOptions(inviteId));
 
   // An id the server never issued, a withdrawn invitation, and an
-  // expired one are one answer, because the endpoint returns null for
-  // all three.
-  if (!invitation || !trip) {
+  // expired one are one answer, because the endpoint 404s for all
+  // three — matched here directly, never via `toErrorCopy` (whose
+  // `INVITATION_NOT_FOUND` copy belongs to the accept mismatch).
+  if (
+    !inviteId ||
+    (status === "success" && !preview) ||
+    (status === "error" && error instanceof ApiError && error.status === 404)
+  ) {
+    return <GoneInvite onStartOwn={() => router.replace("/")} />;
+  }
+
+  if (status === "pending") {
     return (
       <Screen>
-        <View className="gap-8 pt-4 md:pt-14">
-          <View className="gap-3">
-            <Text className="font-display text-4xl uppercase leading-none text-ink">
-              This invitation is gone
-            </Text>
-            <Text className="font-body text-base leading-snug text-ink">
-              It has expired, or someone has already used it.
-            </Text>
-          </View>
-          <Button
-            title="Start your own trip"
-            onPress={() => router.replace("/")}
-          />
-          <View className="flex-row flex-wrap gap-x-6 gap-y-2">
-            {LEGAL_ROWS.map((row) => (
-              <Link
-                key={row.href}
-                href={row.href}
-                className="font-body text-sm text-ink underline"
-              >
-                {row.short}
-              </Link>
-            ))}
-          </View>
-        </View>
+        <LoadingBlock label="Loading this invitation" />
       </Screen>
     );
+  }
+
+  if (status === "error") {
+    const copy = toErrorCopy(error);
+    // `exactOptionalPropertyTypes` is on: only pass `onRetry` when the
+    // copy offers a retry, never an explicit `undefined`.
+    const retryProps = copy.retry
+      ? { onRetry: () => void refetch() }
+      : {};
+    return (
+      <Screen>
+        {copy.offline ? (
+          <OfflineBlock {...retryProps} />
+        ) : (
+          <InlineError
+            message={copy.message ?? "Couldn't load this invitation"}
+            {...retryProps}
+          />
+        )}
+      </Screen>
+    );
+  }
+
+  if (!preview) {
+    return <GoneInvite onStartOwn={() => router.replace("/")} />;
   }
 
   return (
     <Screen lead>
       <InviteCard
-        inviterName={invitation.inviterName}
-        tripName={trip.title}
-        destination={trip.location}
-        startDate={trip.startDate}
-        endDate={trip.endDate}
+        inviterName={preview.inviterName}
+        tripName={preview.tripName}
+        destination={preview.destination}
+        startDate={preview.startDate}
+        endDate={preview.endDate}
       />
       {user ? (
         // Signed in already, so there is no number to ask for. The trip
@@ -100,21 +114,52 @@ function InviteScreen() {
           title="Go to the trip"
           variant="accent"
           onPress={() =>
-            router.replace(`/trips/detail?id=${trip.id}`)
+            router.replace(`/trips/detail?id=${preview.tripId}`)
           }
         />
       ) : (
-        // Open question for the invite wiring: whether the invitation
-        // token must survive sign-in depends on the endpoint contract —
-        // whether verify expects the token presented, or resolves the
-        // invitee by number (processPendingInvitations) with nothing to
-        // carry across. Until that contract exists, nothing is carried.
+        // The preview is public and acceptance happens server-side at
+        // verify, so nothing about the invitation crosses sign-in.
         <Button
           title="Sign in to join"
           variant="accent"
           onPress={() => router.push("/login")}
         />
       )}
+    </Screen>
+  );
+}
+
+/**
+ * The gone state, unchanged: "This invitation is gone / It has
+ * expired, or someone has already used it." — the already-accepted
+ * preview lands here too, which is what "already used" means.
+ */
+function GoneInvite({ onStartOwn }: { onStartOwn: () => void }) {
+  return (
+    <Screen>
+      <View className="gap-8 pt-4 md:pt-14">
+        <View className="gap-3">
+          <Text className="font-display text-4xl uppercase leading-none text-ink">
+            This invitation is gone
+          </Text>
+          <Text className="font-body text-base leading-snug text-ink">
+            It has expired, or someone has already used it.
+          </Text>
+        </View>
+        <Button title="Start your own trip" onPress={onStartOwn} />
+        <View className="flex-row flex-wrap gap-x-6 gap-y-2">
+          {LEGAL_ROWS.map((row) => (
+            <Link
+              key={row.href}
+              href={row.href}
+              className="font-body text-sm text-ink underline"
+            >
+              {row.short}
+            </Link>
+          ))}
+        </View>
+      </View>
     </Screen>
   );
 }

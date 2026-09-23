@@ -76,7 +76,20 @@ export async function locationRoutes(fastify: FastifyInstance) {
       const key = request.server.config.GOOGLE_MAPS_API_KEY;
 
       if (!key) {
-        return reply.send([]);
+        // The same answer `/details` gives for the same condition, and the
+        // one the mobile client's own doc already promises: 503 means the
+        // live source could not be asked, so a picker can fall back to the
+        // static list it ships. It used to answer `200 []`, which reads as
+        // "asked, and there are none" — so a query nobody could answer was
+        // indistinguishable from a query with no matches, and a form
+        // answered a real search with ten invented places.
+        return reply.status(503).send({
+          success: false,
+          error: {
+            code: "SERVICE_UNAVAILABLE",
+            message: "Google API key is not configured",
+          },
+        });
       }
 
       try {

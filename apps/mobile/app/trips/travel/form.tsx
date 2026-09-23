@@ -1,7 +1,8 @@
-import { Suspense, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Text } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { TravelDialog } from "@/components/trip/TravelDialog";
 import {
   buildLegRecord,
@@ -9,15 +10,18 @@ import {
   type TravelDirection,
   type TravelLeg,
 } from "@/lib/newTravel";
-import { getPertinentLocation, getPertinentTime } from "@journiful/shared/utils";
-import { useTrips } from "@/lib/tripsStore";
-import { tripFor } from "@/lib/tripLookup";
+import { getPertinentLocation } from "@journiful/shared/utils";
+import { useTrip } from "@/lib/tripsStore";
+import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { useTravel } from "@/lib/travelStore";
+import { useTravel as useTravelSection } from "@/lib/queries/travel";
+import { toErrorCopy } from "@/lib/queries/errors";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
-import { viewerMember } from "@/lib/members";
-import { membersFor } from "@/mocks/members";
+import { useAuth } from "@/lib/authStore";
+import { viewerOf } from "@/lib/members";
+import { useMembers } from "@/lib/queries/members";
 import type { MockTravel } from "@/mocks/travel";
 
 import { useDismiss } from "@/hooks/useDismiss";
@@ -30,34 +34,41 @@ import { useDismiss } from "@/hooks/useDismiss";
  * second one beside it.
  *
  * Who can file for whom is the API's rule, mirrored here: the organizer
- * files for anyone, a traveler is locked to self. The lab threads the
- * role down from the board so the two can never disagree.
+ * files for anyone, a traveler is locked to self. The role comes from
+ * the server — your own roster row, matched by account.
  */
 export default function TravelForm() {
   return (
-    <Suspense fallback={null}>
+    <TripGate label="Loading travel details">
       <TravelFormScreen />
-    </Suspense>
+    </TripGate>
   );
 }
 
 function TravelFormScreen() {
-  const { id, travel: travelId, as, member, direction } = useLocalSearchParams<{
+  const { id, travel: travelId, member, direction } = useLocalSearchParams<{
     id?: string;
     travel?: string;
-    as?: string;
     member?: string;
     direction?: string;
   }>();
-  const { trips } = useTrips();
   const { travelById, travelForTrip, addTravel, updateTravel, deleteTravel } =
     useTravel();
+  // The last save's or delete's failure, fed to the dialog's
+  // InlineError. The dialog stays open on failure.
+  const [serverError, setServerError] = useState<string | null>(null);
+  // A write in flight. The dialog's buttons stop on it, so a second
+  // press cannot save twice or delete a direction being saved.
+  const [saving, setSaving] = useState(false);
   const { for: settingsFor, update } = useTripSettings();
   const dismiss = useDismiss("/trips");
   const router = useRouter();
 
   const tripId = typeof id === "string" ? id : undefined;
-  const trip = tripFor(trips, tripId);
+  const { trip } = useTrip(tripId);
+  // Warms the section query the store reads from, so a cold load
+  // (deep link straight here) still finds the record once it lands.
+  const { status: sectionStatus } = useTravelSection(trip?.id);
   // The zone the fields mean: the trip's own clock setting, the same one
   // the board behind this form is reading. What is typed is stamped in
   // it, and what it stamps is read back in it.
@@ -68,20 +79,18 @@ function TravelFormScreen() {
   // A form sets times on the same clock the screen behind it reads them
   // on, so the zone it is writing in is the zone the chrome names.
   useDisplayZone(trip ? zoneFor(trip, clock, update) : null);
-  // The lab's stand-in for `isOrganizer` on the membership, threaded
-  // down from the board so the two can never disagree.
-  const viewerIsOrganizer = as === "organizer";
+  const { user } = useAuth();
   const editingId = typeof travelId === "string" ? travelId : undefined;
   const record = trip ? travelById(trip, editingId) : undefined;
   const directionParam: TravelDirection | undefined =
     direction === "arrival" || direction === "departure" ? direction : undefined;
 
+  // The member picker is server state now, suspended under the same
+  // gate as the trip above.
+  const { members: roster } = useMembers(trip?.id);
   const members = useMemo(
-    () =>
-      trip
-        ? membersFor(trip).filter((member) => member.status === "going")
-        : [],
-    [trip],
+    () => roster.filter((member) => member.status === "going"),
+    [roster],
   );
 
   const records = useMemo(
@@ -90,11 +99,9 @@ function TravelFormScreen() {
   );
 
   // Whose form this is: the record's member, a linked row's member, or
-  // the viewer themselves.
-  const filedMemberIds = records
-    .filter((candidate) => getPertinentTime(candidate))
-    .map((candidate) => candidate.memberId);
-  const viewer = viewerMember(members, viewerIsOrganizer, filedMemberIds);
+  // the viewer themselves — your own roster row, matched by account.
+  const viewer = viewerOf(members, user?.id);
+  const viewerIsOrganizer = viewer?.isOrganizer ?? false;
   const linkedMember =
     member && members.some((candidate) => candidate.id === member)
       ? member
@@ -113,13 +120,22 @@ function TravelFormScreen() {
     (candidate) => candidate.travelType === "departure",
   );
 
-  const boardHref = `/trips/travel?id=${trip?.id ?? ""}&as=${viewerIsOrganizer ? "organizer" : "traveler"}`;
+  const boardHref = `/trips/travel?id=${trip?.id ?? ""}`;
 
   if (!trip) {
     return <NotFound />;
   }
 
   if (editingId && !record) {
+    // While the section loads the record may simply not have arrived
+    // yet: only the landed read gets to say it is gone.
+    if (sectionStatus === "loading") {
+      return (
+        <FullscreenDialog title="Travel" dismissHref="/trips">
+          <LoadingBlock label="Loading travel details" />
+        </FullscreenDialog>
+      );
+    }
     return (
       <FullscreenDialog title="Travel" dismissHref="/trips">
         <Text className="font-body text-base text-ink">
@@ -164,7 +180,15 @@ function TravelFormScreen() {
   return (
     <TravelDialog
       title={record ? "Edit travel" : "Add travel"}
-      primaryTitle={record ? "Save changes" : "Add travel"}
+      primaryTitle={
+        record
+          ? saving
+            ? "Saving changes"
+            : "Save changes"
+          : saving
+            ? "Adding travel"
+            : "Add travel"
+      }
       trip={trip}
       timeZone={timeZone}
       members={members}
@@ -177,11 +201,30 @@ function TravelFormScreen() {
       }}
       dismissHref={boardHref}
       initial={initial}
+      serverError={serverError}
+      pending={saving}
       onDelete={
         record
-          ? () => {
-              deleteTravel(trip.id, record.id);
-              router.replace(boardHref);
+          ? (direction) => {
+              // Deleting is per direction: the panel you are in is what
+              // goes, and each direction is its own server row.
+              const existing =
+                direction === "arrival" ? arrivalRecord : departureRecord;
+              if (!existing) return;
+              // A failed delete stays on the form with the failure
+              // instead of leaving.
+              setServerError(null);
+              setSaving(true);
+              void deleteTravel(trip.id, existing.id)
+                .then(
+                  () => router.replace(boardHref),
+                  (error: unknown) =>
+                    setServerError(
+                      toErrorCopy(error).message ??
+                        "Couldn't delete the travel.",
+                    ),
+                )
+                .finally(() => setSaving(false));
             }
           : undefined
       }
@@ -191,6 +234,7 @@ function TravelFormScreen() {
         );
         const memberName = target?.name ?? record?.memberName ?? "";
 
+        const saves: Array<Promise<unknown>> = [];
         for (const legDirection of ["arrival", "departure"] as const) {
           const existing = records.find(
             (candidate) =>
@@ -207,10 +251,27 @@ function TravelFormScreen() {
           );
           // An untouched direction is unshared: nothing to save.
           if (!next) continue;
-          if (existing) updateTravel(trip.id, existing.id, next);
-          else addTravel(trip.id, next);
+          // The built row is the optimistic paint the store swaps the
+          // server record in by.
+          saves.push(
+            existing
+              ? updateTravel(trip.id, existing.id, next)
+              : addTravel(trip.id, next),
+          );
         }
-        dismiss();
+        // The dialog stays open on failure: dismissing would pretend
+        // it saved.
+        setServerError(null);
+        setSaving(true);
+        void Promise.all(saves)
+          .then(
+            () => dismiss(),
+            (error: unknown) =>
+              setServerError(
+                toErrorCopy(error).message ?? "Couldn't save the travel.",
+              ),
+          )
+          .finally(() => setSaving(false));
       }}
     />
   );

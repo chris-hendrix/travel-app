@@ -318,3 +318,113 @@ jobs:
           name: playwright-report
           path: apps/web/playwright-report/
           retention-days: 30
+
+  # Step 4b: Mobile E2E Tests (sharded, chromium-only)
+  mobile-e2e-tests:
+    name: Mobile E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: changes
+    if: |
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/master' ||
+      needs.changes.outputs.api == 'true' ||
+      needs.changes.outputs.mobile == 'true' ||
+      needs.changes.outputs.shared == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        shardIndex: [1, 2]
+        shardTotal: [2]
+    env:
+      NODE_ENV: test
+      GEOCODING_STUB: true
+      DATABASE_URL: postgresql://journiful:journiful123@localhost:5432/journiful
+      JWT_SECRET: test-jwt-secret-minimum-32-characters-long-for-testing-purposes-only
+      FRONTEND_URL: http://localhost:3000,http://localhost:8081
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: journiful
+          POSTGRES_PASSWORD: journiful123
+          POSTGRES_DB: journiful
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Browsers (mobile, chromium only)
+        run: pnpm --filter @journiful/mobile exec playwright install --with-deps chromium
+
+      - name: Run database migrations
+        run: pnpm --filter @journiful/api db:migrate
+
+      - name: Run Mobile E2E Tests (Shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
+        run: pnpm --filter @journiful/mobile exec playwright test --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+
+      - name: Upload Mobile Blob Report
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: mobile-blob-report-${{ matrix.shardIndex }}
+          path: apps/mobile/blob-report/
+          retention-days: 1
+
+  # Step 4d: Merge Mobile E2E Reports
+  merge-mobile-e2e-reports:
+    name: Merge Mobile E2E Reports
+    needs: mobile-e2e-tests
+    if: ${{ !cancelled() && needs.mobile-e2e-tests.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download Mobile Blob Reports
+        uses: actions/download-artifact@v8
+        with:
+          path: apps/mobile/all-blob-reports
+          pattern: mobile-blob-report-*
+          merge-multiple: true
+
+      - name: Merge Mobile Reports
+        run: |
+          pnpm --filter @journiful/mobile exec playwright merge-reports --reporter=html ./all-blob-reports
+          echo '### Mobile E2E Test Report' >> $GITHUB_STEP_SUMMARY
+          echo 'Full HTML report available in the **playwright-report-mobile** artifact.' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Mobile HTML Report
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-mobile
+          path: apps/mobile/playwright-report/
+          retention-days: 30

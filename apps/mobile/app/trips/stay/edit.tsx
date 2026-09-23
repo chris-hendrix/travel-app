@@ -1,17 +1,20 @@
-import { Suspense } from "react";
+import { useState } from "react";
 import { Text } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
+import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { StayDialog } from "@/components/trip/StayDialog";
+import { useStays as useStaysSection } from "@/lib/queries/stays";
+import { toErrorCopy } from "@/lib/queries/errors";
 import { buildStay, draftFromStay } from "@/lib/newStay";
-import { useTrips } from "@/lib/tripsStore";
-import { tripFor } from "@/lib/tripLookup";
+import { useTrip } from "@/lib/tripsStore";
+import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { useStays } from "@/lib/staysStore";
 import { useDismiss } from "@/hooks/useDismiss";
-import { placePhoto } from "@/mocks/events";
+import { placeholderPhoto } from "@/lib/placeholder";
 
 /**
  * Edit stay — the same form as Add stay, prefilled and one verb changed.
@@ -25,9 +28,9 @@ import { placePhoto } from "@/mocks/events";
  */
 export default function EditStay() {
   return (
-    <Suspense fallback={null}>
+    <TripGate label="Loading stay to edit">
       <EditStayScreen />
-    </Suspense>
+    </TripGate>
   );
 }
 
@@ -36,14 +39,22 @@ function EditStayScreen() {
     id?: string;
     stay?: string;
   }>();
-  const { trips } = useTrips();
   const { for: settingsFor, update } = useTripSettings();
   const { stayById, updateStay, deleteStay } = useStays();
   const dismiss = useDismiss("/trips");
   const router = useRouter();
+  // The last save's or delete's failure, fed to the dialog's
+  // InlineError. The dialog stays open on failure.
+  const [serverError, setServerError] = useState<string | null>(null);
+  // A write in flight. The dialog's buttons stop on it, so a second
+  // press cannot save twice or delete a row being saved.
+  const [saving, setSaving] = useState(false);
 
   const tripId = typeof id === "string" ? id : undefined;
-  const trip = tripFor(trips, tripId);
+  const { trip } = useTrip(tripId);
+  // Warms the section query the store reads from, so a cold load
+  // (deep link straight here) still finds the stay once it lands.
+  const { status: sectionStatus } = useStaysSection(trip?.id);
   const { clock } = trip
     ? settingsFor(trip, new Date())
     : { clock: "trip" as const };
@@ -63,8 +74,17 @@ function EditStayScreen() {
   }
 
   if (!stay) {
+    // While the section loads the stay may simply not have arrived
+    // yet: only the landed read gets to say it is gone.
+    if (sectionStatus === "loading") {
+      return (
+        <FullscreenDialog title="Loading stay to edit" dismissHref="/trips">
+          <LoadingBlock label="Loading stay details" />
+        </FullscreenDialog>
+      );
+    }
     return (
-      <FullscreenDialog title="Edit stay" dismissHref="/trips">
+      <FullscreenDialog title="Loading stay to edit" dismissHref="/trips">
         <Text className="font-body text-base text-ink">
           That stay is not on this trip any more.
         </Text>
@@ -74,29 +94,65 @@ function EditStayScreen() {
 
   return (
     <StayDialog
-      title="Edit stay"
-      primaryTitle="Save changes"
+      title="Loading stay to edit"
+      primaryTitle={saving ? "Saving changes" : "Save changes"}
       trip={trip}
       dismissHref={`/trips/stay/detail?id=${trip.id}&stay=${stay.id}`}
       initial={draftFromStay(stay, timeZone)}
+      initialCoords={
+        typeof stay.addressLat === "number" &&
+        typeof stay.addressLon === "number"
+          ? { lat: stay.addressLat, lon: stay.addressLon }
+          : null
+      }
+      serverError={serverError}
+      pending={saving}
       onDelete={() => {
-        deleteStay(trip.id, stay.id);
-        router.replace(tripHref);
+        // Deleting is soft with no confirmation; a failed delete
+        // stays on the form with the failure instead of leaving.
+        setServerError(null);
+        setSaving(true);
+        void deleteStay(trip.id, stay.id)
+          .then(
+            () => router.replace(tripHref),
+            (error: unknown) =>
+              setServerError(
+                toErrorCopy(error).message ?? "Couldn't delete the stay.",
+              ),
+          )
+          .finally(() => setSaving(false));
       }}
-      onSubmit={(input) => {
+      onSubmit={(input, coords) => {
         // Rebuilt rather than patched: the form sets every field the
-        // stay has, and the two it does not ask for come along.
-        const next = buildStay(
-          input,
-          stay.id,
-          timeZone,
-          stay.address === input.address
-            ? stay.image
-            : placePhoto(input.name),
-          stay.links,
-        );
-        updateStay(trip.id, stay.id, next);
-        dismiss();
+        // stay has, and the two it does not ask for come along. The
+        // rebuilt row is the optimistic paint the store swaps the
+        // server stay in by. Coordinates ride from the live lookup when
+        // the address was re-picked, stay as they were when untouched,
+        // and clear when the address was typed.
+        const next = {
+          ...buildStay(
+            input,
+            stay.id,
+            timeZone,
+            stay.address === input.address
+              ? stay.image
+              : placeholderPhoto(input.name),
+            stay.links,
+          ),
+          addressLat: coords?.lat ?? null,
+          addressLon: coords?.lon ?? null,
+        };
+        setServerError(null);
+        setSaving(true);
+        void updateStay(trip.id, stay.id, next)
+          .then(
+            () => dismiss(),
+            (error: unknown) =>
+              setServerError(
+                toErrorCopy(error).message ?? "Couldn't save the stay.",
+              ),
+          )
+          .finally(() => setSaving(false));
       }}
     />
   );

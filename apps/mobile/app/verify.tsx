@@ -7,6 +7,8 @@ import { QuietAction } from "@/components/ui/QuietAction";
 import { Screen } from "@/components/ui/Screen";
 import { TextField } from "@/components/ui/TextField";
 import { formatPhoneForDisplay } from "@/lib/phone";
+import { destinationForRequiresProfile } from "@/lib/queries/auth";
+import { toErrorCopy } from "@/lib/queries/errors";
 import { useAuth } from "@/lib/authStore";
 
 /** Seconds before the code may be asked for again. The API has its own
@@ -53,12 +55,27 @@ export default function Verify() {
       setBusy(true);
       setFailure(null);
       try {
+        // The next route comes from the server's `requiresProfile` flag:
+        // first-time users finish onboarding, everyone else lands on trips.
         const { requiresProfile } = await verifyCode(value);
-        router.replace(requiresProfile ? "/complete-profile" : "/trips");
+        router.replace(destinationForRequiresProfile(requiresProfile));
       } catch (caught) {
-        setFailure(
-          caught instanceof Error ? caught.message : "Verification failed.",
-        );
+        // Surfacing decision (consistent with Tasks 1-5): `verifyCode`
+        // in `lib/queries/auth.ts` throws the raw `ApiError`; the screen
+        // maps it here with `toErrorCopy`, so the failure reads at the
+        // code field that caused it (the lab's Feedback rule), including
+        // the banned/locked copies from Task 6.
+        const copy = toErrorCopy(caught);
+        if (copy.offline) {
+          setFailure("You're offline. Check your connection and try again.");
+        } else {
+          setFailure(
+            copy.message ??
+              (caught instanceof Error
+                ? caught.message
+                : "Verification failed."),
+          );
+        }
         setCode("");
       } finally {
         setBusy(false);
@@ -85,9 +102,20 @@ export default function Verify() {
       setCooldown(RESEND_COOLDOWN);
       setNote("A new code is on its way.");
     } catch (caught) {
-      setFailure(
-        caught instanceof Error ? caught.message : "Could not send the code.",
-      );
+      // Same mapping as submit: the resend failure renders at the same
+      // code field, so it reads through the same copies (notably the
+      // 429 cooldown copy when the resend trips the limiter).
+      const copy = toErrorCopy(caught);
+      if (copy.offline) {
+        setFailure("You're offline. Check your connection and try again.");
+      } else {
+        setFailure(
+          copy.message ??
+            (caught instanceof Error
+              ? caught.message
+              : "Could not send the code."),
+        );
+      }
     }
   }
 

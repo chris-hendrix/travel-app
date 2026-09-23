@@ -1,35 +1,34 @@
-import { Suspense, useState } from "react";
-import { Image, Pressable, Text, View } from "react-native";
+import { useState } from "react";
+import { Image, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Screen } from "@/components/ui/Screen";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
 import { QuietAction } from "@/components/ui/QuietAction";
 import { PlaceLink } from "@/components/ui/PlaceLink";
 import { RsvpControl } from "@/components/trip/RsvpControl";
 import { Itinerary } from "@/components/trip/Itinerary";
+import { RunLocked } from "@/components/trip/RunLocked";
+import { TripActions } from "@/components/trip/TripActions";
 import { tripCountdown } from "@/lib/countdown";
 import { formatDateRange } from "@/lib/dateRange";
 import { todayIn } from "@/lib/timezone";
 import type { RsvpStatus } from "@/lib/rsvp";
-import { useTrips } from "@/lib/tripsStore";
-import { tripFor } from "@/lib/tripLookup";
+import { useTrip } from "@/lib/tripsStore";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { memberKeys, useMembers } from "@/lib/queries/members";
+import { setRsvpOptions } from "@/lib/queries/rsvp";
+import { TripGate } from "@/components/trip/TripGate";
 import { useTravel } from "@/lib/travelStore";
+import { useTravel as useTravelSection } from "@/lib/queries/travel";
 import NotFound from "@/app/+not-found";
-import { useEvents } from "@/lib/eventsStore";
 import { useStays } from "@/lib/staysStore";
 import { currentStay } from "@/lib/stays";
+import { useAuth } from "@/lib/authStore";
 import { useTripSettings } from "@/lib/tripSettingsStore";
+import { viewerOf, goingMembers } from "@/lib/members";
+import { anyTravelOwed } from "@/lib/travelBoard";
+
 import { getPertinentTime } from "@journiful/shared/utils";
-import { viewerMember } from "@/lib/members";
-import { membersFor } from "@/mocks/members";
-
-type Variant = "organizer" | "traveler";
-
-const VARIANTS: Array<{ value: Variant; label: string }> = [
-  { value: "organizer", label: "Organizer" },
-  { value: "traveler", label: "Traveler" },
-];
 
 /**
  * Trip detail, header only — the itinerary comes after this lands.
@@ -45,11 +44,13 @@ const VARIANTS: Array<{ value: Variant; label: string }> = [
  * produces: a membership is created when the invited number signs in
  * (`processPendingInvitations`), so by the time a traveler can see this
  * screen they are already on the trip. What the server does produce is
- * a member who has not answered yet, and that is the RSVP control's own
- * empty state, not a state of the screen. The consequence is that the
- * itinerary is readable before anybody answers, which is the rule:
- * trip-level things are the organizer's to author and everyone's to
- * read.
+ * a member who has not answered yet — and that member does not get the
+ * run: the API reads full trip data to whoever answered Going, and to
+ * the organizers whatever they answered (`canViewFullTrip`). So the
+ * unanswered state is the RSVP control's own empty state *and* the
+ * run's locked state, which is the one place this screen's copy says
+ * no; the answer is one tap away, above it, and the roster refetch on
+ * success is what turns the run back on.
  *
  * Underneath sits the itinerary, a placeholder for now.
  *
@@ -62,56 +63,71 @@ const VARIANTS: Array<{ value: Variant; label: string }> = [
  * The action sits under the cover in both, which is where the invite
  * belongs: you see the trip, then you answer, then you read.
  *
- * The action itself is the one thing that changes with who you are,
- * which is the PRD's rule — trip-level things are the organizer's,
- * person-level things are your own:
+ * It is one block, and TripActions is where its two tiers are argued:
+ * the ask and the adds. Only the ask changes with who you are, which is
+ * the PRD's rule — trip-level things are the organizer's, person-level
+ * things are your own:
  *
- *   organizer  the trip is authored, so the action is bringing people in
- *   traveler   the trip is not yours, so the action is your own RSVP
+ *   organizer  the trip is authored, so the ask is bringing people in
+ *   traveler   the trip is not yours, so the ask is your own RSVP
  *
- * The variant switch at the top is a lab control, not a product one: it
- * exists so both halves of that rule can be seen side by side. It
- * defaults to the traveler because that is the state with a decision in
- * it.
+ * The trip's own maintenance is not in it: Edit trip and Trip settings
+ * close the facts column instead, under the description, with the rule
+ * that opens the run under them.
+ *
+ * The itinerary below used to carry Add event and Add stay in its own
+ * head, on the argument that the surface holding a list holds the way
+ * onto it. It lost them to this block: the page's verbs belong in one
+ * place, and the itinerary is the one block here that answers with
+ * content rather than with an action.
+ *
+ * Who you are comes from the server: your own roster row, matched by
+ * account, carries your role.
  */
 export default function TripDetail() {
   return (
-    <Suspense fallback={null}>
+    <TripGate label="Getting your trip">
       <TripDetailScreen />
-    </Suspense>
+    </TripGate>
   );
 }
 
 function TripDetailScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { trips } = useTrips();
-  const router = useRouter();
-  const [variant, setVariant] = useState<Variant>("traveler");
-  // Everyone starts unreplied, exactly as the API's default has it.
-  const [response, setResponse] = useState<RsvpStatus>("no_response");
-
-  // Every card on the trips screen opens here, but the id is still a
-  // lookup, not a requirement that always names something: an address
-  // can name a trip that is gone, or none at all, and then this screen
-  // answers with the not-found state rather than another trip.
   const tripId = typeof id === "string" ? id : undefined;
-  const trip = tripFor(trips, tripId);
+  // The header read is the screen gate: the trip comes from the
+  // detail query, suspended above. The events section reads the live
+  // query under the rendered header (its own loading/error states);
+  // stays and travel read their live queries the same way.
+  const { trip } = useTrip(tripId);
+  const { user } = useAuth();
+  const router = useRouter();
+  // TODO(BE): updateRsvpSchema accepts only `going|not_going|maybe`; `no_response` is expressed as absence. Documented in code, not a bug.
+  // The RSVP answer is server state (POST /trips/:tripId/rsvp), painted
+  // optimistically and rolled back on failure — the update-mutation flow
+  // shape. `no_response` is the control's unselected state (no row yet):
+  // it is never sent (setRsvp refuses it), only read from the roster.
+  const [rsvpOverride, setRsvpOverride] = useState<RsvpStatus | null>(null);
+  const queryClient = useQueryClient();
+  const rsvpMutation = useMutation({ ...setRsvpOptions() });
 
+  // An address can name a trip that is gone, or none at all, and then
+  // this screen answers with the not-found state rather than another
+  // trip. A 404 from the query lands there too, via the gate above.
   // All of these are read before the guard: a hook called after a
   // return is a hook called a different number of times.
-  const { eventsForTrip } = useEvents();
+  // Warms the travel list the action block reads — its Add travel shows
+  // only while its viewer owes a time — so a cold detail still knows
+  // whether you owe times once the list lands.
+  useTravelSection(trip?.id);
   const { staysForTrip } = useStays();
   const { for: settingsFor } = useTripSettings();
   const { travelForTrip } = useTravel();
+  // The roster is server state now, suspended under the same gate as
+  // the trip above — the header never renders without it, and the
+  // viewer stand-in below reads the roster, never a mock.
+  const { members } = useMembers(trip?.id);
 
-  // Nothing on the itinerary yet. That is the one case its own head
-  // cannot help with: the itinerary sits below the fold, and the empty
-  // block that carries the same two verbs is under it. So the stack
-  // keeps a nudge only while there is nothing to look at — the same
-  // bargain the travel nudge makes while you owe times.
-  const planIsEmpty = trip
-    ? eventsForTrip(trip).length === 0 && staysForTrip(trip).length === 0
-    : false;
   // The roof the trip page knows about, so its fact row can open the
   // one screen that holds the wifi, the code and the address. The run
   // owns the content; this is the door to it from the top, and it is the
@@ -130,122 +146,107 @@ function TripDetailScreen() {
   }
 
   const countdown = tripCountdown(trip.startDate, trip.endDate);
-  const organizer = variant === "organizer";
 
-  // Your own travel, filed or not: the organizer is the roster's
-  // organizer, everyone else is the lab's stand-in for "you".
-  // Filed means a time is on it: a row without one is still owed.
-  const filed = travelForTrip(trip).filter((record) =>
-    getPertinentTime(record),
-  );
-  const viewer = viewerMember(
-    membersFor(trip),
-    organizer,
-    filed.map((record) => record.memberId),
-  );
+  // Who you are comes from the server: your own roster row, matched
+  // by account, carries your role — never a query param.
+  const viewer = viewerOf(members, user?.id);
+  const organizer = viewer?.isOrganizer ?? false;
+  // Who may read the run at all. The server reads full trip data to the
+  // members who said they are going, and to an organizer whatever they
+  // answered; everybody else gets the state that says so rather than a
+  // section that fails. Nothing unreachable is fetched either, because
+  // the run's own reads live inside the run — the component is not
+  // mounted for them, so there is no request to refuse.
+  const canReadRun =
+    organizer || viewer?.status === "going";
+
+  // Your own travel, filed or not. Filed means a time is on it: a
+  // row without one is still owed.
+  const records = travelForTrip(trip);
+  const filed = records.filter((record) => getPertinentTime(record));
   const viewerTravel = viewer
     ? filed.filter((record) => record.memberId === viewer.id)
     : [];
-  const owesTravel =
+  const viewerOwesTravel =
     !viewerTravel.some((record) => record.travelType === "arrival") ||
     !viewerTravel.some((record) => record.travelType === "departure");
+  // Whose times the nudge is about depends on who is looking. Yours, for
+  // a traveler — it is your own row. Everybody's, for the organizer, who
+  // is the one who files on behalf of the people who have not: it stays
+  // while any of the travelling roster still owes a direction, which is
+  // the whole job of it, and not while the viewer alone happens to be
+  // filed. The set is the travel board's own (`goingMembers`), so the
+  // button and the board agree about whose travel the trip is waiting
+  // on.
+  const travelOwed = organizer
+    ? anyTravelOwed(records, goingMembers(members))
+    : viewerOwesTravel;
 
-  // The nudge onto the trip screen, and only while you owe times: the
-  // board keeps its own Add travel either way. Same words as the board's
-  // button, because it is the same act.
-  const travelCta = owesTravel ? (
-    <Button
-      title="Add travel"
-      // Coloured like the other asks on this screen: while you owe times
-      // it is the one thing here that is yours to do.
-      variant="accent"
-      fullWidth
-      onPress={() =>
-        router.push(
-          `/trips/travel/form?id=${trip.id}&as=${variant}&member=${viewer?.id ?? ""}`,
-        )
+  // The control's value: what you just tapped while it flies, else the
+  // roster's answer for the viewer, else unreplied (no row yet).
+  const response: RsvpStatus = rsvpOverride ?? viewer?.status ?? "no_response";
+  // A write in flight quiets the control: the mutation holds the paint
+  // until the roster refetch lands, so a second answer while it flies
+  // would paint over a value the server has not confirmed yet. The
+  // quiet is a real disable — announced on both platforms — with the
+  // dimmed look the screen already had, and the early return below
+  // keeps the single send even where a press gets through.
+  const rsvpBusy = rsvpMutation.isPending;
+  const answerRsvp = (status: RsvpStatus) => {
+    // Unreachable through the control (RSVP_ANSWERS never offers
+    // no_response), but the type carries all four states: absence is
+    // read, never sent.
+    if (status === "no_response") return;
+    if (rsvpMutation.isPending) return;
+    const tripId = trip.id;
+    setRsvpOverride(status);
+    rsvpMutation.mutate(
+      { tripId, status },
+      {
+        onError: () => setRsvpOverride(null),
+        onSuccess: () => setRsvpOverride(null),
+        onSettled: () => {
+          queryClient.invalidateQueries({
+            queryKey: memberKeys.list(tripId),
+          });
+        },
+      },
+    );
+  };
+
+  // The one block of verbs on this screen, in its three tiers. The RSVP
+  // control arrives as a node rather than as props, because the answer
+  // is this screen's state — off the roster, painted optimistically and
+  // rolled back on failure — and not the block's:
+  //
+  //   organizer  Invite people · Add travel, then Add event and Add stay
+  //   traveler   their own RSVP · Add travel while they owe a time
+  //
+  // Both roles end on the same two words: Edit trip, Trip settings.
+  const action = (
+    <TripActions
+      tripId={trip.id}
+      organizer={organizer}
+      travelOwed={travelOwed}
+      memberId={viewer?.id}
+      ask={
+        <View
+          aria-busy={rsvpBusy}
+          style={rsvpBusy ? { opacity: 0.6 } : undefined}
+        >
+          <RsvpControl
+            value={response}
+            onChange={answerRsvp}
+            disabled={rsvpBusy}
+          />
+        </View>
       }
     />
-  ) : null;
-
-  // Both variants end their action group with the same button: the
-  // organizer's is the fourth in the stack, the traveler's sits directly
-  // under the RSVP.
-  const settingsButton = (
-    <Button
-      title="Trip settings"
-      variant="secondary"
-      fullWidth
-      onPress={() => router.push(`/trips/settings?id=${trip.id}`)}
-    />
-  );
-
-  const action = organizer ? (
-    // One tight group: gap-2, so the four read as a single block rather
-    // than four separate calls.
-    <View className="gap-2">
-      <Button
-        title="Invite people"
-        variant="accent"
-        fullWidth
-        onPress={() => router.push(`/trips/invite?id=${trip.id}`)}
-      />
-      {/* Authoring used to sit here, and moved down to the list it
-          fills: Add event and Add stay are at the head of the itinerary
-          now, which is one scroll away and changes what is directly
-          under them. What stays is the nudge, and only while the
-          itinerary is empty — a button that vanishes once you have used
-          it is a nudge, and a button that never leaves is a fixture. */}
-      {planIsEmpty ? (
-        <Button
-          title="Add the first event"
-          variant="primary"
-          fullWidth
-          onPress={() => router.push(`/trips/events/new?id=${trip.id}`)}
-        />
-      ) : null}
-      {/* The trip's own maintenance, outlined under the coloured two. */}
-      <Button
-        title="Edit trip"
-        variant="secondary"
-        fullWidth
-        onPress={() => router.push(`/trips/edit?id=${trip.id}`)}
-      />
-      {settingsButton}
-      {travelCta}
-    </View>
-  ) : (
-    <View className="gap-2">
-      {/* All three answers, always visible and always reachable — an
-          RSVP you cannot take back is a worse RSVP. */}
-      <RsvpControl value={response} onChange={setResponse} />
-      {travelCta}
-      {settingsButton}
-    </View>
   );
 
   return (
     <Screen>
       <View className="gap-6 md:gap-8">
-        <View className="flex-row gap-6">
-          {VARIANTS.map((option) => (
-            <Pressable
-              key={option.value}
-              onPress={() => setVariant(option.value)}
-            >
-              <Text
-                className={`text-sm text-ink ${
-                  variant === option.value
-                    ? "font-body-bold underline"
-                    : "font-body"
-                }`}
-              >
-                {option.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
         <View className="gap-y-6 md:flex-row md:gap-12">
           {/* Two columns of equal width. flex-1, not w-1/2: react-native
               does not shrink flex items, so two halves plus the gutter
@@ -287,18 +288,14 @@ function TripDetailScreen() {
                 <QuietAction
                   label={`${trip.going} going`}
                   onPress={() =>
-                    router.push(
-                      `/trips/members?id=${trip.id}&as=${variant}`,
-                    )
+                    router.push(`/trips/members?id=${trip.id}`)
                   }
                 />
                 <Text className="font-body text-sm text-ink">·</Text>
                 <QuietAction
                   label="Travel"
                   onPress={() =>
-                    router.push(
-                      `/trips/travel?id=${trip.id}&as=${variant}`,
-                    )
+                    router.push(`/trips/travel?id=${trip.id}`)
                   }
                 />
                 {/* The third door, and deliberately the categorical
@@ -319,7 +316,7 @@ function TripDetailScreen() {
                       label="Stay"
                       onPress={() =>
                         router.push(
-                          `/trips/stay/detail?id=${trip.id}&stay=${stay.id}&as=${variant}`,
+                          `/trips/stay/detail?id=${trip.id}&stay=${stay.id}`,
                         )
                       }
                     />
@@ -329,13 +326,61 @@ function TripDetailScreen() {
             </View>
 
             {trip.description ? <Description text={trip.description} /> : null}
+
+            {/* The trip's own maintenance, under the facts it edits: what
+                the trip is (its name, dates, place, cover) and how its
+                run behaves (the itinerary, notifications, privacy,
+                calendar) are the two screens a member opens least often,
+                so they are words at the foot of this column rather than
+                a tier of the action block — nothing here adds anything,
+                and last place in a column of boxes read as a thing to
+                do. Every member has Trip settings; only the organizer
+                has Edit trip.
+
+                The rule that closes them is the page's own seam, drawn
+                below both columns, and the run's controls sit under it.
+
+                The pair is sent to the bottom of this column from md up
+                (`mt-auto`), because the column is as tall as the cover and
+                the action block beside it and its own content is shorter:
+                left to flow, the words sat high above the seam and the
+                trip's own line did not line up with the foot of the
+                column it belongs to. */}
+            <View className="gap-6 md:mt-auto">
+              <View className="flex-row flex-wrap items-center gap-2">
+                {organizer ? (
+                  <>
+                    <QuietAction
+                      label="Edit trip"
+                      onPress={() => router.push(`/trips/edit?id=${trip.id}`)}
+                    />
+                    <Text className="font-body text-sm text-ink">·</Text>
+                  </>
+                ) : null}
+                <QuietAction
+                  label="Trip settings"
+                  onPress={() => router.push(`/trips/settings?id=${trip.id}`)}
+                />
+              </View>
+            </View>
           </View>
         </View>
 
-        {/* The itinerary is the only thing an unanswered invitation
-            withholds: the description is what you decide on, it is what
-            you get for saying yes. */}
-        <Itinerary trip={trip} as={variant} />
+        {/* The seam between the two halves of the page: the trip above —
+            cover, verbs, facts, description, its own two words at the
+            foot of the column — and the run below, whose own controls sit
+            under this line. It is the page's rule rather than the run's,
+            because only the page can draw one that closes both columns
+            and opens what comes under them; the run's first block
+            therefore brings no rule of its own
+            (components/trip/Itinerary.tsx). */}
+        <View className="h-px w-full bg-ink" />
+
+        {/* The run, or the state that says why it is not here: an
+            unanswered RSVP withholds it, because the server reads full
+            trip data to the people who are going. The description above
+            is what you decide on, which is what you get for saying yes. */}
+        {canReadRun ? <Itinerary trip={trip} organizer={organizer} /> : <RunLocked />}
       </View>
     </Screen>
   );

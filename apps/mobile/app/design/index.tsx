@@ -7,8 +7,8 @@ import { ActionBar } from "@/components/ui/ActionBar";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { TextField } from "@/components/ui/TextField";
-import { ChipToggle } from "@/components/ui/ChipToggle";
-import { RsvpControl } from "@/components/trip/RsvpControl";
+import { ChipToggle } from "@/components/ui/ChipToggle";import { RsvpControl } from "@/components/trip/RsvpControl";
+import { Segmented } from "@/components/ui/Segmented";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { Accordion, AccordionItem } from "@/components/ui/Accordion";
 import { Checkbox, CheckboxLabel } from "@/components/ui/Checkbox";
@@ -20,6 +20,8 @@ import { Screen } from "@/components/ui/Screen";
 // Aliased: this file's own `Section` is the lab's documentation frame, and
 // the product's is the ruled block the frame documents.
 import { Section as RuledSection } from "@/components/ui/Section";
+import { FieldError } from "@/components/ui/FieldError";
+import { InlineAction } from "@/components/ui/InlineAction";
 import { InlineError } from "@/components/ui/InlineError";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
@@ -29,6 +31,8 @@ import type { Selection } from "@/lib/calendar";
 import { RSVP_LABEL, type RsvpStatus } from "@/lib/rsvp";
 import { formatDateRange } from "@/lib/dateRange";
 import { TripCard } from "@/components/trip/TripCard";
+import { TripActions } from "@/components/trip/TripActions";
+import { RunLocked } from "@/components/trip/RunLocked";
 import { InviteCard } from "@/components/trip/InviteCard";
 import { EventCard } from "@/components/trip/EventCard";
 import { Grid } from "@/components/ui/Grid";
@@ -88,6 +92,7 @@ const COLORS: Array<[name: string, token: string, hex: string, swatch: string]> 
   ["Primary", "seafoam", "#42d177", "bg-seafoam"],
   ["Secondary", "watermelon", "#ef8ad4", "bg-watermelon"],
   ["Accent", "strawberry", "#ff6352", "bg-strawberry"],
+  ["Alert", "strawberry-deep", "#b8271a", "bg-strawberry-deep"],
   ["Info", "ocean", "#4281ff", "bg-ocean"],
   ["Highlight", "acid", "#cbfb6a", "bg-acid"],
 ];
@@ -208,6 +213,7 @@ function DesignSystemScreen() {
   const [formName, setFormName] = useState("");
   const [venue, setVenue] = useState<string | null>(null);
   const [rsvp, setRsvp] = useState<RsvpStatus | null>(null);
+  const [layout, setLayout] = useState<"list" | "grid">("list");
   const [pastEvents, setPastEvents] = useState(false);
   const [range, setRange] = useState<Selection>({
     start: null,
@@ -276,7 +282,7 @@ function DesignSystemScreen() {
             <Specimen
               name="AppHeader"
               contract="title? · onClose? · action? · variant?"
-              note="Title mode, shown here. Wordmark mode is the same component with no title, rendered globally above this page. Landing mode is the wordmark alone — no bell, no avatar, no clock, because nobody has signed in yet — and the wordmark stops being a link, because on the landing you are already where it points."
+              note="Title mode, shown here. Wordmark mode is the same component with no title, rendered globally above this page. Landing mode is the wordmark alone — no bell, no avatar, no clock, because nobody has signed in yet — and the wordmark stops being a link, because on the landing you are already where it points. The clock beside the title is the ZoneToken, and it is the one control in the band that is sometimes not a control: underlined and pressable while the two clocks read differently, a plain readout the moment they agree, because its only effect is to change the reading and a tap that changes nothing is worse than no tap. It registers itself with the surface that shows the times (lib/displayZone.tsx), which stacks registrations, so covering a screen and coming back restores its zone rather than losing it."
             >
               <AppHeader
                 title="Notification settings"
@@ -300,17 +306,14 @@ function DesignSystemScreen() {
             <Specimen
               name="DatePicker"
               contract="selection · onChange · single? · min? · max?"
-              note="Range by default: two taps make a trip, endpoints invert to ink, the days between fill seafoam. single picks one day, which is what an event needs and what a leg of travel needs. min/max bound the days that make sense — a trip's own dates for an event inside it, a day past the end for the flight home, since a stay is booked through its last night. Days outside them go gravel and stop responding. Never a nested dialog."
+              note="Range by default: two taps make a trip, endpoints invert to ink, the days between fill seafoam. single picks one day, which is what an event needs and what a leg of travel needs. min/max bound the days that make sense — a trip's own dates for an event inside it, a day past the end for the flight home, since a stay is booked through its last night. Days outside them go gravel and stop responding. Never a nested dialog. The line a caller draws under it is a readout of what is chosen, never an instruction to choose: the calendar already inverts the days that are picked, so `Tap the first day, then the last.` under it was the control repeating itself — and, set in the same black as the error that appears when you submit without one, the reason an empty form read as though it had said nothing at all."
             >
               <DatePicker selection={range} onChange={setRange} />
-              <Text className="font-body text-sm text-ink">
-                {range.start
-                  ? formatDateRange(
-                      range.start,
-                      range.end ?? range.start,
-                    )
-                  : "Tap the first day, then the last."}
-              </Text>
+              {range.start ? (
+                <Text className="font-body text-sm text-ink">
+                  {formatDateRange(range.start, range.end ?? range.start)}
+                </Text>
+              ) : null}
               <DatePicker
                 selection={singleDay}
                 onChange={setSingleDay}
@@ -318,11 +321,11 @@ function DesignSystemScreen() {
                 min={TRIPS[0]!.startDate}
                 max={TRIPS[0]!.endDate}
               />
-              <Text className="font-body text-sm text-ink">
-                {singleDay.start
-                  ? `Single: ${singleDay.start}`
-                  : "Single day, bounded by a trip."}
-              </Text>
+              {singleDay.start ? (
+                <Text className="font-body text-sm text-ink">
+                  {`Single: ${singleDay.start}`}
+                </Text>
+              ) : null}
             </Specimen>
 
             <Specimen
@@ -374,6 +377,21 @@ function DesignSystemScreen() {
             </Specimen>
 
             <Specimen
+              name="FieldError"
+              contract="message?"
+              note="What a field says about what it is missing: under its field, where the field's own helper line sits, and the one line down there that is not ink. That is the whole component. A complaint set in the same black, at the same size, in the same face as the helper sentence above it does not read as a complaint — it reads as a second sentence of the help, which is how a form came to look like it had said nothing. The colour is `strawberry-deep` rather than `strawberry`: the alert at the weight text can be read in. On the dialog's own ground the accent measures 2.19:1, under half of what 14px needs, and this is 4.7:1 in the same hue. Nothing else marks an error, no icon and no border on the field, because a field is wrong in one place and this is it. It also registers itself with the dialog, which scrolls to the first one to appear: the primary button is pinned to the foot and the fields are in the body above it, so a form submitted from a scrolled position put two of its three errors above the viewport with nothing moving to them. No message means no line and no registration, so a caller hands it a validator's `string | undefined` straight through. A field's own complaint, not a request's: a save that failed is a sentence about the request and stays ink, in InlineError below."
+            >
+              <View className="gap-1">
+                <Text className="font-body text-sm text-ink">
+                  A field's own helper line, still ink.
+                </Text>
+                <FieldError message="And its complaint under it, in the alert." />
+              </View>
+              {/* No message, no line — and no registration either. */}
+              <FieldError message={undefined} />
+            </Specimen>
+
+            <Specimen
               name="InlineError"
               contract="message · retryTitle? · onRetry?"
               note="A request that failed, where its content would have been. The message is the caller's sentence about what is missing, not the error's: what the fetch threw is for the console. With a way to ask again, because a failure with nowhere to go is a dead end."
@@ -387,9 +405,9 @@ function DesignSystemScreen() {
             <Specimen
               name="LoadingBlock"
               contract="label"
-              note="A screen that is getting there says so where its content will be. A plain line, not a spinner and not a skeleton: there is no motion language here, and a skeleton promises a shape the request has not returned yet. The label is what is loading, never a bare Loading on its own."
+              note="A screen that is getting there says so where its content will be. A plain line, not a spinner and not a skeleton: there is no motion language here, and a skeleton promises a shape the request has not returned yet. The label is what is arriving, in the product's own voice — the person's verb and the actual thing. Never a bare Loading on its own (a screen that will not say what is late), and never a category noun: Trip details reads as a broken heading while it loads, where Getting your trip reads as waiting."
             >
-              <LoadingBlock label="Loading the itinerary." />
+              <LoadingBlock label="Getting the run." />
             </Specimen>
 
             <Specimen
@@ -413,8 +431,8 @@ function DesignSystemScreen() {
 
             <Specimen
               name="Button"
-              contract="title · variant? · onPress? · fullWidth? · align? · disabled?"
-              note="Fills the width on a phone; from md up it hugs the edge it is aligned to. disabled keeps it in place rather than hiding it: a control that vanishes leaves nothing to aim at. Inside a row, align='end' is what lines a button up with the field beside it — the default hugs the start of the cross axis and sits high."
+              contract="title · variant? · onPress? · fullWidth? · align? · size? · disabled?"
+              note="Fills the width on a phone; from md up it hugs the edge it is aligned to. disabled keeps it in place rather than hiding it: a control that vanishes leaves nothing to aim at. Inside a row, align='end' is what lines a button up with the field beside it — the default hugs the start of the cross axis and sits high. size='sm' is a cell of a row of equal cells, where three of them have to fit across a phone: the sides and the label step down, the height does not."
             >
               <Button
                 title="Create trip"
@@ -483,7 +501,7 @@ function DesignSystemScreen() {
             <Specimen
               name="ChipToggle"
               contract="label · selected? · onPress"
-              note="A filter you can press: filled ink when on, outlined when off. Used for independent filters (past events) and for exclusive choices (trip time / your time) alike, with a plain label above when the row needs one."
+              note="A filter you can press: a box, filled ink when on and outlined when off. For switches you turn on and off (past events), never for a choice among options — that is `Segmented`, whose cells are joined and which holds one value out of a few. A row holding a filter and a choice puts them at the two edges rather than shoulder to shoulder, so they never read as one set. The run's head is the only place the two meet, and the filter is offered only while a trip is under way — before it starts there is nothing behind you, and after it ends the whole run is, so a finished run is always whole and the chip is not there to hide it."
             >
               <View className="flex-row items-center gap-3">
                 <ChipToggle
@@ -503,8 +521,8 @@ function DesignSystemScreen() {
 
             <Specimen
               name="Segmented"
-              contract="options (value · label · tone? · mark?) · value (nullable) · onChange"
-              note="One choice out of a few, all of them visible. Bordered cells, the chosen one inked by default — the same p-4 and text-sm as a button, so a row of these sits in a stack of buttons without a step. Ink rather than a colour, because choosing a direction is not an action: the calendar and the time column already invert what is chosen, and two coloured toggles left the form's one real button looking like one of them. tone is for answers that carry a meaning of their own, which the RSVP has. mark is a short mark after the label, drawn in the label's own colour — travel puts a tick against a direction already filed. value is nullable because having chosen nothing yet is a real state rather than an error."
+              contract="options (value · label · tone? · mark?) · value (nullable) · onChange · size?"
+              note="One choice out of a few, all of them visible. Bordered cells in a row rather than bare words: a word with no box and no underline is a label, not something a thumb can be asked to press, and every control in this system is a box. The cells are button-sized — the same p-4 and text-sm as a button, so a row of these sits in a stack of buttons without a step — and ink rather than a colour, because choosing a direction is not an action: the calendar and the time column already invert what is chosen, and two coloured toggles left the form's one real button looking like one of them. tone is for answers that carry a meaning of their own, which the RSVP has; mark is a short mark after the label, drawn in the label's own colour, for a choice with something to say about itself (travel puts a tick against a direction already filed). value is nullable because having chosen nothing yet is a real state rather than an error — and an always-set value wears the same cells (the profile's temperature, the run's list or grid), because a control that looks different depending on whether a value has been chosen yet would be two controls for one idea."
             >
               <RsvpControl
                 value={rsvp ?? "no_response"}
@@ -513,12 +531,37 @@ function DesignSystemScreen() {
                   setLog(`RSVP "${RSVP_LABEL[status]}"`);
                 }}
               />
+              {/* size="sm": a chrome row's switch, the same box as a chip. */}
+              <View className="flex-row items-center gap-3">
+                <View className="flex-1">
+                  <Segmented
+                    size="sm"
+                    options={[
+                      { value: "list", label: "List" },
+                      { value: "grid", label: "Grid" },
+                    ]}
+                    value={layout}
+                    onChange={(next) => {
+                      setLayout(next);
+                      setLog(`Segmented "${next}"`);
+                    }}
+                  />
+                </View>
+                <ChipToggle
+                  label="Past events"
+                  selected={pastEvents}
+                  onPress={() => {
+                    setPastEvents(!pastEvents);
+                    setLog(`ChipToggle "Past events" ${!pastEvents ? "on" : "off"}`);
+                  }}
+                />
+              </View>
             </Specimen>
 
             <Specimen
               name="TextField"
               contract="label · value · onChangeText · placeholder? · error? · multiline? · numberOfLines? · suffix? · keyboardType? · centered? · autoFocus? · maxLength? · autoComplete? · textContentType?"
-              note="Every dialog that collects input uses this. Errors sit under the field, never in a toast. suffix draws a control that acts on the field inside the field's own box — the Autofill button on a flight number is one — because two separately padded controls only line up until a font metric moves; stretching them inside one box cannot drift. centered is the one-short-value shape: six digits of a code, centred and tracked, which is not a size but a shape. autoComplete and textContentType are the platform's own fill, a phone number or a code that just arrived by text, and they are worth more than any styling here because typing six digits correctly is the one thing a thumb is bad at. autoFocus is for the one field the reader came to fill in."
+              note="Every dialog that collects input uses this. Errors sit under the field, never in a toast, and they are FieldError's — the alert, not ink. suffix draws a control that acts on the field inside the field's own box — the Autofill button on a flight number is one — because two separately padded controls only line up until a font metric moves; stretching them inside one box cannot drift. centered is the one-short-value shape: six digits of a code, centred and tracked, which is not a size but a shape. autoComplete and textContentType are the platform's own fill, a phone number or a code that just arrived by text, and they are worth more than any styling here because typing six digits correctly is the one thing a thumb is bad at. autoFocus is for the one field the reader came to fill in."
             >
               <TextField
                 label="Display name"
@@ -646,9 +689,29 @@ function DesignSystemScreen() {
             </View>
 
             <Specimen
+              name="InlineAction"
+              contract="label · onPress"
+              note="One action as a word inside a sentence: pressed, not followed. Inline by necessity — an empty state says what is missing in a sentence, and the way out of that state belongs in the same sentence; lifted into a row of controls it becomes the toolbar the sentence replaced, and a row of underlined words is a toolbar. Bold and underlined, `QuietAction`'s two marks, because both are words the system asks a thumb to press and neither has a box to say so; no colour, because a colour in this palette is a role and a word mid-sentence is doing neither job. The target is the line it sits in rather than a 44pt box — inside a 16pt paragraph padding would push the line apart — which is a deliberate deviation from the target-size rule, and the reason labels want to stay to two words. `Prose`'s links are this component; the weight had drifted between the two callers and nothing had said they should."
+            >
+              <Text className="font-body text-base text-ink">
+                Nothing planned yet. Add{" "}
+                <InlineAction
+                  label="a stay"
+                  onPress={() => setLog("InlineAction a stay pressed")}
+                />{" "}
+                or{" "}
+                <InlineAction
+                  label="an event"
+                  onPress={() => setLog("InlineAction an event pressed")}
+                />{" "}
+                to get started.
+              </Text>
+            </Specimen>
+
+            <Specimen
               name="Prose"
               contract="document: LegalDocument · onLink?"
-              note="Long-form copy. The documents are stored as Markdown — the thing a person reads, edits and proofs against the published page — and this is the only component in the system that turns it into type. Headings take the display face, because a heading is a short string; the body takes the body face at a size that survives a screenful of it; links are underlined and left in ink, since colour here is a role and a cross-link is doing none of them. The excerpt below is the real Privacy Policy, cut to its opening."
+              note="Long-form copy. The documents are stored as Markdown — the thing a person reads, edits and proofs against the published page — and this is the only component in the system that turns it into type. Headings take the display face, because a heading is a short string; the body takes the body face at a size that survives a screenful of it; links are `InlineAction`, so they carry the same two marks as every other pressable word with no box to say so, and stay in ink because colour here is a role. The excerpt below is the real Privacy Policy, cut to its opening."
             >
               <Prose
                 document={PROSE_SAMPLE}
@@ -684,6 +747,41 @@ function DesignSystemScreen() {
                   />
                 ))}
               </Grid>
+            </Specimen>
+
+            <Specimen
+              name="TripActions"
+              contract="tripId · organizer · owesTravel · memberId? · ask?"
+              note="The trip page's verbs in one block, in two tiers: the ask and the adds. One loud control and only one — the organizer is asked to bring people in, everyone else answers their own RSVP, which is why ask arrives as a node. The adds put Add travel first and on a line of its own, because it is the one that is a question rather than a standing verb (it is there while somebody still owes a time, and the screen decides whose), with Add event and Add stay as a pair of halves under it. The trip's maintenance — Edit trip, Trip settings — is not here: it sits at the foot of the trip's own column on the page, under the description it edits, with the rule that opens the run under it. First the organizer's block, then a traveler's."
+            >
+              <TripActions
+                tripId={SAMPLE_TRIP.id}
+                organizer
+                travelOwed
+                memberId="member-1"
+              />
+              <TripActions
+                tripId={SAMPLE_TRIP.id}
+                organizer={false}
+                travelOwed
+                ask={
+                  <RsvpControl
+                    value={rsvp ?? "no_response"}
+                    onChange={(status) => {
+                      setRsvp(status);
+                      setLog(`RSVP "${RSVP_LABEL[status]}"`);
+                    }}
+                  />
+                }
+              />
+            </Specimen>
+
+            <Specimen
+              name="RunLocked"
+              contract="(no props)"
+              note="The run, for a member the server will not read it to: full trip data needs a Going answer (`canViewFullTrip` in the API's event controller), so the trip page renders this in place of the run rather than a section that 403s, and the run's own reads are never fetched. It states the rule and points at the RSVP control above, in that control's own word, because a run that is simply absent reads as a trip with nothing in it."
+            >
+              <RunLocked />
             </Specimen>
 
             <Specimen
@@ -752,8 +850,10 @@ function DesignSystemScreen() {
             in the list you were already reading, which is a trip, an event and
             a stay. An endpoint with three outcomes states all three where the
             send happened, which is the invite dialog. A failure belongs at the
-            field that caused it, and a request that fails belongs where its
-            content would have been, with a way to ask again.
+            field that caused it, which is `FieldError` — the one line under a
+            field that is not ink — and a request that fails belongs where its
+            content would have been, with a way to ask again, which is
+            `InlineError`.
           </Text>
           <Text className="font-body text-base text-ink">
             The one case that earns a transient message is a destructive action
@@ -901,6 +1001,17 @@ function DesignSystemScreen() {
             Discover · deleted items · delete account · session storage, since
             the sign-in is a mock and nothing survives a reload. Each lands
             here as a pattern first, then in a screen.
+          </Text>
+          <Text className="font-body text-base text-ink">
+            Delete account is the one with a backend behind it rather than
+            beside it, and it is not a route: an admin can ban an account and
+            nothing anywhere can remove one, and `users` has no `deleted_at`
+            where every other deletable thing in the schema has one. Two
+            decisions come before any screen. `payments` and
+            `payment_participants` have to outlive the person they name, so
+            deleting the account cannot mean deleting the rows. And the phone
+            number is the account, so the row that lets somebody sign up again
+            must not be reachable from the row that was deleted.
           </Text>
         </Section>
       </View>
