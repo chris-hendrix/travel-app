@@ -3,6 +3,8 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useRef,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -38,6 +40,55 @@ type TravelValue = {
 };
 
 const TravelContext = createContext<TravelValue | null>(null);
+
+/**
+ * A tick that moves whenever this domain's cache entries change, so
+ * the accessors below re-read the cache instead of the mount-time
+ * snapshot. The subscription filters to this domain's key prefix;
+ * the snapshot is a counter the subscriber bumps before notifying.
+ */
+function useTravelTick(): void {
+  const queryClient = useQueryClient();
+  const tick = useRef(0);
+  const subscribe = useCallback(
+    (notify: () => void) =>
+      queryClient.getQueryCache().subscribe((notification) => {
+        const key = notification?.query?.queryKey as unknown;
+        if (
+          Array.isArray(key) &&
+          key.length >= travelKeys.all.length &&
+          travelKeys.all.every((segment, index) => key[index] === segment)
+        ) {
+          tick.current += 1;
+          notify();
+        }
+      }),
+    [queryClient],
+  );
+  const getSnapshot = useCallback(() => tick.current, []);
+  const getServerSnapshot = useCallback(() => 0, []);
+  useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+}
+
+/**
+ * Only the keys this mutation painted, taken from the pre-paint row:
+ * a concurrent write to another row — or another key of this row —
+ * survives the rollback because the rollback never sees it.
+ */
+function revertOwnedKeys<T extends Record<string, unknown>>(
+  current: T,
+  previousRow: T | undefined,
+  ownedKeys: string[],
+): T {
+  if (!previousRow) return current;
+  const restored = { ...current };
+  for (const key of ownedKeys) {
+    if (key in previousRow) {
+      restored[key as keyof T] = previousRow[key] as T[keyof T];
+    }
+  }
+  return restored;
+}
 
 /** An edit merges into the slot so a soft delete survives it. */
 export function mergeTravelEdit(
@@ -132,6 +183,9 @@ function toUpdateRequest(patch: Partial<MockTravel>): UpdateTravelRequest {
  */
 export function TravelProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
+  // Re-reads the cache when this domain's keys change, so a
+  // background refetch repaints the accessors below.
+  useTravelTick();
 
   const createMutation = useMutation({
     mutationKey: ["travel", "create"],
@@ -157,17 +211,14 @@ export function TravelProvider({ children }: { children: ReactNode }) {
       return { previous, tripId, optimisticId: optimistic.id };
     },
     onError: (_error, _input, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(
-          travelKeys.list(context.tripId),
-          context.previous,
-        );
-      } else if (context) {
-        queryClient.setQueryData<MockTravel[]>(
-          travelKeys.list(context.tripId),
-          (old) => old?.filter((record) => record.id !== context.optimisticId),
-        );
-      }
+      // Delta rollback: only the optimistic row goes away. A whole
+      // snapshot here would erase a concurrent write that painted
+      // after this mutation's `onMutate` ran.
+      if (!context) return;
+      queryClient.setQueryData<MockTravel[]>(
+        travelKeys.list(context.tripId),
+        (old) => old?.filter((record) => record.id !== context.optimisticId),
+      );
     },
     onSuccess: (record, _input, context) => {
       queryClient.setQueryData<MockTravel[]>(
@@ -202,6 +253,7 @@ export function TravelProvider({ children }: { children: ReactNode }) {
       const previous = queryClient.getQueryData<MockTravel[]>(
         travelKeys.list(tripId),
       );
+      const previousRow = previous?.find((record) => record.id === travelId);
       if (previous) {
         queryClient.setQueryData<MockTravel[]>(
           travelKeys.list(tripId),
@@ -210,15 +262,22 @@ export function TravelProvider({ children }: { children: ReactNode }) {
           ),
         );
       }
-      return { previous, tripId, travelId };
+      return { previousRow, ownedKeys: Object.keys(patch), tripId, travelId };
     },
     onError: (_error, _input, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(
-          travelKeys.list(context.tripId),
-          context.previous,
-        );
-      }
+      // Delta rollback: only this mutation's keys revert on its row.
+      // A concurrent edit to another row — or another key of this
+      // row — keeps whatever it painted.
+      if (!context) return;
+      queryClient.setQueryData<MockTravel[]>(
+        travelKeys.list(context.tripId),
+        (old) =>
+          old?.map((row) =>
+            row.id === context.travelId
+              ? revertOwnedKeys(row, context.previousRow, context.ownedKeys)
+              : row,
+          ),
+      );
     },
     onSuccess: (record, _input, context) => {
       // The PUT response carries the full entity, so `toTravel` needs
@@ -246,9 +305,10 @@ export function TravelProvider({ children }: { children: ReactNode }) {
       const previous = queryClient.getQueryData<MockTravel[]>(
         travelKeys.list(tripId),
       );
+      const previousRow = previous?.find((record) => record.id === travelId);
       // By edit rather than by removal: `travelForTrip` holds the row
-      // back while the request flies, and the snapshot restores it on
-      // failure.
+      // back while the request flies, and the rollback below restores
+      // only its `deletedAt` on failure.
       const deletedAt = new Date().toISOString();
       if (previous) {
         queryClient.setQueryData<MockTravel[]>(
@@ -258,15 +318,21 @@ export function TravelProvider({ children }: { children: ReactNode }) {
           ),
         );
       }
-      return { previous, tripId };
+      return { previousRow, tripId, travelId };
     },
     onError: (_error, _input, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(
-          travelKeys.list(context.tripId),
-          context.previous,
-        );
-      }
+      // Delta rollback: only `deletedAt` reverts on this row, so a
+      // concurrent edit keeps whatever it painted.
+      if (!context) return;
+      queryClient.setQueryData<MockTravel[]>(
+        travelKeys.list(context.tripId),
+        (old) =>
+          old?.map((row) =>
+            row.id === context.travelId
+              ? revertOwnedKeys(row, context.previousRow, ["deletedAt"])
+              : row,
+          ),
+      );
     },
     onSettled: (_data, _error, _input, context) => {
       // Soft server-side with `includeDeleted` off: the row

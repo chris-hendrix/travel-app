@@ -73,6 +73,9 @@ function optimisticTrip(input: CreateTripRequest): Trip {
  * `location`); absent patch fields leave the cached trip untouched.
  * `onSuccess` swaps in the server trip (keeping the cached `going`),
  * and `onSettled` invalidates so the next mount reads server truth.
+ * `ownedTripKeys` is its inverse for rollback: the mobile fields one
+ * patch owns, so a failure reverts only those and never a concurrent
+ * write to another field or another trip.
  */
 function applyUpdatePatch(trip: Trip, patch: UpdateTripRequest): Trip {
   return {
@@ -87,6 +90,35 @@ function applyUpdatePatch(trip: Trip, patch: UpdateTripRequest): Trip {
       ? { description: patch.description }
       : null),
   };
+}
+
+function ownedTripKeys(patch: UpdateTripRequest): Array<keyof Trip> {
+  const keys: Array<keyof Trip> = [];
+  if (patch.name !== undefined) keys.push("title");
+  if (patch.destination !== undefined) keys.push("location");
+  if (patch.startDate !== undefined) keys.push("startDate");
+  if (patch.endDate !== undefined) keys.push("endDate");
+  if (patch.description !== undefined) keys.push("description");
+  return keys;
+}
+
+/**
+ * Only the keys this mutation painted, taken from the pre-paint trip:
+ * a concurrent write to another trip — or another key of this trip —
+ * survives the rollback because the rollback never sees it.
+ */
+function revertOwnedTripKeys(
+  current: Trip,
+  previousRow: Trip | undefined,
+  ownedKeys: Array<keyof Trip>,
+): Trip {
+  if (!previousRow) return current;
+  const restored: Record<string, unknown> = { ...current };
+  const prev: Record<string, unknown> = { ...previousRow };
+  for (const key of ownedKeys) {
+    restored[key] = prev[key];
+  }
+  return restored as Trip;
 }
 
 const TripsActionsContext = createContext<TripsActions | null>(null);
@@ -115,9 +147,13 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       return { previous, optimisticId: optimistic.id };
     },
     onError: (_error, _input, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(tripKeys.list(), context.previous);
-      }
+      // Delta rollback: only the optimistic row goes away. A whole
+      // snapshot here would erase a concurrent create that painted
+      // after this mutation's `onMutate` ran.
+      if (!context) return;
+      queryClient.setQueryData<Trip[]>(tripKeys.list(), (old) =>
+        old?.filter((cached) => cached.id !== context.optimisticId),
+      );
     },
     onSuccess: (trip, _input, context) => {
       queryClient.setQueryData<Trip[]>(tripKeys.list(), (old) =>
@@ -151,19 +187,29 @@ export function TripsProvider({ children }: { children: ReactNode }) {
           previousList.map((trip) => (trip.id === id ? apply(trip) : trip)),
         );
       }
-      return { previousDetail, previousList, id };
+      return {
+        previousDetail,
+        previousListRow: previousList?.find((trip) => trip.id === id),
+        ownedKeys: ownedTripKeys(patch),
+        id,
+      };
     },
     onError: (_error, _input, context) => {
+      // Delta rollback: only this mutation's keys revert on its trip,
+      // in both caches. A concurrent write elsewhere keeps its paint.
       if (!context) return;
-      if (context.previousDetail) {
-        queryClient.setQueryData(
-          tripKeys.detail(context.id),
-          context.previousDetail,
-        );
-      }
-      if (context.previousList) {
-        queryClient.setQueryData(tripKeys.list(), context.previousList);
-      }
+      queryClient.setQueryData<Trip>(tripKeys.detail(context.id), (old) =>
+        old
+          ? revertOwnedTripKeys(old, context.previousDetail, context.ownedKeys)
+          : old,
+      );
+      queryClient.setQueryData<Trip[]>(tripKeys.list(), (old) =>
+        old?.map((trip) =>
+          trip.id === context.id
+            ? revertOwnedTripKeys(trip, context.previousListRow, context.ownedKeys)
+            : trip,
+        ),
+      );
     },
     onSuccess: (serverTrip, { id }) => {
       // The PUT response carries no `memberCount`, so the mapped
@@ -223,22 +269,31 @@ export function TripsProvider({ children }: { children: ReactNode }) {
         ),
       );
     }
-    return { previousDetail, previousList, id };
+    return {
+      previousDetail,
+      previousListRow: previousList?.find((trip) => trip.id === id),
+      id,
+    };
   };
   const restoreCover = (context: {
     previousDetail: Trip | undefined;
-    previousList: Trip[] | undefined;
+    previousListRow: Trip | undefined;
     id: string;
   }) => {
-    if (context.previousDetail) {
-      queryClient.setQueryData(
-        tripKeys.detail(context.id),
-        context.previousDetail,
-      );
-    }
-    if (context.previousList) {
-      queryClient.setQueryData(tripKeys.list(), context.previousList);
-    }
+    // The paint only ever touched `image`, so the rollback only ever
+    // restores `image`: a concurrent field edit keeps its paint.
+    queryClient.setQueryData<Trip>(tripKeys.detail(context.id), (old) =>
+      old && context.previousDetail
+        ? { ...old, image: context.previousDetail.image }
+        : (old ?? context.previousDetail),
+    );
+    queryClient.setQueryData<Trip[]>(tripKeys.list(), (old) =>
+      old?.map((trip) =>
+        trip.id === context.id && context.previousListRow
+          ? { ...trip, image: context.previousListRow.image }
+          : trip,
+      ),
+    );
   };
   const invalidateCover = (id: string) => {
     queryClient.invalidateQueries({ queryKey: tripKeys.detail(id) });

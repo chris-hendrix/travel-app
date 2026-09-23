@@ -300,4 +300,62 @@ describe("useEvents() writes", () => {
       cachedEvent(),
     ]);
   });
+
+  it("addEvent sends the picker's coordinates on create", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({
+      success: true,
+      event: entity({ locationLat: 41.3, locationLon: 2.1 }),
+    });
+
+    const { actions } = captureEvents();
+
+    await actions.addEvent("trip-1", {
+      ...cachedEvent(),
+      id: "custom-3",
+      locationLat: 41.3,
+      locationLon: 2.1,
+    });
+
+    expect(mockedApiFetch).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(
+      (mockedApiFetch.mock.calls[0]?.[1] as { body: string }).body,
+    ) as Record<string, unknown>;
+    expect(body).toMatchObject({ locationLat: 41.3, locationLon: 2.1 });
+  });
+
+  it("a failed update keeps a concurrent write's paint", async () => {
+    const { client, actions } = captureEvents();
+    client.setQueryData<ItineraryEvent[]>(eventKeys.list("trip-1"), [
+      cachedEvent(),
+      cachedEvent({ id: "event-2", name: "Second" }),
+    ]);
+
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockRejectedValueOnce(
+      new ApiError(500, "Failed to update event"),
+    );
+    // The second write never lands during the test: it paints and
+    // stays in flight, which is exactly the interleaving that used
+    // to be erased by a whole-snapshot rollback.
+    mockedApiFetch.mockImplementationOnce(() => new Promise(() => {}));
+
+    const failing = actions.updateEvent("trip-1", "event-1", {
+      name: "Never lands",
+    });
+    void actions.updateEvent("trip-1", "event-2", {
+      name: "Painted later",
+    });
+    await expect(failing).rejects.toBeInstanceOf(ApiError);
+
+    const rows = client.getQueryData<ItineraryEvent[]>(
+      eventKeys.list("trip-1"),
+    );
+    expect(rows?.find((row) => row.id === "event-1")).toMatchObject({
+      name: "Dinner at the harbour",
+    });
+    expect(rows?.find((row) => row.id === "event-2")).toMatchObject({
+      name: "Painted later",
+    });
+  });
 });

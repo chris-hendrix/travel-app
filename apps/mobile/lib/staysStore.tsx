@@ -3,6 +3,8 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useRef,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -36,6 +38,55 @@ type StaysValue = {
 
 const StaysContext = createContext<StaysValue | null>(null);
 
+/**
+ * A tick that moves whenever this domain's cache entries change, so
+ * the accessors below re-read the cache instead of the mount-time
+ * snapshot. The subscription filters to this domain's key prefix;
+ * the snapshot is a counter the subscriber bumps before notifying.
+ */
+function useStaysTick(): void {
+  const queryClient = useQueryClient();
+  const tick = useRef(0);
+  const subscribe = useCallback(
+    (notify: () => void) =>
+      queryClient.getQueryCache().subscribe((notification) => {
+        const key = notification?.query?.queryKey as unknown;
+        if (
+          Array.isArray(key) &&
+          key.length >= stayKeys.all.length &&
+          stayKeys.all.every((segment, index) => key[index] === segment)
+        ) {
+          tick.current += 1;
+          notify();
+        }
+      }),
+    [queryClient],
+  );
+  const getSnapshot = useCallback(() => tick.current, []);
+  const getServerSnapshot = useCallback(() => 0, []);
+  useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+}
+
+/**
+ * Only the keys this mutation painted, taken from the pre-paint row:
+ * a concurrent write to another row — or another key of this row —
+ * survives the rollback because the rollback never sees it.
+ */
+function revertOwnedKeys<T extends Record<string, unknown>>(
+  current: T,
+  previousRow: T | undefined,
+  ownedKeys: string[],
+): T {
+  if (!previousRow) return current;
+  const restored = { ...current };
+  for (const key of ownedKeys) {
+    if (key in previousRow) {
+      restored[key as keyof T] = previousRow[key] as T[keyof T];
+    }
+  }
+  return restored;
+}
+
 /** An edit merges into the slot so a soft delete survives it. */
 export function mergeStayEdit(
   existing: Partial<Stay> | undefined,
@@ -60,12 +111,19 @@ export function mergeStayDelete(
  * and the create schema's datetime strings cannot express it, so an
  * untimed stay sends no times rather than a null. Links come along
  * from whatever was there: the form never asks for them. Coordinates
- * stay absent until the API's geocoding answers.
+ * ride along when the address came from a Places lookup — the picker
+ * resolves them, and the endpoint persists them.
  */
 function toCreateRequest(stay: Stay): CreateStayRequest {
   return {
     name: stay.name,
     ...(stay.address ? { address: stay.address } : null),
+    ...(typeof stay.addressLat === "number"
+      ? { addressLat: stay.addressLat }
+      : null),
+    ...(typeof stay.addressLon === "number"
+      ? { addressLon: stay.addressLon }
+      : null),
     ...(stay.description ? { description: stay.description } : null),
     ...(stay.checkIn ? { checkIn: stay.checkIn } : null),
     ...(stay.checkOut ? { checkOut: stay.checkOut } : null),
@@ -94,6 +152,12 @@ function toUpdateRequest(patch: Partial<Stay>): UpdateStayRequest {
     ...(patch.name !== undefined ? { name: patch.name } : null),
     ...(typeof patch.address === "string" && patch.address
       ? { address: patch.address }
+      : null),
+    ...(patch.addressLat !== undefined
+      ? { addressLat: patch.addressLat }
+      : null),
+    ...(patch.addressLon !== undefined
+      ? { addressLon: patch.addressLon }
       : null),
     ...(typeof patch.description === "string" && patch.description
       ? { description: patch.description }
@@ -129,6 +193,9 @@ function toUpdateRequest(patch: Partial<Stay>): UpdateStayRequest {
  */
 export function StaysProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
+  // Re-reads the cache when this domain's keys change, so a
+  // background refetch repaints the accessors below.
+  useStaysTick();
 
   const createMutation = useMutation({
     mutationKey: ["stays", "create"],
@@ -154,17 +221,14 @@ export function StaysProvider({ children }: { children: ReactNode }) {
       return { previous, tripId, optimisticId: optimistic.id };
     },
     onError: (_error, _input, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(
-          stayKeys.list(context.tripId),
-          context.previous,
-        );
-      } else if (context) {
-        queryClient.setQueryData<Stay[]>(
-          stayKeys.list(context.tripId),
-          (old) => old?.filter((row) => row.id !== context.optimisticId),
-        );
-      }
+      // Delta rollback: only the optimistic row goes away. A whole
+      // snapshot here would erase a concurrent write that painted
+      // after this mutation's `onMutate` ran.
+      if (!context) return;
+      queryClient.setQueryData<Stay[]>(
+        stayKeys.list(context.tripId),
+        (old) => old?.filter((row) => row.id !== context.optimisticId),
+      );
     },
     onSuccess: (stay, _input, context) => {
       queryClient.setQueryData<Stay[]>(
@@ -197,6 +261,7 @@ export function StaysProvider({ children }: { children: ReactNode }) {
       const previous = queryClient.getQueryData<Stay[]>(
         stayKeys.list(tripId),
       );
+      const previousRow = previous?.find((row) => row.id === stayId);
       if (previous) {
         queryClient.setQueryData<Stay[]>(
           stayKeys.list(tripId),
@@ -205,15 +270,22 @@ export function StaysProvider({ children }: { children: ReactNode }) {
           ),
         );
       }
-      return { previous, tripId, stayId };
+      return { previousRow, ownedKeys: Object.keys(patch), tripId, stayId };
     },
     onError: (_error, _input, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(
-          stayKeys.list(context.tripId),
-          context.previous,
-        );
-      }
+      // Delta rollback: only this mutation's keys revert on its row.
+      // A concurrent edit to another row — or another key of this
+      // row — keeps whatever it painted.
+      if (!context) return;
+      queryClient.setQueryData<Stay[]>(
+        stayKeys.list(context.tripId),
+        (old) =>
+          old?.map((row) =>
+            row.id === context.stayId
+              ? revertOwnedKeys(row, context.previousRow, context.ownedKeys)
+              : row,
+          ),
+      );
     },
     onSuccess: (stay, _input, context) => {
       // The PUT response carries the full entity, so `toStay` needs
@@ -242,9 +314,10 @@ export function StaysProvider({ children }: { children: ReactNode }) {
       const previous = queryClient.getQueryData<Stay[]>(
         stayKeys.list(tripId),
       );
+      const previousRow = previous?.find((row) => row.id === stayId);
       // By edit rather than by removal: `staysForTrip` holds the row
-      // back while the request flies, and the snapshot restores it on
-      // failure.
+      // back while the request flies, and the rollback below restores
+      // only its `deletedAt` on failure.
       const deletedAt = new Date().toISOString();
       if (previous) {
         queryClient.setQueryData<Stay[]>(
@@ -254,15 +327,21 @@ export function StaysProvider({ children }: { children: ReactNode }) {
           ),
         );
       }
-      return { previous, tripId };
+      return { previousRow, tripId, stayId };
     },
     onError: (_error, _input, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(
-          stayKeys.list(context.tripId),
-          context.previous,
-        );
-      }
+      // Delta rollback: only `deletedAt` reverts on this row, so a
+      // concurrent edit keeps whatever it painted.
+      if (!context) return;
+      queryClient.setQueryData<Stay[]>(
+        stayKeys.list(context.tripId),
+        (old) =>
+          old?.map((row) =>
+            row.id === context.stayId
+              ? revertOwnedKeys(row, context.previousRow, ["deletedAt"])
+              : row,
+          ),
+      );
     },
     onSettled: (_data, _error, _input, context) => {
       // Soft server-side with `includeDeleted` off: the row

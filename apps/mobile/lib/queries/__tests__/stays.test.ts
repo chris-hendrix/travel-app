@@ -430,4 +430,27 @@ describe("useStays() writes (staysStore)", () => {
       cachedStay(),
     ]);
   });
+
+  it("addStay sends the picker's coordinates on create", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({
+      success: true,
+      accommodation: row({ addressLat: 40.6, addressLon: 14.5 }),
+    });
+
+    const { actions } = captureStays();
+
+    await actions.addStay("trip-1", {
+      ...cachedStay(),
+      id: "custom-3",
+      addressLat: 40.6,
+      addressLon: 14.5,
+    });
+
+    expect(mockedApiFetch).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(
+      (mockedApiFetch.mock.calls[0]?.[1] as { body: string }).body,
+    ) as Record<string, unknown>;
+    expect(body).toMatchObject({ addressLat: 40.6, addressLon: 14.5 });
+  });
 });
