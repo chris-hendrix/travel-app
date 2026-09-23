@@ -156,9 +156,9 @@ test.describe("Trip Journey", () => {
       await expect(page.getByText("Nothing planned yet")).toBeVisible();
       // app/trips/detail.tsx: the trip creator is the organizer
       // server-side, so the organizer action group (Button titled
-      // "Edit trip") renders with no toggle.
+      // "Trip details") renders with no toggle.
       await expect(
-        page.getByRole("button", { name: "Edit trip" }),
+        page.getByRole("button", { name: "Trip details" }),
       ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
     });
 
@@ -177,15 +177,15 @@ test.describe("Trip Journey", () => {
       await expect(page.getByText(tripName).last()).toBeVisible({
         timeout: NAVIGATION_TIMEOUT,
       });
-      // app/trips/detail.tsx: Button titled "Edit trip" routes to
+      // app/trips/detail.tsx: Button titled "Trip details" routes to
       // /trips/edit?id=… (visible directly: the creator is organizer).
-      await page.getByRole("button", { name: "Edit trip" }).click();
+      await page.getByRole("button", { name: "Trip details" }).click();
       await page.waitForURL("**/trips/edit?id=*", {
         timeout: NAVIGATION_TIMEOUT,
       });
       // app/trips/edit.tsx: TextField label="Trip name" is prefilled
       // from the detail query — the prefilled value proves the edit
-      // screen mounted with the trip (the "Edit trip" title text also
+      // screen mounted with the trip (the "Trip details" title text also
       // matches a hidden app-header echo, so the field is the mount
       // proof). Append rather than replace: avoids clear-and-refill
       // desync on the controlled input (same lesson as the create
