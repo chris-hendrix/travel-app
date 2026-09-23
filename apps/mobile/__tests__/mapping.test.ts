@@ -133,6 +133,20 @@ describe("toEvent", () => {
   it("maps image to placeholderPhoto()", () => {
     expect(toEvent(apiEvent).image).toBe(placeholderPhoto("event-1"));
   });
+
+  it("keeps the coordinates an event is read back with", () => {
+    // The API stores what the picker resolved, so a read keeps them
+    // and an edit round-trip starts from them rather than losing them.
+    const mapped = toEvent(apiEvent);
+    expect(mapped.locationLat).toBe(41.3);
+    expect(mapped.locationLon).toBe(2.1);
+  });
+
+  it("reads missing coordinates as absent, never 0", () => {
+    const mapped = toEvent({ ...apiEvent, locationLat: null, locationLon: null });
+    expect(mapped.locationLat).toBeNull();
+    expect(mapped.locationLon).toBeNull();
+  });
 });
 
 describe("toStay", () => {

@@ -18,6 +18,14 @@ export type NewEventInput = {
   /** Optional even on a timed event: a thing can simply begin. */
   end: string;
   place: string;
+  /**
+   * The live Places details lookup's coordinates for the place, when
+   * it was picked from a suggestion. Absent or null when the place was
+   * typed or came from the static list, which carry no coordinates —
+   * nothing invents a value, and no coordinate defaults to 0.
+   */
+  locationLat?: number | null;
+  locationLon?: number | null;
 };
 
 export type NewEventErrors = Partial<
@@ -81,6 +89,11 @@ export function draftFromEvent(
     name: event.name,
     description: event.description ?? "",
     place: event.place,
+    // The coordinates come along when the row has them, so an edit
+    // that touches nothing else keeps them; a place with none reads
+    // as absent, never as 0.
+    locationLat: event.locationLat ?? null,
+    locationLon: event.locationLon ?? null,
     day: wallClock(event.startTime, timeZone).date,
     allDay: event.allDay,
     start: event.allDay ? "" : wallClock(event.startTime, timeZone).clock,
@@ -152,6 +165,12 @@ export function buildEvent(
     endTime,
     allDay: untimed,
     place: input.place.trim(),
+    // The live lookup's coordinates when the place was picked from a
+    // suggestion; null when it was typed or came from the static list.
+    locationLat:
+      typeof input.locationLat === "number" ? input.locationLat : null,
+    locationLon:
+      typeof input.locationLon === "number" ? input.locationLon : null,
     image: photo,
     // An edit arrives as a new event object, so the flag it carried has
     // to be brought along or editing a deleted event would undelete it.

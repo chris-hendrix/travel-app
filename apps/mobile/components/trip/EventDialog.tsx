@@ -92,8 +92,9 @@ export function EventDialog({
 
   // Live Places suggestions sit above the static list; a lookup failure
   // falls back to `EVENT_PLACES` silently, and free text keeps working
-  // throughout — the failure never blocks submit. The event keeps the
-  // display string only: it carries no lat/lon.
+  // throughout — the failure never blocks submit. A picked suggestion's
+  // details resolve the event's coordinates, which ride on the submitted
+  // input; typed prose and static picks carry none, so they submit bare.
   //
   // It is `suggestions` being absent that falls back, not it being empty:
   // an empty array means the live source was asked and has nothing, and
@@ -103,6 +104,19 @@ export function EventDialog({
   const [sessionToken, rotateSessionToken] = usePlaceSessionToken();
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(
     null,
+  );
+  // The live lookup's coordinates for the picked place, when there is
+  // one. Seeded from the draft on edit so an untouched place keeps its
+  // coordinates; cleared the moment the place is re-picked or typed,
+  // so no coordinate outlives the place it belonged to.
+  const [coords, setCoords] = useState<{
+    lat: number;
+    lon: number;
+  } | null>(() =>
+    typeof initial?.locationLat === "number" &&
+    typeof initial?.locationLon === "number"
+      ? { lat: initial.locationLat, lon: initial.locationLon }
+      : null,
   );
   const { data: suggestions } = usePlaceSuggestions(search, sessionToken);
   const details = usePlaceDetails(selectedPlaceId, sessionToken);
@@ -115,12 +129,19 @@ export function EventDialog({
     [suggestions],
   );
 
-  // Details only canonicalize the committed label (and close the
-  // input session) — they never block submit.
+  // Details canonicalize the committed label (and close the input
+  // session), and resolve the event's coordinates — they never block
+  // submit. A place with no live details submits bare.
   useEffect(() => {
     if (!selectedPlaceId) return;
     if (details.data?.placeId === selectedPlaceId) {
       setPlace(details.data.name);
+      setCoords(
+        Number.isFinite(details.data.lat) &&
+          Number.isFinite(details.data.lon)
+          ? { lat: details.data.lat, lon: details.data.lon }
+          : null,
+      );
     }
     if (details.data?.placeId === selectedPlaceId || details.isError) {
       rotateSessionToken();
@@ -138,6 +159,11 @@ export function EventDialog({
     start: allDay ? "" : (start ?? ""),
     end: allDay ? "" : (end ?? ""),
     place: place ?? "",
+    // Present only when a live lookup resolved them: typed prose and
+    // static picks submit bare, and nothing defaults to 0.
+    ...(coords
+      ? { locationLat: coords.lat, locationLon: coords.lon }
+      : null),
   };
 
   const errors = submitted ? validateNewEvent(input) : {};
@@ -187,9 +213,13 @@ export function EventDialog({
           if (hit) {
             setSelectedPlaceId(hit.placeId);
             setPlace(hit.name);
+            // The coordinates arrive with the details lookup; until
+            // then the pick carries none, not the previous place's.
+            setCoords(null);
           } else {
             setSelectedPlaceId(null);
             setPlace(picked);
+            setCoords(null);
             rotateSessionToken();
           }
         }}

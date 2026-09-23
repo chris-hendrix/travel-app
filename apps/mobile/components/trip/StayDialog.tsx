@@ -46,6 +46,7 @@ export function StayDialog({
   trip,
   dismissHref,
   initial,
+  initialCoords = null,
   serverError,
   onSubmit,
   onDelete,
@@ -57,10 +58,21 @@ export function StayDialog({
   dismissHref: string;
   /** Prefill, for editing. Nothing means a blank form. */
   initial?: Partial<NewStayInput>;
+  /**
+   * The stay's coordinates when the row has them, for editing: seeded
+   * into the picker's state so an untouched address keeps them. The
+   * form never asks for coordinates outright — a fresh pick resolves
+   * them, typed prose carries none.
+   */
+  initialCoords?: { lat: number; lon: number } | null;
   /** The last save's or delete's failure. The dialog stays open on failure. */
   serverError?: string | null;
-  /** Handed an input that has already passed validation. */
-  onSubmit: (input: NewStayInput) => void;
+  /**
+   * Handed an input that has already passed validation, plus the live
+   * lookup's coordinates when the address was picked from a suggestion
+   * — null when it was typed, which carries no coordinates.
+   */
+  onSubmit: (input: NewStayInput, coords: { lat: number; lon: number } | null) => void;
   /** Editing only. Soft, so it needs no confirmation step. */
   onDelete?: (() => void) | undefined;
   /** A write is in flight: the dialog's own two buttons stop. */
@@ -82,13 +94,28 @@ export function StayDialog({
   // Live Places suggestions for the address. There is no static list
   // for street addresses, so the fallback here is free text alone:
   // a lookup failure leaves an empty suggestion list, typing keeps
-  // working, and the failure never blocks submit. The stay keeps the
-  // display string only — `addressLat`/`addressLon` stay null (the
-  // `newStay.ts` mapping), so this wires no coordinates.
+  // working, and the failure never blocks submit. A picked suggestion's
+  // details resolve the stay's coordinates, which ride out on the
+  // submit beside the input; typed prose carries none, so it submits
+  // bare.
   const [search, setSearch] = useState("");
   const [sessionToken, rotateSessionToken] = usePlaceSessionToken();
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(
     null,
+  );
+  // The live lookup's coordinates for the picked address, when there
+  // is one. Seeded from the row on edit so an untouched address keeps
+  // its coordinates; cleared the moment the address is re-picked or
+  // typed, so no coordinate outlives the address it belonged to.
+  const [coords, setCoords] = useState<{
+    lat: number;
+    lon: number;
+  } | null>(() =>
+    initialCoords &&
+    Number.isFinite(initialCoords.lat) &&
+    Number.isFinite(initialCoords.lon)
+      ? { lat: initialCoords.lat, lon: initialCoords.lon }
+      : null,
   );
   const { data: suggestions } = usePlaceSuggestions(search, sessionToken);
   const details = usePlaceDetails(selectedPlaceId, sessionToken);
@@ -101,12 +128,19 @@ export function StayDialog({
     [suggestions],
   );
 
-  // Details only canonicalize the committed label (and close the
-  // input session) — they never block submit.
+  // Details canonicalize the committed label (and close the input
+  // session), and resolve the stay's coordinates — they never block
+  // submit. An address with no live details submits bare.
   useEffect(() => {
     if (!selectedPlaceId) return;
     if (details.data?.placeId === selectedPlaceId) {
       setAddress(details.data.name);
+      setCoords(
+        Number.isFinite(details.data.lat) &&
+          Number.isFinite(details.data.lon)
+          ? { lat: details.data.lat, lon: details.data.lon }
+          : null,
+      );
     }
     if (details.data?.placeId === selectedPlaceId || details.isError) {
       rotateSessionToken();
@@ -130,7 +164,7 @@ export function StayDialog({
   function submit() {
     setSubmitted(true);
     if (Object.keys(validateNewStay(input)).length > 0) return;
-    onSubmit(input);
+    onSubmit(input, coords);
   }
 
   return (
@@ -169,9 +203,13 @@ export function StayDialog({
           if (hit) {
             setSelectedPlaceId(hit.placeId);
             setAddress(hit.name);
+            // The coordinates arrive with the details lookup; until
+            // then the pick carries none, not the previous address's.
+            setCoords(null);
           } else {
             setSelectedPlaceId(null);
             setAddress(picked);
+            setCoords(null);
             rotateSessionToken();
           }
         }}

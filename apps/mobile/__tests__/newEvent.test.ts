@@ -114,6 +114,8 @@ describe("draftFromEvent", () => {
       name: "Dinner in town",
       description: "Table for eight under the vines.",
       place: "Trattoria Nuova",
+      locationLat: null,
+      locationLon: null,
       day: "2026-09-20",
       allDay: false,
       start: "20:30",
@@ -136,5 +138,40 @@ describe("draftFromEvent", () => {
 
   it("drops an end that was never set", () => {
     expect(draftFromEvent(built({ end: "" }), "Europe/Madrid").end).toBe("");
+  });
+
+  it("carries a picked suggestion's coordinates into the create", () => {
+    // The dialog hands the live lookup's coordinates on the input;
+    // the built event keeps them, so the store's create sends them.
+    const picked: NewEventInput = {
+      ...INPUT,
+      locationLat: 41.3,
+      locationLon: 2.1,
+    };
+    const event = buildEvent(picked, "e1", "UTC", "p.jpg");
+    expect(event.locationLat).toBe(41.3);
+    expect(event.locationLon).toBe(2.1);
+  });
+
+  it("builds no coordinates when the place was typed", () => {
+    // Typed prose and static picks submit bare: absent, never 0.
+    const event = buildEvent(INPUT, "e1", "UTC", "p.jpg");
+    expect(event.locationLat).toBeNull();
+    expect(event.locationLon).toBeNull();
+  });
+
+  it("keeps the coordinates across an edit round-trip", () => {
+    const event = buildEvent(
+      { ...INPUT, locationLat: 41.3, locationLon: 2.1 },
+      "e1",
+      "UTC",
+      "p.jpg",
+    );
+    const redrafted = draftFromEvent(event, "UTC");
+    expect(redrafted.locationLat).toBe(41.3);
+    expect(redrafted.locationLon).toBe(2.1);
+    const rebuilt = buildEvent(redrafted, "e1", "UTC", "p.jpg");
+    expect(rebuilt.locationLat).toBe(41.3);
+    expect(rebuilt.locationLon).toBe(2.1);
   });
 });

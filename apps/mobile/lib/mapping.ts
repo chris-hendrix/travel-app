@@ -108,6 +108,8 @@ export function toEvent(event: Event): ItineraryEvent {
     endTime: event.endTime === null ? null : iso(event.endTime),
     allDay: event.allDay,
     place: event.location ?? "",
+    locationLat: event.locationLat ?? null,
+    locationLon: event.locationLon ?? null,
     // TODO(BE): Events have no photo column or endpoint. Real art needs `events.imageUrl`/`placePhotoRef`, or a persisted `placeId` resolvable via `/api/locations/photos/:photoRef`.
     image: placeholderPhoto(event.id),
     deletedAt: deletedAtOf(event.deletedAt),

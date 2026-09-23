@@ -65,13 +65,19 @@ function NewStayScreen() {
       dismissHref={`/trips/detail?id=${trip.id}`}
       serverError={serverError}
       pending={saving}
-      onSubmit={(input) => {
-        const stay = buildStay(
-          input,
-          `custom-${Date.now()}`,
-          timeZone,
-          placeholderPhoto(input.name),
-        );
+      onSubmit={(input, coords) => {
+        const stay = {
+          ...buildStay(
+            input,
+            `custom-${Date.now()}`,
+            timeZone,
+            placeholderPhoto(input.name),
+          ),
+          // The live lookup's coordinates when the address was picked
+          // from a suggestion; typed prose carries none, never 0.
+          addressLat: coords?.lat ?? null,
+          addressLon: coords?.lon ?? null,
+        };
         // The built stay is the optimistic row (its custom id is
         // the stand-in the store swaps the server stay in by).
         setServerError(null);

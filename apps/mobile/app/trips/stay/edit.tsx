@@ -99,6 +99,12 @@ function EditStayScreen() {
       trip={trip}
       dismissHref={`/trips/stay/detail?id=${trip.id}&stay=${stay.id}`}
       initial={draftFromStay(stay, timeZone)}
+      initialCoords={
+        typeof stay.addressLat === "number" &&
+        typeof stay.addressLon === "number"
+          ? { lat: stay.addressLat, lon: stay.addressLon }
+          : null
+      }
       serverError={serverError}
       pending={saving}
       onDelete={() => {
@@ -116,20 +122,26 @@ function EditStayScreen() {
           )
           .finally(() => setSaving(false));
       }}
-      onSubmit={(input) => {
+      onSubmit={(input, coords) => {
         // Rebuilt rather than patched: the form sets every field the
         // stay has, and the two it does not ask for come along. The
         // rebuilt row is the optimistic paint the store swaps the
-        // server stay in by.
-        const next = buildStay(
-          input,
-          stay.id,
-          timeZone,
-          stay.address === input.address
-            ? stay.image
-            : placeholderPhoto(input.name),
-          stay.links,
-        );
+        // server stay in by. Coordinates ride from the live lookup when
+        // the address was re-picked, stay as they were when untouched,
+        // and clear when the address was typed.
+        const next = {
+          ...buildStay(
+            input,
+            stay.id,
+            timeZone,
+            stay.address === input.address
+              ? stay.image
+              : placeholderPhoto(input.name),
+            stay.links,
+          ),
+          addressLat: coords?.lat ?? null,
+          addressLon: coords?.lon ?? null,
+        };
         setServerError(null);
         setSaving(true);
         void updateStay(trip.id, stay.id, next)
