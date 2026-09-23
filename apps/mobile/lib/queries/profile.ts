@@ -45,8 +45,14 @@ export type UpdateProfileResponse = {
  * `draftFromProfile`, same as the read path).
  *
  * Writable here: `displayName`, `handles`, `temperatureUnit`.
- * `timezone` is display-only on the profile screen (detected,
- * automatic), so it is never sent.
+ *
+ * `timezone` is not among them and no longer has a row on the screen
+ * either. It is the web app's complete-profile form that writes that
+ * column — it offers a picker with an auto-detect default — and nothing
+ * on the server reads it: trip behaviour is `trips.preferredTimezone`,
+ * and what the app reads times on is the device's own zone, which the
+ * header states. So mobile neither sends it nor shows it, rather than
+ * showing a null as "Not set · automatic".
  *
  * The read stays `meOptions()` (`GET /auth/me` — there is no
  * `GET /users/me`): one source of truth, no second me query, no

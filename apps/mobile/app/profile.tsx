@@ -10,7 +10,6 @@ import { TextField } from "@/components/ui/TextField";
 import { Button } from "@/components/ui/Button";
 import { Segmented } from "@/components/ui/Segmented";
 import { useDismiss } from "@/hooks/useDismiss";
-import { joinFacts } from "@/lib/wording";
 import {
   draftFromProfile,
   initials,
@@ -315,15 +314,14 @@ function ProfileForm({ profile }: { profile: Profile }) {
         <Text className="font-body text-sm text-ink">{failure}</Text>
       ) : null}
 
-      {/* The timezone is detected, so this is information rather than a
-          field — and the wording stays device-agnostic, since the same
-          screen renders on the web. */}
-      <View className="gap-1">
-        <Text className="font-body-bold text-sm text-ink">Timezone</Text>
-        <Text className="font-body text-sm text-ink">
-          {joinFacts(profile.timezone ?? "Not set", "automatic")}
-        </Text>
-      </View>
+      {/* No timezone row. There was one, and it read `Not set ·
+          automatic`: `users.timezone` is written by the web app's
+          complete-profile form and by nothing else, so an account made on
+          a phone has it null — and nothing on the server reads the column
+          for anything. What the app actually reads times on is the
+          device's own zone, and the chrome already says so, live and
+          interactively, through the token in the header. Two statements of
+          one fact, one of them wrong, is worse than one. */}
 
       {/* The calendar, opened by its heading rather than by a rule: the
           heading already says the screen changes here, and a line above it
