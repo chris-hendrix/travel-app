@@ -5,8 +5,8 @@ import { defineConfig, devices } from "@playwright/test";
  *
  * Targets the Expo dev server (`npx expo start --web --port 8081`) with the
  * API alongside it, mirroring apps/web/playwright.config.ts conventions
- * (blob reporter for CI sharding, same timeout/retry shape). Suite is
- * chromium-only for now; add an iphone project once chromium is green.
+ * (blob reporter for CI sharding, same timeout/retry shape). Two projects
+ * share one spec tree: desktop chromium plus a phone pass at 390px width.
  * See https://playwright.dev/docs/test-configuration
  */
 export default defineConfig({
@@ -40,7 +40,8 @@ export default defineConfig({
     video: "retain-on-failure",
   },
 
-  // Chromium only (see header comment re: iphone later)
+  // Two projects sharing one spec tree: desktop chromium plus a phone
+  // pass at 390px width, the narrowest layout the UI Surfaces checks cover.
   projects: [
     {
       name: "chromium",
@@ -49,33 +50,62 @@ export default defineConfig({
         viewport: { width: 1280, height: 1080 },
       },
     },
+    {
+      name: "phone",
+      use: {
+        ...devices["Pixel 7"],
+        // Pixel 7's own viewport is 412x915; pin to 390x844 so the phone
+        // project measures the width the UI Surfaces checks are written
+        // against, while keeping Pixel 7's touch/DPR/user-agent profile.
+        viewport: { width: 390, height: 844 },
+      },
+    },
   ],
 
   // Auto-start servers for e2e tests (array form: API + Expo web).
   // Reuse existing dev servers locally, start fresh in CI.
   // Metro has no health endpoint, so the Expo entry polls the dev server
   // root with a 180s timeout (cold start = Metro bundling on first request).
-  webServer: [
-    {
-      command: "cd ../api && NODE_ENV=test ENABLE_QUEUE_WORKERS=true pnpm dev",
-      url: "http://localhost:8000/api/health",
-      timeout: 180 * 1000,
-      reuseExistingServer: !process.env.CI,
-      stdout: "pipe",
-      stderr: "pipe",
-    },
-    {
-      command: "npx expo start --web --port 8081",
-      url: "http://localhost:8081",
-      timeout: 180 * 1000,
-      reuseExistingServer: !process.env.CI,
-      stdout: "pipe",
-      stderr: "pipe",
-      // The CI job exports NODE_ENV=test, which Expo would inherit — and
-      // @react-native/dev-middleware throws under NODE_ENV=test
-      // ("DefaultToolLauncher must be mocked"). A dev server is a
-      // development server, so pin it back explicitly.
-      env: { NODE_ENV: "development" },
-    },
-  ],
+  // MOBILE_WEB_TARGET switches which web server the same specs verify:
+  // "dev" (default) starts Metro; "export" serves the already-built dist/
+  // production export, so the suite verifies the artifact users get.
+  webServer: (() => {
+    const target = process.env.MOBILE_WEB_TARGET ?? "dev";
+    const expoServer =
+      target === "export"
+        ? {
+            command: "pnpm serve:web",
+            url: "http://localhost:8081",
+            timeout: 180 * 1000,
+            // Must own the port: reusing a dev server already bound to
+            // 8081 would silently test Metro while claiming the export.
+            reuseExistingServer: false,
+            stdout: "pipe" as const,
+            stderr: "pipe" as const,
+          }
+        : {
+            command: "npx expo start --web --port 8081",
+            url: "http://localhost:8081",
+            timeout: 180 * 1000,
+            reuseExistingServer: !process.env.CI,
+            stdout: "pipe" as const,
+            stderr: "pipe" as const,
+            // The CI job exports NODE_ENV=test, which Expo would inherit — and
+            // @react-native/dev-middleware throws under NODE_ENV=test
+            // ("DefaultToolLauncher must be mocked"). A dev server is a
+            // development server, so pin it back explicitly.
+            env: { NODE_ENV: "development" },
+          };
+    return [
+      {
+        command: "cd ../api && NODE_ENV=test ENABLE_QUEUE_WORKERS=true pnpm dev",
+        url: "http://localhost:8000/api/health",
+        timeout: 180 * 1000,
+        reuseExistingServer: !process.env.CI,
+        stdout: "pipe" as const,
+        stderr: "pipe" as const,
+      },
+      expoServer,
+    ];
+  })(),
 });

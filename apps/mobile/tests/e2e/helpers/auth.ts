@@ -14,7 +14,7 @@
  * navigation and sign-out could never clear the session.
  */
 
-import type { Page, APIRequestContext } from "@playwright/test";
+import type { Page, APIRequestContext, APIResponse } from "@playwright/test";
 import { API_BASE } from "./timeouts";
 import type {
   CompleteProfileBody,
@@ -108,6 +108,40 @@ function throwOnRateLimit(status: number, which: string): void {
 }
 
 /**
+ * POST with retry on 429. Doubling the suite (chromium + phone projects
+ * in parallel) pushes the API's global rate limiter (300/min per IP in
+ * `apps/api/src/app.ts`, unauthenticated seeding keys by IP) into 429s
+ * that have nothing to do with the spec under test. Back off and retry
+ * instead of failing: parse the limiter's "retry in N seconds" hint
+ * when present, else linear backoff (~1s per attempt). No spec in this
+ * suite exercises the limiter itself, so retrying here masks nothing.
+ */
+async function postWithRetry(
+  request: APIRequestContext,
+  url: string,
+  options: Parameters<APIRequestContext["post"]>[1],
+  which: string,
+  maxAttempts = 6,
+): Promise<APIResponse> {
+  let last: APIResponse | undefined;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    last = await request.post(url, options);
+    if (last.status() !== 429) {
+      return last;
+    }
+    if (attempt === maxAttempts) {
+      break;
+    }
+    const body = await last.text().catch(() => "");
+    const hint = body.match(/retry in (\d+(?:\.\d+)?) seconds?/i);
+    const waitMs = hint ? Math.ceil(Number(hint[1]) * 1000) + 500 : attempt * 1000;
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  }
+  throwOnRateLimit(last?.status() ?? 429, which);
+  return last as APIResponse;
+}
+
+/**
  * Seed one user through the real auth endpoints: request-code →
  * verify-code → complete-profile. Returns the number and its token.
  * `displayName` defaults to "Test User"; pass `null` to leave the
@@ -118,9 +152,14 @@ export async function seedUserViaAPI(
   phone: string,
   displayName: string | null = "Test User",
 ): Promise<SeededAuth> {
-  const requestCode = await request.post(`${API_BASE}/auth/request-code`, {
-    data: { phoneNumber: phone, smsConsent: true } satisfies RequestCodeBody,
-  });
+  const requestCode = await postWithRetry(
+    request,
+    `${API_BASE}/auth/request-code`,
+    {
+      data: { phoneNumber: phone, smsConsent: true } satisfies RequestCodeBody,
+    },
+    "request-code",
+  );
   throwOnRateLimit(requestCode.status(), "request-code");
   if (!requestCode.ok()) {
     throw new Error(
@@ -128,13 +167,18 @@ export async function seedUserViaAPI(
     );
   }
 
-  const verify = await request.post(`${API_BASE}/auth/verify-code`, {
-    data: {
-      phoneNumber: phone,
-      code: FIXED_CODE,
-      smsConsent: true,
-    } satisfies VerifyCodeBody,
-  });
+  const verify = await postWithRetry(
+    request,
+    `${API_BASE}/auth/verify-code`,
+    {
+      data: {
+        phoneNumber: phone,
+        code: FIXED_CODE,
+        smsConsent: true,
+      } satisfies VerifyCodeBody,
+    },
+    "verify-code",
+  );
   throwOnRateLimit(verify.status(), "verify-code");
   if (!verify.ok()) {
     throw new Error(
@@ -145,12 +189,14 @@ export async function seedUserViaAPI(
   let token = verifyBody.token;
 
   if (displayName !== null) {
-    const complete = await request.post(
+    const complete = await postWithRetry(
+      request,
       `${API_BASE}/auth/complete-profile`,
       {
         data: { displayName } satisfies CompleteProfileBody,
         headers: { Authorization: `Bearer ${token}` },
       },
+      "complete-profile",
     );
     if (!complete.ok()) {
       throw new Error(

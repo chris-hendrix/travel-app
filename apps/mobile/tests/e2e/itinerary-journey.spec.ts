@@ -247,6 +247,9 @@ test.describe("Itinerary Journey", () => {
         timeout: ELEMENT_TIMEOUT,
       });
       await editInput.click();
+      // Phone width (390px) narrows the field, so the click can land
+      // mid-string; End puts the caret where the append means it.
+      await editInput.press("End");
       await editInput.pressSequentially(" feast");
       // EventDialog primaryTitle="Save changes"; success dismisses
       // via useDismiss (hooks/useDismiss.ts) — router.back() when
