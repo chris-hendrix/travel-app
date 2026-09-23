@@ -1,10 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../helpers.js";
-import { buildPhotoCacheKey } from "@/services/photo-cache.service.js";
+import { buildPhotoCacheKey, TOMBSTONE_CONTENT_TYPE } from "@/services/photo-cache.service.js";
 
-const PHOTO_REF = "places/ChIJN1t_tDeuEmsRUsoyG83frY4/photos/Ab1Cd2Ef3Gh4";
-const ENCODED_REF = encodeURIComponent(PHOTO_REF);
+const PHOTO_REF_BASE = "places/ChIJN1t_tDeuEmsRUsoyG83frY4/photos/Ab1Cd2Ef3Gh4";
 const IMAGE_BYTES = Buffer.from("fake-image-bytes-12345");
 
 /** Extracts response bytes regardless of light-my-request rawBody availability. */
@@ -45,8 +44,10 @@ describe("GET /api/locations/photos/:photoRef (photo proxy cache)", () => {
     app = await buildApp();
     app.config.GOOGLE_MAPS_API_KEY = "test-key";
 
-    const url = `/api/locations/photos/${ENCODED_REF}?maxWidthPx=400&maxHeightPx=280`;
-    const expectedKey = buildPhotoCacheKey(PHOTO_REF, 400, 280);
+    // A ref unique to this test so parallel files sharing one storage dir cannot collide.
+    const photoRef = `${PHOTO_REF_BASE}-cache-hit`;
+    const url = `/api/locations/photos/${encodeURIComponent(photoRef)}?maxWidthPx=400&maxHeightPx=280`;
+    const expectedKey = buildPhotoCacheKey(photoRef, 400, 280);
 
     // Ensure a clean slate for this key.
     await app.storage.deleteObject(expectedKey);
@@ -71,7 +72,10 @@ describe("GET /api/locations/photos/:photoRef (photo proxy cache)", () => {
 
     // (b) Second identical request — Google must NOT be called.
     vi.clearAllMocks();
-    const fetchSpy = vi.spyOn(global, "fetch");
+    // Fail closed: if the cache misses, the test errors instead of reaching Google.
+    const fetchSpy = vi
+      .spyOn(global, "fetch")
+      .mockRejectedValue(new Error("Google must not be called (cache hit)"));
     const second = await app.inject({ method: "GET", url });
 
     expect(second.statusCode).toBe(200);
@@ -102,8 +106,10 @@ describe("GET /api/locations/photos/:photoRef (photo proxy cache)", () => {
     app = await buildApp();
     app.config.GOOGLE_MAPS_API_KEY = "test-key";
 
-    const url = `/api/locations/photos/${ENCODED_REF}?maxWidthPx=400&maxHeightPx=280`;
-    const expectedKey = buildPhotoCacheKey(PHOTO_REF, 400, 280);
+    // A ref unique to this test so parallel files sharing one storage dir cannot collide.
+    const photoRef = `${PHOTO_REF_BASE}-negative`;
+    const url = `/api/locations/photos/${encodeURIComponent(photoRef)}?maxWidthPx=400&maxHeightPx=280`;
+    const expectedKey = buildPhotoCacheKey(photoRef, 400, 280);
 
     // Ensure a clean slate for this key.
     await app.storage.deleteObject(expectedKey);
@@ -118,9 +124,18 @@ describe("GET /api/locations/photos/:photoRef (photo proxy cache)", () => {
       expect(first.statusCode).toBe(404);
       expect(global.fetch).toHaveBeenCalledTimes(1);
 
+      // The failure must have persisted a tombstone, so a missing write
+      // reads as a write failure rather than a read miss below.
+      const tombstone = await app.storage.getObjectBuffer(expectedKey);
+      expect(tombstone).not.toBeNull();
+      expect(tombstone!.contentType).toBe(TOMBSTONE_CONTENT_TYPE);
+
       // Second request — served from the tombstone, Google must NOT be called.
       vi.restoreAllMocks();
-      const fetchSpy = vi.spyOn(global, "fetch");
+      // Fail closed: if the tombstone misses, the test errors instead of reaching Google.
+      const fetchSpy = vi
+        .spyOn(global, "fetch")
+        .mockRejectedValue(new Error("Google must not be called (tombstone hit)"));
       const second = await app.inject({ method: "GET", url });
 
       expect(second.statusCode).toBe(404);

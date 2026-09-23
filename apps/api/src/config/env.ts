@@ -51,6 +51,24 @@ const envSchema = z.object({
     )
     .default("http://localhost:3000"),
 
+  // Public origin used for absolute URLs handed to external clients
+  // (calendar webcal links). Must be a valid http(s) URL when set.
+  PUBLIC_API_ORIGIN: z
+    .string()
+    .default("")
+    .refine(
+      (val) => {
+        if (!val) return true;
+        try {
+          const url = new URL(val);
+          return url.protocol === "http:" || url.protocol === "https:";
+        } catch {
+          return false;
+        }
+      },
+      "PUBLIC_API_ORIGIN must be a valid http(s) URL",
+    ),
+
   // Proxy
   TRUST_PROXY: z
     .enum(["true", "false", "1", "0", ""])

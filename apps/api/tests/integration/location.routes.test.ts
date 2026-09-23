@@ -137,6 +137,8 @@ describe("Location Routes", () => {
       // that disagreed with itself.
       expect(response.statusCode).toBe(503);
       const body = JSON.parse(response.body);
+      expect(body.success).toBe(false);
+      expect(body.error.code).toBe("SERVICE_UNAVAILABLE");
       expect(body.error.message).toBe("Google API key is not configured");
     });
 

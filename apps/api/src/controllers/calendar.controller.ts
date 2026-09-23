@@ -3,9 +3,15 @@ import type {
   CalendarTokenParams,
   CalendarExcludedInput,
 } from "@journiful/shared/schemas";
+import { env } from "@/config/env.js";
 
 /**
  * The feed's URL, as the thing a calendar app is handed.
+ *
+ * Built from the server-owned PUBLIC_API_ORIGIN so a client-controlled
+ * Host header can never redirect the subscription at an attacker host.
+ * In development, where no public origin is configured, it falls back to
+ * the request host so local calendar apps still get a reachable URL.
  *
  * `host`, not `hostname`: `hostname` is the host without the port, so
  * everywhere the API is not on 80 or 443 — which is every development
@@ -14,6 +20,11 @@ import type {
  * screen grew buttons that open it.
  */
 function buildWebcalUrl(request: FastifyRequest, token: string): string {
+  if (env.PUBLIC_API_ORIGIN) {
+    return `webcal://${new URL(env.PUBLIC_API_ORIGIN).host}/api/calendar/${token}.ics`;
+  }
+  // Development fallback only: PUBLIC_API_ORIGIN is unset, so there is no
+  // configured origin to use and the request host is the best available.
   return `webcal://${request.host}/api/calendar/${token}.ics`;
 }
 
