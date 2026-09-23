@@ -191,7 +191,15 @@ export async function buildApp(
     keyGenerator: (request) =>
       (request as typeof request & { user?: { sub: string } }).user?.sub ||
       request.ip,
-    allowList: ["127.0.0.1"],
+    // Loopback exemption: local dev and E2E drive all traffic from one
+    // interface, and Node resolves localhost to ::1 by default (the E2E
+    // logs show remoteAddress ::1), so exempting only 127.0.0.1 leaves
+    // parallel E2E workers 429ing each other on the IP-keyed limiters.
+    // The phone-keyed auth limiters (sms/verify brute-force protection)
+    // never match an IP allow-list entry, so they stay enforced
+    // everywhere; production clients never arrive via loopback, so this
+    // changes nothing outside localhost.
+    allowList: ["127.0.0.1", "::1", "::ffff:127.0.0.1"],
     skipOnError: false,
     store: PgRateLimitStore,
   });
