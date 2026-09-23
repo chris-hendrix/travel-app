@@ -164,6 +164,8 @@ describe("apiFetch", () => {
   });
 
   it("clears the dead token and notifies the 401 subscriber, then still throws", async () => {
+    // A 401 only ends a session when the request carried a token.
+    mockedGetToken.mockResolvedValue("stale-token");
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => ({ ok: false, status: 401, json: async () => ({}) }) as Response),
@@ -190,6 +192,44 @@ describe("apiFetch", () => {
     unsubscribe401 = onUnauthorized(notified);
 
     await expect(apiFetch("/nope")).rejects.toBeInstanceOf(ApiError);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(mockedClearToken).not.toHaveBeenCalled();
+    expect(notified).not.toHaveBeenCalled();
+  });
+
+  it("treats a 401 from sign-out as the expected answer, not a dead session", async () => {
+    // `performSignOut` signs out with `POST /auth/logout`, which answers
+    // 401 once the token is gone. Counting that as session death made
+    // sign-out re-trigger itself, forever.
+    mockedGetToken.mockResolvedValue("stale-token");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: false, status: 401, json: async () => ({}) }) as Response),
+    );
+    const notified = vi.fn();
+    unsubscribe401 = onUnauthorized(notified);
+
+    await expect(
+      apiFetch("/auth/logout", { method: "POST" }),
+    ).rejects.toBeInstanceOf(ApiError);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(mockedClearToken).not.toHaveBeenCalled();
+    expect(notified).not.toHaveBeenCalled();
+  });
+
+  it("does not recover a 401 that carried no token at all", async () => {
+    // Nothing to discard: the app is already signed out, and firing
+    // recovery here is what turned anonymous 401s into a sign-out loop.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: false, status: 401, json: async () => ({}) }) as Response),
+    );
+    const notified = vi.fn();
+    unsubscribe401 = onUnauthorized(notified);
+
+    await expect(apiFetch("/me")).rejects.toBeInstanceOf(ApiError);
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(mockedClearToken).not.toHaveBeenCalled();

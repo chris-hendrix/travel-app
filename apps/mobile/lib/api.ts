@@ -36,6 +36,18 @@ type UnauthorizedListener = () => void;
 
 let unauthorizedListener: UnauthorizedListener | null = null;
 
+/**
+ * The one request whose 401 means "already signed out" rather than "the
+ * session died".
+ *
+ * `POST /auth/logout` answers 401 once the token is gone, so treating
+ * that status as death made sign-out restart itself — the listener
+ * signs out, the sign-out call answers 401, the listener signs out
+ * again — a loop that hammered the API until the E2E harness timed
+ * out. A 401 from sign-out is the expected answer, not a signal.
+ */
+const SIGN_OUT_PATH = "/auth/logout";
+
 /** Subscribe to 401 recovery. Returns an unsubscribe. Last one wins. */
 export function onUnauthorized(listener: UnauthorizedListener): () => void {
   unauthorizedListener = listener;
@@ -152,7 +164,15 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
       // Exactly one recovery path for a dead session, here at the
       // shared boundary: fire and forget (the request itself still
       // throws, so callers keep their field-level copy).
-      if (failure.status === 401) void handleUnauthorized();
+      //
+      // Two things a 401 must not be: the sign-out call's own answer
+      // (see `SIGN_OUT_PATH`), and a request that carried no token —
+      // there is no session left to end, and the recovery listener
+      // would only run sign-out again on every anonymous 401 the app
+      // makes on its way to sign-in.
+      if (failure.status === 401 && token && path !== SIGN_OUT_PATH) {
+        void handleUnauthorized();
+      }
       throw failure;
     }
     if (response.status === 204) return undefined as T;
