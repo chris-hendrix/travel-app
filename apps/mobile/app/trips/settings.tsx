@@ -48,8 +48,8 @@ function TripSettingsScreen() {
   const { trip } = useTrip(tripId);
   const {
     for: settingsFor,
-    update,
     setSharePhone,
+    setCalendarIncluded,
     setNotificationPreference,
   } = useTripSettings();
   const dismiss = useDismiss("/trips");
@@ -128,21 +128,19 @@ function TripSettingsScreen() {
           />
         </Row>
 
-        <Row
-          label="Push notifications"
-          description="Your device asks the first time you turn this on"
-        >
-          <ChipToggle
-            label={settings.pushEnabled ? "On" : "Off"}
-            selected={settings.pushEnabled}
-            onPress={() =>
-              update(trip.id, { pushEnabled: !settings.pushEnabled })
-            }
-          />
-        </Row>
+        {/* No push switch. There was one, and its own copy promised the
+            device would ask permission the first time it was turned on —
+            while the handler wrote a boolean into a store that nothing
+            reads, with no permission request, no device token and no
+            registration call behind it (`app.json` carries no
+            notification plugin). A control that reports success and does
+            nothing is worse than an absent one, and this is the same
+            reason `disabled` in this system means "real, its input is not
+            here yet": a push switch with no push behind it is neither.
+            It comes back in ten lines, on the day push does. */}
 
         <Text className="font-body text-sm text-ink">
-          Notifications reach you in the app, by push, and by text.
+          Notifications reach you in the app, and invitations by text.
         </Text>
       </Section>
 
@@ -163,7 +161,11 @@ function TripSettingsScreen() {
         </Row>
       </Section>
 
-      {/* TODO(BE): `calendarIncluded` has no mobile write path: `PATCH /trips/:tripId/my-settings` covers only `sharePhone`; calendar exclusion lives in the calendar router. */}
+      {/* The per-trip half of the calendar feed, through its own
+          endpoint — not the my-settings PATCH, which is what the TODO
+          that used to sit here assumed and stopped at. The server has
+          filtered the feed on this flag all along, and the web app has
+          called this route since before this screen existed. */}
       <Section title="Calendar">
         <Row
           label="Include in calendar"
@@ -173,7 +175,9 @@ function TripSettingsScreen() {
             label={settings.calendarIncluded ? "On" : "Off"}
             selected={settings.calendarIncluded}
             onPress={() =>
-              update(trip.id, { calendarIncluded: !settings.calendarIncluded })
+              void saveServerRow(() =>
+                setCalendarIncluded(trip.id, !settings.calendarIncluded),
+              )
             }
           />
         </Row>

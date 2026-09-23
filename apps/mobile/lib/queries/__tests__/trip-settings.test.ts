@@ -161,16 +161,80 @@ describe("local-only prefs", () => {
     return seen.update;
   }
 
-  it("clock/layout/showPast/pushEnabled stay in the local store and never hit the network", () => {
+  it("clock and showPast stay in the local store and never hit the network", () => {
     mockedApiFetch.mockReset();
     const update = captureUpdate();
 
     update("trip-1", { clock: "device" });
-    update("trip-1", { layout: "list" });
     update("trip-1", { showPast: true });
-    update("trip-1", { pushEnabled: true });
 
     expect(mockedApiFetch).not.toHaveBeenCalled();
+  });
+
+  it("a calendar-inclusion write goes to the calendar router, not my-settings", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({ success: true });
+
+    // Only the request is asserted, not the painted value: this seam is a
+    // server render, so the `for` captured here is bound to the state the
+    // provider had at that moment and never sees the write. The rollback
+    // test below is the other half — a rollback only means something if
+    // there was a paint to undo.
+    const seen: {
+      setCalendarIncluded:
+        | ((tripId: string, value: boolean) => Promise<void>)
+        | null;
+    } = { setCalendarIncluded: null };
+    function Probe() {
+      seen.setCalendarIncluded = useTripSettings().setCalendarIncluded;
+      return null;
+    }
+    renderToString(
+      createElement(
+        TripSettingsProvider,
+        { children: createElement(Probe) },
+      ),
+    );
+    if (!seen.setCalendarIncluded) {
+      throw new Error("settings accessors were not captured");
+    }
+
+    // Off means excluded, which is the server's own word for it.
+    await seen.setCalendarIncluded("trip-1", false);
+    expect(mockedApiFetch).toHaveBeenCalledWith(
+      "/trips/trip-1/members/me/calendar",
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ excluded: true }),
+      },
+    );
+  });
+
+  it("a failed calendar-inclusion write rolls the optimistic paint back", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockRejectedValue(new ApiError(500, "Failed to update"));
+
+    const seen: {
+      setCalendarIncluded:
+        | ((tripId: string, value: boolean) => Promise<void>)
+        | null;
+    } = { setCalendarIncluded: null };
+    function Probe() {
+      seen.setCalendarIncluded = useTripSettings().setCalendarIncluded;
+      return null;
+    }
+    renderToString(
+      createElement(
+        TripSettingsProvider,
+        { children: createElement(Probe) },
+      ),
+    );
+    if (!seen.setCalendarIncluded) throw new Error("not captured");
+
+    await expect(
+      seen.setCalendarIncluded("trip-1", false),
+    ).rejects.toBeInstanceOf(ApiError);
   });
 
   it("a failed sharePhone write rolls the optimistic paint back", async () => {

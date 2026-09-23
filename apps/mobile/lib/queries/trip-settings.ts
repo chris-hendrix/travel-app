@@ -40,6 +40,14 @@ type MySettingsResponse = {
 };
 
 /**
+ * `PUT /trips/:tripId/members/me/calendar` response shape
+ * (`calendarSuccessResponseSchema` in `shared/schemas/calendar.ts`): the
+ * endpoint answers success and nothing else, so the value written is the
+ * one the caller already knows.
+ */
+type CalendarExclusionResponse = { success: true };
+
+/**
  * `GET /trips/:tripId/notification-preferences`, mapped to the
  * preference pair. The read half of the read-modify-write the PUT's
  * full-replace shape forces.
@@ -55,8 +63,8 @@ export async function getNotificationPreferences(
 
 /**
  * `PATCH /trips/:tripId/my-settings` with `{sharePhone}`, returning
- * the server's value. `calendarExcluded` rides along in the response
- * but has no mobile write path (ledger #4, at the settings screen).
+ * the server's value. `calendarExcluded` rides along in the response but
+ * is written through its own endpoint, below.
  */
 export async function updateSharePhone(
   tripId: string,
@@ -71,6 +79,33 @@ export async function updateSharePhone(
     },
   );
   return body.sharePhone;
+}
+
+/**
+ * `PUT /trips/:tripId/members/me/calendar` with `{excluded}` — the
+ * per-trip half of the calendar feed.
+ *
+ * Its own endpoint rather than the my-settings PATCH, which is what the
+ * screen's TODO assumed it had to be: the server has filtered the feed on
+ * this flag all along (`calendar.service.ts`, `eq(members.calendarExcluded,
+ * false)`), and the web app has called this route since before the mobile
+ * screen existed (`apps/web/src/hooks/use-calendar.ts`). Until the feed
+ * became subscribable from Profile nothing could see the flag, which is
+ * how a switch that writes to nothing survived.
+ */
+export async function updateCalendarIncluded(
+  tripId: string,
+  included: boolean,
+): Promise<boolean> {
+  await apiFetch<CalendarExclusionResponse>(
+    `/trips/${tripId}/members/me/calendar`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ excluded: !included }),
+    },
+  );
+  return included;
 }
 
 /**

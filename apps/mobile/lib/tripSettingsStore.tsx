@@ -12,6 +12,7 @@ import { todayIn } from "@/lib/timezone";
 import { readTripState, writeTripState } from "@/lib/tripState";
 import type { Trip } from "@/components/trip/TripCard";
 import {
+  updateCalendarIncluded,
   updateNotificationPreference,
   updateSharePhone,
   type NotificationPreferences,
@@ -41,8 +42,6 @@ export type TripSettings = {
   /** `members.calendarExcluded`, said the other way round — the server
    *  stores the exclusion, people think in inclusion. */
   calendarIncluded: boolean;
-  /** A device permission rather than a server field: off until asked. */
-  pushEnabled: boolean;
 };
 
 type TripSettingsValue = {
@@ -53,10 +52,15 @@ type TripSettingsValue = {
    * Task 4 flow shape: paint the local override optimistically,
    * roll it back on failure, and rethrow so the screen reads the
    * failure through `toErrorCopy`. Local-only keys (`clock`,
-   * `showPast`, `pushEnabled`, `calendarIncluded`) never
-   * leave `update` and never touch the network.
+   * `showPast`) never leave `update` and never touch the network.
    */
   setSharePhone: (tripId: string, value: boolean) => Promise<void>;
+  /**
+   * Whether this trip is in the member's calendar feed. Server-backed:
+   * the feed filters on it, so a switch that only painted locally left a
+   * trip inside a calendar the person had taken it out of.
+   */
+  setCalendarIncluded: (tripId: string, value: boolean) => Promise<void>;
   setNotificationPreference: (
     tripId: string,
     patch: Partial<NotificationPreferences>,
@@ -205,6 +209,28 @@ export function TripSettingsProvider({ children }: { children: ReactNode }) {
     [byTrip, restore],
   );
 
+  /**
+   * The trip's place in the calendar feed, written through: paint, send,
+   * roll back on failure, rethrow so the screen can say what happened.
+   * Same shape as `setSharePhone` above.
+   */
+  const setCalendarIncluded = useCallback(
+    async (tripId: string, value: boolean) => {
+      const previous = byTrip[tripId]?.calendarIncluded;
+      setByTrip((current) => ({
+        ...current,
+        [tripId]: { ...current[tripId], calendarIncluded: value },
+      }));
+      try {
+        await updateCalendarIncluded(tripId, value);
+      } catch (err) {
+        restore(tripId, { calendarIncluded: previous });
+        throw err;
+      }
+    },
+    [byTrip, restore],
+  );
+
   const value = useMemo<TripSettingsValue>(
     () => ({
       for: (trip, now) => ({
@@ -217,13 +243,19 @@ export function TripSettingsProvider({ children }: { children: ReactNode }) {
         tripMessages: byTrip[trip.id]?.tripMessages ?? true,
         sharePhone: byTrip[trip.id]?.sharePhone ?? false,
         calendarIncluded: byTrip[trip.id]?.calendarIncluded ?? true,
-        pushEnabled: byTrip[trip.id]?.pushEnabled ?? false,
       }),
       update,
       setSharePhone,
+      setCalendarIncluded,
       setNotificationPreference,
     }),
-    [byTrip, update, setSharePhone, setNotificationPreference],
+    [
+      byTrip,
+      update,
+      setSharePhone,
+      setCalendarIncluded,
+      setNotificationPreference,
+    ],
   );
 
   return (
