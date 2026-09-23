@@ -3,13 +3,12 @@ import {
   useCallback,
   useContext,
   useMemo,
-  useRef,
-  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Trip } from "@/components/trip/TripCard";
 import { staysInOrder, type Stay } from "@/lib/stays";
+import { useDomainVersion } from "@/lib/domainVersion";
 import {
   createStay,
   deleteStay as deleteStayRequest,
@@ -38,34 +37,6 @@ type StaysValue = {
 
 const StaysContext = createContext<StaysValue | null>(null);
 
-/**
- * A tick that moves whenever this domain's cache entries change, so
- * the accessors below re-read the cache instead of the mount-time
- * snapshot. The subscription filters to this domain's key prefix;
- * the snapshot is a counter the subscriber bumps before notifying.
- */
-function useStaysTick(): void {
-  const queryClient = useQueryClient();
-  const tick = useRef(0);
-  const subscribe = useCallback(
-    (notify: () => void) =>
-      queryClient.getQueryCache().subscribe((notification) => {
-        const key = notification?.query?.queryKey as unknown;
-        if (
-          Array.isArray(key) &&
-          key.length >= stayKeys.all.length &&
-          stayKeys.all.every((segment, index) => key[index] === segment)
-        ) {
-          tick.current += 1;
-          notify();
-        }
-      }),
-    [queryClient],
-  );
-  const getSnapshot = useCallback(() => tick.current, []);
-  const getServerSnapshot = useCallback(() => 0, []);
-  useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-}
 
 /**
  * Only the keys this mutation painted, taken from the pre-paint row:
@@ -195,7 +166,7 @@ export function StaysProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   // Re-reads the cache when this domain's keys change, so a
   // background refetch repaints the accessors below.
-  useStaysTick();
+  useDomainVersion(stayKeys.all);
 
   const createMutation = useMutation({
     mutationKey: ["stays", "create"],
