@@ -16,7 +16,7 @@
     "test:e2e": "playwright test",
     "clean": "rm -rf .expo dist node_modules",
     "export:web": "expo export --platform web --clear",
-    "serve:web": "serve dist --single --listen tcp://0.0.0.0:${PORT:-8081}"
+    "serve:web": "node scripts/serve-static.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/bungee-shade": "^0.4.1",
@@ -54,7 +54,6 @@
     "expo-doctor": "^1.20.4",
     "lightningcss": "1.30.1",
     "postcss": "^8.5.25",
-    "serve": "14.2.5",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
   }
