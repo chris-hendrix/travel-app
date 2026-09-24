@@ -150,6 +150,12 @@ function TripSettingsScreen() {
           />
         </Row>
 
+        {/* "Trip messages" stays even though there is no chat surface: the
+            toggle writes a real server notification preference, and deleting
+            it would drop working server state. Until a messages surface
+            exists the row controls notification delivery only, which is why
+            the description says when the notice arrives rather than where
+            the thread lives. */}
         <Row
           label="Trip messages"
           description="When someone posts to the trip"

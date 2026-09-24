@@ -4,31 +4,31 @@
 
 Journiful is a collaborative trip planning platform. Monorepo managed with pnpm + Turbo:
 
-- `apps/mobile` — Expo 57. **The product is moving here.** Today it is a design mockup: in-memory stores, one real network call (the flight lookup), no backend wiring. Lane rules live in `apps/mobile/AGENTS.md`.
+- `apps/mobile` — Expo 57. **The product.** Wired to the API (lane rules live in `apps/mobile/AGENTS.md`); its static web export is the product surface at `beta.journiful.app`, with the apex swap pending.
 - `apps/api` — Fastify 5 REST API, PostgreSQL 16 via Drizzle ORM, JWT auth. Pattern: `buildApp` factory, route → controller → service. The backend for both surfaces.
-- `apps/web` — Next.js 16 App Router, React 19, Tailwind CSS 4, shadcn/ui. Wraps into a native Android app via Capacitor 8 static export. Pattern: App Router pages with TanStack Query for server state. **Being deprecated** — see Direction below.
+- `apps/web` — Next.js 16 App Router, React 19, Tailwind CSS 4, shadcn/ui. Wraps into a native Android app via Capacitor 8 static export. Pattern: App Router pages with TanStack Query for server state. **Frozen** — see Direction below.
 - `shared` — Cross-cutting types, Zod schemas, and pure utilities consumed by both apps.
 
 Design system: **Vivid Capri** (Mediterranean aesthetic). The source of truth is `apps/mobile`: its tokens in `global.css`, its components, and the lab at `/design` that documents them. `apps/web/src/app/globals.css` carries the web app's own tokens, which go with the web app.
 
-### Direction — the product is moving from the web app to the Expo app
+### Direction — the product moved from the web app to the Expo app
 
 Stated up front because it decides where work goes, and it is easy to infer the opposite from the repo as it stands:
 
-| | Today | Where it is going |
+| | Before | Now |
 | --- | --- | --- |
-| `apps/mobile` | design mockup, in-memory data | the product; backend wiring in progress |
-| `apps/web` | the shipped web app, and through Capacitor the shipped Android app | deprecated |
+| `apps/mobile` | design mockup, in-memory data | the product; wired to the API and shipped as its static web export |
+| `apps/web` | the shipped web app, and through Capacitor the shipped Android app | frozen; the rollback target and the home of `/admin` on its own Railway hostname |
 | `apps/api` | the backend | unchanged; both surfaces talk to it |
 | `shared` | cross-cutting types and schemas | unchanged |
 
-Until the cutover is planned, this means:
+This means:
 
-- **New product work goes in `apps/mobile`.** A change to `apps/web` should be a bug fix, a security or compliance fix, or something that keeps the current release working.
-- **`apps/web` is not migrated feature by feature.** The wiring order is the order the screens were designed in, and it wants a plan of its own.
+- **New product work goes in `apps/mobile`.** `apps/web` is frozen: it stays deployed on its own Railway hostname as the rollback target and the home of `/admin`. Do not change it except to keep the rollback working.
+- **Auth differs by surface.** The Expo web export keeps a bearer token in `localStorage` (`apps/mobile/lib/session.ts`); the Next app uses an httpOnly cookie session. The web-export token storage is the weaker of the two and is accepted for now; the follow-up is cookie auth on web or the native app.
 - **The Capacitor pipeline is frozen, not dead.** `make cap-*` is how the current APK ships and keeps working until the Expo app is on the store.
 - **`make build-mobile` and `make cap-*` are `apps/web`, not `apps/mobile`.** The name is a trap: they build the Next.js static export for Capacitor.
-- **The cutover is not planned.** Where the marketing site, the web PWA and desktop sign-in end up is an open question rather than a decision — do not infer one from this section.
+- **The cutover is in progress, not planned.** The Expo export serves `beta.journiful.app`; pointing the apex at it is the pending step, and re-pointing at the frozen web app is the rollback.
 
 ## WHY
 

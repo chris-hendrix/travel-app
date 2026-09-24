@@ -4,12 +4,13 @@ Journiful runs on [Railway](https://railway.app) as two services from this monor
 
 ## Project Topology
 
-| Service            | Type          | Start Command                              | Health Check        |
-| ------------------ | ------------- | ------------------------------------------ | ------------------- |
-| **api**            | Nixpacks      | `node apps/api/dist/server.js`             | `/api/health/ready` |
-| **web**            | Nixpacks      | `node apps/web/.next/standalone/server.js` | `/`                 |
-| **Postgres**       | Railway addon | —                                          | Built-in            |
-| **Storage Bucket** | Railway addon | —                                          | —                   |
+| Service            | Type          | Start Command                                                            | Health Check        |
+| ------------------ | ------------- | ------------------------------------------------------------------------ | ------------------- |
+| **api**            | Nixpacks      | `node apps/api/dist/server.js`                                           | `/api/health/ready` |
+| **web**            | Nixpacks      | `node apps/web/.next/standalone/server.js`                               | `/`                 |
+| **static**         | Nixpacks      | `pnpm --filter @journiful/mobile exec node scripts/serve-static.mjs`     | `/`                 |
+| **Postgres**       | Railway addon | —                                                                        | Built-in            |
+| **Storage Bucket** | Railway addon | —                                                                        | —                   |
 
 ## What's Codified vs Dashboard
 
@@ -36,10 +37,11 @@ Each service must be configured with:
 
 Both services share `nixpacks.toml` for the setup phase (`corepack enable`), but need different build commands configured in the Railway dashboard:
 
-| Service | Build Command                                      |
-| ------- | -------------------------------------------------- |
-| **api** | `pnpm install --frozen-lockfile && pnpm build:api` |
-| **web** | `pnpm install --frozen-lockfile && pnpm build:web` |
+| Service  | Build Command                                                                                          |
+| -------- | ------------------------------------------------------------------------------------------------------ |
+| **api**    | `pnpm install --frozen-lockfile && pnpm build:api`                                                     |
+| **web**    | `pnpm install --frozen-lockfile && pnpm build:web`                                                     |
+| **static** | `pnpm install --frozen-lockfile && pnpm --filter @journiful/mobile exec expo export --platform web`    |
 
 The `build:web` script includes copying static assets into the Next.js standalone output, which standalone mode doesn't include by default.
 
@@ -102,6 +104,37 @@ The `build:web` script includes copying static assets into the Next.js standalon
 | `NEXT_PUBLIC_SITE_URL`       | `https://journiful.app`                   | For SEO (robots.txt, sitemap)                           |
 | `NEXT_PUBLIC_ENABLE_POLLING` | `false`                                | Disable TanStack Query polling to prevent rate limiting |
 | `PORT`                       | `3000`                                 | Railway sets this automatically                         |
+
+### Static Service (Expo web export)
+
+| Variable              | Example                          | Notes                                        |
+| --------------------- | -------------------------------- | -------------------------------------------- |
+| `EXPO_PUBLIC_API_URL` | `https://api.journiful.app/api`  | Build-time, inlined into the export bundles  |
+| `PORT`                | `8081`                           | Railway sets this automatically              |
+
+The service builds and serves via the `apps/mobile` scripts `export:web`
+(`expo export --platform web --clear`) and `serve:web`
+(`node scripts/serve-static.mjs`, a dependency-free static server that
+returns one file per route with real 404s). Live at
+`https://beta.journiful.app` (and
+`https://static-production-df7e.up.railway.app`).
+
+The API's `FRONTEND_URL` covers the static origins:
+`https://journiful.app,https://static-production-df7e.up.railway.app,https://beta.journiful.app`.
+
+## Domains and Rollback
+
+The apex `journiful.app` currently points at the **web** service. Pointing it
+at the **static** service is the cutover; pointing it back is the rollback.
+Both are a one-action custom-domain re-point in the Railway dashboard
+(service → Settings → Networking → Custom Domains), no redeploy needed.
+
+### Rollback steps
+
+1. In the Railway dashboard, remove the `journiful.app` custom domain from
+   the **static** service and add it back to the **web** service.
+2. Confirm the old app serves: open `https://journiful.app` and sign in.
+3. Swap forward again by moving the domain back to **static** when ready.
 
 ## Health Checks
 

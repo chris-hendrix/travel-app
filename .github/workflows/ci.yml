@@ -388,6 +388,86 @@ jobs:
           path: apps/mobile/blob-report/
           retention-days: 1
 
+  # Step 4e: Mobile web export gate — build dist/ then verify it
+  mobile-web-export:
+    name: Mobile Web Export
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: changes
+    if: |
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/master' ||
+      needs.changes.outputs.mobile == 'true'
+    env:
+      NODE_ENV: test
+      GEOCODING_STUB: true
+      DATABASE_URL: postgresql://journiful@localhost:5432/journiful
+      JWT_SECRET: test-jwt-secret-minimum-32-characters-long-for-testing-purposes-only
+      FRONTEND_URL: http://localhost:3000,http://localhost:8081
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: journiful
+          # A throwaway database on the runner loopback needs no password,
+          # and trust auth keeps a credential-shaped literal out of the diff.
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: journiful
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Turbo
+        uses: actions/cache@v6
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
+      - name: Install Playwright Browsers (mobile, chromium only)
+        run: pnpm --filter @journiful/mobile exec playwright install --with-deps chromium
+
+      - name: Run database migrations
+        run: pnpm --filter @journiful/api db:migrate
+
+      # The export bakes its API origin in at build time, so it must carry
+      # the local test origin — this artifact is only exercised, never deployed.
+      # --clear lives in the export:web script: EXPO_PUBLIC_API_URL is inlined
+      # by Babel at transform time and is not part of Metro's cache key, so a
+      # cached transform would silently ship a previous build's origin.
+      - name: Build the web export
+        run: pnpm --filter @journiful/mobile exec expo export --platform web --clear
+        env:
+          EXPO_PUBLIC_API_URL: http://localhost:8000/api
+
+      # dist/ now exists, so web-export.test.ts executes instead of skipping.
+      - name: Export shape assertions
+        run: pnpm --filter @journiful/mobile test
+
+      - name: Run Mobile E2E Tests against the export
+        run: pnpm --filter @journiful/mobile exec playwright test
+        env:
+          MOBILE_WEB_TARGET: export
+
   # Step 4d: Merge Mobile E2E Reports
   merge-mobile-e2e-reports:
     name: Merge Mobile E2E Reports

@@ -2,9 +2,9 @@
 
 ## WHAT
 
-`apps/mobile` is the Expo 57 app: React Native, NativeWind v5 (Tailwind 4), expo-router, with a static web build for review. It is wired to the backend: server state lives in TanStack Query behind the store hooks, and the session persists in `lib/session.ts` (SecureStore on native, localStorage on web), so a reload keeps you signed in. The flight lookup still POSTs `/flights/lookup` through the same boundary.
+`apps/mobile` is the Expo 57 app: React Native, NativeWind v5 (Tailwind 4), expo-router, shipped as a static web build. The export (`pnpm export:web`) is served by `scripts/serve-static.mjs` (`pnpm serve:web`) and deployed at `beta.journiful.app`, with the apex swap pending. It is wired to the backend: server state lives in TanStack Query behind the store hooks, and the session persists in `lib/session.ts` (SecureStore on native, localStorage on web), so a reload keeps you signed in. The flight lookup still POSTs `/flights/lookup` through the same boundary.
 
-It is also where the product is going. `apps/web` is being deprecated in its favour (see the root `AGENTS.md`), and the backend wiring happens here — screen by screen, in the order the screens were designed.
+It is the product surface (web export today, native later). `apps/web` is frozen in its favour (see the root `AGENTS.md`): it remains the rollback target and the home of `/admin` on its own Railway hostname. The backend wiring is done.
 
 It is also the design system. The system is the components plus the lab that documents them, not a document about them.
 
@@ -48,6 +48,10 @@ make test-exec CMD="cd apps/mobile && pnpm lint"
 ```
 
 E2E runs take file paths, not `--grep`: the flag is swallowed through test-exec's bash -c, so pass the spec path (`pnpm test:e2e tests/e2e/auth-journey.spec.ts`). The Expo web build serves on `http://localhost:8081`, which must be present in the API's `FRONTEND_URL` or the browser's CORS preflight fails. The E2E suite drives the Expo web export, so it covers the web localStorage session path — SecureStore and native deep links are not covered by it.
+
+### Production web build
+
+`pnpm export:web` (`expo export --platform web --clear`) writes `dist/`; `pnpm serve:web` serves it through `scripts/serve-static.mjs`, a dependency-free static server that returns real 404s. `--clear` is load-bearing rather than hygiene: `EXPO_PUBLIC_API_URL` is inlined at transform time and is not part of Metro's cache key, so without it an export can ship the API origin of an earlier build. `MOBILE_WEB_TARGET=export` points the E2E suite at the built export instead of the dev server, so the same specs verify the artifact that ships.
 
 On this branch a commit needs the mobile suite only.
 

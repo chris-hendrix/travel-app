@@ -10,7 +10,7 @@ import { useTrips } from "@/lib/tripsStore";
 import { toErrorCopy } from "@/lib/queries/errors";
 
 /**
- * Notifications: invites, messages, itinerary changes.
+ * Notifications: invites and trip updates.
  *
  * One list, newest first — unread rows are marked on the row itself
  * (weight plus a strawberry edge), so the list needs no sections. There
@@ -46,8 +46,12 @@ export default function Notifications() {
           <Text className="font-display text-3xl uppercase leading-tight text-ink">
             Nothing yet
           </Text>
+          {/* The empty state names only what the app can open: invites and
+              trip updates. "Messages" used to sit in this sentence, but there
+              is no chat surface, so it promised a thread the app cannot
+              open — the copy rule holds copy to what the app does. */}
           <Text className="font-body text-lg text-ink">
-            Invites, messages, and itinerary changes land here.
+            Invites and trip updates land here.
           </Text>
         </View>
       ) : (
