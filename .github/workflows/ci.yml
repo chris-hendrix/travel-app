@@ -41,6 +41,7 @@ jobs:
             mobile:
               - 'apps/mobile/**'
             shared:
+              - 'shared/**'
               - 'package.json'
               - 'pnpm-lock.yaml'
               - 'turbo.json'
@@ -387,6 +388,105 @@ jobs:
           name: mobile-blob-report-${{ matrix.shardIndex }}
           path: apps/mobile/blob-report/
           retention-days: 1
+
+  # Step 4e: Mobile web export gate — build dist/ then verify it
+  mobile-web-export:
+    name: Mobile Web Export
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: changes
+    # api and shared, not just mobile: this job migrates the API and runs the
+    # export against it, and `shared/**` feeds both the app and the API. The
+    # `mobile`-only guard would have skipped the artifact suite on exactly the
+    # changes that can break it.
+    if: |
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/master' ||
+      needs.changes.outputs.api == 'true' ||
+      needs.changes.outputs.mobile == 'true' ||
+      needs.changes.outputs.shared == 'true'
+    env:
+      NODE_ENV: test
+      GEOCODING_STUB: true
+      DATABASE_URL: postgresql://journiful@localhost:5432/journiful
+      JWT_SECRET: test-jwt-secret-minimum-32-characters-long-for-testing-purposes-only
+      FRONTEND_URL: http://localhost:3000,http://localhost:8081
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: journiful
+          # A throwaway database on the runner loopback needs no password.
+          # Trust auth also avoids adding another POSTGRES_PASSWORD literal:
+          # GitGuardian flags a new line even though the same test value
+          # already appears in the other jobs in this file.
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: journiful
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Turbo
+        uses: actions/cache@v6
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
+      - name: Install Playwright Browsers (mobile, chromium only)
+        run: pnpm --filter @journiful/mobile exec playwright install --with-deps chromium
+
+      - name: Run database migrations
+        run: pnpm --filter @journiful/api db:migrate
+
+      # The export bakes its API origin in at build time, so it must carry
+      # the local test origin — this artifact is only exercised, never deployed.
+      # --clear lives in the export:web script: EXPO_PUBLIC_API_URL is inlined
+      # by Babel at transform time and is not part of Metro's cache key, so a
+      # cached transform would silently ship a previous build's origin.
+      - name: Build the web export
+        run: pnpm --filter @journiful/mobile export:web
+        env:
+          EXPO_PUBLIC_API_URL: http://localhost:8000/api
+
+      # Only web-export.test.ts. The rest of the mobile suite is
+      # mobile-checks' job, and it already ran on this PR.
+      - name: Export shape assertions
+        run: pnpm --filter @journiful/mobile exec vitest run __tests__/web-export.test.ts
+
+      # html rather than the CI-default blob reporter: this run has no shards
+      # to merge, so the report is uploaded whole and is readable on failure.
+      - name: Run Mobile E2E Tests against the export
+        run: pnpm --filter @journiful/mobile exec playwright test --reporter=html
+        env:
+          MOBILE_WEB_TARGET: export
+
+      - name: Upload the export E2E report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: playwright-report-mobile-web-export
+          path: apps/mobile/playwright-report/
+          retention-days: 7
 
   # Step 4d: Merge Mobile E2E Reports
   merge-mobile-e2e-reports:

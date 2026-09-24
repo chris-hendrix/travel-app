@@ -1,4 +1,4 @@
-.PHONY: help install dev dev-web dev-api mockup build-mobile android-setup adb-reverse cap-dev cap-run cap-apk cap-install cap-logs cap-crash pwa migrate seed studio generate up down clean reset-db test-up test-down test-exec test-run test-status test-setup test-clean test-static-smoke
+.PHONY: help install dev dev-web dev-api mockup mobile-web-export mobile-web-serve build-mobile android-setup adb-reverse cap-dev cap-run cap-apk cap-install cap-logs cap-crash pwa migrate seed studio generate up down clean reset-db test-up test-down test-exec test-run test-status test-setup test-clean test-static-smoke
 
 .DEFAULT_GOAL := help
 
@@ -67,6 +67,18 @@ generate: ## Generate migration from schema changes
 
 pwa: ## Build + serve web in production mode for PWA testing (api:8000, web:3000)
 	pnpm docker:up && cd apps/web && pnpm build && cd ../.. && pnpm dev:api & cd apps/web && pnpm start
+
+# The product surface is the Expo web export served by the static service.
+# Like `make mockup`, both targets run on the host: the devcontainer
+# publishes only 3000 and 8000, so :8081 is invisible from inside it.
+# The export bakes EXPO_PUBLIC_API_URL in at build time (override it to
+# point the artifact at production); --clear lives in the export:web script
+# because the URL is inlined by Babel outside Metro's cache key.
+mobile-web-export: ## Build the Expo web export (apps/mobile dist/)
+	cd apps/mobile && EXPO_PUBLIC_API_URL=$${EXPO_PUBLIC_API_URL:-http://localhost:8000/api} pnpm export:web
+
+mobile-web-serve: ## Serve the built Expo web export on the host (expo:8081)
+	cd apps/mobile && pnpm serve:web
 
 build-mobile: ## Build web app for Capacitor static export
 	cd apps/web && pnpm build:mobile
