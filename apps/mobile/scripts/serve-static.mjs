@@ -110,11 +110,18 @@ function cacheControlFor(filePath, distRoot) {
   const ext = path.extname(filePath).toLowerCase();
   if (ext === ".html") return "no-cache";
   const rel = path.relative(distRoot, filePath);
-  if (rel === "_expo/static" || rel.startsWith(`_expo${path.sep}static${path.sep}`)) {
+  if (rel.startsWith(`_expo${path.sep}static${path.sep}`)) {
     return "public, max-age=31536000, immutable";
   }
   return null;
 }
+
+// This script serves the deployed production origin, not just a local E2E
+// harness, so these headers are the app's — there is no proxy setting them.
+const SECURITY_HEADERS = {
+  "x-content-type-options": "nosniff",
+  "referrer-policy": "strict-origin-when-cross-origin",
+};
 
 export function createServer(distDir) {
   const distRoot = path.resolve(distDir);
@@ -126,7 +133,11 @@ export function createServer(distDir) {
     const send = (code, body, headers = {}) => {
       status = code;
       const bodyText = body ?? "";
-      const finalHeaders = { "content-length": Buffer.byteLength(bodyText), ...headers };
+      const finalHeaders = {
+        ...SECURITY_HEADERS,
+        "content-length": Buffer.byteLength(bodyText),
+        ...headers,
+      };
       if (method === "HEAD") {
         res.writeHead(code, finalHeaders);
         res.end();
@@ -158,6 +169,7 @@ export function createServer(distDir) {
 
     status = 200;
     const headers = {
+      ...SECURITY_HEADERS,
       "content-type": contentTypeFor(file),
       "content-length": data.length,
     };

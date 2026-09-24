@@ -18,6 +18,7 @@ import {
   type IGuestMemberService,
 } from "./guest-member.service.js";
 import type { Logger } from "@/types/logger.js";
+import { DEFAULT_FRONTEND_ORIGIN } from "@/config/env.js";
 import type { MemberWithProfile } from "@journiful/shared/types";
 import type { PgBoss } from "pg-boss";
 import { QUEUE } from "@/queues/types.js";
@@ -200,7 +201,7 @@ export class InvitationService implements IInvitationService {
     private notificationService: INotificationService,
     private logger?: Logger,
     private boss: PgBoss | null = null,
-    private frontendUrl: string = "https://journiful.app",
+    private frontendUrl: string = DEFAULT_FRONTEND_ORIGIN,
     private guestMemberService?: IGuestMemberService,
   ) {}
 

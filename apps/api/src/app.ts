@@ -191,14 +191,18 @@ export async function buildApp(
     keyGenerator: (request) =>
       (request as typeof request & { user?: { sub: string } }).user?.sub ||
       request.ip,
-    // Loopback exemption: local dev and E2E drive all traffic from one
-    // interface, and Node resolves localhost to ::1 by default (the E2E
-    // logs show remoteAddress ::1), so exempting only 127.0.0.1 leaves
-    // parallel E2E workers 429ing each other on the IP-keyed limiters.
-    // The phone-keyed auth limiters (sms/verify brute-force protection)
-    // never match an IP allow-list entry, so they stay enforced
-    // everywhere; production clients never arrive via loopback, so this
-    // changes nothing outside localhost.
+    // Loopback exemption: @fastify/rate-limit compares allowList against the
+    // limiter's key, not request.ip, so these entries only ever match
+    // limiters whose key is an IP address. The global limiter keys on
+    // user.sub || request.ip, so authenticated requests are never exempted;
+    // the sms/verify limiters key by phone number (see rate-limit.middleware),
+    // so their brute-force protection is unaffected — only their request.ip
+    // fallback, when the body carries no phoneNumber, is exempted locally
+    // like any other IP key. Local dev and E2E drive all traffic from one
+    // interface, and Node resolves localhost to ::1, so exempting only
+    // 127.0.0.1 left parallel E2E workers 429ing each other. Production
+    // sets TRUST_PROXY, so request.ip is the real client and a loopback
+    // key never occurs there.
     allowList: ["127.0.0.1", "::1", "::ffff:127.0.0.1"],
     skipOnError: false,
     store: PgRateLimitStore,

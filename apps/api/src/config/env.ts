@@ -160,17 +160,22 @@ const envSchema = z.object({
 export type Env = z.infer<typeof envSchema>;
 
 /**
+ * Default frontend origin used when FRONTEND_URL carries no usable entry
+ * and as the InvitationService constructor default. The two must agree so
+ * invite SMS deep links point at the same origin the API validates.
+ */
+export const DEFAULT_FRONTEND_ORIGIN = "https://journiful.app";
+
+/**
  * Collapse a possibly comma-separated FRONTEND_URL (used as-is for CORS)
  * to the single origin used in user-facing URLs such as invite SMS bodies.
- * Falls back to "https://journiful.app" — kept consistent with the
- * InvitationService constructor default.
  */
 export function primaryOrigin(value: string): string {
   const first = value
     .split(",")
     .map((entry) => entry.trim())
     .find((entry) => entry.length > 0);
-  return first ?? "https://journiful.app";
+  return first ?? DEFAULT_FRONTEND_ORIGIN;
 }
 
 function validateEnv(): Env {
