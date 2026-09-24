@@ -195,6 +195,9 @@ test.describe("Trip Journey", () => {
         timeout: ELEMENT_TIMEOUT,
       });
       await editInput.click();
+      // Phone width (390px) narrows the field, so the click can land
+      // mid-string; End puts the caret where the append means it.
+      await editInput.press("End");
       await editInput.pressSequentially(" II");
       // app/trips/edit.tsx: FullscreenDialog
       // primaryTitle="Save changes"; success dismisses to detail.

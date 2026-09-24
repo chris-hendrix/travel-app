@@ -201,6 +201,8 @@ describe("Security & Schema Validation", () => {
   });
 
   describe("Rate Limiting", () => {
+    // app.inject() arrives over loopback, so this also proves the loopback
+    // allowList in app.ts does not exempt the phone-keyed verify-code limiter.
     it("should rate limit verify-code endpoint", async () => {
       const rateLimitPhone = newPhone();
 

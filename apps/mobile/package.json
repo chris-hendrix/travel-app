@@ -14,7 +14,9 @@
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "clean": "rm -rf .expo dist node_modules"
+    "clean": "rm -rf .expo dist node_modules",
+    "export:web": "expo export --platform web --clear",
+    "serve:web": "node scripts/serve-static.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/bungee-shade": "^0.4.1",

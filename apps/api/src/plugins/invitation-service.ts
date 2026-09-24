@@ -1,5 +1,6 @@
 import fp from "fastify-plugin";
 import type { FastifyInstance } from "fastify";
+import { primaryOrigin } from "@/config/env.js";
 import { InvitationService } from "@/services/invitation.service.js";
 
 /**
@@ -15,7 +16,7 @@ export default fp(
       fastify.notificationService,
       fastify.log,
       fastify.boss ?? null,
-      fastify.config.FRONTEND_URL,
+      primaryOrigin(fastify.config.FRONTEND_URL),
     );
     fastify.decorate("invitationService", invitationService);
   },
