@@ -4,13 +4,13 @@ Journiful runs on [Railway](https://railway.app) as three services from this mon
 
 ## Project Topology
 
-| Service            | Builder       | Start Command                                                            | Health endpoint     |
-| ------------------ | ------------- | ------------------------------------------------------------------------ | ------------------- |
-| **api**            | RAILPACK      | `node apps/api/dist/server.js`                                           | `/api/health/ready` |
-| **web**            | RAILPACK      | `node apps/web/.next/standalone/server.js`                               | `/`                 |
-| **static**         | RAILPACK      | `node apps/mobile/scripts/serve-static.mjs`                              | `/`                 |
-| **Postgres**       | Railway addon | —                                                                        | Built-in            |
-| **Storage Bucket** | Railway addon | —                                                                        | —                   |
+| Service            | Builder       | Start Command                                                            | Health check                     |
+| ------------------ | ------------- | ------------------------------------------------------------------------ | -------------------------------- |
+| **api**            | RAILPACK      | `node apps/api/dist/server.js`                                           | endpoint exists, none configured |
+| **web**            | RAILPACK      | `node apps/web/.next/standalone/server.js`                               | endpoint exists, none configured |
+| **static**         | RAILPACK      | `node apps/mobile/scripts/serve-static.mjs`                              | `/`, configured, 300s timeout    |
+| **Postgres**       | Railway addon | —                                                                        | Built-in                         |
+| **Storage Bucket** | Railway addon | —                                                                        | —                                |
 
 ## What's Codified vs Dashboard
 
@@ -18,7 +18,7 @@ Journiful runs on [Railway](https://railway.app) as three services from this mon
 
 | File            | Purpose                                                              |
 | --------------- | -------------------------------------------------------------------- |
-| `nixpacks.toml` | Shared build phases: `corepack enable`, `pnpm install`, `pnpm build` |
+| `nixpacks.toml` | Config for the **Nixpacks** builder. The live services build with Railpack (the deploy driver is `railpack-v0.39.0`), so treat this as legacy; the per-service commands under [Build Commands](#build-commands) are what run. |
 
 Railway's config-as-code (`railway.json`) only supports a single file at the repo root, which applies to all services sharing that root. Since our three services need different start commands, build commands and watch paths, per-service deploy settings live in the Railway dashboard.
 
@@ -35,15 +35,15 @@ Each service must be configured with:
 
 ## Build Commands
 
-All three services share `nixpacks.toml` for the setup phase (`corepack enable`), but need different build commands configured in the Railway dashboard:
+All three services build with Railpack, which detects Node and pnpm from the repo root (`nodePackageManager: pnpm` in the deploy metadata). The differing build commands are set per service in the Railway dashboard:
 
 | Service  | Build Command                                                                                          |
 | -------- | ------------------------------------------------------------------------------------------------------ |
 | **api**    | `pnpm install --frozen-lockfile && pnpm build:api`                                                     |
 | **web**    | `pnpm install --frozen-lockfile && pnpm build:web`                                                     |
-| **static** | `pnpm install --frozen-lockfile && pnpm --filter @journiful/mobile exec expo export --platform web`    |
+| **static** | `pnpm install --frozen-lockfile && pnpm --filter @journiful/mobile export:web`                        |
 
-The `build:web` script includes copying static assets into the Next.js standalone output, which standalone mode doesn't include by default.
+The `build:web` script includes copying static assets into the Next.js standalone output, which standalone mode doesn't include by default. The static service calls `export:web` rather than spelling out `expo export` so that `--clear` cannot be dropped: `EXPO_PUBLIC_API_URL` is inlined by Babel outside Metro's cache key, so a cached transform ships a previous build's API origin, and a Railway builder caches aggressively.
 
 ## Deploy Trigger
 

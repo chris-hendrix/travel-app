@@ -10,7 +10,7 @@ import { useTrips } from "@/lib/tripsStore";
 import { toErrorCopy } from "@/lib/queries/errors";
 
 /**
- * Notifications: invites and trip updates.
+ * Notifications: invites, messages, itinerary changes.
  *
  * One list, newest first — unread rows are marked on the row itself
  * (weight plus a strawberry edge), so the list needs no sections. There
@@ -46,12 +46,17 @@ export default function Notifications() {
           <Text className="font-display text-3xl uppercase leading-tight text-ink">
             Nothing yet
           </Text>
-          {/* The empty state names only what the app can open: invites and
-              trip updates. "Messages" used to sit in this sentence, but there
-              is no chat surface, so it promised a thread the app cannot
-              open — the copy rule holds copy to what the app does. */}
+          {/* The three nouns are the server's, not the surface's: this inbox
+              receives `mutual_invite`/`sms_invite`, `trip_message` and
+              `daily_itinerary`, and `lib/notifications.ts` lists which types
+              the API can actually produce. Audited 2026-09-24 and left as it
+              was — the app has no chat surface, but a message notification
+              still lands in this list, so the sentence is true of the inbox
+              even though there is no thread to open. "Trip updates" was the
+              tempting rewrite and would have named `trip_update`, the one
+              type that file marks "nothing yet". */}
           <Text className="font-body text-lg text-ink">
-            Invites and trip updates land here.
+            Invites, messages, and itinerary changes land here.
           </Text>
         </View>
       ) : (

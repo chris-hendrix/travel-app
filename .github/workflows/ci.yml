@@ -41,6 +41,7 @@ jobs:
             mobile:
               - 'apps/mobile/**'
             shared:
+              - 'shared/**'
               - 'package.json'
               - 'pnpm-lock.yaml'
               - 'turbo.json'
@@ -394,10 +395,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     needs: changes
+    # api and shared, not just mobile: this job migrates the API and runs the
+    # export against it, and `shared/**` feeds both the app and the API. The
+    # `mobile`-only guard would have skipped the artifact suite on exactly the
+    # changes that can break it.
     if: |
       github.ref == 'refs/heads/main' ||
       github.ref == 'refs/heads/master' ||
-      needs.changes.outputs.mobile == 'true'
+      needs.changes.outputs.api == 'true' ||
+      needs.changes.outputs.mobile == 'true' ||
+      needs.changes.outputs.shared == 'true'
     env:
       NODE_ENV: test
       GEOCODING_STUB: true
@@ -410,8 +417,10 @@ jobs:
         image: postgres:16
         env:
           POSTGRES_USER: journiful
-          # A throwaway database on the runner loopback needs no password,
-          # and trust auth keeps a credential-shaped literal out of the diff.
+          # A throwaway database on the runner loopback needs no password.
+          # Trust auth also avoids adding another POSTGRES_PASSWORD literal:
+          # GitGuardian flags a new line even though the same test value
+          # already appears in the other jobs in this file.
           POSTGRES_HOST_AUTH_METHOD: trust
           POSTGRES_DB: journiful
         options: >-
@@ -455,18 +464,29 @@ jobs:
       # by Babel at transform time and is not part of Metro's cache key, so a
       # cached transform would silently ship a previous build's origin.
       - name: Build the web export
-        run: pnpm --filter @journiful/mobile exec expo export --platform web --clear
+        run: pnpm --filter @journiful/mobile export:web
         env:
           EXPO_PUBLIC_API_URL: http://localhost:8000/api
 
-      # dist/ now exists, so web-export.test.ts executes instead of skipping.
+      # Only web-export.test.ts. The rest of the mobile suite is
+      # mobile-checks' job, and it already ran on this PR.
       - name: Export shape assertions
-        run: pnpm --filter @journiful/mobile test
+        run: pnpm --filter @journiful/mobile exec vitest run __tests__/web-export.test.ts
 
+      # html rather than the CI-default blob reporter: this run has no shards
+      # to merge, so the report is uploaded whole and is readable on failure.
       - name: Run Mobile E2E Tests against the export
-        run: pnpm --filter @journiful/mobile exec playwright test
+        run: pnpm --filter @journiful/mobile exec playwright test --reporter=html
         env:
           MOBILE_WEB_TARGET: export
+
+      - name: Upload the export E2E report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: playwright-report-mobile-web-export
+          path: apps/mobile/playwright-report/
+          retention-days: 7
 
   # Step 4d: Merge Mobile E2E Reports
   merge-mobile-e2e-reports:

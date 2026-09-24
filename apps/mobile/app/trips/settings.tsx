@@ -151,14 +151,13 @@ function TripSettingsScreen() {
         </Row>
 
         {/* "Trip messages" stays even though there is no chat surface: the
-            toggle writes a real server notification preference, and deleting
-            it would drop working server state. Until a messages surface
-            exists the row controls notification delivery only, which is why
-            the description says when the notice arrives rather than where
-            the thread lives. */}
+            toggle writes a real server notification preference
+            (`trip_messages`), and deleting it would drop working server
+            state. The description is delivery-only for the same reason — it
+            says when the notice arrives, not where the thread lives. */}
         <Row
           label="Trip messages"
-          description="When someone posts to the trip"
+          description="Get notified when someone posts to the trip"
         >
           <ChipToggle
             label={settings.tripMessages ? "On" : "Off"}

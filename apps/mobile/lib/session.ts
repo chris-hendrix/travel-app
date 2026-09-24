@@ -5,9 +5,11 @@ import { Platform } from "react-native";
  *
  * Native stores it in `expo-secure-store` (Keychain / Keystore). The web
  * export has no secure store, so it falls back to `localStorage`, which is
- * readable by any script on the page and therefore insecure. That is
- * acceptable for review builds only: the web export exists so reviewers
- * can click through the mockup, never as a place a real token lives.
+ * readable by any script on the page — weaker than the httpOnly cookie
+ * session the Next app uses. Since the export became the product surface
+ * that is an accepted risk rather than a review-build concession: it is
+ * recorded in the root `AGENTS.md`, and the follow-up is cookie auth on web
+ * or the native app.
  *
  * `expo-secure-store` has no web implementation, so the native module is
  * loaded lazily behind a `Platform.OS` guard instead of a static import
