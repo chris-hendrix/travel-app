@@ -1,14 +1,14 @@
 # Railway Deployment
 
-Journiful runs on [Railway](https://railway.app) as two services from this monorepo.
+Journiful runs on [Railway](https://railway.app) as three services from this monorepo.
 
 ## Project Topology
 
-| Service            | Type          | Start Command                                                            | Health Check        |
+| Service            | Builder       | Start Command                                                            | Health endpoint     |
 | ------------------ | ------------- | ------------------------------------------------------------------------ | ------------------- |
-| **api**            | Nixpacks      | `node apps/api/dist/server.js`                                           | `/api/health/ready` |
-| **web**            | Nixpacks      | `node apps/web/.next/standalone/server.js`                               | `/`                 |
-| **static**         | Nixpacks      | `pnpm --filter @journiful/mobile exec node scripts/serve-static.mjs`     | `/`                 |
+| **api**            | RAILPACK      | `node apps/api/dist/server.js`                                           | `/api/health/ready` |
+| **web**            | RAILPACK      | `node apps/web/.next/standalone/server.js`                               | `/`                 |
+| **static**         | RAILPACK      | `node apps/mobile/scripts/serve-static.mjs`                              | `/`                 |
 | **Postgres**       | Railway addon | —                                                                        | Built-in            |
 | **Storage Bucket** | Railway addon | —                                                                        | —                   |
 
@@ -20,7 +20,7 @@ Journiful runs on [Railway](https://railway.app) as two services from this monor
 | --------------- | -------------------------------------------------------------------- |
 | `nixpacks.toml` | Shared build phases: `corepack enable`, `pnpm install`, `pnpm build` |
 
-Railway's config-as-code (`railway.json`) only supports a single file at the repo root, which applies to all services sharing that root. Since our two services need different start commands and health checks, per-service deploy settings live in the Railway dashboard.
+Railway's config-as-code (`railway.json`) only supports a single file at the repo root, which applies to all services sharing that root. Since our three services need different start commands, build commands and watch paths, per-service deploy settings live in the Railway dashboard.
 
 ### In the Railway dashboard (per service)
 
@@ -35,7 +35,7 @@ Each service must be configured with:
 
 ## Build Commands
 
-Both services share `nixpacks.toml` for the setup phase (`corepack enable`), but need different build commands configured in the Railway dashboard:
+All three services share `nixpacks.toml` for the setup phase (`corepack enable`), but need different build commands configured in the Railway dashboard:
 
 | Service  | Build Command                                                                                          |
 | -------- | ------------------------------------------------------------------------------------------------------ |
@@ -44,6 +44,34 @@ Both services share `nixpacks.toml` for the setup phase (`corepack enable`), but
 | **static** | `pnpm install --frozen-lockfile && pnpm --filter @journiful/mobile exec expo export --platform web`    |
 
 The `build:web` script includes copying static assets into the Next.js standalone output, which standalone mode doesn't include by default.
+
+## Deploy Trigger
+
+All three services deploy on merge to `main`. Each filters on watch paths, so a merge only rebuilds the
+services whose files it touched — read from the live project config (production service instances,
+2026-09-24):
+
+| Service  | Watch paths                                                          |
+| -------- | -------------------------------------------------------------------- |
+| **api**    | `/apps/api/**`, `/shared/**`, `package.json`, `pnpm-lock.yaml`     |
+| **web**    | `/apps/web/**`, `/shared/**`, `package.json`, `pnpm-lock.yaml`     |
+| **static** | `/apps/mobile/**`, `/shared/**`, `package.json`, `pnpm-lock.yaml`  |
+
+A service whose paths do not match is recorded as a **SKIPPED** deployment. That is the expected
+outcome, not a failure: a mobile-only merge skips `web` and `api`, and an API-only merge skips
+`static`.
+
+Three things this pattern does not cover, all of which need a manual redeploy:
+
+- `pnpm-workspace.yaml` and `tsconfig.base.json` are not in any watch list, though a change to either
+  can affect every build.
+- `railway.json` is not used (see [What's Codified vs Dashboard](#whats-codified-vs-dashboard)), so
+  these settings live in the dashboard and in this table, not in the repo.
+- Railway's `healthcheckPath` is set only on **static** (`/`, 300s timeout). `api` and `web` have none,
+  so a deploy there that starts but serves errors is not rolled back by the platform.
+
+CI does not deploy anything. The `mobile-web-export` job is a check that runs on pull requests; the
+merge to `main` is what ships, through Railway.
 
 ## Environment Variables
 
