@@ -28,6 +28,12 @@ describe("legal copy, as this app renders it", () => {
     }
   });
 
+  it("keeps the published alias paths on dialog routes", () => {
+    for (const href of ["/privacy", "/terms", "/sms-terms"]) {
+      expect(DIALOG_ROUTES).toContain(href);
+    }
+  });
+
   it("leaves support mail to the mail client", () => {
     expect(legalTarget("mailto:support@journiful.com")).toBe(
       "mailto:support@journiful.com",
