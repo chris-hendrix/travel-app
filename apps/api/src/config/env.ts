@@ -159,6 +159,20 @@ const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>;
 
+/**
+ * Collapse a possibly comma-separated FRONTEND_URL (used as-is for CORS)
+ * to the single origin used in user-facing URLs such as invite SMS bodies.
+ * Falls back to "https://journiful.app" — kept consistent with the
+ * InvitationService constructor default.
+ */
+export function primaryOrigin(value: string): string {
+  const first = value
+    .split(",")
+    .map((entry) => entry.trim())
+    .find((entry) => entry.length > 0);
+  return first ?? "https://journiful.app";
+}
+
 function validateEnv(): Env {
   try {
     const parsed = envSchema.parse(process.env);
