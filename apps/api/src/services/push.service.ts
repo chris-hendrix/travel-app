@@ -187,7 +187,7 @@ export class PushService implements IPushService {
             android: {
               priority: "high",
               notification: {
-                channelId: "default",
+                channelId: "journiful-default",
               },
             },
           });
