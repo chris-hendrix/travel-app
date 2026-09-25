@@ -188,7 +188,6 @@ export class PushService implements IPushService {
               priority: "high",
               notification: {
                 channelId: "default",
-                clickAction: "FCM_PLUGIN_ACTIVITY",
               },
             },
           });

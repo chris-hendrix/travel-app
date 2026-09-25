@@ -42,12 +42,29 @@ export async function setToken(token: string): Promise<void> {
     } catch {
       // Review builds only: losing the token signs the reviewer out.
     }
-    return;
+  } else {
+    await nativeStore().setItemAsync(KEY, token);
   }
-  await nativeStore().setItemAsync(KEY, token);
+  // Push registration follows the session and is best-effort: it must
+  // never block sign-in. A dynamic import keeps the static graph free
+  // of expo-notifications (see lib/api.ts for the same pattern).
+  try {
+    const { registerForPush } = await import("@/lib/push");
+    await registerForPush();
+  } catch {
+    // Registration retries on the next launch.
+  }
 }
 
 export async function clearToken(): Promise<void> {
+  // Unregister before the token is dropped: the DELETE needs auth.
+  try {
+    const { unregisterPush, getStoredPushTokenAsync } = await import("@/lib/push");
+    const pushToken = await getStoredPushTokenAsync();
+    if (pushToken) await unregisterPush(pushToken);
+  } catch {
+    // Sign-out completes even when the network is gone.
+  }
   if (Platform.OS === "web") {
     try {
       localStorage.removeItem(KEY);

@@ -185,7 +185,7 @@ function TripSettingsScreen() {
             It comes back in ten lines, on the day push does. */}
 
         <Text className="font-body text-sm text-ink">
-          Notifications reach you in the app, and invitations by text.
+          Notifications reach this phone, and invitations by text.
         </Text>
       </Section>
 
