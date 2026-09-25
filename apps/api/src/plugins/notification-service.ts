@@ -13,6 +13,7 @@ export default fp(
     const notificationService = new NotificationService(
       fastify.db,
       fastify.boss ?? null,
+      fastify.log,
     );
     fastify.decorate("notificationService", notificationService);
   },

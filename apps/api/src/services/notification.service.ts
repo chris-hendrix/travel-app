@@ -17,6 +17,8 @@ const timestampCursorSchema = z.object({
 import type { PgBoss } from "pg-boss";
 import { QUEUE } from "@/queues/types.js";
 import type { NotificationBatchPayload } from "@/queues/types.js";
+import { buildPushPayload } from "@/services/push-payload.builder.js";
+import type { Logger } from "@/types/logger.js";
 
 /**
  * Internal result type for notification queries
@@ -112,6 +114,9 @@ export class NotificationService implements INotificationService {
   constructor(
     private db: AppDatabase,
     private boss: PgBoss | null = null,
+    // Optional so the service tests and the bare `new NotificationService(db)`
+    // call sites keep working; the app supplies its request logger.
+    private logger: Logger | null = null,
   ) {}
 
   /**
@@ -315,6 +320,35 @@ export class NotificationService implements INotificationService {
 
     if (!notification) {
       throw new Error("Failed to create notification");
+    }
+
+    // A notification the person can only find by opening the app is half a
+    // notification. This path used to insert the row and enqueue nothing —
+    // and it is the path invitations take (`sms_invite` / `mutual_invite`
+    // in `invitation.service.ts:735,755`), so an invite reached the inbox
+    // and never the phone. The itinerary reminder and trip-update paths
+    // were fine because they go through `notifyTripMembers` → the batch
+    // worker, which builds the same payload this does.
+    //
+    // Best-effort like every other push: a queue that is down must not fail
+    // the notification.
+    if (this.boss) {
+      try {
+        await this.boss.send(QUEUE.PUSH_DELIVER, {
+          userId,
+          // The row's trip is what the tap should open, and the builder
+          // reads it from `data.tripId` — but a caller does not always put
+          // it there: the invitation path passes only `{ inviterId }`, so
+          // an invite push went out with url "/" and tapping it landed on
+          // the landing page. An explicit `data.tripId` still wins.
+          ...buildPushPayload(type, title, body, {
+            ...data,
+            tripId: data?.tripId ?? tripId ?? undefined,
+          }),
+        });
+      } catch (err) {
+        this.logger?.error(err, "Failed to enqueue push delivery");
+      }
     }
 
     return {

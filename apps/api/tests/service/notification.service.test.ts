@@ -146,6 +146,71 @@ describe("notification.service", () => {
 
   afterEach(cleanup);
 
+  describe("createNotification (push delivery)", () => {
+    it("enqueues a push for the created notification", async () => {
+      // Invitations take this path (`sms_invite` / `mutual_invite`), and it
+      // used to insert the row and enqueue nothing: the invite reached the
+      // inbox and never the phone. Found on a device, with the API log
+      // showing the notification insert and no FCM send.
+      const mockBoss = {
+        send: vi.fn().mockResolvedValue("job-id"),
+        insert: vi.fn().mockResolvedValue(undefined),
+      } as unknown as PgBoss;
+      const serviceWithBoss = new NotificationService(db, mockBoss);
+
+      await serviceWithBoss.createNotification({
+        userId: testMemberId,
+        tripId: testTripId,
+        type: "sms_invite",
+        title: "Trip invitation",
+        body: "Bea invited you to Porto",
+        data: { inviterId: testOrganizerId },
+      });
+
+      expect(mockBoss.send).toHaveBeenCalledWith(QUEUE.PUSH_DELIVER, {
+        userId: testMemberId,
+        // The API's web url, mapped onto an app route by the client
+        // (`apps/mobile/lib/pushRoutes.ts`).
+        url: `/trips?id=${testTripId}`,
+        tag: `invite-${testTripId}`,
+        title: "Trip invitation",
+        body: "Bea invited you to Porto",
+      });
+    });
+
+    it("still creates the notification when the queue is down", async () => {
+      const mockBoss = {
+        send: vi.fn().mockRejectedValue(new Error("queue offline")),
+        insert: vi.fn().mockResolvedValue(undefined),
+      } as unknown as PgBoss;
+      const serviceWithBoss = new NotificationService(db, mockBoss);
+
+      const result = await serviceWithBoss.createNotification({
+        userId: testMemberId,
+        tripId: testTripId,
+        type: "trip_update",
+        title: "Trip Updated",
+        body: "Destination changed",
+      });
+
+      expect(result.id).toBeDefined();
+    });
+
+    it("does not try to enqueue without a queue", async () => {
+      // The bare service is the shape several tests and tools build; it
+      // must keep working with no boss at all.
+      const result = await notificationService.createNotification({
+        userId: testMemberId,
+        tripId: testTripId,
+        type: "trip_update",
+        title: "Trip Updated",
+        body: "Destination changed",
+      });
+
+      expect(result.id).toBeDefined();
+    });
+  });
+
   describe("createNotification", () => {
     it("should create a notification and return it", async () => {
       const result = await notificationService.createNotification({
