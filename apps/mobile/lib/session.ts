@@ -57,14 +57,6 @@ export async function setToken(token: string): Promise<void> {
 }
 
 export async function clearToken(): Promise<void> {
-  // Unregister before the token is dropped: the DELETE needs auth.
-  try {
-    const { unregisterPush, getStoredPushTokenAsync } = await import("@/lib/push");
-    const pushToken = await getStoredPushTokenAsync();
-    if (pushToken) await unregisterPush(pushToken);
-  } catch {
-    // Sign-out completes even when the network is gone.
-  }
   if (Platform.OS === "web") {
     try {
       localStorage.removeItem(KEY);

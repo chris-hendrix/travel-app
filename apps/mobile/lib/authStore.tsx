@@ -104,6 +104,18 @@ export async function restoreSession(): Promise<RestoreResult> {
  * resets the local auth state.
  */
 export async function performSignOut(client?: QueryClient): Promise<void> {
+  // Push first, and deliberately: the unsubscribe is an authenticated
+  // request, and `signOutServer()` below blacklists the very token it
+  // would carry. Unsubscribing after the logout answered 401 for every
+  // DELETE and left the subscription row in place — a signed-out phone
+  // kept receiving pushes, which is what a device showed (the API log
+  // had the DELETE, the row was still there afterwards).
+  try {
+    const { unregisterPush } = await import("@/lib/push");
+    await unregisterPush();
+  } catch {
+    // A phone that cannot unsubscribe still signs out.
+  }
   try {
     await signOutServer();
   } catch {
@@ -114,7 +126,10 @@ export async function performSignOut(client?: QueryClient): Promise<void> {
   }
   // `try/await` rather than `clearToken().catch()`: under the
   // `importOriginal` seam a bare `vi.fn()` stub returns `undefined`,
-  // and `await undefined` is fine where `.catch` on it is not.
+  // and `await undefined` is fine where `.catch` on it is not. The push
+  // unsubscribe is not here: it belongs to `performSignOut`, before the
+  // token is revoked, and not to the 401 recovery path that also clears
+  // this token (where no request could authenticate anyway).
   try {
     await clearToken();
   } catch {
@@ -124,6 +139,24 @@ export async function performSignOut(client?: QueryClient): Promise<void> {
   // No client in bare node renders (no QueryClientProvider above the
   // store); in the app the provider always supplies one, so the cache
   // clear only ever skips where there is no cache to clear.
+  client?.clear();
+}
+
+/**
+ * Throw away whatever the cache holds for the session that just ended —
+ * or that never started.
+ *
+ * `performSignOut` already does this on the way out; this is the same
+ * clear on the way in, and it is not symmetry for its own sake. On a
+ * device, every authenticated read attempted before sign-in (the
+ * notifications list and the unread count both used to fire anonymously)
+ * was answered 401, and the query kept that error — so the first screen
+ * after signing in could paint "Sign in again" over a perfectly live
+ * session, because nothing had invalidated the anonymous failure. The
+ * reads are `enabled` only while signed in now, and this makes the
+ * transition trustworthy even for a query that was already mounted.
+ */
+function resetCacheForNewSession(client?: QueryClient): void {
   client?.clear();
 }
 
@@ -145,6 +178,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>("restoring");
   const [user, setUser] = useState<AuthUser | null>(null);
   const [pendingPhone, setPendingPhone] = useState<string | null>(null);
+
+  // `AuthProvider` renders beneath the `QueryClientProvider` in
+  // `app/_layout.tsx`, so the client comes from the hook — never from a
+  // module singleton (the layout makes a fresh client per mount). The
+  // `try` is for bare node renders with no provider above the store
+  // (the restore test renders `AuthProvider` alone): the hook call
+  // itself is unconditional, so hook order never changes — only the
+  // "no client" throw is absorbed, and the cache clears then skip what
+  // they have no cache for. It is resolved before the callbacks because
+  // they both clear the cache on a successful sign-in.
+  let queryClient: QueryClient | undefined;
+  try {
+    queryClient = useQueryClient();
+  } catch {
+    queryClient = undefined;
+  }
 
   // Cold start: a stored token is revalidated once, then the gate in
   // `app/index.tsx` decides. The cancel flag is for the unmount race
@@ -192,10 +241,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profileComplete: !requiresProfile,
       });
       setStatus("signed-in");
+      // Anything read while signed out is not this session's answer.
+      resetCacheForNewSession(queryClient);
 
       return { requiresProfile };
     },
-    [pendingPhone],
+    [pendingPhone, queryClient],
   );
 
   const completeProfile = useCallback(async (displayName: string) => {
@@ -210,22 +261,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profileComplete: true,
     });
     setStatus("signed-in");
-  }, []);
+    // Same clear as `verifyCode`: the new session starts from nothing.
+    resetCacheForNewSession(queryClient);
+  }, [queryClient]);
 
-  // `AuthProvider` renders beneath the `QueryClientProvider` in
-  // `app/_layout.tsx`, so the client comes from the hook — never from a
-  // module singleton (the layout makes a fresh client per mount). The
-  // `try` is for bare node renders with no provider above the store
-  // (the restore test renders `AuthProvider` alone): the hook call
-  // itself is unconditional, so hook order never changes — only the
-  // "no client" throw is absorbed, and `performSignOut` then skips
-  // the clear it has no cache for.
-  let queryClient: QueryClient | undefined;
-  try {
-    queryClient = useQueryClient();
-  } catch {
-    queryClient = undefined;
-  }
 
   const signOut = useCallback(async () => {
     // Server POST, token drop, and cache clear live in `performSignOut`

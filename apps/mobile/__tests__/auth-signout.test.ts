@@ -9,6 +9,26 @@ vi.mock("@/lib/session", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/session")>();
   return { ...actual, clearToken: vi.fn() };
 });
+// The unsubscribe is asserted by order, not by call count: it has to
+// happen while the session it carries is still valid. `expo-notifications`
+// is stubbed so the real `@/lib/push` module can load in node at all.
+const order: string[] = [];
+vi.mock("expo-notifications", () => ({
+  getPermissionsAsync: vi.fn(),
+  requestPermissionsAsync: vi.fn(),
+  setNotificationChannelAsync: vi.fn(),
+  getDevicePushTokenAsync: vi.fn().mockResolvedValue({ data: null }),
+  AndroidImportance: { HIGH: 4 },
+}));
+vi.mock("@/lib/push", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/push")>();
+  return {
+    ...actual,
+    unregisterPush: vi.fn(async () => {
+      order.push("unregister");
+    }),
+  };
+});
 
 import { QueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
@@ -26,6 +46,7 @@ function logoutBody() {
 beforeEach(() => {
   mockedApiFetch.mockReset();
   mockedClearToken.mockReset();
+  order.length = 0;
 });
 
 describe("signOutServer", () => {
@@ -68,5 +89,19 @@ describe("performSignOut", () => {
 
     expect(mockedClearToken).toHaveBeenCalledTimes(1);
     expect(client.getQueryData(["auth", "me"])).toBeUndefined();
+  });
+
+  it("unsubscribes push before revoking the token it needs", async () => {
+    // The order is the whole point: `signOutServer` blacklists the
+    // bearer, so a DELETE sent after it answers 401 and the subscription
+    // row survives — a signed-out phone kept receiving pushes.
+    mockedApiFetch.mockImplementation(async (path: string) => {
+      order.push(path === "/auth/logout" ? "logout" : "other");
+      return logoutBody();
+    });
+
+    await performSignOut(new QueryClient());
+
+    expect(order).toEqual(["unregister", "logout"]);
   });
 });

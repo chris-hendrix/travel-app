@@ -16,6 +16,7 @@ import * as Notifications from "expo-notifications";
 import { apiFetch } from "@/lib/api";
 
 const PUSH_TOKEN_KEY = "journiful.pushToken";
+const PUSH_ASKED_KEY = "journiful.pushAsked";
 
 export type PushPermission = "granted" | "denied" | "undetermined";
 
@@ -45,6 +46,44 @@ async function readStoredToken(): Promise<string | null> {
   return storedTokenSync() ?? nativePushToken();
 }
 
+/** Whether this install has already asked the OS for permission. */
+async function wasAsked(): Promise<boolean> {
+  try {
+    if (typeof localStorage !== "undefined") {
+      return localStorage.getItem(PUSH_ASKED_KEY) === "1";
+    }
+  } catch {
+    return false;
+  }
+  if (Platform.OS === "web") return false;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const store = require("expo-secure-store") as typeof import("expo-secure-store");
+    return (await store.getItemAsync(PUSH_ASKED_KEY)) === "1";
+  } catch {
+    return false;
+  }
+}
+
+async function rememberAsked(): Promise<void> {
+  try {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(PUSH_ASKED_KEY, "1");
+      return;
+    }
+  } catch {
+    // Best-effort: worst case the ask is offered once more.
+  }
+  if (Platform.OS === "web") return;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const store = require("expo-secure-store") as typeof import("expo-secure-store");
+    await store.setItemAsync(PUSH_ASKED_KEY, "1");
+  } catch {
+    // Best-effort, as above.
+  }
+}
+
 async function storeToken(token: string | null): Promise<void> {
   try {
     if (typeof localStorage !== "undefined") {
@@ -68,10 +107,18 @@ async function storeToken(token: string | null): Promise<void> {
 
 export async function permissionState(): Promise<PushPermission> {
   try {
-    const { status } = await Notifications.getPermissionsAsync();
-    if (status === "granted") return "granted";
-    if (status === "denied") return "denied";
-    return "undetermined";
+    const perms = await Notifications.getPermissionsAsync();
+    if (perms.status === "granted") return "granted";
+    // Android reports `denied` for a permission that has never been
+    // requested, so the OS answer alone cannot tell "not yet asked" from
+    // "turned off". Trusting it made a first-run screen greet a new
+    // person with "Notifications are off — you turned them off for
+    // Journiful", which is a lie about a choice they never made, and it
+    // hid the only button that asks. The stored ask flag is what
+    // separates the two; `canAskAgain === false` is the OS saying the
+    // question cannot be asked again, whatever the flag says.
+    if (perms.canAskAgain === false) return "denied";
+    return (await wasAsked()) ? "denied" : "undetermined";
   } catch {
     return "undetermined";
   }
@@ -100,7 +147,13 @@ export async function registerForPush(): Promise<string | null> {
   try {
     const perms = await Notifications.getPermissionsAsync();
     let status = perms.status;
-    if (status !== "granted" && status !== "denied") {
+    // Two shapes of "not granted yet": a genuine `undetermined`, and the
+    // `denied` Android reports before it has ever been asked (see
+    // `permissionState`). Both are the moment to ask.
+    const neverAsked =
+      status !== "granted" && (status !== "denied" || !(await wasAsked()));
+    if (neverAsked && perms.canAskAgain !== false) {
+      await rememberAsked();
       const asked = await Notifications.requestPermissionsAsync();
       status = asked.status;
     }
@@ -128,32 +181,62 @@ export async function registerForPush(): Promise<string | null> {
   }
 }
 
-/** Delete a registration. Never throws. */
-export async function unregisterPush(token: string): Promise<void> {
+/**
+ * The device's current FCM token, or null. Needs no permission: the
+ * token is what a notification would be addressed to, not a grant to
+ * receive one.
+ */
+async function currentDeviceToken(): Promise<string | null> {
   try {
-    await apiFetch("/push/subscribe", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ provider: "fcm", token }),
-    });
+    const { data } = await Notifications.getDevicePushTokenAsync();
+    return data ?? null;
   } catch {
-    // Sign-out must complete even when the network is gone.
-  } finally {
-    const current = storedTokenSync();
-    if (current === token) await storeToken(null);
-    else if (current === null && Platform.OS !== "web") {
-      // Native-kept token: clear it too.
-      await storeToken(null);
-    }
+    return null;
   }
 }
 
-/** The token currently stored beside the session, if any (sync web/test path). */
-export function getStoredPushToken(): string | null {
-  return storedTokenSync();
+/**
+ * Delete this install's registrations. Never throws.
+ *
+ * It deletes every token it can name rather than trusting one:
+ *
+ * - the caller's, when it has one (the token it just registered);
+ * - the stored one, which is what a previous launch wrote;
+ * - the **current device token from the OS**, which is the only value
+ *   that is certainly right.
+ *
+ * That last one is not belt-and-braces. On a device, signing out
+ * deleted *nothing*: the API logged the `DELETE /push/subscribe`, the
+ * body carried a token, and the row for the token the app had actually
+ * registered was still there afterwards — so a signed-out phone kept
+ * receiving pushes. The stored value is written best-effort (a failed
+ * SecureStore write leaves an older token behind), while
+ * `getDevicePushTokenAsync()` cannot disagree with the device.
+ */
+export async function unregisterPush(token?: string): Promise<void> {
+  const candidates = new Set<string>();
+  if (token) {
+    // A named token is exactly what to delete: this is the rotation
+    // path, where deleting the token just registered would undo it.
+    candidates.add(token);
+  } else {
+    const stored = await readStoredToken();
+    if (stored) candidates.add(stored);
+    const device = await currentDeviceToken();
+    if (device) candidates.add(device);
+  }
+
+  for (const candidate of candidates) {
+    try {
+      await apiFetch("/push/subscribe", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: "fcm", token: candidate }),
+      });
+    } catch {
+      // Sign-out must complete even when the network is gone.
+    }
+  }
+  if (!token) await storeToken(null);
 }
 
-/** Async variant that also checks SecureStore on native. */
-export async function getStoredPushTokenAsync(): Promise<string | null> {
-  return readStoredToken();
-}
