@@ -1,11 +1,47 @@
 // Tests for trip validation schemas
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   createTripSchema,
   updateTripSchema,
   addCoOrganizerSchema,
 } from "../schemas/index.js";
+
+describe("timezone validation without Intl.supportedValuesOf", () => {
+  // Hermes has no `Intl.supportedValuesOf`: the module used to call it at
+  // evaluation time, so on Android the whole schema module failed to load
+  // and the app crashed at boot. The schema has to keep working there, and
+  // the set it falls back to is the product's own list.
+  it("accepts the zones every picker offers when the runtime cannot enumerate", async () => {
+    const realIntl = globalThis.Intl;
+    try {
+      // @ts-expect-error - deliberately removing the API Hermes lacks
+      globalThis.Intl = { ...realIntl, supportedValuesOf: undefined };
+      vi.resetModules();
+      const { createTripSchema } = await import("../schemas/index.js");
+      for (const zone of ["America/New_York", "Europe/London", "Asia/Tokyo", "UTC"]) {
+        expect(
+          createTripSchema.safeParse({
+            name: "A trip",
+            destination: "Somewhere",
+            timezone: zone,
+          }).success,
+          zone,
+        ).toBe(true);
+      }
+      expect(
+        createTripSchema.safeParse({
+          name: "A trip",
+          destination: "Somewhere",
+          timezone: "Mars/Olympus_Mons",
+        }).success,
+      ).toBe(false);
+    } finally {
+      globalThis.Intl = realIntl;
+      vi.resetModules();
+    }
+  });
+});
 
 describe("createTripSchema", () => {
   it("should accept valid trip data with all required fields", () => {
