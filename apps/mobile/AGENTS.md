@@ -64,6 +64,13 @@ Signing is a config plugin (`plugins/withAndroidSigning.js`) so it survives `pre
 
 Push notes that are easy to get wrong: the FCM payload's `data.url` is a **web url** and `lib/pushRoutes.ts` maps it (`/trips?id=x` → `/trips/detail?id=x`); `data.url` is the only routing signal, since the API no longer sets a `clickAction`; the notification small icon must stay the monochrome asset or Android renders a white square; registration is best-effort everywhere and must never block a sign-in; the channel id the API sends is `"default"`, which is why `ensureChannel()` creates exactly that one. A device holding the old Capacitor APK must be uninstalled first (same package, different signing key).
 
+### Driving the WSL2 emulator, which is where the friction is
+
+The emulator and Android Studio live on Windows; the build lives in WSL2. Two facts save the loop:
+
+- **`adb` in WSL2 must be the Windows one.** Expo and gradle resolve `adb` from `$ANDROID_HOME/platform-tools/adb`, and the Linux adb server cannot see an emulator the Windows adb server owns. A wrapper that `exec`s `adb.exe`, symlinked as `$ANDROID_HOME/platform-tools/adb`, is what makes `npx expo run:android` find the device. `adb reverse tcp:8000 tcp:<host-port>` then maps the *device's* `localhost:8000` to the host port the devcontainer actually publishes (the container maps 8000 to `6898` and 3000 to `6899`), so a local-API build reaches `http://localhost:8000/api` from the app. For Metro in dev builds, `adb reverse tcp:8081 tcp:8081` reaches Windows, not WSL2 — run the bundle from a release/preview APK instead of a dev build, or point the app at the WSL2 address, rather than assuming the reverse works.
+- **`adb shell input` does not reach React Native text inputs** on this image (neither `input text` nor digit keyevents changed the field), and taps on a themed `Checkbox` label did not toggle it. Pre-verify anything that needs typing by hand; the UI automator dump (`adb shell uiautomator dump`) is the readable source of truth for what is on screen, because `screencap` from WSL2 has come back blank while the tree was fully rendered.
+
 ### Production web build
 
 `pnpm export:web` (`expo export --platform web --clear`) writes `dist/`; `pnpm serve:web` serves it through `scripts/serve-static.mjs`, a dependency-free static server that returns real 404s. `--clear` is load-bearing rather than hygiene: `EXPO_PUBLIC_API_URL` is inlined at transform time and is not part of Metro's cache key, so without it an export can ship the API origin of an earlier build. `MOBILE_WEB_TARGET=export` points the E2E suite at the built export instead of the dev server, so the same specs verify the artifact that ships.
