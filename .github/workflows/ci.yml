@@ -473,6 +473,9 @@ jobs:
       - name: Export shape assertions
         run: pnpm --filter @journiful/mobile exec vitest run __tests__/web-export.test.ts
 
+      - name: Export gate (dist shape, legal text, no empty shells)
+        run: node apps/mobile/scripts/check-export.mjs
+
       # html rather than the CI-default blob reporter: this run has no shards
       # to merge, so the report is uploaded whole and is readable on failure.
       - name: Run Mobile E2E Tests against the export

@@ -59,12 +59,12 @@ describe("native config: the app.json keys the native build needs", () => {
   it("verifies invite App Links against the apex", () => {
     const filters = appJson.expo.android.intentFilters;
     expect(filters).toHaveLength(1);
-    expect(filters[0]).toMatchObject({
+    expect(filters[0]!).toMatchObject({
       action: "VIEW",
       autoVerify: true,
       category: ["BROWSABLE", "DEFAULT"],
     });
-    expect(filters[0].data).toEqual([
+    expect(filters[0]!.data).toEqual([
       { scheme: "https", host: "journiful.app", pathPrefix: "/invite" },
     ]);
   });

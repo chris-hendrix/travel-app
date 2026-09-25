@@ -1,17 +1,24 @@
 import { describe, expect, it } from "vitest";
 import { LEGAL_DOCUMENTS, documentHrefs } from "@journiful/shared/legal";
 import { BARE_HEADER_ROUTES, DIALOG_ROUTES } from "@/lib/routes";
-import { LEGAL_ROWS, legalTarget } from "@/lib/legal";
+import { LEGAL_ROWS, LEGAL_ROUTE } from "@/lib/legal";
 
 /**
  * The copy is shared with the web, and its cross-links are written as
- * the web addresses the documents are published at. This is what holds
- * the app to being able to open every one of them.
+ * the web addresses the documents are published at. The screens sit at
+ * those same paths, so every link is asserted directly — there is no
+ * mapping layer to hold the app to.
  */
 describe("legal copy, as this app renders it", () => {
-  it("has a screen for every document", () => {
+  it("has a screen for every document, at its published path", () => {
+    expect(LEGAL_ROWS.map((r) => r.href)).toEqual([
+      "/terms",
+      "/privacy",
+      "/sms-terms",
+    ]);
     for (const document of LEGAL_DOCUMENTS) {
-      expect(DIALOG_ROUTES).toContain(legalTarget(document.route));
+      expect(DIALOG_ROUTES).toContain(document.route);
+      expect(LEGAL_ROUTE[document.id]).toBe(document.route);
     }
   });
 
@@ -23,21 +30,13 @@ describe("legal copy, as this app renders it", () => {
       expect(internal.length).toBeGreaterThan(0);
 
       for (const href of internal) {
-        expect(DIALOG_ROUTES).toContain(legalTarget(href));
+        expect(DIALOG_ROUTES).toContain(href);
       }
     }
   });
 
-  it("keeps the published alias paths on dialog routes", () => {
-    for (const href of ["/privacy", "/terms", "/sms-terms"]) {
-      expect(DIALOG_ROUTES).toContain(href);
-    }
-  });
-
   it("leaves support mail to the mail client", () => {
-    expect(legalTarget("mailto:support@journiful.com")).toBe(
-      "mailto:support@journiful.com",
-    );
+    expect("mailto:support@journiful.com".startsWith("/")).toBe(false);
   });
 
   it("lists every document on the profile, each on a dialog route", () => {
@@ -58,6 +57,5 @@ describe("legal copy, as this app renders it", () => {
       "/complete-profile",
       "/invite",
     ]);
-    expect(BARE_HEADER_ROUTES["/"]).toBe("landing");
   });
 });

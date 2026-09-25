@@ -3,7 +3,6 @@ import { useRouter } from "expo-router";
 import type { LegalDocument } from "@journiful/shared/legal";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { Prose } from "@/components/ui/Prose";
-import { legalTarget } from "@/lib/legal";
 
 /**
  * A published document, as a screen.
@@ -25,9 +24,8 @@ export function LegalScreen({ document }: { document: LegalDocument }) {
       <Prose
         document={document}
         onLink={(href) => {
-          const target = legalTarget(href);
-          if (target.startsWith("/")) router.push(target);
-          else void Linking.openURL(target);
+          if (href.startsWith("/")) router.push(href as never);
+          else void Linking.openURL(href);
         }}
       />
     </FullscreenDialog>

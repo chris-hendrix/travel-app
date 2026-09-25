@@ -75,7 +75,10 @@ export default function RootLayout() {
   usePushRouting();
   usePushRegistration();
 
-  if (!loaded && !fontError) return null;
+  // The splash still waits for fonts on native (hideAsync fires only
+  // on loaded || fontError above), but the tree renders regardless:
+  // in the web prerender fonts never resolve, and gating on them
+  // emitted an empty shell for every route behind the layout.
   const isDialog = DIALOG_ROUTES.includes(pathname);
   // The lab runs on mocks under the same provider: it gets its own
   // Suspense fallback so a suspended lab specimen never shows an

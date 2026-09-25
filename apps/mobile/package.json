@@ -49,6 +49,7 @@
     "tailwindcss": "4.1.12"
   },
   "devDependencies": {
+    "@expo/config-plugins": "~57.0.9",
     "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "4.1.12",
     "@types/react": "^19.1.0",

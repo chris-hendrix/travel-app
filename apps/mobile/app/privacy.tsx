@@ -1,9 +1,9 @@
 import { legalDocument } from "@journiful/shared/legal";
 import { LegalScreen } from "@/components/legal/LegalScreen";
 
-// Alias for the published URL: the outside world (Twilio registration,
-// shared copy) points at /privacy, so this renders the same screen as
-// app/legal/privacy.tsx rather than copying it.
-export default function PrivacyAlias() {
+// The published path: the outside world (Twilio registration, shared
+// copy) points at /privacy, so the screen lives at the address it is
+// published at rather than behind an alias.
+export default function Privacy() {
   return <LegalScreen document={legalDocument("privacy")} />;
 }

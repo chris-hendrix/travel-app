@@ -32,12 +32,12 @@ describe.skipIf(!fs.existsSync(distDir))("web export shape", () => {
       "login.html",
       "trips/index.html",
       "invite.html",
-      "legal/privacy.html",
       "privacy.html",
       "terms.html",
       "sms-terms.html",
     ]) {
       expect(fs.existsSync(path.join(distDir, rel)), rel).toBe(true);
     }
+    expect(fs.existsSync(path.join(distDir, "legal"))).toBe(false);
   });
 });
