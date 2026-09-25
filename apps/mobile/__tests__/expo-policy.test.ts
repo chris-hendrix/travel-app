@@ -194,6 +194,44 @@ describe("expo policy: the trips store is query-backed, not mock-backed", () => 
   });
 });
 
+describe("expo policy: the shell respects the system bars", () => {
+  // The window is edge-to-edge on Android and the app takes no insets by
+  // default: measured on the emulator, the status bar is 24dp while the
+  // header's own top padding is 16dp, so the wordmark and the Sign in
+  // word sat under the clock and the battery, and a dialog's title sat on
+  // the status bar's edge. The padding belongs on the one view every
+  // route passes through, on both edges — a header-only inset would leave
+  // dialogs under the bar, and a top-only one would leave content under
+  // the gesture bar. This is a shape guard, not the evidence: the
+  // measurement is `uiautomator dump` against `dumpsys window displays`.
+  function source(rel: string): string {
+    return fs.readFileSync(path.join(mobileDir, rel), "utf8");
+  }
+
+  it("reads the insets in the root layout", () => {
+    const layout = source("app/_layout.tsx");
+    expect(layout).toContain("useSafeAreaInsets");
+    expect(layout).toMatch(/const insets = useSafeAreaInsets\(\)/);
+  });
+
+  it("applies both edges to the shell view", () => {
+    const layout = source("app/_layout.tsx");
+    // The shell is the element carrying the app's ground; the insets go on
+    // the same one, so the sand paints behind both bars.
+    const at = layout.indexOf('className="flex-1 bg-sand"');
+    expect(at, "the shell view must carry the app ground").toBeGreaterThanOrEqual(0);
+    const window = layout.slice(at, at + 300);
+    expect(window).toContain("paddingTop: insets.top");
+    expect(window).toContain("paddingBottom: insets.bottom");
+  });
+
+  it("does not hardcode a status bar height", () => {
+    const layout = source("app/_layout.tsx");
+    expect(layout).not.toMatch(/paddingTop:\s*\d/);
+    expect(layout).not.toMatch(/paddingBottom:\s*\d/);
+  });
+});
+
 describe("expo policy: CI can see the package", () => {
   const repoRoot = path.resolve(mobileDir, "..", "..");
   const ciYml = fs.readFileSync(
