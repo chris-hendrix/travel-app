@@ -16,7 +16,8 @@
     "test:e2e": "playwright test",
     "clean": "rm -rf .expo dist node_modules",
     "export:web": "expo export --platform web --clear",
-    "serve:web": "node scripts/serve-static.mjs"
+    "serve:web": "node scripts/serve-static.mjs",
+    "gen:icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/bungee-shade": "^0.4.1",
@@ -55,6 +56,7 @@
     "expo-doctor": "^1.20.4",
     "lightningcss": "1.30.1",
     "postcss": "^8.5.25",
+    "sharp": "^0.35.4",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
   }
