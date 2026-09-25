@@ -1,4 +1,4 @@
-.PHONY: help install dev dev-web dev-api mockup mobile-web-export mobile-web-serve build-mobile android-setup adb-reverse cap-dev cap-run cap-apk cap-install cap-logs cap-crash pwa migrate seed studio generate up down clean reset-db test-up test-down test-exec test-run test-status test-setup test-clean test-static-smoke
+.PHONY: help install dev dev-web dev-api mockup mobile-web-export mobile-web-serve build-mobile android-setup adb-reverse android-dev android-apk android-install android-logs cap-dev cap-run cap-apk cap-install cap-logs cap-crash pwa migrate seed studio generate up down clean reset-db test-up test-down test-exec test-run test-status test-setup test-clean test-static-smoke
 
 .DEFAULT_GOAL := help
 
@@ -193,6 +193,39 @@ cap-logs: ## Tail Capacitor WebView JS console logs
 cap-crash: ## Show Android crash logs
 	ADB=$$(command -v adb 2>/dev/null || command -v adb.exe 2>/dev/null); \
 	$$ADB -s emulator-5554 logcat -d AndroidRuntime:E *:S
+
+android-dev: adb-reverse ## Prebuild (if needed) + run the Expo app on Android
+	@ENV_JAVA_HOME=$$(grep '^JAVA_HOME=' apps/api/.env 2>/dev/null | sed 's/^JAVA_HOME=//'); \
+	if [ -n "$$ENV_JAVA_HOME" ] && [ "$$JAVA_HOME" != "$$ENV_JAVA_HOME" ]; then \
+		echo "  ⚠ JAVA_HOME mismatch: env=$$JAVA_HOME, .env=$$ENV_JAVA_HOME — using .env" && export JAVA_HOME="$$ENV_JAVA_HOME"; \
+	elif [ -z "$$JAVA_HOME" ] && [ -n "$$ENV_JAVA_HOME" ]; then \
+		export JAVA_HOME="$$ENV_JAVA_HOME"; \
+	fi; \
+	if [ -z "$$JAVA_HOME" ]; then \
+		echo "ERROR: JAVA_HOME is not set. Set it in apps/api/.env or export it in your environment."; exit 1; \
+	fi; \
+	cd apps/mobile && (test -d android || npx expo prebuild -p android) && npx expo run:android
+
+android-apk: ## Prebuild + assemble the signed release APK (Expo app)
+	@ENV_JAVA_HOME=$$(grep '^JAVA_HOME=' apps/api/.env 2>/dev/null | sed 's/^JAVA_HOME=//'); \
+	if [ -n "$$ENV_JAVA_HOME" ] && [ "$$JAVA_HOME" != "$$ENV_JAVA_HOME" ]; then \
+		echo "  ⚠ JAVA_HOME mismatch: env=$$JAVA_HOME, .env=$$ENV_JAVA_HOME — using .env" && export JAVA_HOME="$$ENV_JAVA_HOME"; \
+	elif [ -z "$$JAVA_HOME" ] && [ -n "$$ENV_JAVA_HOME" ]; then \
+		export JAVA_HOME="$$ENV_JAVA_HOME"; \
+	fi; \
+	if [ -z "$$JAVA_HOME" ]; then \
+		echo "ERROR: JAVA_HOME is not set. Set it in apps/api/.env or export it in your environment."; exit 1; \
+	fi; \
+	cd apps/mobile && npx expo prebuild -p android --clean && cd android && ./gradlew assembleRelease
+
+android-install: ## Install the release APK on the emulator and launch
+	ADB=$$(command -v adb 2>/dev/null || command -v adb.exe 2>/dev/null); \
+	$$ADB -s emulator-5554 install -r apps/mobile/android/app/build/outputs/apk/release/app-release.apk && \
+	$$ADB -s emulator-5554 shell am start -n com.journiful.app/.MainActivity
+
+android-logs: ## Tail native logs on the emulator
+	ADB=$$(command -v adb 2>/dev/null || command -v adb.exe 2>/dev/null); \
+	$$ADB -s emulator-5554 logcat
 
 BUILD_NUMBER ?= $(shell git rev-list --count HEAD 2>/dev/null || echo 1)
 GIT_BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
