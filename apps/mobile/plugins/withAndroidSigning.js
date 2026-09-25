@@ -12,7 +12,7 @@
  */
 /* eslint-disable no-undef */
 // @ts-nocheck — plain Node config plugin, no types by design.
-const { withAppBuildGradle } = require("@expo/config-plugins");
+const { withAppBuildGradle } = require("expo/config-plugins");
 
 module.exports = function withAndroidSigning(config) {
   return withAppBuildGradle(config, (config) => {
