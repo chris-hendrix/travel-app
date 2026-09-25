@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render } from "@testing-library/react";
 
 // Mock HomePageClient — it uses useAuth() which needs AuthProvider context;
-// we unit-test page.tsx's responsibility: rendering the script + delegate component.
+// we unit-test page.tsx's responsibility: delegating to the client component.
 vi.mock("./home-page-client", () => ({
   HomePageClient: () => <div data-testid="home-page-client">HomePageClient</div>,
 }));
@@ -10,11 +10,9 @@ vi.mock("./home-page-client", () => ({
 import Home from "./page";
 
 describe("Home (landing page)", () => {
-  it("renders the Capacitor native redirect script", () => {
+  it("renders no pre-hydration script", () => {
     const { container } = render(<Home />);
-    const script = container.querySelector("script");
-    expect(script).toBeTruthy();
-    expect(script?.innerHTML).toContain("location.replace('/login.html')");
+    expect(container.querySelector("script")).toBeNull();
   });
 
   it("renders HomePageClient", () => {

@@ -4,9 +4,9 @@
 
 Journiful is a collaborative trip planning platform. Monorepo managed with pnpm + Turbo:
 
-- `apps/mobile` — Expo 57. **The product.** Wired to the API (lane rules live in `apps/mobile/AGENTS.md`); its static web export is the product surface at `beta.journiful.app`, with the apex swap pending.
+- `apps/mobile` — Expo 57. **The product.** Wired to the API and shipped two ways: as the Android app (prebuild + gradle) and as the static web export at `journiful.app`. Lane rules live in `apps/mobile/AGENTS.md`.
 - `apps/api` — Fastify 5 REST API, PostgreSQL 16 via Drizzle ORM, JWT auth. Pattern: `buildApp` factory, route → controller → service. The backend for both surfaces.
-- `apps/web` — Next.js 16 App Router, React 19, Tailwind CSS 4, shadcn/ui. Wraps into a native Android app via Capacitor 8 static export. Pattern: App Router pages with TanStack Query for server state. **Frozen** — see Direction below.
+- `apps/web` — Next.js 16 App Router, React 19, Tailwind CSS 4, shadcn/ui. **Frozen** — the rollback target (its own Railway hostname) and the home of `/admin`. No Capacitor: the Android app is `apps/mobile` now.
 - `shared` — Cross-cutting types, Zod schemas, and pure utilities consumed by both apps.
 
 Design system: **Vivid Capri** (Mediterranean aesthetic). The source of truth is `apps/mobile`: its tokens in `global.css`, its components, and the lab at `/design` that documents them. `apps/web/src/app/globals.css` carries the web app's own tokens, which go with the web app.
@@ -17,7 +17,7 @@ Stated up front because it decides where work goes, and it is easy to infer the 
 
 | | Before | Now |
 | --- | --- | --- |
-| `apps/mobile` | design mockup, in-memory data | the product; wired to the API and shipped as its static web export |
+| `apps/mobile` | design mockup, in-memory data | the product; wired to the API, the Android app, and the web export |
 | `apps/web` | the shipped web app, and through Capacitor the shipped Android app | frozen; the rollback target and the home of `/admin` on its own Railway hostname |
 | `apps/api` | the backend | unchanged; both surfaces talk to it |
 | `shared` | cross-cutting types and schemas | unchanged |
@@ -26,9 +26,8 @@ This means:
 
 - **New product work goes in `apps/mobile`.** `apps/web` is frozen: it stays deployed on its own Railway hostname as the rollback target and the home of `/admin`. Do not change it except to keep the rollback working.
 - **Auth differs by surface.** The Expo web export keeps a bearer token in `localStorage` (`apps/mobile/lib/session.ts`); the Next app uses an httpOnly cookie session. The web-export token storage is the weaker of the two and is accepted for now; the follow-up is cookie auth on web or the native app.
-- **The Capacitor pipeline is frozen, not dead.** `make cap-*` is how the current APK ships and keeps working until the Expo app is on the store.
-- **`make build-mobile` and `make cap-*` are `apps/web`, not `apps/mobile`.** The name is a trap: they build the Next.js static export for Capacitor.
-- **The cutover is in progress, not planned.** The Expo export serves `beta.journiful.app`; pointing the apex at it is the pending step, and re-pointing at the frozen web app is the rollback.
+- **The Capacitor pipeline is gone.** `make cap-*`, `apps/web/android/`, `capacitor.config.ts` and the `@capacitor/*` dependencies were deleted; the Android app is built from `apps/mobile` (`make android-apk`). `make build-mobile` still exists but is only the frozen web app's static export, kept because `test-static-smoke` builds it.
+- **`journiful.app` serves the Expo web export.** The apex and `beta.journiful.app` point at the `static` service; the frozen `web` service answers on its own Railway hostname (and owns `/admin`). Re-pointing the apex is the rollback.
 
 ## WHY
 
@@ -54,14 +53,15 @@ make mockup           # The design mockup in a browser (design system at /design
 pnpm dev:web          # Frontend only
 pnpm dev:api          # Backend only
 
-# Mobile / Capacitor (host) — this is apps/web shipped as an APK, not apps/mobile
-make cap-apk                  # Full pipeline: static export → cap sync → assembleDebug APK
-make cap-install              # Install APK on emulator + launch
-make cap-run                  # cap-apk + cap-install combined (requires live reload config)
-make cap-logs                 # Tail WebView JS console (chromium) logs
-make cap-crash                # Dump Android crash log buffer
+# Mobile / Android (host) — the Expo app in apps/mobile
+make android-dev              # Prebuild (if needed) + run on the emulator
+make android-apk              # Prebuild + assemble the signed release APK
+make android-install          # Install the release APK on the emulator + launch
+make android-logs             # Tail native logs
 make adb-reverse              # Forward emulator ports 8000 & 3000 to host (use -s emulator-XXXX if multiple)
-make distribute-android       # Build, sync, and distribute to Firebase App Distribution
+
+# Android builds run in CI: .github/workflows/distribute.yml prebuilds,
+# signs with the upload key, and ships to Firebase App Distribution.
 ```
 
 ### Testing — devcontainer only
@@ -115,75 +115,35 @@ Backend: broad unit → service middle → route layer → no API-level E2E. Fro
 #### Database isolation
 Each test that creates records uses `generateUniquePhone()` (or equivalent unique-key strategy). Global setup (`tests/global-setup.ts`) clears three utility tables once per suite run. Known limitation: state accumulates across test files within a run. Documented future improvement: per-test transactional rollback (`BEGIN`/`ROLLBACK`).
 
-### Native (Capacitor)
+### Native (Android)
 
-`apps/web` wraps into an Android APK via Capacitor 8 static export. The web PWA and server-rendered deployment remain untouched. Push uses FCM on native, VAPID on web.
+The Android app is a build of `apps/mobile` — Expo prebuild produces `android/`, gradle assembles it, and the APK is signed with the upload key. There is no Capacitor shell and no WebView wrapper any more; the details live in `apps/mobile/AGENTS.md`, and this section carries only what is repo-wide.
 
-**One-time setup:**
-- Android Studio on Windows (not in WSL2) — SDK 33+, create a Pixel emulator
-- WSL2 ADB interop: set `ANDROID_HOME` to the Windows SDK path, `alias adb='adb.exe'`
-- Port forwarding: run `make adb-reverse` before starting the emulator (forwards localhost:8000 and :3000 to host)
-- Firebase project with Cloud Messaging → `google-services.json` → `apps/web/android/app/`
-- Firebase service account → `FIREBASE_SERVICE_ACCOUNT` in `apps/api/.env`
+**One-time setup (host):**
+- A JDK 21 (`apps/api/.env` `JAVA_HOME`, the same one the API's gradle path used)
+- A WSL2 Android SDK (platform 36, build-tools 36) with `ANDROID_HOME` exported, or Android Studio on Windows with `adb.exe` — emulator interaction goes through `make adb-reverse` + `make android-install`
+- The upload keystore at `~/keys/journiful-upload.keystore` with its four `JOURNIFUL_*` properties in `~/.gradle/gradle.properties` (never committed; CI reads the same values from GitHub secrets)
+- `apps/mobile/google-services.json` (untracked; copy from `apps/web/android/app/` or let CI write it from `secrets.GOOGLE_SERVICES_JSON`)
+- Firebase service account → `FIREBASE_SERVICE_ACCOUNT` in `apps/api/.env`, which is what actually sends FCM
 
 **Env vars:**
 | Var | Where | Purpose |
 |-----|-------|---------|
-| `NEXT_EXPORT=true` | build-time | Triggers static export (set by `make build-mobile`) |
-| `CAPACITOR_LIVE_RELOAD=true` | `.env.local` | Dev mode — loads from `http://10.0.2.2:3000` on emulator |
-| `FIREBASE_SERVICE_ACCOUNT` | `apps/api/.env` | Firebase Admin SDK JSON (single line) for FCM push |
-| `NEXT_PUBLIC_API_URL` | build-time / CI | API base URL for browser-side requests. Must be set to `https://api.journiful.app/api` for distribution builds. Local dev defaults to `http://localhost:8000/api` via `.env.local`. |
-| `make adb-reverse` | host setup | Forwards emulator ports 8000 & 3000 to host (required for dev API access) |
-
-**Dev workflow (with Android Studio):**
-```
-# Terminal 1: Start API + web with hot reload
-make dev
-
-# Terminal 2: Sync + launch on emulator with live reload
-make cap-dev
-# Then open apps/web/android/ in Android Studio, press ▶ Run
-```
-Code changes to the web app are hot-reloaded instantly in the emulator.
-
-**CLI-only QA (no Android Studio):**
-```bash
-# Windows PowerShell: start emulator
-& "$env:ANDROID_HOME\emulator\emulator" -avd <avd_name> -no-boot-anim
-
-# WSL2: build, sync, and launch
-make dev                              # Terminal 1: API + web
-make adb-reverse                      # Forward ports
-make cap-dev                          # Sync with live reload
-adb shell am start -n com.journiful.app/.MainActivity   # Launch app
-
-# WSL2: watch logs
-adb logcat chromium:V *:S             # JS console output
-adb logcat AndroidRuntime:E *:S       # Crash logs
-```
+| `EXPO_PUBLIC_API_URL` | build-time | API base URL inlined into the bundle. Distribution builds use `https://api.journiful.app/api`; a local build against `make dev` needs `make adb-reverse` (or `10.0.2.2`). |
+| `JOURNIFUL_KEYSTORE`, `JOURNIFUL_KEY_ALIAS`, `JOURNIFUL_STORE_PASSWORD`, `JOURNIFUL_KEY_PASSWORD` | `~/.gradle/gradle.properties` / CI | The upload key the release build is signed with. |
+| `FIREBASE_SERVICE_ACCOUNT` | `apps/api/.env` | Firebase Admin SDK JSON (single line) for FCM push. |
 
 **Build pipeline:**
 ```
-make build-mobile → out/ → npx cap sync → android/ assets
-                                        → ./gradlew assembleDebug → APK
+make android-apk → expo prebuild -p android --clean → android/ → ./gradlew assembleRelease → signed APK
+CI: .github/workflows/distribute.yml does the same on ubuntu, then firebase appdistribution:distribute
 ```
 
-**WebView debugging (Chrome DevTools):**
-
-1. `WebView.setWebContentsDebuggingEnabled(true)` is enabled in `MainActivity.java`
-2. Forward the DevTools socket: `adb forward tcp:9222 localabstract:webview_devtools_remote_<pid>` (get PID from `adb shell pidof com.journiful.app`)
-3. On Windows (as Administrator), bridge the port from WSL2:
-   ```
-   netsh interface portproxy add v4tov4 listenport=9222 listenaddress=0.0.0.0 connectport=9222 connectaddress=127.0.0.1
-   ```
-4. Access from Windows Chrome at `chrome://inspect` or `http://localhost:9222`
-5. To access from WSL2, find the Windows host IP: `ip route show default | awk '{print $3}'` — then use `http://<WINDOWS_IP>:9222/json`
-
 **Architecture:**
-- Export uses `assetPrefix: ''` for `file://` asset resolution in Capacitor WebView.
-- Server-side `cookies()`/`headers()` skipped in export mode via `NEXT_EXPORT` guard; client-side auth provider handles authentication at runtime.
-- Push routes by platform: Capacitor FCM plugin on native, Web Push API on web.
-- `CapacitorHttp` fetch patching (`{ enabled: true }`) routes all `window.fetch()` calls through native HTTP on Android, bypassing CORS entirely. On web, falls back to normal `fetch()`. Configured in `capacitor.config.ts`.
+- Push is FCM with the raw device token (`getDevicePushTokenAsync()`), registered against the API's existing `POST /push/subscribe {provider:"fcm"}`. No Expo push service and no EAS credentials are involved.
+- Version identity lives in `app.json` (`version`, `android.versionCode`). Capacitor's `-PversionNameOverride` gradle property is gone and the generated gradle never read it; CI rewrites the two `app.json` fields before prebuild instead.
+- Release signing comes from `apps/mobile/plugins/withAndroidSigning.js`, not a hand-edited `android/app/build.gradle`, because `expo prebuild --clean` regenerates that file.
+- The frozen web app kept `assetPrefix: ''` and the `NEXT_EXPORT` guards (see Constraints); those are still what its static export needs.
 
 ### Mock auth for local testing
 
@@ -239,7 +199,7 @@ Frontend `3000`, API `8000`, PostgreSQL `5433` → container `5432`, MinIO API `
 ## Constraints
 
 - **Tailwind v4 `@theme` colors must be hex, never `hsl()`.** Tailwind v4 strips the `hsl()` wrapper, leaving raw channel values like `0 0% 100%` which are invalid CSS. Browsers fall back to `transparent` and every background goes see-through. See `apps/web/src/app/globals.css`.
-- **Static export requires `assetPrefix: ''` (empty string), not `'./'`.** Next.js font loading rejects relative prefixes; empty string produces root-relative paths that Capacitor's WebView resolves correctly from `file:///android_asset/`.
+- **Static export requires `assetPrefix: ''` (empty string), not `'./'`.** Next.js font loading rejects relative prefixes; empty string produces root-relative paths. The frozen web app's static export is what still depends on this.
 - **Shared package imports use no file extensions**, despite the repo running NodeNext. Next.js `transpilePackages` requires extensionless imports; the resulting TS2835 warnings are cosmetic and must be ignored. Always import as `@journiful/shared/schemas`, never `'../../../shared/schemas/index.js'`.
 - **No `[id]` dynamic route segments.** Static export can't render them at runtime. Use query params instead (`/trips?id=X`), read via `useSearchParams()` in client components. Server components in static export cannot `await searchParams` — all search param reading must be client-side, wrapped in `<Suspense>`.
 - **`redirect()` must NEVER be inside `try/catch`.** Next.js's `redirect()` works by throwing `NEXT_REDIRECT` internally. Catching it suppresses the redirect and produces "unexpected end of stream" errors. Only wrap `cookies()` in try/catch; keep `redirect()` outside.

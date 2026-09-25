@@ -144,24 +144,57 @@ The service builds and serves via the `apps/mobile` scripts `export:web`
 (`expo export --platform web --clear`) and `serve:web`
 (`node scripts/serve-static.mjs`, a dependency-free static server that
 returns one file per route with real 404s). Live at
-`https://beta.journiful.app` (and
+`https://journiful.app` and `https://beta.journiful.app` (and
 `https://static-production-df7e.up.railway.app`).
+
+Everything the export publishes beyond the app routes comes from
+`apps/mobile/public/`, copied into `dist/` by the Expo build:
+`manifest.json` and `icons/` (the install story) and
+`.well-known/assetlinks.json` (App Links verification, whose
+`sha256_cert_fingerprints` must match the certificate of the installed
+APK — the upload key today, plus the Play app-signing key once a `.aab`
+is uploaded). The manifest link in each page's `<head>` comes from
+`apps/mobile/app/+html.tsx`. `apps/mobile/scripts/check-export.mjs` is
+the gate on all of it and runs in the `Mobile Web Export` CI job.
 
 The API's `FRONTEND_URL` covers the static origins:
 `https://journiful.app,https://static-production-df7e.up.railway.app,https://beta.journiful.app`.
+That list is CORS: the API must name an origin before a browser on it can
+sign in, so a new hostname goes into `FRONTEND_URL` and is redeployed
+**before** it is pointed anywhere.
 
 ## Domains and Rollback
 
-The apex `journiful.app` currently points at the **web** service. Pointing it
-at the **static** service is the cutover; pointing it back is the rollback.
-Both are a one-action custom-domain re-point in the Railway dashboard
-(service → Settings → Networking → Custom Domains), no redeploy needed.
+The apex `journiful.app` points at the **static** service (the Expo web
+export). It was moved there from the **web** service (the frozen Next
+app) as the cutover, and moving it back is the rollback. Both are a
+one-action custom-domain re-point — in the Railway dashboard (service →
+Settings → Networking → Custom Domains) or with
+`railway domain delete journiful.app --service static -e production`
+followed by `railway domain journiful.app --service static` on the other
+service. No redeploy is needed, and no DNS change either: both
+`journiful.app` and `beta.journiful.app` CNAME to Railway's shared
+custom-domain edge (`hii0btpj.up.railway.app`), so the swap is
+Railway-side routing only and takes effect in seconds.
+
+Only one service can hold a custom domain, so the swap is two operations
+with a short window in between where the apex answers 404. Do it after the
+merge has redeployed the **static** service: the export the apex starts
+serving is whatever that service last built from `main`.
+
+The **web** service stays deployed on
+`https://web-production-e21e7.up.railway.app` as the rollback target and
+the home of `/admin` (the Expo export has no admin console).
 
 ### Rollback steps
 
-1. In the Railway dashboard, remove the `journiful.app` custom domain from
-   the **static** service and add it back to the **web** service.
-2. Confirm the old app serves: open `https://journiful.app` and sign in.
+1. Move the `journiful.app` custom domain from the **static** service to
+   the **web** service 
+ (`railway domain delete journiful.app -s static
+   -e production`, then `railway domain journiful.app -s web -e
+   production`).
+2. Confirm the old app serves: `curl -sI https://journiful.app` is 200 and
+   `https://journiful.app/login` renders the Next sign-in page.
 3. Swap forward again by moving the domain back to **static** when ready.
 
 ## Health Checks

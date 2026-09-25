@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunk_N_E=self.webpackChunk_N_E||[]).push([[1099],{81099:(e,r,s)=>{s.r(r),s.d(r,{default:()=>u});var i=s(71198),n=s(84272),t=s(2359);function u(){let{trip:e,isOrganizer:r,isLocked:s}=(0,n.k)();return(0,i.jsx)(t.n,{tripId:e.id,isOrganizer:r,disabled:s})}}}]);

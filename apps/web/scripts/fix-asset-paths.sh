@@ -2,16 +2,15 @@
 set -euo pipefail
 
 # fix-asset-paths.sh
-# Post-process Next.js static export for Capacitor compatibility.
-# Next.js emits absolute asset paths (/_next/static/...), but Capacitor
-# loads from file:///android_asset/public/ where absolute paths resolve
-# from filesystem root (file:///_next/...) instead of the page directory.
-#
-# This script rewrites paths to be relative so they work under file:// protocol.
+# Post-process the Next.js static export so asset paths are relative.
+# Next.js emits absolute paths (/_next/static/...), which resolve from the
+# filesystem root under file:// (file:///_next/...) instead of the page
+# directory. Kept from the Capacitor shell, which is gone; relative paths
+# still resolve over http, so the served app is unaffected.
 
 OUT_DIR="$(dirname "$0")/../out"
 
-echo "Fixing asset paths for Capacitor file:// compatibility..."
+echo "Rewriting asset paths to be relative..."
 
 # 1. Root-level HTML files (index.html, login.html, etc.)
 #    /_next/static/... → ./_next/static/...
@@ -75,4 +74,4 @@ else
   echo "    No absolute paths in JS chunks (good)"
 fi
 
-echo "Done. Asset paths are now Capacitor-compatible."
+echo "Done. Asset paths are now relative."

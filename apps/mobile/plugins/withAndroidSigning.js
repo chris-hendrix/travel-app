@@ -36,10 +36,22 @@ module.exports = function withAndroidSigning(config) {
         }
     }`,
     );
-    config.modResults.contents = config.modResults.contents.replace(
-      /buildTypes\s*\{\s*release\s*\{/,
-      "buildTypes {\n        release {\n            signingConfig signingConfigs.journifulRelease",
-    );
+    // Point only the release build type at the upload key. The template
+    // ships `signingConfig signingConfigs.debug` in release, and it is
+    // not the first occurrence in the file (debug comes first), so this
+    // anchors on the release block rather than on the string.
+    const buildTypesAt = config.modResults.contents.indexOf("buildTypes");
+    const releaseAt = config.modResults.contents.indexOf("release {", buildTypesAt);
+    if (buildTypesAt !== -1 && releaseAt !== -1) {
+      const head = config.modResults.contents.slice(0, releaseAt);
+      const tail = config.modResults.contents.slice(releaseAt);
+      config.modResults.contents =
+        head + tail.replace("signingConfig signingConfigs.debug", "signingConfig signingConfigs.journifulRelease");
+    } else {
+      throw new Error(
+        "withAndroidSigning: could not find buildTypes/release in android/app/build.gradle — the Expo template changed shape",
+      );
+    }
     return config;
   });
 };

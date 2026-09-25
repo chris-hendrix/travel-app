@@ -43,7 +43,7 @@ Requires **Node.js 22+**, **pnpm 10+**, and **Docker** with Compose v2.
 | Database      | PostgreSQL 16                         |
 | Validation    | Zod (shared between web and api)      |
 | Testing       | Vitest, Playwright                    |
-| Mobile        | Capacitor 8, Firebase Cloud Messaging |
+| Mobile        | Expo 57 (expo-router, NativeWind), Firebase Cloud Messaging |
 | Runtime       | Node.js 22                            |
 
 ## Docs

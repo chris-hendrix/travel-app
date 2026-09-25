@@ -34,7 +34,7 @@ describe('createNextConfig', () => {
     expect(config.output).toBe('standalone');
   });
 
-  it('sets an empty assetPrefix when NEXT_EXPORT=true (for Capacitor file:// compat)', () => {
+  it('sets an empty assetPrefix when NEXT_EXPORT=true (static export)', () => {
     const config = createNextConfig({ NEXT_EXPORT: 'true' });
     expect(config.assetPrefix).toBe('');
   });

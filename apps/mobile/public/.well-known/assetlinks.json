@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.journiful.app",
+      "sha256_cert_fingerprints": [
+        "12:B8:5F:EE:73:01:D3:B0:88:ED:02:69:31:EE:E8:FE:6A:38:DB:C4:9B:CA:42:77:CD:9B:FE:EF:44:E3:C2:41"
+      ]
+    }
+  }
+]

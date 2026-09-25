@@ -19,10 +19,6 @@
     "clean": "rm -rf .next .turbo node_modules"
   },
   "dependencies": {
-    "@capacitor/app": "^8.1.1",
-    "@capacitor/core": "^8.5.0",
-    "@capacitor/preferences": "^8.0.1",
-    "@capacitor/push-notifications": "^8.1.2",
     "@ducanh2912/next-pwa": "^10.2.9",
     "@hookform/resolvers": "^5.9.0",
     "@journiful/shared": "workspace:*",
@@ -47,8 +43,6 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@capacitor/android": "^8.5.0",
-    "@capacitor/cli": "^8.5.1",
     "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@tanstack/eslint-plugin-query": "^5.101.4",

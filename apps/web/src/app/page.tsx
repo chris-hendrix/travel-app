@@ -11,15 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default function Home() {
-  return (
-    <>
-      {/* Redirect Capacitor native context to login immediately, before React loads */}
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `(function(){try{if(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()){location.replace('/login.html')}}catch(e){}})()`,
-        }}
-      />
-      <HomePageClient />
-    </>
-  );
+  // No pre-hydration redirect: the Capacitor native context it used to
+  // detect is gone (the Android app is built from apps/mobile).
+  return <HomePageClient />;
 }
