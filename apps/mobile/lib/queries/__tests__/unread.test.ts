@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createElement, Suspense } from "react";
 import { createRequire } from "node:module";
 
@@ -31,6 +31,14 @@ import {
   NotificationsProvider,
   useNotifications,
 } from "@/lib/notificationsStore";
+import { setSignedIn } from "@/lib/sessionFlag";
+
+// The store gates its reads on the session (`sessionFlag`), so these tests
+// have to say there is one: signed out, the list and the count are not
+// fetched at all — which is the behaviour `session-flag.test.ts` covers.
+beforeEach(() => {
+  setSignedIn(true);
+});
 
 const mockedApiFetch = vi.mocked(apiFetch);
 

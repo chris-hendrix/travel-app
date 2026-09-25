@@ -19,6 +19,7 @@ import {
 } from "@/lib/queries/auth";
 import type { Profile } from "@/lib/profile";
 import { clearToken, getToken } from "@/lib/session";
+import { setSignedIn } from "@/lib/sessionFlag";
 
 /**
  * Who is signed in, standing in for `POST /auth/request-code`,
@@ -205,9 +206,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
         setUser(result.user);
         setStatus(result.status);
+        setSignedIn(result.status === "signed-in");
       })
       .catch(() => {
-        if (!cancelled) setStatus("signed-out");
+        if (cancelled) return;
+        setStatus("signed-out");
+        setSignedIn(false);
       });
     return () => {
       cancelled = true;
@@ -241,6 +245,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profileComplete: !requiresProfile,
       });
       setStatus("signed-in");
+      setSignedIn(true);
       // Anything read while signed out is not this session's answer.
       resetCacheForNewSession(queryClient);
 
@@ -261,6 +266,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profileComplete: true,
     });
     setStatus("signed-in");
+    setSignedIn(true);
     // Same clear as `verifyCode`: the new session starts from nothing.
     resetCacheForNewSession(queryClient);
   }, [queryClient]);
@@ -274,6 +280,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setPendingPhone(null);
     setStatus("signed-out");
+    setSignedIn(false);
   }, [queryClient]);
 
   // Mid-session 401 recovery: the shared boundary (`lib/api.ts`)
@@ -286,6 +293,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
         setPendingPhone(null);
         setStatus("signed-out");
+        setSignedIn(false);
       });
     });
   }, [queryClient]);
