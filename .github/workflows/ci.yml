@@ -3,8 +3,13 @@ name: CI
 on:
   push:
     branches: [main, master]
+  # Deliberately every base branch, including integration branches. The
+  # `changes` job below scopes each suite by the paths a PR touched, so a PR
+  # into a feature branch costs the cheap jobs and gates the work that
+  # changed. Filtering to main silently un-gated stacked PRs: #208 carried a
+  # lockfile that broke `pnpm install --frozen-lockfile`, and the first thing
+  # to notice was Railway's build, because no workflow was attached to it.
   pull_request:
-    branches: [main, master]
 
 # Cancel in-progress runs for same workflow + PR/branch
 concurrency:
@@ -300,12 +305,43 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Download Blob Reports
+      # The shards above are the gate; this job only assembles a readable
+      # report. GitHub's artifact service has failed this download with
+      # "Artifact download failed after 5 retries" on runs whose shards all
+      # passed (twice on 2026-09-25), so a transient storage error must not
+      # redden a PR. Two attempts, and the step below still fails the job when
+      # nothing arrived at all — an empty upload is a real failure, a flaky
+      # download is not.
+      - name: Download Blob Reports (attempt 1)
+        id: download-attempt-1
+        continue-on-error: true
         uses: actions/download-artifact@v8
         with:
           path: apps/web/all-blob-reports
           pattern: blob-report-*
           merge-multiple: true
+
+      - name: Download Blob Reports (attempt 2)
+        if: steps.download-attempt-1.outcome == 'failure'
+        uses: actions/download-artifact@v8
+        with:
+          path: apps/web/all-blob-reports
+          pattern: blob-report-*
+          merge-multiple: true
+
+      - name: Report the retry in the summary
+        if: steps.download-attempt-1.outcome == 'failure'
+        run: |
+          echo '> The first artifact download failed and the retry succeeded.' >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail only when no report arrived
+        run: |
+          count=$(find apps/web/all-blob-reports -name '*.zip' | wc -l)
+          echo "blob reports downloaded: $count"
+          if [ "$count" -eq 0 ]; then
+            echo "ERROR: no blob reports were downloaded, so there is nothing to merge." >&2
+            exit 1
+          fi
 
       - name: Merge Reports
         run: |

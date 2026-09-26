@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -16,6 +17,7 @@ import {
   notificationKeys,
   notificationsListOptions,
 } from "@/lib/queries/notifications";
+import { isSignedIn, subscribe } from "@/lib/sessionFlag";
 
 type NotificationsValue = {
   notifications: Notification[];
@@ -52,7 +54,20 @@ export function NotificationsProvider({
   children: ReactNode;
 }) {
   const queryClient = useQueryClient();
-  const listQuery = useQuery(notificationsListOptions());
+  // Signed out there is no list to read, and asking anyway is an anonymous
+  // 401 the API counts against its rate limiter — and, before the cache
+  // clear on sign-in, the failure that painted "Sign in again" over a live
+  // session. `sessionFlag` rather than `useAuth` because this module is
+  // rendered by node tests that cannot import `react-native` (see that
+  // module's doc comment). The third argument is the server snapshot: these
+  // tests render through `react-dom/server`, and during the web prerender
+  // the honest answer is the same as the client's — no session, so nothing
+  // to fetch.
+  const signedIn = useSyncExternalStore(subscribe, isSignedIn, isSignedIn);
+  const listQuery = useQuery({
+    ...notificationsListOptions(),
+    enabled: signedIn,
+  });
   const notifications = useMemo(
     () => listQuery.data ?? [],
     [listQuery.data],

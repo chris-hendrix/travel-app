@@ -18,6 +18,41 @@ import { apiFetch } from "@/lib/api";
 const PUSH_TOKEN_KEY = "journiful.pushToken";
 const PUSH_ASKED_KEY = "journiful.pushAsked";
 
+/**
+ * The channel the API addresses (`channelId` in
+ * `apps/api/src/services/push.service.ts`), so the id is a contract
+ * between the two sides, not a local detail.
+ *
+ * It is not `"default"`, the name the Capacitor-era payload used, because
+ * Android freezes a channel's sound, importance and vibration at creation
+ * and **restores them when a deleted channel is recreated**: the device
+ * showed a channel deleted and recreated with a vibration pattern come
+ * back with `mVibrationPattern=null`, exactly as before. A new id is the
+ * only reliable way to change what a channel asks for, and nothing has
+ * shipped, so this is a rename rather than a migration.
+ */
+const CHANNEL_ID = "journiful-default";
+
+/** The id this app used before the rename. Deleted, never recreated. */
+const LEGACY_CHANNEL_ID = "default";
+
+/**
+ * What the channel asks for.
+ *
+ * `sound: "default"` is what a push alerts with; `vibrationPattern` and
+ * `enableVibrate` are what a phone in a pocket feels. The emulator pass
+ * found the channel created with neither: `dumpsys notification` reported
+ * `mSound=content://settings/system/notification_sound` (expo defaults the
+ * sound) but `mVibrationPattern=null mVibrationEnabled=false`, because the
+ * channel was created with only a name and an importance.
+ */
+const CHANNEL = {
+  name: "Journiful",
+  sound: "default",
+  vibrationPattern: [0, 250, 250, 250],
+  enableVibrate: true,
+};
+
 export type PushPermission = "granted" | "denied" | "undetermined";
 
 function storedTokenSync(): string | null {
@@ -111,13 +146,17 @@ export async function permissionState(): Promise<PushPermission> {
     if (perms.status === "granted") return "granted";
     // Android reports `denied` for a permission that has never been
     // requested, so the OS answer alone cannot tell "not yet asked" from
-    // "turned off". Trusting it made a first-run screen greet a new
-    // person with "Notifications are off — you turned them off for
-    // Journiful", which is a lie about a choice they never made, and it
-    // hid the only button that asks. The stored ask flag is what
-    // separates the two; `canAskAgain === false` is the OS saying the
-    // question cannot be asked again, whatever the flag says.
-    if (perms.canAskAgain === false) return "denied";
+    // "turned off" — trusting it greeted a first-run person with "you
+    // turned them off for Journiful", which is a lie about a choice they
+    // never made, and hid the only button that asks.
+    //
+    // `canAskAgain` is *not* the tie-breaker either, which a device made
+    // plain: a fresh install that had never been asked reported
+    // `{"status":"denied","canAskAgain":false,"asked":true}` — expo
+    // returns false while the request is still possible, so treating it
+    // as "off" reproduced the same lie. The stored ask flag is the only
+    // signal that means what it says: asked and not granted is a choice,
+    // never asked is not.
     return (await wasAsked()) ? "denied" : "undetermined";
   } catch {
     return "undetermined";
@@ -127,8 +166,17 @@ export async function permissionState(): Promise<PushPermission> {
 export async function ensureChannel(): Promise<void> {
   if (Platform.OS !== "android") return;
   try {
-    await Notifications.setNotificationChannelAsync("default", {
-      name: "Journiful",
+    // The old id is deleted rather than reused (see `CHANNEL_ID`). Its
+    // notifications go with it, which is the intent: nothing is expected on
+    // a channel the app no longer addresses. Its own try: a device without
+    // that channel is the normal case, and must not skip the create below.
+    try {
+      await Notifications.deleteNotificationChannelAsync(LEGACY_CHANNEL_ID);
+    } catch {
+      // Nothing to delete.
+    }
+    await Notifications.setNotificationChannelAsync(CHANNEL_ID, {
+      ...CHANNEL,
       importance: Notifications.AndroidImportance.HIGH,
     });
   } catch {
@@ -137,27 +185,27 @@ export async function ensureChannel(): Promise<void> {
 }
 
 /**
- * Ask (if needed), create the channel, fetch the FCM device token and
- * register it. Returns the token, or null when permission is denied or
- * anything fails. Rotating tokens prune the previous row: when the new
- * token differs from the stored one, the old one is deleted after the
- * new registration succeeds.
+ * Register the device token, but **never ask** for permission.
+ *
+ * This is the path the session takes (`setToken`) and the one every
+ * launch takes: it registers when permission is already granted and does
+ * nothing otherwise. Asking here was a bug the device found — signing in
+ * fired the OS prompt before the person had opened anything, the prompt
+ * did not appear, Android recorded a denial
+ * (`{"status":"denied","canAskAgain":false,"asked":true}`), and from then
+ * on the notifications screen said "you turned them off for Journiful"
+ * while the one-shot prompt was already spent. Android gives an app one
+ * honest ask; it belongs to the button on the notifications screen, which
+ * is `askForPush`.
+ *
+ * Rotating tokens prune the previous row: when the new token differs from
+ * the stored one, the old one is deleted after the new registration
+ * succeeds.
  */
 export async function registerForPush(): Promise<string | null> {
   try {
     const perms = await Notifications.getPermissionsAsync();
-    let status = perms.status;
-    // Two shapes of "not granted yet": a genuine `undetermined`, and the
-    // `denied` Android reports before it has ever been asked (see
-    // `permissionState`). Both are the moment to ask.
-    const neverAsked =
-      status !== "granted" && (status !== "denied" || !(await wasAsked()));
-    if (neverAsked && perms.canAskAgain !== false) {
-      await rememberAsked();
-      const asked = await Notifications.requestPermissionsAsync();
-      status = asked.status;
-    }
-    if (status !== "granted") return null;
+    if (perms.status !== "granted") return null;
     await ensureChannel();
     const { data } = await Notifications.getDevicePushTokenAsync();
     if (!data) return null;
@@ -190,6 +238,27 @@ async function currentDeviceToken(): Promise<string | null> {
   try {
     const { data } = await Notifications.getDevicePushTokenAsync();
     return data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Ask for permission, then register — the notifications screen's button,
+ * and the only place in the app that prompts.
+ *
+ * Returns the token, or null when the answer is no or anything fails. A
+ * denial is remembered, so the screen can stop offering the ask and point
+ * at system settings instead.
+ */
+export async function askForPush(): Promise<string | null> {
+  try {
+    const before = await Notifications.getPermissionsAsync();
+    if (before.status === "granted") return registerForPush();
+    await rememberAsked();
+    const asked = await Notifications.requestPermissionsAsync();
+    if (asked.status !== "granted") return null;
+    return registerForPush();
   } catch {
     return null;
   }

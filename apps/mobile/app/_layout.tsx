@@ -3,6 +3,7 @@ import { AppState, Platform, View } from "react-native";
 import { QueryClientProvider, focusManager } from "@tanstack/react-query";
 import { makeQueryClient } from "@/lib/queries/client";
 import { Stack, SplashScreen, usePathname, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 // The web tab's own label. Expo's shell ships an empty <title>, which
 // reads as the URL on a tab strip; the mark beside it says which product,
 // this says what to call it. A default import, not a named one:
@@ -40,6 +41,16 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const pathname = usePathname();
+  // The window is edge-to-edge on Android, so the system bars are drawn
+  // over the app: without these the header's row (the wordmark, the bell,
+  // Sign in) sits under the clock and the battery, and a dialog's title
+  // sits on the status bar's edge — measured on the emulator, where the
+  // status bar is 24dp and the header's own top padding is 16dp. The
+  // padding goes on this one view because every route passes through it:
+  // header, screens and dialogs alike. The sand ground paints behind the
+  // bars, so what shows above the header reads as the app's own ground
+  // rather than as a gap. Insets are 0 on web, so the export is unmoved.
+  const insets = useSafeAreaInsets();
   // One client per layout mount; QueryClientProvider holds it steady.
   const [queryClient] = useState(() => makeQueryClient());
 
@@ -97,7 +108,10 @@ export default function RootLayout() {
             <Head>
               <title>Journiful</title>
             </Head>
-            <View className="flex-1 bg-sand">
+            <View
+              className="flex-1 bg-sand"
+              style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+            >
               {/* App shell: a fixed-height column so the screen scrolls
                   under the header instead of scrolling the whole document
                   (web). The landing and the auth flow wear a band with no

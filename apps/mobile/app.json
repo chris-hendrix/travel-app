@@ -12,7 +12,7 @@
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#f5eacc"
+        "backgroundColor": "#1a1814"
       },
       "intentFilters": [
         {

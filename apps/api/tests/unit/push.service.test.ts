@@ -149,7 +149,11 @@ describe("PushService", () => {
         android: {
           priority: "high",
           notification: {
-            channelId: "default",
+            // The channel the app creates (`CHANNEL_ID` in
+            // apps/mobile/lib/push.ts): a contract between the two sides,
+            // renamed from "default" because Android freezes a channel's
+            // settings and restores them when it is recreated.
+            channelId: "journiful-default",
           },
         },
       });

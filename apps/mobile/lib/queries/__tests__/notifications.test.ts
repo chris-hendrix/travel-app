@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createElement, Suspense } from "react";
 import { createRequire } from "node:module";
 
@@ -38,6 +38,14 @@ import {
   NotificationsProvider,
   useNotifications,
 } from "@/lib/notificationsStore";
+import { setSignedIn } from "@/lib/sessionFlag";
+
+// The store gates its reads on the session (`sessionFlag`), so these tests
+// have to say there is one: signed out, the list and the count are not
+// fetched at all — which is the behaviour `session-flag.test.ts` covers.
+beforeEach(() => {
+  setSignedIn(true);
+});
 
 const mockedApiFetch = vi.mocked(apiFetch);
 
@@ -91,6 +99,36 @@ function cached(overrides: Partial<Notification> = {}): Notification {
     ...overrides,
   };
 }
+
+describe("useNotifications() read gate (signed out)", () => {
+  it("does not read the list while signed out", async () => {
+    // Before the gate, a signed-out cold start fetched `/notifications`
+    // anonymously, was answered 401, and kept that error in the cache —
+    // which the notifications dialog then painted over a live session. The
+    // signed-in half needs no case here: every other test in this file sets
+    // the flag and asserts the fetch, so the pair is covered between them.
+    setSignedIn(false);
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue(listBody([row()]));
+
+    const client = makeQueryClient();
+    function Probe() {
+      useNotifications();
+      return null;
+    }
+    function Wrapper() {
+      return createElement(
+        QueryClientProvider,
+        { client },
+        createElement(NotificationsProvider, null, createElement(Probe)),
+      );
+    }
+
+    renderToString(createElement(Wrapper));
+    await Promise.resolve();
+    expect(mockedApiFetch).not.toHaveBeenCalled();
+  });
+});
 
 describe("notificationsListOptions", () => {
   it("maps GET /notifications 1:1 to the mobile Notification", async () => {

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Linking, Text, View } from "react-native";
 import { Button } from "@/components/ui/Button";
 import type { PushPermission } from "@/lib/push";
-import { registerForPush } from "@/lib/push";
+import { askForPush } from "@/lib/push";
 
 /**
  * The push ask, as a state of the notifications list rather than a
@@ -41,7 +41,7 @@ export function PushOptIn({
             void (async () => {
               setAsking(true);
               try {
-                const token = await registerForPush();
+                const token = await askForPush();
                 if (token) onGranted();
               } finally {
                 setAsking(false);

@@ -1,10 +1,11 @@
-import type { ReactNode } from "react";
+import { useSyncExternalStore, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Link } from "expo-router";
 import { Bell, User, X } from "lucide-react-native";
 import Svg, { Defs, Path, Pattern, Rect } from "react-native-svg";
 import { useQuery } from "@tanstack/react-query";
 import { unreadCountOptions } from "@/lib/queries/notifications";
+import { isSignedIn, subscribe } from "@/lib/sessionFlag";
 import { useZoneToken } from "@/lib/displayZone";
 import { INK, SAND } from "@/lib/theme";
 
@@ -109,7 +110,10 @@ function BellButton() {
   // While loading the badge shows nothing; a failed count never
   // paints an error state in the header — the last known count (or
   // nothing) stays.
-  const { data } = useQuery(unreadCountOptions());
+  // Signed out there is nothing to count, and asking anyway is an anonymous
+  // 401 the API counts against its rate limiter. Same gate as the list's.
+  const signedIn = useSyncExternalStore(subscribe, isSignedIn, isSignedIn);
+  const { data } = useQuery({ ...unreadCountOptions(), enabled: signedIn });
   const unreadCount = data ?? 0;
 
   // 24px icon in a 44pt box, so 10 above and 10 below: the band's row
