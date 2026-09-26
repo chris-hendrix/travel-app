@@ -13,6 +13,11 @@ import { useHoverZoom } from "@/hooks/useHoverZoom";
  * above it on a 480dp phone (a 432px column) — the ragged right edge
  * that every full-width control on the screen disagreed with.
  *
+ * `lg` is 1024 and the column reaches 864 at 960, so between those two
+ * widths a tile fills its row instead of pairing with a second one. That
+ * band is narrower than the ragged edge this replaced, and it is the one
+ * thing here chosen by what the stack resolves rather than by the numbers.
+ *
  * The two-line title slot is fixed height, so a ragged bottom edge is
  * invisible and the last line can hug the title.
  *

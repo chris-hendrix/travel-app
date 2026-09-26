@@ -152,6 +152,10 @@ export function TextField({
             setFocused(true);
             onFocus?.();
           }}
+          // The field's own focus tracking. A caller's `onBlur` would have to
+          // be chained here the way `onFocus` is above: the field has no such
+          // prop today, and destructuring one without calling it would drop a
+          // caller's handler silently.
           onBlur={() => setFocused(false)}
           autoFocus={autoFocus}
           maxLength={maxLength}
