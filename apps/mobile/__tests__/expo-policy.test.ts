@@ -218,22 +218,36 @@ describe("expo policy: the shell respects the system bars", () => {
 
   it("gives each bar to the element that paints its edge", () => {
     const layout = source("app/_layout.tsx");
-    const at = layout.indexOf('className="flex-1 bg-sand"');
+    const at = layout.indexOf('className={isDialog ? "flex-1 bg-gravel" : "flex-1 bg-sand"}');
     expect(at, "the shell view must carry the app ground").toBeGreaterThanOrEqual(0);
-    const window = layout.slice(at, at + 900);
+    const window = layout.slice(at, at + 1600);
     // Always the shell's: no screen paints the gesture bar's edge.
     expect(window).toContain("paddingBottom: insets.bottom");
-    // The band's, unless there is no band to paint it — then the sand ground
-    // keeps it, which is why the two are a pair rather than a constant.
+    // The band's, unless there is no band to paint it — then the ground keeps
+    // it, which is why the two are a pair rather than a constant.
     expect(window).toMatch(/paddingTop: isDialog \? insets\.top : 0/);
     const header = source("components/ui/AppHeader.tsx");
     expect(header).toMatch(/style=\{\{ paddingTop: insets\.top \}\}/);
     expect(header).toContain('className="bg-ink"');
   });
 
+  it("paints the inset under a dialog in the dialog's own ground", () => {
+    // A dialog has no band, so the shell's ground is what shows behind the
+    // status and gesture bars there. It is gravel because every dialog is:
+    // `DIALOG_ROUTES` and `FullscreenDialog`'s ground are one list and one
+    // colour, and a shell that kept its sand would draw a seam along the
+    // status bar of every dialog in the app.
+    const layout = source("app/_layout.tsx");
+    expect(layout).toMatch(
+      /className=\{isDialog \? "flex-1 bg-gravel" : "flex-1 bg-sand"\}/,
+    );
+    const dialog = source("components/ui/FullscreenDialog.tsx");
+    expect(dialog).toMatch(/<View className="flex-1 bg-gravel">/);
+  });
+
   it("picks bar content that matches the ground under it", () => {
     const layout = source("app/_layout.tsx");
-    // Light over the band's ink, dark over the sand a dialog leaves there.
+    // Light over the band's ink, dark over the gravel a dialog leaves there.
     expect(layout).toMatch(
       /barStyle=\{isDialog \? "dark-content" : "light-content"\}/,
     );
@@ -244,8 +258,14 @@ describe("expo policy: the shell respects the system bars", () => {
     // Android draws that caret at the right edge of the box, and it comes out
     // of the native layout, so no prop can move it: the empty field shows no
     // caret rather than a wrong one. See facebook/react-native#28794, #38528.
-    expect(field).toMatch(/centered && !value && Platform\.OS === "android"/);
-    expect(field).toContain('"transparent"');
+    expect(field).toMatch(
+      /caretHidden=\{Boolean\(\s*centered && !value && Platform\.OS === "android",\s*\)\}/,
+    );
+    // `caretHidden` and not a transparent `cursorColor`: a colour prop that
+    // goes back to `undefined` does not reach the native side as "unset", so
+    // the cursor drawable kept the colourFilter and the caret never returned
+    // once the field had a digit in it.
+    expect(field).not.toMatch(/cursorColor=/);
   });
 
   it("does not hardcode a status bar height", () => {

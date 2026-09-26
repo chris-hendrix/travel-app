@@ -211,6 +211,7 @@ export default function DesignSystem() {
 
 function DesignSystemScreen() {
   const [formName, setFormName] = useState("");
+  const [code, setCode] = useState("");
   const [venue, setVenue] = useState<string | null>(null);
   const [rsvp, setRsvp] = useState<RsvpStatus | null>(null);
   const [layout, setLayout] = useState<"list" | "grid">("list");
@@ -561,7 +562,7 @@ function DesignSystemScreen() {
             <Specimen
               name="TextField"
               contract="label · value · onChangeText · placeholder? · error? · multiline? · numberOfLines? · suffix? · keyboardType? · centered? · autoFocus? · maxLength? · autoComplete? · textContentType?"
-              note="Every dialog that collects input uses this. Errors sit under the field, never in a toast, and they are FieldError's — the alert, not ink. suffix draws a control that acts on the field inside the field's own box — the Autofill button on a flight number is one — because two separately padded controls only line up until a font metric moves; stretching them inside one box cannot drift. centered is the one-short-value shape: six digits of a code, centred and tracked, which is not a size but a shape. autoComplete and textContentType are the platform's own fill, a phone number or a code that just arrived by text, and they are worth more than any styling here because typing six digits correctly is the one thing a thumb is bad at. autoFocus is for the one field the reader came to fill in."
+              note="Every dialog that collects input uses this. Errors sit under the field, never in a toast, and they are FieldError's — the alert, not ink. suffix draws a control that acts on the field inside the field's own box — the Autofill button on a flight number is one — because two separately padded controls only line up until a font metric moves; stretching them inside one box cannot drift. centered is the one-short-value shape: six digits of a code, centred and tracked, which is not a size but a shape. autoComplete and textContentType are the platform's own fill, a phone number or a code that just arrived by text, and they are worth more than any styling here because typing six digits correctly is the one thing a thumb is bad at. autoFocus is for the one field the reader came to fill in. A centred field hides its caret while it has no value — Android parks one against the box's right edge, where it reads as the field being full — so the caret arrives with the first digit rather than in the wrong place from the start."
             >
               <TextField
                 label="Display name"
@@ -590,6 +591,18 @@ function DesignSystemScreen() {
                     </Text>
                   </Pressable>
                 }
+              />
+              {/* The shape `centered` names, which the contract promised and
+                  this page never showed: empty, so the caret behaviour is the
+                  one the code screen has. */}
+              <TextField
+                label="Code"
+                value={code}
+                onChangeText={setCode}
+                placeholder="000000"
+                centered
+                maxLength={6}
+                keyboardType="number-pad"
               />
             </Specimen>
 

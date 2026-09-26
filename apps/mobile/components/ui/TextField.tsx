@@ -131,11 +131,17 @@ export function TextField({
           // one: a caret parked against the right edge of a centred field
           // reads as the field being full. iOS centres its own correctly and
           // takes no part in this.
-          cursorColor={
-            centered && !value && Platform.OS === "android"
-              ? "transparent"
-              : undefined
-          }
+          //
+          // `caretHidden` and not a transparent `cursorColor`, which is what
+          // this did first. A colour prop that goes back to `undefined` does
+          // not reach the native side as "unset", so the colourFilter the
+          // first keystroke was meant to lift stayed on the cursor drawable
+          // and the caret never came back. caretHidden is a boolean, so
+          // `false` is a value like any other and the caret returns with the
+          // first digit.
+          caretHidden={Boolean(
+            centered && !value && Platform.OS === "android",
+          )}
         />
         {suffix}
       </View>
