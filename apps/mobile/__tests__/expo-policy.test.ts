@@ -253,18 +253,26 @@ describe("expo policy: the shell respects the system bars", () => {
     );
   });
 
-  it("hides the caret on an empty centred field", () => {
+  it("hides the platform's caret on an empty centred field and draws its own", () => {
     const field = source("components/ui/TextField.tsx");
     // Android draws that caret at the right edge of the box, and it comes out
-    // of the native layout, so no prop can move it: the empty field shows no
-    // caret rather than a wrong one. See facebook/react-native#28794, #38528.
+    // of the native layout, so no prop can move it: the field hides it while
+    // it is empty and draws the caret itself, in the middle. See
+    // facebook/react-native#28794, #38528.
     expect(field).toMatch(
-      /caretHidden=\{Boolean\(\s*centered && !value && Platform\.OS === "android",\s*\)\}/,
+      /const drawnCaret = centered && !value && Platform\.OS === "android"/,
     );
-    // `caretHidden` and not a transparent `cursorColor`: a colour prop that
-    // goes back to `undefined` does not reach the native side as "unset", so
-    // the cursor drawable kept the colourFilter and the caret never returned
-    // once the field had a digit in it.
+    expect(field).toMatch(/caretHidden=\{Boolean\(drawnCaret\)\}/);
+    // The drawn caret is an overlay on a field: it must not take the touch
+    // that focuses the field, and it is Android's alone — iOS and the browser
+    // centre the real caret themselves, and a second one would be a second
+    // caret.
+    expect(field).toMatch(/pointerEvents="none"/);
+    expect(field).toMatch(/drawnCaret && focused \?/);
+    // `caretHidden` and not a transparent `cursorColor`, which is what this
+    // did first: a colour prop that goes back to `undefined` does not reach
+    // the native side as "unset", so the cursor drawable kept the
+    // colourFilter and the caret never returned once the field had a digit.
     expect(field).not.toMatch(/cursorColor=/);
   });
 

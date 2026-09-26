@@ -2,11 +2,12 @@
  * The palette, for the places a class cannot reach.
  *
  * `global.css` holds the tokens and is the source of truth for everything
- * styled with a class. Two things cannot take one: an icon's `color`
- * prop, which react-native-svg reads as a value rather than a style, and
- * a field's `placeholderTextColor`. Both used to be hex literals at the
- * call site, which meant the palette lived in twelve files and a colour
- * change was a find and replace.
+ * styled with a class. Three things cannot take one: an icon's `color`
+ * prop, which react-native-svg reads as a value rather than a style; a
+ * field's `placeholderTextColor`; and the bar of the `Animated.View` a
+ * centred field draws its caret with, which takes a style object. All
+ * three used to be hex literals at the call site, which meant the palette
+ * lived in twelve files and a colour change was a find and replace.
  *
  * Keep these in step with `@theme` in global.css. There is no way to read
  * a CSS variable into a React Native prop, so this mirror is the price of
