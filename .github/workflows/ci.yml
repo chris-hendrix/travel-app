@@ -3,8 +3,13 @@ name: CI
 on:
   push:
     branches: [main, master]
+  # Deliberately every base branch, including integration branches. The
+  # `changes` job below scopes each suite by the paths a PR touched, so a PR
+  # into a feature branch costs the cheap jobs and gates the work that
+  # changed. Filtering to main silently un-gated stacked PRs: #208 carried a
+  # lockfile that broke `pnpm install --frozen-lockfile`, and the first thing
+  # to notice was Railway's build, because no workflow was attached to it.
   pull_request:
-    branches: [main, master]
 
 # Cancel in-progress runs for same workflow + PR/branch
 concurrency:
