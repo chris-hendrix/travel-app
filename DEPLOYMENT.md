@@ -61,6 +61,15 @@ A service whose paths do not match is recorded as a **SKIPPED** deployment. That
 outcome, not a failure: a mobile-only merge skips `web` and `api`, and an API-only merge skips
 `static`.
 
+To check what actually built, without the dashboard:
+
+```bash
+railway deployment list -s static -e production   # newest first, with status
+```
+
+The raw GraphQL path is not worth it here: `railway api` reads project and service config, but
+deployments come back `Bad Access` for this token.
+
 Three things this pattern does not cover, all of which need a manual redeploy:
 
 - `pnpm-workspace.yaml` and `tsconfig.base.json` are not in any watch list, though a change to either
@@ -153,7 +162,22 @@ Everything the export publishes beyond the app routes comes from
 `.well-known/assetlinks.json` (App Links verification, whose
 `sha256_cert_fingerprints` must match the certificate of the installed
 APK — the upload key today, plus the Play app-signing key once a `.aab`
-is uploaded). The manifest link in each page's `<head>` comes from
+is uploaded). Read the key's fingerprint back with:
+
+```bash
+keytool -list -v -keystore ~/keys/journiful-upload.keystore \
+  -alias journiful-upload -storepass "$(grep ^storePassword \
+  ~/keys/journiful-upload.passwords | cut -d= -f2)" | grep SHA256
+```
+
+and compare it against the **deployed** file, not the repo copy:
+`curl -s https://journiful.app/.well-known/assetlinks.json`. Checked
+2026-09-26: deployed value and upload key agree
+(`12:B8:5F:EE:…:E3:C2:41`), which is all that App Links needs while the
+APK ships through Firebase. There is no EAS project — `eas.json` does not
+exist, so `eas credentials` has nothing to show — and the Play app-signing
+key becomes the second entry only once a `.aab` is uploaded. The manifest
+link in each page's `<head>` comes from
 `apps/mobile/app/+html.tsx`. `apps/mobile/scripts/check-export.mjs` is
 the gate on all of it and runs in the `Mobile Web Export` CI job.
 
@@ -166,36 +190,75 @@ sign in, so a new hostname goes into `FRONTEND_URL` and is redeployed
 ## Domains and Rollback
 
 The apex `journiful.app` points at the **static** service (the Expo web
-export). It was moved there from the **web** service (the frozen Next
-app) as the cutover, and moving it back is the rollback. Both are a
-one-action custom-domain re-point — in the Railway dashboard (service →
-Settings → Networking → Custom Domains) or with
-`railway domain delete journiful.app --service static -e production`
-followed by `railway domain journiful.app --service static` on the other
-service. No redeploy is needed, and no DNS change either: both
-`journiful.app` and `beta.journiful.app` CNAME to Railway's shared
-custom-domain edge (`hii0btpj.up.railway.app`), so the swap is
-Railway-side routing only and takes effect in seconds.
+export). It was cut over from the **web** service (the frozen Next app) on
+2026-09-26, and the rollback was drilled the same day: forward, back to
+**web**, forward again. The swap is a custom-domain re-point — in the
+Railway dashboard (service → Settings → Networking → Custom Domains) or
+with the CLI, which is what the drill used:
 
-Only one service can hold a custom domain, so the swap is two operations
-with a short window in between where the apex answers 404. Do it after the
-merge has redeployed the **static** service: the export the apex starts
-serving is whatever that service last built from `main`.
+```bash
+# rollback — the apex goes back to the frozen Next app
+railway domain delete journiful.app -s static -e production --yes
+railway domain journiful.app -s web -e production -p 8080
+
+# forward again — the apex returns to the Expo export
+railway domain delete journiful.app -s web -e production --yes
+railway domain journiful.app -s static -e production
+```
+
+The delete needs `--yes` under an agent or a script, or it refuses with
+"Cannot prompt for confirmation in non-interactive mode".
+
+No redeploy, and **no DNS change**. Each custom domain gets its own edge
+hostname (`qj9c64km`, `hii0btpj`, `xoga8e15`, …) and Railway hands out a
+fresh one on every re-add, so the required CNAME value changes on every
+swap — ignore it. The old A record at the apex keeps answering because the
+Railway edge is shared and routes by Host header, which was verified by
+resolving `journiful.app` against each edge IP in turn: every IP served
+whichever service held the binding, and the apex stayed up on the stale
+record through all three re-points. The TXT `_railway-verify.journiful.app`
+is the one record that must stay put — it is what lets a re-add verify
+instantly instead of waiting on the 72-hour note.
+
+What the swap does cost is a window with no apex:
+
+| Phase                                              | Measured 2026-09-26        |
+| -------------------------------------------------- | -------------------------- |
+| delete + add                                       | ~4 s                       |
+| apex answers again (404 from the edge until the new binding settles) | ~30 s |
+| fully serving the new app                          | ~30 s (rollback and second forward) |
+| fully serving, **first** move of a hostname        | **~2 min** — the edge issues a certificate and reports `CERTIFICATE_STATUS_TYPE_ISSUING`; expect a few seconds of TLS failure before it completes |
+
+Only one service can hold a custom domain, so the two commands cannot
+overlap: the apex 404s in between. Do it when a minute or two of 404 on
+the apex is acceptable, and only after the **static** service has
+redeployed from `main` — the export the apex starts serving is whatever
+that service last built.
 
 The **web** service stays deployed on
-`https://web-production-e21e7.up.railway.app` as the rollback target and
-the home of `/admin` (the Expo export has no admin console).
+`https://web-production-e21e7.up.railway.app` as the rollback target. Its
+admin console is at `/admin/users` (the Expo export has none). Note that
+`COOKIE_DOMAIN=.journiful.app` means a sign-in on the `*.up.railway.app`
+hostname will not stick in the browser, so a rollback that has to be *used*
+— not merely confirmed — needs `admin.journiful.app` pointed at **web**
+first: add the custom domain to the service, then add the CNAME and the
+`_railway-verify` TXT it reports at the registrar.
 
 ### Rollback steps
 
-1. Move the `journiful.app` custom domain from the **static** service to
-   the **web** service 
- (`railway domain delete journiful.app -s static
-   -e production`, then `railway domain journiful.app -s web -e
-   production`).
-2. Confirm the old app serves: `curl -sI https://journiful.app` is 200 and
+Measured wall-clock on 2026-09-26, apex to `web` and back:
+
+1. Drop the domain from **static**:
+   `railway domain delete journiful.app -s static -e production --yes`
+2. Add it to **web**, keeping the port it had before the cutover:
+   `railway domain journiful.app -s web -e production -p 8080`
+3. Confirm the frozen app is back. The first curl can 404 for ~30 s, so
+   retry rather than reading one failure as a broken rollback:
+   `curl -s -o /dev/null -w '%{http_code}' https://journiful.app/` is 200,
+   the HTML contains `__next` where the Expo export has `id="root"`, and
    `https://journiful.app/login` renders the Next sign-in page.
-3. Swap forward again by moving the domain back to **static** when ready.
+4. Swap forward again by reversing steps 1-2 (delete from **web**, add to
+   **static** with no `-p`).
 
 ## Health Checks
 
