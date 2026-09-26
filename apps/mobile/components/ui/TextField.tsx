@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  Animated,
   Platform,
   Text,
   TextInput,
@@ -8,7 +10,7 @@ import {
   type TextInputProps,
 } from "react-native";
 import { FieldError } from "@/components/ui/FieldError";
-import { PLACEHOLDER } from "@/lib/theme";
+import { INK, PLACEHOLDER } from "@/lib/theme";
 
 /**
  * A labelled text input, with room for a control that belongs to it.
@@ -86,6 +88,43 @@ export function TextField({
    */
   centered?: boolean;
 }) {
+  // The caret the platform will not place: see the pair of comments on the
+  // input below. Focus is tracked here rather than taken from the caller,
+  // because the drawn caret is the field's own — the caller's `onFocus` still
+  // runs.
+  const [focused, setFocused] = useState(false);
+  const drawnCaret = centered && !value && Platform.OS === "android";
+  const blink = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (!drawnCaret || !focused) return;
+    // Visible first, dark second: the caret is there the moment the field is
+    // focused rather than half a second later, and a loop that never starts
+    // leaves a steady caret rather than no caret at all. 500/500 is Android's
+    // own blink, so a drawn one and a native one keep the same time.
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(500),
+        Animated.timing(blink, {
+          toValue: 0,
+          duration: 0,
+          useNativeDriver: true,
+        }),
+        Animated.delay(500),
+        Animated.timing(blink, {
+          toValue: 1,
+          duration: 0,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => {
+      loop.stop();
+      blink.setValue(1);
+    };
+  }, [blink, drawnCaret, focused]);
+
   return (
     <View className="gap-1">
       {label ? (
@@ -109,7 +148,15 @@ export function TextField({
           multiline={multiline}
           numberOfLines={numberOfLines}
           keyboardType={keyboardType}
-          onFocus={onFocus}
+          onFocus={() => {
+            setFocused(true);
+            onFocus?.();
+          }}
+          // The field's own focus tracking. A caller's `onBlur` would have to
+          // be chained here the way `onFocus` is above: the field has no such
+          // prop today, and destructuring one without calling it would drop a
+          // caller's handler silently.
+          onBlur={() => setFocused(false)}
           autoFocus={autoFocus}
           maxLength={maxLength}
           autoComplete={autoComplete}
@@ -127,16 +174,46 @@ export function TextField({
           // middle the moment there is a digit to sit beside
           // (facebook/react-native#28794, #38528 — both still open). No JS
           // prop moves it, because the position comes out of the native
-          // layout, so the empty field shows no caret rather than a wrong
-          // one: a caret parked against the right edge of a centred field
-          // reads as the field being full. iOS centres its own correctly and
-          // takes no part in this.
-          cursorColor={
-            centered && !value && Platform.OS === "android"
-              ? "transparent"
-              : undefined
-          }
+          // layout, so the empty field hides it rather than showing it in the
+          // wrong place: a caret parked against the right edge of a centred
+          // field reads as the field being full. iOS centres its own
+          // correctly and takes no part in this.
+          //
+          // `caretHidden` and not a transparent `cursorColor`, which is what
+          // this did first. A colour prop that goes back to `undefined` does
+          // not reach the native side as "unset", so the colourFilter the
+          // first keystroke was meant to lift stayed on the cursor drawable
+          // and the caret never came back. caretHidden is a boolean, so
+          // `false` is a value like any other and the caret returns with the
+          // first digit.
+          caretHidden={Boolean(drawnCaret)}
         />
+        {/* The caret Android puts at the wrong edge, drawn where it belongs.
+            It sits on the text's own centre — `inset-0` and a centred row,
+            which is the same point the centred text is laid out around, keep
+            the input's padding symmetric — and its 36x2dp is the native
+            caret's own size for this type: measured 56px tall and 5px wide at
+            2.25 px/dp in the 16dp phone field, 1.56em of its font. The
+            overlay takes no touches, so the field still focuses through it.
+            The bar's own size and colour are style props rather than classes
+            because the node is `Animated`, and a class is not guaranteed to
+            reach one: a caret that lands with no size is the bug this is here
+            to fix. */}
+        {drawnCaret && focused ? (
+          <View
+            pointerEvents="none"
+            className="absolute inset-0 items-center justify-center"
+          >
+            <Animated.View
+              style={{
+                opacity: blink,
+                width: 2,
+                height: 36,
+                backgroundColor: INK,
+              }}
+            />
+          </View>
+        ) : null}
         {suffix}
       </View>
       <FieldError message={error} />

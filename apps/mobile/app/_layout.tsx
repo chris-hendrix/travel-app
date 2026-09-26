@@ -120,17 +120,20 @@ export default function RootLayout() {
               <title>Journiful</title>
             </Head>
             <View
-              className="flex-1 bg-sand"
+              className={isDialog ? "flex-1 bg-gravel" : "flex-1 bg-sand"}
               style={{
                 // The band paints the top inset itself, so the status bar
                 // sits on ink rather than on a strip of sand the band can
                 // never reach: one shape, edge to edge, and the bar's own
-                // content goes light to match. A dialog has no band to
-                // paint it, so the sand ground keeps the inset there and
-                // the bar's content goes dark instead. Both halves of that
-                // pair are chosen below, because a bar whose content
-                // disagrees with its ground is the one state nobody can
-                // read.
+                // content goes light to match. A dialog has no band to paint
+                // it, so the inset keeps the shell's ground — and the shell's
+                // ground is the dialog's own, gravel, the colour the dialog
+                // and its action bar are painted in: a status bar on sand
+                // above a dialog on gravel is a seam exactly where no seam
+                // belongs. The bottom inset takes the same colour, under the
+                // action bar. Both halves of that pair are chosen here,
+                // because a bar whose content disagrees with its ground is
+                // the one state nobody can read.
                 paddingTop: isDialog ? insets.top : 0,
                 paddingBottom: insets.bottom,
               }}

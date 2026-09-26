@@ -218,40 +218,89 @@ describe("expo policy: the shell respects the system bars", () => {
 
   it("gives each bar to the element that paints its edge", () => {
     const layout = source("app/_layout.tsx");
-    const at = layout.indexOf('className="flex-1 bg-sand"');
+    const at = layout.indexOf('className={isDialog ? "flex-1 bg-gravel" : "flex-1 bg-sand"}');
     expect(at, "the shell view must carry the app ground").toBeGreaterThanOrEqual(0);
-    const window = layout.slice(at, at + 900);
+    // To the end of that View's opening tag, not to a character count: the
+    // window is what the element says, so a longer comment above it cannot
+    // fail the test that this is about the element.
+    const tag = layout.slice(at, layout.indexOf(">", at));
     // Always the shell's: no screen paints the gesture bar's edge.
-    expect(window).toContain("paddingBottom: insets.bottom");
-    // The band's, unless there is no band to paint it — then the sand ground
-    // keeps it, which is why the two are a pair rather than a constant.
-    expect(window).toMatch(/paddingTop: isDialog \? insets\.top : 0/);
+    expect(tag).toContain("paddingBottom: insets.bottom");
+    // The band's, unless there is no band to paint it — then the ground keeps
+    // it, which is why the two are a pair rather than a constant.
+    expect(tag).toMatch(/paddingTop: isDialog \? insets\.top : 0/);
     const header = source("components/ui/AppHeader.tsx");
     expect(header).toMatch(/style=\{\{ paddingTop: insets\.top \}\}/);
     expect(header).toContain('className="bg-ink"');
   });
 
+  it("paints the inset under a dialog in the dialog's own ground", () => {
+    // A dialog has no band, so the shell's ground is what shows behind the
+    // status and gesture bars there. It is gravel because every dialog is:
+    // `DIALOG_ROUTES` and `FullscreenDialog`'s ground are one list and one
+    // colour, and a shell that kept its sand would draw a seam along the
+    // status bar of every dialog in the app. The shell's half of that pair is
+    // the assertion above.
+    const dialog = source("components/ui/FullscreenDialog.tsx");
+    expect(dialog).toMatch(/<View className="flex-1 bg-gravel">/);
+  });
+
   it("picks bar content that matches the ground under it", () => {
     const layout = source("app/_layout.tsx");
-    // Light over the band's ink, dark over the sand a dialog leaves there.
+    // Light over the band's ink, dark over the gravel a dialog leaves there.
     expect(layout).toMatch(
       /barStyle=\{isDialog \? "dark-content" : "light-content"\}/,
     );
   });
 
-  it("hides the caret on an empty centred field", () => {
+  it("hides the platform's caret on an empty centred field and draws its own", () => {
     const field = source("components/ui/TextField.tsx");
     // Android draws that caret at the right edge of the box, and it comes out
-    // of the native layout, so no prop can move it: the empty field shows no
-    // caret rather than a wrong one. See facebook/react-native#28794, #38528.
-    expect(field).toMatch(/centered && !value && Platform\.OS === "android"/);
-    expect(field).toContain('"transparent"');
+    // of the native layout, so no prop can move it: the field hides it while
+    // it is empty and draws the caret itself, in the middle. See
+    // facebook/react-native#28794, #38528.
+    expect(field).toMatch(
+      /const drawnCaret = centered && !value && Platform\.OS === "android"/,
+    );
+    expect(field).toMatch(/caretHidden=\{Boolean\(drawnCaret\)\}/);
+    // The drawn caret is an overlay on a field: it must not take the touch
+    // that focuses the field, and it is Android's alone — iOS and the browser
+    // centre the real caret themselves, and a second one would be a second
+    // caret.
+    expect(field).toMatch(/pointerEvents="none"/);
+    expect(field).toMatch(/drawnCaret && focused \?/);
+    // `caretHidden` and not a transparent `cursorColor`, which is what this
+    // did first: a colour prop that goes back to `undefined` does not reach
+    // the native side as "unset", so the cursor drawable kept the
+    // colourFilter and the caret never returned once the field had a digit.
+    expect(field).not.toMatch(/cursorColor=/);
   });
 
   it("does not hardcode a status bar height", () => {
     const layout = source("app/_layout.tsx");
     expect(layout).not.toMatch(/paddingTop:\s*\d/);
     expect(layout).not.toMatch(/paddingBottom:\s*\d/);
+  });
+});
+
+describe("expo policy: a card fills the column it is in", () => {
+  function source(rel: string): string {
+    return fs.readFileSync(path.join(mobileDir, rel), "utf8");
+  }
+
+  it("caps the card on the wide grid, not on a phone", () => {
+    // The cap is the grid's, not the card's: two 420px tiles and the 24px gap
+    // are exactly the 864px inner width of the widest column (`Screen`'s
+    // max-w-[960px] less its md:px-12), so the cap belongs where that width
+    // is reached. Unconditional, it clipped the 432px column of a 480dp phone
+    // by 12px — from the box's own numbers: a 420px cap inside a 432px column
+    // leaves the card's right edge at 999px against the button's 1026px at
+    // the emulator's 2.25 px/dp. The device check is outstanding (the trips
+    // list needs a session); the arithmetic is what this test pins.
+    const card = source("components/ui/PhotoCard.tsx");
+    expect(card).toMatch(/className="w-full lg:max-w-\[420px\] cursor-pointer"/);
+    expect(card, "no unconditional 420px cap: a phone fills its column")
+      .not.toMatch(/className="w-full max-w-\[420px\]/);
   });
 });
 

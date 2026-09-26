@@ -12,10 +12,12 @@ import sharp from "sharp";
  * so centring the ink used to leave the J 26px right and 22px up on a 512
  * tile — a fifth of the mark's width, and the first thing the eye catches.
  *
- * The letter's face is the only cream in these files, which is what makes
- * the check possible without a reference: find it, and compare its centre
- * to the canvas centre. The bound is 1%, which passes the correction
- * comfortably and fails the un-corrected artwork loudly.
+ * The letter's face is the only cream in these files — `#f5edd6`, the
+ * artwork's own cream, a shade off the `--color-sand` ground (#f5eacc) —
+ * which is what makes the check possible without a reference: find it, and
+ * compare its centre to the canvas centre. A rebrand that moves either
+ * cream has to move `isFace` with it. The bound is 1%, which passes the
+ * correction comfortably and fails the un-corrected artwork loudly.
  */
 const mobileDir = path.resolve(__dirname, "..");
 
@@ -60,9 +62,54 @@ describe("icons: the letter is centred on the tile", () => {
   ];
 
   it.each(files)("%s", async (rel) => {
-    const { cx, cy, width, height } = await faceCentre(rel);
+    // Existence first: sharp throws its own rejection on a missing file, which
+    // reads as an engine error a long way from the file that moved.
     expect(fs.existsSync(path.join(mobileDir, rel)), `${rel} exists`).toBe(true);
+    const { cx, cy, width, height } = await faceCentre(rel);
     expect(Math.abs(cx - width / 2)).toBeLessThanOrEqual(width * 0.01);
     expect(Math.abs(cy - height / 2)).toBeLessThanOrEqual(height * 0.01);
+  });
+});
+
+describe("icons: sharp's trim offsets are read the way the script reads them", () => {
+  it("reports the origin negated", async () => {
+    // The script's own sign is only correct while this holds: it takes
+    // `-info.trimOffsetLeft` as the ink's position on the canvas, which means
+    // sharp has to report the *negation* of the trimmed region's origin. A
+    // 20x10 rect placed at (40, 25) is the smallest thing that answers it —
+    // measured on sharp 0.35.4 it comes back as left: -40, top: -25. A sharp
+    // upgrade that reports it the other way round fails here rather than
+    // leaving the letter off-centre in seven files with no explanation.
+    const buf = await sharp({
+      create: {
+        width: 100,
+        height: 60,
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      },
+    })
+      .composite([
+        {
+          input: {
+            create: {
+              width: 20,
+              height: 10,
+              channels: 4,
+              background: { r: 255, g: 0, b: 0, alpha: 1 },
+            },
+          },
+          left: 40,
+          top: 25,
+        },
+      ])
+      .png()
+      .toBuffer();
+    const { info } = await sharp(buf)
+      .trim({ threshold: 1 })
+      .toBuffer({ resolveWithObject: true });
+    expect(info.width).toBe(20);
+    expect(info.height).toBe(10);
+    expect(-(info.trimOffsetLeft ?? 0)).toBe(40);
+    expect(-(info.trimOffsetTop ?? 0)).toBe(25);
   });
 });
