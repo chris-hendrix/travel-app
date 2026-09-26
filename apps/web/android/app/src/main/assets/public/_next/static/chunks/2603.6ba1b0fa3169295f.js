@@ -1,1 +1,0 @@
-"use strict";(self.webpackChunk_N_E=self.webpackChunk_N_E||[]).push([[2603],{12603:(e,t,r)=>{r.r(t),r.d(t,{default:()=>n});var s=r(71198),a=r(84272),u=r(2777);function n(){let{tripId:e,weather:t,temperatureUnit:r,setShowOnboarding:n}=(0,a.k)();return(0,s.jsx)(u.l,{tripId:e,onAddTravel:()=>n(!0),forecasts:t?.forecasts,temperatureUnit:r})}}}]);

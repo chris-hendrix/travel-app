@@ -1,7 +1,0 @@
-User-Agent: *
-Allow: /
-Disallow: /trips
-Disallow: /verify
-Disallow: /complete-profile
-
-Sitemap: http://localhost:3000/sitemap.xml
