@@ -480,7 +480,7 @@ function DesignSystemScreen() {
             <Specimen
               name="PhotoCard"
               contract="image · overlay? · meta · title · footnote? · onPress?"
-              note="The floating tile every card is built from: a 2:1 photo with an optional overlay, then a bold line, a display title, and a bold line. No fill, no border, no shadow, and no reserved height — which is why a card can drop its last line without the grid going wonky."
+              note="The floating tile every card is built from: a 2:1 photo with an optional overlay, then a bold line, a display title, and a bold line. No fill, no border, no shadow, and no reserved height — which is why a card can drop its last line without the grid going wonky. It fills the column it is in and only caps at 420px where the column is wide enough for two tiles and their gap, because a card that stopped short inside a column would disagree with every full-width control beside it."
             >
               <Grid>
                 <PhotoCard

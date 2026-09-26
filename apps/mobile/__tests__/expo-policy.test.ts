@@ -275,6 +275,25 @@ describe("expo policy: the shell respects the system bars", () => {
   });
 });
 
+describe("expo policy: a card fills the column it is in", () => {
+  function source(rel: string): string {
+    return fs.readFileSync(path.join(mobileDir, rel), "utf8");
+  }
+
+  it("caps the card on the wide grid, not on a phone", () => {
+    // The cap is the grid's, not the card's: two 420px tiles and the 24px gap
+    // are exactly the 864px inner width of the widest column (`Screen`'s
+    // max-w-[960px] less its md:px-12), so the cap belongs where that width
+    // is reached. Unconditional, it clipped a 480dp phone's 432px column by
+    // 12px and the card disagreed with the button above it — measured on the
+    // emulator, the card's right edge at 999px against the button's 1026px.
+    const card = source("components/ui/PhotoCard.tsx");
+    expect(card).toContain("lg:max-w-[420px]");
+    expect(card, "no unconditional 420px cap: a phone fills its column")
+      .not.toMatch(/className="w-full max-w-\[420px\]/);
+  });
+});
+
 describe("expo policy: CI can see the package", () => {
   const repoRoot = path.resolve(mobileDir, "..", "..");
   const ciYml = fs.readFileSync(

@@ -114,6 +114,13 @@ async function letterShift(height) {
     const { info } = await sharp(buffer)
       .trim({ threshold: 1 })
       .toBuffer({ resolveWithObject: true });
+    // Negated because sharp reports `trimOffsetLeft`/`Top` as the *negative*
+    // of the trimmed region's origin on the canvas — a rect at (40, 25) trims
+    // to left: -40, top: -25 on sharp 0.35.4. So the negation is the ink's
+    // real position, and `letterShift` below is the letter's centre less the
+    // mark's. `__tests__/icon-centring.test.ts` pins the convention: the
+    // source is read by a pixel scan, so a sharp that flipped it would fail
+    // the centring test rather than quietly move the letter.
     return {
       left: -info.trimOffsetLeft,
       top: -info.trimOffsetTop,
