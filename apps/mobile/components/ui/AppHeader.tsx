@@ -188,6 +188,14 @@ export function AppHeader({
    * landing itself, where it is a no-op. A wordmark that is dead on one
    * screen and alive on the next reads as a broken link, and the cost of
    * the alternative is nothing.
+   *
+   * One line, always. The word is measured against whichever face is
+   * resolved when the band first lays out (the remount in `app/_layout.tsx`
+   * is what re-measures it once the bundled faces land), and a box narrower
+   * than the word would otherwise wrap it onto a second line and take the
+   * band's 72pt with it. Clipped beats wrapped: the band is chrome, and
+   * chrome that changes height as the viewport narrows is a worse lie than
+   * a word that ends early.
    */
   variant?: "app" | "landing" | "bare";
 }) {
@@ -227,13 +235,14 @@ export function AppHeader({
           // Still a link on the landing, where it points at the page you
           // are already on: the same word behaves the same way
           // everywhere it appears.
-          <Link href="/" className="font-wordmark text-2xl text-sand">
+          <Link href="/" className="font-wordmark text-2xl text-sand" numberOfLines={1}>
             Journiful
           </Link>
         ) : (
           <Link
             href={app ? "/trips" : "/"}
             className="font-wordmark text-2xl text-sand"
+            numberOfLines={1}
           >
             Journiful
           </Link>
