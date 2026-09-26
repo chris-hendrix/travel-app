@@ -2,9 +2,9 @@
 
 ## WHAT
 
-`apps/mobile` is the Expo 57 app: React Native, NativeWind v5 (Tailwind 4), expo-router, shipped as a static web build. The export (`pnpm export:web`) is served by `scripts/serve-static.mjs` (`pnpm serve:web`) and deployed at `beta.journiful.app`, with the apex swap pending. It is wired to the backend: server state lives in TanStack Query behind the store hooks, and the session persists in `lib/session.ts` (SecureStore on native, localStorage on web), so a reload keeps you signed in. The flight lookup still POSTs `/flights/lookup` through the same boundary.
+`apps/mobile` is the Expo 57 app: React Native, NativeWind v5 (Tailwind 4), expo-router. It ships **two ways**: as the Android app (`com.journiful.app`, built with expo prebuild + gradle, distributed through Firebase App Distribution) and as the static web export (`pnpm export:web`) served by `scripts/serve-static.mjs` (`pnpm serve:web`) at `journiful.app` and `beta.journiful.app`. It is wired to the backend: server state lives in TanStack Query behind the store hooks, and the session persists in `lib/session.ts` (SecureStore on native, localStorage on web), so a reload keeps you signed in. Push is FCM: `lib/push.ts` registers the raw device token against the API's `POST /push/subscribe`, and `lib/pushRoutes.ts` maps the API's web urls onto app routes on tap. The flight lookup still POSTs `/flights/lookup` through the same boundary.
 
-It is the product surface (web export today, native later). `apps/web` is frozen in its favour (see the root `AGENTS.md`): it remains the rollback target and the home of `/admin` on its own Railway hostname. The backend wiring is done.
+It is the product surface (native and web). `apps/web` is frozen in its favour (see the root `AGENTS.md`): it remains the rollback target and the home of `/admin` on its own Railway hostname. The backend wiring is done.
 
 It is also the design system. The system is the components plus the lab that documents them, not a document about them.
 
@@ -49,9 +49,37 @@ make test-exec CMD="cd apps/mobile && pnpm lint"
 
 E2E runs take file paths, not `--grep`: the flag is swallowed through test-exec's bash -c, so pass the spec path (`pnpm test:e2e tests/e2e/auth-journey.spec.ts`). The Expo web build serves on `http://localhost:8081`, which must be present in the API's `FRONTEND_URL` or the browser's CORS preflight fails. The E2E suite drives the Expo web export, so it covers the web localStorage session path — SecureStore and native deep links are not covered by it.
 
+### Android
+
+```bash
+# Host, not the devcontainer: prebuild and gradle need JAVA_HOME and ANDROID_HOME
+make android-apk       # expo prebuild -p android --clean + ./gradlew assembleRelease
+make android-install   # adb install -r the release APK + launch
+make android-dev       # prebuild if android/ is missing, then expo run:android
+make android-logs      # native logcat
+make adb-reverse       # forward 8000/3000 for a device build against make dev
+```
+
+Signing is a config plugin (`plugins/withAndroidSigning.js`) so it survives `prebuild --clean`: it reads `JOURNIFUL_KEYSTORE` / `JOURNIFUL_KEY_ALIAS` / `JOURNIFUL_STORE_PASSWORD` / `JOURNIFUL_KEY_PASSWORD` from `~/.gradle/gradle.properties`. `android/` is gitignored and regenerated; `google-services.json` is gitignored and copied from `apps/web/android/app/` locally, written in CI from a secret.
+
+Push notes that are easy to get wrong: the FCM payload's `data.url` is a **web url** and `lib/pushRoutes.ts` maps it (`/trips?id=x` → `/trips/detail?id=x`); `data.url` is the only routing signal, since the API no longer sets a `clickAction`; the notification small icon must stay the monochrome asset or Android renders a white square; registration is best-effort everywhere and must never block a sign-in; the channel id the API sends is `"default"`, which is why `ensureChannel()` creates exactly that one. A device holding the old Capacitor APK must be uninstalled first (same package, different signing key).
+
+### Driving the WSL2 emulator, which is where the friction is
+
+The emulator and Android Studio live on Windows; the build lives in WSL2. Two facts save the loop:
+
+- **`adb` in WSL2 must be the Windows one.** Expo and gradle resolve `adb` from `$ANDROID_HOME/platform-tools/adb`, and the Linux adb server cannot see an emulator the Windows adb server owns. A wrapper that `exec`s `adb.exe`, symlinked as `$ANDROID_HOME/platform-tools/adb`, is what makes `npx expo run:android` find the device. `adb reverse tcp:8000 tcp:<host-port>` then maps the *device's* `localhost:8000` to the host port the devcontainer actually publishes (the container maps 8000 to `6898` and 3000 to `6899`), so a local-API build reaches `http://localhost:8000/api` from the app. For Metro in dev builds, `adb reverse tcp:8081 tcp:8081` reaches Windows, not WSL2 — run the bundle from a release/preview APK instead of a dev build, or point the app at the WSL2 address, rather than assuming the reverse works.
+- **When `adb shell input text` silently does nothing, the IME has a dead input connection** — not the app. `dumpsys input_method` shows `mServedView=null` with a `BaseInputConnection` fallback, the keyboard is visibly shown, and `input text`, digit keyevents and `input keyboard text` all no-op. `adb shell am force-stop com.google.android.inputmethod.latin`, then tap the field again and type; a device reboot is the fallback when that stops working (both happened in one session). Taps on a themed `Checkbox` land on the label's centre, not its glyph. And the UI automator dump (`adb shell uiautomator dump`) is the readable source of truth for what is on screen, because `screencap` from WSL2 has come back blank while the tree was fully rendered.
+
 ### Production web build
 
 `pnpm export:web` (`expo export --platform web --clear`) writes `dist/`; `pnpm serve:web` serves it through `scripts/serve-static.mjs`, a dependency-free static server that returns real 404s. `--clear` is load-bearing rather than hygiene: `EXPO_PUBLIC_API_URL` is inlined at transform time and is not part of Metro's cache key, so without it an export can ship the API origin of an earlier build. `MOBILE_WEB_TARGET=export` points the E2E suite at the built export instead of the dev server, so the same specs verify the artifact that ships.
+
+`public/` is copied into `dist/` verbatim, which is how `manifest.json`, `icons/` and `.well-known/assetlinks.json` reach the served site; the manifest link itself comes from `app/+html.tsx`. `scripts/check-export.mjs` is the gate on that artifact (shape, legal text, manifest, assetlinks), run by the `Mobile Web Export` CI job — it is a script rather than a test because `dist/` is gitignored and a clean checkout has nothing to assert against.
+
+### PWA, deliberately minimal
+
+The export ships a manifest and icons, so Chrome offers Install; there is **no service worker**, and that is the decision: the app holds no offline data (everything is read from the API at runtime), a worker would add bundle-staleness and update UX to own forever, and Chrome is dropping the service-worker install requirement. `lib/queries/*` persistence is the thing that would make a worker worth having, and it would benefit native too — it is not in scope.
 
 On this branch a commit needs the mobile suite only.
 

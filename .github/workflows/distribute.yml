@@ -4,12 +4,14 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'apps/web/**'
+      - 'apps/mobile/**'
+      - 'shared/**'
       - '.github/workflows/distribute.yml'
   push:
     branches: [main]
     paths:
-      - 'apps/web/**'
+      - 'apps/mobile/**'
+      - 'shared/**'
       - '.github/workflows/distribute.yml'
   workflow_dispatch:
 
@@ -26,7 +28,10 @@ jobs:
     name: Build Android APK
     runs-on: ubuntu-latest
     env:
-      NEXT_PUBLIC_API_URL: https://api.journiful.app/api
+      EXPO_PUBLIC_API_URL: https://api.journiful.app/api
+      # Prebuild mutates the checkout (version write below); expo refuses
+      # to run on a dirty tree without this.
+      EXPO_NO_GIT_STATUS: 1
     steps:
       - uses: actions/checkout@v7
         with:
@@ -52,26 +57,64 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build web app for mobile
-        run: make build-mobile
-
-      - name: Sync Capacitor assets
-        run: cd apps/web && npx cap sync
-
-      - name: Build debug APK
+      # The FCM client config is per-app and untracked: prebuild copies it
+      # into android/app/google-services.json, and gradle fails loudly if
+      # it is missing (which is the failure this step cannot swallow).
+      - name: Write Google Services JSON
         run: |
-          cd apps/web/android
+          cat << 'EOF' > apps/mobile/google-services.json
+          ${{ secrets.GOOGLE_SERVICES_JSON }}
+          EOF
+
+      # Same upload key as the local builds and Play: an APK signed with a
+      # different key cannot upgrade an installed one (it demands an
+      # uninstall), and its fingerprint would not match assetlinks.json.
+      - name: Write upload keystore and gradle properties
+        run: |
+          mkdir -p ~/.gradle
+          echo "${{ secrets.ANDROID_UPLOAD_KEYSTORE }}" | base64 -d > "$RUNNER_TEMP/journiful-upload.keystore"
+          {
+            echo "JOURNIFUL_KEYSTORE=$RUNNER_TEMP/journiful-upload.keystore"
+            echo "JOURNIFUL_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}"
+            echo "JOURNIFUL_STORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}"
+            echo "JOURNIFUL_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}"
+          } >> ~/.gradle/gradle.properties
+
+      # Version identity comes from app.json, not a gradle property: the
+      # generated build.gradle does not read Capacitor's old
+      # -PversionNameOverride, so CI writes the identity into the config
+      # before prebuild and gradle reads it from there.
+      - name: Stamp the build version
+        run: |
           BRANCH_NAME=$(echo "${{ github.head_ref || github.ref_name }}" | tr '/' '-')
-          ./gradlew assembleDebug \
-            -PversionNameOverride="${BRANCH_NAME}-${GITHUB_SHA::7}"
+          node -e '
+            const fs = require("fs");
+            const file = "apps/mobile/app.json";
+            const config = JSON.parse(fs.readFileSync(file, "utf8"));
+            config.expo.version = process.env.BRANCH_NAME + "-" + process.env.SHA;
+            config.expo.android.versionCode = Number(process.env.RUN_NUMBER);
+            fs.writeFileSync(file, JSON.stringify(config, null, 2) + "\n");
+          '
+        env:
+          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+          SHA: ${{ github.sha }}
+          RUN_NUMBER: ${{ github.run_number }}
+
+      - name: Prebuild the Android project
+        run: pnpm --filter @journiful/mobile exec expo prebuild -p android --clean
+
+      - name: Build release APK
+        run: |
+          cd apps/mobile/android
+          ./gradlew assembleRelease
         env:
           GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx3g
 
       - name: Upload APK as artifact
         uses: actions/upload-artifact@v7
         with:
-          name: app-debug
-          path: apps/web/android/app/build/outputs/apk/debug/app-debug.apk
+          name: app-release
+          path: apps/mobile/android/app/build/outputs/apk/release/app-release.apk
           retention-days: 7
 
   distribute:
@@ -94,8 +137,8 @@ jobs:
       - name: Download APK artifact
         uses: actions/download-artifact@v6
         with:
-          name: app-debug
-          path: apps/web/android/app/build/outputs/apk/debug/
+          name: app-release
+          path: apps/mobile/android/app/build/outputs/apk/release/
 
       - name: Write Google Services JSON
         run: |
@@ -128,7 +171,7 @@ jobs:
             ARGS+=(--testers "$FIREBASE_TESTERS")
           fi
           firebase appdistribution:distribute \
-            apps/web/android/app/build/outputs/apk/debug/app-debug.apk \
+            apps/mobile/android/app/build/outputs/apk/release/app-release.apk \
             --app "$FIREBASE_APP_ID" \
             --release-notes-file /tmp/release-notes.txt \
             "${ARGS[@]}"

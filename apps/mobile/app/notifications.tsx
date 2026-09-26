@@ -1,9 +1,12 @@
-import { Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { AppState, Platform, Text, View } from "react-native";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { InlineError } from "@/components/ui/InlineError";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
 import { NotificationRow } from "@/components/notification/NotificationRow";
+import { PushOptIn } from "@/components/notification/PushOptIn";
+import { permissionState, type PushPermission } from "@/lib/push";
 import { newestFirst, tripFor } from "@/lib/notifications";
 import { useNotifications } from "@/lib/notificationsStore";
 import { useTrips } from "@/lib/tripsStore";
@@ -26,6 +29,23 @@ export default function Notifications() {
   const { notifications, markRead, markAllRead, unreadCount, status, error, retry } =
     useNotifications();
   const { trips } = useTrips();
+  // The OS does not tell the app when the permission changes, so the
+  // block re-checks on AppState active (the root layout already
+  // listens) and clears itself once granted in system settings.
+  const [permission, setPermission] = useState<PushPermission>("undetermined");
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    let live = true;
+    const refresh = () => void permissionState().then((p) => live && setPermission(p));
+    refresh();
+    const sub = AppState.addEventListener("change", (s) => {
+      if (s === "active") refresh();
+    });
+    return () => {
+      live = false;
+      sub.remove();
+    };
+  }, []);
 
   return (
     <FullscreenDialog
@@ -37,6 +57,9 @@ export default function Notifications() {
       primaryTitle={unreadCount > 0 ? "Mark all read" : undefined}
       onPrimary={unreadCount > 0 ? () => void markAllRead() : undefined}
     >
+      {Platform.OS !== "web" && (
+        <PushOptIn permission={permission} onGranted={() => setPermission("granted")} />
+      )}
       {status === "pending" ? (
         <LoadingBlock label="Loading notifications" />
       ) : status === "error" ? (

@@ -4,26 +4,16 @@ import type { LegalDocumentId } from "@journiful/shared/legal";
 /**
  * Where the published documents live in this app.
  *
- * The copy writes its cross-links as the web addresses it is published
- * at, so the same text renders on every platform without either app
- * rewriting the words. This is the one place those addresses become
- * routes — and `legal-links.test.ts` walks every link in every document
- * to prove each one still lands on a screen that exists.
+ * The screens sit at the published paths (/terms, /privacy,
+ * /sms-terms) — the copy's own internal hrefs are already those
+ * addresses (`shared/legal/privacy.ts`), so the mapping is identity
+ * and there is no alias layer.
  */
 export const LEGAL_ROUTE: Record<LegalDocumentId, string> = {
-  terms: "/legal/terms",
-  privacy: "/legal/privacy",
-  "sms-terms": "/legal/sms-terms",
+  terms: "/terms",
+  privacy: "/privacy",
+  "sms-terms": "/sms-terms",
 };
-
-/**
- * An in-app route for a document link, or the href unchanged when it
- * leaves the app. Support mail is the only one that leaves.
- */
-export function legalTarget(href: string): string {
-  const document = LEGAL_DOCUMENTS.find((each) => each.route === href);
-  return document ? LEGAL_ROUTE[document.id] : href;
-}
 
 const SHORT_LABEL: Record<LegalDocumentId, string> = {
   terms: "Terms of Service",

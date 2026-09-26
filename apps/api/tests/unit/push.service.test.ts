@@ -149,11 +149,20 @@ describe("PushService", () => {
         android: {
           priority: "high",
           notification: {
-            channelId: "default",
-            clickAction: "FCM_PLUGIN_ACTIVITY",
+            // The channel the app creates (`CHANNEL_ID` in
+            // apps/mobile/lib/push.ts): a contract between the two sides,
+            // renamed from "default" because Android freezes a channel's
+            // settings and restores them when it is recreated.
+            channelId: "journiful-default",
           },
         },
       });
+      // The client routes taps from data.url; no Capacitor-only
+      // clickAction may be present (the Expo app has no
+      // FCM_PLUGIN_ACTIVITY to resolve it to).
+      const sent = mockSend.mock.calls[0][0];
+      expect(sent.android.notification).not.toHaveProperty("clickAction");
+      expect(sent.data.url).toBe("/trips/test");
     });
 
     it("should clean up invalid FCM tokens", async () => {

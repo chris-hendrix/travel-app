@@ -5,15 +5,40 @@ import { phoneNumberSchema } from "./phone";
 import { stripControlChars } from "../utils/sanitize";
 import { THEME_IDS } from "../config/themes";
 import { THEME_FONT_VALUES } from "../types/theme";
+import { TIMEZONES } from "../utils/timezones";
 
 /**
- * Validates IANA timezone strings using Intl.supportedValuesOf
- * - Uses runtime validation against the list of supported timezones
- * - Examples: 'America/New_York', 'Europe/London', 'Asia/Tokyo', 'UTC'
- * - Note: 'UTC' is manually added as it's commonly used but not in Intl list
+ * The IANA zones this schema accepts.
+ *
+ * Where the runtime can enumerate zones (`Intl.supportedValuesOf` is
+ * V8/Node and the browsers), that list is the authority. Where it cannot
+ * it is *absent*, not merely empty: Hermes has no
+ * `Intl.supportedValuesOf`, so calling it threw
+ * "undefined is not a function" while this module was being evaluated —
+ * which took down every module that imports trip schemas and crashed the
+ * Android app at boot. There the authority is the product's own list in
+ * `utils/timezones`, which is exactly the set both apps' pickers offer,
+ * plus "UTC".
+ *
+ * Enumerating is also a runtime call, so it is guarded: a runtime that
+ * throws rather than returns falls back the same way.
  */
-const ianaTimezones = [...Intl.supportedValuesOf("timeZone"), "UTC"];
-const timezoneSchema = z.string().refine((tz) => ianaTimezones.includes(tz), {
+function knownTimezones(): string[] {
+  const intl = globalThis.Intl as
+    | (typeof Intl & { supportedValuesOf?: (key: string) => string[] })
+    | undefined;
+  if (typeof intl?.supportedValuesOf === "function") {
+    try {
+      return [...intl.supportedValuesOf("timeZone"), "UTC"];
+    } catch {
+      // Fall through to the product's list.
+    }
+  }
+  return [...TIMEZONES.map((zone) => zone.value), "UTC"];
+}
+
+const ianaTimezones = new Set(knownTimezones());
+const timezoneSchema = z.string().refine((tz) => ianaTimezones.has(tz), {
   message: "Invalid IANA timezone identifier",
 });
 

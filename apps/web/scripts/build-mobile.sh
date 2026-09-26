@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Build the Next.js app for Capacitor static export
-# Sets NEXT_EXPORT=true to produce out/ directory
+# Build the frozen web app as a static export (out/). Capacitor is gone:
+# nothing ships this to a device any more, and this script stays because
+# `test-static-smoke` builds it — that smoke test is the only check on the
+# rollback target's artifact.
 
-echo "Building Journiful for mobile (static export)..."
+echo "Building the Journiful web app (static export)..."
 export NEXT_EXPORT=true
 cd "$(dirname "$0")/.."
 
@@ -15,7 +17,10 @@ fi
 
 npx next build --webpack
 
-# Fix absolute asset paths for Capacitor file:// compatibility
+# The path rewrite is a no-op for the served web app (relative paths still
+# resolve over http) and it is what keeps the artifact usable from file://,
+# which is how the old shell loaded it. Harmless, and removing it would
+# change the rollback artifact for no gain.
 bash "$(dirname "$0")/fix-asset-paths.sh"
 
 echo ""

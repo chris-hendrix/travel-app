@@ -75,6 +75,13 @@ const renderDialog = () =>
     </QueryClientProvider>,
   );
 
+// `delay: null` on every setup in this file: `userEvent`'s default
+// inter-action delay is 0ms but it still schedules a tick per keystroke, and
+// the two cases below queue fifteen guests by typing and clicking fifteen
+// times. Under `pnpm turbo test` (four suites at once) that exceeded vitest's
+// 10s default and timed out at 10,089ms while the same file ran in ~2.9s
+// alone. The delay is what made it load-sensitive; the assertions are
+// untouched.
 describe("InviteMembersDialog guest section (Task 7.5)", () => {
   it("renders WITHOUT AN ACCOUNT section with helper copy; Add guest disabled until name", () => {
     renderDialog();
@@ -88,7 +95,7 @@ describe("InviteMembersDialog guest section (Task 7.5)", () => {
   it("add guest name-only shows terracotta chip and submits to POST guests endpoint", async () => {
     const { apiRequest } = await import("@/lib/api");
     vi.mocked(apiRequest).mockResolvedValueOnce({ success: true, member: { id: "m1" } });
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderDialog();
 
     await user.type(screen.getByLabelText("Guest name"), "Mom");
@@ -115,7 +122,7 @@ describe("InviteMembersDialog guest section (Task 7.5)", () => {
   });
 
   it("announces the guest count in a polite live region and labels terracotta chips", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderDialog();
 
     await user.type(screen.getByLabelText("Guest name"), "Mom");
@@ -131,7 +138,7 @@ describe("InviteMembersDialog guest section (Task 7.5)", () => {
   });
 
   it("rejects a case-insensitive duplicate guest name with inline error", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderDialog();
 
     await user.type(screen.getByLabelText("Guest name"), "Mom");
@@ -148,7 +155,7 @@ describe("InviteMembersDialog guest section (Task 7.5)", () => {
   });
 
   it("caps queued guests at 15 with inline messaging", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderDialog();
 
     for (let i = 0; i < 15; i++) {
@@ -165,7 +172,7 @@ describe("InviteMembersDialog guest section (Task 7.5)", () => {
   });
 
   it("shows the cap error when a 16th guest is attempted via Enter", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderDialog();
 
     for (let i = 0; i < 15; i++) {
@@ -185,7 +192,7 @@ describe("InviteMembersDialog guest section (Task 7.5)", () => {
   });
 
   it("Enter in the name field adds the guest and clears the input", async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderDialog();
 
     const nameInput = screen.getByLabelText("Guest name");
@@ -201,7 +208,7 @@ describe("InviteMembersDialog guest section (Task 7.5)", () => {
   it("409 DUPLICATE_MEMBER surfaces '[Name] is already in this trip' toast and skipped list", async () => {
     const { apiRequest, APIError } = await import("@/lib/api");
     vi.mocked(apiRequest).mockRejectedValueOnce(new APIError("DUPLICATE_MEMBER", "already in trip"));
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderDialog();
 
     await user.type(screen.getByLabelText("Guest name"), "Mom");

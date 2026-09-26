@@ -113,13 +113,13 @@ export default function Login() {
         </Checkbox>
         <View className="flex-row gap-4 pl-8">
           <Link
-            href="/legal/sms-terms"
+            href="/sms-terms"
             className="font-body text-sm text-ink underline"
           >
             SMS Terms
           </Link>
           <Link
-            href="/legal/privacy"
+            href="/privacy"
             className="font-body text-sm text-ink underline"
           >
             Privacy Policy

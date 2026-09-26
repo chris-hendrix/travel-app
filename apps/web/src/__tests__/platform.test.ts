@@ -1,43 +1,15 @@
-import { describe, it, expect, vi } from "vitest";
-
-// Mock @capacitor/core before importing platform
-vi.mock("@capacitor/core", () => ({
-  Capacitor: {
-    isNativePlatform: vi.fn(),
-    getPlatform: vi.fn(),
-  },
-}));
-
+import { describe, it, expect } from "vitest";
 import { isNative, getPlatform } from "../lib/platform";
-import { Capacitor } from "@capacitor/core";
 
-describe("isNative", () => {
-  it("returns true when Capacitor reports native platform", () => {
-    vi.mocked(Capacitor.isNativePlatform).mockReturnValue(true);
-    expect(isNative()).toBe(true);
-  });
-
-  it("returns false when Capacitor reports not native", () => {
-    vi.mocked(Capacitor.isNativePlatform).mockReturnValue(false);
+// The Capacitor shell is gone: this app is the web surface only, and the
+// Android app is built from apps/mobile. These assertions are the contract
+// the remaining call sites rely on — the native branch is never taken.
+describe("platform", () => {
+  it("is never native", () => {
     expect(isNative()).toBe(false);
   });
-});
 
-describe("getPlatform", () => {
-  it('returns "android" on Android native', () => {
-    vi.mocked(Capacitor.isNativePlatform).mockReturnValue(true);
-    vi.mocked(Capacitor.getPlatform).mockReturnValue("android");
-    expect(getPlatform()).toBe("android");
-  });
-
-  it('returns "ios" on iOS native', () => {
-    vi.mocked(Capacitor.isNativePlatform).mockReturnValue(true);
-    vi.mocked(Capacitor.getPlatform).mockReturnValue("ios");
-    expect(getPlatform()).toBe("ios");
-  });
-
-  it('returns "web" when not native', () => {
-    vi.mocked(Capacitor.isNativePlatform).mockReturnValue(false);
+  it("is always web", () => {
     expect(getPlatform()).toBe("web");
   });
 });

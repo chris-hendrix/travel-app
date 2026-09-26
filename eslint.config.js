@@ -27,6 +27,7 @@ export default [
       "**/public/sw.js",
       "**/public/workbox-*.js",
       "**/scripts/**/*.mjs",
+      "**/plugins/**/*.js",
     ],
   },
 

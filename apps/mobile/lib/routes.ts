@@ -24,12 +24,6 @@ export const DIALOG_ROUTES = [
   "/trips/stay/new",
   "/trips/stay/detail",
   "/trips/stay/edit",
-  "/legal/terms",
-  "/legal/privacy",
-  "/legal/sms-terms",
-  // Published aliases for the outside world (Twilio registration, shared
-  // copy): same FullscreenDialog screens as their /legal/* twins, so they
-  // need the same suppressed wordmark bar.
   "/terms",
   "/privacy",
   "/sms-terms",

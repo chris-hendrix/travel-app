@@ -1,8 +1,9 @@
-import { Suspense, useEffect, useState } from "react";
-import { AppState, View } from "react-native";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { AppState, Platform, View } from "react-native";
 import { QueryClientProvider, focusManager } from "@tanstack/react-query";
 import { makeQueryClient } from "@/lib/queries/client";
-import { Stack, SplashScreen, usePathname } from "expo-router";
+import { Stack, SplashScreen, usePathname, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 // The web tab's own label. Expo's shell ships an empty <title>, which
 // reads as the URL on a tab strip; the mark beside it says which product,
 // this says what to call it. A default import, not a named one:
@@ -21,6 +22,8 @@ import {
 import { BungeeShade_400Regular } from "@expo-google-fonts/bungee-shade";
 import { Handjet_800ExtraBold } from "@expo-google-fonts/handjet";
 import { AppHeader } from "@/components/ui/AppHeader";
+import * as SystemNotifications from "expo-notifications";
+import type { NotificationResponse } from "expo-notifications";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { BARE_HEADER_ROUTES, DIALOG_ROUTES } from "@/lib/routes";
 import { AuthProvider } from "@/lib/authStore";
@@ -38,6 +41,16 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const pathname = usePathname();
+  // The window is edge-to-edge on Android, so the system bars are drawn
+  // over the app: without these the header's row (the wordmark, the bell,
+  // Sign in) sits under the clock and the battery, and a dialog's title
+  // sits on the status bar's edge — measured on the emulator, where the
+  // status bar is 24dp and the header's own top padding is 16dp. The
+  // padding goes on this one view because every route passes through it:
+  // header, screens and dialogs alike. The sand ground paints behind the
+  // bars, so what shows above the header reads as the app's own ground
+  // rather than as a gap. Insets are 0 on web, so the export is unmoved.
+  const insets = useSafeAreaInsets();
   // One client per layout mount; QueryClientProvider holds it steady.
   const [queryClient] = useState(() => makeQueryClient());
 
@@ -68,13 +81,19 @@ export default function RootLayout() {
     if (fontError) console.warn("Fonts failed to load, using system fallbacks.", fontError);
   }, [fontError]);
 
-  if (!loaded && !fontError) return null;
-  const isDialog = DIALOG_ROUTES.includes(pathname);
+  const isLab = pathname === "/design" || pathname.startsWith("/design/");
   const bare = BARE_HEADER_ROUTES[pathname];
+  usePushRouting();
+  usePushRegistration();
+
+  // The splash still waits for fonts on native (hideAsync fires only
+  // on loaded || fontError above), but the tree renders regardless:
+  // in the web prerender fonts never resolve, and gating on them
+  // emitted an empty shell for every route behind the layout.
+  const isDialog = DIALOG_ROUTES.includes(pathname);
   // The lab runs on mocks under the same provider: it gets its own
   // Suspense fallback so a suspended lab specimen never shows an
   // app screen's copy, and vice versa.
-  const isLab = pathname === "/design" || pathname.startsWith("/design/");
   return (
     <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -89,7 +108,10 @@ export default function RootLayout() {
             <Head>
               <title>Journiful</title>
             </Head>
-            <View className="flex-1 bg-sand">
+            <View
+              className="flex-1 bg-sand"
+              style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+            >
               {/* App shell: a fixed-height column so the screen scrolls
                   under the header instead of scrolling the whole document
                   (web). The landing and the auth flow wear a band with no
@@ -131,4 +153,81 @@ export default function RootLayout() {
     </AuthProvider>
     </QueryClientProvider>
   );
+}
+
+/**
+ * Push tap routing: the API's FCM payload carries `data.url` (a web
+ * url); `pushTarget` maps it onto an app route. Cold starts resolve
+ * through `getLastNotificationResponseAsync` once; warm taps through
+ * the response listener. One tap routes once (deduped by notification
+ * id). Signed-out taps land on login rather than a screen that 401s.
+ */
+function usePushRouting() {
+  const router = useRouter();
+  const seen = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    let sub: { remove(): void } | undefined;
+    (async () => {
+      try {
+        const { pushTarget } = await import("@/lib/pushRoutes");
+        const { getToken } = await import("@/lib/session");
+        const route = async (url: string | undefined, id: string) => {
+          if (seen.current.has(id)) return;
+          seen.current.add(id);
+          const target = pushTarget(url);
+          if (!target) return;
+          const session = await getToken().catch(() => null);
+          router.push(session ? (target as never) : ("/login" as never));
+        };
+        SystemNotifications.setNotificationHandler({
+          handleNotification: async () => ({
+            shouldPlaySound: false,
+            shouldSetBadge: false,
+            shouldShowBanner: true,
+            shouldShowList: true,
+          }),
+        });
+        const last = await SystemNotifications.getLastNotificationResponseAsync().catch(() => null);
+        const lastUrl = last?.notification.request.content.data?.url;
+        if (last && typeof lastUrl === "string") {
+          await route(lastUrl, last.notification.request.identifier);
+        }
+        sub = SystemNotifications.addNotificationResponseReceivedListener((response: NotificationResponse) => {
+          const responseUrl = response.notification.request.content.data?.url;
+          if (typeof responseUrl === "string") {
+            void route(responseUrl, response.notification.request.identifier);
+          }
+        });
+      } catch {
+        // Push is best-effort; a missing native module never breaks boot.
+      }
+    })();
+    return () => sub?.remove();
+  }, [router]);
+}
+
+/**
+ * Best-effort re-registration on every launch where permission is
+ * already granted. Covers token rotation without touching sign-in.
+ */
+function usePushRegistration() {
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    (async () => {
+      try {
+        const [{ permissionState, registerForPush }, { getToken }] = await Promise.all([
+          import("@/lib/push"),
+          import("@/lib/session"),
+        ]);
+        const [permission, session] = await Promise.all([
+          permissionState(),
+          getToken().catch(() => null),
+        ]);
+        if (permission === "granted" && session) await registerForPush();
+      } catch {
+        // Never blocks boot.
+      }
+    })();
+  }, []);
 }

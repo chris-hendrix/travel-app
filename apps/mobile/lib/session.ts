@@ -42,9 +42,18 @@ export async function setToken(token: string): Promise<void> {
     } catch {
       // Review builds only: losing the token signs the reviewer out.
     }
-    return;
+  } else {
+    await nativeStore().setItemAsync(KEY, token);
   }
-  await nativeStore().setItemAsync(KEY, token);
+  // Push registration follows the session and is best-effort: it must
+  // never block sign-in. A dynamic import keeps the static graph free
+  // of expo-notifications (see lib/api.ts for the same pattern).
+  try {
+    const { registerForPush } = await import("@/lib/push");
+    await registerForPush();
+  } catch {
+    // Registration retries on the next launch.
+  }
 }
 
 export async function clearToken(): Promise<void> {

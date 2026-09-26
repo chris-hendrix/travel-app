@@ -187,8 +187,7 @@ export class PushService implements IPushService {
             android: {
               priority: "high",
               notification: {
-                channelId: "default",
-                clickAction: "FCM_PLUGIN_ACTIVITY",
+                channelId: "journiful-default",
               },
             },
           });

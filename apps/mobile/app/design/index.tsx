@@ -718,7 +718,7 @@ function DesignSystemScreen() {
                 onLink={(href) => setLog(`Prose link "${href}" pressed`)}
               />
               <Link
-                href="/legal/privacy"
+                href="/privacy"
                 className="font-body-bold text-base text-ink underline"
               >
                 Open the Privacy Policy
@@ -944,13 +944,13 @@ function DesignSystemScreen() {
           <Link href="/profile" className="font-body-bold text-base text-ink underline">
             Profile
           </Link>
-          <Link href="/legal/terms" className="font-body-bold text-base text-ink underline">
+          <Link href="/terms" className="font-body-bold text-base text-ink underline">
             Terms of Service
           </Link>
-          <Link href="/legal/privacy" className="font-body-bold text-base text-ink underline">
+          <Link href="/privacy" className="font-body-bold text-base text-ink underline">
             Privacy Policy
           </Link>
-          <Link href="/legal/sms-terms" className="font-body-bold text-base text-ink underline">
+          <Link href="/sms-terms" className="font-body-bold text-base text-ink underline">
             SMS Terms
           </Link>
           <Text className="font-body text-base text-ink">

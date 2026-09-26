@@ -75,7 +75,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Fallback: try native token from Capacitor Preferences
+      // Fallback: the in-memory token cache (no-op on the web; the shell
+      // that persisted it is gone)
       if (isNative()) {
         const nativeToken = await getNativeToken();
         if (nativeToken) {
@@ -144,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const data = await response.json();
 
-    // Persist token for native app restarts (Capacitor Preferences)
+    // Keep the token in the in-memory cache for this session
     if (data.token) {
       await saveNativeToken(data.token);
     }
@@ -172,7 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const data = await response.json();
 
-      // Persist token for native app restarts (Capacitor Preferences)
+      // Keep the token in the in-memory cache for this session
       if (data.token) {
         await saveNativeToken(data.token);
       }

@@ -8,8 +8,6 @@ import {
   usePushSubscription,
 } from "@/hooks/use-push-notifications";
 import { subscribeToPush } from "@/lib/push-notifications";
-import { isNative } from "@/lib/platform";
-import { registerForPush } from "@/lib/native-push";
 
 /**
  * Manages push subscription lifecycle in response to auth state changes.
@@ -27,8 +25,9 @@ export function PushSubscriptionManager() {
   const prevUserId = useRef<string | null>(null);
 
   useEffect(() => {
-    // Allow native to proceed even without web PushManager support
-    if (!isNative() && !isPushSupported()) return;
+    // The only surface left is the browser, so a browser without
+    // PushManager has nothing to manage.
+    if (!isPushSupported()) return;
 
     const currentUserId = user?.id ?? null;
     const wasLoggedIn = prevUserId.current !== null;
@@ -36,16 +35,7 @@ export function PushSubscriptionManager() {
 
     // Detect logout
     if (wasLoggedIn && !isLoggedIn) {
-      if (isNative()) {
-        import("@/lib/native-auth").then(async ({ getNativeToken }) => {
-          const token = await getNativeToken();
-          if (token) {
-            await unsubscribe.mutateAsync({ provider: "fcm", token }).catch(() => {
-              // Server-side removal failed — server cleans on next failed push
-            });
-          }
-        });
-      } else {
+      {
         getExistingSubscription().then(async (existing) => {
           if (existing) {
             try {
@@ -61,26 +51,7 @@ export function PushSubscriptionManager() {
 
     // Detect login (or mount with user already logged in)
     if (isLoggedIn) {
-      if (isNative()) {
-        // Native: use Capacitor Push Notifications (FCM)
-        registerForPush()
-          .then(async (result) => {
-            if (result && result.provider === "fcm") {
-              try {
-                await subscribe.mutateAsync({
-                  token: result.token!,
-                  platform: result.platform as "ios" | "android",
-                  provider: "fcm" as const,
-                });
-              } catch {
-                // Non-critical — registration will be retried on next visit
-              }
-            }
-          })
-          .catch((err) => {
-            console.error("Native push registration failed:", err);
-          });
-      } else if (vapidPublicKey && getPermissionState() === "granted") {
+      if (vapidPublicKey && getPermissionState() === "granted") {
         getExistingSubscription().then(async (existing) => {
           if (existing) {
             // Re-register with server (idempotent upsert)
