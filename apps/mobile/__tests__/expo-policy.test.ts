@@ -220,12 +220,15 @@ describe("expo policy: the shell respects the system bars", () => {
     const layout = source("app/_layout.tsx");
     const at = layout.indexOf('className={isDialog ? "flex-1 bg-gravel" : "flex-1 bg-sand"}');
     expect(at, "the shell view must carry the app ground").toBeGreaterThanOrEqual(0);
-    const window = layout.slice(at, at + 1600);
+    // To the end of that View's opening tag, not to a character count: the
+    // window is what the element says, so a longer comment above it cannot
+    // fail the test that this is about the element.
+    const tag = layout.slice(at, layout.indexOf(">", at));
     // Always the shell's: no screen paints the gesture bar's edge.
-    expect(window).toContain("paddingBottom: insets.bottom");
+    expect(tag).toContain("paddingBottom: insets.bottom");
     // The band's, unless there is no band to paint it — then the ground keeps
     // it, which is why the two are a pair rather than a constant.
-    expect(window).toMatch(/paddingTop: isDialog \? insets\.top : 0/);
+    expect(tag).toMatch(/paddingTop: isDialog \? insets\.top : 0/);
     const header = source("components/ui/AppHeader.tsx");
     expect(header).toMatch(/style=\{\{ paddingTop: insets\.top \}\}/);
     expect(header).toContain('className="bg-ink"');
@@ -236,11 +239,8 @@ describe("expo policy: the shell respects the system bars", () => {
     // status and gesture bars there. It is gravel because every dialog is:
     // `DIALOG_ROUTES` and `FullscreenDialog`'s ground are one list and one
     // colour, and a shell that kept its sand would draw a seam along the
-    // status bar of every dialog in the app.
-    const layout = source("app/_layout.tsx");
-    expect(layout).toMatch(
-      /className=\{isDialog \? "flex-1 bg-gravel" : "flex-1 bg-sand"\}/,
-    );
+    // status bar of every dialog in the app. The shell's half of that pair is
+    // the assertion above.
     const dialog = source("components/ui/FullscreenDialog.tsx");
     expect(dialog).toMatch(/<View className="flex-1 bg-gravel">/);
   });
@@ -292,11 +292,13 @@ describe("expo policy: a card fills the column it is in", () => {
     // The cap is the grid's, not the card's: two 420px tiles and the 24px gap
     // are exactly the 864px inner width of the widest column (`Screen`'s
     // max-w-[960px] less its md:px-12), so the cap belongs where that width
-    // is reached. Unconditional, it clipped a 480dp phone's 432px column by
-    // 12px and the card disagreed with the button above it — measured on the
-    // emulator, the card's right edge at 999px against the button's 1026px.
+    // is reached. Unconditional, it clipped the 432px column of a 480dp phone
+    // by 12px — from the box's own numbers: a 420px cap inside a 432px column
+    // leaves the card's right edge at 999px against the button's 1026px at
+    // the emulator's 2.25 px/dp. The device check is outstanding (the trips
+    // list needs a session); the arithmetic is what this test pins.
     const card = source("components/ui/PhotoCard.tsx");
-    expect(card).toContain("lg:max-w-[420px]");
+    expect(card).toMatch(/className="w-full lg:max-w-\[420px\] cursor-pointer"/);
     expect(card, "no unconditional 420px cap: a phone fills its column")
       .not.toMatch(/className="w-full max-w-\[420px\]/);
   });
