@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useRef, useState } from "react";
-import { AppState, Platform, View } from "react-native";
+import { AppState, Platform, StatusBar, View } from "react-native";
 import { QueryClientProvider, focusManager } from "@tanstack/react-query";
 import { makeQueryClient } from "@/lib/queries/client";
 import { Stack, SplashScreen, usePathname, useRouter } from "expo-router";
@@ -72,10 +72,21 @@ export default function RootLayout() {
   });
   const loaded = displayLoaded && monoLoaded;
   const fontError = displayError ?? monoError;
+  // `settled` rather than `loaded`: a font that failed is a font that will
+  // never arrive, and the splash has to stop waiting for it. The faces
+  // themselves are embedded natively (`expo-font`'s config plugin lists them
+  // in app.json), so this is the web export's copy and a native no-op: on
+  // Android the files are in `assets/fonts/<family>.ttf` from install time,
+  // which is what lets the *measure* path resolve them and not just the
+  // paint path. Loading them at runtime here left every text measured in the
+  // system fallback and painted in ours — the band's wordmark came out as
+  // "JOUR", because it was measured as Roboto (222px) and drawn as Bungee
+  // Shade (390px).
+  const fontsSettled = loaded || Boolean(fontError);
 
   useEffect(() => {
-    if (loaded || fontError) SplashScreen.hideAsync().catch(() => {});
-  }, [loaded, fontError]);
+    if (fontsSettled) SplashScreen.hideAsync().catch(() => {});
+  }, [fontsSettled]);
 
   useEffect(() => {
     if (fontError) console.warn("Fonts failed to load, using system fallbacks.", fontError);
@@ -110,8 +121,23 @@ export default function RootLayout() {
             </Head>
             <View
               className="flex-1 bg-sand"
-              style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
+              style={{
+                // The band paints the top inset itself, so the status bar
+                // sits on ink rather than on a strip of sand the band can
+                // never reach: one shape, edge to edge, and the bar's own
+                // content goes light to match. A dialog has no band to
+                // paint it, so the sand ground keeps the inset there and
+                // the bar's content goes dark instead. Both halves of that
+                // pair are chosen below, because a bar whose content
+                // disagrees with its ground is the one state nobody can
+                // read.
+                paddingTop: isDialog ? insets.top : 0,
+                paddingBottom: insets.bottom,
+              }}
             >
+              <StatusBar
+                barStyle={isDialog ? "dark-content" : "light-content"}
+              />
               {/* App shell: a fixed-height column so the screen scrolls
                   under the header instead of scrolling the whole document
                   (web). The landing and the auth flow wear a band with no

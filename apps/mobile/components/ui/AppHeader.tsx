@@ -4,6 +4,7 @@ import { Link } from "expo-router";
 import { Bell, User, X } from "lucide-react-native";
 import Svg, { Defs, Path, Pattern, Rect } from "react-native-svg";
 import { useQuery } from "@tanstack/react-query";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { unreadCountOptions } from "@/lib/queries/notifications";
 import { isSignedIn, subscribe } from "@/lib/sessionFlag";
 import { useZoneToken } from "@/lib/displayZone";
@@ -212,6 +213,13 @@ export function AppHeader({
 
   const landing = variant === "landing";
   const app = variant === "app";
+  // The band paints its own top inset, so the status bar sits on ink rather
+  // than on a strip of the shell's sand above it — one shape edge to edge,
+  // which is what `_layout.tsx` pairs with light bar content. The inset goes
+  // on this inner view and not on the wrapper below it, because the wrapper
+  // is also the wave's parent: give *it* a ground and the scallops' negative
+  // space fills with ink, which is a straight edge with a wavy top.
+  const insets = useSafeAreaInsets();
 
   // No ground of its own: the band paints ink and the wave is a
   // silhouette on transparent, so the negative space between the
@@ -222,31 +230,33 @@ export function AppHeader({
   // bleed photo or a coloured edge is exactly that.
   return (
     <View>
-      <View className="flex-row items-center justify-between bg-ink px-6 pb-3 pt-4">
-        {landing ? (
-          // Still a link on the landing, where it points at the page you
-          // are already on: the same word behaves the same way
-          // everywhere it appears.
-          <Link href="/" className="font-wordmark text-2xl text-sand">
-            Journiful
-          </Link>
-        ) : (
-          <Link
-            href={app ? "/trips" : "/"}
-            className="font-wordmark text-2xl text-sand"
-          >
-            Journiful
-          </Link>
-        )}
-        <View className="flex-row items-center gap-0">
-          {app ? (
-            <>
-              <ZoneToken onInk />
-              <BellButton />
-              <AvatarButton />
-            </>
-          ) : null}
-          {landing ? <SignInWord /> : null}
+      <View className="bg-ink" style={{ paddingTop: insets.top }}>
+        <View className="flex-row items-center justify-between bg-ink px-6 pb-3 pt-4">
+          {landing ? (
+            // Still a link on the landing, where it points at the page you
+            // are already on: the same word behaves the same way
+            // everywhere it appears.
+            <Link href="/" className="font-wordmark text-2xl text-sand">
+              Journiful
+            </Link>
+          ) : (
+            <Link
+              href={app ? "/trips" : "/"}
+              className="font-wordmark text-2xl text-sand"
+            >
+              Journiful
+            </Link>
+          )}
+          <View className="flex-row items-center gap-0">
+            {app ? (
+              <>
+                <ZoneToken onInk />
+                <BellButton />
+                <AvatarButton />
+              </>
+            ) : null}
+            {landing ? <SignInWord /> : null}
+          </View>
         </View>
       </View>
       <WaveEdge />

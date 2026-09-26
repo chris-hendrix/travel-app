@@ -6,6 +6,14 @@
  * script derives every PNG the mobile app ships from it, so the two apps
  * cannot drift and no icon here is hand-drawn.
  *
+ * One deliberate difference from the web app's own rasters: these centre the
+ * *letter*, and the shadow hangs into the padding. The frozen web app's
+ * `public/icons/*.png` centre the ink of the letter and shadow together,
+ * which puts the J a fifth of its width off the middle — see `letterShift`
+ * below. Those files stay as they are because the web app is the rollback
+ * target and is not being changed; a rollback therefore shows the older
+ * centring.
+ *
  *   pnpm --filter @journiful/mobile gen:icons
  *
  * The tile colour is the web app's own icon ground — `#1a1814`, the same
@@ -81,7 +89,64 @@ async function mark(height, content = inner) {
   return sharp(raw).trim({ threshold: 1 }).resize({ height }).png().toBuffer();
 }
 
-/** The mark centred on the brand tile. */
+/**
+ * How far the letter sits from the centre of the mark's own ink, at a given
+ * mark height.
+ *
+ * The mark is the letter plus its extrusion shadow, and the shadow hangs left
+ * and below, so the box around the two of them is not the box around the
+ * letter: centring that box pushes the J up and to the right, by about 6.4% of
+ * the mark's width and 5.4% of its height — a fifteenth of the tile, which the
+ * eye reads immediately as a letter that is not in the middle.
+ *
+ * Measured from renders rather than written down as those two percentages,
+ * because they are properties of the artwork: move a control point in
+ * `icon.svg` and the correction follows it. Both renders share a canvas, so
+ * the slack around them cancels and the difference is the real offset.
+ */
+async function letterShift(height) {
+  const oversize = Math.max(1024, height * 2);
+  const render = (content) =>
+    sharp(markSvg(oversize, Math.round(oversize * 1.15), content))
+      .png()
+      .toBuffer();
+  const inkBox = async (buffer) => {
+    const { info } = await sharp(buffer)
+      .trim({ threshold: 1 })
+      .toBuffer({ resolveWithObject: true });
+    return {
+      left: -info.trimOffsetLeft,
+      top: -info.trimOffsetTop,
+      width: info.width,
+      height: info.height,
+    };
+  };
+  const [whole, letter] = await Promise.all([
+    render(inner).then(inkBox),
+    render(letterOnly).then(inkBox),
+  ]);
+  const scale = height / whole.height;
+  return {
+    dx: (letter.left + letter.width / 2 - (whole.left + whole.width / 2)) * scale,
+    dy: (letter.top + letter.height / 2 - (whole.top + whole.height / 2)) * scale,
+  };
+}
+
+/** The mark with its letter centred, positioned on a `size` canvas. */
+async function placed(size, markHeight, { content = inner, shift = true } = {}) {
+  const art = await mark(markHeight, content);
+  const { width, height } = await sharp(art).metadata();
+  // The letter-alone silhouette has no shadow, so its own ink *is* the
+  // letter and there is nothing to correct for.
+  const { dx, dy } = shift ? await letterShift(markHeight) : { dx: 0, dy: 0 };
+  return {
+    input: art,
+    left: Math.round((size - width) / 2 - dx),
+    top: Math.round((size - height) / 2 - dy),
+  };
+}
+
+/** The mark on the brand tile, its letter centred rather than its ink. */
 async function onTile(size, markHeight, { radius = 0 } = {}) {
   const base = sharp({
     create: { width: size, height: size, channels: 4, background: TILE },
@@ -100,19 +165,18 @@ async function onTile(size, markHeight, { radius = 0 } = {}) {
         .toBuffer()
     : await base.toBuffer();
 
-  const art = await mark(markHeight);
   return sharp(tile)
-    .composite([{ input: art, gravity: "centre" }])
+    .composite([await placed(size, markHeight)])
     .png()
     .toBuffer();
 }
 
-/** The mark alone on transparency. */
+/** The mark alone on transparency, the letter centred for the same reason. */
 async function onNothing(size, markHeight, content = inner) {
   return sharp({
     create: { width: size, height: size, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
   })
-    .composite([{ input: await mark(markHeight, content), gravity: "centre" }])
+    .composite([await placed(size, markHeight, { content, shift: content === inner })])
     .png()
     .toBuffer();
 }

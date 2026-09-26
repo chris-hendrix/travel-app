@@ -78,6 +78,35 @@ describe("native config: the app.json keys the native build needs", () => {
     expect(notif[1].icon).toBe("./assets/notification-icon.png");
   });
 
+  // Embedded, not loaded at runtime, and the difference is measurable: a
+  // face that only exists in JS paints but does not *measure*, so the band's
+  // wordmark was laid out as Roboto (222px) and drawn as Bungee Shade
+  // (390px) until these files were listed here. Android resolves a family
+  // from `assets/fonts/<family>.ttf`, which is where prebuild puts them.
+  it("embeds every face the app draws with", () => {
+    const plugins = appJson.expo.plugins as Array<unknown>;
+    const font = plugins.find(
+      (p) => Array.isArray(p) && p[0] === "expo-font",
+    ) as [string, { fonts: string[] }];
+    expect(font, "expo-font plugin configured").toBeDefined();
+    expect(font[1].fonts).toHaveLength(5);
+    for (const rel of font[1].fonts) {
+      // The family Android derives is the file's basename, so it has to
+      // match what `global.css` names in `--font-wordmark` and friends.
+      const family = path.basename(rel, ".ttf");
+      expect([
+        "BungeeShade_400Regular",
+        "Handjet_800ExtraBold",
+        "SpaceMono_400Regular",
+        "SpaceMono_400Regular_Italic",
+        "SpaceMono_700Bold",
+      ]).toContain(family);
+      expect(fs.existsSync(path.join(mobileDir, rel)), `${rel} exists`).toBe(
+        true,
+      );
+    }
+  });
+
   it("keeps the web export static and ships no ios block", () => {
     expect(appJson.expo.web.output).toBe("static");
     expect(appJson.expo).not.toHaveProperty("ios");

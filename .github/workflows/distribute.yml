@@ -103,10 +103,34 @@ jobs:
       - name: Prebuild the Android project
         run: pnpm --filter @journiful/mobile exec expo prebuild -p android --clean
 
+      # What a device pass actually waits for: `--clean` regenerates the
+      # whole android/ project every run, so without a cache gradle compiles
+      # every native module — React Native, the Expo modules, Hermes — from
+      # source each time, which is 23 to 25 minutes measured across three
+      # runs. `~/.gradle/caches` carries both the downloaded dependencies
+      # and gradle's own build cache, so task outputs whose inputs have not
+      # changed replay instead of rebuilding; a JS-only change leaves every
+      # native input alone, which is exactly the case a device pass is.
+      #
+      # Keyed on the lockfile and the app config, not on the generated gradle
+      # files: those do not exist until prebuild has run, which is after this
+      # step has to. `restore-keys` is what makes the saving real on an
+      # ordinary push — a miss on the exact key still restores the last
+      # prefix match instead of starting cold.
+      - name: Cache gradle
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('pnpm-lock.yaml', 'apps/mobile/app.json', 'apps/mobile/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
       - name: Build release APK
         run: |
           cd apps/mobile/android
-          ./gradlew assembleRelease
+          ./gradlew assembleRelease --build-cache
         env:
           GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx3g
 

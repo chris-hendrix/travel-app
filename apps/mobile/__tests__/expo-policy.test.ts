@@ -199,11 +199,13 @@ describe("expo policy: the shell respects the system bars", () => {
   // default: measured on the emulator, the status bar is 24dp while the
   // header's own top padding is 16dp, so the wordmark and the Sign in
   // word sat under the clock and the battery, and a dialog's title sat on
-  // the status bar's edge. The padding belongs on the one view every
-  // route passes through, on both edges — a header-only inset would leave
-  // dialogs under the bar, and a top-only one would leave content under
-  // the gesture bar. This is a shape guard, not the evidence: the
-  // measurement is `uiautomator dump` against `dumpsys window displays`.
+  // the status bar's edge. Each bar's inset now goes to whichever element
+  // paints that edge: the bottom to the shell, because every route passes
+  // through it and none of them paints it; the top to the band, which
+  // paints ink up to the status bar so chrome and bar are one shape, or to
+  // the shell when there is no band — a dialog. This is a shape guard, not
+  // the evidence: the measurement is `uiautomator dump` against
+  // `dumpsys window displays`.
   function source(rel: string): string {
     return fs.readFileSync(path.join(mobileDir, rel), "utf8");
   }
@@ -214,15 +216,36 @@ describe("expo policy: the shell respects the system bars", () => {
     expect(layout).toMatch(/const insets = useSafeAreaInsets\(\)/);
   });
 
-  it("applies both edges to the shell view", () => {
+  it("gives each bar to the element that paints its edge", () => {
     const layout = source("app/_layout.tsx");
-    // The shell is the element carrying the app's ground; the insets go on
-    // the same one, so the sand paints behind both bars.
     const at = layout.indexOf('className="flex-1 bg-sand"');
     expect(at, "the shell view must carry the app ground").toBeGreaterThanOrEqual(0);
-    const window = layout.slice(at, at + 300);
-    expect(window).toContain("paddingTop: insets.top");
+    const window = layout.slice(at, at + 900);
+    // Always the shell's: no screen paints the gesture bar's edge.
     expect(window).toContain("paddingBottom: insets.bottom");
+    // The band's, unless there is no band to paint it — then the sand ground
+    // keeps it, which is why the two are a pair rather than a constant.
+    expect(window).toMatch(/paddingTop: isDialog \? insets\.top : 0/);
+    const header = source("components/ui/AppHeader.tsx");
+    expect(header).toMatch(/style=\{\{ paddingTop: insets\.top \}\}/);
+    expect(header).toContain('className="bg-ink"');
+  });
+
+  it("picks bar content that matches the ground under it", () => {
+    const layout = source("app/_layout.tsx");
+    // Light over the band's ink, dark over the sand a dialog leaves there.
+    expect(layout).toMatch(
+      /barStyle=\{isDialog \? "dark-content" : "light-content"\}/,
+    );
+  });
+
+  it("hides the caret on an empty centred field", () => {
+    const field = source("components/ui/TextField.tsx");
+    // Android draws that caret at the right edge of the box, and it comes out
+    // of the native layout, so no prop can move it: the empty field shows no
+    // caret rather than a wrong one. See facebook/react-native#28794, #38528.
+    expect(field).toMatch(/centered && !value && Platform\.OS === "android"/);
+    expect(field).toContain('"transparent"');
   });
 
   it("does not hardcode a status bar height", () => {

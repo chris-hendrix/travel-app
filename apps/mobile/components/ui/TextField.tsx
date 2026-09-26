@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import {
+  Platform,
   Text,
   TextInput,
   View,
@@ -120,6 +121,21 @@ export function TextField({
           accessibilityLabel={label ?? ariaLabel}
           aria-label={label ?? ariaLabel}
           textAlignVertical={multiline ? "top" : undefined}
+          // Android cannot place the caret in an empty centred field: with
+          // `textAlign: "center"` and no value it draws at the right edge of
+          // the box while the hint stays centred, and it returns to the
+          // middle the moment there is a digit to sit beside
+          // (facebook/react-native#28794, #38528 — both still open). No JS
+          // prop moves it, because the position comes out of the native
+          // layout, so the empty field shows no caret rather than a wrong
+          // one: a caret parked against the right edge of a centred field
+          // reads as the field being full. iOS centres its own correctly and
+          // takes no part in this.
+          cursorColor={
+            centered && !value && Platform.OS === "android"
+              ? "transparent"
+              : undefined
+          }
         />
         {suffix}
       </View>
