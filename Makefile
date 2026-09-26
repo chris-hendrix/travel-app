@@ -189,9 +189,12 @@ android-logs: ## Tail native logs on the emulator
 # Data survives: no `-wipe-data`, so the AVD's own disk image is what comes
 # back, and an installed app keeps its signed-in session. `-no-snapshot-save`
 # is there because a snapshot taken with one renderer and restored under
-# another is a worse mystery than a cold boot.
+# another is a worse mystery than a cold boot. `-memory 4096` is there
+# because the AVD is configured for 2 GB and `system_server` dies under the
+# software renderer at that size; the flag overrides without editing the AVD.
 ANDROID_AVD ?= Medium_Phone
 ANDROID_GPU ?= swiftshader_indirect
+ANDROID_MEMORY ?= 4096
 
 android-emulator-kill: ## Stop every running emulator
 	@ADB=$$(command -v adb 2>/dev/null || command -v adb.exe 2>/dev/null); \
@@ -217,7 +220,7 @@ android-emulator-start: ## Boot the AVD with a readable framebuffer (AVD=Medium_
 	if [ -z "$$EMULATOR" ]; then echo "ERROR: no emulator binary found — run make android-setup"; exit 1; fi; \
 	LOG=/tmp/emulator-$(ANDROID_AVD).log; \
 	echo "  booting $(ANDROID_AVD) with -gpu $(ANDROID_GPU) (log: $$LOG)"; \
-	nohup "$$EMULATOR" -avd "$(ANDROID_AVD)" -gpu "$(ANDROID_GPU)" -no-boot-anim -no-snapshot-save > "$$LOG" 2>&1 & \
+	nohup "$$EMULATOR" -avd "$(ANDROID_AVD)" -gpu "$(ANDROID_GPU)" -memory "$(ANDROID_MEMORY)" -no-boot-anim -no-snapshot-save > "$$LOG" 2>&1 & \
 	$$ADB wait-for-device; \
 	for i in $$(seq 1 90); do \
 		if [ "$$($$ADB shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; then \
