@@ -30,7 +30,18 @@
     },
     "plugins": [
       "expo-router",
-      "expo-font",
+      [
+    "expo-font",
+    {
+      "fonts": [
+        "./node_modules/@expo-google-fonts/bungee-shade/400Regular/BungeeShade_400Regular.ttf",
+        "./node_modules/@expo-google-fonts/handjet/800ExtraBold/Handjet_800ExtraBold.ttf",
+        "./node_modules/@expo-google-fonts/space-mono/400Regular/SpaceMono_400Regular.ttf",
+        "./node_modules/@expo-google-fonts/space-mono/400Regular_Italic/SpaceMono_400Regular_Italic.ttf",
+        "./node_modules/@expo-google-fonts/space-mono/700Bold/SpaceMono_700Bold.ttf"
+      ]
+    }
+  ],
       ["expo-splash-screen", { "backgroundColor": "#f5eacc", "image": "./assets/splash.png" }],
       [
         "expo-image-picker",
