@@ -239,6 +239,15 @@ describe("expo policy: the shell respects the system bars", () => {
     );
   });
 
+  it("hides the caret on an empty centred field", () => {
+    const field = source("components/ui/TextField.tsx");
+    // Android draws that caret at the right edge of the box, and it comes out
+    // of the native layout, so no prop can move it: the empty field shows no
+    // caret rather than a wrong one. See facebook/react-native#28794, #38528.
+    expect(field).toMatch(/centered && !value && Platform\.OS === "android"/);
+    expect(field).toContain('"transparent"');
+  });
+
   it("does not hardcode a status bar height", () => {
     const layout = source("app/_layout.tsx");
     expect(layout).not.toMatch(/paddingTop:\s*\d/);
