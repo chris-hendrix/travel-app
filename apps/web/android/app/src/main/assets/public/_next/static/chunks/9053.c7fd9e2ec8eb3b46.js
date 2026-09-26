@@ -1,1 +1,0 @@
-"use strict";(self.webpackChunk_N_E=self.webpackChunk_N_E||[]).push([[9053],{29053:(e,t,r)=>{r.r(t),r.d(t,{default:()=>a});var u=r(71198),n=r(94700),s=r(84272);function a(){let{tripId:e,temperatureUnit:t}=(0,s.k)();return(0,u.jsx)(n.l,{tripId:e,temperatureUnit:t})}}}]);
