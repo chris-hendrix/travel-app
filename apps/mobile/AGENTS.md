@@ -58,7 +58,27 @@ make android-install   # adb install -r the release APK + launch
 make android-dev       # prebuild if android/ is missing, then expo run:android
 make android-logs      # native logcat
 make adb-reverse       # forward 8000/3000 for a device build against make dev
+
+make android-emulator-kill     # stop every running emulator
+make android-emulator-start    # boot the AVD; AVD=, GPU= override the defaults
+make android-emulator-restart  # kill + start
 ```
+
+The emulator boots with `-gpu swiftshader_indirect` by default, and that is not a
+performance preference: under the emulator's own `-gpu host` the framebuffer is
+read back through the host GPU surface, and `adb shell screencap` answers with a
+valid, fully transparent-looking white PNG of the right dimensions — so any check
+that has to be *looked at* (a screenshot, a caret, the launcher icon) silently
+gets nothing. `-gpu guest` is the fallback if swiftshader misbehaves. Data
+survives a bounce: no `-wipe-data`, and `-no-snapshot-save` so a snapshot taken
+under one renderer is never restored under another.
+
+`make android-apk` does not work on a host whose `ANDROID_HOME` is the Windows
+SDK: gradle is a Linux process and reports `Installed Build Tools revision
+36.0.0 is corrupted` because it is looking at Windows `aapt.exe` under a Linux
+path. Distribution APKs come from CI (`.github/workflows/distribute.yml`), and a
+PR run uploads the APK as the `app-release` artifact — that is the path to an
+installable build without a Linux-side SDK.
 
 Signing is a config plugin (`plugins/withAndroidSigning.js`) so it survives `prebuild --clean`: it reads `JOURNIFUL_KEYSTORE` / `JOURNIFUL_KEY_ALIAS` / `JOURNIFUL_STORE_PASSWORD` / `JOURNIFUL_KEY_PASSWORD` from `~/.gradle/gradle.properties`. `android/` is gitignored and regenerated; `google-services.json` is gitignored and copied from `apps/web/android/app/` locally, written in CI from a secret.
 

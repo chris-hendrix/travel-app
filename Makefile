@@ -1,4 +1,4 @@
-.PHONY: help install dev dev-web dev-api mockup mobile-web-export mobile-web-serve build-mobile android-setup adb-reverse android-dev android-apk android-install android-logs pwa migrate seed studio generate up down clean reset-db test-up test-down test-exec test-run test-status test-setup test-clean test-static-smoke
+.PHONY: help install dev dev-web dev-api mockup mobile-web-export mobile-web-serve build-mobile android-setup adb-reverse android-dev android-apk android-install android-logs android-emulator-start android-emulator-kill android-emulator-restart pwa migrate seed studio generate up down clean reset-db test-up test-down test-exec test-run test-status test-setup test-clean test-static-smoke
 
 .DEFAULT_GOAL := help
 
@@ -178,6 +178,56 @@ android-install: ## Install the release APK on the emulator and launch
 android-logs: ## Tail native logs on the emulator
 	ADB=$$(command -v adb 2>/dev/null || command -v adb.exe 2>/dev/null); \
 	$$ADB -s emulator-5554 logcat
+
+# Bouncing the emulator is a device-pass move, not a build step. With the
+# default `-gpu host` the framebuffer is read back through the host GPU
+# surface, and `adb shell screencap` answers with a valid but all-white PNG
+# — so anything that has to be *looked at* (a screenshot, a caret, the
+# launcher icon) needs the software renderer. `-gpu guest` is the other
+# one to try if swiftshader misbehaves.
+#
+# Data survives: no `-wipe-data`, so the AVD's own disk image is what comes
+# back, and an installed app keeps its signed-in session. `-no-snapshot-save`
+# is there because a snapshot taken with one renderer and restored under
+# another is a worse mystery than a cold boot.
+ANDROID_AVD ?= Medium_Phone
+ANDROID_GPU ?= swiftshader_indirect
+
+android-emulator-kill: ## Stop every running emulator
+	@ADB=$$(command -v adb 2>/dev/null || command -v adb.exe 2>/dev/null); \
+	killed=0; \
+	for d in $$($$ADB devices 2>/dev/null | awk '/^emulator-/ {print $$1}'); do \
+		if $$ADB -s "$$d" emu kill >/dev/null 2>&1; then echo "  asked $$d to quit"; killed=1; fi; \
+	done; \
+	if [ "$$killed" -eq 0 ]; then \
+		powershell.exe -NoProfile -Command "Stop-Process -Name emulator -Force -ErrorAction SilentlyContinue" >/dev/null 2>&1 && echo "  stopped emulator.exe" || echo "  nothing was running"; \
+	fi; \
+	for i in $$(seq 1 30); do \
+		if ! $$ADB devices 2>/dev/null | grep -q '^emulator-'; then echo "  gone"; exit 0; fi; \
+		sleep 2; \
+	done; \
+	echo "  ⚠ an emulator is still listed after 60s — it may be wedged"; exit 1
+
+android-emulator-start: ## Boot the AVD with a readable framebuffer (AVD=Medium_Phone GPU=host)
+	@ADB=$$(command -v adb 2>/dev/null || command -v adb.exe 2>/dev/null); \
+	if $$ADB devices 2>/dev/null | grep -q '^emulator-'; then \
+		echo "  an emulator is already running — make android-emulator-kill first"; exit 0; \
+	fi; \
+	EMULATOR=$$(command -v emulator 2>/dev/null || ls "$${ANDROID_HOME:-/mnt/c/Users/chend/AppData/Local/Android/Sdk}/emulator/emulator.exe" 2>/dev/null || ls /mnt/c/Users/chend/AppData/Local/Android/Sdk/emulator/emulator.exe 2>/dev/null); \
+	if [ -z "$$EMULATOR" ]; then echo "ERROR: no emulator binary found — run make android-setup"; exit 1; fi; \
+	LOG=/tmp/emulator-$(ANDROID_AVD).log; \
+	echo "  booting $(ANDROID_AVD) with -gpu $(ANDROID_GPU) (log: $$LOG)"; \
+	nohup "$$EMULATOR" -avd "$(ANDROID_AVD)" -gpu "$(ANDROID_GPU)" -no-boot-anim -no-snapshot-save > "$$LOG" 2>&1 & \
+	$$ADB wait-for-device; \
+	for i in $$(seq 1 90); do \
+		if [ "$$($$ADB shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; then \
+			echo "  $(ANDROID_AVD) is up on $$($$ADB devices | awk '/^emulator-/ {print $$1; exit}')"; exit 0; \
+		fi; \
+		sleep 2; \
+	done; \
+	echo "  ⚠ not booted after 3 minutes — see $$LOG"; exit 1
+
+android-emulator-restart: android-emulator-kill android-emulator-start ## Bounce the emulator (readable framebuffer)
 
 # --- Infrastructure ---
 
