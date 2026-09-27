@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { authenticate } from "@/middleware/auth.middleware.js";
-import { buildPhotoCacheKey, PhotoNotCachedError } from "@/services/photo-cache.service.js";
+import { PhotoNotCachedError } from "@/services/photo-cache.service.js";
 import {
   autocompletePlaces,
   fetchPlaceDetails,
@@ -177,32 +177,33 @@ export async function locationRoutes(fastify: FastifyInstance) {
       if (!parsed.success) {
         return reply.code(400).send({ error: "Invalid size: expected card or hero" });
       }
-      const px = BOX_PIXELS[parsed.data];
-      const w = px;
-      const h = px;
+      const box = parsed.data;
 
       const key = request.server.config.GOOGLE_MAPS_API_KEY;
       if (!key) {
         return reply.code(404).send();
       }
 
-      const cacheKey = buildPhotoCacheKey(photoRef, w, h);
-
       try {
         const { buffer, contentType } =
-          await request.server.photoCache.getOrFetch(cacheKey, async () =>
-            fetchPlacePhotoMedia({ photoRef, maxWidthPx: w, maxHeightPx: h, apiKey: key }),
+          await request.server.photoCache.getBox(photoRef, box, async () =>
+            fetchPlacePhotoMedia({
+              photoRef,
+              maxWidthPx: BOX_PIXELS.hero,
+              maxHeightPx: BOX_PIXELS.hero,
+              apiKey: key,
+            }),
           );
 
         reply.header("Content-Type", contentType);
-        reply.header("Cache-Control", "public, max-age=604800, immutable");
+        reply.header("Cache-Control", "public, max-age=2592000, immutable");
         return reply.send(buffer);
       } catch (err) {
         if (err instanceof PhotoNotCachedError) {
           return reply.code(404).send();
         }
         request.log.error(
-          { err, photoRef, cacheKey },
+          { err, photoRef, box },
           "Place photo proxy failed (storage or upstream Google fetch)",
         );
         return reply.code(404).send();

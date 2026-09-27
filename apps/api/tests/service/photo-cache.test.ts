@@ -1,8 +1,13 @@
 import { mkdtempSync, utimesSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import sharp from "sharp";
 import { describe, expect, it, vi } from "vitest";
-import { PhotoCacheService, buildPhotoCacheKey } from "@/services/photo-cache.service.js";
+import {
+  PhotoCacheService,
+  PhotoNotCachedError,
+  buildPhotoCacheKey,
+} from "@/services/photo-cache.service.js";
 import { LocalStorageService } from "@/services/storage.service.js";
 
 function makeCache() {
@@ -13,15 +18,132 @@ function makeCache() {
 }
 
 describe("PhotoCacheService", () => {
-  it("builds short deterministic cache keys (sha256 — safe for filesystem-backed S3 stores)", () => {
-    const a = buildPhotoCacheKey("places/abc/photos/ref 1", 400, 280);
-    // 64-char hex digest + prefix + size: well under MinIO's per-component limit.
-    expect(a).toMatch(/^places-photos\/[0-9a-f]{64}\/400x280$/);
+  it("builds short deterministic cache keys (sha256 + box name)", () => {
+    const a = buildPhotoCacheKey("places/abc/photos/ref 1", "card");
+    // 64-char hex digest + prefix + box: well under MinIO's per-component limit.
+    expect(a).toMatch(/^places-photos\/[0-9a-f]{64}\/card$/);
     expect(a.length).toBeLessThan(100);
-    // Deterministic and size-sensitive.
-    expect(buildPhotoCacheKey("places/abc/photos/ref 1", 400, 280)).toBe(a);
-    expect(buildPhotoCacheKey("places/abc/photos/ref 1", 600, 400)).not.toBe(a);
-    expect(buildPhotoCacheKey("places/abc/photos/ref 2", 400, 280)).not.toBe(a);
+    // Deterministic and box-sensitive.
+    expect(buildPhotoCacheKey("places/abc/photos/ref 1", "card")).toBe(a);
+    expect(buildPhotoCacheKey("places/abc/photos/ref 1", "hero")).not.toBe(a);
+    expect(buildPhotoCacheKey("places/abc/photos/ref 2", "card")).not.toBe(a);
+  });
+
+  it("getBox fetches the source once at the hero box and derives card locally", async () => {
+    const { cache, storage } = makeCache();
+    const sourceBytes = await sharp({
+      create: {
+        width: 2000,
+        height: 1500,
+        channels: 3,
+        background: { r: 200, g: 50, b: 50 },
+      },
+    })
+      .jpeg()
+      .toBuffer();
+    const media = vi.fn(async () => ({
+      buffer: sourceBytes,
+      contentType: "image/jpeg",
+    }));
+    const ref = "places/abc/photos/getbox-source";
+
+    // Cold card: exactly one upstream media call, card bytes returned.
+    const card = await cache.getBox(ref, "card", media);
+    expect(media).toHaveBeenCalledTimes(1);
+    expect(card.contentType).toBe("image/jpeg");
+    const cardMeta = await sharp(card.buffer).metadata();
+    expect(cardMeta.width).toBeLessThanOrEqual(1024);
+    expect(cardMeta.width).toBe(1024);
+
+    // The source was stored under the hero key.
+    const stored = await storage.getObjectBuffer(
+      buildPhotoCacheKey(ref, "hero"),
+    );
+    expect(stored).not.toBeNull();
+    expect(Buffer.compare(stored!.buffer, sourceBytes)).toBe(0);
+
+    // Hero is now warm: zero further media calls.
+    const hero = await cache.getBox(ref, "hero", media);
+    expect(media).toHaveBeenCalledTimes(1);
+    expect(Buffer.compare(hero.buffer, sourceBytes)).toBe(0);
+
+    // Warm card: zero calls of either kind.
+    await cache.getBox(ref, "card", media);
+    expect(media).toHaveBeenCalledTimes(1);
+  });
+
+  it("getBox suppresses retries after a failed source fetch (tombstone)", async () => {
+    const { cache, dir } = makeCache();
+    const ref = "places/abc/photos/getbox-broken";
+    const failing = vi.fn(
+      async (): Promise<{ buffer: Buffer; contentType: string }> => {
+        throw new Error("Google 404");
+      },
+    );
+
+    await expect(cache.getBox(ref, "card", failing)).rejects.toThrow(
+      "Google 404",
+    );
+    expect(failing).toHaveBeenCalledTimes(1);
+
+    // Within the hour the tombstone answers: no new upstream call.
+    const succeeding = vi.fn(async () => ({
+      buffer: Buffer.from("valid-bytes"),
+      contentType: "image/jpeg",
+    }));
+    await expect(cache.getBox(ref, "card", succeeding)).rejects.toThrow(
+      PhotoNotCachedError,
+    );
+    expect(failing).toHaveBeenCalledTimes(1);
+    expect(succeeding).not.toHaveBeenCalled();
+
+    // After the hour the source retries.
+    const past = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    utimesSync(
+      resolve(dir, buildPhotoCacheKey(ref, "hero")),
+      past,
+      past,
+    );
+    const sourceBytes = await sharp({
+      create: {
+        width: 64,
+        height: 48,
+        channels: 3,
+        background: { r: 50, g: 200, b: 50 },
+      },
+    })
+      .jpeg()
+      .toBuffer();
+    const recovered = vi.fn(async () => ({
+      buffer: sourceBytes,
+      contentType: "image/jpeg",
+    }));
+    const card = await cache.getBox(ref, "card", recovered);
+    expect(recovered).toHaveBeenCalledTimes(1);
+    expect(card.contentType).toBe("image/jpeg");
+  });
+
+  it("purgeOlderThan deletes box-keyed source and derived blobs alike", async () => {
+    const { cache, dir } = makeCache();
+    const ref = "places/abc/photos/getbox-purge";
+    const sourceKey = buildPhotoCacheKey(ref, "hero");
+    const cardKey = buildPhotoCacheKey(ref, "card");
+    const freshKey = buildPhotoCacheKey("places/abc/photos/getbox-fresh", "card");
+    for (const k of [sourceKey, cardKey, freshKey]) {
+      await cache.getOrFetch(k, async () => ({
+        buffer: Buffer.from(`bytes-for-${k}`),
+        contentType: "image/jpeg",
+      }));
+    }
+
+    const fortyDaysAgo = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000);
+    utimesSync(resolve(dir, sourceKey), fortyDaysAgo, fortyDaysAgo);
+    utimesSync(resolve(dir, cardKey), fortyDaysAgo, fortyDaysAgo);
+
+    const deleted = await cache.purgeOlderThan(30 * 24 * 60 * 60 * 1000);
+    expect(deleted).toContain(sourceKey);
+    expect(deleted).toContain(cardKey);
+    expect(deleted).not.toContain(freshKey);
   });
 
   it("deduplicates concurrent fetches for the same key", async () => {

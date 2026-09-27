@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
+import sharp from "sharp";
 import type { IStorageService } from "@/services/storage.service.js";
+import { BOX_PIXELS, type PlaceBoxName } from "@/services/places.service.js";
 import type { Logger } from "@/types/logger.js";
 
 /** Prefix under which cached Place photo blobs are stored. */
@@ -26,7 +28,7 @@ export interface PhotoBlob {
 export type PhotoFetcher = () => Promise<PhotoBlob>;
 
 /**
- * Builds a storage-safe cache key for a Place photo.
+ * Builds a storage-safe cache key for a Place photo box.
  *
  * Google photo refs are routinely 400-800 chars as a single path segment.
  * Real S3 tolerates that (1024-byte total key limit), but S3-compatible
@@ -36,11 +38,10 @@ export type PhotoFetcher = () => Promise<PhotoBlob>;
  */
 export function buildPhotoCacheKey(
   photoRef: string,
-  width: number,
-  height: number,
+  box: PlaceBoxName,
 ): string {
   const digest = createHash("sha256").update(photoRef).digest("hex");
-  return `${PHOTO_CACHE_PREFIX}${digest}/${width}x${height}`;
+  return `${PHOTO_CACHE_PREFIX}${digest}/${box}`;
 }
 
 /**
@@ -129,6 +130,37 @@ export class PhotoCacheService {
     });
     this.inFlight.set(key, tracked);
     return tracked;
+  }
+
+  /**
+   * Serves one named box for a photo ref, deriving lazily on top of `getOrFetch`.
+   *
+   * The source (`hero` box) is the only key ever fetched upstream, at the
+   * hero box — Google bills the media request per request regardless of
+   * size. Any other box is derived locally with `sharp` (`fit: "inside"`
+   * keeps the aspect ratio inside the square box) and stored under its own
+   * key. Derivation is lazy: nothing derives until the first request for
+   * that size. A failed source fetch tombstones the source key via
+   * `getOrFetch`, so derived boxes inherit the miss without extra billing.
+   */
+  async getBox(
+    ref: string,
+    box: PlaceBoxName,
+    fetchSource: PhotoFetcher,
+  ): Promise<PhotoBlob> {
+    const sourceKey = buildPhotoCacheKey(ref, "hero");
+    if (box === "hero") {
+      return this.getOrFetch(sourceKey, fetchSource);
+    }
+    const source = await this.getOrFetch(sourceKey, fetchSource);
+    const key = buildPhotoCacheKey(ref, box);
+    return this.getOrFetch(key, async () => {
+      const px = BOX_PIXELS[box];
+      const derived = await sharp(source.buffer)
+        .resize(px, px, { fit: "inside" })
+        .toBuffer();
+      return { buffer: derived, contentType: source.contentType };
+    });
   }
 
   /**
