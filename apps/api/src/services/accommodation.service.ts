@@ -246,6 +246,8 @@ export class AccommodationService implements IAccommodationService {
         address: accommodations.address,
         addressLat: accommodations.addressLat,
         addressLon: accommodations.addressLon,
+        placeProvider: accommodations.placeProvider,
+        externalPlaceId: accommodations.externalPlaceId,
         description: accommodations.description,
         checkIn: accommodations.checkIn,
         checkOut: accommodations.checkOut,
