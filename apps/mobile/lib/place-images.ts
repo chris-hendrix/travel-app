@@ -9,6 +9,7 @@
  */
 
 import type { PlaceBox, PlaceSummary } from "@journiful/shared/types";
+import { resolveUploadUrl } from "@/lib/uploads";
 
 /** Which source `coverImage` resolved to — what the slot renders. */
 export type CoverSource = "upload" | "place" | "none";
@@ -25,9 +26,22 @@ export type CoverImage = {
   photoSourceUri: string | null;
 };
 
-/** A photo base URL with its single named size segment. */
+/**
+ * A photo base URL with its single named size segment.
+ *
+ * The API hands `photoUrl` back as a ROOT-RELATIVE path
+ * (`/api/locations/photos/<ref>`). Rendered as-is, an `<Image>`
+ * resolves that against whatever origin the app happens to run on —
+ * `localhost:8081` under Expo web, which answers 404 with the app's own
+ * index HTML, so the slot paints blank while the credit beside it still
+ * renders. Prefixing is the client's job for the same reason it is in
+ * `lib/uploads.ts`, which is where uploads get the identical treatment;
+ * that helper passes `http(s)`, `blob:`, `file:` and `data:` through
+ * untouched, so an already-absolute base is unaffected.
+ */
 export function placePhotoUrl(base: string, box: PlaceBox): string {
-  return `${base}${base.includes("?") ? "&" : "?"}size=${box}`;
+  const absolute = resolveUploadUrl(base) ?? base;
+  return `${absolute}${absolute.includes("?") ? "&" : "?"}size=${box}`;
 }
 
 /**

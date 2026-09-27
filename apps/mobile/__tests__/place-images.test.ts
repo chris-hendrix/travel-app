@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { PlaceSummary } from "@journiful/shared/types";
 import {
   boxForWidth,
@@ -68,6 +68,64 @@ describe("placePhotoUrl", () => {
     );
     expect(placePhotoUrl("https://api.example/base", "hero")).toBe(
       "https://api.example/base?size=hero",
+    );
+  });
+});
+
+/**
+ * The regression this block exists for: the API hands `photoUrl` back as
+ * a ROOT-RELATIVE path, and a relative `<Image>` resolves against the
+ * origin the app runs on — `localhost:8081` under Expo web, which 404s
+ * and paints the slot blank while the credit and source link beside it
+ * still render. `placeWithPhoto` above is absolute, which is half of why
+ * the first version of this file could not see it; the other half is
+ * that `resolveUploadUrl` never throws, so with no origin configured it
+ * returns the path unchanged and the assertion passes on broken code.
+ * Hence the explicit `EXPO_PUBLIC_API_URL` below. See `lib/uploads.ts`
+ * for the same fix applied to uploads.
+ */
+describe("placePhotoUrl absolutizes the API's relative photo path", () => {
+  beforeEach(() => {
+    process.env.EXPO_PUBLIC_API_URL = "http://localhost:8000/api";
+  });
+
+  afterEach(() => {
+    delete process.env.EXPO_PUBLIC_API_URL;
+  });
+
+  const relativePlace: PlaceSummary = {
+    ...placeWithPhoto,
+    photoUrl: "/api/locations/photos/places%2Fabc%2Fphotos%2Fref",
+  };
+
+  it("prefixes the API origin, minus /api, and keeps the size segment", () => {
+    const resolved = coverImage({
+      coverImageUrl: null,
+      place: relativePlace,
+      id: "trip-1",
+    });
+    expect(resolved.url).toBe(
+      "http://localhost:8000/api/locations/photos/places%2Fabc%2Fphotos%2Fref?size=card",
+    );
+    expect(resolved.source).toBe("place");
+  });
+
+  it("never yields a bare relative path, which is what 404s under Expo web", () => {
+    const url = coverImage({
+      coverImageUrl: null,
+      place: relativePlace,
+      id: "trip-1",
+      box: "hero",
+    }).url;
+    expect(url).not.toMatch(/^\/api\//);
+    expect(url).toBe(
+      "http://localhost:8000/api/locations/photos/places%2Fabc%2Fphotos%2Fref?size=hero",
+    );
+  });
+
+  it("leaves an already-absolute photo base alone", () => {
+    expect(placePhotoUrl(placeWithPhoto.photoUrl!, "card")).toBe(
+      `${placeWithPhoto.photoUrl}?size=card`,
     );
   });
 });
