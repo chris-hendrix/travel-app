@@ -875,7 +875,14 @@ export class TripService implements ITripService {
         }
         updateData.destinationLat = newLat;
         updateData.destinationLon = newLon;
-        updateData.placeName = newDisplayName;
+        // The place snapshot owns `place_name`: a live pair in the
+        // request keeps its snapshot (set by the place-block
+        // normalization above), so the geocoder must not overwrite it
+        // with the destination's display string. Only unlinked
+        // destinations take the geocoded display name.
+        const hasLivePair =
+          data.placeProvider != null && data.placeId != null;
+        if (!hasLivePair) updateData.placeName = newDisplayName;
 
         // Auto-update timezone if geocoding returned one
         if (geocodedTimezone) {

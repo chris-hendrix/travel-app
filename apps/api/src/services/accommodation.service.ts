@@ -352,8 +352,29 @@ export class AccommodationService implements IAccommodationService {
     } else if (data.placeProvider != null && data.placeId != null) {
       updateData.placeProvider = data.placeProvider;
       updateData.placeId = data.placeId;
-      if (data.placeName === undefined) delete updateData.placeName;
-      if (data.placeAddress === undefined) delete updateData.placeAddress;
+      // A REPLACED pair must not inherit the old place's text: when
+      // the incoming pair differs from the stored pair, clear the
+      // snapshot unless the request supplies it (trip parity).
+      const [currentPlace] = await this.db
+        .select({
+          placeProvider: accommodations.placeProvider,
+          placeId: accommodations.placeId,
+        })
+        .from(accommodations)
+        .where(eq(accommodations.id, accommodationId))
+        .limit(1);
+      const pairChanged =
+        currentPlace != null &&
+        (currentPlace.placeProvider !== data.placeProvider ||
+          currentPlace.placeId !== data.placeId);
+      if (data.placeName === undefined) {
+        if (pairChanged) updateData.placeName = null;
+        else delete updateData.placeName;
+      }
+      if (data.placeAddress === undefined) {
+        if (pairChanged) updateData.placeAddress = null;
+        else delete updateData.placeAddress;
+      }
     } else {
       updateData.placeProvider = null;
       updateData.placeId = null;

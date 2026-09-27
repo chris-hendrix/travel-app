@@ -176,6 +176,33 @@ describe("tripPlaceSnapshotPatch", () => {
     });
   });
 
+  it("a re-pick with landed details carries coordinates so the server skips geocoding", () => {
+    expect(
+      tripPlaceSnapshotPatch("ChIJNew456", "La Bodega", "Carrer de la Mar 14", {
+        lat: 39.77,
+        lon: 2.91,
+      }),
+    ).toEqual({
+      placeProvider: "google",
+      placeId: "ChIJNew456",
+      placeName: "La Bodega",
+      placeAddress: "Carrer de la Mar 14",
+      destinationLat: 39.77,
+      destinationLon: 2.91,
+    });
+  });
+
+  it("a re-pick before details land omits coordinates, never a guess", () => {
+    const body = tripPlaceSnapshotPatch(
+      "ChIJNew456",
+      "La Bodega",
+      null,
+      null,
+    );
+    expect(body).not.toHaveProperty("destinationLat");
+    expect(body).not.toHaveProperty("destinationLon");
+  });
+
   it("typed-over clears all four values with explicit nulls", () => {
     expect(tripPlaceSnapshotPatch(null, null, null)).toEqual({
       placeProvider: null,

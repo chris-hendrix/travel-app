@@ -194,11 +194,18 @@ function EditTripScreen() {
       // The destination's link and snapshot: the pair plus the
       // pick-time name/address on a re-pick, explicit nulls for all
       // four when typed over (which clears them), nothing when
-      // untouched.
+      // untouched. Landed details coordinates ride along so the
+      // server skips geocoding (create parity); pending details send
+      // no coords keys, never a guess.
       ...tripPlaceSnapshotPatch(
         placeTouched ? placeId : undefined,
         placeTouched ? placeName : null,
         placeTouched ? placeAddress : null,
+        placeTouched &&
+          selectedPlaceId != null &&
+          details.data?.placeId === selectedPlaceId
+          ? details.data
+          : null,
       ),
     };
     setBusy(true);

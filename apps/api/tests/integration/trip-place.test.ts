@@ -210,6 +210,101 @@ describe("PUT /api/trips place-block normalization (P0: replaced pair)", () => {
     expect(row?.placeAddress).toBe("Carrer de la Mar 14, Sóller");
   });
 
+  it("keeps the place snapshot when destination changes alongside a re-pick (P0-1)", async () => {
+    app = await buildApp();
+    const token = await makeUser(app);
+    const tripId = await makeLinkedTrip(token);
+    vi.spyOn(app.geocodingService, "geocode").mockResolvedValue({
+      lat: 1.1,
+      lon: 2.2,
+      displayName: "GEOCODE DISPLAY STRING",
+    });
+
+    const response = await app.inject({
+      method: "PUT",
+      url: `/api/trips/${tripId}`,
+      cookies: { auth_token: token },
+      payload: {
+        destination: "Ca'n Prunera, Soller",
+        placeProvider: "google",
+        placeId: "ChIJ_BBB",
+        placeName: "Ca'n Prunera",
+        placeAddress: null,
+      },
+    });
+    expect(response.statusCode).toBe(200);
+    const [row] = await db
+      .select()
+      .from(trips)
+      .where(eq(trips.id, tripId))
+      .limit(1);
+    expect(row?.placeId).toBe("ChIJ_BBB");
+    expect(row?.placeName).toBe("Ca'n Prunera");
+    expect(row?.placeAddress).toBeNull();
+  });
+
+  it("keeps the snapshot when geocoding misses on a destination change (P0-1)", async () => {
+    app = await buildApp();
+    const token = await makeUser(app);
+    const tripId = await makeLinkedTrip(token);
+    vi.spyOn(app.geocodingService, "geocode").mockRejectedValue(
+      new Error("offline"),
+    );
+
+    const response = await app.inject({
+      method: "PUT",
+      url: `/api/trips/${tripId}`,
+      cookies: { auth_token: token },
+      payload: {
+        destination: "Ca'n Prunera, Soller",
+        placeProvider: "google",
+        placeId: "ChIJ_BBB",
+        placeName: "Ca'n Prunera",
+        placeAddress: null,
+      },
+    });
+    expect(response.statusCode).toBe(200);
+    const [row] = await db
+      .select()
+      .from(trips)
+      .where(eq(trips.id, tripId))
+      .limit(1);
+    expect(row?.placeId).toBe("ChIJ_BBB");
+    expect(row?.placeName).toBe("Ca'n Prunera");
+  });
+
+  it("keeps explicit coords on edit and skips geocoding (P1-2)", async () => {
+    app = await buildApp();
+    const token = await makeUser(app);
+    const tripId = await makeLinkedTrip(token);
+    const geocodeSpy = vi.spyOn(app.geocodingService, "geocode");
+
+    const response = await app.inject({
+      method: "PUT",
+      url: `/api/trips/${tripId}`,
+      cookies: { auth_token: token },
+      payload: {
+        destination: "Ca'n Prunera, Soller",
+        placeProvider: "google",
+        placeId: "ChIJ_BBB",
+        placeName: "Ca'n Prunera",
+        placeAddress: "Carrer de la Lluna 7, Soller",
+        destinationLat: 39.77,
+        destinationLon: 2.91,
+      },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(geocodeSpy).not.toHaveBeenCalled();
+    const [row] = await db
+      .select()
+      .from(trips)
+      .where(eq(trips.id, tripId))
+      .limit(1);
+    expect(row?.destinationLat).toBeCloseTo(39.77);
+    expect(row?.destinationLon).toBeCloseTo(2.91);
+    expect(row?.placeName).toBe("Ca'n Prunera");
+  });
+
   it("clears all four values on an explicit null pair", async () => {
     app = await buildApp();
     const token = await makeUser(app);

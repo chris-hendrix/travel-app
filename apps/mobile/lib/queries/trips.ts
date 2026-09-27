@@ -152,6 +152,9 @@ export type UpdateTripRequest = {
   /** Picked-place snapshot strings — cleared with the pair. */
   placeName?: string | null;
   placeAddress?: string | null;
+  /** Picked-place coordinates — keep the server off the geocode path. */
+  destinationLat?: number | null;
+  destinationLon?: number | null;
 };
 
 /**
@@ -185,11 +188,14 @@ export function tripPlaceSnapshotPatch(
   placeId: string | null | undefined,
   placeName: string | null,
   placeAddress: string | null,
+  coords?: { lat: number; lon: number } | null,
 ): {
   placeProvider?: "google" | null;
   placeId?: string | null;
   placeName?: string | null;
   placeAddress?: string | null;
+  destinationLat?: number | null;
+  destinationLon?: number | null;
 } {
   if (placeId === undefined) return {};
   if (placeId != null) {
@@ -198,6 +204,7 @@ export function tripPlaceSnapshotPatch(
       placeId,
       placeName,
       placeAddress,
+      ...(coords ? { destinationLat: coords.lat, destinationLon: coords.lon } : {}),
     };
   }
   return {

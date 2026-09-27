@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { buildApp } from "../helpers.js";
 import { db } from "@/config/database.js";
 import { users, trips, members, accommodations } from "@/db/schema/index.js";
+import { eq } from "drizzle-orm";
 import { generateUniquePhone } from "../test-utils.js";
 
 describe("Accommodation Routes", () => {
@@ -487,6 +488,130 @@ describe("Accommodation Routes", () => {
       expect(body).toHaveProperty("success", true);
       expect(body.accommodation.name).toBe("Updated Hotel");
       expect(body.accommodation.address).toBe("456 New Street");
+    });
+
+    it("clears name/address when the pair is replaced without a snapshot (trip parity)", async () => {
+      app = await buildApp();
+
+      const [owner] = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "Owner",
+          timezone: "UTC",
+        })
+        .returning();
+      const [trip] = await db
+        .insert(trips)
+        .values({
+          name: "Test Trip",
+          destination: "Paris",
+          preferredTimezone: "Europe/Paris",
+          createdBy: owner.id,
+        })
+        .returning();
+      await db.insert(members).values({
+        tripId: trip.id,
+        userId: owner.id,
+        status: "going",
+      });
+      const [stay] = await db
+        .insert(accommodations)
+        .values({
+          tripId: trip.id,
+          createdBy: owner.id,
+          name: "Linked Stay",
+          checkIn: new Date("2026-06-15T15:00:00Z"),
+          checkOut: new Date("2026-06-20T11:00:00Z"),
+          placeProvider: "google",
+          placeId: "ChIJ_AAA",
+          placeName: "La Bodega",
+          placeAddress: "Carrer de la Mar 14, Soller",
+        })
+        .returning();
+      const token = app.jwt.sign({
+        sub: owner.id,
+        name: owner.displayName,
+      });
+
+      const response = await app.inject({
+        method: "PUT",
+        url: `/api/accommodations/${stay.id}`,
+        cookies: { auth_token: token },
+        payload: { placeProvider: "google", placeId: "ChIJ_BBB" },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const [row] = await db
+        .select()
+        .from(accommodations)
+        .where(eq(accommodations.id, stay.id))
+        .limit(1);
+      expect(row?.placeId).toBe("ChIJ_BBB");
+      expect(row?.placeName).toBeNull();
+      expect(row?.placeAddress).toBeNull();
+    });
+
+    it("leaves the snapshot untouched when the identical pair is re-sent", async () => {
+      app = await buildApp();
+
+      const [owner] = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "Owner",
+          timezone: "UTC",
+        })
+        .returning();
+      const [trip] = await db
+        .insert(trips)
+        .values({
+          name: "Test Trip",
+          destination: "Paris",
+          preferredTimezone: "Europe/Paris",
+          createdBy: owner.id,
+        })
+        .returning();
+      await db.insert(members).values({
+        tripId: trip.id,
+        userId: owner.id,
+        status: "going",
+      });
+      const [stay] = await db
+        .insert(accommodations)
+        .values({
+          tripId: trip.id,
+          createdBy: owner.id,
+          name: "Linked Stay",
+          checkIn: new Date("2026-06-15T15:00:00Z"),
+          checkOut: new Date("2026-06-20T11:00:00Z"),
+          placeProvider: "google",
+          placeId: "ChIJ_AAA",
+          placeName: "La Bodega",
+          placeAddress: "Carrer de la Mar 14, Soller",
+        })
+        .returning();
+      const token = app.jwt.sign({
+        sub: owner.id,
+        name: owner.displayName,
+      });
+
+      const response = await app.inject({
+        method: "PUT",
+        url: `/api/accommodations/${stay.id}`,
+        cookies: { auth_token: token },
+        payload: { placeProvider: "google", placeId: "ChIJ_AAA" },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const [row] = await db
+        .select()
+        .from(accommodations)
+        .where(eq(accommodations.id, stay.id))
+        .limit(1);
+      expect(row?.placeId).toBe("ChIJ_AAA");
+      expect(row?.placeName).toBe("La Bodega");
+      expect(row?.placeAddress).toBe("Carrer de la Mar 14, Soller");
     });
 
     it("should return 403 if user lacks permission", async () => {
