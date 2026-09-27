@@ -20,6 +20,40 @@ export class PhotoNotCachedError extends Error {
   }
 }
 
+/**
+ * Trims a uniform border (e.g. Google's pure-white letterbox around a
+ * 3:2 photo on a 16:9 canvas) off a photo's bytes. A no-op for
+ * full-bleed photos, which is why it is safe to run on every source.
+ *
+ * Guard: content that is legitimately uniform at the edges (a white
+ * sky, a snowfield, a document) must not be gutted — when the trim
+ * would shrink either dimension below half the original, or below 64px
+ * on either side, the original bytes come back. Silent either way.
+ */
+export async function trimPhotoBorder(buffer: Buffer): Promise<Buffer> {
+  try {
+    const before = await sharp(buffer).metadata();
+    const trimmed = await sharp(buffer).trim({ threshold: 12 }).toBuffer();
+    const after = await sharp(trimmed).metadata();
+    if (
+      before.width == null ||
+      before.height == null ||
+      after.width == null ||
+      after.height == null ||
+      after.width < before.width / 2 ||
+      after.height < before.height / 2 ||
+      after.width < 64 ||
+      after.height < 64
+    ) {
+      return buffer;
+    }
+    return trimmed;
+  } catch {
+    // Undecodable bytes are not ours to fix: serve them as fetched.
+    return buffer;
+  }
+}
+
 export interface PhotoBlob {
   buffer: Buffer;
   contentType: string;
@@ -149,10 +183,19 @@ export class PhotoCacheService {
     fetchSource: PhotoFetcher,
   ): Promise<PhotoBlob> {
     const sourceKey = buildPhotoCacheKey(ref, "hero");
+    // The border is in the fetched bytes, so it trims once here at the
+    // source and every box (hero included) inherits the trim.
+    const trimmedSource: PhotoFetcher = async () => {
+      const fresh = await fetchSource();
+      return {
+        buffer: await trimPhotoBorder(fresh.buffer),
+        contentType: fresh.contentType,
+      };
+    };
     if (box === "hero") {
-      return this.getOrFetch(sourceKey, fetchSource);
+      return this.getOrFetch(sourceKey, trimmedSource);
     }
-    const source = await this.getOrFetch(sourceKey, fetchSource);
+    const source = await this.getOrFetch(sourceKey, trimmedSource);
     const key = buildPhotoCacheKey(ref, box);
     return this.getOrFetch(key, async () => {
       const px = BOX_PIXELS[box];
