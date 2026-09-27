@@ -84,6 +84,8 @@ export function toTrip(detail: TripDetail): Trip {
     preferredTimezone: detail.preferredTimezone,
     destinationLat: detail.destinationLat ?? null,
     destinationLon: detail.destinationLon ?? null,
+    placeId: detail.place?.placeId ?? null,
+    placeCountry: detail.place?.country ?? null,
   };
 }
 
@@ -108,6 +110,8 @@ export function toTripSummary(summary: TripSummary): Trip {
     // so list-sourced trips bias nothing — only detail reads do.
     destinationLat: null,
     destinationLon: null,
+    placeId: summary.place?.placeId ?? null,
+    placeCountry: summary.place?.country ?? null,
   };
 }
 

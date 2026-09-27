@@ -16,6 +16,7 @@ import type { UpdateTripRequest } from "@/lib/queries/trips";
 import { toErrorCopy } from "@/lib/queries/errors";
 import {
   biasForTrip,
+  countryForTrip,
   placePickerRows,
   usePlaceDetails,
   usePlaceSessionToken,
@@ -87,7 +88,12 @@ function EditTripScreen() {
     data: suggestions,
     isFetching: suggestionsFetching,
     isError: suggestionsFailed,
-  } = usePlaceSuggestions(search, sessionToken, biasForTrip(trip));
+  } = usePlaceSuggestions(
+    search,
+    sessionToken,
+    biasForTrip(trip),
+    countryForTrip(trip),
+  );
   const details = usePlaceDetails(selectedPlaceId, sessionToken);
   const liveById = useMemo(
     () => new Map((suggestions ?? []).map((s) => [s.placeId, s])),

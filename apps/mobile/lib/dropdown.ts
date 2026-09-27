@@ -45,3 +45,19 @@ export function filterPickerEntries(
 export function entryAccessibilityLabel(entry: PickerEntry): string {
   return entry.label;
 }
+
+/**
+ * What the field shows for the current value: the matched row's own
+ * reading, preferring `fieldText` — the typed row's label carries
+ * quotes marking "your words" in the list, which would read as stray
+ * punctuation (and nest once per keystroke in a freeText dropdown,
+ * where every keystroke commits) once echoed back into the field.
+ * Falls back to the label, then the raw value, then empty.
+ */
+export function displayTextForValue(
+  entries: PickerEntry[],
+  value: string | null,
+): string {
+  const selected = entries.find((option) => option.value === value);
+  return selected?.fieldText ?? selected?.label ?? value ?? "";
+}

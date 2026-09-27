@@ -18,6 +18,7 @@ import { pickPlace } from "@/lib/place-pick";
 import type { Trip } from "@/components/trip/TripCard";
 import {
   biasForTrip,
+  countryForTrip,
   placePickerRows,
   usePlaceDetails,
   usePlaceSessionToken,
@@ -125,7 +126,12 @@ export function EventDialog({
     data: suggestions,
     isFetching: suggestionsFetching,
     isError: suggestionsFailed,
-  } = usePlaceSuggestions(search, sessionToken, biasForTrip(trip));
+  } = usePlaceSuggestions(
+    search,
+    sessionToken,
+    biasForTrip(trip),
+    countryForTrip(trip),
+  );
   const details = usePlaceDetails(selectedPlaceId, sessionToken);
   const liveById = useMemo(
     () => new Map((suggestions ?? []).map((s) => [s.placeId, s])),

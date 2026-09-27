@@ -4,6 +4,7 @@ import { TextField } from "@/components/ui/TextField";
 import { SuggestionList } from "@/components/ui/SuggestionList";
 import { MapsAttribution } from "@/components/ui/MapsAttribution";
 import {
+  displayTextForValue,
   filterPickerEntries,
   type PickerEntry,
 } from "@/lib/dropdown";
@@ -64,8 +65,7 @@ export function Dropdown({
   // label, never its value. A caller handing over { value: id, label:
   // name } is saying the name is what a person reads, and echoing the
   // id back at them is how a field ends up showing a database key.
-  const selectedLabel =
-    entries.find((option) => option.value === value)?.label ?? value ?? "";
+  const selectedLabel = displayTextForValue(entries, value);
 
   const [query, setQuery] = useState(selectedLabel);
   const [open, setOpen] = useState(false);

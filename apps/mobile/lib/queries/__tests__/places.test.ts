@@ -11,6 +11,7 @@ vi.mock("@/lib/api", () => ({ apiFetch: vi.fn() }));
 
 import { apiFetch } from "@/lib/api";
 import {
+  countryForTrip,
   createPlaceSessionToken,
   createTrailingDebounce,
   fetchPlaceSuggestions,
@@ -162,6 +163,54 @@ describe("placeSuggestionsOptions", () => {
     const unbiased = placeSuggestionsOptions("Lisbon", TOKEN);
     expect(a.queryKey).not.toEqual(b.queryKey);
     expect(a.queryKey).not.toEqual(unbiased.queryKey);
+  });
+});
+
+describe("placeSuggestions country floor (F3)", () => {
+  it("sends &country= when supplied and omits it when not", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue([]);
+
+    await fetchPlaceSuggestions("Lisbon", TOKEN, undefined, "PT");
+    expect(mockedApiFetch).toHaveBeenCalledWith(
+      `/locations/autocomplete?q=Lisbon&sessionToken=${TOKEN}&country=PT`,
+    );
+
+    mockedApiFetch.mockClear();
+    await fetchPlaceSuggestions("Lisbon", TOKEN);
+    expect(mockedApiFetch).toHaveBeenCalledWith(
+      `/locations/autocomplete?q=Lisbon&sessionToken=${TOKEN}`,
+    );
+
+    mockedApiFetch.mockClear();
+    await fetchPlaceSuggestions("Lisbon", TOKEN, undefined, "");
+    expect(mockedApiFetch).toHaveBeenCalledWith(
+      `/locations/autocomplete?q=Lisbon&sessionToken=${TOKEN}`,
+    );
+  });
+
+  it("combines bias and country on one request", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue([]);
+    await fetchPlaceSuggestions("Lisbon", TOKEN, { lat: 39.6, lon: 2.9 }, "ES");
+    expect(mockedApiFetch).toHaveBeenCalledWith(
+      `/locations/autocomplete?q=Lisbon&sessionToken=${TOKEN}&lat=39.6&lon=2.9&country=ES`,
+    );
+  });
+
+  it("folds the country into the cache key", () => {
+    const es = placeSuggestionsOptions("Lisbon", TOKEN, undefined, "ES");
+    const pt = placeSuggestionsOptions("Lisbon", TOKEN, undefined, "PT");
+    const none = placeSuggestionsOptions("Lisbon", TOKEN);
+    expect(es.queryKey).not.toEqual(pt.queryKey);
+    expect(es.queryKey).not.toEqual(none.queryKey);
+  });
+
+  it("countryForTrip reads the trip place country, absent when unresolved", () => {
+    expect(countryForTrip({ placeCountry: "ES" })).toBe("ES");
+    expect(countryForTrip({ placeCountry: null })).toBeUndefined();
+    expect(countryForTrip({})).toBeUndefined();
+    expect(countryForTrip(null)).toBeUndefined();
   });
 });
 

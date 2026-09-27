@@ -94,6 +94,8 @@ describe("toTrip", () => {
       preferredTimezone: "Europe/Madrid",
       destinationLat: 39.6,
       destinationLon: 2.9,
+      placeId: null,
+      placeCountry: null,
     });
   });
 
@@ -313,6 +315,34 @@ describe("toMember", () => {
   it("tolerates an absent phoneNumber (visibility is server-side)", () => {
     const { phoneNumber: _dropped, ...withoutPhone } = member;
     expect(toMember(withoutPhone).phone).toBe("");
+  });
+});
+
+describe("toTrip place link (F2)", () => {
+  const place = {
+    placeId: "ChIJ123",
+    name: "La Bodega",
+    address: "Carrer de la Mar 14, S\u00f3ller",
+    photoUrl: null,
+    photoAttribution: null,
+    photoSourceUri: null,
+    country: "ES",
+  };
+
+  it("carries the linked place id from detail so Maps links pin to it", () => {
+    expect(toTrip({ ...tripDetail, place }).placeId).toBe("ChIJ123");
+  });
+
+  it("reads a missing link as null so Maps links fall back to search", () => {
+    expect(toTrip(tripDetail).placeId).toBeNull();
+  });
+
+  it("carries the linked place id from summary", () => {
+    expect(toTripSummary({ ...tripSummary, place }).placeId).toBe("ChIJ123");
+  });
+
+  it("reads a missing summary link as null", () => {
+    expect(toTripSummary(tripSummary).placeId).toBeNull();
   });
 });
 

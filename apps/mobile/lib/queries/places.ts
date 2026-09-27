@@ -158,15 +158,23 @@ function isUsableBias(bias: PlaceBias | null | undefined): bias is PlaceBias {
  * sends neither, so a trip with no coordinates gets an unbiased
  * search rather than a `0,0` one.
  */
+function isUsableCountry(country: string | null | undefined): country is string {
+  return country != null && country.trim() !== "";
+}
+
 export async function fetchPlaceSuggestions(
   input: string,
   sessionToken: string,
   bias?: PlaceBias | null,
+  country?: string | null,
 ): Promise<PlaceSuggestion[]> {
   const rows = await apiFetch<AutocompleteRow[]>(
     `/locations/autocomplete?q=${encodeURIComponent(input.trim())}` +
       `&sessionToken=${encodeURIComponent(sessionToken)}` +
-      (isUsableBias(bias) ? `&lat=${bias.lat}&lon=${bias.lon}` : ""),
+      (isUsableBias(bias) ? `&lat=${bias.lat}&lon=${bias.lon}` : "") +
+      (isUsableCountry(country)
+        ? `&country=${encodeURIComponent(country.trim())}`
+        : ""),
   );
   return rows.map((row) => ({
     placeId: row.placeId,
@@ -227,6 +235,7 @@ export const placeSuggestionsOptions = (
   input: string,
   sessionToken: string,
   bias?: PlaceBias | null,
+  country?: string | null,
 ) =>
   queryOptions({
     queryKey: [
@@ -234,9 +243,10 @@ export const placeSuggestionsOptions = (
       "suggestions",
       input.trim(),
       ...(isUsableBias(bias) ? [`${bias.lat},${bias.lon}`] : []),
+      ...(isUsableCountry(country) ? [`country:${country.trim()}`] : []),
     ] as const,
     enabled: shouldFetchSuggestions(input) && sessionToken.trim() !== "",
-    queryFn: () => fetchPlaceSuggestions(input, sessionToken, bias),
+    queryFn: () => fetchPlaceSuggestions(input, sessionToken, bias, country),
     retry: false,
   });
 
@@ -262,13 +272,29 @@ export const placeDetailsOptions = (
  * `bias` is the trip's coordinates — supplied by pickers that edit
  * inside a trip, omitted by the picker that chooses the destination.
  */
+/**
+ * The autocomplete floor for a picker that edits inside a trip: the
+ * trip's linked place country when resolved, else `undefined` for no
+ * floor. An absent floor is correct — never an empty string. Sibling
+ * of `biasForTrip`, so the three trip-scoped pickers cannot drift.
+ */
+export function countryForTrip(
+  trip: { placeCountry?: string | null } | null | undefined,
+): string | undefined {
+  const country = trip?.placeCountry;
+  return isUsableCountry(country) ? country.trim() : undefined;
+}
+
 export function usePlaceSuggestions(
   input: string,
   sessionToken: string,
   bias?: PlaceBias | null,
+  country?: string | null,
 ) {
   const debounced = useDebouncedValue(input);
-  return useQuery(placeSuggestionsOptions(debounced, sessionToken, bias));
+  return useQuery(
+    placeSuggestionsOptions(debounced, sessionToken, bias, country),
+  );
 }
 
 /** Canonical details for a selected suggestion. Disabled until picked. */

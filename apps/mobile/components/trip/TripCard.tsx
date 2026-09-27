@@ -41,6 +41,17 @@ export type Trip = {
    */
   destinationLat?: number | null;
   destinationLon?: number | null;
+  /**
+   * The linked Google place id, null when the destination is prose.
+   * The detail screen's Maps link pins to this when present and falls
+   * back to a plain search when absent.
+   */
+  placeId?: string | null;
+  /**
+   * The linked place's country code, feeding the pickers' autocomplete
+   * floor. Null when the destination has no linked place.
+   */
+  placeCountry?: string | null;
 };
 
 /**

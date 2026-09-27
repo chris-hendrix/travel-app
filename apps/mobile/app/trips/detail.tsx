@@ -306,7 +306,7 @@ function TripDetailScreen() {
               </Text>
               {/* Where the trip is, and the one fact on this screen the
                   app has nothing to add to: Maps has the map. */}
-              <PlaceLink label={trip.location} />
+              <PlaceLink label={trip.location} placeId={trip.placeId ?? null} />
               {/* Who is coming, and when: the roll call and the travel
                   board are two doors to two questions, side by side. */}
               <View className="flex-row items-center gap-2">
