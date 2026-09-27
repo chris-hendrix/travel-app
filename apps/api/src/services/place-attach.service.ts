@@ -34,7 +34,11 @@ export async function attachPlaces<T extends PlacePairColumns>(
       pairs.length > 0
         ? await placeCache.resolveMany(pairs, { mode })
         : new Map();
-  } catch {
+  } catch (err) {
+    // A `resolveMany` throw is the DB SELECT failing, not a Google
+    // miss — log it so DB-down stays distinguishable from Google-miss
+    // before degrading every row to null.
+    console.warn(err, "attachPlaces: place resolve failed, attaching null");
     resolved = new Map();
   }
   return rows.map((row) => ({

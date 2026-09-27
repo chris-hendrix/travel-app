@@ -45,12 +45,16 @@ export function placeKey(pair: PlacePair): string {
 
 function toSummary(placeId: string, details: CachedPlaceDetails): PlaceSummary {
   const photo = details.photos[0];
+  // A photo without its Google Maps source link is no photo: the
+  // policy requires the link, so the surface falls back to the
+  // placeholder instead of rendering an image it cannot source.
+  const sourced = photo?.mapsUri ? photo : undefined;
   return {
     placeId,
     name: details.name,
     address: details.address,
-    photoUrl: photo
-      ? `/api/locations/photos/${encodeURIComponent(photo.ref)}`
+    photoUrl: sourced
+      ? `/api/locations/photos/${encodeURIComponent(sourced.ref)}`
       : null,
     photoAttribution:
       photo && photo.authorName
@@ -60,7 +64,7 @@ function toSummary(placeId: string, details: CachedPlaceDetails): PlaceSummary {
             photoUri: photo.authorPhotoUri,
           }
         : null,
-    photoSourceUri: photo?.mapsUri ?? null,
+    photoSourceUri: sourced?.mapsUri ?? null,
     country: details.country,
   };
 }
@@ -113,11 +117,10 @@ export class PlaceCacheService {
       let details: CachedPlaceDetails | null;
       try {
         details = await this.fetcher(provider, placeId);
-      } catch (err) {
-        this.logger?.warn(
-          { err, provider, placeId },
-          "Place details fetch failed, resolving null",
-        );
+      } catch {
+        // No log here: `resolveMany` counts every miss its refresh
+        // could not serve and logs once per request (F6), so one
+        // line carries the failed pairs instead of one line per pair.
         return null;
       }
       if (!details) {
@@ -220,9 +223,12 @@ export class PlaceCacheService {
 
     // Bounded inline refresh, fully awaited inside this call. List mode
     // takes at most the first PLACE_INLINE_REFRESH_CAP distinct misses;
-    // detail mode takes its (single) miss. The rest resolve to null.
-    const toRefresh =
-      mode === "list" ? misses.slice(0, PLACE_INLINE_REFRESH_CAP) : misses;
+    // detail mode is structurally single-miss, so a future N-row detail
+    // caller cannot refresh the world. The rest resolve to null.
+    const toRefresh = misses.slice(
+      0,
+      mode === "list" ? PLACE_INLINE_REFRESH_CAP : 1,
+    );
     const refreshed = await Promise.all(
       toRefresh.map(async (pair) => {
         const details = await this.fetchAndStore(pair.provider, pair.placeId);
@@ -235,10 +241,19 @@ export class PlaceCacheService {
         details ? toSummary(pair.placeId, details) : null,
       );
     }
-    if (mode === "list") {
-      for (const pair of misses.slice(PLACE_INLINE_REFRESH_CAP)) {
-        result.set(placeKey(pair), null);
-      }
+    // One line per request, not per pair: a reader can tell three
+    // places down from one place retried by the failed-pairs field.
+    const failed = refreshed
+      .filter(({ details }) => details === null)
+      .map(({ pair }) => placeKey(pair));
+    if (failed.length > 0) {
+      this.logger?.warn(
+        { failed, mode },
+        "Place details fetch failed, resolving null",
+      );
+    }
+    for (const pair of misses.slice(toRefresh.length)) {
+      result.set(placeKey(pair), null);
     }
     return result;
   }

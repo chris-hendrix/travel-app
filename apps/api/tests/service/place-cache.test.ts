@@ -303,6 +303,65 @@ describe("place-cache shared-miss dedupe", () => {
   });
 });
 
+describe("place-cache photo source guard (F4)", () => {
+  it("treats a cached photo with no mapsUri as no photo", async () => {
+    const id = uniq("test-pc-nomaps");
+    const bad = makeDetails("NoSrc", id);
+    bad.photos[0]!.mapsUri = null;
+    await seedRow(id, bad);
+    try {
+      const svc = new PlaceCacheService(db, async () => null);
+      const summary = await svc.resolve("google", id);
+      expect(summary?.photoUrl).toBeNull();
+      expect(summary?.photoSourceUri).toBeNull();
+    } finally {
+      await clearRows([id]);
+    }
+  });
+});
+
+describe("place-cache single warn per request (F6)", () => {
+  it("a list read with three failed fetches logs exactly one warn", async () => {
+    const ids = [uniq("test-pc-w1"), uniq("test-pc-w2"), uniq("test-pc-w3")];
+    const fetcher = vi.fn(async (): Promise<CachedPlaceDetails> => {
+      throw new Error("google down");
+    });
+    const warn = vi.fn();
+    const svc = new PlaceCacheService(db, fetcher, { warn } as never);
+    const map = await svc.resolveMany(
+      ids.map((placeId) => ({ provider: "google", placeId })),
+      { mode: "list" },
+    );
+    expect(map.size).toBe(3);
+    expect([...map.values()]).toEqual([null, null, null]);
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("place-cache detail cap (F8)", () => {
+  it("detail mode with three misses issues exactly one fetch and nulls the rest", async () => {
+    const ids = [uniq("test-pc-dc1"), uniq("test-pc-dc2"), uniq("test-pc-dc3")];
+    try {
+      const fetcher = vi.fn(
+        async (_provider: string, placeId: string) =>
+          makeDetails(`D ${placeId.slice(-4)}`, placeId),
+      );
+      const svc = new PlaceCacheService(db, fetcher);
+      const map = await svc.resolveMany(
+        ids.map((placeId) => ({ provider: "google", placeId })),
+        { mode: "detail" },
+      );
+      expect(fetcher).toHaveBeenCalledTimes(1);
+      expect(map.size).toBe(3);
+      expect(map.get(`google:${ids[0]}`)?.placeId).toBe(ids[0]);
+      expect(map.get(`google:${ids[1]}`)).toBeNull();
+      expect(map.get(`google:${ids[2]}`)).toBeNull();
+    } finally {
+      await clearRows(ids);
+    }
+  });
+});
+
 describe("place-cache purge", () => {
   it("deletes rows past the cutoff and stale schema versions, keeps fresh rows, returns the count", async () => {
     const oldId = uniq("test-pc-purge-old");
