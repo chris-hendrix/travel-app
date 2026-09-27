@@ -165,7 +165,7 @@ export default function NewTrip() {
       />
 
       <Dropdown
-        label="Where"
+        label="Location"
         options={placeOptions}
         liveOptions
         attribution

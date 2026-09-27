@@ -240,7 +240,7 @@ export function StayDialog({
       />
 
       <Dropdown
-        label="Address"
+        label="Location"
         options={addressOptions}
         liveOptions
         attribution

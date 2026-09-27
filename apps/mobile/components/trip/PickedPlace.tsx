@@ -18,6 +18,11 @@ import { Text, View } from "react-native";
  *
  * The left rule marks it as an annotation on the field above rather
  * than another input; nothing here is editable.
+ *
+ * One line, not two: the name leads in bold and the address follows
+ * lighter, the same reading as the picker row it came from. A second
+ * line would push the rest of the form down for information the eye
+ * takes in at a glance anyway.
  */
 export function PickedPlace({
   name,
@@ -31,13 +36,14 @@ export function PickedPlace({
   if (!trimmedName && !trimmedAddress) return null;
 
   return (
-    <View className="gap-y-0.5 border-l-2 border-gravel pl-3">
-      {trimmedName ? (
-        <Text className="font-body-bold text-base text-ink">{trimmedName}</Text>
-      ) : null}
-      {trimmedAddress ? (
-        <Text className="font-body text-sm text-ink/70">{trimmedAddress}</Text>
-      ) : null}
+    <View className="border-l-2 border-gravel pl-3">
+      <Text className="font-body text-base text-ink/70">
+        {trimmedName ? (
+          <Text className="font-body-bold text-ink">{trimmedName}</Text>
+        ) : null}
+        {trimmedName && trimmedAddress ? " " : null}
+        {trimmedAddress}
+      </Text>
     </View>
   );
 }

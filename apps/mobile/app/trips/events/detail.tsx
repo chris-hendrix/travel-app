@@ -1,6 +1,5 @@
 import { Image, Linking, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Fact } from "@/components/ui/Fact";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { Badge } from "@/components/ui/Badge";
@@ -176,39 +175,26 @@ function EventDetailDialog() {
         </View>
       </View>
 
-      {/* The place block: the picked place's name above its address.
-          Each row hides when its value is missing; the one verb a
-          place has leads out to Maps, pinned to the place itself. */}
+      {/* The place block: the picked place's name leading in bold, its
+          address following lighter on the same line — the reading of
+          the picker row it came from — and the one verb a place has
+          leading out to Maps, pinned to the place itself. The line
+          hides when there is neither. */}
       {rows.name ?? rows.address ? (
-        <View className="border-t border-ink pt-6 gap-4">
-          {rows.name ? (
-            <Fact label="Place">
-              <Text className="font-body text-base text-ink">
-                {rows.name}
-              </Text>
-            </Fact>
-          ) : null}
-          {rows.address ? (
-            <Fact label="Address">
-              <Text selectable className="font-body text-base text-ink">
-                {rows.address}
-              </Text>
-              <QuietAction
-                label="Open in Maps"
-                onPress={() =>
-                  void Linking.openURL(
-                    placeMapsUrl(event.placeId, rows.address!),
-                  )
-                }
-              />
-            </Fact>
-          ) : null}
-          {!rows.address && event.placeId ? (
+        <View className="border-t border-ink pt-6">
+          <Text selectable className="font-body text-base text-ink/70">
+            {rows.name ? (
+              <Text className="font-body-bold text-ink">{rows.name}</Text>
+            ) : null}
+            {rows.name && rows.address ? " " : null}
+            {rows.address}
+          </Text>
+          {rows.address || event.placeId ? (
             <QuietAction
               label="Open in Maps"
               onPress={() =>
                 void Linking.openURL(
-                  placeMapsUrl(event.placeId, rows.name!),
+                  placeMapsUrl(event.placeId, rows.address ?? rows.name!),
                 )
               }
             />

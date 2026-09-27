@@ -76,7 +76,7 @@ export function SuggestionList({
               accessibilityLabel={entryAccessibilityLabel(suggestion)}
               className="cursor-pointer border-b border-gravel p-3"
             >
-              <Text className="font-body text-base text-ink">
+              <Text className="font-body-bold text-base text-ink">
                 {suggestion.label}
               </Text>
               {suggestion.secondary ? (

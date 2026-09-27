@@ -247,7 +247,7 @@ export function EventDialog({
       {/* Second, because it is the other half of what the event is: a
           name and a place. Everything below is detail about that. */}
       <Dropdown
-        label="Place"
+        label="Location"
         options={placeOptions}
         liveOptions
         attribution

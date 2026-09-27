@@ -162,45 +162,28 @@ function StayDetailDialog() {
         </View>
       </View>
 
-      {/* The place block: the picked place's name above its address, as
-          rows rather than links beside the title. An address is longer
-          than a place name, which is what the link was shaped for: the
-          arrow that follows a name lands in the middle of a wrapped
-          line. A row holds the string whole, selectable for a driver
-          or a booking form, with the one verb an address has. Each row
-          hides when its value is missing; the Address row falls back
-          to the stay's own address column, so every stay created
-          before this feature keeps its address — and never two. */}
+      {/* The place block: the picked place's name leading in bold, its
+          address following lighter on the same line — the reading of
+          the picker row it came from — and the one verb a place has
+          leading out to Maps, pinned to the place itself. The address
+          falls back to the stay's own column, so every stay created
+          before this feature keeps its address; the line hides when
+          there is neither. */}
       {rows.name ?? rows.address ? (
-        <View className="border-t border-ink pt-6 gap-4">
-          {rows.name ? (
-            <Fact label="Place">
-              <Text className="font-body text-base text-ink">
-                {rows.name}
-              </Text>
-            </Fact>
-          ) : null}
-          {rows.address ? (
-            <Fact label="Address">
-              <Text selectable className="font-body text-base text-ink">
-                {rows.address}
-              </Text>
-              <QuietAction
-                label="Open in Maps"
-                onPress={() =>
-                  void Linking.openURL(
-                    placeMapsUrl(stay.placeId, rows.address!),
-                  )
-                }
-              />
-            </Fact>
-          ) : null}
-          {!rows.address && stay.placeId ? (
+        <View className="border-t border-ink pt-6">
+          <Text selectable className="font-body text-base text-ink/70">
+            {rows.name ? (
+              <Text className="font-body-bold text-ink">{rows.name}</Text>
+            ) : null}
+            {rows.name && rows.address ? " " : null}
+            {rows.address}
+          </Text>
+          {rows.address || stay.placeId ? (
             <QuietAction
               label="Open in Maps"
               onPress={() =>
                 void Linking.openURL(
-                  placeMapsUrl(stay.placeId, rows.name!),
+                  placeMapsUrl(stay.placeId, rows.address ?? rows.name!),
                 )
               }
             />
