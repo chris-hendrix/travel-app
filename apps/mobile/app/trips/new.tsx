@@ -18,6 +18,7 @@ import {
   usePlaceSuggestions,
 } from "@/lib/queries/places";
 import { pickPlace } from "@/lib/place-pick";
+import { tripCreatePlaceFields } from "@/lib/queries/trips";
 
 export default function NewTrip() {
   const { addTrip } = useTrips();
@@ -38,6 +39,13 @@ export default function NewTrip() {
   const [search, setSearch] = useState("");
   const [sessionToken, rotateSessionToken] = usePlaceSessionToken();
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(
+    null,
+  );
+  // The picked row's short name at pick time — the `place_name`
+  // snapshot source, like events and stays. The visible field keeps
+  // the row's full display text; this keeps only the name. Typed text
+  // clears it with the link.
+  const [pickedPlaceName, setPickedPlaceName] = useState<string | null>(
     null,
   );
   const {
@@ -90,9 +98,10 @@ export default function NewTrip() {
     setBusy(true);
     try {
       // A picked place carries its pair, its coordinates (so the
-      // server skips geocoding), and its name as the display-name
-      // source (the server never geocodes on the coords path, so
-      // nothing else could set that column). Typed text sends none.
+      // server skips geocoding), and the tapped row's short name as
+      // the display-name source (the server never geocodes on the
+      // coords path, so nothing else could set that column). Typed
+      // text sends none.
       const picked =
         selectedPlaceId != null && (location ?? "").trim() !== "";
       const coords =
@@ -108,21 +117,7 @@ export default function NewTrip() {
         startDate: input.startDate,
         endDate: input.endDate,
         ...(picked
-          ? {
-              placeProvider: "google" as const,
-              placeId: selectedPlaceId as string,
-              placeName: (location ?? "").trim(),
-              // The details response's formatted address, when it
-              // landed; a pick without details yet sends the name
-              // with no address, never a guess.
-              ...(coords ? { placeAddress: coords.address } : {}),
-              ...(coords
-                ? {
-                    destinationLat: coords.lat,
-                    destinationLon: coords.lon,
-                  }
-                : {}),
-            }
+          ? tripCreatePlaceFields(selectedPlaceId, pickedPlaceName, coords)
           : {}),
       });
       router.replace(`/trips/detail?id=${trip.id}`);
@@ -176,9 +171,11 @@ export default function NewTrip() {
           const pick = pickPlace(hit ?? null, picked);
           if (hit) {
             setSelectedPlaceId(pick.selectedPlaceId);
+            setPickedPlaceName(hit.shortName);
             setLocation(pick.place);
           } else {
             setSelectedPlaceId(null);
+            setPickedPlaceName(null);
             setLocation(pick.place);
             rotateSessionToken();
           }

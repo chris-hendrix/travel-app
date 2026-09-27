@@ -76,6 +76,29 @@ export type CreateTripRequest = {
 };
 
 /**
+ * The place block for the trip POST body: the pair, the tapped row's
+ * short name as the `place_name` snapshot source (never the field's
+ * full display text), the details response's formatted address once
+ * it has landed (otherwise omitted, never guessed), and coordinates
+ * when details landed (which keeps the server off the geocode path).
+ * Unpicked (null id) sends nothing.
+ */
+export function tripCreatePlaceFields(
+  selectedPlaceId: string | null,
+  pickedPlaceName: string | null,
+  coords: { address: string; lat: number; lon: number } | null,
+): Partial<CreateTripRequest> {
+  if (selectedPlaceId == null) return {};
+  return {
+    placeProvider: "google",
+    placeId: selectedPlaceId,
+    placeName: (pickedPlaceName ?? "").trim(),
+    ...(coords ? { placeAddress: coords.address } : {}),
+    ...(coords ? { destinationLat: coords.lat, destinationLon: coords.lon } : {}),
+  };
+}
+
+/**
  * `POST /trips`, mapped through `toTrip`.
  *
  * The create endpoint returns the base trip entity (`CreateTripResponse`),
@@ -148,6 +171,41 @@ export function tripPlacePatch(placeId: string | null | undefined): {
     return { placeProvider: "google", placeId: placeId };
   }
   return { placeProvider: null, placeId: null };
+}
+
+/**
+ * The full place block for the trip PUT patch: the pair plus the
+ * snapshot strings captured at pick time. Untouched (placeId ===
+ * undefined) omits all four keys so the server leaves the columns
+ * alone; a re-pick carries the new name/address (address null until
+ * details land, which still clears a stale address); typed-over sends
+ * explicit nulls for all four, which clears the link and the snapshot.
+ */
+export function tripPlaceSnapshotPatch(
+  placeId: string | null | undefined,
+  placeName: string | null,
+  placeAddress: string | null,
+): {
+  placeProvider?: "google" | null;
+  placeId?: string | null;
+  placeName?: string | null;
+  placeAddress?: string | null;
+} {
+  if (placeId === undefined) return {};
+  if (placeId != null) {
+    return {
+      placeProvider: "google",
+      placeId,
+      placeName,
+      placeAddress,
+    };
+  }
+  return {
+    placeProvider: null,
+    placeId: null,
+    placeName: null,
+    placeAddress: null,
+  };
 }
 
 /**

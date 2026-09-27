@@ -23,6 +23,7 @@ import type { Trip } from "@/components/trip/TripCard";
 import {
   createTrip,
   createTripOptions,
+  tripCreatePlaceFields,
   tripKeys,
   type CreateTripRequest,
 } from "@/lib/queries/trips";
@@ -152,6 +153,41 @@ describe("createTrip place forwarding (Phase 14)", () => {
     expect(body).not.toHaveProperty("destinationLat");
     expect(body).not.toHaveProperty("destinationLon");
     expect(body).not.toHaveProperty("placeName");
+  });
+});
+
+describe("tripCreatePlaceFields", () => {
+  it("stores the pick-time short name, not the field's full display text", () => {
+    expect(
+      tripCreatePlaceFields("ChIJ123", "La Bodega", {
+        address: "Carrer de la Mar 14, 07100 S\u00f3ller",
+        lat: 39.7,
+        lon: 2.9,
+      }),
+    ).toEqual({
+      placeProvider: "google",
+      placeId: "ChIJ123",
+      placeName: "La Bodega",
+      placeAddress: "Carrer de la Mar 14, 07100 S\u00f3ller",
+      destinationLat: 39.7,
+      destinationLon: 2.9,
+    });
+  });
+
+  it("omits the address (never guesses) when details have not landed", () => {
+    const body = tripCreatePlaceFields("ChIJ123", "La Bodega", null);
+    expect(body).toMatchObject({
+      placeProvider: "google",
+      placeId: "ChIJ123",
+      placeName: "La Bodega",
+    });
+    expect(body).not.toHaveProperty("placeAddress");
+    expect(body).not.toHaveProperty("destinationLat");
+    expect(body).not.toHaveProperty("destinationLon");
+  });
+
+  it("sends nothing when the place was typed over", () => {
+    expect(tripCreatePlaceFields(null, null, null)).toEqual({});
   });
 });
 

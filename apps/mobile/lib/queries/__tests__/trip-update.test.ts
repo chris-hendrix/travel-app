@@ -23,6 +23,7 @@ import type { Trip } from "@/components/trip/TripCard";
 import {
   tripKeys,
   tripPlacePatch,
+  tripPlaceSnapshotPatch,
   updateTrip,
   updateTripOptions,
 } from "@/lib/queries/trips";
@@ -145,6 +146,71 @@ describe("tripPlacePatch", () => {
     expect(body).toMatchObject({
       placeProvider: "google",
       placeId: "ChIJKeens123",
+    });
+  });
+});
+
+describe("tripPlaceSnapshotPatch", () => {
+  it("a re-pick replaces the snapshot with the new name and address", () => {
+    expect(
+      tripPlaceSnapshotPatch(
+        "ChIJNew456",
+        "La Bodega",
+        "Carrer de la Mar 14, S\u00f3ller",
+      ),
+    ).toEqual({
+      placeProvider: "google",
+      placeId: "ChIJNew456",
+      placeName: "La Bodega",
+      placeAddress: "Carrer de la Mar 14, S\u00f3ller",
+    });
+  });
+
+  it("a re-pick before details land clears a stale address with null", () => {
+    const body = tripPlaceSnapshotPatch("ChIJNew456", "La Bodega", null);
+    expect(body).toMatchObject({
+      placeProvider: "google",
+      placeId: "ChIJNew456",
+      placeName: "La Bodega",
+      placeAddress: null,
+    });
+  });
+
+  it("typed-over clears all four values with explicit nulls", () => {
+    expect(tripPlaceSnapshotPatch(null, null, null)).toEqual({
+      placeProvider: null,
+      placeId: null,
+      placeName: null,
+      placeAddress: null,
+    });
+  });
+
+  it("untouched sends {} so the server leaves the columns alone", () => {
+    const body = tripPlaceSnapshotPatch(undefined, "La Bodega", "Somewhere");
+    expect(body).toEqual({});
+    expect(body).not.toHaveProperty("placeProvider");
+    expect(body).not.toHaveProperty("placeId");
+    expect(body).not.toHaveProperty("placeName");
+    expect(body).not.toHaveProperty("placeAddress");
+  });
+
+  it("updateTrip carries the snapshot through to the PUT body", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({ success: true, trip: updatedEntity() });
+
+    await updateTrip("trip-1", {
+      destination: "La Bodega, S\u00f3ller",
+      ...tripPlaceSnapshotPatch("ChIJNew456", "La Bodega", "Carrer de la Mar 14"),
+    });
+
+    const body = JSON.parse(
+      (mockedApiFetch.mock.calls[0]?.[1] as { body: string }).body,
+    ) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      placeProvider: "google",
+      placeId: "ChIJNew456",
+      placeName: "La Bodega",
+      placeAddress: "Carrer de la Mar 14",
     });
   });
 });

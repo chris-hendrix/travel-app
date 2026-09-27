@@ -13,7 +13,7 @@ import { validateNewTrip, type NewTripInput } from "@/lib/newTrip";
 import { useTrip, useTripsActions } from "@/lib/tripsStore";
 import { coverPreviewSeed } from "@/lib/place-images";
 import {
-  tripPlacePatch,
+  tripPlaceSnapshotPatch,
   type UpdateTripRequest,
 } from "@/lib/queries/trips";
 import { toErrorCopy } from "@/lib/queries/errors";
@@ -96,6 +96,17 @@ function EditTripScreen() {
     trip?.placeId ?? null,
   );
   const [placeTouched, setPlaceTouched] = useState(false);
+  // The picked place's snapshot strings, seeded from the trip so an
+  // untouched field resends nothing (see the patch below). A live
+  // pick sets the tapped row's short name at once and clears the
+  // address until details land; the typed row clears both, which
+  // clears the snapshot on the server with the pair.
+  const [placeName, setPlaceName] = useState<string | null>(
+    trip?.placeName ?? null,
+  );
+  const [placeAddress, setPlaceAddress] = useState<string | null>(
+    trip?.placeAddress ?? null,
+  );
   const {
     data: suggestions,
     isFetching: suggestionsFetching,
@@ -122,10 +133,15 @@ function EditTripScreen() {
     [suggestions, search, suggestionsFetching, suggestionsFailed],
   );
 
-  // Details close the input session only — the label is the tapped
-  // row's own — and never block submit.
+  // Details resolve the formatted address — never the label, which
+  // is the tapped row's own — and close the input session. A re-pick
+  // with no live details submits a null address, which still clears
+  // the previous place's address rather than keeping it over.
   useEffect(() => {
     if (!selectedPlaceId) return;
+    if (details.data?.placeId === selectedPlaceId) {
+      setPlaceAddress(details.data.address);
+    }
     if (details.data?.placeId === selectedPlaceId || details.isError) {
       rotateSessionToken();
     }
@@ -175,9 +191,15 @@ function EditTripScreen() {
       // `description` is optional-but-not-nullable server-side, so an
       // emptied field is omitted (no change) rather than nulled.
       ...(description.trim() ? { description: description.trim() } : null),
-      // The destination's link: the pair on a re-pick, explicit nulls
-      // when typed over (which clears it), nothing when untouched.
-      ...tripPlacePatch(placeTouched ? placeId : undefined),
+      // The destination's link and snapshot: the pair plus the
+      // pick-time name/address on a re-pick, explicit nulls for all
+      // four when typed over (which clears them), nothing when
+      // untouched.
+      ...tripPlaceSnapshotPatch(
+        placeTouched ? placeId : undefined,
+        placeTouched ? placeName : null,
+        placeTouched ? placeAddress : null,
+      ),
     };
     setBusy(true);
     try {
@@ -241,11 +263,15 @@ function EditTripScreen() {
             setSelectedPlaceId(pick.selectedPlaceId);
             setPlaceId(pick.selectedPlaceId);
             setPlaceTouched(true);
+            setPlaceName(hit.shortName);
+            setPlaceAddress(null);
             setLocation(pick.place);
           } else {
             setSelectedPlaceId(null);
             setPlaceId(null);
             setPlaceTouched(true);
+            setPlaceName(null);
+            setPlaceAddress(null);
             setLocation(pick.place);
             rotateSessionToken();
           }
