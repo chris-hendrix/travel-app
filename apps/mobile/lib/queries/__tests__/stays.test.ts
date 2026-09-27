@@ -431,6 +431,110 @@ describe("useStays() writes (staysStore)", () => {
     ]);
   });
 
+  it("addStay sends the picked place as the API's pair on create", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({
+      success: true,
+      accommodation: row(),
+    });
+
+    const { actions } = captureStays();
+
+    await actions.addStay("trip-1", {
+      ...cachedStay(),
+      id: "custom-4",
+      placeId: "ChIJRitz123",
+    });
+
+    expect(mockedApiFetch).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(
+      (mockedApiFetch.mock.calls[0]?.[1] as { body: string }).body,
+    ) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      placeProvider: "google",
+      externalPlaceId: "ChIJRitz123",
+    });
+  });
+
+  it("addStay sends explicit nulls when the address was typed on create", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({
+      success: true,
+      accommodation: row(),
+    });
+
+    const { actions } = captureStays();
+
+    await actions.addStay("trip-1", {
+      ...cachedStay(),
+      id: "custom-5",
+      placeId: null,
+    });
+
+    expect(mockedApiFetch).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(
+      (mockedApiFetch.mock.calls[0]?.[1] as { body: string }).body,
+    ) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      placeProvider: null,
+      externalPlaceId: null,
+    });
+  });
+
+  it("updateStay sends the pair on a re-pick and nulls on a typed-over address", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({
+      success: true,
+      accommodation: row(),
+    });
+
+    const { actions } = captureStays();
+
+    await actions.updateStay("trip-1", "stay-1", {
+      placeId: "ChIJRitz123",
+    });
+    const repicked = JSON.parse(
+      (mockedApiFetch.mock.calls[0]?.[1] as { body: string }).body,
+    ) as Record<string, unknown>;
+    expect(repicked).toMatchObject({
+      placeProvider: "google",
+      externalPlaceId: "ChIJRitz123",
+    });
+
+    mockedApiFetch.mockClear();
+    mockedApiFetch.mockResolvedValue({
+      success: true,
+      accommodation: row(),
+    });
+    await actions.updateStay("trip-1", "stay-1", { placeId: null });
+    const cleared = JSON.parse(
+      (mockedApiFetch.mock.calls[0]?.[1] as { body: string }).body,
+    ) as Record<string, unknown>;
+    expect(cleared).toMatchObject({
+      placeProvider: null,
+      externalPlaceId: null,
+    });
+  });
+
+  it("updateStay leaves both keys off when the address is untouched", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({
+      success: true,
+      accommodation: row(),
+    });
+
+    const { actions } = captureStays();
+
+    await actions.updateStay("trip-1", "stay-1", {
+      name: "Ca'n Puig renamed",
+    });
+    const body = JSON.parse(
+      (mockedApiFetch.mock.calls[0]?.[1] as { body: string }).body,
+    ) as Record<string, unknown>;
+    expect(body).not.toHaveProperty("placeProvider");
+    expect(body).not.toHaveProperty("externalPlaceId");
+  });
+
   it("addStay sends the picker's coordinates on create", async () => {
     mockedApiFetch.mockReset();
     mockedApiFetch.mockResolvedValue({

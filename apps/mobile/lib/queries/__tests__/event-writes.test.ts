@@ -324,6 +324,95 @@ describe("useEvents() writes", () => {
     expect(body).toMatchObject({ locationLat: 41.3, locationLon: 2.1 });
   });
 
+  it("addEvent sends the picked place as the API's pair on create", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({ success: true, event: entity() });
+
+    const { actions } = captureEvents();
+
+    await actions.addEvent("trip-1", {
+      ...cachedEvent(),
+      id: "custom-4",
+      placeId: "ChIJKeens123",
+    });
+
+    expect(mockedApiFetch).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(
+      (mockedApiFetch.mock.calls[0]?.[1] as { body: string }).body,
+    ) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      placeProvider: "google",
+      externalPlaceId: "ChIJKeens123",
+    });
+  });
+
+  it("addEvent sends explicit nulls when the place was typed on create", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({ success: true, event: entity() });
+
+    const { actions } = captureEvents();
+
+    await actions.addEvent("trip-1", {
+      ...cachedEvent(),
+      id: "custom-5",
+      placeId: null,
+    });
+
+    expect(mockedApiFetch).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(
+      (mockedApiFetch.mock.calls[0]?.[1] as { body: string }).body,
+    ) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      placeProvider: null,
+      externalPlaceId: null,
+    });
+  });
+
+  it("updateEvent sends the pair on a re-pick and nulls on a typed-over place", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({ success: true, event: entity() });
+
+    const { actions } = captureEvents();
+
+    await actions.updateEvent("trip-1", "event-1", {
+      placeId: "ChIJKeens123",
+    });
+    const repicked = JSON.parse(
+      (mockedApiFetch.mock.calls[0]?.[1] as { body: string }).body,
+    ) as Record<string, unknown>;
+    expect(repicked).toMatchObject({
+      placeProvider: "google",
+      externalPlaceId: "ChIJKeens123",
+    });
+
+    mockedApiFetch.mockClear();
+    mockedApiFetch.mockResolvedValue({ success: true, event: entity() });
+    await actions.updateEvent("trip-1", "event-1", { placeId: null });
+    const cleared = JSON.parse(
+      (mockedApiFetch.mock.calls[0]?.[1] as { body: string }).body,
+    ) as Record<string, unknown>;
+    expect(cleared).toMatchObject({
+      placeProvider: null,
+      externalPlaceId: null,
+    });
+  });
+
+  it("updateEvent leaves both keys off when the place is untouched", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({ success: true, event: entity() });
+
+    const { actions } = captureEvents();
+
+    await actions.updateEvent("trip-1", "event-1", {
+      name: "Late dinner",
+    });
+    const body = JSON.parse(
+      (mockedApiFetch.mock.calls[0]?.[1] as { body: string }).body,
+    ) as Record<string, unknown>;
+    expect(body).not.toHaveProperty("placeProvider");
+    expect(body).not.toHaveProperty("externalPlaceId");
+  });
+
   it("a failed update keeps a concurrent write's paint", async () => {
     const { client, actions } = captureEvents();
     client.setQueryData<ItineraryEvent[]>(eventKeys.list("trip-1"), [

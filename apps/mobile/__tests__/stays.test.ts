@@ -257,6 +257,45 @@ describe("buildStay", () => {
     expect(wallClock(oderberger.checkIn!, null).clock).toBe("00:00");
   });
 
+  it("carries a picked placeId onto the row and back into the form", () => {
+    const ritz = buildStay(
+      {
+        name: "The Ritz-Carlton",
+        address: "219 E 48th St, New York, NY 10017",
+        checkInDay: "2026-09-17",
+        checkOutDay: "2026-09-23",
+        checkInTime: "",
+        checkOutTime: "",
+        description: "",
+        placeId: "ChIJRitz123",
+      },
+      "stay-9",
+      null,
+      "https://example.com/photo.jpg",
+    );
+    expect(ritz.placeId).toBe("ChIJRitz123");
+    expect(draftFromStay(ritz, null).placeId).toBe("ChIJRitz123");
+  });
+
+  it("reads a typed address as a null placeId", () => {
+    const typed = buildStay(
+      {
+        name: "Friend's spare room",
+        address: "Carrer Major 3, Sóller",
+        checkInDay: "2026-09-17",
+        checkOutDay: "2026-09-20",
+        checkInTime: "",
+        checkOutTime: "",
+        description: "",
+      },
+      "stay-10",
+      null,
+      "https://example.com/photo.jpg",
+    );
+    expect(typed.placeId).toBeNull();
+    expect(draftFromStay(typed, null).placeId).toBeNull();
+  });
+
   it("comes back to the form the way it was typed", () => {
     const puig = stay({
       checkIn: at("2026-09-17", "15:00"),

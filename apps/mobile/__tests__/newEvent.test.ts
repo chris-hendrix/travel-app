@@ -127,6 +127,7 @@ describe("draftFromEvent", () => {
       type: "misc",
       locationLat: null,
       locationLon: null,
+      placeId: null,
       day: "2026-09-20",
       allDay: false,
       start: "20:30",
@@ -184,5 +185,37 @@ describe("draftFromEvent", () => {
     const rebuilt = buildEvent(redrafted, "e1", "UTC", "p.jpg");
     expect(rebuilt.locationLat).toBe(41.3);
     expect(rebuilt.locationLon).toBe(2.1);
+  });
+});
+
+describe("event place link", () => {
+  it("draftFromEvent carries an existing row's placeId back into the form", () => {
+    const event: ItineraryEvent = buildEvent(INPUT, "e1", "UTC", "p.jpg");
+    event.placeId = "ChIJKeens123";
+    expect(draftFromEvent(event, "UTC").placeId).toBe("ChIJKeens123");
+  });
+
+  it("draftFromEvent reads a row with no link as a null placeId", () => {
+    const { placeId: _dropped, ...unlinked } = buildEvent(
+      INPUT,
+      "e1",
+      "UTC",
+      "p.jpg",
+    );
+    expect(draftFromEvent(unlinked, "UTC").placeId).toBeNull();
+  });
+
+  it("buildEvent carries the picked placeId onto the local row", () => {
+    const event = buildEvent(
+      { ...INPUT, placeId: "ChIJKeens123" },
+      "e1",
+      "UTC",
+      "p.jpg",
+    );
+    expect(event.placeId).toBe("ChIJKeens123");
+  });
+
+  it("buildEvent reads typed prose as a null placeId", () => {
+    expect(buildEvent(INPUT, "e1", "UTC", "p.jpg").placeId).toBeNull();
   });
 });
