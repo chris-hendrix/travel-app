@@ -270,7 +270,7 @@ describe("Discover Routes", () => {
           destination: "Paris",
           destinationLat: 48.8566,
           destinationLon: 2.3522,
-          destinationDisplayName: "Paris, France",
+          placeName: "Paris, France",
           preferredTimezone: "Europe/Paris",
           createdBy: testUser.id,
         })
@@ -379,7 +379,7 @@ describe("Discover Routes", () => {
           destination: "Paris",
           destinationLat: 48.8566,
           destinationLon: 2.3522,
-          destinationDisplayName: "Paris, France",
+          placeName: "Paris, France",
           preferredTimezone: "Europe/Paris",
           createdBy: testUser.id,
         })

@@ -19,14 +19,14 @@ async function makeUser(app: FastifyInstance) {
   return token;
 }
 
-describe("POST /api/trips destinationDisplayName (Phase 14 RED)", () => {
+describe("POST /api/trips placeName (Phase 14 RED)", () => {
   let app: FastifyInstance;
   afterEach(async () => {
     if (app) await app.close();
     vi.restoreAllMocks();
   });
 
-  it("stores an explicit destinationDisplayName verbatim and skips geocoding", async () => {
+  it("stores an explicit placeName verbatim and skips geocoding", async () => {
     app = await buildApp();
     const token = await makeUser(app);
     const geocodeSpy = vi.spyOn(app.geocodingService, "geocode");
@@ -40,10 +40,10 @@ describe("POST /api/trips destinationDisplayName (Phase 14 RED)", () => {
         destination: "La Bodega",
         timezone: "Europe/Madrid",
         placeProvider: "google",
-        externalPlaceId: "ChIJ123",
+        placeId: "ChIJ123",
         destinationLat: 39.7,
         destinationLon: 2.9,
-        destinationDisplayName: "La Bodega, Sóller",
+        placeName: "La Bodega, Sóller",
       },
     });
 
@@ -54,9 +54,9 @@ describe("POST /api/trips destinationDisplayName (Phase 14 RED)", () => {
       .from(trips)
       .where(eq(trips.id, body.trip.id))
       .limit(1);
-    expect(row?.destinationDisplayName).toBe("La Bodega, Sóller");
+    expect(row?.placeName).toBe("La Bodega, Sóller");
     expect(row?.placeProvider).toBe("google");
-    expect(row?.externalPlaceId).toBe("ChIJ123");
+    expect(row?.placeId).toBe("ChIJ123");
     expect(geocodeSpy).not.toHaveBeenCalled();
   });
 
@@ -85,7 +85,7 @@ describe("POST /api/trips destinationDisplayName (Phase 14 RED)", () => {
       .from(trips)
       .where(eq(trips.id, body.trip.id))
       .limit(1);
-    expect(row?.destinationDisplayName).toBeNull();
+    expect(row?.placeName).toBeNull();
     expect(geocodeSpy).not.toHaveBeenCalled();
   });
 });

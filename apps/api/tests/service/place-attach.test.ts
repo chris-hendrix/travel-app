@@ -18,13 +18,13 @@ describe("attachPlaces resolve failure", () => {
         },
       } as never;
       const rows = [
-        { placeProvider: "google", externalPlaceId: "ChIJ1" },
-        { placeProvider: "google", externalPlaceId: "ChIJ2" },
+        { placeProvider: "google", placeId: "ChIJ1" },
+        { placeProvider: "google", placeId: "ChIJ2" },
       ];
       const attached = await attachPlaces(rows, placeCache, "list");
       expect(attached).toEqual([
-        { placeProvider: "google", externalPlaceId: "ChIJ1", place: null },
-        { placeProvider: "google", externalPlaceId: "ChIJ2", place: null },
+        { placeProvider: "google", placeId: "ChIJ1", place: null },
+        { placeProvider: "google", placeId: "ChIJ2", place: null },
       ]);
       expect(warn).toHaveBeenCalledTimes(1);
     } finally {

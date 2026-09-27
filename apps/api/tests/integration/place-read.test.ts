@@ -97,14 +97,14 @@ describe("Phase 5: place reaches the client", () => {
         startTime: "2026-09-19T14:00:00Z",
         location: "La Bodega",
         placeProvider: "google",
-        externalPlaceId: "ChIJbodega1",
+        placeId: "ChIJbodega1",
       },
     });
 
     expect(response.statusCode).toBe(201);
     const [row] = await db.select().from(events).where(eq(events.tripId, trip.id));
     expect(row!.placeProvider).toBe("google");
-    expect(row!.externalPlaceId).toBe("ChIJbodega1");
+    expect(row!.placeId).toBe("ChIJbodega1");
   });
 
   it("Task 1: creating an event with only a provider is rejected, storing nothing", async () => {
@@ -140,7 +140,7 @@ describe("Phase 5: place reaches the client", () => {
         eventType: "food_and_drink",
         location: "Old place",
         placeProvider: "google",
-        externalPlaceId: "ChIJold",
+        placeId: "ChIJold",
         startTime: new Date("2026-09-19T14:00:00Z"),
       })
       .returning();
@@ -149,22 +149,22 @@ describe("Phase 5: place reaches the client", () => {
       method: "PUT",
       url: `/api/events/${created!.id}`,
       cookies: { auth_token: token },
-      payload: { placeProvider: "google", externalPlaceId: "ChIJnew" },
+      payload: { placeProvider: "google", placeId: "ChIJnew" },
     });
     expect(overwrite.statusCode).toBe(200);
     const [afterOverwrite] = await db.select().from(events).where(eq(events.id, created!.id));
-    expect(afterOverwrite!.externalPlaceId).toBe("ChIJnew");
+    expect(afterOverwrite!.placeId).toBe("ChIJnew");
 
     const clear = await app.inject({
       method: "PUT",
       url: `/api/events/${created!.id}`,
       cookies: { auth_token: token },
-      payload: { placeProvider: null, externalPlaceId: null },
+      payload: { placeProvider: null, placeId: null },
     });
     expect(clear.statusCode).toBe(200);
     const [afterClear] = await db.select().from(events).where(eq(events.id, created!.id));
     expect(afterClear!.placeProvider).toBeNull();
-    expect(afterClear!.externalPlaceId).toBeNull();
+    expect(afterClear!.placeId).toBeNull();
   });
 
   it("Task 3: list resolves place from cache with no provider fetch; pairless row is null", async () => {
@@ -189,7 +189,7 @@ describe("Phase 5: place reaches the client", () => {
         eventType: "food_and_drink",
         location: "La Bodega",
         placeProvider: "google",
-        externalPlaceId: cachedId,
+        placeId: cachedId,
         startTime: new Date("2026-09-19T14:00:00Z"),
       },
       {
@@ -231,7 +231,7 @@ describe("Phase 5: place reaches the client", () => {
       eventType: "misc" as const,
       location: `Place ${i}`,
       placeProvider: "google",
-      externalPlaceId: `ChIJmiss${runTag}${i}`,
+      placeId: `ChIJmiss${runTag}${i}`,
       startTime: new Date("2026-09-19T14:00:00Z"),
     }));
     await db.insert(events).values(rows);
@@ -264,7 +264,7 @@ describe("Phase 5: place reaches the client", () => {
         eventType: "food_and_drink",
         location: "Detail Place",
         placeProvider: "google",
-        externalPlaceId: `ChIJdetail${randomUUID()}`,
+        placeId: `ChIJdetail${randomUUID()}`,
         startTime: new Date("2026-09-19T14:00:00Z"),
       })
       .returning();
@@ -293,7 +293,7 @@ describe("Phase 5: place reaches the client", () => {
         eventType: "misc",
         location: "my typed words",
         placeProvider: "google",
-        externalPlaceId: `ChIJoffline${randomUUID()}`,
+        placeId: `ChIJoffline${randomUUID()}`,
         startTime: new Date("2026-09-19T14:00:00Z"),
       })
       .returning();
