@@ -6,6 +6,7 @@ import { InlineError } from "@/components/ui/InlineError";
 import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { DatePicker } from "@/components/ui/DatePicker";
+import { PickedPlace } from "@/components/trip/PickedPlace";
 import type { Selection } from "@/lib/calendar";
 import { ChipToggle } from "@/components/ui/ChipToggle";
 import { FieldError } from "@/components/ui/FieldError";
@@ -288,6 +289,13 @@ export function EventDialog({
         error={errors.place}
         freeText
       />
+
+      {/* Both halves of the pick: the Place field carries only the
+          name, so the formatted address would otherwise be invisible
+          here. */}
+      {placeId ? (
+        <PickedPlace name={placeName} address={placeAddress} />
+      ) : null}
 
       <TextField
         label="Description"

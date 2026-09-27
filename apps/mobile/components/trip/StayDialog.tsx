@@ -6,6 +6,7 @@ import { InlineError } from "@/components/ui/InlineError";
 import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { DatePicker } from "@/components/ui/DatePicker";
+import { PickedPlace } from "@/components/trip/PickedPlace";
 import { FieldError } from "@/components/ui/FieldError";
 import { TimeField } from "@/components/ui/TimeField";
 import type { Selection } from "@/lib/calendar";
@@ -278,6 +279,13 @@ export function StayDialog({
         error={errors.address}
         freeText
       />
+
+      {/* Both halves of the pick: the Address field carries only the
+          formatted address, so the place's own name would otherwise be
+          invisible here. */}
+      {placeId ? (
+        <PickedPlace name={placeName} address={placeAddress} />
+      ) : null}
 
       <View className="gap-2">
         <Text className="font-body-bold text-sm text-ink">Nights</Text>
