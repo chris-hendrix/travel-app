@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Image, Text, useWindowDimensions, View } from "react-native";
+import { Image, Linking, Pressable, Text, useWindowDimensions, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Screen } from "@/components/ui/Screen";
 import { Badge } from "@/components/ui/Badge";
+import { PhotoCredit } from "@/components/ui/PhotoCredit";
 import { QuietAction } from "@/components/ui/QuietAction";
 import { PlaceLink } from "@/components/ui/PlaceLink";
 import { RsvpControl } from "@/components/trip/RsvpControl";
@@ -261,17 +262,34 @@ function TripDetailScreen() {
               every rule in the right column would end past the page's. */}
           <View className="gap-6 md:flex-1">
             <View className="relative overflow-hidden">
-              <Image
-                source={{ uri: heroImage(trip.image) }}
-                resizeMode="cover"
-                className="w-full aspect-[2/1]"
-              />
+              {trip.photoSourceUri ? (
+                <Pressable
+                  onPress={() => void Linking.openURL(trip.photoSourceUri!)}
+                  aria-label="View photo source on Google Maps"
+                >
+                  <Image
+                    source={{ uri: heroImage(trip.image) }}
+                    resizeMode="cover"
+                    className="w-full aspect-[2/1]"
+                  />
+                </Pressable>
+              ) : (
+                <Image
+                  source={{ uri: heroImage(trip.image) }}
+                  resizeMode="cover"
+                  className="w-full aspect-[2/1]"
+                />
+              )}
               {countdown ? (
                 <View className="absolute left-3 top-3">
                   <Badge label={countdown} variant="club" />
                 </View>
               ) : null}
             </View>
+            <PhotoCredit
+              credit={trip.photoCredit ?? null}
+              sourceUri={trip.photoSourceUri ?? null}
+            />
 
             {action}
           </View>

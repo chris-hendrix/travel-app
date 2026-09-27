@@ -28,7 +28,7 @@ import type {
 
 import { resolveUploadUrl } from "@/lib/uploads";
 import { placeholderPhoto } from "@/lib/placeholder";
-import { coverImage } from "@/lib/place-images";
+import { coverImage, placePhotoCredit } from "@/lib/place-images";
 // Re-exported so existing `placeholderPhoto` call sites keep working;
 // new code should import from `@/lib/placeholder` directly.
 export { placeholderPhoto };
@@ -75,6 +75,8 @@ export function toTrip(detail: TripDetail): Trip {
     location: detail.destination,
     image: cover.url ?? placeholderPhoto(detail.id),
     coverImageUrl,
+    photoSourceUri: cover.photoSourceUri,
+    photoCredit: placePhotoCredit(detail.place ?? null),
     going: detail.memberCount,
     startDate: detail.startDate ?? "",
     endDate: detail.endDate ?? "",
@@ -95,6 +97,8 @@ export function toTripSummary(summary: TripSummary): Trip {
     location: summary.destination,
     image: cover.url ?? placeholderPhoto(summary.id),
     coverImageUrl,
+    photoSourceUri: cover.photoSourceUri,
+    photoCredit: placePhotoCredit(summary.place ?? null),
     going: summary.memberCount,
     startDate: summary.startDate ?? "",
     endDate: summary.endDate ?? "",
@@ -112,6 +116,7 @@ export function toTripSummary(summary: TripSummary): Trip {
  * `location` -> `place`.
  */
 export function toEvent(event: Event): ItineraryEvent {
+  const cover = coverImage({ place: event.place, id: event.id });
   return {
     id: event.id,
     name: event.name,
@@ -124,9 +129,9 @@ export function toEvent(event: Event): ItineraryEvent {
     placeId: event.place?.placeId ?? null,
     locationLat: event.locationLat ?? null,
     locationLon: event.locationLon ?? null,
-    image:
-      coverImage({ place: event.place, id: event.id }).url ??
-      placeholderPhoto(event.id),
+    image: cover.url ?? placeholderPhoto(event.id),
+    photoSourceUri: cover.photoSourceUri,
+    photoCredit: placePhotoCredit(event.place ?? null),
     deletedAt: deletedAtOf(event.deletedAt),
   };
 }
@@ -136,6 +141,10 @@ export function toEvent(event: Event): ItineraryEvent {
  * as-is, times pass through (null = the untimed stay).
  */
 export function toStay(accommodation: Accommodation): Stay {
+  const cover = coverImage({
+    place: accommodation.place,
+    id: accommodation.id,
+  });
   return {
     id: accommodation.id,
     name: accommodation.name,
@@ -146,9 +155,9 @@ export function toStay(accommodation: Accommodation): Stay {
     description: accommodation.description,
     checkIn: accommodation.checkIn,
     checkOut: accommodation.checkOut,
-    image:
-      coverImage({ place: accommodation.place, id: accommodation.id }).url ??
-      placeholderPhoto(accommodation.id),
+    image: cover.url ?? placeholderPhoto(accommodation.id),
+    photoSourceUri: cover.photoSourceUri,
+    photoCredit: placePhotoCredit(accommodation.place ?? null),
     links: (accommodation.links ?? []).map((link) => ({
       url: link.url,
       name: link.name ?? link.url,

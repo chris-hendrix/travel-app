@@ -5,6 +5,7 @@ import {
   coverImage,
   coverPreviewSeed,
   HERO_BOX_MIN_WIDTH,
+  placePhotoCredit,
   placePhotoUrl,
 } from "@/lib/place-images";
 
@@ -106,5 +107,37 @@ describe("coverPreviewSeed", () => {
     expect(coverPreviewSeed({ coverImageUrl: "https://cdn.example/cover.jpg" })).toBe(
       "https://cdn.example/cover.jpg",
     );
+  });
+});
+
+describe("placePhotoCredit", () => {
+  it("returns the author name and uri for a populated attribution", () => {
+    expect(placePhotoCredit(placeWithPhoto)).toEqual({
+      name: "Marta R.",
+      uri: "https://maps.example/marta",
+    });
+  });
+
+  it("returns null for a summary with no photo", () => {
+    expect(placePhotoCredit(placeWithoutPhoto)).toBeNull();
+    expect(placePhotoCredit(null)).toBeNull();
+  });
+
+  it("returns null for an empty author name", () => {
+    expect(
+      placePhotoCredit({
+        ...placeWithPhoto,
+        photoAttribution: { name: "  ", uri: "https://maps.example/marta", photoUri: null },
+      }),
+    ).toBeNull();
+  });
+
+  it("passes a null uri through rather than inventing a link", () => {
+    expect(
+      placePhotoCredit({
+        ...placeWithPhoto,
+        photoAttribution: { name: "Marta R.", uri: null, photoUri: null },
+      }),
+    ).toEqual({ name: "Marta R.", uri: null });
   });
 });

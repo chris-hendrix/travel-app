@@ -2,6 +2,7 @@ import { daysBetween } from "@/lib/countdown";
 import { formatDay, formatTimeRange } from "@/lib/dateRange";
 import { wallClock } from "@/lib/timezone";
 import { joinFacts } from "@/lib/wording";
+import type { PlacePhotoCredit } from "@/lib/place-images";
 
 /**
  * The API's `event_type`, in full. An event's type is what decides
@@ -75,6 +76,14 @@ export type ItineraryEvent = {
   locationLon?: number | null;
   /** The place's photo, which the API proxies from Places. */
   image: string;
+  /**
+   * The photo's required Google Maps source link, null for placeholders.
+   * Every rendered photo reaches it: the tile through `PhotoCard`, the
+   * detail through its own tap.
+   */
+  photoSourceUri?: string | null;
+  /** The photo's author credit for the detail surface; tiles render nothing. */
+  photoCredit?: PlacePhotoCredit | null;
   /**
    * The API's soft delete, and why deleting needs no confirmation step:
    * a deleted event is still there, waiting for the Deleted items screen

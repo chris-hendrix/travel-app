@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/Badge";
 import { PhotoCard } from "@/components/ui/PhotoCard";
 import { tripCountdown } from "@/lib/countdown";
 import { formatDateRange } from "@/lib/dateRange";
+import type { PlacePhotoCredit } from "@/lib/place-images";
 
 export type Trip = {
   id: string;
@@ -16,6 +17,14 @@ export type Trip = {
    * cover the user added.
    */
   coverImageUrl: string | null;
+  /**
+   * The place photo's required Google Maps source link, null for
+   * uploads and placeholders. Every rendered photo reaches it: the
+   * tile through `PhotoCard`, the hero through its own tap.
+   */
+  photoSourceUri?: string | null;
+  /** The photo's author credit for the detail surface; tiles render nothing. */
+  photoCredit?: PlacePhotoCredit | null;
   going: number;
   /** Organizer-authored prose, null until someone writes it. */
   description: string | null;
@@ -57,6 +66,7 @@ export function TripCard({
   return (
     <PhotoCard
       image={trip.image}
+      photoSourceUri={trip.photoSourceUri ?? null}
       overlay={countdown ? <Badge label={countdown} variant="club" /> : null}
       meta={formatDateRange(trip.startDate, trip.endDate)}
       title={trip.title}

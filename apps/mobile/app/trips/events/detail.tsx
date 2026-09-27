@@ -1,8 +1,9 @@
-import { Image, Text, View } from "react-native";
+import { Image, Linking, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { Badge } from "@/components/ui/Badge";
+import { PhotoCredit } from "@/components/ui/PhotoCredit";
 import { PlaceLink } from "@/components/ui/PlaceLink";
 import { placeQuery } from "@/lib/links";
 import {
@@ -123,15 +124,34 @@ function EventDetailDialog() {
       dismissHref={`/trips/detail?id=${trip.id}`}
     >
       <View className="gap-y-6 md:flex-row md:gap-12">
-        <View className="relative overflow-hidden md:flex-1">
-          <Image
-            source={{ uri: event.image }}
-            resizeMode="cover"
-            className="w-full aspect-[2/1]"
-          />
-          <View className="absolute left-3 top-3">
-            <Badge label={EVENT_TYPE_LABEL[event.type]} variant="category" />
+        <View className="md:flex-1">
+          <View className="relative overflow-hidden">
+            {event.photoSourceUri ? (
+              <Pressable
+                onPress={() => void Linking.openURL(event.photoSourceUri!)}
+                aria-label="View photo source on Google Maps"
+              >
+                <Image
+                  source={{ uri: event.image }}
+                  resizeMode="cover"
+                  className="w-full aspect-[2/1]"
+                />
+              </Pressable>
+            ) : (
+              <Image
+                source={{ uri: event.image }}
+                resizeMode="cover"
+                className="w-full aspect-[2/1]"
+              />
+            )}
+            <View className="absolute left-3 top-3">
+              <Badge label={EVENT_TYPE_LABEL[event.type]} variant="category" />
+            </View>
           </View>
+          <PhotoCredit
+            credit={event.photoCredit ?? null}
+            sourceUri={event.photoSourceUri ?? null}
+          />
         </View>
 
         {/* Card order, then the day: what it is, where, when, and which

@@ -85,6 +85,8 @@ describe("toTrip", () => {
       location: "Mallorca",
       image: "https://cdn.example/cover.jpg",
       coverImageUrl: "https://cdn.example/cover.jpg",
+      photoSourceUri: null,
+      photoCredit: null,
       going: 6,
       startDate: "2026-09-20",
       endDate: "2026-09-27",
@@ -216,6 +218,8 @@ describe("toStay", () => {
       checkIn: "2026-09-20T15:00:00.000Z",
       checkOut: "2026-09-25T10:00:00.000Z",
       image: placeholderPhoto("stay-1"),
+      photoSourceUri: null,
+      photoCredit: null,
       links: [{ url: "https://example.com/listing", name: "Listing" }],
       deletedAt: null,
     });

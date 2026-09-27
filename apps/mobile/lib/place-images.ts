@@ -82,3 +82,30 @@ export function boxForWidth(width: number): PlaceBox {
 export function coverPreviewSeed(trip: { coverImageUrl: string | null }): string {
   return trip.coverImageUrl ?? "";
 }
+
+/** A place-photo credit: the author's name and their profile link. */
+export type PlacePhotoCredit = {
+  name: string;
+  uri: string | null;
+};
+
+/**
+ * The credit a detail surface renders under a place photo —
+ * `Photo by <name>` linking to `uri`. Null when there is nothing to
+ * credit: no place, no photo, or an empty author name. A null `uri`
+ * passes through rather than inventing a link. Tiles render nothing:
+ * the policy's thumbnail exemption holds because every tile taps
+ * through to a detail view that carries this credit — so if a tile ever
+ * becomes the *only* place its photo appears, the credit must move
+ * onto the tile (see the manual layout pass).
+ *
+ * The author's avatar (`photoUri`) is deliberately not returned: the
+ * credit is a single 12sp line.
+ */
+export function placePhotoCredit(
+  place: PlaceSummary | null | undefined,
+): PlacePhotoCredit | null {
+  const name = place?.photoAttribution?.name?.trim();
+  if (!name) return null;
+  return { name, uri: place?.photoAttribution?.uri ?? null };
+}

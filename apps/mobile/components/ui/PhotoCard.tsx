@@ -1,5 +1,5 @@
 import { type ReactNode } from "react";
-import { Image, Pressable, Text, View } from "react-native";
+import { Image, Linking, Pressable, Text, View } from "react-native";
 import { useHoverZoom } from "@/hooks/useHoverZoom";
 
 /**
@@ -30,6 +30,7 @@ import { useHoverZoom } from "@/hooks/useHoverZoom";
  */
 export function PhotoCard({
   image,
+  photoSourceUri,
   overlay,
   meta,
   title,
@@ -37,6 +38,13 @@ export function PhotoCard({
   onPress,
 }: {
   image: string;
+  /**
+   * The photo's required Google Maps source link. When present the
+   * photo itself is tappable and opens it; the card's own `onPress`
+   * still answers taps on the text below. Null for uploads and
+   * placeholders, which carry no source to reach.
+   */
+  photoSourceUri?: string | null;
   /** Sits on the photo, top left: a countdown, a category, a state.
    *  The card places it; the chip does not place itself. */
   overlay?: ReactNode;
@@ -56,11 +64,24 @@ export function PhotoCard({
       className="w-full lg:max-w-[420px] cursor-pointer"
     >
       <View className="relative overflow-hidden">
-        <Image
-          source={{ uri: image }}
-          resizeMode="cover"
-          className={`w-full aspect-[2/1] ${zoom}`}
-        />
+        {photoSourceUri ? (
+          <Pressable
+            onPress={() => void Linking.openURL(photoSourceUri)}
+            aria-label="View photo source on Google Maps"
+          >
+            <Image
+              source={{ uri: image }}
+              resizeMode="cover"
+              className={`w-full aspect-[2/1] ${zoom}`}
+            />
+          </Pressable>
+        ) : (
+          <Image
+            source={{ uri: image }}
+            resizeMode="cover"
+            className={`w-full aspect-[2/1] ${zoom}`}
+          />
+        )}
         {overlay ? (
           <View className="absolute left-3 top-3">{overlay}</View>
         ) : null}

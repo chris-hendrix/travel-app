@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import { Image, Linking, Text, View } from "react-native";
+import { Image, Linking, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
+import { PhotoCredit } from "@/components/ui/PhotoCredit";
 import { QuietAction } from "@/components/ui/QuietAction";
 import { formatDay } from "@/lib/dateRange";
 import { placeMapsUrl } from "@/lib/links";
@@ -116,18 +117,32 @@ function StayDetailDialog() {
       <View className="gap-y-6 md:flex-row md:gap-12">
         <View className="md:flex-1">
           <View className="relative overflow-hidden">
-            <Image
-              source={{ uri: stay.image }}
-              resizeMode="cover"
-              className="w-full aspect-[2/1]"
-            />
+            {stay.photoSourceUri ? (
+              <Pressable
+                onPress={() => void Linking.openURL(stay.photoSourceUri!)}
+                aria-label="View photo source on Google Maps"
+              >
+                <Image
+                  source={{ uri: stay.image }}
+                  resizeMode="cover"
+                  className="w-full aspect-[2/1]"
+                />
+              </Pressable>
+            ) : (
+              <Image
+                source={{ uri: stay.image }}
+                resizeMode="cover"
+                className="w-full aspect-[2/1]"
+              />
+            )}
           </View>
           {/* The photo is the place's, which the API proxies from Google
               Places, and Places is owed the credit — a term of the
               licence rather than a preference. */}
-          <Text className="pt-1 font-body text-xs text-ink opacity-60">
-            Photo: Google Places
-          </Text>
+          <PhotoCredit
+            credit={stay.photoCredit ?? null}
+            sourceUri={stay.photoSourceUri ?? null}
+          />
         </View>
 
         {/* Row order, then the two facts a row has no space for: how

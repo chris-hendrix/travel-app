@@ -1,6 +1,7 @@
 import { daysBetween } from "@/lib/countdown";
 import { formatDaySpan } from "@/lib/dateRange";
 import { wallClock } from "@/lib/timezone";
+import type { PlacePhotoCredit } from "@/lib/place-images";
 
 /** A link out of a stay: the listing, the directions, the house rules. */
 export type StayLink = { url: string; name: string };
@@ -44,6 +45,14 @@ export type Stay = {
   checkOut: string | null;
   /** The place's photo, which the API proxies from Places. */
   image: string;
+  /**
+   * The photo's required Google Maps source link, null for placeholders.
+   * Every rendered photo reaches it: the tile through `PhotoCard`, the
+   * detail through its own tap.
+   */
+  photoSourceUri?: string | null;
+  /** The photo's author credit for the detail surface; tiles render nothing. */
+  photoCredit?: PlacePhotoCredit | null;
   links: StayLink[];
   /** The API's soft delete. Null while it is live. */
   deletedAt: string | null;
