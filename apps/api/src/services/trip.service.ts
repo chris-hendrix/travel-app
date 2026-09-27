@@ -57,6 +57,8 @@ export type TripSummary = {
   destination: string;
   placeProvider: string | null;
   placeId: string | null;
+  placeName: string | null;
+  placeAddress: string | null;
   startDate: string | null;
   endDate: string | null;
   coverImageUrl: string | null;
@@ -115,6 +117,8 @@ type TripPreview = Pick<
   | "destination"
   | "placeProvider"
   | "placeId"
+  | "placeName"
+  | "placeAddress"
   | "destinationLat"
   | "destinationLon"
   | "startDate"
@@ -483,6 +487,8 @@ export class TripService implements ITripService {
         destination: trip.destination,
         placeProvider: trip.placeProvider,
         placeId: trip.placeId,
+        placeName: trip.placeName,
+        placeAddress: trip.placeAddress,
         destinationLat: trip.destinationLat,
         destinationLon: trip.destinationLon,
         startDate: trip.startDate,
@@ -593,6 +599,8 @@ export class TripService implements ITripService {
         destination: trips.destination,
         placeProvider: trips.placeProvider,
         placeId: trips.placeId,
+        placeName: trips.placeName,
+        placeAddress: trips.placeAddress,
         startDate: trips.startDate,
         endDate: trips.endDate,
         coverImageUrl: trips.coverImageUrl,
@@ -718,6 +726,8 @@ export class TripService implements ITripService {
         destination: trip.destination,
         placeProvider: trip.placeProvider,
         placeId: trip.placeId,
+        placeName: trip.placeName,
+        placeAddress: trip.placeAddress,
         startDate: trip.startDate,
         endDate: trip.endDate,
         coverImageUrl: trip.coverImageUrl,

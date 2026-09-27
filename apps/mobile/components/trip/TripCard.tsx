@@ -48,6 +48,16 @@ export type Trip = {
    */
   placeId?: string | null;
   /**
+   * The picked place's name, stored on the trip row at pick time.
+   * The display source — it survives cache expiry and renames.
+   */
+  placeName?: string | null;
+  /**
+   * The picked place's formatted address, stored on the trip row at
+   * pick time. The display source, like `placeName`.
+   */
+  placeAddress?: string | null;
+  /**
    * The linked place's country code, feeding the pickers' autocomplete
    * floor. Null when the destination has no linked place.
    */

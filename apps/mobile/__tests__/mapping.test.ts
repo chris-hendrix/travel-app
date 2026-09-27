@@ -95,8 +95,48 @@ describe("toTrip", () => {
       destinationLat: 39.6,
       destinationLon: 2.9,
       placeId: null,
+      placeName: null,
+      placeAddress: null,
       placeCountry: null,
     });
+  });
+
+  it("reads the stored snapshot, not the place cache", () => {
+    const mapped = toTrip({
+      ...tripDetail,
+      placeName: "Stored Name",
+      placeAddress: "Stored Address",
+      place: {
+        placeId: "ChIJ123",
+        name: "Cached Name",
+        address: "Cached Address",
+        photoUrl: null,
+        photoAttribution: null,
+        photoSourceUri: null,
+        country: "ES",
+      },
+    });
+    expect(mapped.placeName).toBe("Stored Name");
+    expect(mapped.placeAddress).toBe("Stored Address");
+  });
+
+  it("hides the rows when the snapshot is null, even with a populated cache", () => {
+    const mapped = toTrip({
+      ...tripDetail,
+      placeName: null,
+      placeAddress: null,
+      place: {
+        placeId: "ChIJ123",
+        name: "Cached Name",
+        address: "Cached Address",
+        photoUrl: null,
+        photoAttribution: null,
+        photoSourceUri: null,
+        country: "ES",
+      },
+    });
+    expect(mapped.placeName).toBeNull();
+    expect(mapped.placeAddress).toBeNull();
   });
 
   it("falls back to placeholderPhoto when there is no cover", () => {
@@ -140,6 +180,44 @@ describe("toTripSummary", () => {
     expect(mapped.location).toBe("Mallorca");
   });
 
+  it("reads the stored snapshot, not the place cache", () => {
+    const mapped = toTripSummary({
+      ...tripSummary,
+      placeName: "Stored Name",
+      placeAddress: "Stored Address",
+      place: {
+        placeId: "ChIJ123",
+        name: "Cached Name",
+        address: "Cached Address",
+        photoUrl: null,
+        photoAttribution: null,
+        photoSourceUri: null,
+        country: "ES",
+      },
+    });
+    expect(mapped.placeName).toBe("Stored Name");
+    expect(mapped.placeAddress).toBe("Stored Address");
+  });
+
+  it("hides the rows when the snapshot is null, even with a populated cache", () => {
+    const mapped = toTripSummary({
+      ...tripSummary,
+      placeName: null,
+      placeAddress: null,
+      place: {
+        placeId: "ChIJ123",
+        name: "Cached Name",
+        address: "Cached Address",
+        photoUrl: null,
+        photoAttribution: null,
+        photoSourceUri: null,
+        country: "ES",
+      },
+    });
+    expect(mapped.placeName).toBeNull();
+    expect(mapped.placeAddress).toBeNull();
+  });
+
   it("falls back to placeholderPhoto when there is no cover", () => {
     expect(toTripSummary(tripSummary).image).toBe(placeholderPhoto("trip-1"));
   });
@@ -174,21 +252,42 @@ describe("toEvent", () => {
     );
   });
 
-  it("maps the resolved place's name and address as the detail snapshot", () => {
+  it("reads the stored snapshot, not the place cache", () => {
     const mapped = toEvent({
       ...apiEvent,
+      placeName: "Stored Name",
+      placeAddress: "Stored Address",
       place: {
         placeId: "ChIJ123",
-        name: "La Bodega",
-        address: "Carrer de la Mar 14, S\u00f3ller",
+        name: "Cached Name",
+        address: "Cached Address",
         photoUrl: null,
         photoAttribution: null,
         photoSourceUri: null,
         country: "ES",
       },
     });
-    expect(mapped.placeName).toBe("La Bodega");
-    expect(mapped.placeAddress).toBe("Carrer de la Mar 14, S\u00f3ller");
+    expect(mapped.placeName).toBe("Stored Name");
+    expect(mapped.placeAddress).toBe("Stored Address");
+  });
+
+  it("hides the rows when the snapshot is null, even with a populated cache", () => {
+    const mapped = toEvent({
+      ...apiEvent,
+      placeName: null,
+      placeAddress: null,
+      place: {
+        placeId: "ChIJ123",
+        name: "Cached Name",
+        address: "Cached Address",
+        photoUrl: null,
+        photoAttribution: null,
+        photoSourceUri: null,
+        country: "ES",
+      },
+    });
+    expect(mapped.placeName).toBeNull();
+    expect(mapped.placeAddress).toBeNull();
   });
 
   it("reads an unlinked event's snapshot as nulls", () => {
@@ -267,21 +366,42 @@ describe("toStay", () => {
     );
   });
 
-  it("maps the resolved place's name and address as the detail snapshot", () => {
+  it("reads the stored snapshot, not the place cache", () => {
     const mapped = toStay({
       ...accommodation,
+      placeName: "Stored Name",
+      placeAddress: "Stored Address",
       place: {
         placeId: "ChIJ456",
-        name: "Casa Marina",
-        address: "Via Umberto I 22, Praiano",
+        name: "Cached Name",
+        address: "Cached Address",
         photoUrl: null,
         photoAttribution: null,
         photoSourceUri: null,
         country: null,
       },
     });
-    expect(mapped.placeName).toBe("Casa Marina");
-    expect(mapped.placeAddress).toBe("Via Umberto I 22, Praiano");
+    expect(mapped.placeName).toBe("Stored Name");
+    expect(mapped.placeAddress).toBe("Stored Address");
+  });
+
+  it("hides the rows when the snapshot is null, even with a populated cache", () => {
+    const mapped = toStay({
+      ...accommodation,
+      placeName: null,
+      placeAddress: null,
+      place: {
+        placeId: "ChIJ456",
+        name: "Cached Name",
+        address: "Cached Address",
+        photoUrl: null,
+        photoAttribution: null,
+        photoSourceUri: null,
+        country: null,
+      },
+    });
+    expect(mapped.placeName).toBeNull();
+    expect(mapped.placeAddress).toBeNull();
   });
 
   it("maps null times to the untimed stay", () => {

@@ -85,6 +85,8 @@ export function toTrip(detail: TripDetail): Trip {
     destinationLat: detail.destinationLat ?? null,
     destinationLon: detail.destinationLon ?? null,
     placeId: detail.place?.placeId ?? null,
+    placeName: detail.placeName ?? null,
+    placeAddress: detail.placeAddress ?? null,
     placeCountry: detail.place?.country ?? null,
   };
 }
@@ -111,6 +113,8 @@ export function toTripSummary(summary: TripSummary): Trip {
     destinationLat: null,
     destinationLon: null,
     placeId: summary.place?.placeId ?? null,
+    placeName: summary.placeName ?? null,
+    placeAddress: summary.placeAddress ?? null,
     placeCountry: summary.place?.country ?? null,
   };
 }
@@ -131,10 +135,11 @@ export function toEvent(event: Event): ItineraryEvent {
     allDay: event.allDay,
     place: event.location ?? "",
     placeId: event.place?.placeId ?? null,
-    // The detail block's snapshot (`lib/place-rows.ts`): the resolved
-    // place's name and address, null when unlinked or unresolved.
-    placeName: event.place?.name ?? null,
-    placeAddress: event.place?.address ?? null,
+    // The detail block's snapshot (`lib/place-rows.ts`): the entity's own
+    // stored columns, null when unlinked. Never the place cache: the
+    // snapshot must survive cache expiry and Google-side renames.
+    placeName: event.placeName ?? null,
+    placeAddress: event.placeAddress ?? null,
     locationLat: event.locationLat ?? null,
     locationLon: event.locationLon ?? null,
     image: cover.url ?? placeholderPhoto(event.id),
@@ -158,10 +163,11 @@ export function toStay(accommodation: Accommodation): Stay {
     name: accommodation.name,
     address: accommodation.address,
     placeId: accommodation.place?.placeId ?? null,
-    // The detail block's snapshot (`lib/place-rows.ts`): the resolved
-    // place's name and address, null when unlinked or unresolved.
-    placeName: accommodation.place?.name ?? null,
-    placeAddress: accommodation.place?.address ?? null,
+    // The detail block's snapshot (`lib/place-rows.ts`): the entity's own
+    // stored columns, null when unlinked. Never the place cache: the
+    // snapshot must survive cache expiry and Google-side renames.
+    placeName: accommodation.placeName ?? null,
+    placeAddress: accommodation.placeAddress ?? null,
     addressLat: accommodation.addressLat,
     addressLon: accommodation.addressLon,
     description: accommodation.description,

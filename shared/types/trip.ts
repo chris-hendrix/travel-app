@@ -47,6 +47,10 @@ export interface Trip {
   timezoneAutoUpdated?: boolean;
   /** Resolved place summary; absent on rows constructed before the place read */
   place?: PlaceSummary | null;
+  /** The picked place's name, stored on the row at pick time. The display source. */
+  placeName?: string | null;
+  /** The picked place's formatted address, stored on the row at pick time. */
+  placeAddress?: string | null;
 }
 
 /**
@@ -89,6 +93,10 @@ export interface TripSummary {
   eventCount: number;
   /** Resolved place summary; absent on rows constructed before the place read */
   place?: PlaceSummary | null;
+  /** The picked place's name, stored on the row at pick time. The display source. */
+  placeName?: string | null;
+  /** The picked place's formatted address, stored on the row at pick time. */
+  placeAddress?: string | null;
 }
 
 /**

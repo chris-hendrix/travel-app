@@ -575,6 +575,8 @@ describe("accommodation response schemas (nullable dates)", () => {
     description: null,
     links: null,
     place: null,
+    placeName: null,
+    placeAddress: null,
     deletedAt: null,
     deletedBy: null,
     createdAt: new Date("2026-07-01T12:00:00.000Z"),

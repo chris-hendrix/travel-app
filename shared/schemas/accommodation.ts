@@ -107,6 +107,8 @@ const accommodationEntitySchema = z.object({
   checkOut: z.date().nullable(),
   links: z.array(linkItemSchema).nullable(),
   place: placeSummarySchema.nullable(),
+  placeName: z.string().nullable(),
+  placeAddress: z.string().nullable(),
   deletedAt: z.date().nullable(),
   deletedBy: z.string().nullable(),
   createdAt: z.date(),

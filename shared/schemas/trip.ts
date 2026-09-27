@@ -216,6 +216,8 @@ const tripEntitySchema = z.object({
   showAllMembers: z.boolean(),
   cancelled: z.boolean(),
   place: placeSummarySchema.nullable(),
+  placeName: z.string().nullable(),
+  placeAddress: z.string().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
   timezoneAutoUpdated: z.boolean().optional(),
@@ -244,6 +246,8 @@ const tripSummarySchema = z.object({
   memberCount: z.number(),
   eventCount: z.number(),
   place: placeSummarySchema.nullable(),
+  placeName: z.string().nullable(),
+  placeAddress: z.string().nullable(),
 });
 
 /** Organizer detail in trip detail */
