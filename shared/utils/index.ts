@@ -57,5 +57,8 @@ export {
   readableForeground,
 } from "./color-utils";
 
+export { eventTypeForPlace } from "./place-type";
+export type { EventTypeForPlace } from "./place-type";
+
 export { TIMEZONES, getDetectedTimezone, getTimezoneAbbr, getTimezoneLabel } from "./timezones";
 export type { TimezoneOption } from "./timezones";

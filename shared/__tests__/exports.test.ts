@@ -28,6 +28,7 @@ import {
 } from "../index.js";
 
 import type { Trip, Event, Accommodation, PlaceSummary } from "../types/index.js";
+import { eventTypeForPlace } from "../utils/index.js";
 import {
   type CreateEventInput,
   type UpdateEventInput,
@@ -295,6 +296,11 @@ describe("Package Exports", () => {
     expect(tripNull.place ?? null).toBeNull();
     expect(event.place ?? null).toBeNull();
     expect(accommodation.place?.country).toBe("ES");
+  });
+
+  it("should export eventTypeForPlace from shared utils", () => {
+    expect(eventTypeForPlace).toBeDefined();
+    expect(eventTypeForPlace(["restaurant"])).toBe("food_and_drink");
   });
 
   it("should validate schemas with inferred types", () => {
