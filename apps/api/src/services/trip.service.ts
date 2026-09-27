@@ -56,7 +56,7 @@ export type TripSummary = {
   name: string;
   destination: string;
   placeProvider: string | null;
-  externalPlaceId: string | null;
+  placeId: string | null;
   startDate: string | null;
   endDate: string | null;
   coverImageUrl: string | null;
@@ -114,7 +114,7 @@ type TripPreview = Pick<
   | "name"
   | "destination"
   | "placeProvider"
-  | "externalPlaceId"
+  | "placeId"
   | "destinationLat"
   | "destinationLon"
   | "startDate"
@@ -303,13 +303,13 @@ export class TripService implements ITripService {
     // Skip geocoding if the frontend already provided coordinates from autocomplete selection
     let destinationLat: number | null = null;
     let destinationLon: number | null = null;
-    let destinationDisplayName: string | null = null;
+    let placeName: string | null = null;
     let geocodedTimezone: string | null = null;
     if (data.destination) {
       if (data.destinationLat != null && data.destinationLon != null) {
         destinationLat = data.destinationLat;
         destinationLon = data.destinationLon;
-        destinationDisplayName = data.destinationDisplayName ?? null;
+        placeName = data.placeName ?? null;
         geocodedTimezone = await this.geocodingService
           .getTimezoneByCoords(data.destinationLat, data.destinationLon)
           .catch(() => null);
@@ -320,12 +320,12 @@ export class TripService implements ITripService {
         if (coords) {
           destinationLat = coords.lat;
           destinationLon = coords.lon;
-          destinationDisplayName = data.destinationDisplayName ?? coords.displayName ?? null;
+          placeName = data.placeName ?? coords.displayName ?? null;
           geocodedTimezone = await this.geocodingService
             .getTimezoneByCoords(coords.lat, coords.lon)
             .catch(() => null);
         } else {
-          destinationDisplayName = data.destinationDisplayName ?? null;
+          placeName = data.placeName ?? null;
         }
       }
     }
@@ -340,9 +340,10 @@ export class TripService implements ITripService {
           destination: data.destination,
           destinationLat,
           destinationLon,
-          destinationDisplayName,
-          placeProvider: data.placeProvider != null && data.externalPlaceId != null ? data.placeProvider : null,
-          externalPlaceId: data.placeProvider != null && data.externalPlaceId != null ? data.externalPlaceId : null,
+          placeName,
+          placeAddress: data.placeAddress ?? null,
+          placeProvider: data.placeProvider != null && data.placeId != null ? data.placeProvider : null,
+          placeId: data.placeProvider != null && data.placeId != null ? data.placeId : null,
           startDate: data.startDate || null,
           endDate: data.endDate || null,
           preferredTimezone: geocodedTimezone ?? data.timezone,
@@ -481,7 +482,7 @@ export class TripService implements ITripService {
         name: trip.name,
         destination: trip.destination,
         placeProvider: trip.placeProvider,
-        externalPlaceId: trip.externalPlaceId,
+        placeId: trip.placeId,
         destinationLat: trip.destinationLat,
         destinationLon: trip.destinationLon,
         startDate: trip.startDate,
@@ -591,7 +592,7 @@ export class TripService implements ITripService {
         name: trips.name,
         destination: trips.destination,
         placeProvider: trips.placeProvider,
-        externalPlaceId: trips.externalPlaceId,
+        placeId: trips.placeId,
         startDate: trips.startDate,
         endDate: trips.endDate,
         coverImageUrl: trips.coverImageUrl,
@@ -716,7 +717,7 @@ export class TripService implements ITripService {
         name: trip.name,
         destination: trip.destination,
         placeProvider: trip.placeProvider,
-        externalPlaceId: trip.externalPlaceId,
+        placeId: trip.placeId,
         startDate: trip.startDate,
         endDate: trip.endDate,
         coverImageUrl: trip.coverImageUrl,
@@ -782,17 +783,25 @@ export class TripService implements ITripService {
       delete updateData.timezone;
     }
 
-    // Normalize the place pair: absent keys leave the columns untouched;
-    // a complete or clearing (null/null) value writes both; incomplete stores neither.
-    if (data.placeProvider === undefined && data.externalPlaceId === undefined) {
+    // Normalize the place block: absent keys leave the columns untouched
+    // (undefined) while null clears; placeName/placeAddress describe the
+    // place, so clearing the pair clears them too. An incomplete pair
+    // stores nothing.
+    if (data.placeProvider === undefined && data.placeId === undefined) {
       delete updateData.placeProvider;
-      delete updateData.externalPlaceId;
-    } else if (data.placeProvider != null && data.externalPlaceId != null) {
+      delete updateData.placeId;
+      if (data.placeName === undefined) delete updateData.placeName;
+      if (data.placeAddress === undefined) delete updateData.placeAddress;
+    } else if (data.placeProvider != null && data.placeId != null) {
       updateData.placeProvider = data.placeProvider;
-      updateData.externalPlaceId = data.externalPlaceId;
+      updateData.placeId = data.placeId;
+      if (data.placeName === undefined) delete updateData.placeName;
+      if (data.placeAddress === undefined) delete updateData.placeAddress;
     } else {
       updateData.placeProvider = null;
-      updateData.externalPlaceId = null;
+      updateData.placeId = null;
+      updateData.placeName = null;
+      updateData.placeAddress = null;
     }
 
     // If destination changed, geocode and update coordinates + look up timezone + delete weather cache
@@ -833,7 +842,7 @@ export class TripService implements ITripService {
         }
         updateData.destinationLat = newLat;
         updateData.destinationLon = newLon;
-        updateData.destinationDisplayName = newDisplayName;
+        updateData.placeName = newDisplayName;
 
         // Auto-update timezone if geocoding returned one
         if (geocodedTimezone) {

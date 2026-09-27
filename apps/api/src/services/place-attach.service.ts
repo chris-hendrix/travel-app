@@ -6,7 +6,7 @@ import type {
 
 type PlacePairColumns = {
   placeProvider: string | null;
-  externalPlaceId: string | null;
+  placeId: string | null;
 };
 
 /**
@@ -22,11 +22,11 @@ export async function attachPlaces<T extends PlacePairColumns>(
 ): Promise<(T & { place: PlaceSummary | null })[]> {
   const pairs = rows
     .filter(
-      (row) => row.placeProvider != null && row.externalPlaceId != null,
+      (row) => row.placeProvider != null && row.placeId != null,
     )
     .map((row) => ({
       provider: row.placeProvider as string,
-      placeId: row.externalPlaceId as string,
+      placeId: row.placeId as string,
     }));
   let resolved: Map<string, PlaceSummary | null>;
   try {
@@ -44,8 +44,8 @@ export async function attachPlaces<T extends PlacePairColumns>(
   return rows.map((row) => ({
     ...row,
     place:
-      row.placeProvider != null && row.externalPlaceId != null
-        ? (resolved.get(`${row.placeProvider}:${row.externalPlaceId}`) ?? null)
+      row.placeProvider != null && row.placeId != null
+        ? (resolved.get(`${row.placeProvider}:${row.placeId}`) ?? null)
         : null,
   }));
 }

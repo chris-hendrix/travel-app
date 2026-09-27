@@ -64,7 +64,7 @@ export async function discoverRoutes(fastify: FastifyInstance) {
       const [trip] = await request.server.db
         .select({
           destination: trips.destination,
-          destinationDisplayName: trips.destinationDisplayName,
+          placeName: trips.placeName,
           destinationLat: trips.destinationLat,
           destinationLon: trips.destinationLon,
         })
@@ -74,7 +74,7 @@ export async function discoverRoutes(fastify: FastifyInstance) {
       // Use query params, fall back to trip data
       const lat = queryLat ?? trip?.destinationLat ?? null;
       const lon = queryLon ?? trip?.destinationLon ?? null;
-      const location = queryLocation ?? trip?.destinationDisplayName ?? trip?.destination ?? null;
+      const location = queryLocation ?? trip?.placeName ?? trip?.destination ?? null;
 
       // If no coordinates at all, return empty response with trip's destination
       if (lat == null || lon == null) {

@@ -177,8 +177,10 @@ export class EventService implements IEventService {
         location: data.location || null,
         locationLat: data.locationLat ?? null,
         locationLon: data.locationLon ?? null,
-        placeProvider: data.placeProvider != null && data.externalPlaceId != null ? data.placeProvider : null,
-        externalPlaceId: data.placeProvider != null && data.externalPlaceId != null ? data.externalPlaceId : null,
+        placeProvider: data.placeProvider != null && data.placeId != null ? data.placeProvider : null,
+        placeId: data.placeProvider != null && data.placeId != null ? data.placeId : null,
+        placeName: data.placeName ?? null,
+        placeAddress: data.placeAddress ?? null,
         startTime: new Date(data.startTime),
         endTime: data.endTime ? new Date(data.endTime) : null,
         allDay: data.allDay ?? false,
@@ -323,21 +325,25 @@ export class EventService implements IEventService {
       updatedAt: new Date(),
     };
 
-    // Normalize the place pair: absent keys leave the columns untouched,
-    // while a complete or clearing (null/null) value writes both columns.
-    // An incomplete pair stores neither.
-    if (data.placeProvider === undefined && data.externalPlaceId === undefined) {
+    // Normalize the place block: absent keys leave the columns untouched
+    // (undefined) while null clears; placeName/placeAddress describe the
+    // place, so clearing the pair clears them too. An incomplete pair
+    // stores nothing.
+    if (data.placeProvider === undefined && data.placeId === undefined) {
       delete updateData.placeProvider;
-      delete updateData.externalPlaceId;
-    } else if (data.placeProvider != null && data.externalPlaceId != null) {
+      delete updateData.placeId;
+      if (data.placeName === undefined) delete updateData.placeName;
+      if (data.placeAddress === undefined) delete updateData.placeAddress;
+    } else if (data.placeProvider != null && data.placeId != null) {
       updateData.placeProvider = data.placeProvider;
-      updateData.externalPlaceId = data.externalPlaceId;
-    } else if (data.placeProvider == null && data.externalPlaceId == null) {
-      updateData.placeProvider = null;
-      updateData.externalPlaceId = null;
+      updateData.placeId = data.placeId;
+      if (data.placeName === undefined) delete updateData.placeName;
+      if (data.placeAddress === undefined) delete updateData.placeAddress;
     } else {
       updateData.placeProvider = null;
-      updateData.externalPlaceId = null;
+      updateData.placeId = null;
+      updateData.placeName = null;
+      updateData.placeAddress = null;
     }
 
     // Convert date strings to Date objects if provided
