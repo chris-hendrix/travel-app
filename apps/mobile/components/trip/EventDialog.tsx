@@ -14,9 +14,8 @@ import { dayLabel } from "@/lib/itinerary";
 import { toIso } from "@/lib/dateRange";
 import { validateNewEvent, type NewEventInput } from "@/lib/newEvent";
 import type { Trip } from "@/components/trip/TripCard";
-import { EVENT_PLACES } from "@/lib/placeSuggestions";
 import {
-  toPlaceOption,
+  placePickerRows,
   usePlaceDetails,
   usePlaceSessionToken,
   usePlaceSuggestions,
@@ -90,16 +89,11 @@ export function EventDialog({
   const [end, setEnd] = useState<string | null>(initial?.end ?? null);
   const [submitted, setSubmitted] = useState(false);
 
-  // Live Places suggestions sit above the static list; a lookup failure
-  // falls back to `EVENT_PLACES` silently, and free text keeps working
-  // throughout — the failure never blocks submit. A picked suggestion's
-  // details resolve the event's coordinates, which ride on the submitted
-  // input; typed prose and static picks carry none, so they submit bare.
-  //
-  // It is `suggestions` being absent that falls back, not it being empty:
-  // an empty array means the live source was asked and has nothing, and
-  // answering that with a dozen unrelated static places is worse than
-  // answering it with the picker's own `No matches`.
+  // Live Places suggestions plus the typed text as a row: a lookup
+  // failure degrades to the user's own words, and free text keeps
+  // working throughout — the failure never blocks submit. A picked
+  // suggestion's details resolve the event's coordinates, which ride on
+  // the submitted input; typed prose carries none, so it submits bare.
   const [search, setSearch] = useState("");
   const [sessionToken, rotateSessionToken] = usePlaceSessionToken();
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(
@@ -118,15 +112,25 @@ export function EventDialog({
       ? { lat: initial.locationLat, lon: initial.locationLon }
       : null,
   );
-  const { data: suggestions } = usePlaceSuggestions(search, sessionToken);
+  const {
+    data: suggestions,
+    isFetching: suggestionsFetching,
+    isError: suggestionsFailed,
+  } = usePlaceSuggestions(search, sessionToken);
   const details = usePlaceDetails(selectedPlaceId, sessionToken);
   const liveById = useMemo(
     () => new Map((suggestions ?? []).map((s) => [s.placeId, s])),
     [suggestions],
   );
   const placeOptions = useMemo(
-    () => (suggestions ? suggestions.map(toPlaceOption) : EVENT_PLACES),
-    [suggestions],
+    () =>
+      placePickerRows({
+        suggestions,
+        query: search,
+        isFetching: suggestionsFetching,
+        isError: suggestionsFailed,
+      }).rows,
+    [suggestions, search, suggestionsFetching, suggestionsFailed],
   );
 
   // Details canonicalize the committed label (and close the input
@@ -203,6 +207,8 @@ export function EventDialog({
       <Dropdown
         label="Place"
         options={placeOptions}
+        liveOptions
+        attribution
         value={place}
         onSearchText={setSearch}
         onChange={(picked) => {

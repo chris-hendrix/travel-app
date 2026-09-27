@@ -1,7 +1,12 @@
-import { Pressable, ScrollView, Text } from "react-native";
+import type { ReactNode } from "react";
+import { Pressable, ScrollView, Text, View } from "react-native";
+import {
+  entryAccessibilityLabel,
+  type PickerEntry,
+} from "@/lib/dropdown";
 
 /** One line of a suggestion list: what is committed, and what is read. */
-export type Suggestion = { value: string; label: string };
+export type Suggestion = PickerEntry;
 
 /**
  * The suggestion list under a field, as one component.
@@ -30,11 +35,14 @@ export function SuggestionList({
   suggestions,
   empty,
   onPick,
+  footer,
 }: {
   suggestions: Suggestion[];
   /** What to say when nothing matches, in the caller's own words. */
   empty: string;
   onPick: (value: string) => void;
+  /** Attribution or context below the rows, e.g. the Google Maps mark. */
+  footer?: ReactNode;
 }) {
   return (
     <ScrollView
@@ -49,20 +57,38 @@ export function SuggestionList({
       {suggestions.length === 0 ? (
         <Text className="font-body p-3 text-base text-ink">{empty}</Text>
       ) : (
-        suggestions.map((suggestion) => (
-          <Pressable
-            key={suggestion.value}
-            onPress={() => onPick(suggestion.value)}
-            accessibilityRole="button"
-            accessibilityLabel={suggestion.label}
-            className="cursor-pointer border-b border-gravel p-3"
-          >
-            <Text className="font-body text-base text-ink">
-              {suggestion.label}
-            </Text>
-          </Pressable>
-        ))
+        suggestions.map((suggestion) =>
+          // Status rows (loading, failure) read but never commit.
+          suggestion.disabled ? (
+            <View
+              key={suggestion.value}
+              className="border-b border-gravel p-3"
+            >
+              <Text className="font-body text-base text-ink/60">
+                {suggestion.label}
+              </Text>
+            </View>
+          ) : (
+            <Pressable
+              key={suggestion.value}
+              onPress={() => onPick(suggestion.value)}
+              accessibilityRole="button"
+              accessibilityLabel={entryAccessibilityLabel(suggestion)}
+              className="cursor-pointer border-b border-gravel p-3"
+            >
+              <Text className="font-body text-base text-ink">
+                {suggestion.label}
+              </Text>
+              {suggestion.secondary ? (
+                <Text className="font-body text-sm text-ink/70">
+                  {suggestion.secondary}
+                </Text>
+              ) : null}
+            </Pressable>
+          ),
+        )
       )}
+      {footer}
     </ScrollView>
   );
 }

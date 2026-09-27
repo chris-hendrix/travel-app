@@ -31,12 +31,14 @@ function autocompleteRows() {
       shortName: "Lisbon",
       displayName: "Lisbon, Portugal",
       displayAddress: "Portugal",
+      types: ["locality", "political"],
     },
     {
       placeId: "ChIJTulum",
       shortName: "Tulum",
       displayName: "Tulum, Mexico",
       displayAddress: "Quintana Roo, Mexico",
+      types: ["restaurant", "food"],
     },
   ];
 }
@@ -64,12 +66,14 @@ describe("placeSuggestionsOptions", () => {
         name: "Lisbon, Portugal",
         shortName: "Lisbon",
         address: "Portugal",
+        types: ["locality", "political"],
       },
       {
         placeId: "ChIJTulum",
         name: "Tulum, Mexico",
         shortName: "Tulum",
         address: "Quintana Roo, Mexico",
+        types: ["restaurant", "food"],
       },
     ]);
   });
@@ -231,6 +235,7 @@ describe("toPlaceOption", () => {
         name: "Lisbon, Portugal",
         shortName: "Lisbon",
         address: "Portugal",
+        types: [],
       }),
     ).toEqual({ value: "ChIJLisbon", label: "Lisbon, Portugal" });
   });

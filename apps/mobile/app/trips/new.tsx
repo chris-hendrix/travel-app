@@ -12,12 +12,11 @@ import { validateNewTrip, type NewTripInput } from "@/lib/newTrip";
 import { useTrips } from "@/lib/tripsStore";
 import { toErrorCopy } from "@/lib/queries/errors";
 import {
-  toPlaceOption,
+  placePickerRows,
   usePlaceDetails,
   usePlaceSessionToken,
   usePlaceSuggestions,
 } from "@/lib/queries/places";
-import { PLACES } from "@/lib/placeSuggestions";
 
 export default function NewTrip() {
   const { addTrip } = useTrips();
@@ -30,30 +29,34 @@ export default function NewTrip() {
   const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Live Places suggestions sit above the static list; offline, an empty
-  // key, or a 503 falls back to `PLACES` silently, and the required-pick
-  // still accepts a static pick. The field keeps the display string only
-  // — the trip carries no lat/lon.
-  //
-  // It is `suggestions` being absent that falls back, not it being empty.
-  // An empty array is an answer — the live source was asked and has
-  // nothing for that query — and answering it with ten unrelated static
-  // places is worse than answering it with nothing, which is what the
-  // picker says for itself (`No matches`).
+  // Live Places suggestions plus the typed text as a row: offline, an
+  // empty key, or a 503 degrades to the user's own words, and the
+  // required-pick still accepts the typed row. The field keeps the
+  // display string only — the trip carries no lat/lon.
   const [search, setSearch] = useState("");
   const [sessionToken, rotateSessionToken] = usePlaceSessionToken();
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(
     null,
   );
-  const { data: suggestions } = usePlaceSuggestions(search, sessionToken);
+  const {
+    data: suggestions,
+    isFetching: suggestionsFetching,
+    isError: suggestionsFailed,
+  } = usePlaceSuggestions(search, sessionToken);
   const details = usePlaceDetails(selectedPlaceId, sessionToken);
   const liveById = useMemo(
     () => new Map((suggestions ?? []).map((s) => [s.placeId, s])),
     [suggestions],
   );
   const placeOptions = useMemo(
-    () => (suggestions ? suggestions.map(toPlaceOption) : PLACES),
-    [suggestions],
+    () =>
+      placePickerRows({
+        suggestions,
+        query: search,
+        isFetching: suggestionsFetching,
+        isError: suggestionsFailed,
+      }).rows,
+    [suggestions, search, suggestionsFetching, suggestionsFailed],
   );
 
   // Details only canonicalize the committed label (and close the
@@ -139,6 +142,8 @@ export default function NewTrip() {
       <Dropdown
         label="Where"
         options={placeOptions}
+        liveOptions
+        attribution
         value={location}
         onSearchText={setSearch}
         onChange={(picked) => {

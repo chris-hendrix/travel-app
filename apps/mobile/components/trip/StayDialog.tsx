@@ -17,7 +17,7 @@ import {
 } from "@/lib/newStay";
 import type { Trip } from "@/components/trip/TripCard";
 import {
-  toPlaceOption,
+  placePickerRows,
   usePlaceDetails,
   usePlaceSessionToken,
   usePlaceSuggestions,
@@ -91,13 +91,12 @@ export function StayDialog({
   const [description, setDescription] = useState(initial?.description ?? "");
   const [submitted, setSubmitted] = useState(false);
 
-  // Live Places suggestions for the address. There is no static list
-  // for street addresses, so the fallback here is free text alone:
-  // a lookup failure leaves an empty suggestion list, typing keeps
-  // working, and the failure never blocks submit. A picked suggestion's
-  // details resolve the stay's coordinates, which ride out on the
-  // submit beside the input; typed prose carries none, so it submits
-  // bare.
+  // Live Places suggestions for the address, plus the typed text as a
+  // row: a lookup failure degrades to the user's own words, typing
+  // keeps working, and the failure never blocks submit. A picked
+  // suggestion's details resolve the stay's coordinates, which ride out
+  // on the submit beside the input; typed prose carries none, so it
+  // submits bare.
   const [search, setSearch] = useState("");
   const [sessionToken, rotateSessionToken] = usePlaceSessionToken();
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(
@@ -117,15 +116,25 @@ export function StayDialog({
       ? { lat: initialCoords.lat, lon: initialCoords.lon }
       : null,
   );
-  const { data: suggestions } = usePlaceSuggestions(search, sessionToken);
+  const {
+    data: suggestions,
+    isFetching: suggestionsFetching,
+    isError: suggestionsFailed,
+  } = usePlaceSuggestions(search, sessionToken);
   const details = usePlaceDetails(selectedPlaceId, sessionToken);
   const liveById = useMemo(
     () => new Map((suggestions ?? []).map((s) => [s.placeId, s])),
     [suggestions],
   );
   const addressOptions = useMemo(
-    () => (suggestions ?? []).map(toPlaceOption),
-    [suggestions],
+    () =>
+      placePickerRows({
+        suggestions,
+        query: search,
+        isFetching: suggestionsFetching,
+        isError: suggestionsFailed,
+      }).rows,
+    [suggestions, search, suggestionsFetching, suggestionsFailed],
   );
 
   // Details canonicalize the committed label (and close the input
@@ -193,6 +202,8 @@ export function StayDialog({
       <Dropdown
         label="Address"
         options={addressOptions}
+        liveOptions
+        attribution
         value={address || null}
         onSearchText={setSearch}
         onChange={(picked) => {

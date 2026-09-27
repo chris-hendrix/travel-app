@@ -8,13 +8,13 @@
  * `{placeId, shortName, displayName, displayAddress}`, details returns
  * one `{placeId, shortName, displayName, displayPlace, displayAddress,
  * lat, lon}`. A missing key degrades, not errors: both answer 503 — so
- * the pickers treat "no live results" as "fall back to the static list",
+ * the pickers treat "no live results" as "offer the typed text",
  * never as a submit blocker.
  *
  * Session tokens are Google's billing rule, not ours: one token per
  * input session, sent with every keystroke's autocomplete request AND
  * the follow-up details call. The token rotates after a selection
- * settles (or is abandoned for a static/free-text pick), so the next
+ * settles (or is abandoned for a typed pick), so the next
  * input session starts fresh.
  *
  * CI carries no `GOOGLE_MAPS_API_KEY`, so the specs below stub at the
@@ -27,6 +27,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
+import {
+  GOOGLE_MAPS_ATTRIBUTION,
+  type PickerEntry,
+} from "@/lib/dropdown";
 
 /** Minimum trimmed input before autocomplete fires. */
 export const SUGGESTION_MIN_CHARS = 2;
@@ -41,6 +45,8 @@ export type PlaceSuggestion = {
   name: string;
   shortName: string;
   address: string;
+  /** Google place types — what the event's type is derived from. */
+  types: string[];
 };
 
 /** One details row: the canonical name plus coordinates. */
@@ -60,6 +66,7 @@ type AutocompleteRow = {
   shortName: string;
   displayName: string;
   displayAddress: string;
+  types?: string[];
 };
 
 type DetailsRow = {
@@ -144,6 +151,7 @@ export async function fetchPlaceSuggestions(
     name: row.displayName,
     shortName: row.shortName,
     address: row.displayAddress,
+    types: row.types ?? [],
   }));
 }
 
@@ -268,4 +276,66 @@ export function usePlaceSessionToken(): readonly [string, () => void] {
 /** A suggestion as a Dropdown row: the placeId commits, the name reads. */
 export function toPlaceOption(suggestion: PlaceSuggestion): PlaceOption {
   return { value: suggestion.placeId, label: suggestion.name };
+}
+
+export { GOOGLE_MAPS_ATTRIBUTION };
+
+/** One place-picker row: a live Google answer, a status line, or the typed text. */
+export type PlacePickerRow = PickerEntry;
+
+/**
+ * The picker's rows for one query: live Google rows first in Google's
+ * relevance order, then the typed text pinned after them — always, so
+ * a failed lookup degrades to the user's own words. A blank query
+ * offers nothing; the list stays closed on an empty field.
+ */
+export function placePickerRows({
+  suggestions,
+  query,
+  isFetching = false,
+  isError = false,
+  failed = false,
+}: {
+  /** Undefined while the lookup has not answered yet. */
+  suggestions: PlaceSuggestion[] | undefined;
+  query: string;
+  isFetching?: boolean;
+  isError?: boolean;
+  /** Alias for callers holding a differently-named failure flag. */
+  failed?: boolean;
+}): { rows: PlacePickerRow[]; hasTypedRow: boolean; footer: string } {
+  const footer = GOOGLE_MAPS_ATTRIBUTION;
+  const trimmed = query.trim();
+  if (trimmed === "") return { rows: [], hasTypedRow: false, footer };
+
+  const rows: PlacePickerRow[] = [];
+  if (isFetching && (suggestions === undefined || suggestions.length === 0)) {
+    rows.push({
+      value: "__places-searching",
+      label: "Searching…",
+      disabled: true,
+    });
+  } else {
+    for (const suggestion of suggestions ?? []) {
+      rows.push({
+        value: suggestion.placeId,
+        label: suggestion.name,
+        secondary: suggestion.address || undefined,
+      });
+    }
+  }
+  if (isError || failed) {
+    rows.push({
+      value: "__places-error",
+      label: "Couldn't reach Google Places",
+      disabled: true,
+    });
+  }
+  rows.push({
+    value: trimmed,
+    label: `"${trimmed}"`,
+    secondary: "Use what you typed",
+    fieldText: trimmed,
+  });
+  return { rows, hasTypedRow: true, footer };
 }
