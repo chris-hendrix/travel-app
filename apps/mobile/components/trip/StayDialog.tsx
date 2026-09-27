@@ -6,7 +6,6 @@ import { InlineError } from "@/components/ui/InlineError";
 import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { DatePicker } from "@/components/ui/DatePicker";
-import { PickedPlace } from "@/components/trip/PickedPlace";
 import { FieldError } from "@/components/ui/FieldError";
 import { TimeField } from "@/components/ui/TimeField";
 import type { Selection } from "@/lib/calendar";
@@ -25,7 +24,7 @@ import {
   usePlaceSessionToken,
   usePlaceSuggestions,
 } from "@/lib/queries/places";
-import { pickPlace, pickStayAddress } from "@/lib/place-pick";
+import { pickPlace } from "@/lib/place-pick";
 
 /**
  * The stay form, in one place because there is one of it: adding and
@@ -165,19 +164,16 @@ export function StayDialog({
     [suggestions, search, suggestionsFetching, suggestionsFailed],
   );
 
-  // Details resolve the stay's coordinates, its formatted address, and
-  // its snapshot address — never the name, which is the user's own
-  // words — and close the input session. They never block submit. An
+  // Details resolve the stay's coordinates and its snapshot address,
+  // and close the input session. They never touch the field, which
+  // holds the full text the picker committed, and never the name,
+  // which is the user's own words. They never block submit. An
   // address with no live details submits bare.
   useEffect(() => {
     if (!selectedPlaceId) return;
     const landed = details.data;
     if (landed?.placeId === selectedPlaceId) {
-      const formattedAddress = landed.address;
-      setAddress((current) =>
-        pickStayAddress({ address: current }, formattedAddress),
-      );
-      setPlaceAddress(formattedAddress);
+      setPlaceAddress(landed.address);
       setCoords(
         Number.isFinite(landed.lat) && Number.isFinite(landed.lon)
           ? { lat: landed.lat, lon: landed.lon }
@@ -255,11 +251,11 @@ export function StayDialog({
           if (hit) {
             setSelectedPlaceId(pick.selectedPlaceId);
             setPlaceId(pick.selectedPlaceId);
-            // A live pick sets the address — the suggestion's own
-            // while the formatted address arrives with the details
-            // lookup — and the snapshot's name and address. The name
-            // field keeps the user's own words: a pick never writes it.
-            setAddress(pickStayAddress(hit, null));
+            // A live pick commits the row's full text — name and
+            // address together — plus the snapshot's name and address.
+            // The name field keeps the user's own words: a pick never
+            // writes it.
+            setAddress(pick.place);
             setPlaceName(hit.shortName);
             setPlaceAddress(null);
             // The coordinates arrive with the details lookup; until
@@ -279,13 +275,6 @@ export function StayDialog({
         error={errors.address}
         freeText
       />
-
-      {/* Both halves of the pick: the Address field carries only the
-          formatted address, so the place's own name would otherwise be
-          invisible here. */}
-      {placeId ? (
-        <PickedPlace name={placeName} address={placeAddress} />
-      ) : null}
 
       <View className="gap-2">
         <Text className="font-body-bold text-sm text-ink">Nights</Text>

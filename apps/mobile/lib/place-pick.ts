@@ -15,10 +15,15 @@ export type PlacePick = {
 };
 
 /**
- * The tapped row's answer. A live suggestion commits its short name
- * with its place id; the typed text commits itself with none. The type
- * comes off the suggestion's Google types (`restaurant` →
- * `food_and_drink`); typed text is unclassified.
+ * The tapped row's answer. A live suggestion commits the row's FULL
+ * display text — the name and the address together, exactly the string
+ * the row carried — so the field echoes what was tapped and needs no
+ * second line under it to say the rest. The typed text commits itself
+ * with no place id. The type comes off the suggestion's Google types
+ * (`restaurant` → `food_and_drink`); typed text is unclassified.
+ *
+ * `stayArea` reads the LAST comma-separated segment of a stay's
+ * address, so a name leading the string does not disturb it.
  */
 export function pickPlace(
   suggestion: PlaceSuggestion | null,
@@ -26,25 +31,11 @@ export function pickPlace(
 ): PlacePick {
   if (suggestion) {
     return {
-      place: suggestion.shortName,
+      place: suggestion.name,
       selectedPlaceId: suggestion.placeId,
       type: eventTypeForPlace(suggestion.types ?? []),
     };
   }
   return { place: typedText, selectedPlaceId: null, type: "misc" };
-}
-
-/**
- * A stay's Address after a pick: the details lookup's formatted address
- * wins (it is what `stayArea` reads the town off and what the maps link
- * searches), falling back to the suggestion's own address while details
- * are still in flight. Never the place's name — a name in the address
- * column makes `stayArea` return nonsense.
- */
-export function pickStayAddress(
-  suggestion: Pick<PlaceSuggestion, "address">,
-  detailsAddress: string | null,
-): string {
-  return detailsAddress ?? suggestion.address;
 }
 

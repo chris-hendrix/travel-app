@@ -11,7 +11,6 @@ import {
   type Stay,
 } from "@/lib/stays";
 import { wallClock } from "@/lib/timezone";
-import { pickStayAddress } from "@/lib/place-pick";
 
 /** A stay with only what a test cares about; everything else is empty. */
 function stay(overrides: Partial<Stay> = {}): Stay {
@@ -144,21 +143,17 @@ describe("a stay's picked address", () => {
     types: [] as string[],
   };
 
-  it("stores the formatted address, not the place's name", () => {
+  it("reads the town off a picked address even with the name leading it", () => {
+    // The field commits the row's full text — "La Bodega, Sóller" — and
+    // `stayArea` reads the LAST comma-separated segment, so the name in
+    // front of the address does not disturb the town.
+    expect(stayArea(stay({ address: picked.name }))).toBe("Sóller");
+  });
+
+  it("reads the town off a formatted address", () => {
     expect(
-      pickStayAddress(picked, "Carrer de la Mar 14, 07100 Sóller"),
-    ).toBe("Carrer de la Mar 14, 07100 Sóller");
-  });
-
-  it("reads the town off the stored address", () => {
-    const address = pickStayAddress(picked, "Carrer de la Mar 14, 07100 Sóller");
-    expect(stayArea(stay({ address }))).toBe("Sóller");
-  });
-
-  it("falls back to the suggestion's address without details", () => {
-    expect(pickStayAddress(picked, null)).toBe(
-      "Carrer de la Mar 14, Sóller",
-    );
+      stayArea(stay({ address: "Carrer de la Mar 14, 07100 Sóller" })),
+    ).toBe("Sóller");
   });
 });
 
