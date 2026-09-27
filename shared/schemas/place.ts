@@ -6,7 +6,7 @@ export const placeProviderSchema = z.enum(["google"]);
 
 export const placePairSchema = z.object({
   placeProvider: placeProviderSchema,
-  externalPlaceId: z
+  placeId: z
     .string()
     .min(1, {
       error: "External place ID must be at least 1 character",
@@ -18,10 +18,17 @@ export const placePairSchema = z.object({
 
 export const placeBoxSchema = z.enum(["card", "hero"]);
 
-/** Optional place-pair fields mixed into the trip/event/accommodation bases. */
+/**
+ * Optional place-block fields mixed into the trip/event/accommodation bases.
+ * `placeProvider` + `placeId` is the both-or-neither pair matching
+ * `place_cache`'s own (provider, place_id); `placeName`/`placeAddress`
+ * are the independent user-picked snapshot strings, cleared with the pair.
+ */
 export const placePairFields = {
   placeProvider: placeProviderSchema.nullish(),
-  externalPlaceId: z.string().min(1).max(512).nullish(),
+  placeId: z.string().min(1).max(512).nullish(),
+  placeName: z.string().min(1).max(512).nullish(),
+  placeAddress: z.string().min(1).max(512).nullish(),
 };
 
 /**
@@ -31,15 +38,15 @@ export const placePairFields = {
  */
 export function isCompletePlacePair(data: {
   placeProvider?: unknown;
-  externalPlaceId?: unknown;
+  placeId?: unknown;
 }): boolean {
   const hasProvider = data.placeProvider != null;
-  const hasId = data.externalPlaceId != null;
+  const hasId = data.placeId != null;
   return hasProvider === hasId;
 }
 
 export const placePairIncompleteMessage =
-  "placeProvider and externalPlaceId must be provided together";
+  "placeProvider and placeId must be provided together";
 
 const cachedPhotoSchema = z
   .object({

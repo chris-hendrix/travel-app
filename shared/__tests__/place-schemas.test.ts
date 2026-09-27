@@ -16,7 +16,7 @@ import {
   updateAccommodationSchema,
 } from "../schemas/index.js";
 
-const pair = { placeProvider: "google", externalPlaceId: "ChIJ123" } as const;
+const pair = { placeProvider: "google", placeId: "ChIJ123" } as const;
 
 describe("place pair schemas", () => {
   it("accepts a valid provider + id pair", () => {
@@ -31,7 +31,7 @@ describe("place pair schemas", () => {
 
   it("rejects an id without a provider", () => {
     expect(() =>
-      placePairSchema.parse({ externalPlaceId: "ChIJ123" }),
+      placePairSchema.parse({ placeId: "ChIJ123" }),
     ).toThrow();
   });
 
@@ -75,7 +75,7 @@ describe("place pair on create/update schemas", () => {
       schema.parse({ ...base, placeProvider: "google" }),
     ).toThrow();
     expect(() =>
-      schema.parse({ ...base, externalPlaceId: "ChIJ123" }),
+      schema.parse({ ...base, placeId: "ChIJ123" }),
     ).toThrow();
     // absent pair still parses
     expect(() => schema.parse({ ...base })).not.toThrow();

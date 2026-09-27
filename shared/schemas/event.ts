@@ -71,7 +71,7 @@ export const createEventSchema = baseEventSchema
   )
   .refine(isCompletePlacePair, {
     message: placePairIncompleteMessage,
-    path: ["externalPlaceId"],
+    path: ["placeId"],
   });
 
 /**
@@ -96,7 +96,7 @@ export const updateEventSchema = baseEventSchema
   )
   .refine(isCompletePlacePair, {
     message: placePairIncompleteMessage,
-    path: ["externalPlaceId"],
+    path: ["placeId"],
   });
 
 // --- Response schemas ---

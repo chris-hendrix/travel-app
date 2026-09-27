@@ -63,7 +63,7 @@ export const createAccommodationSchema = baseAccommodationSchema
   )
   .refine(isCompletePlacePair, {
     message: placePairIncompleteMessage,
-    path: ["externalPlaceId"],
+    path: ["placeId"],
   });
 
 /**
@@ -88,7 +88,7 @@ export const updateAccommodationSchema = baseAccommodationSchema
   )
   .refine(isCompletePlacePair, {
     message: placePairIncompleteMessage,
-    path: ["externalPlaceId"],
+    path: ["placeId"],
   });
 
 // --- Response schemas ---
