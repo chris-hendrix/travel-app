@@ -22,6 +22,7 @@ import { ApiError, apiFetch } from "@/lib/api";
 import type { Trip } from "@/components/trip/TripCard";
 import {
   tripKeys,
+  tripPlacePatch,
   updateTrip,
   updateTripOptions,
 } from "@/lib/queries/trips";
@@ -104,6 +105,46 @@ describe("updateTrip", () => {
       startDate: "2026-07-01",
       endDate: "2026-07-08",
       description: "Extra days",
+    });
+  });
+});
+
+describe("tripPlacePatch", () => {
+  it("sends the pair when an id is picked", () => {
+    expect(tripPlacePatch("ChIJKeens123")).toEqual({
+      placeProvider: "google",
+      externalPlaceId: "ChIJKeens123",
+    });
+  });
+
+  it("sends explicit nulls when the place was typed over", () => {
+    expect(tripPlacePatch(null)).toEqual({
+      placeProvider: null,
+      externalPlaceId: null,
+    });
+  });
+
+  it("omits both keys when the field was untouched", () => {
+    const body = tripPlacePatch(undefined);
+    expect(body).not.toHaveProperty("placeProvider");
+    expect(body).not.toHaveProperty("externalPlaceId");
+  });
+
+  it("updateTrip carries the pair through to the PUT body", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({ success: true, trip: updatedEntity() });
+
+    await updateTrip("trip-1", {
+      destination: "Bolzano",
+      ...tripPlacePatch("ChIJKeens123"),
+    });
+
+    const body = JSON.parse(
+      (mockedApiFetch.mock.calls[0]?.[1] as { body: string }).body,
+    ) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      placeProvider: "google",
+      externalPlaceId: "ChIJKeens123",
     });
   });
 });

@@ -12,7 +12,10 @@ import { formatDateRange } from "@/lib/dateRange";
 import { validateNewTrip, type NewTripInput } from "@/lib/newTrip";
 import { useTrip, useTripsActions } from "@/lib/tripsStore";
 import { coverPreviewSeed } from "@/lib/place-images";
-import type { UpdateTripRequest } from "@/lib/queries/trips";
+import {
+  tripPlacePatch,
+  type UpdateTripRequest,
+} from "@/lib/queries/trips";
 import { toErrorCopy } from "@/lib/queries/errors";
 import {
   biasForTrip,
@@ -84,6 +87,15 @@ function EditTripScreen() {
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(
     null,
   );
+  // The destination's picked-place id for the patch, seeded from the
+  // trip's existing link so 'untouched' (omit both keys) stays
+  // distinguishable from 'typed' (null: clear the link). A live pick
+  // sets it; the typed row clears it — opening an edit and saving
+  // without touching the field unlinks nothing.
+  const [placeId, setPlaceId] = useState<string | null>(
+    trip?.placeId ?? null,
+  );
+  const [placeTouched, setPlaceTouched] = useState(false);
   const {
     data: suggestions,
     isFetching: suggestionsFetching,
@@ -163,6 +175,9 @@ function EditTripScreen() {
       // `description` is optional-but-not-nullable server-side, so an
       // emptied field is omitted (no change) rather than nulled.
       ...(description.trim() ? { description: description.trim() } : null),
+      // The destination's link: the pair on a re-pick, explicit nulls
+      // when typed over (which clears it), nothing when untouched.
+      ...tripPlacePatch(placeTouched ? placeId : undefined),
     };
     setBusy(true);
     try {
@@ -225,9 +240,13 @@ function EditTripScreen() {
           const pick = pickPlace(hit ?? null, picked);
           if (hit) {
             setSelectedPlaceId(pick.selectedPlaceId);
+            setPlaceId(pick.selectedPlaceId);
+            setPlaceTouched(true);
             setLocation(pick.place);
           } else {
             setSelectedPlaceId(null);
+            setPlaceId(null);
+            setPlaceTouched(true);
             setLocation(pick.place);
             rotateSessionToken();
           }

@@ -118,7 +118,32 @@ export type UpdateTripRequest = {
   coverImageUrl?: string | null;
   allowMembersToAddEvents?: boolean;
   showAllMembers?: boolean;
+  /**
+   * Google place pair — the create path's fields, optional here so the
+   * edit screen can send, clear, or leave the link (see tripPlacePatch).
+   */
+  placeProvider?: "google" | null;
+  externalPlaceId?: string | null;
 };
+
+/**
+ * The picked place's pair for the trip PUT patch, mirroring the
+ * event/stay stores' pair rule: a picked id sends
+ * `{ placeProvider: "google", externalPlaceId }`, an explicit null
+ * (the destination typed over) sends nulls to clear the link, and
+ * `undefined` (the field untouched) omits both keys so the server
+ * leaves the columns alone. Never a half pair.
+ */
+export function tripPlacePatch(placeId: string | null | undefined): {
+  placeProvider?: "google" | null;
+  externalPlaceId?: string | null;
+} {
+  if (placeId === undefined) return {};
+  if (placeId != null) {
+    return { placeProvider: "google", externalPlaceId: placeId };
+  }
+  return { placeProvider: null, externalPlaceId: null };
+}
 
 /**
  * `PUT /trips/:id`, mapped through `toTrip`.
