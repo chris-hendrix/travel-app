@@ -13,6 +13,10 @@ import type {
 import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
 import {
+  applyPlaceBlockPatch,
+  placeBlockPatch,
+} from "./place-block.service.js";
+import {
   EventNotFoundError,
   EventLimitExceededError,
   PermissionDeniedError,
@@ -325,47 +329,24 @@ export class EventService implements IEventService {
       updatedAt: new Date(),
     };
 
-    // Normalize the place block: absent keys leave the columns untouched
-    // (undefined) while null clears; placeName/placeAddress describe the
-    // place, so clearing the pair clears them too. An incomplete pair
-    // stores nothing.
-    if (data.placeProvider === undefined && data.placeId === undefined) {
-      delete updateData.placeProvider;
-      delete updateData.placeId;
-      if (data.placeName === undefined) delete updateData.placeName;
-      if (data.placeAddress === undefined) delete updateData.placeAddress;
-    } else if (data.placeProvider != null && data.placeId != null) {
-      updateData.placeProvider = data.placeProvider;
-      updateData.placeId = data.placeId;
-      // A REPLACED pair must not inherit the old place's text: when
-      // the incoming pair differs from the stored pair, clear the
-      // snapshot unless the request supplies it (trip parity).
-      const [currentPlace] = await this.db
-        .select({
-          placeProvider: events.placeProvider,
-          placeId: events.placeId,
-        })
-        .from(events)
-        .where(eq(events.id, eventId))
-        .limit(1);
-      const pairChanged =
-        currentPlace != null &&
-        (currentPlace.placeProvider !== data.placeProvider ||
-          currentPlace.placeId !== data.placeId);
-      if (data.placeName === undefined) {
-        if (pairChanged) updateData.placeName = null;
-        else delete updateData.placeName;
-      }
-      if (data.placeAddress === undefined) {
-        if (pairChanged) updateData.placeAddress = null;
-        else delete updateData.placeAddress;
-      }
-    } else {
-      updateData.placeProvider = null;
-      updateData.placeId = null;
-      updateData.placeName = null;
-      updateData.placeAddress = null;
-    }
+    // The place block's rule lives in place-block.service.ts, shared
+    // with the trip and accommodation updates. The stored pair is read
+    // only when the request carries a real pair, so an update that
+    // leaves the place alone costs no extra query.
+    applyPlaceBlockPatch(
+      updateData,
+      await placeBlockPatch(data, () =>
+        this.db
+          .select({
+            placeProvider: events.placeProvider,
+            placeId: events.placeId,
+          })
+          .from(events)
+          .where(eq(events.id, eventId))
+          .limit(1)
+          .then((rows) => rows[0]),
+      ),
+    );
 
     // Convert date strings to Date objects if provided
     if (data.startTime) {
