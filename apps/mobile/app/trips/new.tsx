@@ -110,8 +110,8 @@ export default function NewTrip() {
         ...(picked
           ? {
               placeProvider: "google" as const,
-              externalPlaceId: selectedPlaceId as string,
-              destinationDisplayName: (location ?? "").trim(),
+              placeId: selectedPlaceId as string,
+              placeName: (location ?? "").trim(),
               ...(coords
                 ? {
                     destinationLat: coords.lat,

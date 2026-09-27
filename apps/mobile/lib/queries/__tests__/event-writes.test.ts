@@ -342,7 +342,7 @@ describe("useEvents() writes", () => {
     ) as Record<string, unknown>;
     expect(body).toMatchObject({
       placeProvider: "google",
-      externalPlaceId: "ChIJKeens123",
+      placeId: "ChIJKeens123",
     });
   });
 
@@ -364,7 +364,7 @@ describe("useEvents() writes", () => {
     ) as Record<string, unknown>;
     expect(body).toMatchObject({
       placeProvider: null,
-      externalPlaceId: null,
+      placeId: null,
     });
   });
 
@@ -382,7 +382,7 @@ describe("useEvents() writes", () => {
     ) as Record<string, unknown>;
     expect(repicked).toMatchObject({
       placeProvider: "google",
-      externalPlaceId: "ChIJKeens123",
+      placeId: "ChIJKeens123",
     });
 
     mockedApiFetch.mockClear();
@@ -393,7 +393,7 @@ describe("useEvents() writes", () => {
     ) as Record<string, unknown>;
     expect(cleared).toMatchObject({
       placeProvider: null,
-      externalPlaceId: null,
+      placeId: null,
     });
   });
 
@@ -410,7 +410,7 @@ describe("useEvents() writes", () => {
       (mockedApiFetch.mock.calls[0]?.[1] as { body: string }).body,
     ) as Record<string, unknown>;
     expect(body).not.toHaveProperty("placeProvider");
-    expect(body).not.toHaveProperty("externalPlaceId");
+    expect(body).not.toHaveProperty("placeId");
   });
 
   it("a failed update keeps a concurrent write's paint", async () => {

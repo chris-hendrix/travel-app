@@ -452,7 +452,7 @@ describe("useStays() writes (staysStore)", () => {
     ) as Record<string, unknown>;
     expect(body).toMatchObject({
       placeProvider: "google",
-      externalPlaceId: "ChIJRitz123",
+      placeId: "ChIJRitz123",
     });
   });
 
@@ -477,7 +477,7 @@ describe("useStays() writes (staysStore)", () => {
     ) as Record<string, unknown>;
     expect(body).toMatchObject({
       placeProvider: null,
-      externalPlaceId: null,
+      placeId: null,
     });
   });
 
@@ -498,7 +498,7 @@ describe("useStays() writes (staysStore)", () => {
     ) as Record<string, unknown>;
     expect(repicked).toMatchObject({
       placeProvider: "google",
-      externalPlaceId: "ChIJRitz123",
+      placeId: "ChIJRitz123",
     });
 
     mockedApiFetch.mockClear();
@@ -512,7 +512,7 @@ describe("useStays() writes (staysStore)", () => {
     ) as Record<string, unknown>;
     expect(cleared).toMatchObject({
       placeProvider: null,
-      externalPlaceId: null,
+      placeId: null,
     });
   });
 
@@ -532,7 +532,7 @@ describe("useStays() writes (staysStore)", () => {
       (mockedApiFetch.mock.calls[0]?.[1] as { body: string }).body,
     ) as Record<string, unknown>;
     expect(body).not.toHaveProperty("placeProvider");
-    expect(body).not.toHaveProperty("externalPlaceId");
+    expect(body).not.toHaveProperty("placeId");
   });
 
   it("addStay sends the picker's coordinates on create", async () => {

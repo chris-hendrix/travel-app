@@ -116,10 +116,10 @@ describe("createTrip place forwarding (Phase 14)", () => {
     const picked = {
       ...input,
       placeProvider: "google" as const,
-      externalPlaceId: "ChIJ123",
+      placeId: "ChIJ123",
       destinationLat: 39.7,
       destinationLon: 2.9,
-      destinationDisplayName: "La Bodega, S\u00f3ller",
+      placeName: "La Bodega, S\u00f3ller",
     };
     await createTrip(picked);
 
@@ -129,10 +129,10 @@ describe("createTrip place forwarding (Phase 14)", () => {
     );
     expect(body).toMatchObject({
       placeProvider: "google",
-      externalPlaceId: "ChIJ123",
+      placeId: "ChIJ123",
       destinationLat: 39.7,
       destinationLon: 2.9,
-      destinationDisplayName: "La Bodega, S\u00f3ller",
+      placeName: "La Bodega, S\u00f3ller",
     });
   });
 
@@ -146,10 +146,10 @@ describe("createTrip place forwarding (Phase 14)", () => {
       (mockedApiFetch.mock.calls[0]?.[1] as { body: string }).body,
     );
     expect(body).not.toHaveProperty("placeProvider");
-    expect(body).not.toHaveProperty("externalPlaceId");
+    expect(body).not.toHaveProperty("placeId");
     expect(body).not.toHaveProperty("destinationLat");
     expect(body).not.toHaveProperty("destinationLon");
-    expect(body).not.toHaveProperty("destinationDisplayName");
+    expect(body).not.toHaveProperty("placeName");
   });
 });
 

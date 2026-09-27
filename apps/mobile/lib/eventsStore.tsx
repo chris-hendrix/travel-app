@@ -113,8 +113,8 @@ function toCreateRequest(event: EventDraft): CreateEventRequest {
     // the link untouched. Never a half pair — the schema rejects one.
     ...(event.placeId !== undefined
       ? event.placeId != null
-        ? { placeProvider: "google", externalPlaceId: event.placeId }
-        : { placeProvider: null, externalPlaceId: null }
+        ? { placeProvider: "google", placeId: event.placeId }
+        : { placeProvider: null, placeId: null }
       : null),
     startTime: event.startTime,
     ...(event.endTime ? { endTime: event.endTime } : null),
@@ -155,8 +155,8 @@ function toUpdateRequest(
     // idempotent. An untouched place sends neither key.
     ...(patch.placeId !== undefined
       ? patch.placeId != null
-        ? { placeProvider: "google", externalPlaceId: patch.placeId }
-        : { placeProvider: null, externalPlaceId: null }
+        ? { placeProvider: "google", placeId: patch.placeId }
+        : { placeProvider: null, placeId: null }
       : null),
     ...(patch.startTime !== undefined ? { startTime: patch.startTime } : null),
     ...(patch.endTime !== undefined && patch.endTime !== null

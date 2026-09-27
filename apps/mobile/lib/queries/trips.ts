@@ -65,12 +65,14 @@ export type CreateTripRequest = {
   description?: string;
   /** Google place pair — present only when a suggestion was picked. */
   placeProvider?: "google";
-  externalPlaceId?: string;
+  placeId?: string;
   /** Picked-place coordinates — keep geocoding off this path. */
   destinationLat?: number | null;
   destinationLon?: number | null;
   /** Picked place's name — the server's display-name source on the coords path. */
-  destinationDisplayName?: string | null;
+  placeName?: string | null;
+  /** Picked place's formatted address snapshot. */
+  placeAddress?: string | null;
 };
 
 /**
@@ -123,26 +125,29 @@ export type UpdateTripRequest = {
    * edit screen can send, clear, or leave the link (see tripPlacePatch).
    */
   placeProvider?: "google" | null;
-  externalPlaceId?: string | null;
+  placeId?: string | null;
+  /** Picked-place snapshot strings — cleared with the pair. */
+  placeName?: string | null;
+  placeAddress?: string | null;
 };
 
 /**
  * The picked place's pair for the trip PUT patch, mirroring the
  * event/stay stores' pair rule: a picked id sends
- * `{ placeProvider: "google", externalPlaceId }`, an explicit null
+ * `{ placeProvider: "google", placeId }`, an explicit null
  * (the destination typed over) sends nulls to clear the link, and
  * `undefined` (the field untouched) omits both keys so the server
  * leaves the columns alone. Never a half pair.
  */
 export function tripPlacePatch(placeId: string | null | undefined): {
   placeProvider?: "google" | null;
-  externalPlaceId?: string | null;
+  placeId?: string | null;
 } {
   if (placeId === undefined) return {};
   if (placeId != null) {
-    return { placeProvider: "google", externalPlaceId: placeId };
+    return { placeProvider: "google", placeId: placeId };
   }
-  return { placeProvider: null, externalPlaceId: null };
+  return { placeProvider: null, placeId: null };
 }
 
 /**

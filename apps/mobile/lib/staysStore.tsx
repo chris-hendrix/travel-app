@@ -101,8 +101,8 @@ function toCreateRequest(stay: Stay): CreateStayRequest {
     // the link untouched. Never a half pair — the schema rejects one.
     ...(stay.placeId !== undefined
       ? stay.placeId != null
-        ? { placeProvider: "google", externalPlaceId: stay.placeId }
-        : { placeProvider: null, externalPlaceId: null }
+        ? { placeProvider: "google", placeId: stay.placeId }
+        : { placeProvider: null, placeId: null }
       : null),
     ...(stay.description ? { description: stay.description } : null),
     ...(stay.checkIn ? { checkIn: stay.checkIn } : null),
@@ -144,8 +144,8 @@ function toUpdateRequest(patch: Partial<Stay>): UpdateStayRequest {
     // idempotent. An untouched address sends neither key.
     ...(patch.placeId !== undefined
       ? patch.placeId != null
-        ? { placeProvider: "google", externalPlaceId: patch.placeId }
-        : { placeProvider: null, externalPlaceId: null }
+        ? { placeProvider: "google", placeId: patch.placeId }
+        : { placeProvider: null, placeId: null }
       : null),
     ...(typeof patch.description === "string" && patch.description
       ? { description: patch.description }
