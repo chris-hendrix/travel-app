@@ -223,7 +223,6 @@ export function StayDialog({
         error={errors.name}
       />
 
-      {/* TODO(BE): `GET /api/locations/autocomplete` and `/details` do not request `photos[].name` (field masks at `location.routes.ts:88-130`, `:178`), so a picked place has no image reference even though `/locations/photos/:photoRef` exists. */}
       <Dropdown
         label="Address"
         options={addressOptions}
