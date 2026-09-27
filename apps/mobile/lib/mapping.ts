@@ -28,6 +28,7 @@ import type {
 
 import { resolveUploadUrl } from "@/lib/uploads";
 import { placeholderPhoto } from "@/lib/placeholder";
+import { coverImage } from "@/lib/place-images";
 // Re-exported so existing `placeholderPhoto` call sites keep working;
 // new code should import from `@/lib/placeholder` directly.
 export { placeholderPhoto };
@@ -66,11 +67,14 @@ function handlesOf(
  * member count, so the header and the roster can never disagree.
  */
 export function toTrip(detail: TripDetail): Trip {
+  const coverImageUrl = resolveUploadUrl(detail.coverImageUrl);
+  const cover = coverImage({ coverImageUrl, place: detail.place, id: detail.id });
   return {
     id: detail.id,
     title: detail.name,
     location: detail.destination,
-    image: resolveUploadUrl(detail.coverImageUrl) ?? placeholderPhoto(detail.id),
+    image: cover.url ?? placeholderPhoto(detail.id),
+    coverImageUrl,
     going: detail.memberCount,
     startDate: detail.startDate ?? "",
     endDate: detail.endDate ?? "",
@@ -83,11 +87,14 @@ export function toTrip(detail: TripDetail): Trip {
 
 /** A list summary onto the mobile `Trip`: `going` is `memberCount`. */
 export function toTripSummary(summary: TripSummary): Trip {
+  const coverImageUrl = resolveUploadUrl(summary.coverImageUrl);
+  const cover = coverImage({ coverImageUrl, place: summary.place, id: summary.id });
   return {
     id: summary.id,
     title: summary.name,
     location: summary.destination,
-    image: resolveUploadUrl(summary.coverImageUrl) ?? placeholderPhoto(summary.id),
+    image: cover.url ?? placeholderPhoto(summary.id),
+    coverImageUrl,
     going: summary.memberCount,
     startDate: summary.startDate ?? "",
     endDate: summary.endDate ?? "",
@@ -116,8 +123,9 @@ export function toEvent(event: Event): ItineraryEvent {
     place: event.location ?? "",
     locationLat: event.locationLat ?? null,
     locationLon: event.locationLon ?? null,
-    // TODO(BE): Events have no photo column or endpoint. Real art needs `events.imageUrl`/`placePhotoRef`, or a persisted `placeId` resolvable via `/api/locations/photos/:photoRef`.
-    image: placeholderPhoto(event.id),
+    image:
+      coverImage({ place: event.place, id: event.id }).url ??
+      placeholderPhoto(event.id),
     deletedAt: deletedAtOf(event.deletedAt),
   };
 }
@@ -136,8 +144,9 @@ export function toStay(accommodation: Accommodation): Stay {
     description: accommodation.description,
     checkIn: accommodation.checkIn,
     checkOut: accommodation.checkOut,
-    // TODO(BE): Accommodations have no photo column or endpoint. Same shape as (1).
-    image: placeholderPhoto(accommodation.id),
+    image:
+      coverImage({ place: accommodation.place, id: accommodation.id }).url ??
+      placeholderPhoto(accommodation.id),
     links: (accommodation.links ?? []).map((link) => ({
       url: link.url,
       name: link.name ?? link.url,

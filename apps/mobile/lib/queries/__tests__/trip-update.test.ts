@@ -61,6 +61,7 @@ function cachedTrip(): Trip {
     title: "Dolomites",
     location: "Bolzano",
     image: "https://picsum.photos/seed/trip-1/900/450",
+    coverImageUrl: null,
     going: 4,
     startDate: "2026-07-01",
     endDate: "2026-07-05",

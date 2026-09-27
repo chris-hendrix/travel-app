@@ -58,6 +58,7 @@ function optimisticTrip(input: CreateTripRequest): Trip {
     title: input.name.trim(),
     location: input.destination.trim(),
     image: placeholderPhoto(id),
+    coverImageUrl: null,
     going: 1,
     startDate: input.startDate ?? "",
     endDate: input.endDate ?? input.startDate ?? "",

@@ -11,7 +11,7 @@ import type { Selection } from "@/lib/calendar";
 import { formatDateRange } from "@/lib/dateRange";
 import { validateNewTrip, type NewTripInput } from "@/lib/newTrip";
 import { useTrip, useTripsActions } from "@/lib/tripsStore";
-import { placeholderPhoto } from "@/lib/mapping";
+import { coverPreviewSeed } from "@/lib/place-images";
 import type { UpdateTripRequest } from "@/lib/queries/trips";
 import { toErrorCopy } from "@/lib/queries/errors";
 import {
@@ -62,7 +62,10 @@ function EditTripScreen() {
     end: trip?.endDate ?? null,
   });
   const [description, setDescription] = useState(trip?.description ?? "");
-  const [cover, setCover] = useState(trip?.image ?? "");
+  // The preview seeds from the raw upload only, never the resolved
+  // image: a trip with a place photo but no upload seeds to no image,
+  // keeping the `+` add-a-cover affordance.
+  const [cover, setCover] = useState(coverPreviewSeed(trip ?? { coverImageUrl: null }));
   const [submitted, setSubmitted] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -160,7 +163,7 @@ function EditTripScreen() {
     setBusy(true);
     try {
       await updateTrip(trip!.id, patch);
-      const hadCover = trip!.image !== placeholderPhoto(trip!.id);
+      const hadCover = trip!.coverImageUrl !== null;
       const isLocalUri =
         cover !== "" && /^(file:|blob:|data:|content:)/.test(cover);
       if (cover === "" && hadCover) {

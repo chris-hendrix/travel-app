@@ -62,6 +62,7 @@ function existingTrip(): Trip {
     title: "Croatia",
     location: "Split",
     image: "https://picsum.photos/seed/trip-1/900/450",
+    coverImageUrl: null,
     going: 4,
     startDate: "2026-06-04",
     endDate: "2026-06-09",

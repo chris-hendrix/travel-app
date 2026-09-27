@@ -8,6 +8,14 @@ export type Trip = {
   title: string;
   location: string;
   image: string;
+  /**
+   * The raw upload, resolved against the API origin — null when the
+   * trip has no cover. Distinct from `image`, which is the resolved
+   * cover (upload, then place photo, then placeholder): the edit form
+   * seeds its preview from this, so a place photo never reads as a
+   * cover the user added.
+   */
+  coverImageUrl: string | null;
   going: number;
   /** Organizer-authored prose, null until someone writes it. */
   description: string | null;

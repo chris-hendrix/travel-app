@@ -7,6 +7,7 @@ function trip(over: Partial<Trip> & { id: string }): Trip {
     title: "Trip",
     location: "Somewhere",
     image: "",
+    coverImageUrl: null,
     going: 1,
     description: null,
     preferredTimezone: "Europe/Madrid",

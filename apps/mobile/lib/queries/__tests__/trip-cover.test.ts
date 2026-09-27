@@ -69,6 +69,7 @@ function cachedTrip(): Trip {
     title: "Dolomites",
     location: "Bolzano",
     image: placeholderPhoto("trip-1"),
+    coverImageUrl: null,
     going: 4,
     startDate: "2026-07-01",
     endDate: "2026-07-05",
