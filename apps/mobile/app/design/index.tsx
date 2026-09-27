@@ -10,6 +10,8 @@ import { TextField } from "@/components/ui/TextField";
 import { ChipToggle } from "@/components/ui/ChipToggle";import { RsvpControl } from "@/components/trip/RsvpControl";
 import { Segmented } from "@/components/ui/Segmented";
 import { Dropdown } from "@/components/ui/Dropdown";
+import { SuggestionList } from "@/components/ui/SuggestionList";
+import { MapsAttribution } from "@/components/ui/MapsAttribution";
 import { Accordion, AccordionItem } from "@/components/ui/Accordion";
 import { Checkbox, CheckboxLabel } from "@/components/ui/Checkbox";
 import { ActionRow } from "@/components/ui/ActionRow";
@@ -37,6 +39,7 @@ import { InviteCard } from "@/components/trip/InviteCard";
 import { EventCard } from "@/components/trip/EventCard";
 import { Grid } from "@/components/ui/Grid";
 import { PhotoCard } from "@/components/ui/PhotoCard";
+import { PhotoCredit } from "@/components/ui/PhotoCredit";
 import { NotificationRow } from "@/components/notification/NotificationRow";
 import { TRIPS } from "@/mocks/trips";
 import { eventsFor } from "@/mocks/events";
@@ -108,6 +111,34 @@ const TYPE: Array<
 ];
 
 const VENUES = ["The Hall", "Zone One", "The Rooftop", "The Loft", "Full Venue"];
+
+/**
+ * A place picker's rows as the app builds them (lib/queries/places.ts
+ * `placePickerRows`): the looked-up answers in the provider's order, then
+ * the typed text pinned last. The third row is the typed one, quoted so
+ * it reads as your words rather than a result.
+ */
+const PLACE_ROWS = [
+  {
+    value: "ChIJKeens123",
+    label: "La Bodega",
+    secondary: "Carrer de la Mar 14, Sóller",
+  },
+  {
+    value: "ChIJPrunera456",
+    label: "Ca'n Prunera",
+    secondary: "Carrer de la Lluna 7, Sóller",
+  },
+  { value: "La Bod", label: '"La Bod"', secondary: "Use what you typed" },
+];
+
+/** The credit a place photo carries, as `placePhotoCredit` returns it. */
+const PLACE_CREDIT = {
+  name: "Marta Riera",
+  uri: "https://maps.google.com/maps/contrib/110234567890",
+};
+
+const PLACE_PHOTO_SOURCE = "https://maps.google.com/?cid=12345678901234567890";
 
 
 
@@ -500,6 +531,19 @@ function DesignSystemScreen() {
             </Specimen>
 
             <Specimen
+              name="PhotoCredit"
+              contract="credit · sourceUri"
+              note="What a place photo owes, under the photo: the author's name linked to their profile, and the source link the Places policy requires. 12sp and quiet — this line is owed, not read. Both halves are the point, and the component takes both rather than refusing a pair: a credit with no link fails the policy the same way a link with no credit does, so either may stand alone and neither is invented. Tiles render nothing here on purpose, because every tile taps through to a detail view that carries this line — the policy's thumbnail exemption. That is the one condition the exemption rests on, so if a tile ever becomes the only place its photo appears, the credit has to move onto the tile and the exemption is gone."
+            >
+              <PhotoCredit
+                credit={PLACE_CREDIT}
+                sourceUri={PLACE_PHOTO_SOURCE}
+              />
+              <PhotoCredit credit={PLACE_CREDIT} sourceUri={null} />
+              <PhotoCredit credit={null} sourceUri={PLACE_PHOTO_SOURCE} />
+            </Specimen>
+
+            <Specimen
               name="ChipToggle"
               contract="label · selected? · onPress"
               note="A filter you can press: a box, filled ink when on and outlined when off. For switches you turn on and off (past events), never for a choice among options — that is `Segmented`, whose cells are joined and which holds one value out of a few. A row holding a filter and a choice puts them at the two edges rather than shoulder to shoulder, so they never read as one set. The run's head is the only place the two meet, and the filter is offered only while a trip is under way — before it starts there is nothing behind you, and after it ends the whole run is, so a finished run is always whole and the chip is not there to hide it."
@@ -657,8 +701,8 @@ function DesignSystemScreen() {
 
             <Specimen
               name="Dropdown"
-              contract="label · options · value · onChange · placeholder? · freeText? · error?"
-              note="Single-select with autocomplete. The list expands inline — never a nested dialog. Stands in for Google Places. An option is a string when its value reads well and a value-and-label pair when it does not, so a day can say Today · Fri Sep 19 while committing an ISO date. With freeText, typing is itself an answer: a suggestion machine rather than a menu, which is how a place gets entered when Places has never heard of it."
+              contract="label · options · value · onChange · placeholder? · error? · freeText? · onSearchText? · liveOptions? · attribution?"
+              note="Single-select with autocomplete. The list expands inline — never a nested dialog. Stands in for Google Places. An option is a string when its value reads well and a value-and-label pair when it does not, so a day can say Today · Fri Sep 19 while committing an ISO date. With freeText, typing is itself an answer: a suggestion machine rather than a menu, which is how a place gets entered when Places has never heard of it. A live picker hands the field its own rows instead of a static list: liveOptions skips the local substring filter, which would otherwise hide an answer whose label does not contain the raw keystrokes — the provider renames the row as you type, so the row you are looking at can stop matching the string that found it — and onSearchText takes every keystroke for the query while committing nothing. attribution renders MapsAttribution under the rows, which is not optional on a Places-backed field."
             >
               <Dropdown
                 label="Venue"
@@ -670,6 +714,27 @@ function DesignSystemScreen() {
                 }}
                 placeholder="Type to filter venues…"
               />
+            </Specimen>
+
+            <Specimen
+              name="SuggestionList"
+              contract="suggestions · empty · onPick · footer?"
+              note="The rows under a field that autocompletes — a place, or a person to invite. Those two callers had drifted into two nearly identical lists, each with its own idea of what a row looks like; what they share is the whole of the look, so it lives here, and each caller keeps only what is truly its own: whether a pick is a value or an addition. It takes its place in the flow rather than floating over what follows. Floating would need a relative z-10 on whichever section happens to hold the field — a rule that was missed twice, and that fails silently, because the list is simply crossed by the prose below it — and an absolutely positioned child is also clipped inside a scroll view on Android. The cost is that the form moves down when the list opens, so the height is capped at five rows: a jump that is always the same size is one the eye can follow, and one that grows with the number of matches is not. Each row is a button named by its primary line alone, never name-and-address together, because the second line is visible detail rather than identity."
+            >
+              <SuggestionList
+                suggestions={PLACE_ROWS}
+                empty="No matches. Use what you typed."
+                onPick={(v) => setLog(`SuggestionList committed "${v}"`)}
+                footer={<MapsAttribution />}
+              />
+            </Specimen>
+
+            <Specimen
+              name="MapsAttribution"
+              contract="—"
+              note="The Google Maps mark under a picker's rows, and the reason a Places-backed field is not finished without it: the terms require the attribution wherever the content appears. Never localized — it is a mark, not a phrase, so it stays in English whatever the device is set to. On the web export it also carries translate=&quot;no&quot;, so browser translation cannot alter it; React Native's Text has no such prop, so it is set on the web branch only, because passing it unconditionally would be silently dropped on native and would read as though native were covered too."
+            >
+              <MapsAttribution />
             </Specimen>
 
             <Specimen
