@@ -193,15 +193,15 @@ test.describe("Itinerary Journey", () => {
       await nameInput.click();
       await nameInput.pressSequentially(eventName);
 
-      // components/trip/EventDialog.tsx: Dropdown label="Place" with
+      // components/trip/EventDialog.tsx: Dropdown label="Location" with
       // live suggestions plus the typed row (placePickerRows) and
       // freeText — typing commits the value through onChange
       // (components/ui/Dropdown.tsx), and picking the typed row
       // commits the same typed prose explicitly. CI has no Places key,
       // so the lookup degrades to the typed row with no network.
-      const placeInput = page.getByRole("textbox", { name: "Place" });
-      await placeInput.click();
-      await placeInput.pressSequentially(placeText);
+      const locationInput = page.getByRole("textbox", { name: "Location" });
+      await locationInput.click();
+      await locationInput.pressSequentially(placeText);
       await page
         .getByRole("button", { name: `"${placeText}"`, exact: true })
         .click();

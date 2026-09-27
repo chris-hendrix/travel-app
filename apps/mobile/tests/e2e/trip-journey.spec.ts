@@ -77,7 +77,7 @@ test.describe("Trip Journey", () => {
       await nameInput.click();
       await nameInput.pressSequentially(tripName);
 
-      // app/trips/new.tsx: Dropdown label="Where" backed by live Places
+      // app/trips/new.tsx: Dropdown label="Location" backed by live Places
       // suggestions plus the typed text as a row (lib/queries/places.ts
       // placePickerRows). The Dropdown only commits on a suggestion
       // pick, so a typed-but-unpicked string fails validation ("Where
@@ -89,10 +89,10 @@ test.describe("Trip Journey", () => {
       // components/ui/SuggestionList.tsx: each row is role="button"
       // named by its label; the typed row's label is the query in
       // quotes with secondary "Use what you typed".
-      const whereInput = page.getByRole("textbox", { name: "Where" });
-      await whereInput.click();
+      const locationInput = page.getByRole("textbox", { name: "Location" });
+      await locationInput.click();
       const placeText = uniqueLabel("E2E Place");
-      await whereInput.pressSequentially(placeText);
+      await locationInput.pressSequentially(placeText);
       await page
         .getByRole("button", { name: `"${placeText}"`, exact: true })
         .click();

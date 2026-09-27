@@ -89,10 +89,15 @@ export function tripCreatePlaceFields(
   coords: { address: string; lat: number; lon: number } | null,
 ): Partial<CreateTripRequest> {
   if (selectedPlaceId == null) return {};
+  // A place with no name omits the key rather than sending an empty
+  // string: `placeName` is `z.string().min(1)` server-side, so "" is a
+  // 400, and the address and coordinates are omitted the same way —
+  // never guessed.
+  const placeName = pickedPlaceName?.trim();
   return {
     placeProvider: "google",
     placeId: selectedPlaceId,
-    placeName: (pickedPlaceName ?? "").trim(),
+    ...(placeName ? { placeName } : {}),
     ...(coords ? { placeAddress: coords.address } : {}),
     ...(coords ? { destinationLat: coords.lat, destinationLon: coords.lon } : {}),
   };
@@ -145,7 +150,8 @@ export type UpdateTripRequest = {
   showAllMembers?: boolean;
   /**
    * Google place pair — the create path's fields, optional here so the
-   * edit screen can send, clear, or leave the link (see tripPlacePatch).
+   * edit screen can send, clear, or leave the link (see
+   * tripPlaceSnapshotPatch).
    */
   placeProvider?: "google" | null;
   placeId?: string | null;
@@ -158,38 +164,22 @@ export type UpdateTripRequest = {
 };
 
 /**
- * The picked place's pair for the trip PUT patch, mirroring the
- * event/stay stores' pair rule: a picked id sends
- * `{ placeProvider: "google", placeId }`, an explicit null
- * (the destination typed over) sends nulls to clear the link, and
- * `undefined` (the field untouched) omits both keys so the server
- * leaves the columns alone. Never a half pair.
- */
-export function tripPlacePatch(placeId: string | null | undefined): {
-  placeProvider?: "google" | null;
-  placeId?: string | null;
-} {
-  if (placeId === undefined) return {};
-  if (placeId != null) {
-    return { placeProvider: "google", placeId: placeId };
-  }
-  return { placeProvider: null, placeId: null };
-}
-
-/**
  * The full place block for the trip PUT patch: the pair plus the
- * snapshot strings captured at pick time. Untouched (placeId ===
- * undefined) omits all four keys so the server leaves the columns
+ * snapshot captured at pick time. `placeId` undefined (the field
+ * untouched) omits all four keys so the server leaves the columns
  * alone; a re-pick carries the new name/address (address null until
- * details land, which still clears a stale address); typed-over sends
- * explicit nulls for all four, which clears the link and the snapshot.
+ * details land, which still clears a stale address); nullable `placeId`
+ * (typed over) sends explicit nulls for all four, which clears the link
+ * and the snapshot. Named, not positional: `placeName` and
+ * `placeAddress` are both nullable strings, so an argument order that
+ * swapped them would still compile.
  */
-export function tripPlaceSnapshotPatch(
-  placeId: string | null | undefined,
-  placeName: string | null,
-  placeAddress: string | null,
-  coords?: { lat: number; lon: number } | null,
-): {
+export function tripPlaceSnapshotPatch(place: {
+  placeId: string | null | undefined;
+  placeName?: string | null;
+  placeAddress?: string | null;
+  coords?: { lat: number; lon: number } | null;
+}): {
   placeProvider?: "google" | null;
   placeId?: string | null;
   placeName?: string | null;
@@ -197,14 +187,16 @@ export function tripPlaceSnapshotPatch(
   destinationLat?: number | null;
   destinationLon?: number | null;
 } {
-  if (placeId === undefined) return {};
-  if (placeId != null) {
+  if (place.placeId === undefined) return {};
+  if (place.placeId != null) {
     return {
       placeProvider: "google",
-      placeId,
-      placeName,
-      placeAddress,
-      ...(coords ? { destinationLat: coords.lat, destinationLon: coords.lon } : {}),
+      placeId: place.placeId,
+      placeName: place.placeName ?? null,
+      placeAddress: place.placeAddress ?? null,
+      ...(place.coords
+        ? { destinationLat: place.coords.lat, destinationLon: place.coords.lon }
+        : {}),
     };
   }
   return {

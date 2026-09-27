@@ -177,6 +177,15 @@ function EditTripScreen() {
     setFailure(null);
     if (Object.keys(validateNewTrip(input)).length > 0) return;
 
+    // Coordinates ride along only when the details on screen belong to
+    // the place in the field: a re-pick made while the previous place's
+    // details are still cached sends none, and the server geocodes the
+    // text instead of being handed the wrong point.
+    const landedCoords =
+      selectedPlaceId != null && details.data?.placeId === selectedPlaceId
+        ? details.data
+        : null;
+
     // Covers ride the cover endpoints, never this patch. The picker
     // state stays local until save: a picked local URI uploads, an
     // emptied field deletes (when the trip had a real cover), and an
@@ -193,20 +202,16 @@ function EditTripScreen() {
       ...(description.trim() ? { description: description.trim() } : null),
       // The destination's link and snapshot: the pair plus the
       // pick-time name/address on a re-pick, explicit nulls for all
-      // four when typed over (which clears them), nothing when
-      // untouched. Landed details coordinates ride along so the
-      // server skips geocoding (create parity); pending details send
-      // no coords keys, never a guess.
-      ...tripPlaceSnapshotPatch(
-        placeTouched ? placeId : undefined,
-        placeTouched ? placeName : null,
-        placeTouched ? placeAddress : null,
-        placeTouched &&
-          selectedPlaceId != null &&
-          details.data?.placeId === selectedPlaceId
-          ? details.data
-          : null,
-      ),
+      // four when typed over (which clears them), and nothing spread at
+      // all when the field was never touched.
+      ...(placeTouched
+        ? tripPlaceSnapshotPatch({
+            placeId,
+            placeName,
+            placeAddress,
+            coords: landedCoords,
+          })
+        : {}),
     };
     setBusy(true);
     try {
@@ -257,7 +262,7 @@ function EditTripScreen() {
       />
 
       <Dropdown
-        label="Where"
+        label="Location"
         options={placeOptions}
         liveOptions
         attribution

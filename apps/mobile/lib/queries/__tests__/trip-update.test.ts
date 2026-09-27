@@ -22,7 +22,6 @@ import { ApiError, apiFetch } from "@/lib/api";
 import type { Trip } from "@/components/trip/TripCard";
 import {
   tripKeys,
-  tripPlacePatch,
   tripPlaceSnapshotPatch,
   updateTrip,
   updateTripOptions,
@@ -110,54 +109,14 @@ describe("updateTrip", () => {
   });
 });
 
-describe("tripPlacePatch", () => {
-  it("sends the pair when an id is picked", () => {
-    expect(tripPlacePatch("ChIJKeens123")).toEqual({
-      placeProvider: "google",
-      placeId: "ChIJKeens123",
-    });
-  });
-
-  it("sends explicit nulls when the place was typed over", () => {
-    expect(tripPlacePatch(null)).toEqual({
-      placeProvider: null,
-      placeId: null,
-    });
-  });
-
-  it("omits both keys when the field was untouched", () => {
-    const body = tripPlacePatch(undefined);
-    expect(body).not.toHaveProperty("placeProvider");
-    expect(body).not.toHaveProperty("placeId");
-  });
-
-  it("updateTrip carries the pair through to the PUT body", async () => {
-    mockedApiFetch.mockReset();
-    mockedApiFetch.mockResolvedValue({ success: true, trip: updatedEntity() });
-
-    await updateTrip("trip-1", {
-      destination: "Bolzano",
-      ...tripPlacePatch("ChIJKeens123"),
-    });
-
-    const body = JSON.parse(
-      (mockedApiFetch.mock.calls[0]?.[1] as { body: string }).body,
-    ) as Record<string, unknown>;
-    expect(body).toMatchObject({
-      placeProvider: "google",
-      placeId: "ChIJKeens123",
-    });
-  });
-});
-
 describe("tripPlaceSnapshotPatch", () => {
   it("a re-pick replaces the snapshot with the new name and address", () => {
     expect(
-      tripPlaceSnapshotPatch(
-        "ChIJNew456",
-        "La Bodega",
-        "Carrer de la Mar 14, S\u00f3ller",
-      ),
+      tripPlaceSnapshotPatch({
+        placeId: "ChIJNew456",
+        placeName: "La Bodega",
+        placeAddress: "Carrer de la Mar 14, S\u00f3ller",
+      }),
     ).toEqual({
       placeProvider: "google",
       placeId: "ChIJNew456",
@@ -167,7 +126,11 @@ describe("tripPlaceSnapshotPatch", () => {
   });
 
   it("a re-pick before details land clears a stale address with null", () => {
-    const body = tripPlaceSnapshotPatch("ChIJNew456", "La Bodega", null);
+    const body = tripPlaceSnapshotPatch({
+      placeId: "ChIJNew456",
+      placeName: "La Bodega",
+      placeAddress: null,
+    });
     expect(body).toMatchObject({
       placeProvider: "google",
       placeId: "ChIJNew456",
@@ -178,9 +141,11 @@ describe("tripPlaceSnapshotPatch", () => {
 
   it("a re-pick with landed details carries coordinates so the server skips geocoding", () => {
     expect(
-      tripPlaceSnapshotPatch("ChIJNew456", "La Bodega", "Carrer de la Mar 14", {
-        lat: 39.77,
-        lon: 2.91,
+      tripPlaceSnapshotPatch({
+        placeId: "ChIJNew456",
+        placeName: "La Bodega",
+        placeAddress: "Carrer de la Mar 14",
+        coords: { lat: 39.77, lon: 2.91 },
       }),
     ).toEqual({
       placeProvider: "google",
@@ -193,18 +158,24 @@ describe("tripPlaceSnapshotPatch", () => {
   });
 
   it("a re-pick before details land omits coordinates, never a guess", () => {
-    const body = tripPlaceSnapshotPatch(
-      "ChIJNew456",
-      "La Bodega",
-      null,
-      null,
-    );
+    const body = tripPlaceSnapshotPatch({
+      placeId: "ChIJNew456",
+      placeName: "La Bodega",
+      placeAddress: null,
+      coords: null,
+    });
     expect(body).not.toHaveProperty("destinationLat");
     expect(body).not.toHaveProperty("destinationLon");
   });
 
   it("typed-over clears all four values with explicit nulls", () => {
-    expect(tripPlaceSnapshotPatch(null, null, null)).toEqual({
+    expect(
+      tripPlaceSnapshotPatch({
+        placeId: null,
+        placeName: null,
+        placeAddress: null,
+      }),
+    ).toEqual({
       placeProvider: null,
       placeId: null,
       placeName: null,
@@ -213,7 +184,11 @@ describe("tripPlaceSnapshotPatch", () => {
   });
 
   it("untouched sends {} so the server leaves the columns alone", () => {
-    const body = tripPlaceSnapshotPatch(undefined, "La Bodega", "Somewhere");
+    const body = tripPlaceSnapshotPatch({
+      placeId: undefined,
+      placeName: "La Bodega",
+      placeAddress: "Somewhere",
+    });
     expect(body).toEqual({});
     expect(body).not.toHaveProperty("placeProvider");
     expect(body).not.toHaveProperty("placeId");
@@ -227,7 +202,11 @@ describe("tripPlaceSnapshotPatch", () => {
 
     await updateTrip("trip-1", {
       destination: "La Bodega, S\u00f3ller",
-      ...tripPlaceSnapshotPatch("ChIJNew456", "La Bodega", "Carrer de la Mar 14"),
+      ...tripPlaceSnapshotPatch({
+        placeId: "ChIJNew456",
+        placeName: "La Bodega",
+        placeAddress: "Carrer de la Mar 14",
+      }),
     });
 
     const body = JSON.parse(

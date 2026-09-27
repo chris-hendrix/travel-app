@@ -186,6 +186,14 @@ describe("tripCreatePlaceFields", () => {
     expect(body).not.toHaveProperty("destinationLon");
   });
 
+  it("omits the name rather than sending an empty string", () => {
+    // `placeName` is `z.string().min(1)` server-side, so "" would be a
+    // 400 rather than a stored blank.
+    const body = tripCreatePlaceFields("ChIJ123", null, null);
+    expect(body).toMatchObject({ placeProvider: "google", placeId: "ChIJ123" });
+    expect(body).not.toHaveProperty("placeName");
+  });
+
   it("sends nothing when the place was typed over", () => {
     expect(tripCreatePlaceFields(null, null, null)).toEqual({});
   });
