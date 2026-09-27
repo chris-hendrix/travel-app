@@ -112,6 +112,10 @@ export default function NewTrip() {
               placeProvider: "google" as const,
               placeId: selectedPlaceId as string,
               placeName: (location ?? "").trim(),
+              // The details response's formatted address, when it
+              // landed; a pick without details yet sends the name
+              // with no address, never a guess.
+              ...(coords ? { placeAddress: coords.address } : {}),
               ...(coords
                 ? {
                     destinationLat: coords.lat,

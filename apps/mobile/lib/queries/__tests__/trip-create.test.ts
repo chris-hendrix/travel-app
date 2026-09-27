@@ -109,7 +109,7 @@ describe("createTrip", () => {
 });
 
 describe("createTrip place forwarding (Phase 14)", () => {
-  it("forwards the picked place pair, coordinates, and display name", async () => {
+  it("forwards the picked place pair, coordinates, name, and address", async () => {
     mockedApiFetch.mockReset();
     mockedApiFetch.mockResolvedValue({ success: true, trip: createdTrip() });
 
@@ -120,6 +120,7 @@ describe("createTrip place forwarding (Phase 14)", () => {
       destinationLat: 39.7,
       destinationLon: 2.9,
       placeName: "La Bodega, S\u00f3ller",
+      placeAddress: "Carrer de la Mar 14, 07100 S\u00f3ller",
     };
     await createTrip(picked);
 
@@ -133,6 +134,7 @@ describe("createTrip place forwarding (Phase 14)", () => {
       destinationLat: 39.7,
       destinationLon: 2.9,
       placeName: "La Bodega, S\u00f3ller",
+      placeAddress: "Carrer de la Mar 14, 07100 S\u00f3ller",
     });
   });
 
