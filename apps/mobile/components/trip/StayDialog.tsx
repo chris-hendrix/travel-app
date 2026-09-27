@@ -23,6 +23,7 @@ import {
   usePlaceSessionToken,
   usePlaceSuggestions,
 } from "@/lib/queries/places";
+import { pickPlace, pickStayAddress } from "@/lib/place-pick";
 
 /**
  * The stay form, in one place because there is one of it: adding and
@@ -138,17 +139,21 @@ export function StayDialog({
     [suggestions, search, suggestionsFetching, suggestionsFailed],
   );
 
-  // Details canonicalize the committed label (and close the input
-  // session), and resolve the stay's coordinates — they never block
-  // submit. An address with no live details submits bare.
+  // Details resolve the stay's coordinates and its formatted address —
+  // never the name, which stays the user's own — and close the input
+  // session. They never block submit. An address with no live details
+  // submits bare.
   useEffect(() => {
     if (!selectedPlaceId) return;
-    if (details.data?.placeId === selectedPlaceId) {
-      setAddress(details.data.name);
+    const landed = details.data;
+    if (landed?.placeId === selectedPlaceId) {
+      const formattedAddress = landed.address;
+      setAddress((current) =>
+        pickStayAddress({ address: current }, formattedAddress),
+      );
       setCoords(
-        Number.isFinite(details.data.lat) &&
-          Number.isFinite(details.data.lon)
-          ? { lat: details.data.lat, lon: details.data.lon }
+        Number.isFinite(landed.lat) && Number.isFinite(landed.lon)
+          ? { lat: landed.lat, lon: landed.lon }
           : null,
       );
     }
@@ -212,15 +217,18 @@ export function StayDialog({
           // pick, so a value that is not a live placeId is typed prose
           // (which abandons the session) rather than a selection.
           const hit = liveById.get(picked);
+          const pick = pickPlace(hit ?? null, picked);
           if (hit) {
-            setSelectedPlaceId(hit.placeId);
-            setAddress(hit.name);
+            setSelectedPlaceId(pick.selectedPlaceId);
+            // The formatted address arrives with the details lookup;
+            // until then the pick holds the suggestion's own address.
+            setAddress(pickStayAddress(hit, null));
             // The coordinates arrive with the details lookup; until
             // then the pick carries none, not the previous address's.
             setCoords(null);
           } else {
             setSelectedPlaceId(null);
-            setAddress(picked);
+            setAddress(pick.place);
             setCoords(null);
             rotateSessionToken();
           }

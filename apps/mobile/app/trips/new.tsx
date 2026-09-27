@@ -17,6 +17,7 @@ import {
   usePlaceSessionToken,
   usePlaceSuggestions,
 } from "@/lib/queries/places";
+import { pickPlace } from "@/lib/place-pick";
 
 export default function NewTrip() {
   const { addTrip } = useTrips();
@@ -59,13 +60,10 @@ export default function NewTrip() {
     [suggestions, search, suggestionsFetching, suggestionsFailed],
   );
 
-  // Details only canonicalize the committed label (and close the
-  // input session) — they never block submit.
+  // Details close the input session only — the label is the tapped
+  // row's own — and never block submit.
   useEffect(() => {
     if (!selectedPlaceId) return;
-    if (details.data?.placeId === selectedPlaceId) {
-      setLocation(details.data.name);
-    }
     if (details.data?.placeId === selectedPlaceId || details.isError) {
       rotateSessionToken();
     }
@@ -148,12 +146,13 @@ export default function NewTrip() {
         onSearchText={setSearch}
         onChange={(picked) => {
           const hit = liveById.get(picked);
+          const pick = pickPlace(hit ?? null, picked);
           if (hit) {
-            setSelectedPlaceId(hit.placeId);
-            setLocation(hit.name);
+            setSelectedPlaceId(pick.selectedPlaceId);
+            setLocation(pick.place);
           } else {
             setSelectedPlaceId(null);
-            setLocation(picked);
+            setLocation(pick.place);
             rotateSessionToken();
           }
         }}

@@ -11,6 +11,7 @@ import {
   type Stay,
 } from "@/lib/stays";
 import { wallClock } from "@/lib/timezone";
+import { pickStayAddress } from "@/lib/place-pick";
 
 /** A stay with only what a test cares about; everything else is empty. */
 function stay(overrides: Partial<Stay> = {}): Stay {
@@ -133,6 +134,33 @@ describe("currentStay", () => {
   });
 });
 
+
+describe("a stay's picked address", () => {
+  const picked = {
+    placeId: "ChIJ1",
+    name: "La Bodega, Sóller",
+    shortName: "La Bodega",
+    address: "Carrer de la Mar 14, Sóller",
+    types: [] as string[],
+  };
+
+  it("stores the formatted address, not the place's name", () => {
+    expect(
+      pickStayAddress(picked, "Carrer de la Mar 14, 07100 Sóller"),
+    ).toBe("Carrer de la Mar 14, 07100 Sóller");
+  });
+
+  it("reads the town off the stored address", () => {
+    const address = pickStayAddress(picked, "Carrer de la Mar 14, 07100 Sóller");
+    expect(stayArea(stay({ address }))).toBe("Sóller");
+  });
+
+  it("falls back to the suggestion's address without details", () => {
+    expect(pickStayAddress(picked, null)).toBe(
+      "Carrer de la Mar 14, Sóller",
+    );
+  });
+});
 
 describe("validateNewStay", () => {
   const base = {

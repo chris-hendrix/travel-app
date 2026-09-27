@@ -74,9 +74,10 @@ describe("places.service (RED: module does not exist yet)", () => {
   it("details mask is exact, types absent, photos map to CachedPhoto", async () => {
     const mod = await import("@/services/places.service.js");
     expect(mod.DETAILS_FIELD_MASK).toBe(
-      "id,displayName,photos,formattedAddress,location,addressComponents,attributions",
+      "id,photos,formattedAddress,location,addressComponents,attributions",
     );
     expect(mod.DETAILS_FIELD_MASK).not.toContain("types");
+    expect(mod.DETAILS_FIELD_MASK).not.toContain("displayName");
 
     vi.spyOn(global, "fetch").mockImplementationOnce(async (_url, init) => {
       const headers = init as { headers: Record<string, string> };
@@ -84,7 +85,6 @@ describe("places.service (RED: module does not exist yet)", () => {
       return new Response(
         JSON.stringify({
           id: "ChIJ1",
-          displayName: { text: "La Bodega", languageCode: "en" },
           formattedAddress: "Carrer de la Mar 14, Sóller, ES",
           location: { latitude: 39.7, longitude: 2.7 },
           addressComponents: [
@@ -123,6 +123,9 @@ describe("places.service (RED: module does not exist yet)", () => {
       },
     ]);
     expect(d.country).toBe("ES");
+    // No displayName in the mask: the cached name falls back to the
+    // formatted address rather than an undefined read.
+    expect(d.name).toBe("Carrer de la Mar 14, Sóller, ES");
   });
 
   it("non-200 surfaces as a typed PlacesError, not a raw throw", async () => {

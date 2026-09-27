@@ -331,7 +331,6 @@ describe("Location Routes", () => {
 
       const mockResponse = {
         id: PLACE_ID,
-        displayName: { text: "Starbucks", languageCode: "en" },
         formattedAddress: "123 Main St, Chicago, IL 60601, USA",
         location: { latitude: 41.8781, longitude: -87.6298 },
         types: ["cafe", "restaurant"],
@@ -350,8 +349,6 @@ describe("Location Routes", () => {
       const body = JSON.parse(response.body);
       expect(body).toEqual({
         placeId: PLACE_ID,
-        shortName: "Starbucks",
-        displayName: "Starbucks",
         displayPlace: "123 Main St, Chicago, IL 60601, USA",
         displayAddress: "123 Main St, Chicago, IL 60601, USA",
         lat: 41.8781,

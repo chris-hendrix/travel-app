@@ -13,6 +13,8 @@ import { TimeField } from "@/components/ui/TimeField";
 import { dayLabel } from "@/lib/itinerary";
 import { toIso } from "@/lib/dateRange";
 import { validateNewEvent, type NewEventInput } from "@/lib/newEvent";
+import type { EventType } from "@/lib/itinerary";
+import { pickPlace } from "@/lib/place-pick";
 import type { Trip } from "@/components/trip/TripCard";
 import {
   biasForTrip,
@@ -78,6 +80,12 @@ export function EventDialog({
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [place, setPlace] = useState<string | null>(initial?.place ?? null);
+  // The picked place's derived event type: a restaurant is food_and_drink
+  // because Places says so, not because the organizer was asked twice.
+  // Typed prose carries no types, so it stays whatever it was.
+  const [eventType, setEventType] = useState<EventType>(
+    initial?.type ?? "misc",
+  );
   const [dates, setDates] = useState<Selection>({
     start: initial?.day ?? null,
     end: initial?.day ?? null,
@@ -134,13 +142,12 @@ export function EventDialog({
     [suggestions, search, suggestionsFetching, suggestionsFailed],
   );
 
-  // Details canonicalize the committed label (and close the input
-  // session), and resolve the event's coordinates — they never block
-  // submit. A place with no live details submits bare.
+  // Details resolve the event's coordinates only — never the label,
+  // which is the tapped row's own (and closes the input session). A
+  // place with no live details submits bare.
   useEffect(() => {
     if (!selectedPlaceId) return;
     if (details.data?.placeId === selectedPlaceId) {
-      setPlace(details.data.name);
       setCoords(
         Number.isFinite(details.data.lat) &&
           Number.isFinite(details.data.lon)
@@ -164,6 +171,7 @@ export function EventDialog({
     start: allDay ? "" : (start ?? ""),
     end: allDay ? "" : (end ?? ""),
     place: place ?? "",
+    type: eventType,
     // Present only when a live lookup resolved them: typed prose and
     // static picks submit bare, and nothing defaults to 0.
     ...(coords
@@ -217,15 +225,20 @@ export function EventDialog({
           // pick, so a value that is not a live placeId is typed prose
           // (which abandons the session) rather than a selection.
           const hit = liveById.get(picked);
+          const pick = pickPlace(hit ?? null, picked);
           if (hit) {
-            setSelectedPlaceId(hit.placeId);
-            setPlace(hit.name);
+            setSelectedPlaceId(pick.selectedPlaceId);
+            setPlace(pick.place);
+            setEventType(pick.type);
             // The coordinates arrive with the details lookup; until
             // then the pick carries none, not the previous place's.
             setCoords(null);
           } else {
             setSelectedPlaceId(null);
-            setPlace(picked);
+            setPlace(pick.place);
+            // Typed prose carries no types: the derived type goes
+            // back to unclassified with the cleared place id.
+            setEventType(pick.type);
             setCoords(null);
             rotateSessionToken();
           }

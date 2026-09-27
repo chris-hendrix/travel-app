@@ -166,12 +166,10 @@ describe("placeSuggestionsOptions", () => {
 });
 
 describe("placeDetailsOptions", () => {
-  it("calls /details with {placeId, sessionToken} and maps to name/address/coords", async () => {
+  it("calls /details with {placeId, sessionToken} and maps to address/coords", async () => {
     mockedApiFetch.mockReset();
     mockedApiFetch.mockResolvedValue({
       placeId: "ChIJLisbon",
-      shortName: "Lisbon",
-      displayName: "Lisbon, Portugal",
       displayPlace: "Lisbon, Portugal",
       displayAddress: "Lisboa, Portugal",
       lat: 38.7223,
@@ -196,11 +194,13 @@ describe("placeDetailsOptions", () => {
     );
     expect(details).toEqual({
       placeId: "ChIJLisbon",
-      name: "Lisbon, Portugal",
       address: "Lisboa, Portugal",
       lat: 38.7223,
       lon: -9.1393,
     });
+    // The proxy no longer sends a name: no caller may read one off
+    // details, or every picker label blanks.
+    expect("name" in details).toBe(false);
   });
 
   it("stays disabled until a suggestion is selected", () => {

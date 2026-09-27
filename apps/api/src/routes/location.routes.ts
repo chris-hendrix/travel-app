@@ -32,8 +32,6 @@ const autocompleteResponseSchema = z.array(autocompleteSuggestionSchema);
 
 const locationSuggestionSchema = z.object({
   placeId: z.string(),
-  shortName: z.string(),
-  displayName: z.string(),
   displayPlace: z.string(),
   displayAddress: z.string(),
   lat: z.number(),
@@ -131,8 +129,6 @@ export async function locationRoutes(fastify: FastifyInstance) {
         const details = await fetchPlaceDetails({ placeId, sessionToken, apiKey: key });
         return {
           placeId: details.placeId,
-          shortName: details.name,
-          displayName: details.name,
           displayPlace: details.address ?? "",
           displayAddress: details.address ?? "",
           lat: details.lat ?? 0,

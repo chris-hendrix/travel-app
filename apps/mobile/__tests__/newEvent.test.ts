@@ -101,6 +101,16 @@ describe("buildEvent", () => {
   it("builds a live event, never a deleted one", () => {
     expect(buildEvent(INPUT, "e1", "UTC", "p.jpg").deletedAt).toBeNull();
   });
+
+  it("carries the picked place's type rather than forcing misc", () => {
+    expect(
+      buildEvent({ ...INPUT, type: "food_and_drink" }, "e1", "UTC", "p.jpg")
+        .type,
+    ).toBe("food_and_drink");
+    expect(
+      buildEvent({ ...INPUT, type: "misc" }, "e1", "UTC", "p.jpg").type,
+    ).toBe("misc");
+  });
 });
 
 describe("draftFromEvent", () => {
@@ -114,6 +124,7 @@ describe("draftFromEvent", () => {
       name: "Dinner in town",
       description: "Table for eight under the vines.",
       place: "Trattoria Nuova",
+      type: "misc",
       locationLat: null,
       locationLon: null,
       day: "2026-09-20",

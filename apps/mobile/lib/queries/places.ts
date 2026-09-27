@@ -6,8 +6,8 @@
  * registered under the `/api/locations` prefix in `app.ts`). Both 200s
  * are bare (no `{success}` envelope): autocomplete returns an array of
  * `{placeId, shortName, displayName, displayAddress}`, details returns
- * one `{placeId, shortName, displayName, displayPlace, displayAddress,
- * lat, lon}`. A missing key degrades, not errors: both answer 503 — so
+ * one `{placeId, displayPlace, displayAddress, lat, lon}` — no name,
+ * so pickers commit the tapped row's label and read coordinates only. A missing key degrades, not errors: both answer 503 — so
  * the pickers treat "no live results" as "offer the typed text",
  * never as a submit blocker.
  *
@@ -49,10 +49,11 @@ export type PlaceSuggestion = {
   types: string[];
 };
 
-/** One details row: the canonical name plus coordinates. */
+/** One details row: the canonical address plus coordinates. No name:
+ * the details mask carries no `displayName` (Phase 9), so the pickers
+ * commit the tapped row's own label and read coordinates only. */
 export type PlaceDetails = {
   placeId: string;
-  name: string;
   address: string;
   lat: number;
   lon: number;
@@ -71,8 +72,6 @@ type AutocompleteRow = {
 
 type DetailsRow = {
   placeId: string;
-  shortName: string;
-  displayName: string;
   displayPlace: string;
   displayAddress: string;
   lat: number;
@@ -193,7 +192,6 @@ export async function fetchPlaceDetails(
   );
   return {
     placeId: row.placeId,
-    name: row.displayName,
     address: row.displayAddress || row.displayPlace,
     lat: row.lat,
     lon: row.lon,

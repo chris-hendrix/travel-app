@@ -1,4 +1,4 @@
-import type { ItineraryEvent } from "@/lib/itinerary";
+import type { EventType, ItineraryEvent } from "@/lib/itinerary";
 import { isClockTime, minutesOf } from "@/lib/time";
 import { wallClock, zoneOffsetMinutes } from "@/lib/timezone";
 
@@ -18,6 +18,12 @@ export type NewEventInput = {
   /** Optional even on a timed event: a thing can simply begin. */
   end: string;
   place: string;
+  /**
+   * The picked place's Google types, already derived through
+   * `eventTypeForPlace` by the picker (`lib/place-pick.ts`). Absent
+   * when the place was typed, which carries no types — never invented.
+   */
+  type?: EventType | undefined;
   /**
    * The live Places details lookup's coordinates for the place, when
    * it was picked from a suggestion. Absent or null when the place was
@@ -89,6 +95,9 @@ export function draftFromEvent(
     name: event.name,
     description: event.description ?? "",
     place: event.place,
+    // The built row's type rides back so an edit that touches nothing
+    // else keeps it; a row built before types existed reads as misc.
+    type: event.type ?? "misc",
     // The coordinates come along when the row has them, so an edit
     // that touches nothing else keeps them; a place with none reads
     // as absent, never as 0.
@@ -109,8 +118,9 @@ export function draftFromEvent(
  * mocks use: an 8:30 entered for Mallorca is 8:30 in Mallorca. The
  * offset and the photo come from the mocks until the API owns them.
  *
- * The type is not asked for and not guessed: it is the place's Google
- * Places category, which is the API's to read. An all-day event is sent
+ * The type is the picker's, not a guess made here: `input.type` carries
+ * what the place's Google types implied, and typed prose carries none —
+ * so an unclassified event. An all-day event is sent
  * with `allDay`, the API's own word for "no particular time" — the
  * schema wants a `startTime` either way, so it is stamped at its own
  * midnight and the flag says that hour means nothing.
@@ -159,8 +169,8 @@ export function buildEvent(
     name: input.name.trim(),
     // An empty description is no description, not an empty string.
     description: input.description.trim() ? input.description.trim() : null,
-    // Until Places answers: an unclassified event.
-    type: "misc",
+    // Whatever the picker derived; typed prose carries none, so misc.
+    type: input.type ?? "misc",
     startTime: new Date(startMs).toISOString(),
     endTime,
     allDay: untimed,

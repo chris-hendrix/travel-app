@@ -6,9 +6,11 @@ export const GOOGLE_PLACES_BASE = "https://places.googleapis.com/v1";
 export const AUTOCOMPLETE_FIELD_MASK =
   "suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.structuredFormat,suggestions.placePrediction.types,suggestions.placePrediction.distanceMeters";
 
-/** Details mask: Essentials + photos + addressComponents. Keeps displayName (removed in Phase 9). */
+/** Details mask: Essentials + photos + addressComponents. No displayName:
+ * no client reads the details name (Phase 9) — pickers commit the
+ * tapped row's label and read coordinates only. */
 export const DETAILS_FIELD_MASK =
-  "id,displayName,photos,formattedAddress,location,addressComponents,attributions";
+  "id,photos,formattedAddress,location,addressComponents,attributions";
 
 /** Gross-distance outlier cutoff in metres (matches distanceMeters units). */
 export const AUTOCOMPLETE_MAX_DISTANCE_METERS = 250_000;
@@ -133,7 +135,7 @@ export async function autocompletePlaces(opts: {
 
 type RawDetails = {
   id: string;
-  displayName: { text: string; languageCode: string };
+  displayName?: { text: string; languageCode: string };
   formattedAddress?: string;
   location?: { latitude: number; longitude: number };
   addressComponents?: Array<{
@@ -190,7 +192,9 @@ export async function fetchPlaceDetails(opts: {
         ?.shortText ?? null;
     return {
       placeId: data.id,
-      name: data.displayName.text,
+      // The mask carries no displayName, so the cached name falls back
+      // to the formatted address — never an undefined read.
+      name: data.displayName?.text ?? data.formattedAddress ?? "",
       address: data.formattedAddress ?? null,
       shortAddress: null,
       lat: data.location?.latitude ?? null,
