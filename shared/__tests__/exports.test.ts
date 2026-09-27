@@ -27,6 +27,7 @@ import {
   formatInTimeZone,
 } from "../index.js";
 
+import type { Trip, Event, Accommodation, PlaceSummary } from "../types/index.js";
 import {
   type CreateEventInput,
   type UpdateEventInput,
@@ -218,6 +219,82 @@ describe("Package Exports", () => {
       sharePhone: true,
     };
     expect(updateMySettingsInput).toBeDefined();
+  });
+
+  it("Trip, Event and Accommodation accept place: null and a populated PlaceSummary", () => {
+    const summary: PlaceSummary = {
+      placeId: "ChIJ123",
+      name: "La Bodega",
+      address: "Carrer de la Mar 14, S\u00f3ller",
+      photoUrl: null,
+      photoAttribution: null,
+      photoSourceUri: null,
+      country: "ES",
+    };
+    const trip: Trip = {
+      id: "t",
+      name: "Mallorca",
+      destination: "S\u00f3ller",
+      destinationLat: null,
+      destinationLon: null,
+      startDate: null,
+      endDate: null,
+      preferredTimezone: "Europe/Madrid",
+      description: null,
+      coverImageUrl: null,
+      createdBy: "u",
+      allowMembersToAddEvents: false,
+      showAllMembers: false,
+      themeId: null,
+      themeFont: null,
+      cancelled: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      place: summary,
+    };
+    const tripNull: Trip = { ...trip, place: null };
+    const event: Event = {
+      id: "e",
+      tripId: "t",
+      createdBy: "u",
+      name: "Dinner",
+      description: null,
+      eventType: "food_and_drink",
+      location: null,
+      locationLat: null,
+      locationLon: null,
+      startTime: new Date(),
+      endTime: null,
+      allDay: false,
+      links: null,
+      deletedAt: null,
+      deletedBy: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      place: null,
+    };
+    const accommodation: Accommodation = {
+      id: "a",
+      tripId: "t",
+      createdBy: "u",
+      name: "Hotel",
+      address: null,
+      addressLat: null,
+      addressLon: null,
+      description: null,
+      checkIn: null,
+      checkOut: null,
+      links: null,
+      deletedAt: null,
+      deletedBy: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      place: summary,
+    };
+    expect(trip.place?.placeId).toBe("ChIJ123");
+    expect(tripNull.place ?? null).toBeNull();
+    expect(event.place ?? null).toBeNull();
+    expect(accommodation.place?.country).toBe("ES");
   });
 
   it("should validate schemas with inferred types", () => {

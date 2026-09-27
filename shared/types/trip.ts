@@ -1,5 +1,7 @@
 // Trip-related types for the Journiful platform
 
+import type { PlaceSummary } from "./place";
+
 /**
  * Trip type from database schema
  * Matches the Trip type from apps/api/src/db/schema/index.ts
@@ -43,6 +45,8 @@ export interface Trip {
   updatedAt: Date;
   /** Transient flag indicating timezone was auto-updated from destination geocoding */
   timezoneAutoUpdated?: boolean;
+  /** Resolved place summary; absent on rows constructed before the place read */
+  place?: PlaceSummary | null;
 }
 
 /**
@@ -83,6 +87,8 @@ export interface TripSummary {
   memberCount: number;
   /** Total number of trip events */
   eventCount: number;
+  /** Resolved place summary; absent on rows constructed before the place read */
+  place?: PlaceSummary | null;
 }
 
 /**

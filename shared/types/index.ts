@@ -45,6 +45,14 @@ export interface AutocompleteSuggestion {
   displayAddress: string;
 }
 
+// Re-export place types
+export type {
+  PlaceBox,
+  CachedPhoto,
+  CachedPlaceDetails,
+  PlaceSummary,
+} from "./place";
+
 // Re-export user-related types
 export type { User, AuthResponse } from "./user";
 

@@ -3,6 +3,7 @@
  */
 
 import type { LinkItem } from "./link";
+import type { PlaceSummary } from "./place";
 
 /**
  * Accommodation entity
@@ -23,6 +24,8 @@ export interface Accommodation {
   deletedBy: string | null;
   createdAt: Date;
   updatedAt: Date;
+  /** Resolved place summary; absent on rows constructed before the place read */
+  place?: PlaceSummary | null;
 }
 
 /**

@@ -3,6 +3,11 @@
 import { z } from "zod";
 import { phoneNumberSchema } from "./phone";
 import { stripControlChars } from "../utils/sanitize";
+import {
+  placePairFields,
+  isCompletePlacePair,
+  placePairIncompleteMessage,
+} from "./place";
 import { THEME_IDS } from "../config/themes";
 import { THEME_FONT_VALUES } from "../types/theme";
 import { TIMEZONES } from "../utils/timezones";
@@ -106,6 +111,7 @@ const baseTripSchema = z.object({
   themeFont: z.enum(THEME_FONT_VALUES).nullable().optional(),
   destinationLat: z.number().nullable().optional(),
   destinationLon: z.number().nullable().optional(),
+  ...placePairFields,
 });
 
 /**
@@ -120,38 +126,49 @@ const baseTripSchema = z.object({
  * - allowMembersToAddEvents: boolean (defaults to false)
  * - coOrganizerPhones: array of E.164 phone numbers (optional)
  */
-export const createTripSchema = baseTripSchema.refine(
-  (data) => {
-    // Cross-field validation: endDate must be >= startDate
-    if (data.startDate && data.endDate) {
-      return new Date(data.endDate) >= new Date(data.startDate);
-    }
-    return true;
-  },
-  {
-    message: "End date must be on or after start date",
-    path: ["endDate"],
-  },
-);
+export const createTripSchema = baseTripSchema
+  .refine(
+    (data) => {
+      // Cross-field validation: endDate must be >= startDate
+      if (data.startDate && data.endDate) {
+        return new Date(data.endDate) >= new Date(data.startDate);
+      }
+      return true;
+    },
+    {
+      message: "End date must be on or after start date",
+      path: ["endDate"],
+    },
+  )
+  .refine(isCompletePlacePair, {
+    message: placePairIncompleteMessage,
+    path: ["externalPlaceId"],
+  });
 
 /**
  * Validates trip update data (all fields optional)
  * - Allows partial updates to any trip field
  * - Same validation rules as createTripSchema when fields are provided
  */
-export const updateTripSchema = baseTripSchema.partial().refine(
-  (data) => {
-    // Cross-field validation: endDate must be >= startDate (when both provided)
-    if (data.startDate && data.endDate) {
-      return new Date(data.endDate) >= new Date(data.startDate);
-    }
-    return true;
-  },
-  {
-    message: "End date must be on or after start date",
-    path: ["endDate"],
-  },
-);
+export const updateTripSchema = baseTripSchema
+  .partial()
+  .refine(
+    (data) => {
+      // Cross-field validation: endDate must be >= startDate (when both provided)
+      if (data.startDate && data.endDate) {
+        return new Date(data.endDate) >= new Date(data.startDate);
+      }
+      return true;
+    },
+    {
+      message: "End date must be on or after start date",
+      path: ["endDate"],
+    },
+  )
+  .refine(isCompletePlacePair, {
+    message: placePairIncompleteMessage,
+    path: ["externalPlaceId"],
+  });
 
 /**
  * Validates adding a co-organizer to a trip

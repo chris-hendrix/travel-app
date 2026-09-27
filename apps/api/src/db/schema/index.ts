@@ -17,7 +17,11 @@ import {
   integer,
   doublePrecision,
 } from "drizzle-orm/pg-core";
-import type { LinkItem, POISuggestion } from "@journiful/shared/types";
+import type {
+  LinkItem,
+  POISuggestion,
+  CachedPlaceDetails,
+} from "@journiful/shared/types";
 
 // Users table
 export const users = pgTable(
@@ -96,6 +100,8 @@ export const trips = pgTable(
     destinationLat: doublePrecision("destination_lat"),
     destinationLon: doublePrecision("destination_lon"),
     destinationDisplayName: text("destination_display_name"),
+    placeProvider: text("place_provider"),
+    externalPlaceId: text("external_place_id"),
     startDate: date("start_date"),
     endDate: date("end_date"),
     preferredTimezone: varchar("preferred_timezone", { length: 100 }).notNull(),
@@ -223,6 +229,8 @@ export const events = pgTable(
     location: text("location"),
     locationLat: doublePrecision("location_lat"),
     locationLon: doublePrecision("location_lon"),
+    placeProvider: text("place_provider"),
+    externalPlaceId: text("external_place_id"),
     startTime: timestamp("start_time", { withTimezone: true }).notNull(),
     endTime: timestamp("end_time", { withTimezone: true }),
     allDay: boolean("all_day").notNull().default(false),
@@ -267,6 +275,8 @@ export const accommodations = pgTable(
     address: text("address"),
     addressLat: doublePrecision("address_lat"),
     addressLon: doublePrecision("address_lon"),
+    placeProvider: text("place_provider"),
+    externalPlaceId: text("external_place_id"),
     description: text("description"),
     checkIn: timestamp("check_in", { withTimezone: true }),
     checkOut: timestamp("check_out", { withTimezone: true }),
@@ -298,6 +308,33 @@ export const accommodations = pgTable(
 // Inferred types for accommodations table
 export type Accommodation = typeof accommodations.$inferSelect;
 export type NewAccommodation = typeof accommodations.$inferInsert;
+
+// Place cache table — versioned normalized snapshot of provider place
+// details, keyed (provider, place_id) with a 30-day TTL-on-read. No foreign
+// key from the entity columns: the two sides have different lifetimes (a
+// durable id vs a 30-day cache), so an FK would force either
+// ON DELETE SET NULL (erasing the durable id on purge) or ON DELETE
+// RESTRICT (blocking the purge).
+export const placeCache = pgTable(
+  "place_cache",
+  {
+    provider: text("provider").notNull(),
+    placeId: text("place_id").notNull(),
+    schemaVersion: integer("schema_version").notNull(),
+    details: jsonb("details").$type<CachedPlaceDetails>().notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.provider, table.placeId] }),
+    index("place_cache_fetched_at_idx").on(table.fetchedAt),
+  ],
+);
+
+// Inferred types for place_cache table
+export type PlaceCache = typeof placeCache.$inferSelect;
+export type NewPlaceCache = typeof placeCache.$inferInsert;
 
 // Member travel table
 export const memberTravel = pgTable(

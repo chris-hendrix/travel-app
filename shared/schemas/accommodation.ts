@@ -2,6 +2,11 @@
 
 import { z } from "zod";
 import { stripControlChars } from "../utils/sanitize";
+import {
+  placePairFields,
+  isCompletePlacePair,
+  placePairIncompleteMessage,
+} from "./place";
 import { linkItemSchema, linksArraySchema } from "./link";
 
 /**
@@ -21,6 +26,7 @@ const baseAccommodationSchema = z.object({
   address: z.string().max(500).optional(),
   addressLat: z.number().nullable().optional(),
   addressLon: z.number().nullable().optional(),
+  ...placePairFields,
   description: z
     .string()
     .max(2000, {
@@ -41,18 +47,23 @@ const baseAccommodationSchema = z.object({
  * - checkOut: ISO 8601 datetime string (optional), must be > checkIn when both are provided
  * - links: array of `{ url, name? }` objects, max 10 items (optional)
  */
-export const createAccommodationSchema = baseAccommodationSchema.refine(
-  (data) => {
-    if (data.checkIn && data.checkOut) {
-      return new Date(data.checkOut) > new Date(data.checkIn);
-    }
-    return true;
-  },
-  {
-    message: "Check-out date must be after check-in date",
-    path: ["checkOut"],
-  },
-);
+export const createAccommodationSchema = baseAccommodationSchema
+  .refine(
+    (data) => {
+      if (data.checkIn && data.checkOut) {
+        return new Date(data.checkOut) > new Date(data.checkIn);
+      }
+      return true;
+    },
+    {
+      message: "Check-out date must be after check-in date",
+      path: ["checkOut"],
+    },
+  )
+  .refine(isCompletePlacePair, {
+    message: placePairIncompleteMessage,
+    path: ["externalPlaceId"],
+  });
 
 /**
  * Validates accommodation update data (all fields optional)
@@ -73,7 +84,11 @@ export const updateAccommodationSchema = baseAccommodationSchema
       message: "Check-out date must be after check-in date",
       path: ["checkOut"],
     },
-  );
+  )
+  .refine(isCompletePlacePair, {
+    message: placePairIncompleteMessage,
+    path: ["externalPlaceId"],
+  });
 
 // --- Response schemas ---
 

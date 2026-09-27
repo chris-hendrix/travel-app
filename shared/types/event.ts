@@ -3,6 +3,7 @@
  */
 
 import type { LinkItem } from "./link";
+import type { PlaceSummary } from "./place";
 
 /**
  * Event entity
@@ -31,6 +32,8 @@ export interface Event {
   creatorName?: string;
   /** Profile photo URL of the event creator */
   creatorProfilePhotoUrl?: string | null;
+  /** Resolved place summary; absent on rows constructed before the place read */
+  place?: PlaceSummary | null;
 }
 
 /**
