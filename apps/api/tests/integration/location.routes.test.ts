@@ -107,6 +107,8 @@ describe("Location Routes", () => {
         shortName: "Starbucks",
         displayName: "Starbucks, Main Street, Chicago, IL, USA",
         displayAddress: "123 Main St, Chicago, IL",
+        types: [],
+        distanceMeters: null,
       });
       // Verify no lat/lon in autocomplete response
       expect(body[0].lat).toBeUndefined();

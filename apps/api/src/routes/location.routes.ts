@@ -2,12 +2,21 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { authenticate } from "@/middleware/auth.middleware.js";
 import { buildPhotoCacheKey, PhotoNotCachedError } from "@/services/photo-cache.service.js";
+import {
+  autocompletePlaces,
+  fetchPlaceDetails,
+  fetchPlacePhotoMedia,
+  BOX_PIXELS,
+  PlacesError,
+} from "@/services/places.service.js";
+import { placeBoxSchema } from "@journiful/shared/schemas";
 import { defaultRateLimitConfig, photoProxyRateLimitConfig } from "@/middleware/rate-limit.middleware.js";
 
 const autocompleteQuerySchema = z.object({
   q: z.string().min(1).max(200),
   lat: z.coerce.number().optional(),
   lon: z.coerce.number().optional(),
+  country: z.string().length(2).optional(),
   sessionToken: z.string().uuid(),
 });
 
@@ -16,6 +25,8 @@ const autocompleteSuggestionSchema = z.object({
   shortName: z.string(),
   displayName: z.string(),
   displayAddress: z.string(),
+  types: z.array(z.string()).optional(),
+  distanceMeters: z.number().nullable().optional(),
 });
 const autocompleteResponseSchema = z.array(autocompleteSuggestionSchema);
 
@@ -34,30 +45,6 @@ const detailsQuerySchema = z.object({
   sessionToken: z.string().uuid(),
 });
 
-const GOOGLE_PLACES_BASE = "https://places.googleapis.com/v1";
-
-type GoogleAutocompletePlacePrediction = {
-  placeId: string;
-  text: { text: string };
-  structuredFormat?: {
-    mainText?: { text: string };
-    secondaryText?: { text: string };
-  };
-};
-
-type GoogleAutocompleteResponse = {
-  suggestions?: Array<{
-    placePrediction: GoogleAutocompletePlacePrediction;
-  }>;
-};
-
-type GooglePlaceDetailsResponse = {
-  id: string;
-  displayName: { text: string; languageCode: string };
-  formattedAddress: string;
-  location: { latitude: number; longitude: number };
-};
-
 export async function locationRoutes(fastify: FastifyInstance) {
   fastify.get<{ Querystring: z.infer<typeof autocompleteQuerySchema> }>(
     "/autocomplete",
@@ -72,7 +59,7 @@ export async function locationRoutes(fastify: FastifyInstance) {
       preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate],
     },
     async (request, reply) => {
-      const { q, lat, lon, sessionToken } = request.query;
+      const { q, lat, lon, country, sessionToken } = request.query;
       const key = request.server.config.GOOGLE_MAPS_API_KEY;
 
       if (!key) {
@@ -93,60 +80,22 @@ export async function locationRoutes(fastify: FastifyInstance) {
       }
 
       try {
-        const body: Record<string, unknown> = {
+        const suggestions = await autocompletePlaces({
           input: q,
           sessionToken,
-        };
-
-        if (lat != null && lon != null) {
-          body.locationBias = {
-            circle: {
-              center: { latitude: lat, longitude: lon },
-              radius: 50000,
-            },
-          };
-        }
-
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 3000);
-
-        const response = await fetch(`${GOOGLE_PLACES_BASE}/places:autocomplete`, {
-          method: "POST",
-          signal: controller.signal,
-          headers: {
-            "Content-Type": "application/json",
-            "X-Goog-Api-Key": key,
-            "X-Goog-FieldMask": "suggestions.placePrediction.placeId,suggestions.placePrediction.text,suggestions.placePrediction.structuredFormat",
-          },
-          body: JSON.stringify(body),
+          lat,
+          lon,
+          country,
+          apiKey: key,
         });
-
-        clearTimeout(timeout);
-        if (!response.ok) {
+        return suggestions;
+      } catch (err) {
+        if (err instanceof PlacesError) {
           return reply.status(503).send({
             success: false,
             error: { code: "SERVICE_UNAVAILABLE", message: "Google Places Autocomplete returned an error" },
           });
         }
-
-        const data = (await response.json()) as GoogleAutocompleteResponse;
-
-        const seen = new Set<string>();
-        return (data.suggestions ?? [])
-          .map((s) => s.placePrediction)
-          .filter((p) => {
-            if (seen.has(p.placeId)) return false;
-            seen.add(p.placeId);
-            return true;
-          })
-          .map((p) => ({
-            placeId: p.placeId,
-            shortName: p.structuredFormat?.mainText?.text ?? p.text.text,
-            displayName: p.text.text,
-            displayAddress:
-              p.structuredFormat?.secondaryText?.text ?? "",
-          }));
-      } catch {
         return reply.status(503).send({
           success: false,
           error: { code: "SERVICE_UNAVAILABLE", message: "Google Places Autocomplete request failed" },
@@ -179,22 +128,18 @@ export async function locationRoutes(fastify: FastifyInstance) {
       }
 
       try {
-        const url = new URL(`${GOOGLE_PLACES_BASE}/places/${encodeURIComponent(placeId)}`);
-        url.searchParams.set("sessionToken", sessionToken);
-
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 5000);
-
-        const response = await fetch(url.toString(), {
-          signal: controller.signal,
-          headers: {
-            "X-Goog-Api-Key": key,
-            "X-Goog-FieldMask": "id,displayName,formattedAddress,location,types,attributions",
-          },
-        });
-
-        clearTimeout(timeout);
-        if (!response.ok) {
+        const details = await fetchPlaceDetails({ placeId, sessionToken, apiKey: key });
+        return {
+          placeId: details.placeId,
+          shortName: details.name,
+          displayName: details.name,
+          displayPlace: details.address ?? "",
+          displayAddress: details.address ?? "",
+          lat: details.lat ?? 0,
+          lon: details.lon ?? 0,
+        };
+      } catch (err) {
+        if (err instanceof PlacesError) {
           return reply.status(503).send({
             success: false,
             error: {
@@ -203,19 +148,6 @@ export async function locationRoutes(fastify: FastifyInstance) {
             },
           });
         }
-
-        const data = (await response.json()) as GooglePlaceDetailsResponse;
-
-        return {
-          placeId: data.id,
-          shortName: data.displayName.text,
-          displayName: data.displayName.text,
-          displayPlace: data.formattedAddress,
-          displayAddress: data.formattedAddress,
-          lat: data.location.latitude,
-          lon: data.location.longitude,
-        };
-      } catch {
         return reply.status(503).send({
           success: false,
           error: {
@@ -227,7 +159,7 @@ export async function locationRoutes(fastify: FastifyInstance) {
     },
   );
 
-  fastify.get<{ Params: { photoRef: string }; Querystring: { maxWidthPx?: string; maxHeightPx?: string } }>(
+  fastify.get<{ Params: { photoRef: string }; Querystring: { size?: string } }>(
     "/photos/:photoRef",
     {
       preHandler: [fastify.rateLimit(photoProxyRateLimitConfig)],
@@ -240,10 +172,14 @@ export async function locationRoutes(fastify: FastifyInstance) {
         return reply.code(400).send({ error: "Invalid photo reference" });
       }
 
-      // Parse optional size params
-      const { maxWidthPx, maxHeightPx } = request.query;
-      const w = Math.min(Math.max(parseInt(maxWidthPx ?? "400", 10) || 400, 1), 4800);
-      const h = Math.min(Math.max(parseInt(maxHeightPx ?? "280", 10) || 280, 1), 4800);
+      // Named sizes only — the legacy maxWidthPx/maxHeightPx params are retired.
+      const parsed = placeBoxSchema.safeParse((request.query as { size?: unknown }).size);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "Invalid size: expected card or hero" });
+      }
+      const px = BOX_PIXELS[parsed.data];
+      const w = px;
+      const h = px;
 
       const key = request.server.config.GOOGLE_MAPS_API_KEY;
       if (!key) {
@@ -254,27 +190,9 @@ export async function locationRoutes(fastify: FastifyInstance) {
 
       try {
         const { buffer, contentType } =
-          await request.server.photoCache.getOrFetch(cacheKey, async () => {
-            const url = `${GOOGLE_PLACES_BASE}/${photoRef}/media?key=${key}&maxWidthPx=${w}&maxHeightPx=${h}`;
-
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 5000);
-
-            try {
-              const response = await fetch(url, { signal: controller.signal });
-
-              if (!response.ok) {
-                throw new Error(`Google Places media returned ${response.status}`);
-              }
-
-              const bytes = Buffer.from(await response.arrayBuffer());
-              const upstreamContentType =
-                response.headers.get("content-type") ?? "image/jpeg";
-              return { buffer: bytes, contentType: upstreamContentType };
-            } finally {
-              clearTimeout(timeout);
-            }
-          });
+          await request.server.photoCache.getOrFetch(cacheKey, async () =>
+            fetchPlacePhotoMedia({ photoRef, maxWidthPx: w, maxHeightPx: h, apiKey: key }),
+          );
 
         reply.header("Content-Type", contentType);
         reply.header("Cache-Control", "public, max-age=604800, immutable");

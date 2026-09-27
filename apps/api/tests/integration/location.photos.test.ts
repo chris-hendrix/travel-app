@@ -86,8 +86,8 @@ describe("GET /api/locations/photos/:photoRef (photo proxy cache)", () => {
 
     // A ref unique to this test so parallel files sharing one storage dir cannot collide.
     const photoRef = `${PHOTO_REF_BASE}-cache-hit`;
-    const url = `/api/locations/photos/${encodeURIComponent(photoRef)}?maxWidthPx=400&maxHeightPx=280`;
-    const expectedKey = buildPhotoCacheKey(photoRef, 400, 280);
+    const url = `/api/locations/photos/${encodeURIComponent(photoRef)}?size=card`;
+    const expectedKey = buildPhotoCacheKey(photoRef, 1024, 1024);
 
     // Ensure a clean slate for this key.
     await app.storage.deleteObject(expectedKey);
@@ -144,7 +144,7 @@ describe("GET /api/locations/photos/:photoRef (photo proxy cache)", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/api/locations/photos/not-a-valid-ref?maxWidthPx=400&maxHeightPx=280",
+      url: "/api/locations/photos/not-a-valid-ref?size=card",
     });
 
     expect(response.statusCode).toBe(400);
@@ -156,8 +156,8 @@ describe("GET /api/locations/photos/:photoRef (photo proxy cache)", () => {
 
     // A ref unique to this test so parallel files sharing one storage dir cannot collide.
     const photoRef = `${PHOTO_REF_BASE}-negative`;
-    const url = `/api/locations/photos/${encodeURIComponent(photoRef)}?maxWidthPx=400&maxHeightPx=280`;
-    const expectedKey = buildPhotoCacheKey(photoRef, 400, 280);
+    const url = `/api/locations/photos/${encodeURIComponent(photoRef)}?size=card`;
+    const expectedKey = buildPhotoCacheKey(photoRef, 1024, 1024);
 
     // Ensure a clean slate for this key.
     await app.storage.deleteObject(expectedKey);
@@ -193,6 +193,55 @@ describe("GET /api/locations/photos/:photoRef (photo proxy cache)", () => {
     } finally {
       // Cleanup so other suites are unaffected.
       await app.storage.deleteObject(expectedKey);
+    }
+  });
+
+  it("?size=hero answers 200; legacy pixel params and unknown sizes answer 400", async () => {
+    app = await buildApp();
+    app.config.GOOGLE_MAPS_API_KEY = "test-key";
+
+    const photoRef = `${PHOTO_REF_BASE}-sizes`;
+    const heroKey = buildPhotoCacheKey(photoRef, 1920, 1920);
+    await app.storage.deleteObject(heroKey);
+
+    try {
+      const google = mockPhotoFetch(
+        photoRef,
+        async () =>
+          new Response(IMAGE_BYTES, {
+            status: 200,
+            headers: { "content-type": "image/jpeg" },
+          }),
+      );
+      const hero = await app.inject({
+        method: "GET",
+        url: `/api/locations/photos/${encodeURIComponent(photoRef)}?size=hero`,
+      });
+      expect(hero.statusCode).toBe(200);
+      expect(callsFor(google, photoRef)).toBe(1);
+
+      // Legacy pixel params are retired.
+      const legacy = await app.inject({
+        method: "GET",
+        url: `/api/locations/photos/${encodeURIComponent(photoRef)}?maxWidthPx=400&maxHeightPx=280`,
+      });
+      expect(legacy.statusCode).toBe(400);
+
+      // Unknown size names are rejected.
+      const unknown = await app.inject({
+        method: "GET",
+        url: `/api/locations/photos/${encodeURIComponent(photoRef)}?size=thumbnail`,
+      });
+      expect(unknown.statusCode).toBe(400);
+
+      // A missing size is rejected too.
+      const missing = await app.inject({
+        method: "GET",
+        url: `/api/locations/photos/${encodeURIComponent(photoRef)}`,
+      });
+      expect(missing.statusCode).toBe(400);
+    } finally {
+      await app.storage.deleteObject(heroKey);
     }
   });
 });
