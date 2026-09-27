@@ -121,6 +121,7 @@ export function toEvent(event: Event): ItineraryEvent {
     endTime: event.endTime === null ? null : iso(event.endTime),
     allDay: event.allDay,
     place: event.location ?? "",
+    placeId: event.place?.placeId ?? null,
     locationLat: event.locationLat ?? null,
     locationLon: event.locationLon ?? null,
     image:
@@ -139,6 +140,7 @@ export function toStay(accommodation: Accommodation): Stay {
     id: accommodation.id,
     name: accommodation.name,
     address: accommodation.address,
+    placeId: accommodation.place?.placeId ?? null,
     addressLat: accommodation.addressLat,
     addressLon: accommodation.addressLon,
     description: accommodation.description,

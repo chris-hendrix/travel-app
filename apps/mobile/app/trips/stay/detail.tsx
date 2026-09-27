@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { QuietAction } from "@/components/ui/QuietAction";
 import { formatDay } from "@/lib/dateRange";
-import { mapsSearchUrl } from "@/lib/links";
+import { placeMapsUrl } from "@/lib/links";
 import {
   nightsLabel,
   stayEnd,
@@ -156,7 +156,7 @@ function StayDetailDialog() {
             </Text>
             <QuietAction
               label="Open in Maps"
-              onPress={() => void Linking.openURL(mapsSearchUrl(stay.address!))}
+              onPress={() => void Linking.openURL(placeMapsUrl(stay.placeId, stay.address!))}
             />
           </Fact>
         </View>

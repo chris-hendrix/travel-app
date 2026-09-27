@@ -59,6 +59,11 @@ export type ItineraryEvent = {
   /** Where it is, as a person would say it. */
   place: string;
   /**
+   * The linked Google place id (`place.placeId`), null when the place
+   * was typed or the row predates linking. Drives the pinned Maps link.
+   */
+  placeId?: string | null;
+  /**
    * Where it is, as Maps would take it: the live Places details lookup
    * resolves these when the place was picked from a suggestion, and
    * they ride to the API on create/update. Null when the place was

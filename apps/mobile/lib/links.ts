@@ -9,13 +9,29 @@
 /**
  * A place, as a Google Maps search.
  *
- * A search rather than a pin, because the only thing the app reliably
- * has is a name. Once the API carries `externalPlaceId` — it already
- * does on the place pair — this becomes a `query_place_id` link, which
- * lands on the place itself rather than on the best guess at it.
+ * A search, for when the row carries no linked place — the user typed
+ * text rather than picking a Google result, or the row predates place
+ * linking. When a place id is linked, use `placeMapsUrl` instead: the
+ * pinned link lands on the place itself rather than on the best guess
+ * at it.
  */
 export function mapsSearchUrl(query: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
+/**
+ * A linked place, as a pinned Google Maps link.
+ *
+ * With a place id the link pins to the place itself (`query_place_id`);
+ * the text query rides along as the pin's label. Without one it falls
+ * back to the plain search — the typed-text case, which has no pin.
+ */
+export function placeMapsUrl(
+  placeId: string | null | undefined,
+  query: string,
+): string {
+  if (!placeId) return mapsSearchUrl(query);
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}&query_place_id=${encodeURIComponent(placeId)}`;
 }
 
 /**

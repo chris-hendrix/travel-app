@@ -1,6 +1,6 @@
 import { Linking, Pressable, Text, View } from "react-native";
 import { ArrowUpRight } from "lucide-react-native";
-import { mapsSearchUrl } from "@/lib/links";
+import { placeMapsUrl } from "@/lib/links";
 import { INK } from "@/lib/theme";
 
 /**
@@ -19,17 +19,20 @@ import { INK } from "@/lib/theme";
 export function PlaceLink({
   label,
   query,
+  placeId,
 }: {
   label: string;
   /** What to search for. Defaults to the label. */
   query?: string;
+  /** The linked Google place id. Pins the link when present. */
+  placeId?: string | null;
 }) {
   return (
     <Pressable
       onPress={() => {
         // Web opens a tab, native hands off to the OS — the same call,
         // which is why this component needs no platform branch.
-        void Linking.openURL(mapsSearchUrl(query ?? label));
+        void Linking.openURL(placeMapsUrl(placeId, query ?? label));
       }}
       aria-label={`Open ${label} in Google Maps`}
       className="cursor-pointer self-start"

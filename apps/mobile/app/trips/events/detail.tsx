@@ -150,6 +150,7 @@ function EventDetailDialog() {
           <PlaceLink
             label={event.place}
             query={placeQuery(event.place, trip.location)}
+            placeId={event.placeId ?? null}
           />
           <Text className="font-body text-base text-ink">
             {eventTimeLabel(event, timeZone)}

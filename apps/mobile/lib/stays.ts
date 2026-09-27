@@ -30,6 +30,11 @@ export type Stay = {
   id: string;
   name: string;
   address: string | null;
+  /**
+   * The linked Google place id (`place.placeId`), null when the address
+   * was typed or the row predates linking. Drives the pinned Maps link.
+   */
+  placeId?: string | null;
   /** What Maps would take, once the API's geocoding fills them in. */
   addressLat: number | null;
   addressLon: number | null;

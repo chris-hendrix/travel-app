@@ -209,6 +209,7 @@ describe("toStay", () => {
       id: "stay-1",
       name: "Casa Marina",
       address: "Via Umberto I 22, Praiano",
+      placeId: null,
       addressLat: 40.6,
       addressLon: 14.5,
       description: "Keypad 7788.",
