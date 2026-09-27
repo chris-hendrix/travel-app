@@ -9,6 +9,7 @@ import {
   placePairIncompleteMessage,
 } from "./place";
 import { THEME_IDS } from "../config/themes";
+import { placeSummarySchema } from "./place";
 import { THEME_FONT_VALUES } from "../types/theme";
 import { TIMEZONES } from "../utils/timezones";
 
@@ -214,6 +215,7 @@ const tripEntitySchema = z.object({
   allowMembersToAddEvents: z.boolean(),
   showAllMembers: z.boolean(),
   cancelled: z.boolean(),
+  place: placeSummarySchema.nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
   timezoneAutoUpdated: z.boolean().optional(),
@@ -241,6 +243,7 @@ const tripSummarySchema = z.object({
   organizerInfo: z.array(organizerInfoSchema),
   memberCount: z.number(),
   eventCount: z.number(),
+  place: placeSummarySchema.nullable(),
 });
 
 /** Organizer detail in trip detail */

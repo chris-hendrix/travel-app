@@ -177,6 +177,8 @@ export class EventService implements IEventService {
         location: data.location || null,
         locationLat: data.locationLat ?? null,
         locationLon: data.locationLon ?? null,
+        placeProvider: data.placeProvider != null && data.externalPlaceId != null ? data.placeProvider : null,
+        externalPlaceId: data.placeProvider != null && data.externalPlaceId != null ? data.externalPlaceId : null,
         startTime: new Date(data.startTime),
         endTime: data.endTime ? new Date(data.endTime) : null,
         allDay: data.allDay ?? false,
@@ -320,6 +322,23 @@ export class EventService implements IEventService {
       ...data,
       updatedAt: new Date(),
     };
+
+    // Normalize the place pair: absent keys leave the columns untouched,
+    // while a complete or clearing (null/null) value writes both columns.
+    // An incomplete pair stores neither.
+    if (data.placeProvider === undefined && data.externalPlaceId === undefined) {
+      delete updateData.placeProvider;
+      delete updateData.externalPlaceId;
+    } else if (data.placeProvider != null && data.externalPlaceId != null) {
+      updateData.placeProvider = data.placeProvider;
+      updateData.externalPlaceId = data.externalPlaceId;
+    } else if (data.placeProvider == null && data.externalPlaceId == null) {
+      updateData.placeProvider = null;
+      updateData.externalPlaceId = null;
+    } else {
+      updateData.placeProvider = null;
+      updateData.externalPlaceId = null;
+    }
 
     // Convert date strings to Date objects if provided
     if (data.startTime) {

@@ -55,6 +55,8 @@ export type TripSummary = {
   id: string;
   name: string;
   destination: string;
+  placeProvider: string | null;
+  externalPlaceId: string | null;
   startDate: string | null;
   endDate: string | null;
   coverImageUrl: string | null;
@@ -111,6 +113,8 @@ type TripPreview = Pick<
   | "id"
   | "name"
   | "destination"
+  | "placeProvider"
+  | "externalPlaceId"
   | "destinationLat"
   | "destinationLon"
   | "startDate"
@@ -334,6 +338,8 @@ export class TripService implements ITripService {
           destinationLat,
           destinationLon,
           destinationDisplayName,
+          placeProvider: data.placeProvider != null && data.externalPlaceId != null ? data.placeProvider : null,
+          externalPlaceId: data.placeProvider != null && data.externalPlaceId != null ? data.externalPlaceId : null,
           startDate: data.startDate || null,
           endDate: data.endDate || null,
           preferredTimezone: geocodedTimezone ?? data.timezone,
@@ -471,6 +477,8 @@ export class TripService implements ITripService {
         id: trip.id,
         name: trip.name,
         destination: trip.destination,
+        placeProvider: trip.placeProvider,
+        externalPlaceId: trip.externalPlaceId,
         destinationLat: trip.destinationLat,
         destinationLon: trip.destinationLon,
         startDate: trip.startDate,
@@ -579,6 +587,8 @@ export class TripService implements ITripService {
         id: trips.id,
         name: trips.name,
         destination: trips.destination,
+        placeProvider: trips.placeProvider,
+        externalPlaceId: trips.externalPlaceId,
         startDate: trips.startDate,
         endDate: trips.endDate,
         coverImageUrl: trips.coverImageUrl,
@@ -702,6 +712,8 @@ export class TripService implements ITripService {
         id: trip.id,
         name: trip.name,
         destination: trip.destination,
+        placeProvider: trip.placeProvider,
+        externalPlaceId: trip.externalPlaceId,
         startDate: trip.startDate,
         endDate: trip.endDate,
         coverImageUrl: trip.coverImageUrl,
@@ -765,6 +777,19 @@ export class TripService implements ITripService {
     if (data.timezone !== undefined) {
       updateData.preferredTimezone = data.timezone;
       delete updateData.timezone;
+    }
+
+    // Normalize the place pair: absent keys leave the columns untouched;
+    // a complete or clearing (null/null) value writes both; incomplete stores neither.
+    if (data.placeProvider === undefined && data.externalPlaceId === undefined) {
+      delete updateData.placeProvider;
+      delete updateData.externalPlaceId;
+    } else if (data.placeProvider != null && data.externalPlaceId != null) {
+      updateData.placeProvider = data.placeProvider;
+      updateData.externalPlaceId = data.externalPlaceId;
+    } else {
+      updateData.placeProvider = null;
+      updateData.externalPlaceId = null;
     }
 
     // If destination changed, geocode and update coordinates + look up timezone + delete weather cache

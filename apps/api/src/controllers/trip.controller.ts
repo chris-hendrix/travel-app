@@ -8,6 +8,7 @@ import type {
 } from "@journiful/shared/schemas";
 import { TripNotFoundError, PermissionDeniedError } from "../errors.js";
 import { auditLog } from "@/utils/audit.js";
+import { attachPlace, attachPlaces } from "@/services/place-attach.service.js";
 
 /**
  * Trip Controller
@@ -41,6 +42,9 @@ export const tripController = {
       // Create trip via service
       const trip = await tripService.createTrip(userId, data);
 
+      // Resolve the linked place (detail mode: a fresh pick populates inline)
+      const withPlace = await attachPlace(trip, request.server.placeCache, "detail");
+
       auditLog(request, "trip.create", {
         resourceType: "trip",
         resourceId: trip.id,
@@ -49,7 +53,7 @@ export const tripController = {
       // Return success response with 201 status
       return reply.status(201).send({
         success: true,
-        trip,
+        trip: withPlace,
       });
     } catch (error) {
       // Re-throw typed errors for error handler
@@ -97,9 +101,12 @@ export const tripController = {
 
       const result = await tripService.getUserTrips(userId, cursor, limit);
 
+      // Resolve places in one batched query (list mode: bounded inline refresh)
+      const withPlaces = await attachPlaces(result.data, request.server.placeCache, "list");
+
       return reply.status(200).send({
         success: true,
-        data: result.data,
+        data: withPlaces,
         meta: result.meta,
       });
     } catch (error) {
@@ -148,10 +155,13 @@ export const tripController = {
       // Destructure membership info from trip data
       const { isPreview, userRsvpStatus, isOrganizer, ...trip } = result;
 
+      // Resolve the linked place (detail mode: a single miss populates inline)
+      const withPlace = await attachPlace(trip, request.server.placeCache, "detail");
+
       // Return success response with membership info
       return reply.status(200).send({
         success: true,
-        trip,
+        trip: withPlace,
         isPreview,
         userRsvpStatus,
         isOrganizer,
@@ -208,6 +218,9 @@ export const tripController = {
         data,
       );
 
+      // Resolve the linked place (detail mode: a fresh pick populates inline)
+      const withPlace = await attachPlace(trip, request.server.placeCache, "detail");
+
       auditLog(request, "trip.update", {
         resourceType: "trip",
         resourceId: id,
@@ -216,7 +229,7 @@ export const tripController = {
       // Return success response
       return reply.status(200).send({
         success: true,
-        trip,
+        trip: withPlace,
       });
     } catch (error) {
       // Re-throw typed errors for error handler
@@ -553,9 +566,10 @@ export const tripController = {
       });
 
       // Return success response
+      const withPlace = await attachPlace(updatedTrip, request.server.placeCache, "detail");
       return reply.status(200).send({
         success: true,
-        trip: updatedTrip,
+        trip: withPlace,
       });
     } catch (error) {
       // Re-throw typed errors for error handler
@@ -629,9 +643,10 @@ export const tripController = {
       });
 
       // Return success response
+      const withPlace = await attachPlace(updatedTrip, request.server.placeCache, "detail");
       return reply.status(200).send({
         success: true,
-        trip: updatedTrip,
+        trip: withPlace,
       });
     } catch (error) {
       // Re-throw typed errors for error handler

@@ -8,6 +8,7 @@ import {
   placePairIncompleteMessage,
 } from "./place";
 import { linkItemSchema, linksArraySchema } from "./link";
+import { placeSummarySchema } from "./place";
 
 /**
  * Base event data schema (without cross-field validation)
@@ -115,6 +116,7 @@ const eventEntitySchema = z.object({
   endTime: z.date().nullable(),
   allDay: z.boolean(),
   links: z.array(linkItemSchema).nullable(),
+  place: placeSummarySchema.nullable(),
   deletedAt: z.date().nullable(),
   deletedBy: z.string().nullable(),
   createdAt: z.date(),

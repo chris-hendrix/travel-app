@@ -183,6 +183,8 @@ export class AccommodationService implements IAccommodationService {
         address: data.address || null,
         addressLat: data.addressLat ?? null,
         addressLon: data.addressLon ?? null,
+        placeProvider: data.placeProvider != null && data.externalPlaceId != null ? data.placeProvider : null,
+        externalPlaceId: data.placeProvider != null && data.externalPlaceId != null ? data.externalPlaceId : null,
         description: data.description || null,
         checkIn: data.checkIn ? new Date(data.checkIn) : null,
         checkOut: data.checkOut ? new Date(data.checkOut) : null,
@@ -333,6 +335,19 @@ export class AccommodationService implements IAccommodationService {
       ...(data.checkOut && { checkOut: new Date(data.checkOut) }),
       updatedAt: new Date(),
     };
+
+    // Normalize the place pair: absent keys leave the columns untouched;
+    // a complete or clearing (null/null) value writes both; incomplete stores neither.
+    if (data.placeProvider === undefined && data.externalPlaceId === undefined) {
+      delete updateData.placeProvider;
+      delete updateData.externalPlaceId;
+    } else if (data.placeProvider != null && data.externalPlaceId != null) {
+      updateData.placeProvider = data.placeProvider;
+      updateData.externalPlaceId = data.externalPlaceId;
+    } else {
+      updateData.placeProvider = null;
+      updateData.externalPlaceId = null;
+    }
 
     // Perform update
     const result = await this.db

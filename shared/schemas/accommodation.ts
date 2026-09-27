@@ -8,6 +8,7 @@ import {
   placePairIncompleteMessage,
 } from "./place";
 import { linkItemSchema, linksArraySchema } from "./link";
+import { placeSummarySchema } from "./place";
 
 /**
  * Base accommodation data schema (without cross-field validation)
@@ -105,6 +106,7 @@ const accommodationEntitySchema = z.object({
   checkIn: z.date().nullable(),
   checkOut: z.date().nullable(),
   links: z.array(linkItemSchema).nullable(),
+  place: placeSummarySchema.nullable(),
   deletedAt: z.date().nullable(),
   deletedBy: z.string().nullable(),
   createdAt: z.date(),

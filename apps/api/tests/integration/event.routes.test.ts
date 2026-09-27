@@ -84,6 +84,7 @@ describe("Event Routes", () => {
         location: "Eiffel Tower, Paris",
         tripId: trip.id,
         createdBy: testUser.id,
+        place: null,
       });
     });
 

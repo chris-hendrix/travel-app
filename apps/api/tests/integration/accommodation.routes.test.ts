@@ -80,6 +80,7 @@ describe("Accommodation Routes", () => {
         address: "123 Main St, Paris",
         tripId: trip.id,
         createdBy: testUser.id,
+        place: null,
       });
     });
 

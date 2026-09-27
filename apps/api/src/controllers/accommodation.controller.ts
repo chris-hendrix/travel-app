@@ -5,6 +5,7 @@ import type {
 } from "@journiful/shared/schemas";
 import { AccommodationNotFoundError, TripNotFoundError } from "../errors.js";
 import { auditLog } from "@/utils/audit.js";
+import { attachPlace, attachPlaces } from "@/services/place-attach.service.js";
 
 /**
  * Accommodation Controller
@@ -45,10 +46,13 @@ export const accommodationController = {
         data,
       );
 
+      // Resolve the linked place (detail mode: a fresh pick populates inline)
+      const withPlace = await attachPlace(accommodation, request.server.placeCache, "detail");
+
       // Return success response with 201 status
       return reply.status(201).send({
         success: true,
-        accommodation,
+        accommodation: withPlace,
       });
     } catch (error) {
       // Re-throw typed errors for error handler
@@ -110,9 +114,12 @@ export const accommodationController = {
         includeDeleted,
       );
 
+      // Resolve places in one batched query (list mode: bounded inline refresh)
+      const withPlaces = await attachPlaces(accommodations, request.server.placeCache, "list");
+
       return reply.status(200).send({
         success: true,
-        accommodations,
+        accommodations: withPlaces,
       });
     } catch (error) {
       // Re-throw typed errors for error handler
@@ -170,9 +177,10 @@ export const accommodationController = {
       }
 
       // Return success response
+      const withPlace = await attachPlace(accommodation, request.server.placeCache, "detail");
       return reply.status(200).send({
         success: true,
-        accommodation,
+        accommodation: withPlace,
       });
     } catch (error) {
       // Re-throw typed errors for error handler
@@ -231,9 +239,10 @@ export const accommodationController = {
         );
 
       // Return success response
+      const withPlace = await attachPlace(accommodation, request.server.placeCache, "detail");
       return reply.status(200).send({
         success: true,
-        accommodation,
+        accommodation: withPlace,
       });
     } catch (error) {
       // Re-throw typed errors for error handler
@@ -344,9 +353,10 @@ export const accommodationController = {
         );
 
       // Return success response
+      const withPlace = await attachPlace(accommodation, request.server.placeCache, "detail");
       return reply.status(200).send({
         success: true,
-        accommodation,
+        accommodation: withPlace,
       });
     } catch (error) {
       // Re-throw typed errors for error handler
