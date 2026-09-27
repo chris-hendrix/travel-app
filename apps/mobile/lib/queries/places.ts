@@ -134,17 +134,40 @@ export function shouldFetchSuggestions(input: string): boolean {
 }
 
 /**
+ * Optional autocomplete bias: the trip's own coordinates. When
+ * present the proxy applies a ~50 km location bias around them
+ * (`location.routes.ts:105`); when absent the search is unbiased —
+ * which is exactly right for a picker that is itself choosing the
+ * trip's destination (`trips/new`).
+ */
+export type PlaceBias = { lat: number; lon: number };
+
+function isUsableBias(bias: PlaceBias | null | undefined): bias is PlaceBias {
+  return (
+    bias != null &&
+    Number.isFinite(bias.lat) &&
+    Number.isFinite(bias.lon)
+  );
+}
+
+/**
  * `GET /locations/autocomplete?q=<input>&sessionToken=<token>`, mapped
  * to picker rows. Throws `ApiError` on 503 (key not configured,
  * upstream failure) — callers treat that as "no live results".
+ *
+ * A usable `bias` appends `&lat=<lat>&lon=<lon>`; anything else
+ * sends neither, so a trip with no coordinates gets an unbiased
+ * search rather than a `0,0` one.
  */
 export async function fetchPlaceSuggestions(
   input: string,
   sessionToken: string,
+  bias?: PlaceBias | null,
 ): Promise<PlaceSuggestion[]> {
   const rows = await apiFetch<AutocompleteRow[]>(
     `/locations/autocomplete?q=${encodeURIComponent(input.trim())}` +
-      `&sessionToken=${encodeURIComponent(sessionToken)}`,
+      `&sessionToken=${encodeURIComponent(sessionToken)}` +
+      (isUsableBias(bias) ? `&lat=${bias.lat}&lon=${bias.lon}` : ""),
   );
   return rows.map((row) => ({
     placeId: row.placeId,
@@ -178,16 +201,44 @@ export async function fetchPlaceDetails(
 }
 
 /**
+ * The autocomplete bias for a picker that edits inside a trip:
+ * the trip's own coordinates when both are finite numbers, else
+ * `undefined` for an unbiased search. One helper so the three
+ * trip-scoped pickers (event, stay, trip edit) cannot drift.
+ */
+export function biasForTrip(trip: {
+  destinationLat?: number | null;
+  destinationLon?: number | null;
+} | null | undefined): PlaceBias | undefined {
+  if (trip == null) return undefined;
+  const { destinationLat: lat, destinationLon: lon } = trip;
+  return isUsableBias({ lat: lat as number, lon: lon as number })
+    ? { lat: lat as number, lon: lon as number }
+    : undefined;
+}
+
+/**
  * Suggestions query. The key carries the trimmed input but NOT the
  * session token, so rotating the token after a selection never
- * refires the last query. `retry: false`: a 503/offline answers with
+ * refires the last query. The bias IS in the key: a suggestion list
+ * computed for one trip's coordinates must never be served to
+ * another. `retry: false`: a 503/offline answers with
  * the static fallback, not a spinner and not a retry storm.
  */
-export const placeSuggestionsOptions = (input: string, sessionToken: string) =>
+export const placeSuggestionsOptions = (
+  input: string,
+  sessionToken: string,
+  bias?: PlaceBias | null,
+) =>
   queryOptions({
-    queryKey: ["places", "suggestions", input.trim()] as const,
+    queryKey: [
+      "places",
+      "suggestions",
+      input.trim(),
+      ...(isUsableBias(bias) ? [`${bias.lat},${bias.lon}`] : []),
+    ] as const,
     enabled: shouldFetchSuggestions(input) && sessionToken.trim() !== "",
-    queryFn: () => fetchPlaceSuggestions(input, sessionToken),
+    queryFn: () => fetchPlaceSuggestions(input, sessionToken, bias),
     retry: false,
   });
 
@@ -209,11 +260,17 @@ export const placeDetailsOptions = (
 /**
  * Live suggestions for the picker's current search text. Debounces
  * keystrokes (~250ms trailing) before the query sees them; empty or
- * short input disables the query so nothing is sent.
+ * short input disables the query so nothing is sent. The optional
+ * `bias` is the trip's coordinates — supplied by pickers that edit
+ * inside a trip, omitted by the picker that chooses the destination.
  */
-export function usePlaceSuggestions(input: string, sessionToken: string) {
+export function usePlaceSuggestions(
+  input: string,
+  sessionToken: string,
+  bias?: PlaceBias | null,
+) {
   const debounced = useDebouncedValue(input);
-  return useQuery(placeSuggestionsOptions(debounced, sessionToken));
+  return useQuery(placeSuggestionsOptions(debounced, sessionToken, bias));
 }
 
 /** Canonical details for a selected suggestion. Disabled until picked. */

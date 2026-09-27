@@ -15,6 +15,7 @@ import { placeholderPhoto } from "@/lib/mapping";
 import type { UpdateTripRequest } from "@/lib/queries/trips";
 import { toErrorCopy } from "@/lib/queries/errors";
 import {
+  biasForTrip,
   placePickerRows,
   usePlaceDetails,
   usePlaceSessionToken,
@@ -69,7 +70,10 @@ function EditTripScreen() {
   // Live Places suggestions plus the typed text as a row: offline, an
   // empty key, or a 503 degrades to the user's own words, and the
   // required-pick still accepts the typed row. The field keeps the
-  // display string only — the trip carries no lat/lon.
+  // display string only. The lookup is biased to the trip's own
+  // coordinates when the detail carried them — this picker edits a
+  // destination that already exists, unlike `trips/new` which stays
+  // unbiased because it is itself choosing the destination.
   const [search, setSearch] = useState("");
   const [sessionToken, rotateSessionToken] = usePlaceSessionToken();
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(
@@ -79,7 +83,7 @@ function EditTripScreen() {
     data: suggestions,
     isFetching: suggestionsFetching,
     isError: suggestionsFailed,
-  } = usePlaceSuggestions(search, sessionToken);
+  } = usePlaceSuggestions(search, sessionToken, biasForTrip(trip));
   const details = usePlaceDetails(selectedPlaceId, sessionToken);
   const liveById = useMemo(
     () => new Map((suggestions ?? []).map((s) => [s.placeId, s])),

@@ -16,6 +16,14 @@ export type Trip = {
   /** ISO yyyy-mm-dd — the card formats its own range. */
   startDate: string;
   endDate: string;
+  /**
+   * The trip's own coordinates, when the server geocoded (or kept)
+   * them. Absent or null until then — and the autocomplete bias
+   * reads these, so either means an unbiased search, never a `0,0`
+   * one. Optional so list-sourced and mock trips can omit them.
+   */
+  destinationLat?: number | null;
+  destinationLon?: number | null;
 };
 
 /**

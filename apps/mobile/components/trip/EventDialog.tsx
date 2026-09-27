@@ -15,6 +15,7 @@ import { toIso } from "@/lib/dateRange";
 import { validateNewEvent, type NewEventInput } from "@/lib/newEvent";
 import type { Trip } from "@/components/trip/TripCard";
 import {
+  biasForTrip,
   placePickerRows,
   usePlaceDetails,
   usePlaceSessionToken,
@@ -116,7 +117,7 @@ export function EventDialog({
     data: suggestions,
     isFetching: suggestionsFetching,
     isError: suggestionsFailed,
-  } = usePlaceSuggestions(search, sessionToken);
+  } = usePlaceSuggestions(search, sessionToken, biasForTrip(trip));
   const details = usePlaceDetails(selectedPlaceId, sessionToken);
   const liveById = useMemo(
     () => new Map((suggestions ?? []).map((s) => [s.placeId, s])),

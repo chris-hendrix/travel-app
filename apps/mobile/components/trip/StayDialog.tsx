@@ -17,6 +17,7 @@ import {
 } from "@/lib/newStay";
 import type { Trip } from "@/components/trip/TripCard";
 import {
+  biasForTrip,
   placePickerRows,
   usePlaceDetails,
   usePlaceSessionToken,
@@ -120,7 +121,7 @@ export function StayDialog({
     data: suggestions,
     isFetching: suggestionsFetching,
     isError: suggestionsFailed,
-  } = usePlaceSuggestions(search, sessionToken);
+  } = usePlaceSuggestions(search, sessionToken, biasForTrip(trip));
   const details = usePlaceDetails(selectedPlaceId, sessionToken);
   const liveById = useMemo(
     () => new Map((suggestions ?? []).map((s) => [s.placeId, s])),

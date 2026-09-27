@@ -89,6 +89,8 @@ describe("toTrip", () => {
       endDate: "2026-09-27",
       description: "Hut to hut.",
       preferredTimezone: "Europe/Madrid",
+      destinationLat: 39.6,
+      destinationLon: 2.9,
     });
   });
 

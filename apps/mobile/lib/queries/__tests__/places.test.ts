@@ -13,6 +13,7 @@ import { apiFetch } from "@/lib/api";
 import {
   createPlaceSessionToken,
   createTrailingDebounce,
+  fetchPlaceSuggestions,
   placeDetailsOptions,
   placeSuggestionsOptions,
   shouldFetchSuggestions,
@@ -128,6 +129,39 @@ describe("placeSuggestionsOptions", () => {
     expect(shouldFetchSuggestions("")).toBe(false);
     expect(shouldFetchSuggestions("L")).toBe(false);
     expect(shouldFetchSuggestions("Li")).toBe(true);
+  });
+
+  it("includes lat/lon when the caller supplies a bias and omits both when it does not", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue([]);
+
+    await fetchPlaceSuggestions("Lisbon", TOKEN, {
+      lat: 39.6,
+      lon: 2.9,
+    });
+    expect(mockedApiFetch).toHaveBeenCalledWith(
+      `/locations/autocomplete?q=Lisbon&sessionToken=${TOKEN}&lat=39.6&lon=2.9`,
+    );
+
+    mockedApiFetch.mockClear();
+    await fetchPlaceSuggestions("Lisbon", TOKEN);
+    expect(mockedApiFetch).toHaveBeenCalledWith(
+      `/locations/autocomplete?q=Lisbon&sessionToken=${TOKEN}`,
+    );
+  });
+
+  it("folds the bias into the cache key so one trip's list is never served to another", () => {
+    const a = placeSuggestionsOptions("Lisbon", TOKEN, {
+      lat: 39.6,
+      lon: 2.9,
+    });
+    const b = placeSuggestionsOptions("Lisbon", TOKEN, {
+      lat: 41.3,
+      lon: 2.1,
+    });
+    const unbiased = placeSuggestionsOptions("Lisbon", TOKEN);
+    expect(a.queryKey).not.toEqual(b.queryKey);
+    expect(a.queryKey).not.toEqual(unbiased.queryKey);
   });
 });
 

@@ -76,6 +76,8 @@ export function toTrip(detail: TripDetail): Trip {
     endDate: detail.endDate ?? "",
     description: detail.description,
     preferredTimezone: detail.preferredTimezone,
+    destinationLat: detail.destinationLat ?? null,
+    destinationLon: detail.destinationLon ?? null,
   };
 }
 
@@ -91,6 +93,10 @@ export function toTripSummary(summary: TripSummary): Trip {
     endDate: summary.endDate ?? "",
     description: null,
     preferredTimezone: "",
+    // Summaries carry no coordinates (`TripSummary` has no lat/lon),
+    // so list-sourced trips bias nothing — only detail reads do.
+    destinationLat: null,
+    destinationLon: null,
   };
 }
 
