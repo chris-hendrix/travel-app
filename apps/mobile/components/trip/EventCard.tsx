@@ -24,6 +24,7 @@ export function EventCard({
   return (
     <PhotoCard
       image={event.image}
+      photoSourceUri={event.photoSourceUri ?? null}
       overlay={<Badge label={EVENT_TYPE_LABEL[event.type]} variant="category" />}
       meta={eventTimeLabel(event, timeZone)}
       title={event.name}

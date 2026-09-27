@@ -22,6 +22,22 @@ export type NewStayInput = {
    * written the way the host sent it.
    */
   description: string;
+  /**
+   * The picked place's Google place id, when the address was picked
+   * from a suggestion. Null when the address was typed, which has no
+   * place — and the null is what clears a previous link on edit.
+   * Absent when the caller never asked, which leaves the link untouched.
+   */
+  placeId?: string | null;
+  /**
+   * The picked place's snapshot strings: the tapped row's name
+   * (`PlaceSuggestion.shortName`) and the details response's formatted
+   * address. Same triple-state as the id — a value sends, null clears,
+   * absent leaves untouched — and cleared with the pair. Never written
+   * into the stay's name, which is the user's own words.
+   */
+  placeName?: string | null;
+  placeAddress?: string | null;
 };
 
 export type NewStayErrors = Partial<
@@ -97,6 +113,18 @@ export function draftFromStay(
     checkInTime: from && from.clock !== "00:00" ? from.clock : "",
     checkOutTime: to && to.clock !== "00:00" ? to.clock : "",
     description: stay.description ?? "",
+    // The link rides back so an edit that touches nothing else keeps
+    // it; a row with none reads as null, never as a kept-over id.
+    // The snapshot strings ride back the same way, so an untouched
+    // address resends its own snapshot rather than clearing it.
+    placeId: stay.placeId ?? null,
+    // Spread so an untouched snapshot stays absent (omitted downstream)
+    // rather than an explicit undefined, which exactOptionalPropertyTypes
+    // rejects.
+    ...(stay.placeName !== undefined ? { placeName: stay.placeName } : null),
+    ...(stay.placeAddress !== undefined
+      ? { placeAddress: stay.placeAddress }
+      : null),
   };
 }
 
@@ -151,6 +179,19 @@ export function buildStay(
     id,
     name: input.name.trim(),
     address: text(input.address),
+    // The picked place's id when the address came from a suggestion;
+    // null when it was typed, so an edit re-typing the address clears it.
+    // The snapshot strings ride the same triple-state: a pick sends
+    // both, typed prose clears both, untouched omits both.
+    placeId: input.placeId ?? null,
+    // Spread for the same absent-vs-undefined reason as the draft above:
+    // untouched omits both keys downstream, typed prose clears both.
+    ...(input.placeName !== undefined
+      ? { placeName: input.placeName }
+      : null),
+    ...(input.placeAddress !== undefined
+      ? { placeAddress: input.placeAddress }
+      : null),
     addressLat: null,
     addressLon: null,
     description: text(input.description),

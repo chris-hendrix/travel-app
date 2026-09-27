@@ -1,4 +1,4 @@
-import type { ItineraryEvent } from "@/lib/itinerary";
+import type { EventType, ItineraryEvent } from "@/lib/itinerary";
 import { isClockTime, minutesOf } from "@/lib/time";
 import { wallClock, zoneOffsetMinutes } from "@/lib/timezone";
 
@@ -19,6 +19,12 @@ export type NewEventInput = {
   end: string;
   place: string;
   /**
+   * The picked place's Google types, already derived through
+   * `eventTypeForPlace` by the picker (`lib/place-pick.ts`). Absent
+   * when the place was typed, which carries no types — never invented.
+   */
+  type?: EventType | undefined;
+  /**
    * The live Places details lookup's coordinates for the place, when
    * it was picked from a suggestion. Absent or null when the place was
    * typed or came from the static list, which carry no coordinates —
@@ -26,6 +32,21 @@ export type NewEventInput = {
    */
   locationLat?: number | null;
   locationLon?: number | null;
+  /**
+   * The picked place's Google place id, when it was picked from a
+   * suggestion. Null when the place was typed, which has no place —
+   * and the null is what clears a previous link on edit. Absent when
+   * the caller never asked, which leaves the link untouched.
+   */
+  placeId?: string | null;
+  /**
+   * The picked place's snapshot strings: the tapped row's name
+   * (`PlaceSuggestion.shortName`) and the details response's formatted
+   * address. Same triple-state as the id — a value sends, null clears,
+   * absent leaves untouched — and cleared with the pair.
+   */
+  placeName?: string | null;
+  placeAddress?: string | null;
 };
 
 export type NewEventErrors = Partial<
@@ -89,11 +110,28 @@ export function draftFromEvent(
     name: event.name,
     description: event.description ?? "",
     place: event.place,
+    // The built row's type rides back so an edit that touches nothing
+    // else keeps it; a row built before types existed reads as misc.
+    type: event.type ?? "misc",
     // The coordinates come along when the row has them, so an edit
     // that touches nothing else keeps them; a place with none reads
     // as absent, never as 0.
     locationLat: event.locationLat ?? null,
     locationLon: event.locationLon ?? null,
+    // The link rides back so an edit that touches nothing else keeps
+    // it; a row with none reads as null, never as a kept-over id.
+    // The snapshot strings ride back the same way, so an untouched
+    // place resends its own snapshot rather than clearing it.
+    placeId: event.placeId ?? null,
+    // Spread so an untouched snapshot stays absent (omitted downstream)
+    // rather than an explicit undefined, which exactOptionalPropertyTypes
+    // rejects.
+    ...(event.placeName !== undefined
+      ? { placeName: event.placeName }
+      : null),
+    ...(event.placeAddress !== undefined
+      ? { placeAddress: event.placeAddress }
+      : null),
     day: wallClock(event.startTime, timeZone).date,
     allDay: event.allDay,
     start: event.allDay ? "" : wallClock(event.startTime, timeZone).clock,
@@ -109,8 +147,9 @@ export function draftFromEvent(
  * mocks use: an 8:30 entered for Mallorca is 8:30 in Mallorca. The
  * offset and the photo come from the mocks until the API owns them.
  *
- * The type is not asked for and not guessed: it is the place's Google
- * Places category, which is the API's to read. An all-day event is sent
+ * The type is the picker's, not a guess made here: `input.type` carries
+ * what the place's Google types implied, and typed prose carries none —
+ * so an unclassified event. An all-day event is sent
  * with `allDay`, the API's own word for "no particular time" — the
  * schema wants a `startTime` either way, so it is stamped at its own
  * midnight and the flag says that hour means nothing.
@@ -159,8 +198,8 @@ export function buildEvent(
     name: input.name.trim(),
     // An empty description is no description, not an empty string.
     description: input.description.trim() ? input.description.trim() : null,
-    // Until Places answers: an unclassified event.
-    type: "misc",
+    // Whatever the picker derived; typed prose carries none, so misc.
+    type: input.type ?? "misc",
     startTime: new Date(startMs).toISOString(),
     endTime,
     allDay: untimed,
@@ -171,6 +210,19 @@ export function buildEvent(
       typeof input.locationLat === "number" ? input.locationLat : null,
     locationLon:
       typeof input.locationLon === "number" ? input.locationLon : null,
+    // The picked place's id when the place came from a suggestion;
+    // null when it was typed, so an edit re-typing the place clears it.
+    // The snapshot strings ride the same triple-state: a pick sends
+    // both, typed prose clears both, untouched omits both.
+    placeId: input.placeId ?? null,
+    // Spread for the same absent-vs-undefined reason as the draft above:
+    // untouched omits both keys downstream, typed prose clears both.
+    ...(input.placeName !== undefined
+      ? { placeName: input.placeName }
+      : null),
+    ...(input.placeAddress !== undefined
+      ? { placeAddress: input.placeAddress }
+      : null),
     image: photo,
     // An edit arrives as a new event object, so the flag it carried has
     // to be brought along or editing a deleted event would undelete it.

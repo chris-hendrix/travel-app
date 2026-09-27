@@ -31,6 +31,7 @@ export function StayCard({
   return (
     <PhotoCard
       image={stay.image}
+      photoSourceUri={stay.photoSourceUri ?? null}
       overlay={<Badge label="Stay" variant="category" />}
       // The card's three lines are the event card's three lines: the span
       // where an event has its clock, the name, then where it is. The

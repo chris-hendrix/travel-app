@@ -2,6 +2,7 @@ import { daysBetween } from "@/lib/countdown";
 import { formatDay, formatTimeRange } from "@/lib/dateRange";
 import { wallClock } from "@/lib/timezone";
 import { joinFacts } from "@/lib/wording";
+import type { PlacePhotoCredit } from "@/lib/place-images";
 
 /**
  * The API's `event_type`, in full. An event's type is what decides
@@ -59,6 +60,20 @@ export type ItineraryEvent = {
   /** Where it is, as a person would say it. */
   place: string;
   /**
+   * The linked Google place id (`place.placeId`), null when the place
+   * was typed or the row predates linking. Drives the pinned Maps link.
+   */
+  placeId?: string | null;
+  /**
+   * The picked place's snapshot strings (the tapped row's name and the
+   * details response's formatted address). Null when the place was
+   * typed or the row predates snapshots; absent when the caller never
+   * said, which leaves the columns untouched. Read by the detail
+   * block (`lib/place-rows.ts`); written by the picker write path.
+   */
+  placeName?: string | null;
+  placeAddress?: string | null;
+  /**
    * Where it is, as Maps would take it: the live Places details lookup
    * resolves these when the place was picked from a suggestion, and
    * they ride to the API on create/update. Null when the place was
@@ -70,6 +85,14 @@ export type ItineraryEvent = {
   locationLon?: number | null;
   /** The place's photo, which the API proxies from Places. */
   image: string;
+  /**
+   * The photo's required Google Maps source link, null for placeholders.
+   * Every rendered photo reaches it: the tile through `PhotoCard`, the
+   * detail through its own tap.
+   */
+  photoSourceUri?: string | null;
+  /** The photo's author credit for the detail surface; tiles render nothing. */
+  photoCredit?: PlacePhotoCredit | null;
   /**
    * The API's soft delete, and why deleting needs no confirmation step:
    * a deleted event is still there, waiting for the Deleted items screen

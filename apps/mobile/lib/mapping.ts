@@ -28,6 +28,7 @@ import type {
 
 import { resolveUploadUrl } from "@/lib/uploads";
 import { placeholderPhoto } from "@/lib/placeholder";
+import { coverImage, placePhotoCredit } from "@/lib/place-images";
 // Re-exported so existing `placeholderPhoto` call sites keep working;
 // new code should import from `@/lib/placeholder` directly.
 export { placeholderPhoto };
@@ -66,31 +67,55 @@ function handlesOf(
  * member count, so the header and the roster can never disagree.
  */
 export function toTrip(detail: TripDetail): Trip {
+  const coverImageUrl = resolveUploadUrl(detail.coverImageUrl);
+  const cover = coverImage({ coverImageUrl, place: detail.place, id: detail.id });
   return {
     id: detail.id,
     title: detail.name,
     location: detail.destination,
-    image: resolveUploadUrl(detail.coverImageUrl) ?? placeholderPhoto(detail.id),
+    image: cover.url ?? placeholderPhoto(detail.id),
+    coverImageUrl,
+    photoSourceUri: cover.photoSourceUri,
+    photoCredit: placePhotoCredit(detail.place ?? null),
     going: detail.memberCount,
     startDate: detail.startDate ?? "",
     endDate: detail.endDate ?? "",
     description: detail.description,
     preferredTimezone: detail.preferredTimezone,
+    destinationLat: detail.destinationLat ?? null,
+    destinationLon: detail.destinationLon ?? null,
+    placeId: detail.place?.placeId ?? null,
+    placeName: detail.placeName ?? null,
+    placeAddress: detail.placeAddress ?? null,
+    placeCountry: detail.place?.country ?? null,
   };
 }
 
 /** A list summary onto the mobile `Trip`: `going` is `memberCount`. */
 export function toTripSummary(summary: TripSummary): Trip {
+  const coverImageUrl = resolveUploadUrl(summary.coverImageUrl);
+  const cover = coverImage({ coverImageUrl, place: summary.place, id: summary.id });
   return {
     id: summary.id,
     title: summary.name,
     location: summary.destination,
-    image: resolveUploadUrl(summary.coverImageUrl) ?? placeholderPhoto(summary.id),
+    image: cover.url ?? placeholderPhoto(summary.id),
+    coverImageUrl,
+    photoSourceUri: cover.photoSourceUri,
+    photoCredit: placePhotoCredit(summary.place ?? null),
     going: summary.memberCount,
     startDate: summary.startDate ?? "",
     endDate: summary.endDate ?? "",
     description: null,
     preferredTimezone: "",
+    // Summaries carry no coordinates (`TripSummary` has no lat/lon),
+    // so list-sourced trips bias nothing — only detail reads do.
+    destinationLat: null,
+    destinationLon: null,
+    placeId: summary.place?.placeId ?? null,
+    placeName: summary.placeName ?? null,
+    placeAddress: summary.placeAddress ?? null,
+    placeCountry: summary.place?.country ?? null,
   };
 }
 
@@ -99,6 +124,7 @@ export function toTripSummary(summary: TripSummary): Trip {
  * `location` -> `place`.
  */
 export function toEvent(event: Event): ItineraryEvent {
+  const cover = coverImage({ place: event.place, id: event.id });
   return {
     id: event.id,
     name: event.name,
@@ -108,10 +134,17 @@ export function toEvent(event: Event): ItineraryEvent {
     endTime: event.endTime === null ? null : iso(event.endTime),
     allDay: event.allDay,
     place: event.location ?? "",
+    placeId: event.place?.placeId ?? null,
+    // The detail block's snapshot (`lib/place-rows.ts`): the entity's own
+    // stored columns, null when unlinked. Never the place cache: the
+    // snapshot must survive cache expiry and Google-side renames.
+    placeName: event.placeName ?? null,
+    placeAddress: event.placeAddress ?? null,
     locationLat: event.locationLat ?? null,
     locationLon: event.locationLon ?? null,
-    // TODO(BE): Events have no photo column or endpoint. Real art needs `events.imageUrl`/`placePhotoRef`, or a persisted `placeId` resolvable via `/api/locations/photos/:photoRef`.
-    image: placeholderPhoto(event.id),
+    image: cover.url ?? placeholderPhoto(event.id),
+    photoSourceUri: cover.photoSourceUri,
+    photoCredit: placePhotoCredit(event.place ?? null),
     deletedAt: deletedAtOf(event.deletedAt),
   };
 }
@@ -121,17 +154,28 @@ export function toEvent(event: Event): ItineraryEvent {
  * as-is, times pass through (null = the untimed stay).
  */
 export function toStay(accommodation: Accommodation): Stay {
+  const cover = coverImage({
+    place: accommodation.place,
+    id: accommodation.id,
+  });
   return {
     id: accommodation.id,
     name: accommodation.name,
     address: accommodation.address,
+    placeId: accommodation.place?.placeId ?? null,
+    // The detail block's snapshot (`lib/place-rows.ts`): the entity's own
+    // stored columns, null when unlinked. Never the place cache: the
+    // snapshot must survive cache expiry and Google-side renames.
+    placeName: accommodation.placeName ?? null,
+    placeAddress: accommodation.placeAddress ?? null,
     addressLat: accommodation.addressLat,
     addressLon: accommodation.addressLon,
     description: accommodation.description,
     checkIn: accommodation.checkIn,
     checkOut: accommodation.checkOut,
-    // TODO(BE): Accommodations have no photo column or endpoint. Same shape as (1).
-    image: placeholderPhoto(accommodation.id),
+    image: cover.url ?? placeholderPhoto(accommodation.id),
+    photoSourceUri: cover.photoSourceUri,
+    photoCredit: placePhotoCredit(accommodation.place ?? null),
     links: (accommodation.links ?? []).map((link) => ({
       url: link.url,
       name: link.name ?? link.url,

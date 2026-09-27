@@ -9,6 +9,7 @@ function trip(over: Partial<Trip> = {}): Trip {
     title: "Los Picos Trail",
     location: "Mallorca",
     image: "",
+    coverImageUrl: null,
     going: 6,
     description: null,
     preferredTimezone: "Europe/Madrid",

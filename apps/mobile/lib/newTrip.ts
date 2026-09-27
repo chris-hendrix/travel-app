@@ -60,6 +60,7 @@ export function buildTrip(input: NewTripInput, id: string): Trip {
     startDate: input.startDate,
     endDate: input.endDate,
     image: `https://picsum.photos/seed/${encodeURIComponent(id)}/900/600`,
+    coverImageUrl: null,
     going: 1,
     // Nobody has written one yet: the description is the organizer's, and
     // the create flow does not ask for it.

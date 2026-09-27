@@ -12,12 +12,13 @@ import { validateNewTrip, type NewTripInput } from "@/lib/newTrip";
 import { useTrips } from "@/lib/tripsStore";
 import { toErrorCopy } from "@/lib/queries/errors";
 import {
-  toPlaceOption,
+  placePickerRows,
   usePlaceDetails,
   usePlaceSessionToken,
   usePlaceSuggestions,
 } from "@/lib/queries/places";
-import { PLACES } from "@/lib/placeSuggestions";
+import { pickPlace } from "@/lib/place-pick";
+import { tripCreatePlaceFields } from "@/lib/queries/trips";
 
 export default function NewTrip() {
   const { addTrip } = useTrips();
@@ -30,39 +31,48 @@ export default function NewTrip() {
   const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Live Places suggestions sit above the static list; offline, an empty
-  // key, or a 503 falls back to `PLACES` silently, and the required-pick
-  // still accepts a static pick. The field keeps the display string only
-  // — the trip carries no lat/lon.
-  //
-  // It is `suggestions` being absent that falls back, not it being empty.
-  // An empty array is an answer — the live source was asked and has
-  // nothing for that query — and answering it with ten unrelated static
-  // places is worse than answering it with nothing, which is what the
-  // picker says for itself (`No matches`).
+  // Live Places suggestions plus the typed text as a row: offline, an
+  // empty key, or a 503 degrades to the user's own words, and the
+  // required-pick still accepts the typed row. A picked place keeps
+  // its pair for submit — the trip carries the place id, its
+  // coordinates, and its name.
   const [search, setSearch] = useState("");
   const [sessionToken, rotateSessionToken] = usePlaceSessionToken();
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(
     null,
   );
-  const { data: suggestions } = usePlaceSuggestions(search, sessionToken);
+  // The picked row's short name at pick time — the `place_name`
+  // snapshot source, like events and stays. The visible field keeps
+  // the row's full display text; this keeps only the name. Typed text
+  // clears it with the link.
+  const [pickedPlaceName, setPickedPlaceName] = useState<string | null>(
+    null,
+  );
+  const {
+    data: suggestions,
+    isFetching: suggestionsFetching,
+    isError: suggestionsFailed,
+  } = usePlaceSuggestions(search, sessionToken);
   const details = usePlaceDetails(selectedPlaceId, sessionToken);
   const liveById = useMemo(
     () => new Map((suggestions ?? []).map((s) => [s.placeId, s])),
     [suggestions],
   );
   const placeOptions = useMemo(
-    () => (suggestions ? suggestions.map(toPlaceOption) : PLACES),
-    [suggestions],
+    () =>
+      placePickerRows({
+        suggestions,
+        query: search,
+        isFetching: suggestionsFetching,
+        isError: suggestionsFailed,
+      }).rows,
+    [suggestions, search, suggestionsFetching, suggestionsFailed],
   );
 
-  // Details only canonicalize the committed label (and close the
-  // input session) — they never block submit.
+  // Details close the input session only — the label is the tapped
+  // row's own — and never block submit.
   useEffect(() => {
     if (!selectedPlaceId) return;
-    if (details.data?.placeId === selectedPlaceId) {
-      setLocation(details.data.name);
-    }
     if (details.data?.placeId === selectedPlaceId || details.isError) {
       rotateSessionToken();
     }
@@ -87,6 +97,17 @@ export default function NewTrip() {
     // `POST /trips`, and success lands on its detail screen.
     setBusy(true);
     try {
+      // A picked place carries its pair, its coordinates (so the
+      // server skips geocoding), and the tapped row's short name as
+      // the display-name source (the server never geocodes on the
+      // coords path, so nothing else could set that column). Typed
+      // text sends none.
+      const picked =
+        selectedPlaceId != null && (location ?? "").trim() !== "";
+      const coords =
+        picked && details.data?.placeId === selectedPlaceId
+          ? details.data
+          : null;
       const trip = await addTrip({
         name: input.title.trim(),
         destination: input.location.trim(),
@@ -95,6 +116,9 @@ export default function NewTrip() {
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         startDate: input.startDate,
         endDate: input.endDate,
+        ...(picked
+          ? tripCreatePlaceFields(selectedPlaceId, pickedPlaceName, coords)
+          : {}),
       });
       router.replace(`/trips/detail?id=${trip.id}`);
     } catch (caught) {
@@ -135,20 +159,24 @@ export default function NewTrip() {
         error={errors.title}
       />
 
-      {/* TODO(BE): `GET /api/locations/autocomplete` and `/details` do not request `photos[].name` (field masks at `location.routes.ts:88-130`, `:178`), so a picked place has no image reference even though `/locations/photos/:photoRef` exists. */}
       <Dropdown
-        label="Where"
+        label="Location"
         options={placeOptions}
+        liveOptions
+        attribution
         value={location}
         onSearchText={setSearch}
         onChange={(picked) => {
           const hit = liveById.get(picked);
+          const pick = pickPlace(hit ?? null, picked);
           if (hit) {
-            setSelectedPlaceId(hit.placeId);
-            setLocation(hit.name);
+            setSelectedPlaceId(pick.selectedPlaceId);
+            setPickedPlaceName(hit.shortName);
+            setLocation(pick.place);
           } else {
             setSelectedPlaceId(null);
-            setLocation(picked);
+            setPickedPlaceName(null);
+            setLocation(pick.place);
             rotateSessionToken();
           }
         }}

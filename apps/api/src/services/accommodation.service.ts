@@ -11,6 +11,10 @@ import type {
 import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
 import {
+  applyPlaceBlockPatch,
+  placeBlockPatch,
+} from "./place-block.service.js";
+import {
   AccommodationNotFoundError,
   AccommodationLimitExceededError,
   PermissionDeniedError,
@@ -183,6 +187,10 @@ export class AccommodationService implements IAccommodationService {
         address: data.address || null,
         addressLat: data.addressLat ?? null,
         addressLon: data.addressLon ?? null,
+        placeProvider: data.placeProvider != null && data.placeId != null ? data.placeProvider : null,
+        placeId: data.placeProvider != null && data.placeId != null ? data.placeId : null,
+        placeName: data.placeName ?? null,
+        placeAddress: data.placeAddress ?? null,
         description: data.description || null,
         checkIn: data.checkIn ? new Date(data.checkIn) : null,
         checkOut: data.checkOut ? new Date(data.checkOut) : null,
@@ -246,6 +254,10 @@ export class AccommodationService implements IAccommodationService {
         address: accommodations.address,
         addressLat: accommodations.addressLat,
         addressLon: accommodations.addressLon,
+        placeProvider: accommodations.placeProvider,
+        placeId: accommodations.placeId,
+        placeName: accommodations.placeName,
+        placeAddress: accommodations.placeAddress,
         description: accommodations.description,
         checkIn: accommodations.checkIn,
         checkOut: accommodations.checkOut,
@@ -331,6 +343,25 @@ export class AccommodationService implements IAccommodationService {
       ...(data.checkOut && { checkOut: new Date(data.checkOut) }),
       updatedAt: new Date(),
     };
+
+    // The place block's rule lives in place-block.service.ts, shared
+    // with the trip and event updates. The stored pair is read only
+    // when the request carries a real pair, so an update that leaves
+    // the place alone costs no extra query.
+    applyPlaceBlockPatch(
+      updateData,
+      await placeBlockPatch(data, () =>
+        this.db
+          .select({
+            placeProvider: accommodations.placeProvider,
+            placeId: accommodations.placeId,
+          })
+          .from(accommodations)
+          .where(eq(accommodations.id, accommodationId))
+          .limit(1)
+          .then((rows) => rows[0]),
+      ),
+    );
 
     // Perform update
     const result = await this.db

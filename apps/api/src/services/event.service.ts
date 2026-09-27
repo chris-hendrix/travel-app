@@ -13,6 +13,10 @@ import type {
 import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
 import {
+  applyPlaceBlockPatch,
+  placeBlockPatch,
+} from "./place-block.service.js";
+import {
   EventNotFoundError,
   EventLimitExceededError,
   PermissionDeniedError,
@@ -177,6 +181,10 @@ export class EventService implements IEventService {
         location: data.location || null,
         locationLat: data.locationLat ?? null,
         locationLon: data.locationLon ?? null,
+        placeProvider: data.placeProvider != null && data.placeId != null ? data.placeProvider : null,
+        placeId: data.placeProvider != null && data.placeId != null ? data.placeId : null,
+        placeName: data.placeName ?? null,
+        placeAddress: data.placeAddress ?? null,
         startTime: new Date(data.startTime),
         endTime: data.endTime ? new Date(data.endTime) : null,
         allDay: data.allDay ?? false,
@@ -320,6 +328,25 @@ export class EventService implements IEventService {
       ...data,
       updatedAt: new Date(),
     };
+
+    // The place block's rule lives in place-block.service.ts, shared
+    // with the trip and accommodation updates. The stored pair is read
+    // only when the request carries a real pair, so an update that
+    // leaves the place alone costs no extra query.
+    applyPlaceBlockPatch(
+      updateData,
+      await placeBlockPatch(data, () =>
+        this.db
+          .select({
+            placeProvider: events.placeProvider,
+            placeId: events.placeId,
+          })
+          .from(events)
+          .where(eq(events.id, eventId))
+          .limit(1)
+          .then((rows) => rows[0]),
+      ),
+    );
 
     // Convert date strings to Date objects if provided
     if (data.startTime) {

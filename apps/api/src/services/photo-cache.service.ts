@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
+import sharp from "sharp";
 import type { IStorageService } from "@/services/storage.service.js";
+import { BOX_PIXELS, type PlaceBoxName } from "@/services/places.service.js";
 import type { Logger } from "@/types/logger.js";
 
 /** Prefix under which cached Place photo blobs are stored. */
@@ -18,6 +20,40 @@ export class PhotoNotCachedError extends Error {
   }
 }
 
+/**
+ * Trims a uniform border (e.g. Google's pure-white letterbox around a
+ * 3:2 photo on a 16:9 canvas) off a photo's bytes. A no-op for
+ * full-bleed photos, which is why it is safe to run on every source.
+ *
+ * Guard: content that is legitimately uniform at the edges (a white
+ * sky, a snowfield, a document) must not be gutted — when the trim
+ * would shrink either dimension below half the original, or below 64px
+ * on either side, the original bytes come back. Silent either way.
+ */
+export async function trimPhotoBorder(buffer: Buffer): Promise<Buffer> {
+  try {
+    const before = await sharp(buffer).metadata();
+    const trimmed = await sharp(buffer).trim({ threshold: 12 }).toBuffer();
+    const after = await sharp(trimmed).metadata();
+    if (
+      before.width == null ||
+      before.height == null ||
+      after.width == null ||
+      after.height == null ||
+      after.width < before.width / 2 ||
+      after.height < before.height / 2 ||
+      after.width < 64 ||
+      after.height < 64
+    ) {
+      return buffer;
+    }
+    return trimmed;
+  } catch {
+    // Undecodable bytes are not ours to fix: serve them as fetched.
+    return buffer;
+  }
+}
+
 export interface PhotoBlob {
   buffer: Buffer;
   contentType: string;
@@ -26,7 +62,7 @@ export interface PhotoBlob {
 export type PhotoFetcher = () => Promise<PhotoBlob>;
 
 /**
- * Builds a storage-safe cache key for a Place photo.
+ * Builds a storage-safe cache key for a Place photo box.
  *
  * Google photo refs are routinely 400-800 chars as a single path segment.
  * Real S3 tolerates that (1024-byte total key limit), but S3-compatible
@@ -36,11 +72,10 @@ export type PhotoFetcher = () => Promise<PhotoBlob>;
  */
 export function buildPhotoCacheKey(
   photoRef: string,
-  width: number,
-  height: number,
+  box: PlaceBoxName,
 ): string {
   const digest = createHash("sha256").update(photoRef).digest("hex");
-  return `${PHOTO_CACHE_PREFIX}${digest}/${width}x${height}`;
+  return `${PHOTO_CACHE_PREFIX}${digest}/${box}`;
 }
 
 /**
@@ -129,6 +164,46 @@ export class PhotoCacheService {
     });
     this.inFlight.set(key, tracked);
     return tracked;
+  }
+
+  /**
+   * Serves one named box for a photo ref, deriving lazily on top of `getOrFetch`.
+   *
+   * The source (`hero` box) is the only key ever fetched upstream, at the
+   * hero box — Google bills the media request per request regardless of
+   * size. Any other box is derived locally with `sharp` (`fit: "inside"`
+   * keeps the aspect ratio inside the square box) and stored under its own
+   * key. Derivation is lazy: nothing derives until the first request for
+   * that size. A failed source fetch tombstones the source key via
+   * `getOrFetch`, so derived boxes inherit the miss without extra billing.
+   */
+  async getBox(
+    ref: string,
+    box: PlaceBoxName,
+    fetchSource: PhotoFetcher,
+  ): Promise<PhotoBlob> {
+    const sourceKey = buildPhotoCacheKey(ref, "hero");
+    // The border is in the fetched bytes, so it trims once here at the
+    // source and every box (hero included) inherits the trim.
+    const trimmedSource: PhotoFetcher = async () => {
+      const fresh = await fetchSource();
+      return {
+        buffer: await trimPhotoBorder(fresh.buffer),
+        contentType: fresh.contentType,
+      };
+    };
+    if (box === "hero") {
+      return this.getOrFetch(sourceKey, trimmedSource);
+    }
+    const source = await this.getOrFetch(sourceKey, trimmedSource);
+    const key = buildPhotoCacheKey(ref, box);
+    return this.getOrFetch(key, async () => {
+      const px = BOX_PIXELS[box];
+      const derived = await sharp(source.buffer)
+        .resize(px, px, { fit: "inside" })
+        .toBuffer();
+      return { buffer: derived, contentType: source.contentType };
+    });
   }
 
   /**

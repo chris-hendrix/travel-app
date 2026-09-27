@@ -44,7 +44,7 @@ The place-photos work is assumed **complete** before this rebuild starts, so its
 
 | Change | Detail |
 |---|---|
-| `place_provider`, `external_place_id` | On `trips`, `events`, `accommodations` — nullable, composite index |
+| `place_provider`, `place_id` | On `trips`, `events`, `accommodations` — nullable, no index |
 | `place_photo_cache` | Keyed `(provider, place_id)`, 30-day TTL-on-read |
 | `poi_cache` re-key | `(lat, lon)` → `(lat, lon, category)` |
 
@@ -58,7 +58,7 @@ The place-photos work is assumed **complete** before this rebuild starts, so its
 
 ### Inherited — the API contract the mobile app consumes
 
-- `place_provider` + `external_place_id` on trips, events, accommodations
+- `place_provider` + `place_id` on trips, events, accommodations (no index)
 - `placePhoto` on trip / event / accommodation responses (joined server-side)
 - `GET /api/locations/photos/:ref?size=thumb|card|hero` — named sizes only; arbitrary pixel dimensions rejected
 - `GET /api/config` → `features.googleMaps`, for honest UI degradation

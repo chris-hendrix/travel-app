@@ -101,6 +101,16 @@ describe("buildEvent", () => {
   it("builds a live event, never a deleted one", () => {
     expect(buildEvent(INPUT, "e1", "UTC", "p.jpg").deletedAt).toBeNull();
   });
+
+  it("carries the picked place's type rather than forcing misc", () => {
+    expect(
+      buildEvent({ ...INPUT, type: "food_and_drink" }, "e1", "UTC", "p.jpg")
+        .type,
+    ).toBe("food_and_drink");
+    expect(
+      buildEvent({ ...INPUT, type: "misc" }, "e1", "UTC", "p.jpg").type,
+    ).toBe("misc");
+  });
 });
 
 describe("draftFromEvent", () => {
@@ -114,8 +124,10 @@ describe("draftFromEvent", () => {
       name: "Dinner in town",
       description: "Table for eight under the vines.",
       place: "Trattoria Nuova",
+      type: "misc",
       locationLat: null,
       locationLon: null,
+      placeId: null,
       day: "2026-09-20",
       allDay: false,
       start: "20:30",
@@ -173,5 +185,86 @@ describe("draftFromEvent", () => {
     const rebuilt = buildEvent(redrafted, "e1", "UTC", "p.jpg");
     expect(rebuilt.locationLat).toBe(41.3);
     expect(rebuilt.locationLon).toBe(2.1);
+  });
+});
+
+describe("event place link", () => {
+  it("draftFromEvent carries an existing row's placeId back into the form", () => {
+    const event: ItineraryEvent = buildEvent(INPUT, "e1", "UTC", "p.jpg");
+    event.placeId = "ChIJKeens123";
+    expect(draftFromEvent(event, "UTC").placeId).toBe("ChIJKeens123");
+  });
+
+  it("draftFromEvent reads a row with no link as a null placeId", () => {
+    const { placeId: _dropped, ...unlinked } = buildEvent(
+      INPUT,
+      "e1",
+      "UTC",
+      "p.jpg",
+    );
+    expect(draftFromEvent(unlinked, "UTC").placeId).toBeNull();
+  });
+
+  it("buildEvent carries the picked placeId onto the local row", () => {
+    const event = buildEvent(
+      { ...INPUT, placeId: "ChIJKeens123" },
+      "e1",
+      "UTC",
+      "p.jpg",
+    );
+    expect(event.placeId).toBe("ChIJKeens123");
+  });
+
+  it("buildEvent reads typed prose as a null placeId", () => {
+    expect(buildEvent(INPUT, "e1", "UTC", "p.jpg").placeId).toBeNull();
+  });
+});
+
+describe("event place snapshot", () => {
+  it("buildEvent carries the picked name and address onto the local row", () => {
+    const event = buildEvent(
+      {
+        ...INPUT,
+        placeId: "ChIJKeens123",
+        placeName: "Keens",
+        placeAddress: "72 W 36th St, New York, NY 10018",
+      },
+      "e1",
+      "UTC",
+      "p.jpg",
+    );
+    expect(event.placeName).toBe("Keens");
+    expect(event.placeAddress).toBe("72 W 36th St, New York, NY 10018");
+  });
+
+  it("buildEvent reads typed prose as null snapshots", () => {
+    const event = buildEvent(
+      { ...INPUT, placeName: null, placeAddress: null },
+      "e1",
+      "UTC",
+      "p.jpg",
+    );
+    expect(event.placeName).toBeNull();
+    expect(event.placeAddress).toBeNull();
+  });
+
+  it("buildEvent leaves untouched snapshots absent, so the store omits them", () => {
+    const event = buildEvent(INPUT, "e1", "UTC", "p.jpg");
+    expect(event.placeName).toBeUndefined();
+    expect(event.placeAddress).toBeUndefined();
+  });
+
+  it("draftFromEvent carries an existing row's snapshot back into the form", () => {
+    const event: ItineraryEvent = {
+      ...buildEvent(INPUT, "e1", "UTC", "p.jpg"),
+      placeId: "ChIJKeens123",
+      placeName: "Keens",
+      placeAddress: "72 W 36th St, New York, NY 10018",
+    };
+    expect(draftFromEvent(event, "UTC")).toMatchObject({
+      placeId: "ChIJKeens123",
+      placeName: "Keens",
+      placeAddress: "72 W 36th St, New York, NY 10018",
+    });
   });
 });

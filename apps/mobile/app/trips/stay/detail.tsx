@@ -1,10 +1,11 @@
-import type { ReactNode } from "react";
-import { Image, Linking, Text, View } from "react-native";
+import { Image, Linking, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { Fact } from "@/components/ui/Fact";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
+import { PhotoCredit } from "@/components/ui/PhotoCredit";
 import { QuietAction } from "@/components/ui/QuietAction";
 import { formatDay } from "@/lib/dateRange";
-import { mapsSearchUrl } from "@/lib/links";
+import { placeMapsUrl } from "@/lib/links";
 import {
   nightsLabel,
   stayEnd,
@@ -23,6 +24,7 @@ import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { useDismiss } from "@/hooks/useDismiss";
 import { joinFacts } from "@/lib/wording";
+import { placeRows } from "@/lib/place-rows";
 
 /**
  * Stay detail, as a dialog: one roof, seen whole.
@@ -98,6 +100,10 @@ function StayDetailDialog() {
 
   const checkInDay = stayStart(stay, timeZone);
   const checkOutDay = stayEnd(stay, timeZone);
+  // The place block: the snapshot's name above its address, the
+  // address falling back to the stay's own column for rows that
+  // predate the snapshot.
+  const rows = placeRows(stay);
 
   return (
     <FullscreenDialog
@@ -116,18 +122,32 @@ function StayDetailDialog() {
       <View className="gap-y-6 md:flex-row md:gap-12">
         <View className="md:flex-1">
           <View className="relative overflow-hidden">
-            <Image
-              source={{ uri: stay.image }}
-              resizeMode="cover"
-              className="w-full aspect-[2/1]"
-            />
+            {stay.photoSourceUri ? (
+              <Pressable
+                onPress={() => void Linking.openURL(stay.photoSourceUri!)}
+                aria-label="View photo source on Google Maps"
+              >
+                <Image
+                  source={{ uri: stay.image }}
+                  resizeMode="cover"
+                  className="w-full aspect-[2/1]"
+                />
+              </Pressable>
+            ) : (
+              <Image
+                source={{ uri: stay.image }}
+                resizeMode="cover"
+                className="w-full aspect-[2/1]"
+              />
+            )}
           </View>
           {/* The photo is the place's, which the API proxies from Google
               Places, and Places is owed the credit — a term of the
               licence rather than a preference. */}
-          <Text className="pt-1 font-body text-xs text-ink opacity-60">
-            Photo: Google Places
-          </Text>
+          <PhotoCredit
+            credit={stay.photoCredit ?? null}
+            sourceUri={stay.photoSourceUri ?? null}
+          />
         </View>
 
         {/* Row order, then the two facts a row has no space for: how
@@ -142,23 +162,32 @@ function StayDetailDialog() {
         </View>
       </View>
 
-      {/* The address as a row rather than a link beside the title. An
-          address is longer than a place name, which is what the link was
-          shaped for: the arrow that follows a name lands in the middle
-          of a wrapped line. The row holds the string whole, selectable
-          for a driver or a booking form, with the one verb an address
-          has. */}
-      {stay.address ? (
+      {/* The place block: the picked place's name leading in bold, its
+          address following lighter on the same line — the reading of
+          the picker row it came from — and the one verb a place has
+          leading out to Maps, pinned to the place itself. The address
+          falls back to the stay's own column, so every stay created
+          before this feature keeps its address; the line hides when
+          there is neither. */}
+      {rows.name ?? rows.address ? (
         <View className="border-t border-ink pt-6">
-          <Fact label="Address">
-            <Text selectable className="font-body text-base text-ink">
-              {stay.address}
-            </Text>
+          <Text selectable className="font-body text-base text-ink/70">
+            {rows.name ? (
+              <Text className="font-body-bold text-ink">{rows.name}</Text>
+            ) : null}
+            {rows.name && rows.address ? " " : null}
+            {rows.address}
+          </Text>
+          {rows.address || stay.placeId ? (
             <QuietAction
               label="Open in Maps"
-              onPress={() => void Linking.openURL(mapsSearchUrl(stay.address!))}
+              onPress={() =>
+                void Linking.openURL(
+                  placeMapsUrl(stay.placeId, rows.address ?? rows.name!),
+                )
+              }
             />
-          </Fact>
+          ) : null}
         </View>
       ) : null}
 
@@ -208,23 +237,3 @@ function StayDetailDialog() {
   );
 }
 
-/**
- * One fact, as a ruled row: the noun the reader is looking for in the
- * quiet column, the answer in ink.
- */
-function Fact({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <View className="flex-row gap-4">
-      <Text className="w-20 shrink-0 font-body text-sm text-ink opacity-60">
-        {label}
-      </Text>
-      <View className="flex-1 gap-1">{children}</View>
-    </View>
-  );
-}

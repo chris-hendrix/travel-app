@@ -8,6 +8,7 @@ function trip(id: string): Trip {
     title: id,
     location: "Nowhere",
     image: "",
+    coverImageUrl: null,
     going: 1,
     description: null,
     preferredTimezone: "Europe/Madrid",

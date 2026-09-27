@@ -71,6 +71,12 @@ export type CreateEventRequest = {
   location?: string;
   locationLat?: number | null;
   locationLon?: number | null;
+  /** Google place pair — both or neither; both null clears the link. */
+  placeProvider?: "google" | null;
+  placeId?: string | null;
+  /** Picked-place snapshot strings — cleared with the pair. */
+  placeName?: string | null;
+  placeAddress?: string | null;
   startTime: string;
   endTime?: string;
   allDay?: boolean;
@@ -92,6 +98,12 @@ export type UpdateEventRequest = {
   location?: string;
   locationLat?: number | null;
   locationLon?: number | null;
+  /** Google place pair — both or neither; both null clears the link. */
+  placeProvider?: "google" | null;
+  placeId?: string | null;
+  /** Picked-place snapshot strings — cleared with the pair. */
+  placeName?: string | null;
+  placeAddress?: string | null;
   startTime?: string;
   endTime?: string;
   allDay?: boolean;

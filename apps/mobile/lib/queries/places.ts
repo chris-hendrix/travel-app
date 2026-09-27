@@ -6,15 +6,15 @@
  * registered under the `/api/locations` prefix in `app.ts`). Both 200s
  * are bare (no `{success}` envelope): autocomplete returns an array of
  * `{placeId, shortName, displayName, displayAddress}`, details returns
- * one `{placeId, shortName, displayName, displayPlace, displayAddress,
- * lat, lon}`. A missing key degrades, not errors: both answer 503 — so
- * the pickers treat "no live results" as "fall back to the static list",
+ * one `{placeId, displayPlace, displayAddress, lat, lon}` — no name,
+ * so pickers commit the tapped row's label and read coordinates only. A missing key degrades, not errors: both answer 503 — so
+ * the pickers treat "no live results" as "offer the typed text",
  * never as a submit blocker.
  *
  * Session tokens are Google's billing rule, not ours: one token per
  * input session, sent with every keystroke's autocomplete request AND
  * the follow-up details call. The token rotates after a selection
- * settles (or is abandoned for a static/free-text pick), so the next
+ * settles (or is abandoned for a typed pick), so the next
  * input session starts fresh.
  *
  * CI carries no `GOOGLE_MAPS_API_KEY`, so the specs below stub at the
@@ -27,6 +27,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
+import {
+  GOOGLE_MAPS_ATTRIBUTION,
+  type PickerEntry,
+} from "@/lib/dropdown";
 
 /** Minimum trimmed input before autocomplete fires. */
 export const SUGGESTION_MIN_CHARS = 2;
@@ -41,12 +45,15 @@ export type PlaceSuggestion = {
   name: string;
   shortName: string;
   address: string;
+  /** Google place types — what the event's type is derived from. */
+  types: string[];
 };
 
-/** One details row: the canonical name plus coordinates. */
+/** One details row: the canonical address plus coordinates. No name:
+ * the details mask carries no `displayName` (Phase 9), so the pickers
+ * commit the tapped row's own label and read coordinates only. */
 export type PlaceDetails = {
   placeId: string;
-  name: string;
   address: string;
   lat: number;
   lon: number;
@@ -60,12 +67,11 @@ type AutocompleteRow = {
   shortName: string;
   displayName: string;
   displayAddress: string;
+  types?: string[];
 };
 
 type DetailsRow = {
   placeId: string;
-  shortName: string;
-  displayName: string;
   displayPlace: string;
   displayAddress: string;
   lat: number;
@@ -127,23 +133,55 @@ export function shouldFetchSuggestions(input: string): boolean {
 }
 
 /**
+ * Optional autocomplete bias: the trip's own coordinates. When
+ * present the proxy applies a ~50 km location bias around them
+ * (`location.routes.ts:105`); when absent the search is unbiased —
+ * which is exactly right for a picker that is itself choosing the
+ * trip's destination (`trips/new`).
+ */
+export type PlaceBias = { lat: number; lon: number };
+
+function isUsableBias(bias: PlaceBias | null | undefined): bias is PlaceBias {
+  return (
+    bias != null &&
+    Number.isFinite(bias.lat) &&
+    Number.isFinite(bias.lon)
+  );
+}
+
+/**
  * `GET /locations/autocomplete?q=<input>&sessionToken=<token>`, mapped
  * to picker rows. Throws `ApiError` on 503 (key not configured,
  * upstream failure) — callers treat that as "no live results".
+ *
+ * A usable `bias` appends `&lat=<lat>&lon=<lon>`; anything else
+ * sends neither, so a trip with no coordinates gets an unbiased
+ * search rather than a `0,0` one.
  */
+function isUsableCountry(country: string | null | undefined): country is string {
+  return country != null && country.trim() !== "";
+}
+
 export async function fetchPlaceSuggestions(
   input: string,
   sessionToken: string,
+  bias?: PlaceBias | null,
+  country?: string | null,
 ): Promise<PlaceSuggestion[]> {
   const rows = await apiFetch<AutocompleteRow[]>(
     `/locations/autocomplete?q=${encodeURIComponent(input.trim())}` +
-      `&sessionToken=${encodeURIComponent(sessionToken)}`,
+      `&sessionToken=${encodeURIComponent(sessionToken)}` +
+      (isUsableBias(bias) ? `&lat=${bias.lat}&lon=${bias.lon}` : "") +
+      (isUsableCountry(country)
+        ? `&country=${encodeURIComponent(country.trim())}`
+        : ""),
   );
   return rows.map((row) => ({
     placeId: row.placeId,
     name: row.displayName,
     shortName: row.shortName,
     address: row.displayAddress,
+    types: row.types ?? [],
   }));
 }
 
@@ -162,7 +200,6 @@ export async function fetchPlaceDetails(
   );
   return {
     placeId: row.placeId,
-    name: row.displayName,
     address: row.displayAddress || row.displayPlace,
     lat: row.lat,
     lon: row.lon,
@@ -170,16 +207,46 @@ export async function fetchPlaceDetails(
 }
 
 /**
+ * The autocomplete bias for a picker that edits inside a trip:
+ * the trip's own coordinates when both are finite numbers, else
+ * `undefined` for an unbiased search. One helper so the three
+ * trip-scoped pickers (event, stay, trip edit) cannot drift.
+ */
+export function biasForTrip(trip: {
+  destinationLat?: number | null;
+  destinationLon?: number | null;
+} | null | undefined): PlaceBias | undefined {
+  if (trip == null) return undefined;
+  const { destinationLat: lat, destinationLon: lon } = trip;
+  return isUsableBias({ lat: lat as number, lon: lon as number })
+    ? { lat: lat as number, lon: lon as number }
+    : undefined;
+}
+
+/**
  * Suggestions query. The key carries the trimmed input but NOT the
  * session token, so rotating the token after a selection never
- * refires the last query. `retry: false`: a 503/offline answers with
+ * refires the last query. The bias IS in the key: a suggestion list
+ * computed for one trip's coordinates must never be served to
+ * another. `retry: false`: a 503/offline answers with
  * the static fallback, not a spinner and not a retry storm.
  */
-export const placeSuggestionsOptions = (input: string, sessionToken: string) =>
+export const placeSuggestionsOptions = (
+  input: string,
+  sessionToken: string,
+  bias?: PlaceBias | null,
+  country?: string | null,
+) =>
   queryOptions({
-    queryKey: ["places", "suggestions", input.trim()] as const,
+    queryKey: [
+      "places",
+      "suggestions",
+      input.trim(),
+      ...(isUsableBias(bias) ? [`${bias.lat},${bias.lon}`] : []),
+      ...(isUsableCountry(country) ? [`country:${country.trim()}`] : []),
+    ] as const,
     enabled: shouldFetchSuggestions(input) && sessionToken.trim() !== "",
-    queryFn: () => fetchPlaceSuggestions(input, sessionToken),
+    queryFn: () => fetchPlaceSuggestions(input, sessionToken, bias, country),
     retry: false,
   });
 
@@ -201,11 +268,33 @@ export const placeDetailsOptions = (
 /**
  * Live suggestions for the picker's current search text. Debounces
  * keystrokes (~250ms trailing) before the query sees them; empty or
- * short input disables the query so nothing is sent.
+ * short input disables the query so nothing is sent. The optional
+ * `bias` is the trip's coordinates — supplied by pickers that edit
+ * inside a trip, omitted by the picker that chooses the destination.
  */
-export function usePlaceSuggestions(input: string, sessionToken: string) {
+/**
+ * The autocomplete floor for a picker that edits inside a trip: the
+ * trip's linked place country when resolved, else `undefined` for no
+ * floor. An absent floor is correct — never an empty string. Sibling
+ * of `biasForTrip`, so the three trip-scoped pickers cannot drift.
+ */
+export function countryForTrip(
+  trip: { placeCountry?: string | null } | null | undefined,
+): string | undefined {
+  const country = trip?.placeCountry;
+  return isUsableCountry(country) ? country.trim() : undefined;
+}
+
+export function usePlaceSuggestions(
+  input: string,
+  sessionToken: string,
+  bias?: PlaceBias | null,
+  country?: string | null,
+) {
   const debounced = useDebouncedValue(input);
-  return useQuery(placeSuggestionsOptions(debounced, sessionToken));
+  return useQuery(
+    placeSuggestionsOptions(debounced, sessionToken, bias, country),
+  );
 }
 
 /** Canonical details for a selected suggestion. Disabled until picked. */
@@ -268,4 +357,66 @@ export function usePlaceSessionToken(): readonly [string, () => void] {
 /** A suggestion as a Dropdown row: the placeId commits, the name reads. */
 export function toPlaceOption(suggestion: PlaceSuggestion): PlaceOption {
   return { value: suggestion.placeId, label: suggestion.name };
+}
+
+export { GOOGLE_MAPS_ATTRIBUTION };
+
+/** One place-picker row: a live Google answer, a status line, or the typed text. */
+export type PlacePickerRow = PickerEntry;
+
+/**
+ * The picker's rows for one query: live Google rows first in Google's
+ * relevance order, then the typed text pinned after them — always, so
+ * a failed lookup degrades to the user's own words. A blank query
+ * offers nothing; the list stays closed on an empty field.
+ */
+export function placePickerRows({
+  suggestions,
+  query,
+  isFetching = false,
+  isError = false,
+  failed = false,
+}: {
+  /** Undefined while the lookup has not answered yet. */
+  suggestions: PlaceSuggestion[] | undefined;
+  query: string;
+  isFetching?: boolean;
+  isError?: boolean;
+  /** Alias for callers holding a differently-named failure flag. */
+  failed?: boolean;
+}): { rows: PlacePickerRow[]; hasTypedRow: boolean; footer: string } {
+  const footer = GOOGLE_MAPS_ATTRIBUTION;
+  const trimmed = query.trim();
+  if (trimmed === "") return { rows: [], hasTypedRow: false, footer };
+
+  const rows: PlacePickerRow[] = [];
+  if (isFetching && (suggestions === undefined || suggestions.length === 0)) {
+    rows.push({
+      value: "__places-searching",
+      label: "Searching…",
+      disabled: true,
+    });
+  } else {
+    for (const suggestion of suggestions ?? []) {
+      rows.push({
+        value: suggestion.placeId,
+        label: suggestion.name,
+        secondary: suggestion.address || undefined,
+      });
+    }
+  }
+  if (isError || failed) {
+    rows.push({
+      value: "__places-error",
+      label: "Couldn't reach Google Places",
+      disabled: true,
+    });
+  }
+  rows.push({
+    value: trimmed,
+    label: `"${trimmed}"`,
+    secondary: "Use what you typed",
+    fieldText: trimmed,
+  });
+  return { rows, hasTypedRow: true, footer };
 }

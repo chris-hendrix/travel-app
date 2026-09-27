@@ -17,11 +17,14 @@ import {
 } from "@/lib/newStay";
 import type { Trip } from "@/components/trip/TripCard";
 import {
-  toPlaceOption,
+  biasForTrip,
+  countryForTrip,
+  placePickerRows,
   usePlaceDetails,
   usePlaceSessionToken,
   usePlaceSuggestions,
 } from "@/lib/queries/places";
+import { pickPlace } from "@/lib/place-pick";
 
 /**
  * The stay form, in one place because there is one of it: adding and
@@ -91,17 +94,35 @@ export function StayDialog({
   const [description, setDescription] = useState(initial?.description ?? "");
   const [submitted, setSubmitted] = useState(false);
 
-  // Live Places suggestions for the address. There is no static list
-  // for street addresses, so the fallback here is free text alone:
-  // a lookup failure leaves an empty suggestion list, typing keeps
-  // working, and the failure never blocks submit. A picked suggestion's
-  // details resolve the stay's coordinates, which ride out on the
-  // submit beside the input; typed prose carries none, so it submits
-  // bare.
+  // Live Places suggestions for the address, plus the typed text as a
+  // row: a lookup failure degrades to the user's own words, typing
+  // keeps working, and the failure never blocks submit. A picked
+  // suggestion's details resolve the stay's coordinates, which ride out
+  // on the submit beside the input; typed prose carries none, so it
+  // submits bare.
   const [search, setSearch] = useState("");
   const [sessionToken, rotateSessionToken] = usePlaceSessionToken();
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(
     null,
+  );
+  // The picked place's id for the submitted input, seeded from the
+  // draft on edit so an untouched address keeps its link. A live pick
+  // sets it; the typed row clears it, because typed text has no place.
+  const [placeId, setPlaceId] = useState<string | null>(
+    initial?.placeId ?? null,
+  );
+  // The picked place's snapshot strings for the submitted input: the
+  // tapped row's name and the details response's formatted address.
+  // Seeded from the draft on edit so an untouched address resends its
+  // own snapshot; a live pick sets the name at once and the address
+  // when details land; the typed row clears both, which clears the
+  // snapshot on the server with the pair. Never the stay's name —
+  // that field is the user's own words, and a pick leaves it alone.
+  const [placeName, setPlaceName] = useState<string | null>(
+    initial?.placeName ?? null,
+  );
+  const [placeAddress, setPlaceAddress] = useState<string | null>(
+    initial?.placeAddress ?? null,
   );
   // The live lookup's coordinates for the picked address, when there
   // is one. Seeded from the row on edit so an untouched address keeps
@@ -117,28 +138,45 @@ export function StayDialog({
       ? { lat: initialCoords.lat, lon: initialCoords.lon }
       : null,
   );
-  const { data: suggestions } = usePlaceSuggestions(search, sessionToken);
+  const {
+    data: suggestions,
+    isFetching: suggestionsFetching,
+    isError: suggestionsFailed,
+  } = usePlaceSuggestions(
+    search,
+    sessionToken,
+    biasForTrip(trip),
+    countryForTrip(trip),
+  );
   const details = usePlaceDetails(selectedPlaceId, sessionToken);
   const liveById = useMemo(
     () => new Map((suggestions ?? []).map((s) => [s.placeId, s])),
     [suggestions],
   );
   const addressOptions = useMemo(
-    () => (suggestions ?? []).map(toPlaceOption),
-    [suggestions],
+    () =>
+      placePickerRows({
+        suggestions,
+        query: search,
+        isFetching: suggestionsFetching,
+        isError: suggestionsFailed,
+      }).rows,
+    [suggestions, search, suggestionsFetching, suggestionsFailed],
   );
 
-  // Details canonicalize the committed label (and close the input
-  // session), and resolve the stay's coordinates — they never block
-  // submit. An address with no live details submits bare.
+  // Details resolve the stay's coordinates and its snapshot address,
+  // and close the input session. They never touch the field, which
+  // holds the full text the picker committed, and never the name,
+  // which is the user's own words. They never block submit. An
+  // address with no live details submits bare.
   useEffect(() => {
     if (!selectedPlaceId) return;
-    if (details.data?.placeId === selectedPlaceId) {
-      setAddress(details.data.name);
+    const landed = details.data;
+    if (landed?.placeId === selectedPlaceId) {
+      setPlaceAddress(landed.address);
       setCoords(
-        Number.isFinite(details.data.lat) &&
-          Number.isFinite(details.data.lon)
-          ? { lat: details.data.lat, lon: details.data.lon }
+        Number.isFinite(landed.lat) && Number.isFinite(landed.lon)
+          ? { lat: landed.lat, lon: landed.lon }
           : null,
       );
     }
@@ -150,6 +188,14 @@ export function StayDialog({
   const input: NewStayInput = {
     name,
     address,
+    // The picked suggestion's id, or null for typed prose — which is
+    // what clears a previous link on edit rather than keeping it over.
+    placeId,
+    // The picked place's snapshot: the tapped row's name and the
+    // details response's formatted address (null until details land,
+    // or when the address was typed, which clears the snapshot).
+    placeName,
+    placeAddress,
     checkInDay: dates.start ?? "",
     checkOutDay: dates.end ?? dates.start ?? "",
     checkInTime,
@@ -189,10 +235,11 @@ export function StayDialog({
         error={errors.name}
       />
 
-      {/* TODO(BE): `GET /api/locations/autocomplete` and `/details` do not request `photos[].name` (field masks at `location.routes.ts:88-130`, `:178`), so a picked place has no image reference even though `/locations/photos/:photoRef` exists. */}
       <Dropdown
-        label="Address"
+        label="Location"
         options={addressOptions}
+        liveOptions
+        attribution
         value={address || null}
         onSearchText={setSearch}
         onChange={(picked) => {
@@ -200,15 +247,26 @@ export function StayDialog({
           // pick, so a value that is not a live placeId is typed prose
           // (which abandons the session) rather than a selection.
           const hit = liveById.get(picked);
+          const pick = pickPlace(hit ?? null, picked);
           if (hit) {
-            setSelectedPlaceId(hit.placeId);
-            setAddress(hit.name);
+            setSelectedPlaceId(pick.selectedPlaceId);
+            setPlaceId(pick.selectedPlaceId);
+            // A live pick commits the row's full text — name and
+            // address together — plus the snapshot's name and address.
+            // The name field keeps the user's own words: a pick never
+            // writes it.
+            setAddress(pick.place);
+            setPlaceName(hit.shortName);
+            setPlaceAddress(null);
             // The coordinates arrive with the details lookup; until
             // then the pick carries none, not the previous address's.
             setCoords(null);
           } else {
             setSelectedPlaceId(null);
-            setAddress(picked);
+            setPlaceId(null);
+            setPlaceName(null);
+            setPlaceAddress(null);
+            setAddress(pick.place);
             setCoords(null);
             rotateSessionToken();
           }

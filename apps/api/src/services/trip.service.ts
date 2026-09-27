@@ -30,6 +30,10 @@ import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
 import type { IGeocodingService } from "@/services/geocoding.service.js";
 import {
+  applyPlaceBlockPatch,
+  placeBlockPatch,
+} from "./place-block.service.js";
+import {
   TripNotFoundError,
   PermissionDeniedError,
   MemberLimitExceededError,
@@ -55,6 +59,10 @@ export type TripSummary = {
   id: string;
   name: string;
   destination: string;
+  placeProvider: string | null;
+  placeId: string | null;
+  placeName: string | null;
+  placeAddress: string | null;
   startDate: string | null;
   endDate: string | null;
   coverImageUrl: string | null;
@@ -111,6 +119,10 @@ type TripPreview = Pick<
   | "id"
   | "name"
   | "destination"
+  | "placeProvider"
+  | "placeId"
+  | "placeName"
+  | "placeAddress"
   | "destinationLat"
   | "destinationLon"
   | "startDate"
@@ -299,12 +311,13 @@ export class TripService implements ITripService {
     // Skip geocoding if the frontend already provided coordinates from autocomplete selection
     let destinationLat: number | null = null;
     let destinationLon: number | null = null;
-    let destinationDisplayName: string | null = null;
+    let placeName: string | null = null;
     let geocodedTimezone: string | null = null;
     if (data.destination) {
       if (data.destinationLat != null && data.destinationLon != null) {
         destinationLat = data.destinationLat;
         destinationLon = data.destinationLon;
+        placeName = data.placeName ?? null;
         geocodedTimezone = await this.geocodingService
           .getTimezoneByCoords(data.destinationLat, data.destinationLon)
           .catch(() => null);
@@ -315,10 +328,12 @@ export class TripService implements ITripService {
         if (coords) {
           destinationLat = coords.lat;
           destinationLon = coords.lon;
-          destinationDisplayName = coords.displayName;
+          placeName = data.placeName ?? coords.displayName ?? null;
           geocodedTimezone = await this.geocodingService
             .getTimezoneByCoords(coords.lat, coords.lon)
             .catch(() => null);
+        } else {
+          placeName = data.placeName ?? null;
         }
       }
     }
@@ -333,7 +348,10 @@ export class TripService implements ITripService {
           destination: data.destination,
           destinationLat,
           destinationLon,
-          destinationDisplayName,
+          placeName,
+          placeAddress: data.placeAddress ?? null,
+          placeProvider: data.placeProvider != null && data.placeId != null ? data.placeProvider : null,
+          placeId: data.placeProvider != null && data.placeId != null ? data.placeId : null,
           startDate: data.startDate || null,
           endDate: data.endDate || null,
           preferredTimezone: geocodedTimezone ?? data.timezone,
@@ -471,6 +489,10 @@ export class TripService implements ITripService {
         id: trip.id,
         name: trip.name,
         destination: trip.destination,
+        placeProvider: trip.placeProvider,
+        placeId: trip.placeId,
+        placeName: trip.placeName,
+        placeAddress: trip.placeAddress,
         destinationLat: trip.destinationLat,
         destinationLon: trip.destinationLon,
         startDate: trip.startDate,
@@ -579,6 +601,10 @@ export class TripService implements ITripService {
         id: trips.id,
         name: trips.name,
         destination: trips.destination,
+        placeProvider: trips.placeProvider,
+        placeId: trips.placeId,
+        placeName: trips.placeName,
+        placeAddress: trips.placeAddress,
         startDate: trips.startDate,
         endDate: trips.endDate,
         coverImageUrl: trips.coverImageUrl,
@@ -702,6 +728,10 @@ export class TripService implements ITripService {
         id: trip.id,
         name: trip.name,
         destination: trip.destination,
+        placeProvider: trip.placeProvider,
+        placeId: trip.placeId,
+        placeName: trip.placeName,
+        placeAddress: trip.placeAddress,
         startDate: trip.startDate,
         endDate: trip.endDate,
         coverImageUrl: trip.coverImageUrl,
@@ -767,6 +797,25 @@ export class TripService implements ITripService {
       delete updateData.timezone;
     }
 
+    // The place block's rule lives in place-block.service.ts, shared
+    // with the event and accommodation updates. The stored pair is read
+    // only when the request carries a real pair, so an update that
+    // leaves the place alone costs no extra query.
+    applyPlaceBlockPatch(
+      updateData,
+      await placeBlockPatch(data, () =>
+        this.db
+          .select({
+            placeProvider: trips.placeProvider,
+            placeId: trips.placeId,
+          })
+          .from(trips)
+          .where(eq(trips.id, tripId))
+          .limit(1)
+          .then((rows) => rows[0]),
+      ),
+    );
+
     // If destination changed, geocode and update coordinates + look up timezone + delete weather cache
     // Only re-geocode if the destination value actually differs from the current one
     let destinationChanged = false;
@@ -805,7 +854,14 @@ export class TripService implements ITripService {
         }
         updateData.destinationLat = newLat;
         updateData.destinationLon = newLon;
-        updateData.destinationDisplayName = newDisplayName;
+        // The place snapshot owns `place_name`: a live pair in the
+        // request keeps its snapshot (set by the place-block
+        // normalization above), so the geocoder must not overwrite it
+        // with the destination's display string. Only unlinked
+        // destinations take the geocoded display name.
+        const hasLivePair =
+          data.placeProvider != null && data.placeId != null;
+        if (!hasLivePair) updateData.placeName = newDisplayName;
 
         // Auto-update timezone if geocoding returned one
         if (geocodedTimezone) {

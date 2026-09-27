@@ -63,7 +63,45 @@ export type CreateTripRequest = {
   startDate?: string;
   endDate?: string;
   description?: string;
+  /** Google place pair — present only when a suggestion was picked. */
+  placeProvider?: "google";
+  placeId?: string;
+  /** Picked-place coordinates — keep geocoding off this path. */
+  destinationLat?: number | null;
+  destinationLon?: number | null;
+  /** Picked place's name — the server's display-name source on the coords path. */
+  placeName?: string | null;
+  /** Picked place's formatted address snapshot. */
+  placeAddress?: string | null;
 };
+
+/**
+ * The place block for the trip POST body: the pair, the tapped row's
+ * short name as the `place_name` snapshot source (never the field's
+ * full display text), the details response's formatted address once
+ * it has landed (otherwise omitted, never guessed), and coordinates
+ * when details landed (which keeps the server off the geocode path).
+ * Unpicked (null id) sends nothing.
+ */
+export function tripCreatePlaceFields(
+  selectedPlaceId: string | null,
+  pickedPlaceName: string | null,
+  coords: { address: string; lat: number; lon: number } | null,
+): Partial<CreateTripRequest> {
+  if (selectedPlaceId == null) return {};
+  // A place with no name omits the key rather than sending an empty
+  // string: `placeName` is `z.string().min(1)` server-side, so "" is a
+  // 400, and the address and coordinates are omitted the same way —
+  // never guessed.
+  const placeName = pickedPlaceName?.trim();
+  return {
+    placeProvider: "google",
+    placeId: selectedPlaceId,
+    ...(placeName ? { placeName } : {}),
+    ...(coords ? { placeAddress: coords.address } : {}),
+    ...(coords ? { destinationLat: coords.lat, destinationLon: coords.lon } : {}),
+  };
+}
 
 /**
  * `POST /trips`, mapped through `toTrip`.
@@ -110,7 +148,64 @@ export type UpdateTripRequest = {
   coverImageUrl?: string | null;
   allowMembersToAddEvents?: boolean;
   showAllMembers?: boolean;
+  /**
+   * Google place pair — the create path's fields, optional here so the
+   * edit screen can send, clear, or leave the link (see
+   * tripPlaceSnapshotPatch).
+   */
+  placeProvider?: "google" | null;
+  placeId?: string | null;
+  /** Picked-place snapshot strings — cleared with the pair. */
+  placeName?: string | null;
+  placeAddress?: string | null;
+  /** Picked-place coordinates — keep the server off the geocode path. */
+  destinationLat?: number | null;
+  destinationLon?: number | null;
 };
+
+/**
+ * The full place block for the trip PUT patch: the pair plus the
+ * snapshot captured at pick time. `placeId` undefined (the field
+ * untouched) omits all four keys so the server leaves the columns
+ * alone; a re-pick carries the new name/address (address null until
+ * details land, which still clears a stale address); nullable `placeId`
+ * (typed over) sends explicit nulls for all four, which clears the link
+ * and the snapshot. Named, not positional: `placeName` and
+ * `placeAddress` are both nullable strings, so an argument order that
+ * swapped them would still compile.
+ */
+export function tripPlaceSnapshotPatch(place: {
+  placeId: string | null | undefined;
+  placeName?: string | null;
+  placeAddress?: string | null;
+  coords?: { lat: number; lon: number } | null;
+}): {
+  placeProvider?: "google" | null;
+  placeId?: string | null;
+  placeName?: string | null;
+  placeAddress?: string | null;
+  destinationLat?: number | null;
+  destinationLon?: number | null;
+} {
+  if (place.placeId === undefined) return {};
+  if (place.placeId != null) {
+    return {
+      placeProvider: "google",
+      placeId: place.placeId,
+      placeName: place.placeName ?? null,
+      placeAddress: place.placeAddress ?? null,
+      ...(place.coords
+        ? { destinationLat: place.coords.lat, destinationLon: place.coords.lon }
+        : {}),
+    };
+  }
+  return {
+    placeProvider: null,
+    placeId: null,
+    placeName: null,
+    placeAddress: null,
+  };
+}
 
 /**
  * `PUT /trips/:id`, mapped through `toTrip`.

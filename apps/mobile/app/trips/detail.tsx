@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Image, Text, View } from "react-native";
+import { Image, Linking, Pressable, Text, useWindowDimensions, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Screen } from "@/components/ui/Screen";
 import { Badge } from "@/components/ui/Badge";
+import { PhotoCredit } from "@/components/ui/PhotoCredit";
 import { QuietAction } from "@/components/ui/QuietAction";
 import { PlaceLink } from "@/components/ui/PlaceLink";
 import { RsvpControl } from "@/components/trip/RsvpControl";
@@ -28,6 +29,7 @@ import { useTripSettings } from "@/lib/tripSettingsStore";
 import { viewerOf, goingMembers } from "@/lib/members";
 import { anyTravelOwed } from "@/lib/travelBoard";
 
+import { boxForWidth } from "@/lib/place-images";
 import { getPertinentTime } from "@journiful/shared/utils";
 
 /**
@@ -127,6 +129,12 @@ function TripDetailScreen() {
   // the trip above — the header never renders without it, and the
   // viewer stand-in below reads the roster, never a mock.
   const { members } = useMembers(trip?.id);
+  // The hero asks for the large box on wide layouts: a place photo URL
+  // carries its `?size=` segment, so the box swaps there; uploads and
+  // placeholders carry none and render unchanged.
+  const heroBox = boxForWidth(useWindowDimensions().width);
+  const heroImage = (uri: string) =>
+    uri.replace(/([?&])size=(card|hero)/, `$1size=${heroBox}`);
 
   // The roof the trip page knows about, so its fact row can open the
   // one screen that holds the wifi, the code and the address. The run
@@ -254,17 +262,34 @@ function TripDetailScreen() {
               every rule in the right column would end past the page's. */}
           <View className="gap-6 md:flex-1">
             <View className="relative overflow-hidden">
-              <Image
-                source={{ uri: trip.image }}
-                resizeMode="cover"
-                className="w-full aspect-[2/1]"
-              />
+              {trip.photoSourceUri ? (
+                <Pressable
+                  onPress={() => void Linking.openURL(trip.photoSourceUri!)}
+                  aria-label="View photo source on Google Maps"
+                >
+                  <Image
+                    source={{ uri: heroImage(trip.image) }}
+                    resizeMode="cover"
+                    className="w-full aspect-[2/1]"
+                  />
+                </Pressable>
+              ) : (
+                <Image
+                  source={{ uri: heroImage(trip.image) }}
+                  resizeMode="cover"
+                  className="w-full aspect-[2/1]"
+                />
+              )}
               {countdown ? (
                 <View className="absolute left-3 top-3">
                   <Badge label={countdown} variant="club" />
                 </View>
               ) : null}
             </View>
+            <PhotoCredit
+              credit={trip.photoCredit ?? null}
+              sourceUri={trip.photoSourceUri ?? null}
+            />
 
             {action}
           </View>
@@ -281,7 +306,7 @@ function TripDetailScreen() {
               </Text>
               {/* Where the trip is, and the one fact on this screen the
                   app has nothing to add to: Maps has the map. */}
-              <PlaceLink label={trip.location} />
+              <PlaceLink label={trip.location} placeId={trip.placeId ?? null} />
               {/* Who is coming, and when: the roll call and the travel
                   board are two doors to two questions, side by side. */}
               <View className="flex-row items-center gap-2">

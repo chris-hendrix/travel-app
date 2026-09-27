@@ -63,7 +63,7 @@ export class WeatherService implements IWeatherService {
       .select({
         destinationLat: trips.destinationLat,
         destinationLon: trips.destinationLon,
-        destinationDisplayName: trips.destinationDisplayName,
+        placeName: trips.placeName,
         preferredTimezone: trips.preferredTimezone,
       })
       .from(trips)
@@ -145,8 +145,8 @@ export class WeatherService implements IWeatherService {
         const hourly = this.parseHourlyForecasts(cached.response);
         return {
           available: true,
-          ...(trip.destinationDisplayName
-            ? { location: trip.destinationDisplayName }
+          ...(trip.placeName
+            ? { location: trip.placeName }
             : {}),
           forecasts: this.filterToDateRange(forecasts, start, end),
           hourly: this.filterHourlyToDateRange(hourly, start, end),
@@ -203,8 +203,8 @@ export class WeatherService implements IWeatherService {
 
     return {
       available: true,
-      ...(trip.destinationDisplayName
-        ? { location: trip.destinationDisplayName }
+      ...(trip.placeName
+        ? { location: trip.placeName }
         : {}),
       forecasts: this.filterToDateRange(forecasts, start, end),
       hourly: this.filterHourlyToDateRange(hourly, start, end),

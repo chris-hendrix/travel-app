@@ -5,6 +5,7 @@ import type {
 } from "@journiful/shared/schemas";
 import { EventNotFoundError, TripNotFoundError } from "../errors.js";
 import { auditLog } from "@/utils/audit.js";
+import { attachPlace, attachPlaces } from "@/services/place-attach.service.js";
 
 /**
  * Event Controller
@@ -41,10 +42,13 @@ export const eventController = {
       // Create event via service
       const event = await eventService.createEvent(userId, tripId, data);
 
+      // Resolve the linked place (detail mode: a fresh pick populates inline)
+      const withPlace = await attachPlace(event, request.server.placeCache, "detail");
+
       // Return success response with 201 status
       return reply.status(201).send({
         success: true,
-        event,
+        event: withPlace,
       });
     } catch (error) {
       // Re-throw typed errors for error handler
@@ -124,9 +128,12 @@ export const eventController = {
         );
       }
 
+      // Resolve places in one batched query (list mode: bounded inline refresh)
+      const withPlaces = await attachPlaces(events, request.server.placeCache, "list");
+
       return reply.status(200).send({
         success: true,
-        events,
+        events: withPlaces,
       });
     } catch (error) {
       // Re-throw typed errors for error handler
@@ -195,9 +202,10 @@ export const eventController = {
       }
 
       // Return success response
+      const withPlace = await attachPlace(event, request.server.placeCache, "detail");
       return reply.status(200).send({
         success: true,
-        event,
+        event: withPlace,
       });
     } catch (error) {
       // Re-throw typed errors for error handler
@@ -252,9 +260,10 @@ export const eventController = {
       );
 
       // Return success response
+      const withPlace = await attachPlace(event, request.server.placeCache, "detail");
       return reply.status(200).send({
         success: true,
-        event,
+        event: withPlace,
       });
     } catch (error) {
       // Re-throw typed errors for error handler
@@ -361,9 +370,10 @@ export const eventController = {
       const event = await request.server.eventService.restoreEvent(userId, id);
 
       // Return success response
+      const withPlace = await attachPlace(event, request.server.placeCache, "detail");
       return reply.status(200).send({
         success: true,
-        event,
+        event: withPlace,
       });
     } catch (error) {
       // Re-throw typed errors for error handler

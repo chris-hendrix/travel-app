@@ -2,7 +2,13 @@
 
 import { z } from "zod";
 import { stripControlChars } from "../utils/sanitize";
+import {
+  placePairFields,
+  isCompletePlacePair,
+  placePairIncompleteMessage,
+} from "./place";
 import { linkItemSchema, linksArraySchema } from "./link";
+import { placeSummarySchema } from "./place";
 
 /**
  * Base event data schema (without cross-field validation)
@@ -30,6 +36,7 @@ const baseEventSchema = z.object({
   location: z.string().max(500).optional(),
   locationLat: z.number().nullable().optional(),
   locationLon: z.number().nullable().optional(),
+  ...placePairFields,
   startTime: z.string().datetime(),
   endTime: z.string().datetime().optional(),
   allDay: z.boolean().default(false),
@@ -48,38 +55,49 @@ const baseEventSchema = z.object({
  * - allDay: boolean (defaults to false)
  * - links: array of `{ url, name? }` objects, max 10 items (optional)
  */
-export const createEventSchema = baseEventSchema.refine(
-  (data) => {
-    // Cross-field validation: endTime must be > startTime
-    if (data.endTime) {
-      return new Date(data.endTime) > new Date(data.startTime);
-    }
-    return true;
-  },
-  {
-    message: "End time must be after start time",
-    path: ["endTime"],
-  },
-);
+export const createEventSchema = baseEventSchema
+  .refine(
+    (data) => {
+      // Cross-field validation: endTime must be > startTime
+      if (data.endTime) {
+        return new Date(data.endTime) > new Date(data.startTime);
+      }
+      return true;
+    },
+    {
+      message: "End time must be after start time",
+      path: ["endTime"],
+    },
+  )
+  .refine(isCompletePlacePair, {
+    message: placePairIncompleteMessage,
+    path: ["placeId"],
+  });
 
 /**
  * Validates event update data (all fields optional)
  * - Allows partial updates to any event field
  * - Same validation rules as createEventSchema when fields are provided
  */
-export const updateEventSchema = baseEventSchema.partial().refine(
-  (data) => {
-    // Cross-field validation: endTime must be > startTime (when both provided)
-    if (data.startTime && data.endTime) {
-      return new Date(data.endTime) > new Date(data.startTime);
-    }
-    return true;
-  },
-  {
-    message: "End time must be after start time",
-    path: ["endTime"],
-  },
-);
+export const updateEventSchema = baseEventSchema
+  .partial()
+  .refine(
+    (data) => {
+      // Cross-field validation: endTime must be > startTime (when both provided)
+      if (data.startTime && data.endTime) {
+        return new Date(data.endTime) > new Date(data.startTime);
+      }
+      return true;
+    },
+    {
+      message: "End time must be after start time",
+      path: ["endTime"],
+    },
+  )
+  .refine(isCompletePlacePair, {
+    message: placePairIncompleteMessage,
+    path: ["placeId"],
+  });
 
 // --- Response schemas ---
 
@@ -98,6 +116,9 @@ const eventEntitySchema = z.object({
   endTime: z.date().nullable(),
   allDay: z.boolean(),
   links: z.array(linkItemSchema).nullable(),
+  place: placeSummarySchema.nullable(),
+  placeName: z.string().nullable(),
+  placeAddress: z.string().nullable(),
   deletedAt: z.date().nullable(),
   deletedBy: z.string().nullable(),
   createdAt: z.date(),

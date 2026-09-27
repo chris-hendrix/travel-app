@@ -13,10 +13,13 @@ import { TimeField } from "@/components/ui/TimeField";
 import { dayLabel } from "@/lib/itinerary";
 import { toIso } from "@/lib/dateRange";
 import { validateNewEvent, type NewEventInput } from "@/lib/newEvent";
+import type { EventType } from "@/lib/itinerary";
+import { pickPlace } from "@/lib/place-pick";
 import type { Trip } from "@/components/trip/TripCard";
-import { EVENT_PLACES } from "@/lib/placeSuggestions";
 import {
-  toPlaceOption,
+  biasForTrip,
+  countryForTrip,
+  placePickerRows,
   usePlaceDetails,
   usePlaceSessionToken,
   usePlaceSuggestions,
@@ -78,6 +81,12 @@ export function EventDialog({
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [place, setPlace] = useState<string | null>(initial?.place ?? null);
+  // The picked place's derived event type: a restaurant is food_and_drink
+  // because Places says so, not because the organizer was asked twice.
+  // Typed prose carries no types, so it stays whatever it was.
+  const [eventType, setEventType] = useState<EventType>(
+    initial?.type ?? "misc",
+  );
   const [dates, setDates] = useState<Selection>({
     start: initial?.day ?? null,
     end: initial?.day ?? null,
@@ -90,20 +99,33 @@ export function EventDialog({
   const [end, setEnd] = useState<string | null>(initial?.end ?? null);
   const [submitted, setSubmitted] = useState(false);
 
-  // Live Places suggestions sit above the static list; a lookup failure
-  // falls back to `EVENT_PLACES` silently, and free text keeps working
-  // throughout — the failure never blocks submit. A picked suggestion's
-  // details resolve the event's coordinates, which ride on the submitted
-  // input; typed prose and static picks carry none, so they submit bare.
-  //
-  // It is `suggestions` being absent that falls back, not it being empty:
-  // an empty array means the live source was asked and has nothing, and
-  // answering that with a dozen unrelated static places is worse than
-  // answering it with the picker's own `No matches`.
+  // Live Places suggestions plus the typed text as a row: a lookup
+  // failure degrades to the user's own words, and free text keeps
+  // working throughout — the failure never blocks submit. A picked
+  // suggestion's details resolve the event's coordinates, which ride on
+  // the submitted input; typed prose carries none, so it submits bare.
   const [search, setSearch] = useState("");
   const [sessionToken, rotateSessionToken] = usePlaceSessionToken();
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(
     null,
+  );
+  // The picked place's id for the submitted input, seeded from the
+  // draft on edit so an untouched place keeps its link. A live pick
+  // sets it; the typed row clears it, because typed text has no place.
+  const [placeId, setPlaceId] = useState<string | null>(
+    initial?.placeId ?? null,
+  );
+  // The picked place's snapshot strings for the submitted input: the
+  // tapped row's name and the details response's formatted address.
+  // Seeded from the draft on edit so an untouched place resends its
+  // own snapshot; a live pick sets the name at once and the address
+  // when details land; the typed row clears both, which clears the
+  // snapshot on the server with the pair.
+  const [placeName, setPlaceName] = useState<string | null>(
+    initial?.placeName ?? null,
+  );
+  const [placeAddress, setPlaceAddress] = useState<string | null>(
+    initial?.placeAddress ?? null,
   );
   // The live lookup's coordinates for the picked place, when there is
   // one. Seeded from the draft on edit so an untouched place keeps its
@@ -118,30 +140,45 @@ export function EventDialog({
       ? { lat: initial.locationLat, lon: initial.locationLon }
       : null,
   );
-  const { data: suggestions } = usePlaceSuggestions(search, sessionToken);
+  const {
+    data: suggestions,
+    isFetching: suggestionsFetching,
+    isError: suggestionsFailed,
+  } = usePlaceSuggestions(
+    search,
+    sessionToken,
+    biasForTrip(trip),
+    countryForTrip(trip),
+  );
   const details = usePlaceDetails(selectedPlaceId, sessionToken);
   const liveById = useMemo(
     () => new Map((suggestions ?? []).map((s) => [s.placeId, s])),
     [suggestions],
   );
   const placeOptions = useMemo(
-    () => (suggestions ? suggestions.map(toPlaceOption) : EVENT_PLACES),
-    [suggestions],
+    () =>
+      placePickerRows({
+        suggestions,
+        query: search,
+        isFetching: suggestionsFetching,
+        isError: suggestionsFailed,
+      }).rows,
+    [suggestions, search, suggestionsFetching, suggestionsFailed],
   );
 
-  // Details canonicalize the committed label (and close the input
-  // session), and resolve the event's coordinates — they never block
-  // submit. A place with no live details submits bare.
+  // Details resolve the event's coordinates and its formatted address
+  // — never the label, which is the tapped row's own (and closes the
+  // input session). A place with no live details submits bare.
   useEffect(() => {
     if (!selectedPlaceId) return;
     if (details.data?.placeId === selectedPlaceId) {
-      setPlace(details.data.name);
       setCoords(
         Number.isFinite(details.data.lat) &&
           Number.isFinite(details.data.lon)
           ? { lat: details.data.lat, lon: details.data.lon }
           : null,
       );
+      setPlaceAddress(details.data.address);
     }
     if (details.data?.placeId === selectedPlaceId || details.isError) {
       rotateSessionToken();
@@ -159,6 +196,15 @@ export function EventDialog({
     start: allDay ? "" : (start ?? ""),
     end: allDay ? "" : (end ?? ""),
     place: place ?? "",
+    type: eventType,
+    // The picked place's snapshot: the tapped row's name and the
+    // details response's formatted address (null until details land,
+    // or when the place was typed, which clears the snapshot).
+    placeName,
+    placeAddress,
+    // The picked suggestion's id, or null for typed prose — which is
+    // what clears a previous link on edit rather than keeping it over.
+    placeId,
     // Present only when a live lookup resolved them: typed prose and
     // static picks submit bare, and nothing defaults to 0.
     ...(coords
@@ -199,10 +245,11 @@ export function EventDialog({
 
       {/* Second, because it is the other half of what the event is: a
           name and a place. Everything below is detail about that. */}
-      {/* TODO(BE): `GET /api/locations/autocomplete` and `/details` do not request `photos[].name` (field masks at `location.routes.ts:88-130`, `:178`), so a picked place has no image reference even though `/locations/photos/:photoRef` exists. */}
       <Dropdown
-        label="Place"
+        label="Location"
         options={placeOptions}
+        liveOptions
+        attribution
         value={place}
         onSearchText={setSearch}
         onChange={(picked) => {
@@ -210,15 +257,29 @@ export function EventDialog({
           // pick, so a value that is not a live placeId is typed prose
           // (which abandons the session) rather than a selection.
           const hit = liveById.get(picked);
+          const pick = pickPlace(hit ?? null, picked);
           if (hit) {
-            setSelectedPlaceId(hit.placeId);
-            setPlace(hit.name);
+            setSelectedPlaceId(pick.selectedPlaceId);
+            setPlaceId(pick.selectedPlaceId);
+            setPlace(pick.place);
+            // A live pick commits the tapped row's name at once; the
+            // formatted address arrives with the details lookup, and
+            // the pick carries none of the previous place's until then.
+            setPlaceName(hit.shortName);
+            setPlaceAddress(null);
+            setEventType(pick.type);
             // The coordinates arrive with the details lookup; until
             // then the pick carries none, not the previous place's.
             setCoords(null);
           } else {
             setSelectedPlaceId(null);
-            setPlace(picked);
+            setPlaceId(null);
+            setPlaceName(null);
+            setPlaceAddress(null);
+            setPlace(pick.place);
+            // Typed prose carries no types: the derived type goes
+            // back to unclassified with the cleared place id.
+            setEventType(pick.type);
             setCoords(null);
             rotateSessionToken();
           }

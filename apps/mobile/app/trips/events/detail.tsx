@@ -1,10 +1,12 @@
-import { Image, Text, View } from "react-native";
+import { Image, Linking, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { Badge } from "@/components/ui/Badge";
-import { PlaceLink } from "@/components/ui/PlaceLink";
-import { placeQuery } from "@/lib/links";
+import { PhotoCredit } from "@/components/ui/PhotoCredit";
+import { QuietAction } from "@/components/ui/QuietAction";
+import { placeMapsUrl } from "@/lib/links";
+import { placeRows } from "@/lib/place-rows";
 import {
   EVENT_TYPE_LABEL,
   dayLabel,
@@ -107,6 +109,9 @@ function EventDetailDialog() {
   }
 
   const today = todayIn(timeZone);
+  // The place block: the snapshot's name above its address, each row
+  // hiding when its value is missing.
+  const rows = placeRows(event);
 
   return (
     <FullscreenDialog
@@ -123,19 +128,40 @@ function EventDetailDialog() {
       dismissHref={`/trips/detail?id=${trip.id}`}
     >
       <View className="gap-y-6 md:flex-row md:gap-12">
-        <View className="relative overflow-hidden md:flex-1">
-          <Image
-            source={{ uri: event.image }}
-            resizeMode="cover"
-            className="w-full aspect-[2/1]"
-          />
-          <View className="absolute left-3 top-3">
-            <Badge label={EVENT_TYPE_LABEL[event.type]} variant="category" />
+        <View className="md:flex-1">
+          <View className="relative overflow-hidden">
+            {event.photoSourceUri ? (
+              <Pressable
+                onPress={() => void Linking.openURL(event.photoSourceUri!)}
+                aria-label="View photo source on Google Maps"
+              >
+                <Image
+                  source={{ uri: event.image }}
+                  resizeMode="cover"
+                  className="w-full aspect-[2/1]"
+                />
+              </Pressable>
+            ) : (
+              <Image
+                source={{ uri: event.image }}
+                resizeMode="cover"
+                className="w-full aspect-[2/1]"
+              />
+            )}
+            <View className="absolute left-3 top-3">
+              <Badge label={EVENT_TYPE_LABEL[event.type]} variant="category" />
+            </View>
           </View>
+          <PhotoCredit
+            credit={event.photoCredit ?? null}
+            sourceUri={event.photoSourceUri ?? null}
+          />
         </View>
 
-        {/* Card order, then the day: what it is, where, when, and which
-            day of the trip it belongs to. */}
+        {/* Card order, then the day: what it is, when, and which day of
+            the trip it belongs to. The place moved into the block
+            below, so the name is not printed twice; the user's own
+            label still shows on the itinerary tile. */}
         <View className="gap-2 md:flex-1">
           <Text className="font-body-bold text-lg text-ink">
             {dayLabel(wallClock(event.startTime, timeZone).date, today)}
@@ -143,19 +169,38 @@ function EventDetailDialog() {
           <Text className="font-display text-4xl uppercase leading-[0.95] text-ink md:text-5xl">
             {event.name}
           </Text>
-          {/* The place leads out of the app rather than into a screen of
-              ours: the trip is where it is, and Maps is where it is
-              exactly. The query carries the trip's own place so that a
-              restaurant name lands on the restaurant. */}
-          <PlaceLink
-            label={event.place}
-            query={placeQuery(event.place, trip.location)}
-          />
           <Text className="font-body text-base text-ink">
             {eventTimeLabel(event, timeZone)}
           </Text>
         </View>
       </View>
+
+      {/* The place block: the picked place's name leading in bold, its
+          address following lighter on the same line — the reading of
+          the picker row it came from — and the one verb a place has
+          leading out to Maps, pinned to the place itself. The line
+          hides when there is neither. */}
+      {rows.name ?? rows.address ? (
+        <View className="border-t border-ink pt-6">
+          <Text selectable className="font-body text-base text-ink/70">
+            {rows.name ? (
+              <Text className="font-body-bold text-ink">{rows.name}</Text>
+            ) : null}
+            {rows.name && rows.address ? " " : null}
+            {rows.address}
+          </Text>
+          {rows.address || event.placeId ? (
+            <QuietAction
+              label="Open in Maps"
+              onPress={() =>
+                void Linking.openURL(
+                  placeMapsUrl(event.placeId, rows.address ?? rows.name!),
+                )
+              }
+            />
+          ) : null}
+        </View>
+      ) : null}
 
       {/* The organizer's prose, at full width under both columns: it is
           the one thing here that is a paragraph rather than a fact, and

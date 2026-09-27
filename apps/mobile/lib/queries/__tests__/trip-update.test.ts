@@ -22,6 +22,7 @@ import { ApiError, apiFetch } from "@/lib/api";
 import type { Trip } from "@/components/trip/TripCard";
 import {
   tripKeys,
+  tripPlaceSnapshotPatch,
   updateTrip,
   updateTripOptions,
 } from "@/lib/queries/trips";
@@ -61,6 +62,7 @@ function cachedTrip(): Trip {
     title: "Dolomites",
     location: "Bolzano",
     image: "https://picsum.photos/seed/trip-1/900/450",
+    coverImageUrl: null,
     going: 4,
     startDate: "2026-07-01",
     endDate: "2026-07-05",
@@ -103,6 +105,118 @@ describe("updateTrip", () => {
       startDate: "2026-07-01",
       endDate: "2026-07-08",
       description: "Extra days",
+    });
+  });
+});
+
+describe("tripPlaceSnapshotPatch", () => {
+  it("a re-pick replaces the snapshot with the new name and address", () => {
+    expect(
+      tripPlaceSnapshotPatch({
+        placeId: "ChIJNew456",
+        placeName: "La Bodega",
+        placeAddress: "Carrer de la Mar 14, S\u00f3ller",
+      }),
+    ).toEqual({
+      placeProvider: "google",
+      placeId: "ChIJNew456",
+      placeName: "La Bodega",
+      placeAddress: "Carrer de la Mar 14, S\u00f3ller",
+    });
+  });
+
+  it("a re-pick before details land clears a stale address with null", () => {
+    const body = tripPlaceSnapshotPatch({
+      placeId: "ChIJNew456",
+      placeName: "La Bodega",
+      placeAddress: null,
+    });
+    expect(body).toMatchObject({
+      placeProvider: "google",
+      placeId: "ChIJNew456",
+      placeName: "La Bodega",
+      placeAddress: null,
+    });
+  });
+
+  it("a re-pick with landed details carries coordinates so the server skips geocoding", () => {
+    expect(
+      tripPlaceSnapshotPatch({
+        placeId: "ChIJNew456",
+        placeName: "La Bodega",
+        placeAddress: "Carrer de la Mar 14",
+        coords: { lat: 39.77, lon: 2.91 },
+      }),
+    ).toEqual({
+      placeProvider: "google",
+      placeId: "ChIJNew456",
+      placeName: "La Bodega",
+      placeAddress: "Carrer de la Mar 14",
+      destinationLat: 39.77,
+      destinationLon: 2.91,
+    });
+  });
+
+  it("a re-pick before details land omits coordinates, never a guess", () => {
+    const body = tripPlaceSnapshotPatch({
+      placeId: "ChIJNew456",
+      placeName: "La Bodega",
+      placeAddress: null,
+      coords: null,
+    });
+    expect(body).not.toHaveProperty("destinationLat");
+    expect(body).not.toHaveProperty("destinationLon");
+  });
+
+  it("typed-over clears all four values with explicit nulls", () => {
+    expect(
+      tripPlaceSnapshotPatch({
+        placeId: null,
+        placeName: null,
+        placeAddress: null,
+      }),
+    ).toEqual({
+      placeProvider: null,
+      placeId: null,
+      placeName: null,
+      placeAddress: null,
+    });
+  });
+
+  it("untouched sends {} so the server leaves the columns alone", () => {
+    const body = tripPlaceSnapshotPatch({
+      placeId: undefined,
+      placeName: "La Bodega",
+      placeAddress: "Somewhere",
+    });
+    expect(body).toEqual({});
+    expect(body).not.toHaveProperty("placeProvider");
+    expect(body).not.toHaveProperty("placeId");
+    expect(body).not.toHaveProperty("placeName");
+    expect(body).not.toHaveProperty("placeAddress");
+  });
+
+  it("updateTrip carries the snapshot through to the PUT body", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({ success: true, trip: updatedEntity() });
+
+    await updateTrip("trip-1", {
+      destination: "La Bodega, S\u00f3ller",
+      ...tripPlaceSnapshotPatch({
+        placeId: "ChIJNew456",
+        placeName: "La Bodega",
+        placeAddress: "Carrer de la Mar 14",
+      }),
+    });
+
+    const body = JSON.parse(
+      (mockedApiFetch.mock.calls[0]?.[1] as { body: string }).body,
+    ) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      placeProvider: "google",
+      placeId: "ChIJNew456",
+      placeName: "La Bodega",
+      placeAddress: "Carrer de la Mar 14",
     });
   });
 });

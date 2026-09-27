@@ -1,6 +1,8 @@
 import { type ReactNode } from "react";
-import { Image, Pressable, Text, View } from "react-native";
+import { Image, Linking, Pressable, Text, View } from "react-native";
+import { ArrowUpRight } from "lucide-react-native";
 import { useHoverZoom } from "@/hooks/useHoverZoom";
+import { INK } from "@/lib/theme";
 
 /**
  * The floating tile: a 2:1 photo with an optional overlay, then a bold
@@ -30,6 +32,7 @@ import { useHoverZoom } from "@/hooks/useHoverZoom";
  */
 export function PhotoCard({
   image,
+  photoSourceUri,
   overlay,
   meta,
   title,
@@ -37,6 +40,18 @@ export function PhotoCard({
   onPress,
 }: {
   image: string;
+  /**
+   * The photo's required Google Maps source link. When present a small
+   * corner affordance opens it. The affordance is deliberately NOT the
+   * photo: a tile's whole surface — photo included — belongs to the
+   * card's own `onPress`, and wrapping the 2:1 image in a second
+   * pressable meant a tap anywhere on the picture opened Maps instead
+   * of the trip or event the tile stands for. The detail surfaces tap
+   * the whole image, because there the photo is the page and has no
+   * competing action. Null for uploads and placeholders, which carry no
+   * source to reach.
+   */
+  photoSourceUri?: string | null;
   /** Sits on the photo, top left: a countdown, a category, a state.
    *  The card places it; the chip does not place itself. */
   overlay?: ReactNode;
@@ -63,6 +78,17 @@ export function PhotoCard({
         />
         {overlay ? (
           <View className="absolute left-3 top-3">{overlay}</View>
+        ) : null}
+        {/* The source link, at the policy's minimum target: 44dp, top
+            right so it cannot collide with the top-left overlay chip. */}
+        {photoSourceUri ? (
+          <Pressable
+            onPress={() => void Linking.openURL(photoSourceUri)}
+            aria-label="View photo source on Google Maps"
+            className="absolute right-0 top-0 h-11 w-11 items-center justify-center"
+          >
+            <ArrowUpRight color={INK} size={18} />
+          </Pressable>
         ) : null}
       </View>
 

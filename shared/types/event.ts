@@ -3,6 +3,7 @@
  */
 
 import type { LinkItem } from "./link";
+import type { PlaceSummary } from "./place";
 
 /**
  * Event entity
@@ -31,6 +32,12 @@ export interface Event {
   creatorName?: string;
   /** Profile photo URL of the event creator */
   creatorProfilePhotoUrl?: string | null;
+  /** Resolved place summary; absent on rows constructed before the place read */
+  place?: PlaceSummary | null;
+  /** The picked place's name, stored on the row at pick time. The display source. */
+  placeName?: string | null;
+  /** The picked place's formatted address, stored on the row at pick time. */
+  placeAddress?: string | null;
 }
 
 /**

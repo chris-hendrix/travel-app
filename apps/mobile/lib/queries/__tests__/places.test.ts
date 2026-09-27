@@ -11,8 +11,10 @@ vi.mock("@/lib/api", () => ({ apiFetch: vi.fn() }));
 
 import { apiFetch } from "@/lib/api";
 import {
+  countryForTrip,
   createPlaceSessionToken,
   createTrailingDebounce,
+  fetchPlaceSuggestions,
   placeDetailsOptions,
   placeSuggestionsOptions,
   shouldFetchSuggestions,
@@ -31,12 +33,14 @@ function autocompleteRows() {
       shortName: "Lisbon",
       displayName: "Lisbon, Portugal",
       displayAddress: "Portugal",
+      types: ["locality", "political"],
     },
     {
       placeId: "ChIJTulum",
       shortName: "Tulum",
       displayName: "Tulum, Mexico",
       displayAddress: "Quintana Roo, Mexico",
+      types: ["restaurant", "food"],
     },
   ];
 }
@@ -64,12 +68,14 @@ describe("placeSuggestionsOptions", () => {
         name: "Lisbon, Portugal",
         shortName: "Lisbon",
         address: "Portugal",
+        types: ["locality", "political"],
       },
       {
         placeId: "ChIJTulum",
         name: "Tulum, Mexico",
         shortName: "Tulum",
         address: "Quintana Roo, Mexico",
+        types: ["restaurant", "food"],
       },
     ]);
   });
@@ -125,15 +131,94 @@ describe("placeSuggestionsOptions", () => {
     expect(shouldFetchSuggestions("L")).toBe(false);
     expect(shouldFetchSuggestions("Li")).toBe(true);
   });
+
+  it("includes lat/lon when the caller supplies a bias and omits both when it does not", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue([]);
+
+    await fetchPlaceSuggestions("Lisbon", TOKEN, {
+      lat: 39.6,
+      lon: 2.9,
+    });
+    expect(mockedApiFetch).toHaveBeenCalledWith(
+      `/locations/autocomplete?q=Lisbon&sessionToken=${TOKEN}&lat=39.6&lon=2.9`,
+    );
+
+    mockedApiFetch.mockClear();
+    await fetchPlaceSuggestions("Lisbon", TOKEN);
+    expect(mockedApiFetch).toHaveBeenCalledWith(
+      `/locations/autocomplete?q=Lisbon&sessionToken=${TOKEN}`,
+    );
+  });
+
+  it("folds the bias into the cache key so one trip's list is never served to another", () => {
+    const a = placeSuggestionsOptions("Lisbon", TOKEN, {
+      lat: 39.6,
+      lon: 2.9,
+    });
+    const b = placeSuggestionsOptions("Lisbon", TOKEN, {
+      lat: 41.3,
+      lon: 2.1,
+    });
+    const unbiased = placeSuggestionsOptions("Lisbon", TOKEN);
+    expect(a.queryKey).not.toEqual(b.queryKey);
+    expect(a.queryKey).not.toEqual(unbiased.queryKey);
+  });
+});
+
+describe("placeSuggestions country floor (F3)", () => {
+  it("sends &country= when supplied and omits it when not", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue([]);
+
+    await fetchPlaceSuggestions("Lisbon", TOKEN, undefined, "PT");
+    expect(mockedApiFetch).toHaveBeenCalledWith(
+      `/locations/autocomplete?q=Lisbon&sessionToken=${TOKEN}&country=PT`,
+    );
+
+    mockedApiFetch.mockClear();
+    await fetchPlaceSuggestions("Lisbon", TOKEN);
+    expect(mockedApiFetch).toHaveBeenCalledWith(
+      `/locations/autocomplete?q=Lisbon&sessionToken=${TOKEN}`,
+    );
+
+    mockedApiFetch.mockClear();
+    await fetchPlaceSuggestions("Lisbon", TOKEN, undefined, "");
+    expect(mockedApiFetch).toHaveBeenCalledWith(
+      `/locations/autocomplete?q=Lisbon&sessionToken=${TOKEN}`,
+    );
+  });
+
+  it("combines bias and country on one request", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue([]);
+    await fetchPlaceSuggestions("Lisbon", TOKEN, { lat: 39.6, lon: 2.9 }, "ES");
+    expect(mockedApiFetch).toHaveBeenCalledWith(
+      `/locations/autocomplete?q=Lisbon&sessionToken=${TOKEN}&lat=39.6&lon=2.9&country=ES`,
+    );
+  });
+
+  it("folds the country into the cache key", () => {
+    const es = placeSuggestionsOptions("Lisbon", TOKEN, undefined, "ES");
+    const pt = placeSuggestionsOptions("Lisbon", TOKEN, undefined, "PT");
+    const none = placeSuggestionsOptions("Lisbon", TOKEN);
+    expect(es.queryKey).not.toEqual(pt.queryKey);
+    expect(es.queryKey).not.toEqual(none.queryKey);
+  });
+
+  it("countryForTrip reads the trip place country, absent when unresolved", () => {
+    expect(countryForTrip({ placeCountry: "ES" })).toBe("ES");
+    expect(countryForTrip({ placeCountry: null })).toBeUndefined();
+    expect(countryForTrip({})).toBeUndefined();
+    expect(countryForTrip(null)).toBeUndefined();
+  });
 });
 
 describe("placeDetailsOptions", () => {
-  it("calls /details with {placeId, sessionToken} and maps to name/address/coords", async () => {
+  it("calls /details with {placeId, sessionToken} and maps to address/coords", async () => {
     mockedApiFetch.mockReset();
     mockedApiFetch.mockResolvedValue({
       placeId: "ChIJLisbon",
-      shortName: "Lisbon",
-      displayName: "Lisbon, Portugal",
       displayPlace: "Lisbon, Portugal",
       displayAddress: "Lisboa, Portugal",
       lat: 38.7223,
@@ -158,11 +243,13 @@ describe("placeDetailsOptions", () => {
     );
     expect(details).toEqual({
       placeId: "ChIJLisbon",
-      name: "Lisbon, Portugal",
       address: "Lisboa, Portugal",
       lat: 38.7223,
       lon: -9.1393,
     });
+    // The proxy no longer sends a name: no caller may read one off
+    // details, or every picker label blanks.
+    expect("name" in details).toBe(false);
   });
 
   it("stays disabled until a suggestion is selected", () => {
@@ -231,6 +318,7 @@ describe("toPlaceOption", () => {
         name: "Lisbon, Portugal",
         shortName: "Lisbon",
         address: "Portugal",
+        types: [],
       }),
     ).toEqual({ value: "ChIJLisbon", label: "Lisbon, Portugal" });
   });

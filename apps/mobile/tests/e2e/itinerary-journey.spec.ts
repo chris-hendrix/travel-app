@@ -15,12 +15,17 @@
  * every selector names the screen file and line-shape it matches in a
  * comment.
  *
- * Place entry is free text, never a suggestion pick: CI carries no
- * Places key (plan Assumptions), and `EventDialog`'s `Dropdown`
- * (`components/trip/EventDialog.tsx`) sets `freeText`, so typing
- * commits via `onChange` (`components/ui/Dropdown.tsx` — `if
- * (freeText) onChange(v)`) without picking a row. The local
- * `EVENT_PLACES` mock list only filters suggestions; it is never read.
+ * Place entry is typed text committed through the typed row, never a
+ * static suggestion pick: CI carries no Places key (plan Assumptions),
+ * so the picker degrades to the typed row with no network — that
+ * degradation is the path asserted here, not a flake. `EventDialog`'s
+ * `Dropdown` (`components/trip/EventDialog.tsx`) also sets `freeText`,
+ * so typing alone would commit via `onChange`
+ * (`components/ui/Dropdown.tsx` — `if (freeText) onChange(v)`), but the
+ * spec picks the typed row explicitly to prove it exists: if the typed
+ * row is missing, the spec failing is the signal wanted. The typed
+ * string contains no live place name, so no Google row can steal the
+ * tap.
  *
  * Times are the All-day answer (`ChipToggle label="All day"` in
  * `EventDialog.tsx`): a timed event would need the `TimeField` slot
@@ -114,8 +119,10 @@ test.describe("Itinerary Journey", () => {
     const tripName = uniqueLabel("E2E Itinerary");
     const eventName = uniqueLabel("Harbour dinner");
     const editedName = `${eventName} feast`;
-    // Free text, never a suggestion pick (see header): a string no
-    // EVENT_PLACES row contains, so no suggestion row can steal the tap.
+    // Free text committed through the typed row (see header): a string
+    // no live row contains, so no suggestion row can steal the tap.
+    // The typed row's label is the query in quotes
+    // (placePickerRows in lib/queries/places.ts).
     const placeText = uniqueLabel("Konoba Free Text");
     let tripId: string;
     let tripStart: string;
@@ -186,14 +193,18 @@ test.describe("Itinerary Journey", () => {
       await nameInput.click();
       await nameInput.pressSequentially(eventName);
 
-      // components/trip/EventDialog.tsx: Dropdown label="Place" with
+      // components/trip/EventDialog.tsx: Dropdown label="Location" with
+      // live suggestions plus the typed row (placePickerRows) and
       // freeText — typing commits the value through onChange
-      // (components/ui/Dropdown.tsx), so no suggestion row is ever
-      // picked. CI has no Places key; the EVENT_PLACES list only
-      // filters the suggestion box underneath.
-      const placeInput = page.getByRole("textbox", { name: "Place" });
-      await placeInput.click();
-      await placeInput.pressSequentially(placeText);
+      // (components/ui/Dropdown.tsx), and picking the typed row
+      // commits the same typed prose explicitly. CI has no Places key,
+      // so the lookup degrades to the typed row with no network.
+      const locationInput = page.getByRole("textbox", { name: "Location" });
+      await locationInput.click();
+      await locationInput.pressSequentially(placeText);
+      await page
+        .getByRole("button", { name: `"${placeText}"`, exact: true })
+        .click();
 
       // components/trip/EventDialog.tsx: ChipToggle label="All day"
       // beside the Day head — a badge-backed Pressable

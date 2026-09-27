@@ -84,6 +84,7 @@ describe("Event Routes", () => {
         location: "Eiffel Tower, Paris",
         tripId: trip.id,
         createdBy: testUser.id,
+        place: null,
       });
     });
 
@@ -905,6 +906,130 @@ describe("Event Routes", () => {
       expect(body).toHaveProperty("success", true);
       expect(body.event.name).toBe("Updated Event");
       expect(body.event.description).toBe("Updated description");
+    });
+
+    it("clears name/address when the pair is replaced without a snapshot (trip parity)", async () => {
+      app = await buildApp();
+
+      const [owner] = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "Owner",
+          timezone: "UTC",
+        })
+        .returning();
+      const [trip] = await db
+        .insert(trips)
+        .values({
+          name: "Test Trip",
+          destination: "Paris",
+          preferredTimezone: "Europe/Paris",
+          createdBy: owner.id,
+        })
+        .returning();
+      await db.insert(members).values({
+        tripId: trip.id,
+        userId: owner.id,
+        status: "going",
+      });
+      const [event] = await db
+        .insert(events)
+        .values({
+          tripId: trip.id,
+          createdBy: owner.id,
+          name: "Linked Event",
+          eventType: "misc",
+          startTime: new Date("2026-06-15T14:00:00Z"),
+          placeProvider: "google",
+          placeId: "ChIJ_AAA",
+          placeName: "La Bodega",
+          placeAddress: "Carrer de la Mar 14, Soller",
+        })
+        .returning();
+      const token = app.jwt.sign({
+        sub: owner.id,
+        name: owner.displayName,
+      });
+
+      const response = await app.inject({
+        method: "PUT",
+        url: `/api/events/${event.id}`,
+        cookies: { auth_token: token },
+        payload: { placeProvider: "google", placeId: "ChIJ_BBB" },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const [row] = await db
+        .select()
+        .from(events)
+        .where(eq(events.id, event.id))
+        .limit(1);
+      expect(row?.placeId).toBe("ChIJ_BBB");
+      expect(row?.placeName).toBeNull();
+      expect(row?.placeAddress).toBeNull();
+    });
+
+    it("leaves the snapshot untouched when the identical pair is re-sent", async () => {
+      app = await buildApp();
+
+      const [owner] = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "Owner",
+          timezone: "UTC",
+        })
+        .returning();
+      const [trip] = await db
+        .insert(trips)
+        .values({
+          name: "Test Trip",
+          destination: "Paris",
+          preferredTimezone: "Europe/Paris",
+          createdBy: owner.id,
+        })
+        .returning();
+      await db.insert(members).values({
+        tripId: trip.id,
+        userId: owner.id,
+        status: "going",
+      });
+      const [event] = await db
+        .insert(events)
+        .values({
+          tripId: trip.id,
+          createdBy: owner.id,
+          name: "Linked Event",
+          eventType: "misc",
+          startTime: new Date("2026-06-15T14:00:00Z"),
+          placeProvider: "google",
+          placeId: "ChIJ_AAA",
+          placeName: "La Bodega",
+          placeAddress: "Carrer de la Mar 14, Soller",
+        })
+        .returning();
+      const token = app.jwt.sign({
+        sub: owner.id,
+        name: owner.displayName,
+      });
+
+      const response = await app.inject({
+        method: "PUT",
+        url: `/api/events/${event.id}`,
+        cookies: { auth_token: token },
+        payload: { placeProvider: "google", placeId: "ChIJ_AAA" },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const [row] = await db
+        .select()
+        .from(events)
+        .where(eq(events.id, event.id))
+        .limit(1);
+      expect(row?.placeId).toBe("ChIJ_AAA");
+      expect(row?.placeName).toBe("La Bodega");
+      expect(row?.placeAddress).toBe("Carrer de la Mar 14, Soller");
     });
 
     it("should return 403 if user lacks permission", async () => {

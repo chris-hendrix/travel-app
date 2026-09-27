@@ -222,6 +222,21 @@ export {
   type POISuggestionsResponse,
 } from "./poi";
 
+// Re-export place schemas
+export {
+  placeProviderSchema,
+  placePairSchema,
+  placeBoxSchema,
+  placePairFields,
+  isCompletePlacePair,
+  placePairIncompleteMessage,
+  placeSummarySchema,
+  cachedPlaceDetailsSchema,
+  type PlaceProvider,
+  type PlacePair,
+  type PlaceBox,
+} from "./place";
+
 // Re-export admin schemas
 export {
   adminListUsersQuerySchema,

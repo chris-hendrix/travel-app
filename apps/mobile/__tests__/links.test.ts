@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   instagramUrl,
   mapsSearchUrl,
+  placeMapsUrl,
   placeQuery,
   venmoUrl,
 } from "@/lib/links";
@@ -43,6 +44,23 @@ describe("mapsSearchUrl", () => {
     );
     expect(url).not.toContain("&query=Bar & Grill");
     expect(url).toContain(encodeURIComponent("Bar & Grill #2/3?x=1"));
+  });
+});
+
+describe("placeMapsUrl", () => {
+  it("pins the link to the place id", () => {
+    const url = placeMapsUrl("ChIJN1t_tDeuEmsRUsoyG83frY", "La Bodega, S\u00f3ller");
+    expect(url).toContain("query_place_id=ChIJN1t_tDeuEmsRUsoyG83frY");
+    expect(url).toContain(`query=${encodeURIComponent("La Bodega, S\u00f3ller")}`);
+  });
+
+  it("falls back to a plain search with no place id", () => {
+    expect(placeMapsUrl(null, "La Bodega, S\u00f3ller")).toBe(
+      mapsSearchUrl("La Bodega, S\u00f3ller"),
+    );
+    expect(placeMapsUrl(undefined, "La Bodega, S\u00f3ller")).toBe(
+      mapsSearchUrl("La Bodega, S\u00f3ller"),
+    );
   });
 });
 

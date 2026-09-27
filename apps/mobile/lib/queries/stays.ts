@@ -60,6 +60,12 @@ export type CreateStayRequest = {
   address?: string;
   addressLat?: number | null;
   addressLon?: number | null;
+  /** Google place pair — both or neither; both null clears the link. */
+  placeProvider?: "google" | null;
+  placeId?: string | null;
+  /** Picked-place snapshot strings — cleared with the pair. */
+  placeName?: string | null;
+  placeAddress?: string | null;
   description?: string;
   checkIn?: string;
   checkOut?: string;
@@ -78,6 +84,12 @@ export type UpdateStayRequest = {
   address?: string;
   addressLat?: number | null;
   addressLon?: number | null;
+  /** Google place pair — both or neither; both null clears the link. */
+  placeProvider?: "google" | null;
+  placeId?: string | null;
+  /** Picked-place snapshot strings — cleared with the pair. */
+  placeName?: string | null;
+  placeAddress?: string | null;
   description?: string;
   checkIn?: string;
   checkOut?: string;

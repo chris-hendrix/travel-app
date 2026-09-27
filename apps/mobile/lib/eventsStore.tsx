@@ -107,6 +107,24 @@ function toCreateRequest(event: EventDraft): CreateEventRequest {
     ...(typeof event.locationLon === "number"
       ? { locationLon: event.locationLon }
       : null),
+    // The picked place's pair when the place came from a suggestion;
+    // explicit nulls when it was typed (which clears a previous link
+    // on the server); absent when the caller never said, which leaves
+    // the link untouched. Never a half pair — the schema rejects one.
+    ...(event.placeId !== undefined
+      ? event.placeId != null
+        ? { placeProvider: "google", placeId: event.placeId }
+        : { placeProvider: null, placeId: null }
+      : null),
+    // The picked place's snapshot strings, the same triple-state:
+    // a value sends, null clears with the pair, absent leaves the
+    // columns untouched.
+    ...(event.placeName !== undefined
+      ? { placeName: event.placeName }
+      : null),
+    ...(event.placeAddress !== undefined
+      ? { placeAddress: event.placeAddress }
+      : null),
     startTime: event.startTime,
     ...(event.endTime ? { endTime: event.endTime } : null),
     allDay: event.allDay,
@@ -140,6 +158,22 @@ function toUpdateRequest(
       : null),
     ...(patch.locationLon !== undefined
       ? { locationLon: patch.locationLon }
+      : null),
+    // Same pair rule as create, derived from the patch every time:
+    // the draft always reflects the field's current state, so this is
+    // idempotent. An untouched place sends neither key.
+    ...(patch.placeId !== undefined
+      ? patch.placeId != null
+        ? { placeProvider: "google", placeId: patch.placeId }
+        : { placeProvider: null, placeId: null }
+      : null),
+    // The snapshot strings ride the same rule, key by key: a pick
+    // sends both, typed prose clears both, untouched omits both.
+    ...(patch.placeName !== undefined
+      ? { placeName: patch.placeName }
+      : null),
+    ...(patch.placeAddress !== undefined
+      ? { placeAddress: patch.placeAddress }
       : null),
     ...(patch.startTime !== undefined ? { startTime: patch.startTime } : null),
     ...(patch.endTime !== undefined && patch.endTime !== null

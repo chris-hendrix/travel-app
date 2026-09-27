@@ -1,6 +1,7 @@
 import { daysBetween } from "@/lib/countdown";
 import { formatDaySpan } from "@/lib/dateRange";
 import { wallClock } from "@/lib/timezone";
+import type { PlacePhotoCredit } from "@/lib/place-images";
 
 /** A link out of a stay: the listing, the directions, the house rules. */
 export type StayLink = { url: string; name: string };
@@ -30,6 +31,21 @@ export type Stay = {
   id: string;
   name: string;
   address: string | null;
+  /**
+   * The linked Google place id (`place.placeId`), null when the address
+   * was typed or the row predates linking. Drives the pinned Maps link.
+   */
+  placeId?: string | null;
+  /**
+   * The picked place's snapshot strings (the tapped row's name and the
+   * details response's formatted address). Null when the address was
+   * typed or the row predates snapshots; absent when the caller never
+   * said, which leaves the columns untouched. Read by the detail
+   * block (`lib/place-rows.ts`); written by the picker write path.
+   * Never the stay's name — that field is the user's own words.
+   */
+  placeName?: string | null;
+  placeAddress?: string | null;
   /** What Maps would take, once the API's geocoding fills them in. */
   addressLat: number | null;
   addressLon: number | null;
@@ -39,6 +55,14 @@ export type Stay = {
   checkOut: string | null;
   /** The place's photo, which the API proxies from Places. */
   image: string;
+  /**
+   * The photo's required Google Maps source link, null for placeholders.
+   * Every rendered photo reaches it: the tile through `PhotoCard`, the
+   * detail through its own tap.
+   */
+  photoSourceUri?: string | null;
+  /** The photo's author credit for the detail surface; tiles render nothing. */
+  photoCredit?: PlacePhotoCredit | null;
   links: StayLink[];
   /** The API's soft delete. Null while it is live. */
   deletedAt: string | null;

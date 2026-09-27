@@ -31,6 +31,10 @@ test.describe("Trip Journey", () => {
   }) => {
     const tripName = uniqueLabel("E2E Trip");
     const editedName = `${tripName} II`;
+    // Typed, never a suggestion pick: CI carries no Places key, so the
+    // picker degrades to the typed row — which is exactly the path
+    // asserted here. A string no live row can contain, so no Google
+    // row can steal the tap.
     let tripId: string;
 
     await test.step("seeded session lands on trips", async () => {
@@ -73,20 +77,24 @@ test.describe("Trip Journey", () => {
       await nameInput.click();
       await nameInput.pressSequentially(tripName);
 
-      // app/trips/new.tsx: Dropdown label="Where" backed by the local
-      // mocks/places.ts list. The Dropdown only commits on a suggestion
-      // pick (no freeText), so a typed-but-unpicked string fails
-      // validation ("Where are you going?") — type to filter, then pick
-      // the local mock suggestion. This is not the live Places API
-      // (CI carries no Places key): the suggestion comes from the
-      // in-repo mock list, never the network.
+      // app/trips/new.tsx: Dropdown label="Location" backed by live Places
+      // suggestions plus the typed text as a row (lib/queries/places.ts
+      // placePickerRows). The Dropdown only commits on a suggestion
+      // pick, so a typed-but-unpicked string fails validation ("Where
+      // are you going?") — type to open the list, then pick the typed
+      // row. CI carries no Places key, so the lookup degrades to the
+      // typed row with no network: that degradation is the path
+      // asserted here, not a flake — if the typed row is missing, this
+      // spec failing is the signal wanted.
       // components/ui/SuggestionList.tsx: each row is role="button"
-      // named by its label.
-      const whereInput = page.getByRole("textbox", { name: "Where" });
-      await whereInput.click();
-      await whereInput.pressSequentially("Mallorca");
+      // named by its label; the typed row's label is the query in
+      // quotes with secondary "Use what you typed".
+      const locationInput = page.getByRole("textbox", { name: "Location" });
+      await locationInput.click();
+      const placeText = uniqueLabel("E2E Place");
+      await locationInput.pressSequentially(placeText);
       await page
-        .getByRole("button", { name: "Mallorca, Spain" })
+        .getByRole("button", { name: `"${placeText}"`, exact: true })
         .click();
 
       // app/trips/new.tsx: DatePicker with no min/max bounds.
