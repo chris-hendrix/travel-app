@@ -48,33 +48,3 @@ export function pickStayAddress(
   return detailsAddress ?? suggestion.address;
 }
 
-export type StaySelection = {
-  /**
-   * The Name field's next value on a live pick: the suggestion's
-   * short name, which is exactly what the two-line picker row shows.
-   * Null on the typed row, which leaves the user's own words alone —
-   * only a pick writes the name, so typing after picking keeps it.
-   */
-  name: string | null;
-  address: string;
-};
-
-/**
- * A stay dialog pick as Name + Address. A live suggestion commits its
- * short name with the details address (or its own while details are
- * still in flight); typed text commits itself as the address with no
- * name change.
- */
-export function pickStaySelection(
-  suggestion: PlaceSuggestion | null,
-  typedText: string,
-  detailsAddress: string | null,
-): StaySelection {
-  if (suggestion) {
-    return {
-      name: suggestion.shortName,
-      address: detailsAddress ?? suggestion.address,
-    };
-  }
-  return { name: null, address: typedText };
-}

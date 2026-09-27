@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { pickPlace, pickStaySelection } from "@/lib/place-pick";
+import * as placePick from "@/lib/place-pick";
+import { pickPlace, pickStayAddress } from "@/lib/place-pick";
 import type { PlaceSuggestion } from "@/lib/queries/places";
 
 function suggestion(overrides: Partial<PlaceSuggestion> = {}): PlaceSuggestion {
@@ -35,27 +36,20 @@ describe("pickPlace", () => {
   });
 });
 
-describe("pickStaySelection", () => {
-  it("a live pick yields the place name and the details address", () => {
-    expect(
-      pickStaySelection(suggestion(), "", "Carrer de la Mar 14, 07100 Sóller"),
-    ).toEqual({
-      name: "La Bodega",
-      address: "Carrer de la Mar 14, 07100 Sóller",
-    });
+describe("a stay pick never renames the stay", () => {
+  it("exposes no name-writing helper: the name field is the user's own words", () => {
+    expect("pickStaySelection" in placePick).toBe(false);
   });
 
-  it("a live pick falls back to the suggestion address while details are in flight", () => {
-    expect(pickStaySelection(suggestion(), "", null)).toEqual({
-      name: "La Bodega",
-      address: "Carrer de la Mar 14, Sóller",
-    });
-  });
-
-  it("a typed pick yields no name change", () => {
-    expect(pickStaySelection(null, "My cosy hut", null)).toEqual({
-      name: null,
-      address: "My cosy hut",
-    });
+  it("a live pick yields only an address; the name field keeps what was typed", () => {
+    const name = "My cosy hut";
+    const address = pickStayAddress(
+      suggestion(),
+      "Carrer de la Mar 14, 07100 Sóller",
+    );
+    expect(address).toBe("Carrer de la Mar 14, 07100 Sóller");
+    // The pick has nowhere to put a name: the dialog keeps `name` as
+    // the user left it, so the picked place never renames the stay.
+    expect(name).toBe("My cosy hut");
   });
 });
