@@ -24,7 +24,11 @@ import {
   usePlaceSessionToken,
   usePlaceSuggestions,
 } from "@/lib/queries/places";
-import { pickPlace, pickStayAddress } from "@/lib/place-pick";
+import {
+  pickPlace,
+  pickStayAddress,
+  pickStaySelection,
+} from "@/lib/place-pick";
 
 /**
  * The stay form, in one place because there is one of it: adding and
@@ -152,9 +156,9 @@ export function StayDialog({
   );
 
   // Details resolve the stay's coordinates and its formatted address —
-  // never the name, which stays the user's own — and close the input
-  // session. They never block submit. An address with no live details
-  // submits bare.
+  // never the name, which the pick itself already set — and close the
+  // input session. They never block submit. An address with no live
+  // details submits bare.
   useEffect(() => {
     if (!selectedPlaceId) return;
     const landed = details.data;
@@ -236,9 +240,14 @@ export function StayDialog({
           if (hit) {
             setSelectedPlaceId(pick.selectedPlaceId);
             setPlaceId(pick.selectedPlaceId);
-            // The formatted address arrives with the details lookup;
-            // until then the pick holds the suggestion's own address.
-            setAddress(pickStayAddress(hit, null));
+            // A live pick also names the stay after the place — the
+            // row's own short name — while the formatted address
+            // arrives with the details lookup; until then the pick
+            // holds the suggestion's own address. The typed row below
+            // leaves the name alone.
+            const selection = pickStaySelection(hit, picked, null);
+            setName(selection.name ?? name);
+            setAddress(selection.address);
             // The coordinates arrive with the details lookup; until
             // then the pick carries none, not the previous address's.
             setCoords(null);
