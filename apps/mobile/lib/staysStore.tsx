@@ -104,6 +104,15 @@ function toCreateRequest(stay: Stay): CreateStayRequest {
         ? { placeProvider: "google", placeId: stay.placeId }
         : { placeProvider: null, placeId: null }
       : null),
+    // The picked place's snapshot strings, the same triple-state:
+    // a value sends, null clears with the pair, absent leaves the
+    // columns untouched.
+    ...(stay.placeName !== undefined
+      ? { placeName: stay.placeName }
+      : null),
+    ...(stay.placeAddress !== undefined
+      ? { placeAddress: stay.placeAddress }
+      : null),
     ...(stay.description ? { description: stay.description } : null),
     ...(stay.checkIn ? { checkIn: stay.checkIn } : null),
     ...(stay.checkOut ? { checkOut: stay.checkOut } : null),
@@ -146,6 +155,14 @@ function toUpdateRequest(patch: Partial<Stay>): UpdateStayRequest {
       ? patch.placeId != null
         ? { placeProvider: "google", placeId: patch.placeId }
         : { placeProvider: null, placeId: null }
+      : null),
+    // The snapshot strings ride the same rule, key by key: a pick
+    // sends both, typed prose clears both, untouched omits both.
+    ...(patch.placeName !== undefined
+      ? { placeName: patch.placeName }
+      : null),
+    ...(patch.placeAddress !== undefined
+      ? { placeAddress: patch.placeAddress }
       : null),
     ...(typeof patch.description === "string" && patch.description
       ? { description: patch.description }

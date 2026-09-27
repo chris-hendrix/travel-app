@@ -277,6 +277,54 @@ describe("buildStay", () => {
     expect(draftFromStay(ritz, null).placeId).toBe("ChIJRitz123");
   });
 
+  it("carries the picked snapshot strings onto the row and back into the form", () => {
+    const ritz = buildStay(
+      {
+        name: "The Ritz",
+        address: "219 E 48th St, New York, NY 10017",
+        checkInDay: "2026-09-17",
+        checkOutDay: "2026-09-23",
+        checkInTime: "",
+        checkOutTime: "",
+        description: "",
+        placeId: "ChIJRitz123",
+        placeName: "The Ritz",
+        placeAddress: "219 E 48th St, New York, NY 10017",
+      },
+      "stay-11",
+      null,
+      "https://example.com/photo.jpg",
+    );
+    expect(ritz.placeName).toBe("The Ritz");
+    expect(ritz.placeAddress).toBe("219 E 48th St, New York, NY 10017");
+    expect(draftFromStay(ritz, null)).toMatchObject({
+      placeId: "ChIJRitz123",
+      placeName: "The Ritz",
+      placeAddress: "219 E 48th St, New York, NY 10017",
+    });
+  });
+
+  it("reads a typed address as null snapshots", () => {
+    const typed = buildStay(
+      {
+        name: "Friend's spare room",
+        address: "Carrer Major 3, S\u00f3ller",
+        checkInDay: "2026-09-17",
+        checkOutDay: "2026-09-20",
+        checkInTime: "",
+        checkOutTime: "",
+        description: "",
+        placeName: null,
+        placeAddress: null,
+      },
+      "stay-12",
+      null,
+      "https://example.com/photo.jpg",
+    );
+    expect(typed.placeName).toBeNull();
+    expect(typed.placeAddress).toBeNull();
+  });
+
   it("reads a typed address as a null placeId", () => {
     const typed = buildStay(
       {

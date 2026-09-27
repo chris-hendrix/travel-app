@@ -29,6 +29,15 @@ export type NewStayInput = {
    * Absent when the caller never asked, which leaves the link untouched.
    */
   placeId?: string | null;
+  /**
+   * The picked place's snapshot strings: the tapped row's name
+   * (`PlaceSuggestion.shortName`) and the details response's formatted
+   * address. Same triple-state as the id — a value sends, null clears,
+   * absent leaves untouched — and cleared with the pair. Never written
+   * into the stay's name, which is the user's own words.
+   */
+  placeName?: string | null;
+  placeAddress?: string | null;
 };
 
 export type NewStayErrors = Partial<
@@ -106,7 +115,11 @@ export function draftFromStay(
     description: stay.description ?? "",
     // The link rides back so an edit that touches nothing else keeps
     // it; a row with none reads as null, never as a kept-over id.
+    // The snapshot strings ride back the same way, so an untouched
+    // address resends its own snapshot rather than clearing it.
     placeId: stay.placeId ?? null,
+    placeName: stay.placeName,
+    placeAddress: stay.placeAddress,
   };
 }
 
@@ -163,7 +176,11 @@ export function buildStay(
     address: text(input.address),
     // The picked place's id when the address came from a suggestion;
     // null when it was typed, so an edit re-typing the address clears it.
+    // The snapshot strings ride the same triple-state: a pick sends
+    // both, typed prose clears both, untouched omits both.
     placeId: input.placeId ?? null,
+    placeName: input.placeName,
+    placeAddress: input.placeAddress,
     addressLat: null,
     addressLon: null,
     description: text(input.description),

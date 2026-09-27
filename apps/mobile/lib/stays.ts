@@ -36,6 +36,16 @@ export type Stay = {
    * was typed or the row predates linking. Drives the pinned Maps link.
    */
   placeId?: string | null;
+  /**
+   * The picked place's snapshot strings (the tapped row's name and the
+   * details response's formatted address). Null when the address was
+   * typed or the row predates snapshots; absent when the caller never
+   * said, which leaves the columns untouched. Read by the detail
+   * block (`lib/place-rows.ts`); written by the picker write path.
+   * Never the stay's name — that field is the user's own words.
+   */
+  placeName?: string | null;
+  placeAddress?: string | null;
   /** What Maps would take, once the API's geocoding fills them in. */
   addressLat: number | null;
   addressLon: number | null;
