@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
 import { Image, Linking, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { Fact } from "@/components/ui/Fact";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { PhotoCredit } from "@/components/ui/PhotoCredit";
 import { QuietAction } from "@/components/ui/QuietAction";
@@ -24,6 +24,7 @@ import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { useDismiss } from "@/hooks/useDismiss";
 import { joinFacts } from "@/lib/wording";
+import { placeRows } from "@/lib/place-rows";
 
 /**
  * Stay detail, as a dialog: one roof, seen whole.
@@ -99,6 +100,10 @@ function StayDetailDialog() {
 
   const checkInDay = stayStart(stay, timeZone);
   const checkOutDay = stayEnd(stay, timeZone);
+  // The place block: the snapshot's name above its address, the
+  // address falling back to the stay's own column for rows that
+  // predate the snapshot.
+  const rows = placeRows(stay);
 
   return (
     <FullscreenDialog
@@ -157,23 +162,49 @@ function StayDetailDialog() {
         </View>
       </View>
 
-      {/* The address as a row rather than a link beside the title. An
-          address is longer than a place name, which is what the link was
-          shaped for: the arrow that follows a name lands in the middle
-          of a wrapped line. The row holds the string whole, selectable
-          for a driver or a booking form, with the one verb an address
-          has. */}
-      {stay.address ? (
-        <View className="border-t border-ink pt-6">
-          <Fact label="Address">
-            <Text selectable className="font-body text-base text-ink">
-              {stay.address}
-            </Text>
+      {/* The place block: the picked place's name above its address, as
+          rows rather than links beside the title. An address is longer
+          than a place name, which is what the link was shaped for: the
+          arrow that follows a name lands in the middle of a wrapped
+          line. A row holds the string whole, selectable for a driver
+          or a booking form, with the one verb an address has. Each row
+          hides when its value is missing; the Address row falls back
+          to the stay's own address column, so every stay created
+          before this feature keeps its address — and never two. */}
+      {rows.name ?? rows.address ? (
+        <View className="border-t border-ink pt-6 gap-4">
+          {rows.name ? (
+            <Fact label="Place">
+              <Text className="font-body text-base text-ink">
+                {rows.name}
+              </Text>
+            </Fact>
+          ) : null}
+          {rows.address ? (
+            <Fact label="Address">
+              <Text selectable className="font-body text-base text-ink">
+                {rows.address}
+              </Text>
+              <QuietAction
+                label="Open in Maps"
+                onPress={() =>
+                  void Linking.openURL(
+                    placeMapsUrl(stay.placeId, rows.address!),
+                  )
+                }
+              />
+            </Fact>
+          ) : null}
+          {!rows.address && stay.placeId ? (
             <QuietAction
               label="Open in Maps"
-              onPress={() => void Linking.openURL(placeMapsUrl(stay.placeId, stay.address!))}
+              onPress={() =>
+                void Linking.openURL(
+                  placeMapsUrl(stay.placeId, rows.name!),
+                )
+              }
             />
-          </Fact>
+          ) : null}
         </View>
       ) : null}
 
@@ -223,23 +254,3 @@ function StayDetailDialog() {
   );
 }
 
-/**
- * One fact, as a ruled row: the noun the reader is looking for in the
- * quiet column, the answer in ink.
- */
-function Fact({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <View className="flex-row gap-4">
-      <Text className="w-20 shrink-0 font-body text-sm text-ink opacity-60">
-        {label}
-      </Text>
-      <View className="flex-1 gap-1">{children}</View>
-    </View>
-  );
-}

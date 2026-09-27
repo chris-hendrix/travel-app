@@ -174,6 +174,29 @@ describe("toEvent", () => {
     );
   });
 
+  it("maps the resolved place's name and address as the detail snapshot", () => {
+    const mapped = toEvent({
+      ...apiEvent,
+      place: {
+        placeId: "ChIJ123",
+        name: "La Bodega",
+        address: "Carrer de la Mar 14, S\u00f3ller",
+        photoUrl: null,
+        photoAttribution: null,
+        photoSourceUri: null,
+        country: "ES",
+      },
+    });
+    expect(mapped.placeName).toBe("La Bodega");
+    expect(mapped.placeAddress).toBe("Carrer de la Mar 14, S\u00f3ller");
+  });
+
+  it("reads an unlinked event's snapshot as nulls", () => {
+    const mapped = toEvent(apiEvent);
+    expect(mapped.placeName).toBeNull();
+    expect(mapped.placeAddress).toBeNull();
+  });
+
   it("keeps the coordinates an event is read back with", () => {
     // The API stores what the picker resolved, so a read keeps them
     // and an edit round-trip starts from them rather than losing them.
@@ -214,6 +237,8 @@ describe("toStay", () => {
       name: "Casa Marina",
       address: "Via Umberto I 22, Praiano",
       placeId: null,
+      placeName: null,
+      placeAddress: null,
       addressLat: 40.6,
       addressLon: 14.5,
       description: "Keypad 7788.",
@@ -240,6 +265,23 @@ describe("toStay", () => {
     expect(toStay({ ...accommodation, place }).image).toBe(
       "https://api.example/base?size=card",
     );
+  });
+
+  it("maps the resolved place's name and address as the detail snapshot", () => {
+    const mapped = toStay({
+      ...accommodation,
+      place: {
+        placeId: "ChIJ456",
+        name: "Casa Marina",
+        address: "Via Umberto I 22, Praiano",
+        photoUrl: null,
+        photoAttribution: null,
+        photoSourceUri: null,
+        country: null,
+      },
+    });
+    expect(mapped.placeName).toBe("Casa Marina");
+    expect(mapped.placeAddress).toBe("Via Umberto I 22, Praiano");
   });
 
   it("maps null times to the untimed stay", () => {

@@ -1,11 +1,13 @@
 import { Image, Linking, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { Fact } from "@/components/ui/Fact";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { Badge } from "@/components/ui/Badge";
 import { PhotoCredit } from "@/components/ui/PhotoCredit";
-import { PlaceLink } from "@/components/ui/PlaceLink";
-import { placeQuery } from "@/lib/links";
+import { QuietAction } from "@/components/ui/QuietAction";
+import { placeMapsUrl } from "@/lib/links";
+import { placeRows } from "@/lib/place-rows";
 import {
   EVENT_TYPE_LABEL,
   dayLabel,
@@ -108,6 +110,9 @@ function EventDetailDialog() {
   }
 
   const today = todayIn(timeZone);
+  // The place block: the snapshot's name above its address, each row
+  // hiding when its value is missing.
+  const rows = placeRows(event);
 
   return (
     <FullscreenDialog
@@ -154,8 +159,10 @@ function EventDetailDialog() {
           />
         </View>
 
-        {/* Card order, then the day: what it is, where, when, and which
-            day of the trip it belongs to. */}
+        {/* Card order, then the day: what it is, when, and which day of
+            the trip it belongs to. The place moved into the block
+            below, so the name is not printed twice; the user's own
+            label still shows on the itinerary tile. */}
         <View className="gap-2 md:flex-1">
           <Text className="font-body-bold text-lg text-ink">
             {dayLabel(wallClock(event.startTime, timeZone).date, today)}
@@ -163,20 +170,51 @@ function EventDetailDialog() {
           <Text className="font-display text-4xl uppercase leading-[0.95] text-ink md:text-5xl">
             {event.name}
           </Text>
-          {/* The place leads out of the app rather than into a screen of
-              ours: the trip is where it is, and Maps is where it is
-              exactly. The query carries the trip's own place so that a
-              restaurant name lands on the restaurant. */}
-          <PlaceLink
-            label={event.place}
-            query={placeQuery(event.place, trip.location)}
-            placeId={event.placeId ?? null}
-          />
           <Text className="font-body text-base text-ink">
             {eventTimeLabel(event, timeZone)}
           </Text>
         </View>
       </View>
+
+      {/* The place block: the picked place's name above its address.
+          Each row hides when its value is missing; the one verb a
+          place has leads out to Maps, pinned to the place itself. */}
+      {rows.name ?? rows.address ? (
+        <View className="border-t border-ink pt-6 gap-4">
+          {rows.name ? (
+            <Fact label="Place">
+              <Text className="font-body text-base text-ink">
+                {rows.name}
+              </Text>
+            </Fact>
+          ) : null}
+          {rows.address ? (
+            <Fact label="Address">
+              <Text selectable className="font-body text-base text-ink">
+                {rows.address}
+              </Text>
+              <QuietAction
+                label="Open in Maps"
+                onPress={() =>
+                  void Linking.openURL(
+                    placeMapsUrl(event.placeId, rows.address!),
+                  )
+                }
+              />
+            </Fact>
+          ) : null}
+          {!rows.address && event.placeId ? (
+            <QuietAction
+              label="Open in Maps"
+              onPress={() =>
+                void Linking.openURL(
+                  placeMapsUrl(event.placeId, rows.name!),
+                )
+              }
+            />
+          ) : null}
+        </View>
+      ) : null}
 
       {/* The organizer's prose, at full width under both columns: it is
           the one thing here that is a paragraph rather than a fact, and

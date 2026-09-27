@@ -131,6 +131,10 @@ export function toEvent(event: Event): ItineraryEvent {
     allDay: event.allDay,
     place: event.location ?? "",
     placeId: event.place?.placeId ?? null,
+    // The detail block's snapshot (`lib/place-rows.ts`): the resolved
+    // place's name and address, null when unlinked or unresolved.
+    placeName: event.place?.name ?? null,
+    placeAddress: event.place?.address ?? null,
     locationLat: event.locationLat ?? null,
     locationLon: event.locationLon ?? null,
     image: cover.url ?? placeholderPhoto(event.id),
@@ -154,6 +158,10 @@ export function toStay(accommodation: Accommodation): Stay {
     name: accommodation.name,
     address: accommodation.address,
     placeId: accommodation.place?.placeId ?? null,
+    // The detail block's snapshot (`lib/place-rows.ts`): the resolved
+    // place's name and address, null when unlinked or unresolved.
+    placeName: accommodation.place?.name ?? null,
+    placeAddress: accommodation.place?.address ?? null,
     addressLat: accommodation.addressLat,
     addressLon: accommodation.addressLon,
     description: accommodation.description,
