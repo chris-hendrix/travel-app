@@ -112,6 +112,14 @@ const baseTripSchema = z.object({
   themeFont: z.enum(THEME_FONT_VALUES).nullable().optional(),
   destinationLat: z.number().nullable().optional(),
   destinationLon: z.number().nullable().optional(),
+  destinationDisplayName: z
+    .string()
+    .max(255, {
+      error: "Destination display name must not exceed 255 characters",
+    })
+    .transform(stripControlChars)
+    .nullable()
+    .optional(),
   ...placePairFields,
 });
 

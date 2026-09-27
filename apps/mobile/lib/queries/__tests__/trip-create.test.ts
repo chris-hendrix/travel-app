@@ -108,6 +108,51 @@ describe("createTrip", () => {
   });
 });
 
+describe("createTrip place forwarding (Phase 14)", () => {
+  it("forwards the picked place pair, coordinates, and display name", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({ success: true, trip: createdTrip() });
+
+    const picked = {
+      ...input,
+      placeProvider: "google" as const,
+      externalPlaceId: "ChIJ123",
+      destinationLat: 39.7,
+      destinationLon: 2.9,
+      destinationDisplayName: "La Bodega, S\u00f3ller",
+    };
+    await createTrip(picked);
+
+    expect(mockedApiFetch).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(
+      (mockedApiFetch.mock.calls[0]?.[1] as { body: string }).body,
+    );
+    expect(body).toMatchObject({
+      placeProvider: "google",
+      externalPlaceId: "ChIJ123",
+      destinationLat: 39.7,
+      destinationLon: 2.9,
+      destinationDisplayName: "La Bodega, S\u00f3ller",
+    });
+  });
+
+  it("omits the pair, coordinates, and display name when the user typed", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({ success: true, trip: createdTrip() });
+
+    await createTrip(input);
+
+    const body = JSON.parse(
+      (mockedApiFetch.mock.calls[0]?.[1] as { body: string }).body,
+    );
+    expect(body).not.toHaveProperty("placeProvider");
+    expect(body).not.toHaveProperty("externalPlaceId");
+    expect(body).not.toHaveProperty("destinationLat");
+    expect(body).not.toHaveProperty("destinationLon");
+    expect(body).not.toHaveProperty("destinationDisplayName");
+  });
+});
+
 describe("useTripsActions().addTrip", () => {
   function captureAddTrip() {
     const client = makeQueryClient();

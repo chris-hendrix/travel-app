@@ -32,8 +32,9 @@ export default function NewTrip() {
 
   // Live Places suggestions plus the typed text as a row: offline, an
   // empty key, or a 503 degrades to the user's own words, and the
-  // required-pick still accepts the typed row. The field keeps the
-  // display string only — the trip carries no lat/lon.
+  // required-pick still accepts the typed row. A picked place keeps
+  // its pair for submit — the trip carries the place id, its
+  // coordinates, and its name.
   const [search, setSearch] = useState("");
   const [sessionToken, rotateSessionToken] = usePlaceSessionToken();
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(
@@ -88,6 +89,16 @@ export default function NewTrip() {
     // `POST /trips`, and success lands on its detail screen.
     setBusy(true);
     try {
+      // A picked place carries its pair, its coordinates (so the
+      // server skips geocoding), and its name as the display-name
+      // source (the server never geocodes on the coords path, so
+      // nothing else could set that column). Typed text sends none.
+      const picked =
+        selectedPlaceId != null && (location ?? "").trim() !== "";
+      const coords =
+        picked && details.data?.placeId === selectedPlaceId
+          ? details.data
+          : null;
       const trip = await addTrip({
         name: input.title.trim(),
         destination: input.location.trim(),
@@ -96,6 +107,19 @@ export default function NewTrip() {
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         startDate: input.startDate,
         endDate: input.endDate,
+        ...(picked
+          ? {
+              placeProvider: "google" as const,
+              externalPlaceId: selectedPlaceId as string,
+              destinationDisplayName: (location ?? "").trim(),
+              ...(coords
+                ? {
+                    destinationLat: coords.lat,
+                    destinationLon: coords.lon,
+                  }
+                : {}),
+            }
+          : {}),
       });
       router.replace(`/trips/detail?id=${trip.id}`);
     } catch (caught) {

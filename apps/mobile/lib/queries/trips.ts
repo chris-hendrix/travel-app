@@ -63,6 +63,14 @@ export type CreateTripRequest = {
   startDate?: string;
   endDate?: string;
   description?: string;
+  /** Google place pair — present only when a suggestion was picked. */
+  placeProvider?: "google";
+  externalPlaceId?: string;
+  /** Picked-place coordinates — keep geocoding off this path. */
+  destinationLat?: number | null;
+  destinationLon?: number | null;
+  /** Picked place's name — the server's display-name source on the coords path. */
+  destinationDisplayName?: string | null;
 };
 
 /**

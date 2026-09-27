@@ -309,6 +309,7 @@ export class TripService implements ITripService {
       if (data.destinationLat != null && data.destinationLon != null) {
         destinationLat = data.destinationLat;
         destinationLon = data.destinationLon;
+        destinationDisplayName = data.destinationDisplayName ?? null;
         geocodedTimezone = await this.geocodingService
           .getTimezoneByCoords(data.destinationLat, data.destinationLon)
           .catch(() => null);
@@ -319,10 +320,12 @@ export class TripService implements ITripService {
         if (coords) {
           destinationLat = coords.lat;
           destinationLon = coords.lon;
-          destinationDisplayName = coords.displayName;
+          destinationDisplayName = data.destinationDisplayName ?? coords.displayName ?? null;
           geocodedTimezone = await this.geocodingService
             .getTimezoneByCoords(coords.lat, coords.lon)
             .catch(() => null);
+        } else {
+          destinationDisplayName = data.destinationDisplayName ?? null;
         }
       }
     }
