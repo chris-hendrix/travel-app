@@ -107,6 +107,15 @@ function toCreateRequest(event: EventDraft): CreateEventRequest {
     ...(typeof event.locationLon === "number"
       ? { locationLon: event.locationLon }
       : null),
+    // The picked place's pair when the place came from a suggestion;
+    // explicit nulls when it was typed (which clears a previous link
+    // on the server); absent when the caller never said, which leaves
+    // the link untouched. Never a half pair — the schema rejects one.
+    ...(event.placeId !== undefined
+      ? event.placeId != null
+        ? { placeProvider: "google", externalPlaceId: event.placeId }
+        : { placeProvider: null, externalPlaceId: null }
+      : null),
     startTime: event.startTime,
     ...(event.endTime ? { endTime: event.endTime } : null),
     allDay: event.allDay,
@@ -140,6 +149,14 @@ function toUpdateRequest(
       : null),
     ...(patch.locationLon !== undefined
       ? { locationLon: patch.locationLon }
+      : null),
+    // Same pair rule as create, derived from the patch every time:
+    // the draft always reflects the field's current state, so this is
+    // idempotent. An untouched place sends neither key.
+    ...(patch.placeId !== undefined
+      ? patch.placeId != null
+        ? { placeProvider: "google", externalPlaceId: patch.placeId }
+        : { placeProvider: null, externalPlaceId: null }
       : null),
     ...(patch.startTime !== undefined ? { startTime: patch.startTime } : null),
     ...(patch.endTime !== undefined && patch.endTime !== null

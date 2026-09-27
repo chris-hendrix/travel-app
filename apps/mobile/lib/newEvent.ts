@@ -32,6 +32,13 @@ export type NewEventInput = {
    */
   locationLat?: number | null;
   locationLon?: number | null;
+  /**
+   * The picked place's Google place id, when it was picked from a
+   * suggestion. Null when the place was typed, which has no place —
+   * and the null is what clears a previous link on edit. Absent when
+   * the caller never asked, which leaves the link untouched.
+   */
+  placeId?: string | null;
 };
 
 export type NewEventErrors = Partial<
@@ -103,6 +110,9 @@ export function draftFromEvent(
     // as absent, never as 0.
     locationLat: event.locationLat ?? null,
     locationLon: event.locationLon ?? null,
+    // The link rides back so an edit that touches nothing else keeps
+    // it; a row with none reads as null, never as a kept-over id.
+    placeId: event.placeId ?? null,
     day: wallClock(event.startTime, timeZone).date,
     allDay: event.allDay,
     start: event.allDay ? "" : wallClock(event.startTime, timeZone).clock,
@@ -181,6 +191,9 @@ export function buildEvent(
       typeof input.locationLat === "number" ? input.locationLat : null,
     locationLon:
       typeof input.locationLon === "number" ? input.locationLon : null,
+    // The picked place's id when the place came from a suggestion;
+    // null when it was typed, so an edit re-typing the place clears it.
+    placeId: input.placeId ?? null,
     image: photo,
     // An edit arrives as a new event object, so the flag it carried has
     // to be brought along or editing a deleted event would undelete it.

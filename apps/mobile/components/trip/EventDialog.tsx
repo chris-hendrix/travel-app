@@ -109,6 +109,12 @@ export function EventDialog({
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(
     null,
   );
+  // The picked place's id for the submitted input, seeded from the
+  // draft on edit so an untouched place keeps its link. A live pick
+  // sets it; the typed row clears it, because typed text has no place.
+  const [placeId, setPlaceId] = useState<string | null>(
+    initial?.placeId ?? null,
+  );
   // The live lookup's coordinates for the picked place, when there is
   // one. Seeded from the draft on edit so an untouched place keeps its
   // coordinates; cleared the moment the place is re-picked or typed,
@@ -178,6 +184,9 @@ export function EventDialog({
     end: allDay ? "" : (end ?? ""),
     place: place ?? "",
     type: eventType,
+    // The picked suggestion's id, or null for typed prose — which is
+    // what clears a previous link on edit rather than keeping it over.
+    placeId,
     // Present only when a live lookup resolved them: typed prose and
     // static picks submit bare, and nothing defaults to 0.
     ...(coords
@@ -234,6 +243,7 @@ export function EventDialog({
           const pick = pickPlace(hit ?? null, picked);
           if (hit) {
             setSelectedPlaceId(pick.selectedPlaceId);
+            setPlaceId(pick.selectedPlaceId);
             setPlace(pick.place);
             setEventType(pick.type);
             // The coordinates arrive with the details lookup; until
@@ -241,6 +251,7 @@ export function EventDialog({
             setCoords(null);
           } else {
             setSelectedPlaceId(null);
+            setPlaceId(null);
             setPlace(pick.place);
             // Typed prose carries no types: the derived type goes
             // back to unclassified with the cleared place id.

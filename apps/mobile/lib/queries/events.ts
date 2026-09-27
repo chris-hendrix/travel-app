@@ -71,6 +71,9 @@ export type CreateEventRequest = {
   location?: string;
   locationLat?: number | null;
   locationLon?: number | null;
+  /** Google place pair — both or neither; both null clears the link. */
+  placeProvider?: "google" | null;
+  externalPlaceId?: string | null;
   startTime: string;
   endTime?: string;
   allDay?: boolean;
@@ -92,6 +95,9 @@ export type UpdateEventRequest = {
   location?: string;
   locationLat?: number | null;
   locationLon?: number | null;
+  /** Google place pair — both or neither; both null clears the link. */
+  placeProvider?: "google" | null;
+  externalPlaceId?: string | null;
   startTime?: string;
   endTime?: string;
   allDay?: boolean;

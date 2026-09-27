@@ -95,6 +95,15 @@ function toCreateRequest(stay: Stay): CreateStayRequest {
     ...(typeof stay.addressLon === "number"
       ? { addressLon: stay.addressLon }
       : null),
+    // The picked place's pair when the address came from a suggestion;
+    // explicit nulls when it was typed (which clears a previous link
+    // on the server); absent when the caller never said, which leaves
+    // the link untouched. Never a half pair — the schema rejects one.
+    ...(stay.placeId !== undefined
+      ? stay.placeId != null
+        ? { placeProvider: "google", externalPlaceId: stay.placeId }
+        : { placeProvider: null, externalPlaceId: null }
+      : null),
     ...(stay.description ? { description: stay.description } : null),
     ...(stay.checkIn ? { checkIn: stay.checkIn } : null),
     ...(stay.checkOut ? { checkOut: stay.checkOut } : null),
@@ -129,6 +138,14 @@ function toUpdateRequest(patch: Partial<Stay>): UpdateStayRequest {
       : null),
     ...(patch.addressLon !== undefined
       ? { addressLon: patch.addressLon }
+      : null),
+    // Same pair rule as create, derived from the patch every time:
+    // the draft always reflects the field's current state, so this is
+    // idempotent. An untouched address sends neither key.
+    ...(patch.placeId !== undefined
+      ? patch.placeId != null
+        ? { placeProvider: "google", externalPlaceId: patch.placeId }
+        : { placeProvider: null, externalPlaceId: null }
       : null),
     ...(typeof patch.description === "string" && patch.description
       ? { description: patch.description }

@@ -105,6 +105,12 @@ export function StayDialog({
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(
     null,
   );
+  // The picked place's id for the submitted input, seeded from the
+  // draft on edit so an untouched address keeps its link. A live pick
+  // sets it; the typed row clears it, because typed text has no place.
+  const [placeId, setPlaceId] = useState<string | null>(
+    initial?.placeId ?? null,
+  );
   // The live lookup's coordinates for the picked address, when there
   // is one. Seeded from the row on edit so an untouched address keeps
   // its coordinates; cleared the moment the address is re-picked or
@@ -171,6 +177,9 @@ export function StayDialog({
   const input: NewStayInput = {
     name,
     address,
+    // The picked suggestion's id, or null for typed prose — which is
+    // what clears a previous link on edit rather than keeping it over.
+    placeId,
     checkInDay: dates.start ?? "",
     checkOutDay: dates.end ?? dates.start ?? "",
     checkInTime,
@@ -226,6 +235,7 @@ export function StayDialog({
           const pick = pickPlace(hit ?? null, picked);
           if (hit) {
             setSelectedPlaceId(pick.selectedPlaceId);
+            setPlaceId(pick.selectedPlaceId);
             // The formatted address arrives with the details lookup;
             // until then the pick holds the suggestion's own address.
             setAddress(pickStayAddress(hit, null));
@@ -234,6 +244,7 @@ export function StayDialog({
             setCoords(null);
           } else {
             setSelectedPlaceId(null);
+            setPlaceId(null);
             setAddress(pick.place);
             setCoords(null);
             rotateSessionToken();

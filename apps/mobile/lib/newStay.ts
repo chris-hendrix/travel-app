@@ -22,6 +22,13 @@ export type NewStayInput = {
    * written the way the host sent it.
    */
   description: string;
+  /**
+   * The picked place's Google place id, when the address was picked
+   * from a suggestion. Null when the address was typed, which has no
+   * place — and the null is what clears a previous link on edit.
+   * Absent when the caller never asked, which leaves the link untouched.
+   */
+  placeId?: string | null;
 };
 
 export type NewStayErrors = Partial<
@@ -97,6 +104,9 @@ export function draftFromStay(
     checkInTime: from && from.clock !== "00:00" ? from.clock : "",
     checkOutTime: to && to.clock !== "00:00" ? to.clock : "",
     description: stay.description ?? "",
+    // The link rides back so an edit that touches nothing else keeps
+    // it; a row with none reads as null, never as a kept-over id.
+    placeId: stay.placeId ?? null,
   };
 }
 
@@ -151,6 +161,9 @@ export function buildStay(
     id,
     name: input.name.trim(),
     address: text(input.address),
+    // The picked place's id when the address came from a suggestion;
+    // null when it was typed, so an edit re-typing the address clears it.
+    placeId: input.placeId ?? null,
     addressLat: null,
     addressLon: null,
     description: text(input.description),
