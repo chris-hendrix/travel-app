@@ -65,6 +65,15 @@ export type ItineraryEvent = {
    */
   placeId?: string | null;
   /**
+   * The picked place's snapshot strings (the tapped row's name and the
+   * details response's formatted address). Null when the place was
+   * typed or the row predates snapshots; absent when the caller never
+   * said, which leaves the columns untouched. Read by the detail
+   * block (`lib/place-rows.ts`); written by the picker write path.
+   */
+  placeName?: string | null;
+  placeAddress?: string | null;
+  /**
    * Where it is, as Maps would take it: the live Places details lookup
    * resolves these when the place was picked from a suggestion, and
    * they ride to the API on create/update. Null when the place was

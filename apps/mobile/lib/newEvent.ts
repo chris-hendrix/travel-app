@@ -39,6 +39,14 @@ export type NewEventInput = {
    * the caller never asked, which leaves the link untouched.
    */
   placeId?: string | null;
+  /**
+   * The picked place's snapshot strings: the tapped row's name
+   * (`PlaceSuggestion.shortName`) and the details response's formatted
+   * address. Same triple-state as the id — a value sends, null clears,
+   * absent leaves untouched — and cleared with the pair.
+   */
+  placeName?: string | null;
+  placeAddress?: string | null;
 };
 
 export type NewEventErrors = Partial<
@@ -112,7 +120,11 @@ export function draftFromEvent(
     locationLon: event.locationLon ?? null,
     // The link rides back so an edit that touches nothing else keeps
     // it; a row with none reads as null, never as a kept-over id.
+    // The snapshot strings ride back the same way, so an untouched
+    // place resends its own snapshot rather than clearing it.
     placeId: event.placeId ?? null,
+    placeName: event.placeName,
+    placeAddress: event.placeAddress,
     day: wallClock(event.startTime, timeZone).date,
     allDay: event.allDay,
     start: event.allDay ? "" : wallClock(event.startTime, timeZone).clock,
@@ -193,7 +205,11 @@ export function buildEvent(
       typeof input.locationLon === "number" ? input.locationLon : null,
     // The picked place's id when the place came from a suggestion;
     // null when it was typed, so an edit re-typing the place clears it.
+    // The snapshot strings ride the same triple-state: a pick sends
+    // both, typed prose clears both, untouched omits both.
     placeId: input.placeId ?? null,
+    placeName: input.placeName,
+    placeAddress: input.placeAddress,
     image: photo,
     // An edit arrives as a new event object, so the flag it carried has
     // to be brought along or editing a deleted event would undelete it.

@@ -116,6 +116,15 @@ function toCreateRequest(event: EventDraft): CreateEventRequest {
         ? { placeProvider: "google", placeId: event.placeId }
         : { placeProvider: null, placeId: null }
       : null),
+    // The picked place's snapshot strings, the same triple-state:
+    // a value sends, null clears with the pair, absent leaves the
+    // columns untouched.
+    ...(event.placeName !== undefined
+      ? { placeName: event.placeName }
+      : null),
+    ...(event.placeAddress !== undefined
+      ? { placeAddress: event.placeAddress }
+      : null),
     startTime: event.startTime,
     ...(event.endTime ? { endTime: event.endTime } : null),
     allDay: event.allDay,
@@ -157,6 +166,14 @@ function toUpdateRequest(
       ? patch.placeId != null
         ? { placeProvider: "google", placeId: patch.placeId }
         : { placeProvider: null, placeId: null }
+      : null),
+    // The snapshot strings ride the same rule, key by key: a pick
+    // sends both, typed prose clears both, untouched omits both.
+    ...(patch.placeName !== undefined
+      ? { placeName: patch.placeName }
+      : null),
+    ...(patch.placeAddress !== undefined
+      ? { placeAddress: patch.placeAddress }
       : null),
     ...(patch.startTime !== undefined ? { startTime: patch.startTime } : null),
     ...(patch.endTime !== undefined && patch.endTime !== null

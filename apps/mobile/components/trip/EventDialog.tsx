@@ -115,6 +115,18 @@ export function EventDialog({
   const [placeId, setPlaceId] = useState<string | null>(
     initial?.placeId ?? null,
   );
+  // The picked place's snapshot strings for the submitted input: the
+  // tapped row's name and the details response's formatted address.
+  // Seeded from the draft on edit so an untouched place resends its
+  // own snapshot; a live pick sets the name at once and the address
+  // when details land; the typed row clears both, which clears the
+  // snapshot on the server with the pair.
+  const [placeName, setPlaceName] = useState<string | null>(
+    initial?.placeName ?? null,
+  );
+  const [placeAddress, setPlaceAddress] = useState<string | null>(
+    initial?.placeAddress ?? null,
+  );
   // The live lookup's coordinates for the picked place, when there is
   // one. Seeded from the draft on edit so an untouched place keeps its
   // coordinates; cleared the moment the place is re-picked or typed,
@@ -154,9 +166,9 @@ export function EventDialog({
     [suggestions, search, suggestionsFetching, suggestionsFailed],
   );
 
-  // Details resolve the event's coordinates only — never the label,
-  // which is the tapped row's own (and closes the input session). A
-  // place with no live details submits bare.
+  // Details resolve the event's coordinates and its formatted address
+  // — never the label, which is the tapped row's own (and closes the
+  // input session). A place with no live details submits bare.
   useEffect(() => {
     if (!selectedPlaceId) return;
     if (details.data?.placeId === selectedPlaceId) {
@@ -166,6 +178,7 @@ export function EventDialog({
           ? { lat: details.data.lat, lon: details.data.lon }
           : null,
       );
+      setPlaceAddress(details.data.address);
     }
     if (details.data?.placeId === selectedPlaceId || details.isError) {
       rotateSessionToken();
@@ -184,6 +197,11 @@ export function EventDialog({
     end: allDay ? "" : (end ?? ""),
     place: place ?? "",
     type: eventType,
+    // The picked place's snapshot: the tapped row's name and the
+    // details response's formatted address (null until details land,
+    // or when the place was typed, which clears the snapshot).
+    placeName,
+    placeAddress,
     // The picked suggestion's id, or null for typed prose — which is
     // what clears a previous link on edit rather than keeping it over.
     placeId,
@@ -244,6 +262,11 @@ export function EventDialog({
             setSelectedPlaceId(pick.selectedPlaceId);
             setPlaceId(pick.selectedPlaceId);
             setPlace(pick.place);
+            // A live pick commits the tapped row's name at once; the
+            // formatted address arrives with the details lookup, and
+            // the pick carries none of the previous place's until then.
+            setPlaceName(hit.shortName);
+            setPlaceAddress(null);
             setEventType(pick.type);
             // The coordinates arrive with the details lookup; until
             // then the pick carries none, not the previous place's.
@@ -251,6 +274,8 @@ export function EventDialog({
           } else {
             setSelectedPlaceId(null);
             setPlaceId(null);
+            setPlaceName(null);
+            setPlaceAddress(null);
             setPlace(pick.place);
             // Typed prose carries no types: the derived type goes
             // back to unclassified with the cleared place id.

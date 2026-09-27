@@ -397,6 +397,91 @@ describe("useEvents() writes", () => {
     });
   });
 
+  it("addEvent sends the picked snapshot strings on create", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({ success: true, event: entity() });
+
+    const { actions } = captureEvents();
+
+    await actions.addEvent("trip-1", {
+      ...cachedEvent(),
+      id: "custom-6",
+      placeId: "ChIJKeens123",
+      placeName: "Keens",
+      placeAddress: "72 W 36th St, New York, NY 10018",
+    });
+
+    expect(mockedApiFetch).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(
+      (mockedApiFetch.mock.calls[0]?.[1] as { body: string }).body,
+    ) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      placeProvider: "google",
+      placeId: "ChIJKeens123",
+      placeName: "Keens",
+      placeAddress: "72 W 36th St, New York, NY 10018",
+    });
+  });
+
+  it("addEvent sends null snapshots when the place was typed on create", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({ success: true, event: entity() });
+
+    const { actions } = captureEvents();
+
+    await actions.addEvent("trip-1", {
+      ...cachedEvent(),
+      id: "custom-7",
+      placeId: null,
+      placeName: null,
+      placeAddress: null,
+    });
+
+    expect(mockedApiFetch).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(
+      (mockedApiFetch.mock.calls[0]?.[1] as { body: string }).body,
+    ) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      placeProvider: null,
+      placeId: null,
+      placeName: null,
+      placeAddress: null,
+    });
+  });
+
+  it("updateEvent sends the snapshot on a re-pick and omits it when untouched", async () => {
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({ success: true, event: entity() });
+
+    const { actions } = captureEvents();
+
+    await actions.updateEvent("trip-1", "event-1", {
+      placeId: "ChIJKeens123",
+      placeName: "Keens",
+      placeAddress: "72 W 36th St, New York, NY 10018",
+    });
+    const repicked = JSON.parse(
+      (mockedApiFetch.mock.calls[0]?.[1] as { body: string }).body,
+    ) as Record<string, unknown>;
+    expect(repicked).toMatchObject({
+      placeProvider: "google",
+      placeId: "ChIJKeens123",
+      placeName: "Keens",
+      placeAddress: "72 W 36th St, New York, NY 10018",
+    });
+
+    mockedApiFetch.mockClear();
+    mockedApiFetch.mockResolvedValue({ success: true, event: entity() });
+    await actions.updateEvent("trip-1", "event-1", {
+      name: "Late dinner",
+    });
+    const untouched = JSON.parse(
+      (mockedApiFetch.mock.calls[0]?.[1] as { body: string }).body,
+    ) as Record<string, unknown>;
+    expect(untouched).not.toHaveProperty("placeName");
+    expect(untouched).not.toHaveProperty("placeAddress");
+  });
+
   it("updateEvent leaves both keys off when the place is untouched", async () => {
     mockedApiFetch.mockReset();
     mockedApiFetch.mockResolvedValue({ success: true, event: entity() });
