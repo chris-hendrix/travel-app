@@ -118,8 +118,13 @@ export function draftFromStay(
     // The snapshot strings ride back the same way, so an untouched
     // address resends its own snapshot rather than clearing it.
     placeId: stay.placeId ?? null,
-    placeName: stay.placeName,
-    placeAddress: stay.placeAddress,
+    // Spread so an untouched snapshot stays absent (omitted downstream)
+    // rather than an explicit undefined, which exactOptionalPropertyTypes
+    // rejects.
+    ...(stay.placeName !== undefined ? { placeName: stay.placeName } : null),
+    ...(stay.placeAddress !== undefined
+      ? { placeAddress: stay.placeAddress }
+      : null),
   };
 }
 
@@ -179,8 +184,14 @@ export function buildStay(
     // The snapshot strings ride the same triple-state: a pick sends
     // both, typed prose clears both, untouched omits both.
     placeId: input.placeId ?? null,
-    placeName: input.placeName,
-    placeAddress: input.placeAddress,
+    // Spread for the same absent-vs-undefined reason as the draft above:
+    // untouched omits both keys downstream, typed prose clears both.
+    ...(input.placeName !== undefined
+      ? { placeName: input.placeName }
+      : null),
+    ...(input.placeAddress !== undefined
+      ? { placeAddress: input.placeAddress }
+      : null),
     addressLat: null,
     addressLon: null,
     description: text(input.description),

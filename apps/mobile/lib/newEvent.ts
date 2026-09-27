@@ -123,8 +123,15 @@ export function draftFromEvent(
     // The snapshot strings ride back the same way, so an untouched
     // place resends its own snapshot rather than clearing it.
     placeId: event.placeId ?? null,
-    placeName: event.placeName,
-    placeAddress: event.placeAddress,
+    // Spread so an untouched snapshot stays absent (omitted downstream)
+    // rather than an explicit undefined, which exactOptionalPropertyTypes
+    // rejects.
+    ...(event.placeName !== undefined
+      ? { placeName: event.placeName }
+      : null),
+    ...(event.placeAddress !== undefined
+      ? { placeAddress: event.placeAddress }
+      : null),
     day: wallClock(event.startTime, timeZone).date,
     allDay: event.allDay,
     start: event.allDay ? "" : wallClock(event.startTime, timeZone).clock,
@@ -208,8 +215,14 @@ export function buildEvent(
     // The snapshot strings ride the same triple-state: a pick sends
     // both, typed prose clears both, untouched omits both.
     placeId: input.placeId ?? null,
-    placeName: input.placeName,
-    placeAddress: input.placeAddress,
+    // Spread for the same absent-vs-undefined reason as the draft above:
+    // untouched omits both keys downstream, typed prose clears both.
+    ...(input.placeName !== undefined
+      ? { placeName: input.placeName }
+      : null),
+    ...(input.placeAddress !== undefined
+      ? { placeAddress: input.placeAddress }
+      : null),
     image: photo,
     // An edit arrives as a new event object, so the flag it carried has
     // to be brought along or editing a deleted event would undelete it.
