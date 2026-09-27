@@ -805,8 +805,31 @@ export class TripService implements ITripService {
     } else if (data.placeProvider != null && data.placeId != null) {
       updateData.placeProvider = data.placeProvider;
       updateData.placeId = data.placeId;
-      if (data.placeName === undefined) delete updateData.placeName;
-      if (data.placeAddress === undefined) delete updateData.placeAddress;
+      // placeName/placeAddress describe the place, so a REPLACED pair
+      // must not inherit the old place's text: when the incoming pair
+      // differs from the stored pair, clear the snapshot unless the
+      // request supplies it. A re-sent identical pair leaves absent
+      // keys untouched.
+      const [currentPlace] = await this.db
+        .select({
+          placeProvider: trips.placeProvider,
+          placeId: trips.placeId,
+        })
+        .from(trips)
+        .where(eq(trips.id, tripId))
+        .limit(1);
+      const pairChanged =
+        currentPlace != null &&
+        (currentPlace.placeProvider !== data.placeProvider ||
+          currentPlace.placeId !== data.placeId);
+      if (data.placeName === undefined) {
+        if (pairChanged) updateData.placeName = null;
+        else delete updateData.placeName;
+      }
+      if (data.placeAddress === undefined) {
+        if (pairChanged) updateData.placeAddress = null;
+        else delete updateData.placeAddress;
+      }
     } else {
       updateData.placeProvider = null;
       updateData.placeId = null;

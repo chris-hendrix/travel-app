@@ -89,3 +89,147 @@ describe("POST /api/trips placeName (Phase 14 RED)", () => {
     expect(geocodeSpy).not.toHaveBeenCalled();
   });
 });
+
+describe("PUT /api/trips place-block normalization (P0: replaced pair)", () => {
+  let app: FastifyInstance;
+  afterEach(async () => {
+    if (app) await app.close();
+    vi.restoreAllMocks();
+  });
+
+  async function makeLinkedTrip(token: string) {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/trips",
+      cookies: { auth_token: token },
+      payload: {
+        name: "Linked Trip",
+        destination: "La Bodega",
+        timezone: "Europe/Madrid",
+        placeProvider: "google",
+        placeId: "ChIJ_AAA",
+        placeName: "La Bodega",
+        placeAddress: "Carrer de la Mar 14, Sóller",
+      },
+    });
+    expect(response.statusCode).toBe(201);
+    return (JSON.parse(response.body).trip as { id: string }).id;
+  }
+
+  it("clears name/address when the pair is replaced without a snapshot", async () => {
+    app = await buildApp();
+    const token = await makeUser(app);
+    const tripId = await makeLinkedTrip(token);
+
+    const response = await app.inject({
+      method: "PUT",
+      url: `/api/trips/${tripId}`,
+      cookies: { auth_token: token },
+      payload: { placeProvider: "google", placeId: "ChIJ_BBB" },
+    });
+    expect(response.statusCode).toBe(200);
+    const [row] = await db
+      .select()
+      .from(trips)
+      .where(eq(trips.id, tripId))
+      .limit(1);
+    expect(row?.placeProvider).toBe("google");
+    expect(row?.placeId).toBe("ChIJ_BBB");
+    expect(row?.placeName).toBeNull();
+    expect(row?.placeAddress).toBeNull();
+  });
+
+  it("leaves the snapshot untouched when the identical pair is re-sent", async () => {
+    app = await buildApp();
+    const token = await makeUser(app);
+    const tripId = await makeLinkedTrip(token);
+
+    const response = await app.inject({
+      method: "PUT",
+      url: `/api/trips/${tripId}`,
+      cookies: { auth_token: token },
+      payload: { placeProvider: "google", placeId: "ChIJ_AAA" },
+    });
+    expect(response.statusCode).toBe(200);
+    const [row] = await db
+      .select()
+      .from(trips)
+      .where(eq(trips.id, tripId))
+      .limit(1);
+    expect(row?.placeId).toBe("ChIJ_AAA");
+    expect(row?.placeName).toBe("La Bodega");
+    expect(row?.placeAddress).toBe("Carrer de la Mar 14, Sóller");
+  });
+
+  it("honors an explicit snapshot on a replaced pair", async () => {
+    app = await buildApp();
+    const token = await makeUser(app);
+    const tripId = await makeLinkedTrip(token);
+
+    const response = await app.inject({
+      method: "PUT",
+      url: `/api/trips/${tripId}`,
+      cookies: { auth_token: token },
+      payload: {
+        placeProvider: "google",
+        placeId: "ChIJ_BBB",
+        placeName: "Ca'n Prunera",
+        placeAddress: "Carrer de la Lluna 7, Sóller",
+      },
+    });
+    expect(response.statusCode).toBe(200);
+    const [row] = await db
+      .select()
+      .from(trips)
+      .where(eq(trips.id, tripId))
+      .limit(1);
+    expect(row?.placeId).toBe("ChIJ_BBB");
+    expect(row?.placeName).toBe("Ca'n Prunera");
+    expect(row?.placeAddress).toBe("Carrer de la Lluna 7, Sóller");
+  });
+
+  it("leaves the columns untouched when pair and snapshot keys are absent", async () => {
+    app = await buildApp();
+    const token = await makeUser(app);
+    const tripId = await makeLinkedTrip(token);
+
+    const response = await app.inject({
+      method: "PUT",
+      url: `/api/trips/${tripId}`,
+      cookies: { auth_token: token },
+      payload: { name: "Renamed Trip" },
+    });
+    expect(response.statusCode).toBe(200);
+    const [row] = await db
+      .select()
+      .from(trips)
+      .where(eq(trips.id, tripId))
+      .limit(1);
+    expect(row?.placeId).toBe("ChIJ_AAA");
+    expect(row?.placeName).toBe("La Bodega");
+    expect(row?.placeAddress).toBe("Carrer de la Mar 14, Sóller");
+  });
+
+  it("clears all four values on an explicit null pair", async () => {
+    app = await buildApp();
+    const token = await makeUser(app);
+    const tripId = await makeLinkedTrip(token);
+
+    const response = await app.inject({
+      method: "PUT",
+      url: `/api/trips/${tripId}`,
+      cookies: { auth_token: token },
+      payload: { placeProvider: null, placeId: null },
+    });
+    expect(response.statusCode).toBe(200);
+    const [row] = await db
+      .select()
+      .from(trips)
+      .where(eq(trips.id, tripId))
+      .limit(1);
+    expect(row?.placeProvider).toBeNull();
+    expect(row?.placeId).toBeNull();
+    expect(row?.placeName).toBeNull();
+    expect(row?.placeAddress).toBeNull();
+  });
+});

@@ -123,9 +123,11 @@ describe("places.service (RED: module does not exist yet)", () => {
       },
     ]);
     expect(d.country).toBe("ES");
-    // No displayName in the mask: the cached name falls back to the
-    // formatted address rather than an undefined read.
-    expect(d.name).toBe("Carrer de la Mar 14, Sóller, ES");
+    // displayName is excluded from the mask (billing), so the cached
+    // name is honestly empty (unknown) — never the formatted address,
+    // which lives in `address`. Never render `name`.
+    expect(d.name).toBe("");
+    expect(d.address).toBe("Carrer de la Mar 14, Sóller, ES");
   });
 
   it("non-200 surfaces as a typed PlacesError, not a raw throw", async () => {

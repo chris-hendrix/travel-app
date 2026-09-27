@@ -38,6 +38,8 @@ export type AutocompleteSuggestion = {
 
 export type PlaceDetailsResult = {
   placeId: string;
+  /** Always "": displayName is excluded from the mask, so the name is
+   * unknown. Never render; use the entity snapshot (place_name). */
   name: string;
   address: string | null;
   shortAddress: string | null;
@@ -192,9 +194,14 @@ export async function fetchPlaceDetails(opts: {
         ?.shortText ?? null;
     return {
       placeId: data.id,
-      // The mask carries no displayName, so the cached name falls back
-      // to the formatted address — never an undefined read.
-      name: data.displayName?.text ?? data.formattedAddress ?? "",
+      // displayName is deliberately absent from DETAILS_FIELD_MASK (Pro
+      // tier; requesting it would force Enterprise + Atmosphere billing),
+      // so there is no display name to cache. `name` is therefore always
+      // empty (unknown) — never the formatted address. Do NOT render
+      // `name`; the human-readable name lives in the entity snapshot
+      // (trips/events/accommodations place_name), committed at pick time.
+      // `address` below carries the formatted address.
+      name: "",
       address: data.formattedAddress ?? null,
       shortAddress: null,
       lat: data.location?.latitude ?? null,
