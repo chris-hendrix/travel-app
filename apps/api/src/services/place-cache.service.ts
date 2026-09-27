@@ -56,14 +56,13 @@ function toSummary(placeId: string, details: CachedPlaceDetails): PlaceSummary {
     photoUrl: sourced
       ? `/api/locations/photos/${encodeURIComponent(sourced.ref)}`
       : null,
-    photoAttribution:
-      photo && photo.authorName
-        ? {
-            name: photo.authorName,
-            uri: photo.authorUri,
-            photoUri: photo.authorPhotoUri,
-          }
-        : null,
+    photoAttribution: sourced?.authorName
+      ? {
+          name: sourced.authorName,
+          uri: sourced.authorUri,
+          photoUri: sourced.authorPhotoUri,
+        }
+      : null,
     photoSourceUri: sourced?.mapsUri ?? null,
     country: details.country,
   };

@@ -314,6 +314,9 @@ describe("place-cache photo source guard (F4)", () => {
       const summary = await svc.resolve("google", id);
       expect(summary?.photoUrl).toBeNull();
       expect(summary?.photoSourceUri).toBeNull();
+      // The credit rides the same photo as the url: no source link, no
+      // credit, so a surface can never show an author without an image.
+      expect(summary?.photoAttribution).toBeNull();
     } finally {
       await clearRows([id]);
     }
