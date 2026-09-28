@@ -98,6 +98,37 @@ export function providerPatchFromRestore(result: RestoreResult): {
 }
 
 /**
+ * What a restore result is allowed to do to a session that is already
+ * painted — the policy, extracted pure for the same reason the mapping
+ * below is (this suite has no renderer).
+ *
+ * `restoreSession` reports `signed-out` for every failure that is not a
+ * 401, and it KEEPS the token when it does — only a 401 clears it. So a
+ * blip on that one read must not be allowed to demote a session that
+ * still holds a live token:
+ *
+ * - `"adopt"` — the read answered; take its identity.
+ * - `"keep"` — the read failed but the token survived, and the caller
+ *   already knows who it is, because a sign-in step painted the reply
+ *   from its own response. Painting `signed-out` here threw someone who
+ *   had just signed in back to the landing holding a good token.
+ * - `"sign-out"` — the token is gone (a 401 cleared it), or the caller
+ *   cannot say who it is: an identity SWAP re-reads precisely because
+ *   the paint is the old identity and the token is the new one, so a
+ *   failed read means we do not know. Fail closed rather than keep
+ *   painting someone we are not.
+ */
+export function restorePaint(
+  result: RestoreResult,
+  tokenSurvived: boolean,
+  { failClosed }: { failClosed: boolean },
+): "adopt" | "keep" | "sign-out" {
+  if (result.status === "signed-in") return "adopt";
+  if (!tokenSurvived) return "sign-out";
+  return failClosed ? "sign-out" : "keep";
+}
+
+/**
  * The cold-start check, run once by `AuthProvider` on mount. A stored
  * token is validated through `meBodyOptions` (the raw envelope — one
  * source of truth, not a cached user); no token means signed-out
@@ -292,15 +323,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // until the app was reloaded and the profile screen would offer them
   // no Admin group. The read is `restoreSession`'s, so the answer is
   // the server's rather than a guess.
-  const adoptIdentity = useCallback(async () => {
-    const result = await restoreSession();
-    const patch = providerPatchFromRestore(result);
-    setUser(patch.user);
-    setIsAdmin(patch.isAdmin);
-    setImpersonating(patch.impersonating);
-    setStatus(patch.status);
-    setSignedIn(patch.status === "signed-in");
-  }, []);
+  const adoptIdentity = useCallback(
+    async ({ failClosed = false }: { failClosed?: boolean } = {}) => {
+      const result = await restoreSession();
+      // Reading the token back is how the two failures are told apart:
+      // `restoreSession` clears it on a 401 and keeps it on anything
+      // else, so a surviving token means the READ failed, not the
+      // session. See `restorePaint`.
+      const tokenSurvived = (await getToken()) !== null;
+      const paint = restorePaint(result, tokenSurvived, { failClosed });
+      if (paint === "keep") return;
+      const patch =
+        paint === "adopt"
+          ? providerPatchFromRestore(result)
+          : { status: "signed-out" as const, user: null, isAdmin: false, impersonating: null };
+      setUser(patch.user);
+      setIsAdmin(patch.isAdmin);
+      setImpersonating(patch.impersonating);
+      setStatus(patch.status);
+      setSignedIn(patch.status === "signed-in");
+    },
+    [],
+  );
 
   const verifyCode = useCallback(
     async (code: string) => {
@@ -376,8 +420,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // `performSignOut`'s cache clear, then the identity the new token
     // names — with NO token drop. The identity changed, so nothing
     // cached for the old session survives.
+    //
+    // `failClosed` rather than the sign-in default: the paint here is
+    // the OLD identity and the token is the NEW one, so a read that
+    // fails leaves the app unable to say who it is. Ending the session
+    // is the honest answer; the caller's own failure copy is what the
+    // person reads.
     queryClient?.clear();
-    await adoptIdentity();
+    await adoptIdentity({ failClosed: true });
   }, [queryClient, adoptIdentity]);
 
   // Mid-session 401 recovery: the shared boundary (`lib/api.ts`)

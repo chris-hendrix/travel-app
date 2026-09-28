@@ -26,6 +26,7 @@ import { ApiError, apiFetch } from "@/lib/api";
 import {
   AuthProvider,
   providerPatchFromRestore,
+  restorePaint,
   restoreSession,
   useAuth,
   type RestoreResult,
@@ -157,6 +158,54 @@ describe("restoreSession", () => {
     expect(result.status).toBe("signed-in");
     if (result.status !== "signed-in") throw new Error("expected signed-in");
     expect(result.impersonating).toBeNull();
+  });
+});
+
+describe("restorePaint", () => {
+  const signedIn: RestoreResult = {
+    status: "signed-in",
+    user: {
+      id: "user-1",
+      phoneNumber: "+15551234567",
+      displayName: "Ada",
+      profileComplete: true,
+    },
+    isAdmin: false,
+    impersonating: null,
+  };
+  const signedOut: RestoreResult = {
+    status: "signed-out",
+    user: null,
+    isAdmin: false,
+    impersonating: null,
+  };
+
+  it("adopts whenever the read answered", () => {
+    expect(restorePaint(signedIn, true, { failClosed: false })).toBe("adopt");
+    expect(restorePaint(signedIn, true, { failClosed: true })).toBe("adopt");
+  });
+
+  it("signs out when the token is gone — a 401 cleared it", () => {
+    expect(restorePaint(signedOut, false, { failClosed: false })).toBe(
+      "sign-out",
+    );
+    expect(restorePaint(signedOut, false, { failClosed: true })).toBe(
+      "sign-out",
+    );
+  });
+
+  it("keeps the session a sign-in already painted when the read failed but the token survived", () => {
+    // The regression this policy exists for: verify-code answered, its
+    // reply painted the person signed in, and the follow-up `me` read
+    // blipped. Painting signed-out here landed them back on the
+    // landing holding a perfectly good token.
+    expect(restorePaint(signedOut, true, { failClosed: false })).toBe("keep");
+  });
+
+  it("fails closed after an identity swap, where the paint is the old identity", () => {
+    expect(restorePaint(signedOut, true, { failClosed: true })).toBe(
+      "sign-out",
+    );
   });
 });
 
