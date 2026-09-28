@@ -619,7 +619,6 @@ function AdminImpersonateAction({
     }
     // `sendCode` reads the viewer's number, which cannot change while
     // this confirm is open; re-running on it would re-text the code.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [confirming]);
 
   async function submit() {
