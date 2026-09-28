@@ -237,11 +237,13 @@ function AdminUserDetail({
   return (
     <View className="gap-5">
       <View className="gap-1">
-        <Text className="font-display text-2xl text-ink">{displayName}</Text>
-        <Text className="font-body text-base text-ink">
-          {user.phoneNumber}
-        </Text>
-        <View className="flex-row items-center gap-2 pt-1">
+        {/* The badges sit inline on the name's line and wrap under a
+            long name rather than squashing it; only an exception wears
+            one (banned or admin). */}
+        <View className="flex-row flex-wrap items-center gap-2">
+          <Text className="font-display text-2xl text-ink">
+            {displayName}
+          </Text>
           {user.status === "banned" ? (
             <Badge label="Banned" variant="live" size="md" />
           ) : null}
@@ -249,6 +251,9 @@ function AdminUserDetail({
             <Badge label="Admin" variant="category" size="md" />
           ) : null}
         </View>
+        <Text className="font-body text-base text-ink">
+          {user.phoneNumber}
+        </Text>
       </View>
       <View className="gap-3">
         <Fact label="Trips">

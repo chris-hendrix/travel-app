@@ -177,9 +177,11 @@ function TravelSection({
       <Text className="font-display text-3xl uppercase text-ink">
         {heading}
       </Text>
-      {/* Ruled rows, like every other list here. One list per direction,
-          with the day carried on each row rather than on a heading above
-          a run of them. */}
+      {/* Soft gravel rules between rows of the same kind; the ink top
+          rule above stays ink because it separates the board block
+          from the heading above it, which is a block boundary. One
+          list per direction, with the day carried on each row rather
+          than on a heading above a run of them. */}
       <View className="border-t border-ink">
         {rows.map((row) => (
           <TravelRowItem
@@ -220,7 +222,7 @@ function TravelRowItem({
   const Icon = open ? ArrowUp : ArrowDown;
 
   return (
-    <View className="border-b border-b-ink py-4">
+    <View className="border-b border-b-gravel py-4">
       <Pressable
         role="button"
         accessibilityRole="button"

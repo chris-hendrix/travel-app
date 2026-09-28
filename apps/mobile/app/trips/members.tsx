@@ -76,8 +76,11 @@ function TripMembersDialog() {
       }
       dismissHref={`/trips/detail?id=${trip.id}`}
     >
-      {/* Ruled rows, like every other list here: the part each person
-          plays sits at the far edge so the column can be read down. */}
+      {/* Soft gravel rules between rows of the same kind; the ink top
+          rule above stays ink because it separates the roster block
+          from the text above it, which is a block boundary. The part
+          each person plays sits at the far edge so the column can be
+          read down. */}
       <View className="border-t border-ink">
         {members.map((member) => (
           <MemberRow
@@ -111,7 +114,7 @@ function MemberRow({
   const phone = visiblePhone(member, viewerIsOrganizer);
 
   return (
-    <View className="flex-row items-center justify-between gap-4 border-b border-b-ink py-3">
+    <View className="flex-row items-center justify-between gap-4 border-b border-b-gravel py-3">
       <View className="flex-1 gap-1">
         <View className="flex-row flex-wrap items-center gap-3">
           <Text className="font-body-bold text-base text-ink">

@@ -61,14 +61,13 @@ export type AdminUserRow = {
   temperatureUnit: string | null;
   role: string;
   status: string;
+  tripCount: number;
   createdAt: string;
   updatedAt: string;
 };
 
-/** The detail read adds the trip count to the row. */
-export type AdminUserDetailRow = AdminUserRow & {
-  tripCount: number;
-};
+/** The detail read carries the same fields as the list row. */
+export type AdminUserDetailRow = AdminUserRow;
 
 /** Mirrors `adminUserListResponseSchema` minus the envelope. */
 export type AdminUsersPage = {

@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Segmented } from "@/components/ui/Segmented";
 import { AdminGate } from "@/components/admin/AdminGate";
 import { useDebouncedValue } from "@/lib/debounce";
+import { joinedDay } from "@/lib/dateRange";
 import {
   FILTERS,
   emptyCopy,
@@ -202,21 +203,29 @@ function AdminUserRowView({
       accessibilityRole="button"
       accessibilityLabel={name}
       onPress={onPress}
-      className="min-h-11 flex-row items-center justify-between gap-4 border-t border-gravel py-2"
+      className="min-h-11 border-t border-gravel py-2"
     >
-      <View className="flex-1">
+      {/* The badges sit inline on the name's line and wrap under a
+          long name; only an exception wears one (banned or admin). */}
+      <View className="flex-row flex-wrap items-center gap-2">
         <Text className="font-body-bold text-base text-ink">{name}</Text>
-        <Text className="font-body text-sm text-ink">
-          {user.phoneNumber}
-        </Text>
-      </View>
-      <View className="flex-row items-center gap-2">
         {user.status === "banned" ? (
           <Badge label="Banned" variant="live" size="sm" />
         ) : null}
         {user.role === "admin" ? (
           <Badge label="Admin" variant="category" size="sm" />
         ) : null}
+      </View>
+      {/* Joined day plus trip count: the two facts a support reader
+          needs. Inline meta laid out as a flex-row with gap-3, the
+          way the roster lays out its name plus handle chips. */}
+      <View className="flex-row gap-3">
+        <Text className="font-body text-sm text-ink">
+          {joinedDay(user.createdAt)}
+        </Text>
+        <Text className="font-body text-sm text-ink">
+          {plural(user.tripCount, "trip")}
+        </Text>
       </View>
     </Pressable>
   );
