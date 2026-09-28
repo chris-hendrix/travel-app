@@ -24,6 +24,7 @@ import { Screen } from "@/components/ui/Screen";
 import { Section as RuledSection } from "@/components/ui/Section";
 import { FieldError } from "@/components/ui/FieldError";
 import { InlineAction } from "@/components/ui/InlineAction";
+import { ImpersonationBand } from "@/components/ui/ImpersonationBand";
 import { InlineError } from "@/components/ui/InlineError";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
@@ -787,6 +788,23 @@ function DesignSystemScreen() {
             </Specimen>
 
             <Specimen
+              name="ImpersonationBand"
+              contract="displayName · onStop · pending — a band that names whose session you are in; renders nothing when you are yourself"
+              note="The way out is a separate word with its own 44pt box, not a bare word in the sentence: QuietAction and InlineAction are deliberately boxless — the latter's target is the line rather than 44pt — which is fine inside a sentence and not fine here, where this is the only control. While the swap is in flight the word reads Stopping… and the control is disabled, so a second tap cannot stack two swaps."
+            >
+              <ImpersonationBand
+                displayName="Ada Lovelace"
+                onStop={() => setLog("ImpersonationBand stop pressed")}
+                pending={false}
+              />
+              <ImpersonationBand
+                displayName="Ada Lovelace"
+                onStop={() => setLog("unreachable")}
+                pending
+              />
+            </Specimen>
+
+            <Specimen
               name="Prose"
               contract="document: LegalDocument · onLink?"
               note="Long-form copy. The documents are stored as Markdown — the thing a person reads, edits and proofs against the published page — and this is the only component in the system that turns it into type. Headings take the display face, because a heading is a short string; the body takes the body face at a size that survives a screenful of it; links are `InlineAction`, so they carry the same two marks as every other pressable word with no box to say so, and stay in ink because colour here is a role. The excerpt below is the real Privacy Policy, cut to its opening."
@@ -1022,6 +1040,25 @@ function DesignSystemScreen() {
           <Link href="/profile" className="font-body-bold text-base text-ink underline">
             Profile
           </Link>
+          <Link href="/admin/users" className="font-body-bold text-base text-ink underline">
+            User management
+          </Link>
+          <Text className="font-body text-sm text-ink">
+            The user list: search, filter tabs and Load more. A page, not a
+            dialog — it is a surface you browse, like /trips. Redirects when
+            the session is not an admin&apos;s — to /trips when signed in, to
+            the landing when signed out — the same way /trips and /profile do.
+          </Text>
+          <Link href="/admin/users/detail?id=00000000-0000-4000-8000-000000000000" className="font-body-bold text-base text-ink underline">
+            User
+          </Link>
+          <Text className="font-body text-sm text-ink">
+            One user&apos;s record: facts, the edit form and the action
+            group. A dialog, because it is the thing you opened to act on.
+            The id is a placeholder — open a row from the list for a
+            real one. Same redirect as the list when the session is not an
+            admin&apos;s.
+          </Text>
           <Link href="/terms" className="font-body-bold text-base text-ink underline">
             Terms of Service
           </Link>

@@ -93,7 +93,7 @@ describe("completeProfile", () => {
 });
 
 describe("meOptions", () => {
-  it("queryFn GETs /auth/me and maps the row through toProfile", async () => {
+  it("queryFn GETs /auth/me and select maps the envelope through toProfile", async () => {
     mockedApiFetch.mockResolvedValue({
       success: true as const,
       user: apiUser("Ada"),
@@ -101,12 +101,17 @@ describe("meOptions", () => {
 
     const options = meOptions();
     expect(options.queryKey).toContain("me");
-    const profile = await options.queryFn!({
+    // The cache holds the envelope; `select` yields the `Profile` the
+    // `useQuery` in the store reads.
+    const body = await options.queryFn!({
       queryKey: options.queryKey,
     } as never);
 
     expect(mockedApiFetch).toHaveBeenCalledTimes(1);
     expect(mockedApiFetch).toHaveBeenCalledWith("/auth/me");
+    expect(body.user.displayName).toBe("Ada");
+
+    const profile = options.select!(body);
     expect(profile.displayName).toBe("Ada");
     expect(profile.phoneNumber).toBe("+15551234567");
   });

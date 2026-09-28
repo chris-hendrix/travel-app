@@ -1,6 +1,18 @@
+import type { User } from "@journiful/shared/types";
 import { updateProfileSchema } from "@journiful/shared/schemas";
 
 export type TemperatureUnit = "celsius" | "fahrenheit";
+
+/**
+ * Fahrenheit first, because it is the default the API answers with
+ * (`lib/mapping.ts`): the value you are most likely to already be on is
+ * the one under the thumb that goes looking for it. Shared by the
+ * profile form and the admin record so the option list cannot drift.
+ */
+export const UNITS: Array<{ value: TemperatureUnit; label: string }> = [
+  { value: "fahrenheit", label: "Fahrenheit" },
+  { value: "celsius", label: "Celsius" },
+];
 
 /**
  * The signed-in user, shaped after the API's `userResponseSchema` so the
@@ -59,6 +71,26 @@ export function applyDraft(profile: Profile, draft: ProfileDraft): Profile {
 
   return {
     ...profile,
+    displayName: draft.displayName.trim(),
+    handles: Object.keys(handles).length > 0 ? handles : null,
+    temperatureUnit: draft.temperatureUnit,
+  };
+}
+
+/**
+ * The `User`-shaped twin of `applyDraft`: the same rule (trimmed name,
+ * empty handles absent, temperature unit carried over) folded over the
+ * cached envelope's `user` for optimistic paint. The form still
+ * previews with `applyDraft`; the two are tested against each other so
+ * they cannot drift.
+ */
+export function applyDraftToUser(user: User, draft: ProfileDraft): User {
+  const handles: Record<string, string> = {};
+  if (draft.venmo.trim()) handles.venmo = draft.venmo.trim();
+  if (draft.instagram.trim()) handles.instagram = draft.instagram.trim();
+
+  return {
+    ...user,
     displayName: draft.displayName.trim(),
     handles: Object.keys(handles).length > 0 ? handles : null,
     temperatureUnit: draft.temperatureUnit,

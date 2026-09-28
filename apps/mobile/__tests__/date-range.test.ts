@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { eachDay, formatDateRange } from "@/lib/dateRange";
+import { eachDay, formatDateRange, joinedDay } from "@/lib/dateRange";
 
 describe("formatDateRange", () => {
   it("collapses a range inside one month", () => {
@@ -20,6 +20,19 @@ describe("formatDateRange", () => {
 
   it("handles a single-day trip", () => {
     expect(formatDateRange("2026-03-05", "2026-03-05")).toBe("Mar 5–5, 2026");
+  });
+});
+
+describe("joinedDay", () => {
+  it("reads the day an account joined as a short date", () => {
+    expect(joinedDay("2026-01-05T22:30:00.000Z")).toBe("Jan 5, 2026");
+  });
+
+  it("reads the UTC day, not the day it is where the reader stands", () => {
+    // 23:30 UTC is already tomorrow east of UTC and still yesterday
+    // west of it; the record must not disagree with itself per reader.
+    expect(joinedDay("2026-01-05T23:30:00.000Z")).toBe("Jan 5, 2026");
+    expect(joinedDay("2026-01-05T00:30:00.000Z")).toBe("Jan 5, 2026");
   });
 });
 

@@ -274,6 +274,7 @@ export const adminController = {
       return reply.status(200).send({
         success: true,
         message: "Impersonation started",
+        token,
       });
     } catch (error) {
       if (error && typeof error === "object" && "statusCode" in error) {
@@ -323,6 +324,7 @@ export const adminController = {
       return reply.status(200).send({
         success: true,
         message: "Impersonation stopped",
+        token,
       });
     } catch (error) {
       if (error && typeof error === "object" && "statusCode" in error) {

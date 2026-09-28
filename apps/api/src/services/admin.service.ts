@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { users, members, blacklistedTokens, type User } from "@/db/schema/index.js";
 import type { AppDatabase } from "@/types/index.js";
-import { eq, or, ilike, count, and, desc } from "drizzle-orm";
+import { eq, or, ilike, count, and, desc, inArray } from "drizzle-orm";
 import { auditLog } from "@/utils/audit.js";
 import type { FastifyRequest, FastifyInstance } from "fastify";
 import {
@@ -21,14 +21,18 @@ export interface IAdminService {
     role?: string | undefined;
     page: number;
     limit: number;
-  }): Promise<{ users: User[]; total: number }>;
+  }): Promise<{ users: AdminUserDetail[]; total: number }>;
 
   getUserDetail(userId: string): Promise<AdminUserDetail | null>;
 
   updateUser(
     request: FastifyRequest,
     userId: string,
-    data: { displayName?: string | undefined; timezone?: string | undefined },
+    data: {
+      displayName?: string | undefined;
+      timezone?: string | undefined;
+      temperatureUnit?: "celsius" | "fahrenheit" | undefined;
+    },
   ): Promise<User>;
 
   banUser(request: FastifyRequest, userId: string): Promise<void>;
@@ -71,7 +75,7 @@ export class AdminService implements IAdminService {
     role?: string | undefined;
     page: number;
     limit: number;
-  }): Promise<{ users: User[]; total: number }> {
+  }): Promise<{ users: AdminUserDetail[]; total: number }> {
     const { search, status, role, page, limit } = params;
     const offset = (page - 1) * limit;
 
@@ -114,8 +118,24 @@ export class AdminService implements IAdminService {
         .where(whereClause),
     ]);
 
+    const userIds = userResults.map((u) => u.id);
+    const countRows =
+      userIds.length > 0
+        ? await this.db
+            .select({ userId: members.userId, count: count() })
+            .from(members)
+            .where(inArray(members.userId, userIds))
+            .groupBy(members.userId)
+        : [];
+    const countsByUserId = new Map(
+      countRows.map((r) => [r.userId as string, r.count]),
+    );
+
     return {
-      users: userResults,
+      users: userResults.map((u) => ({
+        ...u,
+        tripCount: countsByUserId.get(u.id) ?? 0,
+      })),
       total: countResult[0]?.total ?? 0,
     };
   }
@@ -144,7 +164,11 @@ export class AdminService implements IAdminService {
   async updateUser(
     request: FastifyRequest,
     userId: string,
-    data: { displayName?: string | undefined; timezone?: string | undefined },
+    data: {
+      displayName?: string | undefined;
+      timezone?: string | undefined;
+      temperatureUnit?: "celsius" | "fahrenheit" | undefined;
+    },
   ): Promise<User> {
     const adminId = request.user.adminId ?? request.user.sub;
 

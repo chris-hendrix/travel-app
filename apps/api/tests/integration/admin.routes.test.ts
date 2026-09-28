@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../helpers.js";
 import { db } from "@/config/database.js";
-import { users } from "@/db/schema/index.js";
+import { users, trips, members } from "@/db/schema/index.js";
 import { eq } from "drizzle-orm";
 import { generateUniquePhone } from "../test-utils.js";
 
@@ -235,6 +235,56 @@ describe("Admin Routes", () => {
         );
       }
     });
+
+    it("should include a numeric tripCount per row", async () => {
+      app = await buildApp();
+      const admin = await createUser({ displayName: "Admin", role: "admin" });
+      const traveler = await createUser({ displayName: "Trip Traveler" });
+      const loner = await createUser({ displayName: "No Trips User" });
+
+      const createdTrips = await db
+        .insert(trips)
+        .values([
+          {
+            name: "Trip One",
+            destination: "Paris",
+            preferredTimezone: "UTC",
+            createdBy: admin.id,
+          },
+          {
+            name: "Trip Two",
+            destination: "Rome",
+            preferredTimezone: "UTC",
+            createdBy: admin.id,
+          },
+        ])
+        .returning();
+
+      await db.insert(members).values([
+        { tripId: createdTrips[0]!.id, userId: traveler.id },
+        { tripId: createdTrips[1]!.id, userId: traveler.id },
+      ]);
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/admin/users",
+        cookies: { auth_token: adminToken(app, admin.id) },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      for (const u of body.users) {
+        expect(typeof u.tripCount).toBe("number");
+      }
+      const travelerRow = body.users.find(
+        (u: { id: string }) => u.id === traveler.id,
+      );
+      const lonerRow = body.users.find(
+        (u: { id: string }) => u.id === loner.id,
+      );
+      expect(travelerRow.tripCount).toBe(2);
+      expect(lonerRow.tripCount).toBe(0);
+    });
   });
 
   describe("GET /api/admin/users/:id", () => {
@@ -288,6 +338,49 @@ describe("Admin Routes", () => {
       const body = JSON.parse(response.body);
       expect(body.success).toBe(true);
       expect(body.user.displayName).toBe("Updated Name");
+    });
+
+    it("should update temperatureUnit alone and persist it", async () => {
+      app = await buildApp();
+      const admin = await createUser({ displayName: "Admin", role: "admin" });
+      const target = await createUser({ displayName: "Temp Target" });
+
+      const response = await app.inject({
+        method: "PUT",
+        url: `/api/admin/users/${target.id}`,
+        cookies: { auth_token: adminToken(app, admin.id) },
+        payload: { temperatureUnit: "fahrenheit" },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.success).toBe(true);
+      expect(body.user.temperatureUnit).toBe("fahrenheit");
+
+      const detail = await app.inject({
+        method: "GET",
+        url: `/api/admin/users/${target.id}`,
+        cookies: { auth_token: adminToken(app, admin.id) },
+      });
+
+      expect(detail.statusCode).toBe(200);
+      const detailBody = JSON.parse(detail.body);
+      expect(detailBody.user.temperatureUnit).toBe("fahrenheit");
+    });
+
+    it("should reject a body with no fields", async () => {
+      app = await buildApp();
+      const admin = await createUser({ displayName: "Admin", role: "admin" });
+      const target = await createUser({ displayName: "Empty Body Target" });
+
+      const response = await app.inject({
+        method: "PUT",
+        url: `/api/admin/users/${target.id}`,
+        cookies: { auth_token: adminToken(app, admin.id) },
+        payload: {},
+      });
+
+      expect(response.statusCode).toBe(400);
     });
   });
 
@@ -570,6 +663,34 @@ describe("Admin Routes", () => {
       expect(meBody.isAdmin).toBe(true);
       expect(meBody.impersonatingUser.id).toBe(target.id);
     });
+    it("should return token in body usable as bearer session", async () => {
+      app = await buildApp();
+      const admin = await createUser({ displayName: "Admin", role: "admin" });
+      const target = await createUser({ displayName: "Bearer Target" });
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/admin/impersonate/${target.id}`,
+        cookies: { auth_token: adminToken(app, admin.id) },
+        payload: { code: "123456" },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(typeof body.token).toBe("string");
+      expect(body.token.length).toBeGreaterThan(0);
+
+      const meResponse = await app.inject({
+        method: "GET",
+        url: "/api/auth/me",
+        headers: { authorization: `Bearer ${body.token}` },
+      });
+
+      expect(meResponse.statusCode).toBe(200);
+      const meBody = JSON.parse(meResponse.body);
+      expect(meBody.user.id).toBe(target.id);
+      expect(meBody.impersonating).toBe(true);
+    });
   });
 
   describe("POST /api/admin/stop-impersonate", () => {
@@ -613,6 +734,48 @@ describe("Admin Routes", () => {
         cookies: { auth_token: adminCookie!.value },
       });
 
+      const meBody = JSON.parse(meResponse.body);
+      expect(meBody.user.id).toBe(admin.id);
+      expect(meBody.impersonating).toBeUndefined();
+    });
+
+    it("should return admin token in body usable as bearer session", async () => {
+      app = await buildApp();
+      const admin = await createUser({ displayName: "Admin", role: "admin" });
+      const target = await createUser({ displayName: "Target" });
+
+      const impersonateResponse = await app.inject({
+        method: "POST",
+        url: `/api/admin/impersonate/${target.id}`,
+        cookies: { auth_token: adminToken(app, admin.id) },
+        payload: { code: "123456" },
+      });
+
+      expect(impersonateResponse.statusCode).toBe(200);
+      const impersonationBody = JSON.parse(impersonateResponse.body);
+      expect(impersonationBody.success).toBe(true);
+      const impersonationCookie = impersonateResponse.cookies.find(
+        (c: { name: string }) => c.name === "auth_token",
+      );
+
+      const stopResponse = await app.inject({
+        method: "POST",
+        url: "/api/admin/stop-impersonate",
+        headers: { authorization: `Bearer ${impersonationCookie!.value}` },
+      });
+
+      expect(stopResponse.statusCode).toBe(200);
+      const body = JSON.parse(stopResponse.body);
+      expect(typeof body.token).toBe("string");
+      expect(body.token.length).toBeGreaterThan(0);
+
+      const meResponse = await app.inject({
+        method: "GET",
+        url: "/api/auth/me",
+        headers: { authorization: `Bearer ${body.token}` },
+      });
+
+      expect(meResponse.statusCode).toBe(200);
       const meBody = JSON.parse(meResponse.body);
       expect(meBody.user.id).toBe(admin.id);
       expect(meBody.impersonating).toBeUndefined();

@@ -250,6 +250,7 @@ export {
   adminImpersonateUserIdParamsSchema,
   adminImpersonateSchema,
   adminImpersonateResponseSchema,
+  adminImpersonationTokenResponseSchema,
   adminMeContextSchema,
   type AdminListUsersQuery,
   type AdminUpdateUserInput,

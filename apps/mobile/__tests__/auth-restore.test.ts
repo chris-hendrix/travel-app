@@ -23,14 +23,24 @@ vi.mock("@/lib/session", async (importOriginal) => {
 });
 
 import { ApiError, apiFetch } from "@/lib/api";
-import { AuthProvider, restoreSession, useAuth } from "@/lib/authStore";
+import {
+  AuthProvider,
+  providerPatchFromRestore,
+  restorePaint,
+  restoreSession,
+  useAuth,
+  type RestoreResult,
+} from "@/lib/authStore";
 import { clearToken, getToken } from "@/lib/session";
 
 const mockedApiFetch = vi.mocked(apiFetch);
 const mockedGetToken = vi.mocked(getToken);
 const mockedClearToken = vi.mocked(clearToken);
 
-function meBody(displayName: string) {
+function meBody(
+  displayName: string,
+  extra: Record<string, unknown> = {},
+) {
   return {
     success: true as const,
     user: {
@@ -45,6 +55,7 @@ function meBody(displayName: string) {
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     },
+    ...extra,
   };
 }
 
@@ -104,5 +115,156 @@ describe("restoreSession", () => {
     expect(mockedClearToken).not.toHaveBeenCalled();
     expect(result.status).toBe("signed-out");
     expect(result.user).toBeNull();
+    expect(result.isAdmin).toBe(false);
+    expect(result.impersonating).toBeNull();
+  });
+
+  it("resolves isAdmin and the impersonating pair off an admin body", async () => {
+    mockedGetToken.mockResolvedValue("jwt-token-abc");
+    mockedApiFetch.mockResolvedValue(
+      meBody("Ada", {
+        isAdmin: true,
+        impersonating: true,
+        impersonatingUser: { id: "user-9", displayName: "Bob" },
+      }),
+    );
+
+    const result = await restoreSession();
+
+    expect(result.status).toBe("signed-in");
+    if (result.status !== "signed-in") throw new Error("expected signed-in");
+    expect(result.isAdmin).toBe(true);
+    expect(result.impersonating).toEqual({ id: "user-9", displayName: "Bob" });
+  });
+
+  it("normalizes an ordinary session (no optional keys) to not-admin, not impersonating", async () => {
+    mockedGetToken.mockResolvedValue("jwt-token-abc");
+    mockedApiFetch.mockResolvedValue(meBody("Ada"));
+
+    const result = await restoreSession();
+
+    expect(result.status).toBe("signed-in");
+    if (result.status !== "signed-in") throw new Error("expected signed-in");
+    expect(result.isAdmin).toBe(false);
+    expect(result.impersonating).toBeNull();
+  });
+
+  it("never builds a half-filled impersonation without its user", async () => {
+    mockedGetToken.mockResolvedValue("jwt-token-abc");
+    mockedApiFetch.mockResolvedValue(meBody("Ada", { impersonating: true }));
+
+    const result = await restoreSession();
+
+    expect(result.status).toBe("signed-in");
+    if (result.status !== "signed-in") throw new Error("expected signed-in");
+    expect(result.impersonating).toBeNull();
+  });
+});
+
+describe("restorePaint", () => {
+  const signedIn: RestoreResult = {
+    status: "signed-in",
+    user: {
+      id: "user-1",
+      phoneNumber: "+15551234567",
+      displayName: "Ada",
+      profileComplete: true,
+    },
+    isAdmin: false,
+    impersonating: null,
+  };
+  const signedOut: RestoreResult = {
+    status: "signed-out",
+    user: null,
+    isAdmin: false,
+    impersonating: null,
+  };
+
+  it("adopts whenever the read answered", () => {
+    expect(restorePaint(signedIn, true, { failClosed: false })).toBe("adopt");
+    expect(restorePaint(signedIn, true, { failClosed: true })).toBe("adopt");
+  });
+
+  it("signs out when the token is gone — a 401 cleared it", () => {
+    expect(restorePaint(signedOut, false, { failClosed: false })).toBe(
+      "sign-out",
+    );
+    expect(restorePaint(signedOut, false, { failClosed: true })).toBe(
+      "sign-out",
+    );
+  });
+
+  it("keeps the session a sign-in already painted when the read failed but the token survived", () => {
+    // The regression this policy exists for: verify-code answered, its
+    // reply painted the person signed in, and the follow-up `me` read
+    // blipped. Painting signed-out here landed them back on the
+    // landing holding a perfectly good token.
+    expect(restorePaint(signedOut, true, { failClosed: false })).toBe("keep");
+  });
+
+  it("fails closed after an identity swap, where the paint is the old identity", () => {
+    expect(restorePaint(signedOut, true, { failClosed: true })).toBe(
+      "sign-out",
+    );
+  });
+});
+
+describe("providerPatchFromRestore", () => {
+  it("passes a signed-in restore through to the provider's patch", () => {
+    const result: RestoreResult = {
+      status: "signed-in",
+      user: {
+        id: "user-1",
+        phoneNumber: "+15551234567",
+        displayName: "Ada",
+        profileComplete: true,
+      },
+      isAdmin: true,
+      impersonating: { id: "user-9", displayName: "Bob" },
+    };
+    expect(providerPatchFromRestore(result)).toEqual({
+      status: "signed-in",
+      user: result.user,
+      isAdmin: true,
+      impersonating: { id: "user-9", displayName: "Bob" },
+    });
+  });
+
+  it("maps a signed-out restore to the provider's defaults", () => {
+    expect(
+      providerPatchFromRestore({
+        status: "signed-out",
+        user: null,
+        isAdmin: false,
+        impersonating: null,
+      }),
+    ).toEqual({
+      status: "signed-out",
+      user: null,
+      isAdmin: false,
+      impersonating: null,
+    });
+  });
+});
+
+describe("AuthProvider blocked render", () => {
+  it("carries isAdmin false and impersonating null before the restore resolves", () => {
+    mockedGetToken.mockResolvedValue("jwt-token-abc");
+    mockedApiFetch.mockResolvedValue(meBody("Ada"));
+
+    // Effects never fire under `renderToString`: this is the blocked
+    // render, and the provider's post-restore exposure (the profile's
+    // `User management` row, the impersonation band) is verified end
+    // to end by the admin journey spec instead.
+    let seen: { isAdmin: unknown; impersonating: unknown } | null = null;
+    function Probe() {
+      const { isAdmin, impersonating } = useAuth();
+      seen = { isAdmin, impersonating };
+      return null;
+    }
+    renderToString(
+      createElement(AuthProvider, null, createElement(Probe)),
+    );
+    expect(seen).toEqual({ isAdmin: false, impersonating: null });
   });
 });

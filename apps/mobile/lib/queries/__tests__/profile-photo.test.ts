@@ -24,7 +24,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
 
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ApiError, apiFetch } from "@/lib/api";
-import { authKeys } from "@/lib/queries/auth";
+import { authKeys, type MeResponse } from "@/lib/queries/auth";
 import {
   removePhoto,
   removePhotoOptions,
@@ -33,7 +33,8 @@ import {
 } from "@/lib/queries/profile";
 import { makeQueryClient } from "@/lib/queries/client";
 import { ProfileProvider, useProfile } from "@/lib/profileStore";
-import { initials, type Profile } from "@/lib/profile";
+import { initials } from "@/lib/profile";
+import type { User } from "@journiful/shared/types";
 
 const mockedApiFetch = vi.mocked(apiFetch);
 
@@ -57,16 +58,9 @@ function photoUser(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function cachedProfile(): Profile {
-  return {
-    id: "user-1",
-    displayName: "Ada Lovelace",
-    phoneNumber: "+15551234567",
-    profilePhotoUrl: null,
-    handles: { venmo: "ada-lovelace", instagram: "ada.lovelace" },
-    timezone: "Europe/Rome",
-    temperatureUnit: "celsius",
-  };
+/** The cache is the envelope: wrap a user row the way the API sends it. */
+function envelope(user: Record<string, unknown>): MeResponse {
+  return { success: true as const, user: user as unknown as User };
 }
 
 /**
@@ -153,7 +147,11 @@ describe("null photo mapping", () => {
 describe("useProfile() photo mutations", () => {
   function capturePhotoActions() {
     const client = makeQueryClient();
-    client.setQueryData<Profile>(authKeys.me(), cachedProfile());
+    // The cache is the envelope, not a Profile.
+    client.setQueryData<MeResponse>(
+      authKeys.me(),
+      envelope({ ...photoUser(), profilePhotoUrl: null }),
+    );
 
     const seen: {
       savePhoto: ((uri: string | null) => Promise<void>) | null;
@@ -189,9 +187,11 @@ describe("useProfile() photo mutations", () => {
     const { client, savePhoto } = capturePhotoActions();
 
     await savePhoto("file:///cache/avatar.jpg");
-    expect(client.getQueryData<Profile>(authKeys.me())).toMatchObject({
-      id: "user-1",
-      profilePhotoUrl: "https://cdn.example/photos/user-1.jpg",
+    expect(client.getQueryData<MeResponse>(authKeys.me())).toMatchObject({
+      user: {
+        id: "user-1",
+        profilePhotoUrl: "https://cdn.example/photos/user-1.jpg",
+      },
     });
 
     // The me cache invalidates, so the next mount reads server truth.
@@ -204,13 +204,16 @@ describe("useProfile() photo mutations", () => {
     stubUriFetch();
 
     const { client, savePhoto } = capturePhotoActions();
-    client.setQueryData<Profile>(authKeys.me(), cachedProfile());
+    client.setQueryData<MeResponse>(
+      authKeys.me(),
+      envelope({ ...photoUser(), profilePhotoUrl: null }),
+    );
 
     await expect(savePhoto("file:///cache/avatar.jpg")).rejects.toBeInstanceOf(
       ApiError,
     );
-    expect(client.getQueryData<Profile>(authKeys.me())).toEqual(
-      cachedProfile(),
+    expect(client.getQueryData<MeResponse>(authKeys.me())).toEqual(
+      envelope({ ...photoUser(), profilePhotoUrl: null }),
     );
   });
 
@@ -222,14 +225,14 @@ describe("useProfile() photo mutations", () => {
     });
 
     const { client, savePhoto } = capturePhotoActions();
-    client.setQueryData<Profile>(authKeys.me(), {
-      ...cachedProfile(),
-      profilePhotoUrl: "https://cdn.example/old.jpg",
-    });
+    client.setQueryData<MeResponse>(
+      authKeys.me(),
+      envelope({ ...photoUser(), profilePhotoUrl: "https://cdn.example/old.jpg" }),
+    );
 
     await savePhoto(null);
     expect(
-      client.getQueryData<Profile>(authKeys.me())?.profilePhotoUrl,
+      client.getQueryData<MeResponse>(authKeys.me())?.user.profilePhotoUrl ?? null,
     ).toBeNull();
   });
 });

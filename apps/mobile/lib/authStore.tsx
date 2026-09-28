@@ -11,13 +11,14 @@ import type { QueryClient } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { ApiError, onUnauthorized } from "@/lib/api";
 import {
-  meOptions,
+  meBodyOptions,
   requestCode as requestAuthCode,
   verifyCode as verifyAuthCode,
   completeProfile as completeAuthProfile,
   signOutServer,
 } from "@/lib/queries/auth";
 import type { Profile } from "@/lib/profile";
+import { toProfile } from "@/lib/mapping";
 import { clearToken, getToken } from "@/lib/session";
 import { setSignedIn } from "@/lib/sessionFlag";
 
@@ -56,9 +57,12 @@ export type AuthUser = {
  */
 export type AuthStatus = "restoring" | "signed-in" | "signed-out";
 
+/** Who else this session is, while an admin impersonates an account. */
+export type Impersonating = { id: string; displayName: string } | null;
+
 export type RestoreResult =
-  | { status: "signed-in"; user: AuthUser }
-  | { status: "signed-out"; user: null };
+  | { status: "signed-in"; user: AuthUser; isAdmin: boolean; impersonating: Impersonating }
+  | { status: "signed-out"; user: null; isAdmin: false; impersonating: null };
 
 function authUserFromProfile(profile: Profile): AuthUser {
   return {
@@ -72,27 +76,97 @@ function authUserFromProfile(profile: Profile): AuthUser {
 }
 
 /**
+ * The provider's patch for a restore result — the mapping decision,
+ * extracted pure so it is testable without a renderer (the suite is
+ * plain node, no jsdom): which fields of the restore result each piece
+ * of provider state takes. The post-restore exposure itself (the
+ * profile's `User management` row, the impersonation band) is covered
+ * end to end by the admin journey spec.
+ */
+export function providerPatchFromRestore(result: RestoreResult): {
+  status: AuthStatus;
+  user: AuthUser | null;
+  isAdmin: boolean;
+  impersonating: Impersonating;
+} {
+  return {
+    status: result.status,
+    user: result.user,
+    isAdmin: result.isAdmin,
+    impersonating: result.impersonating,
+  };
+}
+
+/**
+ * What a restore result is allowed to do to a session that is already
+ * painted — the policy, extracted pure for the same reason the mapping
+ * below is (this suite has no renderer).
+ *
+ * `restoreSession` reports `signed-out` for every failure that is not a
+ * 401, and it KEEPS the token when it does — only a 401 clears it. So a
+ * blip on that one read must not be allowed to demote a session that
+ * still holds a live token:
+ *
+ * - `"adopt"` — the read answered; take its identity.
+ * - `"keep"` — the read failed but the token survived, and the caller
+ *   already knows who it is, because a sign-in step painted the reply
+ *   from its own response. Painting `signed-out` here threw someone who
+ *   had just signed in back to the landing holding a good token.
+ * - `"sign-out"` — the token is gone (a 401 cleared it), or the caller
+ *   cannot say who it is: an identity SWAP re-reads precisely because
+ *   the paint is the old identity and the token is the new one, so a
+ *   failed read means we do not know. Fail closed rather than keep
+ *   painting someone we are not.
+ */
+export function restorePaint(
+  result: RestoreResult,
+  tokenSurvived: boolean,
+  { failClosed }: { failClosed: boolean },
+): "adopt" | "keep" | "sign-out" {
+  if (result.status === "signed-in") return "adopt";
+  if (!tokenSurvived) return "sign-out";
+  return failClosed ? "sign-out" : "keep";
+}
+
+/**
  * The cold-start check, run once by `AuthProvider` on mount. A stored
- * token is validated through `meOptions` (one source of truth, not a
- * cached user); no token means signed-out without touching the
- * network. A 401 clears the stale token and signs out — anything else
- * signs out but keeps the token, so a transient failure does not
- * destroy the session (retry behaviour belongs to its own task).
+ * token is validated through `meBodyOptions` (the raw envelope — one
+ * source of truth, not a cached user); no token means signed-out
+ * without touching the network. A 401 clears the stale token and signs
+ * out — anything else signs out but keeps the token, so a transient
+ * failure does not destroy the session (retry behaviour belongs to its
+ * own task).
+ *
+ * Identity is normalized at this boundary: the API omits `isAdmin`
+ * for an ordinary session (absent means false) and sends the
+ * impersonation pair only while impersonating — `impersonating: true`
+ * with no `impersonatingUser` normalizes to `null`, never a
+ * half-filled object.
  */
 export async function restoreSession(): Promise<RestoreResult> {
   const token = await getToken();
-  if (!token) return { status: "signed-out", user: null };
+  if (!token) return { status: "signed-out", user: null, isAdmin: false, impersonating: null };
   try {
-    const options = meOptions();
-    const profile = await options.queryFn!({
-      queryKey: options.queryKey,
-    } as never);
-    return { status: "signed-in", user: authUserFromProfile(profile) };
+    // `meBodyOptions()` explicitly, never `meOptions().queryFn`: the
+    // `select` shapes the observer's data and not `queryFn`'s return
+    // type, so the wrong call still typechecks while reading the wrong
+    // shape.
+    const me = meBodyOptions();
+    const body = await me.queryFn!({ queryKey: me.queryKey } as never);
+    return {
+      status: "signed-in",
+      user: authUserFromProfile(toProfile(body.user)),
+      isAdmin: body.isAdmin === true,
+      impersonating:
+        body.impersonating === true && body.impersonatingUser
+          ? { id: body.impersonatingUser.id, displayName: body.impersonatingUser.displayName }
+          : null,
+    };
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) {
       await clearToken();
     }
-    return { status: "signed-out", user: null };
+    return { status: "signed-out", user: null, isAdmin: false, impersonating: null };
   }
 }
 
@@ -164,6 +238,17 @@ function resetCacheForNewSession(client?: QueryClient): void {
 type AuthValue = {
   status: AuthStatus;
   user: AuthUser | null;
+  /** True while the session is an admin's (kept true while
+   *  impersonating — the API derives it from the token's `adminId`). */
+  isAdmin: boolean;
+  /** Whose session this is while impersonating, null otherwise. */
+  impersonating: Impersonating;
+  /**
+   * Re-read `/auth/me` after an identity swap (impersonate / stop):
+   * `performSignOut`'s cache clear, then `restoreSession()`, then the
+   * same state writes including the new two — with NO token drop.
+   */
+  adoptSession: () => Promise<void>;
   /** The number between the two screens: a code has been asked for and
    *  not yet verified. The verify screen is the only thing that reads it. */
   pendingPhone: string | null;
@@ -178,6 +263,8 @@ const AuthContext = createContext<AuthValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>("restoring");
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [impersonating, setImpersonating] = useState<Impersonating>(null);
   const [pendingPhone, setPendingPhone] = useState<string | null>(null);
 
   // `AuthProvider` renders beneath the `QueryClientProvider` in
@@ -204,12 +291,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     restoreSession()
       .then((result) => {
         if (cancelled) return;
-        setUser(result.user);
-        setStatus(result.status);
-        setSignedIn(result.status === "signed-in");
+        const patch = providerPatchFromRestore(result);
+        setUser(patch.user);
+        setIsAdmin(patch.isAdmin);
+        setImpersonating(patch.impersonating);
+        setStatus(patch.status);
+        setSignedIn(patch.status === "signed-in");
       })
       .catch(() => {
         if (cancelled) return;
+        setIsAdmin(false);
+        setImpersonating(null);
         setStatus("signed-out");
         setSignedIn(false);
       });
@@ -224,6 +316,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await requestAuthCode({ phoneNumber, smsConsent: true });
     setPendingPhone(phoneNumber);
   }, []);
+
+  // Adopt the identity the token actually names. A sign-in step cannot
+  // know it from its own reply — `verifyCodeResponseSchema` carries no
+  // role — so an admin who signed in would be treated as a plain user
+  // until the app was reloaded and the profile screen would offer them
+  // no Admin group. The read is `restoreSession`'s, so the answer is
+  // the server's rather than a guess.
+  const adoptIdentity = useCallback(
+    async ({ failClosed = false }: { failClosed?: boolean } = {}) => {
+      const result = await restoreSession();
+      // Reading the token back is how the two failures are told apart:
+      // `restoreSession` clears it on a 401 and keeps it on anything
+      // else, so a surviving token means the READ failed, not the
+      // session. See `restorePaint`.
+      const tokenSurvived = (await getToken()) !== null;
+      const paint = restorePaint(result, tokenSurvived, { failClosed });
+      if (paint === "keep") return;
+      const patch =
+        paint === "adopt"
+          ? providerPatchFromRestore(result)
+          : { status: "signed-out" as const, user: null, isAdmin: false, impersonating: null };
+      setUser(patch.user);
+      setIsAdmin(patch.isAdmin);
+      setImpersonating(patch.impersonating);
+      setStatus(patch.status);
+      setSignedIn(patch.status === "signed-in");
+    },
+    [],
+  );
 
   const verifyCode = useCallback(
     async (code: string) => {
@@ -244,14 +365,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         displayName: apiUser.displayName ?? "",
         profileComplete: !requiresProfile,
       });
+      // A fresh verify starts its own session: not impersonating, and
+      // not known-admin (the verify reply carries no identity beyond
+      // the user; the next restore adopts whatever the token names).
+      setIsAdmin(false);
+      setImpersonating(null);
       setStatus("signed-in");
       setSignedIn(true);
       // Anything read while signed out is not this session's answer.
       resetCacheForNewSession(queryClient);
+      // Then the identity the token names, for the same reason the
+      // reply above cannot supply it.
+      await adoptIdentity();
 
       return { requiresProfile };
     },
-    [pendingPhone, queryClient],
+    [pendingPhone, queryClient, adoptIdentity],
   );
 
   const completeProfile = useCallback(async (displayName: string) => {
@@ -265,12 +394,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       displayName: profile.displayName,
       profileComplete: true,
     });
+    setIsAdmin(false);
+    setImpersonating(null);
     setStatus("signed-in");
     setSignedIn(true);
     // Same clear as `verifyCode`: the new session starts from nothing.
     resetCacheForNewSession(queryClient);
-  }, [queryClient]);
-
+    await adoptIdentity();
+  }, [queryClient, adoptIdentity]);
 
   const signOut = useCallback(async () => {
     // Server POST, token drop, and cache clear live in `performSignOut`
@@ -278,10 +409,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // locally). The gate reads `status`, so it must follow `user`.
     await performSignOut(queryClient);
     setUser(null);
+    setIsAdmin(false);
+    setImpersonating(null);
     setPendingPhone(null);
     setStatus("signed-out");
     setSignedIn(false);
   }, [queryClient]);
+
+  const adoptSession = useCallback(async () => {
+    // `performSignOut`'s cache clear, then the identity the new token
+    // names — with NO token drop. The identity changed, so nothing
+    // cached for the old session survives.
+    //
+    // `failClosed` rather than the sign-in default: the paint here is
+    // the OLD identity and the token is the NEW one, so a read that
+    // fails leaves the app unable to say who it is. Ending the session
+    // is the honest answer; the caller's own failure copy is what the
+    // person reads.
+    queryClient?.clear();
+    await adoptIdentity({ failClosed: true });
+  }, [queryClient, adoptIdentity]);
 
   // Mid-session 401 recovery: the shared boundary (`lib/api.ts`)
   // reports a dead token here, and the provider signs out through
@@ -291,6 +438,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return onUnauthorized(() => {
       void performSignOut(queryClient).then(() => {
         setUser(null);
+        setIsAdmin(false);
+        setImpersonating(null);
         setPendingPhone(null);
         setStatus("signed-out");
         setSignedIn(false);
@@ -302,20 +451,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       status,
       user,
+      isAdmin,
+      impersonating,
       pendingPhone,
       requestCode,
       verifyCode,
       completeProfile,
       signOut,
+      adoptSession,
     }),
     [
       status,
       user,
+      isAdmin,
+      impersonating,
       pendingPhone,
       requestCode,
       verifyCode,
       completeProfile,
       signOut,
+      adoptSession,
     ],
   );
 

@@ -1,4 +1,4 @@
-import { toIso, wallClock } from "@/lib/timezone";
+import { toIso, todayIn, wallClock } from "@/lib/timezone";
 
 /** Local-date ISO (yyyy-mm-dd), never shifted by timezone.
  *
@@ -72,6 +72,23 @@ export function monthKey(iso: string): string {
 /** The month, spelled out, for a heading above its days. */
 export function monthName(iso: string): string {
   return MONTH_NAMES[parts(iso).month] ?? "";
+}
+
+/**
+ * The day an account was made, for the record screen: "Jan 5, 2026".
+ *
+ * Read in UTC rather than the viewer's zone, which is the one place in
+ * this app a day is deliberately not read where the reader is standing:
+ * the day an account joined is not a wall-clock event in anybody's
+ * zone, and two admins looking at the same account must be told the
+ * same day. It lives here rather than in `lib/timezone.ts` because this
+ * module already depends on that one and the import may not run both
+ * ways (see `__tests__/timezone.test.ts`), and because the abbreviated
+ * months are this module's own table.
+ */
+export function joinedDay(iso: string): string {
+  const { year, month, day } = parts(todayIn("UTC", new Date(iso)));
+  return `${MONTHS[month]} ${day}, ${year}`;
 }
 
 /**

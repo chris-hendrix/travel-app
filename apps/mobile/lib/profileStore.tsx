@@ -6,13 +6,14 @@ import {
   type ReactNode,
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { authKeys, meOptions } from "@/lib/queries/auth";
+import { authKeys, meOptions, type MeResponse } from "@/lib/queries/auth";
+import type { User } from "@journiful/shared/types";
 import {
   removePhotoOptions,
   updateProfile,
   uploadPhotoOptions,
 } from "@/lib/queries/profile";
-import { applyDraft, type Profile, type ProfileDraft } from "@/lib/profile";
+import { applyDraftToUser, type Profile, type ProfileDraft } from "@/lib/profile";
 
 type ProfileValue = {
   /** Null while the me read is pending or failed — the screen gates
@@ -50,6 +51,32 @@ const ProfileContext = createContext<ProfileValue | null>(null);
  * accessors it already calls; only the engine is server instead of
  * memory.
  */
+/**
+ * Fold a write response (a `Profile`, mapped through `toProfile`)
+ * back into the cached envelope: the cache is the `MeResponse`, so
+ * the server truth lands on `user`, keeping every field the profile
+ * shape does not carry (ids, timestamps, admin keys).
+ */
+function envelopeWithProfile(previous: MeResponse, updated: Profile): MeResponse {
+  // `User.profilePhotoUrl` is optional-never-null
+  // (`exactOptionalPropertyTypes`): a nulled photo deletes the key
+  // rather than assigning `undefined`.
+  const user: User = {
+    ...previous.user,
+    displayName: updated.displayName,
+    phoneNumber: updated.phoneNumber,
+    handles: (updated.handles ? { ...updated.handles } : null) as User["handles"],
+    timezone: updated.timezone,
+    temperatureUnit: updated.temperatureUnit,
+  };
+  if (updated.profilePhotoUrl) {
+    user.profilePhotoUrl = updated.profilePhotoUrl;
+  } else {
+    delete user.profilePhotoUrl;
+  }
+  return { ...previous, user };
+}
+
 export function ProfileProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const meQuery = useQuery(meOptions());
@@ -67,21 +94,24 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     mutationFn: (draft: ProfileDraft) => updateProfile(draft),
     onMutate: async (draft) => {
       await queryClient.cancelQueries({ queryKey: authKeys.me() });
-      const previous = queryClient.getQueryData<Profile>(authKeys.me());
+      const previous = queryClient.getQueryData<MeResponse>(authKeys.me());
       // The update endpoint answers the full user row, but the paint
-      // cannot wait for it: fold the draft over the cached profile
-      // now (`applyDraft` — the same rule the form previews with),
-      // keep the server row on success, restore on failure.
+      // cannot wait for it: fold the draft over the cached envelope's
+      // `user` now (`applyDraftToUser` — the User-shaped twin of the
+      // rule the form previews with), keep the server row on success,
+      // restore on failure.
       if (previous) {
-        queryClient.setQueryData<Profile>(
-          authKeys.me(),
-          applyDraft(previous, draft),
-        );
+        queryClient.setQueryData<MeResponse>(authKeys.me(), {
+          ...previous,
+          user: applyDraftToUser(previous.user, draft),
+        });
       }
       return { previous };
     },
     onSuccess: (updated) => {
-      queryClient.setQueryData<Profile>(authKeys.me(), updated);
+      queryClient.setQueryData<MeResponse>(authKeys.me(), (old) =>
+        old ? envelopeWithProfile(old, updated) : old,
+      );
     },
     onError: (_error, _draft, context) => {
       if (context?.previous) {
@@ -106,17 +136,19 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     ...uploadPhotoOptions(),
     onMutate: async ({ uri }: { uri: string }) => {
       await queryClient.cancelQueries({ queryKey: authKeys.me() });
-      const previous = queryClient.getQueryData<Profile>(authKeys.me());
+      const previous = queryClient.getQueryData<MeResponse>(authKeys.me());
       if (previous) {
-        queryClient.setQueryData<Profile>(authKeys.me(), {
+        queryClient.setQueryData<MeResponse>(authKeys.me(), {
           ...previous,
-          profilePhotoUrl: uri,
+          user: { ...previous.user, profilePhotoUrl: uri },
         });
       }
       return { previous };
     },
     onSuccess: (updated) => {
-      queryClient.setQueryData<Profile>(authKeys.me(), updated);
+      queryClient.setQueryData<MeResponse>(authKeys.me(), (old) =>
+        old ? envelopeWithProfile(old, updated) : old,
+      );
     },
     onError: (_error, _input, context) => {
       if (context?.previous) {
@@ -131,17 +163,23 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     ...removePhotoOptions(),
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: authKeys.me() });
-      const previous = queryClient.getQueryData<Profile>(authKeys.me());
+      const previous = queryClient.getQueryData<MeResponse>(authKeys.me());
       if (previous) {
-        queryClient.setQueryData<Profile>(authKeys.me(), {
+        // Removal clears the optional key (never an explicit
+        // `undefined` — see `envelopeWithProfile` above).
+        const user: User = { ...previous.user };
+        delete user.profilePhotoUrl;
+        queryClient.setQueryData<MeResponse>(authKeys.me(), {
           ...previous,
-          profilePhotoUrl: null,
+          user,
         });
       }
       return { previous };
     },
     onSuccess: (updated) => {
-      queryClient.setQueryData<Profile>(authKeys.me(), updated);
+      queryClient.setQueryData<MeResponse>(authKeys.me(), (old) =>
+        old ? envelopeWithProfile(old, updated) : old,
+      );
     },
     onError: (_error, _input, context) => {
       if (context?.previous) {

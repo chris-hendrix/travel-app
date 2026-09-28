@@ -17,6 +17,7 @@ import {
   adminImpersonateUserIdParamsSchema,
   adminImpersonateSchema,
   adminImpersonateResponseSchema,
+  adminImpersonationTokenResponseSchema,
 } from "@journiful/shared/schemas";
 import type {
   AdminListUsersQuery,
@@ -71,7 +72,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
     /**
      * PUT /users/:id
-     * Edit user profile (displayName, timezone)
+     * Edit user profile (displayName, timezone, temperatureUnit)
      */
     scope.put<{ Params: { id: string }; Body: AdminUpdateUserInput }>(
       "/users/:id",
@@ -163,7 +164,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
         schema: {
           params: adminImpersonateUserIdParamsSchema,
           body: adminImpersonateSchema,
-          response: { 200: adminImpersonateResponseSchema },
+          response: { 200: adminImpersonationTokenResponseSchema },
         },
         preHandler: [scope.rateLimit(writeRateLimitConfig)],
       },
@@ -178,7 +179,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       "/stop-impersonate",
       {
         schema: {
-          response: { 200: adminImpersonateResponseSchema },
+          response: { 200: adminImpersonationTokenResponseSchema },
         },
         preHandler: [scope.rateLimit(writeRateLimitConfig)],
       },

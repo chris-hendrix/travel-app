@@ -6,7 +6,10 @@ import Svg, { Defs, Path, Pattern, Rect } from "react-native-svg";
 import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { unreadCountOptions } from "@/lib/queries/notifications";
+import { useStopImpersonation } from "@/lib/impersonation";
 import { isSignedIn, subscribe } from "@/lib/sessionFlag";
+import { useAuth } from "@/lib/authStore";
+import { ImpersonationBand } from "@/components/ui/ImpersonationBand";
 import { useZoneToken } from "@/lib/displayZone";
 import { INK, SAND } from "@/lib/theme";
 
@@ -192,21 +195,39 @@ export function AppHeader({
    */
   variant?: "app" | "landing" | "bare";
 }) {
+  // Context only: this header renders OUTSIDE the layout's `<Suspense>`
+  // (which wraps only `<Stack>` in `app/_layout.tsx`), so a `useQuery`
+  // or `useSuspenseQuery` anywhere in this tree crashes the chrome on
+  // every route. The stop hook below is local state and plain awaits,
+  // never a query read.
+  const { impersonating } = useAuth();
+  const { stopping, stop } = useStopImpersonation();
+  const band = impersonating ? (
+    <ImpersonationBand
+      displayName={impersonating.displayName || "No name"}
+      onStop={() => void stop()}
+      pending={stopping}
+    />
+  ) : null;
+
   if (title) {
     return (
-      <View className="flex-row items-center justify-between border-b border-ink bg-gravel px-6 py-4">
-        <Text className="font-display text-2xl leading-none text-ink">
-          {title}
-        </Text>
-        <View className="flex-row items-center gap-0">
-          <ZoneToken />
-          {action}
-          {onClose ? (
-            <Pressable aria-label="Close" onPress={onClose} className="pl-4 pr-1 py-2.5">
-              <X color={INK} size={24} />
-            </Pressable>
-          ) : null}
+      <View>
+        <View className="flex-row items-center justify-between border-b border-ink bg-gravel px-6 py-4">
+          <Text className="font-display text-2xl leading-none text-ink">
+            {title}
+          </Text>
+          <View className="flex-row items-center gap-0">
+            <ZoneToken />
+            {action}
+            {onClose ? (
+              <Pressable aria-label="Close" onPress={onClose} className="pl-4 pr-1 py-2.5">
+                <X color={INK} size={24} />
+              </Pressable>
+            ) : null}
+          </View>
         </View>
+        {band}
       </View>
     );
   }
@@ -260,6 +281,7 @@ export function AppHeader({
         </View>
       </View>
       <WaveEdge />
+      {band}
     </View>
   );
 }

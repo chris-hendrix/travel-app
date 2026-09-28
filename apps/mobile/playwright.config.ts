@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { ADMIN_PHONES } from "./tests/e2e/helpers/auth";
 
 /**
  * Playwright E2E Test Configuration (mobile — Expo web build)
@@ -104,6 +105,7 @@ export default defineConfig({
         reuseExistingServer: !process.env.CI,
         stdout: "pipe" as const,
         stderr: "pipe" as const,
+        env: { ADMIN_PHONE_NUMBERS: ADMIN_PHONES.join(",") },
       },
       expoServer,
     ];

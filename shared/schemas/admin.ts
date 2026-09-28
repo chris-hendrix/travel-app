@@ -21,8 +21,9 @@ export const adminUpdateUserSchema = z
   .object({
     displayName: z.string().min(1).max(50).optional(),
     timezone: z.string().max(100).optional(),
+    temperatureUnit: z.enum(["celsius", "fahrenheit"]).optional(),
   })
-  .refine((data) => data.displayName || data.timezone, {
+  .refine((data) => data.displayName || data.timezone || data.temperatureUnit, {
     message: "At least one field must be provided",
   });
 
@@ -43,18 +44,22 @@ export const adminUserResponseSchema = z.object({
   updatedAt: z.coerce.date(),
 });
 
+// A user row with a trip count — single definition shared by list + detail.
+// (The PUT response uses the base row and does not carry a count.)
+export const adminUserWithTripCountSchema = adminUserResponseSchema.extend({
+  tripCount: z.number().int().nonnegative(),
+});
+
 // Admin user detail response (with trip count)
 export const adminUserDetailResponseSchema = z.object({
   success: z.literal(true),
-  user: adminUserResponseSchema.extend({
-    tripCount: z.number(),
-  }),
+  user: adminUserWithTripCountSchema,
 });
 
 // Admin user list response
 export const adminUserListResponseSchema = z.object({
   success: z.literal(true),
-  users: z.array(adminUserResponseSchema),
+  users: z.array(adminUserWithTripCountSchema),
   total: z.number(),
   page: z.number(),
   limit: z.number(),
@@ -93,6 +98,14 @@ export type AdminImpersonateInput = z.infer<typeof adminImpersonateSchema>;
 export const adminImpersonateResponseSchema = z.object({
   success: z.literal(true),
   message: z.string(),
+});
+
+export const adminImpersonationTokenResponseSchema = z.object({
+  success: z.literal(true),
+  message: z.string(),
+  /** The bearer-session half of the same token the cookie carries. The
+   *  web app ignores it; a phone has no cookie jar to read. */
+  token: z.string(),
 });
 
 // Enhanced /auth/me response that includes admin context
