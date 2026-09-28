@@ -8,6 +8,7 @@ import { InlineError } from "@/components/ui/InlineError";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
 import { TextField } from "@/components/ui/TextField";
 import { Button } from "@/components/ui/Button";
+import { QuietAction } from "@/components/ui/QuietAction";
 import { Segmented } from "@/components/ui/Segmented";
 import { useDismiss } from "@/hooks/useDismiss";
 import {
@@ -274,6 +275,40 @@ function ProfileForm({ profile }: { profile: Profile }) {
       onPrimary={() => void save()}
       pending={busy}
     >
+      {/* The way in for an admin, first on the screen rather than last
+          where it sat between the calendar and the documents. It is a
+          whole other surface, two screens of scroll away from the top of
+          a dialog, and the only reader who can open it is the one who
+          came here for it. Absent for everyone else — not disabled, not
+          empty, and nothing explains why: a profile screen should not
+          advertise a surface its reader cannot open.
+
+          A box rather than a word. Every other row on this screen that
+          goes somewhere is a document, and a document is a word; this is
+          not one, and it is the only destination here that is a mode
+          rather than a page. `secondary` and not `primary`, because the
+          screen's one filled box is the ActionBar's Save changes.
+
+          The heading and the sentence are the ones the block wore where
+          it used to sit, so its shape still matches `Legal & privacy`
+          below and nothing new is added to the system. */}
+      {isAdmin ? (
+        <View>
+          <Text className="font-body-bold text-sm text-ink">Admin</Text>
+          <Text className="mt-2 font-body text-sm text-ink">
+            Search every user, and act on one.
+          </Text>
+          <View className="mt-3">
+            <Button
+              title="User management"
+              variant="secondary"
+              fullWidth
+              onPress={() => router.push("/admin/users")}
+            />
+          </View>
+        </View>
+      ) : null}
+
       {/* Identity. A square of ink rather than a circle: nothing else in
           the system is round except the countdown pill. */}
       <View className="flex-row items-center gap-5">
@@ -469,50 +504,39 @@ function ProfileForm({ profile }: { profile: Profile }) {
             </View>
           </View>
         ) : (
-          <View className="mt-3 flex-row gap-3">
-            <Button
-              title={
-                calendarBusy === "disable"
-                  ? "Unsubscribing..."
-                  : "Unsubscribe"
+          // Taking the link back is a word, not a box. Both of these are
+          // maintenance on a link rather than a thing to do on this
+          // screen — unsubscribing revokes the feed, resetting replaces
+          // it — and as a pair of `secondary` boxes they were two more
+          // controls in a block that already has two, which is four
+          // stacked boxes under one heading and reads as a menu. The
+          // system's quieter things are words (Edit trip, Trip settings,
+          // the doors), and these are the same kind of thing.
+          //
+          // A write in flight holds the row instead of disabling it:
+          // `QuietAction` has no disabled state, so the guard is the early
+          // return the RSVP control uses.
+          <View className="mt-3 flex-row flex-wrap items-center gap-2">
+            <QuietAction
+              label={
+                calendarBusy === "disable" ? "Unsubscribing..." : "Unsubscribe"
               }
-              variant="secondary"
-              disabled={calendarBusy !== null}
-              onPress={() => void unsubscribe()}
+              onPress={() => {
+                if (calendarBusy !== null) return;
+                void unsubscribe();
+              }}
             />
-            <Button
-              title="Reset calendar link"
-              variant="secondary"
-              disabled={calendarBusy !== null}
-              onPress={() => setConfirmingReset(true)}
+            <Text className="font-body text-sm text-ink">·</Text>
+            <QuietAction
+              label="Reset calendar link"
+              onPress={() => {
+                if (calendarBusy !== null) return;
+                setConfirmingReset(true);
+              }}
             />
           </View>
         )}
       </View>
-
-      {/* The way in for an admin: search every account, and act on
-          one. Absent for anyone else — not disabled, not empty, and
-          nothing explains why: a profile screen should not advertise a
-          surface its reader cannot open. Same shape as `Legal &
-          privacy` below, so nothing new is added to the system. */}
-      {isAdmin ? (
-        <View>
-          <Text className="font-body-bold text-sm text-ink">Admin</Text>
-          <Text className="mt-2 font-body text-sm text-ink">
-            Search every user, and act on one.
-          </Text>
-          <View className="mt-2">
-            <View className="py-1">
-              <Link
-                href="/admin/users"
-                className="font-body-bold text-base text-ink underline"
-              >
-                User management
-              </Link>
-            </View>
-          </View>
-        </View>
-      ) : null}
 
       {/* The documents belong to the person, not to a trip: the consent
           is yours, and these are the ones you gave it to. Their heading is
