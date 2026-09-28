@@ -192,11 +192,14 @@ test.describe("Admin Journey", () => {
       await page.waitForURL("**/profile", {
         timeout: NAVIGATION_TIMEOUT,
       });
-      // The profile screen renders the TARGET's name: the bearer
-      // session really is the target's now, not just a band.
-      await expect(page.getByText(target).first()).toBeVisible({
-        timeout: ELEMENT_TIMEOUT,
-      });
+      // The profile screen renders TARGET's name — the bearer session
+      // really is the target's now, not just a band. Asserted on the
+      // Display name field rather than a page-wide text match: the
+      // list screen stays mounted beneath this route, so `getByText`
+      // resolves to that hidden row (and did, in CI, 23 times over).
+      await expect(
+        page.getByRole("textbox", { name: "Display name" }),
+      ).toHaveValue(target, { timeout: ELEMENT_TIMEOUT });
     });
 
     await test.step("stopping returns to the user list, band gone", async () => {
