@@ -365,6 +365,42 @@ describe("place-cache detail cap (F8)", () => {
   });
 });
 
+describe("place-cache locality passthrough (Phase 1 Task 3)", () => {
+  it("carries locality from cached details into the summary", async () => {
+    const id = uniq("test-pc-loc");
+    const withLocality = { ...makeDetails("Miami Spot", id), locality: "Miami" };
+    await seedRow(id, withLocality);
+    try {
+      const svc = new PlaceCacheService(db, async () => null);
+      const summary = await svc.resolve("google", id);
+      expect(summary?.locality).toBe("Miami");
+    } finally {
+      await clearRows([id]);
+    }
+  });
+
+  it("resolves locality null for a legacy row with no locality key", async () => {
+    const id = uniq("test-pc-loc-legacy");
+    const legacy = makeDetails("Legacy Spot", id);
+    // Every row written before locality shipped lacks the key entirely.
+    delete (legacy as { locality?: unknown }).locality;
+    expect("locality" in legacy).toBe(false);
+    await seedRow(id, legacy);
+    try {
+      const svc = new PlaceCacheService(db, async () => null);
+      let summary;
+      await expect(
+        (async () => {
+          summary = await svc.resolve("google", id);
+        })(),
+      ).resolves.toBeUndefined();
+      expect(summary?.locality).toBeNull();
+    } finally {
+      await clearRows([id]);
+    }
+  });
+});
+
 describe("place-cache purge", () => {
   it("deletes rows past the cutoff and stale schema versions, keeps fresh rows, returns the count", async () => {
     const oldId = uniq("test-pc-purge-old");

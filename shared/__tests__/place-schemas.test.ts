@@ -94,6 +94,7 @@ const fullSummary = {
   },
   photoSourceUri: "https://maps.google.com/?cid=1",
   country: "ES",
+  locality: "Miami",
 };
 
 describe("placeSummarySchema", () => {
@@ -109,6 +110,11 @@ describe("placeSummarySchema", () => {
       photoSourceUri: null,
     };
     expect(placeSummarySchema.parse(noPhoto)).toEqual(noPhoto);
+  });
+
+  it("round-trips a null locality", () => {
+    const noLocality = { ...fullSummary, locality: null };
+    expect(placeSummarySchema.parse(noLocality)).toEqual(noLocality);
   });
 });
 
@@ -136,6 +142,20 @@ describe("cachedPlaceDetailsSchema", () => {
 
   it("round-trips a populated snapshot", () => {
     expect(cachedPlaceDetailsSchema.parse(details)).toEqual(details);
+  });
+
+  it("parses a details object carrying locality", () => {
+    const withLocality = { ...details, locality: "Miami" };
+    expect(cachedPlaceDetailsSchema.parse(withLocality)).toEqual(withLocality);
+  });
+
+  it("parses a legacy row without the locality key", () => {
+    const { locality: _omitted, ...legacy } = {
+      ...details,
+      locality: "Miami",
+    };
+    expect("locality" in legacy).toBe(false);
+    expect(cachedPlaceDetailsSchema.parse(legacy)).toEqual(legacy);
   });
 
   it("rejects an object carrying the removed `category` key", () => {

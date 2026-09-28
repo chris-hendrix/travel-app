@@ -22,6 +22,7 @@ export type CachedPlaceDetails = {
   lon: number | null;
   photos: CachedPhoto[];
   country: string | null; // addressComponents' country shortText, e.g. "ES"
+  locality?: string | null; // addressComponents' locality, the town a card badges
 };
 
 export type PlaceSummary = {
@@ -36,4 +37,5 @@ export type PlaceSummary = {
   } | null;
   photoSourceUri: string | null; // the googleMapsUri the policy requires
   country: string | null; // the autocomplete region floor's input
+  locality: string | null; // addressComponents' locality, the town a card badges
 };

@@ -36,6 +36,35 @@ export type AutocompleteSuggestion = {
   distanceMeters: number | null;
 };
 
+/** Most specific first: the town you would name, then the ones you would accept. */
+export const LOCALITY_COMPONENT_TYPES = [
+  "locality",
+  "postal_town",
+  "sublocality_level_1",
+  "sublocality",
+  "administrative_area_level_2",
+] as const;
+
+export type AddressComponent = {
+  longText: string;
+  shortText: string;
+  types: string[];
+  languageCode: string;
+};
+
+export function pickAddressComponent(
+  components: readonly AddressComponent[] | undefined,
+  types: readonly string[],
+  field: "longText" | "shortText",
+): string | null {
+  if (!components) return null;
+  for (const t of types) {
+    const found = components.find((c) => c.types.includes(t));
+    if (found) return found[field] ?? null;
+  }
+  return null;
+}
+
 export type PlaceDetailsResult = {
   placeId: string;
   /** Always "": displayName is excluded from the mask, so the name is
@@ -47,6 +76,7 @@ export type PlaceDetailsResult = {
   lon: number | null;
   photos: CachedPhoto[];
   country: string | null;
+  locality: string | null;
 };
 
 type RawPrediction = {
@@ -190,8 +220,12 @@ export async function fetchPlaceDetails(opts: {
       mapsUri: p.googleMapsUri ?? null,
     }));
     const country =
-      data.addressComponents?.find((c) => c.types.includes("country"))
-        ?.shortText ?? null;
+      pickAddressComponent(data.addressComponents, ["country"], "shortText");
+    const locality = pickAddressComponent(
+      data.addressComponents,
+      LOCALITY_COMPONENT_TYPES,
+      "longText",
+    );
     return {
       placeId: data.id,
       // displayName is deliberately absent from DETAILS_FIELD_MASK (Pro
@@ -208,6 +242,7 @@ export async function fetchPlaceDetails(opts: {
       lon: data.location?.longitude ?? null,
       photos,
       country,
+      locality,
     };
   } catch (err) {
     if (err instanceof PlacesError) throw err;

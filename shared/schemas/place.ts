@@ -70,6 +70,7 @@ export const cachedPlaceDetailsSchema = z
     lon: z.number().nullable(),
     photos: z.array(cachedPhotoSchema),
     country: z.string().nullable(),
+    locality: z.string().nullable().optional(),
   })
   .strict();
 
@@ -87,6 +88,7 @@ export const placeSummarySchema = z.object({
     .nullable(),
   photoSourceUri: z.string().nullable(),
   country: z.string().nullable(),
+  locality: z.string().nullable(),
 });
 
 export type PlaceProvider = z.infer<typeof placeProviderSchema>;

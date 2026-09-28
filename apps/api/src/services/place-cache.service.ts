@@ -65,6 +65,7 @@ function toSummary(placeId: string, details: CachedPlaceDetails): PlaceSummary {
       : null,
     photoSourceUri: sourced?.mapsUri ?? null,
     country: details.country,
+    locality: details.locality ?? null,
   };
 }
 
