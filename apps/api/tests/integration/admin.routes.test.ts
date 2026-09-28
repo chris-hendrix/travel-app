@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../helpers.js";
 import { db } from "@/config/database.js";
-import { users } from "@/db/schema/index.js";
+import { users, trips, members } from "@/db/schema/index.js";
 import { eq } from "drizzle-orm";
 import { generateUniquePhone } from "../test-utils.js";
 
@@ -234,6 +234,56 @@ describe("Admin Routes", () => {
           new Date(body.users[i + 1].createdAt).getTime(),
         );
       }
+    });
+
+    it("should include a numeric tripCount per row", async () => {
+      app = await buildApp();
+      const admin = await createUser({ displayName: "Admin", role: "admin" });
+      const traveler = await createUser({ displayName: "Trip Traveler" });
+      const loner = await createUser({ displayName: "No Trips User" });
+
+      const createdTrips = await db
+        .insert(trips)
+        .values([
+          {
+            name: "Trip One",
+            destination: "Paris",
+            preferredTimezone: "UTC",
+            createdBy: admin.id,
+          },
+          {
+            name: "Trip Two",
+            destination: "Rome",
+            preferredTimezone: "UTC",
+            createdBy: admin.id,
+          },
+        ])
+        .returning();
+
+      await db.insert(members).values([
+        { tripId: createdTrips[0]!.id, userId: traveler.id },
+        { tripId: createdTrips[1]!.id, userId: traveler.id },
+      ]);
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/admin/users",
+        cookies: { auth_token: adminToken(app, admin.id) },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      for (const u of body.users) {
+        expect(typeof u.tripCount).toBe("number");
+      }
+      const travelerRow = body.users.find(
+        (u: { id: string }) => u.id === traveler.id,
+      );
+      const lonerRow = body.users.find(
+        (u: { id: string }) => u.id === loner.id,
+      );
+      expect(travelerRow.tripCount).toBe(2);
+      expect(lonerRow.tripCount).toBe(0);
     });
   });
 
