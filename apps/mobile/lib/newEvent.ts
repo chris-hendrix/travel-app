@@ -158,7 +158,7 @@ export function buildEvent(
   input: NewEventInput,
   id: string,
   timeZone: string | null,
-  photo: string,
+  photo: string | null,
 ): ItineraryEvent {
   const [year, month, day] = input.day.split("-").map(Number) as [
     number,

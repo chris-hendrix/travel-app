@@ -59,7 +59,7 @@ describe("validateNewEvent", () => {
 
 describe("buildEvent", () => {
   it("stamps the wall clock onto the trip clock", () => {
-    const event = buildEvent(INPUT, "e1", "Europe/Madrid", "https://picsum.test/x");
+    const event = buildEvent(INPUT, "e1", "Europe/Madrid", "https://photo.test/x");
     // 20:30 in a UTC+2 trip is 18:30Z.
     expect(event.startTime).toBe("2026-09-20T18:30:00.000Z");
     expect(event.endTime).toBe("2026-09-20T20:30:00.000Z");
@@ -75,13 +75,13 @@ describe("buildEvent", () => {
       { ...INPUT, end: "" },
       "e1",
       "UTC",
-      "https://picsum.test/x",
+      "https://photo.test/x",
     );
     expect(event.endTime).toBeNull();
   });
 
   it("carries an all-day event at its own midnight, and says so", () => {
-    const event = buildEvent(ALL_DAY, "e1", "UTC", "https://picsum.test/x");
+    const event = buildEvent(ALL_DAY, "e1", "UTC", "https://photo.test/x");
     // Midnight in a UTC+0 trip, and the flag that stops the itinerary
     // printing "12:00 AM" at whatever the heading already said.
     expect(event.startTime.slice(11, 16)).toBe("00:00");

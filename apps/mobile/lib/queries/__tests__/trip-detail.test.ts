@@ -82,9 +82,9 @@ describe("tripDetailOptions", () => {
       description: "Sailing week",
       preferredTimezone: "Europe/Zagreb",
     });
-    // No cover on the server: the deterministic placeholder, never a
+    // No cover on the server: null — the tile, never a
     // broken box.
-    expect(trip.image).toContain("picsum.photos/seed/trip-1");
+    expect(trip.image).toBeNull();
   });
 
   it("a 404 yields the not-found branch (passed through, no message)", async () => {

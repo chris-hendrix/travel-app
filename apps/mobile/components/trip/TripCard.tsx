@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/Badge";
 import { PhotoCard } from "@/components/ui/PhotoCard";
+import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 import { tripCountdown } from "@/lib/countdown";
 import { formatDateRange } from "@/lib/dateRange";
 import type { PlacePhotoCredit } from "@/lib/place-images";
@@ -8,7 +9,8 @@ export type Trip = {
   id: string;
   title: string;
   location: string;
-  image: string;
+  /** The resolved cover (upload, then place photo); null when there is none. */
+  image: string | null;
   /**
    * The raw upload, resolved against the API origin — null when the
    * trip has no cover. Distinct from `image`, which is the resolved
@@ -87,6 +89,7 @@ export function TripCard({
   return (
     <PhotoCard
       image={trip.image}
+      placeholder={<PlaceholderImage kind="trip" />}
       photoSourceUri={trip.photoSourceUri ?? null}
       overlay={countdown ? <Badge label={countdown} variant="club" /> : null}
       meta={formatDateRange(trip.startDate, trip.endDate)}

@@ -1,8 +1,9 @@
-import { type ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { Image, Linking, Pressable, Text, View } from "react-native";
 import { ArrowUpRight } from "lucide-react-native";
 import { useHoverZoom } from "@/hooks/useHoverZoom";
 import { INK } from "@/lib/theme";
+import { imageSlot } from "@/lib/place-images";
 
 /**
  * The floating tile: a 2:1 photo with an optional overlay, then a bold
@@ -26,12 +27,16 @@ import { INK } from "@/lib/theme";
  * Nothing reserves empty height. That is why the two cards built on this
  * — a trip and an event — can drop a line without the grid going wonky.
  *
+ * A 404 is a state, not a blank box: a photo that fails to load
+ * falls back to the kind's stock photo, same as a missing one.
+ *
  * Hover (web, wide only): the photo and the text both zoom — the photo
  * inside its clipped frame, the text from its left edge so it grows into
  * the grid gap rather than over the neighbouring card.
  */
 export function PhotoCard({
   image,
+  placeholder,
   photoSourceUri,
   overlay,
   meta,
@@ -39,7 +44,9 @@ export function PhotoCard({
   footnote,
   onPress,
 }: {
-  image: string;
+  image: string | null;
+  /** The kind's stock photo rendered when there is no photo, or it failed to load. */
+  placeholder: ReactNode;
   /**
    * The photo's required Google Maps source link. When present a small
    * corner affordance opens it. The affordance is deliberately NOT the
@@ -63,6 +70,8 @@ export function PhotoCard({
   onPress?: (() => void) | undefined;
 }) {
   const { hoverProps, zoom } = useHoverZoom();
+  const [failed, setFailed] = useState(false);
+  const slot = imageSlot({ image, failed });
 
   return (
     <Pressable
@@ -71,17 +80,22 @@ export function PhotoCard({
       className="w-full lg:max-w-[420px] cursor-pointer"
     >
       <View className="relative overflow-hidden">
-        <Image
-          source={{ uri: image }}
-          resizeMode="cover"
-          className={`w-full aspect-[2/1] ${zoom}`}
-        />
+        {slot.kind === "placeholder" ? (
+          <View className="w-full aspect-[2/1]">{placeholder}</View>
+        ) : (
+          <Image
+            source={{ uri: slot.url }}
+            resizeMode="cover"
+            onError={() => setFailed(true)}
+            className={`w-full aspect-[2/1] ${zoom}`}
+          />
+        )}
         {overlay ? (
           <View className="absolute left-3 top-3">{overlay}</View>
         ) : null}
         {/* The source link, at the policy's minimum target: 44dp, top
             right so it cannot collide with the top-left overlay chip. */}
-        {photoSourceUri ? (
+        {photoSourceUri && slot.kind === "photo" ? (
           <Pressable
             onPress={() => void Linking.openURL(photoSourceUri)}
             aria-label="View photo source on Google Maps"

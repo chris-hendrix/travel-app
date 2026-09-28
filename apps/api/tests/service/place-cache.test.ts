@@ -365,6 +365,107 @@ describe("place-cache detail cap (F8)", () => {
   });
 });
 
+describe("place-cache locality passthrough (Phase 1 Task 3)", () => {
+  it("carries locality from cached details into the summary", async () => {
+    const id = uniq("test-pc-loc");
+    const withLocality = { ...makeDetails("Miami Spot", id), locality: "Miami" };
+    await seedRow(id, withLocality);
+    try {
+      const svc = new PlaceCacheService(db, async () => null);
+      const summary = await svc.resolve("google", id);
+      expect(summary?.locality).toBe("Miami");
+    } finally {
+      await clearRows([id]);
+    }
+  });
+
+  it("resolves locality null for a legacy row with no locality key", async () => {
+    const id = uniq("test-pc-loc-legacy");
+    const legacy = makeDetails("Legacy Spot", id);
+    // Every row written before locality shipped lacks the key entirely.
+    delete (legacy as { locality?: unknown }).locality;
+    expect("locality" in legacy).toBe(false);
+    await seedRow(id, legacy);
+    try {
+      const svc = new PlaceCacheService(db, async () => null);
+      let summary;
+      await expect(
+        (async () => {
+          summary = await svc.resolve("google", id);
+        })(),
+      ).resolves.toBeUndefined();
+      expect(summary?.locality).toBeNull();
+    } finally {
+      await clearRows([id]);
+    }
+  });
+});
+
+describe("place-cache photo-drop log (Phase 4 Task 1)", () => {
+  it("logs one debug line naming the dropped and photo-less places with counts", async () => {
+    const sourcedId = uniq("test-pc-pd-src");
+    const droppedId = uniq("test-pc-pd-drop");
+    const emptyId = uniq("test-pc-pd-empty");
+    const droppedDetails = makeDetails("NoSrc", droppedId);
+    droppedDetails.photos[0]!.mapsUri = null;
+    const emptyDetails = makeDetails("NoPhotos", emptyId);
+    emptyDetails.photos = [];
+    await seedRow(sourcedId, makeDetails("Sourced", sourcedId));
+    await seedRow(droppedId, droppedDetails);
+    await seedRow(emptyId, emptyDetails);
+    try {
+      const fetcher = vi.fn(async () => null);
+      const debug = vi.fn();
+      const svc = new PlaceCacheService(db, fetcher, { debug } as never);
+      const map = await svc.resolveMany(
+        [sourcedId, droppedId, emptyId].map((placeId) => ({
+          provider: "google",
+          placeId,
+        })),
+        { mode: "list" },
+      );
+      expect(map.size).toBe(3);
+      expect(map.get(`google:${sourcedId}`)?.photoUrl).not.toBeNull();
+      expect(map.get(`google:${droppedId}`)?.photoUrl).toBeNull();
+      expect(map.get(`google:${emptyId}`)?.photoUrl).toBeNull();
+      expect(fetcher).not.toHaveBeenCalled();
+      expect(debug).toHaveBeenCalledTimes(1);
+      const [payload, msg] = debug.mock.calls[0]!;
+      expect(msg).toBe("Place photos unavailable");
+      const flat = JSON.stringify(payload);
+      expect(flat).toContain(`google:${droppedId}`);
+      expect(flat).toContain(`google:${emptyId}`);
+      expect(flat).not.toContain(`google:${sourcedId}`);
+      // Counts travel with the line: one dropped for want of a source
+      // link, one with no photos at all.
+      expect(payload).toMatchObject({ droppedCount: 1, noPhotosCount: 1 });
+    } finally {
+      await clearRows([sourcedId, droppedId, emptyId]);
+    }
+  });
+
+  it("logs nothing when every photo is sourced", async () => {
+    const ids = [uniq("test-pc-pa1"), uniq("test-pc-pa2")];
+    for (const id of ids) {
+      await seedRow(id, makeDetails(`Place ${id.slice(-4)}`, id));
+    }
+    try {
+      const fetcher = vi.fn(async () => null);
+      const debug = vi.fn();
+      const svc = new PlaceCacheService(db, fetcher, { debug } as never);
+      const map = await svc.resolveMany(
+        ids.map((placeId) => ({ provider: "google", placeId })),
+        { mode: "list" },
+      );
+      expect(map.size).toBe(2);
+      expect(fetcher).not.toHaveBeenCalled();
+      expect(debug).not.toHaveBeenCalled();
+    } finally {
+      await clearRows(ids);
+    }
+  });
+});
+
 describe("place-cache purge", () => {
   it("deletes rows past the cutoff and stale schema versions, keeps fresh rows, returns the count", async () => {
     const oldId = uniq("test-pc-purge-old");

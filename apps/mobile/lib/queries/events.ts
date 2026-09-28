@@ -29,7 +29,7 @@ export const eventKeys = {
  * `eventController.listEvents`, response `eventListResponseSchema`).
  *
  * Rows map through `toEvent` (Phase 1 Task 4 — `eventType`→`type`,
- * `location`→`place`, `image`→`placeholderPhoto()` stub; relocation
+ * `location`→`place`, `image`→`null` stub; relocation
  * is Phase 6 Task 5's job). No `includeDeleted` param is sent: the
  * endpoint defaults it off and there is no Deleted-items UI yet, so
  * the server returns live rows only. Sorting and `liveEvents`
@@ -118,7 +118,7 @@ export type UpdateEventRequest = {
  * The response carries the full entity, so `toEvent` needs nothing the
  * response does not have — unlike the trips writes, there is no
  * `memberCount`-style placeholder for the provider to merge. `image`
- * stays `placeholderPhoto(event.id)`, deterministic per id.
+ * stays null until the server photo lands.
  */
 export async function createEvent(tripId: string, input: CreateEventRequest) {
   const body = await apiFetch<{ success: true; event: Event }>(

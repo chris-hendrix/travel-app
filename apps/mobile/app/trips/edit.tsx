@@ -190,7 +190,7 @@ function EditTripScreen() {
     // state stays local until save: a picked local URI uploads, an
     // emptied field deletes (when the trip had a real cover), and an
     // unchanged remote URL or placeholder sends nothing. A null
-    // cover maps to `placeholderPhoto` — never a broken box — so
+    // cover maps to null — the tile, never a broken box — so
     // "no cover" needs no separate state.
     const patch: UpdateTripRequest = {
       name: input.title.trim(),

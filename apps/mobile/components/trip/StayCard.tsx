@@ -1,4 +1,5 @@
 import { PhotoCard } from "@/components/ui/PhotoCard";
+import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 import { Badge } from "@/components/ui/Badge";
 import { stayArea, staySpan, type Stay } from "@/lib/stays";
 
@@ -31,6 +32,7 @@ export function StayCard({
   return (
     <PhotoCard
       image={stay.image}
+      placeholder={<PlaceholderImage kind="lodging" />}
       photoSourceUri={stay.photoSourceUri ?? null}
       overlay={<Badge label="Stay" variant="category" />}
       // The card's three lines are the event card's three lines: the span

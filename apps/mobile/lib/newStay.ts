@@ -170,7 +170,7 @@ export function buildStay(
   input: NewStayInput,
   id: string,
   timeZone: string | null,
-  photo: string,
+  photo: string | null,
   links: StayLink[] = [],
 ): Stay {
   const text = (value: string) => (value.trim() ? value.trim() : null);

@@ -41,6 +41,8 @@ import { EventCard } from "@/components/trip/EventCard";
 import { Grid } from "@/components/ui/Grid";
 import { PhotoCard } from "@/components/ui/PhotoCard";
 import { PhotoCredit } from "@/components/ui/PhotoCredit";
+import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
+import { KINDS, type PlaceholderKind } from "@/lib/placeholder";
 import { NotificationRow } from "@/components/notification/NotificationRow";
 import { TRIPS } from "@/mocks/trips";
 import { eventsFor } from "@/mocks/events";
@@ -517,6 +519,7 @@ function DesignSystemScreen() {
               <Grid>
                 <PhotoCard
                   image={TRIPS[0]!.image}
+                  placeholder={<PlaceholderImage kind="trip" />}
                   meta="Sep 24 – Oct 1, 2026"
                   title={TRIPS[0]!.title}
                   footnote={TRIPS[0]!.location}
@@ -524,6 +527,9 @@ function DesignSystemScreen() {
                 />
                 <PhotoCard
                   image={eventsFor(TRIPS[0]!)[0]!.image}
+                  placeholder={
+                    <PlaceholderImage kind={eventsFor(TRIPS[0]!)[0]!.type} />
+                  }
                   meta="8:30 AM – 9:45 AM"
                   title={eventsFor(TRIPS[0]!)[0]!.name}
                   footnote={eventsFor(TRIPS[0]!)[0]!.place}
@@ -542,6 +548,23 @@ function DesignSystemScreen() {
               />
               <PhotoCredit credit={PLACE_CREDIT} sourceUri={null} />
               <PhotoCredit credit={null} sourceUri={PLACE_PHOTO_SOURCE} />
+            </Specimen>
+
+            <Specimen
+              name="PlaceholderImage"
+              contract="kind · fills its parent box"
+              note="What a place looks like when nobody has a photo of it. The fallback says which kind of thing it is, not which place: the nine event types and a trip cover. Stock, not drawn, and no source link, because there is no source."
+            >
+              <View className="flex-row flex-wrap gap-3">
+                {(Object.keys(KINDS) as PlaceholderKind[]).map((kind) => (
+                  <View key={kind} className="w-36 gap-1">
+                    <Text className="font-body text-sm text-ink">{kind}</Text>
+                    <View className="aspect-[2/1] w-36">
+                      <PlaceholderImage kind={kind} />
+                    </View>
+                  </View>
+                ))}
+              </View>
             </Specimen>
 
             <Specimen

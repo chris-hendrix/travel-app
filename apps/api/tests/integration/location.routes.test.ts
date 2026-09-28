@@ -356,6 +356,38 @@ describe("Location Routes", () => {
       });
     });
 
+    it("returns lat/lon null (not 0,0) when Google omits location", async () => {
+      const { token } = await createAuthenticatedApp();
+      app.config.GOOGLE_MAPS_API_KEY = "test-key";
+
+      const mockResponse = {
+        id: PLACE_ID,
+        formattedAddress: "123 Main St, Chicago, IL 60601, USA",
+        types: ["cafe"],
+      };
+      vi.spyOn(global, "fetch").mockResolvedValueOnce(
+        new Response(JSON.stringify(mockResponse), { status: 200 }),
+      );
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/api/locations/details?placeId=${PLACE_ID}&sessionToken=${SESSION_TOKEN}`,
+        cookies: { auth_token: token },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body).toEqual({
+        placeId: PLACE_ID,
+        displayPlace: "123 Main St, Chicago, IL 60601, USA",
+        displayAddress: "123 Main St, Chicago, IL 60601, USA",
+        lat: null,
+        lon: null,
+      });
+      expect(typeof body.displayPlace).toBe("string");
+      expect(typeof body.displayAddress).toBe("string");
+    });
+
     it("returns 503 when GOOGLE_MAPS_API_KEY not set", async () => {
       const { token } = await createAuthenticatedApp();
 

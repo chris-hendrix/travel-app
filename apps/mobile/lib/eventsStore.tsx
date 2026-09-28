@@ -293,8 +293,8 @@ export function EventsProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (event, _input, context) => {
       // The PUT response carries the full entity, so `toEvent` needs
-      // no merge: `image` is `placeholderPhoto(event.id)`,
-      // deterministic per id. The swap is by id, not position.
+      // no merge: `image` is null until the server photo lands.
+      // The swap is by id, not position.
       queryClient.setQueryData<ItineraryEvent[]>(
         eventKeys.list(context?.tripId ?? ""),
         (old) => old?.map((row) => (row.id === event.id ? event : row)),

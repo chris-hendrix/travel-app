@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/Badge";
 import { PhotoCard } from "@/components/ui/PhotoCard";
+import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 import {
   EVENT_TYPE_LABEL,
   eventTimeLabel,
@@ -24,6 +25,7 @@ export function EventCard({
   return (
     <PhotoCard
       image={event.image}
+      placeholder={<PlaceholderImage kind={event.type} />}
       photoSourceUri={event.photoSourceUri ?? null}
       overlay={<Badge label={EVENT_TYPE_LABEL[event.type]} variant="category" />}
       meta={eventTimeLabel(event, timeZone)}

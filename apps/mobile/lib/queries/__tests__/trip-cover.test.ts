@@ -20,7 +20,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ApiError, apiFetch } from "@/lib/api";
 import type { Trip } from "@/components/trip/TripCard";
-import { placeholderPhoto, toTrip } from "@/lib/mapping";
+import { toTrip } from "@/lib/mapping";
 import type { TripDetail } from "@journiful/shared/types";
 import {
   removeCover,
@@ -68,7 +68,7 @@ function cachedTrip(): Trip {
     id: "trip-1",
     title: "Dolomites",
     location: "Bolzano",
-    image: placeholderPhoto("trip-1"),
+    image: null,
     coverImageUrl: null,
     going: 4,
     startDate: "2026-07-01",
@@ -140,18 +140,18 @@ describe("removeCover", () => {
       "/trips/trip-1/cover-image",
       expect.objectContaining({ method: "DELETE" }),
     );
-    expect(trip.image).toBe(placeholderPhoto("trip-1"));
+    expect(trip.image).toBe(null);
   });
 });
 
 describe("null cover mapping", () => {
-  it("maps coverImageUrl: null to placeholderPhoto(trip.id)", () => {
+  it("maps coverImageUrl: null to null", () => {
     const trip = toTrip({
       ...coverEntity({ coverImageUrl: null }),
       memberCount: 2,
       organizers: [],
     } as unknown as TripDetail);
-    expect(trip.image).toBe(placeholderPhoto("trip-1"));
+    expect(trip.image).toBe(null);
   });
 });
 
@@ -253,12 +253,12 @@ describe("useTripsActions() cover mutations", () => {
     await removeCover("trip-1");
     expect(client.getQueryData<Trip>(tripKeys.detail("trip-1"))).toMatchObject({
       id: "trip-1",
-      image: placeholderPhoto("trip-1"),
+      image: null,
       going: 4,
     });
     expect(client.getQueryData<Trip[]>(tripKeys.list())?.[0]).toMatchObject({
       id: "trip-1",
-      image: placeholderPhoto("trip-1"),
+      image: null,
     });
   });
 });

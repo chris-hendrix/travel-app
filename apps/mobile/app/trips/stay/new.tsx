@@ -10,7 +10,6 @@ import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { useStays } from "@/lib/staysStore";
 import { useDismiss } from "@/hooks/useDismiss";
-import { placeholderPhoto } from "@/lib/placeholder";
 
 /**
  * Add stay — the organizer's way onto the run's opening row. Every
@@ -71,7 +70,7 @@ function NewStayScreen() {
             input,
             `custom-${Date.now()}`,
             timeZone,
-            placeholderPhoto(input.name),
+            null,
           ),
           // The live lookup's coordinates when the address was picked
           // from a suggestion; typed prose carries none, never 0.

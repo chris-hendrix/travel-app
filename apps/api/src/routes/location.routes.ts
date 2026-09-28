@@ -34,8 +34,8 @@ const locationSuggestionSchema = z.object({
   placeId: z.string(),
   displayPlace: z.string(),
   displayAddress: z.string(),
-  lat: z.number(),
-  lon: z.number(),
+  lat: z.number().nullable(),
+  lon: z.number().nullable(),
 });
 
 const detailsQuerySchema = z.object({
@@ -131,8 +131,8 @@ export async function locationRoutes(fastify: FastifyInstance) {
           placeId: details.placeId,
           displayPlace: details.address ?? "",
           displayAddress: details.address ?? "",
-          lat: details.lat ?? 0,
-          lon: details.lon ?? 0,
+          lat: details.lat ?? null,
+          lon: details.lon ?? null,
         };
       } catch (err) {
         if (err instanceof PlacesError) {

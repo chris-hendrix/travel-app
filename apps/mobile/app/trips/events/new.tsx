@@ -10,7 +10,6 @@ import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { useEvents } from "@/lib/eventsStore";
 import { useDismiss } from "@/hooks/useDismiss";
-import { placeholderPhoto } from "@/lib/placeholder";
 
 /**
  * Add event — the organizer's way onto the itinerary. Every question it
@@ -66,7 +65,7 @@ function NewEventScreen() {
           input,
           `custom-${Date.now()}`,
           timeZone,
-          placeholderPhoto(input.place),
+          null,
         );
         // The built event is the optimistic row (its custom id is
         // the stand-in the store swaps the server event in by).

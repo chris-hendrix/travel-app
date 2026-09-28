@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/api", () => ({ apiFetch: vi.fn() }));
 
 import { apiFetch } from "@/lib/api";
-import { placeholderPhoto } from "@/lib/mapping";
 import { eventKeys, eventsOptions } from "@/lib/queries/events";
 import type { Event } from "@journiful/shared/types";
 import type { GetEventsResponse } from "@/lib/queries/events";
@@ -65,7 +64,7 @@ describe("eventsOptions", () => {
       name: "Dinner at the harbour",
       type: "food_and_drink",
       place: "Konoba",
-      image: placeholderPhoto("event-1"),
+      image: null,
     });
   });
 

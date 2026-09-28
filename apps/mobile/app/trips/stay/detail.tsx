@@ -25,6 +25,7 @@ import NotFound from "@/app/+not-found";
 import { useDismiss } from "@/hooks/useDismiss";
 import { joinFacts } from "@/lib/wording";
 import { placeRows } from "@/lib/place-rows";
+import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 
 /**
  * Stay detail, as a dialog: one roof, seen whole.
@@ -122,7 +123,11 @@ function StayDetailDialog() {
       <View className="gap-y-6 md:flex-row md:gap-12">
         <View className="md:flex-1">
           <View className="relative overflow-hidden">
-            {stay.photoSourceUri ? (
+            {!stay.image ? (
+              <View className="w-full aspect-[2/1]">
+                <PlaceholderImage kind="lodging" />
+              </View>
+            ) : stay.photoSourceUri ? (
               <Pressable
                 onPress={() => void Linking.openURL(stay.photoSourceUri!)}
                 aria-label="View photo source on Google Maps"

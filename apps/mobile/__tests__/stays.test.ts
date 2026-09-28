@@ -58,6 +58,58 @@ describe("a stay's own facts", () => {
     expect(stayArea(stay({ address: null }))).toBeNull();
   });
 
+  it("skips the country and the region/postcode on a US formatted address", () => {
+    expect(
+      stayArea(stay({ address: "123 Main St, Miami, FL 33101, USA" })),
+    ).toBe("Miami");
+    expect(stayArea(stay({ address: "USA" }))).toBeNull();
+    expect(stayArea(stay({ address: "United States" }))).toBeNull();
+    expect(stayArea(stay({ address: "33101" }))).toBeNull();
+  });
+
+  it("pins the heuristic's boundary", () => {
+    // Documented limitation: a typed address ending in a country the
+    // alias set does not carry badges that country.
+    expect(
+      stayArea(stay({ address: "Gran Via 1, 28013 Madrid, Spain" })),
+    ).toBe("Spain");
+    expect(
+      stayArea(stay({ address: "123 Main St, Miami, FL 33101" })),
+    ).toBe("Miami");
+  });
+
+  it("reads a linked place's area from placeArea, not the string", () => {
+    // The reported row: the formatted address ends in the country, but
+    // Google's locality already named the town.
+    expect(
+      stayArea(
+        stay({
+          address: "123 Main St, Miami, FL 33101, USA",
+          placeArea: "Miami",
+        }),
+      ),
+    ).toBe("Miami");
+  });
+
+  it("falls back to the heuristic when placeArea is null or blank", () => {
+    expect(
+      stayArea(
+        stay({
+          address: "123 Main St, Miami, FL 33101, USA",
+          placeArea: null,
+        }),
+      ),
+    ).toBe("Miami");
+    expect(
+      stayArea(
+        stay({
+          address: "123 Main St, Miami, FL 33101, USA",
+          placeArea: "  ",
+        }),
+      ),
+    ).toBe("Miami");
+  });
+
   it("spans its two days", () => {
     const puig = stay({
       checkIn: at("2026-09-17", "15:00"),

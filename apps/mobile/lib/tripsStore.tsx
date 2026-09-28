@@ -11,7 +11,6 @@ import {
 } from "@tanstack/react-query";
 import type { Trip } from "@/components/trip/TripCard";
 import { ApiError } from "@/lib/api";
-import { placeholderPhoto } from "@/lib/mapping";
 import {
   createTripOptions,
   removeCoverOptions,
@@ -57,7 +56,7 @@ function optimisticTrip(input: CreateTripRequest): Trip {
     id,
     title: input.name.trim(),
     location: input.destination.trim(),
-    image: placeholderPhoto(id),
+    image: null,
     coverImageUrl: null,
     going: 1,
     startDate: input.startDate ?? "",
@@ -249,7 +248,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
    * caches, snapshot for rollback, paint `image`, return the context
    * `onError` restores. Same flow shape as the update mutation.
    */
-  const paintCover = async (id: string, image: string) => {
+  const paintCover = async (id: string, image: string | null) => {
     await Promise.all([
       queryClient.cancelQueries({ queryKey: tripKeys.detail(id) }),
       queryClient.cancelQueries({ queryKey: tripKeys.list() }),
@@ -313,10 +312,10 @@ export function TripsProvider({ children }: { children: ReactNode }) {
     onSettled: (_data, _error, { id }) => invalidateCover(id),
   });
   // The optimistic image is the placeholder (a nulled cover maps
-  // through `toTrip` to `placeholderPhoto` on success anyway).
+  // through `toTrip` to null on success anyway).
   const removeCoverMutation = useMutation({
     ...removeCoverOptions(),
-    onMutate: ({ id }) => paintCover(id, placeholderPhoto(id)),
+    onMutate: ({ id }) => paintCover(id, null),
     onError: (_error, _input, context) => {
       if (context) restoreCover(context);
     },

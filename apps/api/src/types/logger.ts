@@ -5,4 +5,6 @@ export interface Logger {
   warn(obj: Record<string, unknown>, msg: string): void;
   error(msg: string): void;
   error(obj: unknown, msg: string): void;
+  debug?(msg: string): void;
+  debug?(obj: Record<string, unknown>, msg: string): void;
 }

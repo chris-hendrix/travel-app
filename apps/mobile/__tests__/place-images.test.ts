@@ -5,6 +5,7 @@ import {
   coverImage,
   coverPreviewSeed,
   HERO_BOX_MIN_WIDTH,
+  imageSlot,
   placePhotoCredit,
   placePhotoUrl,
 } from "@/lib/place-images";
@@ -16,7 +17,7 @@ const placeWithPhoto: PlaceSummary = {
   photoUrl: "https://api.example/api/locations/photos/places%2Fabc%2Fphotos%2Fref",
   photoAttribution: { name: "Marta R.", uri: "https://maps.example/marta", photoUri: null },
   photoSourceUri: "https://maps.example/photo-source",
-  country: "ES",
+  country: "ES", locality: null,
 };
 
 const placeWithoutPhoto: PlaceSummary = {
@@ -26,7 +27,7 @@ const placeWithoutPhoto: PlaceSummary = {
   photoUrl: null,
   photoAttribution: null,
   photoSourceUri: null,
-  country: null,
+  country: null, locality: null,
 };
 
 describe("coverImage precedence", () => {
@@ -197,5 +198,26 @@ describe("placePhotoCredit", () => {
         photoAttribution: { name: "Marta R.", uri: null, photoUri: null },
       }),
     ).toEqual({ name: "Marta R.", uri: null });
+  });
+});
+
+describe("imageSlot", () => {
+  it("resolves a photo url to a photo slot", () => {
+    expect(imageSlot({ image: "https://x/y.jpg" })).toEqual({
+      kind: "photo",
+      url: "https://x/y.jpg",
+    });
+  });
+
+  it("resolves a missing image to a placeholder slot", () => {
+    expect(imageSlot({ image: null })).toEqual({ kind: "placeholder" });
+    expect(imageSlot({ image: undefined })).toEqual({ kind: "placeholder" });
+    expect(imageSlot({ image: "" })).toEqual({ kind: "placeholder" });
+  });
+
+  it("resolves a failed photo to a placeholder slot (the 404 path)", () => {
+    expect(imageSlot({ image: "https://x/y.jpg", failed: true })).toEqual({
+      kind: "placeholder",
+    });
   });
 });

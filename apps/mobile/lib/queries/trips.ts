@@ -305,7 +305,7 @@ export { uploadCoverOptions as uploadCoverMutation };
 
 /**
  * `DELETE /trips/:id/cover-image`, mapped through `toTrip` — a nulled
- * `coverImageUrl` maps to `placeholderPhoto(trip.id)`, never a broken
+ * `coverImageUrl` maps to null — the tile, never a broken
  * box. Same `{success, trip}` response shape and `going: 0`
  * placeholder convention as `uploadCover`.
  */

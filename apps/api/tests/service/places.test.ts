@@ -154,6 +154,100 @@ describe("places.service (RED: module does not exist yet)", () => {
     ).rejects.toBeInstanceOf(mod.PlacesError);
   });
 
+  it("details reads locality out of addressComponents", async () => {
+    const mod = await import("@/services/places.service.js");
+    vi.spyOn(global, "fetch").mockImplementationOnce(async () =>
+      new Response(
+        JSON.stringify({
+          id: "ChIJmiami",
+          formattedAddress: "123 Main St, Miami, FL 33101, USA",
+          location: { latitude: 25.7, longitude: -80.2 },
+          addressComponents: [
+            { longText: "Miami", shortText: "Miami", types: ["locality", "political"], languageCode: "en" },
+            { longText: "Florida", shortText: "FL", types: ["administrative_area_level_1", "political"], languageCode: "en" },
+            { longText: "United States", shortText: "US", types: ["country", "political"], languageCode: "en" },
+          ],
+          photos: [],
+        }),
+        { status: 200 },
+      ),
+    );
+    const d = await mod.fetchPlaceDetails({
+      placeId: "ChIJmiami",
+      sessionToken: "00000000-0000-4000-a000-000000000001",
+      apiKey: "test-key",
+    });
+    expect(d.locality).toBe("Miami");
+  });
+
+  it("details locality falls back postal_town > sublocality_level_1 > admin_level_2, null for country-only", async () => {
+    const mod = await import("@/services/places.service.js");
+    const run = async (components: Array<{ longText: string; shortText: string; types: string[] }>) => {
+      vi.spyOn(global, "fetch").mockImplementationOnce(async () =>
+        new Response(
+          JSON.stringify({
+            id: "ChIJx",
+            formattedAddress: "somewhere",
+            location: { latitude: 1, longitude: 2 },
+            addressComponents: components.map((c) => ({ ...c, languageCode: "en" })),
+            photos: [],
+          }),
+          { status: 200 },
+        ),
+      );
+      return mod.fetchPlaceDetails({
+        placeId: "ChIJx",
+        sessionToken: "00000000-0000-4000-a000-000000000001",
+        apiKey: "test-key",
+      });
+    };
+    const postalTown = await run([
+      { longText: "Slough", shortText: "Slough", types: ["postal_town"] },
+      { longText: "England", shortText: "England", types: ["administrative_area_level_1", "political"] },
+      { longText: "United Kingdom", shortText: "GB", types: ["country", "political"] },
+    ]);
+    expect(postalTown.locality).toBe("Slough");
+    const sub = await run([
+      { longText: "Brooklyn", shortText: "Brooklyn", types: ["sublocality_level_1", "political"] },
+      { longText: "United States", shortText: "US", types: ["country", "political"] },
+    ]);
+    expect(sub.locality).toBe("Brooklyn");
+    const admin2 = await run([
+      { longText: "Miami-Dade County", shortText: "Miami-Dade County", types: ["administrative_area_level_2", "political"] },
+      { longText: "United States", shortText: "US", types: ["country", "political"] },
+    ]);
+    expect(admin2.locality).toBe("Miami-Dade County");
+    const countryOnly = await run([
+      { longText: "United States", shortText: "US", types: ["country", "political"] },
+    ]);
+    expect(countryOnly.locality).toBeNull();
+  });
+
+  it("details locality resolves longText over shortText", async () => {
+    const mod = await import("@/services/places.service.js");
+    vi.spyOn(global, "fetch").mockImplementationOnce(async () =>
+      new Response(
+        JSON.stringify({
+          id: "ChIJy",
+          formattedAddress: "123 Main St, Miami, FL, USA",
+          location: { latitude: 25.7, longitude: -80.2 },
+          addressComponents: [
+            { longText: "Miami", shortText: "MIA", types: ["locality", "political"], languageCode: "en" },
+            { longText: "United States", shortText: "US", types: ["country", "political"], languageCode: "en" },
+          ],
+          photos: [],
+        }),
+        { status: 200 },
+      ),
+    );
+    const d = await mod.fetchPlaceDetails({
+      placeId: "ChIJy",
+      sessionToken: "00000000-0000-4000-a000-000000000001",
+      apiKey: "test-key",
+    });
+    expect(d.locality).toBe("Miami");
+  });
+
   it("media fetches bytes with content type", async () => {
     const mod = await import("@/services/places.service.js");
     vi.spyOn(global, "fetch").mockResolvedValueOnce(

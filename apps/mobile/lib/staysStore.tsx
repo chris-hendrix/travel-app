@@ -294,8 +294,8 @@ export function StaysProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (stay, _input, context) => {
       // The PUT response carries the full entity, so `toStay` needs
-      // no merge: `image` is `placeholderPhoto(stay.id)`,
-      // deterministic per id. The swap is by id, not position.
+      // no merge: `image` is null until the server photo lands.
+      // The swap is by id, not position.
       queryClient.setQueryData<Stay[]>(
         stayKeys.list(context?.tripId ?? ""),
         (old) => old?.map((row) => (row.id === stay.id ? stay : row)),

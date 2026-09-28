@@ -27,11 +27,7 @@ import type {
 } from "@journiful/shared/types";
 
 import { resolveUploadUrl } from "@/lib/uploads";
-import { placeholderPhoto } from "@/lib/placeholder";
 import { coverImage, placePhotoCredit } from "@/lib/place-images";
-// Re-exported so existing `placeholderPhoto` call sites keep working;
-// new code should import from `@/lib/placeholder` directly.
-export { placeholderPhoto };
 
 /** The API hands back `Date`s; the wire hands back ISO strings. */
 function iso(value: Date | string): string {
@@ -73,7 +69,7 @@ export function toTrip(detail: TripDetail): Trip {
     id: detail.id,
     title: detail.name,
     location: detail.destination,
-    image: cover.url ?? placeholderPhoto(detail.id),
+    image: cover.url,
     coverImageUrl,
     photoSourceUri: cover.photoSourceUri,
     photoCredit: placePhotoCredit(detail.place ?? null),
@@ -99,7 +95,7 @@ export function toTripSummary(summary: TripSummary): Trip {
     id: summary.id,
     title: summary.name,
     location: summary.destination,
-    image: cover.url ?? placeholderPhoto(summary.id),
+    image: cover.url,
     coverImageUrl,
     photoSourceUri: cover.photoSourceUri,
     photoCredit: placePhotoCredit(summary.place ?? null),
@@ -142,7 +138,7 @@ export function toEvent(event: Event): ItineraryEvent {
     placeAddress: event.placeAddress ?? null,
     locationLat: event.locationLat ?? null,
     locationLon: event.locationLon ?? null,
-    image: cover.url ?? placeholderPhoto(event.id),
+    image: cover.url,
     photoSourceUri: cover.photoSourceUri,
     photoCredit: placePhotoCredit(event.place ?? null),
     deletedAt: deletedAtOf(event.deletedAt),
@@ -168,12 +164,14 @@ export function toStay(accommodation: Accommodation): Stay {
     // snapshot must survive cache expiry and Google-side renames.
     placeName: accommodation.placeName ?? null,
     placeAddress: accommodation.placeAddress ?? null,
+    placeArea: accommodation.place?.locality ?? null,
+    placeCountry: accommodation.place?.country ?? null,
     addressLat: accommodation.addressLat,
     addressLon: accommodation.addressLon,
     description: accommodation.description,
     checkIn: accommodation.checkIn,
     checkOut: accommodation.checkOut,
-    image: cover.url ?? placeholderPhoto(accommodation.id),
+    image: cover.url,
     photoSourceUri: cover.photoSourceUri,
     photoCredit: placePhotoCredit(accommodation.place ?? null),
     links: (accommodation.links ?? []).map((link) => ({

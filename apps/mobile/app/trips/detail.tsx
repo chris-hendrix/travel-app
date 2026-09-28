@@ -30,6 +30,7 @@ import { viewerOf, goingMembers } from "@/lib/members";
 import { anyTravelOwed } from "@/lib/travelBoard";
 
 import { boxForWidth } from "@/lib/place-images";
+import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 import { getPertinentTime } from "@journiful/shared/utils";
 
 /**
@@ -133,8 +134,8 @@ function TripDetailScreen() {
   // carries its `?size=` segment, so the box swaps there; uploads and
   // placeholders carry none and render unchanged.
   const heroBox = boxForWidth(useWindowDimensions().width);
-  const heroImage = (uri: string) =>
-    uri.replace(/([?&])size=(card|hero)/, `$1size=${heroBox}`);
+  const heroImage = (uri: string | null) =>
+    uri?.replace(/([?&])size=(card|hero)/, `$1size=${heroBox}`);
 
   // The roof the trip page knows about, so its fact row can open the
   // one screen that holds the wifi, the code and the address. The run
@@ -262,23 +263,29 @@ function TripDetailScreen() {
               every rule in the right column would end past the page's. */}
           <View className="gap-6 md:flex-1">
             <View className="relative overflow-hidden">
-              {trip.photoSourceUri ? (
-                <Pressable
-                  onPress={() => void Linking.openURL(trip.photoSourceUri!)}
-                  aria-label="View photo source on Google Maps"
-                >
+              {heroImage(trip.image) ? (
+                trip.photoSourceUri ? (
+                  <Pressable
+                    onPress={() => void Linking.openURL(trip.photoSourceUri!)}
+                    aria-label="View photo source on Google Maps"
+                  >
+                    <Image
+                      source={{ uri: heroImage(trip.image)! }}
+                      resizeMode="cover"
+                      className="w-full aspect-[2/1]"
+                    />
+                  </Pressable>
+                ) : (
                   <Image
-                    source={{ uri: heroImage(trip.image) }}
+                    source={{ uri: heroImage(trip.image)! }}
                     resizeMode="cover"
                     className="w-full aspect-[2/1]"
                   />
-                </Pressable>
+                )
               ) : (
-                <Image
-                  source={{ uri: heroImage(trip.image) }}
-                  resizeMode="cover"
-                  className="w-full aspect-[2/1]"
-                />
+                <View className="w-full aspect-[2/1]">
+                  <PlaceholderImage kind="trip" />
+                </View>
               )}
               {countdown ? (
                 <View className="absolute left-3 top-3">

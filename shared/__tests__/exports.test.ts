@@ -231,6 +231,7 @@ describe("Package Exports", () => {
       photoAttribution: null,
       photoSourceUri: null,
       country: "ES",
+      locality: "Sóller",
     };
     const trip: Trip = {
       id: "t",
