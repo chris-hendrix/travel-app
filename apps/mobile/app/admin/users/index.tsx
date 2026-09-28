@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
+import { Screen } from "@/components/ui/Screen";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { InlineError } from "@/components/ui/InlineError";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
@@ -24,18 +24,26 @@ import {
 import { toErrorCopy } from "@/lib/queries/errors";
 
 /**
- * The user list. `AdminGate` around the child that owns its reads —
- * the reads must live in a child of the gate, never in the component
- * that branches on `useAuth()`, because hooks run on every render
- * including the blocked one and `useInfiniteQuery` fires on mount.
+ * The user list, as a page rather than a dialog: it is a surface you
+ * browse (search, four filters, Load more), and browsing is what this
+ * app renders as a page (`/trips`), while the thing you open to act on
+ * is a dialog (`/trips/members`) — which is the record.
+ *
+ * `AdminGate` around the child that owns its reads — the reads must
+ * live in a child of the gate, never in the component that branches on
+ * `useAuth()`, because hooks run on every render including the blocked
+ * one and `useInfiniteQuery` fires on mount.
  */
 export default function AdminUsersScreen() {
   return (
-    <FullscreenDialog title="Users" dismissHref="/profile">
+    <Screen lead>
+      <Text className="font-display text-3xl uppercase leading-tight text-ink">
+        User management
+      </Text>
       <AdminGate label="Loading users">
         <AdminUsersList />
       </AdminGate>
-    </FullscreenDialog>
+    </Screen>
   );
 }
 
@@ -89,8 +97,8 @@ function AdminUsersList() {
       />
       {/* Not a FlatList: twenty two-line rows is a screenful or three,
           and this app's other lists are plain stacks inside `Screen`
-          (`app/trips/index.tsx`, the roster) — the dialog already
-          scrolls as one surface. */}
+          (`app/trips/index.tsx`, the roster) — the page already scrolls
+          as one surface. */}
       <View>
         {rows.map((user) => (
           <AdminUserRowView

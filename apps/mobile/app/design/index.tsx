@@ -1044,7 +1044,8 @@ function DesignSystemScreen() {
             User management
           </Link>
           <Text className="font-body text-sm text-ink">
-            The user list: search, filter tabs and Load more. Redirects when
+            The user list: search, filter tabs and Load more. A page, not a
+            dialog — it is a surface you browse, like /trips. Redirects when
             the session is not an admin&apos;s — to /trips when signed in, to
             the landing when signed out — the same way /trips and /profile do.
           </Text>
@@ -1053,7 +1054,8 @@ function DesignSystemScreen() {
           </Link>
           <Text className="font-body text-sm text-ink">
             One user&apos;s record: facts, the edit form and the action
-            group. The id is a placeholder — open a row from the list for a
+            group. A dialog, because it is the thing you opened to act on.
+            The id is a placeholder — open a row from the list for a
             real one. Same redirect as the list when the session is not an
             admin&apos;s.
           </Text>

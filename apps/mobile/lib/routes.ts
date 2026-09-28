@@ -7,11 +7,13 @@
 /**
  * Fullscreen dialogs render their own title-mode header, so the global
  * wordmark bar stays off these routes. Add every new dialog route.
+ *
+ * The admin user list is deliberately NOT here: it is a browse surface
+ * and wears the page chrome, like `/trips`. Its record is a dialog.
  */
 export const DIALOG_ROUTES = [
   "/notifications",
   "/profile",
-  "/admin/users",
   "/admin/users/detail",
   "/trips/members",
   "/trips/invite",
