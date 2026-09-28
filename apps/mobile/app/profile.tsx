@@ -126,7 +126,7 @@ function ProfileFailure({
 
 function ProfileForm({ profile }: { profile: Profile }) {
   const { saveProfile, savePhoto } = useProfile();
-  const { signOut } = useAuth();
+  const { signOut, isAdmin } = useAuth();
   const router = useRouter();
   const dismiss = useDismiss("/trips");
 
@@ -499,6 +499,30 @@ function ProfileForm({ profile }: { profile: Profile }) {
           </View>
         )}
       </View>
+
+      {/* The way in for an admin: search every account, and act on
+          one. Absent for anyone else — not disabled, not empty, and
+          nothing explains why: a profile screen should not advertise a
+          surface its reader cannot open. Same shape as `Legal &
+          privacy` below, so nothing new is added to the system. */}
+      {isAdmin ? (
+        <View>
+          <Text className="font-body-bold text-sm text-ink">Admin</Text>
+          <Text className="mt-2 font-body text-sm text-ink">
+            Search every account, and act on one.
+          </Text>
+          <View className="mt-2">
+            <View className="py-1">
+              <Link
+                href="/admin/users"
+                className="font-body-bold text-base text-ink underline"
+              >
+                User management
+              </Link>
+            </View>
+          </View>
+        </View>
+      ) : null}
 
       {/* The documents belong to the person, not to a trip: the consent
           is yours, and these are the ones you gave it to. Their heading is
