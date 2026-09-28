@@ -47,7 +47,7 @@ export const adminUserResponseSchema = z.object({
 // A user row with a trip count — single definition shared by list + detail.
 // (The PUT response uses the base row and does not carry a count.)
 export const adminUserWithTripCountSchema = adminUserResponseSchema.extend({
-  tripCount: z.number(),
+  tripCount: z.number().int().nonnegative(),
 });
 
 // Admin user detail response (with trip count)

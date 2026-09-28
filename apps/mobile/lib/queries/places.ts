@@ -35,7 +35,11 @@ import {
 
 /** The debounce pair moved to `@/lib/debounce` (the admin search is the
  *  second caller); the places call sites and their tests keep importing
- *  it from here. */
+ *  it from here.
+ *
+ *  TODO: migrate those call sites to `@/lib/debounce` and delete this
+ *  re-export. It exists so the move needed no other edit, not to keep
+ *  the places domain as the pair's address. */
 export {
   SUGGESTION_DEBOUNCE_MS,
   createTrailingDebounce,

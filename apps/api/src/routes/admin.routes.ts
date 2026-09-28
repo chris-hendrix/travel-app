@@ -72,7 +72,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
 
     /**
      * PUT /users/:id
-     * Edit user profile (displayName, timezone)
+     * Edit user profile (displayName, timezone, temperatureUnit)
      */
     scope.put<{ Params: { id: string }; Body: AdminUpdateUserInput }>(
       "/users/:id",
