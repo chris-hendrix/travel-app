@@ -169,10 +169,11 @@ test.describe("Itinerary Journey", () => {
         timeout: NAVIGATION_TIMEOUT,
       });
       // The trip was seeded by this user, who is the organizer
-      // server-side, so the organizer head of
-      // components/trip/Itinerary.tsx renders "Add event" directly.
-      // components/trip/Itinerary.tsx organizer head: Button titled
-      // "Add event" routes to /trips/events/new?id=….
+      // server-side, so the trip page's action block renders with its
+      // organizer contents. Its verbs are shut inside the trigger
+      // (components/ui/DisclosureButton.tsx), so that is pressed first:
+      // Button titled "Add event" routes to /trips/events/new?id=….
+      await page.getByRole("button", { name: "Trip actions" }).click();
       await page.getByRole("button", { name: "Add event" }).click();
       await page.waitForURL("**/trips/events/new?id=*", {
         timeout: NAVIGATION_TIMEOUT,

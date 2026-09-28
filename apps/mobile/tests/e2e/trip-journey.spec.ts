@@ -163,8 +163,16 @@ test.describe("Trip Journey", () => {
       // are server-backed now, so a fresh trip is genuinely empty here.
       await expect(page.getByText("Nothing planned yet")).toBeVisible();
       // app/trips/detail.tsx: the trip creator is the organizer
-      // server-side, so the organizer action group (Button titled
-      // "Edit trip") renders with no toggle.
+      // server-side, so the action block renders with its organizer
+      // contents. The trigger is in the same place for every member
+      // (components/ui/DisclosureButton.tsx), so the trigger is what
+      // proves the block mounted.
+      await expect(
+        page.getByRole("button", { name: "Trip actions" }),
+      ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+      // …and the trip's own verbs are shut inside it, so Edit trip is a
+      // press away rather than on the page.
+      await page.getByRole("button", { name: "Trip actions" }).click();
       await expect(
         page.getByRole("button", { name: "Edit trip" }),
       ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
@@ -186,7 +194,10 @@ test.describe("Trip Journey", () => {
         timeout: NAVIGATION_TIMEOUT,
       });
       // app/trips/detail.tsx: Button titled "Edit trip" routes to
-      // /trips/edit?id=… (visible directly: the creator is organizer).
+      // /trips/edit?id=…. It sits behind the "Trip actions" trigger
+      // (components/ui/DisclosureButton.tsx), so the trigger is pressed
+      // first; this goto remounts the page, so it lands shut again.
+      await page.getByRole("button", { name: "Trip actions" }).click();
       await page.getByRole("button", { name: "Edit trip" }).click();
       await page.waitForURL("**/trips/edit?id=*", {
         timeout: NAVIGATION_TIMEOUT,

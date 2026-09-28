@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Pressable, Text } from "react-native";
 
 export type ButtonVariant = "primary" | "secondary" | "accent" | "danger";
@@ -18,6 +19,8 @@ export function Button({
   fullWidth = false,
   align = "start",
   disabled = false,
+  trailing,
+  expanded,
 }: {
   title: string;
   variant?: ButtonVariant;
@@ -30,6 +33,17 @@ export function Button({
   /** Present but not yet available. Kept in place rather than hidden:
    *  a control that vanishes leaves nothing to aim at. */
   disabled?: boolean;
+  /**
+   * An affordance at the far edge, which moves the label to the near one.
+   * `DisclosureButton`'s triangle is the only caller, and it is the one
+   * thing a label cannot say on its own: that the button opens.
+   */
+  trailing?: ReactNode;
+  /**
+   * This button discloses something under it. Left off every button that
+   * does not, so the state is announced only where it is true.
+   */
+  expanded?: boolean;
 }) {
   const s = STYLES[variant];
   const width = fullWidth
@@ -37,14 +51,21 @@ export function Button({
     : align === "end"
       ? "md:self-end"
       : "md:self-start";
+  // A row only when there is something at the far edge. A lone label stays
+  // centred in its box, which is what every other button in the system is.
+  const flow =
+    trailing === undefined
+      ? "items-center"
+      : "flex-row items-center justify-between gap-4";
 
   return (
     <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ disabled }}
+      role="button"
+      aria-disabled={disabled}
+      aria-expanded={expanded}
       disabled={disabled}
       onPress={onPress}
-      className={`items-center border p-4 ${s.box} ${width} ${
+      className={`${flow} border p-4 ${s.box} ${width} ${
         disabled ? "opacity-40" : ""
       }`}
     >
@@ -54,6 +75,7 @@ export function Button({
           happened to be and quietly disagreed with the control beside
           it. */}
       <Text className={`font-body-bold text-sm ${s.label}`}>{title}</Text>
+      {trailing}
     </Pressable>
   );
 }
