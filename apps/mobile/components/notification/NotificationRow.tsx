@@ -1,5 +1,6 @@
 import { Image, Pressable, Text, View } from "react-native";
 import type { Trip } from "@/components/trip/TripCard";
+import { PlaceholderTile } from "@/components/ui/PlaceholderTile";
 import { relativeTime, type Notification } from "@/lib/notifications";
 
 /**
@@ -41,11 +42,17 @@ export function NotificationRow({
       }`}
     >
       {trip ? (
-        <Image
-          source={{ uri: trip.image }}
-          resizeMode="cover"
-          className="h-18 w-18"
-        />
+        trip.image ? (
+          <Image
+            source={{ uri: trip.image }}
+            resizeMode="cover"
+            className="h-18 w-18"
+          />
+        ) : (
+          <View className="h-18 w-18">
+            <PlaceholderTile kind="trip" />
+          </View>
+        )
       ) : null}
       <View className="flex-1 gap-1">
         <Text

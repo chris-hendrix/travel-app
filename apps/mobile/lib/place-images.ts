@@ -1,11 +1,10 @@
 /**
  * Place-photo image seam: one precedence in one helper.
  *
- * Every surface renders `upload → place photo → theme`: a trip's own
- * cover upload first, then the linked place's photo, then the
- * deterministic `placeholderPhoto` seed (the "theme" fallback, applied
- * by the caller when `url` is null — never here, so this helper can
- * report which source it chose).
+ * Every surface renders `upload → place photo → tile`: a trip's own
+ * cover upload first, then the linked place's photo, then null —
+ * the caller renders the illustrated tile, so this helper can
+ * report which source it chose.
  */
 
 import type { PlaceBox, PlaceSummary } from "@journiful/shared/types";
@@ -45,10 +44,9 @@ export function placePhotoUrl(base: string, box: PlaceBox): string {
 }
 
 /**
- * Resolve a slot's image. An upload wins over a place photo; a place
- * photo wins over the theme fallback; neither yields null (not the
- * placeholder) so the caller — `lib/mapping.ts` — applies
- * `placeholderPhoto(id)` itself and every slot falls back the same way.
+ * Resolve a slot's image. An upload wins over a place photo;
+ * neither yields the tile — null means no photo, and the caller
+ * renders the illustrated tile, so every slot falls back the same way.
  */
 export function coverImage({
   coverImageUrl,
@@ -73,6 +71,25 @@ export function coverImage({
     };
   }
   return { url: null, source: "none", photoSourceUri: null };
+}
+
+/**
+ * The slot decision, pure so the fallback is testable in node: a photo
+ * wins over the illustrated placeholder; a missing image (null,
+ * undefined, or empty) or a failed one (a 404 or undecodable photo)
+ * yields the placeholder — never a blank box.
+ */
+export type ImageSlot = { kind: "photo"; url: string } | { kind: "placeholder" };
+
+/** Resolve a slot's image: the photo when there is one, else the placeholder. */
+export function imageSlot(input: {
+  image: string | null | undefined;
+  failed?: boolean;
+}): ImageSlot {
+  if (input.image && !input.failed) {
+    return { kind: "photo", url: input.image };
+  }
+  return { kind: "placeholder" };
 }
 
 /**

@@ -60,8 +60,8 @@ export type Stay = {
   description: string | null;
   checkIn: string | null;
   checkOut: string | null;
-  /** The place's photo, which the API proxies from Places. */
-  image: string;
+  /** The place's photo, which the API proxies from Places; null when there is none. */
+  image: string | null;
   /**
    * The photo's required Google Maps source link, null for placeholders.
    * Every rendered photo reaches it: the tile through `PhotoCard`, the

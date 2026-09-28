@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
+import { useState } from "react";
 import { Image, Pressable, Text, View } from "react-native";
 import { useHoverZoom } from "@/hooks/useHoverZoom";
+import { imageSlot } from "@/lib/place-images";
 
 /**
  * One row of the run: the place's photo at the left, the name under it,
@@ -15,6 +17,9 @@ import { useHoverZoom } from "@/hooks/useHoverZoom";
  * right-hand column holds a clock or a span — and that is all either
  * caller supplies.
  *
+ * A 404 is a state, not a blank box: a photo that fails to load
+ * falls back to the illustrated tile, same as a missing one.
+ *
  * The zoom the card does under a pointer, done here too: the photo
  * inside its clipped frame. The text does not, and cannot — a card grows
  * into the grid's gutter, while a row spans the whole column, so the
@@ -25,12 +30,15 @@ import { useHoverZoom } from "@/hooks/useHoverZoom";
  */
 export function ScheduleRow({
   image,
+  placeholder,
   title,
   labels,
   fact,
   onPress,
 }: {
-  image: string;
+  image: string | null;
+  /** The illustrated tile rendered when there is no photo, or it failed to load. */
+  placeholder: ReactNode;
   title: string;
   /** The chips under the name: what it is, then where. */
   labels: ReactNode;
@@ -39,6 +47,8 @@ export function ScheduleRow({
   onPress?: (() => void) | undefined;
 }) {
   const { hoverProps, zoom } = useHoverZoom();
+  const [failed, setFailed] = useState(false);
+  const slot = imageSlot({ image, failed });
 
   return (
     <Pressable
@@ -47,11 +57,16 @@ export function ScheduleRow({
       className="cursor-pointer flex-row flex-wrap items-center gap-4 border-b border-b-ink py-4"
     >
       <View className="overflow-hidden">
-        <Image
-          source={{ uri: image }}
-          resizeMode="cover"
-          className={`h-14 w-14 ${zoom}`}
-        />
+        {slot.kind === "placeholder" ? (
+          <View className="h-14 w-14">{placeholder}</View>
+        ) : (
+          <Image
+            source={{ uri: slot.url }}
+            resizeMode="cover"
+            onError={() => setFailed(true)}
+            className={`h-14 w-14 ${zoom}`}
+          />
+        )}
       </View>
 
       {/* The time is the row's third column, not a rider on the title's

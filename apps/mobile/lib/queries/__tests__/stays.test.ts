@@ -20,7 +20,6 @@ const { renderToString } = require("react-dom/server") as {
 
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ApiError, apiFetch } from "@/lib/api";
-import { placeholderPhoto } from "@/lib/mapping";
 import type { Stay } from "@/lib/stays";
 import { staySpan, stayTime, staysInOrder } from "@/lib/stays";
 import type { Accommodation } from "@journiful/shared/types";
@@ -78,7 +77,7 @@ function cachedStay(overrides: Partial<Stay> = {}): Stay {
     description: "Lockbox left of the blue gate — 4417.",
     checkIn: "2026-06-04T15:00:00.000Z",
     checkOut: "2026-06-06T10:00:00.000Z",
-    image: placeholderPhoto("stay-1"),
+    image: null,
     links: [{ url: "https://example.com/can-puig", name: "Listing" }],
     deletedAt: null,
     ...overrides,
@@ -112,7 +111,7 @@ describe("staysOptions", () => {
       id: "stay-1",
       name: "Ca'n Puig",
       address: "Carrer de la Mar 14, 07100 Sóller",
-      image: placeholderPhoto("stay-1"),
+      image: null,
       links: [{ url: "https://example.com/can-puig", name: "Listing" }],
     });
   });
@@ -242,7 +241,7 @@ describe("createStay", () => {
       id: "stay-1",
       name: "Ca'n Puig",
       address: "Carrer de la Mar 14, 07100 Sóller",
-      image: placeholderPhoto("stay-1"),
+      image: null,
     });
   });
 });

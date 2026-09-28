@@ -31,7 +31,7 @@ export const stayKeys = {
  *
  * Rows map through `toStay` (Phase 1 Task 4 — `address` stays the
  * address the driver is told, times pass through with `null` as the
- * untimed stay, `image`→`placeholderPhoto()` stub; relocation is
+ * untimed stay, `image`→`null` stub; relocation is
  * Phase 6 Task 5's job). No `includeDeleted` param is sent: the
  * endpoint defaults it off and there is no Deleted-items UI yet, so
  * the server returns live rows only. Ordering stays with the caller's
@@ -105,7 +105,7 @@ export type UpdateStayRequest = {
  * The response carries the full entity, so `toStay` needs nothing the
  * response does not have — unlike the trips writes, there is no
  * `memberCount`-style placeholder for the provider to merge. `image`
- * stays `placeholderPhoto(accommodation.id)`, deterministic per id.
+ * stays null until the server photo lands.
  */
 export async function createStay(tripId: string, input: CreateStayRequest) {
   const body = await apiFetch<{ success: true; accommodation: Accommodation }>(

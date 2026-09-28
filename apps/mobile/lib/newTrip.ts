@@ -59,7 +59,7 @@ export function buildTrip(input: NewTripInput, id: string): Trip {
     location: input.location.trim(),
     startDate: input.startDate,
     endDate: input.endDate,
-    image: `https://picsum.photos/seed/${encodeURIComponent(id)}/900/600`,
+    image: null,
     coverImageUrl: null,
     going: 1,
     // Nobody has written one yet: the description is the organizer's, and

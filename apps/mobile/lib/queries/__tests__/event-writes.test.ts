@@ -19,7 +19,6 @@ vi.mock("@/lib/api", async (importOriginal) => {
 
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ApiError, apiFetch } from "@/lib/api";
-import { placeholderPhoto } from "@/lib/mapping";
 import type { ItineraryEvent } from "@/lib/itinerary";
 import type { Event } from "@journiful/shared/types";
 import {
@@ -70,7 +69,7 @@ function cachedEvent(overrides: Partial<ItineraryEvent> = {}): ItineraryEvent {
     endTime: "2026-06-05T21:00:00.000Z",
     allDay: false,
     place: "Konoba",
-    image: placeholderPhoto("event-1"),
+    image: null,
     deletedAt: null,
     ...overrides,
   };
@@ -110,7 +109,7 @@ describe("createEvent", () => {
       name: "Dinner at the harbour",
       type: "food_and_drink",
       place: "Konoba",
-      image: placeholderPhoto("event-1"),
+      image: null,
     });
   });
 });

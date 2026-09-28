@@ -24,6 +24,7 @@ import { useMembers } from "@/lib/queries/members";
 import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { useDismiss } from "@/hooks/useDismiss";
+import { PlaceholderTile } from "@/components/ui/PlaceholderTile";
 
 /**
  * Event detail, as a dialog: one event, seen whole.
@@ -130,7 +131,11 @@ function EventDetailDialog() {
       <View className="gap-y-6 md:flex-row md:gap-12">
         <View className="md:flex-1">
           <View className="relative overflow-hidden">
-            {event.photoSourceUri ? (
+            {!event.image ? (
+              <View className="w-full aspect-[2/1]">
+                <PlaceholderTile kind={event.type} />
+              </View>
+            ) : event.photoSourceUri ? (
               <Pressable
                 onPress={() => void Linking.openURL(event.photoSourceUri!)}
                 aria-label="View photo source on Google Maps"

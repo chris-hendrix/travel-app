@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/Badge";
+import { PlaceholderTile } from "@/components/ui/PlaceholderTile";
 import { ScheduleRow } from "@/components/ui/ScheduleRow";
 import { stayArea, staySpan, type Stay } from "@/lib/stays";
 
@@ -32,6 +33,7 @@ export function StayRow({
   return (
     <ScheduleRow
       image={stay.image}
+      placeholder={<PlaceholderTile kind="lodging" />}
       title={stay.name}
       labels={
         <>

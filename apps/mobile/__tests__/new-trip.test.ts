@@ -66,14 +66,14 @@ describe("validateNewTrip", () => {
 });
 
 describe("buildTrip", () => {
-  it("trims input and seeds an image from the id", () => {
+  it("trims input and leaves the image null — the tile", () => {
     const trip = buildTrip(
       { ...valid, title: "  Los Picos Trail  " },
       "trip-1",
     );
 
     expect(trip.title).toBe("Los Picos Trail");
-    expect(trip.image).toContain("trip-1");
+    expect(trip.image).toBeNull();
     expect(trip.going).toBe(1);
   });
 });

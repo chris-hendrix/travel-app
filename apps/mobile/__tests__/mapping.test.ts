@@ -7,7 +7,6 @@ import type { Notification as ApiNotification } from "@journiful/shared/types";
 import type { TripDetail, TripSummary } from "@journiful/shared/types";
 import type { User } from "@journiful/shared/types";
 import {
-  placeholderPhoto,
   toEvent,
   toMember,
   toNotification,
@@ -113,7 +112,7 @@ describe("toTrip", () => {
         photoUrl: null,
         photoAttribution: null,
         photoSourceUri: null,
-        country: "ES",
+        country: "ES", locality: null,
       },
     });
     expect(mapped.placeName).toBe("Stored Name");
@@ -132,16 +131,16 @@ describe("toTrip", () => {
         photoUrl: null,
         photoAttribution: null,
         photoSourceUri: null,
-        country: "ES",
+        country: "ES", locality: null,
       },
     });
     expect(mapped.placeName).toBeNull();
     expect(mapped.placeAddress).toBeNull();
   });
 
-  it("falls back to placeholderPhoto when there is no cover", () => {
+  it("falls back to null when there is no cover", () => {
     expect(toTrip({ ...tripDetail, coverImageUrl: null }).image).toBe(
-      placeholderPhoto("trip-1"),
+      null,
     );
   });
 
@@ -153,7 +152,7 @@ describe("toTrip", () => {
       photoUrl: "https://api.example/base",
       photoAttribution: null,
       photoSourceUri: "https://maps.example/source",
-      country: "ES",
+      country: "ES", locality: null,
     };
     const withBoth = toTrip({ ...tripDetail, place });
     expect(withBoth.image).toBe("https://cdn.example/cover.jpg");
@@ -192,7 +191,7 @@ describe("toTripSummary", () => {
         photoUrl: null,
         photoAttribution: null,
         photoSourceUri: null,
-        country: "ES",
+        country: "ES", locality: null,
       },
     });
     expect(mapped.placeName).toBe("Stored Name");
@@ -211,15 +210,15 @@ describe("toTripSummary", () => {
         photoUrl: null,
         photoAttribution: null,
         photoSourceUri: null,
-        country: "ES",
+        country: "ES", locality: null,
       },
     });
     expect(mapped.placeName).toBeNull();
     expect(mapped.placeAddress).toBeNull();
   });
 
-  it("falls back to placeholderPhoto when there is no cover", () => {
-    expect(toTripSummary(tripSummary).image).toBe(placeholderPhoto("trip-1"));
+  it("falls back to null when there is no cover", () => {
+    expect(toTripSummary(tripSummary).image).toBe(null);
   });
 });
 
@@ -233,8 +232,8 @@ describe("toEvent", () => {
     expect(mapped.endTime).toBe("2026-09-21T22:30:00.000Z");
   });
 
-  it("maps image to placeholderPhoto()", () => {
-    expect(toEvent(apiEvent).image).toBe(placeholderPhoto("event-1"));
+  it("maps image to null", () => {
+    expect(toEvent(apiEvent).image).toBe(null);
   });
 
   it("resolves image through coverImage, preferring an upload", () => {
@@ -245,7 +244,7 @@ describe("toEvent", () => {
       photoUrl: "https://api.example/base",
       photoAttribution: null,
       photoSourceUri: "https://maps.example/source",
-      country: "ES",
+      country: "ES", locality: null,
     };
     expect(toEvent({ ...apiEvent, place }).image).toBe(
       "https://api.example/base?size=card",
@@ -264,7 +263,7 @@ describe("toEvent", () => {
         photoUrl: null,
         photoAttribution: null,
         photoSourceUri: null,
-        country: "ES",
+        country: "ES", locality: null,
       },
     });
     expect(mapped.placeName).toBe("Stored Name");
@@ -283,7 +282,7 @@ describe("toEvent", () => {
         photoUrl: null,
         photoAttribution: null,
         photoSourceUri: null,
-        country: "ES",
+        country: "ES", locality: null,
       },
     });
     expect(mapped.placeName).toBeNull();
@@ -345,7 +344,7 @@ describe("toStay", () => {
       description: "Keypad 7788.",
       checkIn: "2026-09-20T15:00:00.000Z",
       checkOut: "2026-09-25T10:00:00.000Z",
-      image: placeholderPhoto("stay-1"),
+      image: null,
       photoSourceUri: null,
       photoCredit: null,
       links: [{ url: "https://example.com/listing", name: "Listing" }],
@@ -361,7 +360,7 @@ describe("toStay", () => {
       photoUrl: "https://api.example/base",
       photoAttribution: null,
       photoSourceUri: "https://maps.example/source",
-      country: null,
+      country: null, locality: null,
     };
     expect(toStay({ ...accommodation, place }).image).toBe(
       "https://api.example/base?size=card",
@@ -380,7 +379,7 @@ describe("toStay", () => {
         photoUrl: null,
         photoAttribution: null,
         photoSourceUri: null,
-        country: null,
+        country: null, locality: null,
       },
     });
     expect(mapped.placeName).toBe("Stored Name");
@@ -399,7 +398,7 @@ describe("toStay", () => {
         photoUrl: null,
         photoAttribution: null,
         photoSourceUri: null,
-        country: null,
+        country: null, locality: null,
       },
     });
     expect(mapped.placeName).toBeNull();
@@ -514,7 +513,7 @@ describe("toTrip place link (F2)", () => {
     photoUrl: null,
     photoAttribution: null,
     photoSourceUri: null,
-    country: "ES",
+    country: "ES", locality: null,
   };
 
   it("carries the linked place id from detail so Maps links pin to it", () => {
