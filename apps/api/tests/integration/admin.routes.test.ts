@@ -751,7 +751,9 @@ describe("Admin Routes", () => {
         payload: { code: "123456" },
       });
 
+      expect(impersonateResponse.statusCode).toBe(200);
       const impersonationBody = JSON.parse(impersonateResponse.body);
+      expect(impersonationBody.success).toBe(true);
       const impersonationCookie = impersonateResponse.cookies.find(
         (c: { name: string }) => c.name === "auth_token",
       );
