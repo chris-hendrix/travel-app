@@ -269,3 +269,19 @@ export async function authenticateViaAPI(
   await armSession(page, token);
   return phone;
 }
+
+/**
+ * Seed a KNOWN phone (an admin number) with a display name, then arm
+ * its session. The name matters: a fresh account has none,
+ * `requiresProfile` comes back true, and the app would send it to
+ * /complete-profile instead of /trips.
+ */
+export async function authenticateAs(
+  page: Page,
+  request: APIRequestContext,
+  phone: string,
+): Promise<string> {
+  const { token } = await seedUserViaAPI(request, phone, "E2E Admin");
+  await armSession(page, token);
+  return phone;
+}
