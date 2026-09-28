@@ -89,6 +89,11 @@ function AdminUsersList() {
   }
   return (
     <View className="gap-4">
+      {/* The count is what the current search and filter matched —
+          that is what the API returns — not the global total. */}
+      <Text className="font-body text-sm text-ink">
+        {plural(count, "user")}
+      </Text>
       <AdminUsersControls
         search={search}
         onSearchChange={setSearch}
@@ -110,9 +115,6 @@ function AdminUsersList() {
           />
         ))}
       </View>
-      <Text className="font-body text-sm text-ink">
-        {plural(count, "user")}
-      </Text>
       {query.hasNextPage ? (
         <Button
           title={query.isFetchingNextPage ? "Loading more" : "Load more"}

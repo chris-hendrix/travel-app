@@ -29,7 +29,7 @@ export function AdminGate({
   const { status, isAdmin } = useAuth();
   const destination = guardDestination({ status, isAdmin });
   if (destination === null) {
-    return <LoadingBlock label="Checking your account" />;
+    return <LoadingBlock label="Checking your access" />;
   }
   if (destination === "/") {
     return <Redirect href="/" />;

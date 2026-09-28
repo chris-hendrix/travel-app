@@ -4,6 +4,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { AdminGate } from "@/components/admin/AdminGate";
+import { Section } from "@/components/ui/Section";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { InlineError } from "@/components/ui/InlineError";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
@@ -12,6 +13,7 @@ import { Fact } from "@/components/ui/Fact";
 import { TextField } from "@/components/ui/TextField";
 import { Button } from "@/components/ui/Button";
 import { QuietAction } from "@/components/ui/QuietAction";
+import { Segmented } from "@/components/ui/Segmented";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/authStore";
 import { useStartImpersonation } from "@/lib/impersonation";
@@ -30,6 +32,7 @@ import {
   type AdminUserAction,
   type AdminUserDetailRow,
 } from "@/lib/queries/admin";
+import { UNITS, type TemperatureUnit } from "@/lib/profile";
 import { requestCode } from "@/lib/queries/auth";
 import { toErrorCopy } from "@/lib/queries/errors";
 
@@ -151,7 +154,10 @@ function AdminUserDetail({
   // never be open at once. (`saving`/`saveFailure` below are the
   // save's own feedback, not the machine.)
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState({ displayName: "", timezone: "" });
+  const [draft, setDraft] = useState<{
+    displayName: string;
+    temperatureUnit: TemperatureUnit;
+  }>({ displayName: "", temperatureUnit: "fahrenheit" });
   const [confirm, setConfirm] = useState<AdminAction | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveFailure, setSaveFailure] = useState<string | null>(null);
@@ -165,11 +171,13 @@ function AdminUserDetail({
       return;
     }
     // Only the fields that CHANGED ride the request.
-    const patch: { displayName?: string; timezone?: string } = {};
+    const patch: {
+      displayName?: string;
+      temperatureUnit?: TemperatureUnit;
+    } = {};
     if (trimmedName !== user.displayName) patch.displayName = trimmedName;
-    const trimmedTimezone = draft.timezone.trim();
-    if (trimmedTimezone !== (user.timezone ?? "")) {
-      patch.timezone = trimmedTimezone;
+    if (draft.temperatureUnit !== (user.temperatureUnit ?? "fahrenheit")) {
+      patch.temperatureUnit = draft.temperatureUnit;
     }
     if (Object.keys(patch).length === 0) {
       setEditing(false);
@@ -210,12 +218,13 @@ function AdminUserDetail({
   }, [editing, saving, onBar]);
 
   function beginEditing() {
-    // `adminUpdateUserSchema` accepts exactly these two fields, so
-    // temperature and everything else stay read-only facts and never
-    // become inputs.
+    // The profile screen's shape: name plus the temperature unit
+    // picker. Timezone stays a read-only fact — an admin does not set
+    // free text into it.
     setDraft({
       displayName: user.displayName,
-      timezone: user.timezone ?? "",
+      temperatureUnit:
+        user.temperatureUnit === "celsius" ? "celsius" : "fahrenheit",
     });
     setSaveFailure(null);
     setEditing(true);
@@ -286,7 +295,10 @@ function AdminUserDetail({
             </Fact>
             <Fact label="Temperature">
               <Text className="font-body text-base text-ink">
-                {user.temperatureUnit ?? "Not set"}
+                {user.temperatureUnit
+                  ? user.temperatureUnit.charAt(0).toUpperCase() +
+                    user.temperatureUnit.slice(1)
+                  : "Not set"}
               </Text>
             </Fact>
           </View>
@@ -306,9 +318,9 @@ function AdminUserDetail({
  * Which field a save failure belongs under, when it names one.
  * Anything else reads above the fields, never under one.
  */
-function fieldFor(message: string): "displayName" | "timezone" | null {
+function fieldFor(message: string): "displayName" | "temperatureUnit" | null {
   if (/display name/i.test(message)) return "displayName";
-  if (/timezone/i.test(message)) return "timezone";
+  if (/temperature/i.test(message)) return "temperatureUnit";
   return null;
 }
 
@@ -319,10 +331,13 @@ function AdminUserForm({
   saveField,
   onSave,
 }: {
-  draft: { displayName: string; timezone: string };
-  onDraftChange: (draft: { displayName: string; timezone: string }) => void;
+  draft: { displayName: string; temperatureUnit: TemperatureUnit };
+  onDraftChange: (draft: {
+    displayName: string;
+    temperatureUnit: TemperatureUnit;
+  }) => void;
   saveFailure: string | null;
-  saveField: "displayName" | "timezone" | null;
+  saveField: "displayName" | "temperatureUnit" | null;
   onSave: () => void;
 }) {
   return (
@@ -340,18 +355,28 @@ function AdminUserForm({
           saveField === "displayName" ? (saveFailure ?? undefined) : undefined
         }
       />
-      <TextField
-        label="Timezone"
-        value={draft.timezone}
-        onChangeText={(timezone) => onDraftChange({ ...draft, timezone })}
-        error={
-          saveField === "timezone" ? (saveFailure ?? undefined) : undefined
-        }
-      />
+      <View className="gap-2">
+        <Text className="font-body-bold text-sm text-ink">Temperature</Text>
+        <Segmented
+          options={UNITS}
+          value={draft.temperatureUnit}
+          onChange={(temperatureUnit) =>
+            onDraftChange({ ...draft, temperatureUnit })
+          }
+        />
+        {saveField === "temperatureUnit" && saveFailure ? (
+          <Text className="font-body text-sm text-ink">{saveFailure}</Text>
+        ) : null}
+      </View>
     </View>
   );
 }
 
+/**
+ * The record's action set: a titled `Manage` section, one row per
+ * available action. Each row explains itself in text above its button,
+ * and no two buttons ever sit side by side.
+ */
 function AdminUserActions({
   user,
   viewerId,
@@ -366,13 +391,14 @@ function AdminUserActions({
   const queryClient = useQueryClient();
   const [pending, setPending] = useState<AdminAction | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
+  const [failedAction, setFailedAction] = useState<AdminAction | null>(null);
 
   // Your own record offers no action group at all, and says so.
   if (viewerId !== undefined && user.id === viewerId) {
     return (
       <View className="border-t border-ink pt-6">
         <Text className="font-body text-base text-ink">
-          You can&apos;t ban, demote or impersonate your own account.
+          You can&apos;t ban, demote or impersonate yourself.
         </Text>
       </View>
     );
@@ -383,6 +409,7 @@ function AdminUserActions({
   async function runAction(action: AdminUserAction) {
     setPending(action);
     setFailure(null);
+    setFailedAction(null);
     try {
       await userAction(user.id, action);
       // On success the badge and the offered actions invert — that is
@@ -395,54 +422,126 @@ function AdminUserActions({
     } catch (caught) {
       const copy = toErrorCopy(caught);
       setFailure(copy.message ?? "Something went wrong");
+      setFailedAction(action);
     } finally {
       setPending(null);
     }
   }
 
   return (
-    <View className="gap-4 border-t border-ink pt-6">
-      {failure ? <InlineError message={failure} /> : null}
-      {actions.map((action) =>
+    <Section title="Manage">
+      {actions.map((action, index) =>
         action === "impersonate" ? (
           <AdminImpersonateAction
             key={action}
             userId={user.id}
+            first={index === 0}
             confirming={confirm === action}
             pending={pending === action}
             actionPendingLabel={pending ? pendingLabel(pending) : null}
             onReveal={() => {
               setFailure(null);
+              setFailedAction(null);
               onConfirmChange(action);
             }}
             onCancel={() => onConfirmChange(null)}
           />
-        ) : confirm === action ? (
-          <AdminActionConfirm
+        ) : action === "ban" ? (
+          <View
             key={action}
-            action={action}
-            pending={pending === action}
-            onCancel={() => onConfirmChange(null)}
-            onConfirm={() => void runAction(action)}
-          />
+            className={index === 0 ? "gap-2" : "gap-2 border-t border-gravel pt-6"}
+          >
+            <Text className="font-body-bold text-base text-ink">
+              Ban this user
+            </Text>
+            <Text className="font-body text-sm text-ink opacity-60">
+              Banning stops this user from using the app. It can be
+              undone.
+            </Text>
+            <Button
+              title={pending === action ? pendingLabel(action) : "Ban user"}
+              variant={confirm === action ? "danger" : "secondary"}
+              disabled={pending === action}
+              onPress={() => {
+                setFailure(null);
+                setFailedAction(null);
+                if (confirm === action) {
+                  void runAction(action);
+                } else {
+                  onConfirmChange(action);
+                }
+              }}
+            />
+            {confirm === action && pending !== action ? (
+              <QuietAction
+                label="Cancel"
+                onPress={() => onConfirmChange(null)}
+              />
+            ) : null}
+            {failedAction === action && failure ? (
+              <InlineError message={failure} />
+            ) : null}
+          </View>
         ) : (
-          <Button
+          <View
             key={action}
-            title={actionTitle(action)}
-            variant={action === "ban" ? "danger" : "secondary"}
-            disabled={pending !== null}
-            onPress={() => {
-              setFailure(null);
-              onConfirmChange(action);
-            }}
-          />
+            className={index === 0 ? "gap-2" : "gap-2 border-t border-gravel pt-6"}
+          >
+            <Text className="font-body-bold text-base text-ink">
+              {rowTitle(action)}
+            </Text>
+            <Text className="font-body text-sm text-ink opacity-60">
+              {rowCopy(action)}
+            </Text>
+            {/* One press sends it: each of these is one press away from
+                being undone, so no arm step. */}
+            <Button
+              title={pending === action ? pendingLabel(action) : rowButton(action)}
+              variant="secondary"
+              disabled={pending === action}
+              onPress={() => {
+                setFailure(null);
+                setFailedAction(null);
+                void runAction(action);
+              }}
+            />
+            {failedAction === action && failure ? (
+              <InlineError message={failure} />
+            ) : null}
+          </View>
         ),
       )}
-    </View>
+    </Section>
   );
 }
 
-function actionTitle(action: AdminAction): string {
+function rowTitle(action: AdminUserAction): string {
+  switch (action) {
+    case "ban":
+      return "Ban this user";
+    case "unban":
+      return "Unban this user";
+    case "promote":
+      return "Make an admin";
+    case "demote":
+      return "Remove admin";
+  }
+}
+
+function rowCopy(action: AdminUserAction): string {
+  switch (action) {
+    case "ban":
+      return "Banning stops this user from using the app. It can be undone.";
+    case "unban":
+      return "They will be able to use the app again.";
+    case "promote":
+      return "Admins can search users, impersonate people, and ban them.";
+    case "demote":
+      return "They lose access to the admin screens. Nothing else about them changes.";
+  }
+}
+
+function rowButton(action: AdminUserAction): string {
   switch (action) {
     case "ban":
       return "Ban user";
@@ -452,65 +551,6 @@ function actionTitle(action: AdminAction): string {
       return "Promote to admin";
     case "demote":
       return "Demote from admin";
-    case "impersonate":
-      return "Impersonate";
-  }
-}
-
-/**
- * One action's in-place confirm: the mockup's exact sentence, then the
- * same two buttons — a second press of the second one is the write.
- * While pending both buttons are disabled and the sending one wears
- * the pending label.
- */
-function AdminActionConfirm({
-  action,
-  pending,
-  onCancel,
-  onConfirm,
-}: {
-  action: AdminUserAction;
-  pending: boolean;
-  onCancel: () => void;
-  onConfirm: () => void;
-}) {
-  return (
-    <View className="gap-3">
-      <Text className="font-body text-base text-ink">
-        {confirmCopy(action)}
-      </Text>
-      <View className="flex-row gap-3">
-        <View className="flex-1">
-          <Button
-            title="Cancel"
-            variant="secondary"
-            disabled={pending}
-            onPress={onCancel}
-          />
-        </View>
-        <View className="flex-1">
-          <Button
-            title={pending ? pendingLabel(action) : actionTitle(action)}
-            variant={action === "ban" ? "danger" : "secondary"}
-            disabled={pending}
-            onPress={onConfirm}
-          />
-        </View>
-      </View>
-    </View>
-  );
-}
-
-function confirmCopy(action: AdminUserAction): string {
-  switch (action) {
-    case "ban":
-      return "Banning stops this account from using the app. It can be undone.";
-    case "unban":
-      return "They will be able to use the app again.";
-    case "promote":
-      return "Admins can search accounts, impersonate people, and ban them.";
-    case "demote":
-      return "They lose access to the admin screens. Their account is otherwise unchanged.";
   }
 }
 
@@ -529,6 +569,7 @@ type CodeSendState = "sending" | "sent" | "failed";
  */
 function AdminImpersonateAction({
   userId,
+  first,
   confirming,
   pending,
   actionPendingLabel,
@@ -536,6 +577,7 @@ function AdminImpersonateAction({
   onCancel,
 }: {
   userId: string;
+  first: boolean;
   confirming: boolean;
   pending: boolean;
   actionPendingLabel: string | null;
@@ -599,19 +641,33 @@ function AdminImpersonateAction({
 
   if (!confirming) {
     return (
-      <Button
-        title="Impersonate"
-        variant="secondary"
-        disabled={pending}
-        onPress={onReveal}
-      />
+      <View className={first ? "gap-2" : "gap-2 border-t border-gravel pt-6"}>
+        <Text className="font-body-bold text-base text-ink">
+          Impersonate this user
+        </Text>
+        <Text className="font-body text-sm text-ink opacity-60">
+          You use the app as this user until you stop.
+        </Text>
+        <Button
+          title="Impersonate"
+          variant="secondary"
+          disabled={pending}
+          onPress={onReveal}
+        />
+      </View>
     );
   }
 
   const busy = starting || sendState === "sending";
   return (
-    <View className="gap-3">
-      <Text className="font-body text-base text-ink">
+    <View className={first ? "gap-2" : "gap-2 border-t border-gravel pt-6"}>
+      <Text className="font-body-bold text-base text-ink">
+        Impersonate this user
+      </Text>
+      <Text className="font-body text-sm text-ink opacity-60">
+        You use the app as this user until you stop.
+      </Text>
+      <Text className="font-body text-sm text-ink opacity-60">
         We text a code to your number. That is the second factor for
         impersonation.
       </Text>
@@ -642,28 +698,15 @@ function AdminImpersonateAction({
       {codeError?.resend ? (
         <QuietAction label="Send another code" onPress={() => void sendCode()} />
       ) : null}
-      <View className="flex-row gap-3">
-        <View className="flex-1">
-          <Button
-            title="Cancel"
-            variant="secondary"
-            disabled={busy}
-            onPress={onCancel}
-          />
-        </View>
-        <View className="flex-1">
-          <Button
-            title={
-              starting
-                ? "Starting…"
-                : (actionPendingLabel ?? "Start impersonating")
-            }
-            variant="secondary"
-            disabled={busy}
-            onPress={() => void submit()}
-          />
-        </View>
-      </View>
+      <Button
+        title={
+          starting ? "Starting…" : (actionPendingLabel ?? "Start impersonating")
+        }
+        variant="primary"
+        disabled={busy}
+        onPress={() => void submit()}
+      />
+      <QuietAction label="Cancel" onPress={onCancel} />
     </View>
   );
 }

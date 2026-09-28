@@ -13,10 +13,10 @@ import { useDismiss } from "@/hooks/useDismiss";
 import {
   draftFromProfile,
   initials,
+  UNITS,
   validateProfile,
   type Profile,
   type ProfileDraft,
-  type TemperatureUnit,
 } from "@/lib/profile";
 import { formatPhoneForDisplay } from "@/lib/phone";
 import { appleCalendarUrl, googleCalendarUrl } from "@/lib/calendarLinks";
@@ -25,16 +25,6 @@ import { useProfile } from "@/lib/profileStore";
 import { toErrorCopy } from "@/lib/queries/errors";
 import { LEGAL_ROWS } from "@/lib/legal";
 import { useAuth } from "@/lib/authStore";
-
-/**
- * Fahrenheit first, because it is the default the API answers with
- * (`lib/mapping.ts`): the value you are most likely to already be on is
- * the one under the thumb that goes looking for it.
- */
-const UNITS: Array<{ value: TemperatureUnit; label: string }> = [
-  { value: "fahrenheit", label: "Fahrenheit" },
-  { value: "celsius", label: "Celsius" },
-];
 
 /**
  * Profile. Who you are, what you are called, and the preferences the app
@@ -509,7 +499,7 @@ function ProfileForm({ profile }: { profile: Profile }) {
         <View>
           <Text className="font-body-bold text-sm text-ink">Admin</Text>
           <Text className="mt-2 font-body text-sm text-ink">
-            Search every account, and act on one.
+            Search every user, and act on one.
           </Text>
           <View className="mt-2">
             <View className="py-1">

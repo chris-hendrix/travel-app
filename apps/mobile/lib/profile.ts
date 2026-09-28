@@ -4,6 +4,17 @@ import { updateProfileSchema } from "@journiful/shared/schemas";
 export type TemperatureUnit = "celsius" | "fahrenheit";
 
 /**
+ * Fahrenheit first, because it is the default the API answers with
+ * (`lib/mapping.ts`): the value you are most likely to already be on is
+ * the one under the thumb that goes looking for it. Shared by the
+ * profile form and the admin record so the option list cannot drift.
+ */
+export const UNITS: Array<{ value: TemperatureUnit; label: string }> = [
+  { value: "fahrenheit", label: "Fahrenheit" },
+  { value: "celsius", label: "Celsius" },
+];
+
+/**
  * The signed-in user, shaped after the API's `userResponseSchema` so the
  * screen survives the swap from mocks. Photo is nullable because that is
  * the state every new account starts in.

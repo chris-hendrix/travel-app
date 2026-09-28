@@ -194,6 +194,7 @@ export type UpdateAdminUserInput = {
   id: string;
   displayName?: string;
   timezone?: string;
+  temperatureUnit?: "celsius" | "fahrenheit";
 };
 
 /** `PUT /admin/users/:id` with only the fields given. */
@@ -201,9 +202,15 @@ export async function updateAdminUser(
   input: UpdateAdminUserInput,
 ): Promise<AdminUserRow> {
   const { id, ...fields } = input;
-  const patch: { displayName?: string; timezone?: string } = {};
+  const patch: {
+    displayName?: string;
+    timezone?: string;
+    temperatureUnit?: "celsius" | "fahrenheit";
+  } = {};
   if (fields.displayName !== undefined) patch.displayName = fields.displayName;
   if (fields.timezone !== undefined) patch.timezone = fields.timezone;
+  if (fields.temperatureUnit !== undefined)
+    patch.temperatureUnit = fields.temperatureUnit;
   const body = await apiFetch<AdminUpdateUserResult>(`/admin/users/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
