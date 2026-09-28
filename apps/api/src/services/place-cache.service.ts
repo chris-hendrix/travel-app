@@ -197,6 +197,10 @@ export class PlaceCacheService {
 
     const result = new Map<string, PlaceSummary | null>();
     const misses: PlacePair[] = [];
+    // Fresh summaries kept beside their details so the per-read photo-drop
+    // line can tell "dropped for want of a source link" from "Google has
+    // none" without re-reading the row or touching toSummary's purity.
+    const freshDetails = new Map<string, CachedPlaceDetails>();
     for (const [provider, ids] of byProvider) {
       const rows = await this.database
         .select()
@@ -215,6 +219,7 @@ export class PlaceCacheService {
             `${provider}:${placeId}`,
             toSummary(placeId, row.details),
           );
+          freshDetails.set(`${provider}:${placeId}`, row.details);
         } else {
           misses.push({ provider, placeId });
         }
@@ -240,6 +245,9 @@ export class PlaceCacheService {
         placeKey(pair),
         details ? toSummary(pair.placeId, details) : null,
       );
+      if (details) {
+        freshDetails.set(placeKey(pair), details);
+      }
     }
     // One line per request, not per pair: a reader can tell three
     // places down from one place retried by the failed-pairs field.
@@ -250,6 +258,36 @@ export class PlaceCacheService {
       this.logger?.warn(
         { failed, mode },
         "Place details fetch failed, resolving null",
+      );
+    }
+    // One line per read naming why photos are missing: a null photoUrl
+    // with photos present was dropped for want of a source link, while an
+    // empty photos array means Google has none. Silent when every photo
+    // is sourced so a healthy read logs nothing.
+    const dropped: string[] = [];
+    const noPhotos: string[] = [];
+    for (const [key, details] of freshDetails) {
+      if (result.get(key)?.photoUrl !== null) {
+        continue;
+      }
+      if (details.photos.length > 0) {
+        dropped.push(key);
+      } else {
+        noPhotos.push(key);
+      }
+    }
+    if (dropped.length > 0 || noPhotos.length > 0) {
+      (this.logger as unknown as
+        | { debug?: (obj: Record<string, unknown>, msg: string) => void }
+        | undefined)?.debug?.(
+        {
+          dropped,
+          noPhotos,
+          droppedCount: dropped.length,
+          noPhotosCount: noPhotos.length,
+          mode,
+        },
+        "Place photos unavailable",
       );
     }
     for (const pair of misses.slice(toRefresh.length)) {
