@@ -28,7 +28,7 @@ import { imageSlot } from "@/lib/place-images";
  * — a trip and an event — can drop a line without the grid going wonky.
  *
  * A 404 is a state, not a blank box: a photo that fails to load
- * falls back to the illustrated tile, same as a missing one.
+ * falls back to the kind's stock photo, same as a missing one.
  *
  * Hover (web, wide only): the photo and the text both zoom — the photo
  * inside its clipped frame, the text from its left edge so it grows into
@@ -45,7 +45,7 @@ export function PhotoCard({
   onPress,
 }: {
   image: string | null;
-  /** The illustrated tile rendered when there is no photo, or it failed to load. */
+  /** The kind's stock photo rendered when there is no photo, or it failed to load. */
   placeholder: ReactNode;
   /**
    * The photo's required Google Maps source link. When present a small

@@ -24,7 +24,7 @@ import { useMembers } from "@/lib/queries/members";
 import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { useDismiss } from "@/hooks/useDismiss";
-import { PlaceholderTile } from "@/components/ui/PlaceholderTile";
+import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 
 /**
  * Event detail, as a dialog: one event, seen whole.
@@ -133,7 +133,7 @@ function EventDetailDialog() {
           <View className="relative overflow-hidden">
             {!event.image ? (
               <View className="w-full aspect-[2/1]">
-                <PlaceholderTile kind={event.type} />
+                <PlaceholderImage kind={event.type} />
               </View>
             ) : event.photoSourceUri ? (
               <Pressable

@@ -3,7 +3,7 @@
  *
  * Every surface renders `upload → place photo → tile`: a trip's own
  * cover upload first, then the linked place's photo, then null —
- * the caller renders the illustrated tile, so this helper can
+ * the caller renders the kind's stock photo, so this helper can
  * report which source it chose.
  */
 
@@ -45,8 +45,8 @@ export function placePhotoUrl(base: string, box: PlaceBox): string {
 
 /**
  * Resolve a slot's image. An upload wins over a place photo;
- * neither yields the tile — null means no photo, and the caller
- * renders the illustrated tile, so every slot falls back the same way.
+ * neither yields a photo — null means no photo, and the caller
+ * renders the kind's stock photo, so every slot falls back the same way.
  */
 export function coverImage({
   coverImageUrl,
@@ -75,7 +75,7 @@ export function coverImage({
 
 /**
  * The slot decision, pure so the fallback is testable in node: a photo
- * wins over the illustrated placeholder; a missing image (null,
+ * wins over the kind's stock photo; a missing image (null,
  * undefined, or empty) or a failed one (a 404 or undecodable photo)
  * yields the placeholder — never a blank box.
  */

@@ -1,40 +1,50 @@
 import type { EventType, ItineraryEvent } from "@/lib/itinerary";
 import type { Stay } from "@/lib/stays";
 import type { Trip } from "@/components/trip/TripCard";
+import arts_and_entertainment from "@/assets/placeholders/arts.jpg";
+import food_and_drink from "@/assets/placeholders/food.jpg";
+import lodging from "@/assets/placeholders/lodging.jpg";
+import misc from "@/assets/placeholders/misc.jpg";
+import nightlife from "@/assets/placeholders/nightlife.jpg";
+import outdoors from "@/assets/placeholders/outdoors.jpg";
+import shopping from "@/assets/placeholders/shopping.jpg";
+import travel from "@/assets/placeholders/travel.jpg";
+import trip from "@/assets/placeholders/trip.jpg";
+import wellness from "@/assets/placeholders/wellness.jpg";
 
 /**
- * What the illustrated tile draws when there is no place photo: the
- * nine event types plus the trip cover's own kind. The kinds are
- * distinguished by drawing, not by colour — the chip beside the tile
- * already names the category.
+ * What an image slot shows when there is no place photo: one bundled
+ * stock photo per kind — the nine event types plus the trip cover's
+ * own. Bundled, not remote, so the fallback works offline; stock, not
+ * drawn, because hand-drawn line art reads as a wireframe next to a
+ * real place photo. All ten are Unsplash-licensed travel shots, free
+ * to use. (`PlaceholderImage` renders them.)
  */
 export type PlaceholderKind = EventType | "trip";
 
 /**
- * One drawing per kind. The value names the drawing
- * (`PlaceholderTile` renders it); what matters here is that every
- * member of `PlaceholderKind` has one, so a new `EventType` that
- * forgets its drawing fails the placeholder test instead of
- * rendering nothing.
+ * One stock photo per kind. What matters here is that every member of
+ * `PlaceholderKind` has one, so a new `EventType` that forgets its
+ * photo fails the placeholder test instead of rendering nothing.
  */
-export const KINDS: Record<PlaceholderKind, string> = {
-  lodging: "bed",
-  food_and_drink: "plate",
-  travel: "paper-plane",
-  outdoors: "mountains",
-  nightlife: "tumbler",
-  wellness: "lotus",
-  shopping: "bag",
-  arts_and_entertainment: "frame",
-  misc: "pin",
-  trip: "compass",
+export const KINDS: Record<PlaceholderKind, number> = {
+  lodging,
+  food_and_drink,
+  travel,
+  outdoors,
+  nightlife,
+  wellness,
+  shopping,
+  arts_and_entertainment,
+  misc,
+  trip,
 };
 
-/** An event's tile draws the event's own type. */
+/** An event's fallback is the event's own type. */
 export function placeholderKind(event: ItineraryEvent): EventType;
-/** A stay's tile draws the lodging drawing. */
+/** A stay's fallback is the lodging photo. */
 export function placeholderKind(stay: Stay): "lodging";
-/** A trip's tile draws the compass. */
+/** A trip's fallback is the trip cover photo. */
 export function placeholderKind(trip: Trip): "trip";
 export function placeholderKind(
   value: ItineraryEvent | Stay | Trip,

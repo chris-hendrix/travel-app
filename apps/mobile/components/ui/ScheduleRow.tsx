@@ -18,7 +18,7 @@ import { imageSlot } from "@/lib/place-images";
  * caller supplies.
  *
  * A 404 is a state, not a blank box: a photo that fails to load
- * falls back to the illustrated tile, same as a missing one.
+ * falls back to the kind's stock photo, same as a missing one.
  *
  * The zoom the card does under a pointer, done here too: the photo
  * inside its clipped frame. The text does not, and cannot — a card grows
@@ -37,7 +37,7 @@ export function ScheduleRow({
   onPress,
 }: {
   image: string | null;
-  /** The illustrated tile rendered when there is no photo, or it failed to load. */
+  /** The kind's stock photo rendered when there is no photo, or it failed to load. */
   placeholder: ReactNode;
   title: string;
   /** The chips under the name: what it is, then where. */

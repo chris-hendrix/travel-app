@@ -25,7 +25,7 @@ import NotFound from "@/app/+not-found";
 import { useDismiss } from "@/hooks/useDismiss";
 import { joinFacts } from "@/lib/wording";
 import { placeRows } from "@/lib/place-rows";
-import { PlaceholderTile } from "@/components/ui/PlaceholderTile";
+import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 
 /**
  * Stay detail, as a dialog: one roof, seen whole.
@@ -125,7 +125,7 @@ function StayDetailDialog() {
           <View className="relative overflow-hidden">
             {!stay.image ? (
               <View className="w-full aspect-[2/1]">
-                <PlaceholderTile kind="lodging" />
+                <PlaceholderImage kind="lodging" />
               </View>
             ) : stay.photoSourceUri ? (
               <Pressable

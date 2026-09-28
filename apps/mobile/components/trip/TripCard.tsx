@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/Badge";
 import { PhotoCard } from "@/components/ui/PhotoCard";
-import { PlaceholderTile } from "@/components/ui/PlaceholderTile";
+import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 import { tripCountdown } from "@/lib/countdown";
 import { formatDateRange } from "@/lib/dateRange";
 import type { PlacePhotoCredit } from "@/lib/place-images";
@@ -89,7 +89,7 @@ export function TripCard({
   return (
     <PhotoCard
       image={trip.image}
-      placeholder={<PlaceholderTile kind="trip" />}
+      placeholder={<PlaceholderImage kind="trip" />}
       photoSourceUri={trip.photoSourceUri ?? null}
       overlay={countdown ? <Badge label={countdown} variant="club" /> : null}
       meta={formatDateRange(trip.startDate, trip.endDate)}

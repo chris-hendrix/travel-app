@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/Badge";
-import { PlaceholderTile } from "@/components/ui/PlaceholderTile";
+import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 import { ScheduleRow } from "@/components/ui/ScheduleRow";
 import {
   EVENT_TYPE_LABEL,
@@ -27,7 +27,7 @@ export function EventRow({
   return (
     <ScheduleRow
       image={event.image}
-      placeholder={<PlaceholderTile kind={event.type} />}
+      placeholder={<PlaceholderImage kind={event.type} />}
       title={event.name}
       labels={
         <>

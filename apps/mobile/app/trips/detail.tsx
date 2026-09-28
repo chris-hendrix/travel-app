@@ -30,7 +30,7 @@ import { viewerOf, goingMembers } from "@/lib/members";
 import { anyTravelOwed } from "@/lib/travelBoard";
 
 import { boxForWidth } from "@/lib/place-images";
-import { PlaceholderTile } from "@/components/ui/PlaceholderTile";
+import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 import { getPertinentTime } from "@journiful/shared/utils";
 
 /**
@@ -284,7 +284,7 @@ function TripDetailScreen() {
                 )
               ) : (
                 <View className="w-full aspect-[2/1]">
-                  <PlaceholderTile kind="trip" />
+                  <PlaceholderImage kind="trip" />
                 </View>
               )}
               {countdown ? (

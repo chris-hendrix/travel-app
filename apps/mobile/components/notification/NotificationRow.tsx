@@ -1,6 +1,6 @@
 import { Image, Pressable, Text, View } from "react-native";
 import type { Trip } from "@/components/trip/TripCard";
-import { PlaceholderTile } from "@/components/ui/PlaceholderTile";
+import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 import { relativeTime, type Notification } from "@/lib/notifications";
 
 /**
@@ -50,7 +50,7 @@ export function NotificationRow({
           />
         ) : (
           <View className="h-18 w-18">
-            <PlaceholderTile kind="trip" />
+            <PlaceholderImage kind="trip" />
           </View>
         )
       ) : null}

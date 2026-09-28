@@ -58,7 +58,7 @@ describe("placeholderKind", () => {
     expect(placeholderKind(tripBase)).toBe("trip");
   });
 
-  it("every kind has a drawing", () => {
+  it("every kind has a photo", () => {
     const kinds: PlaceholderKind[] = [
       "travel",
       "food_and_drink",
