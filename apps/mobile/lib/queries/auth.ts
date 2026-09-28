@@ -148,15 +148,44 @@ export const authKeys = {
 };
 
 /**
+ * `GET /auth/me` response envelope. The API omits the three optional
+ * keys for an ordinary session (`apps/api/src/controllers/auth.controller.ts`):
+ * `isAdmin` is set only for an admin, and the impersonation pair only
+ * while impersonating — so every reader normalizes at the boundary
+ * rather than reading them straight.
+ */
+export type MeResponse = {
+  success: true;
+  user: User;
+  isAdmin?: boolean;
+  impersonating?: boolean;
+  impersonatingUser?: { id: string; displayName: string };
+};
+
+/**
+ * `GET /auth/me` as the cached envelope. Every non-React reader and
+ * every `getQueryData`/`setQueryData` on `authKeys.me()` uses this —
+ * never `meOptions()`, whose `select` shapes the observer's data and
+ * not `queryFn`'s return type, so a direct `queryFn` call on it
+ * typechecks while reading the wrong shape.
+ */
+export const meBodyOptions = () =>
+  queryOptions({
+    queryKey: authKeys.me(),
+    queryFn: () => apiFetch<MeResponse>("/auth/me"),
+  });
+
+/**
  * `GET /auth/me` mapped through `toProfile` — the one source of truth
  * for who is signed in. The complete-profile mutation reads the user
  * back through this same path instead of keeping a local flag.
+ * The cache holds the envelope (`MeResponse`); `select` yields the
+ * `Profile` the `useQuery` in the store reads.
  */
 export const meOptions = () =>
   queryOptions({
-    queryKey: authKeys.me(),
-    queryFn: async (): Promise<Profile> =>
-      toProfile((await apiFetch<{ success: true; user: User }>("/auth/me")).user),
+    ...meBodyOptions(),
+    select: (body: MeResponse) => toProfile(body.user),
   });
 
 /** Mirrors `completeProfileResponseSchema` minus the envelope: the caller
@@ -196,9 +225,10 @@ export async function completeProfile(
     ),
   });
   await setToken(body.token);
-  return toProfile(
-    (await apiFetch<{ success: true; user: User }>("/auth/me")).user,
-  );
+  // Same request as every other me reader, one definition: the raw
+  // envelope, mapped here — no behaviour change.
+  const me = meBodyOptions();
+  return toProfile((await me.queryFn!({ queryKey: me.queryKey } as never)).user);
 }
 
 /** Mutation wrapper for screens that fire `completeProfile` via TanStack Query. */

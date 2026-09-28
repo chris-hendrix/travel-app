@@ -26,7 +26,7 @@ const { renderToString } = require("react-dom/server") as {
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ApiError, apiFetch } from "@/lib/api";
 import type { User } from "@journiful/shared/types";
-import { meOptions, authKeys } from "@/lib/queries/auth";
+import { meOptions, authKeys, type MeResponse } from "@/lib/queries/auth";
 import {
   updateProfile,
   updateProfileOptions,
@@ -38,10 +38,12 @@ import {
 } from "@/lib/queries/calendar";
 import { makeQueryClient } from "@/lib/queries/client";
 import {
+  applyDraft,
+  applyDraftToUser,
   draftFromProfile,
-  type Profile,
   type ProfileDraft,
 } from "@/lib/profile";
+import { toProfile } from "@/lib/mapping";
 import { ProfileProvider, useProfile } from "@/lib/profileStore";
 
 const mockedApiFetch = vi.mocked(apiFetch);
@@ -72,8 +74,7 @@ function meBody(user: User) {
   return { success: true as const, user };
 }
 
-function draft(overrides: Partial<ProfileDraft> = {}): ProfileDraft {
-  return {
+function draft(overrides: Partial<ProfileDraft> = {}): ProfileDraft {  return {
     displayName: "Ada Lovelace",
     venmo: "ada-lovelace",
     instagram: "ada.lovelace",
@@ -82,21 +83,8 @@ function draft(overrides: Partial<ProfileDraft> = {}): ProfileDraft {
   };
 }
 
-function cachedProfile(overrides: Partial<Profile> = {}): Profile {
-  return {
-    id: "user-1",
-    displayName: "Ada Lovelace",
-    phoneNumber: "+15550000001",
-    profilePhotoUrl: null,
-    handles: { venmo: "ada-lovelace", instagram: "ada.lovelace" },
-    timezone: "America/New_York",
-    temperatureUnit: "fahrenheit",
-    ...overrides,
-  };
-}
-
 describe("profile read (meOptions, reused — no second me query)", () => {
-  it("reads GET /auth/me (there is no GET /users/me) mapped to Profile", async () => {
+  it("reads GET /auth/me (there is no GET /users/me), select maps the envelope to Profile", async () => {
     mockedApiFetch.mockReset();
     mockedApiFetch.mockResolvedValue(meBody(userRow()));
 
@@ -106,15 +94,17 @@ describe("profile read (meOptions, reused — no second me query)", () => {
     const options = meOptions();
     expect(options.queryKey).toEqual(authKeys.me());
 
-    const profile = await options.queryFn!({
+    // The cache holds the envelope; `select` yields the `Profile`.
+    const body = await options.queryFn!({
       queryKey: options.queryKey,
     } as never);
 
     expect(mockedApiFetch).toHaveBeenCalledTimes(1);
     expect(mockedApiFetch).toHaveBeenCalledWith("/auth/me");
+    expect(body.user.displayName).toBe("Ada Lovelace");
     // Through `toProfile` (Phase 1 Task 4): nested `handles` pass
     // through onto the mobile `Profile`.
-    expect(profile).toEqual({
+    expect(options.select!(body)).toEqual({
       id: "user-1",
       displayName: "Ada Lovelace",
       phoneNumber: "+15550000001",
@@ -212,7 +202,9 @@ describe("updateProfile", () => {
 describe("useProfile() write (profileStore)", () => {
   function captureProfile() {
     const client = makeQueryClient();
-    client.setQueryData<Profile>(authKeys.me(), cachedProfile());
+    // The cache is the envelope, not a Profile: pre-populate the
+    // `MeResponse` the store's `select` reads through.
+    client.setQueryData<MeResponse>(authKeys.me(), meBody(userRow()));
 
     const seen: {
       actions: ReturnType<typeof useProfile> | null;
@@ -262,9 +254,9 @@ describe("useProfile() write (profileStore)", () => {
         temperatureUnit: "fahrenheit",
       }),
     });
-    // The server truth lands in the me cache; the key invalidates so
+    // The server truth lands in the me envelope; the key invalidates so
     // the next mount reads back from `GET /auth/me`.
-    expect(client.getQueryData<Profile>(authKeys.me())?.displayName).toBe(
+    expect(client.getQueryData<MeResponse>(authKeys.me())?.user.displayName).toBe(
       "Augusta King",
     );
     expect(
@@ -283,7 +275,7 @@ describe("useProfile() write (profileStore)", () => {
     await expect(
       actions.saveProfile(draft({ displayName: "Augusta King" })),
     ).rejects.toBeInstanceOf(ApiError);
-    expect(client.getQueryData<Profile>(authKeys.me())?.displayName).toBe(
+    expect(client.getQueryData<MeResponse>(authKeys.me())?.user.displayName).toBe(
       "Ada Lovelace",
     );
   });
@@ -311,7 +303,7 @@ describe("useProfile() write (profileStore)", () => {
       expect.objectContaining({ method: "POST" }),
     );
     expect(
-      client.getQueryData<Profile>(authKeys.me())?.profilePhotoUrl,
+      client.getQueryData<MeResponse>(authKeys.me())?.user.profilePhotoUrl,
     ).toBe("https://cdn.example/avatar.jpg");
 
     mockedApiFetch.mockResolvedValue({
@@ -325,9 +317,34 @@ describe("useProfile() write (profileStore)", () => {
       expect.objectContaining({ method: "DELETE" }),
     );
     expect(
-      client.getQueryData<Profile>(authKeys.me())?.profilePhotoUrl,
+      client.getQueryData<MeResponse>(authKeys.me())?.user.profilePhotoUrl ?? null,
     ).toBeNull();
     vi.unstubAllGlobals();
+  });
+});
+
+describe("applyDraftToUser (against applyDraft — the two cannot drift)", () => {
+  it("patches displayName, handles and temperature unit exactly like applyDraft", () => {
+    const cases = [
+      draft(),
+      draft({ displayName: "  Augusta King  ", venmo: "  ", instagram: "" }),
+      draft({ venmo: "augusta", instagram: "  ada.love  ", temperatureUnit: "celsius" }),
+    ];
+    for (const d of cases) {
+      const userPatched = applyDraftToUser(userRow(), d);
+      const profilePatched = applyDraft(toProfile(userRow()), d);
+      expect(userPatched.displayName).toBe(profilePatched.displayName);
+      expect(userPatched.handles).toEqual(profilePatched.handles);
+      expect(userPatched.temperatureUnit).toBe(profilePatched.temperatureUnit);
+    }
+  });
+
+  it("clears handles to null when both draft handles are empty", () => {
+    const patched = applyDraftToUser(
+      userRow(),
+      draft({ venmo: "  ", instagram: "" }),
+    );
+    expect(patched.handles).toBeNull();
   });
 });
 

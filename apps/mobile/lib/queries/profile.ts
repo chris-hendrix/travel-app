@@ -56,8 +56,9 @@ export type UpdateProfileResponse = {
  *
  * The read stays `meOptions()` (`GET /auth/me` — there is no
  * `GET /users/me`): one source of truth, no second me query, no
- * `profileKeys` factory. The store paints this mutation's result into
- * the `authKeys.me()` cache.
+ * `profileKeys` factory. This module never touches that cache itself —
+ * it maps each write response through `toProfile` and returns it, and
+ * the store paints the result into the `authKeys.me()` envelope.
  */
 export async function updateProfile(draft: ProfileDraft): Promise<Profile> {
   // Same rule as `applyDraft` in `lib/profile.ts`: an empty handle is
