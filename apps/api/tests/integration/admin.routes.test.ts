@@ -289,6 +289,49 @@ describe("Admin Routes", () => {
       expect(body.success).toBe(true);
       expect(body.user.displayName).toBe("Updated Name");
     });
+
+    it("should update temperatureUnit alone and persist it", async () => {
+      app = await buildApp();
+      const admin = await createUser({ displayName: "Admin", role: "admin" });
+      const target = await createUser({ displayName: "Temp Target" });
+
+      const response = await app.inject({
+        method: "PUT",
+        url: `/api/admin/users/${target.id}`,
+        cookies: { auth_token: adminToken(app, admin.id) },
+        payload: { temperatureUnit: "fahrenheit" },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.success).toBe(true);
+      expect(body.user.temperatureUnit).toBe("fahrenheit");
+
+      const detail = await app.inject({
+        method: "GET",
+        url: `/api/admin/users/${target.id}`,
+        cookies: { auth_token: adminToken(app, admin.id) },
+      });
+
+      expect(detail.statusCode).toBe(200);
+      const detailBody = JSON.parse(detail.body);
+      expect(detailBody.user.temperatureUnit).toBe("fahrenheit");
+    });
+
+    it("should reject a body with no fields", async () => {
+      app = await buildApp();
+      const admin = await createUser({ displayName: "Admin", role: "admin" });
+      const target = await createUser({ displayName: "Empty Body Target" });
+
+      const response = await app.inject({
+        method: "PUT",
+        url: `/api/admin/users/${target.id}`,
+        cookies: { auth_token: adminToken(app, admin.id) },
+        payload: {},
+      });
+
+      expect(response.statusCode).toBe(400);
+    });
   });
 
   describe("POST /api/admin/users/:id/ban", () => {

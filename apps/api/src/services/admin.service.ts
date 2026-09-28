@@ -28,7 +28,11 @@ export interface IAdminService {
   updateUser(
     request: FastifyRequest,
     userId: string,
-    data: { displayName?: string | undefined; timezone?: string | undefined },
+    data: {
+      displayName?: string | undefined;
+      timezone?: string | undefined;
+      temperatureUnit?: "celsius" | "fahrenheit" | undefined;
+    },
   ): Promise<User>;
 
   banUser(request: FastifyRequest, userId: string): Promise<void>;
@@ -144,7 +148,11 @@ export class AdminService implements IAdminService {
   async updateUser(
     request: FastifyRequest,
     userId: string,
-    data: { displayName?: string | undefined; timezone?: string | undefined },
+    data: {
+      displayName?: string | undefined;
+      timezone?: string | undefined;
+      temperatureUnit?: "celsius" | "fahrenheit" | undefined;
+    },
   ): Promise<User> {
     const adminId = request.user.adminId ?? request.user.sub;
 

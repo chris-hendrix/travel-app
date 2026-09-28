@@ -21,8 +21,9 @@ export const adminUpdateUserSchema = z
   .object({
     displayName: z.string().min(1).max(50).optional(),
     timezone: z.string().max(100).optional(),
+    temperatureUnit: z.enum(["celsius", "fahrenheit"]).optional(),
   })
-  .refine((data) => data.displayName || data.timezone, {
+  .refine((data) => data.displayName || data.timezone || data.temperatureUnit, {
     message: "At least one field must be provided",
   });
 
