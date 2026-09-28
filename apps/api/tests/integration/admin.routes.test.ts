@@ -570,6 +570,34 @@ describe("Admin Routes", () => {
       expect(meBody.isAdmin).toBe(true);
       expect(meBody.impersonatingUser.id).toBe(target.id);
     });
+    it("should return token in body usable as bearer session", async () => {
+      app = await buildApp();
+      const admin = await createUser({ displayName: "Admin", role: "admin" });
+      const target = await createUser({ displayName: "Bearer Target" });
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/admin/impersonate/${target.id}`,
+        cookies: { auth_token: adminToken(app, admin.id) },
+        payload: { code: "123456" },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(typeof body.token).toBe("string");
+      expect(body.token.length).toBeGreaterThan(0);
+
+      const meResponse = await app.inject({
+        method: "GET",
+        url: "/api/auth/me",
+        headers: { authorization: `Bearer ${body.token}` },
+      });
+
+      expect(meResponse.statusCode).toBe(200);
+      const meBody = JSON.parse(meResponse.body);
+      expect(meBody.user.id).toBe(target.id);
+      expect(meBody.impersonating).toBe(true);
+    });
   });
 
   describe("POST /api/admin/stop-impersonate", () => {
@@ -613,6 +641,46 @@ describe("Admin Routes", () => {
         cookies: { auth_token: adminCookie!.value },
       });
 
+      const meBody = JSON.parse(meResponse.body);
+      expect(meBody.user.id).toBe(admin.id);
+      expect(meBody.impersonating).toBeUndefined();
+    });
+
+    it("should return admin token in body usable as bearer session", async () => {
+      app = await buildApp();
+      const admin = await createUser({ displayName: "Admin", role: "admin" });
+      const target = await createUser({ displayName: "Target" });
+
+      const impersonateResponse = await app.inject({
+        method: "POST",
+        url: `/api/admin/impersonate/${target.id}`,
+        cookies: { auth_token: adminToken(app, admin.id) },
+        payload: { code: "123456" },
+      });
+
+      const impersonationBody = JSON.parse(impersonateResponse.body);
+      const impersonationCookie = impersonateResponse.cookies.find(
+        (c: { name: string }) => c.name === "auth_token",
+      );
+
+      const stopResponse = await app.inject({
+        method: "POST",
+        url: "/api/admin/stop-impersonate",
+        headers: { authorization: `Bearer ${impersonationCookie!.value}` },
+      });
+
+      expect(stopResponse.statusCode).toBe(200);
+      const body = JSON.parse(stopResponse.body);
+      expect(typeof body.token).toBe("string");
+      expect(body.token.length).toBeGreaterThan(0);
+
+      const meResponse = await app.inject({
+        method: "GET",
+        url: "/api/auth/me",
+        headers: { authorization: `Bearer ${body.token}` },
+      });
+
+      expect(meResponse.statusCode).toBe(200);
       const meBody = JSON.parse(meResponse.body);
       expect(meBody.user.id).toBe(admin.id);
       expect(meBody.impersonating).toBeUndefined();

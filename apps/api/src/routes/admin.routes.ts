@@ -17,6 +17,7 @@ import {
   adminImpersonateUserIdParamsSchema,
   adminImpersonateSchema,
   adminImpersonateResponseSchema,
+  adminImpersonationTokenResponseSchema,
 } from "@journiful/shared/schemas";
 import type {
   AdminListUsersQuery,
@@ -163,7 +164,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
         schema: {
           params: adminImpersonateUserIdParamsSchema,
           body: adminImpersonateSchema,
-          response: { 200: adminImpersonateResponseSchema },
+          response: { 200: adminImpersonationTokenResponseSchema },
         },
         preHandler: [scope.rateLimit(writeRateLimitConfig)],
       },
@@ -178,7 +179,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
       "/stop-impersonate",
       {
         schema: {
-          response: { 200: adminImpersonateResponseSchema },
+          response: { 200: adminImpersonationTokenResponseSchema },
         },
         preHandler: [scope.rateLimit(writeRateLimitConfig)],
       },

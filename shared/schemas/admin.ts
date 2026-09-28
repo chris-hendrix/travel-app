@@ -95,6 +95,14 @@ export const adminImpersonateResponseSchema = z.object({
   message: z.string(),
 });
 
+export const adminImpersonationTokenResponseSchema = z.object({
+  success: z.literal(true),
+  message: z.string(),
+  /** The bearer-session half of the same token the cookie carries. The
+   *  web app ignores it; a phone has no cookie jar to read. */
+  token: z.string(),
+});
+
 // Enhanced /auth/me response that includes admin context
 // This extends the base getMeResponse without exposing role/status in the user object
 export const adminMeContextSchema = z.object({
