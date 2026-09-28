@@ -293,11 +293,6 @@ function AdminUserDetail({
                 {displayName}
               </Text>
             </Fact>
-            <Fact label="Timezone">
-              <Text className="font-body text-base text-ink">
-                {user.timezone ?? "Not set"}
-              </Text>
-            </Fact>
             <Fact label="Temperature">
               <Text className="font-body text-base text-ink">
                 {user.temperatureUnit

@@ -90,17 +90,19 @@ function AdminUsersList() {
   }
   return (
     <View className="gap-4">
-      {/* The count is what the current search and filter matched —
-          that is what the API returns — not the global total. */}
-      <Text className="font-body text-sm text-ink">
-        {plural(count, "user")}
-      </Text>
       <AdminUsersControls
         search={search}
         onSearchChange={setSearch}
         filter={filter}
         onFilterChange={setFilter}
       />
+      {/* A result header, directly above the rows it counts. What it
+          counts is what the current search and filter matched - that is
+          what the API returns - not the global total. The empty state
+          above carries its own sentence instead. */}
+      <Text className="font-body text-sm text-ink">
+        {plural(count, "user")}
+      </Text>
       {/* Not a FlatList: twenty two-line rows is a screenful or three,
           and this app's other lists are plain stacks inside `Screen`
           (`app/trips/index.tsx`, the roster) — the page already scrolls
@@ -141,12 +143,6 @@ function AdminUsersControls({
 }) {
   return (
     <View className="gap-4">
-      <TextField
-        label="Search"
-        value={search}
-        onChangeText={onSearchChange}
-        placeholder="Name, phone or ID"
-      />
       <View className="flex-row">
         <Segmented
           options={[...FILTERS]}
@@ -155,6 +151,12 @@ function AdminUsersControls({
           size="sm"
         />
       </View>
+      <TextField
+        label="Search"
+        value={search}
+        onChangeText={onSearchChange}
+        placeholder="Name, phone or ID"
+      />
     </View>
   );
 }
@@ -203,27 +205,33 @@ function AdminUserRowView({
       accessibilityRole="button"
       accessibilityLabel={name}
       onPress={onPress}
-      className="min-h-11 border-t border-gravel py-2"
+      className="min-h-11 flex-row items-start justify-between gap-4 border-t border-gravel py-3"
     >
-      {/* The badges sit inline on the name's line and wrap under a
-          long name; only an exception wears one (banned or admin). */}
-      <View className="flex-row flex-wrap items-center gap-2">
-        <Text className="font-body-bold text-base text-ink">{name}</Text>
-        {user.status === "banned" ? (
-          <Badge label="Banned" variant="live" size="sm" />
-        ) : null}
-        {user.role === "admin" ? (
-          <Badge label="Admin" variant="category" size="sm" />
-        ) : null}
+      <View className="flex-1 gap-1">
+        {/* The badges sit inline on the name's line and wrap under a
+            long name; only an exception wears one (banned or admin). */}
+        <View className="flex-row flex-wrap items-center gap-2">
+          <Text className="font-body-bold text-base text-ink">{name}</Text>
+          {user.status === "banned" ? (
+            <Badge label="Banned" variant="live" size="sm" />
+          ) : null}
+          {user.role === "admin" ? (
+            <Badge label="Admin" variant="category" size="sm" />
+          ) : null}
+        </View>
+        <Text className="font-body text-sm text-ink">
+          {user.phoneNumber}
+        </Text>
       </View>
-      {/* Joined day plus trip count: the two facts a support reader
-          needs. Inline meta laid out as a flex-row with gap-3, the
-          way the roster lays out its name plus handle chips. */}
-      <View className="flex-row gap-3">
+      {/* The trailing column, right-aligned so both facts end on the
+          row's own edge: the day they joined, and how many trips they
+          are on. Sized to its content rather than to a fixed width, so
+          the name and the number keep every pixel they can. */}
+      <View className="shrink-0 items-end gap-1">
         <Text className="font-body text-sm text-ink">
           {joinedDay(user.createdAt)}
         </Text>
-        <Text className="font-body text-sm text-ink">
+        <Text className="font-body text-sm text-ink opacity-60">
           {plural(user.tripCount, "trip")}
         </Text>
       </View>
