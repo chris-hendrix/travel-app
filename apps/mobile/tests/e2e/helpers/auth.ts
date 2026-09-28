@@ -28,6 +28,47 @@ import type {
 /** Must match `const KEY` in `lib/session.ts`. */
 export const AUTH_TOKEN_KEY = "journiful.authToken";
 
+/**
+ * Fixed admin numbers handed to the API's ADMIN_PHONE_NUMBERS in E2E.
+ * Six, not one: two projects across four CI workers signing in on the
+ * same fresh-database number race getOrCreateUser and complete-profile.
+ */
+export const ADMIN_PHONES = [
+  "+15550000099",
+  "+15550000098",
+  "+15550000097",
+  "+15550000096",
+  "+15550000095",
+  "+15550000094",
+] as const;
+
+/** Pick one admin number by worker index, wrapping around the list. */
+export function adminPhoneFor(index: number): string {
+  return ADMIN_PHONES[index % ADMIN_PHONES.length] ?? ADMIN_PHONES[0];
+}
+
+/**
+ * Arm `page.addInitScript` to write the token into `localStorage` before
+ * the app boots. Factored out of `authenticateViaAPI` so later specs
+ * have one tail to reuse.
+ */
+export async function armSession(page: Page, token: string): Promise<void> {
+  await page.addInitScript(
+    ({ key, value }) => {
+      try {
+        if (!localStorage.getItem(key)) {
+          localStorage.setItem(key, value);
+        }
+      } catch {
+        // Private-mode storage failure: the app treats a missing token
+        // as signed-out, so the spec fails at its guard assertion
+        // rather than here.
+      }
+    },
+    { key: AUTH_TOKEN_KEY, value: token },
+  );
+}
+
 /** The dev fixed code (`ENABLE_FIXED_VERIFICATION_CODE=true`). */
 export const FIXED_CODE = "123456";
 
@@ -225,19 +266,6 @@ export async function authenticateViaAPI(
 ): Promise<string> {
   const phone = generateUniquePhone();
   const { token } = await seedUserViaAPI(request, phone, displayName);
-  await page.addInitScript(
-    ({ key, value }) => {
-      try {
-        if (!localStorage.getItem(key)) {
-          localStorage.setItem(key, value);
-        }
-      } catch {
-        // Private-mode storage failure: the app treats a missing token
-        // as signed-out, so the spec fails at its guard assertion
-        // rather than here.
-      }
-    },
-    { key: AUTH_TOKEN_KEY, value: token },
-  );
+  await armSession(page, token);
   return phone;
 }
