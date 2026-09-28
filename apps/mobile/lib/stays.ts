@@ -46,6 +46,13 @@ export type Stay = {
    */
   placeName?: string | null;
   placeAddress?: string | null;
+  /**
+   * The linked place's locality (Google's `addressComponents` town)
+   * and country, mapped from `place.locality` / `place.country`.
+   * Null when unlinked; `stayArea` reads this before the heuristic.
+   */
+  placeArea?: string | null;
+  placeCountry?: string | null;
   /** What Maps would take, once the API's geocoding fills them in. */
   addressLat: number | null;
   addressLon: number | null;
@@ -125,24 +132,57 @@ export function nightsLabel(
 }
 
 /**
- * The town, read off the address rather than asked for a second time.
+ * The town, from Google's locality when the stay is linked.
+ *
+ * A linked place's area comes from `placeArea` (the details
+ * locality), never from string splitting; the walk below survives
+ * only for typed, unlinked addresses.
  *
  *   "Carrer de la Mar 14, 07100 Sóller"  →  "Sóller"
  *   "Refugi de Múclet, Deià"             →  "Deià"
+ *   "123 Main St, Miami, FL 33101, USA"  →  "Miami"
  *
- * The last part of the address, without the postcode in front of it. A
- * guess, but a cheap one: the alternative is a Town field the organizer
- * fills in twice for one answer, and the worst case here is a row that
- * names the wrong-sized place rather than no place at all.
+ * The segments are walked from the end, skipping the things that
+ * cannot be a town: a country alias, a region/postcode pair
+ * ("FL 33101", "CA"), a bare postcode ("33101"). The first survivor
+ * is the area, with a leading postcode stripped; nothing surviving
+ * means null, so no badge. A guess, but a cheap one: the alternative
+ * is a Town field the organizer fills in twice for one answer.
+ *
+ * Limitation: the walk is US-anchored. A typed address ending in a
+ * country the alias set does not carry (e.g. "… Madrid, Spain")
+ * badges that country. That is acceptable because it only ever runs
+ * on text somebody typed: every linked place takes the structured
+ * path (placeArea from the details locality) instead.
  */
+const COUNTRY_ALIASES = new Set([
+  "usa",
+  "us",
+  "u.s.a.",
+  "united states",
+  "uk",
+  "united kingdom",
+]);
+const REGION_POSTCODE = /^[a-z]{2}(\s+\d{4,6})?$/i;
+const POSTCODE_ONLY = /^\d{4,6}$/;
 export function stayArea(stay: Stay): string | null {
+  const linked = stay.placeArea?.trim();
+  if (linked) return linked;
+
   const address = stay.address?.trim();
   if (!address) return null;
 
-  const last = address.split(",").pop()?.trim();
-  if (!last) return null;
-
-  return last.replace(/^\d{4,6}\s*/, "").trim() || null;
+  const segments = address.split(",").map((part) => part.trim()).filter(Boolean);
+  for (let i = segments.length - 1; i >= 0; i--) {
+    const segment = segments[i]!;
+    const lower = segment.toLowerCase();
+    if (COUNTRY_ALIASES.has(lower)) continue;
+    if (REGION_POSTCODE.test(segment)) continue;
+    if (POSTCODE_ONLY.test(segment)) continue;
+    const area = segment.replace(/^\d{4,6}\s*/, "").trim();
+    if (area) return area;
+  }
+  return null;
 }
 
 /** Earliest first, and the undated last: they belong to no day to sort by. */

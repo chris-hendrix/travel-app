@@ -338,6 +338,8 @@ describe("toStay", () => {
       placeId: null,
       placeName: null,
       placeAddress: null,
+      placeArea: null,
+      placeCountry: null,
       addressLat: 40.6,
       addressLon: 14.5,
       description: "Keypad 7788.",
@@ -408,6 +410,30 @@ describe("toStay", () => {
     const mapped = toStay({ ...accommodation, checkIn: null, checkOut: null });
     expect(mapped.checkIn).toBeNull();
     expect(mapped.checkOut).toBeNull();
+  });
+
+  it("maps place.locality to placeArea and place.country to placeCountry", () => {
+    const mapped = toStay({
+      ...accommodation,
+      place: {
+        placeId: "ChIJ456",
+        name: "Jordans",
+        address: "123 Main St, Miami, FL 33101, USA",
+        photoUrl: null,
+        photoAttribution: null,
+        photoSourceUri: null,
+        locality: "Miami",
+        country: "US",
+      },
+    });
+    expect(mapped.placeArea).toBe("Miami");
+    expect(mapped.placeCountry).toBe("US");
+  });
+
+  it("reads placeArea and placeCountry as null when there is no place", () => {
+    const mapped = toStay(accommodation);
+    expect(mapped.placeArea).toBeNull();
+    expect(mapped.placeCountry).toBeNull();
   });
 });
 

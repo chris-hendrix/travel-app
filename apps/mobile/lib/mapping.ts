@@ -168,6 +168,8 @@ export function toStay(accommodation: Accommodation): Stay {
     // snapshot must survive cache expiry and Google-side renames.
     placeName: accommodation.placeName ?? null,
     placeAddress: accommodation.placeAddress ?? null,
+    placeArea: accommodation.place?.locality ?? null,
+    placeCountry: accommodation.place?.country ?? null,
     addressLat: accommodation.addressLat,
     addressLon: accommodation.addressLon,
     description: accommodation.description,
