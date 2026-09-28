@@ -277,9 +277,7 @@ export class PlaceCacheService {
       }
     }
     if (dropped.length > 0 || noPhotos.length > 0) {
-      (this.logger as unknown as
-        | { debug?: (obj: Record<string, unknown>, msg: string) => void }
-        | undefined)?.debug?.(
+      this.logger?.debug?.(
         {
           dropped,
           noPhotos,
