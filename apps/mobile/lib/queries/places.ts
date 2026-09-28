@@ -24,19 +24,27 @@
  * `react-native` (the `api.ts` precedent).
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
+import { useDebouncedValue } from "@/lib/debounce";
 import {
   GOOGLE_MAPS_ATTRIBUTION,
   type PickerEntry,
 } from "@/lib/dropdown";
 
+/** The debounce pair moved to `@/lib/debounce` (the admin search is the
+ *  second caller); the places call sites and their tests keep importing
+ *  it from here. */
+export {
+  SUGGESTION_DEBOUNCE_MS,
+  createTrailingDebounce,
+  useDebouncedValue,
+} from "@/lib/debounce";
+
 /** Minimum trimmed input before autocomplete fires. */
 export const SUGGESTION_MIN_CHARS = 2;
 
-/** Trailing-edge debounce for keystroke → network. */
-export const SUGGESTION_DEBOUNCE_MS = 250;
 
 /** One autocomplete row, mapped off the proxy's bare 200 array. */
 export type PlaceSuggestion = {
@@ -77,52 +85,6 @@ type DetailsRow = {
   lat: number;
   lon: number;
 };
-
-/**
- * Trailing-edge debounce as a framework-free unit: rapid `push`es
- * collapse into one `onSettled(lastValue)` after `delayMs` of quiet.
- * `useDebouncedValue` (below) is built on this, so the debounce the
- * specs assert is the debounce the hooks ship — not a copy of it.
- */
-export function createTrailingDebounce<T>(
-  delayMs: number,
-  onSettled: (value: T) => void,
-) {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  return {
-    push(value: T) {
-      if (timer !== undefined) clearTimeout(timer);
-      timer = setTimeout(() => {
-        timer = undefined;
-        onSettled(value);
-      }, delayMs);
-    },
-    cancel() {
-      if (timer !== undefined) {
-        clearTimeout(timer);
-        timer = undefined;
-      }
-    },
-  };
-}
-
-/** The debounced twin of a fast-moving input value. */
-export function useDebouncedValue<T>(
-  value: T,
-  delayMs: number = SUGGESTION_DEBOUNCE_MS,
-): T {
-  const [current, setCurrent] = useState(value);
-  const settle = useMemo(
-    () => createTrailingDebounce<T>(delayMs, setCurrent),
-    [delayMs],
-  );
-  useEffect(() => {
-    if (Object.is(value, current)) return;
-    settle.push(value);
-    return () => settle.cancel();
-  }, [value, current, settle]);
-  return current;
-}
 
 /**
  * Whether this input may hit the network. Short/blank input sends
