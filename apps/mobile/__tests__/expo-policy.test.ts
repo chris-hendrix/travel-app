@@ -169,6 +169,22 @@ describe("expo policy: every target is a thumb's size", () => {
     }
     expect(header, "no hitSlop prop: it does not enlarge the box on web").not.toMatch(/hitSlop=/);
   });
+
+  it("the impersonation band's stop control is a real 44pt box with no negative margin", () => {
+    // The twin of the enumeration above: the stop control lives in its
+    // own component file, so an enumeration that only reads
+    // `AppHeader.tsx` never scans it — the one hole this new chrome
+    // has. Same three assertions for the stop word: its own padding to
+    // a real 44x44 box (16 + word + 16 across, 12 + word + 12 down),
+    // no negative margin anywhere in its window, and no hitSlop.
+    const band = source("components/ui/ImpersonationBand.tsx");
+    const at = band.indexOf("Stop impersonating");
+    expect(at, "Stop impersonating must exist").toBeGreaterThanOrEqual(0);
+    const window = band.slice(Math.max(0, at - 800), at + 800);
+    expect(window, "stop control: expected the real-box padding pair").toMatch(/px-4 py-3/);
+    expect(window, "stop control: no negative margin — the box sits inside its row").not.toMatch(/-m[trblxy]?-/);
+    expect(band, "no hitSlop prop: it does not enlarge the box on web").not.toMatch(/hitSlop=/);
+  });
 });
 
 describe("expo policy: the trips store is query-backed, not mock-backed", () => {

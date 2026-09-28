@@ -280,7 +280,10 @@ export const startImpersonationOptions = () =>
  * with no `token` field throws rather than leaving the session
  * silently unchanged.
  *
- * No `useStopImpersonation` hook yet — Phase 8 adds it to this file.
+ * The `useStopImpersonation` hook lives in `lib/impersonation.ts`,
+ * not here: this module is node-importable (its test imports it
+ * under plain vitest), and the hook's `expo-router` import breaks
+ * that surface. See that module's doc comment.
  */
 export async function stopImpersonation(): Promise<AdminImpersonationTokenResult> {
   const body = await apiFetch<AdminImpersonationTokenResult>(
