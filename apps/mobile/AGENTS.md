@@ -2,7 +2,7 @@
 
 ## WHAT
 
-`apps/mobile` is the Expo 57 app: React Native, NativeWind v5 (Tailwind 4), expo-router. It ships **two ways**: as the Android app (`com.journiful.app`, built with expo prebuild + gradle, distributed through Firebase App Distribution) and as the static web export (`pnpm export:web`) served by `scripts/serve-static.mjs` (`pnpm serve:web`) at `journiful.app` and `beta.journiful.app`. It is wired to the backend: server state lives in TanStack Query behind the store hooks, and the session persists in `lib/session.ts` (SecureStore on native, localStorage on web), so a reload keeps you signed in. Push is FCM: `lib/push.ts` registers the raw device token against the API's `POST /push/subscribe`, and `lib/pushRoutes.ts` maps the API's web urls onto app routes on tap. The flight lookup still POSTs `/flights/lookup` through the same boundary.
+`apps/mobile` is the Expo 57 app: React Native, NativeWind v5 (Tailwind 4), expo-router. It ships **two ways**: as the Android app (`com.journiful.app`, built with expo prebuild + gradle, distributed through Firebase App Distribution) and as the static web export (`pnpm export:web`) served by `scripts/serve-static.mjs` (`pnpm serve:web`) at `journiful.app`. It is wired to the backend: server state lives in TanStack Query behind the store hooks, and the session persists in `lib/session.ts` (SecureStore on native, localStorage on web), so a reload keeps you signed in. Push is FCM: `lib/push.ts` registers the raw device token against the API's `POST /push/subscribe`, and `lib/pushRoutes.ts` maps the API's web urls onto app routes on tap. The flight lookup still POSTs `/flights/lookup` through the same boundary.
 
 It is the product surface (native and web). The backend wiring is done.
 

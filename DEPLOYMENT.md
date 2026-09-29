@@ -140,11 +140,10 @@ The service builds and serves via the `apps/mobile` scripts `export:web`
 (`expo export --platform web --clear`) and `serve:web`
 (`node scripts/serve-static.mjs`, a dependency-free static server that
 returns one file per route with real 404s). Live at
-`https://journiful.app` and `https://beta.journiful.app` (and
+`https://journiful.app` (and
 `https://static-production-df7e.up.railway.app` — a hostname Railway minted
 when this service was still called `static`; renaming it to `web` on
-2026-09-29 left the generated domain alone, which is why the API's
-`FRONTEND_URL` needed no change).
+2026-09-29 left the generated domain alone).
 
 Everything the export publishes beyond the app routes comes from
 `apps/mobile/public/`, copied into `dist/` by the Expo build:
@@ -172,7 +171,7 @@ link in each page's `<head>` comes from
 the gate on all of it and runs in the `Mobile Web Export` CI job.
 
 The API's `FRONTEND_URL` covers the web origins:
-`https://journiful.app,https://static-production-df7e.up.railway.app,https://beta.journiful.app`.
+`https://journiful.app,https://static-production-df7e.up.railway.app`.
 That list is CORS: the API must name an origin before a browser on it can
 sign in, so a new hostname goes into `FRONTEND_URL` and is redeployed
 **before** it is pointed anywhere.
@@ -180,12 +179,22 @@ sign in, so a new hostname goes into `FRONTEND_URL` and is redeployed
 ## Domains and Recovery of the Retired Web App
 
 The apex `journiful.app` belongs to the **web** service (the Expo web
-export), as does `beta.journiful.app`. `/admin` lives in the app — there is
+export). `/admin` lives in the app — there is
 no separate admin hostname. The 2026-09-26 apex re-point drill (cut over
 from the retired Next app, back, and forward again) is historical; there is
 no live rollback target any more, so a bad deploy is fixed by rolling the
 **web** service back to its previous deployment, not by re-pointing a
 domain.
+
+`beta.journiful.app` was a second custom domain on the same service until
+2026-09-29, when it was removed (`railway domain delete beta.journiful.app -s web
+-e production --yes`) and dropped from the API's `FRONTEND_URL` in the same
+change. One loose end is owed at the registrar: the beta CNAME still points at a
+Railway edge hostname, so the hostname answers **404** from the edge instead of
+failing to resolve. Deleting that CNAME — and the
+`_railway-verify.beta.journiful.app` TXT, which only exists to make a re-add
+verify instantly — is a DNS change, not a Railway one. The apex's own
+`_railway-verify` TXT must stay.
 
 The service was called `static` until 2026-09-29, when it was renamed to
 `web` through the CLI (`serviceUpdate`); nothing else about it changed —
