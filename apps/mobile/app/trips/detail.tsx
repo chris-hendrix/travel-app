@@ -272,41 +272,52 @@ function TripDetailScreen() {
               would overflow the content box by exactly the gutter and
               every rule in the right column would end past the page's. */}
           <View className="gap-6 md:flex-1">
-            <View className="relative overflow-hidden">
-              {heroImage(trip.image) ? (
-                trip.photoSourceUri ? (
-                  <Pressable
-                    onPress={() => void Linking.openURL(trip.photoSourceUri!)}
-                    aria-label="View photo source on Google Maps"
-                  >
+            {/* The cover and its credit are one block, not two siblings. The
+                credit is the photo's caption, and a caption is not a peer of
+                what it captions: as a sibling it took this column's own 24pt
+                block gap, which floated a line of 12pt type a photo's height
+                away from the photo it is owed to. The event and stay sheets
+                already have this right — no gap on their columns at all, so
+                the credit's own `pt-1` is the whole of the space — and this
+                is that shape. The 24pt still separates the cover from the
+                verbs under it. */}
+            <View>
+              <View className="relative overflow-hidden">
+                {heroImage(trip.image) ? (
+                  trip.photoSourceUri ? (
+                    <Pressable
+                      onPress={() => void Linking.openURL(trip.photoSourceUri!)}
+                      aria-label="View photo source on Google Maps"
+                    >
+                      <Image
+                        source={{ uri: heroImage(trip.image)! }}
+                        resizeMode="cover"
+                        className="w-full aspect-[2/1]"
+                      />
+                    </Pressable>
+                  ) : (
                     <Image
                       source={{ uri: heroImage(trip.image)! }}
                       resizeMode="cover"
                       className="w-full aspect-[2/1]"
                     />
-                  </Pressable>
+                  )
                 ) : (
-                  <Image
-                    source={{ uri: heroImage(trip.image)! }}
-                    resizeMode="cover"
-                    className="w-full aspect-[2/1]"
-                  />
-                )
-              ) : (
-                <View className="w-full aspect-[2/1]">
-                  <PlaceholderImage kind="trip" />
-                </View>
-              )}
-              {countdown ? (
-                <View className="absolute left-3 top-3">
-                  <Badge label={countdown} variant="club" />
-                </View>
-              ) : null}
+                  <View className="w-full aspect-[2/1]">
+                    <PlaceholderImage kind="trip" />
+                  </View>
+                )}
+                {countdown ? (
+                  <View className="absolute left-3 top-3">
+                    <Badge label={countdown} variant="club" />
+                  </View>
+                ) : null}
+              </View>
+              <PhotoCredit
+                credit={trip.photoCredit ?? null}
+                sourceUri={trip.photoSourceUri ?? null}
+              />
             </View>
-            <PhotoCredit
-              credit={trip.photoCredit ?? null}
-              sourceUri={trip.photoSourceUri ?? null}
-            />
 
             {action}
           </View>
