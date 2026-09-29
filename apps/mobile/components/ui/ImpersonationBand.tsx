@@ -10,10 +10,11 @@ import { Pressable, Text, View } from "react-native";
  * and chrome does not grow to two rows.
  *
  * The way out is a separate word with its own 44pt box, not a bare
- * word in the sentence: `QuietAction` and `InlineAction` are
- * deliberately boxless (the latter's target is the line rather than
- * 44pt), which is fine inside a sentence and not fine here, where this
- * is the only control. While the swap is in flight the word reads
+ * word in the sentence. `InlineAction` is the boxless one — its target
+ * is the line rather than 44pt — which is fine inside a sentence and
+ * not fine here, where this is the only control; `QuietAction` has a
+ * 44pt box of its own since the floor was applied to it. While the swap
+ * is in flight the word reads
  * `Stopping…` and the control is disabled, with `role="button"` and
  * `aria-disabled` on the same element — the policy sweep fails any
  * `aria-*` state prop whose own element does not set `role`.

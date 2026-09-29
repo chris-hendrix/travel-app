@@ -13,6 +13,7 @@ import { Dropdown } from "@/components/ui/Dropdown";
 import { SuggestionList } from "@/components/ui/SuggestionList";
 import { MapsAttribution } from "@/components/ui/MapsAttribution";
 import { Accordion, AccordionItem } from "@/components/ui/Accordion";
+import { DisclosureButton } from "@/components/ui/DisclosureButton";
 import { Checkbox, CheckboxLabel } from "@/components/ui/Checkbox";
 import { ActionRow } from "@/components/ui/ActionRow";
 import { QuietAction } from "@/components/ui/QuietAction";
@@ -38,6 +39,8 @@ import { TripActions } from "@/components/trip/TripActions";
 import { RunLocked } from "@/components/trip/RunLocked";
 import { InviteCard } from "@/components/trip/InviteCard";
 import { EventCard } from "@/components/trip/EventCard";
+import { EventRow } from "@/components/trip/EventRow";
+import { StayRow } from "@/components/trip/StayRow";
 import { Grid } from "@/components/ui/Grid";
 import { PhotoCard } from "@/components/ui/PhotoCard";
 import { PhotoCredit } from "@/components/ui/PhotoCredit";
@@ -365,8 +368,8 @@ function DesignSystemScreen() {
 
             <Specimen
               name="TimeField"
-              contract="label · value · onChange · optional? · noneLabel? · error?"
-              note="One row shut — the time and a disclosure — opening the column of slots it has always been, already scrolled to where you are, and closing on the choice. A form with two times is two rows instead of two columns of ninety-six slots. Fifteen-minute steps across the whole day, because a red-eye is as much an event as a dinner. optional puts a No end row at the top, so an event that simply starts is a choice rather than an empty field. Rows read twelve-hour, exactly as the itinerary prints them. The label names the zone the slots are read in, because a field whose meaning depends on a setting says which setting is on."
+              contract="label · value · onChange · optional? · noneLabel? · anchor? · min? · disabled? · error?"
+              note="One row shut — the time and a disclosure — opening the column of slots it has always been, already scrolled to where you are, and closing on the choice. A form with two times is two rows instead of two columns of ninety-six slots. Fifteen-minute steps across the whole day, because a red-eye is as much an event as a dinner. optional puts a No end row at the top, so an event that simply starts is a choice rather than an empty field. anchor is where it opens when nothing is chosen yet and min is the floor — slots before it are shown but set aside — which is what makes an ordered pair read as a pair; both are the caller's, because only the form knows whether its two times are one. An event's are: the schema refuses an end at or before its start, so Ends opens on Starts and cannot go behind it. A stay's and a leg's are not — checking out at 11 is the morning after checking in at 3, and an arrival earlier than its departure is the red-eye — so bounding those would be a bug. With neither prop a field opens on nine rather than on midnight, which is the slot nobody means. Rows read twelve-hour, exactly as the itinerary prints them. The label names the zone the slots are read in, because a field whose meaning depends on a setting says which setting is on."
             >
               <View className="gap-4 md:flex-row">
                 <View className="md:flex-1">
@@ -382,6 +385,8 @@ function DesignSystemScreen() {
                     value={endsAt}
                     onChange={setEndsAt}
                     optional
+                    anchor={startsAt}
+                    min={startsAt}
                   />
                 </View>
               </View>
@@ -466,8 +471,8 @@ function DesignSystemScreen() {
 
             <Specimen
               name="Button"
-              contract="title · variant? · onPress? · fullWidth? · align? · size? · disabled?"
-              note="Fills the width on a phone; from md up it hugs the edge it is aligned to. disabled keeps it in place rather than hiding it: a control that vanishes leaves nothing to aim at. Inside a row, align='end' is what lines a button up with the field beside it — the default hugs the start of the cross axis and sits high. size='sm' is a cell of a row of equal cells, where three of them have to fit across a phone: the sides and the label step down, the height does not."
+              contract="title · variant? · onPress? · fullWidth? · align? · disabled? · trailing? · expanded?"
+              note="Fills the width on a phone; from md up it hugs the edge it is aligned to. disabled keeps it in place rather than hiding it: a control that vanishes leaves nothing to aim at. Inside a row, align='end' is what lines a button up with the field beside it — the default hugs the start of the cross axis and sits high. trailing parks an affordance at the far edge rather than laying it out, so the label stays centred the way every other button's does — DisclosureButton's triangle is its only caller, and the label has to stay short enough not to reach it. expanded announces that the button discloses what is under it, and is left off every button that does not."
             >
               <Button
                 title="Create trip"
@@ -591,7 +596,7 @@ function DesignSystemScreen() {
             <Specimen
               name="Segmented"
               contract="options (value · label · tone? · mark?) · value (nullable) · onChange · size?"
-              note="One choice out of a few, all of them visible. Bordered cells in a row rather than bare words: a word with no box and no underline is a label, not something a thumb can be asked to press, and every control in this system is a box. The cells are button-sized — the same p-4 and text-sm as a button, so a row of these sits in a stack of buttons without a step — and ink rather than a colour, because choosing a direction is not an action: the calendar and the time column already invert what is chosen, and two coloured toggles left the form's one real button looking like one of them. tone is for answers that carry a meaning of their own, which the RSVP has; mark is a short mark after the label, drawn in the label's own colour, for a choice with something to say about itself (travel puts a tick against a direction already filed). value is nullable because having chosen nothing yet is a real state rather than an error — and an always-set value wears the same cells (the profile's temperature, the run's list or grid), because a control that looks different depending on whether a value has been chosen yet would be two controls for one idea."
+              note="One choice out of a few, all of them visible. Bordered cells in a row rather than bare words: a word with no box and no underline is a label, not something a thumb can be asked to press, and every control in this system is a box. The cells are button-sized — the same p-4 and text-sm as a button, so a row of these sits in a stack of buttons without a step — and ink rather than a colour, because choosing a direction is not an action: the calendar and the time column already invert what is chosen, and two coloured toggles left the form's one real button looking like one of them. tone is for answers that carry a meaning of their own, which the RSVP has; mark is a short mark after the label, drawn in the label's own colour, for a choice with something to say about itself (travel puts a tick against a direction already filed). value is nullable because having chosen nothing yet is a real state rather than an error — and an always-set value wears the same cells (the profile's temperature), because a control that looks different depending on whether a value has been chosen yet would be two controls for one idea."
             >
               <RsvpControl
                 value={rsvp ?? "no_response"}
@@ -724,6 +729,32 @@ function DesignSystemScreen() {
             </Specimen>
 
             <Specimen
+              name="QuietAction"
+              contract="label · onPress · align?"
+              note="A secondary action: an underlined word, no box. The system carries one loud button per screen and everything else steps back, so the quieter things — the roll-call doors, Read more, the calendar's Unsubscribe and Reset, the way out of a dialog — are words rather than controls. Underlined, because a word with no affordance is a word. Its target is a 44pt box grown by padding, the way every other target here reaches the floor: it used to be the word's own ~20pt line, which was the one place the rule was not kept. align='center' is for a word sharing a row with a button, where it wants the button's centre line rather than the row's start edge. Not InlineAction, which is boxless on purpose: that one sits inside a sentence, where a box would break the paragraph, and a word in a row of its own is not in a sentence."
+            >
+              <QuietAction
+                label="Unsubscribe"
+                onPress={() => setLog("QuietAction fired")}
+              />
+              <QuietAction
+                label="Reset calendar link"
+                onPress={() => setLog("QuietAction fired")}
+              />
+              <ActionRow>
+                <Button
+                  title="Save changes"
+                  onPress={() => setLog("QuietAction row button fired")}
+                />
+                <QuietAction
+                  label="Back"
+                  align="center"
+                  onPress={() => setLog("QuietAction fired")}
+                />
+              </ActionRow>
+            </Specimen>
+
+            <Specimen
               name="Dropdown"
               contract="label · options · value · onChange · placeholder? · error? · freeText? · onSearchText? · liveOptions? · attribution?"
               note="Single-select with autocomplete. The list expands inline — never a nested dialog. Stands in for Google Places. An option is a string when its value reads well and a value-and-label pair when it does not, so a day can say Today · Fri Sep 19 while committing an ISO date. With freeText, typing is itself an answer: a suggestion machine rather than a menu, which is how a place gets entered when Places has never heard of it. A live picker hands the field its own rows instead of a static list: liveOptions skips the local substring filter, which would otherwise hide an answer whose label does not contain the raw keystrokes — the provider renames the row as you type, so the row you are looking at can stop matching the string that found it — and onSearchText takes every keystroke for the query while committing nothing. attribution renders MapsAttribution under the rows, which is not optional on a Places-backed field."
@@ -785,6 +816,48 @@ function DesignSystemScreen() {
               </Accordion>
             </Specimen>
 
+            <Specimen
+              name="DisclosureButton"
+              contract="title · actions · defaultOpen?"
+              note="A button that opens onto a list of actions, in the flow. One trigger — label at the near edge, filled triangle at the far one — and the rows it opens sit directly under it at the same width: nothing floating, no panel, no card drawn around the group. The actions are rows rather than boxes, and that is the second pass at this. As a stack of full-width buttons it was six equal weights with no hierarchy, and a box drawn inside a box is a panel, which is exactly what this app's own dropdown looks like. The + is why a row is not just a word: the system has twice concluded that a bare label on this screen reads as prose rather than as something to press (profile.tsx on the temperature cells, TripActions on the itinerary head), and the mark is what makes it an action. The rule under each row is the app's own list language — Accordion, NotificationRow: rules, not cards. The trigger is the only box and its rows are ruled lines, and that is what keeps the trigger from dissolving into what it opened; it is deliberately not filled, because a trigger reveals rather than finishes a job and every other disclosure in this app is unfilled. Not Accordion, which is a ruled disclosure for detail that would otherwise be a nested screen, with a heading-scale title and no fill; this is a button onto actions. Not a dropdown either: nothing floats, and the page below moves down when it opens, which is the trade Dropdown and SuggestionList already made."
+            >
+              <DisclosureButton
+                title="Trip actions"
+                defaultOpen
+                actions={[
+                  {
+                    title: "Invite people",
+                    onPress: () => setLog("DisclosureButton row fired"),
+                  },
+                  {
+                    title: "Add event",
+                    onPress: () => setLog("DisclosureButton row fired"),
+                  },
+                  {
+                    title: "Add stay",
+                    onPress: () => setLog("DisclosureButton row fired"),
+                  },
+                  {
+                    title: "Edit trip",
+                    onPress: () => setLog("DisclosureButton row fired"),
+                  },
+                  {
+                    title: "Trip settings",
+                    onPress: () => setLog("DisclosureButton row fired"),
+                  },
+                ]}
+              />
+              <DisclosureButton
+                title="Trip actions"
+                actions={[
+                  {
+                    title: "Add event",
+                    onPress: () => setLog("DisclosureButton row fired"),
+                  },
+                ]}
+              />
+            </Specimen>
+
             <View className="border border-ink bg-paper p-4">
               <Text className="font-body-bold text-base text-ink">Events</Text>
               <Text className="font-body text-sm text-ink">{log}</Text>
@@ -813,7 +886,7 @@ function DesignSystemScreen() {
             <Specimen
               name="ImpersonationBand"
               contract="displayName · onStop · pending — a band that names whose session you are in; renders nothing when you are yourself"
-              note="The way out is a separate word with its own 44pt box, not a bare word in the sentence: QuietAction and InlineAction are deliberately boxless — the latter's target is the line rather than 44pt — which is fine inside a sentence and not fine here, where this is the only control. While the swap is in flight the word reads Stopping… and the control is disabled, so a second tap cannot stack two swaps."
+              note="The way out is a separate word with its own 44pt box, not a bare word in the sentence. InlineAction is the boxless one — its target is the line rather than 44pt — which is fine inside a sentence and not fine here, where this is the only control; QuietAction has a 44pt box of its own since the floor was applied to it. While the swap is in flight the word reads Stopping… and the control is disabled, so a second tap cannot stack two swaps."
             >
               <ImpersonationBand
                 displayName="Ada Lovelace"
@@ -870,8 +943,8 @@ function DesignSystemScreen() {
 
             <Specimen
               name="TripActions"
-              contract="tripId · organizer · owesTravel · memberId? · ask?"
-              note="The trip page's verbs in one block, in two tiers: the ask and the adds. One loud control and only one — the organizer is asked to bring people in, everyone else answers their own RSVP, which is why ask arrives as a node. The adds put Add travel first and on a line of its own, because it is the one that is a question rather than a standing verb (it is there while somebody still owes a time, and the screen decides whose), with Add event and Add stay as a pair of halves under it. The trip's maintenance — Edit trip, Trip settings — is not here: it sits at the foot of the trip's own column on the page, under the description it edits, with the rule that opens the run under it. First the organizer's block, then a traveler's."
+              contract="tripId · organizer · travelOwed · memberId? · ask?"
+              note="The trip page's verbs in one block: the ask, and one trigger onto everything else. One loud control and only one, and it is an action rather than a container — the organizer is asked to bring people in, everyone else answers their own RSVP, which is why ask arrives as a node. The trigger sits under it in the same place for both roles and only its rows are keyed by role: the organizer gets Add event, Add stay, Add travel while somebody owes a time, and Edit trip; a traveler gets their own Add travel while they owe one. Both then get Trip settings last, which is where the trip's own rows and your own settings are told apart — a rule between them was tried and taken out, because the list is short and a line inside it competed with the rules the rows already carry. The invitation was a row inside the trigger for a while, on the argument that a shut box holding everything is the calmest page; it is a filled box again, because the fill marks the control that finishes a job and a container that reveals is not one. First the organizer's block, then a traveler's."
             >
               <TripActions
                 tripId={SAMPLE_TRIP.id}
@@ -949,6 +1022,38 @@ function DesignSystemScreen() {
                   />
                 ))}
               </Grid>
+            </Specimen>
+
+            <Specimen
+              name="EventRow"
+              contract="event · timeZone? · onPress?"
+              note="An event as a row of the run. Its twin is StayRow and they share ScheduleRow, so the thumbnail, the name's face and size, the chip line and the right-hand column's weight are decided in one place and cannot drift apart again. What makes it an event is data: the chip reads its type, and the right-hand column holds a clock. The chip beside the type is the place's name — which is what the stay row's is too, since a stay linked to a place should say which place, not only which town."
+            >
+              <View className="border-t border-ink">
+                {eventsFor(TRIPS[0]!).slice(0, 2).map((event) => (
+                  <EventRow
+                    key={event.id}
+                    event={event}
+                    onPress={() => setLog(`EventRow "${event.name}" fired`)}
+                  />
+                ))}
+              </View>
+            </Specimen>
+
+            <Specimen
+              name="StayRow"
+              contract="stay · timeZone? · onPress?"
+              note="A roof, as a row of the run, and EventRow's twin — same ScheduleRow, so the two cannot drift apart. The chip reads Stay where an event's reads its type, and the right-hand column holds the range the stay covers where an event's holds a clock. The nights are not here: that is the sheet's line, the way an event's description is. The venue chip names the place when the stay is linked to one and the town when the address was typed instead, because the two rows have to agree about what where means."
+            >
+              <View className="border-t border-ink">
+                {staysFor(TRIPS[0]!).slice(0, 2).map((stay) => (
+                  <StayRow
+                    key={stay.id}
+                    stay={stay}
+                    onPress={() => setLog(`StayRow "${stay.name}" fired`)}
+                  />
+                ))}
+              </View>
             </Specimen>
           </View>
         </Section>

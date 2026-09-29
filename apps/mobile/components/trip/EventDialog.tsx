@@ -344,6 +344,11 @@ export function EventDialog({
             value={end}
             onChange={setEnd}
             optional
+            // The pair is ordered and same-day: `newEvent` refuses an end at
+            // or before its start ("It ends before it starts."), so the end
+            // opens on the start and cannot be picked behind it.
+            anchor={start}
+            min={start}
             disabled={allDay}
             error={errors.end}
           />

@@ -28,7 +28,13 @@ export function StayRow({
   timeZone?: string | null;
   onPress?: () => void;
 }) {
+  // The venue chip names the place when the stay is linked to one, the way an
+  // event row's does; the town is what is left for a stay whose address was
+  // typed rather than picked. It used to be the town either way, which made
+  // the two rows disagree about what "where" means: an event said "The
+  // Rooftop" and the roof above it said "Dallas".
   const area = stayArea(stay);
+  const place = stay.placeName?.trim() || area;
 
   return (
     <ScheduleRow
@@ -38,7 +44,7 @@ export function StayRow({
       labels={
         <>
           <Badge label="Stay" variant="category" />
-          {area ? <Badge label={area} variant="venue" /> : null}
+          {place ? <Badge label={place} variant="venue" /> : null}
         </>
       }
       fact={staySpan(stay, timeZone) ?? ""}

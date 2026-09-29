@@ -66,17 +66,23 @@ import { getPertinentTime } from "@journiful/shared/utils";
  * The action sits under the cover in both, which is where the invite
  * belongs: you see the trip, then you answer, then you read.
  *
- * It is one block, and TripActions is where its two tiers are argued:
- * the ask and the adds. Only the ask changes with who you are, which is
- * the PRD's rule — trip-level things are the organizer's, person-level
+ * It is one block, and TripActions is where its two halves are argued:
+ * the ask and the actions. Only the ask changes with who you are, which
+ * is the PRD's rule — trip-level things are the organizer's, person-level
  * things are your own:
  *
  *   organizer  the trip is authored, so the ask is bringing people in
  *   traveler   the trip is not yours, so the ask is your own RSVP
  *
- * The trip's own maintenance is not in it: Edit trip and Trip settings
- * close the facts column instead, under the description, with the rule
- * that opens the run under them.
+ * The actions are one trigger rather than a stack of boxes. It holds the
+ * trip's own verbs and your settings both, with your settings last, which
+ * is where the two kinds are told apart — a rule between them was tried
+ * and taken out. It is in the same place for every member: only what is
+ * inside it is keyed by role.
+ *
+ * The facts column used to close with Edit trip and Trip settings as
+ * words. They are in the trigger now, which is the one place on the page
+ * that says what the page can be asked to do.
  *
  * The itinerary below used to carry Add event and Add stay in its own
  * head, on the argument that the surface holding a list holds the way
@@ -223,15 +229,19 @@ function TripDetailScreen() {
     );
   };
 
-  // The one block of verbs on this screen, in its three tiers. The RSVP
-  // control arrives as a node rather than as props, because the answer
-  // is this screen's state — off the roster, painted optimistically and
-  // rolled back on failure — and not the block's:
+  // The one block of verbs on this screen, in two tiers. The RSVP control
+  // arrives as a node rather than as props, because the answer is this
+  // screen's state — off the roster, painted optimistically and rolled
+  // back on failure — and not the block's:
   //
-  //   organizer  Invite people · Add travel, then Add event and Add stay
-  //   traveler   their own RSVP · Add travel while they owe a time
+  //   organizer  Invite people, then the trigger: Add event, Add stay,
+  //              Add travel while somebody owes a time, Edit trip, then
+  //              Trip settings
+  //   traveler   their own RSVP, then the trigger: Add travel while they
+  //              owe a time, then Trip settings
   //
-  // Both roles end on the same two words: Edit trip, Trip settings.
+  // Both roles end on the same trigger in the same place, holding the
+  // same last word.
   const action = (
     <TripActions
       tripId={trip.id}
@@ -262,41 +272,52 @@ function TripDetailScreen() {
               would overflow the content box by exactly the gutter and
               every rule in the right column would end past the page's. */}
           <View className="gap-6 md:flex-1">
-            <View className="relative overflow-hidden">
-              {heroImage(trip.image) ? (
-                trip.photoSourceUri ? (
-                  <Pressable
-                    onPress={() => void Linking.openURL(trip.photoSourceUri!)}
-                    aria-label="View photo source on Google Maps"
-                  >
+            {/* The cover and its credit are one block, not two siblings. The
+                credit is the photo's caption, and a caption is not a peer of
+                what it captions: as a sibling it took this column's own 24pt
+                block gap, which floated a line of 12pt type a photo's height
+                away from the photo it is owed to. The event and stay sheets
+                already have this right — no gap on their columns at all, so
+                the credit's own `pt-1` is the whole of the space — and this
+                is that shape. The 24pt still separates the cover from the
+                verbs under it. */}
+            <View>
+              <View className="relative overflow-hidden">
+                {heroImage(trip.image) ? (
+                  trip.photoSourceUri ? (
+                    <Pressable
+                      onPress={() => void Linking.openURL(trip.photoSourceUri!)}
+                      aria-label="View photo source on Google Maps"
+                    >
+                      <Image
+                        source={{ uri: heroImage(trip.image)! }}
+                        resizeMode="cover"
+                        className="w-full aspect-[2/1]"
+                      />
+                    </Pressable>
+                  ) : (
                     <Image
                       source={{ uri: heroImage(trip.image)! }}
                       resizeMode="cover"
                       className="w-full aspect-[2/1]"
                     />
-                  </Pressable>
+                  )
                 ) : (
-                  <Image
-                    source={{ uri: heroImage(trip.image)! }}
-                    resizeMode="cover"
-                    className="w-full aspect-[2/1]"
-                  />
-                )
-              ) : (
-                <View className="w-full aspect-[2/1]">
-                  <PlaceholderImage kind="trip" />
-                </View>
-              )}
-              {countdown ? (
-                <View className="absolute left-3 top-3">
-                  <Badge label={countdown} variant="club" />
-                </View>
-              ) : null}
+                  <View className="w-full aspect-[2/1]">
+                    <PlaceholderImage kind="trip" />
+                  </View>
+                )}
+                {countdown ? (
+                  <View className="absolute left-3 top-3">
+                    <Badge label={countdown} variant="club" />
+                  </View>
+                ) : null}
+              </View>
+              <PhotoCredit
+                credit={trip.photoCredit ?? null}
+                sourceUri={trip.photoSourceUri ?? null}
+              />
             </View>
-            <PhotoCredit
-              credit={trip.photoCredit ?? null}
-              sourceUri={trip.photoSourceUri ?? null}
-            />
 
             {action}
           </View>
@@ -358,50 +379,13 @@ function TripDetailScreen() {
             </View>
 
             {trip.description ? <Description text={trip.description} /> : null}
-
-            {/* The trip's own maintenance, under the facts it edits: what
-                the trip is (its name, dates, place, cover) and how its
-                run behaves (the itinerary, notifications, privacy,
-                calendar) are the two screens a member opens least often,
-                so they are words at the foot of this column rather than
-                a tier of the action block — nothing here adds anything,
-                and last place in a column of boxes read as a thing to
-                do. Every member has Trip settings; only the organizer
-                has Edit trip.
-
-                The rule that closes them is the page's own seam, drawn
-                below both columns, and the run's controls sit under it.
-
-                The pair is sent to the bottom of this column from md up
-                (`mt-auto`), because the column is as tall as the cover and
-                the action block beside it and its own content is shorter:
-                left to flow, the words sat high above the seam and the
-                trip's own line did not line up with the foot of the
-                column it belongs to. */}
-            <View className="gap-6 md:mt-auto">
-              <View className="flex-row flex-wrap items-center gap-2">
-                {organizer ? (
-                  <>
-                    <QuietAction
-                      label="Edit trip"
-                      onPress={() => router.push(`/trips/edit?id=${trip.id}`)}
-                    />
-                    <Text className="font-body text-sm text-ink">·</Text>
-                  </>
-                ) : null}
-                <QuietAction
-                  label="Trip settings"
-                  onPress={() => router.push(`/trips/settings?id=${trip.id}`)}
-                />
-              </View>
-            </View>
           </View>
         </View>
 
         {/* The seam between the two halves of the page: the trip above —
-            cover, verbs, facts, description, its own two words at the
-            foot of the column — and the run below, whose own controls sit
-            under this line. It is the page's rule rather than the run's,
+            cover, verbs, facts, description — and the run below, whose
+            own controls sit under this line. It is the page's rule rather
+            than the run's,
             because only the page can draw one that closes both columns
             and opens what comes under them; the run's first block
             therefore brings no rule of its own
