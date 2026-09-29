@@ -1,7 +1,7 @@
 /**
  * Named constants for mobile E2E tests.
- * Ported from apps/web/tests/e2e/helpers/timeouts.ts — same values so
- * the two suites read alike. Metro cold start (first bundle compile)
+ * Ported from the retired web E2E helpers — same values so
+ * the suites read alike. Metro cold start (first bundle compile)
  * is covered by the webServer timeout in playwright.config.ts, not here.
  */
 

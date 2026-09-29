@@ -5,8 +5,8 @@ import { ADMIN_PHONES } from "./tests/e2e/helpers/auth";
  * Playwright E2E Test Configuration (mobile — Expo web build)
  *
  * Targets the Expo dev server (`npx expo start --web --port 8081`) with the
- * API alongside it, mirroring apps/web/playwright.config.ts conventions
- * (blob reporter for CI sharding, same timeout/retry shape). Two projects
+ * API alongside it (blob reporter for CI sharding, same timeout/retry
+ * shape as the retired web suite's config). Two projects
  * share one spec tree: desktop chromium plus a phone pass at 390px width.
  * See https://playwright.dev/docs/test-configuration
  */
@@ -22,8 +22,8 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0, // 1 retry in CI for flaky browser tests
   workers: process.env.CI ? 4 : 2, // 2 locally, 4 in CI
 
-  // Reporter to use (blob in CI so shards merge in Task 4 without
-  // colliding with the web suite's apps/web/blob-report/ artifacts)
+  // Reporter to use (blob in CI so shards merge without colliding
+  // with another suite's blob-report/ artifacts)
   reporter: process.env.CI ? "blob" : "html",
 
   // Shared settings for all tests

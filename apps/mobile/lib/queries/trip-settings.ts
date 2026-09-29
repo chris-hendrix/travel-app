@@ -129,8 +129,8 @@ export async function updateSharePhone(
  * Its own endpoint rather than the my-settings PATCH, which is what the
  * screen's TODO assumed it had to be: the server has filtered the feed on
  * this flag all along (`calendar.service.ts`, `eq(members.calendarExcluded,
- * false)`), and the web app has called this route since before the mobile
- * screen existed (`apps/web/src/hooks/use-calendar.ts`). Until the feed
+ * false)`), and the retired web app called this route since before the
+ * mobile screen existed. Until the feed
  * became subscribable from Profile nothing could see the flag, which is
  * how a switch that writes to nothing survived.
  */

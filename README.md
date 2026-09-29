@@ -8,15 +8,13 @@ Itineraries in 2 minutes. Collaborative trip planning for groups — shared itin
 make install                                       # Install workspace dependencies
 make up                                            # Start PostgreSQL + MinIO
 cp apps/api/.env.example apps/api/.env             # Backend env (set JWT_SECRET, DATABASE_URL)
-cp apps/web/.env.local.example apps/web/.env.local # Frontend env
 make migrate                                       # Run database migrations
-make dev                                           # Run web (3000) + api (8000)
+make dev                                           # Run Expo web (8081) + api (8000)
 ```
 
 ```bash
-# Optional: build Android APK
-make build-mobile
-cd apps/web && npx cap sync && cd android && ./gradlew assembleDebug
+# Optional: build the Android APK from apps/mobile (see apps/mobile/AGENTS.md)
+make android-apk
 ```
 
 Requires **Node.js 22+**, **pnpm 10+**, and **Docker** with Compose v2.
@@ -25,7 +23,7 @@ Requires **Node.js 22+**, **pnpm 10+**, and **Docker** with Compose v2.
 
 | Service        | Port  | URL                            |
 | -------------- | ----- | ------------------------------ |
-| Web frontend   | 3000  | http://localhost:3000          |
+| Expo web / mockup | 8081 | http://localhost:8081          |
 | API backend    | 8000  | http://localhost:8000          |
 | PostgreSQL     | 5433  | localhost:5433                 |
 | MinIO API      | 9000  | http://localhost:9000          |
@@ -37,11 +35,10 @@ Requires **Node.js 22+**, **pnpm 10+**, and **Docker** with Compose v2.
 | Layer         | Technology                            |
 | ------------- | ------------------------------------- |
 | Monorepo      | pnpm workspaces + Turbo               |
-| Frontend      | Next.js 16, React 19, Tailwind CSS 4  |
-| UI components | shadcn/ui                             |
+| App           | Expo 57, React Native, NativeWind     |
 | Backend       | Fastify 5, Drizzle ORM                |
 | Database      | PostgreSQL 16                         |
-| Validation    | Zod (shared between web and api)      |
+| Validation    | Zod (shared between the app and the api) |
 | Testing       | Vitest, Playwright                    |
 | Mobile        | Expo 57 (expo-router, NativeWind), Firebase Cloud Messaging |
 | Runtime       | Node.js 22                            |
