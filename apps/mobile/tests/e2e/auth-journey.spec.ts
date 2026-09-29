@@ -1,8 +1,8 @@
 /**
  * E2E Journey: Authentication (mobile).
  *
- * Ported from apps/web/tests/e2e/auth-journey.spec.ts — same three
- * tests, same shape. The mechanics differ: the web helper injects an
+ * Ported from the retired web E2E suite — same three
+ * tests, same shape. The mechanics differ: the old helper injected an
  * `auth_token` cookie, while the mobile app restores its bearer token
  * from `localStorage` (`journiful.authToken`, see `lib/session.ts`),
  * seeded here via `authenticateViaAPI` before the first navigation.

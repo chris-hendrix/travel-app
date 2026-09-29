@@ -10,6 +10,6 @@ all-blob-reports/
 android/
 ios/
 
-# Firebase client config: copied from apps/web/android/app/ locally,
+# Firebase client config: copied from the Firebase console (or a maintainer) locally,
 # written in CI from secrets.GOOGLE_SERVICES_JSON. Never committed.
 google-services.json

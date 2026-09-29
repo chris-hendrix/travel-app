@@ -2,9 +2,9 @@
 
 ## WHAT
 
-`apps/mobile` is the Expo 57 app: React Native, NativeWind v5 (Tailwind 4), expo-router. It ships **two ways**: as the Android app (`com.journiful.app`, built with expo prebuild + gradle, distributed through Firebase App Distribution) and as the static web export (`pnpm export:web`) served by `scripts/serve-static.mjs` (`pnpm serve:web`) at `journiful.app` and `beta.journiful.app`. It is wired to the backend: server state lives in TanStack Query behind the store hooks, and the session persists in `lib/session.ts` (SecureStore on native, localStorage on web), so a reload keeps you signed in. Push is FCM: `lib/push.ts` registers the raw device token against the API's `POST /push/subscribe`, and `lib/pushRoutes.ts` maps the API's web urls onto app routes on tap. The flight lookup still POSTs `/flights/lookup` through the same boundary.
+`apps/mobile` is the Expo 57 app: React Native, NativeWind v5 (Tailwind 4), expo-router. It ships **two ways**: as the Android app (`com.journiful.app`, built with expo prebuild + gradle, distributed through Firebase App Distribution) and as the static web export (`pnpm export:web`) served by `scripts/serve-static.mjs` (`pnpm serve:web`) at `journiful.app`. It is wired to the backend: server state lives in TanStack Query behind the store hooks, and the session persists in `lib/session.ts` (SecureStore on native, localStorage on web), so a reload keeps you signed in. Push is FCM: `lib/push.ts` registers the raw device token against the API's `POST /push/subscribe`, and `lib/pushRoutes.ts` maps the API's web urls onto app routes on tap. The flight lookup still POSTs `/flights/lookup` through the same boundary.
 
-It is the product surface (native and web). `apps/web` is frozen in its favour (see the root `AGENTS.md`): it remains the rollback target and the home of `/admin` on its own Railway hostname. The backend wiring is done.
+It is the product surface (native and web). The backend wiring is done.
 
 It is also the design system. The system is the components plus the lab that documents them, not a document about them.
 
@@ -57,7 +57,7 @@ make android-apk       # expo prebuild -p android --clean + ./gradlew assembleRe
 make android-install   # adb install -r the release APK + launch
 make android-dev       # prebuild if android/ is missing, then expo run:android
 make android-logs      # native logcat
-make adb-reverse       # forward 8000/3000 for a device build against make dev
+make adb-reverse       # forward 8000/8081 for a device build against make dev
 
 make android-emulator-kill     # stop every running emulator
 make android-emulator-start    # boot the AVD; AVD=, GPU= override the defaults
@@ -80,7 +80,7 @@ path. Distribution APKs come from CI (`.github/workflows/distribute.yml`), and a
 PR run uploads the APK as the `app-release` artifact — that is the path to an
 installable build without a Linux-side SDK.
 
-Signing is a config plugin (`plugins/withAndroidSigning.js`) so it survives `prebuild --clean`: it reads `JOURNIFUL_KEYSTORE` / `JOURNIFUL_KEY_ALIAS` / `JOURNIFUL_STORE_PASSWORD` / `JOURNIFUL_KEY_PASSWORD` from `~/.gradle/gradle.properties`. `android/` is gitignored and regenerated; `google-services.json` is gitignored and copied from `apps/web/android/app/` locally, written in CI from a secret.
+Signing is a config plugin (`plugins/withAndroidSigning.js`) so it survives `prebuild --clean`: it reads `JOURNIFUL_KEYSTORE` / `JOURNIFUL_KEY_ALIAS` / `JOURNIFUL_STORE_PASSWORD` / `JOURNIFUL_KEY_PASSWORD` from `~/.gradle/gradle.properties`. `android/` is gitignored and regenerated; `google-services.json` is gitignored and copied from the Firebase console (or a maintainer) locally, written in CI from a secret.
 
 Push notes that are easy to get wrong: the FCM payload's `data.url` is a **web url** and `lib/pushRoutes.ts` maps it (`/trips?id=x` → `/trips/detail?id=x`); `data.url` is the only routing signal, since the API no longer sets a `clickAction`; the notification small icon must stay the monochrome asset or Android renders a white square; registration is best-effort everywhere and must never block a sign-in; the channel id the API sends is `"default"`, which is why `ensureChannel()` creates exactly that one. A device holding the old Capacitor APK must be uninstalled first (same package, different signing key).
 
@@ -88,7 +88,7 @@ Push notes that are easy to get wrong: the FCM payload's `data.url` is a **web u
 
 The emulator and Android Studio live on Windows; the build lives in WSL2. Two facts save the loop:
 
-- **`adb` in WSL2 must be the Windows one.** Expo and gradle resolve `adb` from `$ANDROID_HOME/platform-tools/adb`, and the Linux adb server cannot see an emulator the Windows adb server owns. A wrapper that `exec`s `adb.exe`, symlinked as `$ANDROID_HOME/platform-tools/adb`, is what makes `npx expo run:android` find the device. `adb reverse tcp:8000 tcp:<host-port>` then maps the *device's* `localhost:8000` to the host port the devcontainer actually publishes (the container maps 8000 to `6898` and 3000 to `6899`), so a local-API build reaches `http://localhost:8000/api` from the app. For Metro in dev builds, `adb reverse tcp:8081 tcp:8081` reaches Windows, not WSL2 — run the bundle from a release/preview APK instead of a dev build, or point the app at the WSL2 address, rather than assuming the reverse works.
+- **`adb` in WSL2 must be the Windows one.** Expo and gradle resolve `adb` from `$ANDROID_HOME/platform-tools/adb`, and the Linux adb server cannot see an emulator the Windows adb server owns. A wrapper that `exec`s `adb.exe`, symlinked as `$ANDROID_HOME/platform-tools/adb`, is what makes `npx expo run:android` find the device. `adb reverse tcp:8000 tcp:<host-port>` then maps the *device's* `localhost:8000` to the host port the devcontainer actually publishes (the container maps 8000 and 8081 to random host ports), so a local-API build reaches `http://localhost:8000/api` from the app. For Metro in dev builds, `adb reverse tcp:8081 tcp:8081` reaches Windows, not WSL2 — run the bundle from a release/preview APK instead of a dev build, or point the app at the WSL2 address, rather than assuming the reverse works.
 - **When `adb shell input text` silently does nothing, the IME has a dead input connection** — not the app. `dumpsys input_method` shows `mServedView=null` with a `BaseInputConnection` fallback, the keyboard is visibly shown, and `input text`, digit keyevents and `input keyboard text` all no-op. `adb shell am force-stop com.google.android.inputmethod.latin`, then tap the field again and type; a device reboot is the fallback when that stops working (both happened in one session). Taps on a themed `Checkbox` land on the label's centre, not its glyph. And the UI automator dump (`adb shell uiautomator dump`) is the readable source of truth for what is on screen, because `screencap` from WSL2 has come back blank while the tree was fully rendered.
 
 ### Production web build
@@ -113,5 +113,5 @@ Then open the route you want: the app at `http://localhost:8081`, the design sys
 
 Two traps, both of which have cost real time:
 
-- It has to run **on the host**. The devcontainer publishes only 3000 and 8000, so a server started inside it is invisible to the browser.
+- It has to run **on the host**. The devcontainer publishes only 8000 and 8081 (mapped to random host ports), so a server started inside it is invisible to the browser.
 - It has to be the **dev server**. A static export (`npx expo export --platform web`) compiles `__DEV__` to false, and the lab's first line is `if (!__DEV__) return <Redirect href="/+not-found" />` — so in any export `/design` lands on "Nothing here", which reads as a broken route rather than as a guarded one.

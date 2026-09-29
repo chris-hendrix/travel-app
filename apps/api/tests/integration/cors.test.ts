@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest";
 import type { FastifyInstance } from "fastify";
+import { env } from "@/config/env.js";
 import { buildApp } from "../helpers.js";
 
 describe("CORS Configuration", () => {
@@ -77,22 +78,22 @@ describe("CORS Configuration", () => {
       );
     });
 
-    it("should allow existing FRONTEND_URL origin (http://localhost:3000) in preflight", async () => {
+    it.each(
+      env.FRONTEND_URL.split(",").map((s) => s.trim()),
+    )("should allow configured FRONTEND_URL origin (%s) in preflight", async (origin) => {
       app = await buildApp();
 
       const response = await app.inject({
         method: "OPTIONS",
         url: "/api/health",
         headers: {
-          origin: "http://localhost:3000",
+          origin,
           "access-control-request-method": "GET",
         },
       });
 
       expect(response.statusCode).toBe(204);
-      expect(response.headers["access-control-allow-origin"]).toBe(
-        "http://localhost:3000",
-      );
+      expect(response.headers["access-control-allow-origin"]).toBe(origin);
       expect(response.headers["access-control-allow-credentials"]).toBe(
         "true",
       );

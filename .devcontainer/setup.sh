@@ -14,7 +14,7 @@ PORT=8000
 HOST=0.0.0.0
 DATABASE_URL=postgresql://journiful:journiful_dev@db:5432/journiful
 JWT_SECRET=devcontainer-secret-key-minimum-32-characters-long
-FRONTEND_URL=http://localhost:3000
+FRONTEND_URL=http://localhost:8081
 LOG_LEVEL=info
 STORAGE_PROVIDER=s3
 AWS_ENDPOINT_URL=http://minio:9000
@@ -28,21 +28,11 @@ EOF
   echo "[setup] Created apps/api/.env"
 fi
 
-# Generate web .env.local only if it doesn't exist
-if [ ! -f apps/web/.env.local ]; then
-  cat > apps/web/.env.local << 'EOF'
-NEXT_PUBLIC_API_URL=http://localhost:8000/api
-API_URL=http://localhost:8000/api
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
-EOF
-  echo "[setup] Created apps/web/.env.local"
-fi
-
 # Install dependencies (approve native build scripts non-interactively)
 pnpm approve-builds esbuild sharp unrs-resolver 2>&1 || true
 pnpm install
 
-# Build shared package (required before API/web can use it)
+# Build shared package (required before API/mobile can use it)
 pnpm --filter @journiful/shared build
 
 # Run database migrations

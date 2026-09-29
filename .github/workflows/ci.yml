@@ -28,7 +28,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       api: ${{ steps.filter.outputs.api }}
-      web: ${{ steps.filter.outputs.web }}
       mobile: ${{ steps.filter.outputs.mobile }}
       shared: ${{ steps.filter.outputs.shared }}
       devcontainer: ${{ steps.filter.outputs.devcontainer }}
@@ -41,8 +40,6 @@ jobs:
           filters: |
             api:
               - 'apps/api/**'
-            web:
-              - 'apps/web/**'
             mobile:
               - 'apps/mobile/**'
             shared:
@@ -214,147 +211,6 @@ jobs:
 
       - name: Run unit tests
         run: pnpm --filter @journiful/api test
-
-  # Step 4: E2E Tests (sharded)
-  e2e-tests:
-    name: E2E Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    needs: changes
-    if: |
-      github.ref == 'refs/heads/main' ||
-      github.ref == 'refs/heads/master' ||
-      needs.changes.outputs.api == 'true' ||
-      needs.changes.outputs.web == 'true' ||
-      needs.changes.outputs.shared == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        shardIndex: [1, 2, 3, 4]
-        shardTotal: [4]
-    env:
-      NODE_ENV: test
-      GEOCODING_STUB: true
-      DATABASE_URL: postgresql://journiful:journiful123@localhost:5432/journiful
-      JWT_SECRET: test-jwt-secret-minimum-32-characters-long-for-testing-purposes-only
-      FRONTEND_URL: http://localhost:3000
-
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: journiful
-          POSTGRES_PASSWORD: journiful123
-          POSTGRES_DB: journiful
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: pnpm/action-setup@v6
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Install Playwright Browsers
-        run: pnpm --filter @journiful/web exec playwright install --with-deps
-
-      - name: Run database migrations
-        run: pnpm --filter @journiful/api db:migrate
-
-      - name: Run E2E Tests (Shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
-        run: pnpm --filter @journiful/web exec playwright test --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
-
-      - name: Upload Blob Report
-        uses: actions/upload-artifact@v7
-        if: ${{ !cancelled() }}
-        with:
-          name: blob-report-${{ matrix.shardIndex }}
-          path: apps/web/blob-report/
-          retention-days: 1
-
-  # Step 4c: Merge E2E Reports
-  merge-e2e-reports:
-    name: Merge E2E Reports
-    needs: e2e-tests
-    if: ${{ !cancelled() && needs.e2e-tests.result != 'skipped' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: pnpm/action-setup@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: "pnpm"
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
-
-      # The shards above are the gate; this job only assembles a readable
-      # report. GitHub's artifact service has failed this download with
-      # "Artifact download failed after 5 retries" on runs whose shards all
-      # passed (twice on 2026-09-25), so a transient storage error must not
-      # redden a PR. Two attempts, and the step below still fails the job when
-      # nothing arrived at all — an empty upload is a real failure, a flaky
-      # download is not.
-      - name: Download Blob Reports (attempt 1)
-        id: download-attempt-1
-        continue-on-error: true
-        uses: actions/download-artifact@v8
-        with:
-          path: apps/web/all-blob-reports
-          pattern: blob-report-*
-          merge-multiple: true
-
-      - name: Download Blob Reports (attempt 2)
-        if: steps.download-attempt-1.outcome == 'failure'
-        uses: actions/download-artifact@v8
-        with:
-          path: apps/web/all-blob-reports
-          pattern: blob-report-*
-          merge-multiple: true
-
-      - name: Report the retry in the summary
-        if: steps.download-attempt-1.outcome == 'failure'
-        run: |
-          echo '> The first artifact download failed and the retry succeeded.' >> $GITHUB_STEP_SUMMARY
-
-      - name: Fail only when no report arrived
-        run: |
-          count=$(find apps/web/all-blob-reports -name '*.zip' | wc -l)
-          echo "blob reports downloaded: $count"
-          if [ "$count" -eq 0 ]; then
-            echo "ERROR: no blob reports were downloaded, so there is nothing to merge." >&2
-            exit 1
-          fi
-
-      - name: Merge Reports
-        run: |
-          pnpm --filter @journiful/web exec playwright merge-reports --reporter=html ./all-blob-reports
-          echo '### E2E Test Report' >> $GITHUB_STEP_SUMMARY
-          echo 'Full HTML report available in the **playwright-report** artifact.' >> $GITHUB_STEP_SUMMARY
-
-      - name: Upload HTML Report
-        uses: actions/upload-artifact@v7
-        with:
-          name: playwright-report
-          path: apps/web/playwright-report/
-          retention-days: 30
 
   # Step 4b: Mobile E2E Tests (sharded, chromium-only)
   mobile-e2e-tests:

@@ -33,7 +33,7 @@ export interface Trip {
   allowMembersToAddEvents: boolean;
   /** Whether all members are visible to each other (vs only organizers visible) */
   showAllMembers: boolean;
-  /** Theme preset ID (references THEME_PRESETS, not a DB FK) */
+  /** Theme preset ID (references THEME_IDS, not a DB FK) */
   themeId: string | null;
   /** Font choice, independent of theme */
   themeFont: string | null;

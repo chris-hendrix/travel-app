@@ -1,6 +1,6 @@
 /**
- * Mobile auth seeding for E2E. Shape ported from
- * apps/web/tests/e2e/helpers/auth.ts, mechanics replaced: the web helper
+ * Mobile auth seeding for E2E. Shape ported from the retired web E2E
+ * helpers, mechanics replaced: the old helper
  * injects an `auth_token` cookie, which does not transfer — the mobile
  * app keeps its bearer token in `localStorage` under `journiful.authToken`
  * on web (`lib/session.ts`, `const KEY`) and restores it via

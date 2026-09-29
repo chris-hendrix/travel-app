@@ -40,8 +40,8 @@ export function apiBase(): string {
  * S3 storage backends) and serves them from its own origin. Rendered
  * as-is, an `<Image>` resolves them against whatever origin the app
  * happens to run on — `localhost:8081` under Expo web, which 404s — so
- * nothing but a blank avatar appears. Prefixing is what the web app
- * already does (`getUploadUrl` in `apps/web/src/lib/api.ts`); the
+ * nothing but a blank avatar appears. Prefixing is what the retired web
+ * app already did (its `getUploadUrl`); the
  * relative path is the API's contract, so the prefix belongs on the
  * client.
  *

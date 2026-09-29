@@ -49,14 +49,6 @@ export function formatInTimeZone(
   return formatInTz(date, timezone, format);
 }
 
-export {
-  hexToHsl,
-  hslToHex,
-  derivePaletteVariants,
-  deriveDarkPaletteVariants,
-  readableForeground,
-} from "./color-utils";
-
 export { eventTypeForPlace } from "./place-type";
 export type { EventTypeForPlace } from "./place-type";
 

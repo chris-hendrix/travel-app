@@ -1,23 +1,18 @@
 /**
  * Regenerate the app icons from the brand artwork.
  *
- * The mark has one source: `apps/web/src/app/icon.svg` (the J, its inner
- * contour line, and the brown extrusion shadow as separate paths). This
- * script derives every PNG the mobile app ships from it, so the two apps
- * cannot drift and no icon here is hand-drawn.
+ * The mark has one source: `apps/mobile/assets/brand/journiful-mark.svg`
+ * (the J, its inner contour line, and the brown extrusion shadow as
+ * separate paths). This script derives every PNG the mobile app ships from
+ * it, so no icon here is hand-drawn.
  *
- * One deliberate difference from the web app's own rasters: these centre the
- * *letter*, and the shadow hangs into the padding. The frozen web app's
- * `public/icons/*.png` centre the ink of the letter and shadow together,
- * which puts the J a fifth of its width off the middle — see `letterShift`
- * below. Those files stay as they are because the web app is the rollback
- * target and is not being changed; a rollback therefore shows the older
- * centring.
+ * The letter is centred and the shadow hangs into the padding: centring the
+ * ink of the letter and shadow together puts the J a fifth of its width off
+ * the middle — see `letterShift` below.
  *
  *   pnpm --filter @journiful/mobile gen:icons
  *
- * The tile colour is the web app's own icon ground — `#1a1814`, the same
- * value `apps/web/src/app/apple-icon.tsx` paints — sampled rather than
+ * The tile colour is the brand icon ground — `#1a1814` — sampled rather than
  * invented, so the launcher icon and the browser icon are one mark.
  *
  * Sizes and shapes follow the platforms' rules rather than taste:
@@ -38,16 +33,16 @@ import sharp from "sharp";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const mobileDir = path.resolve(here, "..");
 const repoRoot = path.resolve(mobileDir, "../..");
-const sourceSvg = path.join(repoRoot, "apps/web/src/app/icon.svg");
+const sourceSvg = path.join(mobileDir, "assets/brand/journiful-mark.svg");
 
 const TILE = "#1a1814";
 const SVG_VIEWBOX = "0 -11 86 97.4";
 
-/** Proportions taken from the shipped web icons, so the two apps match. */
+/** Proportions of the mark on the tile, measured from the shipped icons. */
 const MARK = {
-  /** `apps/web/public/icons/icon-512x512.png` measures 67%. */
+  /** The 512px tile icon measures 67%. */
   tile: 0.67,
-  /** The web's maskable icon insets the mark to 53%, inside the crop circle. */
+  /** The maskable icon insets the mark to 53%, inside the crop circle. */
   maskable: 0.53,
   /**
    * Android guarantees only the central ~66% circle of an adaptive icon, and
