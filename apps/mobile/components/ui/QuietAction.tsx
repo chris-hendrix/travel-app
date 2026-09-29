@@ -8,12 +8,14 @@ import { Pressable, Text } from "react-native";
  * calendar's Unsubscribe and Reset — are words rather than controls.
  * Underlined, because a word with no affordance is a word.
  *
- * The target is the word's own line rather than a 44pt box, which is a
- * deliberate deviation from the target-size rule and the same one
- * `InlineAction` documents. The reason is the row it lives in: padding here
- * would push the words apart on a line read as one thing (the trip page's
- * `1 going · Travel`), and the labels stay short for the same reason. A
- * word that needs a thumb's full box wants to be a `Button`.
+ * `py-3` over a 20pt line is the 44pt floor, reached the way every other
+ * target here reaches it: the box grows and the word inside it does not
+ * move. It used to be a bare line of text, which made every quiet action in
+ * the app a ~20pt target — the one place the target rule was not kept.
+ * `InlineAction` is the other word-shaped control and it documents a real
+ * deviation, but for a different reason: it sits inside a paragraph of 16pt
+ * type, where a box would break the sentence. These sit in rows of their
+ * own, so that reason does not carry over.
  */
 export function QuietAction({
   label,
@@ -38,9 +40,9 @@ export function QuietAction({
     <Pressable
       onPress={onPress}
       role="button"
-      className={
+      className={`py-3 ${
         align === "center" ? "self-start md:self-center" : "self-start"
-      }
+      }`}
     >
       <Text className="font-body-bold text-sm text-ink underline">
         {label}

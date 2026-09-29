@@ -519,7 +519,10 @@ function ProfileForm({ profile }: { profile: Profile }) {
           <View
             // The row is inert while a write is in flight, and the guard in
             // each handler is what makes it so — so the state is announced
-            // here, the way the trip page's RSVP control does it.
+            // here, the way the trip page's RSVP control does it. `role`
+            // because a state prop on an element that is not anything is a
+            // flag a screen reader is not obliged to read out.
+            role="group"
             aria-busy={calendarBusy !== null}
             className="mt-3 flex-row flex-wrap items-center gap-2"
           >

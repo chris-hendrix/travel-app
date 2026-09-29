@@ -29,7 +29,7 @@ const DEFAULT_ANCHOR = "09:00";
  * lands on the slot that follows it instead of nowhere.
  */
 function rowForClock(options: string[], clock: string): number {
-  if (!isClockTime(clock)) return 0;
+  if (!isClockTime(clock)) return rowForClock(options, DEFAULT_ANCHOR);
   const target = minutesOf(clock);
   const at = options.findIndex((option) => minutesOf(option) >= target);
   return at === -1 ? options.length - 1 : at;
@@ -168,7 +168,7 @@ export function TimeField({
         >
           {shown}
         </Text>
-        <Icon color={INK} size={20} />
+        <Icon color={INK} size={20} aria-hidden />
       </Pressable>
 
       {open ? (
@@ -182,10 +182,21 @@ export function TimeField({
               // The none row is never measured against the floor: "" is not
               // a clock time, so an event that simply starts stays available
               // under an anchored end.
+              //
+              // The floor is `<=` and not `<`, because the schema refuses an
+              // end *at or before* its start (`newEvent`: "It ends before it
+              // starts."). A picker that left the slot equal to the start
+              // open would be offering a choice the form has already refused.
               const before =
                 min !== null && isClockTime(row.value)
-                  ? minutesOf(row.value) < minutesOf(min)
+                  ? minutesOf(row.value) <= minutesOf(min)
                   : false;
+              // A row can be the answer and out of bounds at once, when the
+              // start moves past an end already picked. It is dimmed then and
+              // deliberately not inverted: the inversion says "this is your
+              // answer", and the two marks together say nothing a reader can
+              // act on.
+              const marked = chosen && !before;
               return (
                 <Pressable
                   key={row.value === NONE ? "none" : row.value}
@@ -200,12 +211,12 @@ export function TimeField({
                   role="radio"
                   style={{ height: ROW_HEIGHT }}
                   className={`items-center justify-center ${
-                    chosen ? "bg-ink" : ""
+                    marked ? "bg-ink" : ""
                   } ${before ? "opacity-40" : ""}`}
                 >
                   <Text
                     className={`font-body text-base ${
-                      chosen ? "font-body-bold text-sand" : "text-ink"
+                      marked ? "font-body-bold text-sand" : "text-ink"
                     }`}
                   >
                     {row.label}

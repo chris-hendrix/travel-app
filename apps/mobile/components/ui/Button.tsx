@@ -62,7 +62,7 @@ export function Button({
       aria-expanded={expanded}
       disabled={disabled}
       onPress={onPress}
-      className={`items-center border p-4 ${s.box} ${width} ${
+      className={`relative items-center border p-4 ${s.box} ${width} ${
         disabled ? "opacity-40" : ""
       }`}
     >
