@@ -788,38 +788,44 @@ function DesignSystemScreen() {
 
             <Specimen
               name="DisclosureButton"
-              contract="title · variant? · defaultOpen? · children"
-              note="A button that opens onto more buttons, in the flow. One trigger — label at the near edge, triangle at the far one — and the stack it opens sits directly under it at the same width, with no card, no fill and no shadow around the group: the children are already boxes, and a box drawn around boxes is a panel, which is what this app's own dropdown looks like. The triangle is drawn rather than iconed, because lucide is stroked outlines and has no filled triangle, and it turns rather than swapping ArrowDown for ArrowUp the way the other three disclosures here do — the same statement written once instead of twice. The trigger is filled and its children outlined, and that is load-bearing rather than decorative: at one weight the trigger and its contents are one stack of equal peers, with a 12pt triangle as the only thing saying which one you pressed, and the trigger is not a peer — it stays, and it is the way back. Not Accordion, which is a ruled disclosure for detail that would otherwise be a nested screen, with no fill and a heading-scale title; this is a filled button onto more buttons. Not a dropdown either: nothing floats, and the page below moves down when it opens, which is the trade Dropdown and SuggestionList already made."
+              contract="title · actions · defaultOpen?"
+              note="A button that opens onto a list of actions, in the flow. One trigger — label at the near edge, filled triangle at the far one — and the rows it opens sit directly under it at the same width: nothing floating, no panel, no card drawn around the group. The children are rows rather than boxes, and that is the second pass at this. As a stack of full-width buttons it was six equal weights with no hierarchy, and a box drawn inside a box is a panel, which is exactly what this app's own dropdown looks like. The + is why a row is not just a word: the system has twice concluded that a bare label on this screen reads as prose rather than as something to press (profile.tsx on the temperature cells, TripActions on the itinerary head), and the mark is what makes it an action. The rule under each row is the app's own list language — Accordion, NotificationRow: rules, not cards. The trigger is the only box and its rows are ruled lines, and that is what keeps the trigger from dissolving into what it opened; it is deliberately not filled, because a trigger reveals rather than finishes a job and every other disclosure in this app is unfilled. Not Accordion, which is a ruled disclosure for detail that would otherwise be a nested screen, with a heading-scale title and no fill; this is a filled button onto actions. Not a dropdown either: nothing floats, and the page below moves down when it opens, which is the trade Dropdown and SuggestionList already made."
             >
-              <DisclosureButton title="Trip actions" defaultOpen>
-                <Button
-                  title="Add event"
-                  variant="secondary"
-                  fullWidth
-                  onPress={() => setLog("DisclosureButton child fired")}
-                />
-                <Button
-                  title="Add stay"
-                  variant="secondary"
-                  fullWidth
-                  onPress={() => setLog("DisclosureButton child fired")}
-                />
-                <View className="h-px w-full bg-ink" />
-                <Button
-                  title="Trip settings"
-                  variant="secondary"
-                  fullWidth
-                  onPress={() => setLog("DisclosureButton child fired")}
-                />
-              </DisclosureButton>
-              <DisclosureButton title="Trip actions">
-                <Button
-                  title="Add event"
-                  variant="secondary"
-                  fullWidth
-                  onPress={() => setLog("DisclosureButton child fired")}
-                />
-              </DisclosureButton>
+              <DisclosureButton
+                title="Trip actions"
+                defaultOpen
+                actions={[
+                  {
+                    title: "Invite people",
+                    onPress: () => setLog("DisclosureButton row fired"),
+                  },
+                  {
+                    title: "Add event",
+                    onPress: () => setLog("DisclosureButton row fired"),
+                  },
+                  {
+                    title: "Add stay",
+                    onPress: () => setLog("DisclosureButton row fired"),
+                  },
+                  {
+                    title: "Edit trip",
+                    onPress: () => setLog("DisclosureButton row fired"),
+                  },
+                  {
+                    title: "Trip settings",
+                    onPress: () => setLog("DisclosureButton row fired"),
+                  },
+                ]}
+              />
+              <DisclosureButton
+                title="Trip actions"
+                actions={[
+                  {
+                    title: "Add event",
+                    onPress: () => setLog("DisclosureButton row fired"),
+                  },
+                ]}
+              />
             </Specimen>
 
             <View className="border border-ink bg-paper p-4">
@@ -908,7 +914,7 @@ function DesignSystemScreen() {
             <Specimen
               name="TripActions"
               contract="tripId · organizer · travelOwed · memberId? · ask?"
-              note="The trip page's verbs in one block: the ask, and one trigger onto everything else. One loud control and only one — the organizer is asked to bring people in, everyone else answers their own RSVP, which is why ask arrives as a node. The trigger sits in the same place for both roles and only its contents are keyed by role: the organizer gets Add event, Add stay, Add travel while somebody owes a time, and Edit trip; a traveler gets their own Add travel while they owe one. Both then get Trip settings under a rule, because the trip's own verbs and your own settings are not the same kind of thing and this box is the one place they meet — and putting settings inside the traveler's box and outside the organizer's would put one destination in two different places depending on who is looking. Invite people stays outside the trigger, loud: it is the growth loop, and a trip nobody has been invited to has nothing else here to do. First the organizer's block, then a traveler's."
+              note="The trip page's verbs in one block: the ask, and one trigger onto everything else. The trigger is one box on the page, in the same place for both roles, and only its rows are keyed by role: the organizer gets Invite people, Add event, Add stay, Add travel while somebody owes a time, and Edit trip; a traveler gets their own Add travel while they owe one. Both then get Trip settings last, which is where the trip's own rows and your own settings are told apart — a rule between them was tried and taken out, because six rows is a small stack and a line inside it competed with the rules the rows already carry. Invite people is a row rather than a filled box of its own: as a second filled box it put two saturated fills stacked on the shut page, and the invitation has a second door anyway (`1 going` opens the roster, whose own primary action is Invite people). First the organizer's block, then a traveler's."
             >
               <TripActions
                 tripId={SAMPLE_TRIP.id}

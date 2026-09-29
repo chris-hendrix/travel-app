@@ -1,7 +1,8 @@
-import { useState, type ReactNode } from "react";
-import { View } from "react-native";
+import { useState } from "react";
+import { Pressable, Text, View } from "react-native";
 import Svg, { Polygon } from "react-native-svg";
-import { Button, type ButtonVariant } from "@/components/ui/Button";
+import { Plus } from "lucide-react-native";
+import { Button } from "@/components/ui/Button";
 import { INK } from "@/lib/theme";
 
 /**
@@ -28,16 +29,67 @@ function Triangle({ open }: { open: boolean }) {
   );
 }
 
+export type DisclosureAction = {
+  title: string;
+  onPress: () => void;
+};
+
 /**
- * A button that opens onto more buttons, in the flow.
+ * One action, as a row rather than a box.
+ *
+ * The first version of this made every child a `Button`, and a stack of
+ * six full-width boxes under one trigger is a wall: six equal weights with
+ * no hierarchy, and nothing to tell the trigger from the things it opened
+ * except a 12pt triangle. A row is lighter, and the rule underneath it is
+ * the app's own list language (`Accordion`, `NotificationRow`: rules, not
+ * cards) rather than a box drawn inside a box.
+ *
+ * The `+` is why this is not just a word. The system has twice concluded
+ * that a bare label on this screen reads as prose rather than as something
+ * to press — `profile.tsx` on the temperature cells ("a word with no box
+ * and no underline is a label, not something a thumb can be asked to
+ * press") and `TripActions` on the itinerary head ("an underlined label in
+ * a head read as a link in a paragraph"). A row inside a disclosure that
+ * was just opened has more context than either of those, but the mark is
+ * what makes it an action rather than a line of text.
+ *
+ * `py-3` over a 20pt line is the 44pt floor, reached by the row growing
+ * rather than by padding with a negative margin. The `px-4` is the
+ * trigger's own `p-4`, so the `+` lines up with the label above it while
+ * the rule under the row still runs the full width of the box.
+ */
+function ActionRow({
+  title,
+  onPress,
+  last,
+}: {
+  title: string;
+  onPress: () => void;
+  last: boolean;
+}) {
+  return (
+    <Pressable
+      role="button"
+      onPress={onPress}
+      className={`flex-row items-center gap-3 px-4 py-3 ${
+        last ? "" : "border-b border-ink"
+      }`}
+    >
+      <Plus color={INK} size={16} />
+      <Text className="font-body-bold text-sm text-ink">{title}</Text>
+    </Pressable>
+  );
+}
+
+/**
+ * A button that opens onto a list of actions, in the flow.
  *
  * One trigger, the label at the near edge and a triangle at the far one,
- * and the stack it opens sits directly under it — same width, same left
- * edge, nothing floating. There is no card, no fill and no shadow around
- * the group: the children are already boxes, and a box drawn around boxes
- * is a panel. That panel is what this app's own dropdown looks like
- * (`SuggestionList`: bordered, capped at five rows, scrolling), and it is
- * the one thing this must not be mistaken for.
+ * and the rows it opens sit directly under it at the same width — nothing
+ * floating, no panel, no shadow, and no box drawn around the group. That
+ * panel is what this app's own dropdown looks like (`SuggestionList`:
+ * bordered, capped at five rows, scrolling), and it is the one thing this
+ * must not be mistaken for.
  *
  * In the flow rather than over it, for the reason `Dropdown` and
  * `SuggestionList` both give: a floating list needs a `relative z-10` on
@@ -45,13 +97,19 @@ function Triangle({ open }: { open: boolean }) {
  * and the rule has been missed twice and fails silently. The cost is the
  * one they already accepted — the page below moves down when this opens.
  *
- * The trigger is filled and its children are outlined, and that is not
- * decoration. Same width at the same weight would make the trigger and
- * everything it opened one stack of equal peers, with a 12pt triangle as
- * the only thing saying which one you pressed — and the trigger is not a
- * peer: it stays, it is the way back, and it is the only one of them that
- * is a category rather than a verb. One tier of fill is what separates a
- * parent from its children when nothing else can.
+ * The trigger is the only box, and its rows are ruled lines with no side
+ * borders, so the trigger never dissolves into what it opened — and the
+ * triangle says which way it goes. It is not filled. It was, and a
+ * saturated box is the loudest thing on the page saying only "there is
+ * more here", which is a lie about what pressing it does: the fill is
+ * this system's mark for the control that finishes a job (`Button`), and a
+ * trigger reveals rather than finishes. Every other disclosure here is
+ * unfilled for the same reason — `Accordion` is rules, `TimeField` is the
+ * field's own box, the travel row is a rule.
+ *
+ * Actions rather than children, because the row is the whole of the look:
+ * a caller that could pass anything would eventually pass a `Button`, and
+ * the stack of boxes is exactly what this replaced.
  *
  * `defaultOpen` is for the lab, which shows both states at once. On a
  * screen it is always shut, which is the point: the page arrives calm and
@@ -59,33 +117,37 @@ function Triangle({ open }: { open: boolean }) {
  */
 export function DisclosureButton({
   title,
-  variant = "primary",
+  actions,
   defaultOpen = false,
-  children,
 }: {
   title: string;
-  /**
-   * The trigger's fill. `primary` by default, which is one tier above the
-   * `secondary` children the callers pass; a trigger wearing `secondary`
-   * too is a trigger that has dissolved into its own contents.
-   */
-  variant?: ButtonVariant;
+  actions: DisclosureAction[];
   defaultOpen?: boolean;
-  children: ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <View className="gap-3">
+    <View>
       <Button
         title={title}
-        variant={variant}
+        variant="secondary"
         fullWidth
         expanded={open}
         onPress={() => setOpen((current) => !current)}
         trailing={<Triangle open={open} />}
       />
-      {open ? <View className="gap-3">{children}</View> : null}
+      {open ? (
+        <View>
+          {actions.map((action, index) => (
+            <ActionRow
+              key={action.title}
+              title={action.title}
+              onPress={action.onPress}
+              last={index === actions.length - 1}
+            />
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }
