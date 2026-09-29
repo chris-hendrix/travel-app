@@ -12,6 +12,10 @@ import { Pressable, Text } from "react-native";
  * target here reaches it: the box grows and the word inside it does not
  * move. It used to be a bare line of text, which made every quiet action in
  * the app a ~20pt target — the one place the target rule was not kept.
+ * `justify-center` is what makes the word sit on the box's centre line
+ * whatever the box is: without it the word is placed by its own padding, and
+ * a row that did not centre its children would top-align a 44pt word against
+ * 20pt siblings. Nothing about this component should depend on the parent.
  * `InlineAction` is the other word-shaped control and it documents a real
  * deviation, but for a different reason: it sits inside a paragraph of 16pt
  * type, where a box would break the sentence. These sit in rows of their
@@ -40,7 +44,7 @@ export function QuietAction({
     <Pressable
       onPress={onPress}
       role="button"
-      className={`py-3 ${
+      className={`justify-center py-3 ${
         align === "center" ? "self-start md:self-center" : "self-start"
       }`}
     >

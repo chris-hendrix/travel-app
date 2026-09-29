@@ -39,6 +39,8 @@ import { TripActions } from "@/components/trip/TripActions";
 import { RunLocked } from "@/components/trip/RunLocked";
 import { InviteCard } from "@/components/trip/InviteCard";
 import { EventCard } from "@/components/trip/EventCard";
+import { EventRow } from "@/components/trip/EventRow";
+import { StayRow } from "@/components/trip/StayRow";
 import { Grid } from "@/components/ui/Grid";
 import { PhotoCard } from "@/components/ui/PhotoCard";
 import { PhotoCredit } from "@/components/ui/PhotoCredit";
@@ -469,8 +471,8 @@ function DesignSystemScreen() {
 
             <Specimen
               name="Button"
-              contract="title · variant? · onPress? · fullWidth? · align? · size? · disabled?"
-              note="Fills the width on a phone; from md up it hugs the edge it is aligned to. disabled keeps it in place rather than hiding it: a control that vanishes leaves nothing to aim at. Inside a row, align='end' is what lines a button up with the field beside it — the default hugs the start of the cross axis and sits high. size='sm' is a cell of a row of equal cells, where three of them have to fit across a phone: the sides and the label step down, the height does not."
+              contract="title · variant? · onPress? · fullWidth? · align? · disabled? · trailing? · expanded?"
+              note="Fills the width on a phone; from md up it hugs the edge it is aligned to. disabled keeps it in place rather than hiding it: a control that vanishes leaves nothing to aim at. Inside a row, align='end' is what lines a button up with the field beside it — the default hugs the start of the cross axis and sits high. trailing parks an affordance at the far edge rather than laying it out, so the label stays centred the way every other button's does — DisclosureButton's triangle is its only caller, and the label has to stay short enough not to reach it. expanded announces that the button discloses what is under it, and is left off every button that does not."
             >
               <Button
                 title="Create trip"
@@ -727,6 +729,32 @@ function DesignSystemScreen() {
             </Specimen>
 
             <Specimen
+              name="QuietAction"
+              contract="label · onPress · align?"
+              note="A secondary action: an underlined word, no box. The system carries one loud button per screen and everything else steps back, so the quieter things — the roll-call doors, Read more, the calendar's Unsubscribe and Reset, the way out of a dialog — are words rather than controls. Underlined, because a word with no affordance is a word. Its target is a 44pt box grown by padding, the way every other target here reaches the floor: it used to be the word's own ~20pt line, which was the one place the rule was not kept. align='center' is for a word sharing a row with a button, where it wants the button's centre line rather than the row's start edge. Not InlineAction, which is boxless on purpose: that one sits inside a sentence, where a box would break the paragraph, and a word in a row of its own is not in a sentence."
+            >
+              <QuietAction
+                label="Unsubscribe"
+                onPress={() => setLog("QuietAction fired")}
+              />
+              <QuietAction
+                label="Reset calendar link"
+                onPress={() => setLog("QuietAction fired")}
+              />
+              <ActionRow>
+                <Button
+                  title="Save changes"
+                  onPress={() => setLog("QuietAction row button fired")}
+                />
+                <QuietAction
+                  label="Back"
+                  align="center"
+                  onPress={() => setLog("QuietAction fired")}
+                />
+              </ActionRow>
+            </Specimen>
+
+            <Specimen
               name="Dropdown"
               contract="label · options · value · onChange · placeholder? · error? · freeText? · onSearchText? · liveOptions? · attribution?"
               note="Single-select with autocomplete. The list expands inline — never a nested dialog. Stands in for Google Places. An option is a string when its value reads well and a value-and-label pair when it does not, so a day can say Today · Fri Sep 19 while committing an ISO date. With freeText, typing is itself an answer: a suggestion machine rather than a menu, which is how a place gets entered when Places has never heard of it. A live picker hands the field its own rows instead of a static list: liveOptions skips the local substring filter, which would otherwise hide an answer whose label does not contain the raw keystrokes — the provider renames the row as you type, so the row you are looking at can stop matching the string that found it — and onSearchText takes every keystroke for the query while committing nothing. attribution renders MapsAttribution under the rows, which is not optional on a Places-backed field."
@@ -858,7 +886,7 @@ function DesignSystemScreen() {
             <Specimen
               name="ImpersonationBand"
               contract="displayName · onStop · pending — a band that names whose session you are in; renders nothing when you are yourself"
-              note="The way out is a separate word with its own 44pt box, not a bare word in the sentence: QuietAction and InlineAction are deliberately boxless — the latter's target is the line rather than 44pt — which is fine inside a sentence and not fine here, where this is the only control. While the swap is in flight the word reads Stopping… and the control is disabled, so a second tap cannot stack two swaps."
+              note="The way out is a separate word with its own 44pt box, not a bare word in the sentence. InlineAction is the boxless one — its target is the line rather than 44pt — which is fine inside a sentence and not fine here, where this is the only control; QuietAction has a 44pt box of its own since the floor was applied to it. While the swap is in flight the word reads Stopping… and the control is disabled, so a second tap cannot stack two swaps."
             >
               <ImpersonationBand
                 displayName="Ada Lovelace"
@@ -994,6 +1022,38 @@ function DesignSystemScreen() {
                   />
                 ))}
               </Grid>
+            </Specimen>
+
+            <Specimen
+              name="EventRow"
+              contract="event · timeZone? · onPress?"
+              note="An event as a row of the run. Its twin is StayRow and they share ScheduleRow, so the thumbnail, the name's face and size, the chip line and the right-hand column's weight are decided in one place and cannot drift apart again. What makes it an event is data: the chip reads its type, and the right-hand column holds a clock. The chip beside the type is the place's name — which is what the stay row's is too, since a stay linked to a place should say which place, not only which town."
+            >
+              <View className="border-t border-ink">
+                {eventsFor(TRIPS[0]!).slice(0, 2).map((event) => (
+                  <EventRow
+                    key={event.id}
+                    event={event}
+                    onPress={() => setLog(`EventRow "${event.name}" fired`)}
+                  />
+                ))}
+              </View>
+            </Specimen>
+
+            <Specimen
+              name="StayRow"
+              contract="stay · timeZone? · onPress?"
+              note="A roof, as a row of the run, and EventRow's twin — same ScheduleRow, so the two cannot drift apart. The chip reads Stay where an event's reads its type, and the right-hand column holds the range the stay covers where an event's holds a clock. The nights are not here: that is the sheet's line, the way an event's description is. The venue chip names the place when the stay is linked to one and the town when the address was typed instead, because the two rows have to agree about what where means."
+            >
+              <View className="border-t border-ink">
+                {staysFor(TRIPS[0]!).slice(0, 2).map((stay) => (
+                  <StayRow
+                    key={stay.id}
+                    stay={stay}
+                    onPress={() => setLog(`StayRow "${stay.name}" fired`)}
+                  />
+                ))}
+              </View>
             </Specimen>
           </View>
         </Section>

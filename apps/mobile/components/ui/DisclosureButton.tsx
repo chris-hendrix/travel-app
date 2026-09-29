@@ -17,9 +17,9 @@ import { INK } from "@/lib/theme";
  * (Accordion, TimeField, the travel row) all hold `ArrowDown` and
  * `ArrowUp` and choose between them; a triangle that rotates says the same
  * thing with one glyph instead of two, and the direction is the whole of
- * what it says. Both glyphs are `aria-hidden`: the trigger already says
- * what it is and which way it goes through `aria-expanded`, and a mark
- * that only repeats that is noise in the tree.
+ * what it says. The glyph is `aria-hidden`: the trigger already says what
+ * it is and which way it goes through `aria-expanded`, and a mark that only
+ * repeats that is noise in the tree.
  */
 function Triangle({ open }: { open: boolean }) {
   return (

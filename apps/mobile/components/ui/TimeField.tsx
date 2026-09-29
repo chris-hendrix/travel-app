@@ -24,8 +24,9 @@ const NONE = "";
 const DEFAULT_ANCHOR = "09:00";
 
 /**
- * The row a clock time sits on, or the next slot after it. A time off the
- * fifteen-minute step — an event the API wrote rather than this picker —
+ * The row a clock time sits on, or the next slot after it — or the last
+ * slot, for a time past the end of the day, which has no next. A time off
+ * the fifteen-minute step (an event the API wrote rather than this picker)
  * lands on the slot that follows it instead of nowhere.
  */
 function rowForClock(options: string[], clock: string): number {
