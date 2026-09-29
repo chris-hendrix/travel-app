@@ -26,7 +26,7 @@ This means:
 - **New product work goes in `apps/mobile`.** The retired web app is gone (see `DEPLOYMENT.md` for the recovery recipe). Do not reintroduce a second product surface.
 - **Auth differs by surface.** The Expo web export keeps a bearer token in `localStorage` (`apps/mobile/lib/session.ts`); the native app uses SecureStore. The web-export token storage is the weaker of the two and is accepted for now; the follow-up is cookie auth on web or the native app.
 - **The Capacitor pipeline is gone.** `make cap-*`, `capacitor.config.ts` and the `@capacitor/*` dependencies were deleted; the Android app is built from `apps/mobile` (`make android-apk`).
-- **`journiful.app` serves the Expo web export.** The apex and `beta.journiful.app` point at the `static` service. `/admin` lives in the app.
+- **`journiful.app` serves the Expo web export.** The apex and `beta.journiful.app` point at the `web` service (called `static` until 2026-09-29). `/admin` lives in the app.
 
 ## WHY
 

@@ -7,7 +7,7 @@ Journiful runs on [Railway](https://railway.app) as two services from this monor
 | Service            | Builder       | Start Command                                                            | Health check                     |
 | ------------------ | ------------- | ------------------------------------------------------------------------ | -------------------------------- |
 | **api**            | RAILPACK      | `node apps/api/dist/server.js`                                           | endpoint exists, none configured |
-| **static**         | RAILPACK      | `node apps/mobile/scripts/serve-static.mjs`                              | `/`, configured, 300s timeout    |
+| **web**            | RAILPACK      | `node apps/mobile/scripts/serve-static.mjs`                              | `/`, configured, 300s timeout    |
 | **Postgres**       | Railway addon | —                                                                        | Built-in                         |
 | **Storage Bucket** | Railway addon | —                                                                        | —                                |
 
@@ -39,9 +39,9 @@ All three services build with Railpack, which detects Node and pnpm from the rep
 | Service  | Build Command                                                                                          |
 | -------- | ------------------------------------------------------------------------------------------------------ |
 | **api**    | `pnpm install --frozen-lockfile && pnpm build:api`                                                     |
-| **static** | `pnpm install --frozen-lockfile && pnpm --filter @journiful/mobile export:web`                        |
+| **web**    | `pnpm install --frozen-lockfile && pnpm --filter @journiful/mobile export:web`                        |
 
-The static service calls `export:web` rather than spelling out `expo export` so that `--clear` cannot be dropped: `EXPO_PUBLIC_API_URL` is inlined by Babel outside Metro's cache key, so a cached transform ships a previous build's API origin, and a Railway builder caches aggressively.
+The web service calls `export:web` rather than spelling out `expo export` so that `--clear` cannot be dropped: `EXPO_PUBLIC_API_URL` is inlined by Babel outside Metro's cache key, so a cached transform ships a previous build's API origin, and a Railway builder caches aggressively.
 
 ## Deploy Trigger
 
@@ -52,16 +52,16 @@ services whose files it touched — read from the live project config (productio
 | Service  | Watch paths                                                          |
 | -------- | -------------------------------------------------------------------- |
 | **api**    | `/apps/api/**`, `/shared/**`, `package.json`, `pnpm-lock.yaml`     |
-| **static** | `/apps/mobile/**`, `/shared/**`, `package.json`, `pnpm-lock.yaml`  |
+| **web**    | `/apps/mobile/**`, `/shared/**`, `package.json`, `pnpm-lock.yaml`  |
 
 A service whose paths do not match is recorded as a **SKIPPED** deployment. That is the expected
 outcome, not a failure: a mobile-only merge skips `api`, and an API-only merge skips
-`static`.
+`web`.
 
 To check what actually built, without the dashboard:
 
 ```bash
-railway deployment list -s static -e production   # newest first, with status
+railway deployment list -s web -e production   # newest first, with status
 ```
 
 The raw GraphQL path is not worth it here: `railway api` reads project and service config, but
@@ -73,7 +73,7 @@ Three things this pattern does not cover, all of which need a manual redeploy:
   can affect every build.
 - `railway.json` is not used (see [What's Codified vs Dashboard](#whats-codified-vs-dashboard)), so
   these settings live in the dashboard and in this table, not in the repo.
-- Railway's `healthcheckPath` is set only on **static** (`/`, 300s timeout). `api` has none,
+- Railway's `healthcheckPath` is set only on **web** (`/`, 300s timeout). `api` has none,
   so a deploy there that starts but serves errors is not rolled back by the platform.
 
 CI does not deploy anything. The `mobile-web-export` job is a check that runs on pull requests; the
@@ -129,7 +129,7 @@ merge to `main` is what ships, through Railway.
 | `EXPOSE_ERROR_DETAILS` | `false` (prod) |                                             |
 | `LOG_LEVEL`            | `info`         |                                             |
 
-### Static Service (Expo web export)
+### Web Service (Expo web export)
 
 | Variable              | Example                          | Notes                                        |
 | --------------------- | -------------------------------- | -------------------------------------------- |
@@ -141,7 +141,10 @@ The service builds and serves via the `apps/mobile` scripts `export:web`
 (`node scripts/serve-static.mjs`, a dependency-free static server that
 returns one file per route with real 404s). Live at
 `https://journiful.app` and `https://beta.journiful.app` (and
-`https://static-production-df7e.up.railway.app`).
+`https://static-production-df7e.up.railway.app` — a hostname Railway minted
+when this service was still called `static`; renaming it to `web` on
+2026-09-29 left the generated domain alone, which is why the API's
+`FRONTEND_URL` needed no change).
 
 Everything the export publishes beyond the app routes comes from
 `apps/mobile/public/`, copied into `dist/` by the Expo build:
@@ -168,7 +171,7 @@ link in each page's `<head>` comes from
 `apps/mobile/app/+html.tsx`. `apps/mobile/scripts/check-export.mjs` is
 the gate on all of it and runs in the `Mobile Web Export` CI job.
 
-The API's `FRONTEND_URL` covers the static origins:
+The API's `FRONTEND_URL` covers the web origins:
 `https://journiful.app,https://static-production-df7e.up.railway.app,https://beta.journiful.app`.
 That list is CORS: the API must name an origin before a browser on it can
 sign in, so a new hostname goes into `FRONTEND_URL` and is redeployed
@@ -176,18 +179,29 @@ sign in, so a new hostname goes into `FRONTEND_URL` and is redeployed
 
 ## Domains and Recovery of the Retired Web App
 
-The apex `journiful.app` belongs to the **static** service (the Expo web
+The apex `journiful.app` belongs to the **web** service (the Expo web
 export), as does `beta.journiful.app`. `/admin` lives in the app — there is
 no separate admin hostname. The 2026-09-26 apex re-point drill (cut over
 from the retired Next app, back, and forward again) is historical; there is
 no live rollback target any more, so a bad deploy is fixed by rolling the
-**static** service back to its previous deployment, not by re-pointing a
+**web** service back to its previous deployment, not by re-pointing a
 domain.
+
+The service was called `static` until 2026-09-29, when it was renamed to
+`web` through the CLI (`serviceUpdate`); nothing else about it changed —
+same service ID, same custom domains, same deployment, same watch paths.
+The retired app's record is still present as a service named
+`retired-next-app`, which survives only in the PR-fork environments
+(`tripful-pr-59`, `travel-app-pr-216`); it was renamed out of the way to
+free the name `web`, and disappears when those environments do.
 
 What follows is the recovery recipe for the retired web app (`apps/web`,
 the frozen Next.js app, deleted 2026-09). It is the only surviving record
 of how to bring the old app back, so it keeps naming the deleted paths on
-purpose.
+purpose. The name `web` now belongs to the Expo export, so a recreated
+legacy service has to take another name — `web-legacy` — and the retired
+references to a `RAILWAY_SERVICE_WEB_URL` below are that old app's, not
+the live service's.
 
 ### Recovery of the retired web app
 
