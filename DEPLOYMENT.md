@@ -190,10 +190,13 @@ domain.
 2026-09-29, when it was removed (`railway domain delete beta.journiful.app -s web
 -e production --yes`) and dropped from the API's `FRONTEND_URL` in the same
 change. One loose end is owed at the registrar: the beta CNAME still points at a
-Railway edge hostname, so the hostname answers **404** from the edge instead of
-failing to resolve. Deleting that CNAME — and the
-`_railway-verify.beta.journiful.app` TXT, which only exists to make a re-add
-verify instantly — is a DNS change, not a Railway one. The apex's own
+Railway edge hostname, and the edge no longer holds a certificate for the
+hostname, so a browser there fails the **TLS handshake** rather than getting a
+clean 404 — measured minutes after the delete, `curl` reports the certificate
+failure on `69.46.46.102` (a first probe in that same window still answered
+404, so the edge takes a moment to withdraw the route). Deleting that CNAME —
+and the `_railway-verify.beta.journiful.app` TXT, which only exists to make a
+re-add verify instantly — is a DNS change, not a Railway one. The apex's own
 `_railway-verify` TXT must stay.
 
 The service was called `static` until 2026-09-29, when it was renamed to
