@@ -12,25 +12,23 @@ help: ## Show available commands
 install: ## Install all dependencies
 	pnpm install
 
-dev: dev-mobile ## Start dev servers (api:8000, expo:8081)
-
-dev-api: ## Start API dev server only (with Docker)
-	pnpm dev:api
-
 # Like `make mockup`, this runs on the host: the devcontainer maps only 8000
-# and 8081 to random host ports, so both servers must run on
-# the host. Ctrl-C stops both (the trap kills the backgrounded API).
-dev-mobile: ## Start API + Expo for mobile wiring (api:8000, expo:8081)
+# and 8081 to random host ports, so both servers must run on the host.
+# Ctrl-C stops both (the trap kills the backgrounded API).
+dev: ## Start dev servers (api:8000, expo:8081)
 	pnpm docker:up
 	@cd apps/mobile && \
 		echo "" && \
 		echo "  api               http://localhost:8000" && \
-		echo "  expo (mobile)     http://localhost:8081" && \
+		echo "  app (expo web)    http://localhost:8081" && \
 		echo "  design system     http://localhost:8081/design" && \
 		echo ""
 	@trap 'kill 0' INT TERM; \
 		pnpm --filter @journiful/api dev & \
 		cd apps/mobile && npx expo start --web --port 8081
+
+dev-api: ## Start API dev server only (with Docker)
+	pnpm dev:api
 
 # The design mockup is apps/mobile. Two things about it are easy to get
 # wrong, and both have cost real time: it must run on the host (the
