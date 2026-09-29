@@ -510,13 +510,19 @@ function ProfileForm({ profile }: { profile: Profile }) {
           // it — and as a pair of `secondary` boxes they were two more
           // controls in a block that already has two, which is four
           // stacked boxes under one heading and reads as a menu. The
-          // system's quieter things are words (Edit trip, Trip settings,
-          // the doors), and these are the same kind of thing.
+          // system's quieter things are words (the roll-call doors, the
+          // read-more), and these are the same kind of thing.
           //
           // A write in flight holds the row instead of disabling it:
           // `QuietAction` has no disabled state, so the guard is the early
           // return the RSVP control uses.
-          <View className="mt-3 flex-row flex-wrap items-center gap-2">
+          <View
+            // The row is inert while a write is in flight, and the guard in
+            // each handler is what makes it so — so the state is announced
+            // here, the way the trip page's RSVP control does it.
+            aria-busy={calendarBusy !== null}
+            className="mt-3 flex-row flex-wrap items-center gap-2"
+          >
             <QuietAction
               label={
                 calendarBusy === "disable" ? "Unsubscribing..." : "Unsubscribe"

@@ -75,9 +75,10 @@ import { getPertinentTime } from "@journiful/shared/utils";
  *   traveler   the trip is not yours, so the ask is your own RSVP
  *
  * The actions are one trigger rather than a stack of boxes. It holds the
- * trip's own verbs and your settings both, under a rule that keeps the
- * two kinds apart, and it is in the same place for every member: only
- * what is inside it is keyed by role.
+ * trip's own verbs and your settings both, with your settings last, which
+ * is where the two kinds are told apart — a rule between them was tried
+ * and taken out. It is in the same place for every member: only what is
+ * inside it is keyed by role.
  *
  * The facts column used to close with Edit trip and Trip settings as
  * words. They are in the trigger now, which is the one place on the page
@@ -371,9 +372,9 @@ function TripDetailScreen() {
         </View>
 
         {/* The seam between the two halves of the page: the trip above —
-            cover, verbs, facts, description, its own two words at the
-            foot of the column — and the run below, whose own controls sit
-            under this line. It is the page's rule rather than the run's,
+            cover, verbs, facts, description — and the run below, whose
+            own controls sit under this line. It is the page's rule rather
+            than the run's,
             because only the page can draw one that closes both columns
             and opens what comes under them; the run's first block
             therefore brings no rule of its own

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Pressable, Text } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 export type ButtonVariant = "primary" | "secondary" | "accent" | "danger";
 
@@ -34,9 +34,12 @@ export function Button({
    *  a control that vanishes leaves nothing to aim at. */
   disabled?: boolean;
   /**
-   * An affordance at the far edge, which moves the label to the near one.
-   * `DisclosureButton`'s triangle is the only caller, and it is the one
-   * thing a label cannot say on its own: that the button opens.
+   * An affordance at the far edge. `DisclosureButton`'s triangle is the only
+   * caller, and it is the one thing a label cannot say on its own: that the
+   * button opens. Parked rather than laid out, so the label stays centred —
+   * a trailing node that took layout space would push it off-centre and make
+   * one button in a stack of them read as a different kind of control. Keep
+   * the label short enough not to reach the far edge.
    */
   trailing?: ReactNode;
   /**
@@ -51,12 +54,6 @@ export function Button({
     : align === "end"
       ? "md:self-end"
       : "md:self-start";
-  // A row only when there is something at the far edge. A lone label stays
-  // centred in its box, which is what every other button in the system is.
-  const flow =
-    trailing === undefined
-      ? "items-center"
-      : "flex-row items-center justify-between gap-4";
 
   return (
     <Pressable
@@ -65,7 +62,7 @@ export function Button({
       aria-expanded={expanded}
       disabled={disabled}
       onPress={onPress}
-      className={`${flow} border p-4 ${s.box} ${width} ${
+      className={`items-center border p-4 ${s.box} ${width} ${
         disabled ? "opacity-40" : ""
       }`}
     >
@@ -75,7 +72,11 @@ export function Button({
           happened to be and quietly disagreed with the control beside
           it. */}
       <Text className={`font-body-bold text-sm ${s.label}`}>{title}</Text>
-      {trailing}
+      {trailing === undefined ? null : (
+        <View className="absolute bottom-0 right-4 top-0 justify-center">
+          {trailing}
+        </View>
+      )}
     </Pressable>
   );
 }

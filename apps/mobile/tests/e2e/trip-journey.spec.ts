@@ -193,7 +193,7 @@ test.describe("Trip Journey", () => {
       await expect(page.getByText(tripName).last()).toBeVisible({
         timeout: NAVIGATION_TIMEOUT,
       });
-      // app/trips/detail.tsx: Button titled "Edit trip" routes to
+      // app/trips/detail.tsx: the row titled "Edit trip" routes to
       // /trips/edit?id=…. It sits behind the "Trip actions" trigger
       // (components/ui/DisclosureButton.tsx), so the trigger is pressed
       // first; this goto remounts the page, so it lands shut again.

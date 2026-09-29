@@ -172,7 +172,7 @@ test.describe("Itinerary Journey", () => {
       // server-side, so the trip page's action block renders with its
       // organizer contents. Its verbs are shut inside the trigger
       // (components/ui/DisclosureButton.tsx), so that is pressed first:
-      // Button titled "Add event" routes to /trips/events/new?id=….
+      // the row titled "Add event" routes to /trips/events/new?id=….
       await page.getByRole("button", { name: "Trip actions" }).click();
       await page.getByRole("button", { name: "Add event" }).click();
       await page.waitForURL("**/trips/events/new?id=*", {

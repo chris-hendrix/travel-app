@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { View } from "react-native";
 import { useRouter } from "expo-router";
+import { Button } from "@/components/ui/Button";
 import { DisclosureButton } from "@/components/ui/DisclosureButton";
 
 /**
@@ -24,27 +25,29 @@ import { DisclosureButton } from "@/components/ui/DisclosureButton";
  * objection a trigger answers, because a trigger is what says a menu is
  * what it is.
  *
- * Then the trigger itself held six boxes, which is the same wall one level
- * down: `Invite people` was still a filled box of its own, so the shut
- * page carried two saturated fills stacked, and opening the trigger made
- * six equal weights. The invitation is a row inside it now, which leaves
- * the shut state as exactly one control — and that control is a box rather
- * than a fill, because it reveals rather than acts, and because the
- * organizer's page already has an action it wants to be loud (the invite,
- * one tap in).
+ * The trigger is a box rather than a fill, and the one filled control on
+ * the page is the invitation above it. That is the block's shape for both
+ * roles: one control in the ask slot — the organizer's invitation, the
+ * traveler's RSVP — with the trigger under it.
+ *
+ * The invitation was a row inside the trigger for a while, on the argument
+ * that a shut box holding everything is the calmest page. It is out again,
+ * because the fill is this system's mark for the control that finishes a
+ * job and a container that reveals is not one: a page whose only loud thing
+ * is a menu has put its action behind its navigation.
  *
  * What the rows hold is not all one kind of thing, and the order is what
  * says so rather than a rule between them:
  *
- *   the trip    Invite people, Add event, Add stay, Add travel, Edit trip
+ *   the trip    Add event, Add stay, Add travel, Edit trip
  *   yours       Trip settings — every row of it is about you rather than
  *               about the trip (`app/trips/settings.tsx`: whether the
  *               digest and the messages reach you, whether the others can
  *               see your number, whether your calendar follows this trip)
  *
- * A rule between the two was tried and taken out. Six rows is a small
- * stack, and a line inside it was a third element competing with the rows'
- * own rules; the last position carries the split well enough, which is
+ * A rule between the two was tried and taken out. The list is short, and a
+ * line inside it was a third element competing with the rules the rows
+ * already carry; the last position carries the split well enough, which is
  * where `Edit trip` and `Trip settings` already sat before any of this.
  *
  * Trip settings is in the box for every member, and that is deliberate
@@ -84,7 +87,11 @@ export function TripActions({
   travelOwed: boolean;
   /** Whose travel the form files — the viewer's own, since the row is theirs. */
   memberId?: string | undefined;
-  /** The traveler's own ask — the RSVP control. Organizers answer it too, above the run. */
+  /**
+   * The traveler's own ask — the RSVP control. An organizer is not offered
+   * one here: the server reads them the full trip whatever they answered,
+   * so their answer is about the roster rather than about access.
+   */
   ask?: ReactNode;
 }) {
   const router = useRouter();
@@ -97,10 +104,6 @@ export function TripActions({
   // instead of holding a position it had to earn.
   const tripActions = organizer
     ? [
-        {
-          title: "Invite people",
-          onPress: () => router.push(`/trips/invite?id=${tripId}`),
-        },
         {
           title: "Add event",
           onPress: () => router.push(`/trips/events/new?id=${tripId}`),
@@ -121,7 +124,20 @@ export function TripActions({
 
   return (
     <View className="gap-3">
-      {organizer ? null : ask}
+      {organizer ? (
+        // The one loud control on the page: watermelon, the accent role, and
+        // the only filled box. It is the organizer's ask — the trip is
+        // authored, so the ask is bringing people in — which is what keeps
+        // this block the same shape for both roles.
+        <Button
+          title="Invite people"
+          variant="accent"
+          fullWidth
+          onPress={() => router.push(`/trips/invite?id=${tripId}`)}
+        />
+      ) : (
+        ask
+      )}
 
       <DisclosureButton
         title="Trip actions"

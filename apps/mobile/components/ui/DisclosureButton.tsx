@@ -15,14 +15,16 @@ import { INK } from "@/lib/theme";
  *
  * It turns rather than swapping. The app's three other disclosures
  * (Accordion, TimeField, the travel row) all hold `ArrowDown` and
- * `ArrowUp` and choose between them, which is the same statement written
- * twice; a triangle that rotates is that statement written once, and the
- * direction is the whole of what it says.
+ * `ArrowUp` and choose between them; a triangle that rotates says the same
+ * thing with one glyph instead of two, and the direction is the whole of
+ * what it says. Both glyphs are `aria-hidden`: the trigger already says
+ * what it is and which way it goes through `aria-expanded`, and a mark
+ * that only repeats that is noise in the tree.
  */
 function Triangle({ open }: { open: boolean }) {
   return (
     <View style={{ transform: [{ rotate: open ? "180deg" : "0deg" }] }}>
-      <Svg width={12} height={8} viewBox="0 0 12 8">
+      <Svg width={12} height={8} viewBox="0 0 12 8" aria-hidden>
         <Polygon points="0,0 12,0 6,8" fill={INK} />
       </Svg>
     </View>
@@ -75,7 +77,7 @@ function ActionRow({
         last ? "" : "border-b border-ink"
       }`}
     >
-      <Plus color={INK} size={16} />
+      <Plus color={INK} size={16} aria-hidden />
       <Text className="font-body-bold text-sm text-ink">{title}</Text>
     </Pressable>
   );
@@ -126,6 +128,12 @@ export function DisclosureButton({
 }) {
   const [open, setOpen] = useState(defaultOpen);
 
+  // A trigger that opens onto nothing is a lie about what pressing it does,
+  // so an empty list is not a disclosure at all. No caller can reach this
+  // today (`TripActions` always appends Trip settings); it is here because
+  // this is a `ui/` primitive and the next caller is the one that will.
+  if (actions.length === 0) return null;
+
   return (
     <View>
       <Button
@@ -136,11 +144,20 @@ export function DisclosureButton({
         onPress={() => setOpen((current) => !current)}
         trailing={<Triangle open={open} />}
       />
+      {/* Open, the list is whatever the caller last handed over: a row that
+          goes away while the box is open (Add travel, when somebody files
+          their times elsewhere) leaves the stack shorter with nothing said.
+          That is the accepted half of the "a shut box costs nothing"
+          trade, and the alternative — freezing the list until it is closed
+          — would leave a row on screen that no longer does anything. */}
       {open ? (
         <View>
           {actions.map((action, index) => (
             <ActionRow
-              key={action.title}
+              // Title and index, not title alone: titles are display
+              // strings, and two rows that happened to read the same would
+              // collide on a key and reconcile into each other's handler.
+              key={`${action.title}-${index}`}
               title={action.title}
               onPress={action.onPress}
               last={index === actions.length - 1}
