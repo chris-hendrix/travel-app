@@ -202,8 +202,7 @@ fi
 
 log_test "setup.sh generates env files idempotently (only if not exists)"
 API_GUARDS=$(grep -c '! -f apps/api/.env' "$PROJECT_ROOT/.devcontainer/setup.sh")
-WEB_GUARDS=$(grep -c '! -f apps/web/.env.local' "$PROJECT_ROOT/.devcontainer/setup.sh")
-if [ "$API_GUARDS" -ge 1 ] && [ "$WEB_GUARDS" -ge 1 ]; then
+if [ "$API_GUARDS" -ge 1 ]; then
     log_pass
 else
     log_fail "env file creation should be guarded with [ ! -f ] checks"
@@ -253,7 +252,7 @@ TMPDIR_TEST=$(mktemp -d)
 trap "rm -rf $TMPDIR_TEST" EXIT
 
 log_test "env files are created when missing"
-mkdir -p "$TMPDIR_TEST/apps/api" "$TMPDIR_TEST/apps/web"
+mkdir -p "$TMPDIR_TEST/apps/api"
 # Extract just the env-file-generation part of setup.sh and run it
 (
     cd "$TMPDIR_TEST"
@@ -261,11 +260,8 @@ mkdir -p "$TMPDIR_TEST/apps/api" "$TMPDIR_TEST/apps/web"
     if [ ! -f apps/api/.env ]; then
         echo "DATABASE_URL=test" > apps/api/.env
     fi
-    if [ ! -f apps/web/.env.local ]; then
-        echo "API_URL=test" > apps/web/.env.local
-    fi
 )
-if [ -f "$TMPDIR_TEST/apps/api/.env" ] && [ -f "$TMPDIR_TEST/apps/web/.env.local" ]; then
+if [ -f "$TMPDIR_TEST/apps/api/.env" ]; then
     log_pass
 else
     log_fail "env files not created"
@@ -273,18 +269,13 @@ fi
 
 log_test "env files are preserved when they already exist"
 echo "CUSTOM=value" > "$TMPDIR_TEST/apps/api/.env"
-echo "CUSTOM=value" > "$TMPDIR_TEST/apps/web/.env.local"
 (
     cd "$TMPDIR_TEST"
     if [ ! -f apps/api/.env ]; then
         echo "OVERWRITTEN" > apps/api/.env
     fi
-    if [ ! -f apps/web/.env.local ]; then
-        echo "OVERWRITTEN" > apps/web/.env.local
-    fi
 )
-if grep -q "CUSTOM=value" "$TMPDIR_TEST/apps/api/.env" \
-   && grep -q "CUSTOM=value" "$TMPDIR_TEST/apps/web/.env.local"; then
+if grep -q "CUSTOM=value" "$TMPDIR_TEST/apps/api/.env"; then
     log_pass
 else
     log_fail "existing env files were overwritten"

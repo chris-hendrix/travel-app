@@ -22,7 +22,5 @@ RUN npx playwright install chromium firefox webkit
 # it copies the directory's ownership into the volume.
 RUN mkdir -p /workspace/node_modules \
              /workspace/apps/api/node_modules \
-             /workspace/apps/web/node_modules \
              /workspace/shared/node_modules \
-             /workspace/.pnpm-store \
-             /workspace/apps/web/.next
+             /workspace/.pnpm-store

@@ -49,7 +49,7 @@ const envSchema = z.object({
           }),
       "FRONTEND_URL must be a valid URL (comma-separated list allowed)",
     )
-    .default("http://localhost:3000"),
+    .default("http://localhost:8081"),
 
   // Public origin used for absolute URLs handed to external clients
   // (calendar webcal links). Must be a valid http(s) URL when set.

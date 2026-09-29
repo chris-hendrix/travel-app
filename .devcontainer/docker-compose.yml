@@ -14,13 +14,10 @@ services:
       # Host runs `pnpm add/install` freely; container syncs via `make test-exec CMD="pnpm install"`.
       - node_modules:/workspace/node_modules
       - api_node_modules:/workspace/apps/api/node_modules
-      - web_node_modules:/workspace/apps/web/node_modules
       - shared_node_modules:/workspace/shared/node_modules
       - pnpm_store:/workspace/.pnpm-store
-      # Isolate .next so host and container dev servers don't conflict on lock files.
-      - next_cache:/workspace/apps/web/.next
     ports:
-      - "3000" # random host port -> container 3000 (Next.js)
+      - "8081" # random host port -> container 8081 (Expo web / the export server)
       - "8000" # random host port -> container 8000 (Fastify)
     command: sleep infinity
     depends_on:
@@ -75,7 +72,5 @@ volumes:
   minio_data:
   node_modules:
   api_node_modules:
-  web_node_modules:
   shared_node_modules:
   pnpm_store:
-  next_cache:
