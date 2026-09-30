@@ -11,14 +11,20 @@
  *
  * TODO (parked):
  * delete-trip has no UI surface yet — add a spec here once it does.
- * TODO (parked):
- * co-organizer promote/demote has no UI surface yet — add a spec here
- * once it does.
+ * (Resolved: member removal and co-organizer promote/demote are covered
+ * by the "remove and promote a member" test below.)
  */
 
-import { test, expect } from "@playwright/test";
-import { authenticateViaAPI, uniqueLabel } from "./helpers/auth";
+import { test, expect, type APIRequestContext } from "@playwright/test";
 import {
+  armSession,
+  authenticateViaAPI,
+  generateUniquePhone,
+  seedUserViaAPI,
+  uniqueLabel,
+} from "./helpers/auth";
+import {
+  API_BASE,
   ELEMENT_TIMEOUT,
   NAVIGATION_TIMEOUT,
   SLOW_NAVIGATION_TIMEOUT,
@@ -239,4 +245,204 @@ test.describe("Trip Journey", () => {
       });
     });
   });
+
+  test("remove and promote a member, both confirmed by reload", async ({
+    page,
+    request,
+  }) => {
+    const tripName = uniqueLabel("E2E Member Path");
+    const leaverPhone = generateUniquePhone();
+    const riserPhone = generateUniquePhone();
+    const leaverName = uniqueLabel("E2E Leaver");
+    const riserName = uniqueLabel("E2E Riser");
+    let tripId: string;
+    let orgToken: string;
+
+    await test.step("seed organizer, trip, and two members", async () => {
+      // The organizer session is seeded the way this suite already
+      // seeds things (authenticateViaAPI writes the bearer token into
+      // localStorage ahead of boot); the trip and the two members
+      // come through the real API rather than a UI path that does
+      // not exist — POST /api/trips, then one batch invite per
+      // number, then each number signs up so the pending invitation
+      // is consumed into membership server-side.
+      const orgPhone = generateUniquePhone();
+      ({ token: orgToken } = await seedUserViaAPI(
+        request,
+        orgPhone,
+        "Member Host",
+      ));
+      await armSession(page, orgToken);
+      tripId = await seedTripViaAPI(request, orgToken, tripName);
+      for (const [phone, name] of [
+        [leaverPhone, leaverName],
+        [riserPhone, riserName],
+      ] as const) {
+        await seedInviteViaAPI(request, orgToken, tripId, phone);
+        await seedUserViaAPI(request, phone, name);
+      }
+    });
+
+    await test.step("both members are on the roll call", async () => {
+      await page.goto(`/trips/members?id=${tripId}`);
+      // app/trips/members.tsx: FullscreenDialog titled "Who's
+      // coming"; each member row carries the member's name.
+      await expect(page.getByText("Who's coming")).toBeVisible({
+        timeout: NAVIGATION_TIMEOUT,
+      });
+      await expect(page.getByText(leaverName)).toBeVisible({
+        timeout: ELEMENT_TIMEOUT,
+      });
+      await expect(page.getByText(riserName)).toBeVisible();
+    });
+
+    await test.step("remove a member with a single press", async () => {
+      // app/trips/members.tsx MemberRow: the organizer's rows are
+      // pressable (role="button" named by the member's name) and
+      // push /trips/members/detail?id=…&member=….
+      await page.getByRole("button", { name: leaverName }).click();
+      await page.waitForURL("**/trips/members/detail?id=*&member=*", {
+        timeout: NAVIGATION_TIMEOUT,
+      });
+      // app/trips/members/detail.tsx MemberDialog: facts, then the
+      // Manage Section; the Remove block's button reads "Remove"
+      // and applies on a single press (no Cancel, no second press —
+      // that two-press shape belongs to the guest dialog only).
+      await expect(page.getByText("Manage")).toBeVisible({
+        timeout: ELEMENT_TIMEOUT,
+      });
+      await expect(
+        page.getByRole("button", { name: "Remove", exact: true }),
+      ).toBeVisible();
+      await page
+        .getByRole("button", { name: "Remove", exact: true })
+        .click();
+      // The DELETE lands and the dialog re-reads the roster: with
+      // the row gone it renders its gone state rather than the
+      // Manage block. (The dialog does not auto-dismiss back to the
+      // roll call in this flow — flagged in the task report — so the
+      // spec returns there explicitly instead of asserting a
+      // navigation the app does not perform.)
+      // app/trips/members/detail.tsx PersonDetailDialog fallback.
+      await expect(
+        page.getByText("That person is not on this trip any more."),
+      ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+      // Back on the roll call, the row is gone.
+      await page.goto(`/trips/members?id=${tripId}`);
+      await expect(page.getByText("Who's coming")).toBeVisible({
+        timeout: NAVIGATION_TIMEOUT,
+      });
+      await expect(page.getByText(leaverName)).toBeHidden({
+        timeout: ELEMENT_TIMEOUT,
+      });
+    });
+
+    await test.step("reload: the removal persisted server-side", async () => {
+      // Reload re-reads the roll call from the server, so the still-
+      // missing row proves the DELETE landed rather than an
+      // optimistic cache value.
+      await page.reload();
+      await expect(page.getByText("Who's coming")).toBeVisible({
+        timeout: NAVIGATION_TIMEOUT,
+      });
+      await expect(page.getByText(leaverName)).toBeHidden({
+        timeout: ELEMENT_TIMEOUT,
+      });
+      await expect(page.getByText(riserName)).toBeVisible();
+    });
+
+    await test.step("promote a member to organizer", async () => {
+      await page.getByRole("button", { name: riserName }).click();
+      await page.waitForURL("**/trips/members/detail?id=*&member=*", {
+        timeout: NAVIGATION_TIMEOUT,
+      });
+      // app/trips/members/detail.tsx MemberDialog: the role row's
+      // button reads "Make organizer" for a non-organizer; one
+      // press applies the change, and the row inverts to
+      // "Remove as organizer".
+      await expect(
+        page.getByRole("button", { name: "Make organizer" }),
+      ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+      await page.getByRole("button", { name: "Make organizer" }).click();
+      await expect(
+        page.getByRole("button", { name: "Remove as organizer" }),
+      ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+    });
+
+    await test.step("reload: the promotion persisted server-side", async () => {
+      await page.reload();
+      // The inverted role row survives the round-trip: the member is
+      // still an organizer on the server.
+      await expect(
+        page.getByRole("button", { name: "Remove as organizer" }),
+      ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
+    });
+
+    await test.step("demote back, and see it stick", async () => {
+      await page
+        .getByRole("button", { name: "Remove as organizer" })
+        .click();
+      await expect(
+        page.getByRole("button", { name: "Make organizer" }),
+      ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+      await page.reload();
+      await expect(
+        page.getByRole("button", { name: "Make organizer" }),
+      ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
+    });
+  });
 });
+
+function isoIn(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Seed a trip through the real create endpoint. Returns the trip id. */
+async function seedTripViaAPI(
+  request: APIRequestContext,
+  token: string,
+  name: string,
+): Promise<string> {
+  // POST /api/trips — body mirrors createTripSchema
+  // (shared/schemas/trip.ts): name, destination, timezone required.
+  const res = await request.post(`${API_BASE}/trips`, {
+    data: {
+      name,
+      destination: "Mallorca, Spain",
+      timezone: "America/Chicago",
+      startDate: isoIn(30),
+      endDate: isoIn(35),
+    },
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok()) {
+    throw new Error(`create-trip failed: ${res.status()} ${await res.text()}`);
+  }
+  const body = (await res.json()) as { trip: { id: string } };
+  return body.trip.id;
+}
+
+/** Invite one number through the real batch endpoint. */
+async function seedInviteViaAPI(
+  request: APIRequestContext,
+  organizerToken: string,
+  tripId: string,
+  guestPhone: string,
+): Promise<void> {
+  // POST /api/trips/:tripId/invitations — the batch shape
+  // {phoneNumbers, userIds} (lib/queries/invitations.ts:invite).
+  // Acceptance happens server-side at verify
+  // (processPendingInvitations), so inviting and then signing up
+  // that number is what turns it into a member.
+  const res = await request.post(`${API_BASE}/trips/${tripId}/invitations`, {
+    data: { phoneNumbers: [guestPhone], userIds: [] },
+    headers: { Authorization: `Bearer ${organizerToken}` },
+  });
+  if (!res.ok()) {
+    throw new Error(
+      `create-invitations failed: ${res.status()} ${await res.text()}`,
+    );
+  }
+}
