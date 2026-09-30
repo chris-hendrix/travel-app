@@ -1446,6 +1446,40 @@ describe("invitation.service", () => {
       await db.delete(payments).where(eq(payments.id, payment.id));
     });
 
+    it("removing an invited guest cancels their invitation", async () => {
+      const guestPhone = generateUniquePhone();
+      const [guest] = await db
+        .insert(members)
+        .values({
+          tripId: testTripId,
+          userId: null,
+          guestDisplayName: "Guest Mom",
+          guestPhone,
+          status: "no_response",
+        })
+        .returning();
+      const { invitations: created } =
+        await invitationService.createInvitations(testOrganizerId, testTripId, [
+          guestPhone,
+        ]);
+      expect(created).toHaveLength(1);
+
+      await invitationService.removeMember(
+        testOrganizerId,
+        testTripId,
+        guest.id,
+      );
+
+      expect(
+        await db.select().from(members).where(eq(members.id, guest.id)),
+      ).toHaveLength(0);
+      const remaining =
+        await invitationService.getInvitationsByTrip(testTripId);
+      expect(
+        remaining.filter((i) => i.inviteePhone === guestPhone),
+      ).toHaveLength(0);
+    });
+
     it("should throw PermissionDeniedError for non-organizers", async () => {
       // testMemberId is a regular member, not an organizer
       const [memberRecord] = await db

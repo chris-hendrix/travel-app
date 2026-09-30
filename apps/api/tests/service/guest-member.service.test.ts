@@ -5,6 +5,9 @@ import { eq, count } from "drizzle-orm";
 import { generateUniquePhone } from "../test-utils.js";
 import { GuestMemberService } from "@/services/guest-member.service.js";
 import { PermissionsService } from "@/services/permissions.service.js";
+import { InvitationService } from "@/services/invitation.service.js";
+import { SMSService } from "@/services/sms.service.js";
+import { NotificationService } from "@/services/notification.service.js";
 import {
   PermissionDeniedError,
   MemberLimitExceededError,
@@ -580,6 +583,40 @@ describe("guest-member.service update/delete (Task 3.2)", () => {
         .from(members)
         .where(eq(members.id, guest.id)),
     ).toHaveLength(0);
+  });
+
+  it("deleteGuest cancels the guest's pending invitation", async () => {
+    const invitationService = new InvitationService(
+      db,
+      permissionsService,
+      new SMSService(),
+      new NotificationService(db),
+    );
+    const guestPhone = generateUniquePhone();
+    const guest = await guestMemberService.createGuest(tripId, organizerId, {
+      displayName: "Mom",
+      guestPhone,
+    });
+    const { invitations: created } =
+      await invitationService.createInvitations(organizerId, tripId, [
+        guestPhone,
+      ]);
+    expect(created).toHaveLength(1);
+
+    await guestMemberService.deleteGuest(tripId, organizerId, guest.id);
+
+    expect(
+      await db
+        .select()
+        .from(members)
+        .where(eq(members.id, guest.id)),
+    ).toHaveLength(0);
+    const remaining = await invitationService.getInvitationsByTrip(tripId);
+    expect(
+      remaining.filter((i) => i.inviteePhone === guestPhone),
+    ).toHaveLength(0);
+
+    await db.delete(invitations).where(eq(invitations.tripId, tripId));
   });
 });
 

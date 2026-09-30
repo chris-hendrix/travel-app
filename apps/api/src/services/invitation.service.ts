@@ -895,6 +895,7 @@ export class InvitationService implements IInvitationService {
         .select({
           id: members.id,
           userId: members.userId,
+          guestPhone: members.guestPhone,
           isOrganizer: members.isOrganizer,
         })
         .from(members)
@@ -943,9 +944,9 @@ export class InvitationService implements IInvitationService {
 
     // Delete invitation and member in a transaction for consistency
     await this.db.transaction(async (tx) => {
-      // Task 4.4: guest rows have userId NULL — there is no users row to
-      // resolve a phone number from, so skip the invitation cleanup and
-      // delete the member row directly (travel + participant shares cascade).
+      // Claimed guest rows (userId set, guestPhone NULL) take the userId
+      // path below like any other member; unclaimed guest rows (userId
+      // NULL) cancel the invitation keyed by their guestPhone.
       if (member.userId) {
         // Find and delete associated invitation via user's phone number
         const [targetUser] = await tx
@@ -964,6 +965,19 @@ export class InvitationService implements IInvitationService {
               ),
             );
         }
+      } else if (member.guestPhone) {
+        // Guest branch (userId NULL): cancel this trip's invitations for
+        // the guest's phone — same row-delete semantics as
+        // revokeInvitation. Scoped to the trip so an identical phone on
+        // another trip is never touched.
+        await tx
+          .delete(invitations)
+          .where(
+            and(
+              eq(invitations.tripId, tripId),
+              eq(invitations.inviteePhone, member.guestPhone),
+            ),
+          );
       }
 
       // Delete the member record (cascades to member_travel)
