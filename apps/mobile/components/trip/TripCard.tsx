@@ -64,6 +64,12 @@ export type Trip = {
    * floor. Null when the destination has no linked place.
    */
   placeCountry?: string | null;
+  /**
+   * Who created the trip. Detail-sourced trips carry it (`TripDetail`
+   * sends it); list-sourced trips leave it undefined (`TripSummary`
+   * sends no `createdBy`), never `""`.
+   */
+  createdBy?: string | undefined;
 };
 
 /**

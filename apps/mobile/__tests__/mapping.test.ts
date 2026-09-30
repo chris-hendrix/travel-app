@@ -97,7 +97,12 @@ describe("toTrip", () => {
       placeName: null,
       placeAddress: null,
       placeCountry: null,
+      createdBy: "user-1",
     });
+  });
+
+  it("carries createdBy from the detail", () => {
+    expect(toTrip(tripDetail).createdBy).toBe("user-1");
   });
 
   it("reads the stored snapshot, not the place cache", () => {
@@ -219,6 +224,12 @@ describe("toTripSummary", () => {
 
   it("falls back to null when there is no cover", () => {
     expect(toTripSummary(tripSummary).image).toBe(null);
+  });
+
+  it("leaves createdBy undefined on a summary (never \"\")", () => {
+    const mapped = toTripSummary(tripSummary);
+    expect(mapped.createdBy).toBeUndefined();
+    expect(mapped.createdBy).not.toBe("");
   });
 });
 

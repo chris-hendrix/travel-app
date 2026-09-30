@@ -84,6 +84,7 @@ export function toTrip(detail: TripDetail): Trip {
     placeName: detail.placeName ?? null,
     placeAddress: detail.placeAddress ?? null,
     placeCountry: detail.place?.country ?? null,
+    createdBy: detail.createdBy,
   };
 }
 
