@@ -95,7 +95,7 @@ function NewGuestScreen() {
           placeholder="Mom"
         />
         <Text className="font-body text-sm text-ink">
-          No app needed. You plan for them.
+          Plan for them without inviting them.
         </Text>
       </View>
     </FullscreenDialog>

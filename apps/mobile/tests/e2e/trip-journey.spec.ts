@@ -318,6 +318,11 @@ test.describe("Trip Journey", () => {
       });
       await expect(removeButton).toBeVisible();
       await removeButton.click();
+      // app/trips/members/detail.tsx MemberDialog: the armed state asks
+      // the question in its own line and offers the way out.
+      await expect(
+        page.getByText("Are you sure?"),
+      ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
       await expect(
         page.getByRole("button", { name: "Cancel" }),
       ).toBeVisible({ timeout: ELEMENT_TIMEOUT });

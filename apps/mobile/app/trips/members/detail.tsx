@@ -313,15 +313,21 @@ function GuestDialog({
       ) : null}
 
       <Section title="Manage">
-        <View className="gap-4">
-          <View className="gap-1">
-            <Text className="font-body-bold text-base text-ink">
-              Remove guest
+        <View className="gap-2">
+          <Text className="font-body-bold text-base text-ink">
+            Remove guest
+          </Text>
+          <Text className="font-body text-sm text-ink opacity-60">
+            They come off the trip, and their travel goes with them.
+          </Text>
+          {/* The question appears only once the button is armed, and it
+              is the loudest line here: the reason above is quiet ink,
+              and this is the one asking for an answer. */}
+          {confirmingRemove ? (
+            <Text className="font-body text-sm text-ink">
+              Are you sure?
             </Text>
-            <Text className="font-body text-base text-ink">
-              They come off the trip, and their travel goes with them.
-            </Text>
-          </View>
+          ) : null}
           <Button
             title="Remove guest"
             variant={confirmingRemove ? "danger" : "secondary"}
@@ -443,17 +449,15 @@ function MemberDialog({
         </Text>
       ) : (
         <Section title="Manage">
-          <View className="gap-4">
-            <View className="gap-1">
-              <Text className="font-body-bold text-base text-ink">
-                {member.isOrganizer ? "Remove as organizer" : "Make organizer"}
-              </Text>
-              <Text className="font-body text-base text-ink">
-                {member.isOrganizer
-                  ? "They keep their place on the trip and lose what only an organizer can do."
-                  : "An organizer can invite people and edit the trip."}
-              </Text>
-            </View>
+          <View className="gap-2">
+            <Text className="font-body-bold text-base text-ink">
+              {member.isOrganizer ? "Remove as organizer" : "Make organizer"}
+            </Text>
+            <Text className="font-body text-sm text-ink opacity-60">
+              {member.isOrganizer
+                ? "They keep their place on the trip and lose what only an organizer can do."
+                : "An organizer can invite people and edit the trip."}
+            </Text>
             <Button
               title={member.isOrganizer ? "Remove as organizer" : "Make organizer"}
               variant="secondary"
@@ -465,16 +469,22 @@ function MemberDialog({
             ) : null}
           </View>
 
-          <View className="gap-4 border-t border-gravel pt-6">
-            <View className="gap-1">
-              <Text className="font-body-bold text-base text-ink">
-                Remove from trip
+          <View className="gap-2 border-t border-gravel pt-6">
+            <Text className="font-body-bold text-base text-ink">
+              Remove from trip
+            </Text>
+            <Text className="font-body text-sm text-ink opacity-60">
+              They lose access to this trip, and their travel goes with
+              them.
+            </Text>
+            {/* The question appears only once the button is armed, and
+                it is the loudest line here: the reason above is quiet
+                ink, and this is the one asking for an answer. */}
+            {confirmingRemove ? (
+              <Text className="font-body text-sm text-ink">
+                Are you sure?
               </Text>
-              <Text className="font-body text-base text-ink">
-                They lose access to this trip, and their travel goes with
-                them.
-              </Text>
-            </View>
+            ) : null}
             <Button
               title="Remove"
               variant={confirmingRemove ? "danger" : "secondary"}

@@ -495,14 +495,20 @@ test.describe("Invitation Journey", () => {
 
     await test.step("organizer adds a guest by name", async () => {
       // app/trips/members/new.tsx: TextField "Name", the bar
-      // primary "Add guest", and the helper "No app needed. You
-      // plan for them." — one name field, nothing else.
+      // primary "Add guest", and the helper "Plan for them without
+      // inviting them." — one name field, nothing else. Visible-only
+      // on the helper: the roll call this screen was opened from
+      // carries the same sentence and stays mounted behind it, so the
+      // text alone is two nodes (the admin spec's own fix).
       await page.getByRole("button", { name: "Add a guest" }).click();
       await page.waitForURL("**/trips/members/new?id=*", {
         timeout: NAVIGATION_TIMEOUT,
       });
       await expect(
-        page.getByText("No app needed. You plan for them."),
+        page
+          .getByText("Plan for them without inviting them.")
+          .filter({ visible: true })
+          .first(),
       ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
       await page.getByRole("textbox", { name: "Name" }).fill(guestName);
       await page.getByRole("button", { name: "Add guest" }).click();
