@@ -1193,35 +1193,6 @@ export class InvitationService implements IInvitationService {
       .leftJoin(users, eq(members.userId, users.id))
       .where(eq(members.tripId, tripId));
 
-    // Guest-to-invite conversion (read-layer presentation only): a guest
-    // member row (user_id NULL, guest_phone set) with a pending or failed
-    // invitation for that phone is presented as INVITED, not as a member.
-    // Applies to both organizer and non-organizer views. NULL-safe:
-    // claimed rows (guest_phone NULL) are never matched.
-    const pendingInviteRows = await this.db
-      .select({ inviteePhone: invitations.inviteePhone })
-      .from(invitations)
-      .where(
-        and(
-          eq(invitations.tripId, tripId),
-          inArray(invitations.status, ["pending", "failed"]),
-        ),
-      );
-    const pendingInvitePhones = new Set(
-      pendingInviteRows.map((r) => r.inviteePhone),
-    );
-    const visibleResults =
-      pendingInvitePhones.size > 0
-        ? results.filter(
-            (r) =>
-              !(
-                r.userId === null &&
-                r.guestPhone !== null &&
-                pendingInvitePhones.has(r.guestPhone)
-              ),
-          )
-        : results;
-
     // Get muted members for this trip (only when requesting user is organizer)
     let mutedUserIds: Set<string> = new Set();
     if (isOrg) {
@@ -1237,13 +1208,13 @@ export class InvitationService implements IInvitationService {
     // going/maybe filter; claimed rows follow the existing filter.
     const filteredResults =
       !isOrg && !tripSettings[0]?.showAllMembers
-        ? visibleResults.filter(
+        ? results.filter(
             (r) =>
               r.userId === null ||
               r.status === "going" ||
               r.status === "maybe",
           )
-        : visibleResults;
+        : results;
 
     return filteredResults.map((r) => ({
       id: r.id,

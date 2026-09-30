@@ -462,6 +462,75 @@ describe("Invitation Routes", () => {
 
       expect(response.statusCode).toBe(401);
     });
+
+    it("should include inviteeName when the invitation phone belongs to a registered user", async () => {
+      app = await buildApp();
+
+      const organizerResult = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "Organizer",
+          timezone: "UTC",
+        })
+        .returning();
+      const organizer = organizerResult[0];
+
+      const tripResult = await db
+        .insert(trips)
+        .values({
+          name: "Test Trip",
+          destination: "Rome",
+          preferredTimezone: "Europe/Rome",
+          createdBy: organizer.id,
+        })
+        .returning();
+      const trip = tripResult[0];
+
+      await db.insert(members).values({
+        tripId: trip.id,
+        userId: organizer.id,
+        status: "going",
+        isOrganizer: true,
+      });
+
+      const inviteeResult = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "Registered Invitee",
+          timezone: "UTC",
+        })
+        .returning();
+      const invitee = inviteeResult[0];
+
+      await db.insert(invitations).values({
+        tripId: trip.id,
+        inviterId: organizer.id,
+        inviteePhone: invitee.phoneNumber,
+        status: "pending",
+      });
+
+      const token = app.jwt.sign({
+        sub: organizer.id,
+        name: organizer.displayName,
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/api/trips/${trip.id}/invitations`,
+        cookies: {
+          auth_token: token,
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body).toHaveProperty("success", true);
+      expect(body.invitations).toHaveLength(1);
+      expect(body.invitations[0].inviteePhone).toBe(invitee.phoneNumber);
+      expect(body.invitations[0].inviteeName).toBe("Registered Invitee");
+    });
   });
 
   describe("DELETE /api/invitations/:id", () => {

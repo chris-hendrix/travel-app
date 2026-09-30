@@ -2327,8 +2327,8 @@ describe("invitation.service", () => {
     });
   });
 
-  describe("guest-to-invite conversion (read-layer presentation)", () => {
-    it("excludes a guest with a pending invitation from getTripMembers (organizer + non-organizer)", async () => {
+  describe("guest stays on the roster when invited (read-layer presentation)", () => {
+    it("keeps a guest with a pending invitation in getTripMembers (organizer + non-organizer)", async () => {
       const guestPhone = generateUniquePhone();
       const [guest] = await db
         .insert(members)
@@ -2365,15 +2365,25 @@ describe("invitation.service", () => {
         testTripId,
         testOrganizerId,
       );
-      expect(afterOrg.find((m) => m.id === guest.id)).toBeUndefined();
+      const guestAfterOrg = afterOrg.find((m) => m.id === guest.id);
+      expect(guestAfterOrg).toBeDefined();
+      expect(guestAfterOrg!.status).toBe("no_response");
       const afterMember = await invitationService.getTripMembers(
         testTripId,
         testMemberId,
       );
-      expect(afterMember.find((m) => m.id === guest.id)).toBeUndefined();
+      const guestAfterMember = afterMember.find((m) => m.id === guest.id);
+      expect(guestAfterMember).toBeDefined();
+      expect(guestAfterMember!.status).toBe("no_response");
+
+      // The invitation still names the guest on the invitations payload
+      const list = await invitationService.getInvitationsByTrip(testTripId);
+      const entry = list.find((i) => i.inviteePhone === guestPhone);
+      expect(entry).toBeDefined();
+      expect(entry!.invitedGuestName).toBe("Invited Guest");
     });
 
-    it("still excludes the guest when the invitation is failed", async () => {
+    it("keeps the guest when the invitation is failed", async () => {
       const guestPhone = generateUniquePhone();
       const [guest] = await db
         .insert(members)
@@ -2400,12 +2410,22 @@ describe("invitation.service", () => {
         testTripId,
         testOrganizerId,
       );
-      expect(asOrg.find((m) => m.id === guest.id)).toBeUndefined();
+      const guestAsOrg = asOrg.find((m) => m.id === guest.id);
+      expect(guestAsOrg).toBeDefined();
+      expect(guestAsOrg!.status).toBe("no_response");
       const asMember = await invitationService.getTripMembers(
         testTripId,
         testMemberId,
       );
-      expect(asMember.find((m) => m.id === guest.id)).toBeUndefined();
+      const guestAsMember = asMember.find((m) => m.id === guest.id);
+      expect(guestAsMember).toBeDefined();
+      expect(guestAsMember!.status).toBe("no_response");
+
+      // The invitation still names the guest on the invitations payload
+      const list = await invitationService.getInvitationsByTrip(testTripId);
+      const entry = list.find((i) => i.inviteePhone === guestPhone);
+      expect(entry).toBeDefined();
+      expect(entry!.invitedGuestName).toBe("Failed Invite Guest");
     });
 
     it("guest reappears with status no_response after the invitation is revoked", async () => {
@@ -2434,12 +2454,14 @@ describe("invitation.service", () => {
         .where(eq(members.id, guest.id));
       expect(resetRow!.status).toBe("no_response");
 
-      // Hidden while the invite is pending
-      const hidden = await invitationService.getTripMembers(
+      // Still on the roster while the invite is pending
+      const whilePending = await invitationService.getTripMembers(
         testTripId,
         testOrganizerId,
       );
-      expect(hidden.find((m) => m.id === guest.id)).toBeUndefined();
+      const pendingGuest = whilePending.find((m) => m.id === guest.id);
+      expect(pendingGuest).toBeDefined();
+      expect(pendingGuest!.status).toBe("no_response");
 
       await invitationService.revokeInvitation(
         testOrganizerId,
