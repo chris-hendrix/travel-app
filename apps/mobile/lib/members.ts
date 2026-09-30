@@ -19,6 +19,13 @@ export type Member = {
   /** E.164, as the account holds it. */
   phone: string;
   /**
+   * The raw guest number, only present for an organizer viewer on
+   * guest rows. The roll call folds invitations into the roster on
+   * this key — deliberately distinct from `phone`, which collapses
+   * absent to "" and can never match an invitation.
+   */
+  guestPhone?: string | undefined;
+  /**
    * Whether this member lets the other travelers see that number. An
    * organizer is not bound by it — they are running the trip — and
    * everyone else is.

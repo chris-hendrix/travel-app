@@ -501,6 +501,24 @@ describe("toMember", () => {
 
   it("tolerates an absent phoneNumber (visibility is server-side)", () => {
     const { phoneNumber: _dropped, ...withoutPhone } = member;
+    const mapped = toMember(withoutPhone);
+    expect(mapped.phone).toBe("");
+    // Absent must stay absent: the fold key is undefined, never "".
+    expect(mapped.guestPhone).toBeUndefined();
+    expect(mapped.guestPhone).not.toBe("");
+  });
+
+  it("carries the raw guestPhone through for a guest row", () => {
+    const guest: MemberWithProfile = {
+      ...member,
+      userId: null,
+      guestPhone: "+15557654321",
+    };
+    expect(toMember(guest).guestPhone).toBe("+15557654321");
+  });
+
+  it("keeps phone as \"\" when neither number is present", () => {
+    const { phoneNumber: _dropped, ...withoutPhone } = member;
     expect(toMember(withoutPhone).phone).toBe("");
   });
 });

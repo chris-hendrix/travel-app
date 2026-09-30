@@ -212,6 +212,7 @@ export function toMember(member: MemberWithProfile): Member {
     status: member.status,
     isOrganizer: member.isOrganizer,
     phone: member.phoneNumber ?? member.guestPhone ?? "",
+    guestPhone: member.guestPhone,
     sharePhone: member.sharePhone ?? false,
     handles: handlesOf(member.handles),
   };
