@@ -75,6 +75,24 @@ function PersonDetailDialog() {
     return <NotFound />;
   }
 
+  // The roll call only offers the way in on its organizer variant, but a
+  // URL is not a door that closes. Without this, a traveler who opens
+  // `/trips/members/detail?id=…&member=…` gets the organizer's dialogs —
+  // and the `invite` branch below would read "not on this trip any more",
+  // because a traveler is handed no invitations to match against.
+  if (!organizer) {
+    return (
+      <FullscreenDialog
+        title="Person"
+        dismissHref={`/trips/members?id=${trip.id}`}
+      >
+        <Text className="font-body text-base text-ink">
+          Only an organizer can manage the people on this trip.
+        </Text>
+      </FullscreenDialog>
+    );
+  }
+
   const memberId = typeof member === "string" ? member : undefined;
   const inviteId = typeof invite === "string" ? invite : undefined;
   const found = memberId

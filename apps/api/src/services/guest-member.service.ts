@@ -160,18 +160,40 @@ export class GuestMemberService implements IGuestMemberService {
       await this.assertPhoneAvailable(tripId, guestPhone, guest.id, phoneChanging);
     }
 
+    // A re-phoned guest must not leave its old invitation behind. That
+    // invitation was addressed to a number this guest no longer carries,
+    // and both removal paths cancel by the guest's CURRENT phone — so an
+    // orphan here would outlive the guest and come back as a nameless
+    // invited row, which is the state this work set out to remove.
+    const abandonedPhone =
+      guestPhone !== undefined && guestPhone !== guest.guestPhone
+        ? guest.guestPhone
+        : null;
+
     try {
-      const [updated] = await this.db
-        .update(members)
-        .set({
-          ...(input.displayName !== undefined
-            ? { guestDisplayName: input.displayName }
-            : {}),
-          ...(guestPhone !== undefined ? { guestPhone } : {}),
-          ...(input.status !== undefined ? { status: input.status } : {}),
-        })
-        .where(eq(members.id, guest.id))
-        .returning();
+      const [updated] = await this.db.transaction(async (tx) => {
+        if (abandonedPhone) {
+          await tx
+            .delete(invitations)
+            .where(
+              and(
+                eq(invitations.tripId, tripId),
+                eq(invitations.inviteePhone, abandonedPhone),
+              ),
+            );
+        }
+        return tx
+          .update(members)
+          .set({
+            ...(input.displayName !== undefined
+              ? { guestDisplayName: input.displayName }
+              : {}),
+            ...(guestPhone !== undefined ? { guestPhone } : {}),
+            ...(input.status !== undefined ? { status: input.status } : {}),
+          })
+          .where(eq(members.id, guest.id))
+          .returning();
+      });
       return updated!;
     } catch (err) {
       const pgCode =

@@ -618,6 +618,45 @@ describe("guest-member.service update/delete (Task 3.2)", () => {
 
     await db.delete(invitations).where(eq(invitations.tripId, tripId));
   });
+
+  it("re-phoning a guest cancels the invitation for the number they left", async () => {
+    const invitationService = new InvitationService(
+      db,
+      permissionsService,
+      new SMSService(),
+      new NotificationService(db),
+    );
+    const abandonedPhone = generateUniquePhone();
+    const keptPhone = generateUniquePhone();
+    const guest = await guestMemberService.createGuest(tripId, organizerId, {
+      displayName: "Re-phoned Guest",
+      guestPhone: abandonedPhone,
+    });
+    const { invitations: created } =
+      await invitationService.createInvitations(organizerId, tripId, [
+        abandonedPhone,
+      ]);
+    expect(created).toHaveLength(1);
+
+    // The dialog's own flow: the organizer types a different number and
+    // saves it. Without the cleanup the invitation for the old number
+    // stays on the trip, and the removal paths — which cancel by the
+    // guest's CURRENT phone — would leave it there for good.
+    const updated = await guestMemberService.updateGuest(
+      tripId,
+      organizerId,
+      guest.id,
+      { guestPhone: keptPhone },
+    );
+    expect(updated.guestPhone).toBe(keptPhone);
+
+    const remaining = await invitationService.getInvitationsByTrip(tripId);
+    expect(
+      remaining.filter((i) => i.inviteePhone === abandonedPhone),
+    ).toHaveLength(0);
+
+    await db.delete(invitations).where(eq(invitations.tripId, tripId));
+  });
 });
 
 /**

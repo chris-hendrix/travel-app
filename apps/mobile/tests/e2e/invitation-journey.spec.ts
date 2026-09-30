@@ -204,18 +204,14 @@ test.describe("Invitation Journey", () => {
     });
 
     await test.step("decline: tap Not going, the roster records it", async () => {
-      // Why the roster, not the control's selected state: a declined
-      // member is filtered out of the roster a traveler sees — the API
-      // returns only going/maybe rows to non-organizers by default
-      // (`getTripMembers` in the invitation service, the
-      // show-all-members-off branch) — so the guest's own row vanishes, `viewerOf`
-      // (lib/members.ts, the account-matched viewer) falls back to
-      // null, and the
-      // control renders its no_response empty state. The decline POST
-      // still succeeds (verified 200 + status not_going during
-      // development); the traveler control just cannot display it.
-      // The organizer sees every row, so the organizer-side roster is
-      // where the decline is asserted.
+      // A traveler sees every member and every guest now: the API's
+      // non-organizer status filter and the `showAllMembers` read it
+      // depended on were deleted with this work, so the declined row stays
+      // in the roster the traveler is looking at and `viewerOf`
+      // (lib/members.ts, the account-matched viewer) still finds them.
+      // The decline is therefore asserted twice: the organizer's roster
+      // straight from the API (the server's own answer) and the
+      // traveler's own control after a reload (what the person sees).
       await page
         .getByRole("radio", { name: "Not going", exact: true })
         .click();
@@ -242,6 +238,17 @@ test.describe("Invitation Journey", () => {
           { timeout: ELEMENT_TIMEOUT },
         )
         .toBe("not_going");
+
+      // And the traveler's own screen agrees, after a reload that throws
+      // the cache away. `Segmented` sets aria-selected on the chosen radio
+      // (components/ui/Segmented.tsx) — the state the deleted filter used
+      // to hide from a non-organizer.
+      await page.reload();
+      await expect(
+        page.getByRole("radio", { name: "Not going", exact: true }),
+      ).toHaveAttribute("aria-selected", "true", {
+        timeout: NAVIGATION_TIMEOUT,
+      });
     });
 
     await test.step("reload: the decline persisted server-side", async () => {
