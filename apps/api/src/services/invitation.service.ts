@@ -118,7 +118,7 @@ export interface IInvitationService {
   /**
    * Gets all members of a trip with profile information
    * Phone numbers are included when requesting user is an organizer or member has opted in via sharePhone.
-   * Non-organizer view is filtered to going/maybe members unless trip has showAllMembers enabled.
+   * Every member of the trip is returned, whatever their status.
    * @param tripId - The ID of the trip
    * @param requestingUserId - The ID of the requesting user
    * @returns Members with profile information
@@ -918,7 +918,12 @@ export class InvitationService implements IInvitationService {
       throw new CannotRemoveCreatorError();
     }
 
-    // If target is an organizer, check they're not the last one
+    // If target is an organizer, check they're not the last one.
+    // NOTE: believed unreachable — the creator guard above fires first for
+    // the only organizer who can never be removed (the creator's member row
+    // is inserted with isOrganizer: true at trip creation and nothing can
+    // demote or remove the creator), so an organizer set of size 1 can only
+    // be the creator. Kept as a safety net.
     if (member.isOrganizer) {
       const [organizerCount] = await this.db
         .select({ value: count() })
@@ -1146,7 +1151,7 @@ export class InvitationService implements IInvitationService {
   /**
    * Gets all members of a trip with profile information
    * Phone numbers included when requesting user is organizer or member has sharePhone enabled.
-   * Non-organizers see only going/maybe members unless trip.showAllMembers is true.
+   * Every member of the trip is returned, whatever their status.
    */
   async getTripMembers(
     tripId: string,
@@ -1164,13 +1169,6 @@ export class InvitationService implements IInvitationService {
     }
 
     const isOrg = membershipInfo.isOrganizer;
-
-    // Fetch trip's showAllMembers setting
-    const tripSettings = await this.db
-      .select({ showAllMembers: trips.showAllMembers })
-      .from(trips)
-      .where(eq(trips.id, tripId))
-      .limit(1);
 
     // Query members with user profiles. Guest rows (userId NULL) have no
     // users row, so leftJoin + COALESCE keeps them in the result set with
@@ -1203,20 +1201,10 @@ export class InvitationService implements IInvitationService {
       mutedUserIds = new Set(mutedRows.map((r) => r.userId));
     }
 
-    // Filter members for non-organizers when showAllMembers is off.
-    // Guest rows (userId NULL) are visible to everyone regardless of the
-    // going/maybe filter; claimed rows follow the existing filter.
-    const filteredResults =
-      !isOrg && !tripSettings[0]?.showAllMembers
-        ? results.filter(
-            (r) =>
-              r.userId === null ||
-              r.status === "going" ||
-              r.status === "maybe",
-          )
-        : results;
-
-    return filteredResults.map((r) => ({
+    // A non-organizer's roster is the whole trip: every member and every
+    // guest is returned, whatever their status. Invitations stay
+    // organizer-only, gated separately at the invitations route.
+    return results.map((r) => ({
       id: r.id,
       userId: r.userId,
       displayName: r.displayName,
@@ -1310,7 +1298,12 @@ export class InvitationService implements IInvitationService {
       throw new CannotDemoteCreatorError();
     }
 
-    // If demoting, check they're not the last organizer
+    // If demoting, check they're not the last organizer.
+    // NOTE: believed unreachable — the creator guard above fires first for
+    // the only organizer who can never be demoted (the creator's member row
+    // is inserted with isOrganizer: true at trip creation and nothing can
+    // demote or remove the creator), so an organizer set of size 1 can only
+    // be the creator. Kept as a safety net.
     if (!isOrganizer && member.isOrganizer) {
       const [organizerCount] = await this.db
         .select({ value: count() })

@@ -833,8 +833,8 @@ describe("guest-member.service claimGuestMember (Task 4.1)", () => {
 /**
  * Task 5.1 RED: member & trip reads include guests.
  * - getTripMembers returns guest rows (userId null) for organizer AND
- *   non-organizer regardless of showAllMembers/status; claimed rows keep the
- *   going/maybe/showAllMembers filter.
+ *   non-organizer, and every claimed row whatever its status: a
+ *   non-organizer's roster is the whole trip, unfiltered.
  * - getMemberTravelByTrip returns guest travel with memberName =
  *   guest_display_name and userId null.
  * - trip reads include guests; updateMemberRole rejects guest rows.
@@ -930,12 +930,12 @@ describe("member & trip reads with guests present (Task 5.1)", () => {
     expect(guest!.isOrganizer).toBe(false);
   });
 
-  it("non-organizer sees the no_response guest even when showAllMembers is off", async () => {
+  it("non-organizer sees every member and the guest, unfiltered", async () => {
     await guestMemberService.createGuest(tripId, organizerId, {
       displayName: "Mom",
     });
-    // A claimed no_response member must stay hidden from non-organizers
-    // while the guest row bypasses the going/maybe filter.
+    // A claimed no_response member is visible to non-organizers too:
+    // the roster is the whole trip, whatever the status.
     const lurker = await createUser("Lurker");
     await db.insert(members).values({
       tripId,
@@ -951,7 +951,7 @@ describe("member & trip reads with guests present (Task 5.1)", () => {
     expect(guest).toBeDefined();
     expect(guest!.displayName).toBe("Mom");
     expect(guest!.guestPhone).toBeUndefined();
-    expect(list.find((m) => m.userId === lurker.id)).toBeUndefined();
+    expect(list.find((m) => m.userId === lurker.id)).toBeDefined();
   });
 
   it("getMemberTravelByTrip returns guest travel with guest name and null userId", async () => {

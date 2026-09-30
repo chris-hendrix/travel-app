@@ -1745,7 +1745,7 @@ describe("Invitation Routes", () => {
       expect(regMember.phoneNumber).toBeUndefined();
     });
 
-    it("should filter members by status when showAllMembers is false", async () => {
+    it("should return every member to a non-organizer, whatever their status", async () => {
       app = await buildApp();
 
       // Create organizer
@@ -1760,7 +1760,7 @@ describe("Invitation Routes", () => {
 
       const organizer = organizerResult[0];
 
-      // Create trip (showAllMembers defaults to false)
+      // Create trip
       const tripResult = await db
         .insert(trips)
         .values({
@@ -1836,114 +1836,7 @@ describe("Invitation Routes", () => {
 
       const body = JSON.parse(response.body);
 
-      // Only going members should be returned (organizer + member1)
-      expect(body.members).toHaveLength(2);
-      const memberUserIds = body.members.map(
-        (m: { userId: string }) => m.userId,
-      );
-      expect(memberUserIds).toContain(organizer.id);
-      expect(memberUserIds).toContain(member1.id);
-      expect(memberUserIds).not.toContain(member2.id);
-    });
-
-    it("should show all members when showAllMembers is true", async () => {
-      app = await buildApp();
-
-      // Create organizer
-      const organizerResult = await db
-        .insert(users)
-        .values({
-          phoneNumber: generateUniquePhone(),
-          displayName: "Organizer",
-          timezone: "UTC",
-        })
-        .returning();
-
-      const organizer = organizerResult[0];
-
-      // Create trip
-      const tripResult = await db
-        .insert(trips)
-        .values({
-          name: "Test Trip",
-          destination: "Nagoya",
-          preferredTimezone: "Asia/Tokyo",
-          createdBy: organizer.id,
-        })
-        .returning();
-
-      const trip = tripResult[0];
-
-      // Enable showAllMembers
-      await db
-        .update(trips)
-        .set({ showAllMembers: true })
-        .where(eq(trips.id, trip.id));
-
-      await db.insert(members).values({
-        tripId: trip.id,
-        userId: organizer.id,
-        status: "going",
-        isOrganizer: true,
-      });
-
-      // Create member1 (going)
-      const member1Result = await db
-        .insert(users)
-        .values({
-          phoneNumber: generateUniquePhone(),
-          displayName: "Member One",
-          timezone: "UTC",
-        })
-        .returning();
-
-      const member1 = member1Result[0];
-
-      await db.insert(members).values({
-        tripId: trip.id,
-        userId: member1.id,
-        status: "going",
-        isOrganizer: false,
-      });
-
-      // Create member2 (not_going)
-      const member2Result = await db
-        .insert(users)
-        .values({
-          phoneNumber: generateUniquePhone(),
-          displayName: "Member Two",
-          timezone: "UTC",
-        })
-        .returning();
-
-      const member2 = member2Result[0];
-
-      await db.insert(members).values({
-        tripId: trip.id,
-        userId: member2.id,
-        status: "not_going",
-        isOrganizer: false,
-      });
-
-      // GET as member1 (non-organizer)
-      const token = app.jwt.sign({
-        sub: member1.id,
-        name: member1.displayName,
-      });
-
-      const response = await app.inject({
-        method: "GET",
-        url: `/api/trips/${trip.id}/members`,
-        cookies: {
-          auth_token: token,
-        },
-      });
-
-      expect(response.statusCode).toBe(200);
-
-      const body = JSON.parse(response.body);
-
-      // All 3 members should be returned including not_going
+      // Every member is returned to a non-organizer, whatever their status
       expect(body.members).toHaveLength(3);
       const memberUserIds = body.members.map(
         (m: { userId: string }) => m.userId,

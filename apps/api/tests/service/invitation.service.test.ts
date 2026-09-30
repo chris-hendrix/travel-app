@@ -807,8 +807,9 @@ describe("invitation.service", () => {
       expect(member!.phoneNumber).toBeUndefined();
     });
 
-    it("should return only going and maybe members for non-organizer when showAllMembers is false", async () => {
-      // Trip already has showAllMembers: false by default
+    it("should return every member to a non-organizer, whatever their status", async () => {
+      // A non-organizer's roster is the whole trip: every member is
+      // returned regardless of status, even when showAllMembers is false.
       // Create a non-going user
       const nonGoingPhone = generateUniquePhone();
       const [nonGoingUser] = await db
@@ -833,59 +834,10 @@ describe("invitation.service", () => {
         testMemberId,
       );
 
-      // Should NOT contain nonGoingUser
-      expect(result.find((m) => m.userId === nonGoingUser.id)).toBeUndefined();
+      // Should contain every member, including the not_going one
+      expect(result.find((m) => m.userId === nonGoingUser.id)).toBeDefined();
 
       // Should contain organizer and member (both "going")
-      expect(result.find((m) => m.userId === testOrganizerId)).toBeDefined();
-      expect(result.find((m) => m.userId === testMemberId)).toBeDefined();
-
-      // Clean up
-      await db
-        .delete(members)
-        .where(
-          and(
-            eq(members.tripId, testTripId),
-            eq(members.userId, nonGoingUser.id),
-          ),
-        );
-      await db.delete(users).where(eq(users.phoneNumber, nonGoingPhone));
-    });
-
-    it("should return all members for non-organizer when showAllMembers is true", async () => {
-      // Enable showAllMembers on trip
-      await db
-        .update(trips)
-        .set({ showAllMembers: true })
-        .where(eq(trips.id, testTripId));
-
-      // Create a non-going user
-      const nonGoingPhone = generateUniquePhone();
-      const [nonGoingUser] = await db
-        .insert(users)
-        .values({
-          phoneNumber: nonGoingPhone,
-          displayName: "Not Going User",
-          timezone: "UTC",
-        })
-        .returning();
-
-      await db.insert(members).values({
-        tripId: testTripId,
-        userId: nonGoingUser.id,
-        status: "not_going",
-        isOrganizer: false,
-      });
-
-      // Call as non-organizer
-      const result = await invitationService.getTripMembers(
-        testTripId,
-        testMemberId,
-      );
-
-      // Should contain all 3 members including the not_going one
-      expect(result).toHaveLength(3);
-      expect(result.find((m) => m.userId === nonGoingUser.id)).toBeDefined();
       expect(result.find((m) => m.userId === testOrganizerId)).toBeDefined();
       expect(result.find((m) => m.userId === testMemberId)).toBeDefined();
 
