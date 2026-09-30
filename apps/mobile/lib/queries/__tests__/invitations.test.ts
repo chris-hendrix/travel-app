@@ -8,6 +8,7 @@ import {
   invitationKeys,
   invite,
   mutualSuggestionsOptions,
+  tripInvitationsOptions,
 } from "@/lib/queries/invitations";
 import type {
   CreateInvitationsResponse,
@@ -167,5 +168,138 @@ describe("mutualSuggestionsOptions", () => {
     expect(mockedApiFetch).toHaveBeenCalledWith(
       "/trips/trip-1/mutual-suggestions?search=An",
     );
+  });
+});
+
+describe("tripInvitationsOptions", () => {
+  function invitationsListBody() {
+    return {
+      success: true,
+      invitations: [
+        {
+          id: "inv-1",
+          tripId: "trip-1",
+          inviterId: "user-9",
+          inviteePhone: "+15557654321",
+          status: "pending",
+          sentAt: "2026-09-01T00:00:00.000Z",
+          respondedAt: null,
+          createdAt: "2026-09-01T00:00:00.000Z",
+          updatedAt: "2026-09-01T00:00:00.000Z",
+          invitedGuestName: "Camp Guest",
+          inviteeName: "Account Name",
+        },
+        {
+          id: "inv-2",
+          tripId: "trip-1",
+          inviterId: "user-9",
+          inviteePhone: "+15558889999",
+          status: "declined",
+          sentAt: "2026-09-02T00:00:00.000Z",
+          respondedAt: "2026-09-03T00:00:00.000Z",
+          createdAt: "2026-09-02T00:00:00.000Z",
+          updatedAt: "2026-09-03T00:00:00.000Z",
+          inviteeName: "Account Name",
+        },
+        {
+          id: "inv-3",
+          tripId: "trip-1",
+          inviterId: "user-9",
+          inviteePhone: "+15550001111",
+          status: "pending",
+          sentAt: "2026-09-04T00:00:00.000Z",
+          respondedAt: null,
+          createdAt: "2026-09-04T00:00:00.000Z",
+          updatedAt: "2026-09-04T00:00:00.000Z",
+        },
+      ],
+    };
+  }
+
+  it("reads GET /trips/:tripId/invitations into the app's { id, phone, status, sentAt, name } rows", async () => {
+    // `GET /trips/:tripId/invitations`
+    // (`apps/api/src/routes/invitation.routes.ts:92-103`, organizer-only
+    // via `canInviteMembers`, envelope `{success, invitations}`). The
+    // roll call folds these rows into its people list: an invitation
+    // whose phone has no member row behind it is still a person the
+    // organizer invited.
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue(invitationsListBody());
+
+    const options = tripInvitationsOptions("trip-1", true);
+    expect(options.queryKey).toEqual(invitationKeys.trip("trip-1"));
+
+    const rows = await options.queryFn!({
+      queryKey: options.queryKey,
+    } as never);
+
+    expect(mockedApiFetch).toHaveBeenCalledTimes(1);
+    expect(mockedApiFetch).toHaveBeenCalledWith("/trips/trip-1/invitations");
+    expect(rows).toEqual([
+      {
+        id: "inv-1",
+        phone: "+15557654321",
+        status: "pending",
+        sentAt: "2026-09-01T00:00:00.000Z",
+        name: "Camp Guest",
+      },
+      {
+        id: "inv-2",
+        phone: "+15558889999",
+        status: "declined",
+        sentAt: "2026-09-02T00:00:00.000Z",
+        name: "Account Name",
+      },
+      {
+        id: "inv-3",
+        phone: "+15550001111",
+        status: "pending",
+        sentAt: "2026-09-04T00:00:00.000Z",
+        name: null,
+      },
+    ]);
+  });
+
+  it("prefers the guest row's chosen name over the account display name", async () => {
+    // Both enrichments present: `invitedGuestName` (what the organizer
+    // named on the guest row) beats `inviteeName` (the matched
+    // registered user's display name); each alone falls back in turn,
+    // and neither means null. Asserted row-by-row above; this pins the
+    // precedence on a single row carrying both.
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({
+      success: true,
+      invitations: [
+        {
+          id: "inv-9",
+          tripId: "trip-1",
+          inviterId: "user-9",
+          inviteePhone: "+15557654321",
+          status: "pending",
+          sentAt: "2026-09-01T00:00:00.000Z",
+          respondedAt: null,
+          createdAt: "2026-09-01T00:00:00.000Z",
+          updatedAt: "2026-09-01T00:00:00.000Z",
+          invitedGuestName: "Camp Guest",
+          inviteeName: "Account Name",
+        },
+      ],
+    });
+
+    const options = tripInvitationsOptions("trip-1", true);
+    const rows = await options.queryFn!({
+      queryKey: options.queryKey,
+    } as never);
+
+    expect(rows).toMatchObject([{ id: "inv-9", name: "Camp Guest" }]);
+  });
+
+  it("stays disabled unless asked for: only organizers may call it", () => {
+    // The endpoint is organizer-only, so the roll call passes
+    // `viewerIsOrganizer` as `enabled` — a non-organizer never fires
+    // the request (the preview `enabled`-by-id precedent, gated here
+    // by the caller's flag instead).
+    expect(tripInvitationsOptions("trip-1", false).enabled).toBe(false);
+    expect(tripInvitationsOptions("trip-1", true).enabled).toBe(true);
   });
 });
