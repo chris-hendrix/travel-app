@@ -16,6 +16,8 @@ export const DIALOG_ROUTES = [
   "/profile",
   "/admin/users/detail",
   "/trips/members",
+  "/trips/members/new",
+  "/trips/members/detail",
   "/trips/invite",
   "/trips/settings",
   "/trips/edit",

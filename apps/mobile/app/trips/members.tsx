@@ -102,15 +102,26 @@ function TripMembersDialog() {
       </View>
       {/* Under the list, not in the bar: adding a guest lengthens the
           roll call rather than inviting, which is what the bar is for.
-          The traveler gets no button at all — there is nothing here a
-          traveler may do. */}
+          A block with its heading and its reason, the shape the
+          person dialog's own Manage sections take. The traveler gets
+          nothing here — there is nothing a traveler may do. */}
       {viewerIsOrganizer ? (
-        <View className="pt-4">
-          <Button
-            title="Add a guest"
-            variant="secondary"
-            onPress={() => router.push(`/trips/members/new?id=${trip.id}`)}
-          />
+        <View className="pt-6">
+          <View className="gap-1">
+            <Text className="font-body-bold text-base text-ink">
+              Add a guest
+            </Text>
+            <Text className="font-body text-base text-ink">
+              They need no app. You plan for them.
+            </Text>
+          </View>
+          <View className="mt-3">
+            <Button
+              title="Add a guest"
+              variant="secondary"
+              onPress={() => router.push(`/trips/members/new?id=${trip.id}`)}
+            />
+          </View>
         </View>
       ) : null}
     </FullscreenDialog>
