@@ -296,7 +296,7 @@ test.describe("Trip Journey", () => {
       await expect(page.getByText(riserName)).toBeVisible();
     });
 
-    await test.step("remove a member with a single press", async () => {
+    await test.step("remove a member with the confirm the guest also takes", async () => {
       // app/trips/members.tsx MemberRow: the organizer's rows are
       // pressable (role="button" named by the member's name) and
       // push /trips/members/detail?id=…&member=….
@@ -305,18 +305,23 @@ test.describe("Trip Journey", () => {
         timeout: NAVIGATION_TIMEOUT,
       });
       // app/trips/members/detail.tsx MemberDialog: facts, then the
-      // Manage Section; the Remove block's button reads "Remove"
-      // and applies on a single press (no Cancel, no second press —
-      // that two-press shape belongs to the guest dialog only).
+      // Manage Section; the Remove block's button reads "Remove" and
+      // arms on the first press — a Cancel appears under it — and only
+      // the second press removes. Both dialogs that take a person off
+      // the trip ask it the same way.
       await expect(page.getByText("Manage")).toBeVisible({
         timeout: ELEMENT_TIMEOUT,
       });
+      const removeButton = page.getByRole("button", {
+        name: "Remove",
+        exact: true,
+      });
+      await expect(removeButton).toBeVisible();
+      await removeButton.click();
       await expect(
-        page.getByRole("button", { name: "Remove", exact: true }),
-      ).toBeVisible();
-      await page
-        .getByRole("button", { name: "Remove", exact: true })
-        .click();
+        page.getByRole("button", { name: "Cancel" }),
+      ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+      await removeButton.click();
       // The DELETE lands and the dialog re-reads the roster: with
       // the row gone it renders its gone state rather than the
       // Manage block. (The dialog does not auto-dismiss back to the

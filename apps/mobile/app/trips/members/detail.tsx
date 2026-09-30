@@ -360,6 +360,10 @@ function MemberDialog({
   const { user } = useAuth();
   const [roleError, setRoleError] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
+  // The remove's first press: the button inverts and a Cancel appears
+  // under it. The same shape the guest dialog takes, because taking
+  // somebody off the trip asks the same question whoever they are.
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
   const dismiss = useDismiss(dismissHref);
 
   const setOrganizer = useSetOrganizer(trip.id);
@@ -384,6 +388,10 @@ function MemberDialog({
   }
 
   function remove() {
+    if (!confirmingRemove) {
+      setConfirmingRemove(true);
+      return;
+    }
     setRemoveError(null);
     removeMember.mutate(
       { memberId: member.id },
@@ -469,10 +477,16 @@ function MemberDialog({
             </View>
             <Button
               title="Remove"
-              variant="secondary"
+              variant={confirmingRemove ? "danger" : "secondary"}
               onPress={remove}
               disabled={removeMember.isPending}
             />
+            {confirmingRemove ? (
+              <QuietAction
+                label="Cancel"
+                onPress={() => setConfirmingRemove(false)}
+              />
+            ) : null}
             {removeError ? <InlineError message={removeError} /> : null}
           </View>
         </Section>

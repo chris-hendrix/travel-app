@@ -85,12 +85,12 @@ function TripMembersDialog() {
       }
       dismissHref={`/trips/detail?id=${trip.id}`}
     >
-      {/* Soft gravel rules between rows of the same kind; the ink top
-          rule above stays ink because it separates the roster block
-          from the text above it, which is a block boundary. The part
-          each person plays sits at the far edge so the column can be
-          read down. */}
-      <View className="border-t border-ink">
+      {/* The rows carry their own gravel rules, one under each, and the
+          roster is the dialog's first block: a rule above it would mark
+          a boundary that is not there, since the header already closes
+          the top. The part each person plays sits at the far edge so
+          the column can be read down. */}
+      <View>
         {rows.map((row) => (
           <RosterRowItem
             key={row.kind === "person" ? row.member.id : row.invitationId}

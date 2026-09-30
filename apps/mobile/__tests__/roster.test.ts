@@ -30,25 +30,57 @@ function invitation(over: Partial<TripInvitationRow> = {}): TripInvitationRow {
 }
 
 describe("rosterRows order", () => {
-  it("lists the organizer first, then members in server order, then guests, then invitees", () => {
+  it("follows the far column: organizing, then the answers, then guests, then invitees", () => {
+    // Seeded in an order no reader would choose, so the expectation
+    // proves the sort rather than the input's own order.
+    const declined = member({
+      id: "m-no",
+      name: "Ken",
+      status: "not_going",
+    });
+    const silent = member({
+      id: "m-silent",
+      name: "Dana",
+      status: "no_response",
+    });
+    const maybe = member({
+      id: "m-maybe",
+      name: "Ben Ortiz",
+      status: "maybe",
+    });
+    const going = member({ id: "m-going", name: "Sarah Chen" });
+    const organizer = member({ id: "m-org", name: "Liam", isOrganizer: true });
     const guest = member({
       id: "m-guest",
       userId: null,
       name: "Mom",
       phone: "",
     });
-    const second = member({ id: "m-2", name: "Sarah Chen" });
-    const organizer = member({ id: "m-org", name: "Liam", isOrganizer: true });
-    const first = member({ id: "m-1", name: "Ben Ortiz" });
     const invitee = invitation({ id: "inv-9", phone: "+15550000009" });
-    const rows = rosterRows([guest, second, organizer, first], [invitee]);
-    expect(rows.map((r) => (r.kind === "person" ? r.member.id : r.invitationId))).toEqual([
+    const rows = rosterRows(
+      [guest, declined, maybe, silent, organizer, going],
+      [invitee],
+    );
+    expect(
+      rows.map((r) => (r.kind === "person" ? r.member.id : r.invitationId)),
+    ).toEqual([
       "m-org",
-      "m-2",
-      "m-1",
+      "m-going",
+      "m-maybe",
+      "m-silent",
+      "m-no",
       "m-guest",
       "inv-9",
     ]);
+  });
+
+  it("keeps server order within one status", () => {
+    const seededFirst = member({ id: "m-1", name: "Ada" });
+    const seededSecond = member({ id: "m-2", name: "Grace" });
+    const rows = rosterRows([seededSecond, seededFirst], []);
+    expect(
+      rows.map((r) => (r.kind === "person" ? r.member.id : r.invitationId)),
+    ).toEqual(["m-2", "m-1"]);
   });
 });
 

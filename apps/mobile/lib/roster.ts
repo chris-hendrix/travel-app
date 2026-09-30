@@ -17,6 +17,7 @@
 import type { Member } from "@/lib/members";
 import type { TripInvitationRow } from "@/lib/queries/invitations";
 import { formatPhoneForDisplay } from "@/lib/phone";
+import type { RsvpStatus } from "@/lib/rsvp";
 
 /** One row of the roll call. A person is a member row (guest or not);
  *  an invitation with no member row behind it is a person all the same. */
@@ -40,19 +41,36 @@ const RENDERABLE_STATUS: ReadonlySet<TripInvitationRow["status"]> = new Set([
 ]);
 
 /**
- * Reading order in one place: organizers, then the remaining member
- * rows, then guests, then invitees. Flip guests and invitees here, on
- * this one line, if the design ever wants it the other way: the plan's
- * Architecture line (`member / guest / invited`) agrees with this
- * order, while the UI mockup's illustrative sketch shows an invited
- * row above a guest row — that conflict is unresolved, and this file
- * implements guests-then-invitees.
+ * Reading order in one place, and it follows the far column: the list is
+ * sorted by the word each row wears, so that column reads down in one
+ * monotonic run and "who is coming" is the top of it. Organizing, then
+ * the answers in the order a person gives them, then the people who are
+ * not members at all — guests, who are on the trip but never answered,
+ * and last the invitations that have not joined.
+ *
+ * `no_response` sits before `not_going`: one is silence that can still
+ * become a yes, the other is an answer already given.
+ *
+ * A guest sorts as a guest rather than by its own status, because its
+ * far column says Guest: sorting it by a status it never gave would
+ * contradict the column this order follows.
  */
+const STATUS_RANK: Record<RsvpStatus, number> = {
+  going: 1,
+  maybe: 2,
+  no_response: 3,
+  not_going: 4,
+};
+
+const ORGANIZER_RANK = 0;
+const GUEST_RANK = 5;
+const INVITED_RANK = 6;
+
 const rosterRank = (row: RosterRow): number => {
-  if (row.kind === "invited") return 3;
-  if (row.member.isOrganizer) return 0;
-  if (row.guest) return 2;
-  return 1;
+  if (row.kind === "invited") return INVITED_RANK;
+  if (row.member.isOrganizer) return ORGANIZER_RANK;
+  if (row.guest) return GUEST_RANK;
+  return STATUS_RANK[row.member.status];
 };
 
 /** The roll call's named ordering: one comparator, one line to flip. */
