@@ -84,6 +84,7 @@ export function toTrip(detail: TripDetail): Trip {
     placeName: detail.placeName ?? null,
     placeAddress: detail.placeAddress ?? null,
     placeCountry: detail.place?.country ?? null,
+    createdBy: detail.createdBy,
   };
 }
 
@@ -212,6 +213,7 @@ export function toMember(member: MemberWithProfile): Member {
     status: member.status,
     isOrganizer: member.isOrganizer,
     phone: member.phoneNumber ?? member.guestPhone ?? "",
+    guestPhone: member.guestPhone,
     sharePhone: member.sharePhone ?? false,
     handles: handlesOf(member.handles),
   };

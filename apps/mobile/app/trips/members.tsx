@@ -1,6 +1,7 @@
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
+import { Button } from "@/components/ui/Button";
 import { ChipLink } from "@/components/ui/ChipLink";
 import { useTrip } from "@/lib/tripsStore";
 import { TripGate } from "@/components/trip/TripGate";
@@ -11,6 +12,8 @@ import { memberLabel } from "@/lib/rsvp";
 import { instagramUrl, venmoUrl } from "@/lib/links";
 import { formatPhoneForDisplay } from "@/lib/phone";
 import { useMembers } from "@/lib/queries/members";
+import { useTripInvitations } from "@/lib/queries/invitations";
+import { rosterRows, type RosterRow } from "@/lib/roster";
 
 /**
  * The roll call, reached from "6 going" on the trip header.
@@ -57,6 +60,12 @@ function TripMembersDialog() {
   // Who you are comes from the server: your own roster row, matched
   // by account, carries your role — never a query param.
   const viewerIsOrganizer = viewerOf(members, user?.id)?.isOrganizer ?? false;
+  // The traveler is handed no invitations, so `rosterRows` produces no
+  // `invited` rows for them — the traveler variant falls out of the
+  // `enabled` flag, not a filter. A traveler never reaches the person
+  // dialog, so their rows stay plain views.
+  const { invitations } = useTripInvitations(trip?.id, viewerIsOrganizer);
+  const rows = rosterRows(members, invitations);
 
   if (!trip) {
     return <NotFound />;
@@ -76,21 +85,111 @@ function TripMembersDialog() {
       }
       dismissHref={`/trips/detail?id=${trip.id}`}
     >
-      {/* Soft gravel rules between rows of the same kind; the ink top
-          rule above stays ink because it separates the roster block
-          from the text above it, which is a block boundary. The part
-          each person plays sits at the far edge so the column can be
-          read down. */}
-      <View className="border-t border-ink">
-        {members.map((member) => (
-          <MemberRow
-            key={member.id}
-            member={member}
+      {/* The rows carry their own gravel rules, one under each, and the
+          roster is the dialog's first block: a rule above it would mark
+          a boundary that is not there, since the header already closes
+          the top. The part each person plays sits at the far edge so
+          the column can be read down. */}
+      <View>
+        {rows.map((row) => (
+          <RosterRowItem
+            key={row.kind === "person" ? row.member.id : row.invitationId}
+            row={row}
+            tripId={trip.id}
             viewerIsOrganizer={viewerIsOrganizer}
           />
         ))}
       </View>
+      {/* Under the list, not in the bar: adding a guest lengthens the
+          roll call rather than inviting, which is what the bar is for.
+          A described block in the shape the person dialog's own Manage
+          sections take, since it is the same kind of thing: one action
+          with its reason. The traveler gets nothing here — there is
+          nothing a traveler may do. */}
+      {viewerIsOrganizer ? (
+        <View className="gap-2 pt-6">
+          <Text className="font-body-bold text-base text-ink">
+            Add a guest
+          </Text>
+          <Text className="font-body text-sm text-ink opacity-60">
+            Plan for them without inviting them.
+          </Text>
+          <Button
+            title="Add a guest"
+            variant="secondary"
+            onPress={() => router.push(`/trips/members/new?id=${trip.id}`)}
+          />
+        </View>
+      ) : null}
     </FullscreenDialog>
+  );
+}
+
+/**
+ * One row of the roll call. The far column is the row's kind, not its
+ * state: a member reads `memberLabel`, a guest reads `Guest` even with
+ * a pending invitation behind them (the fold, not a second row, is
+ * where that invitation lives), and an invitation with no row behind
+ * it reads `Invited`.
+ *
+ * Only the organizer's rows press: they open the person dialog, a
+ * member behind `?member=` or an invitee behind `?invite=`. A
+ * traveler's rows are not pressable — a traveler never reaches that
+ * dialog.
+ */
+function RosterRowItem({
+  row,
+  tripId,
+  viewerIsOrganizer,
+}: {
+  row: RosterRow;
+  tripId: string;
+  viewerIsOrganizer: boolean;
+}) {
+  const router = useRouter();
+  if (row.kind === "invited") {
+    // `rosterRows` falls back to the formatted phone as the name, so
+    // the number hangs below only when there is a real name above it.
+    const showPhone =
+      row.name !== null && row.name !== formatPhoneForDisplay(row.phone);
+    const body = (
+      <View className="flex-row items-center justify-between gap-4 border-b border-b-gravel py-3">
+        <View className="flex-1 gap-1">
+          <Text className="font-body-bold text-base text-ink">
+            {showPhone ? row.name : formatPhoneForDisplay(row.phone)}
+          </Text>
+          {showPhone ? (
+            <Text className="font-body text-sm text-ink">
+              {formatPhoneForDisplay(row.phone)}
+            </Text>
+          ) : null}
+        </View>
+        <Text className="font-body text-sm text-ink">Invited</Text>
+      </View>
+    );
+    if (!viewerIsOrganizer) return body;
+    return (
+      <Pressable
+        role="button"
+        accessibilityRole="button"
+        onPress={() =>
+          router.push(
+            `/trips/members/detail?id=${tripId}&invite=${row.invitationId}`,
+          )
+        }
+      >
+        {body}
+      </Pressable>
+    );
+  }
+
+  return (
+    <MemberRow
+      member={row.member}
+      guest={row.guest}
+      tripId={tripId}
+      viewerIsOrganizer={viewerIsOrganizer}
+    />
   );
 }
 
@@ -106,14 +205,19 @@ function TripMembersDialog() {
  */
 function MemberRow({
   member,
+  guest,
+  tripId,
   viewerIsOrganizer,
 }: {
   member: Member;
+  guest: boolean;
+  tripId: string;
   viewerIsOrganizer: boolean;
 }) {
+  const router = useRouter();
   const phone = visiblePhone(member, viewerIsOrganizer);
 
-  return (
+  const body = (
     <View className="flex-row items-center justify-between gap-4 border-b border-b-gravel py-3">
       <View className="flex-1 gap-1">
         <View className="flex-row flex-wrap items-center gap-3">
@@ -140,8 +244,20 @@ function MemberRow({
         ) : null}
       </View>
       <Text className="font-body text-sm text-ink">
-        {memberLabel(member)}
+        {guest ? "Guest" : memberLabel(member)}
       </Text>
     </View>
+  );
+  if (!viewerIsOrganizer) return body;
+  return (
+    <Pressable
+      role="button"
+      accessibilityRole="button"
+      onPress={() =>
+        router.push(`/trips/members/detail?id=${tripId}&member=${member.id}`)
+      }
+    >
+      {body}
+    </Pressable>
   );
 }

@@ -49,6 +49,7 @@ import { KINDS, type PlaceholderKind } from "@/lib/placeholder";
 import { NotificationRow } from "@/components/notification/NotificationRow";
 import { TRIPS } from "@/mocks/trips";
 import { eventsFor } from "@/mocks/events";
+import { membersFor } from "@/mocks/members";
 import { staysFor } from "@/mocks/stays";
 import { NOTIFICATIONS } from "@/mocks/notifications";
 import { INVITATIONS } from "@/mocks/invitations";
@@ -84,6 +85,20 @@ const PRIVACY = legalDocument("privacy");
 const SAMPLE_TRIP = TRIPS[0]!;
 const SAMPLE_EVENT = eventsFor(SAMPLE_TRIP)[0]!;
 const SAMPLE_STAY = staysFor(SAMPLE_TRIP)[0]!;
+/**
+ * The sample trip's first two roster rows, for the person links below.
+ *
+ * Derived rather than written down, the same way the event and the
+ * stay above are: the mocks build row ids as `${trip.id}-${index}`,
+ * so the organizer's own row is `picos-0`. The roster sorts
+ * organizer-first, so the first row is the organizer and the second
+ * is a guest — which is the distinction Guest detail and Member
+ * detail draw. (Every mock row carries `userId: null`, because the
+ * lab has no signed-in identity, so both links land on the dialog's
+ * guest branch; the pre-existing `?id=picos` wart applies here too.)
+ */
+const SAMPLE_MEMBER = membersFor(SAMPLE_TRIP)[0]!;
+const SAMPLE_GUEST = membersFor(SAMPLE_TRIP)[1]!;
 
 const PROSE_SAMPLE: LegalDocument = {
   ...PRIVACY,
@@ -1113,6 +1128,21 @@ function DesignSystemScreen() {
             className="font-body-bold text-base text-ink underline"
           >
             Who's coming · traveler
+          </Link>
+          <Link href="/trips/members/new?id=picos" className="font-body-bold text-base text-ink underline">
+            Add a guest
+          </Link>
+          <Link
+            href={`/trips/members/detail?id=picos&member=${SAMPLE_GUEST.id}`}
+            className="font-body-bold text-base text-ink underline"
+          >
+            Guest detail
+          </Link>
+          <Link
+            href={`/trips/members/detail?id=picos&member=${SAMPLE_MEMBER.id}`}
+            className="font-body-bold text-base text-ink underline"
+          >
+            Member detail
           </Link>
           <Link href="/trips/settings?id=picos" className="font-body-bold text-base text-ink underline">
             Trip settings

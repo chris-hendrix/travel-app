@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
+import { DIALOG_ROUTES } from "@/lib/routes";
 
 const mobileDir = path.resolve(__dirname, "..");
 
@@ -69,6 +70,51 @@ describe("expo policy: an unknown trip is not another trip", () => {
     expect(
       offenders,
       "no '?? trips[0]' fallback in any spelling (?? / ||, with or without a space) under app/",
+    ).toEqual([]);
+  });
+});
+
+describe("expo policy: a dialog route is registered as one", () => {
+  it("registers every route that renders FullscreenDialog", () => {
+    // `lib/routes.ts` instructs: "Add every new dialog route." The shell hides
+    // the wordmark band for the paths listed there and paints a dialog's own
+    // ground behind the status bar, so a dialog that is missing from the list
+    // wears the app's band above its own title and leaves a sand strip where
+    // its gravel should be. That instruction was prose only until a new dialog
+    // shipped without it.
+    //
+    // What this can decide by reading source is the routes that render
+    // `FullscreenDialog` directly. A dialog reached through a component is
+    // invisible here — `/trips/invite` renders `InviteDialog`, `/terms` its
+    // document — so those stay a manual step; the list is theirs to keep, and
+    // this guards the larger half.
+    const appDir = path.join(mobileDir, "app");
+    const unregistered: string[] = [];
+    const routeOf = (rel: string): string => {
+      const segments = rel.replace(/\.tsx$/, "").split(path.sep);
+      const last = segments[segments.length - 1];
+      // `index.tsx` is its directory's own route; `(group)` segments are
+      // expo-router's grouping and never appear in a pathname.
+      const named = last === "index" ? segments.slice(0, -1) : segments;
+      return `/${named.filter((s) => !s.startsWith("(")).join("/")}`;
+    };
+    const walk = (dir: string) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        // `_layout.tsx` and `+not-found.tsx` are not routes a person opens.
+        else if (/\.tsx$/.test(entry.name) && !/^[_+]/.test(entry.name)) {
+          const source = fs.readFileSync(full, "utf8");
+          if (!source.includes("<FullscreenDialog")) continue;
+          const route = routeOf(path.relative(appDir, full));
+          if (!DIALOG_ROUTES.includes(route)) unregistered.push(route);
+        }
+      }
+    };
+    walk(appDir);
+    expect(
+      unregistered,
+      "these routes render FullscreenDialog, so the shell must know they are dialogs — add them to DIALOG_ROUTES in lib/routes.ts",
     ).toEqual([]);
   });
 });

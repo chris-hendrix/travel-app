@@ -5,6 +5,9 @@ import { eq, count } from "drizzle-orm";
 import { generateUniquePhone } from "../test-utils.js";
 import { GuestMemberService } from "@/services/guest-member.service.js";
 import { PermissionsService } from "@/services/permissions.service.js";
+import { InvitationService } from "@/services/invitation.service.js";
+import { SMSService } from "@/services/sms.service.js";
+import { NotificationService } from "@/services/notification.service.js";
 import {
   PermissionDeniedError,
   MemberLimitExceededError,
@@ -581,6 +584,79 @@ describe("guest-member.service update/delete (Task 3.2)", () => {
         .where(eq(members.id, guest.id)),
     ).toHaveLength(0);
   });
+
+  it("deleteGuest cancels the guest's pending invitation", async () => {
+    const invitationService = new InvitationService(
+      db,
+      permissionsService,
+      new SMSService(),
+      new NotificationService(db),
+    );
+    const guestPhone = generateUniquePhone();
+    const guest = await guestMemberService.createGuest(tripId, organizerId, {
+      displayName: "Mom",
+      guestPhone,
+    });
+    const { invitations: created } =
+      await invitationService.createInvitations(organizerId, tripId, [
+        guestPhone,
+      ]);
+    expect(created).toHaveLength(1);
+
+    await guestMemberService.deleteGuest(tripId, organizerId, guest.id);
+
+    expect(
+      await db
+        .select()
+        .from(members)
+        .where(eq(members.id, guest.id)),
+    ).toHaveLength(0);
+    const remaining = await invitationService.getInvitationsByTrip(tripId);
+    expect(
+      remaining.filter((i) => i.inviteePhone === guestPhone),
+    ).toHaveLength(0);
+
+    await db.delete(invitations).where(eq(invitations.tripId, tripId));
+  });
+
+  it("re-phoning a guest cancels the invitation for the number they left", async () => {
+    const invitationService = new InvitationService(
+      db,
+      permissionsService,
+      new SMSService(),
+      new NotificationService(db),
+    );
+    const abandonedPhone = generateUniquePhone();
+    const keptPhone = generateUniquePhone();
+    const guest = await guestMemberService.createGuest(tripId, organizerId, {
+      displayName: "Re-phoned Guest",
+      guestPhone: abandonedPhone,
+    });
+    const { invitations: created } =
+      await invitationService.createInvitations(organizerId, tripId, [
+        abandonedPhone,
+      ]);
+    expect(created).toHaveLength(1);
+
+    // The dialog's own flow: the organizer types a different number and
+    // saves it. Without the cleanup the invitation for the old number
+    // stays on the trip, and the removal paths — which cancel by the
+    // guest's CURRENT phone — would leave it there for good.
+    const updated = await guestMemberService.updateGuest(
+      tripId,
+      organizerId,
+      guest.id,
+      { guestPhone: keptPhone },
+    );
+    expect(updated.guestPhone).toBe(keptPhone);
+
+    const remaining = await invitationService.getInvitationsByTrip(tripId);
+    expect(
+      remaining.filter((i) => i.inviteePhone === abandonedPhone),
+    ).toHaveLength(0);
+
+    await db.delete(invitations).where(eq(invitations.tripId, tripId));
+  });
 });
 
 /**
@@ -833,8 +909,8 @@ describe("guest-member.service claimGuestMember (Task 4.1)", () => {
 /**
  * Task 5.1 RED: member & trip reads include guests.
  * - getTripMembers returns guest rows (userId null) for organizer AND
- *   non-organizer regardless of showAllMembers/status; claimed rows keep the
- *   going/maybe/showAllMembers filter.
+ *   non-organizer, and every claimed row whatever its status: a
+ *   non-organizer's roster is the whole trip, unfiltered.
  * - getMemberTravelByTrip returns guest travel with memberName =
  *   guest_display_name and userId null.
  * - trip reads include guests; updateMemberRole rejects guest rows.
@@ -930,12 +1006,12 @@ describe("member & trip reads with guests present (Task 5.1)", () => {
     expect(guest!.isOrganizer).toBe(false);
   });
 
-  it("non-organizer sees the no_response guest even when showAllMembers is off", async () => {
+  it("non-organizer sees every member and the guest, unfiltered", async () => {
     await guestMemberService.createGuest(tripId, organizerId, {
       displayName: "Mom",
     });
-    // A claimed no_response member must stay hidden from non-organizers
-    // while the guest row bypasses the going/maybe filter.
+    // A claimed no_response member is visible to non-organizers too:
+    // the roster is the whole trip, whatever the status.
     const lurker = await createUser("Lurker");
     await db.insert(members).values({
       tripId,
@@ -951,7 +1027,7 @@ describe("member & trip reads with guests present (Task 5.1)", () => {
     expect(guest).toBeDefined();
     expect(guest!.displayName).toBe("Mom");
     expect(guest!.guestPhone).toBeUndefined();
-    expect(list.find((m) => m.userId === lurker.id)).toBeUndefined();
+    expect(list.find((m) => m.userId === lurker.id)).toBeDefined();
   });
 
   it("getMemberTravelByTrip returns guest travel with guest name and null userId", async () => {

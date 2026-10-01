@@ -17,6 +17,8 @@ export interface Invitation {
   updatedAt: string;
   /** Guest display name when the invitee phone matches a guest member row */
   invitedGuestName?: string;
+  /** Registered user's display name when the invitee phone matches an account */
+  inviteeName?: string;
 }
 
 /**

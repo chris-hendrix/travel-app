@@ -1,4 +1,4 @@
-import { mutationOptions, queryOptions } from "@tanstack/react-query";
+import { mutationOptions, queryOptions, useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 
 /**
@@ -32,6 +32,8 @@ export const invitationKeys = {
   suggestions: (tripId: string, search = "") =>
     [...invitationKeys.all, "suggestions", tripId, search] as const,
   preview: (id: string) => [...invitationKeys.all, "preview", id] as const,
+  trip: (tripId: string) =>
+    [...invitationKeys.all, "trip", tripId] as const,
 };
 
 /**
@@ -260,3 +262,97 @@ export const createInvitationsOptions = () =>
 
 /** Alias kept so call sites can name the mutation, not the options. */
 export { createInvitationsOptions as createInvitationsMutation };
+
+/**
+ * One trip-invitation row in the app's shape, mirroring the
+ * `GET /trips/:tripId/invitations` response
+ * (`apps/api/src/routes/invitation.routes.ts:92-103`, organizer-only
+ * via `canInviteMembers`, envelope `{success, invitations}`): the id,
+ * the invitee phone, the status, when it was sent, and the display
+ * name — the guest row's chosen name first, the matched account's
+ * display name next, null when neither exists. zod is not a mobile
+ * dep, so the shape is declared inline (the trips/auth precedent).
+ */
+export type TripInvitationRow = {
+  id: string;
+  phone: string;
+  status: "pending" | "accepted" | "declined" | "failed";
+  sentAt: string;
+  name: string | null;
+};
+
+/**
+ * Inline mirror of the trip-invitations response body: each row is
+ * the DB row plus the two optional enrichments built at
+ * `apps/api/src/services/invitation.service.ts:802-818` —
+ * `inviteeName` (the matched registered user's display name) and
+ * `invitedGuestName` (the guest row's display name for that phone).
+ * All four statuses arrive; the app decides which it renders.
+ */
+export type TripInvitationsResponse = {
+  success: true;
+  invitations: Array<{
+    id: string;
+    tripId: string;
+    inviterId: string;
+    inviteePhone: string;
+    status: TripInvitationRow["status"];
+    sentAt: string;
+    respondedAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+    inviteeName?: string;
+    invitedGuestName?: string;
+  }>;
+};
+
+/**
+ * Trip-invitations query: `GET /trips/:tripId/invitations`, mapped to
+ * the app's `{ id, phone, status, sentAt, name }` rows. The guest
+ * row's chosen name beats the account's display name when both
+ * exist — the guest row is what the organizer named.
+ *
+ * `enabled` is the caller's flag, never derived here: the endpoint
+ * is organizer-only, so the roll call passes `viewerIsOrganizer` and
+ * a non-organizer never fires the request (the preview
+ * `enabled`-by-id precedent, gated here by the caller's flag
+ * instead).
+ */
+export const tripInvitationsOptions = (tripId: string, enabled: boolean) =>
+  queryOptions({
+    queryKey: invitationKeys.trip(tripId),
+    queryFn: async (): Promise<TripInvitationRow[]> => {
+      const body = await apiFetch<TripInvitationsResponse>(
+        `/trips/${tripId}/invitations`,
+      );
+      return body.invitations.map((invitation) => ({
+        id: invitation.id,
+        phone: invitation.inviteePhone,
+        status: invitation.status,
+        sentAt: invitation.sentAt,
+        name:
+          invitation.invitedGuestName ?? invitation.inviteeName ?? null,
+      }));
+    },
+    enabled,
+  });
+
+/**
+ * The read half for a trip's invitations: the trip-invitations query,
+ * disabled unless the caller asks for it. Plain `useQuery`, never
+ * Suspense (the events/travel precedent): the roll call renders under
+ * the trip gate already, and a non-organizer viewer simply reads an
+ * empty list without suspending.
+ */
+export function useTripInvitations(
+  tripId: string | undefined,
+  enabled: boolean,
+): {
+  invitations: TripInvitationRow[];
+} {
+  const query = useQuery({
+    ...tripInvitationsOptions(tripId ?? "", enabled),
+    enabled: enabled && typeof tripId === "string" && tripId.length > 0,
+  });
+  return { invitations: query.data ?? [] };
+}

@@ -118,7 +118,7 @@ export interface IInvitationService {
   /**
    * Gets all members of a trip with profile information
    * Phone numbers are included when requesting user is an organizer or member has opted in via sharePhone.
-   * Non-organizer view is filtered to going/maybe members unless trip has showAllMembers enabled.
+   * Every member of the trip is returned, whatever their status.
    * @param tripId - The ID of the trip
    * @param requestingUserId - The ID of the requesting user
    * @returns Members with profile information
@@ -895,6 +895,7 @@ export class InvitationService implements IInvitationService {
         .select({
           id: members.id,
           userId: members.userId,
+          guestPhone: members.guestPhone,
           isOrganizer: members.isOrganizer,
         })
         .from(members)
@@ -918,7 +919,12 @@ export class InvitationService implements IInvitationService {
       throw new CannotRemoveCreatorError();
     }
 
-    // If target is an organizer, check they're not the last one
+    // If target is an organizer, check they're not the last one.
+    // NOTE: believed unreachable — the creator guard above fires first for
+    // the only organizer who can never be removed (the creator's member row
+    // is inserted with isOrganizer: true at trip creation and nothing can
+    // demote or remove the creator), so an organizer set of size 1 can only
+    // be the creator. Kept as a safety net.
     if (member.isOrganizer) {
       const [organizerCount] = await this.db
         .select({ value: count() })
@@ -938,9 +944,9 @@ export class InvitationService implements IInvitationService {
 
     // Delete invitation and member in a transaction for consistency
     await this.db.transaction(async (tx) => {
-      // Task 4.4: guest rows have userId NULL — there is no users row to
-      // resolve a phone number from, so skip the invitation cleanup and
-      // delete the member row directly (travel + participant shares cascade).
+      // Claimed guest rows (userId set, guestPhone NULL) take the userId
+      // path below like any other member; unclaimed guest rows (userId
+      // NULL) cancel the invitation keyed by their guestPhone.
       if (member.userId) {
         // Find and delete associated invitation via user's phone number
         const [targetUser] = await tx
@@ -959,6 +965,19 @@ export class InvitationService implements IInvitationService {
               ),
             );
         }
+      } else if (member.guestPhone) {
+        // Guest branch (userId NULL): cancel this trip's invitations for
+        // the guest's phone — same row-delete semantics as
+        // revokeInvitation. Scoped to the trip so an identical phone on
+        // another trip is never touched.
+        await tx
+          .delete(invitations)
+          .where(
+            and(
+              eq(invitations.tripId, tripId),
+              eq(invitations.inviteePhone, member.guestPhone),
+            ),
+          );
       }
 
       // Delete the member record (cascades to member_travel)
@@ -1146,7 +1165,7 @@ export class InvitationService implements IInvitationService {
   /**
    * Gets all members of a trip with profile information
    * Phone numbers included when requesting user is organizer or member has sharePhone enabled.
-   * Non-organizers see only going/maybe members unless trip.showAllMembers is true.
+   * Every member of the trip is returned, whatever their status.
    */
   async getTripMembers(
     tripId: string,
@@ -1164,13 +1183,6 @@ export class InvitationService implements IInvitationService {
     }
 
     const isOrg = membershipInfo.isOrganizer;
-
-    // Fetch trip's showAllMembers setting
-    const tripSettings = await this.db
-      .select({ showAllMembers: trips.showAllMembers })
-      .from(trips)
-      .where(eq(trips.id, tripId))
-      .limit(1);
 
     // Query members with user profiles. Guest rows (userId NULL) have no
     // users row, so leftJoin + COALESCE keeps them in the result set with
@@ -1193,35 +1205,6 @@ export class InvitationService implements IInvitationService {
       .leftJoin(users, eq(members.userId, users.id))
       .where(eq(members.tripId, tripId));
 
-    // Guest-to-invite conversion (read-layer presentation only): a guest
-    // member row (user_id NULL, guest_phone set) with a pending or failed
-    // invitation for that phone is presented as INVITED, not as a member.
-    // Applies to both organizer and non-organizer views. NULL-safe:
-    // claimed rows (guest_phone NULL) are never matched.
-    const pendingInviteRows = await this.db
-      .select({ inviteePhone: invitations.inviteePhone })
-      .from(invitations)
-      .where(
-        and(
-          eq(invitations.tripId, tripId),
-          inArray(invitations.status, ["pending", "failed"]),
-        ),
-      );
-    const pendingInvitePhones = new Set(
-      pendingInviteRows.map((r) => r.inviteePhone),
-    );
-    const visibleResults =
-      pendingInvitePhones.size > 0
-        ? results.filter(
-            (r) =>
-              !(
-                r.userId === null &&
-                r.guestPhone !== null &&
-                pendingInvitePhones.has(r.guestPhone)
-              ),
-          )
-        : results;
-
     // Get muted members for this trip (only when requesting user is organizer)
     let mutedUserIds: Set<string> = new Set();
     if (isOrg) {
@@ -1232,20 +1215,10 @@ export class InvitationService implements IInvitationService {
       mutedUserIds = new Set(mutedRows.map((r) => r.userId));
     }
 
-    // Filter members for non-organizers when showAllMembers is off.
-    // Guest rows (userId NULL) are visible to everyone regardless of the
-    // going/maybe filter; claimed rows follow the existing filter.
-    const filteredResults =
-      !isOrg && !tripSettings[0]?.showAllMembers
-        ? visibleResults.filter(
-            (r) =>
-              r.userId === null ||
-              r.status === "going" ||
-              r.status === "maybe",
-          )
-        : visibleResults;
-
-    return filteredResults.map((r) => ({
+    // A non-organizer's roster is the whole trip: every member and every
+    // guest is returned, whatever their status. Invitations stay
+    // organizer-only, gated separately at the invitations route.
+    return results.map((r) => ({
       id: r.id,
       userId: r.userId,
       displayName: r.displayName,
@@ -1339,7 +1312,12 @@ export class InvitationService implements IInvitationService {
       throw new CannotDemoteCreatorError();
     }
 
-    // If demoting, check they're not the last organizer
+    // If demoting, check they're not the last organizer.
+    // NOTE: believed unreachable — the creator guard above fires first for
+    // the only organizer who can never be demoted (the creator's member row
+    // is inserted with isOrganizer: true at trip creation and nothing can
+    // demote or remove the creator), so an organizer set of size 1 can only
+    // be the creator. Kept as a safety net.
     if (!isOrganizer && member.isOrganizer) {
       const [organizerCount] = await this.db
         .select({ value: count() })

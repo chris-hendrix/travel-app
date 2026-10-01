@@ -97,7 +97,12 @@ describe("toTrip", () => {
       placeName: null,
       placeAddress: null,
       placeCountry: null,
+      createdBy: "user-1",
     });
+  });
+
+  it("carries createdBy from the detail", () => {
+    expect(toTrip(tripDetail).createdBy).toBe("user-1");
   });
 
   it("reads the stored snapshot, not the place cache", () => {
@@ -219,6 +224,12 @@ describe("toTripSummary", () => {
 
   it("falls back to null when there is no cover", () => {
     expect(toTripSummary(tripSummary).image).toBe(null);
+  });
+
+  it("leaves createdBy undefined on a summary (never \"\")", () => {
+    const mapped = toTripSummary(tripSummary);
+    expect(mapped.createdBy).toBeUndefined();
+    expect(mapped.createdBy).not.toBe("");
   });
 });
 
@@ -500,6 +511,24 @@ describe("toMember", () => {
   });
 
   it("tolerates an absent phoneNumber (visibility is server-side)", () => {
+    const { phoneNumber: _dropped, ...withoutPhone } = member;
+    const mapped = toMember(withoutPhone);
+    expect(mapped.phone).toBe("");
+    // Absent must stay absent: the fold key is undefined, never "".
+    expect(mapped.guestPhone).toBeUndefined();
+    expect(mapped.guestPhone).not.toBe("");
+  });
+
+  it("carries the raw guestPhone through for a guest row", () => {
+    const guest: MemberWithProfile = {
+      ...member,
+      userId: null,
+      guestPhone: "+15557654321",
+    };
+    expect(toMember(guest).guestPhone).toBe("+15557654321");
+  });
+
+  it("keeps phone as \"\" when neither number is present", () => {
     const { phoneNumber: _dropped, ...withoutPhone } = member;
     expect(toMember(withoutPhone).phone).toBe("");
   });

@@ -22,9 +22,12 @@
  * Selectors are `getByRole`/`getByText` only; every selector names the
  * screen file and line-shape it matches in a comment.
  *
- * TODO (parked): guest members stay
- * deferred, so there is no guest-claim spec here — add one (invite a
- * guest link, claim it without a full account) once guests exist.
+ * Guest path (this spec's fourth test): guests exist now — the organizer
+ * adds a guest by name on `/trips/members/new`, the roll call reads `Guest`,
+ * and the guest dialog sends the invite (`Invite sent`, reload-persisted).
+ * The same test also proves the `Invited` row plus the invited dialog,
+ * which the mockup cannot render (mocks/invitations.ts models the public
+ * preview invitation, not the organizer's trip-invitation list).
  */
 
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
@@ -201,18 +204,14 @@ test.describe("Invitation Journey", () => {
     });
 
     await test.step("decline: tap Not going, the roster records it", async () => {
-      // Why the roster, not the control's selected state: a declined
-      // member is filtered out of the roster a traveler sees — the API
-      // returns only going/maybe rows to non-organizers by default
-      // (`getTripMembers` in the invitation service, the
-      // show-all-members-off branch) — so the guest's own row vanishes, `viewerOf`
-      // (lib/members.ts, the account-matched viewer) falls back to
-      // null, and the
-      // control renders its no_response empty state. The decline POST
-      // still succeeds (verified 200 + status not_going during
-      // development); the traveler control just cannot display it.
-      // The organizer sees every row, so the organizer-side roster is
-      // where the decline is asserted.
+      // A traveler sees every member and every guest now: the API's
+      // non-organizer status filter and the `showAllMembers` read it
+      // depended on were deleted with this work, so the declined row stays
+      // in the roster the traveler is looking at and `viewerOf`
+      // (lib/members.ts, the account-matched viewer) still finds them.
+      // The decline is therefore asserted twice: the organizer's roster
+      // straight from the API (the server's own answer) and the
+      // traveler's own control after a reload (what the person sees).
       await page
         .getByRole("radio", { name: "Not going", exact: true })
         .click();
@@ -239,6 +238,17 @@ test.describe("Invitation Journey", () => {
           { timeout: ELEMENT_TIMEOUT },
         )
         .toBe("not_going");
+
+      // And the traveler's own screen agrees, after a reload that throws
+      // the cache away. `Segmented` sets aria-selected on the chosen radio
+      // (components/ui/Segmented.tsx) — the state the deleted filter used
+      // to hide from a non-organizer.
+      await page.reload();
+      await expect(
+        page.getByRole("radio", { name: "Not going", exact: true }),
+      ).toHaveAttribute("aria-selected", "true", {
+        timeout: NAVIGATION_TIMEOUT,
+      });
     });
 
     await test.step("reload: the decline persisted server-side", async () => {
@@ -419,6 +429,168 @@ test.describe("Invitation Journey", () => {
       await expect(page.getByText(tripName).last()).toBeVisible({
         timeout: ELEMENT_TIMEOUT,
       });
+    });
+  });
+
+  test("organizer adds a guest, invites them, and sees the Invited row", async ({
+    page,
+    request,
+  }) => {
+    const tripName = uniqueLabel("E2E Guest Path");
+    const guestName = uniqueLabel("E2E Guest");
+    const guestPhone = generateUniquePhone();
+    const invitedPhone = generateUniquePhone();
+    let tripId: string;
+    let orgToken: string;
+
+    await test.step("organizer seeds a trip and opens the roll call", async () => {
+      ({ token: orgToken } = await seedUserViaAPI(
+        request,
+        generateUniquePhone(),
+        "Invite Host",
+      ));
+      tripId = await seedTripViaAPI(request, orgToken, tripName);
+      // A number invited with no guest row behind it: the `Invited`
+      // row's backing state (seedInviteViaAPI POSTs a raw phone).
+      await seedInviteViaAPI(request, orgToken, tripId, invitedPhone);
+      await seedPageWithToken(page, orgToken);
+      await page.goto(`/trips/members?id=${tripId}`);
+      // app/trips/members.tsx: FullscreenDialog titled "Who's
+      // coming"; the organizer variant carries the secondary
+      // Button "Add a guest" under the list.
+      await expect(page.getByText("Who's coming")).toBeVisible({
+        timeout: NAVIGATION_TIMEOUT,
+      });
+      await expect(
+        page.getByRole("button", { name: "Add a guest" }),
+      ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+    });
+
+    await test.step("the number invited with no guest row reads Invited", async () => {
+      // app/trips/members.tsx RosterRowItem: an invitation with no
+      // member row behind it renders the phone with the far column
+      // "Invited". exact:true is load-bearing: "Guest" matching is
+      // case-insensitive substring by default, so the "Add a guest"
+      // button would match without it.
+      await expect(
+        page.getByText("Invited", { exact: true }),
+      ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+    });
+
+    await test.step("the Invited row opens the invited dialog", async () => {
+      // app/trips/members.tsx: the organizer's invited row presses
+      // through to /trips/members/detail?invite=.
+      await page.getByRole("button", { name: "Invited" }).click();
+      await page.waitForURL("**/trips/members/detail?id=*&invite=*", {
+        timeout: NAVIGATION_TIMEOUT,
+      });
+      // app/trips/members/detail.tsx InvitedDialog: the number,
+      // "Not on the trip yet.", then the Manage block with Remove.
+      // Left unpressed: removal counts belong to another spec.
+      await expect(
+        page.getByText("Not on the trip yet."),
+      ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+      await expect(page.getByText("Manage")).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Remove" }),
+      ).toBeVisible();
+      await page.goto(`/trips/members?id=${tripId}`);
+      await expect(page.getByText("Who's coming")).toBeVisible({
+        timeout: NAVIGATION_TIMEOUT,
+      });
+    });
+
+    await test.step("organizer adds a guest by name", async () => {
+      // app/trips/members/new.tsx: TextField "Name", the bar
+      // primary "Add guest", and the helper "Plan for them without
+      // inviting them." — one name field, nothing else. Visible-only
+      // on the helper: the roll call this screen was opened from
+      // carries the same sentence and stays mounted behind it, so the
+      // text alone is two nodes (the admin spec's own fix).
+      await page.getByRole("button", { name: "Add a guest" }).click();
+      await page.waitForURL("**/trips/members/new?id=*", {
+        timeout: NAVIGATION_TIMEOUT,
+      });
+      await expect(
+        page
+          .getByText("Plan for them without inviting them.")
+          .filter({ visible: true })
+          .first(),
+      ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+      await page.getByRole("textbox", { name: "Name" }).fill(guestName);
+      await page.getByRole("button", { name: "Add guest" }).click();
+      await page.waitForURL("**/trips/members?id=*", {
+        timeout: SLOW_NAVIGATION_TIMEOUT,
+      });
+    });
+
+    await test.step("the guest reads Guest on the roll call", async () => {
+      // app/trips/members.tsx MemberRow: a member row with
+      // userId === null reads "Guest" in the far column.
+      await expect(page.getByText(guestName)).toBeVisible({
+        timeout: ELEMENT_TIMEOUT,
+      });
+      await expect(
+        page.getByText("Guest", { exact: true }),
+      ).toBeVisible();
+    });
+
+    await test.step("the guest dialog sends the invite", async () => {
+      // app/trips/members.tsx: the organizer's guest row presses
+      // through to /trips/members/detail?member=.
+      await page.getByRole("button", { name: guestName }).click();
+      await page.waitForURL("**/trips/members/detail?id=*&member=*", {
+        timeout: NAVIGATION_TIMEOUT,
+      });
+      // app/trips/members/detail.tsx GuestDialog: the Name field,
+      // the phone row whose button reads "Send invite", "Save
+      // changes" on the bar, and the Manage block.
+      await expect(
+        page.getByRole("textbox", { name: "Name" }),
+      ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+      await expect(
+        page.getByRole("textbox", { name: "Phone" }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Send invite" }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Save changes" }),
+      ).toBeVisible();
+      await expect(page.getByText("Manage")).toBeVisible();
+      // components/ui/PhoneField.tsx: the controlled RN input, so
+      // pressSequentially, not fill (fill() desynchronizes it the
+      // way the auth spec's login step documents).
+      const phoneInput = page.getByRole("textbox", { name: "Phone" });
+      await phoneInput.click();
+      await phoneInput.pressSequentially(guestPhone);
+      await page.getByRole("button", { name: "Send invite" }).click();
+      await expect(
+        page.getByRole("button", { name: "Invite sent" }),
+      ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+      await expect(
+        page.getByRole("button", { name: "Invite sent" }),
+      ).toBeDisabled();
+    });
+
+    await test.step("reload: the invite persisted server-side", async () => {
+      await page.reload();
+      // The pending invitation folds into the guest's row rather
+      // than adding a second one, so the dialog still reads
+      // "Invite sent" after the round-trip.
+      await expect(
+        page.getByRole("button", { name: "Invite sent" }),
+      ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
+    });
+
+    await test.step("the invited guest still reads Guest on the roll call", async () => {
+      await page.goto(`/trips/members?id=${tripId}`);
+      await expect(page.getByText(guestName)).toBeVisible({
+        timeout: NAVIGATION_TIMEOUT,
+      });
+      await expect(
+        page.getByText("Guest", { exact: true }),
+      ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
     });
   });
 });
