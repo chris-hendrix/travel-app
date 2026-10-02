@@ -13,6 +13,7 @@ import { Grid } from "@/components/ui/Grid";
 import { groupTrips } from "@/lib/tripGroups";
 import { toErrorCopy } from "@/lib/queries/errors";
 import { useTrips } from "@/lib/tripsStore";
+import { Column } from "@/components/ui/Column";
 
 /**
  * Design lab: the trips screen under construction.
@@ -24,6 +25,7 @@ import { useTrips } from "@/lib/tripsStore";
 export default function TripsScreen() {
   return (
     <Screen>
+<Column>
       {/* The list read is the screen: Suspense owns the loading copy
           ("Loading your trips"), the boundary below owns the failure copy, and
           the content owns the empty state. The root layout's Suspense
@@ -43,7 +45,7 @@ export default function TripsScreen() {
           </TripsErrorBoundary>
         )}
       </QueryErrorResetBoundary>
-    </Screen>
+    </Column></Screen>
   );
 }
 

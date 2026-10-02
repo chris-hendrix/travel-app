@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/authStore";
 import { LEGAL_ROWS } from "@/lib/legal";
 import { toErrorCopy } from "@/lib/queries/errors";
 import { invitationPreviewOptions } from "@/lib/queries/invitations";
+import { Column } from "@/components/ui/Column";
 
 /**
  * The invitation: what a friend's text opens.
@@ -67,8 +68,9 @@ function InviteScreen() {
   if (status === "pending") {
     return (
       <Screen>
+<Column>
         <LoadingBlock label="Loading this invitation" />
-      </Screen>
+      </Column></Screen>
     );
   }
 
@@ -81,6 +83,7 @@ function InviteScreen() {
       : {};
     return (
       <Screen>
+<Column>
         {copy.offline ? (
           <OfflineBlock {...retryProps} />
         ) : (
@@ -89,7 +92,7 @@ function InviteScreen() {
             {...retryProps}
           />
         )}
-      </Screen>
+      </Column></Screen>
     );
   }
 
@@ -98,7 +101,8 @@ function InviteScreen() {
   }
 
   return (
-    <Screen lead>
+    <Screen>
+<Column lead>
       <InviteCard
         inviterName={preview.inviterName}
         tripName={preview.tripName}
@@ -126,7 +130,7 @@ function InviteScreen() {
           onPress={() => router.push("/login")}
         />
       )}
-    </Screen>
+    </Column></Screen>
   );
 }
 
@@ -138,6 +142,7 @@ function InviteScreen() {
 function GoneInvite({ onStartOwn }: { onStartOwn: () => void }) {
   return (
     <Screen>
+<Column>
       <View className="gap-8 pt-4 md:pt-14">
         <View className="gap-3">
           <Text className="font-display-extrabold text-display-md uppercase text-ink">
@@ -160,6 +165,6 @@ function GoneInvite({ onStartOwn }: { onStartOwn: () => void }) {
           ))}
         </View>
       </View>
-    </Screen>
+    </Column></Screen>
   );
 }

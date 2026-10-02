@@ -20,6 +20,9 @@ import { QuietAction } from "@/components/ui/QuietAction";
 import { PhoneField } from "@/components/ui/PhoneField";
 import { toE164 } from "@/lib/phone";
 import { Screen } from "@/components/ui/Screen";
+import { Band } from "@/components/ui/Band";
+import type { BandTone } from "@/components/ui/bandClasses";
+import { BAND_TONES, TOKENS } from "@/lib/palette";
 import { RuledBlock, PageRule } from "@/components/ui/RuledBlock";
 import { Fact } from "@/components/ui/Fact";
 // Aliased: this file's own `Section` is the lab's documentation frame, and
@@ -62,6 +65,7 @@ import type { LegalDocument } from "@journiful/shared/legal";
 import { Prose } from "@/components/ui/Prose";
 import { chroma, contrast, dE } from "@/lib/color";
 import { GROUNDS } from "@/lib/palette";
+import { Column } from "@/components/ui/Column";
 
 /** Metro resolving a bare package import and a font actually being the
  *  font are the two things a bundle can fail at silently, and neither
@@ -468,9 +472,10 @@ function DesignSystemScreen() {
 
   return (
     <Screen>
+      <Column>
       <View className="gap-8">
         <View className="gap-1">
-          <Text className="font-display text-4xl leading-tight text-ink">
+          <Text className="font-display-extrabold text-display-md text-ink">
             Design System
           </Text>
           <Text className="font-body text-base text-ink">
@@ -585,13 +590,15 @@ function DesignSystemScreen() {
 
             <Specimen
               name="Screen"
-              contract="children · lead?"
-              note="The ground for every screen. Navigation containers paint their own background, so a screen must paint its own sand or it renders grey. `lead` is for the screens that open on a display heading rather than on content, the landing, the way in and the invitation: they want air above the first line that a list of rows does not."
+              contract="children (and `Column` carries `lead?`)"
+              note="The ground for every screen, and nothing else. Navigation containers paint their own background, so a screen must paint its own sand or it renders grey. It used to wrap its children in the constrained column as well; that is `Column`'s job now, and the split is forced by `Band` — a full-bleed tone cannot exist inside a constrained column and the negative-margin workaround is forbidden. Children therefore own their own width, and every screen wraps its content in a `Column`. The vertical rhythm moved with the width rather than staying here: `Column` carries `py-6 md:py-10` and the `lead` variant, and a Column that kept the width and dropped the rhythm would have changed all sixteen call sites — the six `lead` screens would have lost their spacing outright."
             >
               <Screen>
-                <Text className="font-body text-base text-ink">
-                  Screen content sits on the sand ground.
-                </Text>
+                <Column>
+                  <Text className="font-body text-base text-ink">
+                    Screen content sits on the sand ground.
+                  </Text>
+                </Column>
               </Screen>
             </Specimen>
 
@@ -1584,6 +1591,44 @@ function DesignSystemScreen() {
           </Text>
         </Section>
       </View>
+      </Column>
+
+      {/*
+        The two bands, full bleed — and they are siblings of the root
+        `Column` rather than inside it. That is the specimen as much as the
+        tones are: a full-bleed ground cannot exist inside a constrained
+        column, which is the whole reason `Screen` stopped wrapping its
+        children in one. Every number beside each tone is computed from
+        `lib/palette.ts` at render rather than typed here, because a\.
+        hardcoded chroma is a claim and a measured one is a check.
+      */}
+      {(BAND_TONES as BandTone[]).map((tone) => {
+        const token = TOKENS.find((t) => t.name === tone)!;
+        return (
+          <Band key={tone} tone={tone}>
+            <Column>
+              <View className="gap-2 py-2">
+                <Text className="font-display-semibold text-heading-lg uppercase text-ink">
+                  {tone}
+                </Text>
+                <Text className="font-body text-label text-ink opacity-70">
+                  {token.hex} · chroma {chroma(token.hex).toFixed(3)} ·{" "}
+                  {dE(token.hex, GROUNDS.sand).toFixed(1)} dE from sand · ink
+                  on it {contrast("#000000", token.hex).toFixed(2)}:1
+                </Text>
+                <Text className="font-body text-body text-ink">
+                  Text on a band is ink. No form field ever sits on one:
+                  React Native cannot read a CSS variable into a prop (A5),
+                  so a placeholder, an icon colour or a caret could not
+                  invert with the band. One band at a time — two adjacent
+                  grounds would say "these are two things" with nothing to
+                  say what the division means.
+                </Text>
+              </View>
+            </Column>
+          </Band>
+        );
+      })}
     </Screen>
   );
 }

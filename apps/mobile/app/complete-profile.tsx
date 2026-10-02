@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/authStore";
 import { initials } from "@/lib/profile";
 import { formatPhoneForDisplay } from "@/lib/phone";
 import { joinFacts } from "@/lib/wording";
+import { Column } from "@/components/ui/Column";
 
 /**
  * The third screen, and the only thing the API insists on before the app
@@ -65,7 +66,8 @@ export default function CompleteProfile() {
   if (!user) return <Redirect href="/login" />;
 
   return (
-    <Screen lead>
+    <Screen>
+<Column lead>
       <View className="gap-3">
         <Text className="font-display-extrabold text-display-md uppercase text-ink">
           Complete your profile
@@ -126,6 +128,6 @@ export default function CompleteProfile() {
           }}
         />
       </ActionRow>
-    </Screen>
+    </Column></Screen>
   );
 }

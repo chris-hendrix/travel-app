@@ -33,6 +33,7 @@ import { anyTravelOwed } from "@/lib/travelBoard";
 import { boxForWidth } from "@/lib/place-images";
 import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 import { getPertinentTime } from "@journiful/shared/utils";
+import { Column } from "@/components/ui/Column";
 
 /**
  * Trip detail, header only — the itinerary comes after this lands.
@@ -266,6 +267,7 @@ function TripDetailScreen() {
 
   return (
     <Screen>
+<Column>
       <View className="gap-6 md:gap-8">
         <View className="gap-y-6 md:flex-row md:gap-12">
           {/* Two columns of equal width. flex-1, not w-1/2: react-native
@@ -399,7 +401,7 @@ function TripDetailScreen() {
             is what you decide on, which is what you get for saying yes. */}
         {canReadRun ? <Itinerary trip={trip} organizer={organizer} /> : <RunLocked />}
       </View>
-    </Screen>
+    </Column></Screen>
   );
 }
 

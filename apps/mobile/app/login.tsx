@@ -10,6 +10,7 @@ import { Screen } from "@/components/ui/Screen";
 import { phoneError, toE164 } from "@/lib/phone";
 import { useLeaveFlow } from "@/hooks/useLeaveFlow";
 import { useAuth } from "@/lib/authStore";
+import { Column } from "@/components/ui/Column";
 
 /**
  * The way in: a phone number, and the consent that permits the text.
@@ -70,7 +71,8 @@ export default function Login() {
   if (user) return <Redirect href="/trips" />;
 
   return (
-    <Screen lead>
+    <Screen>
+<Column lead>
       <View className="gap-3">
         <Text className="font-display-extrabold text-display-md uppercase text-ink">
           Get started
@@ -135,6 +137,6 @@ export default function Login() {
         />
         <QuietAction label="Back" onPress={leave} align="center" />
       </ActionRow>
-    </Screen>
+    </Column></Screen>
   );
 }

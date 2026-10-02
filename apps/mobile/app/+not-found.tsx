@@ -1,6 +1,7 @@
 import { Link } from "expo-router";
 import { Text, View } from "react-native";
 import { Screen } from "@/components/ui/Screen";
+import { Column } from "@/components/ui/Column";
 
 /**
  * Where an address with no screen lands.
@@ -12,7 +13,8 @@ import { Screen } from "@/components/ui/Screen";
  */
 export default function NotFound() {
   return (
-    <Screen lead>
+    <Screen>
+<Column lead>
       <View className="gap-3">
         <Text className="font-display-extrabold text-display-md uppercase text-ink">
           Nothing here
@@ -30,6 +32,6 @@ export default function NotFound() {
           Go to Journiful
         </Link>
       </View>
-    </Screen>
+    </Column></Screen>
   );
 }

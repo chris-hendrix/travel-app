@@ -9,6 +9,7 @@ import { LEGAL_ROWS } from "@/lib/legal";
 import { useAuth } from "@/lib/authStore";
 import { destinationForRequiresProfile } from "@/lib/queries/auth";
 import { INK } from "@/lib/theme";
+import { Column } from "@/components/ui/Column";
 
 /**
  * The landing: what the app is, for someone who has not signed in.
@@ -46,8 +47,9 @@ export default function Index() {
   if (status === "restoring") {
     return (
       <Screen>
+<Column>
         <LoadingBlock label="Signing you in" />
-      </Screen>
+      </Column></Screen>
     );
   }
 
@@ -69,6 +71,7 @@ function Landing() {
 
   return (
     <Screen>
+<Column>
       <View className="gap-16 pb-12 pt-4 md:pt-14">
         <View className="gap-6">
           <Text className="font-display-black text-display-lg uppercase text-ink md:text-display-lg-wide">
@@ -177,7 +180,7 @@ function Landing() {
           ))}
         </View>
       </View>
-    </Screen>
+    </Column></Screen>
   );
 }
 

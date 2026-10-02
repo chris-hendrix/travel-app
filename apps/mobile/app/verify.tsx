@@ -10,6 +10,7 @@ import { formatPhoneForDisplay } from "@/lib/phone";
 import { destinationForRequiresProfile } from "@/lib/queries/auth";
 import { toErrorCopy } from "@/lib/queries/errors";
 import { useAuth } from "@/lib/authStore";
+import { Column } from "@/components/ui/Column";
 
 /** Seconds before the code may be asked for again. The API has its own
  *  limit; this is so a thumb cannot find it. */
@@ -124,7 +125,8 @@ export default function Verify() {
   if (!pendingPhone) return <Redirect href="/login" />;
 
   return (
-    <Screen lead>
+    <Screen>
+<Column lead>
       <View className="gap-3">
         <Text className="font-display-extrabold text-display-md uppercase text-ink">
           Verify your number
@@ -171,6 +173,6 @@ export default function Verify() {
           />
         </View>
       </ActionRow>
-    </Screen>
+    </Column></Screen>
   );
 }

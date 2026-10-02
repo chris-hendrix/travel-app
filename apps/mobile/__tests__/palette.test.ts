@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { chroma, contrast, dE } from "@/lib/color";
+import { BAND_CLASSES } from "@/components/ui/bandClasses";
 import {
   ALL_TOKENS,
   BAND_CHROMA_MAX,
@@ -148,6 +149,22 @@ describe("palette: the rules a role implies", () => {
       }
     }
     expect(tooClose).toEqual([]);
+  });
+
+  it("keeps `Band`'s tone map and the palette's band rows the same set", () => {
+    // The gap this closes: `BandTone` is a hand-written literal union, so it
+    // stops a tone that is not one of the two but cannot stop a *third* pale
+    // tone being added — every pale token clears the chroma and separation
+    // bars, which is exactly why `bpink` was a legitimate candidate until A2
+    // dropped it by judgement rather than by measurement. Asserting the two
+    // sets are equal is what makes the count real in both directions: a row
+    // added to `lib/palette.ts` with no class fails here, and so does a
+    // class added with no row.
+    expect(Object.keys(BAND_CLASSES).sort()).toEqual(BAND_TONES.slice().sort());
+    for (const [tone, className] of Object.entries(BAND_CLASSES)) {
+      // A band is painted by its token and never by a value written here.
+      expect(className, `${tone}'s class`).toBe(`bg-${tone}`);
+    }
   });
 
   it("rejects a mark as a band, which is the rule's whole point", () => {

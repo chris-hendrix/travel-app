@@ -23,6 +23,7 @@ import {
   type AdminUserRow,
 } from "@/lib/queries/admin";
 import { toErrorCopy } from "@/lib/queries/errors";
+import { Column } from "@/components/ui/Column";
 
 /**
  * The user list, as a page rather than a dialog: it is a surface you
@@ -37,14 +38,15 @@ import { toErrorCopy } from "@/lib/queries/errors";
  */
 export default function AdminUsersScreen() {
   return (
-    <Screen lead>
+    <Screen>
+<Column lead>
       <Text className="font-display-bold text-display-sm uppercase text-ink">
         User management
       </Text>
       <AdminGate label="Loading users">
         <AdminUsersList />
       </AdminGate>
-    </Screen>
+    </Column></Screen>
   );
 }
 
