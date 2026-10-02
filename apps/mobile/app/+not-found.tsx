@@ -3,6 +3,7 @@ import { Text, View } from "react-native";
 import { Screen } from "@/components/ui/Screen";
 import { Band } from "@/components/ui/Band";
 import { Column } from "@/components/ui/Column";
+import { useHeaderTone } from "@/lib/headerTone";
 
 /**
  * Where an address with no screen lands.
@@ -13,6 +14,7 @@ import { Column } from "@/components/ui/Column";
  * The lab answers with this too, outside the development build.
  */
 export default function NotFound() {
+  useHeaderTone("baltic");
   return (
     <Screen>
       {/* An empty state, so it is a band: `display-sm` 32px caps with the

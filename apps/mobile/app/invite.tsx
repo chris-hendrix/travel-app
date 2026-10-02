@@ -14,6 +14,7 @@ import { toErrorCopy } from "@/lib/queries/errors";
 import { invitationPreviewOptions } from "@/lib/queries/invitations";
 import { Band } from "@/components/ui/Band";
 import { Column } from "@/components/ui/Column";
+import { useHeaderTone } from "@/lib/headerTone";
 
 /**
  * The invitation: what a friend's text opens.
@@ -53,6 +54,14 @@ function InviteScreen() {
     error,
     refetch,
   } = useQuery(invitationPreviewOptions(inviteId));
+
+  // Two states, two grounds, and neither is knowable from the route: this
+  // screen is lilac while the invitation is live and baltic once it is gone.
+  // Declared here, before the early returns, because a hook cannot be called
+  // conditionally — and the loading and error branches paint no band, so they
+  // declare nothing and the wave falls back to sand. `GoneInvite` declares
+  // its own, because it is reached from two different branches.
+  useHeaderTone(preview ? "lilac" : null);
 
   // An id the server never issued, a withdrawn invitation, and an
   // expired one are one answer, because the endpoint 404s for all
@@ -149,6 +158,7 @@ function InviteScreen() {
  * preview lands here too, which is what "already used" means.
  */
 function GoneInvite({ onStartOwn }: { onStartOwn: () => void }) {
+  useHeaderTone("baltic");
   return (
     <Screen>
       <Band tone="baltic">

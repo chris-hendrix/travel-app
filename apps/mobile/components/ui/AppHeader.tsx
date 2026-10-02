@@ -10,6 +10,8 @@ import { useStopImpersonation } from "@/lib/impersonation";
 import { isSignedIn, subscribe } from "@/lib/sessionFlag";
 import { useAuth } from "@/lib/authStore";
 import { ImpersonationBand } from "@/components/ui/ImpersonationBand";
+import { BAND_CLASSES } from "@/components/ui/bandClasses";
+import { useHeaderToneValue } from "@/lib/headerTone";
 import { useZoneToken } from "@/lib/displayZone";
 import { INK, SAND } from "@/lib/theme";
 
@@ -27,6 +29,13 @@ import { INK, SAND } from "@/lib/theme";
  * The pattern fills the ground between the crests with nothing: those
  * gaps are transparent, so what shows through them is whatever sits
  * behind the header, and the header paints only ink.
+ *
+ * That transparency is why the wave needs a ground of its own, and why it
+ * is set from outside: the header is a flex *sibling* of the screen, not an
+ * overlay, so "behind the header" is the shell's sand and never the
+ * screen's content. A screen whose top is a band declares its tone
+ * (`useHeaderTone`) and the wrapper below paints it, so the cut-outs are
+ * the band's colour and the black edge reads as biting into it.
  */
 const WAVE_DEPTH = 10;
 
@@ -245,12 +254,24 @@ export function AppHeader({
   // No ground of its own: the band paints ink and the wave is a
   // silhouette on transparent, so the negative space between the
   // scallops is whatever is behind the header rather than a sand bar
-  // drawn across the top of the screen. Today that is the shell's sand,
-  // which is why it looked right anyway; it stops being right the moment
-  // a screen whose ground is not sand sits under this band, and a full
-  // bleed photo or a coloured edge is exactly that.
+  // drawn across the top of the screen.
+  //
+  // So the wrapper takes the ground that *is* behind the header: the tone a
+  // banded screen declared, or strawberry while impersonating, because the
+  // impersonation strip is what sits directly under the wave then and a
+  // lilac wave over a strawberry strip is the same bug one state further
+  // on. Nothing declared means nothing painted, and sand shows through as
+  // it always did. Impersonation wins because it is chrome: it is the same
+  // strip on every screen, whatever the screen put under it.
+  const { tone } = useHeaderToneValue();
+  const waveGround = impersonating
+    ? "bg-strawberry"
+    : tone
+      ? BAND_CLASSES[tone]
+      : "";
+
   return (
-    <View>
+    <View className={waveGround}>
       <View className="bg-ink" style={{ paddingTop: insets.top }}>
         <View className="flex-row items-center justify-between bg-ink px-6 pb-3 pt-4">
           {landing ? (
