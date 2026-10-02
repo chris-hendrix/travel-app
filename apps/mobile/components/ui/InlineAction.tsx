@@ -23,6 +23,15 @@ import { Text } from "react-native";
  * apart and a box would break the sentence. That is a deliberate
  * deviation from the target-size rule, and the reason the labels want to
  * stay short.
+ *
+ * **The rule the underline answers to:** an underline means *this navigates
+ * or presses and has no box*. Same rule as `QuietAction`, and the reason
+ * these two share a component rather than each drawing its own — the two
+ * callers drifted apart once and nothing had said they should not. The
+ * rule does not license every link in the app, though: `PhotoCredit`'s
+ * photographer's name is a link with its own press and goes unadorned,
+ * because a debt owed is not a place the reader was sent. That exception
+ * is narrow on purpose, and it is the one to argue about.
  */
 export function InlineAction({
   label,

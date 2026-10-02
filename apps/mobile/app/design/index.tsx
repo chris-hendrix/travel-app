@@ -1064,6 +1064,48 @@ function DesignSystemScreen() {
             </Specimen>
 
             <Specimen
+              name="Underline"
+              contract="no primitive: a mark, and the rule that says where it goes"
+              note="The system's only affordance for a word that does something, and there is one rule behind all of them: **an underline means this navigates or presses and has no box.** If it is a place you can go, underline it; if it is a claim, a fact or a debt, leave it plain. Nothing else in the palette means 'pressable' — no colour marks a word, deliberately, because a colour is a role and a word inside a sentence is doing neither. Below are the three kinds side by side at the sizes they are actually set at, because the mark's weight is judged against the type rather than on its own. The credit line and the quiet action each pin their own size and cannot be set at another — the credit is text-xs because it is owed rather than read, the quiet action is text-sm because every control in this system is one size — so the three-step column is the body link alone. Note the exception, which is the debatable one: the photographer's name is a link with its own press, and under this rule it would be underlined. It is a credit first, so it is the one underline this system takes back; `View on Google Maps` beside it is explicit navigation with its own label, so it keeps its mark. One gate, one question: does a name you can tap deserve the same mark as a link you were told to follow? The metric half of this — how thick, how far below — is a web-export-only change and will show on no Android build (A10)."
+            >
+              <View className="gap-1">
+                <Text className="font-body-bold text-sm text-ink">
+                  A credit. Owed, not read — text-xs.
+                </Text>
+                <PhotoCredit
+                  credit={{ name: "Ana Ruiz", uri: "https://www.instagram.com/anaruiz/" }}
+                  sourceUri="https://maps.google.com/?cid=52,0"
+                />
+              </View>
+              <View className="gap-1">
+                <Text className="font-body-bold text-sm text-ink">
+                  A link. Named as navigation — the three sizes.
+                </Text>
+                <Link
+                  href="/privacy"
+                  className="font-body text-xs text-ink underline"
+                >
+                  Read the privacy policy (text-xs)
+                </Link>
+                <Link
+                  href="/privacy"
+                  className="font-body text-sm text-ink underline"
+                >
+                  Read the privacy policy (text-sm)
+                </Link>
+                <Link href="/privacy" className="font-body text-base text-ink underline">
+                  Read the privacy policy (text-base)
+                </Link>
+              </View>
+              <View className="gap-1">
+                <Text className="font-body-bold text-sm text-ink">
+                  A quiet action. Pressed, not followed — text-sm.
+                </Text>
+                <QuietAction label="Read more" onPress={() => setLog("Underline: Read more")} />
+              </View>
+            </Specimen>
+
+            <Specimen
               name="TripCard"
               contract="trip: { title, startDate, endDate, location, image } · onPress? · today?"
               note="Upcoming trips carry a countdown on the photo; finished trips say nothing. Locations hug the title. Hover the first card on a wide screen: photo and text both zoom."
