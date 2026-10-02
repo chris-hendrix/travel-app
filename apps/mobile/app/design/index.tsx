@@ -309,6 +309,7 @@ function DesignSystemScreen() {
   const [venue, setVenue] = useState<string | null>(null);
   const [rsvp, setRsvp] = useState<RsvpStatus | null>(null);
   const [layout, setLayout] = useState<"list" | "grid">("list");
+  const [units, setUnits] = useState<"c" | "f">("c");
   const [pastEvents, setPastEvents] = useState(false);
   const [range, setRange] = useState<Selection>({
     start: null,
@@ -652,14 +653,28 @@ function DesignSystemScreen() {
 
             <Specimen
               name="Segmented"
-              contract="options (value · label · tone? · mark?) · value (nullable) · onChange · size?"
-              note="One choice out of a few, all of them visible. Bordered cells in a row rather than bare words: a word with no box and no underline is a label, not something a thumb can be asked to press, and every control in this system is a box. The cells are button-sized — the same p-4 and text-sm as a button, so a row of these sits in a stack of buttons without a step — and ink rather than a colour, because choosing a direction is not an action: the calendar and the time column already invert what is chosen, and two coloured toggles left the form's one real button looking like one of them. tone is for answers that carry a meaning of their own, which the RSVP has; mark is a short mark after the label, drawn in the label's own colour, for a choice with something to say about itself (travel puts a tick against a direction already filed). value is nullable because having chosen nothing yet is a real state rather than an error — and an always-set value wears the same cells (the profile's temperature), because a control that looks different depending on whether a value has been chosen yet would be two controls for one idea."
+              contract="options (value · label · tone? · mark?) · value (nullable) · onChange · size? · width?"
+              note="One choice out of a few, all of them visible. Bordered cells in a row rather than bare words: a word with no box and no underline is a label, not something a thumb can be asked to press, and every control in this system is a box. The cells are button-sized — the same p-4 and text-sm as a button, so a row of these sits in a stack of buttons without a step — and ink rather than a colour, because choosing a direction is not an action: the calendar and the time column already invert what is chosen, and two coloured toggles left the form's one real button looking like one of them. tone is for answers that carry a meaning of their own, which the RSVP has; mark is a short mark after the label, drawn in the label's own colour, for a choice with something to say about itself (travel puts a tick against a direction already filed). value is nullable because having chosen nothing yet is a real state rather than an error — and an always-set value wears the same cells (the profile's temperature), because a control that looks different depending on whether a value has been chosen yet would be two controls for one idea. width says how far the row reaches on a wide screen: fill, the default, splits the block between its cells, which is what makes three RSVP cells read as one control; content keeps the cells at their labels' width from md up for a short pair like the units toggle, on a phone being the same thing. size='sm' is a chrome row's switch, the same box as a chip, and always hugs."
             >
               <RsvpControl
                 value={rsvp ?? "no_response"}
                 onChange={(status) => {
                   setRsvp(status);
                   setLog(`RSVP "${RSVP_LABEL[status]}"`);
+                }}
+              />
+              {/* width="content": the short pair. Judge it at 1280, where
+                  the fill default above is wrong and this is not. */}
+              <Segmented
+                width="content"
+                options={[
+                  { value: "c", label: "°C" },
+                  { value: "f", label: "°F" },
+                ]}
+                value={units}
+                onChange={(next) => {
+                  setUnits(next);
+                  setLog(`Segmented units "${next}"`);
                 }}
               />
               {/* size="sm": a chrome row's switch, the same box as a chip. */}

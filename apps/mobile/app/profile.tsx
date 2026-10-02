@@ -291,7 +291,11 @@ function ProfileForm({ profile }: { profile: Profile }) {
 
           The heading and the sentence are the ones the block wore where
           it used to sit, so its shape still matches `Legal & privacy`
-          below and nothing new is added to the system. */}
+          below and nothing new is added to the system. No `fullWidth`,
+          like every other content button: it fills a phone and hugs the
+          start edge from md up, and a box stretched the width of a
+          960px column around the two words "User management" is a
+          panel, not a control. */}
       {isAdmin ? (
         <View>
           <Text className="font-body-bold text-sm text-ink">Admin</Text>
@@ -302,7 +306,6 @@ function ProfileForm({ profile }: { profile: Profile }) {
             <Button
               title="User management"
               variant="secondary"
-              fullWidth
               onPress={() => router.push("/admin/users")}
             />
           </View>
@@ -385,6 +388,12 @@ function ProfileForm({ profile }: { profile: Profile }) {
         <Segmented
           options={UNITS}
           value={draft.temperatureUnit}
+          // `content`, not the fill default: two short labels spread
+          // across a wide column are two labels with a canyon between
+          // them. A phone is unchanged, where the cells still split the
+          // width. The RSVP keeps the default, because three cells
+          // sharing a width is what makes it read as one control.
+          width="content"
           onChange={(unit) =>
             setDraft((current) => ({ ...current, temperatureUnit: unit }))
           }
