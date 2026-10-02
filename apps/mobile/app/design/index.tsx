@@ -757,7 +757,7 @@ function DesignSystemScreen() {
             <Specimen
               name="Badge"
               contract="label · variant · size? · hue?"
-              note="Event type and status. Venue renders as plain text beside the pills. Category is the classifier rather than a state, and it wears ink unless a caller gives it a hue: roles differ, tones may not. hue is a pop fill and the label stays ink on it — a pop is a light saturated ground and ink is the only token that clears body contrast on all of them. The nine event types below are the whole pop tier as it is actually spent, each with the hue it wears and that hue's measured chroma; the two state colours above are deliberately not among them, because strawberry means live on an account and watermelon means club on a trip, and a state that closes a thing should not wear the colour of a party. Nine types, four hues: the palette ships five pop fills and two are spoken for, so the table groups types in pairs — where you are, what you ate, what you went out to see, what you did outside — and `misc` keeps ink, because 'none of the above' is the one chip that should not be saying something with its colour. A repeated hue is a family rather than a collision *because the badge carries the type's own name*: the word classifies and the hue reinforces. If a hue were ever the only carrier, this set would be wrong and the palette would need more mark tokens."
+              note="Event type and status. Venue renders as plain text beside the pills. `hue` is a pop fill and the label stays ink on it; absent means ink, which is what a state badge always wears. The nine event types below are the whole pop tier as it is actually spent — nine types, four hues, grouped in pairs — each with its measured chroma. The reasoning, and the one decision this set makes, are in `lib/eventColors.ts`."
             >
               <View className="flex-row flex-wrap items-center gap-2">
                 <Badge label="club" variant="club" />
@@ -770,13 +770,11 @@ function DesignSystemScreen() {
                   const hue = EVENT_HUES[type];
                   return (
                     <View key={type} className="flex-row items-center gap-3">
-                      <View className="w-40">
-                        <Badge
-                          label={EVENT_TYPE_LABEL[type]}
-                          variant="category"
-                          hue={hue ?? undefined}
-                        />
-                      </View>
+                      <Badge
+                        label={EVENT_TYPE_LABEL[type]}
+                        variant="category"
+                        hue={hue ?? undefined}
+                      />
                       <Text className="font-body text-sm text-ink">
                         {hue
                           ? `${hue} · chroma ${chroma(hexOf(hue)).toFixed(3)}`
@@ -795,7 +793,7 @@ function DesignSystemScreen() {
             <Specimen
               name="Initials"
               contract="name → hue, and the initials themselves"
-              note="A person's block, at the size the three call sites use. The hue is a pure function of the name — stable across sessions and devices, nothing stored — so the same person is the same colour everywhere they appear. It is not a hash for security: collisions are fine and expected, and the point of the function is only that it is *total*, because a name can be empty, or in a script with no Latin letters, and an avatar with no colour is a hole in a list. The four hues are the event table's four, on purpose: the pop tier is a tier, and a fifth hue here would make the badges a subset of something larger rather than the whole of it."
+              note="A person's block, at the size the three call sites use. The hue is a pure function of the name — stable across sessions and devices, nothing stored — and total, so an empty name or a non-Latin one still lands on a colour rather than on nothing. The four hues are the event table's four: the pop tier is a tier."
             >
               <View className="flex-row flex-wrap gap-3">
                 {["Ada Lovelace", "Grace Hopper", "Alan Turing", "李雷", ""].map(

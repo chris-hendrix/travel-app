@@ -88,6 +88,48 @@ describe("EVENT_HUES", () => {
     expect(EVENT_HUES.misc).toBeNull();
   });
 
+  it("spends four of the five pop fills, and names the one it leaves", () => {
+    // The set is four because nine types cannot carry nine hues at chip size
+    // anyway, and because the fifth fill means `live` — a state on a person
+    // rather than a classification of a thing. Asserted so that a later edit
+    // which quietly reaches for `strawberry` has to come here and say why.
+    //
+    // Typed as `string[]` on purpose: `Set<PopHue>` cannot be asked about
+    // `"strawberry"`, because that is exactly the thing the union exists to
+    // refuse. Comparing names lets the check ask the question the union
+    // cannot.
+    const spent: string[] = Object.values(EVENT_HUES).filter(
+      (hue): hue is PopHue => hue !== null,
+    );
+    expect([...new Set(spent)].sort()).toEqual([
+      "acid",
+      "ocean",
+      "seafoam",
+      "watermelon",
+    ]);
+    // And the fill that is left, derived from the palette rather than
+    // hardcoded: a sixth fill added to `lib/palette.ts` fails here until
+    // somebody decides whether it belongs in this set.
+    const popFills = TOKENS.filter((t) => t.role === "fill")
+      .map((t) => t.name)
+      .sort();
+    expect(popFills.filter((name) => !spent.includes(name))).toEqual([
+      "strawberry",
+    ]);
+  });
+
+  it("shares `watermelon` with the `club` badge, knowingly", () => {
+    // The cost of four hues: this table's pink is the same pink as the
+    // `club` variant in `Badge.tsx`, and both are on screen together on
+    // `/trips/detail` — `club` in the hero, `Food` on a chip below. Sharing
+    // a tone between two roles is what this system already does on purpose
+    // (`soldOut` and `category` share ink), so it is a decision rather than
+    // an accident. This test is here so the sharing cannot become one
+    // silently: changing either side has to fail here first.
+    expect(EVENT_HUES.food_and_drink).toBe("watermelon");
+    expect(EVENT_HUES.nightlife).toBe("watermelon");
+  });
+
   it("gives the two types of a pair the same hue", () => {
     // The grouping is the decision this table makes, so it is asserted
     // rather than left to whoever edits it next.

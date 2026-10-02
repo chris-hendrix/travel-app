@@ -9,11 +9,26 @@ import type { EventType } from "@/lib/itinerary";
  * one — and nothing here invents a colour.
  *
  * **Nine types, four hues.** The palette ships five pop fills (`seafoam`,
- * `watermelon`, `strawberry`, `ocean`, `acid`) and two of them already mean a
- * state elsewhere: `strawberry` is `live` on an account and `watermelon` is
- * `club` on a trip card. That leaves four, so the table groups types rather
- * than giving each its own — and the grouping is the honest part of this
- * decision, because a hue that repeats is not classifying anything.
+ * `watermelon`, `strawberry`, `ocean`, `acid`) and the table uses four of
+ * them, so types are grouped rather than given one each. A hue that repeats
+ * is not classifying anything on its own — what carries the classification
+ * is the badge's own label.
+ *
+ * **`watermelon` is shared with the `club` badge, and that is a cost.** An
+ * earlier draft of this comment claimed the state colours were excluded; the
+ * table does not exclude them, and the two are on screen together on
+ * `/trips/detail`, where `club` sits in the hero and `Food` on a chip below.
+ * Sharing a tone between two roles is what this system already does on
+ * purpose — `Badge`'s own note says "roles, not colours: two roles may share
+ * a tone", and `soldOut` and `category` share ink — so it is not a defect.
+ * But it is a decision rather than a happy accident, and it is written here
+ * because the alternative was measured and rejected: dropping `watermelon`
+ * leaves three hues for nine types, and adding mark tokens is a change to
+ * Phase 1's palette rather than to this table.
+ *
+ * `strawberry` is the one fill left out. It means `live` on an account, which
+ * is a state on a *person* rather than a classification of a *thing*, and
+ * nothing here needed a fifth hue badly enough to spend it.
  *
  * **What makes that acceptable is the label.** A `Badge` carries the type's
  * own name, so the hue reinforces and the word classifies; a repeated hue is
