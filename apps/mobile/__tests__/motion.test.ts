@@ -33,7 +33,14 @@ describe("the motion vocabulary", () => {
   });
 
   it("names every role for the interaction rather than the property", () => {
-    expect(ROLES).toEqual(["press", "pressFill", "row", "state", "disclosure"]);
+    expect(ROLES).toEqual([
+      "press",
+      "pressFill",
+      "pressDim",
+      "row",
+      "state",
+      "disclosure",
+    ]);
   });
 
   it("gives every role a duration and no role a bare default", () => {
@@ -115,11 +122,17 @@ describe("reduced motion", () => {
   it("leaves a pressed control with a press state", () => {
     // "Fewer and gentler, not zero." Dropping the scale without a
     // replacement would be an affordance removed, not a motion reduced —
-    // so the press roles keep one, and it is a property on the keep list.
+    // so every press role keeps one.
     expect(REDUCED_MOTION.press).toContain("active:opacity-70");
+    expect(REDUCED_MOTION.pressDim).toContain("active:opacity-70");
     // A chip that inverts on the tap has already said what happened by
     // inverting, so its colour transition is the whole of the feedback.
     expect(REDUCED_MOTION.pressFill).toContain("transition-[background-color");
+  });
+
+  it("leaves a dimming control unchanged, because opacity is kept", () => {
+    // The one role with no reduced form of its own: it only ever dims.
+    expect(REDUCED_MOTION.pressDim).toBe(MOTION.pressDim);
   });
 
   it("lets the disclosure snap rather than turn", () => {

@@ -130,7 +130,7 @@ export function Segmented<T extends string>({
             disabled={disabled}
             className={`items-center border border-ink ${box} ${
               index > 0 ? "border-l-0" : ""
-            } ${chosen ? fill.box : ""} ${motion.state}`}
+            } ${chosen ? fill.box : ""} ${motion.pressDim}`}
           >
             <Text
               className={`font-body-bold text-sm ${

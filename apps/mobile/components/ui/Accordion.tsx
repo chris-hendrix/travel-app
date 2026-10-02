@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import { ArrowDown, ArrowUp } from "lucide-react-native";
+import { useMotion } from "@/hooks/useMotion";
 import { INK } from "@/lib/theme";
 
 /**
@@ -21,6 +22,7 @@ export function AccordionItem({
   defaultOpen?: boolean;
   children: ReactNode;
 }) {
+  const motion = useMotion();
   const [open, setOpen] = useState(defaultOpen);
   const Icon = open ? ArrowUp : ArrowDown;
 
@@ -30,7 +32,7 @@ export function AccordionItem({
         role="button"
         aria-expanded={open}
         onPress={() => setOpen((v) => !v)}
-        className="flex-row items-center justify-between gap-4 py-5"
+        className={`flex-row items-center justify-between gap-4 py-5 ${motion.row}`}
       >
         <Text className="font-body-bold text-xl text-ink">{title}</Text>
         <Icon color={INK} size={24} />

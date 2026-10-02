@@ -11,6 +11,7 @@ import { isSignedIn, subscribe } from "@/lib/sessionFlag";
 import { useAuth } from "@/lib/authStore";
 import { ImpersonationBand } from "@/components/ui/ImpersonationBand";
 import { useZoneToken } from "@/lib/displayZone";
+import { useMotion } from "@/hooks/useMotion";
 import { INK, SAND } from "@/lib/theme";
 
 /**
@@ -146,6 +147,7 @@ function ZoneToken({ onInk = false }: { onInk?: boolean }) {
 
   const colour = onInk ? "text-sand" : "text-ink";
   const flippable = zone.canFlip;
+  const motion = useMotion();
 
   return (
     <Pressable
@@ -165,7 +167,7 @@ function ZoneToken({ onInk = false }: { onInk?: boolean }) {
       // so asymmetric padding puts the word off the centre line — 6px
       // above the wordmark beside it, which is exactly how far the box's
       // centre sat from the word's.
-      className="pl-3 pr-1 py-3"
+      className={`pl-3 pr-1 py-3 ${motion.press}`}
     >
       <Text
         className={`font-body-bold text-sm ${colour} ${
@@ -191,13 +193,17 @@ function BellButton() {
   const signedIn = useSyncExternalStore(subscribe, isSignedIn, isSignedIn);
   const { data } = useQuery({ ...unreadCountOptions(), enabled: signedIn });
   const unreadCount = data ?? 0;
+  const motion = useMotion();
 
   // 24px icon in a 44pt box, so 10 above and 10 below: the band's row
   // centres boxes, and a box whose icon is not centred in it puts the
   // icon off the wordmark's line.
   return (
     <Link href="/notifications" asChild>
-      <Pressable aria-label="Notifications" className="pl-4 pr-1 py-2.5">
+      <Pressable
+        aria-label="Notifications"
+        className={`pl-4 pr-1 py-2.5 ${motion.press}`}
+      >
         <View>
           <Bell color={SAND} size={24} />
           {unreadCount > 0 ? (
@@ -210,9 +216,13 @@ function BellButton() {
 }
 
 function AvatarButton() {
+  const motion = useMotion();
   return (
     <Link href="/profile" asChild>
-      <Pressable aria-label="Profile" className="pl-4 pr-1 py-2.5">
+      <Pressable
+        aria-label="Profile"
+        className={`pl-4 pr-1 py-2.5 ${motion.press}`}
+      >
         <User color={SAND} size={24} />
       </Pressable>
     </Link>
@@ -233,13 +243,14 @@ function AvatarButton() {
  * sits on the same centre line as the wordmark and the icons.
  */
 function SignInWord() {
+  const motion = useMotion();
   return (
     // asChild so the target keeps its size: the word plus its padding
     // is a real 44pt box (py-3 around the word, pl-4 growing leftward
     // from the band's right edge, which does not move), with no negative
     // margin, so the band grows to hold it.
     <Link href="/login" asChild>
-      <Pressable className="pl-4 py-3">
+      <Pressable className={`pl-4 py-3 ${motion.press}`}>
         <Text className="font-body-bold text-sm text-sand">Sign in</Text>
       </Pressable>
     </Link>
@@ -274,6 +285,7 @@ export function AppHeader({
   // never a query read.
   const { impersonating } = useAuth();
   const { stopping, stop } = useStopImpersonation();
+  const motion = useMotion();
   const band = impersonating ? (
     <ImpersonationBand
       displayName={impersonating.displayName || "No name"}
@@ -293,7 +305,11 @@ export function AppHeader({
             <ZoneToken />
             {action}
             {onClose ? (
-              <Pressable aria-label="Close" onPress={onClose} className="pl-4 pr-1 py-2.5">
+              <Pressable
+                aria-label="Close"
+                onPress={onClose}
+                className={`pl-4 pr-1 py-2.5 ${motion.press}`}
+              >
                 <X color={INK} size={24} />
               </Pressable>
             ) : null}

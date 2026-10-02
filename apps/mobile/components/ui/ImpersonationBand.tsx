@@ -1,3 +1,4 @@
+import { useMotion } from "@/hooks/useMotion";
 import { Pressable, Text, View } from "react-native";
 
 /**
@@ -28,6 +29,7 @@ export function ImpersonationBand({
   onStop: () => void;
   pending: boolean;
 }) {
+  const motion = useMotion();
   return (
     <View className="flex-row items-center justify-between gap-4 bg-strawberry px-6 py-3">
       <Text
@@ -39,7 +41,7 @@ export function ImpersonationBand({
         disabled={pending}
         aria-disabled={pending}
         onPress={onStop}
-        className="px-4 py-3"
+        className={`px-4 py-3 ${motion.press}`}
       >
         <Text className="font-body-bold text-sm text-ink underline">
           {pending ? "Stopping…" : "Stop impersonating"}

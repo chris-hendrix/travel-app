@@ -95,7 +95,7 @@
  * "Fewer and gentler, not zero." A change of colour or opacity that
  * explains a state change is kept — a control that inverts when you answer
  * it still inverts, and it still takes 150ms to do it. What goes is
- * movement: translation, scale, rotation, overshoot. So three of the five
+ * movement: translation, scale, rotation, overshoot. So three of the six
  * roles below are unchanged and only the two that move geometry have a
  * second form.
  *
@@ -158,9 +158,9 @@ const row =
   "transition-colors duration-150 ease-motion active:bg-gravel md:hover:bg-gravel";
 
 /**
- * A control that inverts when its value changes, with no press of its own:
- * the cells of a `Segmented`, which are joined into one box and would break
- * the join if one of them moved.
+ * A control that inverts when its value changes and is not itself the
+ * target: the inner box of a `Checkbox`, whose fill goes to ink on the tick.
+ * Its press lives on the row around it (`row`), which is the target.
  *
  * The lab's Feedback section is why this exists: an answer inverts the
  * control that gave it, and until this landed it inverted with no
@@ -176,7 +176,35 @@ const state = "transition-colors duration-150 ease-motion";
  */
 const disclosure = "transition-[transform,rotate] duration-150 ease-motion";
 
-export const MOTION = { press, pressFill, row, state, disclosure } as const;
+/**
+ * A control that is pressed and must not change size.
+ *
+ * Two things need it, for opposite reasons. A surface spanning the whole
+ * column cannot scale — five per cent of 864 is 26px reaching past the
+ * column into the page margins — and a background highlight is invisible
+ * under a photo, so the press that is left is a dim. That is the hero
+ * image that opens Maps, and the cover picker.
+ *
+ * The other is a cell of a joined segmented row: scaling one cell breaks
+ * the join its neighbours share a border with. It inverts on selection,
+ * so it needs the colour transition too — which is why this carries both
+ * lists rather than opacity alone.
+ *
+ * Reduced motion leaves this one unchanged, and that is the rule rather
+ * than an exception: opacity is on the keep list, so a control that only
+ * dims is already the gentle version.
+ */
+const pressDim =
+  "transition-[color,background-color,border-color,opacity] duration-150 ease-motion active:opacity-70";
+
+export const MOTION = {
+  press,
+  pressFill,
+  pressDim,
+  row,
+  state,
+  disclosure,
+} as const;
 
 export type MotionRole = keyof typeof MOTION;
 
@@ -198,6 +226,9 @@ export const REDUCED_MOTION: Record<MotionRole, string> = {
   // the feedback and it stays.
   pressFill:
     "transition-[background-color,border-color,color] duration-150 ease-motion",
+  // It only dims, and opacity is on the keep list — so this role reads the
+  // same in both modes. The one entry here with nothing to say.
+  pressDim,
   row,
   state,
   // Turns are the thing being dropped, and there is no substitute: the row
