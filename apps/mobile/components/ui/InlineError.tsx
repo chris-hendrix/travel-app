@@ -1,5 +1,6 @@
-import { Text, View } from "react-native";
+import { Text } from "react-native";
 import { Button } from "@/components/ui/Button";
+import { RuledBlock } from "@/components/ui/RuledBlock";
 
 /**
  * A request that failed, where its content would have been.
@@ -26,13 +27,13 @@ export function InlineError({
   onRetry?: () => void;
 }) {
   return (
-    <View className="gap-4 border-t border-ink pt-6">
+    <RuledBlock>
       <Text className="font-body text-base leading-snug text-ink">
         {message}
       </Text>
       {onRetry ? (
         <Button title={retryTitle} variant="secondary" onPress={onRetry} />
       ) : null}
-    </View>
+    </RuledBlock>
   );
 }

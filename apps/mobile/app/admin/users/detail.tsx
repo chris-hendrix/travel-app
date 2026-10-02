@@ -1,3 +1,4 @@
+import { RuledBlock } from "@/components/ui/RuledBlock";
 import { useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
@@ -271,7 +272,10 @@ function AdminUserDetail({
           </Text>
         </Fact>
       </View>
-      <View className="gap-4 border-t border-ink pt-6">
+      <RuledBlock>
+        {/* Untitled, and the heading stays hand-rolled: it is a row with
+            Edit and Cancel in it, which a title string cannot be. The
+            block rule and the gap are the primitive's. */}
         <View className="flex-row items-center justify-between">
           <Text className="font-display text-xl uppercase leading-none text-ink">
             Profile
@@ -313,7 +317,7 @@ function AdminUserDetail({
             </Fact>
           </View>
         )}
-      </View>
+      </RuledBlock>
       <AdminUserActions
         user={user}
         viewerId={viewer?.id}
@@ -406,11 +410,11 @@ function AdminUserActions({
   // Your own record offers no action group at all, and says so.
   if (viewerId !== undefined && user.id === viewerId) {
     return (
-      <View className="border-t border-ink pt-6">
+      <RuledBlock>
         <Text className="font-body text-base text-ink">
           You can&apos;t ban, demote or impersonate yourself.
         </Text>
-      </View>
+      </RuledBlock>
     );
   }
   if (viewerId === undefined) return null;

@@ -1,3 +1,4 @@
+import { PageRule } from "@/components/ui/RuledBlock";
 import { useState } from "react";
 import { Image, Linking, Pressable, Text, useWindowDimensions, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -390,7 +391,7 @@ function TripDetailScreen() {
             and opens what comes under them; the run's first block
             therefore brings no rule of its own
             (components/trip/Itinerary.tsx). */}
-        <View className="h-px w-full bg-ink" />
+        <PageRule />
 
         {/* The run, or the state that says why it is not here: an
             unanswered RSVP withholds it, because the server reads full

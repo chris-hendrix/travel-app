@@ -5,6 +5,7 @@ import { X } from "lucide-react-native";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { InlineError } from "@/components/ui/InlineError";
 import { PhoneFieldAction } from "@/components/ui/PhoneFieldAction";
+import { RuledBlock } from "@/components/ui/RuledBlock";
 import { SuggestionList } from "@/components/ui/SuggestionList";
 import { TextField } from "@/components/ui/TextField";
 import { useDismiss } from "@/hooks/useDismiss";
@@ -283,30 +284,30 @@ export function InviteDialog({
             </Section>
           </View>
 
-          <View className="border-t border-ink pt-6">
-              {/* The label is drawn above the row and the button inside it, so the
-                  box and the button are one height. The button is detached
-                  from the field rather than a word inside it: a word in the
-                  box is a word the eye reads as the value's last word, and
-                  it is the one coloured control here because it is the only
-                  thing in the dialog that does something on its own. */}
-              <View className="gap-1">
-                <Text className="font-body-bold text-sm text-ink">
-                  Phone number
-                </Text>
-                <PhoneFieldAction
-                  ariaLabel="Phone number"
-                  value={draft}
-                  onChangeText={(value) => {
-                    setDraft(value);
-                    setError(undefined);
-                  }}
-                  error={error}
-                  submitTitle="Add"
-                  onSubmit={addNumber}
-                />
-              </View>
-          </View>
+          <RuledBlock>
+            {/* The label is drawn above the row and the button inside it, so the
+                box and the button are one height. The button is detached
+                from the field rather than a word inside it: a word in the
+                box is a word the eye reads as the value's last word, and
+                it is the one coloured control here because it is the only
+                thing in the dialog that does something on its own. */}
+            <View className="gap-1">
+              <Text className="font-body-bold text-sm text-ink">
+                Phone number
+              </Text>
+              <PhoneFieldAction
+                ariaLabel="Phone number"
+                value={draft}
+                onChangeText={(value) => {
+                  setDraft(value);
+                  setError(undefined);
+                }}
+                error={error}
+                submitTitle="Add"
+                onSubmit={addNumber}
+              />
+            </View>
+          </RuledBlock>
         </>
       )}
     </FullscreenDialog>

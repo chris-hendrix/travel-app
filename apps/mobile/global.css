@@ -86,3 +86,33 @@
   outline: 2px solid currentColor;
   outline-offset: 2px;
 }
+
+/*
+ * The rule book — four lines, and nothing outside them draws a rule.
+ *
+ * A screen here is a stack of blocks, and the rule is what says where one
+ * ends. These were thirteen hand-written copies that had drifted to three
+ * inner gaps, so the book is enforced rather than written:
+ * `scripts/design-lint.mjs` check 2 fails if either class string is typed
+ * anywhere but `components/ui/ruledBlockClasses.ts`.
+ *
+ *   RuledBlock      A black rule, taken from ABOVE the block it opens:
+ *                   `gap-5 border-t border-ink pt-6`. Optional title.
+ *                   Thirteen sites. This is a block boundary.
+ *
+ *   PageRule        The page's own hairline: `h-px w-full bg-ink`, full
+ *                   width, no title, no padding. One site — the trip
+ *                   page's, where the block above is two columns and the
+ *                   rule says "that was a grid, this is the next thing".
+ *                   Never carries a title: a title is what a block has.
+ *
+ *   border-gravel   A row separator, INSIDE a block, between rows. Not a
+ *                   boundary between blocks, and never a block rule.
+ *
+ *   One rule per boundary. A stack of blocks shares its rules; it does
+ *   not double them at every seam. That is why the rule sits on top of
+ *   its block rather than underneath it.
+ *
+ * `border-b` is the same rule and stays out of this: a `border-b` closes
+ * the block above it, which is the one case a shared rule already covers.
+ */

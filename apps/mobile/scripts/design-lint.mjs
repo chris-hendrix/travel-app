@@ -30,12 +30,17 @@ function check(name, ok) {
 
 /** Every .tsx under app/ and components/, sorted for a stable report. */
 function sources() {
+  return sourcesWith(/\.tsx$/);
+}
+
+/** The same walk, over the pattern the caller needs. */
+function sourcesWith(pattern) {
   const out = [];
   const walk = (dir) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) walk(full);
-      else if (entry.name.endsWith(".tsx")) out.push(full);
+      else if (pattern.test(entry.name)) out.push(full);
     }
   };
   for (const dir of ["app", "components"]) {
@@ -129,5 +134,87 @@ function checkButtonRows() {
 }
 
 checkButtonRows();
+
+/**
+ * Check 2 — one rule per boundary, in two forms.
+ *
+ * A stack of blocks shares its rules; it does not double them at every
+ * seam. The rule belongs to `RuledBlock` and the hairline to
+ * `ruledBlockClasses.ts`, and each has exactly one home. Thirteen
+ * hand-written copies of `border-t border-ink pt-6` had drifted to three
+ * different inner gaps while `Section` used a fourth, which is what made
+ * a stack of them look like a stack of unrelated things rather than one
+ * screen.
+ *
+ * Both needles live in the same file: `ruledBlockClasses.ts` *defines*
+ * them and `RuledBlock.tsx` imports them, so the module of strings is the
+ * one place either may appear. `PageRule` is the same story -- `h-px` is
+ * not in a component at all.
+ *
+ * `h-px` is checked over `.ts` as well as `.tsx` for that reason. **The
+ * plan expected `grep -rn 'h-px' app components` to return nothing after
+ * this phase; it cannot, and should not** -- the string has to exist
+ * somewhere for `PageRule` to render it. One hit, in the file that
+ * defines it, is the correct end state.
+ */
+const RULE_HOME = "components/ui/ruledBlockClasses.ts";
+
+/**
+ * Comments, dropped. These checks look for class strings, and a doc
+ * comment that names the class it forbids is not a violation of it --
+ * `RuledBlock.tsx` explains why the page rule is not a border, and that
+ * sentence contains `h-px` and `border-t`. Without this the check fails on
+ * the file that documents it.
+ *
+ * Block comments are removed wherever they are. `//` comments are removed
+ * only when they open a line, because a `//` mid-line is far more likely
+ * to be a URL inside a string (`https://calendar.google.com/...`) than a
+ * comment, and eating the rest of such a line would hide a real rule
+ * sitting after it.
+ */
+function code(source) {
+  return source
+    // Newlines are kept so a reported line number is the line number in
+    // the file a human opens, not the line number after the surgery.
+    .replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, " "))
+    .replace(/^[ \t]*\/\/.*$/gm, (line) => " ".repeat(line.length));
+}
+
+function checkRuleForms() {
+  const block = [];
+  const page = [];
+  for (const file of sourcesWith(/\.tsx?$/)) {
+    const rel = path.relative(mobile, file);
+    const src = code(fs.readFileSync(file, "utf8"));
+    // Every occurrence, not the first: four of the thirteen sites share
+    // files with three others, and a check reporting one line per file
+    // would let three of them through.
+    const all = (needle) => {
+      const lines = [];
+      for (
+        let at = src.indexOf(needle);
+        at !== -1;
+        at = src.indexOf(needle, at + 1)
+      ) {
+        lines.push(src.slice(0, at).split("\n").length);
+      }
+      return lines;
+    };
+    if (rel !== RULE_HOME) {
+      for (const at of all("border-t border-ink pt-6")) {
+        block.push(`${rel}:${at}`);
+      }
+    }
+    if (rel !== RULE_HOME) {
+      for (const at of all("h-px")) page.push(`${rel}:${at}`);
+    }
+  }
+  check(`the block rule is written only in ${RULE_HOME}`, block.length === 0);
+  for (const hit of block) console.error(`  ${hit}`);
+  check(`the page hairline is written only in ${RULE_HOME}`, page.length === 0);
+  for (const hit of page) console.error(`  ${hit}`);
+}
+
+checkRuleForms();
 
 process.exit(failures === 0 ? 0 : 1);

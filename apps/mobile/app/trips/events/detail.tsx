@@ -1,3 +1,4 @@
+import { RuledBlock } from "@/components/ui/RuledBlock";
 import { Image, Linking, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
@@ -186,7 +187,7 @@ function EventDetailDialog() {
           leading out to Maps, pinned to the place itself. The line
           hides when there is neither. */}
       {rows.name ?? rows.address ? (
-        <View className="border-t border-ink pt-6">
+        <RuledBlock title="Where">
           <Text selectable className="font-body text-base text-ink/70">
             {rows.name ? (
               <Text className="font-body-bold text-ink">{rows.name}</Text>
@@ -204,7 +205,7 @@ function EventDetailDialog() {
               }
             />
           ) : null}
-        </View>
+        </RuledBlock>
       ) : null}
 
       {/* The organizer's prose, at full width under both columns: it is
@@ -212,11 +213,11 @@ function EventDetailDialog() {
           a paragraph squeezed into a column beside a photo reads as
           caption. */}
       {event.description ? (
-        <View className="border-t border-ink pt-6">
+        <RuledBlock>
           <Text className="font-body text-base leading-relaxed text-ink">
             {event.description}
           </Text>
-        </View>
+        </RuledBlock>
       ) : null}
     </FullscreenDialog>
   );
