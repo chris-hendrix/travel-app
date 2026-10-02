@@ -137,7 +137,7 @@ function TripsContent() {
 
       {trips.length === 0 ? (
         <View className="gap-5 py-10">
-          <Text className="font-display text-3xl uppercase leading-tight text-ink">
+          <Text className="font-display-bold text-display-sm uppercase text-ink">
             No trips yet
           </Text>
           <Text className="font-body text-lg text-ink">

@@ -27,7 +27,7 @@ import { Text, View } from "react-native";
 export function RunLocked() {
   return (
     <View className="gap-1">
-      <Text className="font-display text-xl uppercase leading-none text-ink">
+      <Text className="text-heading-md text-ink">
         The run opens when you are going
       </Text>
       <Text className="font-body text-base text-ink">

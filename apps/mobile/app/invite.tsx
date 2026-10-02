@@ -140,7 +140,7 @@ function GoneInvite({ onStartOwn }: { onStartOwn: () => void }) {
     <Screen>
       <View className="gap-8 pt-4 md:pt-14">
         <View className="gap-3">
-          <Text className="font-display text-4xl uppercase leading-none text-ink">
+          <Text className="font-display-extrabold text-display-md uppercase text-ink">
             This invitation is gone
           </Text>
           <Text className="font-body text-base leading-snug text-ink">

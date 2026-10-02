@@ -64,7 +64,6 @@
   --color-silver: #b3b3b3; /* inert fill, true neutral */
 
   /* Type roles — family names match expo-font registrations */
-  --font-display: "Handjet_800ExtraBold", monospace;
   /* Four families, not four weights of one. Android derives the family
      from the TTF's basename, so there is no weight axis to ask for and
      `font-black` will not resolve against any of these: the weight is in
@@ -72,9 +71,7 @@
      for display-md, bold for display-sm, semibold for heading-lg — and the
      fallback stack stays on each so a failed load degrades to the system's
      sans rather than hanging on a missing face. `Handjet_800ExtraBold`
-     above is retired with the face (Task 7); it is kept until the gate
-     that judges Big Shoulders is answered, because A6 keeps the face and
-     the scale separable. */
+     */
   /* The scale — seven steps, and the only seven the app sets type at.
      Size, leading and tracking are one decision per step, so they are
      declared together: `text-display-lg` brings all three, and a site that
@@ -116,6 +113,14 @@
   --text-display-md: 42px;
   --text-display-md--line-height: 0.95;
   --text-display-md--letter-spacing: -0.015em;
+  /* `display-md`'s wide size. The Architecture table gives this step as
+     "42 -> 48 fluid"; Task 6 kept fixed px and named display-lg as the one
+     breakpoint jump, but five sites were already stepping at md and 48 is
+     the step they were stepping to. Declared rather than left as a raw
+     `md:text-[48px]` so the wide size is a step and not a magic number. */
+  --text-display-md-wide: 48px;
+  --text-display-md-wide--line-height: 0.95;
+  --text-display-md-wide--letter-spacing: -0.015em;
   --text-display-sm: 32px;
   --text-display-sm--line-height: 1;
   --text-display-sm--letter-spacing: -0.01em;

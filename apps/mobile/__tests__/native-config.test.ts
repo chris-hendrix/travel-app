@@ -89,14 +89,13 @@ describe("native config: the app.json keys the native build needs", () => {
       (p) => Array.isArray(p) && p[0] === "expo-font",
     ) as [string, { fonts: string[] }];
     expect(font, "expo-font plugin configured").toBeDefined();
-    expect(font[1].fonts).toHaveLength(9);
+    expect(font[1].fonts).toHaveLength(8);
     for (const rel of font[1].fonts) {
       // The family Android derives is the file's basename, so it has to
       // match what `global.css` names in `--font-wordmark` and friends.
       const family = path.basename(rel, ".ttf");
       expect([
         "BungeeShade_400Regular",
-        "Handjet_800ExtraBold",
         "SpaceMono_400Regular",
         "SpaceMono_400Regular_Italic",
         "SpaceMono_700Bold",

@@ -292,7 +292,7 @@ function GuestDialog({
       pending={pending}
       dismissHref={dismissHref}
     >
-      <Text className="font-display text-4xl uppercase leading-[0.95] text-ink md:text-5xl">
+      <Text className="font-display-extrabold text-display-md uppercase text-ink md:text-display-md-wide">
         {member.name}
       </Text>
 
@@ -434,7 +434,7 @@ function MemberDialog({
 
   return (
     <FullscreenDialog title="Member" dismissHref={dismissHref}>
-      <Text className="font-display text-4xl uppercase leading-[0.95] text-ink md:text-5xl">
+      <Text className="font-display-extrabold text-display-md uppercase text-ink md:text-display-md-wide">
         {member.name}
       </Text>
 
@@ -551,7 +551,7 @@ function InvitedDialog({
 
   return (
     <FullscreenDialog title="Invited" dismissHref={dismissHref}>
-      <Text className="font-display text-4xl uppercase leading-[0.95] text-ink md:text-5xl">
+      <Text className="font-display-extrabold text-display-md uppercase text-ink md:text-display-md-wide">
         {formatPhoneForDisplay(invitation.phone)}
       </Text>
       <Text className="font-body text-base text-ink">

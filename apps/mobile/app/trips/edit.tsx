@@ -334,7 +334,7 @@ function EditTripScreen() {
               />
             ) : (
               <View className="h-20 w-20 items-center justify-center bg-ink">
-                <Text className="font-display text-4xl leading-none text-sand">
+                <Text className="font-display-extrabold text-display-md text-sand">
                   +
                 </Text>
               </View>

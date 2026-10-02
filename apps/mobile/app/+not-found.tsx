@@ -14,7 +14,7 @@ export default function NotFound() {
   return (
     <Screen lead>
       <View className="gap-3">
-        <Text className="font-display text-4xl uppercase leading-none text-ink">
+        <Text className="font-display-extrabold text-display-md uppercase text-ink">
           Nothing here
         </Text>
         <Text className="font-body text-base leading-snug text-ink">

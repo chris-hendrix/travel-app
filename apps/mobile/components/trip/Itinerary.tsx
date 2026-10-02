@@ -194,7 +194,7 @@ export function Itinerary({
             // The table's first heading is the roofs, in the same face
             // as the days below it: the run opens with where you sleep.
             <View className="pt-6">
-              <Text className="pb-3 font-display text-xl uppercase leading-none text-ink">
+              <Text className="pb-3 font-display-semibold text-heading-lg uppercase text-ink">
                 Stays
               </Text>
               {stays.map((stay) => (
@@ -228,7 +228,7 @@ export function Itinerary({
                   index === 0 && stays.length === 0 ? "pt-6" : "pt-10"
                 }
               >
-                <Text className="pb-3 font-display text-xl uppercase leading-none text-ink">
+                <Text className="pb-3 font-display-semibold text-heading-lg uppercase text-ink">
                   {dayLabel(day.date, today)}
                 </Text>
                 {day.events.map((event) => (
@@ -283,7 +283,7 @@ export function Itinerary({
                   not "nothing planned", it is missing a plan, and the
                   sentence below says exactly that on its own. */}
               {missingStays ? (
-                <Text className="font-display text-xl uppercase leading-none text-ink">
+                <Text className="font-display-semibold text-heading-lg uppercase text-ink">
                   Nothing planned yet
                 </Text>
               ) : null}
@@ -328,7 +328,7 @@ export function Itinerary({
             </View>
           ) : shown.length === 0 ? (
             <View className="gap-1">
-              <Text className="font-display text-xl uppercase leading-none text-ink">
+              <Text className="font-display-semibold text-heading-lg uppercase text-ink">
                 Nothing ahead
               </Text>
               <Text className="font-body text-base text-ink">

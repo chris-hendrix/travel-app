@@ -20,7 +20,6 @@ import {
   SpaceMono_700Bold,
 } from "@expo-google-fonts/space-mono";
 import { BungeeShade_400Regular } from "@expo-google-fonts/bungee-shade";
-import { Handjet_800ExtraBold } from "@expo-google-fonts/handjet";
 import {
   BigShouldersDisplay_600SemiBold,
   BigShouldersDisplay_700Bold,
@@ -74,13 +73,8 @@ export default function RootLayout() {
   // is in the name, which is why `--font-display-black` and friends are
   // four tokens and not one plus a `font-black` (Task 1).
   //
-  // Handjet is still registered beside them. The gate that accepts this
-  // face has not been judged yet, and A6 keeps the two separable: a denied
-  // face leaves Handjet in place and only the scale moves. Task 7 retires
-  // it once the face is accepted.
   const [displayLoaded, displayError] = useFonts({
     BungeeShade_400Regular,
-    Handjet_800ExtraBold,
     BigShouldersDisplay_900Black,
     BigShouldersDisplay_800ExtraBold,
     BigShouldersDisplay_700Bold,

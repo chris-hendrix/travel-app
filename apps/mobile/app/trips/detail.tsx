@@ -330,7 +330,7 @@ function TripDetailScreen() {
               <Text className="font-body-bold text-lg text-ink">
                 {formatDateRange(trip.startDate, trip.endDate)}
               </Text>
-              <Text className="font-display text-5xl uppercase leading-[0.95] text-ink md:text-6xl">
+              <Text className="font-display-extrabold text-display-md-wide uppercase text-ink md:text-display-lg">
                 {trip.title}
               </Text>
               {/* Where the trip is, and the one fact on this screen the

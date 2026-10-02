@@ -246,7 +246,7 @@ function AdminUserDetail({
             long name rather than squashing it; only an exception wears
             one (banned or admin). */}
         <View className="flex-row flex-wrap items-center gap-2">
-          <Text className="font-display text-2xl text-ink">
+          <Text className="font-display-semibold text-heading-lg text-ink">
             {displayName}
           </Text>
           {user.status === "banned" ? (
@@ -277,7 +277,7 @@ function AdminUserDetail({
             Edit and Cancel in it, which a title string cannot be. The
             block rule and the gap are the primitive's. */}
         <View className="flex-row items-center justify-between">
-          <Text className="font-display text-xl uppercase leading-none text-ink">
+          <Text className="font-display-semibold text-heading-lg uppercase text-ink">
             Profile
           </Text>
           {editing ? (

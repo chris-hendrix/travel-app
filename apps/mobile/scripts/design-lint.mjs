@@ -307,6 +307,7 @@ const SIZE_PX = {
   "text-display-lg": 60,
   "text-display-lg-wide": 72,
   "text-display-md": 42,
+  "text-display-md-wide": 48,
   "text-display-sm": 32,
   "text-heading-lg": 28,
   "text-heading-md": 20,

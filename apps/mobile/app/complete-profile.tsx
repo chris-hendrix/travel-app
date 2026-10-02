@@ -67,7 +67,7 @@ export default function CompleteProfile() {
   return (
     <Screen lead>
       <View className="gap-3">
-        <Text className="font-display text-4xl uppercase leading-none text-ink">
+        <Text className="font-display-extrabold text-display-md uppercase text-ink">
           Complete your profile
         </Text>
         <Text className="font-body text-base leading-snug text-ink">
@@ -77,12 +77,12 @@ export default function CompleteProfile() {
 
       <View className="flex-row items-center gap-5">
         <View className="h-16 w-16 items-center justify-center bg-ink">
-          <Text className="font-display text-3xl leading-none text-sand">
+          <Text className="font-display-bold text-display-sm text-sand">
             {initials(trimmed)}
           </Text>
         </View>
         <View className="flex-1">
-          <Text className="font-display text-2xl uppercase leading-tight text-ink">
+          <Text className="font-display-semibold text-heading-lg uppercase text-ink">
             {trimmed || "Your name"}
           </Text>
           <Text className="font-body text-sm text-ink">

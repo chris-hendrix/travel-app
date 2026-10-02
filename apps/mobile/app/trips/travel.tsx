@@ -174,7 +174,7 @@ function TravelSection({
 
   return (
     <View className="gap-4">
-      <Text className="font-display text-3xl uppercase text-ink">
+      <Text className="font-display-bold text-display-sm uppercase text-ink">
         {heading}
       </Text>
       {/* Soft gravel rules between rows of the same kind; the ink top

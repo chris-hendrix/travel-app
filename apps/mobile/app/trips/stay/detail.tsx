@@ -162,7 +162,7 @@ function StayDetailDialog() {
           <Text className="font-body-bold text-lg text-ink">
             {joinFacts(nightsLabel(stay, timeZone), staySpan(stay, timeZone))}
           </Text>
-          <Text className="font-display text-4xl uppercase leading-[0.95] text-ink md:text-5xl">
+          <Text className="font-display-extrabold text-display-md uppercase text-ink md:text-display-md-wide">
             {stay.name}
           </Text>
         </View>

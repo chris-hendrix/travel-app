@@ -41,7 +41,7 @@ export function InviteCard({
             {formatDateRange(startDate, endDate ?? startDate)}
           </Text>
         ) : null}
-        <Text className="font-display text-5xl uppercase leading-[0.95] text-ink">
+        <Text className="font-display-extrabold text-display-md-wide uppercase text-ink">
           {tripName}
         </Text>
         <PlaceLink label={destination} query={`${destination} ${tripName}`} />

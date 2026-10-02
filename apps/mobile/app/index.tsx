@@ -71,7 +71,7 @@ function Landing() {
     <Screen>
       <View className="gap-16 pb-12 pt-4 md:pt-14">
         <View className="gap-6">
-          <Text className="font-display text-6xl uppercase leading-[0.85] text-ink md:text-7xl">
+          <Text className="font-display-black text-display-lg uppercase text-ink md:text-display-lg-wide">
             Group trips made easy
           </Text>
           <Text className="font-body text-lg leading-snug text-ink">
@@ -96,7 +96,7 @@ function Landing() {
             says what it is like without them, rather than listing them a
             second time. Agitation, not a mirror. */}
         <View className="gap-4">
-          <Text className="font-display text-2xl uppercase leading-tight text-ink">
+          <Text className="font-display-semibold text-heading-lg uppercase text-ink">
             It starts in the group chat
           </Text>
           <Text className="font-body text-base leading-relaxed text-ink">
@@ -114,7 +114,7 @@ function Landing() {
             >
               <feature.icon color={INK} size={24} />
               <View className="flex-1 gap-1">
-                <Text className="font-display text-xl uppercase leading-none text-ink">
+                <Text className="font-display-semibold text-heading-lg uppercase text-ink">
                   {feature.title}
                 </Text>
                 <Text className="font-body text-sm leading-snug text-ink">
@@ -131,7 +131,7 @@ function Landing() {
               key={step.number}
               className="flex-row gap-4 border-t border-ink py-5"
             >
-              <Text className="font-display text-4xl leading-none text-ink">
+              <Text className="font-display-extrabold text-display-md text-ink">
                 {step.number}
               </Text>
               <View className="flex-1 gap-1">
@@ -151,7 +151,7 @@ function Landing() {
             above it is the outcome rather than the promise, so the hero's
             "in one place" is not said a second time. */}
         <View className="gap-6">
-          <Text className="font-display text-2xl uppercase leading-tight text-ink">
+          <Text className="text-heading-md text-ink">
             Everyone on the trip, from the first text to the last flight
           </Text>
           <Button title="Get started" onPress={() => router.push("/login")} />
@@ -195,7 +195,7 @@ function Section({
 }) {
   return (
     <View className="gap-6">
-      <Text className="font-display text-2xl uppercase leading-tight text-ink">
+      <Text className="font-display-semibold text-heading-lg uppercase text-ink">
         {title}
       </Text>
       <View className="border-b border-ink">{children}</View>

@@ -331,14 +331,14 @@ function ProfileForm({ profile }: { profile: Profile }) {
             />
           ) : (
             <View className="h-20 w-20 items-center justify-center bg-ink">
-              <Text className="font-display text-4xl leading-none text-sand">
+              <Text className="font-display-extrabold text-display-md text-sand">
                 {initials(draft.displayName)}
               </Text>
             </View>
           )}
         </Pressable>
         <View className="flex-1">
-          <Text className="font-display text-3xl uppercase leading-tight text-ink">
+          <Text className="font-display-bold text-display-sm uppercase text-ink">
             {draft.displayName.trim() || "Your name"}
           </Text>
           <Text className="mt-1 font-body text-sm text-ink">

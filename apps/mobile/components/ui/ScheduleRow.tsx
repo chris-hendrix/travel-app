@@ -74,7 +74,7 @@ export function ScheduleRow({
           a phone there is no room for a third column, so it takes its
           own line and keeps the right edge. */}
       <View className="flex-1 gap-3">
-        <Text className="font-display text-3xl uppercase leading-[1.05] text-ink">
+        <Text className="font-display-bold text-display-sm uppercase text-ink">
           {title}
         </Text>
         <View className="flex-row flex-wrap items-center gap-3">{labels}</View>

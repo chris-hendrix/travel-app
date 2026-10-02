@@ -206,9 +206,6 @@ importers:
       '@expo-google-fonts/bungee-shade':
         specifier: ^0.4.1
         version: 0.4.1
-      '@expo-google-fonts/handjet':
-        specifier: ^0.4.2
-        version: 0.4.2
       '@expo-google-fonts/space-mono':
         specifier: ^0.4.2
         version: 0.4.2
@@ -1401,9 +1398,6 @@ packages:
 
   '@expo-google-fonts/bungee-shade@0.4.1':
     resolution: {integrity: sha512-HiTCAYNrnrmRQIVVRRzuXv1WxDtNHZ8Dg+2g0lWGb8ehTnXcnvi4PFX7RoylGPQLnmHnQNZI3khyrqM2arHPmQ==}
-
-  '@expo-google-fonts/handjet@0.4.2':
-    resolution: {integrity: sha512-fQqPmj6MNO06THzrYgD2asmW0+Jv8yCqG4TwHjyxcLt1ZuBnnK1cYlhCwE/QRNLBR2zaZ2C9kuzerp1RF3TtSQ==}
 
   '@expo-google-fonts/material-symbols@0.4.48':
     resolution: {integrity: sha512-aZztj44PyA/sj3TXSwwpLJwqMlTUJ49okbZJYURzEcuERxMQB0KbX7RrLBi8WJnuWz5HFOLlTRxORrJfNnUPNQ==}
@@ -7552,8 +7546,6 @@ snapshots:
 
   '@expo-google-fonts/bungee-shade@0.4.1': {}
 
-  '@expo-google-fonts/handjet@0.4.2': {}
-
   '@expo-google-fonts/material-symbols@0.4.48': {}
 
   '@expo-google-fonts/space-mono@0.4.2': {}
@@ -11317,9 +11309,9 @@ snapshots:
 
   magicast@0.5.3:
     dependencies:
-      '@babel/parser': 7.29.8
+      '@babel/parser': 7.29.9
       '@babel/types': 7.29.8
-      source-map-js: 1.2.1
+      source-map-js: 1.2.2
 
   make-dir@4.0.0:
     dependencies:
@@ -12676,8 +12668,7 @@ snapshots:
 
   source-map-js@1.2.1: {}
 
-  source-map-js@1.2.2:
-    optional: true
+  source-map-js@1.2.2: {}
 
   source-map-support@0.5.21:
     dependencies:

@@ -38,7 +38,7 @@ export function RuledBlock({
   return (
     <View className={RULED_BLOCK}>
       {title ? (
-        <Text className="font-display text-xl uppercase leading-none text-ink">
+        <Text className="font-display-semibold text-heading-lg uppercase text-ink">
           {title}
         </Text>
       ) : null}

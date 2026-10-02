@@ -38,7 +38,7 @@ import { toErrorCopy } from "@/lib/queries/errors";
 export default function AdminUsersScreen() {
   return (
     <Screen lead>
-      <Text className="font-display text-3xl uppercase leading-tight text-ink">
+      <Text className="font-display-bold text-display-sm uppercase text-ink">
         User management
       </Text>
       <AdminGate label="Loading users">

@@ -214,7 +214,7 @@ export function AppHeader({
     return (
       <View>
         <View className="flex-row items-center justify-between border-b border-ink bg-gravel px-6 py-4">
-          <Text className="font-display text-2xl leading-none text-ink">
+          <Text className="font-display-semibold text-heading-lg text-ink">
             {title}
           </Text>
           <View className="flex-row items-center gap-0">
