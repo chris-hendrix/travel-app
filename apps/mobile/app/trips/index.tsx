@@ -2,7 +2,7 @@ import { Component, Suspense, type ReactNode } from "react";
 import { useRouter } from "expo-router";
 import { Text, View } from "react-native";
 import { QueryErrorResetBoundary } from "@tanstack/react-query";
-import { Button } from "@/components/ui/Button";
+import { ActionBar } from "@/components/ui/ActionBar";
 import { Section } from "@/components/ui/Section";
 import { Screen } from "@/components/ui/Screen";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
@@ -24,7 +24,13 @@ import { Column } from "@/components/ui/Column";
  * own year in the date line.
  */
 export default function TripsScreen() {
+  const router = useRouter();
+
   return (
+    // The bar is a sibling of the scroll rather than an overlay: the scroll
+    // takes the height that is left, so no card is ever behind it and the
+    // content needs no bottom padding to escape it.
+    <View className="flex-1">
     <Screen>
       {/* The list read is the screen: Suspense owns the loading copy
           ("Loading your trips"), the boundary below owns the failure copy, and
@@ -58,6 +64,23 @@ export default function TripsScreen() {
         )}
       </QueryErrorResetBoundary>
     </Screen>
+      {/* The page's one action, in the system's own foot. It was a box at the
+          top of the list, which made the *action* louder than the *content*:
+          a seafoam button out-shouted the trip card it sits above. Here it is
+          out of the content's way, and the top of the page is free for the
+          first section's ground to start at the header.
+
+          Always present, including while the list loads or fails. It is the
+          page's action rather than the list's, and a bar that appeared only
+          once data arrived would move the page under the reader. */}
+      <ActionBar
+        primaryTitle="Create trip"
+        onPrimary={() => router.push("/trips/new")}
+        // A screen's foot, not a dialog's: this bar is a sibling of the
+        // scroll, so nothing passes under it and it needs no rule.
+        variant="screen"
+      />
+    </View>
   );
 }
 
@@ -140,24 +163,13 @@ function TripsContent() {
   return (
     <View>
       {/* No page heading: the app wordmark bar already says where you
-          are, and the section rules carry the structure. The button keeps
-          its own column above the bands — it is the page's one action and
-          the top is where it is looked for. */}
-      {trips.length > 0 ? (
-        <Column>
-          <View className="gap-8 pb-6 pt-6 md:pb-10 md:pt-10">
-            <Button
-              title="Create trip"
-              onPress={() => router.push("/trips/new")}
-            />
-          </View>
-        </Column>
-      ) : null}
-
+          are, and the section rules carry the structure. No button either:
+          the page's one action is pinned at the foot, which is why the first
+          band below can start at the top of the page. */}
       {trips.length === 0 ? (
         <Band tone="baltic">
           <Column>
-        <View className="gap-5 py-6 md:py-10">
+        <View className="gap-5">
           <Text className="font-display-bold text-display-sm uppercase text-ink">
             No trips yet
           </Text>
@@ -165,12 +177,6 @@ function TripsContent() {
             Start a trip, add the dates, and invite everyone. Everyone
             sees the same itinerary as it comes together.
           </Text>
-          <View>
-            <Button
-              title="Create your first trip"
-              onPress={() => router.push("/trips/new")}
-            />
-          </View>
         </View>
           </Column>
         </Band>
@@ -180,30 +186,45 @@ function TripsContent() {
               "underway", and the list and the badge should use one word for
               one state.
 
-              It is the one group with a ground, and it is the only group
-              whose *presence* is information: a trip you are on right now is
-              what the app is for, and a band that appears only while you are
-              travelling says so. `Upcoming` would have been the group that is
-              usually populated, which is an argument about how often the
-              colour shows rather than about what deserves marking. */}
+              It is the group whose *presence* is information: a trip you
+              are on right now is what the app is for, and a band that appears
+              only while you are travelling says so. `Upcoming` would have
+              been the group that is usually populated, which is an argument
+              about how often the colour shows rather than about what deserves
+              marking.
+
+              `Upcoming` takes baltic directly under it, so the two grounds
+              touch. That is band-against-band, which `design-lint` check 5
+              exists to prevent and which the trip page already does once for
+              the same reason: the seam is the division between two named
+              sections, so it is saying something rather than nothing. The
+              exception is written into the check's allow-list. */}
           {current.length > 0 ? (
             <Band tone="lilac">
               <Column>
-                <View className="gap-8 py-6 md:py-10">
-                  <Section title="Underway">
+                <View className="gap-8">
+                  <Section title="Underway" rule={false}>
                     <Grid>{current.map((trip) => card(trip))}</Grid>
                   </Section>
                 </View>
               </Column>
             </Band>
           ) : null}
-          <Column>
-            <View className="gap-8 pb-6 pt-6 md:pb-10 md:pt-10">
           {upcoming.length > 0 ? (
-            <Section title="Upcoming">
-              <Grid>{upcoming.map((trip) => card(trip))}</Grid>
-            </Section>
+            <Band tone="baltic">
+              <Column>
+                <View className="gap-8 py-6 md:py-10">
+                  <Section title="Upcoming" rule={false}>
+                    <Grid>{upcoming.map((trip) => card(trip))}</Grid>
+                  </Section>
+                </View>
+              </Column>
+            </Band>
           ) : null}
+          {/* Past keeps sand: a trip that is over is the one group with
+              nothing to say, and the two grounds above it have said it. */}
+          <Column>
+            <View className="gap-8">
           {past.length > 0 ? (
             <Section title="Past">
               <Grid>{past.map((trip) => card(trip))}</Grid>

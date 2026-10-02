@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   RULED_BLOCK,
   RULED_BLOCK_PAGE,
+  RULED_BLOCK_UNRULED,
 } from "@/components/ui/ruledBlockClasses";
 
 /**
@@ -56,6 +57,29 @@ describe("RULED_BLOCK", () => {
     // render a title at all, and this is the string a title-less site
     // shares with a titled one.
     expect(RULED_BLOCK).not.toMatch(/text-|font-/);
+  });
+});
+
+describe("RULED_BLOCK_UNRULED", () => {
+  it("is the block's own rhythm and nothing else", () => {
+    expect(classes(RULED_BLOCK_UNRULED)).toEqual(classes("gap-5"));
+  });
+
+  it("carries no rule, which is the whole of why it exists", () => {
+    // A block whose boundary is already drawn — the first block inside a
+    // band — must not draw a second one. `global.css`'s rule book: "One rule
+    // per boundary: a stack of blocks shares rules, it does not double them
+    // at every seam."
+    expect(RULED_BLOCK_UNRULED).not.toMatch(/border-/);
+  });
+
+  it("carries no padding either, because the space above belongs to the band", () => {
+    // `RULED_BLOCK`'s `pt-6` is the space *under its rule*. With no rule
+    // there is nothing to sit under, and the air above the block is the
+    // band's column padding — so keeping the `pt-6` would reintroduce the
+    // stacked padding this form exists to remove.
+    expect(RULED_BLOCK_UNRULED).not.toMatch(/\bp[tyblrx]?-\d/);
+    expect(RULED_BLOCK_UNRULED).not.toBe(RULED_BLOCK);
   });
 });
 

@@ -624,8 +624,8 @@ function DesignSystemScreen() {
 
             <Specimen
               name="Section"
-              contract="title · children?"
-              note="A titled block, ruled off from the one above it. The rule sits on top of the block rather than under it, so a stack of them shares its rules instead of doubling them at every boundary. It replaced four local copies that had already drifted apart on gap and heading size. The landing's sections are deliberately not this: they are tables of rows closed by a rule underneath, at the hero's own scale. This specimen goes when the twelve hand-rolled rules move onto `RuledBlock` — it is the last caller."
+              contract="title · rule? · children?"
+              note="A titled block, ruled off from the one above it. The rule sits on top of the block rather than under it, so a stack of them shares its rules instead of doubling them at every boundary. It replaced four local copies that had already drifted apart on gap and heading size. The landing's sections are deliberately not this: they are tables of rows closed by a rule underneath, at the hero's own scale. `rule={false}` is for a block whose boundary is already drawn — the first block inside a `Band`, where the band's own edge is the seam — and it drops the rule *and* its padding, because the air above a banded block belongs to the band. Two marks for one boundary is what the rule book forbids \u2014 one rule per boundary, a stack of blocks shares rules rather than doubling them at every seam. A screen that never needs it is the honest case for leaving this specimen behind."
             >
               <RuledSection title="What goes in the trip">
                 <Text className="font-body text-base text-ink">
@@ -636,8 +636,8 @@ function DesignSystemScreen() {
 
             <Specimen
               name="RuledBlock"
-              contract="title? · children? — plus `PageRule`, no props"
-              note="One rule per boundary. A black rule taken from above is a block boundary: it opens a block, it carries the block's padding and the block's inner gap, and its title is optional because eleven of the thirteen sites had no title and a rule over one paragraph reads as an accident until something names it. A `PageRule` is the page's own hairline — full width, no title, no padding — for a boundary that closes a multi-column block and opens what is under it, and it is one site. A `border-gravel` between rows is neither: it is a row separator inside a block, not a boundary between blocks. Below: the real stay screen, where three blocks sat at three different gaps under three hand-written copies of the same rule. `Where` and `Arrival` are the new titles; the check-in block keeps the Fact labels it already had, which is the one open question on this gate."
+              contract="title? · rule? · children? — plus `PageRule`, no props"
+              note="One rule per boundary. A black rule taken from above is a block boundary: it opens a block, it carries the block's padding and the block's inner gap, and its title is optional because eleven of the thirteen sites had no title and a rule over one paragraph reads as an accident until something names it. A `PageRule` is the page's own hairline — full width, no title, no padding — for a boundary that closes a multi-column block and opens what is under it, and it is one site. A `border-gravel` between rows is neither: it is a row separator inside a block, not a boundary between blocks. Below: the real stay screen, where three blocks sat at three different gaps under three hand-written copies of the same rule. `Where` and `Arrival` are the new titles; the check-in block keeps the Fact labels it already had. `rule={false}` is the third form: a block whose boundary is already drawn, so it carries no rule and no padding — the first block inside a `Band`, where the band's edge *is* the seam. Below it is the shape a band uses."
             >
               <RuledBlock title="Where">
                 <Text selectable className="font-body text-base text-ink/70">
@@ -668,6 +668,13 @@ function DesignSystemScreen() {
                     Sun, Jun 16, 11:00 AM
                   </Text>
                 </Fact>
+              </RuledBlock>
+              {/* Unruled: no boundary above it, so no mark and no padding.
+                  This is the form the first block inside a band wears. */}
+              <RuledBlock title="Already bounded" rule={false}>
+                <Text className="font-body text-base text-ink">
+                  Nothing above me to be ruled off from.
+                </Text>
               </RuledBlock>
               {/* The page rule, between two blocks rather than above one. */}
               <PageRule />
@@ -717,12 +724,17 @@ function DesignSystemScreen() {
 
             <Specimen
               name="ActionBar"
-              contract="primaryTitle · onPrimary"
-              note="One primary action, no Back: dismissal is the header close control and the platform gesture. Fills the width on a phone, hugs right on wide."
+              contract="primaryTitle · onPrimary · variant?"
+              note="One primary action, no Back: dismissal is the header close control and the platform gesture. Fills the width on a phone, hugs right on wide. `variant` is where the bar lives, and the two differ by one question — does content scroll under it? A `dialog` is yes: the rule marks where the bar begins and the ground is gravel because the dialog is. A `screen` is no, and it keeps the rule for the opposite reason: its ground is sand, which is the page, so without a rule there is nothing marking it as a bar at all rather than the page's last block. Below: a dialog's foot, then a screen's."
             >
               <ActionBar
                 primaryTitle="Save changes"
                 onPrimary={() => setLog("ActionBar onPrimary fired")}
+              />
+              <ActionBar
+                variant="screen"
+                primaryTitle="Create trip"
+                onPrimary={() => setLog("ActionBar (screen) fired")}
               />
             </Specimen>
 
@@ -1661,8 +1673,14 @@ function DesignSystemScreen() {
         tones are: a full-bleed ground cannot exist inside a constrained
         column, which is the whole reason `Screen` stopped wrapping its
         children in one. Every number beside each tone is computed from
-        `lib/palette.ts` at render rather than typed here, because a\.
+        `lib/palette.ts` at render rather than typed here, because a
         hardcoded chroma is a claim and a measured one is a check.
+
+        What the band's *content* wears matters as much as the tone: the
+        first block inside one carries no rule, because the band's own edge
+        is that boundary. Two marks for one seam is what the rule book
+        forbids. The same reasoning gives a band its padding — on a band,
+        padding is not air, it is colour.
       */}
       {(BAND_TONES as BandTone[]).map((tone) => {
         const token = TOKENS.find((t) => t.name === tone)!;

@@ -4,6 +4,7 @@ import { Text, View } from "react-native";
 import {
   RULED_BLOCK,
   RULED_BLOCK_PAGE,
+  RULED_BLOCK_UNRULED,
 } from "@/components/ui/ruledBlockClasses";
 
 /**
@@ -30,13 +31,21 @@ import {
  */
 export function RuledBlock({
   title,
+  rule = true,
   children,
 }: {
   title?: string | undefined;
+  /**
+   * Whether to draw the boundary above. False for a block that is already
+   * bounded from above — the first block inside a `Band`, whose edge is that
+   * boundary — because a rule is a mark for a seam, and two marks for one
+   * seam is the thing the rule book forbids.
+   */
+  rule?: boolean;
   children?: ReactNode;
 }) {
   return (
-    <View className={RULED_BLOCK}>
+    <View className={rule ? RULED_BLOCK : RULED_BLOCK_UNRULED}>
       {title ? (
         <Text className="font-display-semibold text-heading-lg uppercase text-ink">
           {title}

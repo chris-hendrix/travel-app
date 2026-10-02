@@ -20,6 +20,18 @@
 export const RULED_BLOCK = "gap-5 border-t border-ink pt-6";
 
 /**
+ * A block that has nothing above it to be ruled off from.
+ *
+ * The rule marks the boundary *above* a block, so a block whose boundary is
+ * already drawn — the first block inside a `Band`, where the band's own edge
+ * is the boundary — must not draw a second one 40px lower. `global.css`'s rule
+ * book states it: "One rule per boundary: a stack of blocks shares rules, it
+ * does not double them at every seam." The spacing goes with the rule, since
+ * the space above the block is the band's column padding, not this block's.
+ */
+export const RULED_BLOCK_UNRULED = "gap-5";
+
+/**
  * The page's own rule: a full-width hairline with no title and no
  * padding, for a boundary that closes a multi-column block and opens
  * what is under it. Never carries a title — a title is what a *block*

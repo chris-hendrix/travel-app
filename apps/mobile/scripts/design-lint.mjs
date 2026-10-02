@@ -400,7 +400,20 @@ checkDisplayFloor();
  * Bands are matched by their JSX range rather than by line, because a band's
  * content is a whole column of markup and the interesting question is what
  * sits *between* two of them.
+ *
+ * (The trip page's hero against its stays table is the app's other
+ * deliberate adjacency and is **not** listed here, because check 5 works per
+ * file and those two bands live in different ones. That gap is recorded in
+ * `app/trips/detail.tsx` where the adjacency is.)
  */
+const ALLOWED_ADJACENCIES = [
+  {
+    file: "app/trips/index.tsx",
+    tones: ["lilac", "baltic"],
+    reason: "Underway against Upcoming: two named sections, and the seam is the division.",
+  },
+];
+
 function checkBandAdjacency() {
   const hits = [];
   for (const file of sources()) {
@@ -427,13 +440,19 @@ function checkBandAdjacency() {
       ranges.push([at, i]);
     }
     const lineOf = (i) => src.slice(0, i).split("\n").length;
+    const toneOf = (at) => /tone="(\w+)"/.exec(src.slice(at, at + 120))?.[1];
     for (let k = 1; k < ranges.length; k++) {
       const between = src.slice(ranges[k - 1][1], ranges[k][0]);
       // Anything with a `<` is an element between them: sand content, a
       // Column, a rule. Only whitespace and comments leave them adjacent.
-      if (!/<(?!\/\*)/.test(between)) {
+      if (/<(?!\/\*)/.test(between)) continue;
+      const tones = [toneOf(ranges[k - 1][0]), toneOf(ranges[k][0])];
+      const allowed = ALLOWED_ADJACENCIES.some(
+        (a) => a.file === rel && a.tones.join() === tones.join(),
+      );
+      if (!allowed) {
         hits.push(
-          `${rel}:${lineOf(ranges[k][0])} — band at :${lineOf(ranges[k - 1][0])} is adjacent`,
+          `${rel}:${lineOf(ranges[k][0])} — ${tones.join(" against ")} at :${lineOf(ranges[k - 1][0])}`,
         );
       }
     }

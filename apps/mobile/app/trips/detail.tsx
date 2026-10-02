@@ -418,7 +418,7 @@ function TripDetailScreen() {
               unanswered RSVP withholds it, because the server reads full
               trip data to the people who are going. The description above
               is what you decide on, which is what you get for saying yes. */}
-          <View className="gap-6 py-6 md:gap-8 md:py-10">
+          <View className="gap-6 md:gap-8">
             <RunLocked />
           </View>
         </Column>

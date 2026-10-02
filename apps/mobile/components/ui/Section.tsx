@@ -18,10 +18,17 @@ import { RuledBlock } from "@/components/ui/RuledBlock";
  */
 export function Section({
   title,
+  rule = true,
   children,
 }: {
   title: string;
+  /** Passed through to `RuledBlock`: false where a band's edge is the seam. */
+  rule?: boolean;
   children?: ReactNode;
 }) {
-  return <RuledBlock title={title}>{children}</RuledBlock>;
+  return (
+    <RuledBlock title={title} rule={rule}>
+      {children}
+    </RuledBlock>
+  );
 }

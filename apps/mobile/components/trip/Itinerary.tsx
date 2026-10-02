@@ -151,24 +151,39 @@ export function Itinerary({
           seam lands on the heading rather than above it. It is also the one
           adjacency `design-lint.mjs` check 5 cannot see, because check 5
           works per file and the other band is in `trips/detail.tsx`. */}
-      <Band tone="baltic">
+      {/* The band is gated on there being stays, not on the read having
+          finished. It used to wrap the whole ternary, so a trip with no
+          stays rendered the ground with nothing in it — an empty blue stripe
+          between the hero and the days, which is a colour saying "here is
+          where you sleep" over nothing at all.
+
+          Loading and failure are not a section, so they are not on the
+          section's ground: a band is what marks *where you sleep*, and a
+          block that says "couldn't load the stays" is a problem rather than
+          a place. */}
+      {staysStatus === "loading" ? (
         <Column>
-          <View>
-          {staysStatus === "loading" ? (
-            <LoadingBlock label="Getting the stays" />
-          ) : staysStatus === "offline" ? (
-            <OfflineBlock onRetry={retryStays} />
-          ) : staysStatus === "error" ? (
-            <InlineError
-              message="Couldn't load the stays"
-              onRetry={retryStays}
-            />
-          ) : stays.length > 0 ? (
-            // The table's first heading is the roofs, in the same face
-            // as the days below it: the run opens with where you sleep.
-            // No padding of its own: the band's column sets the rhythm, and
-            // on a band padding is not air, it is colour — the seam above
-            // has to be where the section starts, or it divides nothing.
+          <LoadingBlock label="Getting the stays" />
+        </Column>
+      ) : staysStatus === "offline" ? (
+        <Column>
+          <OfflineBlock onRetry={retryStays} />
+        </Column>
+      ) : staysStatus === "error" ? (
+        <Column>
+          <InlineError
+            message="Couldn't load the stays"
+            onRetry={retryStays}
+          />
+        </Column>
+      ) : stays.length > 0 ? (
+        <Band tone="baltic">
+          <Column>
+            {/* The table's first heading is the roofs, in the same face as
+                the days below it: the run opens with where you sleep. No
+                padding of its own: the band's column sets the rhythm, and on
+                a band padding is not air, it is colour — the seam above has
+                to be where the section starts, or it divides nothing. */}
             <View>
               <Text className="pb-3 font-display-semibold text-heading-lg uppercase text-ink">
                 Stays
@@ -182,10 +197,9 @@ export function Itinerary({
                 />
               ))}
             </View>
-          ) : null}
-          </View>
-        </Column>
-      </Band>
+          </Column>
+        </Band>
+      ) : null}
 
       <Column>
         <View className="gap-6 pb-6 pt-6 md:pb-10 md:pt-10">
