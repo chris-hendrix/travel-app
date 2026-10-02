@@ -34,6 +34,7 @@ export function ScheduleRow({
   title,
   labels,
   fact,
+  onBand = false,
   onPress,
 }: {
   image: string | null;
@@ -44,6 +45,18 @@ export function ScheduleRow({
   labels: ReactNode;
   /** The right-hand column: a clock, or the span a stay covers. */
   fact: string;
+  /**
+   * Whether this row sits on a band rather than on sand.
+   *
+   * The right-hand column is the run's scannable data, so it wears the
+   * palette's deep *text* tier rather than ink — the tier Phase 1 built for
+   * exactly this and nobody had spent. On a band it cannot: the palette's
+   * floors are declared against sand, gravel and paper only, and
+   * `baltic-deep` — the token written for "a mark on a baltic band" —
+   * measures **4.04:1** there, under the 4.5:1 body-text bar. So a band's
+   * rows keep ink, and this flag is why the tone is not simply inherited.
+   */
+  onBand?: boolean;
   onPress?: (() => void) | undefined;
 }) {
   const { hoverProps, zoom } = useHoverZoom();
@@ -74,13 +87,17 @@ export function ScheduleRow({
           a phone there is no room for a third column, so it takes its
           own line and keeps the right edge. */}
       <View className="flex-1 gap-3">
-        <Text className="font-display text-3xl uppercase leading-[1.05] text-ink">
+        <Text className="font-display-bold text-display-sm uppercase text-ink">
           {title}
         </Text>
         <View className="flex-row flex-wrap items-center gap-3">{labels}</View>
       </View>
 
-      <Text className="w-full text-right font-body text-base text-ink md:w-auto">
+      <Text
+        className={`w-full text-right font-body text-base md:w-auto ${
+          onBand ? "text-ink" : "text-amethyst-deep"
+        }`}
+      >
         {fact}
       </Text>
     </Pressable>

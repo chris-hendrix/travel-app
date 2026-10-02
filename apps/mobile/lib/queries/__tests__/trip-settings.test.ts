@@ -166,12 +166,11 @@ describe("local-only prefs", () => {
     return seen.update;
   }
 
-  it("clock and showPast stay in the local store and never hit the network", () => {
+  it("clock stays in the local store and never hits the network", () => {
     mockedApiFetch.mockReset();
     const update = captureUpdate();
 
     update("trip-1", { clock: "device" });
-    update("trip-1", { showPast: true });
 
     expect(mockedApiFetch).not.toHaveBeenCalled();
   });
@@ -361,11 +360,8 @@ describe("mergeServerSettings", () => {
 
   it("never moves the device-local keys", () => {
     expect(
-      mergeServerSettings(
-        { clock: "device", showPast: true },
-        { sharePhone: true },
-      ),
-    ).toEqual({ clock: "device", showPast: true, sharePhone: true });
+      mergeServerSettings({ clock: "device" }, { sharePhone: true }),
+    ).toEqual({ clock: "device", sharePhone: true });
   });
 });
 

@@ -20,8 +20,8 @@
     "gen:icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
+    "@expo-google-fonts/big-shoulders-display": "0.2.3",
     "@expo-google-fonts/bungee-shade": "^0.4.1",
-    "@expo-google-fonts/handjet": "^0.4.2",
     "@expo-google-fonts/space-mono": "^0.4.2",
     "@journiful/shared": "workspace:*",
     "@tanstack/react-query": "^5.101.4",

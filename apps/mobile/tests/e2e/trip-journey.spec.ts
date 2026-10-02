@@ -46,31 +46,38 @@ test.describe("Trip Journey", () => {
     await test.step("seeded session lands on trips", async () => {
       await authenticateViaAPI(page, request, "Trip User");
       await page.goto("/trips");
-      // app/trips/index.tsx: a freshly seeded user has no trips, so
-      // the empty state's Button titled "Create your first trip"
-      // proves the list screen mounted.
-      await expect(
-        page.getByRole("button", { name: "Create your first trip" }),
-      ).toBeVisible({
+      // app/trips/index.tsx: a freshly seeded user has no trips, so the
+      // empty state's copy proves the list resolved empty. The page's
+      // create action is the ActionBar at the foot ("Create trip"),
+      // which is present on every trip list — including while it loads —
+      // so it cannot carry that proof.
+      await expect(page.getByText("No trips yet")).toBeVisible({
         timeout: NAVIGATION_TIMEOUT,
       });
     });
 
     await test.step("open the create form", async () => {
-      // app/trips/index.tsx (TripsContent): a freshly seeded user has
-      // no trips, so the empty state renders Button titled "Create
-      // your first trip" (the "Create trip" button only renders when
-      // trips.length > 0). Both route to /trips/new.
-      // components/ui/Button.tsx renders accessibilityRole="button"
-      // with the title as its name.
-      await page
-        .getByRole("button", { name: "Create your first trip" })
-        .click();
+      // app/trips/index.tsx (TripsScreen): the page's one action is the
+      // ActionBar at the foot, `primaryTitle="Create trip"`. It was a box
+      // inside the empty state and only rendered when trips.length === 0;
+      // it is now the screen's foot and always renders, because a bar that
+      // appeared only once data arrived would move the page under the
+      // reader. It routes to /trips/new. components/ui/Button.tsx renders
+      // accessibilityRole="button" with the title as its name.
+      await page.getByRole("button", { name: "Create trip" }).click();
       await page.waitForURL("**/trips/new", {
         timeout: NAVIGATION_TIMEOUT,
       });
       // app/trips/new.tsx: FullscreenDialog title="Create trip".
-      await expect(page.getByText("Create trip").first()).toBeVisible({
+      // Named as a button rather than as text: the dialog's title and the
+      // form's submit button carry the same two words, and so does the
+      // trips screen's footer ActionBar, which stays mounted underneath.
+      // Three elements, one string. `getByRole` matches the visible button
+      // and ignores the hidden footer; the title is not a control and is
+      // not what this step is proving.
+      await expect(
+        page.getByRole("button", { name: "Create trip" }),
+      ).toBeVisible({
         timeout: ELEMENT_TIMEOUT,
       });
     });

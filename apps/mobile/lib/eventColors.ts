@@ -1,0 +1,133 @@
+import type { EventType } from "@/lib/itinerary";
+
+/**
+ * Where chroma lives. High saturation, small area, no loudness cost.
+ *
+ * The palette's rule table calls this tier `mark`: `chroma >= 0.10`, a fill,
+ * never a ground. `lib/palette.ts` holds the tokens and their measured
+ * chroma; this file holds the *assignment* — which kind of thing wears which
+ * one — and nothing here invents a colour.
+ *
+ * **Nine types, four hues.** The palette ships five pop fills (`seafoam`,
+ * `watermelon`, `strawberry`, `ocean`, `acid`) and the table uses four of
+ * them, so types are grouped rather than given one each. A hue that repeats
+ * is not classifying anything on its own — what carries the classification
+ * is the badge's own label.
+ *
+ * **`watermelon` is shared with the `club` badge, and that is a cost.** An
+ * earlier draft of this comment claimed the state colours were excluded; the
+ * table does not exclude them, and the two are on screen together on
+ * `/trips/detail`, where `club` sits in the hero and `Food` on a chip below.
+ * Sharing a tone between two roles is what this system already does on
+ * purpose — `Badge`'s own note says "roles, not colours: two roles may share
+ * a tone", and `soldOut` and `category` share ink — so it is not a defect.
+ * But it is a decision rather than a happy accident, and it is written here
+ * because the alternative was measured and rejected: dropping `watermelon`
+ * leaves three hues for nine types, and adding mark tokens is a change to
+ * Phase 1's palette rather than to this table.
+ *
+ * `strawberry` is the one fill left out. It means `live` on an account, which
+ * is a state on a *person* rather than a classification of a *thing*, and
+ * nothing here needed a fifth hue badly enough to spend it.
+ *
+ * **What makes that acceptable is the label.** A `Badge` carries the type's
+ * own name, so the hue reinforces and the word classifies; a repeated hue is
+ * a family, not a collision. If the hue were ever the only carrier, this
+ * table would be wrong and the palette would need five more mark tokens.
+ */
+export type PopHue = "ocean" | "watermelon" | "acid" | "seafoam";
+
+/**
+ * The fill for each hue, written as **literals**.
+ *
+ * Not `"bg-" + hue`: NativeWind compiles the class names it can *see* in the
+ * source, so a computed one resolves on the web export and silently paints
+ * nothing on Android — the same reason `lib/theme.ts` exists for colours that
+ * a prop has to carry.
+ */
+export const POP_FILL: Record<PopHue, string> = {
+  ocean: "bg-ocean",
+  watermelon: "bg-watermelon",
+  acid: "bg-acid",
+  seafoam: "bg-seafoam",
+};
+
+/**
+ * One hue per event type, grouped in pairs that share a subject.
+ *
+ * `null` is the neutral classifier — ink, which is what every category wore
+ * before this file existed. `misc` keeps it on purpose: a type that means
+ * "none of the above" is the one chip that should not be saying something
+ * with its colour.
+ *
+ * The pairs, and why they pair:
+ *
+ *   ocean       travel, lodging      — where you are and how you got there
+ *   watermelon  food_and_drink, nightlife — eating and drinking
+ *   acid        arts_and_entertainment, shopping — going out to see or to buy
+ *   seafoam     outdoors, wellness   — outside, and the body
+ *
+ * `Record<EventType, …>` rather than a partial map: it is total, so a new
+ * `EventType` fails to compile here until somebody decides what it wears.
+ * The test writes the API's nine out by hand as well, so a rename on the
+ * server fails a test rather than rendering a chip with no fill.
+ */
+export const EVENT_HUES: Record<EventType, PopHue | null> = {
+  travel: "ocean",
+  lodging: "ocean",
+  food_and_drink: "watermelon",
+  nightlife: "watermelon",
+  arts_and_entertainment: "acid",
+  shopping: "acid",
+  outdoors: "seafoam",
+  wellness: "seafoam",
+  misc: null,
+};
+
+/**
+ * What a Stay chip wears: the same hue as the `lodging` event type.
+ *
+ * A Stay is the roof rather than a plan item, so it is not an `EventType` and
+ * cannot be read out of `EVENT_HUES` — but it is the same *subject* as a
+ * lodging event (a place you sleep), and this table already groups by subject.
+ * Spending a fifth hue on the distinction would say the two are unrelated.
+ *
+ * A test asserts it still equals `EVENT_HUES.lodging`, so the relationship is
+ * enforced rather than described.
+ */
+export const STAY_HUE: PopHue = "ocean";
+
+/**
+ * The hues an initials block may take, in the order the hash walks them.
+ *
+ * Deliberately the same four as the event table: the pop tier is a tier, and
+ * a fifth hue for avatars would make the badges a subset of something larger
+ * rather than the whole of it.
+ */
+export const INITIALS_HUES: PopHue[] = [
+  "ocean",
+  "watermelon",
+  "acid",
+  "seafoam",
+];
+
+/**
+ * The hue a name wears, and the same one every time.
+ *
+ * A person's initials block is theirs, so the colour has to be a pure
+ * function of the name: stable across sessions, across devices, and with
+ * nothing stored. It is not a hash for security — collisions are fine and
+ * expected — so a multiply-and-add over code points is the whole of it.
+ *
+ * Total by construction, which is the part that matters: an empty string, a
+ * name in a script with no Latin letters, and a string of emoji all land on
+ * a hue rather than on `undefined`. `hash % length` cannot return a
+ * fractional index, and `INITIALS_HUES` is never empty.
+ */
+export function initialsHue(name: string): PopHue {
+  let hash = 0;
+  for (const character of name) {
+    hash = (hash * 31 + (character.codePointAt(0) ?? 0)) >>> 0;
+  }
+  return INITIALS_HUES[hash % INITIALS_HUES.length]!;
+}

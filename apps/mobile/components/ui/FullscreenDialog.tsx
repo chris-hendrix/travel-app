@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ScrollView, View } from "react-native";
+import { RuledBlock } from "@/components/ui/RuledBlock";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { ActionBar } from "@/components/ui/ActionBar";
 import { Button } from "@/components/ui/Button";
@@ -121,7 +122,7 @@ export function FullscreenDialog({
           <View className="mx-auto w-full max-w-[960px] gap-5 p-6 md:px-12 md:py-10">
             {children}
             {dangerTitle && onDanger ? (
-              <View className="border-t border-ink pt-6">
+              <RuledBlock>
                 <Button
                   title={dangerTitle}
                   variant="danger"
@@ -129,7 +130,7 @@ export function FullscreenDialog({
                   disabled={pending}
                   onPress={onDanger}
                 />
-              </View>
+              </RuledBlock>
             ) : null}
           </View>
         </ScrollView>

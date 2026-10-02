@@ -34,6 +34,12 @@
     "typescript": "^6.0.3"
   },
   "pnpm": {
+    "//": "auditConfig.ignoreGhsas is for advisories with NO patched release, and every entry must say why. An override in `overrides` below is the fix wherever one exists; this list is not a place to silence things that could be bumped. GHSA-86w9-cpqp-85rv: node-forge<=1.4.0, and 1.4.0 is the newest published version, so there is nothing to override to (`Patched versions <0.0.0`). Reached only as apps/mobile > expo > @expo/cli > node-forge: build tooling, never bundled into the app. Delete this entry once upstream ships a fix.",
+    "auditConfig": {
+      "ignoreGhsas": [
+        "GHSA-86w9-cpqp-85rv"
+      ]
+    },
     "onlyBuiltDependencies": [
       "esbuild",
       "sharp",

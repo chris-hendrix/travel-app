@@ -14,8 +14,12 @@
  * one palette rather than twelve.
  *
  * `PLACEHOLDER` has no counterpart there: it is only ever a prop, so
- * there is no class that would name it.
+ * there is no class that would name it. Its value is the same as the
+ * `grey-quiet` token, and `__tests__/palette.test.ts` asserts that, so
+ * the duplicate cannot drift.
  */
 export const INK = "#000000";
 export const SAND = "#f5eacc";
-export const PLACEHOLDER = "#707070";
+/** An empty field's placeholder text. Was #707070, which is 4.13:1 on
+ *  sand and 3.69:1 on gravel — under the body floor on both grounds. */
+export const PLACEHOLDER = "#5f5f5f";

@@ -65,7 +65,7 @@ export function DatePicker({
           icon="left"
           onPress={() => setCursor((c) => addMonths(c, -1))}
         />
-        <Text className="font-display text-xl uppercase leading-none text-ink">
+        <Text className="font-display-semibold text-heading-lg uppercase text-ink">
           {monthLabel(cursor)}
         </Text>
         <Arrow

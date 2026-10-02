@@ -25,7 +25,10 @@
               "pathPrefix": "/invite"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -41,16 +44,22 @@
         {
           "fonts": [
             "./node_modules/@expo-google-fonts/bungee-shade/400Regular/BungeeShade_400Regular.ttf",
-            "./node_modules/@expo-google-fonts/handjet/800ExtraBold/Handjet_800ExtraBold.ttf",
             "./node_modules/@expo-google-fonts/space-mono/400Regular/SpaceMono_400Regular.ttf",
             "./node_modules/@expo-google-fonts/space-mono/400Regular_Italic/SpaceMono_400Regular_Italic.ttf",
-            "./node_modules/@expo-google-fonts/space-mono/700Bold/SpaceMono_700Bold.ttf"
+            "./node_modules/@expo-google-fonts/space-mono/700Bold/SpaceMono_700Bold.ttf",
+            "./node_modules/@expo-google-fonts/big-shoulders-display/BigShouldersDisplay_900Black.ttf",
+            "./node_modules/@expo-google-fonts/big-shoulders-display/BigShouldersDisplay_800ExtraBold.ttf",
+            "./node_modules/@expo-google-fonts/big-shoulders-display/BigShouldersDisplay_700Bold.ttf",
+            "./node_modules/@expo-google-fonts/big-shoulders-display/BigShouldersDisplay_600SemiBold.ttf"
           ]
         }
       ],
       [
         "expo-splash-screen",
-        { "backgroundColor": "#f5eacc", "image": "./assets/splash.png" }
+        {
+          "backgroundColor": "#f5eacc",
+          "image": "./assets/splash.png"
+        }
       ],
       [
         "expo-image-picker",
@@ -63,7 +72,10 @@
       "expo-secure-store",
       [
         "expo-notifications",
-        { "icon": "./assets/notification-icon.png", "color": "#ff6352" }
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#ff6352"
+        }
       ],
       "./plugins/withAndroidSigning.js"
     ]

@@ -5,9 +5,24 @@
 @import "nativewind/theme";
 
 /*
- * Journiful mobile design tokens v1.
+ * Journiful mobile design tokens v2.
  *
- * Three layers: ink chrome, sand ground, paper surfaces.
+ * Three layers: ink chrome, sand ground, paper surfaces. Under them, a
+ * role rule that decides what a colour is allowed to be:
+ *
+ *   calm   chroma < 0.09          a ground. Text and marks go on it.
+ *   mark   chroma >= 0.10         a fill. Small area, never a ground.
+ *   text   chroma <= 0.26         the `-deep` tier: readable, never a fill.
+ *                                 The bound is measured, not chosen: three
+ *                                 of its six tokens sit above the mark bar.
+ *   seam   dE >= 6 between grounds
+ *
+ * Measured in OKLCh, never by eye and never by contrast ratio. Contrast
+ * says whether something can be read; it says nothing about how loud it
+ * is, and `acid` is 17.55:1 on sand with the highest chroma here. Every
+ * value and every floor is described once in `lib/palette.ts`, which
+ * `__tests__/palette.test.ts` holds this file to.
+ *
  * Display is Handjet (pixel grid, set in caps) for headlines; the
  * wordmark is Bungee Shade; body is Space Mono.
  */
@@ -16,18 +31,116 @@
   --color-ink: #000000; /* chrome band, text, borders */
   --color-sand: #f5eacc; /* app ground */
   --color-paper: #ffffff; /* raised surfaces: dialogs, cards */
-  --color-gravel: #e2ded5; /* muted fills, hairlines */
+  --color-gravel: #e2ded5; /* muted fills, hairlines; 4.6 dE from sand, so a rule is required at the seam */
 
-  /* Roles */
+  /* Marks. Small areas only: chroma >= 0.10, and never a ground. */
   --color-seafoam: #42d177; /* primary: actions, positive states */
   --color-watermelon: #ef8ad4; /* secondary: category (club) */
   --color-strawberry: #ff6352; /* accent: live, alerts, unread — as a fill */
+  --color-ocean: #4281ff; /* info, as a fill only: 3.01:1 on sand, so it cannot carry text. Use ocean-deep */
+  --color-acid: #cbfb6a; /* highlight, used sparingly. chroma 0.179 — the loudest token, never a ground */
+
+  /* Text. The `-deep` tier: cleared against gravel, the binding ground,
+     at 4.5:1 for body text. Readable, and never used as a fill. */
+  --color-seafoam-deep: #1c713b; /* the primary as text: 4.50:1 on gravel (4.5022, the tightest margin here) */
+  --color-watermelon-deep: #b4198b; /* the secondary as text: 4.53:1 on gravel */
   --color-strawberry-deep: #b8271a; /* the alert as text: 4.7:1 on gravel */
-  --color-ocean: #4281ff; /* info: links */
-  --color-acid: #cbfb6a; /* highlight, used sparingly */
+  --color-ocean-deep: #0051f3; /* links and info as text: 4.51:1 on gravel */
+  --color-amethyst-deep: #5e5e8b; /* a sixth category as text: 4.53:1 on gravel */
+  --color-baltic-deep: #1f6c73; /* the cool band's own text tone: 4.53:1 on gravel */
+  --color-bpink-deep: #bf0074; /* the reserved pink band's text tone: 4.51:1 on gravel */
+  --color-grey-quiet: #5f5f5f; /* de-emphasised text: 4.76:1 on gravel, 5.33:1 on sand. Was #707070, which failed both */
+
+  /* Bands. Pale full-bleed grounds, one at a time, chroma < 0.09 and at
+     least 6 dE from every ground they meet. A third pink was measured
+     and left out — see RESERVED in lib/palette.ts. */
+  --color-lilac: #E2BFE3; /* warm band: chroma 0.062, 13.0 dE from sand, ink on it is 12.80:1 */
+  --color-baltic: #9adee4; /* cool band: chroma 0.069, 12.3 dE from sand, ink on it is 13.94:1 */
+
+  /* Muted fills. Desaturated on purpose: these sit beside a ground
+     without reading as a colour. silver is 3.3 dE from concrete, so the
+     two never share an edge. */
+  --color-concrete: #b0ad9b; /* inert fill, warm neutral */
+  --color-silver: #b3b3b3; /* inert fill, true neutral */
 
   /* Type roles — family names match expo-font registrations */
-  --font-display: "Handjet_800ExtraBold", monospace;
+  /* Four families, not four weights of one. Android derives the family
+     from the TTF's basename, so there is no weight axis to ask for and
+     `font-black` will not resolve against any of these: the weight is in
+     the name. One token per scale step — black for display-lg, extrabold
+     for display-md, bold for display-sm, semibold for heading-lg — and the
+     fallback stack stays on each so a failed load degrades to the system's
+     sans rather than hanging on a missing face. `Handjet_800ExtraBold`
+     */
+  /* The scale — seven steps, and the only seven the app sets type at.
+     Size, leading and tracking are one decision per step, so they are
+     declared together: `text-display-lg` brings all three, and a site that
+     adds its own `leading-` is overriding a decision the scale already
+     made. `design-lint.mjs` check 4 fails on a display site below 28px and
+     on a leading outside this set.
+
+     Sizes are `px`, never `rem`, and there is no `clamp()`: NativeWind v5
+     supports `var()`, `calc()`, `env()` and `color-mix()` and nothing else,
+     and its `rem` is 14 on native against 16 on web, so a `rem`+`vw` ramp
+     paints one size in the browser and another on Android (A18).
+
+     The face is NOT in the token and cannot be. Android derives a family
+     from the TTF basename, so the four display weights are four families
+     with no weight axis between them: a step names `font-display-black` or
+     `font-display-semibold` beside its size. Which face wears which step is
+     the line below, and it is the whole reason the floor is 28px.
+
+       display-lg    60px  lh 0.9   -0.02em   w900  font-display-black
+       display-md    42px  lh 0.95  -0.015em  w800  font-display-extrabold
+       display-sm    32px  lh 1.0   -0.01em   w700  font-display-bold
+       heading-lg    28px  lh 1.1   0         w600  font-display-semibold
+       heading-md    20px  lh 1.15  0         w500  font-body-bold
+       body          16px  lh 1.5   0         w400  font-body
+       label         14px  lh 1.4   +0.02em   w700  font-body-bold
+
+     `heading-md` at 20px wears the *body* face. That is what makes the 28px
+     floor consistent rather than arbitrary: the display face never sets
+     anything a reader reads in a sentence. */
+  --text-display-lg: 60px;
+  --text-display-lg--line-height: 0.9;
+  --text-display-lg--letter-spacing: -0.02em;
+  /* `display-lg` is the one step with a breakpoint jump. It keeps its own
+     token rather than a raw `md:text-[72px]` so the wide size is a declared
+     step and not a magic number at the one call site that wants it. */
+  --text-display-lg-wide: 72px;
+  --text-display-lg-wide--line-height: 0.9;
+  --text-display-lg-wide--letter-spacing: -0.02em;
+  --text-display-md: 42px;
+  --text-display-md--line-height: 0.95;
+  --text-display-md--letter-spacing: -0.015em;
+  /* `display-md`'s wide size. The Architecture table gives this step as
+     "42 -> 48 fluid"; Task 6 kept fixed px and named display-lg as the one
+     breakpoint jump, but five sites were already stepping at md and 48 is
+     the step they were stepping to. Declared rather than left as a raw
+     `md:text-[48px]` so the wide size is a step and not a magic number. */
+  --text-display-md-wide: 48px;
+  --text-display-md-wide--line-height: 0.95;
+  --text-display-md-wide--letter-spacing: -0.015em;
+  --text-display-sm: 32px;
+  --text-display-sm--line-height: 1;
+  --text-display-sm--letter-spacing: -0.01em;
+  --text-heading-lg: 28px;
+  --text-heading-lg--line-height: 1.1;
+  --text-heading-lg--letter-spacing: 0em;
+  --text-heading-md: 20px;
+  --text-heading-md--line-height: 1.15;
+  --text-heading-md--letter-spacing: 0em;
+  --text-body: 16px;
+  --text-body--line-height: 1.5;
+  --text-body--letter-spacing: 0em;
+  --text-label: 14px;
+  --text-label--line-height: 1.4;
+  --text-label--letter-spacing: 0.02em;
+
+  --font-display-black: "BigShouldersDisplay_900Black", sans-serif;
+  --font-display-extrabold: "BigShouldersDisplay_800ExtraBold", sans-serif;
+  --font-display-bold: "BigShouldersDisplay_700Bold", sans-serif;
+  --font-display-semibold: "BigShouldersDisplay_600SemiBold", sans-serif;
   --font-wordmark: "BungeeShade_400Regular", sans-serif;
   --font-body: "SpaceMono_400Regular", monospace;
   --font-body-bold: "SpaceMono_700Bold", monospace;
@@ -48,4 +161,70 @@
 :focus-visible {
   outline: 2px solid currentColor;
   outline-offset: 2px;
+}
+
+/*
+ * The rule book — four lines, and nothing outside them draws a rule.
+ *
+ * A screen here is a stack of blocks, and the rule is what says where one
+ * ends. These were thirteen hand-written copies that had drifted to three
+ * inner gaps, so the book is enforced rather than written:
+ * `scripts/design-lint.mjs` check 2 fails if either class string is typed
+ * anywhere but `components/ui/ruledBlockClasses.ts`.
+ *
+ *   RuledBlock      A black rule, taken from ABOVE the block it opens:
+ *                   `gap-5 border-t border-ink pt-6`. Optional title.
+ *                   Thirteen sites. This is a block boundary.
+ *
+ *   PageRule        The page's own hairline: `h-px w-full bg-ink`, full
+ *                   width, no title, no padding. One site — the trip
+ *                   page's, where the block above is two columns and the
+ *                   rule says "that was a grid, this is the next thing".
+ *                   Never carries a title: a title is what a block has.
+ *
+ *   border-gravel   A row separator, INSIDE a block, between rows. Not a
+ *                   boundary between blocks, and never a block rule.
+ *
+ *   One rule per boundary. A stack of blocks shares its rules; it does
+ *   not double them at every seam. That is why the rule sits on top of
+ *   its block rather than underneath it.
+ *
+ * `border-b` is the same rule and stays out of this: a `border-b` closes
+ * the block above it, which is the one case a shared rule already covers.
+ */
+
+/*
+ * The underline, on the web export only.
+ *
+ * Lighter, not fewer. An underline is this system's only affordance for a
+ * word that does something -- no colour marks a word, on purpose, because a
+ * colour is a role and a word in a row is doing neither -- so the mark
+ * cannot come off without the pressability going with it. What can come off
+ * is the shouting: 1px instead of the browser's default weight, and a
+ * quarter-em of daylight under the word so the underline stops touching the
+ * descenders it was cut into.
+ *
+ * `*` rather than `a, u, button`: react-native-web draws a Text underline
+ * as an inline `text-decoration-line`, not as an `<a>` or a `<u>`, so a
+ * selector naming elements matches nothing here. These two properties only
+ * do anything on an element that already carries a decoration, so the
+ * universal selector has no effect anywhere else.
+ *
+ * Deliberately NOT `--text-underline-offset`: in Tailwind v4 `--text-*` is
+ * the font-size namespace, so that name collides with `--text-lg` and
+ * `--text-4xl`. Declared here in a plain block rather than in `@theme`
+ * because it is a web-export default and not a scale token.
+ *
+ * Web export only, and not by choice: React Native's `TextStyle` has
+ * `textDecorationLine`, `textDecorationStyle` and `textDecorationColor` and
+ * no offset and no thickness (A10). An Android build compiles this away and
+ * an emulator will show no change at all.
+ */
+:root {
+  --underline-offset: 0.25em;
+}
+
+* {
+  text-underline-offset: var(--underline-offset);
+  text-decoration-thickness: 1px;
 }

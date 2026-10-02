@@ -20,7 +20,12 @@ import {
   SpaceMono_700Bold,
 } from "@expo-google-fonts/space-mono";
 import { BungeeShade_400Regular } from "@expo-google-fonts/bungee-shade";
-import { Handjet_800ExtraBold } from "@expo-google-fonts/handjet";
+import {
+  BigShouldersDisplay_600SemiBold,
+  BigShouldersDisplay_700Bold,
+  BigShouldersDisplay_800ExtraBold,
+  BigShouldersDisplay_900Black,
+} from "@expo-google-fonts/big-shoulders-display";
 import { AppHeader } from "@/components/ui/AppHeader";
 import * as SystemNotifications from "expo-notifications";
 import type { NotificationResponse } from "expo-notifications";
@@ -61,9 +66,19 @@ export default function RootLayout() {
     });
     return () => subscription.remove();
   }, []);
+  // Four weights of the display face, not one family with four weights.
+  // Android derives the family from the TTF's basename, so
+  // `BigShouldersDisplay_900Black` and `BigShouldersDisplay_600SemiBold`
+  // are two families and there is no weight axis to ask for: the weight
+  // is in the name, which is why `--font-display-black` and friends are
+  // four tokens and not one plus a `font-black` (Task 1).
+  //
   const [displayLoaded, displayError] = useFonts({
     BungeeShade_400Regular,
-    Handjet_800ExtraBold,
+    BigShouldersDisplay_900Black,
+    BigShouldersDisplay_800ExtraBold,
+    BigShouldersDisplay_700Bold,
+    BigShouldersDisplay_600SemiBold,
   });
   const [monoLoaded, monoError] = useSpaceMono({
     SpaceMono_400Regular,

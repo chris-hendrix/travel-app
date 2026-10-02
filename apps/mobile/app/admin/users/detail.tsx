@@ -1,3 +1,4 @@
+import { RuledBlock } from "@/components/ui/RuledBlock";
 import { useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
@@ -32,7 +33,11 @@ import {
   type AdminUserAction,
   type AdminUserDetailRow,
 } from "@/lib/queries/admin";
-import { UNITS, type TemperatureUnit } from "@/lib/profile";
+import {
+  UNITS,
+  unitLabel,
+  type TemperatureUnit,
+} from "@/lib/profile";
 import { requestCode } from "@/lib/queries/auth";
 import { toErrorCopy } from "@/lib/queries/errors";
 
@@ -241,7 +246,7 @@ function AdminUserDetail({
             long name rather than squashing it; only an exception wears
             one (banned or admin). */}
         <View className="flex-row flex-wrap items-center gap-2">
-          <Text className="font-display text-2xl text-ink">
+          <Text className="font-display-semibold text-heading-lg text-ink">
             {displayName}
           </Text>
           {user.status === "banned" ? (
@@ -267,9 +272,12 @@ function AdminUserDetail({
           </Text>
         </Fact>
       </View>
-      <View className="gap-4 border-t border-ink pt-6">
+      <RuledBlock>
+        {/* Untitled, and the heading stays hand-rolled: it is a row with
+            Edit and Cancel in it, which a title string cannot be. The
+            block rule and the gap are the primitive's. */}
         <View className="flex-row items-center justify-between">
-          <Text className="font-display text-xl uppercase leading-none text-ink">
+          <Text className="font-display-semibold text-heading-lg uppercase text-ink">
             Profile
           </Text>
           {editing ? (
@@ -293,17 +301,23 @@ function AdminUserDetail({
                 {displayName}
               </Text>
             </Fact>
-            <Fact label="Temperature">
+            <Fact label="Units">
               <Text className="font-body text-base text-ink">
+                {/* The API's admin schema types this a bare string
+                    (`shared/schemas/admin.ts`), so it is narrowed the
+                    same way the draft below narrows it. */}
                 {user.temperatureUnit
-                  ? user.temperatureUnit.charAt(0).toUpperCase() +
-                    user.temperatureUnit.slice(1)
+                  ? unitLabel(
+                      user.temperatureUnit === "celsius"
+                        ? "celsius"
+                        : "fahrenheit",
+                    )
                   : "Not set"}
               </Text>
             </Fact>
           </View>
         )}
-      </View>
+      </RuledBlock>
       <AdminUserActions
         user={user}
         viewerId={viewer?.id}
@@ -356,7 +370,7 @@ function AdminUserForm({
         }
       />
       <View className="gap-2">
-        <Text className="font-body-bold text-sm text-ink">Temperature</Text>
+        <Text className="font-body-bold text-sm text-ink">Units</Text>
         <Segmented
           options={UNITS}
           value={draft.temperatureUnit}
@@ -396,11 +410,11 @@ function AdminUserActions({
   // Your own record offers no action group at all, and says so.
   if (viewerId !== undefined && user.id === viewerId) {
     return (
-      <View className="border-t border-ink pt-6">
+      <RuledBlock>
         <Text className="font-body text-base text-ink">
           You can&apos;t ban, demote or impersonate yourself.
         </Text>
-      </View>
+      </RuledBlock>
     );
   }
   if (viewerId === undefined) return null;

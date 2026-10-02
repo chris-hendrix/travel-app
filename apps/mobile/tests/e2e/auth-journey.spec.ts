@@ -97,11 +97,13 @@ test.describe("Auth Journey", () => {
 
     await test.step("lands on trips", async () => {
       // app/trips/index.tsx: a fresh user has no trips, so the empty
-      // state renders Button titled "Create your first trip" — the
-      // mount proof for the list screen.
-      await expect(
-        page.getByRole("button", { name: "Create your first trip" }),
-      ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+      // state's copy is the mount proof for the list screen. Its inline
+      // Button is gone — the page's create action is the ActionBar at the
+      // foot now, and that renders on every trip list, so it proves the
+      // screen mounted but not that the list resolved empty.
+      await expect(page.getByText("No trips yet")).toBeVisible({
+        timeout: ELEMENT_TIMEOUT,
+      });
     });
   });
 
@@ -110,11 +112,8 @@ test.describe("Auth Journey", () => {
       await authenticateViaAPI(page, request, "Test User");
       await page.goto("/trips");
       // app/trips/index.tsx: a fresh seed has no trips — the empty
-      // state's "Create your first trip" button proves the list
-      // screen mounted.
-      await expect(
-        page.getByRole("button", { name: "Create your first trip" }),
-      ).toBeVisible({
+      // state's copy proves the list screen mounted.
+      await expect(page.getByText("No trips yet")).toBeVisible({
         timeout: NAVIGATION_TIMEOUT,
       });
     });
@@ -168,11 +167,9 @@ test.describe("Auth Journey", () => {
       await page.goto("/complete-profile");
       // app/complete-profile.tsx: `profileComplete` redirects to /trips.
       await page.waitForURL("**/trips", { timeout: NAVIGATION_TIMEOUT });
-      // The fresh seed has no trips: the empty state's button is the
+      // The fresh seed has no trips: the empty state's copy is the
       // mount proof (see the signup test above).
-      await expect(
-        page.getByRole("button", { name: "Create your first trip" }),
-      ).toBeVisible({
+      await expect(page.getByText("No trips yet")).toBeVisible({
         timeout: ELEMENT_TIMEOUT,
       });
     });

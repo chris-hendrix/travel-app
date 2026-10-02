@@ -66,7 +66,7 @@ export default function Notifications() {
         <NotificationsFailure error={error} onRetry={retry} />
       ) : notifications.length === 0 ? (
         <View className="gap-5 py-10">
-          <Text className="font-display text-3xl uppercase leading-tight text-ink">
+          <Text className="font-display-bold text-display-sm uppercase text-ink">
             Nothing yet
           </Text>
           {/* The three nouns are the server's, not the surface's: this inbox

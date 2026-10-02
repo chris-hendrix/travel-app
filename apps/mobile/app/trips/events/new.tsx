@@ -41,7 +41,7 @@ function NewEventScreen() {
   // The zone the fields mean: the trip's own clock setting, so what is
   // typed is stamped in the zone it will be read in.
   const { clock } = trip
-    ? settingsFor(trip, new Date())
+    ? settingsFor(trip)
     : { clock: "trip" as const };
   const timeZone = clock === "trip" ? trip?.preferredTimezone ?? null : null;
   // A form sets times on the same clock the screen behind it reads them

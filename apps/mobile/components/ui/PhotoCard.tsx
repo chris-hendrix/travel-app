@@ -112,7 +112,7 @@ export function PhotoCard({
         </Text>
         <Text
           numberOfLines={2}
-          className="mt-1 font-display text-4xl uppercase leading-[1.05] text-ink"
+          className="mt-1 font-display-extrabold text-display-md uppercase text-ink"
         >
           {title}
         </Text>

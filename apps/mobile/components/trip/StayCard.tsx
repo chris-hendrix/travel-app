@@ -2,6 +2,7 @@ import { PhotoCard } from "@/components/ui/PhotoCard";
 import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 import { Badge } from "@/components/ui/Badge";
 import { stayArea, staySpan, type Stay } from "@/lib/stays";
+import { STAY_HUE } from "@/lib/eventColors";
 
 /**
  * A roof, as a card: the event card's twin, and nothing more.
@@ -34,7 +35,7 @@ export function StayCard({
       image={stay.image}
       placeholder={<PlaceholderImage kind="lodging" />}
       photoSourceUri={stay.photoSourceUri ?? null}
-      overlay={<Badge label="Stay" variant="category" />}
+      overlay={<Badge label="Stay" variant="category" hue={STAY_HUE} />}
       // The card's three lines are the event card's three lines: the span
       // where an event has its clock, the name, then where it is. The
       // nights are the sheet's, not the card's.

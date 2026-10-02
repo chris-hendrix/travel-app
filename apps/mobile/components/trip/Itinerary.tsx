@@ -3,12 +3,13 @@ import { useRouter } from "expo-router";
 import { EventRow } from "@/components/trip/EventRow";
 import { StayRow } from "@/components/trip/StayRow";
 import type { Trip } from "@/components/trip/TripCard";
-import { dayLabel, daysFrom, groupEventsByDay, liveEvents, tripIsOver } from "@/lib/itinerary";
+import { dayLabel, groupEventsByDay, liveEvents } from "@/lib/itinerary";
 import { useEvents as useEventsSection } from "@/lib/queries/events";
 import { InlineError } from "@/components/ui/InlineError";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
-import { ChipToggle } from "@/components/ui/ChipToggle";
+import { Band } from "@/components/ui/Band";
+import { Column } from "@/components/ui/Column";
 import { InlineAction } from "@/components/ui/InlineAction";
 import { useStays } from "@/lib/staysStore";
 import { useStays as useStaysSection } from "@/lib/queries/stays";
@@ -21,8 +22,9 @@ import { todayIn } from "@/lib/timezone";
  *
  * Today first, then the days ahead soonest first, then the days behind
  * most recent first — the trips screen's upcoming/past rule, applied to
- * days. So the top of an itinerary is always the day you are on, and
- * what has already happened piles up at the bottom when you ask for it.
+ * days. The run is always whole: what has already happened stays in it,
+ * at the bottom, because a trip you are halfway through is not a trip
+ * that starts today.
  *
  * Before the first day sit the roofs, earliest first. Not days, and not
  * rows in the table by right: they are the base every day below departs
@@ -54,15 +56,20 @@ import { todayIn } from "@/lib/timezone";
  * here. What is left at the top of the run is a heading that says what
  * is under it.
  *
- * No other control in view than the run's own filter, at its head: how
- * far down it you read. It was a row in Trip settings, which is where you
- * go to change a thing you are looking at — the switch belongs beside
- * what it switches, so you see what it did. The clock is not here either:
- * the header's zone token flips that, one tap away on every screen that
- * shows a time.
+ * There is no control in view. The clock is not here: the header's zone
+ * token flips that, one tap away on every screen that shows a time.
  *
- * There was a second control beside it, grid or list, and it is gone. A
- * run is a schedule you read rather than a gallery you browse, and the
+ * There were two controls here and both are gone. The first was the
+ * Past events chip, which narrowed the run to today and onward and put
+ * the days behind behind a switch. It was a real question — how far down
+ * the run do you want to read — and the answer was wrong, because the
+ * control decided what the trip *was* rather than how it was drawn. A
+ * trip in progress has already happened; hiding that is not a filter, it
+ * is an edit. The run is now always whole, which also retires the
+ * Nothing ahead branch that existed only to point at the switch.
+ *
+ * The second was grid or list, and it is gone. A run is a schedule you
+ * read rather than a gallery you browse, and the
  * two renderings were a second way to draw the same screen: a state to
  * persist, a switch to hide whenever the run was empty, and no answer at
  * all for a run holding only a stay — which is the arrangement that had
@@ -98,7 +105,7 @@ export function Itinerary({
     useEventsSection(trip.id);
   const { status: staysStatus, retry: retryStays } = useStaysSection(trip.id);
   const { staysForTrip } = useStays();
-  const { showPast, clock } = settingsFor(trip, now);
+  const { clock } = settingsFor(trip);
   const openEvent = (eventId: string) =>
     router.push(`/trips/events/detail?id=${trip.id}&event=${eventId}`);
   const openStay = (stayId: string) =>
@@ -112,21 +119,7 @@ export function Itinerary({
   useDisplayZone(zoneFor(trip, clock, update));
   const today = todayIn(timeZone, now);
 
-  // Past events is only a question while the trip is under way. Before it
-  // starts there is nothing behind you to filter; once it is over
-  // everything is, and a finished run is always whole — the switch cannot
-  // be left off in a way that hides the trip, which is also why it is not
-  // offered then. So: the chip renders in the middle of the trip and
-  // nowhere else, and the stored answer only ever narrows an unfinished
-  // run. (The store's default says the same thing for a first visit;
-  // this is the rule, that is the starting point.)
-  const over = tripIsOver(trip.endDate, today);
-  const underway = today >= trip.startDate && !over;
-
   const days = groupEventsByDay(liveEvents(events), timeZone);
-  // With the past on, the trip reads as one run from its first day to
-  // its last; with it off, it starts at today.
-  const shown = showPast || over ? days : daysFrom(days, today);
 
   // Earliest first: the store already holds them in the order you will
   // sleep in them.
@@ -141,60 +134,49 @@ export function Itinerary({
   const missingStays = stays.length === 0;
 
   return (
-    <View className="gap-6">
-      {/* No head label, and no controls of the page's: the run's structure
-          is its own headings — the roofs, then the days — and what they
-          are is what they say. There was an ITINERARY eyebrow above this
-          block, which named a list that the day headings had already
-          named one line further down, and it was there to anchor the two
-          buttons that used to sit in it. Those moved to the page's
-          action block (components/trip/TripActions.tsx), and the eyebrow
-          went with them. */}
+    <View>
+      {/* The stays table as a ground of its own, at the very top of the run
+          so it meets the hero's band with no sand between. The plan argued
+          against band-against-band; this one has the reason the argument was
+          missing — the hero is the trip and this is where you sleep, and the
+          seam lands on the heading rather than above it. It is also the one
+          adjacency `design-lint.mjs` check 5 cannot see, because check 5
+          works per file and the other band is in `trips/detail.tsx`. */}
+      {/* The band is gated on there being stays, not on the read having
+          finished. It used to wrap the whole ternary, so a trip with no
+          stays rendered the ground with nothing in it — an empty blue stripe
+          between the hero and the days, which is a colour saying "here is
+          where you sleep" over nothing at all.
 
-      {/* The run's own filter, at the head of the block it changes: how
-          much of the run you are reading. It was a row in Trip settings,
-          which is where you go to change a thing you are looking at —
-          the switch belongs beside what it switches, so you see what it
-          did. There was a grid-or-list switch beside it and there is not
-          any more: see the note above the component.
-
-          A run with no days gets nothing. The chip is about a list that
-          is not there, so the head of an empty run was a cell and a chip
-          over the word "nothing" — the loudest thing on the quietest
-          screen, and inert. It is held back until the events read has
-          landed, because until it has, "no days" and "not arrived yet"
-          are the same picture: the run arrives whole, its control with
-          its first heading rather than ahead of a loading block. */}
-      {eventsStatus === "success" && !missingEvents && underway ? (
-        <View className="flex-row justify-end">
-          <ChipToggle
-            label="Past events"
-            selected={showPast}
-            onPress={() => update(trip.id, { showPast: !showPast })}
+          Loading and failure are not a section, so they are not on the
+          section's ground: a band is what marks *where you sleep*, and a
+          block that says "couldn't load the stays" is a problem rather than
+          a place. */}
+      {staysStatus === "loading" ? (
+        <Column>
+          <LoadingBlock label="Getting the stays" />
+        </Column>
+      ) : staysStatus === "offline" ? (
+        <Column>
+          <OfflineBlock onRetry={retryStays} />
+        </Column>
+      ) : staysStatus === "error" ? (
+        <Column>
+          <InlineError
+            message="Couldn't load the stays"
+            onRetry={retryStays}
           />
-        </View>
-      ) : null}
-
-      {/* One table for the whole itinerary, with the days inside it:
-          a table per day would put two rules 24px apart at every day
-          boundary. The heading lumps a day together and the gap above
-          it separates it from the day before. No rule above the table:
-          the page's seam is the run's opening line. */}
-      <View>
-          {staysStatus === "loading" ? (
-            <LoadingBlock label="Getting the stays" />
-          ) : staysStatus === "offline" ? (
-            <OfflineBlock onRetry={retryStays} />
-          ) : staysStatus === "error" ? (
-            <InlineError
-              message="Couldn't load the stays"
-              onRetry={retryStays}
-            />
-          ) : stays.length > 0 ? (
-            // The table's first heading is the roofs, in the same face
-            // as the days below it: the run opens with where you sleep.
-            <View className="pt-6">
-              <Text className="pb-3 font-display text-xl uppercase leading-none text-ink">
+        </Column>
+      ) : stays.length > 0 ? (
+        <Band tone="baltic">
+          <Column>
+            {/* The table's first heading is the roofs, in the same face as
+                the days below it: the run opens with where you sleep. No
+                padding of its own: the band's column sets the rhythm, and on
+                a band padding is not air, it is colour — the seam above has
+                to be where the section starts, or it divides nothing. */}
+            <View>
+              <Text className="pb-3 font-display-semibold text-heading-lg uppercase text-ink">
                 Stays
               </Text>
               {stays.map((stay) => (
@@ -206,7 +188,32 @@ export function Itinerary({
                 />
               ))}
             </View>
-          ) : null}
+          </Column>
+        </Band>
+      ) : null}
+
+      <Column>
+        {/* The column supplies the block's own air — `py-6 md:py-10`. This
+            view used to repeat that rhythm on top of it, so the sand below
+            the stays band opened on two of them plus the first day's, and
+            a seam that carries one air everywhere else on the page was
+            carrying three. The gap between the blocks is all it still owes. */}
+        <View className="gap-6">
+      {/* No head label, and no controls of the page's: the run's structure
+          is its own headings — the roofs, then the days — and what they
+          are is what they say. There was an ITINERARY eyebrow above this
+          block, which named a list that the day headings had already
+          named one line further down, and it was there to anchor the two
+          buttons that used to sit in it. Those moved to the page's
+          action block (components/trip/TripActions.tsx), and the eyebrow
+          went with them. */}
+
+      {/* One table for the whole itinerary, with the days inside it:
+          a table per day would put two rules 24px apart at every day
+          boundary. The heading lumps a day together and the gap above
+          it separates it from the day before. No rule above the table:
+          the page's seam is the run's opening line. */}
+      <View>
           {eventsStatus === "loading" ? (
             <LoadingBlock label="Getting the run" />
           ) : eventsStatus === "offline" ? (
@@ -217,18 +224,20 @@ export function Itinerary({
               onRetry={retryEvents}
             />
           ) : (
-            shown.map((day, index) => (
+            days.map((day, index) => (
               <View
                 key={day.date}
-                // The heading needs air under the rule; a day break then
-                // has to be roomier than a row break, or the two read the
-                // same. A day following the stays is a block break too,
-                // so it takes the roomy one either way the run opens.
-                className={
-                  index === 0 && stays.length === 0 ? "pt-6" : "pt-10"
-                }
+                // Only a day that follows another day needs a break of its
+                // own: the first one is already set off by whatever came
+                // before the run — the band's lower seam and the column's
+                // padding under it, or the column's padding alone when
+                // there is no band. Adding a second padding here stacked
+                // two airs and opened a hole under the stays; on a page
+                // whose other colour blocks carry one, 80px read as a gap
+                // rather than a separation.
+                className={index === 0 ? "" : "pt-10"}
               >
-                <Text className="pb-3 font-display text-xl uppercase leading-none text-ink">
+                <Text className="pb-3 font-display-semibold text-heading-lg uppercase text-ink">
                   {dayLabel(day.date, today)}
                 </Text>
                 {day.events.map((event) => (
@@ -283,7 +292,7 @@ export function Itinerary({
                   not "nothing planned", it is missing a plan, and the
                   sentence below says exactly that on its own. */}
               {missingStays ? (
-                <Text className="font-display text-xl uppercase leading-none text-ink">
+                <Text className="font-display-semibold text-heading-lg uppercase text-ink">
                   Nothing planned yet
                 </Text>
               ) : null}
@@ -326,19 +335,11 @@ export function Itinerary({
                 </Text>
               ) : null}
             </View>
-          ) : shown.length === 0 ? (
-            <View className="gap-1">
-              <Text className="font-display text-xl uppercase leading-none text-ink">
-                Nothing ahead
-              </Text>
-              <Text className="font-body text-base text-ink">
-                Everything on this trip has already happened. Turn on Past
-                events to read it.
-              </Text>
-            </View>
           ) : null}
         </View>
       )}
+        </View>
+      </Column>
     </View>
   );
 }

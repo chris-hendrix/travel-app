@@ -3,6 +3,7 @@ import { Image, Pressable, Text, View } from "react-native";
 import { Stack, useLocalSearchParams } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
+import { QuietAction } from "@/components/ui/QuietAction";
 import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { DatePicker } from "@/components/ui/DatePicker";
@@ -333,27 +334,28 @@ function EditTripScreen() {
               />
             ) : (
               <View className="h-20 w-20 items-center justify-center bg-ink">
-                <Text className="font-display text-4xl leading-none text-sand">
+                <Text className="font-display-extrabold text-display-md text-sand">
                   +
                 </Text>
               </View>
             )}
           </Pressable>
           <View className="flex-row items-center gap-5">
-            <Pressable onPress={pickCover} className="self-start">
-              <Text className="font-body-bold text-sm text-ink underline">
-                {cover ? "Change cover" : "Upload cover"}
-              </Text>
-            </Pressable>
+            {/* Two `QuietAction`s, which is what they already were by
+                hand: a bold underlined word with no box, pressable. The
+                underline is the only mark either word carries, so they were
+                never candidates for having it taken away — and the phase
+                that proposed moving them to "a muted-tier word" would have
+                made two pressable words read as labels. */}
+            <QuietAction
+              label={cover ? "Change cover" : "Upload cover"}
+              onPress={pickCover}
+            />
             {cover ? (
-              <Pressable
+              <QuietAction
+                label="Remove cover"
                 onPress={() => setCover("")}
-                className="self-start"
-              >
-                <Text className="font-body-bold text-sm text-ink underline">
-                  Remove cover
-                </Text>
-              </Pressable>
+              />
             ) : null}
           </View>
         </View>

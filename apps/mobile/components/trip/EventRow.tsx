@@ -6,6 +6,7 @@ import {
   eventTimeLabel,
   type ItineraryEvent,
 } from "@/lib/itinerary";
+import { EVENT_HUES } from "@/lib/eventColors";
 
 /**
  * An event in the list: a row of the schedule rather than a card.
@@ -31,7 +32,11 @@ export function EventRow({
       title={event.name}
       labels={
         <>
-          <Badge label={EVENT_TYPE_LABEL[event.type]} variant="category" />
+          <Badge
+            label={EVENT_TYPE_LABEL[event.type]}
+            variant="category"
+            hue={EVENT_HUES[event.type] ?? undefined}
+          />
           <Badge label={event.place} variant="venue" />
         </>
       }

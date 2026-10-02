@@ -1,40 +1,34 @@
 import type { ReactNode } from "react";
-import { ScrollView, View } from "react-native";
+import { ScrollView } from "react-native";
 
 /**
- * Screen ground and wide-screen frame.
+ * The screen ground, and nothing else.
  *
  * React Navigation paints its own background on every screen container
  * (#f2f2f2 on web), so the screen must paint its own sand.
  *
- * On wide screens the content sits in a centred column: at 960px the
- * inner width is 864px, which is exactly two 420px cards plus the gap,
- * so the grid fills its column instead of leaving a ragged edge.
+ * It used to wrap its children in a constrained 960px column as well, and
+ * that is now `Column`'s job. The split is forced by `Band`: a full-bleed
+ * tone cannot exist inside a constrained column, and the negative-margin
+ * escape hatch is forbidden (`apps/mobile/AGENTS.md`: "Never padding plus a
+ * matching negative margin either: the margin pulls the box back out of its
+ * row"). So the children own their own width:
  *
- * `lead` is for the screens that open on a display heading rather than on
- * content: the landing, the way in, and the invitation. They want air
- * above the first line that a list of rows does not, and the same 24px
- * rhythm between the blocks that the repeated wrapper carried before it.
- * Before this it was a magic `gap-6 pt-4 md:pt-14` wrapper repeated in
- * four screens, and the gap is load-bearing: without it the field, the
- * consent and the button stack with nothing between them.
+ *   <Screen>                        // this: the scroll and the ground
+ *     <Column>…</Column>            // the ordinary case, and every screen
+ *     <Band tone="lilac">           // the exception
+ *       <Column>…</Column>
+ *     </Band>
+ *   </Screen>
+ *
+ * **The `lead` prop moved to `Column`; it did not retire.** `Screen.tsx`
+ * carried the vertical rhythm — `py-6 md:py-10` and the `lead` variant — and
+ * the whole restructure is inert only because the rhythm moved with the
+ * width. A `Column` that kept the width and dropped the rhythm would have
+ * changed every one of the sixteen call sites, and the six `lead` screens
+ * (`login`, `verify`, `complete-profile`, `admin/users/index`, `+not-found`,
+ * `invite`) would have lost their spacing outright.
  */
-export function Screen({
-  children,
-  lead = false,
-}: {
-  children: ReactNode;
-  lead?: boolean;
-}) {
-  return (
-    <ScrollView className="flex-1 bg-sand">
-      <View
-        className={`mx-auto w-full max-w-[960px] px-6 md:px-12 ${
-          lead ? "gap-6 pb-6 pt-10 md:pb-10 md:pt-24" : "py-6 md:py-10"
-        }`}
-      >
-        {children}
-      </View>
-    </ScrollView>
-  );
+export function Screen({ children }: { children: ReactNode }) {
+  return <ScrollView className="flex-1 bg-sand">{children}</ScrollView>;
 }

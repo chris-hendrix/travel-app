@@ -4,15 +4,40 @@ import { updateProfileSchema } from "@journiful/shared/schemas";
 export type TemperatureUnit = "celsius" | "fahrenheit";
 
 /**
+ * The measurement system, labelled as one rather than as a temperature.
+ *
+ * "US" and "Metric" are what the reader already met on the phone they are
+ * holding — iOS calls it Measurement System, Android calls it Units — and
+ * they name the choice rather than one of its results. Labelling this
+ * Fahrenheit/Celsius said what the setting did today and hid what it is
+ * for: distances are read in the same system, and a control named after
+ * the one thing it governs asks to be renamed again the moment the other
+ * arrives.
+ *
+ * The stored values stay `celsius` / `fahrenheit`. They are what
+ * `users.temperature_unit` has always held — `varchar(10)`, and every
+ * profile read still answers with one — and renaming them would be a
+ * migration to reword a label. `us` is fahrenheit, `metric` is celsius.
+ *
  * Fahrenheit first, because it is the default the API answers with
  * (`lib/mapping.ts`): the value you are most likely to already be on is
  * the one under the thumb that goes looking for it. Shared by the
  * profile form and the admin record so the option list cannot drift.
  */
 export const UNITS: Array<{ value: TemperatureUnit; label: string }> = [
-  { value: "fahrenheit", label: "Fahrenheit" },
-  { value: "celsius", label: "Celsius" },
+  { value: "fahrenheit", label: "US" },
+  { value: "celsius", label: "Metric" },
 ];
+
+/**
+ * The label a stored value wears, so a record and the control that edits
+ * it cannot disagree — the admin screen used to print the raw value's
+ * capitalised first letter, which said "Fahrenheit" beside a control
+ * offering "US".
+ */
+export function unitLabel(unit: TemperatureUnit): string {
+  return UNITS.find((option) => option.value === unit)?.label ?? unit;
+}
 
 /**
  * The signed-in user, shaped after the API's `userResponseSchema` so the

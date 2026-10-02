@@ -6,6 +6,7 @@ import { InlineError } from "@/components/ui/InlineError";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
 import NotFound from "@/app/+not-found";
 import { toErrorCopy } from "@/lib/queries/errors";
+import { Column } from "@/components/ui/Column";
 
 /**
  * The screen gate for a single-trip read (`useTrip(id)`), copying the
@@ -47,8 +48,9 @@ export function TripGate({
               // same column, same first line: the wait looks like the
               // page it is waiting to be.
               <Screen>
+<Column>
                 <LoadingBlock label={label} />
-              </Screen>
+              </Column></Screen>
             }
           >
             {children}

@@ -20,6 +20,19 @@ import { QuietAction } from "@/components/ui/QuietAction";
 import { PhoneField } from "@/components/ui/PhoneField";
 import { toE164 } from "@/lib/phone";
 import { Screen } from "@/components/ui/Screen";
+import { Band } from "@/components/ui/Band";
+import type { BandTone } from "@/components/ui/bandClasses";
+import { BAND_TONES, TOKENS } from "@/lib/palette";
+import {
+  EVENT_HUES,
+  POP_FILL,
+  initialsHue,
+  type PopHue,
+} from "@/lib/eventColors";
+import { EVENT_TYPE_LABEL, type EventType } from "@/lib/itinerary";
+import { initials } from "@/lib/profile";
+import { RuledBlock, PageRule } from "@/components/ui/RuledBlock";
+import { Fact } from "@/components/ui/Fact";
 // Aliased: this file's own `Section` is the lab's documentation frame, and
 // the product's is the ruled block the frame documents.
 import { Section as RuledSection } from "@/components/ui/Section";
@@ -58,6 +71,9 @@ import { emailSchema } from "@journiful/shared/schemas";
 import { legalDocument } from "@journiful/shared/legal";
 import type { LegalDocument } from "@journiful/shared/legal";
 import { Prose } from "@/components/ui/Prose";
+import { chroma, contrast, dE } from "@/lib/color";
+import { GROUNDS } from "@/lib/palette";
+import { Column } from "@/components/ui/Column";
 
 /** Metro resolving a bare package import and a font actually being the
  *  font are the two things a bundle can fail at silently, and neither
@@ -108,28 +124,194 @@ const PROSE_SAMPLE: LegalDocument = {
   })(),
 };
 
-const COLORS: Array<[name: string, token: string, hex: string, swatch: string]> = [
-  ["Chrome", "ink", "#000000", "bg-ink"],
-  ["Background", "sand", "#f5eacc", "bg-sand"],
-  ["Muted", "gravel", "#e2ded5", "bg-gravel"],
-  ["Surface", "paper", "#ffffff", "bg-paper"],
-  ["Primary", "seafoam", "#42d177", "bg-seafoam"],
-  ["Secondary", "watermelon", "#ef8ad4", "bg-watermelon"],
-  ["Accent", "strawberry", "#ff6352", "bg-strawberry"],
-  ["Alert", "strawberry-deep", "#b8271a", "bg-strawberry-deep"],
-  ["Info", "ocean", "#4281ff", "bg-ocean"],
-  ["Highlight", "acid", "#cbfb6a", "bg-acid"],
+/**
+ * The palette, grouped by the role that decides what each token may do.
+ *
+ * The figures beside each row are **measured, not written down**: they
+ * come from `lib/color.ts`, the same module the palette test asserts
+ * against, so a row here cannot quote a number that is no longer true.
+ * That is the point of this section — gate A approves the *role
+ * assignment*, and a role is only defensible beside its chroma and its
+ * ratio. `lib/palette.ts` holds the rule and the floors; this is the
+ * same list, rendered so a person can disagree with it.
+ *
+ * Reading a row:
+ *   `C` is OKLCh chroma — how loud the colour is. Under 0.09 is a ground.
+ *   `ink` is contrast of ink *on* the tone, the audit's own column.
+ *   a text tone shows its ratio on gravel instead, the binding ground.
+ *   a band shows its dE from sand — under 6 and it reads as one ground.
+ */
+const inkOn = (hex: string) => `ink ${contrast("#000000", hex).toFixed(2)}:1`;
+const loudness = (hex: string) => `C ${chroma(hex).toFixed(3)}`;
+const onGravel = (hex: string) =>
+  `${contrast(hex, GROUNDS.gravel).toFixed(2)}:1 on gravel`;
+const seam = (hex: string) => `dE ${dE(hex, GROUNDS.sand).toFixed(1)} from sand`;
+const said = (hex: string, ...parts: string[]) => `${hex} \u00b7 ${parts.join(" \u00b7 ")}`;
+
+const COLORS: Array<[name: string, token: string, detail: string, swatch: string]> = [
+  /* Grounds */
+  ["Ground \u00b7 sand", "sand", said("#f5eacc", loudness("#f5eacc"), inkOn("#f5eacc")), "bg-sand"],
+  ["Ground \u00b7 gravel", "gravel", said("#e2ded5", loudness("#e2ded5"), `${dE("#e2ded5", "#f5eacc").toFixed(1)} dE from sand`), "bg-gravel"],
+  ["Ground \u00b7 paper", "paper", said("#ffffff", loudness("#ffffff"), inkOn("#ffffff")), "bg-paper"],
+  ["Ground \u00b7 ink", "ink", "#000000 \u00b7 chrome band, text, borders", "bg-ink"],
+  /* Marks: chroma >= 0.10, never a ground */
+  ["Mark \u00b7 seafoam", "seafoam", said("#42d177", loudness("#42d177"), inkOn("#42d177")), "bg-seafoam"],
+  ["Mark \u00b7 watermelon", "watermelon", said("#ef8ad4", loudness("#ef8ad4"), inkOn("#ef8ad4")), "bg-watermelon"],
+  ["Mark \u00b7 strawberry", "strawberry", said("#ff6352", loudness("#ff6352"), inkOn("#ff6352")), "bg-strawberry"],
+  ["Mark \u00b7 ocean", "ocean", said("#4281ff", loudness("#4281ff"), "fill only, 3.01:1 on sand"), "bg-ocean"],
+  ["Mark \u00b7 acid", "acid", said("#cbfb6a", loudness("#cbfb6a"), inkOn("#cbfb6a"), "loudest token"), "bg-acid"],
+  /* Text: the deep tier. Ratios are against gravel, the binding ground. */
+  ["Text \u00b7 seafoam-deep", "seafoam-deep", said("#1c713b", loudness("#1c713b"), onGravel("#1c713b")), "bg-seafoam-deep"],
+  ["Text \u00b7 watermelon-deep", "watermelon-deep", said("#b4198b", loudness("#b4198b"), onGravel("#b4198b")), "bg-watermelon-deep"],
+  ["Text \u00b7 strawberry-deep", "strawberry-deep", said("#b8271a", loudness("#b8271a"), onGravel("#b8271a")), "bg-strawberry-deep"],
+  ["Text \u00b7 ocean-deep", "ocean-deep", said("#0051f3", loudness("#0051f3"), onGravel("#0051f3")), "bg-ocean-deep"],
+  ["Text \u00b7 amethyst-deep", "amethyst-deep", said("#5e5e8b", loudness("#5e5e8b"), onGravel("#5e5e8b")), "bg-amethyst-deep"],
+  ["Text \u00b7 baltic-deep", "baltic-deep", said("#1f6c73", loudness("#1f6c73"), onGravel("#1f6c73")), "bg-baltic-deep"],
+  ["Text \u00b7 bpink-deep", "bpink-deep", said("#bf0074", loudness("#bf0074"), onGravel("#bf0074")), "bg-bpink-deep"],
+  ["Text \u00b7 grey-quiet", "grey-quiet", said("#5f5f5f", loudness("#5f5f5f"), onGravel("#5f5f5f")), "bg-grey-quiet"],
+  /* Bands: one at a time, chroma < 0.09, a seam from every ground */
+  ["Band \u00b7 lilac", "lilac", said("#E2BFE3", loudness("#E2BFE3"), inkOn("#E2BFE3"), seam("#E2BFE3")), "bg-lilac"],
+  ["Band \u00b7 baltic", "baltic", said("#9adee4", loudness("#9adee4"), inkOn("#9adee4"), seam("#9adee4")), "bg-baltic"],
+  /* Muted fills: desaturated on purpose */
+  ["Muted \u00b7 concrete", "concrete", said("#b0ad9b", loudness("#b0ad9b")), "bg-concrete"],
+  ["Muted \u00b7 silver", "silver", said("#b3b3b3", loudness("#b3b3b3")), "bg-silver"],
 ];
 
-const TYPE: Array<
-  [role: string, family: string, token: string, use: string, face: string]
-> = [
-  ["Display", "Handjet ExtraBold", "font-display", "Headlines. Short strings only.", "font-display"],
-  ["Wordmark", "Bungee Shade", "font-wordmark", "Journiful. Nowhere else.", "font-wordmark"],
-  ["Body", "Space Mono", "font-body", "Default text, dates, labels.", "font-body"],
-  ["Strong", "Space Mono Bold", "font-body-bold", "Emphasis, buttons, badges.", "font-body-bold"],
-  ["Aside", "Space Mono Italic", "font-body-italic", "Quotes, secondary info.", "font-body-italic"],
+/**
+ * The scale, as seven steps.
+ *
+ * This is the only place the scale exists as a scale. Everywhere else it
+ * is 42 call sites carrying one of five `leading` values and seventeen
+ * `font-display` sites under the floor, which is why the rollout is
+ * invisible in a diff and the scale has to be judged here first.
+ *
+ * Two faces, split at 28px, and the split is the thing worth arguing
+ * about rather than the sizes: `heading-md` is 20px in the **body** face,
+ * so the display face never sets anything below `heading-lg` at 28px. If
+ * `heading-lg` and `heading-md` look like the same heading on this page,
+ * the floor is wrong and the fix is here rather than across 42 sites.
+ *
+ * Every size is in `px`, never `rem`, and there is no `clamp()`: NativeWind
+ * v5 supports `var()`, `calc()`, `env()` and `color-mix()` and nothing
+ * else, and its `rem` is 14 on native against 16 on web, so a `rem`+`vw`
+ * ramp paints one size in the browser and another on Android — the
+ * measure-vs-paint split this repo has already been bitten by (A18).
+ * `display-lg` is the one step with a breakpoint jump, the `md:` one it
+ * already had.
+ */
+const TYPE: Array<{
+  step: string;
+  size: string;
+  leading: string;
+  tracking: string;
+  weight: string;
+  face: "display" | "body";
+  family: string;
+  className: string;
+  sample: string;
+  use: string;
+}> = [
+  {
+    step: "display-lg",
+    size: "60px, 72px at md",
+    leading: "0.9",
+    tracking: "-0.02em",
+    weight: "900",
+    face: "display",
+    family: "Big Shoulders Display Black",
+    className:
+      "font-display-black text-[60px] leading-[0.9] tracking-[-0.02em] uppercase md:text-[72px]",
+    sample: "Group trips",
+    use: "The landing hero, and nothing else. Two words.",
+  },
+  {
+    step: "display-md",
+    size: "42px, 48px at md",
+    leading: "0.95",
+    tracking: "-0.015em",
+    weight: "800",
+    face: "display",
+    family: "Big Shoulders Display ExtraBold",
+    className:
+      "font-display-extrabold text-[42px] leading-[0.95] tracking-[-0.015em] uppercase md:text-[48px]",
+    sample: "Sunset drinks",
+    use: "A screen's own title, a trip's name.",
+  },
+  {
+    step: "display-sm",
+    size: "32px, 36px at md",
+    leading: "1.0",
+    tracking: "-0.01em",
+    weight: "700",
+    face: "display",
+    family: "Big Shoulders Display Bold",
+    className:
+      "font-display-bold text-[32px] leading-[1] tracking-[-0.01em] uppercase md:text-[36px]",
+    sample: "Packing list",
+    use: "An empty state's headline, a dialog's title.",
+  },
+  {
+    step: "heading-lg",
+    size: "28px",
+    leading: "1.1",
+    tracking: "0",
+    weight: "600",
+    face: "display",
+    family: "Big Shoulders Display SemiBold",
+    className:
+      "font-display-semibold text-[28px] leading-[1.1] uppercase",
+    sample: "Overview",
+    use: "A block heading. The display floor, at 28px.",
+  },
+  {
+    step: "heading-md",
+    size: "20px",
+    leading: "1.15",
+    tracking: "0",
+    weight: "500",
+    face: "body",
+    family: "Space Mono Bold",
+    className: "font-body-bold text-[20px] leading-[1.15]",
+    sample: "What goes in the trip",
+    use: "A subheading — the body face, not the display one.",
+  },
+  {
+    step: "body",
+    size: "16px",
+    leading: "1.5",
+    tracking: "0",
+    weight: "400",
+    face: "body",
+    family: "Space Mono",
+    className: "font-body text-[16px] leading-[1.5]",
+    sample: "Default text, dates and labels.",
+    use: "Everything read as prose.",
+  },
+  {
+    step: "label",
+    size: "14px",
+    leading: "1.4",
+    tracking: "+0.02em",
+    weight: "700",
+    face: "body",
+    family: "Space Mono Bold",
+    className: "font-body-bold text-[14px] leading-[1.4] tracking-[0.02em]",
+    sample: "ROOM SHARE",
+    use: "A control's own label, a badge, an eyebrow.",
+  },
 ];
+
+/** The API's nine, as the specimen walks them. */
+const EVENT_TYPES = Object.keys(EVENT_TYPE_LABEL) as EventType[];
+
+/** The hex behind a hue, so the specimen prints a measured chroma and not a
+ *  claim. Throws rather than returning a default: a hue with no token is a
+ *  bug the specimen should not be able to hide. */
+function hexOf(hue: PopHue): string {
+  const token = TOKENS.find((t) => t.name === hue);
+  if (!token) throw new Error(`no token named ${hue}`);
+  return token.hex;
+}
 
 const VENUES = ["The Hall", "Zone One", "The Rooftop", "The Loft", "Full Venue"];
 
@@ -199,27 +381,51 @@ function TokenRow({
 }
 
 function TypeRow({
-  role,
-  family,
-  token,
-  use,
+  step,
+  size,
+  leading,
+  tracking,
+  weight,
   face,
+  family,
+  className,
+  sample,
+  use,
 }: {
-  role: string;
+  step: string;
+  size: string;
+  leading: string;
+  tracking: string;
+  weight: string;
+  face: "display" | "body";
   family: string;
-  token: string;
+  className: string;
+  sample: string;
   use: string;
-  face: string;
 }) {
   return (
-    <View className="flex-row items-center gap-3 border-b border-gravel py-3">
-      <Text className={`${face} w-28 text-2xl text-ink`}>Ag</Text>
-      <View className="flex-1">
-        <Text className="font-body-bold text-base text-ink">{role}</Text>
-        <Text className="font-body text-sm text-ink">{family}</Text>
-        <Text className="font-body text-sm text-ink">{use}</Text>
+    <View className="gap-2 border-b border-gravel py-4">
+      {/* The sample is set at the step's real size, leading and tracking,
+          in the face the step wears. Judging a scale off a swatch that is
+          not the scale is how a scale goes unnoticed until it is in 42
+          places. */}
+      <Text className={`${className} text-ink`} numberOfLines={1}>
+        {sample}
+      </Text>
+      <View className="flex-row flex-wrap items-baseline gap-x-4 gap-y-1">
+        <Text className="w-28 font-body-bold text-sm text-ink">{step}</Text>
+        <Text className="font-body text-sm text-ink">{size}</Text>
+        <Text className="font-body text-sm text-ink">lh {leading}</Text>
+        <Text className="font-body text-sm text-ink">track {tracking}</Text>
+        <Text className="font-body text-sm text-ink">w{weight}</Text>
+        {/* Named as the *face*, not the family: this is the column that
+            decides which of the two faces a step gets, and the family is
+            the consequence of it. */}
+        <Text className="font-body-bold text-sm text-ink">{face}</Text>
       </View>
-      <Text className="font-body text-sm text-ink">{token}</Text>
+      <Text className="font-body text-sm text-ink opacity-60">
+        {family} — {use}
+      </Text>
     </View>
   );
 }
@@ -267,6 +473,7 @@ function DesignSystemScreen() {
   const [venue, setVenue] = useState<string | null>(null);
   const [rsvp, setRsvp] = useState<RsvpStatus | null>(null);
   const [layout, setLayout] = useState<"list" | "grid">("list");
+  const [units, setUnits] = useState<"c" | "f">("c");
   const [pastEvents, setPastEvents] = useState(false);
   const [range, setRange] = useState<Selection>({
     start: null,
@@ -285,25 +492,26 @@ function DesignSystemScreen() {
 
   return (
     <Screen>
+      <Column>
       <View className="gap-8">
         <View className="gap-1">
-          <Text className="font-display text-4xl leading-tight text-ink">
+          <Text className="font-display-extrabold text-display-md text-ink">
             Design System
           </Text>
           <Text className="font-body text-base text-ink">
-            v1 — tokens, primitives, and patterns. Everything below is the
+            v2 — tokens, primitives, and patterns. Everything below is the
             real component, rendered live.
           </Text>
         </View>
 
         <Section title="Color">
           <View>
-            {COLORS.map(([name, token, hex, swatch]) => (
+            {COLORS.map(([name, token, detail, swatch]) => (
               <TokenRow
                 key={token}
                 name={name}
                 token={token}
-                detail={hex}
+                detail={detail}
                 right={<View className={`h-8 w-8 ${swatch}`} />}
               />
             ))}
@@ -312,15 +520,8 @@ function DesignSystemScreen() {
 
         <Section title="Type">
           <View>
-            {TYPE.map(([role, family, token, use, face]) => (
-              <TypeRow
-                key={token}
-                role={role}
-                family={family}
-                token={token}
-                use={use}
-                face={face}
-              />
+            {TYPE.map((step) => (
+              <TypeRow key={step.step} {...step} />
             ))}
           </View>
           <Text className="font-body text-sm text-ink">
@@ -409,26 +610,74 @@ function DesignSystemScreen() {
 
             <Specimen
               name="Screen"
-              contract="children · lead?"
-              note="The ground for every screen. Navigation containers paint their own background, so a screen must paint its own sand or it renders grey. `lead` is for the screens that open on a display heading rather than on content, the landing, the way in and the invitation: they want air above the first line that a list of rows does not."
+              contract="children (and `Column` carries `lead?`)"
+              note="The ground for every screen, and nothing else. Navigation containers paint their own background, so a screen must paint its own sand or it renders grey. It used to wrap its children in the constrained column as well; that is `Column`'s job now, and the split is forced by `Band` — a full-bleed tone cannot exist inside a constrained column and the negative-margin workaround is forbidden. Children therefore own their own width, and every screen wraps its content in a `Column`. The vertical rhythm moved with the width rather than staying here: `Column` carries `py-6 md:py-10` and the `lead` variant, and a Column that kept the width and dropped the rhythm would have changed all sixteen call sites — the six `lead` screens would have lost their spacing outright."
             >
               <Screen>
-                <Text className="font-body text-base text-ink">
-                  Screen content sits on the sand ground.
-                </Text>
+                <Column>
+                  <Text className="font-body text-base text-ink">
+                    Screen content sits on the sand ground.
+                  </Text>
+                </Column>
               </Screen>
             </Specimen>
 
             <Specimen
               name="Section"
-              contract="title · children?"
-              note="A titled block, ruled off from the one above it. The rule sits on top of the block rather than under it, so a stack of them shares its rules instead of doubling them at every boundary. It replaced four local copies that had already drifted apart on gap and heading size. The landing's sections are deliberately not this: they are tables of rows closed by a rule underneath, at the hero's own scale."
+              contract="title · rule? · children?"
+              note="A titled block, ruled off from the one above it. The rule sits on top of the block rather than under it, so a stack of them shares its rules instead of doubling them at every boundary. It replaced four local copies that had already drifted apart on gap and heading size. The landing's sections are deliberately not this: they are tables of rows closed by a rule underneath, at the hero's own scale. `rule={false}` is for a block whose boundary is already drawn — the first block inside a `Band`, where the band's own edge is the seam — and it drops the rule *and* its padding, because the air above a banded block belongs to the band. Two marks for one boundary is what the rule book forbids \u2014 one rule per boundary, a stack of blocks shares rules rather than doubling them at every seam. A screen that never needs it is the honest case for leaving this specimen behind."
             >
               <RuledSection title="What goes in the trip">
                 <Text className="font-body text-base text-ink">
                   Ruled off from whatever sits above it.
                 </Text>
               </RuledSection>
+            </Specimen>
+
+            <Specimen
+              name="RuledBlock"
+              contract="title? · rule? · children? — plus `PageRule`, no props"
+              note="One rule per boundary. A black rule taken from above is a block boundary: it opens a block, it carries the block's padding and the block's inner gap, and its title is optional because eleven of the thirteen sites had no title and a rule over one paragraph reads as an accident until something names it. A `PageRule` is the page's own hairline — full width, no title, no padding — for a boundary that closes a multi-column block and opens what is under it. It had that one site on the trip page until Phase 6 deleted it there, because the hero band's lower seam did the same job; nothing renders it now but this specimen, and it is kept pending a decision on whether a rule the app does not draw belongs in the rule book at all. A `border-gravel` between rows is neither: it is a row separator inside a block, not a boundary between blocks. Below: the real stay screen, where three blocks sat at three different gaps under three hand-written copies of the same rule. `Where` and `Arrival` are the new titles; the check-in block keeps the Fact labels it already had. `rule={false}` is the third form: a block whose boundary is already drawn, so it carries no rule and no padding — the first block inside a `Band`, where the band's edge *is* the seam. Below it is the shape a band uses."
+            >
+              <RuledBlock title="Where">
+                <Text selectable className="font-body text-base text-ink/70">
+                  <Text className="font-body-bold text-ink">
+                    The Hoxton Shoreditch
+                  </Text>{" "}
+                  1 Willow St, London
+                </Text>
+                <QuietAction label="Open in Maps" onPress={() => setLog("RuledBlock: Open in Maps")} />
+              </RuledBlock>
+              <RuledBlock title="Arrival">
+                <Text
+                  selectable
+                  className="font-body text-base leading-relaxed text-ink"
+                >
+                  Ring the bell for flat 4. Wifi: hoxton-guest / 4471.
+                </Text>
+              </RuledBlock>
+              {/* Untitled: the form that eleven of the thirteen sites wanted all along. */}
+              <RuledBlock>
+                <Fact label="Check in">
+                  <Text className="font-body text-base text-ink">
+                    Fri, Jun 14, 3:00 PM
+                  </Text>
+                </Fact>
+                <Fact label="Check out">
+                  <Text className="font-body text-base text-ink">
+                    Sun, Jun 16, 11:00 AM
+                  </Text>
+                </Fact>
+              </RuledBlock>
+              {/* Unruled: no boundary above it, so no mark and no padding.
+                  This is the form the first block inside a band wears. */}
+              <RuledBlock title="Already bounded" rule={false}>
+                <Text className="font-body text-base text-ink">
+                  Nothing above me to be ruled off from.
+                </Text>
+              </RuledBlock>
+              {/* The page rule, between two blocks rather than above one. */}
+              <PageRule />
             </Specimen>
 
             <Specimen
@@ -475,19 +724,24 @@ function DesignSystemScreen() {
 
             <Specimen
               name="ActionBar"
-              contract="primaryTitle · onPrimary"
-              note="One primary action, no Back: dismissal is the header close control and the platform gesture. Fills the width on a phone, hugs right on wide."
+              contract="primaryTitle · onPrimary · variant?"
+              note="One primary action, no Back: dismissal is the header close control and the platform gesture. Fills the width on a phone, hugs right on wide. `variant` is where the bar lives, and the two differ by one question — does content scroll under it? A `dialog` is yes: the rule marks where the bar begins and the ground is gravel because the dialog is. A `screen` is no, and it keeps the rule for the opposite reason: its ground is sand, which is the page, so without a rule there is nothing marking it as a bar at all rather than the page's last block. Below: a dialog's foot, then a screen's."
             >
               <ActionBar
                 primaryTitle="Save changes"
                 onPrimary={() => setLog("ActionBar onPrimary fired")}
+              />
+              <ActionBar
+                variant="screen"
+                primaryTitle="Create trip"
+                onPrimary={() => setLog("ActionBar (screen) fired")}
               />
             </Specimen>
 
             <Specimen
               name="Button"
               contract="title · variant? · onPress? · fullWidth? · align? · disabled? · trailing? · expanded?"
-              note="Fills the width on a phone; from md up it hugs the edge it is aligned to. disabled keeps it in place rather than hiding it: a control that vanishes leaves nothing to aim at. Inside a row, align='end' is what lines a button up with the field beside it — the default hugs the start of the cross axis and sits high. trailing parks an affordance at the far edge rather than laying it out, so the label stays centred the way every other button's does — DisclosureButton's triangle is its only caller, and the label has to stay short enough not to reach it. expanded announces that the button discloses what is under it, and is left off every button that does not."
+              note="No two content buttons side by side, at any width: one per row, stacked. A button is a single choice, and putting two in a row makes a choice out of a list — then, at 390, wraps the pair into a ragged 2+1 that reads as a layout accident rather than a decision. Stacked, a button takes the whole row on a phone, where a thumb target beats a tidy box, and from md up drops to its content width on the start edge. Fills the width on a phone; from md up it hugs the edge it is aligned to. disabled keeps it in place rather than hiding it: a control that vanishes leaves nothing to aim at. Inside a row, align='end' is what lines a button up with the field beside it — the default hugs the start of the cross axis and sits high. trailing parks an affordance at the far edge rather than laying it out, so the label stays centred the way every other button's does — DisclosureButton's triangle is its only caller, and the label has to stay short enough not to reach it. expanded announces that the button discloses what is under it, and is left off every button that does not."
             >
               <Button
                 title="Create trip"
@@ -514,20 +768,62 @@ function DesignSystemScreen() {
 
             <Specimen
               name="Badge"
-              contract="label · variant · size?"
-              note="Event type and status. Venue renders as plain text beside the pills. Category is the neutral one, for classifying a thing rather than reporting its state — it shares ink with soldOut on purpose: roles differ, tones may not. Two sizes: md in the content, where a chip is read, and sm hanging off a name in a list, where it is glanced at."
+              contract="label · variant · size? · hue?"
+              note="Event type and status. Venue renders as plain text beside the pills. `hue` is a pop fill and the label stays ink on it; absent means ink, which is what a state badge always wears. The nine event types below are the whole pop tier as it is actually spent — nine types, four hues, grouped in pairs — each with its measured chroma. The reasoning, and the one decision this set makes, are in `lib/eventColors.ts`."
             >
               <View className="flex-row flex-wrap items-center gap-2">
                 <Badge label="club" variant="club" />
                 <Badge label="live" variant="live" />
                 <Badge label="sold out" variant="soldOut" />
-                <Badge label="Food" variant="category" />
                 <Badge label="The Rooftop" variant="venue" />
               </View>
+              <View className="gap-2">
+                {EVENT_TYPES.map((type) => {
+                  const hue = EVENT_HUES[type];
+                  return (
+                    <View key={type} className="flex-row items-center gap-3">
+                      <Badge
+                        label={EVENT_TYPE_LABEL[type]}
+                        variant="category"
+                        hue={hue ?? undefined}
+                      />
+                      <Text className="font-body text-sm text-ink">
+                        {hue
+                          ? `${hue} · chroma ${chroma(hexOf(hue)).toFixed(3)}`
+                          : "ink — the neutral classifier"}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
               <View className="flex-row flex-wrap items-center gap-2">
-                <Badge label="Venmo" variant="category" size="sm" />
-                <Badge label="Insta" variant="category" size="sm" />
                 <Badge label="Outdoors" variant="category" size="sm" />
+                <Badge label="Food" variant="category" size="sm" hue="watermelon" />
+              </View>
+            </Specimen>
+
+            <Specimen
+              name="Initials"
+              contract="name → hue, and the initials themselves"
+              note="A person's block, at the size the three call sites use. The hue is a pure function of the name — stable across sessions and devices, nothing stored — and total, so an empty name or a non-Latin one still lands on a colour rather than on nothing. The four hues are the event table's four: the pop tier is a tier."
+            >
+              <View className="flex-row flex-wrap gap-3">
+                {["Ada Lovelace", "Grace Hopper", "Alan Turing", "李雷", ""].map(
+                  (name) => (
+                    <View key={name} className="items-center gap-1">
+                      <View
+                        className={`h-16 w-16 items-center justify-center ${POP_FILL[initialsHue(name)]}`}
+                      >
+                        <Text className="font-display-bold text-display-sm text-ink">
+                          {initials(name) || "??"}
+                        </Text>
+                      </View>
+                      <Text className="font-body text-xs text-ink">
+                        {name === "" ? "(empty)" : name} · {initialsHue(name)}
+                      </Text>
+                    </View>
+                  ),
+                )}
               </View>
             </Specimen>
 
@@ -590,15 +886,15 @@ function DesignSystemScreen() {
             <Specimen
               name="ChipToggle"
               contract="label · selected? · onPress"
-              note="A filter you can press: a box, filled ink when on and outlined when off. For switches you turn on and off (past events), never for a choice among options — that is `Segmented`, whose cells are joined and which holds one value out of a few. A row holding a filter and a choice puts them at the two edges rather than shoulder to shoulder, so they never read as one set. The run's head is the only place the two meet, and the filter is offered only while a trip is under way — before it starts there is nothing behind you, and after it ends the whole run is, so a finished run is always whole and the chip is not there to hide it."
+              note="A filter you can press: a box, filled ink when on and outlined when off. For switches you turn on and off (All day in the event dialog, On/Off in Trip settings), never for a choice among options — that is `Segmented`, whose cells are joined and which holds one value out of a few. A row holding a filter and a choice puts them at the two edges rather than shoulder to shoulder, so they never read as one set. This specimen used to describe a Past events chip on the itinerary's head, which was the one place the two met; that control is gone, so the pair below is the illustration rather than a screen anyone can reach."
             >
               <View className="flex-row items-center gap-3">
                 <ChipToggle
-                  label="Past events"
+                  label="Unread only"
                   selected={pastEvents}
                   onPress={() => {
                     setPastEvents(!pastEvents);
-                    setLog(`ChipToggle "Past events" ${!pastEvents ? "on" : "off"}`);
+                    setLog(`ChipToggle "Unread only" ${!pastEvents ? "on" : "off"}`);
                   }}
                 />
                 <ChipToggle
@@ -610,14 +906,28 @@ function DesignSystemScreen() {
 
             <Specimen
               name="Segmented"
-              contract="options (value · label · tone? · mark?) · value (nullable) · onChange · size?"
-              note="One choice out of a few, all of them visible. Bordered cells in a row rather than bare words: a word with no box and no underline is a label, not something a thumb can be asked to press, and every control in this system is a box. The cells are button-sized — the same p-4 and text-sm as a button, so a row of these sits in a stack of buttons without a step — and ink rather than a colour, because choosing a direction is not an action: the calendar and the time column already invert what is chosen, and two coloured toggles left the form's one real button looking like one of them. tone is for answers that carry a meaning of their own, which the RSVP has; mark is a short mark after the label, drawn in the label's own colour, for a choice with something to say about itself (travel puts a tick against a direction already filed). value is nullable because having chosen nothing yet is a real state rather than an error — and an always-set value wears the same cells (the profile's temperature), because a control that looks different depending on whether a value has been chosen yet would be two controls for one idea."
+              contract="options (value · label · tone? · mark?) · value (nullable) · onChange · size? · width?"
+              note="One choice out of a few, all of them visible. Bordered cells in a row rather than bare words: a word with no box and no underline is a label, not something a thumb can be asked to press, and every control in this system is a box. The cells are button-sized — the same p-4 and text-sm as a button, so a row of these sits in a stack of buttons without a step — and ink rather than a colour, because choosing a direction is not an action: the calendar and the time column already invert what is chosen, and two coloured toggles left the form's one real button looking like one of them. tone is for answers that carry a meaning of their own, which the RSVP has; mark is a short mark after the label, drawn in the label's own colour, for a choice with something to say about itself (travel puts a tick against a direction already filed). value is nullable because having chosen nothing yet is a real state rather than an error — and an always-set value wears the same cells (the profile's temperature), because a control that looks different depending on whether a value has been chosen yet would be two controls for one idea. width says how far the row reaches on a wide screen: fill, the default, splits the block between its cells, which is what makes three RSVP cells read as one control; content keeps the cells at their labels' width from md up for a short pair like the units toggle, on a phone being the same thing. size='sm' is a chrome row's switch, the same box as a chip, and always hugs."
             >
               <RsvpControl
                 value={rsvp ?? "no_response"}
                 onChange={(status) => {
                   setRsvp(status);
                   setLog(`RSVP "${RSVP_LABEL[status]}"`);
+                }}
+              />
+              {/* width="content": the short pair. Judge it at 1280, where
+                  the fill default above is wrong and this is not. */}
+              <Segmented
+                width="content"
+                options={[
+                  { value: "c", label: "°C" },
+                  { value: "f", label: "°F" },
+                ]}
+                value={units}
+                onChange={(next) => {
+                  setUnits(next);
+                  setLog(`Segmented units "${next}"`);
                 }}
               />
               {/* size="sm": a chrome row's switch, the same box as a chip. */}
@@ -637,11 +947,11 @@ function DesignSystemScreen() {
                   />
                 </View>
                 <ChipToggle
-                  label="Past events"
+                  label="Unread only"
                   selected={pastEvents}
                   onPress={() => {
                     setPastEvents(!pastEvents);
-                    setLog(`ChipToggle "Past events" ${!pastEvents ? "on" : "off"}`);
+                    setLog(`ChipToggle "Unread only" ${!pastEvents ? "on" : "off"}`);
                   }}
                 />
               </View>
@@ -940,6 +1250,73 @@ function DesignSystemScreen() {
             domain.
           </Text>
           <View className="gap-4">
+            <Specimen
+              name="Button stack"
+              contract="no new props: a stack of Buttons, never a row of them"
+              note="The rule the Button's own note states, shown rather than described. Two Buttons, one under the other, with no wrapper: on a phone each fills the width, and from md up each drops to its content width and sits on the start edge, leaving the rest of the column empty on purpose — a short label in a half-column box is a bigger target than it needs to be, and a button stretched to half the column reads as a panel rather than a control. These are the /profile calendar pair with the third, the state a write in flight puts a button in. Two of the three that phase touched are here; the third is the field-and-submit row, which is a field and its own button and is deliberately not a stack."
+            >
+              <View className="gap-3">
+                <Button
+                  title="Subscribe in Google Calendar"
+                  variant="secondary"
+                  onPress={() => setLog("Button stack: Google fired")}
+                />
+                <Button
+                  title="Subscribe in Apple Calendar"
+                  variant="secondary"
+                  onPress={() => setLog("Button stack: Apple fired")}
+                />
+                <Button
+                  title="Opening Google Calendar"
+                  variant="secondary"
+                  disabled
+                  onPress={() => setLog("unreachable")}
+                />
+              </View>
+            </Specimen>
+
+            <Specimen
+              name="Underline"
+              contract="no primitive: a mark, and the rule that says where it goes"
+              note="The system's only affordance for a word that does something, and there is one rule behind all of them: **an underline means this navigates or presses and has no box.** If it is a place you can go, underline it; if it is a claim, a fact or a debt, leave it plain. Nothing else in the palette means 'pressable' — no colour marks a word, deliberately, because a colour is a role and a word inside a sentence is doing neither. Below are the three kinds side by side at the sizes they are actually set at, because the mark's weight is judged against the type rather than on its own. The credit line and the quiet action each pin their own size and cannot be set at another — the credit is text-xs because it is owed rather than read, the quiet action is text-sm because every control in this system is one size — so the three-step column is the body link alone. Note the exception, which is the debatable one: the photographer's name is a link with its own press, and under this rule it would be underlined. It is a credit first, so it is the one underline this system takes back; `View on Google Maps` beside it is explicit navigation with its own label, so it keeps its mark. One gate, one question: does a name you can tap deserve the same mark as a link you were told to follow? The metric half of this — how thick, how far below — is a web-export-only change and will show on no Android build (A10)."
+            >
+              <View className="gap-1">
+                <Text className="font-body-bold text-sm text-ink">
+                  A credit. Owed, not read — text-xs.
+                </Text>
+                <PhotoCredit
+                  credit={{ name: "Ana Ruiz", uri: "https://www.instagram.com/anaruiz/" }}
+                  sourceUri="https://maps.google.com/?cid=52,0"
+                />
+              </View>
+              <View className="gap-1">
+                <Text className="font-body-bold text-sm text-ink">
+                  A link. Named as navigation — the three sizes.
+                </Text>
+                <Link
+                  href="/privacy"
+                  className="font-body text-xs text-ink underline"
+                >
+                  Read the privacy policy (text-xs)
+                </Link>
+                <Link
+                  href="/privacy"
+                  className="font-body text-sm text-ink underline"
+                >
+                  Read the privacy policy (text-sm)
+                </Link>
+                <Link href="/privacy" className="font-body text-base text-ink underline">
+                  Read the privacy policy (text-base)
+                </Link>
+              </View>
+              <View className="gap-1">
+                <Text className="font-body-bold text-sm text-ink">
+                  A quiet action. Pressed, not followed — text-sm.
+                </Text>
+                <QuietAction label="Read more" onPress={() => setLog("Underline: Read more")} />
+              </View>
+            </Specimen>
+
             <Specimen
               name="TripCard"
               contract="trip: { title, startDate, endDate, location, image } · onPress? · today?"
@@ -1288,6 +1665,50 @@ function DesignSystemScreen() {
           </Text>
         </Section>
       </View>
+      </Column>
+
+      {/*
+        The two bands, full bleed — and they are siblings of the root
+        `Column` rather than inside it. That is the specimen as much as the
+        tones are: a full-bleed ground cannot exist inside a constrained
+        column, which is the whole reason `Screen` stopped wrapping its
+        children in one. Every number beside each tone is computed from
+        `lib/palette.ts` at render rather than typed here, because a
+        hardcoded chroma is a claim and a measured one is a check.
+
+        What the band's *content* wears matters as much as the tone: the
+        first block inside one carries no rule, because the band's own edge
+        is that boundary. Two marks for one seam is what the rule book
+        forbids. The same reasoning gives a band its padding — on a band,
+        padding is not air, it is colour.
+      */}
+      {(BAND_TONES as BandTone[]).map((tone) => {
+        const token = TOKENS.find((t) => t.name === tone)!;
+        return (
+          <Band key={tone} tone={tone}>
+            <Column>
+              <View className="gap-2 py-2">
+                <Text className="font-display-semibold text-heading-lg uppercase text-ink">
+                  {tone}
+                </Text>
+                <Text className="font-body text-label text-ink opacity-70">
+                  {token.hex} · chroma {chroma(token.hex).toFixed(3)} ·{" "}
+                  {dE(token.hex, GROUNDS.sand).toFixed(1)} dE from sand · ink
+                  on it {contrast("#000000", token.hex).toFixed(2)}:1
+                </Text>
+                <Text className="font-body text-body text-ink">
+                  Text on a band is ink. No form field ever sits on one:
+                  React Native cannot read a CSS variable into a prop (A5),
+                  so a placeholder, an icon colour or a caret could not
+                  invert with the band. One band at a time — two adjacent
+                  grounds would say "these are two things" with nothing to
+                  say what the division means.
+                </Text>
+              </View>
+            </Column>
+          </Band>
+        );
+      })}
     </Screen>
   );
 }

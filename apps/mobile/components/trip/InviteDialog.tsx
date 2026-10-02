@@ -2,10 +2,10 @@ import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useMutation, useQuery, keepPreviousData } from "@tanstack/react-query";
 import { X } from "lucide-react-native";
-import { Button } from "@/components/ui/Button";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { InlineError } from "@/components/ui/InlineError";
-import { PhoneField } from "@/components/ui/PhoneField";
+import { PhoneFieldAction } from "@/components/ui/PhoneFieldAction";
+import { RuledBlock } from "@/components/ui/RuledBlock";
 import { SuggestionList } from "@/components/ui/SuggestionList";
 import { TextField } from "@/components/ui/TextField";
 import { useDismiss } from "@/hooks/useDismiss";
@@ -284,8 +284,8 @@ export function InviteDialog({
             </Section>
           </View>
 
-          <View className="border-t border-ink pt-6">
-            {/* The label above the row and the button inside it, so the
+          <RuledBlock>
+            {/* The label is drawn above the row and the button inside it, so the
                 box and the button are one height. The button is detached
                 from the field rather than a word inside it: a word in the
                 box is a word the eye reads as the value's last word, and
@@ -295,24 +295,19 @@ export function InviteDialog({
               <Text className="font-body-bold text-sm text-ink">
                 Phone number
               </Text>
-              <View className="flex-row items-stretch gap-3">
-                <View className="flex-1">
-                  {/* The label is drawn above the row, so the field is
-                      asked for its own name and nothing else. */}
-                  <PhoneField
-                    ariaLabel="Phone number"
-                    value={draft}
-                    onChangeText={(value) => {
-                      setDraft(value);
-                      setError(undefined);
-                    }}
-                    error={error}
-                  />
-                </View>
-                <Button title="Add" variant="accent" onPress={addNumber} />
-              </View>
+              <PhoneFieldAction
+                ariaLabel="Phone number"
+                value={draft}
+                onChangeText={(value) => {
+                  setDraft(value);
+                  setError(undefined);
+                }}
+                error={error}
+                submitTitle="Add"
+                onSubmit={addNumber}
+              />
             </View>
-          </View>
+          </RuledBlock>
         </>
       )}
     </FullscreenDialog>

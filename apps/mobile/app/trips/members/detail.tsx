@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/Button";
 import { Fact } from "@/components/ui/Fact";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { InlineError } from "@/components/ui/InlineError";
-import { PhoneField, toE164 } from "@/components/ui/PhoneField";
+import { toE164 } from "@/components/ui/PhoneField";
+import { PhoneFieldAction } from "@/components/ui/PhoneFieldAction";
 import { QuietAction } from "@/components/ui/QuietAction";
 import { Section } from "@/components/ui/Section";
 import { TextField } from "@/components/ui/TextField";
@@ -40,10 +41,11 @@ import type { Trip } from "@/components/trip/TripCard";
  * behind it. A guest is told apart from a member by the row's own shape
  * (`userId === null`), never by a param.
  *
- * The phone row is the shape `InviteDialog` already draws: the label
- * above the row as its own text (so the field takes `ariaLabel`), the
- * `PhoneField` in a `flex-1` column, and the `Button` beside it in one
- * `flex-row` so box and button share a height.
+ * The phone row is `PhoneFieldAction`, which `InviteDialog` also draws.
+ * It used to be this file and that one writing the same row by hand — a
+ * label above, a `PhoneField` in a `flex-1` column, a `Button` beside it
+ * in one `flex-row` so box and button share a height — which is the shape
+ * that can drift, and the reason the row is a primitive.
  */
 export default function PersonDetail() {
   return (
@@ -290,7 +292,7 @@ function GuestDialog({
       pending={pending}
       dismissHref={dismissHref}
     >
-      <Text className="font-display text-4xl uppercase leading-[0.95] text-ink md:text-5xl">
+      <Text className="font-display-extrabold text-display-md uppercase text-ink md:text-display-md-wide">
         {member.name}
       </Text>
 
@@ -303,27 +305,21 @@ function GuestDialog({
 
       <View className="gap-1">
         <Text className="font-body-bold text-sm text-ink">Phone</Text>
-        <View className="flex-row items-stretch gap-3">
-          <View className="flex-1">
-            <PhoneField
-              ariaLabel="Phone"
-              value={draftPhone}
-              onChangeText={(value) => {
-                setDraftPhone(value);
-                setPhoneError(undefined);
-              }}
-              error={phoneError}
-            />
-          </View>
-          <Button
-            title={inviteSent ? "Invite sent" : "Send invite"}
-            variant="accent"
-            onPress={sendInvite}
-            // Enabled only once the field parses, and never twice for
-            // the same number: a pending invitation disables it.
-            disabled={parsed === null || inviteSent || inviteGuest.isPending}
-          />
-        </View>
+        <PhoneFieldAction
+          label="Phone"
+          ariaLabel="Phone"
+          value={draftPhone}
+          onChangeText={(value) => {
+            setDraftPhone(value);
+            setPhoneError(undefined);
+          }}
+          error={phoneError}
+          submitTitle={inviteSent ? "Invite sent" : "Send invite"}
+          onSubmit={sendInvite}
+          // Enabled only once the field parses, and never twice for
+          // the same number: a pending invitation disables it.
+          submitDisabled={parsed === null || inviteSent || inviteGuest.isPending}
+        />
       </View>
 
       {inviteError ? (
@@ -438,7 +434,7 @@ function MemberDialog({
 
   return (
     <FullscreenDialog title="Member" dismissHref={dismissHref}>
-      <Text className="font-display text-4xl uppercase leading-[0.95] text-ink md:text-5xl">
+      <Text className="font-display-extrabold text-display-md uppercase text-ink md:text-display-md-wide">
         {member.name}
       </Text>
 
@@ -555,7 +551,7 @@ function InvitedDialog({
 
   return (
     <FullscreenDialog title="Invited" dismissHref={dismissHref}>
-      <Text className="font-display text-4xl uppercase leading-[0.95] text-ink md:text-5xl">
+      <Text className="font-display-extrabold text-display-md uppercase text-ink md:text-display-md-wide">
         {formatPhoneForDisplay(invitation.phone)}
       </Text>
       <Text className="font-body text-base text-ink">

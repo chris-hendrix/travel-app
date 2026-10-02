@@ -5,12 +5,14 @@ import { Text, View } from "react-native";
  * One fact, as a ruled row: the noun the reader is looking for in the
  * quiet column, the answer in ink.
  *
- * The column is as wide as the longest noun the app carries —
- * `Temperature`, on the admin record — so it is fixed rather than
- * sized to its content: every row's answer then starts on the same
+ * The column is as wide as the longest noun the app carries. That was
+ * `Temperature`, on the admin record, until that setting was renamed
+ * `Units` (see `lib/profile.ts`) and left `Check out` as the longest noun
+ * here, so it is fixed rather than sized to its content: every row's
+ * answer then starts on the same
  * line down a block, which is the whole reason the noun sits in a
- * column of its own. It was 80px, which fits `Check out` and broke
- * `Temperature` mid-word ("Temperat" / "ure") on a 390px screen,
+ * column of its own. It was 80px, which fits `Check out` and broke the
+ * longer label mid-word ("Temperat" / "ure") on a 390px screen,
  * because a `<Text>` with no room breaks wherever it must rather
  * than at a word.
  */

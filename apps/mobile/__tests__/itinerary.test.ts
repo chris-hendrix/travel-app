@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   eventTimeLabel,  dayLabel,
-  daysFrom,
   EVENT_TYPE_LABEL,
   groupEventsByDay,
   liveEvents,
-  tripIsOver,
   withEdits,
   type EventType,
   type ItineraryEvent,
@@ -75,26 +73,6 @@ describe("groupEventsByDay", () => {
 
   it("has nothing to say about a day with no events", () => {
     expect(groupEventsByDay([], null)).toEqual([]);
-  });
-});
-
-describe("daysFrom", () => {
-  const days = [
-    { date: "2026-09-17", events: [] },
-    { date: "2026-09-18", events: [] },
-    { date: "2026-09-19", events: [] },
-    { date: "2026-09-21", events: [] },
-  ];
-
-  it("keeps today and everything after it", () => {
-    expect(daysFrom(days, today).map((day) => day.date)).toEqual([
-      "2026-09-19",
-      "2026-09-21",
-    ]);
-  });
-
-  it("counts the day you are on as ahead of you, not behind", () => {
-    expect(daysFrom(days, today)[0]?.date).toBe(today);
   });
 });
 
@@ -189,13 +167,6 @@ describe("withEdits", () => {
     const deleted = withEdits(base, { b: { deletedAt: "2026-09-19T09:00:00.000Z" } });
     expect(deleted.find((e) => e.id === "b")?.deletedAt).toBeTruthy();
     expect(liveEvents(deleted).map((e) => e.id)).toEqual(["a", "c"]);
-  });
-});
-
-describe("tripIsOver", () => {  it("is over once its last day has gone", () => {
-    expect(tripIsOver("2026-09-18", today)).toBe(true);
-    expect(tripIsOver("2026-09-19", today)).toBe(false);
-    expect(tripIsOver("2026-09-20", today)).toBe(false);
   });
 });
 

@@ -10,6 +10,8 @@ import { useAuth } from "@/lib/authStore";
 import { initials } from "@/lib/profile";
 import { formatPhoneForDisplay } from "@/lib/phone";
 import { joinFacts } from "@/lib/wording";
+import { Column } from "@/components/ui/Column";
+import { POP_FILL, initialsHue } from "@/lib/eventColors";
 
 /**
  * The third screen, and the only thing the API insists on before the app
@@ -65,9 +67,10 @@ export default function CompleteProfile() {
   if (!user) return <Redirect href="/login" />;
 
   return (
-    <Screen lead>
+    <Screen>
+<Column lead>
       <View className="gap-3">
-        <Text className="font-display text-4xl uppercase leading-none text-ink">
+        <Text className="font-display-extrabold text-display-md uppercase text-ink">
           Complete your profile
         </Text>
         <Text className="font-body text-base leading-snug text-ink">
@@ -76,13 +79,15 @@ export default function CompleteProfile() {
       </View>
 
       <View className="flex-row items-center gap-5">
-        <View className="h-16 w-16 items-center justify-center bg-ink">
-          <Text className="font-display text-3xl leading-none text-sand">
+        <View
+            className={`h-16 w-16 items-center justify-center ${POP_FILL[initialsHue(trimmed)]}`}
+          >
+          <Text className="font-display-bold text-display-sm text-ink">
             {initials(trimmed)}
           </Text>
         </View>
         <View className="flex-1">
-          <Text className="font-display text-2xl uppercase leading-tight text-ink">
+          <Text className="font-display-semibold text-heading-lg uppercase text-ink">
             {trimmed || "Your name"}
           </Text>
           <Text className="font-body text-sm text-ink">
@@ -126,6 +131,6 @@ export default function CompleteProfile() {
           }}
         />
       </ActionRow>
-    </Screen>
+    </Column></Screen>
   );
 }

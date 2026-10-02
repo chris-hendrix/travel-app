@@ -97,7 +97,7 @@ function TripSettingsScreen() {
   // on the same field, and the disabled chip tells the thumb first.
   const busy = trip ? isBusy(trip.id) : false;
 
-  const settings = settingsFor(trip, new Date());
+  const settings = settingsFor(trip);
 
   // Server rows toggle optimistically (the store paints first) and
   // the failure reads here, in the screen's existing error style,

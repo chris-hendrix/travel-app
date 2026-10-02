@@ -23,7 +23,7 @@ export function PushOptIn({
   const denied = permission === "denied";
   return (
     <View className="gap-2 border border-gravel bg-paper p-4">
-      <Text className="font-display text-xl uppercase text-ink">
+      <Text className="font-display-semibold text-heading-lg uppercase text-ink">
         {denied ? "Notifications are off" : "Turn on notifications"}
       </Text>
       <Text className="font-body text-base text-ink">

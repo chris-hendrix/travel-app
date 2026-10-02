@@ -63,7 +63,7 @@ function TripTravelDialog() {
   // same one the itinerary behind this dialog is reading. A board and a
   // form that disagreed about what time it is would be two trips.
   const { clock } = trip
-    ? settingsFor(trip, new Date())
+    ? settingsFor(trip)
     : { clock: "trip" as const };
   const timeZone = clock === "trip" ? (trip?.preferredTimezone ?? null) : null;
   useDisplayZone(trip ? zoneFor(trip, clock, update) : null);
@@ -174,7 +174,7 @@ function TravelSection({
 
   return (
     <View className="gap-4">
-      <Text className="font-display text-3xl uppercase text-ink">
+      <Text className="font-display-bold text-display-sm uppercase text-ink">
         {heading}
       </Text>
       {/* Soft gravel rules between rows of the same kind; the ink top

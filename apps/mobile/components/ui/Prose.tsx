@@ -29,7 +29,7 @@ export function Prose({
   return (
     <View className="gap-6">
       <View className="gap-2">
-        <Text className="font-display text-4xl uppercase leading-none text-ink">
+        <Text className="font-display-extrabold text-display-md uppercase text-ink">
           {document.title}
         </Text>
         <Text className="font-body-italic text-sm text-ink">
@@ -58,7 +58,7 @@ function Block({
 }) {
   if (block.kind === "heading") {
     return (
-      <Text className="mt-4 font-display text-xl uppercase leading-tight text-ink">
+      <Text className="mt-4 font-display-semibold text-heading-lg uppercase text-ink">
         {block.text}
       </Text>
     );

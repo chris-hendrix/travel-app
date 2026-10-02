@@ -32,6 +32,8 @@ import { anyTravelOwed } from "@/lib/travelBoard";
 import { boxForWidth } from "@/lib/place-images";
 import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 import { getPertinentTime } from "@journiful/shared/utils";
+import { Band } from "@/components/ui/Band";
+import { Column } from "@/components/ui/Column";
 
 /**
  * Trip detail, header only — the itinerary comes after this lands.
@@ -149,7 +151,7 @@ function TripDetailScreen() {
   // live stay — tonight's, or the next to begin — which is the only
   // instance a door called Stay has to stand for.
   const { clock } = trip
-    ? settingsFor(trip, new Date())
+    ? settingsFor(trip)
     : { clock: "trip" as const };
   const timeZone = clock === "trip" ? (trip?.preferredTimezone ?? null) : null;
   const stay = trip
@@ -265,7 +267,20 @@ function TripDetailScreen() {
 
   return (
     <Screen>
-      <View className="gap-6 md:gap-8">
+      {/* The trip's own block is the band: the cover, the dates, the name,
+          the place and the verbs are one thing, and they are what the reader
+          came for. Two bands on this screen, which the plan argued against
+          and this one earns: the hero's, and the stays table's directly under
+          it. They touch, with no sand between, because the division has a
+          reason — the trip, then where you sleep — and the seam lands on the
+          stays heading rather than above it.
+
+          **The adjacency guard cannot see this.** `design-lint.mjs` check 5
+          works per file, and these two bands live in different ones, so the
+          only band-against-band in the app is also the only one it cannot
+          catch. That is a known gap, not a pass. */}
+      <Band tone="lilac">
+        <Column>
         <View className="gap-y-6 md:flex-row md:gap-12">
           {/* Two columns of equal width. flex-1, not w-1/2: react-native
               does not shrink flex items, so two halves plus the gutter
@@ -329,7 +344,7 @@ function TripDetailScreen() {
               <Text className="font-body-bold text-lg text-ink">
                 {formatDateRange(trip.startDate, trip.endDate)}
               </Text>
-              <Text className="font-display text-5xl uppercase leading-[0.95] text-ink md:text-6xl">
+              <Text className="font-display-extrabold text-display-md-wide uppercase text-ink md:text-display-lg">
                 {trip.title}
               </Text>
               {/* Where the trip is, and the one fact on this screen the
@@ -382,22 +397,32 @@ function TripDetailScreen() {
           </View>
         </View>
 
-        {/* The seam between the two halves of the page: the trip above —
-            cover, verbs, facts, description — and the run below, whose
-            own controls sit under this line. It is the page's rule rather
-            than the run's,
-            because only the page can draw one that closes both columns
-            and opens what comes under them; the run's first block
-            therefore brings no rule of its own
-            (components/trip/Itinerary.tsx). */}
-        <View className="h-px w-full bg-ink" />
+        </Column>
+      </Band>
 
-        {/* The run, or the state that says why it is not here: an
-            unanswered RSVP withholds it, because the server reads full
-            trip data to the people who are going. The description above
-            is what you decide on, which is what you get for saying yes. */}
-        {canReadRun ? <Itinerary trip={trip} organizer={organizer} /> : <RunLocked />}
-      </View>
+      {/* The seam between the two halves of the page used to be a page rule
+          here. The band's lower edge does the same job and does it better:
+          it closes both columns *and* changes the ground, so a rule on top
+          of it would be a second mark saying one thing. That is why
+          `PageRule` is gone from this screen, and why the run below still
+          brings no rule of its own (components/trip/Itinerary.tsx). */}
+      {/* The run owns its own columns, because its first table is a
+          full-bleed band and a band cannot exist inside a constrained column.
+          Nothing wraps it, which is what lets that band meet the hero's with
+          no sand between them. */}
+      {canReadRun ? (
+        <Itinerary trip={trip} organizer={organizer} />
+      ) : (
+        <Column>
+          {/* The run, or the state that says why it is not here: an
+              unanswered RSVP withholds it, because the server reads full
+              trip data to the people who are going. The description above
+              is what you decide on, which is what you get for saying yes. */}
+          <View className="gap-6 md:gap-8">
+            <RunLocked />
+          </View>
+        </Column>
+      )}
     </Screen>
   );
 }

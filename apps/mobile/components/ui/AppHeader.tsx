@@ -27,12 +27,81 @@ import { INK, SAND } from "@/lib/theme";
  * The pattern fills the ground between the crests with nothing: those
  * gaps are transparent, so what shows through them is whatever sits
  * behind the header, and the header paints only ink.
+ *
+ * Which is why the wave is **out of layout** and hangs past the header's
+ * own box, over the screen: the header is a flex *sibling* of the screen
+ * rather than an overlay, so while the wave sat in the flow the only thing
+ * behind it was the shell's ground, sand, and never the screen's content. A
+ * band at the top of a screen showed a sand fringe above itself.
+ *
+ * Hanging it over the screen is what makes the transparency mean what it
+ * says. The alternative — leaving the wave in the flow and painting it the
+ * colour the screen declared — was tried and is worse: the tone is static,
+ * so once that screen scrolls the cut-outs keep painting the band's colour
+ * while the band itself has moved on, and a screen whose top is a photo, or
+ * the impersonation strip, cannot be expressed at all. This needs no code
+ * for any of them.
+ *
+ * The height the wave gives up is paid back as padding on the ink band, so
+ * the header is exactly as tall as it was and no screen shifts.
  */
 const WAVE_DEPTH = 10;
 
+/**
+ * The pattern tile, one pixel taller than the wave is drawn.
+ *
+ * A tile's **top row is solid ink** — `M0 0 H28` is what joins the wave to
+ * the band above it — and Android's device densities are fractional (2.75x,
+ * 3.5x), so a 10px svg can land on a fractional number of device pixels and
+ * render a sliver of the *next* tile. That sliver is solid ink across the
+ * full width, and it shows as a hairline along the bottom edge of the wave:
+ * the one place the pattern must not repeat is the one place it did.
+ *
+ * So the tile carries one row of slack the wave never draws in. The visible
+ * row is `WAVE_DEPTH`; the eleventh pixel of the tile is transparent, and an
+ * overshoot of any fraction lands there instead of on ink. The wave itself is
+ * unchanged — same period, same depth, same shape.
+ */
+const WAVE_TILE = WAVE_DEPTH + 1;
+
+/**
+ * How far the wave's ink reaches *up* into the band it hangs from.
+ *
+ * The band's height is not always a whole number of pixels on native: its
+ * content is text, and the row's `pb-3` is `0.75rem` — 12px on web and
+ * **10.5px on Android**, because NativeWind's rem is 14 there against 16 on
+ * web (A18). A fractional height means the band's bottom edge and the wave's
+ * top edge can round apart by a device pixel, which shows as a hairline of
+ * ground in what is meant to be one shape.
+ *
+ * One pixel of overlap costs nothing — it is ink on ink — and closes it on
+ * every density without moving anything. It is carried by the wave's
+ * *position*, so the wave's box stays exactly as deep as the wave.
+ *
+ * Fixing the `pb-3` instead would be the other way, and it is the wrong one:
+ * it would move every screen in the app by 1.5px on Android to solve a
+ * hairline.
+ */
+const WAVE_OVERLAP = 1;
+
 function WaveEdge() {
   return (
-    <View className="h-2.5 w-full">
+    // `height: WAVE_DEPTH` and not `h-2.5`. They are the same 10px on web and
+    // **not** on native: `h-2.5` is `0.625rem`, and NativeWind's `rem` is 14
+    // on native against 16 on web (A18), so the box is 8.75px on Android. The
+    // ink band's `paddingBottom` is `WAVE_DEPTH` in real pixels, so a rem
+    // height leaves a 1.25px seam between the header and its own wave — sand
+    // showing through, on the phone only, which is exactly the measure-vs-
+    // paint class this repo keeps being bitten by.
+    // The clip is the invariant and the tile slack is the cause: the wave
+    // never draws outside its own depth, whatever a fractional density does
+    // to the svg's box. `overflow: hidden` here is not tidiness — it is the
+    // second defence, and it is the one that holds if the diagnosis behind
+    // `WAVE_TILE` is wrong.
+    <View
+      style={{ height: WAVE_DEPTH, overflow: "hidden" }}
+      className="w-full"
+    >
       <Svg height={WAVE_DEPTH} width="100%">
         <Defs>
           <Pattern
@@ -40,7 +109,10 @@ function WaveEdge() {
             x="0"
             y="0"
             width={28}
-            height={WAVE_DEPTH}
+            // `WAVE_TILE`, not `WAVE_DEPTH`: the tile is a row taller than the
+            // row that shows, so a fractional density cannot tile a sliver of
+            // solid ink along the bottom edge.
+            height={WAVE_TILE}
             patternUnits="userSpaceOnUse"
           >
             <Path d="M0 0 H28 V6 Q21 14 14 6 Q7 0 0 6 Z" fill="#000000" />
@@ -214,7 +286,7 @@ export function AppHeader({
     return (
       <View>
         <View className="flex-row items-center justify-between border-b border-ink bg-gravel px-6 py-4">
-          <Text className="font-display text-2xl leading-none text-ink">
+          <Text className="font-display-semibold text-heading-lg text-ink">
             {title}
           </Text>
           <View className="flex-row items-center gap-0">
@@ -243,15 +315,34 @@ export function AppHeader({
   const insets = useSafeAreaInsets();
 
   // No ground of its own: the band paints ink and the wave is a
-  // silhouette on transparent, so the negative space between the
-  // scallops is whatever is behind the header rather than a sand bar
-  // drawn across the top of the screen. Today that is the shell's sand,
-  // which is why it looked right anyway; it stops being right the moment
-  // a screen whose ground is not sand sits under this band, and a full
-  // bleed photo or a coloured edge is exactly that.
+  // silhouette on transparent, so the negative space between the scallops
+  // is whatever is behind the header rather than a sand bar drawn across
+  // the top of the screen. The wave hangs into the screen below to make
+  // that true of the screen's own ground and not just of the shell's.
   return (
-    <View>
-      <View className="bg-ink" style={{ paddingTop: insets.top }}>
+    // `zIndex` and `overflow` are both here for the hanging wave, and they
+    // are two different failure modes:
+    //
+    //   `zIndex` — the wave is a child of this box, not a sibling of the
+    //   screen, so its own z-index is scoped inside whatever stacking the
+    //   header has. Lifting the *header* is what actually puts the wave
+    //   above the screen's opaque ground; without it the wave paints first
+    //   and the screen's `bg-sand` covers it, which looks exactly like the
+    //   wave having been deleted.
+    //
+    //   `overflow: visible` — the wave deliberately leaves this box. Web
+    //   does not clip by default but Android's `View` does, so the same
+    //   code would be right in a browser and flat on a phone. `visible` is
+    //   the default on iOS and is a no-op on web; it is written down so the
+    //   next reader knows the wave is supposed to leave.
+    <View className="relative" style={{ zIndex: 2, overflow: "visible" }}>
+      <View
+        className="bg-ink"
+        // The wave is out of the flow, so it contributes no height: it is
+        // paid for here instead, or the header would be 10px shorter and
+        // every screen in the app would sit 10px higher.
+        style={{ paddingTop: insets.top, paddingBottom: WAVE_DEPTH }}
+      >
         <View className="flex-row items-center justify-between bg-ink px-6 pb-3 pt-4">
           {landing ? (
             // Still a link on the landing, where it points at the page you
@@ -280,7 +371,42 @@ export function AppHeader({
           </View>
         </View>
       </View>
-      <WaveEdge />
+      {/*
+        Hangs WAVE_DEPTH past the header's box, over the top of the screen.
+        `pointerEvents="none"` because it now covers the first 10px of the
+        screen's touch surface and the wave is decoration — without it the
+        crests would swallow taps on whatever sits at the top of a page.
+        `zIndex` because it is drawn before the screen and has to land on
+        top of it.
+
+        Nothing is cut off by the overlap: every screen's content starts
+        after its `Column`'s own top padding, so the 10px the wave covers is
+        empty ground — the band's colour, or sand, or a photo, whichever is
+        really there.
+      */}
+      <View
+        // The box is exactly the wave's depth, and the *position* carries the
+        // overlap — not the height. Adding a pixel of height instead puts
+        // empty box under the svg, and a native svg that stretches into it
+        // tiles the pattern a fraction past one row: the next tile's top row
+        // is solid ink, so the seam becomes a 1px black line at the bottom
+        // of the wave instead of a gap at the top. Growing the box traded one
+        // artefact for a worse one; moving it trades nothing.
+        //
+        // So: `height: WAVE_DEPTH` on both platforms (never `h-2.5`, which is
+        // `0.625rem` and 8.75px on Android — A18), and the box sits
+        // `WAVE_OVERLAP` px higher than the band's edge.
+        style={{
+          height: WAVE_DEPTH,
+          bottom: -(WAVE_DEPTH - WAVE_OVERLAP),
+          zIndex: 1,
+          overflow: "visible",
+          pointerEvents: "none",
+        }}
+        className="absolute left-0 right-0"
+      >
+        <WaveEdge />
+      </View>
       {band}
     </View>
   );

@@ -73,7 +73,7 @@ function TravelFormScreen() {
   // the board behind this form is reading. What is typed is stamped in
   // it, and what it stamps is read back in it.
   const { clock } = trip
-    ? settingsFor(trip, new Date())
+    ? settingsFor(trip)
     : { clock: "trip" as const };
   const timeZone = clock === "trip" ? (trip?.preferredTimezone ?? null) : null;
   // A form sets times on the same clock the screen behind it reads them

@@ -151,19 +151,13 @@ export type EventDay = {
   events: ItineraryEvent[];
 };
 
-/** Days that are today or still to come, soonest first. */
-export function daysFrom(days: EventDay[], today: string): EventDay[] {
-  return days.filter((day) => day.date >= today);
-}
-
 /**
  * The days an event falls on, in order from the first day of the trip to
  * the last, with each day's events running from morning to night.
  *
- * Chronological, not "today first": which end of a trip you want to read
- * from is the caller's question, and `daysFrom` answers the other half of
- * it. The zone comes from the caller because a day is a question about a
- * place — an evening in Mallorca is tomorrow in Auckland.
+ * Chronological, which end of a trip you read from is the caller's
+ * question. The zone comes from the caller because a day is a question
+ * about a place — an evening in Mallorca is tomorrow in Auckland.
  */
 export function groupEventsByDay(
   events: ItineraryEvent[],
@@ -194,11 +188,6 @@ export function groupEventsByDay(
       ),
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
-}
-
-/** A trip is over once its last day has been and gone. */
-export function tripIsOver(endDate: string, today: string): boolean {
-  return endDate < today;
 }
 
 /**

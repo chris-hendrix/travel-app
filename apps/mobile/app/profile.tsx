@@ -26,6 +26,7 @@ import { useProfile } from "@/lib/profileStore";
 import { toErrorCopy } from "@/lib/queries/errors";
 import { LEGAL_ROWS } from "@/lib/legal";
 import { useAuth } from "@/lib/authStore";
+import { POP_FILL, initialsHue } from "@/lib/eventColors";
 
 /**
  * Profile. Who you are, what you are called, and the preferences the app
@@ -131,15 +132,16 @@ function ProfileForm({ profile }: { profile: Profile }) {
   // is not a save, and a failure in it must not read as one — the form
   // above is unsaved while this happens.
   const [calendarBusy, setCalendarBusy] = useState<
-    "google" | "apple" | "disable" | "reset" | null
+    "google" | "apple" | "stop" | "reset" | null
   >(null);
   const [calendarFailure, setCalendarFailure] = useState<string | null>(null);
-  // Resetting breaks every existing subscription, so it takes two
-  // presses: the first arms the confirm, the second sends it. The
-  // scaffold's destructive foot fires on one press with no confirm
-  // step, so the confirm lives here, in the block, as a second row of
-  // the buttons this screen already uses — no new dialog to learn.
-  const [confirmingReset, setConfirmingReset] = useState(false);
+  // Both words end the current link — the token is nulled by one and
+  // replaced by the other — so both take two presses, because the cost
+  // is the same and only one of them used to ask. The scaffold's
+  // destructive foot fires on one press with no confirm step, so the
+  // confirm lives here, in the block, as a second row of the buttons
+  // this screen already uses — no new dialog to learn.
+  const [confirming, setConfirming] = useState<"stop" | "reset" | null>(null);
   const errors = submitted ? validateProfile(draft) : {};
 
   /**
@@ -190,14 +192,16 @@ function ProfileForm({ profile }: { profile: Profile }) {
   }
 
   /**
-   * Revoke the feed: the URL stops working, and no new one is issued.
-   * Arming a reset is abandoned with it — there is nothing left whose
-   * replacement could break a subscription.
+   * Revoke the feed: the URL stops working, and no new one is issued —
+   * which breaks every calendar subscribed to it exactly as replacing
+   * the URL does, which is why it asks twice too. Arming a reset is
+   * abandoned with it — there is nothing left whose replacement could
+   * break a subscription.
    */
   async function unsubscribe() {
     setCalendarFailure(null);
-    setConfirmingReset(false);
-    setCalendarBusy("disable");
+    setConfirming(null);
+    setCalendarBusy("stop");
     try {
       await disableCalendar();
     } catch (caught) {
@@ -205,7 +209,7 @@ function ProfileForm({ profile }: { profile: Profile }) {
       setCalendarFailure(
         copy.offline
           ? "You're offline. Check your connection and try again."
-          : (copy.message ?? "Couldn't unsubscribe your calendar."),
+          : (copy.message ?? "Couldn't stop your calendar updates."),
       );
     } finally {
       setCalendarBusy(null);
@@ -225,7 +229,7 @@ function ProfileForm({ profile }: { profile: Profile }) {
     setCalendarBusy("reset");
     try {
       const { calendarUrl } = await regenerateCalendar();
-      setConfirmingReset(false);
+      setConfirming(null);
       await Linking.openURL(toLink(calendarUrl));
     } catch (caught) {
       const copy = toErrorCopy(caught);
@@ -291,7 +295,11 @@ function ProfileForm({ profile }: { profile: Profile }) {
 
           The heading and the sentence are the ones the block wore where
           it used to sit, so its shape still matches `Legal & privacy`
-          below and nothing new is added to the system. */}
+          below and nothing new is added to the system. No `fullWidth`,
+          like every other content button: it fills a phone and hugs the
+          start edge from md up, and a box stretched the width of a
+          960px column around the two words "User management" is a
+          panel, not a control. */}
       {isAdmin ? (
         <View>
           <Text className="font-body-bold text-sm text-ink">Admin</Text>
@@ -302,7 +310,6 @@ function ProfileForm({ profile }: { profile: Profile }) {
             <Button
               title="User management"
               variant="secondary"
-              fullWidth
               onPress={() => router.push("/admin/users")}
             />
           </View>
@@ -324,15 +331,17 @@ function ProfileForm({ profile }: { profile: Profile }) {
               className="h-20 w-20"
             />
           ) : (
-            <View className="h-20 w-20 items-center justify-center bg-ink">
-              <Text className="font-display text-4xl leading-none text-sand">
+            <View
+                className={`h-20 w-20 items-center justify-center ${POP_FILL[initialsHue(draft.displayName)]}`}
+              >
+              <Text className="font-display-extrabold text-display-md text-ink">
                 {initials(draft.displayName)}
               </Text>
             </View>
           )}
         </Pressable>
         <View className="flex-1">
-          <Text className="font-display text-3xl uppercase leading-tight text-ink">
+          <Text className="font-display-bold text-display-sm uppercase text-ink">
             {draft.displayName.trim() || "Your name"}
           </Text>
           <Text className="mt-1 font-body text-sm text-ink">
@@ -375,7 +384,12 @@ function ProfileForm({ profile }: { profile: Profile }) {
       />
 
       <View className="gap-2">
-        <Text className="font-body-bold text-sm text-ink">Temperature</Text>
+        <Text className="font-body-bold text-sm text-ink">Units</Text>
+        {/* The whole measurement system, not one of its results: the
+            same choice reads temperatures and reads distances, so a
+            control named "Temperature" would be asking to be renamed
+            the day a distance is shown. `US` and `Metric` are the
+            words the phone in the reader's hand already uses. */}
         {/* A value, so it wears the cells every other choice in the app
             wears (components/ui/Segmented.tsx) — bordered, the chosen one
             inked — rather than bare words: a word with no box and no
@@ -385,6 +399,12 @@ function ProfileForm({ profile }: { profile: Profile }) {
         <Segmented
           options={UNITS}
           value={draft.temperatureUnit}
+          // `content`, not the fill default: two short labels spread
+          // across a wide column are two labels with a canyon between
+          // them. A phone is unchanged, where the cells still split the
+          // width. The RSVP keeps the default, because three cells
+          // sharing a width is what makes it read as one control.
+          width="content"
           onChange={(unit) =>
             setDraft((current) => ({ ...current, temperatureUnit: unit }))
           }
@@ -409,49 +429,44 @@ function ProfileForm({ profile }: { profile: Profile }) {
           was the third of three in the bottom half of the screen, which is
           when a rule stops meaning anything.
 
-          Full width on a phone, one under the other; side by side from md
-          up, where there is room for a pair of halves — the shape the trip
-          page uses for Add event and Add stay, which is the same question
-          of one choice with two answers. Enabling is idempotent, so a
-          press ensures the feed exists and then opens it: no state to
-          read, none to show, and no race between the two. */}
+          One under the other, at every width: a button is one choice, and
+          a pair of halves in a row turns this list into a choice it was
+          never meant to be — then wraps to a ragged 2+1 on a phone. Wide,
+          each drops to its content width on the start edge. Enabling is
+          idempotent, so a press ensures the feed exists and then opens
+          it: no state to read, none to show, and no race between the
+          two. */}
       <View className="gap-1">
         <Text className="font-body-bold text-sm text-ink">Calendar</Text>
         <Text className="mt-1 font-body text-sm text-ink">
           Subscribe to every trip you are on, in the calendar you already
           read. Your link is a secret: anyone with it can read your trips.
         </Text>
-        <View className="mt-3 gap-3 md:flex-row">
-          <View className="md:flex-1">
-            <Button
-              title={
-                calendarBusy === "google"
-                  ? "Opening Google Calendar"
-                  : "Subscribe in Google Calendar"
-              }
-              variant="secondary"
-              fullWidth
-              disabled={calendarBusy === "google"}
-              onPress={() => void subscribe("google", googleCalendarUrl)}
-            />
-          </View>
+        <View className="mt-3 gap-3">
+          <Button
+            title={
+              calendarBusy === "google"
+                ? "Opening Google Calendar"
+                : "Subscribe in Google Calendar"
+            }
+            variant="secondary"
+            disabled={calendarBusy === "google"}
+            onPress={() => void subscribe("google", googleCalendarUrl)}
+          />
           {/* Apple's Calendar claims `webcal:`, and it is the one platform
               whose calendar app is the point: Android has no Apple
               Calendar to open, so it is not offered one. */}
           {Platform.OS === "android" ? null : (
-            <View className="md:flex-1">
-              <Button
-                title={
-                  calendarBusy === "apple"
-                    ? "Opening Apple Calendar"
-                    : "Subscribe in Apple Calendar"
-                }
-                variant="secondary"
-                fullWidth
-                disabled={calendarBusy === "apple"}
-                onPress={() => void subscribe("apple", appleCalendarUrl)}
-              />
-            </View>
+            <Button
+              title={
+                calendarBusy === "apple"
+                  ? "Opening Apple Calendar"
+                  : "Subscribe in Apple Calendar"
+              }
+              variant="secondary"
+              disabled={calendarBusy === "apple"}
+              onPress={() => void subscribe("apple", appleCalendarUrl)}
+            />
           )}
         </View>
         {calendarFailure ? (
@@ -459,90 +474,113 @@ function ProfileForm({ profile }: { profile: Profile }) {
             {calendarFailure}
           </Text>
         ) : null}
-        {/* Taking the link back. Unsubscribing revokes it outright;
-            resetting replaces it, which breaks every calendar already
-            subscribed — so the reset asks twice, in place, before it
-            sends anything. */}
-        {confirmingReset ? (
+        {/* Taking the link back. Both words end the current link — the
+            token is nulled by one and replaced by the other — so the
+            calendar you subscribed from stops updating either way, and
+            that is what both confirms say. Only the afterwards differs:
+            one leaves nothing, the other re-subscribes you. */}
+        {confirming ? (
           <View className="mt-3 gap-2">
             <Text className="font-body text-sm text-ink">
-              This will invalidate your current calendar link. You will
-              need to re-subscribe in your calendar app with the new link.
+              {confirming === "stop"
+                ? "Your current link stops working, and every calendar you added it to will need removing."
+                : "This will invalidate your current calendar link. You will need to re-subscribe in your calendar app with the new link."}
             </Text>
-            <View className="flex-row flex-wrap gap-3">
+            <View className="gap-3">
               <Button
                 title="Cancel"
                 variant="secondary"
-                disabled={calendarBusy === "reset"}
-                onPress={() => setConfirmingReset(false)}
+                disabled={calendarBusy !== null}
+                onPress={() => setConfirming(null)}
               />
-              <Button
-                title={
-                  calendarBusy === "reset"
-                    ? "Resetting..."
-                    : "Reset in Google Calendar"
-                }
-                variant="danger"
-                disabled={calendarBusy === "reset"}
-                onPress={() => void resetLink(googleCalendarUrl)}
-              />
-              {/* The same platform parity as the subscribe above:
-                  Android has no Apple Calendar to re-open, so it is not
-                  offered one. */}
-              {Platform.OS === "android" ? null : (
+              {confirming === "stop" ? (
                 <Button
                   title={
-                    calendarBusy === "reset"
-                      ? "Resetting..."
-                      : "Reset in Apple Calendar"
+                    calendarBusy === "stop" ? "Stopping..." : "Stop updates"
                   }
                   variant="danger"
-                  disabled={calendarBusy === "reset"}
-                  onPress={() => void resetLink(appleCalendarUrl)}
+                  disabled={calendarBusy !== null}
+                  onPress={() => void unsubscribe()}
                 />
+              ) : (
+                <>
+                  <Button
+                    title={
+                      calendarBusy === "reset"
+                        ? "Resetting..."
+                        : "Reset in Google Calendar"
+                    }
+                    variant="danger"
+                    disabled={calendarBusy !== null}
+                    onPress={() => void resetLink(googleCalendarUrl)}
+                  />
+                  {/* The same platform parity as the subscribe above:
+                      Android has no Apple Calendar to re-open, so it is
+                      not offered one. */}
+                  {Platform.OS === "android" ? null : (
+                    <Button
+                      title={
+                        calendarBusy === "reset"
+                          ? "Resetting..."
+                          : "Reset in Apple Calendar"
+                      }
+                      variant="danger"
+                      disabled={calendarBusy !== null}
+                      onPress={() => void resetLink(appleCalendarUrl)}
+                    />
+                  )}
+                </>
               )}
             </View>
           </View>
         ) : (
-          // Taking the link back is a word, not a box. Both of these are
+          // Taking the link back is a word, not a box. Both are
           // maintenance on a link rather than a thing to do on this
-          // screen — unsubscribing revokes the feed, resetting replaces
-          // it — and as a pair of `secondary` boxes they were two more
+          // screen, and as a pair of `secondary` boxes they were two more
           // controls in a block that already has two, which is four
           // stacked boxes under one heading and reads as a menu. The
           // system's quieter things are words (the roll-call doors, the
           // read-more), and these are the same kind of thing.
           //
+          // Neither word is "unsubscribe": it read as reversible, and it
+          // is the same irreversible thing as the reset beside it.
+          //
           // A write in flight holds the row instead of disabling it:
           // `QuietAction` has no disabled state, so the guard is the early
           // return the RSVP control uses.
-          <View
-            // The row is inert while a write is in flight, and the guard in
-            // each handler is what makes it so — so the state is announced
-            // here, the way the trip page's RSVP control does it. `role`
-            // because a state prop on an element that is not anything is a
-            // flag a screen reader is not obliged to read out.
-            role="group"
-            aria-busy={calendarBusy !== null}
-            className="mt-3 flex-row flex-wrap items-center gap-2"
-          >
-            <QuietAction
-              label={
-                calendarBusy === "disable" ? "Unsubscribing..." : "Unsubscribe"
-              }
-              onPress={() => {
-                if (calendarBusy !== null) return;
-                void unsubscribe();
-              }}
-            />
-            <Text className="font-body text-sm text-ink">·</Text>
-            <QuietAction
-              label="Reset calendar link"
-              onPress={() => {
-                if (calendarBusy !== null) return;
-                setConfirmingReset(true);
-              }}
-            />
+          <View className="mt-3 gap-2">
+            <Text className="font-body text-sm text-ink">
+              Both of these end the link your calendars are reading, so the
+              calendar you subscribed from stops updating.
+            </Text>
+            <View
+              // The row is inert while a write is in flight, and the guard in
+              // each handler is what makes it so — so the state is announced
+              // here, the way the trip page's RSVP control does it. `role`
+              // because a state prop on an element that is not anything is a
+              // flag a screen reader is not obliged to read out.
+              role="group"
+              aria-busy={calendarBusy !== null}
+              className="flex-row flex-wrap items-center gap-2"
+            >
+              <QuietAction
+                label={
+                  calendarBusy === "stop" ? "Stopping..." : "Stop updates"
+                }
+                onPress={() => {
+                  if (calendarBusy !== null) return;
+                  setConfirming("stop");
+                }}
+              />
+              <Text className="font-body text-sm text-ink">·</Text>
+              <QuietAction
+                label="Reset calendar link"
+                onPress={() => {
+                  if (calendarBusy !== null) return;
+                  setConfirming("reset");
+                }}
+              />
+            </View>
           </View>
         )}
       </View>

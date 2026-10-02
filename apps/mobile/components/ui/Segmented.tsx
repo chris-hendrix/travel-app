@@ -55,6 +55,7 @@ export function Segmented<T extends string>({
   value,
   onChange,
   size = "md",
+  width = "fill",
   disabled = false,
 }: {
   options: Array<{
@@ -78,6 +79,22 @@ export function Segmented<T extends string>({
    */
   size?: "md" | "sm";
   /**
+   * How far the row reaches, on a wide screen only. `fill` — the
+   * default, and every row before this prop existed — splits the block
+   * between its cells at every width, which is right for a control that
+   * is a tier of the block it sits in: the RSVP's three cells read as one
+   * segmented control because they share the width. `content` keeps the
+   * cells at their labels' width from md up, on a phone being the same
+   * thing, for a two-cell choice whose labels are short: `°C` and `°F`
+   * spread across a 960px column are two labels with a canyon between
+   * them, and the same rule a content button follows — wide means
+   * content width on the start edge, not a wider box.
+   *
+   * `md` size only. `sm` is already a chrome row's width and always
+   * hugs, so the prop is inert there rather than ignored.
+   */
+  width?: "fill" | "content";
+  /**
    * The answer is on its way, so there is nothing to choose yet. A real
    * disable rather than a pointer guard: assistive technology announces
    * it on both platforms, and the pressable itself refuses the second
@@ -85,7 +102,15 @@ export function Segmented<T extends string>({
    */
   disabled?: boolean;
 }) {
-  const box = size === "sm" ? "px-3 py-2" : "flex-1 py-4";
+  // `px-6` only where the cell can be narrower than its block: on a
+  // phone `flex-1` still decides the width and the label is centred in
+  // it, so the padding costs nothing there and the cells keep their
+  // current measure. From md up, without it, a cell would sit at its
+  // label's width with the label touching both borders.
+  const box =
+    size === "sm"
+      ? "px-3 py-2"
+      : `flex-1 py-4 ${width === "content" ? "md:flex-none md:px-6" : ""}`;
 
   return (
     <View className="flex-row" role="radiogroup">

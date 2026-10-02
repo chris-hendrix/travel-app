@@ -1,6 +1,8 @@
 import { Link } from "expo-router";
 import { Text, View } from "react-native";
 import { Screen } from "@/components/ui/Screen";
+import { Band } from "@/components/ui/Band";
+import { Column } from "@/components/ui/Column";
 
 /**
  * Where an address with no screen lands.
@@ -12,12 +14,18 @@ import { Screen } from "@/components/ui/Screen";
  */
 export default function NotFound() {
   return (
-    <Screen lead>
-      <View className="gap-3">
-        <Text className="font-display text-4xl uppercase leading-none text-ink">
-          Nothing here
-        </Text>
-        <Text className="font-body text-base leading-snug text-ink">
+    <Screen>
+      {/* An empty state, so it is a band: `display-sm` 32px caps with the
+          body face under it, the treatment every empty state in this app
+          wears. The heading was `display-md` before this — bigger than the
+          thing it was announcing, for a screen that is a dead end. */}
+      <Band tone="baltic">
+        <Column lead>
+        <View className="gap-3">
+          <Text className="font-display-bold text-display-sm uppercase text-ink">
+            Nothing here
+          </Text>
+          <Text className="font-body text-body leading-snug text-ink">
           This address has no screen. It was mistyped, or the thing it
           named is gone.
         </Text>
@@ -29,7 +37,9 @@ export default function NotFound() {
         >
           Go to Journiful
         </Link>
-      </View>
+        </View>
+        </Column>
+      </Band>
     </Screen>
   );
 }

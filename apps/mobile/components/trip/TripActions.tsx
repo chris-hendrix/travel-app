@@ -131,7 +131,14 @@ export function TripActions({
         // this block the same shape for both roles.
         <Button
           title="Invite people"
-          variant="accent"
+          // `primary`, not `accent`: this sits on the lilac hero band, and
+          // `accent` is watermelon — the same hue family and the same
+          // *value* as lilac, 12.3 dE apart at a 1.38:1 luminance ratio, so
+          // it reads as a stronger pink rectangle rather than a control.
+          // `primary` is the system's action colour and lands 25.2 dE away,
+          // which makes the hero's one action the screen's one filled
+          // control.
+          variant="primary"
           fullWidth
           onPress={() => router.push(`/trips/invite?id=${tripId}`)}
         />

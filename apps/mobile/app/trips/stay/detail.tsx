@@ -1,3 +1,4 @@
+import { RuledBlock } from "@/components/ui/RuledBlock";
 import { Image, Linking, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Fact } from "@/components/ui/Fact";
@@ -76,7 +77,7 @@ function StayDetailDialog() {
   // Read before the guard: a hook called after a return is a hook called
   // a different number of times.
   const { clock } = trip
-    ? settingsFor(trip, new Date())
+    ? settingsFor(trip)
     : { clock: "trip" as const };
   const timeZone = trip && clock === "trip" ? trip.preferredTimezone : null;
   useDisplayZone(trip ? zoneFor(trip, clock, update) : null);
@@ -161,7 +162,7 @@ function StayDetailDialog() {
           <Text className="font-body-bold text-lg text-ink">
             {joinFacts(nightsLabel(stay, timeZone), staySpan(stay, timeZone))}
           </Text>
-          <Text className="font-display text-4xl uppercase leading-[0.95] text-ink md:text-5xl">
+          <Text className="font-display-extrabold text-display-md uppercase text-ink md:text-display-md-wide">
             {stay.name}
           </Text>
         </View>
@@ -175,7 +176,7 @@ function StayDetailDialog() {
           before this feature keeps its address; the line hides when
           there is neither. */}
       {rows.name ?? rows.address ? (
-        <View className="border-t border-ink pt-6">
+        <RuledBlock title="Where">
           <Text selectable className="font-body text-base text-ink/70">
             {rows.name ? (
               <Text className="font-body-bold text-ink">{rows.name}</Text>
@@ -193,7 +194,7 @@ function StayDetailDialog() {
               }
             />
           ) : null}
-        </View>
+        </RuledBlock>
       ) : null}
 
       {/* Directly under the address, because this is what people open
@@ -204,18 +205,18 @@ function StayDetailDialog() {
           here anybody needs to copy, and the platform's own selection
           gives the copy without a clipboard dependency. */}
       {stay.description ? (
-        <View className="border-t border-ink pt-6">
+        <RuledBlock title="Arrival">
           <Text
             selectable
             className="font-body text-base leading-relaxed text-ink"
           >
             {stay.description}
           </Text>
-        </View>
+        </RuledBlock>
       ) : null}
 
       {checkInDay || checkOutDay ? (
-        <View className="gap-4 border-t border-ink pt-6">
+        <RuledBlock>
           {checkInDay ? (
             <Fact label="Check in">
               <Text className="font-body text-base text-ink">
@@ -236,7 +237,7 @@ function StayDetailDialog() {
               </Text>
             </Fact>
           ) : null}
-        </View>
+        </RuledBlock>
       ) : null}
     </FullscreenDialog>
   );

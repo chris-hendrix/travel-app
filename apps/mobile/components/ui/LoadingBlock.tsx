@@ -1,4 +1,5 @@
-import { Text, View } from "react-native";
+import { Text } from "react-native";
+import { RuledBlock } from "@/components/ui/RuledBlock";
 
 /**
  * A screen that is getting there says so where its content will be.
@@ -17,9 +18,9 @@ import { Text, View } from "react-native";
  */
 export function LoadingBlock({ label }: { label: string }) {
   return (
-    <View className="gap-2 border-t border-ink pt-6">
+    <RuledBlock>
       <Text className="font-body text-sm text-ink opacity-60">{label}</Text>
-    </View>
+    </RuledBlock>
   );
 }
 

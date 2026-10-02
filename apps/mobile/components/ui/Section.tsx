@@ -1,33 +1,34 @@
 import type { ReactNode } from "react";
-import { Text, View } from "react-native";
+
+import { RuledBlock } from "@/components/ui/RuledBlock";
 
 /**
  * A titled block of a screen or a dialog, ruled off from the one above.
  *
- * The rule is the point. A screen here is a stack of ruled blocks, and the
- * rule is what says where one ends: it sits on top of the block rather
- * than under it, so a stack of them shares its rules instead of doubling
- * them at every boundary.
+ * Now a `RuledBlock` with its title made required. It was the fourth
+ * copy of the same rule before this, and it is kept as a named export
+ * because a caller that has a title to write should not have to remember
+ * that the title is optional on the primitive — `Section` is the form for
+ * when there is one, `RuledBlock` is the form for when there is not.
  *
- * The heading wears the display face at the size a block heading wears.
- * One block on the landing is deliberately not this component: its
- * sections are tables of rows, closed by a rule underneath and set at the
- * hero's own scale, which is a different block rather than a variant of
- * this one. Folding it in would mean two props serving one caller.
+ * The landing's sections are deliberately not either: they are tables of
+ * rows, closed by a rule underneath and set at the hero's own scale, which
+ * is a different block rather than a variant of this one. Folding those in
+ * would mean two props serving one caller.
  */
 export function Section({
   title,
+  rule = true,
   children,
 }: {
   title: string;
+  /** Passed through to `RuledBlock`: false where a band's edge is the seam. */
+  rule?: boolean;
   children?: ReactNode;
 }) {
   return (
-    <View className="gap-5 border-t border-ink pt-6">
-      <Text className="font-display text-xl uppercase leading-none text-ink">
-        {title}
-      </Text>
+    <RuledBlock title={title} rule={rule}>
       {children}
-    </View>
+    </RuledBlock>
   );
 }

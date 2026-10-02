@@ -47,7 +47,7 @@ function NewStayScreen() {
   // typed is stamped in the zone it will be read in — the same reason a
   // date is not a date until you know where.
   const { clock } = trip
-    ? settingsFor(trip, new Date())
+    ? settingsFor(trip)
     : { clock: "trip" as const };
   const timeZone = clock === "trip" ? (trip?.preferredTimezone ?? null) : null;
   useDisplayZone(trip ? zoneFor(trip, clock, update) : null);
