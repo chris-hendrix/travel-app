@@ -20,6 +20,8 @@ import { QuietAction } from "@/components/ui/QuietAction";
 import { PhoneField } from "@/components/ui/PhoneField";
 import { toE164 } from "@/lib/phone";
 import { Screen } from "@/components/ui/Screen";
+import { RuledBlock, PageRule } from "@/components/ui/RuledBlock";
+import { Fact } from "@/components/ui/Fact";
 // Aliased: this file's own `Section` is the lab's documentation frame, and
 // the product's is the ruled block the frame documents.
 import { Section as RuledSection } from "@/components/ui/Section";
@@ -465,13 +467,52 @@ function DesignSystemScreen() {
             <Specimen
               name="Section"
               contract="title · children?"
-              note="A titled block, ruled off from the one above it. The rule sits on top of the block rather than under it, so a stack of them shares its rules instead of doubling them at every boundary. It replaced four local copies that had already drifted apart on gap and heading size. The landing's sections are deliberately not this: they are tables of rows closed by a rule underneath, at the hero's own scale."
+              note="A titled block, ruled off from the one above it. The rule sits on top of the block rather than under it, so a stack of them shares its rules instead of doubling them at every boundary. It replaced four local copies that had already drifted apart on gap and heading size. The landing's sections are deliberately not this: they are tables of rows closed by a rule underneath, at the hero's own scale. This specimen goes when the twelve hand-rolled rules move onto `RuledBlock` — it is the last caller."
             >
               <RuledSection title="What goes in the trip">
                 <Text className="font-body text-base text-ink">
                   Ruled off from whatever sits above it.
                 </Text>
               </RuledSection>
+            </Specimen>
+
+            <Specimen
+              name="RuledBlock"
+              contract="title? · children? — plus `PageRule`, no props"
+              note="One rule per boundary. A black rule taken from above is a block boundary: it opens a block, it carries the block's padding and the block's inner gap, and its title is optional because eleven of the thirteen sites had no title and a rule over one paragraph reads as an accident until something names it. A `PageRule` is the page's own hairline — full width, no title, no padding — for a boundary that closes a multi-column block and opens what is under it, and it is one site. A `border-gravel` between rows is neither: it is a row separator inside a block, not a boundary between blocks. Below: the real stay screen, where three blocks sat at three different gaps under three hand-written copies of the same rule. `Where` and `Arrival` are the new titles; the check-in block keeps the Fact labels it already had, which is the one open question on this gate."
+            >
+              <RuledBlock title="Where">
+                <Text selectable className="font-body text-base text-ink/70">
+                  <Text className="font-body-bold text-ink">
+                    The Hoxton Shoreditch
+                  </Text>{" "}
+                  1 Willow St, London
+                </Text>
+                <QuietAction label="Open in Maps" onPress={() => setLog("RuledBlock: Open in Maps")} />
+              </RuledBlock>
+              <RuledBlock title="Arrival">
+                <Text
+                  selectable
+                  className="font-body text-base leading-relaxed text-ink"
+                >
+                  Ring the bell for flat 4. Wifi: hoxton-guest / 4471.
+                </Text>
+              </RuledBlock>
+              {/* Untitled: the form that eleven of the thirteen sites wanted all along. */}
+              <RuledBlock>
+                <Fact label="Check in">
+                  <Text className="font-body text-base text-ink">
+                    Fri, Jun 14, 3:00 PM
+                  </Text>
+                </Fact>
+                <Fact label="Check out">
+                  <Text className="font-body text-base text-ink">
+                    Sun, Jun 16, 11:00 AM
+                  </Text>
+                </Fact>
+              </RuledBlock>
+              {/* The page rule, between two blocks rather than above one. */}
+              <PageRule />
             </Specimen>
 
             <Specimen
