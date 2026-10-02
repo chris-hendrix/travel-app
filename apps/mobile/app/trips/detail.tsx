@@ -269,11 +269,19 @@ function TripDetailScreen() {
     <Screen>
       {/* The trip's own block is the band: the cover, the dates, the name,
           the place and the verbs are one thing, and they are what the reader
-          came for. One band on this screen, never two (A2), and sand above
-          and below it. */}
+          came for. Two bands on this screen, which the plan argued against
+          and this one earns: the hero's, and the stays table's directly under
+          it. They touch, with no sand between, because the division has a
+          reason — the trip, then where you sleep — and the seam lands on the
+          stays heading rather than above it.
+
+          **The adjacency guard cannot see this.** `design-lint.mjs` check 5
+          works per file, and these two bands live in different ones, so the
+          only band-against-band in the app is also the only one it cannot
+          catch. That is a known gap, not a pass. */}
       <Band tone="lilac">
         <Column>
-        <View className="gap-y-6 py-6 md:flex-row md:gap-12 md:py-10">
+        <View className="gap-y-6 md:flex-row md:gap-12">
           {/* Two columns of equal width. flex-1, not w-1/2: react-native
               does not shrink flex items, so two halves plus the gutter
               would overflow the content box by exactly the gutter and
@@ -398,15 +406,23 @@ function TripDetailScreen() {
           of it would be a second mark saying one thing. That is why
           `PageRule` is gone from this screen, and why the run below still
           brings no rule of its own (components/trip/Itinerary.tsx). */}
-      <Column>
-        {/* The run, or the state that says why it is not here: an
-            unanswered RSVP withholds it, because the server reads full
-            trip data to the people who are going. The description above
-            is what you decide on, which is what you get for saying yes. */}
-        <View className="gap-6 py-6 md:gap-8 md:py-10">
-          {canReadRun ? <Itinerary trip={trip} organizer={organizer} /> : <RunLocked />}
-        </View>
-      </Column>
+      {/* The run owns its own columns, because its first table is a
+          full-bleed band and a band cannot exist inside a constrained column.
+          Nothing wraps it, which is what lets that band meet the hero's with
+          no sand between them. */}
+      {canReadRun ? (
+        <Itinerary trip={trip} organizer={organizer} />
+      ) : (
+        <Column>
+          {/* The run, or the state that says why it is not here: an
+              unanswered RSVP withholds it, because the server reads full
+              trip data to the people who are going. The description above
+              is what you decide on, which is what you get for saying yes. */}
+          <View className="gap-6 py-6 md:gap-8 md:py-10">
+            <RunLocked />
+          </View>
+        </Column>
+      )}
     </Screen>
   );
 }

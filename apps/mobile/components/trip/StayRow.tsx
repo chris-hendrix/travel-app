@@ -49,6 +49,7 @@ export function StayRow({
         </>
       }
       fact={staySpan(stay, timeZone) ?? ""}
+      onBand
       onPress={onPress}
     />
   );

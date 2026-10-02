@@ -8,6 +8,8 @@ import { useEvents as useEventsSection } from "@/lib/queries/events";
 import { InlineError } from "@/components/ui/InlineError";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
+import { Band } from "@/components/ui/Band";
+import { Column } from "@/components/ui/Column";
 import { ChipToggle } from "@/components/ui/ChipToggle";
 import { InlineAction } from "@/components/ui/InlineAction";
 import { useStays } from "@/lib/staysStore";
@@ -141,7 +143,52 @@ export function Itinerary({
   const missingStays = stays.length === 0;
 
   return (
-    <View className="gap-6">
+    <View>
+      {/* The stays table as a ground of its own, at the very top of the run
+          so it meets the hero's band with no sand between. The plan argued
+          against band-against-band; this one has the reason the argument was
+          missing — the hero is the trip and this is where you sleep, and the
+          seam lands on the heading rather than above it. It is also the one
+          adjacency `design-lint.mjs` check 5 cannot see, because check 5
+          works per file and the other band is in `trips/detail.tsx`. */}
+      <Band tone="baltic">
+        <Column>
+          <View>
+          {staysStatus === "loading" ? (
+            <LoadingBlock label="Getting the stays" />
+          ) : staysStatus === "offline" ? (
+            <OfflineBlock onRetry={retryStays} />
+          ) : staysStatus === "error" ? (
+            <InlineError
+              message="Couldn't load the stays"
+              onRetry={retryStays}
+            />
+          ) : stays.length > 0 ? (
+            // The table's first heading is the roofs, in the same face
+            // as the days below it: the run opens with where you sleep.
+            // No padding of its own: the band's column sets the rhythm, and
+            // on a band padding is not air, it is colour — the seam above
+            // has to be where the section starts, or it divides nothing.
+            <View>
+              <Text className="pb-3 font-display-semibold text-heading-lg uppercase text-ink">
+                Stays
+              </Text>
+              {stays.map((stay) => (
+                <StayRow
+                  key={stay.id}
+                  stay={stay}
+                  timeZone={timeZone}
+                  onPress={() => openStay(stay.id)}
+                />
+              ))}
+            </View>
+          ) : null}
+          </View>
+        </Column>
+      </Band>
+
+      <Column>
+        <View className="gap-6 pb-6 pt-6 md:pb-10 md:pt-10">
       {/* No head label, and no controls of the page's: the run's structure
           is its own headings — the roofs, then the days — and what they
           are is what they say. There was an ITINERARY eyebrow above this
@@ -181,32 +228,6 @@ export function Itinerary({
           it separates it from the day before. No rule above the table:
           the page's seam is the run's opening line. */}
       <View>
-          {staysStatus === "loading" ? (
-            <LoadingBlock label="Getting the stays" />
-          ) : staysStatus === "offline" ? (
-            <OfflineBlock onRetry={retryStays} />
-          ) : staysStatus === "error" ? (
-            <InlineError
-              message="Couldn't load the stays"
-              onRetry={retryStays}
-            />
-          ) : stays.length > 0 ? (
-            // The table's first heading is the roofs, in the same face
-            // as the days below it: the run opens with where you sleep.
-            <View className="pt-6">
-              <Text className="pb-3 font-display-semibold text-heading-lg uppercase text-ink">
-                Stays
-              </Text>
-              {stays.map((stay) => (
-                <StayRow
-                  key={stay.id}
-                  stay={stay}
-                  timeZone={timeZone}
-                  onPress={() => openStay(stay.id)}
-                />
-              ))}
-            </View>
-          ) : null}
           {eventsStatus === "loading" ? (
             <LoadingBlock label="Getting the run" />
           ) : eventsStatus === "offline" ? (
@@ -339,6 +360,8 @@ export function Itinerary({
           ) : null}
         </View>
       )}
+        </View>
+      </Column>
     </View>
   );
 }
