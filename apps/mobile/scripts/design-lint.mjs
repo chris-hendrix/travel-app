@@ -217,4 +217,54 @@ function checkRuleForms() {
 
 checkRuleForms();
 
+/**
+ * Check 3 — the underline ratchet.
+ *
+ * **The plan specified this check the other way round** — "underline is
+ * banned on any `text-xs`, with `PhotoCredit.tsx:42` on an explicit
+ * allow-list" — and it was not built that way, because that check enforces
+ * removal and this phase decided against removal. An underline is the only
+ * affordance this system gives a word that does something: no colour marks
+ * one, deliberately, since a colour is a role and a word in a row is doing
+ * neither. Taking the mark off `PhotoCredit:27` would have left a live link
+ * at 12px in 60% ink looking like the prose around it.
+ *
+ * So the guard is a ratchet rather than a ban: the count of underlined
+ * words may not go **up**. Nothing is required to lose its underline, and
+ * nothing may quietly gain one either — a new underlined word is a visible,
+ * reviewable act on this constant rather than something that happens because
+ * a copy-paste carried a class along.
+ *
+ * Counted on code with comments stripped, so a note that says the word
+ * "underline" is not one, and in the whole tree including `.ts` because a
+ * component that owns an underlined word is as likely to live in a module
+ * as in a screen. The lab is excluded: it *demonstrates* underlines on
+ * purpose, so counting it would make every specimen a rule change.
+ */
+const UNDERLINE_RATCHET = 15;
+
+function checkUnderlineRatchet() {
+  const lab = path.join("app", "design", "index.tsx");
+  let total = 0;
+  const perFile = [];
+  for (const file of sourcesWith(/\.tsx?$/)) {
+    if (path.relative(mobile, file) === lab) continue;
+    const count = (code(fs.readFileSync(file, "utf8")).match(/\bunderline\b/g) ?? [])
+      .length;
+    if (count > 0) {
+      total += count;
+      perFile.push(`${path.relative(mobile, file)} (${count})`);
+    }
+  }
+  check(
+    `underlined words do not exceed ${UNDERLINE_RATCHET} (currently ${total})`,
+    total <= UNDERLINE_RATCHET,
+  );
+  if (total > UNDERLINE_RATCHET) {
+    console.error(`  ${perFile.join(", ")}`);
+  }
+}
+
+checkUnderlineRatchet();
+
 process.exit(failures === 0 ? 0 : 1);

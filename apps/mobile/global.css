@@ -116,3 +116,39 @@
  * `border-b` is the same rule and stays out of this: a `border-b` closes
  * the block above it, which is the one case a shared rule already covers.
  */
+
+/*
+ * The underline, on the web export only.
+ *
+ * Lighter, not fewer. An underline is this system's only affordance for a
+ * word that does something -- no colour marks a word, on purpose, because a
+ * colour is a role and a word in a row is doing neither -- so the mark
+ * cannot come off without the pressability going with it. What can come off
+ * is the shouting: 1px instead of the browser's default weight, and a
+ * quarter-em of daylight under the word so the underline stops touching the
+ * descenders it was cut into.
+ *
+ * `*` rather than `a, u, button`: react-native-web draws a Text underline
+ * as an inline `text-decoration-line`, not as an `<a>` or a `<u>`, so a
+ * selector naming elements matches nothing here. These two properties only
+ * do anything on an element that already carries a decoration, so the
+ * universal selector has no effect anywhere else.
+ *
+ * Deliberately NOT `--text-underline-offset`: in Tailwind v4 `--text-*` is
+ * the font-size namespace, so that name collides with `--text-lg` and
+ * `--text-4xl`. Declared here in a plain block rather than in `@theme`
+ * because it is a web-export default and not a scale token.
+ *
+ * Web export only, and not by choice: React Native's `TextStyle` has
+ * `textDecorationLine`, `textDecorationStyle` and `textDecorationColor` and
+ * no offset and no thickness (A10). An Android build compiles this away and
+ * an emulator will show no change at all.
+ */
+:root {
+  --underline-offset: 0.25em;
+}
+
+* {
+  text-underline-offset: var(--underline-offset);
+  text-decoration-thickness: 1px;
+}
