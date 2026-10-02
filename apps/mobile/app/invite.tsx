@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/authStore";
 import { LEGAL_ROWS } from "@/lib/legal";
 import { toErrorCopy } from "@/lib/queries/errors";
 import { invitationPreviewOptions } from "@/lib/queries/invitations";
+import { Band } from "@/components/ui/Band";
 import { Column } from "@/components/ui/Column";
 
 /**
@@ -102,7 +103,13 @@ function InviteScreen() {
 
   return (
     <Screen>
-<Column lead>
+      {/* The invitation is the screen, so it is the band. One band and no
+          sand above it: a band is the exception to the ground, and a screen
+          that is entirely the exception has no ground to be an exception
+          to — which is why the band here runs to the top edge and the
+          screen ends at its lower seam. */}
+      <Band tone="lilac">
+        <Column lead>
       <InviteCard
         inviterName={preview.inviterName}
         tripName={preview.tripName}
@@ -130,7 +137,9 @@ function InviteScreen() {
           onPress={() => router.push("/login")}
         />
       )}
-    </Column></Screen>
+        </Column>
+      </Band>
+    </Screen>
   );
 }
 
@@ -142,18 +151,23 @@ function InviteScreen() {
 function GoneInvite({ onStartOwn }: { onStartOwn: () => void }) {
   return (
     <Screen>
-<Column>
-      <View className="gap-8 pt-4 md:pt-14">
-        <View className="gap-3">
-          <Text className="font-display-extrabold text-display-md uppercase text-ink">
-            This invitation is gone
-          </Text>
-          <Text className="font-body text-base leading-snug text-ink">
-            It has expired, or someone has already used it.
-          </Text>
-        </View>
-        <Button title="Start your own trip" onPress={onStartOwn} />
-        <View className="flex-row flex-wrap gap-x-6 gap-y-2">
+      <Band tone="baltic">
+        <Column>
+          <View className="gap-8 py-6 pt-4 md:pt-14">
+            <View className="gap-3">
+              <Text className="font-display-extrabold text-display-md uppercase text-ink">
+                This invitation is gone
+              </Text>
+              <Text className="font-body text-base leading-snug text-ink">
+                It has expired, or someone has already used it.
+              </Text>
+            </View>
+            <Button title="Start your own trip" onPress={onStartOwn} />
+          </View>
+        </Column>
+      </Band>
+      <Column>
+        <View className="flex-row flex-wrap gap-x-6 gap-y-2 py-6 md:py-10">
           {LEGAL_ROWS.map((row) => (
             <Link
               key={row.href}
@@ -164,7 +178,7 @@ function GoneInvite({ onStartOwn }: { onStartOwn: () => void }) {
             </Link>
           ))}
         </View>
-      </View>
-    </Column></Screen>
+      </Column>
+    </Screen>
   );
 }

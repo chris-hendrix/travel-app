@@ -383,4 +383,65 @@ function checkDisplayFloor() {
 
 checkDisplayFloor();
 
+/**
+ * Check 5 — two bands are never adjacent.
+ *
+ * A band is a ground, so two of them touching is a seam between two grounds
+ * with nothing to say what the division means. A reader cannot tell whether
+ * they are two sections, a mistake, or one section with a colour change —
+ * and the answer is "sand between them", because sand is the ground the page
+ * is on and a band is the exception to it.
+ *
+ * Adjacent means **siblings with no other element between them**, not
+ * "anywhere in the file". The landing has both tones and is meant to: sand,
+ * `lilac`, sand, `baltic`, sand. What it may not have is `lilac` directly
+ * against `baltic`.
+ *
+ * Bands are matched by their JSX range rather than by line, because a band's
+ * content is a whole column of markup and the interesting question is what
+ * sits *between* two of them.
+ */
+function checkBandAdjacency() {
+  const hits = [];
+  for (const file of sources()) {
+    const rel = path.relative(mobile, file);
+    const src = code(fs.readFileSync(file, "utf8"));
+    // Every <Band …> … </Band> range, depth-counted so a nested one cannot
+    // end the outer one early.
+    const ranges = [];
+    for (let at = src.indexOf("<Band"); at !== -1; at = src.indexOf("<Band", at + 1)) {
+      let depth = 1;
+      let i = at + "<Band".length;
+      while (depth > 0) {
+        const nextOpen = src.indexOf("<Band", i);
+        const nextClose = src.indexOf("</Band>", i);
+        if (nextClose === -1) break;
+        if (nextOpen !== -1 && nextOpen < nextClose) {
+          depth += 1;
+          i = nextOpen + "<Band".length;
+        } else {
+          depth -= 1;
+          i = nextClose + "</Band>".length;
+        }
+      }
+      ranges.push([at, i]);
+    }
+    const lineOf = (i) => src.slice(0, i).split("\n").length;
+    for (let k = 1; k < ranges.length; k++) {
+      const between = src.slice(ranges[k - 1][1], ranges[k][0]);
+      // Anything with a `<` is an element between them: sand content, a
+      // Column, a rule. Only whitespace and comments leave them adjacent.
+      if (!/<(?!\/\*)/.test(between)) {
+        hits.push(
+          `${rel}:${lineOf(ranges[k][0])} — band at :${lineOf(ranges[k - 1][0])} is adjacent`,
+        );
+      }
+    }
+  }
+  check("no two bands are adjacent siblings", hits.length === 0);
+  for (const hit of hits) console.error(`  ${hit}`);
+}
+
+checkBandAdjacency();
+
 process.exit(failures === 0 ? 0 : 1);

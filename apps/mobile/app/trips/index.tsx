@@ -13,6 +13,7 @@ import { Grid } from "@/components/ui/Grid";
 import { groupTrips } from "@/lib/tripGroups";
 import { toErrorCopy } from "@/lib/queries/errors";
 import { useTrips } from "@/lib/tripsStore";
+import { Band } from "@/components/ui/Band";
 import { Column } from "@/components/ui/Column";
 
 /**
@@ -138,11 +139,13 @@ function TripsContent() {
       ) : null}
 
       {trips.length === 0 ? (
-        <View className="gap-5 py-10">
+        <Band tone="baltic">
+          <Column>
+        <View className="gap-5 py-6 md:py-10">
           <Text className="font-display-bold text-display-sm uppercase text-ink">
             No trips yet
           </Text>
-          <Text className="font-body text-lg text-ink">
+          <Text className="font-body text-body text-ink">
             Start a trip, add the dates, and invite everyone. Everyone
             sees the same itinerary as it comes together.
           </Text>
@@ -153,6 +156,8 @@ function TripsContent() {
             />
           </View>
         </View>
+          </Column>
+        </Band>
       ) : (
         <>
           {upcoming.length > 0 ? (

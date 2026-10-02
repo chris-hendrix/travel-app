@@ -9,6 +9,7 @@ import { LEGAL_ROWS } from "@/lib/legal";
 import { useAuth } from "@/lib/authStore";
 import { destinationForRequiresProfile } from "@/lib/queries/auth";
 import { INK } from "@/lib/theme";
+import { Band } from "@/components/ui/Band";
 import { Column } from "@/components/ui/Column";
 
 /**
@@ -71,9 +72,22 @@ function Landing() {
 
   return (
     <Screen>
-<Column>
-      <View className="gap-16 pb-12 pt-4 md:pt-14">
-        <View className="gap-6">
+      {/*
+        Three sand columns and two bands, and the bands are *siblings* of the
+        columns rather than children of one — a full-bleed ground cannot exist
+        inside a constrained column, which is the whole reason `Screen` stopped
+        wrapping its children.
+
+        The landing's vertical rhythm was a single `gap-16` inside a single
+        column. It is now composed from the pieces, and that is the visible
+        cost of putting a full-bleed ground in the middle of a page: the
+        `gap-16` cannot span a seam. Sand either side of each band, never
+        band-against-band (`design-lint.mjs` check 5), because two touching
+        grounds say "these are two things" with nothing to say what the
+        division means.
+      */}
+      <Column>
+        <View className="gap-6 pb-12 pt-4 md:pt-14">
           <Text className="font-display-black text-display-lg uppercase text-ink md:text-display-lg-wide">
             Group trips made easy
           </Text>
@@ -94,81 +108,97 @@ function Landing() {
             No passwords. Sign in via text.
           </Text>
         </View>
+      </Column>
 
-        {/* The hero names the three things the trip holds; this section
-            says what it is like without them, rather than listing them a
-            second time. Agitation, not a mirror. */}
-        <View className="gap-4">
-          <Text className="font-display-semibold text-heading-lg uppercase text-ink">
-            It starts in the group chat
-          </Text>
-          <Text className="font-body text-base leading-relaxed text-ink">
-            Then the confirmations land in six different inboxes. By the time
-            everyone lands, everyone is digging through their inbox for the
-            same address.
-          </Text>
-        </View>
+      {/* The first band. It names what the trip is like without the app
+          rather than listing the three things again — agitation, not a
+          mirror — and it is the one paragraph on this page a reader is
+          meant to feel, which is why it is the one that changes ground. */}
+      <Band tone="lilac">
+        <Column>
+          <View className="gap-4 py-6 md:py-10">
+            <Text className="font-display-semibold text-heading-lg uppercase text-ink">
+              It starts in the group chat
+            </Text>
+            <Text className="font-body text-base leading-relaxed text-ink">
+              Then the confirmations land in six different inboxes. By the
+              time everyone lands, everyone is digging through their inbox
+              for the same address.
+            </Text>
+          </View>
+        </Column>
+      </Band>
 
-        <Section title="What goes in the trip">
-          {WHAT_GOES_IN.map((feature) => (
-            <View
-              key={feature.title}
-              className="flex-row gap-4 border-t border-ink py-5"
-            >
-              <feature.icon color={INK} size={24} />
-              <View className="flex-1 gap-1">
-                <Text className="font-display-semibold text-heading-lg uppercase text-ink">
-                  {feature.title}
-                </Text>
-                <Text className="font-body text-sm leading-snug text-ink">
-                  {feature.description}
-                </Text>
+      <Column>
+        <View className="gap-16 py-6 md:py-10">
+          <Section title="What goes in the trip">
+            {WHAT_GOES_IN.map((feature) => (
+              <View
+                key={feature.title}
+                className="flex-row gap-4 border-t border-ink py-5"
+              >
+                <feature.icon color={INK} size={24} />
+                <View className="flex-1 gap-1">
+                  <Text className="font-display-semibold text-heading-lg uppercase text-ink">
+                    {feature.title}
+                  </Text>
+                  <Text className="font-body text-sm leading-snug text-ink">
+                    {feature.description}
+                  </Text>
+                </View>
               </View>
-            </View>
-          ))}
-        </Section>
+            ))}
+          </Section>
 
-        <Section title="How Journiful works">
-          {STEPS.map((step) => (
-            <View
-              key={step.number}
-              className="flex-row gap-4 border-t border-ink py-5"
-            >
-              <Text className="font-display-extrabold text-display-md text-ink">
-                {step.number}
-              </Text>
-              <View className="flex-1 gap-1">
-                <Text className="font-body-bold text-base text-ink">
-                  {step.title}
+          <Section title="How Journiful works">
+            {STEPS.map((step) => (
+              <View
+                key={step.number}
+                className="flex-row gap-4 border-t border-ink py-5"
+              >
+                <Text className="font-display-extrabold text-display-md text-ink">
+                  {step.number}
                 </Text>
-                <Text className="font-body text-sm leading-snug text-ink">
-                  {step.description}
-                </Text>
+                <View className="flex-1 gap-1">
+                  <Text className="font-body-bold text-base text-ink">
+                    {step.title}
+                  </Text>
+                  <Text className="font-body text-sm leading-snug text-ink">
+                    {step.description}
+                  </Text>
+                </View>
               </View>
-            </View>
-          ))}
-        </Section>
-
-        {/* The closing band repeats the hero's ask rather than inventing a
-            second one: one goal, one label, twice down the page. The line
-            above it is the outcome rather than the promise, so the hero's
-            "in one place" is not said a second time. */}
-        <View className="gap-6">
-          <Text className="text-heading-md text-ink">
-            Everyone on the trip, from the first text to the last flight
-          </Text>
-          <Button title="Get started" onPress={() => router.push("/login")} />
-          {/* The one trust claim available before there are any users, and
-              the one a reader is most likely to be assuming the opposite
-              of: a new app is assumed to have a subscription in it. The
-              hero's note answers the other question, the effort of getting
-              in, because that is the one at the first button. */}
-          <Text className="font-body text-sm text-ink">
-            Free, with no ads.
-          </Text>
+            ))}
+          </Section>
         </View>
+      </Column>
 
-        <View className="flex-row flex-wrap gap-x-6 gap-y-2">
+      {/* The closing band repeats the hero's ask rather than inventing a
+          second one: one goal, one label, twice down the page. The line
+          above it is the outcome rather than the promise, so the hero's
+          "in one place" is not said a second time. The second tone, because
+          the page has two seams and they are two different things. */}
+      <Band tone="baltic">
+        <Column>
+          <View className="gap-6 py-6 md:py-10">
+            <Text className="font-body-bold text-heading-md text-ink">
+              Everyone on the trip, from the first text to the last flight
+            </Text>
+            <Button title="Get started" onPress={() => router.push("/login")} />
+            {/* The one trust claim available before there are any users, and
+                the one a reader is most likely to be assuming the opposite
+                of: a new app is assumed to have a subscription in it. The
+                hero's note answers the other question, the effort of getting
+                in, because that is the one at the first button. */}
+            <Text className="font-body text-sm text-ink">
+              Free, with no ads.
+            </Text>
+          </View>
+        </Column>
+      </Band>
+
+      <Column>
+        <View className="flex-row flex-wrap gap-x-6 gap-y-2 py-6 md:py-10">
           {LEGAL_ROWS.map((row) => (
             <Link
               key={row.href}
@@ -179,8 +209,8 @@ function Landing() {
             </Link>
           ))}
         </View>
-      </View>
-    </Column></Screen>
+      </Column>
+    </Screen>
   );
 }
 
