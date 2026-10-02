@@ -409,49 +409,44 @@ function ProfileForm({ profile }: { profile: Profile }) {
           was the third of three in the bottom half of the screen, which is
           when a rule stops meaning anything.
 
-          Full width on a phone, one under the other; side by side from md
-          up, where there is room for a pair of halves — the shape the trip
-          page uses for Add event and Add stay, which is the same question
-          of one choice with two answers. Enabling is idempotent, so a
-          press ensures the feed exists and then opens it: no state to
-          read, none to show, and no race between the two. */}
+          One under the other, at every width: a button is one choice, and
+          a pair of halves in a row turns this list into a choice it was
+          never meant to be — then wraps to a ragged 2+1 on a phone. Wide,
+          each drops to its content width on the start edge. Enabling is
+          idempotent, so a press ensures the feed exists and then opens
+          it: no state to read, none to show, and no race between the
+          two. */}
       <View className="gap-1">
         <Text className="font-body-bold text-sm text-ink">Calendar</Text>
         <Text className="mt-1 font-body text-sm text-ink">
           Subscribe to every trip you are on, in the calendar you already
           read. Your link is a secret: anyone with it can read your trips.
         </Text>
-        <View className="mt-3 gap-3 md:flex-row">
-          <View className="md:flex-1">
-            <Button
-              title={
-                calendarBusy === "google"
-                  ? "Opening Google Calendar"
-                  : "Subscribe in Google Calendar"
-              }
-              variant="secondary"
-              fullWidth
-              disabled={calendarBusy === "google"}
-              onPress={() => void subscribe("google", googleCalendarUrl)}
-            />
-          </View>
+        <View className="mt-3 gap-3">
+          <Button
+            title={
+              calendarBusy === "google"
+                ? "Opening Google Calendar"
+                : "Subscribe in Google Calendar"
+            }
+            variant="secondary"
+            disabled={calendarBusy === "google"}
+            onPress={() => void subscribe("google", googleCalendarUrl)}
+          />
           {/* Apple's Calendar claims `webcal:`, and it is the one platform
               whose calendar app is the point: Android has no Apple
               Calendar to open, so it is not offered one. */}
           {Platform.OS === "android" ? null : (
-            <View className="md:flex-1">
-              <Button
-                title={
-                  calendarBusy === "apple"
-                    ? "Opening Apple Calendar"
-                    : "Subscribe in Apple Calendar"
-                }
-                variant="secondary"
-                fullWidth
-                disabled={calendarBusy === "apple"}
-                onPress={() => void subscribe("apple", appleCalendarUrl)}
-              />
-            </View>
+            <Button
+              title={
+                calendarBusy === "apple"
+                  ? "Opening Apple Calendar"
+                  : "Subscribe in Apple Calendar"
+              }
+              variant="secondary"
+              disabled={calendarBusy === "apple"}
+              onPress={() => void subscribe("apple", appleCalendarUrl)}
+            />
           )}
         </View>
         {calendarFailure ? (
@@ -469,7 +464,7 @@ function ProfileForm({ profile }: { profile: Profile }) {
               This will invalidate your current calendar link. You will
               need to re-subscribe in your calendar app with the new link.
             </Text>
-            <View className="flex-row flex-wrap gap-3">
+            <View className="gap-3">
               <Button
                 title="Cancel"
                 variant="secondary"
