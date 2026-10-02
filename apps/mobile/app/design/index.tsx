@@ -23,6 +23,14 @@ import { Screen } from "@/components/ui/Screen";
 import { Band } from "@/components/ui/Band";
 import type { BandTone } from "@/components/ui/bandClasses";
 import { BAND_TONES, TOKENS } from "@/lib/palette";
+import {
+  EVENT_HUES,
+  POP_FILL,
+  initialsHue,
+  type PopHue,
+} from "@/lib/eventColors";
+import { EVENT_TYPE_LABEL, type EventType } from "@/lib/itinerary";
+import { initials } from "@/lib/profile";
 import { RuledBlock, PageRule } from "@/components/ui/RuledBlock";
 import { Fact } from "@/components/ui/Fact";
 // Aliased: this file's own `Section` is the lab's documentation frame, and
@@ -292,6 +300,18 @@ const TYPE: Array<{
     use: "A control's own label, a badge, an eyebrow.",
   },
 ];
+
+/** The API's nine, as the specimen walks them. */
+const EVENT_TYPES = Object.keys(EVENT_TYPE_LABEL) as EventType[];
+
+/** The hex behind a hue, so the specimen prints a measured chroma and not a
+ *  claim. Throws rather than returning a default: a hue with no token is a
+ *  bug the specimen should not be able to hide. */
+function hexOf(hue: PopHue): string {
+  const token = TOKENS.find((t) => t.name === hue);
+  if (!token) throw new Error(`no token named ${hue}`);
+  return token.hex;
+}
 
 const VENUES = ["The Hall", "Zone One", "The Rooftop", "The Loft", "Full Venue"];
 
@@ -736,20 +756,64 @@ function DesignSystemScreen() {
 
             <Specimen
               name="Badge"
-              contract="label · variant · size?"
-              note="Event type and status. Venue renders as plain text beside the pills. Category is the neutral one, for classifying a thing rather than reporting its state — it shares ink with soldOut on purpose: roles differ, tones may not. Two sizes: md in the content, where a chip is read, and sm hanging off a name in a list, where it is glanced at."
+              contract="label · variant · size? · hue?"
+              note="Event type and status. Venue renders as plain text beside the pills. Category is the classifier rather than a state, and it wears ink unless a caller gives it a hue: roles differ, tones may not. hue is a pop fill and the label stays ink on it — a pop is a light saturated ground and ink is the only token that clears body contrast on all of them. The nine event types below are the whole pop tier as it is actually spent, each with the hue it wears and that hue's measured chroma; the two state colours above are deliberately not among them, because strawberry means live on an account and watermelon means club on a trip, and a state that closes a thing should not wear the colour of a party. Nine types, four hues: the palette ships five pop fills and two are spoken for, so the table groups types in pairs — where you are, what you ate, what you went out to see, what you did outside — and `misc` keeps ink, because 'none of the above' is the one chip that should not be saying something with its colour. A repeated hue is a family rather than a collision *because the badge carries the type's own name*: the word classifies and the hue reinforces. If a hue were ever the only carrier, this set would be wrong and the palette would need more mark tokens."
             >
               <View className="flex-row flex-wrap items-center gap-2">
                 <Badge label="club" variant="club" />
                 <Badge label="live" variant="live" />
                 <Badge label="sold out" variant="soldOut" />
-                <Badge label="Food" variant="category" />
                 <Badge label="The Rooftop" variant="venue" />
               </View>
+              <View className="gap-2">
+                {EVENT_TYPES.map((type) => {
+                  const hue = EVENT_HUES[type];
+                  return (
+                    <View key={type} className="flex-row items-center gap-3">
+                      <View className="w-40">
+                        <Badge
+                          label={EVENT_TYPE_LABEL[type]}
+                          variant="category"
+                          hue={hue ?? undefined}
+                        />
+                      </View>
+                      <Text className="font-body text-sm text-ink">
+                        {hue
+                          ? `${hue} · chroma ${chroma(hexOf(hue)).toFixed(3)}`
+                          : "ink — the neutral classifier"}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
               <View className="flex-row flex-wrap items-center gap-2">
-                <Badge label="Venmo" variant="category" size="sm" />
-                <Badge label="Insta" variant="category" size="sm" />
                 <Badge label="Outdoors" variant="category" size="sm" />
+                <Badge label="Food" variant="category" size="sm" hue="watermelon" />
+              </View>
+            </Specimen>
+
+            <Specimen
+              name="Initials"
+              contract="name → hue, and the initials themselves"
+              note="A person's block, at the size the three call sites use. The hue is a pure function of the name — stable across sessions and devices, nothing stored — so the same person is the same colour everywhere they appear. It is not a hash for security: collisions are fine and expected, and the point of the function is only that it is *total*, because a name can be empty, or in a script with no Latin letters, and an avatar with no colour is a hole in a list. The four hues are the event table's four, on purpose: the pop tier is a tier, and a fifth hue here would make the badges a subset of something larger rather than the whole of it."
+            >
+              <View className="flex-row flex-wrap gap-3">
+                {["Ada Lovelace", "Grace Hopper", "Alan Turing", "李雷", ""].map(
+                  (name) => (
+                    <View key={name} className="items-center gap-1">
+                      <View
+                        className={`h-16 w-16 items-center justify-center ${POP_FILL[initialsHue(name)]}`}
+                      >
+                        <Text className="font-display-bold text-display-sm text-ink">
+                          {initials(name) || "??"}
+                        </Text>
+                      </View>
+                      <Text className="font-body text-xs text-ink">
+                        {name === "" ? "(empty)" : name} · {initialsHue(name)}
+                      </Text>
+                    </View>
+                  ),
+                )}
               </View>
             </Specimen>
 

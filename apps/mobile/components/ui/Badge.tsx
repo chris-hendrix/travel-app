@@ -1,5 +1,7 @@
 import { Text, View } from "react-native";
 
+import { POP_FILL, type PopHue } from "@/lib/eventColors";
+
 export type BadgeVariant =
   | "club"
   | "live"
@@ -37,10 +39,26 @@ export function Badge({
   label,
   variant,
   size = "md",
+  hue,
 }: {
   label: string;
   variant: BadgeVariant;
   size?: keyof typeof SIZES;
+  /**
+   * A pop fill, for a `category` chip that classifies a *kind* of thing.
+   *
+   * Absent means ink, which is what every category wore before this existed
+   * and what a state badge always wears — `soldOut` closes a thing, and a
+   * closed thing should not be wearing the colour of a party. The two are
+   * different questions, so `hue` is opt-in per caller rather than implied
+   * by the variant.
+   *
+   * The label stays ink on every hue. A pop fill is a light, saturated
+   * ground and ink is the only token in the palette that clears body
+   * contrast on all of them; a coloured label on a coloured chip is the
+   * combination the palette's rule table exists to prevent.
+   */
+  hue?: PopHue | undefined;
 }) {
   const s = STYLES[variant];
   const z = SIZES[size];
@@ -54,8 +72,10 @@ export function Badge({
   }
 
   return (
-    <View className={`rounded-full ${z.box} ${s.box}`}>
-      <Text className={`font-body-bold ${z.label} ${s.label}`}>{label}</Text>
+    <View className={`rounded-full ${z.box} ${hue ? POP_FILL[hue] : s.box}`}>
+      <Text className={`font-body-bold ${z.label} ${hue ? "text-ink" : s.label}`}>
+        {label}
+      </Text>
     </View>
   );
 }
