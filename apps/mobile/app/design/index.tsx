@@ -529,7 +529,7 @@ function DesignSystemScreen() {
             <Specimen
               name="Button"
               contract="title · variant? · onPress? · fullWidth? · align? · disabled? · trailing? · expanded?"
-              note="Fills the width on a phone; from md up it hugs the edge it is aligned to. disabled keeps it in place rather than hiding it: a control that vanishes leaves nothing to aim at. Inside a row, align='end' is what lines a button up with the field beside it — the default hugs the start of the cross axis and sits high. trailing parks an affordance at the far edge rather than laying it out, so the label stays centred the way every other button's does — DisclosureButton's triangle is its only caller, and the label has to stay short enough not to reach it. expanded announces that the button discloses what is under it, and is left off every button that does not."
+              note="No two content buttons side by side, at any width: one per row, stacked. A button is a single choice, and putting two in a row makes a choice out of a list — then, at 390, wraps the pair into a ragged 2+1 that reads as a layout accident rather than a decision. Stacked, a button takes the whole row on a phone, where a thumb target beats a tidy box, and from md up drops to its content width on the start edge. Fills the width on a phone; from md up it hugs the edge it is aligned to. disabled keeps it in place rather than hiding it: a control that vanishes leaves nothing to aim at. Inside a row, align='end' is what lines a button up with the field beside it — the default hugs the start of the cross axis and sits high. trailing parks an affordance at the far edge rather than laying it out, so the label stays centred the way every other button's does — DisclosureButton's triangle is its only caller, and the label has to stay short enough not to reach it. expanded announces that the button discloses what is under it, and is left off every button that does not."
             >
               <Button
                 title="Create trip"
@@ -982,6 +982,31 @@ function DesignSystemScreen() {
             domain.
           </Text>
           <View className="gap-4">
+            <Specimen
+              name="Button stack"
+              contract="no new props: a stack of Buttons, never a row of them"
+              note="The rule the Button's own note states, shown rather than described. Two Buttons, one under the other, with no wrapper: on a phone each fills the width, and from md up each drops to its content width and sits on the start edge, leaving the rest of the column empty on purpose — a short label in a half-column box is a bigger target than it needs to be, and a button stretched to half the column reads as a panel rather than a control. These are the /profile calendar pair with the third, the state a write in flight puts a button in. Two of the three that phase touched are here; the third is the field-and-submit row, which is a field and its own button and is deliberately not a stack."
+            >
+              <View className="gap-3">
+                <Button
+                  title="Subscribe in Google Calendar"
+                  variant="secondary"
+                  onPress={() => setLog("Button stack: Google fired")}
+                />
+                <Button
+                  title="Subscribe in Apple Calendar"
+                  variant="secondary"
+                  onPress={() => setLog("Button stack: Apple fired")}
+                />
+                <Button
+                  title="Opening Google Calendar"
+                  variant="secondary"
+                  disabled
+                  onPress={() => setLog("unreachable")}
+                />
+              </View>
+            </Specimen>
+
             <Specimen
               name="TripCard"
               contract="trip: { title, startDate, endDate, location, image } · onPress? · today?"
