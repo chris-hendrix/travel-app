@@ -213,7 +213,7 @@ function TripsContent() {
           {upcoming.length > 0 ? (
             <Band tone="baltic">
               <Column>
-                <View className="gap-8 py-6 md:py-10">
+                <View className="gap-8">
                   <Section title="Upcoming" rule={false}>
                     <Grid>{upcoming.map((trip) => card(trip))}</Grid>
                   </Section>
@@ -222,11 +222,21 @@ function TripsContent() {
             </Band>
           ) : null}
           {/* Past keeps sand: a trip that is over is the one group with
-              nothing to say, and the two grounds above it have said it. */}
+              nothing to say, and the two grounds above it have said it.
+              It also drops its rule, which is the third reason it matches
+              the two groups above rather than the rest of the app. Every
+              division on this page is a change of ground — lilac to
+              baltic, baltic to sand — so the baltic band's lower edge is
+              already the seam above Past. The rule was the one mark on the
+              page saying what both of those say, which is the argument the
+              trip hero used when it deleted its page rule for the same
+              reason. With current and upcoming both empty, Past is the only
+              block on the page and has nothing to divide from, so the rule
+              would be a mark saying nothing there too. */}
           <Column>
             <View className="gap-8">
           {past.length > 0 ? (
-            <Section title="Past">
+            <Section title="Past" rule={false}>
               <Grid>{past.map((trip) => card(trip))}</Grid>
             </Section>
           ) : null}

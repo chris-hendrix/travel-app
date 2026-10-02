@@ -167,7 +167,7 @@ function GoneInvite({ onStartOwn }: { onStartOwn: () => void }) {
         </Column>
       </Band>
       <Column>
-        <View className="flex-row flex-wrap gap-x-6 gap-y-2 py-6 md:py-10">
+        <View className="flex-row flex-wrap gap-x-6 gap-y-2">
           {LEGAL_ROWS.map((row) => (
             <Link
               key={row.href}

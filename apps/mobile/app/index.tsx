@@ -116,7 +116,7 @@ function Landing() {
           meant to feel, which is why it is the one that changes ground. */}
       <Band tone="lilac">
         <Column>
-          <View className="gap-4 py-6 md:py-10">
+          <View className="gap-4">
             <Text className="font-display-semibold text-heading-lg uppercase text-ink">
               It starts in the group chat
             </Text>
@@ -130,7 +130,7 @@ function Landing() {
       </Band>
 
       <Column>
-        <View className="gap-16 py-6 md:py-10">
+        <View className="gap-16">
           <Section title="What goes in the trip">
             {WHAT_GOES_IN.map((feature) => (
               <View
@@ -180,7 +180,7 @@ function Landing() {
           the page has two seams and they are two different things. */}
       <Band tone="baltic">
         <Column>
-          <View className="gap-6 py-6 md:py-10">
+          <View className="gap-6">
             <Text className="font-body-bold text-heading-md text-ink">
               Everyone on the trip, from the first text to the last flight
             </Text>
@@ -198,7 +198,7 @@ function Landing() {
       </Band>
 
       <Column>
-        <View className="flex-row flex-wrap gap-x-6 gap-y-2 py-6 md:py-10">
+        <View className="flex-row flex-wrap gap-x-6 gap-y-2">
           {LEGAL_ROWS.map((row) => (
             <Link
               key={row.href}
