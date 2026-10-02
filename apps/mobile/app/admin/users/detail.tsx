@@ -32,7 +32,11 @@ import {
   type AdminUserAction,
   type AdminUserDetailRow,
 } from "@/lib/queries/admin";
-import { UNITS, type TemperatureUnit } from "@/lib/profile";
+import {
+  UNITS,
+  unitLabel,
+  type TemperatureUnit,
+} from "@/lib/profile";
 import { requestCode } from "@/lib/queries/auth";
 import { toErrorCopy } from "@/lib/queries/errors";
 
@@ -293,11 +297,17 @@ function AdminUserDetail({
                 {displayName}
               </Text>
             </Fact>
-            <Fact label="Temperature">
+            <Fact label="Units">
               <Text className="font-body text-base text-ink">
+                {/* The API's admin schema types this a bare string
+                    (`shared/schemas/admin.ts`), so it is narrowed the
+                    same way the draft below narrows it. */}
                 {user.temperatureUnit
-                  ? user.temperatureUnit.charAt(0).toUpperCase() +
-                    user.temperatureUnit.slice(1)
+                  ? unitLabel(
+                      user.temperatureUnit === "celsius"
+                        ? "celsius"
+                        : "fahrenheit",
+                    )
                   : "Not set"}
               </Text>
             </Fact>
@@ -356,7 +366,7 @@ function AdminUserForm({
         }
       />
       <View className="gap-2">
-        <Text className="font-body-bold text-sm text-ink">Temperature</Text>
+        <Text className="font-body-bold text-sm text-ink">Units</Text>
         <Segmented
           options={UNITS}
           value={draft.temperatureUnit}
