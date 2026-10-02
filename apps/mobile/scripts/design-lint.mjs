@@ -522,4 +522,101 @@ function checkBandsAreFullBleed() {
 
 checkBandsAreFullBleed();
 
+/**
+ * Check 10 — a Column's children do not restate its vertical padding.
+ *
+ * `Column` carries the app's vertical rhythm, `py-6 md:py-10`. A child
+ * inside one that declares its own vertical padding is therefore opening
+ * on two of that rhythm where every other block opens on one.
+ *
+ * **This check exists because that shipped, six times, and was recorded as
+ * deliberate** — the plan's closeout note described the landing's four
+ * sites as "kept for the air at each seam." They were not a decision. Each
+ * was a verbatim restatement of its parent's `py-6 md:py-10`, and the
+ * duplication is what made the trips page visibly inconsistent: two
+ * sibling bands built the same way, one of them opened 40px lower than
+ * the other. It survived seven phases because a note said it was
+ * intentional and nobody checked whether it was. Hence a check rather
+ * than another careful pass.
+ *
+ * Allow-listed by exact class string rather than by line number, because
+ * line numbers drift on every edit to these files and a stale allow-list
+ * is a check that silently stops guarding anything. Each entry is a
+ * *different* rhythm from the Column's, not a restatement of it, and each
+ * wants the owner's eye rather than this script's judgement.
+ */
+const COLUMN_PADDING_ALLOW = new Set([
+  // The landing and the invitation open on a display heading and want more
+  // air than the default rhythm. They express a real intent; `Column`'s
+  // `lead` variant is the mechanism built for it and neither uses it yet.
+  "gap-6 pb-12 pt-4 md:pt-14",
+  "gap-8 py-6 pt-4 md:pt-14",
+]);
+
+function checkColumnChildrenCarryNoPadding() {
+  const hits = [];
+  const vertical = /(?:^|\s)(?:[a-z]+:)?(?:py|pt|pb)-/;
+  for (const file of sources()) {
+    const rel = path.relative(mobile, file);
+    // The lab is documentation and demonstrates spacing on purpose, and
+    // `Column.tsx` is where the rhythm is defined rather than restated.
+    if (rel === "components/ui/Column.tsx" || rel.startsWith("app/design/")) {
+      continue;
+    }
+    const src = code(fs.readFileSync(file, "utf8"));
+    const lineOf = (i) => src.slice(0, i).split("\n").length;
+    for (
+      let at = src.indexOf("<Column");
+      at !== -1;
+      at = src.indexOf("<Column", at + 1)
+    ) {
+      // Walk out to this Column's matching close, depth-counted, so a
+      // child of a nested Column is not also read as a child of the outer.
+      let depth = 1;
+      let end = at + "<Column".length;
+      while (depth > 0) {
+        const open = src.indexOf("<Column", end);
+        const close = src.indexOf("</Column>", end);
+        if (close === -1) break;
+        if (open !== -1 && open < close) {
+          depth += 1;
+          end = open + "<Column".length;
+        } else {
+          depth -= 1;
+          end = close + "</Column>".length;
+        }
+      }
+      const inner = src.slice(at, end);
+      // Only the Column's own opening tag, so this Column's attributes
+      // (a `lead`, say) are not mistaken for a child's className.
+      const openTag = inner.slice(0, inner.indexOf(">") + 1);
+      const rest = inner.slice(openTag.length);
+      // The direct child is the first opening element after the tag. Only a
+      // `View` counts: the fault is a *container* stacking the rhythm, and
+      // a `Text` carrying its own `pb-3` is a heading's spacing inside a
+      // block, which is a different thing and correct.
+      const child = rest.search(/<([A-Z][A-Za-z0-9.]*)/);
+      if (child === -1) continue;
+      const tag = /^<([A-Z][A-Za-z0-9.]*)/.exec(rest.slice(child))?.[1];
+      if (tag !== "View") continue;
+      const childAt = at + openTag.length + child;
+      // Only the child's *own* opening tag. Reading a fixed window ahead
+      // would run past a child that carries no className at all and pick
+      // up a descendant's, which is how a `Text`'s pb-3 got reported here.
+      const childTag = rest.slice(child, rest.indexOf(">", child) + 1);
+      const className = /className=(?:"([^"]*)"|\{`([^`]*)`\})/.exec(childTag);
+      const value = (className?.[1] ?? className?.[2] ?? "").trim();
+      if (!value || !vertical.test(value)) continue;
+      if (COLUMN_PADDING_ALLOW.has(value)) continue;
+      hits.push(
+        `${rel}:${lineOf(childAt)} — "${value}" under the column at :${lineOf(at)}`,
+      );
+    }
+  }
+  check("no column child restates the column's vertical padding", hits.length === 0);
+  for (const hit of hits) console.error(`  ${hit}`);
+}
+
+checkColumnChildrenCarryNoPadding();
+
 process.exit(failures === 0 ? 0 : 1);

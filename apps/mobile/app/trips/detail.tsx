@@ -151,7 +151,7 @@ function TripDetailScreen() {
   // live stay — tonight's, or the next to begin — which is the only
   // instance a door called Stay has to stand for.
   const { clock } = trip
-    ? settingsFor(trip, new Date())
+    ? settingsFor(trip)
     : { clock: "trip" as const };
   const timeZone = clock === "trip" ? (trip?.preferredTimezone ?? null) : null;
   const stay = trip

@@ -105,7 +105,7 @@ export function Itinerary({
     useEventsSection(trip.id);
   const { status: staysStatus, retry: retryStays } = useStaysSection(trip.id);
   const { staysForTrip } = useStays();
-  const { clock } = settingsFor(trip, now);
+  const { clock } = settingsFor(trip);
   const openEvent = (eventId: string) =>
     router.push(`/trips/events/detail?id=${trip.id}&event=${eventId}`);
   const openStay = (stayId: string) =>

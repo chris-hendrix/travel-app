@@ -55,7 +55,7 @@ function EditStayScreen() {
   // (deep link straight here) still finds the stay once it lands.
   const { status: sectionStatus } = useStaysSection(trip?.id);
   const { clock } = trip
-    ? settingsFor(trip, new Date())
+    ? settingsFor(trip)
     : { clock: "trip" as const };
   const timeZone = clock === "trip" ? (trip?.preferredTimezone ?? null) : null;
   useDisplayZone(trip ? zoneFor(trip, clock, update) : null);

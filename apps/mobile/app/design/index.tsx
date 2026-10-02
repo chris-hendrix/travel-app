@@ -637,7 +637,7 @@ function DesignSystemScreen() {
             <Specimen
               name="RuledBlock"
               contract="title? · rule? · children? — plus `PageRule`, no props"
-              note="One rule per boundary. A black rule taken from above is a block boundary: it opens a block, it carries the block's padding and the block's inner gap, and its title is optional because eleven of the thirteen sites had no title and a rule over one paragraph reads as an accident until something names it. A `PageRule` is the page's own hairline — full width, no title, no padding — for a boundary that closes a multi-column block and opens what is under it, and it is one site. A `border-gravel` between rows is neither: it is a row separator inside a block, not a boundary between blocks. Below: the real stay screen, where three blocks sat at three different gaps under three hand-written copies of the same rule. `Where` and `Arrival` are the new titles; the check-in block keeps the Fact labels it already had. `rule={false}` is the third form: a block whose boundary is already drawn, so it carries no rule and no padding — the first block inside a `Band`, where the band's edge *is* the seam. Below it is the shape a band uses."
+              note="One rule per boundary. A black rule taken from above is a block boundary: it opens a block, it carries the block's padding and the block's inner gap, and its title is optional because eleven of the thirteen sites had no title and a rule over one paragraph reads as an accident until something names it. A `PageRule` is the page's own hairline — full width, no title, no padding — for a boundary that closes a multi-column block and opens what is under it. It had that one site on the trip page until Phase 6 deleted it there, because the hero band's lower seam did the same job; nothing renders it now but this specimen, and it is kept pending a decision on whether a rule the app does not draw belongs in the rule book at all. A `border-gravel` between rows is neither: it is a row separator inside a block, not a boundary between blocks. Below: the real stay screen, where three blocks sat at three different gaps under three hand-written copies of the same rule. `Where` and `Arrival` are the new titles; the check-in block keeps the Fact labels it already had. `rule={false}` is the third form: a block whose boundary is already drawn, so it carries no rule and no padding — the first block inside a `Band`, where the band's edge *is* the seam. Below it is the shape a band uses."
             >
               <RuledBlock title="Where">
                 <Text selectable className="font-body text-base text-ink/70">
@@ -886,15 +886,15 @@ function DesignSystemScreen() {
             <Specimen
               name="ChipToggle"
               contract="label · selected? · onPress"
-              note="A filter you can press: a box, filled ink when on and outlined when off. For switches you turn on and off (past events), never for a choice among options — that is `Segmented`, whose cells are joined and which holds one value out of a few. A row holding a filter and a choice puts them at the two edges rather than shoulder to shoulder, so they never read as one set. The run's head is the only place the two meet, and the filter is offered only while a trip is under way — before it starts there is nothing behind you, and after it ends the whole run is, so a finished run is always whole and the chip is not there to hide it."
+              note="A filter you can press: a box, filled ink when on and outlined when off. For switches you turn on and off (All day in the event dialog, On/Off in Trip settings), never for a choice among options — that is `Segmented`, whose cells are joined and which holds one value out of a few. A row holding a filter and a choice puts them at the two edges rather than shoulder to shoulder, so they never read as one set. This specimen used to describe a Past events chip on the itinerary's head, which was the one place the two met; that control is gone, so the pair below is the illustration rather than a screen anyone can reach."
             >
               <View className="flex-row items-center gap-3">
                 <ChipToggle
-                  label="Past events"
+                  label="Unread only"
                   selected={pastEvents}
                   onPress={() => {
                     setPastEvents(!pastEvents);
-                    setLog(`ChipToggle "Past events" ${!pastEvents ? "on" : "off"}`);
+                    setLog(`ChipToggle "Unread only" ${!pastEvents ? "on" : "off"}`);
                   }}
                 />
                 <ChipToggle
@@ -947,11 +947,11 @@ function DesignSystemScreen() {
                   />
                 </View>
                 <ChipToggle
-                  label="Past events"
+                  label="Unread only"
                   selected={pastEvents}
                   onPress={() => {
                     setPastEvents(!pastEvents);
-                    setLog(`ChipToggle "Past events" ${!pastEvents ? "on" : "off"}`);
+                    setLog(`ChipToggle "Unread only" ${!pastEvents ? "on" : "off"}`);
                   }}
                 />
               </View>

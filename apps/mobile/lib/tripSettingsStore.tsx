@@ -43,7 +43,15 @@ export type TripSettings = {
 };
 
 type TripSettingsValue = {
-  for: (trip: Trip, now: Date) => TripSettings;
+  /**
+   * Takes only the trip. It used to take a `now` as well, and every field
+   * it returned was either a stored value or a fixed one, so the argument
+   * was dead: the last time-dependent default was `showPast`, which went
+   * with the itinerary's past-events control. Twelve call sites were
+   * passing a `new Date()` to be ignored. The signature is the truth now
+   * — nothing here reads a clock.
+   */
+  for: (trip: Trip) => TripSettings;
   update: (tripId: string, patch: Partial<TripSettings>) => void;
   /**
    * Merge a successful server read over the local overrides. Only the
@@ -328,11 +336,7 @@ export function TripSettingsProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<TripSettingsValue>(
     () => ({
-      // `_now` is kept only so the `for(trip, now)` signature the screens
-      // call stays put. Nothing here reads the clock any more: the last
-      // time-dependent default was `showPast`, and with it gone every
-      // field below is a stored value or a fixed one.
-      for: (trip, _now) => ({
+      for: (trip) => ({
         clock: byTrip[trip.id]?.clock ?? "trip",
         dailyItinerary: byTrip[trip.id]?.dailyItinerary ?? true,
         tripMessages: byTrip[trip.id]?.tripMessages ?? true,

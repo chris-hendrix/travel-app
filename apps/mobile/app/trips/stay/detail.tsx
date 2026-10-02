@@ -77,7 +77,7 @@ function StayDetailDialog() {
   // Read before the guard: a hook called after a return is a hook called
   // a different number of times.
   const { clock } = trip
-    ? settingsFor(trip, new Date())
+    ? settingsFor(trip)
     : { clock: "trip" as const };
   const timeZone = trip && clock === "trip" ? trip.preferredTimezone : null;
   useDisplayZone(trip ? zoneFor(trip, clock, update) : null);
