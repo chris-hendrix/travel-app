@@ -26,6 +26,16 @@ import { BAND_CLASSES, type BandTone } from "@/components/ui/bandClasses";
  * content in a band lines up with the content above and below it — which is
  * the only reason the seam reads as a band and not as a mistake.
  *
+ * **A band must be rendered directly under `Screen`.** A `Band` inside a
+ * `Column` is not a band — it is a coloured card inset in the page, which is
+ * the shape the trip page rejected. `design-lint.mjs` check 6 catches the
+ * literal form of that mistake (a band written inside a column in the same
+ * JSX) but **cannot catch the one that actually happened**: `/trips` had its
+ * column in `TripsScreen` and its band in `TripsContent`, so the nesting
+ * crossed a component boundary and no per-file scan could see it. The rule
+ * for anything rendering a band is therefore: the component that holds the
+ * band goes directly inside `Screen`, and the columns go inside *it*.
+ *
  * **One at a time.** Two bands are never adjacent: they are both grounds and
  * the seam between them would say "these are two things" when a reader has
  * no way to know what the division means. `design-lint.mjs` check 5 fails on

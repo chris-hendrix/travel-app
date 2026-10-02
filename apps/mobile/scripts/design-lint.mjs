@@ -444,4 +444,63 @@ function checkBandAdjacency() {
 
 checkBandAdjacency();
 
+/**
+ * Check 6 — a band is never inside a column.
+ *
+ * A band is full bleed by definition: it is the one thing in this system that
+ * breaks the measure, which is the whole reason `Screen` stopped wrapping its
+ * children in a column. A `<Band>` written inside a `<Column>` is therefore
+ * not a band at all — it is a coloured card inset in the page, which is the
+ * shape the trip page rejected and which reads as a mistake rather than as a
+ * ground.
+ *
+ * **This check exists because that shipped** — and it does not catch the case
+ * that motivated it. `/trips` had its `Column` in `TripsScreen` and its
+ * `Band` in `TripsContent`, so the nesting crossed a component boundary and
+ * no per-file JSX scan can see it. What this catches is the literal form: a
+ * band written inside a column in one block of JSX. That is a real mistake
+ * worth failing on, but the rule for the rest is a convention — the component
+ * holding a band is rendered directly under `Screen`, never inside a
+ * `Column` — and it is written down in `Band.tsx` rather than enforced. A band containing a `<Column>` is correct and
+ * expected — that is how its content stays in the measure — so the test is
+ * one-directional: band inside column fails, column inside band passes.
+ */
+function checkBandsAreFullBleed() {
+  const hits = [];
+  for (const file of sources()) {
+    const rel = path.relative(mobile, file);
+    const src = code(fs.readFileSync(file, "utf8"));
+    const lineOf = (i) => src.slice(0, i).split("\n").length;
+    // Each <Column …> … </Column> range, depth-counted.
+    for (
+      let at = src.indexOf("<Column");
+      at !== -1;
+      at = src.indexOf("<Column", at + 1)
+    ) {
+      let depth = 1;
+      let i = at + "<Column".length;
+      while (depth > 0) {
+        const nextOpen = src.indexOf("<Column", i);
+        const nextClose = src.indexOf("</Column>", i);
+        if (nextClose === -1) break;
+        if (nextOpen !== -1 && nextOpen < nextClose) {
+          depth += 1;
+          i = nextOpen + "<Column".length;
+        } else {
+          depth -= 1;
+          i = nextClose + "</Column>".length;
+        }
+      }
+      const band = src.indexOf("<Band", at);
+      if (band !== -1 && band < i) {
+        hits.push(`${rel}:${lineOf(band)} — band inside the column at :${lineOf(at)}`);
+      }
+    }
+  }
+  check("no band is nested inside a column", hits.length === 0);
+  for (const hit of hits) console.error(`  ${hit}`);
+}
+
+checkBandsAreFullBleed();
+
 process.exit(failures === 0 ? 0 : 1);

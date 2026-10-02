@@ -26,27 +26,38 @@ import { Column } from "@/components/ui/Column";
 export default function TripsScreen() {
   return (
     <Screen>
-<Column>
       {/* The list read is the screen: Suspense owns the loading copy
           ("Loading your trips"), the boundary below owns the failure copy, and
           the content owns the empty state. The root layout's Suspense
           stays as the outer fallback; this boundary makes the copy
-          screen-specific. */}
+          screen-specific.
+
+          **No column here.** The content owns its own, because a band inside
+          a column is not a band — and this screen has two of them. The
+          fallbacks are not bands, so they keep a column of their own. */}
       <QueryErrorResetBoundary>
         {({ reset }) => (
           <TripsErrorBoundary
             onReset={reset}
             fallback={(error, retry) => (
-              <TripsFailure error={error} onRetry={retry} />
+              <Column>
+                <TripsFailure error={error} onRetry={retry} />
+              </Column>
             )}
           >
-            <Suspense fallback={<LoadingBlock label="Loading your trips" />}>
+            <Suspense
+              fallback={
+                <Column>
+                  <LoadingBlock label="Loading your trips" />
+                </Column>
+              }
+            >
               <TripsContent />
             </Suspense>
           </TripsErrorBoundary>
         )}
       </QueryErrorResetBoundary>
-    </Column></Screen>
+    </Screen>
   );
 }
 
@@ -127,16 +138,20 @@ function TripsContent() {
   );
 
   return (
-    <View className="gap-8">
+    <View>
       {/* No page heading: the app wordmark bar already says where you
-          are, and the Upcoming/Past rules carry the structure. */}
+          are, and the section rules carry the structure. The button keeps
+          its own column above the bands — it is the page's one action and
+          the top is where it is looked for. */}
       {trips.length > 0 ? (
-        <View>
-          <Button
-            title="Create trip"
-            onPress={() => router.push("/trips/new")}
-          />
-        </View>
+        <Column>
+          <View className="gap-8 pb-6 pt-6 md:pb-10 md:pt-10">
+            <Button
+              title="Create trip"
+              onPress={() => router.push("/trips/new")}
+            />
+          </View>
+        </Column>
       ) : null}
 
       {trips.length === 0 ? (
@@ -163,12 +178,27 @@ function TripsContent() {
         <>
           {/* `Underway`, not `Now` or `Current`: the card's own badge says
               "underway", and the list and the badge should use one word for
-              one state. */}
+              one state.
+
+              It is the one group with a ground, and it is the only group
+              whose *presence* is information: a trip you are on right now is
+              what the app is for, and a band that appears only while you are
+              travelling says so. `Upcoming` would have been the group that is
+              usually populated, which is an argument about how often the
+              colour shows rather than about what deserves marking. */}
           {current.length > 0 ? (
-            <Section title="Underway">
-              <Grid>{current.map((trip) => card(trip))}</Grid>
-            </Section>
+            <Band tone="lilac">
+              <Column>
+                <View className="gap-8 py-6 md:py-10">
+                  <Section title="Underway">
+                    <Grid>{current.map((trip) => card(trip))}</Grid>
+                  </Section>
+                </View>
+              </Column>
+            </Band>
           ) : null}
+          <Column>
+            <View className="gap-8 pb-6 pt-6 md:pb-10 md:pt-10">
           {upcoming.length > 0 ? (
             <Section title="Upcoming">
               <Grid>{upcoming.map((trip) => card(trip))}</Grid>
@@ -179,9 +209,10 @@ function TripsContent() {
               <Grid>{past.map((trip) => card(trip))}</Grid>
             </Section>
           ) : null}
+            </View>
+          </Column>
         </>
       )}
-
     </View>
   );
 }
