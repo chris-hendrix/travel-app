@@ -115,7 +115,7 @@ class TripsErrorBoundary extends Component<{
 function TripsContent() {
   const router = useRouter();
   const { trips } = useTrips();
-  const { upcoming, past } = groupTrips(trips, new Date());
+  const { current, upcoming, past } = groupTrips(trips, new Date());
 
 
   const card = (trip: (typeof trips)[number]) => (
@@ -161,6 +161,14 @@ function TripsContent() {
         </Band>
       ) : (
         <>
+          {/* `Underway`, not `Now` or `Current`: the card's own badge says
+              "underway", and the list and the badge should use one word for
+              one state. */}
+          {current.length > 0 ? (
+            <Section title="Underway">
+              <Grid>{current.map((trip) => card(trip))}</Grid>
+            </Section>
+          ) : null}
           {upcoming.length > 0 ? (
             <Section title="Upcoming">
               <Grid>{upcoming.map((trip) => card(trip))}</Grid>
