@@ -26,6 +26,7 @@ import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { useDismiss } from "@/hooks/useDismiss";
 import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
+import { EVENT_HUES } from "@/lib/eventColors";
 
 /**
  * Event detail, as a dialog: one event, seen whole.
@@ -155,7 +156,11 @@ function EventDetailDialog() {
               />
             )}
             <View className="absolute left-3 top-3">
-              <Badge label={EVENT_TYPE_LABEL[event.type]} variant="category" />
+              <Badge
+                label={EVENT_TYPE_LABEL[event.type]}
+                variant="category"
+                hue={EVENT_HUES[event.type] ?? undefined}
+              />
             </View>
           </View>
           <PhotoCredit

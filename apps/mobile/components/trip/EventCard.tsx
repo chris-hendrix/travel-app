@@ -6,6 +6,7 @@ import {
   eventTimeLabel,
   type ItineraryEvent,
 } from "@/lib/itinerary";
+import { EVENT_HUES } from "@/lib/eventColors";
 
 /**
  * An event in a day. Deliberately the trip card's twin: same photo, same
@@ -27,7 +28,13 @@ export function EventCard({
       image={event.image}
       placeholder={<PlaceholderImage kind={event.type} />}
       photoSourceUri={event.photoSourceUri ?? null}
-      overlay={<Badge label={EVENT_TYPE_LABEL[event.type]} variant="category" />}
+      overlay={
+        <Badge
+          label={EVENT_TYPE_LABEL[event.type]}
+          variant="category"
+          hue={EVENT_HUES[event.type] ?? undefined}
+        />
+      }
       meta={eventTimeLabel(event, timeZone)}
       title={event.name}
       footnote={event.place}

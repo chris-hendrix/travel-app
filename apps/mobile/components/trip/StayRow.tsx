@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/Badge";
 import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 import { ScheduleRow } from "@/components/ui/ScheduleRow";
 import { stayArea, staySpan, type Stay } from "@/lib/stays";
+import { STAY_HUE } from "@/lib/eventColors";
 
 /**
  * A roof, as a row of the run.
@@ -43,7 +44,7 @@ export function StayRow({
       title={stay.name}
       labels={
         <>
-          <Badge label="Stay" variant="category" />
+          <Badge label="Stay" variant="category" hue={STAY_HUE} />
           {place ? <Badge label={place} variant="venue" /> : null}
         </>
       }

@@ -11,6 +11,7 @@ import { initials } from "@/lib/profile";
 import { formatPhoneForDisplay } from "@/lib/phone";
 import { joinFacts } from "@/lib/wording";
 import { Column } from "@/components/ui/Column";
+import { POP_FILL, initialsHue } from "@/lib/eventColors";
 
 /**
  * The third screen, and the only thing the API insists on before the app
@@ -78,8 +79,10 @@ export default function CompleteProfile() {
       </View>
 
       <View className="flex-row items-center gap-5">
-        <View className="h-16 w-16 items-center justify-center bg-ink">
-          <Text className="font-display-bold text-display-sm text-sand">
+        <View
+            className={`h-16 w-16 items-center justify-center ${POP_FILL[initialsHue(trimmed)]}`}
+          >
+          <Text className="font-display-bold text-display-sm text-ink">
             {initials(trimmed)}
           </Text>
         </View>

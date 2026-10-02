@@ -85,6 +85,19 @@ export const EVENT_HUES: Record<EventType, PopHue | null> = {
 };
 
 /**
+ * What a Stay chip wears: the same hue as the `lodging` event type.
+ *
+ * A Stay is the roof rather than a plan item, so it is not an `EventType` and
+ * cannot be read out of `EVENT_HUES` — but it is the same *subject* as a
+ * lodging event (a place you sleep), and this table already groups by subject.
+ * Spending a fifth hue on the distinction would say the two are unrelated.
+ *
+ * A test asserts it still equals `EVENT_HUES.lodging`, so the relationship is
+ * enforced rather than described.
+ */
+export const STAY_HUE: PopHue = "ocean";
+
+/**
  * The hues an initials block may take, in the order the hash walks them.
  *
  * Deliberately the same four as the event table: the pop tier is a tier, and

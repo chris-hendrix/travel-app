@@ -6,6 +6,7 @@ import {
   EVENT_HUES,
   INITIALS_HUES,
   POP_FILL,
+  STAY_HUE,
   initialsHue,
   type PopHue,
 } from "@/lib/eventColors";
@@ -137,6 +138,15 @@ describe("EVENT_HUES", () => {
     expect(EVENT_HUES.food_and_drink).toBe(EVENT_HUES.nightlife);
     expect(EVENT_HUES.arts_and_entertainment).toBe(EVENT_HUES.shopping);
     expect(EVENT_HUES.outdoors).toBe(EVENT_HUES.wellness);
+  });
+
+  it("keeps `STAY_HUE` equal to the `lodging` hue it is borrowed from", () => {
+    // A Stay is the roof rather than a plan item, so it is not an
+    // `EventType` and cannot be read out of the table — it is the same
+    // *subject* as a lodging event, and this table already groups by
+    // subject. Spending a fifth hue on the distinction would say the two
+    // are unrelated; this keeps the two statements in step.
+    expect(STAY_HUE).toBe(EVENT_HUES.lodging);
   });
 });
 

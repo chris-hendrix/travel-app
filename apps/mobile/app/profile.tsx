@@ -26,6 +26,7 @@ import { useProfile } from "@/lib/profileStore";
 import { toErrorCopy } from "@/lib/queries/errors";
 import { LEGAL_ROWS } from "@/lib/legal";
 import { useAuth } from "@/lib/authStore";
+import { POP_FILL, initialsHue } from "@/lib/eventColors";
 
 /**
  * Profile. Who you are, what you are called, and the preferences the app
@@ -330,8 +331,10 @@ function ProfileForm({ profile }: { profile: Profile }) {
               className="h-20 w-20"
             />
           ) : (
-            <View className="h-20 w-20 items-center justify-center bg-ink">
-              <Text className="font-display-extrabold text-display-md text-sand">
+            <View
+                className={`h-20 w-20 items-center justify-center ${POP_FILL[initialsHue(draft.displayName)]}`}
+              >
+              <Text className="font-display-extrabold text-display-md text-ink">
                 {initials(draft.displayName)}
               </Text>
             </View>
