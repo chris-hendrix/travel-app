@@ -26,6 +26,7 @@ import NotFound from "@/app/+not-found";
 import { useDismiss } from "@/hooks/useDismiss";
 import { joinFacts } from "@/lib/wording";
 import { placeRows } from "@/lib/place-rows";
+import { useMotion } from "@/hooks/useMotion";
 import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 
 /**
@@ -62,6 +63,7 @@ function StayDetailDialog() {
     id?: string;
     stay?: string;
   }>();
+  const motion = useMotion();
   const { stayById } = useStays();
   const { for: settingsFor, update } = useTripSettings();
   const router = useRouter();
@@ -132,6 +134,7 @@ function StayDetailDialog() {
               <Pressable
                 onPress={() => void Linking.openURL(stay.photoSourceUri!)}
                 aria-label="View photo source on Google Maps"
+                className={motion.pressDim}
               >
                 <Image
                   source={{ uri: stay.image }}

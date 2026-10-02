@@ -1,5 +1,5 @@
 /* global __DEV__ */
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { Pressable, Text, View, useWindowDimensions } from "react-native";
 import { Link, Redirect } from "expo-router";
 import { AppHeader } from "@/components/ui/AppHeader";
@@ -74,6 +74,12 @@ import { Prose } from "@/components/ui/Prose";
 import { chroma, contrast, dE } from "@/lib/color";
 import { GROUNDS } from "@/lib/palette";
 import { Column } from "@/components/ui/Column";
+// The lab's own documentation frame, and the one section that outgrew the
+// page. `Section` here is this file's heading and `Specimen` its exhibit;
+// the product's `Section` is aliased below as `RuledSection`, which is why
+// this one keeps the plain name on this side of the import.
+import { MotionSection } from "./motion";
+import { Section, Specimen, TokenRow, TypeRow } from "./frame";
 
 /** Metro resolving a bare package import and a font actually being the
  *  font are the two things a bundle can fail at silently, and neither
@@ -344,116 +350,6 @@ const PLACE_CREDIT = {
 const PLACE_PHOTO_SOURCE = "https://maps.google.com/?cid=12345678901234567890";
 
 
-
-
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <View className="gap-3">
-      <Text className="font-body-bold text-sm uppercase tracking-widest text-ink">
-        {title}
-      </Text>
-      {children}
-    </View>
-  );
-}
-
-function TokenRow({
-  name,
-  token,
-  detail,
-  right,
-}: {
-  name: string;
-  token: string;
-  detail: string;
-  right?: ReactNode;
-}) {
-  return (
-    <View className="flex-row items-center gap-3 border-b border-gravel py-2">
-      {right}
-      <View className="flex-1 gap-0">
-        <Text className="font-body-bold text-base text-ink">{name}</Text>
-        <Text className="font-body text-sm text-ink">{detail}</Text>
-      </View>
-      <Text className="font-body text-sm text-ink">{token}</Text>
-    </View>
-  );
-}
-
-function TypeRow({
-  step,
-  size,
-  leading,
-  tracking,
-  weight,
-  face,
-  family,
-  className,
-  sample,
-  use,
-}: {
-  step: string;
-  size: string;
-  leading: string;
-  tracking: string;
-  weight: string;
-  face: "display" | "body";
-  family: string;
-  className: string;
-  sample: string;
-  use: string;
-}) {
-  return (
-    <View className="gap-2 border-b border-gravel py-4">
-      {/* The sample is set at the step's real size, leading and tracking,
-          in the face the step wears. Judging a scale off a swatch that is
-          not the scale is how a scale goes unnoticed until it is in 42
-          places. */}
-      <Text className={`${className} text-ink`} numberOfLines={1}>
-        {sample}
-      </Text>
-      <View className="flex-row flex-wrap items-baseline gap-x-4 gap-y-1">
-        <Text className="w-28 font-body-bold text-sm text-ink">{step}</Text>
-        <Text className="font-body text-sm text-ink">{size}</Text>
-        <Text className="font-body text-sm text-ink">lh {leading}</Text>
-        <Text className="font-body text-sm text-ink">track {tracking}</Text>
-        <Text className="font-body text-sm text-ink">w{weight}</Text>
-        {/* Named as the *face*, not the family: this is the column that
-            decides which of the two faces a step gets, and the family is
-            the consequence of it. */}
-        <Text className="font-body-bold text-sm text-ink">{face}</Text>
-      </View>
-      <Text className="font-body text-sm text-ink opacity-60">
-        {family} — {use}
-      </Text>
-    </View>
-  );
-}
-
-/** Exhibit frame: the live component, its contract, and its variants. */
-function Specimen({
-  name,
-  contract,
-  note,
-  children,
-}: {
-  name: string;
-  contract: string;
-  note: string;
-  children: ReactNode;
-}) {
-  return (
-    <View className="border border-ink bg-paper">
-      <View className="gap-0 border-b border-ink p-4">
-        <Text className="font-body-bold text-base text-ink">{name}</Text>
-        <Text className="font-body text-sm text-ink">{contract}</Text>
-        <Text className="font-body text-sm text-ink">{note}</Text>
-      </View>
-      <View className="gap-3 p-4">{children}</View>
-    </View>
-  );
-}
-
 /**
  * The lab, which exists only in development. In a release build or in the
  * exported web app it answers with the same nothing a mistyped address
@@ -709,7 +605,7 @@ function DesignSystemScreen() {
             <Specimen
               name="LoadingBlock"
               contract="label"
-              note="A screen that is getting there says so where its content will be. A plain line, not a spinner and not a skeleton: there is no motion language here, and a skeleton promises a shape the request has not returned yet. The label is what is arriving, in the product's own voice — the person's verb and the actual thing. Never a bare Loading on its own (a screen that will not say what is late), and never a category noun: Trip details reads as a broken heading while it loads, where Getting your trip reads as waiting."
+              note="A screen that is getting there says so where its content will be. The line is the point: not a spinner, not a skeleton — a skeleton is a promise about the shape of content the request has not returned yet — and the label is what is arriving, in the product's own voice, the person's verb and the actual thing. Never a bare Loading on its own (a screen that will not say what is late), and never a category noun: Trip details reads as a broken heading while it loads, where Getting your trip reads as waiting. The system has a motion language now — see the Motion section — and this deliberately does not spend it. A load is a state rather than a transition, it happens dozens of times a session, and a line that says what is late is doing the whole job; the motion that a waiting screen does get is the content's own arrival, which is the Motion section's Enters specimen and lives on the gate rather than in here."
             >
               <LoadingBlock label="Getting the run." />
             </Specimen>
@@ -1320,7 +1216,7 @@ function DesignSystemScreen() {
             <Specimen
               name="TripCard"
               contract="trip: { title, startDate, endDate, location, image } · onPress? · today?"
-              note="Upcoming trips carry a countdown on the photo; finished trips say nothing. Locations hug the title. Hover the first card on a wide screen: photo and text both zoom."
+              note="Upcoming trips carry a countdown on the photo; finished trips say nothing. Locations hug the title. Press one: the tile is the target and the press is its whole affordance, on both surfaces. It used to zoom under a pointer instead, on the web export and only from md up — which meant the tile did nothing at all on the platform the app is for, and a pointer fires a press like a thumb does, so the same scale reaches a mouse and there is one behaviour to keep right rather than two."
             >
               <Grid>
                 {TRIPS.map((trip) => (
@@ -1482,6 +1378,9 @@ function DesignSystemScreen() {
             the strongest argument against it here.
           </Text>
         </Section>
+
+
+        <MotionSection onLog={setLog} />
 
         <Section title="Screens">
           <Text className="font-body text-base text-ink">

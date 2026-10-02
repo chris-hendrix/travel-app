@@ -1,6 +1,7 @@
 import { Linking, Pressable, Text, View } from "react-native";
 import { ArrowUpRight } from "lucide-react-native";
 import { placeMapsUrl } from "@/lib/links";
+import { useMotion } from "@/hooks/useMotion";
 import { INK } from "@/lib/theme";
 
 /**
@@ -27,6 +28,7 @@ export function PlaceLink({
   /** The linked Google place id. Pins the link when present. */
   placeId?: string | null;
 }) {
+  const motion = useMotion();
   return (
     <Pressable
       onPress={() => {
@@ -35,7 +37,7 @@ export function PlaceLink({
         void Linking.openURL(placeMapsUrl(placeId, query ?? label));
       }}
       aria-label={`Open ${label} in Google Maps`}
-      className="cursor-pointer self-start"
+      className={`cursor-pointer self-start ${motion.press}`}
     >
       <View className="flex-row items-center gap-1">
         <Text className="font-body-bold text-lg text-ink underline">

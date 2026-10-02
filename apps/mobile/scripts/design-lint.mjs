@@ -619,4 +619,111 @@ function checkColumnChildrenCarryNoPadding() {
 
 checkColumnChildrenCarryNoPadding();
 
+/**
+ * Check 7 — reduced motion is read with a hook, never with a media query.
+ *
+ * `react-native-css` evaluates a native media query against a fixed list of
+ * features and `prefers-reduced-motion` is not one of them, so the block falls
+ * through to `if (typeof value !== "number") return false` — the value is the
+ * string `reduce`, so it is false, always. A `@media (prefers-reduced-motion:
+ * reduce)` block therefore works on the web export and **silently never matches
+ * on Android**, which is the platform no browser can check for you.
+ *
+ * This is the only check here that exists to stop a *silent* bug rather than a
+ * visible one. Every other fault in this file shows up as something wrong on
+ * screen; this one shows up as nothing at all on one of the two surfaces, which
+ * is why it needs a machine and the others only need a careful reader.
+ *
+ * Comments are stripped first, and that is load-bearing: the rule is *described*
+ * in `components/ui/motionClasses.ts` and in this check, and a check that fired
+ * on its own explanation would be unfixable.
+ */
+const CSS_AND_MOTION_DIRS = ["app", "components", "hooks", "lib"];
+
+/** Every .css and .ts(x) the motion rules could be written in. */
+function motionSources() {
+  const out = [path.join(mobile, "global.css")];
+  for (const dir of CSS_AND_MOTION_DIRS) {
+    const full = path.join(mobile, dir);
+    if (!fs.existsSync(full)) continue;
+    const walk = (d) => {
+      for (const entry of fs.readdirSync(d, { withFileTypes: true })) {
+        const next = path.join(d, entry.name);
+        if (entry.isDirectory()) walk(next);
+        else if (/\.tsx?$/.test(entry.name)) out.push(next);
+      }
+    };
+    walk(full);
+  }
+  return out.sort();
+}
+
+function checkNoReducedMotionMediaQuery() {
+  const hits = [];
+  for (const file of motionSources()) {
+    const src = code(fs.readFileSync(file, "utf8"));
+    for (
+      let at = src.indexOf("prefers-reduced-motion");
+      at !== -1;
+      at = src.indexOf("prefers-reduced-motion", at + 1)
+    ) {
+      hits.push(
+        `${path.relative(mobile, file)}:${src.slice(0, at).split("\n").length}`,
+      );
+    }
+  }
+  check(
+    "reduced motion is read with useReducedMotion, never a media query",
+    hits.length === 0,
+  );
+  for (const hit of hits) console.error(`  ${hit}`);
+}
+
+checkNoReducedMotionMediaQuery();
+
+/**
+ * Check 8 — a press state and a pointer state are asked for, never typed.
+ *
+ * `active:` and `hover:` are the whole of this system's press and pointer
+ * feedback, and every one of them has to answer the same two questions: which
+ * properties move (one `transition-property` list, never two `transition-*`
+ * classes fighting over it), and what it becomes when the device has reduced
+ * motion on. A press or a hover written by hand answers neither, and it answers
+ * the second one by silently doing nothing — the same shape of failure as
+ * check 7.
+ *
+ * Hover is in here for a third reason: the only honest use of it is to *add* to
+ * a resting state that is already correct without it. A `hover:` typed at a
+ * call site is most often a control that hides and reveals, which on a phone is
+ * a control that is either missing or invisible-but-tappable. In the vocabulary
+ * it is one property on one role, next to the press it accompanies.
+ *
+ * So both may appear in exactly one file, `components/ui/motionClasses.ts`,
+ * where the five roles and their reduced forms are. A component asks for
+ * `motion.row`.
+ *
+ * The lab is scanned with everything else rather than excluded: a specimen that
+ * demonstrates motion should be spending the same vocabulary a screen does,
+ * and if it cannot, that is the finding.
+ */
+const MOTION_HOME = path.join("components", "ui", "motionClasses.ts");
+
+function checkPressStatesComeFromTheVocabulary() {
+  const hits = [];
+  for (const file of motionSources()) {
+    const rel = path.relative(mobile, file);
+    if (rel === MOTION_HOME) continue;
+    const src = code(fs.readFileSync(file, "utf8"));
+    for (const needle of ["active:", "hover:"]) {
+      for (let at = src.indexOf(needle); at !== -1; at = src.indexOf(needle, at + 1)) {
+        hits.push(`${rel}:${src.slice(0, at).split("\n").length} — ${needle}`);
+      }
+    }
+  }
+  check(`every press and pointer state comes from ${MOTION_HOME}`, hits.length === 0);
+  for (const hit of hits) console.error(`  ${hit}`);
+}
+
+checkPressStatesComeFromTheVocabulary();
+
 process.exit(failures === 0 ? 0 : 1);

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { ChevronLeft, ChevronRight } from "lucide-react-native";
+import { useMotion } from "@/hooks/useMotion";
 import {
   addMonths,
   applyDayTap,
@@ -145,6 +146,7 @@ function Day({
         ? "bg-seafoam"
         : "bg-transparent";
   const label = disabled ? "text-gravel" : selected ? "text-sand" : "text-ink";
+  const motion = useMotion();
 
   return (
     <Pressable
@@ -153,7 +155,7 @@ function Day({
       role="button"
       aria-label={iso}
       aria-selected={selected}
-      className={`h-11 items-center justify-center ${surface}`}
+      className={`h-11 items-center justify-center ${surface} ${motion.press}`}
     >
       <Text
         className={`font-body text-sm ${label} ${
@@ -176,6 +178,7 @@ function Arrow({
   onPress: () => void;
 }) {
   const Icon = icon === "left" ? ChevronLeft : ChevronRight;
+  const motion = useMotion();
   return (
     // A real 44pt box with no negative margin, with the padding on the
     // side facing the row's interior: the left arrow grows right and
@@ -187,9 +190,9 @@ function Arrow({
       aria-label={label}
       onPress={onPress}
       className={
-        icon === "left"
+        (icon === "left"
           ? "pl-1 pr-4 pt-2.5 pb-2.5"
-          : "pl-4 pr-1 pt-2.5 pb-2.5"
+          : "pl-4 pr-1 pt-2.5 pb-2.5") + ` ${motion.press}`
       }
     >
       <Icon color={INK} size={24} />

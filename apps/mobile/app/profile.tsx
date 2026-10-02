@@ -26,6 +26,7 @@ import { useProfile } from "@/lib/profileStore";
 import { toErrorCopy } from "@/lib/queries/errors";
 import { LEGAL_ROWS } from "@/lib/legal";
 import { useAuth } from "@/lib/authStore";
+import { useMotion } from "@/hooks/useMotion";
 import { POP_FILL, initialsHue } from "@/lib/eventColors";
 
 /**
@@ -117,6 +118,7 @@ function ProfileFailure({
 }
 
 function ProfileForm({ profile }: { profile: Profile }) {
+  const motion = useMotion();
   const { saveProfile, savePhoto } = useProfile();
   const { signOut, isAdmin } = useAuth();
   const router = useRouter();
@@ -322,7 +324,7 @@ function ProfileForm({ profile }: { profile: Profile }) {
         <Pressable
           onPress={pickPhoto}
           aria-label="Change profile picture"
-          className="cursor-pointer"
+          className={`cursor-pointer ${motion.pressDim}`}
         >
           {profile.profilePhotoUrl ? (
             <Image
@@ -348,7 +350,10 @@ function ProfileForm({ profile }: { profile: Profile }) {
             {formatPhoneForDisplay(profile.phoneNumber)}
           </Text>
           {profile.profilePhotoUrl ? (
-            <Pressable onPress={() => void savePhoto(null)} className="mt-2 self-start">
+            <Pressable
+              onPress={() => void savePhoto(null)}
+              className={`mt-2 self-start ${motion.press}`}
+            >
               <Text className="font-body-bold text-sm text-ink underline">
                 Remove photo
               </Text>

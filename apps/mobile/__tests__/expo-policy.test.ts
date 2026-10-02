@@ -403,9 +403,12 @@ describe("expo policy: a card fills the column it is in", () => {
     // the emulator's 2.25 px/dp. The device check is outstanding (the trips
     // list needs a session); the arithmetic is what this test pins.
     const card = source("components/ui/PhotoCard.tsx");
-    expect(card).toMatch(/className="w-full lg:max-w-\[420px\] cursor-pointer"/);
+    // Asserted on the cap's *scope* rather than on the whole className:
+    // the press state now shares this template literal, and a test about
+    // the width should not fail when the press class changes.
+    expect(card, "the 420px cap is still there").toMatch(/lg:max-w-\[420px\]/);
     expect(card, "no unconditional 420px cap: a phone fills its column")
-      .not.toMatch(/className="w-full max-w-\[420px\]/);
+      .not.toMatch(/(?<!:)max-w-\[420px\]/);
   });
 });
 

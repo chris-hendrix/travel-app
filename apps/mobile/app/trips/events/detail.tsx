@@ -26,6 +26,7 @@ import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { useDismiss } from "@/hooks/useDismiss";
 import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
+import { useMotion } from "@/hooks/useMotion";
 import { EVENT_HUES } from "@/lib/eventColors";
 
 /**
@@ -61,6 +62,7 @@ function EventDetailDialog() {
     event?: string;
   }>();
   const { eventById } = useEvents();
+  const motion = useMotion();
   const { for: settingsFor, update } = useTripSettings();
   const router = useRouter();
   const dismiss = useDismiss("/trips");
@@ -141,6 +143,7 @@ function EventDetailDialog() {
               <Pressable
                 onPress={() => void Linking.openURL(event.photoSourceUri!)}
                 aria-label="View photo source on Google Maps"
+                className={motion.pressDim}
               >
                 <Image
                   source={{ uri: event.image }}

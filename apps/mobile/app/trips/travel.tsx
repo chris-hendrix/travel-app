@@ -21,6 +21,7 @@ import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { useAuth } from "@/lib/authStore";
 import { viewerOf, goingMembers } from "@/lib/members";import { useMembers } from "@/lib/queries/members";
+import { useMotion } from "@/hooks/useMotion";
 import { INK } from "@/lib/theme";
 
 /**
@@ -215,6 +216,7 @@ function TravelRowItem({
   canEdit: boolean;
 }) {
   const router = useRouter();
+  const motion = useMotion();
   const [open, setOpen] = useState(false);
   // Every row opens: the accordion holds the where, the flight, the
   // details, and the Edit link — and an unscheduled row's Edit is how
@@ -228,7 +230,7 @@ function TravelRowItem({
         accessibilityRole="button"
         aria-expanded={open}
         onPress={() => setOpen((value) => !value)}
-        className="flex-row items-center gap-4"
+        className={`flex-row items-center gap-4 ${motion.row}`}
       >
         {/* The day's own column, narrow and fixed so it aligns down the
             list. Every row names its day, so a run that outlives the

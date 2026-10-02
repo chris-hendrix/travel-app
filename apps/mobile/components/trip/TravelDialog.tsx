@@ -26,6 +26,7 @@ import {
   type TravelLeg,
 } from "@/lib/newTravel";
 import type { Trip } from "@/components/trip/TripCard";
+import { useMotion } from "@/hooks/useMotion";
 import type { Member } from "@/lib/members";
 
 const DIRECTIONS: Array<{ value: TravelDirection; heading: string }> = [
@@ -334,6 +335,7 @@ function LegFields({
   whereSuggestions: string[];
   errors: LegErrors | undefined;
 }) {
+  const motion = useMotion();
   const [lookingUp, setLookingUp] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
 
@@ -446,7 +448,7 @@ function LegFields({
               onPress={autofill}
               className={`justify-center border-l border-ink px-4 ${
                 canLookup ? "" : "opacity-40"
-              }`}
+              } ${motion.press}`}
             >
               <Text className="font-body-bold text-sm text-ink">
                 {lookingUp ? "Looking up…" : "Autofill"}

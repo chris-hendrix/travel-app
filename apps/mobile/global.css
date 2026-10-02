@@ -145,6 +145,31 @@
   --font-body: "SpaceMono_400Regular", monospace;
   --font-body-bold: "SpaceMono_700Bold", monospace;
   --font-body-italic: "SpaceMono_400Regular_Italic", monospace;
+
+  /* The one curve. Every state change in the app is 150ms on this, and the
+     vocabulary that spends it is `components/ui/motionClasses.ts`.
+
+     Tailwind's own `--ease-out` is `cubic-bezier(0, 0, 0.2, 1)`, which is
+     the curve CSS shipped in 2010 and is too flat to read as fast: it
+     spends its first quarter almost stationary, which is exactly the
+     quarter a thumb is watching. This is the same family with the initial
+     slope pulled up — an ease-out that has actually started.
+
+     One token, not three. A second curve (`ease-in-out` for something
+     travelling across the screen, an iOS sheet curve for a sheet) gets
+     added when a thing needs it, and the reason it needs a *different*
+     curve gets written beside it. Declaring three now would be three names
+     looking for a caller.
+
+     `__tests__/motion.test.ts` reads this file and holds it to the roles
+     in `motionClasses.ts`. That guard exists because this token was once
+     deleted by an unrelated revert: `ease-motion` then resolves to no
+     class at all, Tailwind falls back to its own `--default-transition-
+     timing-function`, and every animation in the app quietly runs on the
+     wrong curve with nothing failing. A class name that resolves to
+     nothing is invisible to the type checker, the linter and every test
+     that does not read this file. */
+  --ease-motion: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 /*

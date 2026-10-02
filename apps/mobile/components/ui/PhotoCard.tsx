@@ -1,7 +1,7 @@
 import { type ReactNode, useState } from "react";
 import { Image, Linking, Pressable, Text, View } from "react-native";
 import { ArrowUpRight } from "lucide-react-native";
-import { useHoverZoom } from "@/hooks/useHoverZoom";
+import { useMotion } from "@/hooks/useMotion";
 import { INK } from "@/lib/theme";
 import { imageSlot } from "@/lib/place-images";
 
@@ -30,9 +30,11 @@ import { imageSlot } from "@/lib/place-images";
  * A 404 is a state, not a blank box: a photo that fails to load
  * falls back to the kind's stock photo, same as a missing one.
  *
- * Hover (web, wide only): the photo and the text both zoom — the photo
- * inside its clipped frame, the text from its left edge so it grows into
- * the grid gap rather than over the neighbouring card.
+ * The press is the card's whole affordance, on both surfaces. It used to
+ * zoom under a pointer instead, on the web export and only from md up —
+ * which meant the tile did nothing at all on the platform the app is for.
+ * A pointer fires a press like a thumb does, so the same scale reaches a
+ * mouse, and there is one behaviour to keep right rather than two.
  */
 export function PhotoCard({
   image,
@@ -69,15 +71,14 @@ export function PhotoCard({
   footnote?: string | undefined;
   onPress?: (() => void) | undefined;
 }) {
-  const { hoverProps, zoom } = useHoverZoom();
   const [failed, setFailed] = useState(false);
+  const motion = useMotion();
   const slot = imageSlot({ image, failed });
 
   return (
     <Pressable
       onPress={onPress}
-      {...hoverProps}
-      className="w-full lg:max-w-[420px] cursor-pointer"
+      className={`w-full lg:max-w-[420px] cursor-pointer ${motion.press}`}
     >
       <View className="relative overflow-hidden">
         {slot.kind === "placeholder" ? (
@@ -87,7 +88,7 @@ export function PhotoCard({
             source={{ uri: slot.url }}
             resizeMode="cover"
             onError={() => setFailed(true)}
-            className={`w-full aspect-[2/1] ${zoom}`}
+            className="w-full aspect-[2/1]"
           />
         )}
         {overlay ? (
@@ -106,7 +107,7 @@ export function PhotoCard({
         ) : null}
       </View>
 
-      <View className={`origin-left ${zoom}`}>
+      <View>
         <Text numberOfLines={1} className="mt-3 font-body-bold text-lg text-ink">
           {meta}
         </Text>

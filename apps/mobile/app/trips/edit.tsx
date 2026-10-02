@@ -29,6 +29,7 @@ import {
 import { pickPlace } from "@/lib/place-pick";
 import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
+import { useMotion } from "@/hooks/useMotion";
 import { useDismiss } from "@/hooks/useDismiss";
 
 /**
@@ -50,6 +51,7 @@ export default function EditTrip() {
 }
 
 function EditTripScreen() {
+  const motion = useMotion();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const tripId = typeof id === "string" ? id : undefined;
   // The trip read is the detail query; the write goes through
@@ -324,7 +326,7 @@ function EditTripScreen() {
           <Pressable
             onPress={pickCover}
             aria-label="Change cover photo"
-            className="cursor-pointer"
+            className={`cursor-pointer ${motion.pressDim}`}
           >
             {cover ? (
               <Image

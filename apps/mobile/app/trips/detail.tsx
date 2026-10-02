@@ -33,6 +33,7 @@ import { boxForWidth } from "@/lib/place-images";
 import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 import { getPertinentTime } from "@journiful/shared/utils";
 import { Band } from "@/components/ui/Band";
+import { useMotion } from "@/hooks/useMotion";
 import { Column } from "@/components/ui/Column";
 
 /**
@@ -104,6 +105,7 @@ export default function TripDetail() {
 }
 
 function TripDetailScreen() {
+  const motion = useMotion();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const tripId = typeof id === "string" ? id : undefined;
   // The header read is the screen gate: the trip comes from the
@@ -303,6 +305,7 @@ function TripDetailScreen() {
                     <Pressable
                       onPress={() => void Linking.openURL(trip.photoSourceUri!)}
                       aria-label="View photo source on Google Maps"
+                      className={motion.pressDim}
                     >
                       <Image
                         source={{ uri: heroImage(trip.image)! }}

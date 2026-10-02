@@ -4,6 +4,7 @@ import {
   entryAccessibilityLabel,
   type PickerEntry,
 } from "@/lib/dropdown";
+import { useMotion } from "@/hooks/useMotion";
 
 /** One line of a suggestion list: what is committed, and what is read. */
 export type Suggestion = PickerEntry;
@@ -44,6 +45,8 @@ export function SuggestionList({
   /** Attribution or context below the rows, e.g. the Google Maps mark. */
   footer?: ReactNode;
 }) {
+  const motion = useMotion();
+
   return (
     <ScrollView
       // Five rows. Past that the field it belongs to would be pushed off
@@ -74,7 +77,7 @@ export function SuggestionList({
               onPress={() => onPick(suggestion.value)}
               accessibilityRole="button"
               accessibilityLabel={entryAccessibilityLabel(suggestion)}
-              className="cursor-pointer border-b border-gravel p-3"
+              className={`cursor-pointer border-b border-gravel p-3 ${motion.row}`}
             >
               <Text className="font-body-bold text-base text-ink">
                 {suggestion.label}

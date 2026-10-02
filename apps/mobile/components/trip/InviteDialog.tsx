@@ -19,6 +19,7 @@ import {
 } from "@/lib/queries/invitations";
 import type { Trip } from "@/components/trip/TripCard";
 import { SAND } from "@/lib/theme";
+import { useMotion } from "@/hooks/useMotion";
 import { Section } from "@/components/ui/Section";
 
 /**
@@ -334,6 +335,7 @@ function Chips({
 }) {
   if (labels.length === 0) return null;
 
+  const motion = useMotion();
   return (
     <View className="flex-row flex-wrap gap-2">
       {labels.map(({ key, label, onRemove }) => (
@@ -342,7 +344,7 @@ function Chips({
           accessibilityRole="button"
           accessibilityLabel={`Remove ${label}`}
           onPress={onRemove}
-          className="cursor-pointer flex-row items-center gap-3 bg-ink px-3 py-2"
+          className={`cursor-pointer flex-row items-center gap-3 bg-ink px-3 py-2 ${motion.press}`}
         >
           <Text className="font-body text-base text-sand">{label}</Text>
           <X color={SAND} size={14} />

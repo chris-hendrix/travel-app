@@ -23,6 +23,7 @@ import {
   type AdminUserRow,
 } from "@/lib/queries/admin";
 import { toErrorCopy } from "@/lib/queries/errors";
+import { useMotion } from "@/hooks/useMotion";
 import { Column } from "@/components/ui/Column";
 
 /**
@@ -200,6 +201,7 @@ function AdminUserRowView({
   user: AdminUserRow;
   onPress: () => void;
 }) {
+  const motion = useMotion();
   const name =
     user.displayName.trim() !== "" ? user.displayName : "No name";
   return (
@@ -207,7 +209,7 @@ function AdminUserRowView({
       accessibilityRole="button"
       accessibilityLabel={name}
       onPress={onPress}
-      className="min-h-11 flex-row items-start justify-between gap-4 border-t border-gravel py-3"
+      className={`min-h-11 flex-row items-start justify-between gap-4 border-t border-gravel py-3 ${motion.row}`}
     >
       <View className="flex-1 gap-1">
         {/* The badges sit inline on the name's line and wrap under a

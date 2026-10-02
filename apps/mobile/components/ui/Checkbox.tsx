@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Check } from "lucide-react-native";
+import { useMotion } from "@/hooks/useMotion";
 import { SAND } from "@/lib/theme";
 
 /**
@@ -29,6 +30,8 @@ export function Checkbox({
    *  inside the row still receives the press. */
   children: ReactNode;
 }) {
+  const motion = useMotion();
+
   return (
     <Pressable
       role="checkbox"
@@ -41,12 +44,12 @@ export function Checkbox({
       aria-checked={checked}
       disabled={disabled}
       onPress={onToggle}
-      className={`flex-row items-start gap-3 ${disabled ? "opacity-40" : ""}`}
+      className={`flex-row items-start gap-3 ${disabled ? "opacity-40" : ""} ${motion.row}`}
     >
       <View
         className={`mt-0.5 h-5 w-5 items-center justify-center border border-ink ${
           checked ? "bg-ink" : "bg-paper"
-        }`}
+        } ${motion.state}`}
       >
         {checked ? <Check color={SAND} size={14} strokeWidth={3} /> : null}
       </View>
