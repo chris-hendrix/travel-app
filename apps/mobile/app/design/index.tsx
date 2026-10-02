@@ -1678,7 +1678,7 @@ function DesignSystemScreen() {
             <Specimen
               name="Row"
               contract="motion.row"
-              note="A full-width row is the one exception to the press rule: it highlights its background instead of scaling, because a row that scales reads as the whole screen squishing rather than as a row responding. The fill is gravel, the app's own inert tone, so a press cannot be mistaken for a selection — nothing in the mark tier is spent on this, which is what keeps a highlighted row from looking chosen. The same role is on the notification rows, the roster rows, the rows inside a disclosure, the suggestion list, and the time column."
+              note="A full-width row is the one exception to the press rule: it highlights its background instead of scaling, because a row that scales reads as the whole screen squishing rather than as a row responding. The fill is gravel, the app's own inert tone, so a press cannot be mistaken for a selection — nothing in the mark tier is spent on this, which is what keeps a highlighted row from looking chosen. On a pointer the row takes the same fill on hover, and that is the whole of what hover is allowed to be in this system — it is added to a resting state that is already correct without it, never a control that hides and reveals. The same role is on the notification rows, the roster rows, the rows inside a disclosure, the suggestion list, the time column, and the run's own event and stay rows."
             >
               <Checkbox
                 checked={consent}
@@ -1766,12 +1766,16 @@ function DesignSystemScreen() {
             borrowed from a system this one is not; a toast, because a
             message that disappears is not a record; a slide between tabs,
             which implies a depth that is not there and is paid for dozens
-            of times a session; and a screen transition rebuilt in
+            of times a session; a screen transition rebuilt in
             JavaScript, which is the stack's job and on the web export is
-            nothing at all. A finger on a moving element — a drag, a
-            swipe, a sheet that follows the thumb — needs a shared value
-            and a worklet, and is the one thing here that has not been
-            built yet because nothing in the app asks for it.
+            nothing at all; and a control that hides until a pointer
+            reaches it, which on the phone this app is for is either
+            absent or — worse, because it is announced — present and
+            invisible. Hover here only ever adds. A finger on a moving
+            element — a drag, a swipe, a sheet that follows the thumb —
+            needs a shared value and a worklet, and is the one thing here
+            that has not been built yet because nothing in the app asks for
+            it.
           </Text>
         </Section>
 

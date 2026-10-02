@@ -143,8 +143,19 @@ const pressFill =
  * Gravel is the app's own inert fill and reads as a press rather than as a
  * state: it is not in the mark tier, so nothing here can be mistaken for
  * "this row is now selected".
+ *
+ * `md:hover:` as well as `active:`, and it is the same fill in both: under
+ * a mouse the row lights up as the pointer crosses it, under a thumb it
+ * lights up on the press. Hover is *added to* the press and never replaces
+ * it — a control that only exists under a pointer does not exist on the
+ * phone this app is for — which is also why nothing in this vocabulary
+ * hides a control and reveals it on hover. Tailwind wraps the variant in
+ * `@media (hover: hover)`, so a touch device never gets it; on native
+ * react-native-css gates it on the element's own `onHoverIn`, which a
+ * touch-only phone never fires.
  */
-const row = "transition-colors duration-150 ease-motion active:bg-gravel";
+const row =
+  "transition-colors duration-150 ease-motion active:bg-gravel md:hover:bg-gravel";
 
 /**
  * A control that inverts when its value changes, with no press of its own:

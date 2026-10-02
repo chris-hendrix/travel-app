@@ -128,3 +128,33 @@ describe("reduced motion", () => {
     expect(REDUCED_MOTION.disclosure).toBe("");
   });
 });
+
+/**
+ * Hover, held to the one thing it is allowed to be.
+ *
+ * The tempting use of hover is a control that hides until a pointer reaches
+ * it, and on a phone that is either a control that does not exist or — worse,
+ * because it is announced — one that exists, is tappable, and cannot be seen.
+ * So the rule is that hover only ever *adds* to a resting state that is
+ * already correct without it. The assertion is that it appears on one role,
+ * beside the press it accompanies, and never as a reveal.
+ */
+describe("hover", () => {
+  it("adds a pointer state to a row, and appears on no other role", () => {
+    expect(ROLES.filter((role) => MOTION[role].includes("hover:"))).toEqual([
+      "row",
+    ]);
+    // The press it accompanies is still there: hover is the second state,
+    // not the only one.
+    expect(MOTION.row).toContain("active:bg-gravel");
+    expect(MOTION.row).toContain("md:hover:bg-gravel");
+  });
+
+  it("never hides anything", () => {
+    for (const role of ROLES) {
+      expect(MOTION[role], role).not.toMatch(
+        /hover:(opacity-0|hidden|invisible|scale-0)/,
+      );
+    }
+  });
+});

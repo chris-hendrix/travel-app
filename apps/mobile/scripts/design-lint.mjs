@@ -682,18 +682,25 @@ function checkNoReducedMotionMediaQuery() {
 checkNoReducedMotionMediaQuery();
 
 /**
- * Check 8 — a press state is asked for, never typed.
+ * Check 8 — a press state and a pointer state are asked for, never typed.
  *
- * `active:` is the whole of this system's press feedback, and every one of them
- * has to answer the same two questions: which properties move (one
- * `transition-property` list, never two `transition-*` classes fighting over
- * it), and what it becomes when the device has reduced motion on. A press
- * written by hand answers neither, and it answers the second one by silently
- * doing nothing — the same shape of failure as check 7.
+ * `active:` and `hover:` are the whole of this system's press and pointer
+ * feedback, and every one of them has to answer the same two questions: which
+ * properties move (one `transition-property` list, never two `transition-*`
+ * classes fighting over it), and what it becomes when the device has reduced
+ * motion on. A press or a hover written by hand answers neither, and it answers
+ * the second one by silently doing nothing — the same shape of failure as
+ * check 7.
  *
- * So `active:` may appear in exactly one file,
- * `components/ui/motionClasses.ts`, where the five roles and their reduced forms
- * are. A component asks for `motion.press`.
+ * Hover is in here for a third reason: the only honest use of it is to *add* to
+ * a resting state that is already correct without it. A `hover:` typed at a
+ * call site is most often a control that hides and reveals, which on a phone is
+ * a control that is either missing or invisible-but-tappable. In the vocabulary
+ * it is one property on one role, next to the press it accompanies.
+ *
+ * So both may appear in exactly one file, `components/ui/motionClasses.ts`,
+ * where the five roles and their reduced forms are. A component asks for
+ * `motion.row`.
  *
  * The lab is scanned with everything else rather than excluded: a specimen that
  * demonstrates motion should be spending the same vocabulary a screen does,
@@ -707,15 +714,13 @@ function checkPressStatesComeFromTheVocabulary() {
     const rel = path.relative(mobile, file);
     if (rel === MOTION_HOME) continue;
     const src = code(fs.readFileSync(file, "utf8"));
-    for (
-      let at = src.indexOf("active:");
-      at !== -1;
-      at = src.indexOf("active:", at + 1)
-    ) {
-      hits.push(`${rel}:${src.slice(0, at).split("\n").length}`);
+    for (const needle of ["active:", "hover:"]) {
+      for (let at = src.indexOf(needle); at !== -1; at = src.indexOf(needle, at + 1)) {
+        hits.push(`${rel}:${src.slice(0, at).split("\n").length} — ${needle}`);
+      }
     }
   }
-  check(`every press state comes from ${MOTION_HOME}`, hits.length === 0);
+  check(`every press and pointer state comes from ${MOTION_HOME}`, hits.length === 0);
   for (const hit of hits) console.error(`  ${hit}`);
 }
 

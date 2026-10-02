@@ -20,13 +20,17 @@ import { imageSlot } from "@/lib/place-images";
  * A 404 is a state, not a blank box: a photo that fails to load
  * falls back to the kind's stock photo, same as a missing one.
  *
- * The card's press, on a row. The row is the target, so the whole row is
- * what moves — the photo inside its clipped frame goes with it, and the
- * title does too, which is the difference between this and a card: a card
- * grows into the grid's gutter, while a row spans the whole column, so
- * there is nothing beside it to grow into. The scale is the same five per
- * cent the card uses, because two press scales a hair apart is the kind
- * of difference a thumb reads as a bug.
+ * A row, so it highlights rather than scaling — the same press the
+ * notification rows, the roster and the time column have.
+ *
+ * This was scaled for a pass, on the argument that a row carrying a photo
+ * and a display title is a card. It is not: a card grows into the grid's
+ * gutter, while a row spans the whole column, so five per cent of 864 is
+ * 26px of row reaching past the column and into the page's margins. The
+ * note this replaced said as much about the photo alone — "the same five
+ * per cent would push its title off the right edge" — and scaling the
+ * whole row instead is that same fault with a bigger number. So the press
+ * is the fill, and the pointer gets the same fill on hover.
  *
  * The whole row is the target, which is why there is no chevron: nothing
  * else in the run has one either.
@@ -69,7 +73,7 @@ export function ScheduleRow({
   return (
     <Pressable
       onPress={onPress}
-      className={`cursor-pointer flex-row flex-wrap items-center gap-4 border-b border-b-ink py-4 ${motion.press}`}
+      className={`cursor-pointer flex-row flex-wrap items-center gap-4 border-b border-b-ink py-4 ${motion.row}`}
     >
       <View className="overflow-hidden">
         {slot.kind === "placeholder" ? (

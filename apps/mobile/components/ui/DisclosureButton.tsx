@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import Svg, { Polygon } from "react-native-svg";
+import Animated, { FadeIn } from "react-native-reanimated";
 import { Plus } from "lucide-react-native";
 import { Button } from "@/components/ui/Button";
 import { useMotion } from "@/hooks/useMotion";
@@ -158,8 +159,32 @@ export function DisclosureButton({
           That is the accepted half of the "a shut box costs nothing"
           trade, and the alternative — freezing the list until it is closed
           — would leave a row on screen that no longer does anything. */}
+      {/*
+        The rows arrive rather than appearing.
+
+        This is the one case in the app that is exactly what the skill's
+        tool table names: an element mounting. Not a press, not a state
+        change, but a thing that was not there and now is — so it is a
+        layout animation rather than a class, and it is the only motion in
+        this component that is not in `useMotion`. Reanimated's builders
+        default their reduced-motion handling to the system setting, so
+        there is nothing to gate.
+
+        150ms, the system's one duration, and a fade rather than a rise:
+        a disclosure is occasional rather than rare, and a rise would be
+        the second thing in the page moving at once — the rows are in the
+        flow, so the blocks under them move down as these arrive.
+
+        **Closing does not animate, deliberately.** The rows are the only
+        thing between the trigger and the page below, so collapsing them
+        snaps that page up in the same frame an exit would start — a
+        fading ghost travelling against content that has already moved.
+        The jump is the dominant motion and a fade on top of it does not
+        hide it, it just adds a second thing to look at. The `entering` is
+        the half worth having; the exit would be worse than nothing.
+      */}
       {open ? (
-        <View>
+        <Animated.View entering={FadeIn.duration(150)}>
           {actions.map((action, index) => (
             <ActionRow
               // Title and index, not title alone: titles are display
@@ -171,7 +196,7 @@ export function DisclosureButton({
               last={index === actions.length - 1}
             />
           ))}
-        </View>
+        </Animated.View>
       ) : null}
     </View>
   );
