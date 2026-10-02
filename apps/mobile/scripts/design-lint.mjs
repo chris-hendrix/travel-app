@@ -267,4 +267,119 @@ function checkUnderlineRatchet() {
 
 checkUnderlineRatchet();
 
+/**
+ * Check 4 — the display floor, and one leading per step.
+ *
+ * The display face is for things read at a glance, never for anything a
+ * reader reads in a sentence, and 28px (`heading-lg`) is where that starts.
+ * Below it the body face sets the same words and the scale is consistent;
+ * above it the display face carries them. Seventeen sites were under the
+ * floor when this check was written — eleven at 20px and six at 24px — and
+ * the point of writing it first is that those seventeen are the phase's own
+ * evidence that the work is needed.
+ *
+ * Matched on `font-display` **as a prefix**, so it covers both the bare
+ * `font-display` of the Handjet era and the four `font-display-black`-style
+ * tokens that replace it. Matching the exact string would stop firing on
+ * the day the face landed, which is exactly when it starts to matter.
+ *
+ * Leading is checked on display sites only. `leading-snug` and
+ * `leading-relaxed` are body-prose decisions and are none of this check's
+ * business — but a *display* site carrying one is a second leading opinion
+ * on a step that already declared its own, and five named values across 39
+ * sites is what that drift looks like. The scale binds size, leading and
+ * tracking together in the token, so the correct end state is a display
+ * site with **no** leading class at all.
+ */
+const SIZE_PX = {
+  "text-xs": 12,
+  "text-sm": 14,
+  "text-base": 16,
+  "text-lg": 18,
+  "text-xl": 20,
+  "text-2xl": 24,
+  "text-3xl": 30,
+  "text-4xl": 36,
+  "text-5xl": 48,
+  "text-6xl": 60,
+  "text-7xl": 72,
+  // The scale, after Phase 5 Task 2.
+  "text-display-lg": 60,
+  "text-display-lg-wide": 72,
+  "text-display-md": 42,
+  "text-display-sm": 32,
+  "text-heading-lg": 28,
+  "text-heading-md": 20,
+  "text-body": 16,
+  "text-label": 14,
+};
+const DISPLAY_FLOOR_PX = 28;
+/** The scale's seven leadings, from the Architecture table. */
+const SCALE_LEADINGS = new Set(["0.9", "0.95", "1", "1.1", "1.15", "1.4", "1.5"]);
+
+/** Every string literal in a file, which is where a class list lives. */
+function classLiterals(src) {
+  return src.match(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`/g) ?? [];
+}
+
+function checkDisplayFloor() {
+  const belowFloor = [];
+  const oddLeading = [];
+  const unknownSize = [];
+  for (const file of sources()) {
+    const rel = path.relative(mobile, file);
+    if (rel === path.join("app", "design", "index.tsx")) continue;
+    const src = code(fs.readFileSync(file, "utf8"));
+    const lineOf = (i) => src.slice(0, i).split("\n").length;
+    for (const literal of classLiterals(src)) {
+      if (!/\bfont-display(?:-[a-z]+)?\b/.test(literal)) continue;
+      const at = lineOf(src.indexOf(literal));
+      const names = literal
+        .replace(/["'`]/g, "")
+        .split(/[\s:]+/)
+        .filter(Boolean);
+      let sawSize = false;
+      for (const name of names) {
+        const arbitrary = name.match(/^text-\[\((\d+(?:\.\d+)?)px\)\]$/);
+        const px = SIZE_PX[name] ?? (arbitrary ? Number(arbitrary[1]) : undefined);
+        if (px === undefined) continue;
+        sawSize = true;
+        if (px < DISPLAY_FLOOR_PX) {
+          belowFloor.push(`${rel}:${at} — ${name} is ${px}px`);
+        }
+      }
+      if (!sawSize) unknownSize.push(`${rel}:${at} — no size class`);
+      for (const name of names) {
+        const lead = name.match(/^leading-(?:\[([0-9.]+)\]|(none|tight|snug|normal|relaxed|loose))$/);
+        if (!lead) continue;
+        const value =
+          lead[1] ??
+          { none: "1", tight: "1.25", snug: "1.375", normal: "1.5", relaxed: "1.625", loose: "2" }[
+            lead[2]
+          ];
+        if (!SCALE_LEADINGS.has(value)) {
+          oddLeading.push(`${rel}:${at} — ${name} (${value})`);
+        }
+      }
+    }
+  }
+  check(
+    `no display site sets type below ${DISPLAY_FLOOR_PX}px`,
+    belowFloor.length === 0,
+  );
+  for (const hit of belowFloor) console.error(`  ${hit}`);
+  check(
+    "every display site names a declared size",
+    unknownSize.length === 0,
+  );
+  for (const hit of unknownSize) console.error(`  ${hit}`);
+  check(
+    "no display site carries a leading outside the scale",
+    oddLeading.length === 0,
+  );
+  for (const hit of oddLeading) console.error(`  ${hit}`);
+}
+
+checkDisplayFloor();
+
 process.exit(failures === 0 ? 0 : 1);

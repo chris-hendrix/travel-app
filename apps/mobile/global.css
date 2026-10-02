@@ -75,6 +75,63 @@
      above is retired with the face (Task 7); it is kept until the gate
      that judges Big Shoulders is answered, because A6 keeps the face and
      the scale separable. */
+  /* The scale — seven steps, and the only seven the app sets type at.
+     Size, leading and tracking are one decision per step, so they are
+     declared together: `text-display-lg` brings all three, and a site that
+     adds its own `leading-` is overriding a decision the scale already
+     made. `design-lint.mjs` check 4 fails on a display site below 28px and
+     on a leading outside this set.
+
+     Sizes are `px`, never `rem`, and there is no `clamp()`: NativeWind v5
+     supports `var()`, `calc()`, `env()` and `color-mix()` and nothing else,
+     and its `rem` is 14 on native against 16 on web, so a `rem`+`vw` ramp
+     paints one size in the browser and another on Android (A18).
+
+     The face is NOT in the token and cannot be. Android derives a family
+     from the TTF basename, so the four display weights are four families
+     with no weight axis between them: a step names `font-display-black` or
+     `font-display-semibold` beside its size. Which face wears which step is
+     the line below, and it is the whole reason the floor is 28px.
+
+       display-lg    60px  lh 0.9   -0.02em   w900  font-display-black
+       display-md    42px  lh 0.95  -0.015em  w800  font-display-extrabold
+       display-sm    32px  lh 1.0   -0.01em   w700  font-display-bold
+       heading-lg    28px  lh 1.1   0         w600  font-display-semibold
+       heading-md    20px  lh 1.15  0         w500  font-body-bold
+       body          16px  lh 1.5   0         w400  font-body
+       label         14px  lh 1.4   +0.02em   w700  font-body-bold
+
+     `heading-md` at 20px wears the *body* face. That is what makes the 28px
+     floor consistent rather than arbitrary: the display face never sets
+     anything a reader reads in a sentence. */
+  --text-display-lg: 60px;
+  --text-display-lg--line-height: 0.9;
+  --text-display-lg--letter-spacing: -0.02em;
+  /* `display-lg` is the one step with a breakpoint jump. It keeps its own
+     token rather than a raw `md:text-[72px]` so the wide size is a declared
+     step and not a magic number at the one call site that wants it. */
+  --text-display-lg-wide: 72px;
+  --text-display-lg-wide--line-height: 0.9;
+  --text-display-lg-wide--letter-spacing: -0.02em;
+  --text-display-md: 42px;
+  --text-display-md--line-height: 0.95;
+  --text-display-md--letter-spacing: -0.015em;
+  --text-display-sm: 32px;
+  --text-display-sm--line-height: 1;
+  --text-display-sm--letter-spacing: -0.01em;
+  --text-heading-lg: 28px;
+  --text-heading-lg--line-height: 1.1;
+  --text-heading-lg--letter-spacing: 0em;
+  --text-heading-md: 20px;
+  --text-heading-md--line-height: 1.15;
+  --text-heading-md--letter-spacing: 0em;
+  --text-body: 16px;
+  --text-body--line-height: 1.5;
+  --text-body--letter-spacing: 0em;
+  --text-label: 14px;
+  --text-label--line-height: 1.4;
+  --text-label--letter-spacing: 0.02em;
+
   --font-display-black: "BigShouldersDisplay_900Black", sans-serif;
   --font-display-extrabold: "BigShouldersDisplay_800ExtraBold", sans-serif;
   --font-display-bold: "BigShouldersDisplay_700Bold", sans-serif;
