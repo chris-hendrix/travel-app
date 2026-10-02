@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 
+import { useMotion } from "@/hooks/useMotion";
+
 export type ButtonVariant = "primary" | "secondary" | "accent" | "danger";
 
 const STYLES: Record<ButtonVariant, { box: string; label: string }> = {
@@ -49,6 +51,7 @@ export function Button({
   expanded?: boolean;
 }) {
   const s = STYLES[variant];
+  const motion = useMotion();
   const width = fullWidth
     ? ""
     : align === "end"
@@ -64,7 +67,7 @@ export function Button({
       onPress={onPress}
       className={`relative items-center border p-4 ${s.box} ${width} ${
         disabled ? "opacity-40" : ""
-      }`}
+      } ${motion.press}`}
     >
       {/* Pinned at text-sm rather than inherited: everything interactive
           in this system — buttons, badges, an RSVP — is one size, and

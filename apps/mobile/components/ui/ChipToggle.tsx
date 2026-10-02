@@ -1,5 +1,7 @@
 import { Pressable, Text } from "react-native";
 
+import { useMotion } from "@/hooks/useMotion";
+
 /**
  * A filter you can press: a box, inked when on and outlined when off.
  *
@@ -40,6 +42,8 @@ export function ChipToggle({
    */
   disabled?: boolean;
 }) {
+  const motion = useMotion();
+
   return (
     <Pressable
       onPress={onPress}
@@ -48,7 +52,7 @@ export function ChipToggle({
       accessibilityState={{ selected, disabled }}
       className={`cursor-pointer border border-ink px-3 py-2 ${
         selected ? "bg-ink" : ""
-      } ${disabled ? "opacity-50" : ""}`}
+      } ${disabled ? "opacity-50" : ""} ${motion.pressFill}`}
     >
       <Text
         className={`font-body-bold text-sm ${selected ? "text-sand" : "text-ink"}`}

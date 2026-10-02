@@ -1,5 +1,7 @@
 import { Pressable, Text } from "react-native";
 
+import { useMotion } from "@/hooks/useMotion";
+
 /**
  * A secondary action: an underlined word, no box.
  *
@@ -52,13 +54,15 @@ export function QuietAction({
    */
   align?: "start" | "center";
 }) {
+  const motion = useMotion();
+
   return (
     <Pressable
       onPress={onPress}
       role="button"
       className={`justify-center py-3 ${
         align === "center" ? "self-start md:self-center" : "self-start"
-      }`}
+      } ${motion.press}`}
     >
       <Text className="font-body-bold text-sm text-ink underline">
         {label}

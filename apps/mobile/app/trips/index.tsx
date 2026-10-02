@@ -2,6 +2,7 @@ import { Component, Suspense, type ReactNode } from "react";
 import { useRouter } from "expo-router";
 import { Text, View } from "react-native";
 import { QueryErrorResetBoundary } from "@tanstack/react-query";
+import Animated, { FadeIn } from "react-native-reanimated";
 import { ActionBar } from "@/components/ui/ActionBar";
 import { Section } from "@/components/ui/Section";
 import { Screen } from "@/components/ui/Screen";
@@ -161,7 +162,7 @@ function TripsContent() {
   );
 
   return (
-    <View>
+    <Animated.View entering={FadeIn.duration(150)}>
       {/* No page heading: the app wordmark bar already says where you
           are, and the section rules carry the structure. No button either:
           the page's one action is pinned at the foot, which is why the first
@@ -244,6 +245,6 @@ function TripsContent() {
           </Column>
         </>
       )}
-    </View>
+    </Animated.View>
   );
 }

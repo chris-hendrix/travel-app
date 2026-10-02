@@ -1,5 +1,7 @@
 import { Pressable, Text, View } from "react-native";
 
+import { useMotion } from "@/hooks/useMotion";
+
 export type SegmentedTone =
   | "ink"
   | "accent"
@@ -102,6 +104,7 @@ export function Segmented<T extends string>({
    */
   disabled?: boolean;
 }) {
+  const motion = useMotion();
   // `px-6` only where the cell can be narrower than its block: on a
   // phone `flex-1` still decides the width and the label is centred in
   // it, so the padding costs nothing there and the cells keep their
@@ -127,7 +130,7 @@ export function Segmented<T extends string>({
             disabled={disabled}
             className={`items-center border border-ink ${box} ${
               index > 0 ? "border-l-0" : ""
-            } ${chosen ? fill.box : ""}`}
+            } ${chosen ? fill.box : ""} ${motion.state}`}
           >
             <Text
               className={`font-body-bold text-sm ${

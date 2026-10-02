@@ -1,5 +1,6 @@
 import { Linking, Pressable } from "react-native";
 import { Badge, type BadgeVariant } from "@/components/ui/Badge";
+import { useMotion } from "@/hooks/useMotion";
 
 /**
  * A chip that leaves the app.
@@ -19,13 +20,15 @@ export function ChipLink({
   href: string;
   variant?: BadgeVariant;
 }) {
+  const motion = useMotion();
+
   return (
     <Pressable
       onPress={() => {
         void Linking.openURL(href);
       }}
       aria-label={`Open ${label}`}
-      className="cursor-pointer"
+      className={`cursor-pointer ${motion.press}`}
     >
       <Badge label={label} variant={variant} size="sm" />
     </Pressable>

@@ -177,12 +177,62 @@ export default function RootLayout() {
                     )
                   }
                 >
+                  {/*
+                    A dialog is a sheet, and the stack is what says so.
+
+                    `DIALOG_ROUTES` has been the list of routes that wear
+                    their own title-mode header since the shell was written;
+                    until now they were `presentation: 'card'` with no
+                    `animation`, which on Android is the platform's own
+                    horizontal push — the same transition as going deeper
+                    into the app. A dialog is not deeper, it is *on top*, and
+                    the one option that says so is a modal presentation that
+                    slides from the bottom.
+
+                    Both options are needed and neither is enough on its own.
+                    `animation: 'slide_from_bottom'` alone would slide the
+                    screen up and leave it a card, so the platform gesture
+                    would still be a horizontal one. `presentation: 'modal'`
+                    alone would leave the animation to the platform, which is
+                    `slide_from_bottom` **on iOS only** — expo-router's own
+                    `NativeStackView` picks that default inside a
+                    `Platform.OS === 'ios'` branch, so on Android it would be
+                    unset. Written out, both surfaces do the same thing.
+
+                    Two edges worth knowing, both expo-router's rather than
+                    ours. The first screen in the stack is forced to a card,
+                    so a cold deep link straight into a dialog — a push tap,
+                    an invitation link — slides in from the side instead; the
+                    headerless shell is why that branch exists at all and it
+                    is not ours to change. And `formSheet` is deliberately not
+                    used: on Android it is a Material bottom sheet with
+                    rounded corners, a drag handle and elevation, which is a
+                    second visual language inside a system whose rules are
+                    hard corners and no shadows.
+
+                    The web export animates none of this. `react-native-screens`'
+                    web build is `ScreenStack = View` and a `Screen` that is a
+                    `View` with `display: none`, so `presentation`,
+                    `animation` and `animationDuration` are inert there and the
+                    export swaps screens instantly, as it always has.
+                  */}
                   <Stack
                     screenOptions={{
                       headerShown: false,
                       title: "Journiful",
                     }}
-                  />
+                  >
+                    {DIALOG_ROUTES.map((route) => (
+                      <Stack.Screen
+                        key={route}
+                        name={route.slice(1)}
+                        options={{
+                          presentation: "modal",
+                          animation: "slide_from_bottom",
+                        }}
+                      />
+                    ))}
+                  </Stack>
                 </Suspense>
               </View>
             </View>

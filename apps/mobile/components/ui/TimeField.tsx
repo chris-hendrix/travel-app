@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { ArrowDown, ArrowUp } from "lucide-react-native";
 import { FieldError } from "@/components/ui/FieldError";
+import { useMotion } from "@/hooks/useMotion";
 import { formatClock, isClockTime, minutesOf, timeOptions } from "@/lib/time";
 import { INK } from "@/lib/theme";
 
@@ -102,6 +103,7 @@ export function TimeField({
 }) {
   const [open, setOpen] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+  const motion = useMotion();
   const Icon = open ? ArrowUp : ArrowDown;
 
   // Being set aside closes the list: a disabled field parks its value
@@ -213,7 +215,7 @@ export function TimeField({
                   style={{ height: ROW_HEIGHT }}
                   className={`items-center justify-center ${
                     marked ? "bg-ink" : ""
-                  } ${before ? "opacity-40" : ""}`}
+                  } ${before ? "opacity-40" : ""} ${motion.row}`}
                 >
                   <Text
                     className={`font-body text-base ${

@@ -1,5 +1,6 @@
 import { Component, Suspense, type ReactNode } from "react";
 import { QueryErrorResetBoundary } from "@tanstack/react-query";
+import Animated, { FadeIn } from "react-native-reanimated";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { Screen } from "@/components/ui/Screen";
 import { InlineError } from "@/components/ui/InlineError";
@@ -53,7 +54,36 @@ export function TripGate({
               </Column></Screen>
             }
           >
-            {children}
+            {/*
+              The content arrives rather than appearing.
+
+              Every trip screen in the app comes through this gate, so this
+              one wrapper is the whole of "the list loads in" — a screen that
+              replaces a sentence with a page in a single frame reads as a
+              flinch, and the fix is the cheapest kind: one 150ms fade on the
+              container, no per-row stagger and nothing sliding.
+
+              150ms because a trip screen loads dozens of times a day, and
+              the rule for anything met that often is that it must be under
+              a fifth of a second or not there at all. It is `FadeIn` rather
+              than a fade-and-rise for the same reason: the second time
+              today it should not be noticeable, and by the twentieth it
+              should be nothing.
+
+              No reduced-motion gate here, and that is not an oversight.
+              Reanimated's layout-animation builders default their
+              `reduceMotion` to `ReduceMotion.System`, so this already does
+              the right thing when the device has it on — it is the one kind
+              of motion in this app that needs no help, which is why
+              `hooks/useMotion.ts` does not cover it.
+
+              `flex-1` is load-bearing: this sits between the navigator and a
+              screen that is either a `Screen` or a `FullscreenDialog`, and
+              both fill their parent.
+            */}
+            <Animated.View className="flex-1" entering={FadeIn.duration(150)}>
+              {children}
+            </Animated.View>
           </Suspense>
         </TripErrorBoundary>
       )}

@@ -3,6 +3,7 @@ import { Pressable, Text, View } from "react-native";
 import Svg, { Polygon } from "react-native-svg";
 import { Plus } from "lucide-react-native";
 import { Button } from "@/components/ui/Button";
+import { useMotion } from "@/hooks/useMotion";
 import { INK } from "@/lib/theme";
 
 /**
@@ -22,8 +23,13 @@ import { INK } from "@/lib/theme";
  * repeats that is noise in the tree.
  */
 function Triangle({ open }: { open: boolean }) {
+  const motion = useMotion();
+
   return (
-    <View style={{ transform: [{ rotate: open ? "180deg" : "0deg" }] }}>
+    <View
+      className={motion.disclosure}
+      style={{ transform: [{ rotate: open ? "180deg" : "0deg" }] }}
+    >
       <Svg width={12} height={8} viewBox="0 0 12 8" aria-hidden>
         <Polygon points="0,0 12,0 6,8" fill={INK} />
       </Svg>
@@ -69,13 +75,15 @@ function ActionRow({
   onPress: () => void;
   last: boolean;
 }) {
+  const motion = useMotion();
+
   return (
     <Pressable
       role="button"
       onPress={onPress}
       className={`flex-row items-center gap-3 px-4 py-3 ${
         last ? "" : "border-b border-ink"
-      }`}
+      } ${motion.row}`}
     >
       <Plus color={INK} size={16} aria-hidden />
       <Text className="font-body-bold text-sm text-ink">{title}</Text>

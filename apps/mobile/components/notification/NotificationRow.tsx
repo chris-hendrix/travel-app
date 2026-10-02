@@ -1,6 +1,7 @@
 import { Image, Pressable, Text, View } from "react-native";
 import type { Trip } from "@/components/trip/TripCard";
 import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
+import { useMotion } from "@/hooks/useMotion";
 import { relativeTime, type Notification } from "@/lib/notifications";
 
 /**
@@ -33,13 +34,14 @@ export function NotificationRow({
   onPress?: () => void;
 }) {
   const unread = notification.readAt === null;
+  const motion = useMotion();
 
   return (
     <Pressable
       onPress={onPress}
       className={`flex-row items-center gap-4 border-b border-b-gravel border-l-4 py-4 pl-4 pr-2 ${
         unread ? "border-l-strawberry" : "border-l-transparent"
-      }`}
+      } ${motion.row}`}
     >
       {trip ? (
         trip.image ? (

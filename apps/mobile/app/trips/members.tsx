@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { Button } from "@/components/ui/Button";
 import { ChipLink } from "@/components/ui/ChipLink";
+import { useMotion } from "@/hooks/useMotion";
 import { useTrip } from "@/lib/tripsStore";
 import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
@@ -147,6 +148,7 @@ function RosterRowItem({
   viewerIsOrganizer: boolean;
 }) {
   const router = useRouter();
+  const motion = useMotion();
   if (row.kind === "invited") {
     // `rosterRows` falls back to the formatted phone as the name, so
     // the number hangs below only when there is a real name above it.
@@ -177,6 +179,7 @@ function RosterRowItem({
             `/trips/members/detail?id=${tripId}&invite=${row.invitationId}`,
           )
         }
+        className={motion.row}
       >
         {body}
       </Pressable>
@@ -215,6 +218,7 @@ function MemberRow({
   viewerIsOrganizer: boolean;
 }) {
   const router = useRouter();
+  const motion = useMotion();
   const phone = visiblePhone(member, viewerIsOrganizer);
 
   const body = (
@@ -256,6 +260,7 @@ function MemberRow({
       onPress={() =>
         router.push(`/trips/members/detail?id=${tripId}&member=${member.id}`)
       }
+      className={motion.row}
     >
       {body}
     </Pressable>
