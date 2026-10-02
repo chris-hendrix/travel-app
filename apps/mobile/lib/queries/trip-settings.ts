@@ -12,8 +12,9 @@ import { apiFetch } from "@/lib/api";
  *   `PUT /trips/:tripId/notification-preferences` with BOTH booleans
  *   required (`notificationPreferencesSchema` in
  *   `shared/schemas/notification.ts`) — hence read-modify-write.
- * - `clock`/`layout`/`showPast`/`pushEnabled` never reach this module:
- *   they stay device-local in `lib/tripSettingsStore.tsx`.
+ * - `clock` never reaches this module: it stays device-local in
+ *   `lib/tripSettingsStore.tsx`. (`layout`/`showPast` are named here for
+ *   the history: both were device-local controls and both are gone.)
  *
  * zod is not a mobile dep, so the shapes are declared inline,
  * mirroring the schemas (the `CreateTripRequest` precedent in

@@ -8,8 +8,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { tripIsOver } from "@/lib/itinerary";
-import { todayIn } from "@/lib/timezone";
 import { readTripState, writeTripState } from "@/lib/tripState";
 import type { Trip } from "@/components/trip/TripCard";
 import {
@@ -29,12 +27,11 @@ export type Clock = "trip" | "device";
  *
  * The notification pair is the server's own `notification_preferences`,
  * which is per user per trip and both true until turned off. They stay
- * in Trip settings, with phone sharing and the calendar; the run's own
- * switch — past events — lives on the run itself, because it changes
- * what is in front of you as you flip it.
+ * in Trip settings, with phone sharing and the calendar. The run's own
+ * past-events switch is gone from here and from the run: the itinerary
+ * is always whole, so there is no longer a local answer to persist.
  */
 export type TripSettings = {
-  showPast: boolean;
   clock: Clock;
   dailyItinerary: boolean;
   tripMessages: boolean;
@@ -64,8 +61,8 @@ type TripSettingsValue = {
    * Server write-through for the three server-backed rows, with the
    * Task 4 flow shape: paint the local override optimistically,
    * roll it back on failure, and rethrow so the screen reads the
-   * failure through `toErrorCopy`. Local-only keys (`clock`,
-   * `showPast`) never leave `update` and never touch the network.
+   * failure through `toErrorCopy`. The device-local key (`clock`) never
+   * leaves `update` and never touches the network.
    */
   setSharePhone: (tripId: string, value: boolean) => Promise<void>;
   /**
@@ -151,18 +148,14 @@ export function TripSettingsProvider({ children }: { children: ReactNode }) {
    * The clock is the one that mattered. It lived in memory alone, so the
    * flip the chrome offers — the token in the header, one tap — was
    * forgotten by the next reload, and a setting that does not survive a
-   * reload reads as a control that does not work. `showPast` came along
-   * because it is the same kind of thing, one line away.
+   * reload reads as a control that does not work.
    *
    * Read once, on mount: until it lands, `for()` answers its defaults, so
    * a slow read shows the right screen a moment late rather than an empty
    * one. Written whole on every change — a handful of trips is smaller
    * than the bookkeeping that would update it in place.
    */
-  type DeviceState = Record<
-    string,
-    Partial<Pick<TripSettings, "clock" | "showPast">>
-  >;
+  type DeviceState = Record<string, Partial<Pick<TripSettings, "clock">>>;
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -183,9 +176,8 @@ export function TripSettingsProvider({ children }: { children: ReactNode }) {
     if (!hydrated) return;
     const mine: DeviceState = {};
     for (const [tripId, patch] of Object.entries(byTrip)) {
-      const held: Partial<Pick<TripSettings, "clock" | "showPast">> = {};
+      const held: Partial<Pick<TripSettings, "clock">> = {};
       if (patch.clock !== undefined) held.clock = patch.clock;
-      if (patch.showPast !== undefined) held.showPast = patch.showPast;
       if (Object.keys(held).length > 0) mine[tripId] = held;
     }
     void writeTripState(mine);
@@ -336,11 +328,11 @@ export function TripSettingsProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<TripSettingsValue>(
     () => ({
-      for: (trip, now) => ({
-        showPast: byTrip[trip.id]?.showPast ?? tripIsOver(
-          trip.endDate,
-          todayIn(trip.preferredTimezone, now),
-        ),
+      // `_now` is kept only so the `for(trip, now)` signature the screens
+      // call stays put. Nothing here reads the clock any more: the last
+      // time-dependent default was `showPast`, and with it gone every
+      // field below is a stored value or a fixed one.
+      for: (trip, _now) => ({
         clock: byTrip[trip.id]?.clock ?? "trip",
         dailyItinerary: byTrip[trip.id]?.dailyItinerary ?? true,
         tripMessages: byTrip[trip.id]?.tripMessages ?? true,
