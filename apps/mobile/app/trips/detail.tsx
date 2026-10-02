@@ -34,7 +34,6 @@ import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 import { getPertinentTime } from "@journiful/shared/utils";
 import { Band } from "@/components/ui/Band";
 import { Column } from "@/components/ui/Column";
-import { useHeaderTone } from "@/lib/headerTone";
 
 /**
  * Trip detail, header only — the itinerary comes after this lands.
@@ -265,10 +264,6 @@ function TripDetailScreen() {
       }
     />
   );
-
-  // The trip's own block is the band, and it is the first thing on the
-  // screen, so it is what the wave's cut-outs sit on.
-  useHeaderTone("lilac");
 
   return (
     <Screen>

@@ -292,8 +292,51 @@ describe("expo policy: the shell respects the system bars", () => {
     // it, which is why the two are a pair rather than a constant.
     expect(tag).toMatch(/paddingTop: isDialog \? insets\.top : 0/);
     const header = source("components/ui/AppHeader.tsx");
-    expect(header).toMatch(/style=\{\{ paddingTop: insets\.top \}\}/);
+    // The band paints the top inset. This used to be the whole style object;
+    // it is now the first entry of one that also pays for the wave's height,
+    // because the wave is out of the flow and contributes none — the same
+    // invariant with a second entry beside it.
+    expect(header).toMatch(/style=\{\{ paddingTop: insets\.top/);
     expect(header).toContain('className="bg-ink"');
+    // And the three things the hanging wave depends on, because each fails
+    // quietly: out of layout (or the header is 10px short and every screen
+    // sits 10px high), not eating taps on the first 10px of the page, and
+    // drawn above the screen it now overlaps.
+    expect(header).toMatch(/bottom: -\(WAVE_DEPTH - WAVE_OVERLAP\)/);
+    expect(header).toMatch(/pointerEvents: "none"/);
+    expect(header).toMatch(/zIndex: 1/);
+    // The box is exactly the wave's depth and the *position* carries the
+    // overlap. Growing the box instead puts empty space under the svg, and a
+    // native svg that stretches into it tiles the pattern a fraction past one
+    // row — the next tile's top row is solid ink, so the fix for a gap at the
+    // top becomes a 1px black line at the bottom. That was tried.
+    expect(header).not.toMatch(/height: WAVE_DEPTH \+/);
+    // And the pattern tile is a row taller than the row it is shown in. A
+    // tile's top row is solid ink, so a fractional device density rendering a
+    // sliver of the next tile draws a hairline across the bottom of the wave.
+    // The slack has to be transparent, which means it has to exist.
+    expect(header).toMatch(/const WAVE_TILE = WAVE_DEPTH \+ 1/);
+    expect(header).toMatch(/height=\{WAVE_TILE\}/);
+    expect(header).toMatch(/height=\{WAVE_DEPTH\} fill="url\(#wave\)"/);
+    // And the invariant, which holds whatever the cause: the wave is clipped
+    // to its own depth, so nothing it draws can escape the row.
+    expect(header).toMatch(/height: WAVE_DEPTH, overflow: "hidden"/);
+    // And in `px`, never a rem class. `h-2.5` is `0.625rem`, which is 10px in
+    // the browser and **8.75px on Android** — NativeWind's rem is 14 there
+    // against 16 on web (A18) — while the band's `paddingBottom` is
+    // `WAVE_DEPTH` in real pixels. The mismatch is a 1.25px seam between the
+    // header and its own wave, visible on the phone only, which is the
+    // measure-vs-paint failure this repo keeps re-finding.
+    //
+    // Scoped to `WaveEdge`, not the file: the unread dot's `h-2.5 w-2.5` is a
+    // decorative circle where 8.75px is fine, and a file-wide ban would fail
+    // on it for no reason. Scoped to the *class* rather than the body,
+    // because the comment above explains why `h-2.5` is wrong and would
+    // otherwise fail its own assertion.
+    const wave = header.slice(header.indexOf("function WaveEdge"));
+    const waveBody = wave.slice(0, wave.indexOf("\n}"));
+    expect(waveBody).toMatch(/height: WAVE_DEPTH/);
+    expect(waveBody).not.toMatch(/className="[^"]*h-2\.5/);
   });
 
   it("paints the inset under a dialog in the dialog's own ground", () => {

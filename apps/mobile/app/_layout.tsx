@@ -27,7 +27,6 @@ import {
   BigShouldersDisplay_900Black,
 } from "@expo-google-fonts/big-shoulders-display";
 import { AppHeader } from "@/components/ui/AppHeader";
-import { HeaderToneProvider } from "@/lib/headerTone";
 import * as SystemNotifications from "expo-notifications";
 import type { NotificationResponse } from "expo-notifications";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
@@ -132,7 +131,6 @@ export default function RootLayout() {
       <NotificationsProvider>
         <ProfileProvider>
           <TripSettingsProvider>
-            <HeaderToneProvider>
             <Head>
               <title>Journiful</title>
             </Head>
@@ -188,7 +186,6 @@ export default function RootLayout() {
                 </Suspense>
               </View>
             </View>
-            </HeaderToneProvider>
           </TripSettingsProvider>
         </ProfileProvider>
       </NotificationsProvider>

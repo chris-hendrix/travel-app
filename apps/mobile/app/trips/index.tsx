@@ -15,7 +15,6 @@ import { toErrorCopy } from "@/lib/queries/errors";
 import { useTrips } from "@/lib/tripsStore";
 import { Band } from "@/components/ui/Band";
 import { Column } from "@/components/ui/Column";
-import { useHeaderTone } from "@/lib/headerTone";
 
 /**
  * Design lab: the trips screen under construction.
@@ -117,9 +116,7 @@ function TripsContent() {
   const router = useRouter();
   const { trips } = useTrips();
   const { upcoming, past } = groupTrips(trips, new Date());
-  // Data-dependent, and the reason this is a context rather than a route
-  // table in the shell: this screen is baltic only when it is empty.
-  useHeaderTone(trips.length === 0 ? "baltic" : null);
+
 
   const card = (trip: (typeof trips)[number]) => (
     <TripCard
