@@ -5,9 +5,24 @@
 @import "nativewind/theme";
 
 /*
- * Journiful mobile design tokens v1.
+ * Journiful mobile design tokens v2.
  *
- * Three layers: ink chrome, sand ground, paper surfaces.
+ * Three layers: ink chrome, sand ground, paper surfaces. Under them, a
+ * role rule that decides what a colour is allowed to be:
+ *
+ *   calm   chroma < 0.09          a ground. Text and marks go on it.
+ *   mark   chroma >= 0.10         a fill. Small area, never a ground.
+ *   text   chroma <= 0.26         the `-deep` tier: readable, never a fill.
+ *                                 The bound is measured, not chosen: three
+ *                                 of its six tokens sit above the mark bar.
+ *   seam   dE >= 6 between grounds
+ *
+ * Measured in OKLCh, never by eye and never by contrast ratio. Contrast
+ * says whether something can be read; it says nothing about how loud it
+ * is, and `acid` is 17.55:1 on sand with the highest chroma here. Every
+ * value and every floor is described once in `lib/palette.ts`, which
+ * `__tests__/palette.test.ts` holds this file to.
+ *
  * Display is Handjet (pixel grid, set in caps) for headlines; the
  * wordmark is Bungee Shade; body is Space Mono.
  */
@@ -16,15 +31,37 @@
   --color-ink: #000000; /* chrome band, text, borders */
   --color-sand: #f5eacc; /* app ground */
   --color-paper: #ffffff; /* raised surfaces: dialogs, cards */
-  --color-gravel: #e2ded5; /* muted fills, hairlines */
+  --color-gravel: #e2ded5; /* muted fills, hairlines; 4.6 dE from sand, so a rule is required at the seam */
 
-  /* Roles */
+  /* Marks. Small areas only: chroma >= 0.10, and never a ground. */
   --color-seafoam: #42d177; /* primary: actions, positive states */
   --color-watermelon: #ef8ad4; /* secondary: category (club) */
   --color-strawberry: #ff6352; /* accent: live, alerts, unread — as a fill */
+  --color-ocean: #4281ff; /* info, as a fill only: 3.01:1 on sand, so it cannot carry text. Use ocean-deep */
+  --color-acid: #cbfb6a; /* highlight, used sparingly. chroma 0.179 — the loudest token, never a ground */
+
+  /* Text. The `-deep` tier: cleared against gravel, the binding ground,
+     at 4.5:1 for body text. Readable, and never used as a fill. */
+  --color-seafoam-deep: #1c713b; /* the primary as text: 4.50:1 on gravel (4.5022, the tightest margin here) */
+  --color-watermelon-deep: #b4198b; /* the secondary as text: 4.53:1 on gravel */
   --color-strawberry-deep: #b8271a; /* the alert as text: 4.7:1 on gravel */
-  --color-ocean: #4281ff; /* info: links */
-  --color-acid: #cbfb6a; /* highlight, used sparingly */
+  --color-ocean-deep: #0051f3; /* links and info as text: 4.51:1 on gravel */
+  --color-amethyst-deep: #5e5e8b; /* a sixth category as text: 4.53:1 on gravel */
+  --color-baltic-deep: #1f6c73; /* the cool band's own text tone: 4.53:1 on gravel */
+  --color-bpink-deep: #bf0074; /* the reserved pink band's text tone: 4.51:1 on gravel */
+  --color-grey-quiet: #5f5f5f; /* de-emphasised text: 4.76:1 on gravel, 5.33:1 on sand. Was #707070, which failed both */
+
+  /* Bands. Pale full-bleed grounds, one at a time, chroma < 0.09 and at
+     least 6 dE from every ground they meet. A third pink was measured
+     and left out — see RESERVED in lib/palette.ts. */
+  --color-lilac: #E2BFE3; /* warm band: chroma 0.062, 13.0 dE from sand, ink on it is 12.80:1 */
+  --color-baltic: #9adee4; /* cool band: chroma 0.069, 12.3 dE from sand, ink on it is 13.94:1 */
+
+  /* Muted fills. Desaturated on purpose: these sit beside a ground
+     without reading as a colour. silver is 3.3 dE from concrete, so the
+     two never share an edge. */
+  --color-concrete: #b0ad9b; /* inert fill, warm neutral */
+  --color-silver: #b3b3b3; /* inert fill, true neutral */
 
   /* Type roles — family names match expo-font registrations */
   --font-display: "Handjet_800ExtraBold", monospace;

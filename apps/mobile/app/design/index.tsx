@@ -58,6 +58,8 @@ import { emailSchema } from "@journiful/shared/schemas";
 import { legalDocument } from "@journiful/shared/legal";
 import type { LegalDocument } from "@journiful/shared/legal";
 import { Prose } from "@/components/ui/Prose";
+import { chroma, contrast, dE } from "@/lib/color";
+import { GROUNDS } from "@/lib/palette";
 
 /** Metro resolving a bare package import and a font actually being the
  *  font are the two things a bundle can fail at silently, and neither
@@ -108,17 +110,57 @@ const PROSE_SAMPLE: LegalDocument = {
   })(),
 };
 
-const COLORS: Array<[name: string, token: string, hex: string, swatch: string]> = [
-  ["Chrome", "ink", "#000000", "bg-ink"],
-  ["Background", "sand", "#f5eacc", "bg-sand"],
-  ["Muted", "gravel", "#e2ded5", "bg-gravel"],
-  ["Surface", "paper", "#ffffff", "bg-paper"],
-  ["Primary", "seafoam", "#42d177", "bg-seafoam"],
-  ["Secondary", "watermelon", "#ef8ad4", "bg-watermelon"],
-  ["Accent", "strawberry", "#ff6352", "bg-strawberry"],
-  ["Alert", "strawberry-deep", "#b8271a", "bg-strawberry-deep"],
-  ["Info", "ocean", "#4281ff", "bg-ocean"],
-  ["Highlight", "acid", "#cbfb6a", "bg-acid"],
+/**
+ * The palette, grouped by the role that decides what each token may do.
+ *
+ * The figures beside each row are **measured, not written down**: they
+ * come from `lib/color.ts`, the same module the palette test asserts
+ * against, so a row here cannot quote a number that is no longer true.
+ * That is the point of this section — gate A approves the *role
+ * assignment*, and a role is only defensible beside its chroma and its
+ * ratio. `lib/palette.ts` holds the rule and the floors; this is the
+ * same list, rendered so a person can disagree with it.
+ *
+ * Reading a row:
+ *   `C` is OKLCh chroma — how loud the colour is. Under 0.09 is a ground.
+ *   `ink` is contrast of ink *on* the tone, the audit's own column.
+ *   a text tone shows its ratio on gravel instead, the binding ground.
+ *   a band shows its dE from sand — under 6 and it reads as one ground.
+ */
+const inkOn = (hex: string) => `ink ${contrast("#000000", hex).toFixed(2)}:1`;
+const loudness = (hex: string) => `C ${chroma(hex).toFixed(3)}`;
+const onGravel = (hex: string) =>
+  `${contrast(hex, GROUNDS.gravel).toFixed(2)}:1 on gravel`;
+const seam = (hex: string) => `dE ${dE(hex, GROUNDS.sand).toFixed(1)} from sand`;
+const said = (hex: string, ...parts: string[]) => `${hex} \u00b7 ${parts.join(" \u00b7 ")}`;
+
+const COLORS: Array<[name: string, token: string, detail: string, swatch: string]> = [
+  /* Grounds */
+  ["Ground \u00b7 sand", "sand", said("#f5eacc", loudness("#f5eacc"), inkOn("#f5eacc")), "bg-sand"],
+  ["Ground \u00b7 gravel", "gravel", said("#e2ded5", loudness("#e2ded5"), `${dE("#e2ded5", "#f5eacc").toFixed(1)} dE from sand`), "bg-gravel"],
+  ["Ground \u00b7 paper", "paper", said("#ffffff", loudness("#ffffff"), inkOn("#ffffff")), "bg-paper"],
+  ["Ground \u00b7 ink", "ink", "#000000 \u00b7 chrome band, text, borders", "bg-ink"],
+  /* Marks: chroma >= 0.10, never a ground */
+  ["Mark \u00b7 seafoam", "seafoam", said("#42d177", loudness("#42d177"), inkOn("#42d177")), "bg-seafoam"],
+  ["Mark \u00b7 watermelon", "watermelon", said("#ef8ad4", loudness("#ef8ad4"), inkOn("#ef8ad4")), "bg-watermelon"],
+  ["Mark \u00b7 strawberry", "strawberry", said("#ff6352", loudness("#ff6352"), inkOn("#ff6352")), "bg-strawberry"],
+  ["Mark \u00b7 ocean", "ocean", said("#4281ff", loudness("#4281ff"), "fill only, 3.01:1 on sand"), "bg-ocean"],
+  ["Mark \u00b7 acid", "acid", said("#cbfb6a", loudness("#cbfb6a"), inkOn("#cbfb6a"), "loudest token"), "bg-acid"],
+  /* Text: the deep tier. Ratios are against gravel, the binding ground. */
+  ["Text \u00b7 seafoam-deep", "seafoam-deep", said("#1c713b", loudness("#1c713b"), onGravel("#1c713b")), "bg-seafoam-deep"],
+  ["Text \u00b7 watermelon-deep", "watermelon-deep", said("#b4198b", loudness("#b4198b"), onGravel("#b4198b")), "bg-watermelon-deep"],
+  ["Text \u00b7 strawberry-deep", "strawberry-deep", said("#b8271a", loudness("#b8271a"), onGravel("#b8271a")), "bg-strawberry-deep"],
+  ["Text \u00b7 ocean-deep", "ocean-deep", said("#0051f3", loudness("#0051f3"), onGravel("#0051f3")), "bg-ocean-deep"],
+  ["Text \u00b7 amethyst-deep", "amethyst-deep", said("#5e5e8b", loudness("#5e5e8b"), onGravel("#5e5e8b")), "bg-amethyst-deep"],
+  ["Text \u00b7 baltic-deep", "baltic-deep", said("#1f6c73", loudness("#1f6c73"), onGravel("#1f6c73")), "bg-baltic-deep"],
+  ["Text \u00b7 bpink-deep", "bpink-deep", said("#bf0074", loudness("#bf0074"), onGravel("#bf0074")), "bg-bpink-deep"],
+  ["Text \u00b7 grey-quiet", "grey-quiet", said("#5f5f5f", loudness("#5f5f5f"), onGravel("#5f5f5f")), "bg-grey-quiet"],
+  /* Bands: one at a time, chroma < 0.09, a seam from every ground */
+  ["Band \u00b7 lilac", "lilac", said("#E2BFE3", loudness("#E2BFE3"), inkOn("#E2BFE3"), seam("#E2BFE3")), "bg-lilac"],
+  ["Band \u00b7 baltic", "baltic", said("#9adee4", loudness("#9adee4"), inkOn("#9adee4"), seam("#9adee4")), "bg-baltic"],
+  /* Muted fills: desaturated on purpose */
+  ["Muted \u00b7 concrete", "concrete", said("#b0ad9b", loudness("#b0ad9b")), "bg-concrete"],
+  ["Muted \u00b7 silver", "silver", said("#b3b3b3", loudness("#b3b3b3")), "bg-silver"],
 ];
 
 const TYPE: Array<
@@ -291,19 +333,19 @@ function DesignSystemScreen() {
             Design System
           </Text>
           <Text className="font-body text-base text-ink">
-            v1 — tokens, primitives, and patterns. Everything below is the
+            v2 — tokens, primitives, and patterns. Everything below is the
             real component, rendered live.
           </Text>
         </View>
 
         <Section title="Color">
           <View>
-            {COLORS.map(([name, token, hex, swatch]) => (
+            {COLORS.map(([name, token, detail, swatch]) => (
               <TokenRow
                 key={token}
                 name={name}
                 token={token}
-                detail={hex}
+                detail={detail}
                 right={<View className={`h-8 w-8 ${swatch}`} />}
               />
             ))}
