@@ -65,6 +65,20 @@
 
   /* Type roles — family names match expo-font registrations */
   --font-display: "Handjet_800ExtraBold", monospace;
+  /* Four families, not four weights of one. Android derives the family
+     from the TTF's basename, so there is no weight axis to ask for and
+     `font-black` will not resolve against any of these: the weight is in
+     the name. One token per scale step — black for display-lg, extrabold
+     for display-md, bold for display-sm, semibold for heading-lg — and the
+     fallback stack stays on each so a failed load degrades to the system's
+     sans rather than hanging on a missing face. `Handjet_800ExtraBold`
+     above is retired with the face (Task 7); it is kept until the gate
+     that judges Big Shoulders is answered, because A6 keeps the face and
+     the scale separable. */
+  --font-display-black: "BigShouldersDisplay_900Black", sans-serif;
+  --font-display-extrabold: "BigShouldersDisplay_800ExtraBold", sans-serif;
+  --font-display-bold: "BigShouldersDisplay_700Bold", sans-serif;
+  --font-display-semibold: "BigShouldersDisplay_600SemiBold", sans-serif;
   --font-wordmark: "BungeeShade_400Regular", sans-serif;
   --font-body: "SpaceMono_400Regular", monospace;
   --font-body-bold: "SpaceMono_700Bold", monospace;

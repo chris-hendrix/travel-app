@@ -165,14 +165,128 @@ const COLORS: Array<[name: string, token: string, detail: string, swatch: string
   ["Muted \u00b7 silver", "silver", said("#b3b3b3", loudness("#b3b3b3")), "bg-silver"],
 ];
 
-const TYPE: Array<
-  [role: string, family: string, token: string, use: string, face: string]
-> = [
-  ["Display", "Handjet ExtraBold", "font-display", "Headlines. Short strings only.", "font-display"],
-  ["Wordmark", "Bungee Shade", "font-wordmark", "Journiful. Nowhere else.", "font-wordmark"],
-  ["Body", "Space Mono", "font-body", "Default text, dates, labels.", "font-body"],
-  ["Strong", "Space Mono Bold", "font-body-bold", "Emphasis, buttons, badges.", "font-body-bold"],
-  ["Aside", "Space Mono Italic", "font-body-italic", "Quotes, secondary info.", "font-body-italic"],
+/**
+ * The scale, as seven steps.
+ *
+ * This is the only place the scale exists as a scale. Everywhere else it
+ * is 42 call sites carrying one of five `leading` values and seventeen
+ * `font-display` sites under the floor, which is why the rollout is
+ * invisible in a diff and the scale has to be judged here first.
+ *
+ * Two faces, split at 28px, and the split is the thing worth arguing
+ * about rather than the sizes: `heading-md` is 20px in the **body** face,
+ * so the display face never sets anything below `heading-lg` at 28px. If
+ * `heading-lg` and `heading-md` look like the same heading on this page,
+ * the floor is wrong and the fix is here rather than across 42 sites.
+ *
+ * Every size is in `px`, never `rem`, and there is no `clamp()`: NativeWind
+ * v5 supports `var()`, `calc()`, `env()` and `color-mix()` and nothing
+ * else, and its `rem` is 14 on native against 16 on web, so a `rem`+`vw`
+ * ramp paints one size in the browser and another on Android — the
+ * measure-vs-paint split this repo has already been bitten by (A18).
+ * `display-lg` is the one step with a breakpoint jump, the `md:` one it
+ * already had.
+ */
+const TYPE: Array<{
+  step: string;
+  size: string;
+  leading: string;
+  tracking: string;
+  weight: string;
+  face: "display" | "body";
+  family: string;
+  className: string;
+  sample: string;
+  use: string;
+}> = [
+  {
+    step: "display-lg",
+    size: "60px, 72px at md",
+    leading: "0.9",
+    tracking: "-0.02em",
+    weight: "900",
+    face: "display",
+    family: "Big Shoulders Display Black",
+    className:
+      "font-display-black text-[60px] leading-[0.9] tracking-[-0.02em] uppercase md:text-[72px]",
+    sample: "Group trips",
+    use: "The landing hero, and nothing else. Two words.",
+  },
+  {
+    step: "display-md",
+    size: "42px, 48px at md",
+    leading: "0.95",
+    tracking: "-0.015em",
+    weight: "800",
+    face: "display",
+    family: "Big Shoulders Display ExtraBold",
+    className:
+      "font-display-extrabold text-[42px] leading-[0.95] tracking-[-0.015em] uppercase md:text-[48px]",
+    sample: "Sunset drinks",
+    use: "A screen's own title, a trip's name.",
+  },
+  {
+    step: "display-sm",
+    size: "32px, 36px at md",
+    leading: "1.0",
+    tracking: "-0.01em",
+    weight: "700",
+    face: "display",
+    family: "Big Shoulders Display Bold",
+    className:
+      "font-display-bold text-[32px] leading-[1] tracking-[-0.01em] uppercase md:text-[36px]",
+    sample: "Packing list",
+    use: "An empty state's headline, a dialog's title.",
+  },
+  {
+    step: "heading-lg",
+    size: "28px",
+    leading: "1.1",
+    tracking: "0",
+    weight: "600",
+    face: "display",
+    family: "Big Shoulders Display SemiBold",
+    className:
+      "font-display-semibold text-[28px] leading-[1.1] uppercase",
+    sample: "Overview",
+    use: "A block heading. The display floor, at 28px.",
+  },
+  {
+    step: "heading-md",
+    size: "20px",
+    leading: "1.15",
+    tracking: "0",
+    weight: "500",
+    face: "body",
+    family: "Space Mono Bold",
+    className: "font-body-bold text-[20px] leading-[1.15]",
+    sample: "What goes in the trip",
+    use: "A subheading — the body face, not the display one.",
+  },
+  {
+    step: "body",
+    size: "16px",
+    leading: "1.5",
+    tracking: "0",
+    weight: "400",
+    face: "body",
+    family: "Space Mono",
+    className: "font-body text-[16px] leading-[1.5]",
+    sample: "Default text, dates and labels.",
+    use: "Everything read as prose.",
+  },
+  {
+    step: "label",
+    size: "14px",
+    leading: "1.4",
+    tracking: "+0.02em",
+    weight: "700",
+    face: "body",
+    family: "Space Mono Bold",
+    className: "font-body-bold text-[14px] leading-[1.4] tracking-[0.02em]",
+    sample: "ROOM SHARE",
+    use: "A control's own label, a badge, an eyebrow.",
+  },
 ];
 
 const VENUES = ["The Hall", "Zone One", "The Rooftop", "The Loft", "Full Venue"];
@@ -243,27 +357,51 @@ function TokenRow({
 }
 
 function TypeRow({
-  role,
-  family,
-  token,
-  use,
+  step,
+  size,
+  leading,
+  tracking,
+  weight,
   face,
+  family,
+  className,
+  sample,
+  use,
 }: {
-  role: string;
+  step: string;
+  size: string;
+  leading: string;
+  tracking: string;
+  weight: string;
+  face: "display" | "body";
   family: string;
-  token: string;
+  className: string;
+  sample: string;
   use: string;
-  face: string;
 }) {
   return (
-    <View className="flex-row items-center gap-3 border-b border-gravel py-3">
-      <Text className={`${face} w-28 text-2xl text-ink`}>Ag</Text>
-      <View className="flex-1">
-        <Text className="font-body-bold text-base text-ink">{role}</Text>
-        <Text className="font-body text-sm text-ink">{family}</Text>
-        <Text className="font-body text-sm text-ink">{use}</Text>
+    <View className="gap-2 border-b border-gravel py-4">
+      {/* The sample is set at the step's real size, leading and tracking,
+          in the face the step wears. Judging a scale off a swatch that is
+          not the scale is how a scale goes unnoticed until it is in 42
+          places. */}
+      <Text className={`${className} text-ink`} numberOfLines={1}>
+        {sample}
+      </Text>
+      <View className="flex-row flex-wrap items-baseline gap-x-4 gap-y-1">
+        <Text className="w-28 font-body-bold text-sm text-ink">{step}</Text>
+        <Text className="font-body text-sm text-ink">{size}</Text>
+        <Text className="font-body text-sm text-ink">lh {leading}</Text>
+        <Text className="font-body text-sm text-ink">track {tracking}</Text>
+        <Text className="font-body text-sm text-ink">w{weight}</Text>
+        {/* Named as the *face*, not the family: this is the column that
+            decides which of the two faces a step gets, and the family is
+            the consequence of it. */}
+        <Text className="font-body-bold text-sm text-ink">{face}</Text>
       </View>
-      <Text className="font-body text-sm text-ink">{token}</Text>
+      <Text className="font-body text-sm text-ink opacity-60">
+        {family} — {use}
+      </Text>
     </View>
   );
 }
@@ -357,15 +495,8 @@ function DesignSystemScreen() {
 
         <Section title="Type">
           <View>
-            {TYPE.map(([role, family, token, use, face]) => (
-              <TypeRow
-                key={token}
-                role={role}
-                family={family}
-                token={token}
-                use={use}
-                face={face}
-              />
+            {TYPE.map((step) => (
+              <TypeRow key={step.step} {...step} />
             ))}
           </View>
           <Text className="font-body text-sm text-ink">

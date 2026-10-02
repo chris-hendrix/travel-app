@@ -200,6 +200,9 @@ importers:
 
   apps/mobile:
     dependencies:
+      '@expo-google-fonts/big-shoulders-display':
+        specifier: 0.2.3
+        version: 0.2.3
       '@expo-google-fonts/bungee-shade':
         specifier: ^0.4.1
         version: 0.4.1
@@ -1391,6 +1394,10 @@ packages:
     peerDependenciesMeta:
       '@noble/hashes':
         optional: true
+
+  '@expo-google-fonts/big-shoulders-display@0.2.3':
+    resolution: {integrity: sha512-inKhKz/42DhH27R7RyKc4Ff/bF4LmGzc3kwo+w0jKHw90K/ljQ+nkp1DwNx6y+/PfxhX30f6DwSy0CWZu7XZWg==}
+    deprecated: This font has been removed from Google Fonts and will no longer receive updates.
 
   '@expo-google-fonts/bungee-shade@0.4.1':
     resolution: {integrity: sha512-HiTCAYNrnrmRQIVVRRzuXv1WxDtNHZ8Dg+2g0lWGb8ehTnXcnvi4PFX7RoylGPQLnmHnQNZI3khyrqM2arHPmQ==}
@@ -7541,6 +7548,8 @@ snapshots:
   '@exodus/bytes@1.16.0':
     optional: true
 
+  '@expo-google-fonts/big-shoulders-display@0.2.3': {}
+
   '@expo-google-fonts/bungee-shade@0.4.1': {}
 
   '@expo-google-fonts/handjet@0.4.2': {}
@@ -9189,7 +9198,7 @@ snapshots:
       obug: 2.1.3
       std-env: 4.2.0
       tinyrainbow: 3.1.0
-      vitest: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(yaml@2.9.0))
+      vitest: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.5.1)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.5.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(yaml@2.9.0))
 
   '@vitest/expect@4.1.10':
     dependencies:

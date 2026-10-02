@@ -89,7 +89,7 @@ describe("native config: the app.json keys the native build needs", () => {
       (p) => Array.isArray(p) && p[0] === "expo-font",
     ) as [string, { fonts: string[] }];
     expect(font, "expo-font plugin configured").toBeDefined();
-    expect(font[1].fonts).toHaveLength(5);
+    expect(font[1].fonts).toHaveLength(9);
     for (const rel of font[1].fonts) {
       // The family Android derives is the file's basename, so it has to
       // match what `global.css` names in `--font-wordmark` and friends.
@@ -100,6 +100,13 @@ describe("native config: the app.json keys the native build needs", () => {
         "SpaceMono_400Regular",
         "SpaceMono_400Regular_Italic",
         "SpaceMono_700Bold",
+        // Four weights of the display face. Not one family with four
+        // weights: the basename *is* the family on Android, so these are
+        // four families and `global.css` needs four tokens to name them.
+        "BigShouldersDisplay_900Black",
+        "BigShouldersDisplay_800ExtraBold",
+        "BigShouldersDisplay_700Bold",
+        "BigShouldersDisplay_600SemiBold",
       ]).toContain(family);
       expect(fs.existsSync(path.join(mobileDir, rel)), `${rel} exists`).toBe(
         true,
