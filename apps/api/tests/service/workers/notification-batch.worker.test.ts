@@ -226,6 +226,18 @@ describe("notification-batch.worker", () => {
       ).toBe(true);
     });
 
+    it("should always send trip_cancelled regardless of prefs, with no preference field", () => {
+      // A terminal event bypasses preferences by design, the same way
+      // trip_update does: every delete texts the whole going roster.
+      expect(
+        shouldSendSms("trip_cancelled", {
+          dailyItinerary: false,
+          tripMessages: false,
+        }),
+      ).toBe(true);
+      expect(getPreferenceField("trip_cancelled")).toBeNull();
+    });
+
     it("should return true for unknown type", () => {
       expect(shouldSendSms("some_unknown_type", allEnabledPrefs)).toBe(true);
     });

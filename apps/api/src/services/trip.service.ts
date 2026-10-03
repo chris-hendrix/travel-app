@@ -29,6 +29,8 @@ import type { CreateTripInput, UpdateTripInput } from "@journiful/shared/schemas
 import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
 import type { IGeocodingService } from "@/services/geocoding.service.js";
+import type { INotificationService } from "./notification.service.js";
+import type { Logger } from "@/types/logger.js";
 import {
   applyPlaceBlockPatch,
   placeBlockPatch,
@@ -264,6 +266,8 @@ export class TripService implements ITripService {
     private db: AppDatabase,
     private permissionsService: IPermissionsService,
     private geocodingService: IGeocodingService,
+    private notificationService: INotificationService,
+    private logger?: Logger,
   ) {}
 
   /**
@@ -935,7 +939,26 @@ export class TripService implements ITripService {
       );
     }
 
-    // 2. Perform soft delete in a transaction for consistency
+    // 2. Read the trip before the write — its name is the notification's body
+    const rows = await this.db
+      .select({ id: trips.id, name: trips.name, cancelled: trips.cancelled })
+      .from(trips)
+      .where(eq(trips.id, tripId))
+      .limit(1);
+    const row = rows[0];
+    // Unreachable for an organizer — canDeleteTrip is false when there is no
+    // membership row, so the !canDelete branch above always answers first — but
+    // the read has to survive it rather than index rows[0] blind.
+    if (!row) return;
+    // A cancelled trip is already gone: the second half of a double-tap, or a
+    // second tab, must not text the whole trip again. Returning rather than
+    // throwing keeps the write idempotent from the caller's side — the route
+    // still answers 200, because "it is deleted" is true either way. It sits
+    // after canDeleteTrip so a non-organizer on a cancelled trip still gets
+    // 403, not a silent success.
+    if (row.cancelled) return;
+
+    // 3. Perform soft delete in a transaction for consistency
     await this.db.transaction(async (tx) => {
       const result = await tx
         .update(trips)
@@ -950,6 +973,31 @@ export class TripService implements ITripService {
         throw new TripNotFoundError();
       }
     });
+
+    // 4. Tell the going members. Wrapped because the delete already happened:
+    // a queue that is down must not fail it.
+    try {
+      const [deleter] = await this.db
+        .select({ displayName: users.displayName })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      const deleterName = deleter?.displayName ?? "The organizer";
+
+      await this.notificationService.notifyTripMembers({
+        tripId,
+        type: "trip_cancelled",
+        title: "Trip deleted",
+        body: `${deleterName} deleted ${row.name}`,
+        data: { tripId },
+        excludeUserId: userId,
+      });
+    } catch (err) {
+      this.logger?.error(
+        err,
+        "Failed to notify trip members of cancellation",
+      );
+    }
   }
 
   /**

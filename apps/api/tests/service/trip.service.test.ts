@@ -12,6 +12,7 @@ import { eq, and } from "drizzle-orm";
 import { TripService, type TripSummary } from "@/services/trip.service.js";
 import { PermissionsService } from "@/services/permissions.service.js";
 import type { IGeocodingService } from "@/services/geocoding.service.js";
+import type { INotificationService } from "@/services/notification.service.js";
 import { generateUniquePhone } from "../test-utils.js";
 import type { CreateTripInput } from "@journiful/shared/schemas";
 
@@ -22,12 +23,19 @@ const mockGeocodingService: IGeocodingService = {
   getTimezoneByCoords: vi.fn().mockResolvedValue(null),
 };
 
+// Create mock notification service — the cancel fan-out's only collaborator
+const notifyTripMembersMock = vi.fn().mockResolvedValue(undefined);
+const mockNotificationService = {
+  notifyTripMembers: notifyTripMembersMock,
+} as unknown as INotificationService;
+
 // Create service instances with db for testing
 const permissionsService = new PermissionsService(db);
 const tripService = new TripService(
   db,
   permissionsService,
   mockGeocodingService,
+  mockNotificationService,
 );
 
 describe("trip.service", () => {
@@ -1146,6 +1154,7 @@ describe("trip.service", () => {
     let testPhone3: string;
 
     beforeEach(async () => {
+      notifyTripMembersMock.mockClear();
       // Generate unique phones
       testPhone1 = generateUniquePhone();
       testPhone2 = generateUniquePhone();
@@ -1304,6 +1313,51 @@ describe("trip.service", () => {
       expect(updatedTrip.updatedAt.getTime()).toBeGreaterThanOrEqual(
         originalUpdatedAt,
       );
+    });
+
+    it("should tell the going members once, excluding the deleter", async () => {
+      await tripService.cancelTrip(testTripId, testCreatorId);
+
+      expect(notifyTripMembersMock).toHaveBeenCalledTimes(1);
+      expect(notifyTripMembersMock).toHaveBeenCalledWith({
+        tripId: testTripId,
+        type: "trip_cancelled",
+        title: "Trip deleted",
+        body: "Creator deleted Test Trip",
+        data: { tripId: testTripId },
+        excludeUserId: testCreatorId,
+      });
+    });
+
+    it("should not notify anyone when a non-organizer tries to cancel", async () => {
+      await expect(
+        tripService.cancelTrip(testTripId, testNonOrganizerId),
+      ).rejects.toThrow("Permission denied: only organizers can cancel trips");
+
+      expect(notifyTripMembersMock).not.toHaveBeenCalled();
+    });
+
+    it("should not reach the fan-out for a trip that does not exist", async () => {
+      // Travelling the pre-existing !canDelete branch: this asserts the
+      // fan-out is not reached from a 404, not that new code works.
+      const fakeId = "00000000-0000-0000-0000-000000000000";
+      await expect(
+        tripService.cancelTrip(fakeId, testCreatorId),
+      ).rejects.toThrow("Trip not found");
+
+      expect(notifyTripMembersMock).not.toHaveBeenCalled();
+    });
+
+    it("should not tell the members twice when a cancel is repeated", async () => {
+      // Asserted through the stub, not through trips.updatedAt: the
+      // transaction stamps `new Date()` and two calls in one test can land in
+      // the same millisecond, so a timestamp assertion would pass either way.
+      await tripService.cancelTrip(testTripId, testCreatorId);
+      await expect(
+        tripService.cancelTrip(testTripId, testCreatorId),
+      ).resolves.toBeUndefined();
+
+      expect(notifyTripMembersMock).toHaveBeenCalledTimes(1);
     });
 
     it("should throw error when trip does not exist", async () => {
