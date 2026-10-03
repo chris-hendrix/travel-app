@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Image, Pressable, Text, View } from "react-native";
-import { Stack, useLocalSearchParams } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
+import { Button } from "@/components/ui/Button";
+import { InlineError } from "@/components/ui/InlineError";
+import { RuledBlock } from "@/components/ui/RuledBlock";
 import { QuietAction } from "@/components/ui/QuietAction";
 import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
@@ -12,6 +15,9 @@ import type { Selection } from "@/lib/calendar";
 import { formatDateRange } from "@/lib/dateRange";
 import { validateNewTrip, type NewTripInput } from "@/lib/newTrip";
 import { useTrip, useTripsActions } from "@/lib/tripsStore";
+import { useMembers } from "@/lib/queries/members";
+import { viewerOf } from "@/lib/members";
+import { useAuth } from "@/lib/authStore";
 import { coverPreviewSeed } from "@/lib/place-images";
 import {
   tripPlaceSnapshotPatch,
@@ -58,7 +64,22 @@ function EditTripScreen() {
   // `PUT /trips/:id` (failure rolls back in the mutation and reads
   // here, in the screen's existing submit-area style).
   const { trip } = useTrip(tripId);
-  const { updateTrip, uploadCover, removeCover } = useTripsActions();
+  const { updateTrip, uploadCover, removeCover, deleteTrip } = useTripsActions();
+  // The roster is read for the role, not for the list: `getTripById`'s
+  // meta could carry `isOrganizer`, but six screens already answer this
+  // exact question from the members (`events/detail`, `stay/detail`,
+  // `members/detail`, `members/new`, `travel/form`, `travel`), and a
+  // seventh deriving it differently is the inconsistency. One GET is the
+  // price. Both reads are called in this render, so the screen suspends
+  // under the gate's single Suspense until they resolve and no form is
+  // ever committed without the role that gates the block below it.
+  const { members } = useMembers(trip?.id);
+  const { user } = useAuth();
+  const isOrganizer = viewerOf(members, user?.id)?.isOrganizer ?? false;
+  // The success path hangs off the router rather than `dismiss`, which is
+  // `router.back()`: back lands on the deleted trip's detail, which now
+  // answers "Nothing here".
+  const router = useRouter();
   const dismiss = useDismiss("/trips");
 
   const [title, setTitle] = useState(trip?.title ?? "");
@@ -75,6 +96,13 @@ function EditTripScreen() {
   // keeping the `+` add-a-cover affordance.
   const [cover, setCover] = useState(coverPreviewSeed(trip ?? { coverImageUrl: null }));
   const [submitted, setSubmitted] = useState(false);
+  // The delete's arm: local state, because arming is the user's and the
+  // request has not been made yet. A failure disarms it and the error
+  // speaks for itself, so the second press is never a silent retry of a
+  // destructive write.
+  const [armedDelete, setArmedDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteFailure, setDeleteFailure] = useState<string | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -149,6 +177,35 @@ function EditTripScreen() {
       rotateSessionToken();
     }
   }, [details.data, details.isError, selectedPlaceId, rotateSessionToken]);
+
+  // Two presses: the first arms, the second sends. The label does not
+  // change between them, so the thumb that pressed it does not have to
+  // find a new word.
+  async function removeTrip() {
+    setDeleting(true);
+    setDeleteFailure(null);
+    try {
+      await deleteTrip(trip!.id);
+      router.replace("/trips");
+    } catch (caught) {
+      // The block disarms on failure and the message is the same mapper
+      // every other screen uses: offline gets the offline sentence, a
+      // server 403 gets the API's message. Nothing was painted on the
+      // list, so a failed delete leaves no trace to undo.
+      const copy = toErrorCopy(caught);
+      setArmedDelete(false);
+      setDeleteFailure(
+        copy.offline
+          ? "You're offline. Check your connection and try again."
+          : (copy.message ??
+            (caught instanceof Error
+              ? caught.message
+              : "Couldn't delete the trip.")),
+      );
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   const pickCover = useCallback(async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -362,6 +419,58 @@ function EditTripScreen() {
           </View>
         </View>
       </View>
+
+      {/* The trip's own delete, at the foot of the body and inside the
+          dialog's scroll — never in the bar, which belongs to Save. The
+          block is gated on the role: a traveler reaching this route by
+          deep link gets no word about deleting, because the server would
+          answer 403 and a control that reports failure is worse than an
+          absent one. */}
+      {isOrganizer ? (
+        <RuledBlock>
+          <View className="gap-2">
+            <Text className="font-body-bold text-base text-ink">
+              Delete trip
+            </Text>
+            <Text className="font-body text-sm text-ink opacity-60">
+              It comes off everyone's list, and their calendars stop
+              following it. It cannot be undone.
+            </Text>
+            {/* The question appears only once the button is armed, and it
+                is the loudest line here: the reason above is quiet ink,
+                and this is the one asking for an answer. */}
+            {armedDelete ? (
+              <Text className="font-body text-sm text-ink">
+                Are you sure?
+              </Text>
+            ) : null}
+            <Button
+              title={deleting ? "Deleting trip" : "Delete trip"}
+              variant={armedDelete ? "danger" : "secondary"}
+              onPress={() => {
+                if (!armedDelete) {
+                  setArmedDelete(true);
+                  setDeleteFailure(null);
+                  return;
+                }
+                void removeTrip();
+              }}
+              disabled={deleting}
+            />
+            {/* `Cancel` stays live while the write is in flight: arming is
+                the user's state and the request is already gone, so
+                disarming mid-flight is safe. It is the arm's escape, not
+                the dialog's exit — the ✕ is that. */}
+            {armedDelete ? (
+              <QuietAction
+                label="Cancel"
+                onPress={() => setArmedDelete(false)}
+              />
+            ) : null}
+            {deleteFailure ? <InlineError message={deleteFailure} /> : null}
+          </View>
+        </RuledBlock>
+      ) : null}
     </FullscreenDialog>
   );
 }

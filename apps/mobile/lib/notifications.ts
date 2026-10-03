@@ -10,6 +10,9 @@ import { toIso } from "@/lib/dateRange";
  *   sms_invite     invitation.service  phone invitee, auto-added
  *   trip_message   message.service     top-level message only
  *   daily_itinerary  daily-itineraries.worker
+ *   trip_cancelled  trip.service.cancelTrip  the organizer who deleted it is
+ *                                        excluded, so the notice lands only
+ *                                        on the members it is about
  *   trip_update    nothing yet — declared, handled by the push payload
  *                  builder, and what an itinerary change should raise
  *
@@ -20,6 +23,7 @@ export type NotificationType =
   | "daily_itinerary"
   | "trip_message"
   | "trip_update"
+  | "trip_cancelled"
   | "mutual_invite"
   | "sms_invite";
 
