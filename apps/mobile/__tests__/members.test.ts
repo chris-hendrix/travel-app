@@ -2,6 +2,21 @@ import { describe, expect, it } from "vitest";
 import { membersFor } from "@/mocks/members";
 import { TRIPS } from "@/mocks/trips";
 import type { Trip } from "@/components/trip/TripCard";
+import { viewerOf, type Member } from "@/lib/members";
+
+function member(over: Partial<Member> = {}): Member {
+  return {
+    id: "m1",
+    userId: "u1",
+    name: "Ada",
+    status: "going",
+    isOrganizer: false,
+    phone: "+15550000001",
+    sharePhone: false,
+    handles: null,
+    ...over,
+  };
+}
 
 function trip(over: Partial<Trip> = {}): Trip {
   return {
@@ -96,5 +111,37 @@ describe("membersFor", () => {
       true,
     );
     expect(roster.some((m) => m.handles === null)).toBe(true);
+  });
+});
+
+describe("viewerOf", () => {
+  const roster = [
+    member({ id: "m1", userId: "u1", isOrganizer: true }),
+    member({ id: "m2", userId: "u2" }),
+    member({ id: "m3", userId: null }),
+  ];
+
+  it("returns the row whose userId is the signed-in user's", () => {
+    expect(viewerOf(roster, "u2")).toBe(roster[1]!);
+    expect(viewerOf(roster, "u1")).toBe(roster[0]!);
+  });
+
+  it("returns null without a signed-in user", () => {
+    // The trip-delete gate reads `?.isOrganizer ?? false`, so a missing
+    // viewer has to be null rather than undefined or a thrown error.
+    expect(viewerOf(roster, undefined)).toBeNull();
+    expect(viewerOf(roster, null)).toBeNull();
+    expect(viewerOf(roster, "")).toBeNull();
+  });
+
+  it("returns null when no row matches", () => {
+    expect(viewerOf(roster, "u999")).toBeNull();
+    expect(viewerOf([], "u1")).toBeNull();
+  });
+
+  it("reports the viewer's own role, organizer or not", () => {
+    expect(viewerOf(roster, "u1")?.isOrganizer ?? false).toBe(true);
+    expect(viewerOf(roster, "u2")?.isOrganizer ?? false).toBe(false);
+    expect(viewerOf(roster, "u999")?.isOrganizer ?? false).toBe(false);
   });
 });
