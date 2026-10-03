@@ -1,16 +1,17 @@
 /**
  * E2E Journey: Trips (mobile).
  *
- * The one critical flow: create via UI → detail (sections present, edit
- * affordance) → list → edit the name → reload and confirm the edit
- * persisted (server round-trip, not cache).
+ * Critical flow 2, Trip CRUD, in three cases: the create/edit chain
+ * (create via UI → detail → list → edit the name → reload and confirm
+ * the edit persisted, server round-trip not cache), the member
+ * removal / promote / demote chain below it, and the trip's own delete
+ * ("delete the trip from Edit trip, twice pressed, gone after reload"
+ * — the case the parked delete-trip TODO was waiting for).
  *
  * Auth is seeded via `authenticateViaAPI` (helpers/auth.ts), same as the
  * auth journey spec. Selectors are `getByRole`/`getByText` only; every
  * selector names the screen file and line-shape it matches in a comment.
  *
- * TODO (parked):
- * delete-trip has no UI surface yet — add a spec here once it does.
  * (Resolved: member removal and co-organizer promote/demote are covered
  * by the "remove and promote a member" test below.)
  */
@@ -29,6 +30,7 @@ import {
   NAVIGATION_TIMEOUT,
   SLOW_NAVIGATION_TIMEOUT,
 } from "./helpers/timeouts";
+import { seedTripViaAPI } from "./helpers/trip";
 
 test.describe("Trip Journey", () => {
   test("create via UI → detail → list → edit name → reload confirms", async ({
@@ -280,7 +282,7 @@ test.describe("Trip Journey", () => {
         "Member Host",
       ));
       await armSession(page, orgToken);
-      tripId = await seedTripViaAPI(request, orgToken, tripName);
+      ({ id: tripId } = await seedTripViaAPI(request, orgToken, tripName));
       for (const [phone, name] of [
         [leaverPhone, leaverName],
         [riserPhone, riserName],
@@ -408,38 +410,102 @@ test.describe("Trip Journey", () => {
       ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
     });
   });
-});
 
-function isoIn(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-}
+  // Critical flow 2, Trip CRUD: the delete leg of the CRUD chain, which
+  // the parked TODO above used to wait for. The trip is seeded through
+  // the API because creating it through the UI is already this file's
+  // first test; what is under test is the delete, from the real button
+  // to the server round-trip.
+  test("delete the trip from Edit trip, twice pressed, gone after reload", async ({
+    page,
+    request,
+  }) => {
+    const tripName = uniqueLabel("E2E Delete");
 
-/** Seed a trip through the real create endpoint. Returns the trip id. */
-async function seedTripViaAPI(
-  request: APIRequestContext,
-  token: string,
-  name: string,
-): Promise<string> {
-  // POST /api/trips — body mirrors createTripSchema
-  // (shared/schemas/trip.ts): name, destination, timezone required.
-  const res = await request.post(`${API_BASE}/trips`, {
-    data: {
-      name,
-      destination: "Mallorca, Spain",
-      timezone: "America/Chicago",
-      startDate: isoIn(30),
-      endDate: isoIn(35),
-    },
-    headers: { Authorization: `Bearer ${token}` },
+    await test.step("seed an organizer session and the trip", async () => {
+      // Seeded the way this spec's member test seeds its organizer: a
+      // real signup through the auth endpoints, its token armed into
+      // localStorage (helpers/auth.ts) ahead of the first goto.
+      const { token } = await seedUserViaAPI(
+        request,
+        generateUniquePhone(),
+        "Delete Host",
+      );
+      await armSession(page, token);
+      const { id } = await seedTripViaAPI(request, token, tripName);
+      await page.goto(`/trips/detail?id=${id}`);
+      // app/trips/detail.tsx: the header renders the trip title as
+      // display text; .last() because the app header echoes the same
+      // title in a hidden element (same comment as the create test).
+      await expect(page.getByText(tripName).last()).toBeVisible({
+        timeout: NAVIGATION_TIMEOUT,
+      });
+    });
+
+    await test.step("open Edit trip through Trip actions", async () => {
+      // components/trip/TripActions.tsx: the DisclosureButton titled
+      // "Trip actions" (:150) — the trigger lives in that component,
+      // not in app/trips/detail.tsx, which only renders TripActions.
+      await page.getByRole("button", { name: "Trip actions" }).click();
+      // components/trip/TripActions.tsx tripActions: the "Edit trip"
+      // row inside the disclosure routes to /trips/edit?id=….
+      await page.getByRole("button", { name: "Edit trip" }).click();
+      await page.waitForURL("**/trips/edit?id=*", {
+        timeout: NAVIGATION_TIMEOUT,
+      });
+    });
+
+    await test.step("the arm is not shown until the first press", async () => {
+      // app/trips/edit.tsx: the RuledBlock at the foot of the body
+      // renders its question only when `armedDelete` is set, which the
+      // first press does. Count 0 before the press is the half of the
+      // two-press arm that a "visible after the press" assertion alone
+      // would not prove.
+      await expect(page.getByText("Are you sure?")).toHaveCount(0);
+      // app/trips/edit.tsx: `Button title={deleting ? "Deleting trip"
+      // : "Delete trip"}` — and the block's own heading is the same two
+      // words, so the role-scoped locator is load-bearing: getByText
+      // would match both and Playwright would refuse the click.
+      const deleteButton = page.getByRole("button", {
+        name: "Delete trip",
+        exact: true,
+      });
+      await expect(deleteButton).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+      await deleteButton.click();
+      await expect(page.getByText("Are you sure?")).toBeVisible({
+        timeout: ELEMENT_TIMEOUT,
+      });
+    });
+
+    await test.step("the second press deletes and lands on the list", async () => {
+      // app/trips/edit.tsx: the armed branch of the same handler calls
+      // removeTrip, which replace()s to /trips rather than back()ing —
+      // back would land on the deleted trip's detail, which now answers
+      // "Nothing here" (app/trips/events/edit.tsx:123 is the same shape).
+      await page
+        .getByRole("button", { name: "Delete trip", exact: true })
+        .click();
+      await page.waitForURL("**/trips", {
+        timeout: SLOW_NAVIGATION_TIMEOUT,
+      });
+      // app/trips/index.tsx: a TripCard per trip, each carrying the
+      // trip title — the deleted trip has no card.
+      await expect(page.getByText(tripName)).toHaveCount(0, {
+        timeout: NAVIGATION_TIMEOUT,
+      });
+    });
+
+    await test.step("reload: the delete persisted server-side", async () => {
+      // The reload re-reads the list from the server, so the still-
+      // missing row proves the DELETE landed rather than an optimistic
+      // cache edit.
+      await page.reload();
+      await expect(page.getByText(tripName)).toHaveCount(0, {
+        timeout: NAVIGATION_TIMEOUT,
+      });
+    });
   });
-  if (!res.ok()) {
-    throw new Error(`create-trip failed: ${res.status()} ${await res.text()}`);
-  }
-  const body = (await res.json()) as { trip: { id: string } };
-  return body.trip.id;
-}
+});
 
 /** Invite one number through the real batch endpoint. */
 async function seedInviteViaAPI(
