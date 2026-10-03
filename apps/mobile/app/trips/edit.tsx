@@ -65,14 +65,9 @@ function EditTripScreen() {
   // here, in the screen's existing submit-area style).
   const { trip } = useTrip(tripId);
   const { updateTrip, uploadCover, removeCover, deleteTrip } = useTripsActions();
-  // The roster is read for the role, not for the list: `getTripById`'s
-  // meta could carry `isOrganizer`, but six screens already answer this
-  // exact question from the members (`events/detail`, `stay/detail`,
-  // `members/detail`, `members/new`, `travel/form`, `travel`), and a
-  // seventh deriving it differently is the inconsistency. One GET is the
-  // price. Both reads are called in this render, so the screen suspends
-  // under the gate's single Suspense until they resolve and no form is
-  // ever committed without the role that gates the block below it.
+  // The roster is read for the role, not for the list: the other six screens
+  // answer this from the members, and a seventh deriving it differently is the
+  // inconsistency. One GET is the price.
   const { members } = useMembers(trip?.id);
   const { user } = useAuth();
   const isOrganizer = viewerOf(members, user?.id)?.isOrganizer ?? false;
@@ -189,14 +184,9 @@ function EditTripScreen() {
       router.replace("/trips");
     } catch (caught) {
       // The block disarms on failure and the message comes from the same
-      // mapper every other screen uses. It hand-maps by status: offline
-      // (no `message` at all, hence the offline sentence), 401/403/429
-      // and 5xx each get their own fixed sentence, and 404 passes
-      // `null` through for the caller to decide. It only passes a server
-      // string through in its code-specific branches, so this block
-      // never renders one: a `null` message becomes the same generic
-      // sentence, which is what a 404 gets here. Nothing was painted on
-      // the list, so a failed delete leaves no trace to undo.
+      // mapper every other screen uses: it hand-maps by status and only passes
+      // a server string through in its code-specific branches, so a 404 falls
+      // to the generic sentence below.
       const copy = toErrorCopy(caught);
       setArmedDelete(false);
       setDeleteFailure(

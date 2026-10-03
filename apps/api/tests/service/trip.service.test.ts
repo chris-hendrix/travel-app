@@ -1360,6 +1360,29 @@ describe("trip.service", () => {
       expect(notifyTripMembersMock).toHaveBeenCalledTimes(1);
     });
 
+    it("should not tell the members twice when two cancels race", async () => {
+      // The guard has to live in the write, not in a read that precedes it:
+      // two callers (two tabs, a retry after a timeout) both clear
+      // canDeleteTrip, both see cancelled=false, and both text the trip.
+      // Repeated because against a read-then-write guard the duplicate only
+      // happens when both reads land before either write — one pass would
+      // usually pass by luck.
+      for (let i = 0; i < 5; i++) {
+        notifyTripMembersMock.mockClear();
+        await db
+          .update(trips)
+          .set({ cancelled: false })
+          .where(eq(trips.id, testTripId));
+
+        await Promise.all([
+          tripService.cancelTrip(testTripId, testCreatorId),
+          tripService.cancelTrip(testTripId, testCreatorId),
+        ]);
+
+        expect(notifyTripMembersMock).toHaveBeenCalledTimes(1);
+      }
+    });
+
     it("should throw error when trip does not exist", async () => {
       const fakeId = "00000000-0000-0000-0000-000000000000";
       await expect(

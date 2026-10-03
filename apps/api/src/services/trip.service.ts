@@ -939,56 +939,39 @@ export class TripService implements ITripService {
       );
     }
 
-    // 2. Read the trip before the write — its name is the notification's body
-    const rows = await this.db
-      .select({ id: trips.id, name: trips.name, cancelled: trips.cancelled })
-      .from(trips)
-      .where(eq(trips.id, tripId))
+    // 2. Read the deleter's name before the write, so a failure here fails the
+    // request with the trip untouched. Inside the try it would swallow the read
+    // and log, leaving a deleted trip whose members are told nothing.
+    const [deleter] = await this.db
+      .select({ displayName: users.displayName })
+      .from(users)
+      .where(eq(users.id, userId))
       .limit(1);
-    const row = rows[0];
-    // Unreachable for an organizer — canDeleteTrip is false when there is no
-    // membership row, so the !canDelete branch above always answers first — but
-    // the read has to survive it rather than index rows[0] blind.
-    if (!row) return;
-    // A cancelled trip is already gone: the second half of a double-tap, or a
-    // second tab, must not text the whole trip again. Returning rather than
-    // throwing keeps the write idempotent from the caller's side — the route
-    // still answers 200, because "it is deleted" is true either way. It sits
-    // after canDeleteTrip so a non-organizer on a cancelled trip still gets
-    // 403, not a silent success.
-    if (row.cancelled) return;
+    const deleterName = deleter?.displayName ?? "The organizer";
 
-    // 3. Perform soft delete in a transaction for consistency
-    await this.db.transaction(async (tx) => {
-      const result = await tx
-        .update(trips)
-        .set({
-          cancelled: true,
-          updatedAt: new Date(),
-        })
-        .where(eq(trips.id, tripId))
-        .returning();
+    // 3. Soft delete, idempotence in the write itself: `cancelled = false` is
+    // the condition, so of two concurrent cancels exactly one lands a row.
+    // No row means the flag was already set before this call, so the notice
+    // has already gone out — still a success, because "it is deleted" is true
+    // either way, but the trip must not be texted twice. A trip that does not
+    // exist cannot reach this statement: canDeleteTrip is false without a
+    // membership row, so the branch above answered 404 first.
+    const [cancelledTrip] = await this.db
+      .update(trips)
+      .set({ cancelled: true, updatedAt: new Date() })
+      .where(and(eq(trips.id, tripId), eq(trips.cancelled, false)))
+      .returning({ id: trips.id, name: trips.name });
 
-      if (!result[0]) {
-        throw new TripNotFoundError();
-      }
-    });
+    if (!cancelledTrip) return;
 
     // 4. Tell the going members. Wrapped because the delete already happened:
     // a queue that is down must not fail it.
     try {
-      const [deleter] = await this.db
-        .select({ displayName: users.displayName })
-        .from(users)
-        .where(eq(users.id, userId))
-        .limit(1);
-      const deleterName = deleter?.displayName ?? "The organizer";
-
       await this.notificationService.notifyTripMembers({
         tripId,
         type: "trip_cancelled",
         title: "Trip deleted",
-        body: `${deleterName} deleted ${row.name}`,
+        body: `${deleterName} deleted ${cancelledTrip.name}`,
         data: { tripId },
         excludeUserId: userId,
       });
