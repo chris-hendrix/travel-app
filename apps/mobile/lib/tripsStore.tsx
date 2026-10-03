@@ -12,6 +12,7 @@ import {
 import type { Trip } from "@/components/trip/TripCard";
 import { ApiError } from "@/lib/api";
 import {
+  cancelTripOptions,
   createTripOptions,
   removeCoverOptions,
   tripDetailOptions,
@@ -41,6 +42,11 @@ export type TripsActions = {
    */
   uploadCover: (id: string, uri: string) => Promise<Trip>;
   removeCover: (id: string) => Promise<Trip>;
+  /**
+   * The trip's own delete. Paints on success only — see the mutation
+   * for why this one has no optimistic pass.
+   */
+  delete: (id: string) => Promise<void>;
 };
 
 /**
@@ -322,6 +328,25 @@ export function TripsProvider({ children }: { children: ReactNode }) {
     onSuccess: (serverTrip, { id }) => mergeCover(serverTrip, id),
     onSettled: (_data, _error, { id }) => invalidateCover(id),
   });
+  // The one write in this store with no `onMutate` and no rollback.
+  // There is nothing to roll back to: a failure leaves the list
+  // exactly as it was, and the row is only ever removed once the
+  // server has agreed.
+  const deleteMutation = useMutation({
+    ...cancelTripOptions(),
+    onSuccess: (_data, { id }) => {
+      // The detail is removed rather than invalidated: an invalidate
+      // would refetch and, before this plan's read guard shipped,
+      // repaint the trip as alive.
+      queryClient.removeQueries({ queryKey: tripKeys.detail(id) });
+      queryClient.setQueryData<Trip[]>(tripKeys.list(), (old) =>
+        old?.filter((trip) => trip.id !== id),
+      );
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: tripKeys.list() });
+    },
+  });
   const actions = useMemo<TripsActions>(
     () => ({
       create: (input: CreateTripRequest) => createMutation.mutateAsync(input),
@@ -330,8 +355,15 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       uploadCover: (id: string, uri: string) =>
         uploadCoverMutation.mutateAsync({ id, uri }),
       removeCover: (id: string) => removeCoverMutation.mutateAsync({ id }),
+      delete: (id: string) => deleteMutation.mutateAsync({ id }),
     }),
-    [createMutation, updateMutation, uploadCoverMutation, removeCoverMutation],
+    [
+      createMutation,
+      updateMutation,
+      uploadCoverMutation,
+      removeCoverMutation,
+      deleteMutation,
+    ],
   );
 
   return (
@@ -347,6 +379,7 @@ export function useTripsActions(): {
   updateTrip: (id: string, patch: UpdateTripRequest) => Promise<Trip>;
   uploadCover: (id: string, uri: string) => Promise<Trip>;
   removeCover: (id: string) => Promise<Trip>;
+  deleteTrip: (id: string) => Promise<void>;
 } {
   const actions = useContext(TripsActionsContext);
   if (!actions)
@@ -357,6 +390,7 @@ export function useTripsActions(): {
       updateTrip: actions.update,
       uploadCover: actions.uploadCover,
       removeCover: actions.removeCover,
+      deleteTrip: actions.delete,
     }),
     [actions],
   );
@@ -392,6 +426,7 @@ export function useTrips(): TripsData & {
   updateTrip: (id: string, patch: UpdateTripRequest) => Promise<Trip>;
   uploadCover: (id: string, uri: string) => Promise<Trip>;
   removeCover: (id: string) => Promise<Trip>;
+  deleteTrip: (id: string) => Promise<void>;
 } {
   const data = useTripsData();
   const actions = useTripsActions();

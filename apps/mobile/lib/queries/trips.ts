@@ -326,3 +326,23 @@ export const removeCoverOptions = () =>
 
 /** Alias kept so call sites can name the mutation, not the options. */
 export { removeCoverOptions as removeCoverMutation };
+
+/**
+ * `DELETE /trips/:id` — the organizer-only soft delete.
+ *
+ * The response is discarded: a cancelled trip disappears on the next
+ * list read, and the detail read answers 404, so nothing in the body
+ * is worth keeping. Typed `Promise<void>` after `removeInvitation`
+ * (`lib/queries/members.ts`), which is the same bodyless DELETE
+ * `apiFetch` already makes for `removeMember`.
+ */
+export async function cancelTrip(id: string): Promise<void> {
+  await apiFetch<{ success: true }>(`/trips/${id}`, { method: "DELETE" });
+}
+
+/** Mutation wrapper for callers that fire `cancelTrip` via TanStack Query. */
+export const cancelTripOptions = () =>
+  mutationOptions({
+    mutationKey: ["trips", "cancel"],
+    mutationFn: ({ id }: { id: string }) => cancelTrip(id),
+  });
