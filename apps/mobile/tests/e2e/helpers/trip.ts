@@ -3,9 +3,12 @@
  *
  * Lifted out of `itinerary-journey.spec.ts` (and out of
  * `trip-journey.spec.ts`, which carried a second copy of the same
- * function) rather than copied a third time: a seeder that exists once
- * per spec drifts the moment one of them is edited, and the delete spec
- * needs exactly the same trip.
+ * function) so the delete spec seeds the same way rather than adding a
+ * third copy: a seeder that exists once per spec drifts the moment one
+ * of them is edited. Two copies still live on —
+ * `invitation-journey.spec.ts` and `notifications.spec.ts`, which
+ * seed with their own extra members — so this is consolidation, not
+ * elimination.
  */
 
 import type { APIRequestContext } from "@playwright/test";

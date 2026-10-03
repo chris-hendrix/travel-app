@@ -335,6 +335,15 @@ export function TripsProvider({ children }: { children: ReactNode }) {
   const deleteMutation = useMutation({
     ...cancelTripOptions(),
     onSuccess: (_data, { id }) => {
+      // Accepted risk: only the trip detail is cleared. This trip's
+      // other caches (`memberKeys`, `eventKeys`, `staysKeys`,
+      // `travelKeys`, `invitationKeys`) are deliberately left
+      // populated, so a screen still mounted on the trip keeps a live
+      // roster for a trip the API now 404s. Clearing them all would
+      // be a bigger blast radius than the delete warrants; do not
+      // "fix" this without deciding what a half-cleared trip should
+      // render.
+      //
       // The detail is removed rather than invalidated: an invalidate
       // would refetch and, before this plan's read guard shipped,
       // repaint the trip as alive.

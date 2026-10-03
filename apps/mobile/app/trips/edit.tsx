@@ -188,19 +188,21 @@ function EditTripScreen() {
       await deleteTrip(trip!.id);
       router.replace("/trips");
     } catch (caught) {
-      // The block disarms on failure and the message is the same mapper
-      // every other screen uses: offline gets the offline sentence, a
-      // server 403 gets the API's message. Nothing was painted on the
-      // list, so a failed delete leaves no trace to undo.
+      // The block disarms on failure and the message comes from the same
+      // mapper every other screen uses. It hand-maps by status: offline
+      // (no `message` at all, hence the offline sentence), 401/403/429
+      // and 5xx each get their own fixed sentence, and 404 passes
+      // `null` through for the caller to decide. It only passes a server
+      // string through in its code-specific branches, so this block
+      // never renders one: a `null` message becomes the same generic
+      // sentence, which is what a 404 gets here. Nothing was painted on
+      // the list, so a failed delete leaves no trace to undo.
       const copy = toErrorCopy(caught);
       setArmedDelete(false);
       setDeleteFailure(
         copy.offline
           ? "You're offline. Check your connection and try again."
-          : (copy.message ??
-            (caught instanceof Error
-              ? caught.message
-              : "Couldn't delete the trip.")),
+          : (copy.message ?? "Couldn't delete the trip."),
       );
     } finally {
       setDeleting(false);
