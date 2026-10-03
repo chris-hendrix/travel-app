@@ -536,6 +536,52 @@ describe("trip.service", () => {
       expect(result!.memberCount).toBe(3); // creator + 2 co-organizers
     });
 
+    it("should return null for a cancelled trip for every viewer", async () => {
+      // A cancelled trip reads as gone. The flag is flipped with a direct
+      // db.update rather than by calling cancelTrip: Phase 2 is what makes
+      // cancelTrip itself the thing under test, and reading through it here
+      // would couple this guard to the notification dependency that does not
+      // exist yet.
+      const tripData: CreateTripInput = {
+        name: "Deleted Trip",
+        destination: "Nowhere",
+        timezone: "UTC",
+        allowMembersToAddEvents: true,
+      };
+
+      const trip = await tripService.createTrip(testUserId, tripData);
+
+      // One plain going member and one non-going member, so the guard is proved
+      // to be viewer-independent rather than organizer-only.
+      await db.insert(members).values([
+        {
+          userId: coOrganizerUserId,
+          tripId: trip.id,
+          status: "going",
+          isOrganizer: false,
+        },
+        {
+          userId: coOrganizer2UserId,
+          tripId: trip.id,
+          status: "maybe",
+          isOrganizer: false,
+        },
+      ]);
+
+      // Sanity: the trip is readable before it is cancelled.
+      expect(await tripService.getTripById(trip.id, testUserId)).not.toBeNull();
+
+      await db
+        .update(trips)
+        .set({ cancelled: true })
+        .where(eq(trips.id, trip.id));
+
+      // Organizer, going member, non-going member: all gone.
+      expect(await tripService.getTripById(trip.id, testUserId)).toBeNull();
+      expect(await tripService.getTripById(trip.id, coOrganizerUserId)).toBeNull();
+      expect(await tripService.getTripById(trip.id, coOrganizer2UserId)).toBeNull();
+    });
+
     it("should allow co-organizer to access trip", async () => {
       // Create a trip with co-organizer
       const tripData: CreateTripInput = {

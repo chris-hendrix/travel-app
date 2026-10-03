@@ -440,6 +440,14 @@ export class TripService implements ITripService {
 
     const trip = tripResult[0]!;
 
+    // A cancelled trip reads as gone, for every viewer. Returning null is what
+    // makes the route answer 404, so a stale link, a back button or an old push
+    // all land on "nothing here" rather than on a trip that is already off
+    // everyone's list. It lands after the membership check so a non-member
+    // still gets the same null for the same reason, and the route's 404 stays
+    // indistinguishable between the two.
+    if (trip.cancelled) return null;
+
     // Load organizers with user info in a single JOIN query. Guests can
     // never be organizers (enforced in updateMemberRole), so filter to
     // user-backed rows and innerJoin: selecting users.id directly keeps the
