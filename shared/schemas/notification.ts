@@ -19,10 +19,15 @@ const notificationEntitySchema = z.object({
   id: z.string().uuid(),
   userId: z.string().uuid(),
   tripId: z.string().uuid().nullable(),
+  // This is a response contract: the fastify serializer compiler parses
+  // every 200 against it, so a `type` the server writes but the enum
+  // omits turns the whole list into a 500. Keep it in step with
+  // `NotificationType` in `shared/types/notification.ts`.
   type: z.enum([
     "daily_itinerary",
     "trip_message",
     "trip_update",
+    "trip_cancelled",
     "mutual_invite",
     "sms_invite",
   ]),

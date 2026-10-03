@@ -29,6 +29,8 @@ import type { CreateTripInput, UpdateTripInput } from "@journiful/shared/schemas
 import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
 import type { IGeocodingService } from "@/services/geocoding.service.js";
+import type { INotificationService } from "./notification.service.js";
+import type { Logger } from "@/types/logger.js";
 import {
   applyPlaceBlockPatch,
   placeBlockPatch,
@@ -264,6 +266,8 @@ export class TripService implements ITripService {
     private db: AppDatabase,
     private permissionsService: IPermissionsService,
     private geocodingService: IGeocodingService,
+    private notificationService: INotificationService,
+    private logger?: Logger,
   ) {}
 
   /**
@@ -439,6 +443,14 @@ export class TripService implements ITripService {
     }
 
     const trip = tripResult[0]!;
+
+    // A cancelled trip reads as gone, for every viewer. Returning null is what
+    // makes the route answer 404, so a stale link, a back button or an old push
+    // all land on "nothing here" rather than on a trip that is already off
+    // everyone's list. It lands after the membership check so a non-member
+    // still gets the same null for the same reason, and the route's 404 stays
+    // indistinguishable between the two.
+    if (trip.cancelled) return null;
 
     // Load organizers with user info in a single JOIN query. Guests can
     // never be organizers (enforced in updateMemberRole), so filter to
@@ -927,21 +939,48 @@ export class TripService implements ITripService {
       );
     }
 
-    // 2. Perform soft delete in a transaction for consistency
-    await this.db.transaction(async (tx) => {
-      const result = await tx
-        .update(trips)
-        .set({
-          cancelled: true,
-          updatedAt: new Date(),
-        })
-        .where(eq(trips.id, tripId))
-        .returning();
+    // 2. Read the deleter's name before the write, so a failure here fails the
+    // request with the trip untouched. Inside the try it would swallow the read
+    // and log, leaving a deleted trip whose members are told nothing.
+    const [deleter] = await this.db
+      .select({ displayName: users.displayName })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    const deleterName = deleter?.displayName ?? "The organizer";
 
-      if (!result[0]) {
-        throw new TripNotFoundError();
-      }
-    });
+    // 3. Soft delete, idempotence in the write itself: `cancelled = false` is
+    // the condition, so of two concurrent cancels exactly one lands a row.
+    // No row means the flag was already set before this call, so the notice
+    // has already gone out — still a success, because "it is deleted" is true
+    // either way, but the trip must not be texted twice. A trip that does not
+    // exist cannot reach this statement: canDeleteTrip is false without a
+    // membership row, so the branch above answered 404 first.
+    const [cancelledTrip] = await this.db
+      .update(trips)
+      .set({ cancelled: true, updatedAt: new Date() })
+      .where(and(eq(trips.id, tripId), eq(trips.cancelled, false)))
+      .returning({ id: trips.id, name: trips.name });
+
+    if (!cancelledTrip) return;
+
+    // 4. Tell the going members. Wrapped because the delete already happened:
+    // a queue that is down must not fail it.
+    try {
+      await this.notificationService.notifyTripMembers({
+        tripId,
+        type: "trip_cancelled",
+        title: "Trip deleted",
+        body: `${deleterName} deleted ${cancelledTrip.name}`,
+        data: { tripId },
+        excludeUserId: userId,
+      });
+    } catch (err) {
+      this.logger?.error(
+        err,
+        "Failed to notify trip members of cancellation",
+      );
+    }
   }
 
   /**

@@ -29,6 +29,16 @@ export function buildPushPayload(
         tag: tripId ? `update-${tripId}` : "update",
       };
 
+    case "trip_cancelled":
+      // The url is the trip list, not the trip: a cancelled trip answers 404
+      // to `getTripById`, so `/trips?id=X` would land on "Nothing here".
+      return {
+        title: title || "Trip deleted",
+        body: body || "A trip has been deleted",
+        url: tripId ? "/trips" : "/",
+        tag: tripId ? `cancelled-${tripId}` : "cancelled",
+      };
+
     case "daily_itinerary":
       return {
         title: title || "Today's itinerary",

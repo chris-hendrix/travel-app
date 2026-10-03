@@ -110,6 +110,57 @@ describe("Notification Routes", () => {
       expect(body).toHaveProperty("unreadCount", 3);
     });
 
+    // Contract, not validation: `notificationListResponseSchema` is the
+    // 200 response schema and `app.ts` installs the fastify serializer
+    // compiler, so a `type` value the enum does not list fails
+    // serialization and the request 500s. No unit test covers this,
+    // so this request is the only thing that holds the enum to the
+    // types the server can actually write (see `trip.service.cancelTrip`).
+    it("should return 200 for a trip_cancelled row", async () => {
+      app = await buildApp();
+
+      const { testUser, trip } = await createTestData();
+
+      // Inserted straight through the db: the TS union is not a runtime
+      // guard here, and a `trip_update` row proves the control path.
+      await db.insert(notifications).values([
+        {
+          userId: testUser.id,
+          tripId: trip.id,
+          type: "trip_cancelled" as (typeof notifications.$inferInsert)["type"],
+          title: "Trip deleted",
+          body: "Lisbon was deleted by an organizer",
+        },
+        {
+          userId: testUser.id,
+          tripId: trip.id,
+          type: "trip_update",
+          title: "Test Notification",
+          body: "This is a test notification",
+        },
+      ]);
+
+      const token = app.jwt.sign({
+        sub: testUser.id,
+        name: testUser.displayName,
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/notifications",
+        cookies: { auth_token: token },
+      });
+
+      expect(response.statusCode).toBe(200);
+
+      const body = JSON.parse(response.body);
+      expect(body.notifications).toHaveLength(2);
+      expect(body.notifications.map((n: { type: string }) => n.type).sort()).toEqual([
+        "trip_cancelled",
+        "trip_update",
+      ]);
+    });
+
     it("should support unreadOnly=true filter", async () => {
       app = await buildApp();
 

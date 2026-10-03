@@ -3084,6 +3084,132 @@ describe("DELETE /trips/:id", () => {
 
       expect(updatedTrip.cancelled).toBe(true);
     });
+
+    it("should answer 404 on GET after the organizer deletes the trip", async () => {
+      app = await buildApp();
+
+      const testUserResult = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "Organizer",
+          timezone: "UTC",
+        })
+        .returning();
+      const testUser = testUserResult[0];
+
+      const tripResult = await db
+        .insert(trips)
+        .values({
+          name: "Test Trip",
+          destination: "Paris, France",
+          preferredTimezone: "Europe/Paris",
+          createdBy: testUser.id,
+        })
+        .returning();
+      const trip = tripResult[0];
+
+      await db.insert(members).values({
+        userId: testUser.id,
+        tripId: trip.id,
+        status: "going",
+        isOrganizer: true,
+      });
+
+      const token = app.jwt.sign({
+        sub: testUser.id,
+        name: testUser.displayName,
+      });
+
+      const del = await app.inject({
+        method: "DELETE",
+        url: `/api/trips/${trip.id}`,
+        cookies: { auth_token: token },
+      });
+      expect(del.statusCode).toBe(200);
+
+      // The organizer themself lands on the 404 too — the trip is gone for
+      // everyone, not just for the members who were told.
+      const get = await app.inject({
+        method: "GET",
+        url: `/api/trips/${trip.id}`,
+        cookies: { auth_token: token },
+      });
+      expect(get.statusCode).toBe(404);
+    });
+
+    it("should answer 404 on GET for a co-organizer after the trip is deleted", async () => {
+      app = await buildApp();
+
+      const creatorResult = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "Creator",
+          timezone: "UTC",
+        })
+        .returning();
+      const coOrgResult = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "Co-Organizer",
+          timezone: "UTC",
+        })
+        .returning();
+      const creator = creatorResult[0];
+      const coOrg = coOrgResult[0];
+
+      const tripResult = await db
+        .insert(trips)
+        .values({
+          name: "Test Trip",
+          destination: "Tokyo, Japan",
+          preferredTimezone: "Asia/Tokyo",
+          createdBy: creator.id,
+        })
+        .returning();
+      const trip = tripResult[0];
+
+      await db.insert(members).values([
+        {
+          userId: creator.id,
+          tripId: trip.id,
+          status: "going",
+          isOrganizer: true,
+        },
+        {
+          userId: coOrg.id,
+          tripId: trip.id,
+          status: "going",
+          isOrganizer: true,
+        },
+      ]);
+
+      const creatorToken = app.jwt.sign({
+        sub: creator.id,
+        name: creator.displayName,
+      });
+      const coOrgToken = app.jwt.sign({
+        sub: coOrg.id,
+        name: coOrg.displayName,
+      });
+
+      const del = await app.inject({
+        method: "DELETE",
+        url: `/api/trips/${trip.id}`,
+        cookies: { auth_token: creatorToken },
+      });
+      expect(del.statusCode).toBe(200);
+
+      // The guard is not role-dependent: a co-organizer gets the same 404.
+      const get = await app.inject({
+        method: "GET",
+        url: `/api/trips/${trip.id}`,
+        cookies: { auth_token: coOrgToken },
+      });
+      expect(get.statusCode).toBe(404);
+    });
   });
 
   describe("Validation Errors (400)", () => {

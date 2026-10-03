@@ -69,17 +69,21 @@ export default function Notifications() {
           <Text className="font-display-bold text-display-sm uppercase text-ink">
             Nothing yet
           </Text>
-          {/* The three nouns are the server's, not the surface's: this inbox
-              receives `mutual_invite`/`sms_invite`, `trip_message` and
-              `daily_itinerary`, and `lib/notifications.ts` lists which types
-              the API can actually produce. Audited 2026-09-24 and left as it
-              was — the app has no chat surface, but a message notification
-              still lands in this list, so the sentence is true of the inbox
-              even though there is no thread to open. "Trip updates" was the
-              tempting rewrite and would have named `trip_update`, the one
-              type that file marks "nothing yet". */}
+          {/* The four nouns are the server's, not the surface's: this inbox
+              receives `mutual_invite`/`sms_invite`, `trip_message`,
+              `daily_itinerary` and `trip_cancelled`, and
+              `lib/notifications.ts` lists which types the API can actually
+              produce. Audited 2026-09-24, when there were three, and
+              re-audited when the delete added the fourth — a `trip_cancelled`
+              row landing in a list whose own sentence claims to say what
+              lands there is the drift the app's copy rule forbids. The app
+              has no chat surface, but a message notification still lands in
+              this list, so the sentence is true of the inbox even though
+              there is no thread to open. "Trip updates" was the tempting
+              rewrite and would have named `trip_update`, the one type that
+              file marks "nothing yet". */}
           <Text className="font-body text-lg text-ink">
-            Invites, messages, and itinerary changes land here.
+            Invites, messages, itinerary changes and deletions land here.
           </Text>
         </View>
       ) : (

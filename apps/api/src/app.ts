@@ -249,12 +249,14 @@ export async function buildApp(
   await app.register(healthServicePlugin);
   await app.register(permissionsServicePlugin);
   await app.register(authServicePlugin);
-  await app.register(tripServicePlugin);
   await app.register(eventServicePlugin);
   await app.register(accommodationServicePlugin);
   await app.register(memberTravelServicePlugin);
   await app.register(uploadServicePlugin);
   await app.register(notificationServicePlugin);
+  // Must follow notification-service: trip-service declares it as a dependency
+  // and Fastify checks `dependencies` synchronously at registration.
+  await app.register(tripServicePlugin);
   await app.register(mutualsServicePlugin);
   await app.register(invitationServicePlugin);
   await app.register(guestMemberServicePlugin);

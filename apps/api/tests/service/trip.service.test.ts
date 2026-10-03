@@ -12,6 +12,7 @@ import { eq, and } from "drizzle-orm";
 import { TripService, type TripSummary } from "@/services/trip.service.js";
 import { PermissionsService } from "@/services/permissions.service.js";
 import type { IGeocodingService } from "@/services/geocoding.service.js";
+import type { INotificationService } from "@/services/notification.service.js";
 import { generateUniquePhone } from "../test-utils.js";
 import type { CreateTripInput } from "@journiful/shared/schemas";
 
@@ -22,12 +23,19 @@ const mockGeocodingService: IGeocodingService = {
   getTimezoneByCoords: vi.fn().mockResolvedValue(null),
 };
 
+// Create mock notification service — the cancel fan-out's only collaborator
+const notifyTripMembersMock = vi.fn().mockResolvedValue(undefined);
+const mockNotificationService = {
+  notifyTripMembers: notifyTripMembersMock,
+} as unknown as INotificationService;
+
 // Create service instances with db for testing
 const permissionsService = new PermissionsService(db);
 const tripService = new TripService(
   db,
   permissionsService,
   mockGeocodingService,
+  mockNotificationService,
 );
 
 describe("trip.service", () => {
@@ -534,6 +542,52 @@ describe("trip.service", () => {
       expect(result).not.toBeNull();
       expect(result).toHaveProperty("memberCount");
       expect(result!.memberCount).toBe(3); // creator + 2 co-organizers
+    });
+
+    it("should return null for a cancelled trip for every viewer", async () => {
+      // A cancelled trip reads as gone. The flag is flipped with a direct
+      // db.update rather than by calling cancelTrip: Phase 2 is what makes
+      // cancelTrip itself the thing under test, and reading through it here
+      // would couple this guard to the notification dependency that does not
+      // exist yet.
+      const tripData: CreateTripInput = {
+        name: "Deleted Trip",
+        destination: "Nowhere",
+        timezone: "UTC",
+        allowMembersToAddEvents: true,
+      };
+
+      const trip = await tripService.createTrip(testUserId, tripData);
+
+      // One plain going member and one non-going member, so the guard is proved
+      // to be viewer-independent rather than organizer-only.
+      await db.insert(members).values([
+        {
+          userId: coOrganizerUserId,
+          tripId: trip.id,
+          status: "going",
+          isOrganizer: false,
+        },
+        {
+          userId: coOrganizer2UserId,
+          tripId: trip.id,
+          status: "maybe",
+          isOrganizer: false,
+        },
+      ]);
+
+      // Sanity: the trip is readable before it is cancelled.
+      expect(await tripService.getTripById(trip.id, testUserId)).not.toBeNull();
+
+      await db
+        .update(trips)
+        .set({ cancelled: true })
+        .where(eq(trips.id, trip.id));
+
+      // Organizer, going member, non-going member: all gone.
+      expect(await tripService.getTripById(trip.id, testUserId)).toBeNull();
+      expect(await tripService.getTripById(trip.id, coOrganizerUserId)).toBeNull();
+      expect(await tripService.getTripById(trip.id, coOrganizer2UserId)).toBeNull();
     });
 
     it("should allow co-organizer to access trip", async () => {
@@ -1100,6 +1154,7 @@ describe("trip.service", () => {
     let testPhone3: string;
 
     beforeEach(async () => {
+      notifyTripMembersMock.mockClear();
       // Generate unique phones
       testPhone1 = generateUniquePhone();
       testPhone2 = generateUniquePhone();
@@ -1258,6 +1313,74 @@ describe("trip.service", () => {
       expect(updatedTrip.updatedAt.getTime()).toBeGreaterThanOrEqual(
         originalUpdatedAt,
       );
+    });
+
+    it("should tell the going members once, excluding the deleter", async () => {
+      await tripService.cancelTrip(testTripId, testCreatorId);
+
+      expect(notifyTripMembersMock).toHaveBeenCalledTimes(1);
+      expect(notifyTripMembersMock).toHaveBeenCalledWith({
+        tripId: testTripId,
+        type: "trip_cancelled",
+        title: "Trip deleted",
+        body: "Creator deleted Test Trip",
+        data: { tripId: testTripId },
+        excludeUserId: testCreatorId,
+      });
+    });
+
+    it("should not notify anyone when a non-organizer tries to cancel", async () => {
+      await expect(
+        tripService.cancelTrip(testTripId, testNonOrganizerId),
+      ).rejects.toThrow("Permission denied: only organizers can cancel trips");
+
+      expect(notifyTripMembersMock).not.toHaveBeenCalled();
+    });
+
+    it("should not reach the fan-out for a trip that does not exist", async () => {
+      // Travelling the pre-existing !canDelete branch: this asserts the
+      // fan-out is not reached from a 404, not that new code works.
+      const fakeId = "00000000-0000-0000-0000-000000000000";
+      await expect(
+        tripService.cancelTrip(fakeId, testCreatorId),
+      ).rejects.toThrow("Trip not found");
+
+      expect(notifyTripMembersMock).not.toHaveBeenCalled();
+    });
+
+    it("should not tell the members twice when a cancel is repeated", async () => {
+      // Asserted through the stub, not through trips.updatedAt: the
+      // transaction stamps `new Date()` and two calls in one test can land in
+      // the same millisecond, so a timestamp assertion would pass either way.
+      await tripService.cancelTrip(testTripId, testCreatorId);
+      await expect(
+        tripService.cancelTrip(testTripId, testCreatorId),
+      ).resolves.toBeUndefined();
+
+      expect(notifyTripMembersMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("should not tell the members twice when two cancels race", async () => {
+      // The guard has to live in the write, not in a read that precedes it:
+      // two callers (two tabs, a retry after a timeout) both clear
+      // canDeleteTrip, both see cancelled=false, and both text the trip.
+      // Repeated because against a read-then-write guard the duplicate only
+      // happens when both reads land before either write — one pass would
+      // usually pass by luck.
+      for (let i = 0; i < 5; i++) {
+        notifyTripMembersMock.mockClear();
+        await db
+          .update(trips)
+          .set({ cancelled: false })
+          .where(eq(trips.id, testTripId));
+
+        await Promise.all([
+          tripService.cancelTrip(testTripId, testCreatorId),
+          tripService.cancelTrip(testTripId, testCreatorId),
+        ]);
+
+        expect(notifyTripMembersMock).toHaveBeenCalledTimes(1);
+      }
     });
 
     it("should throw error when trip does not exist", async () => {

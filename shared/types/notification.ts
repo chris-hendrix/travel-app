@@ -7,6 +7,7 @@ export type NotificationType =
   | "daily_itinerary"
   | "trip_message"
   | "trip_update"
+  | "trip_cancelled"
   | "mutual_invite"
   | "sms_invite";
 
