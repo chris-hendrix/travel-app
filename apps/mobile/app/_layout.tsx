@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useRef, useState } from "react";
-import { AppState, Platform, StatusBar, View } from "react-native";
+import { AppState, Platform, View } from "react-native";
 import { QueryClientProvider, focusManager } from "@tanstack/react-query";
 import { makeQueryClient } from "@/lib/queries/client";
 import { Stack, SplashScreen, usePathname, useRouter } from "expo-router";
@@ -39,6 +39,7 @@ import SpaceMono_400Regular from "@expo-google-fonts/space-mono/400Regular/Space
 import SpaceMono_700Bold from "@expo-google-fonts/space-mono/700Bold/SpaceMono_700Bold.ttf";
 import SpaceMono_400Regular_Italic from "@expo-google-fonts/space-mono/400Regular_Italic/SpaceMono_400Regular_Italic.ttf";
 import { AppHeader } from "@/components/ui/AppHeader";
+import { AppStatusBar } from "@/components/ui/AppStatusBar";
 import * as SystemNotifications from "expo-notifications";
 import type { NotificationResponse } from "expo-notifications";
 import { BootGate } from "@/components/ui/BootGate";
@@ -171,9 +172,7 @@ export default function RootLayout() {
                 paddingBottom: insets.bottom,
               }}
             >
-              <StatusBar
-                barStyle={isDialog ? "dark-content" : "light-content"}
-              />
+              <AppStatusBar isDialog={isDialog} />
               {/* App shell: a fixed-height column so the screen scrolls
                   under the header instead of scrolling the whole document
                   (web). The landing and the auth flow wear a band with no

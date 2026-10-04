@@ -94,11 +94,18 @@ const WAVE_OVERLAP = 1;
  */
 function ZoneToken({ onInk = false }: { onInk?: boolean }) {
   const zone = useZoneToken();
+  // The colour hook runs before the early return, with the zone read, and that
+  // is the same fix as the one at the top of `AppHeader`: this used to sit
+  // below `if (!zone)`, so a screen that registered a zone flipped this
+  // component from one hook to two on the render its zone arrived — the
+  // "change in the order of Hooks" class, invisible until React is asked to
+  // count them. `useMotion` is a context read, so running it without a zone
+  // costs nothing.
+  const motion = useMotion();
   if (!zone) return null;
 
   const colour = onInk ? "text-sand" : "text-ink";
   const flippable = zone.canFlip;
-  const motion = useMotion();
 
   return (
     <Pressable

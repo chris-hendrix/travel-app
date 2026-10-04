@@ -309,14 +309,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Fire-and-forget, and the restore never awaits it: the trips
       // read now races `/auth/me` instead of queueing behind it, so
       // the list paints from the prefetch rather than from a second
-      // round trip once the session resolves. The token may be stale,
-      // and a stale token costs one wasted request and nothing else —
-      // the failure is swallowed here (`prefetchQuery` resolves rather
-      // than throws when the read fails, so the `catch` is belt and
-      // braces, not the load-bearing part), and the next cache clear —
-      // sign-out, or the sign-in path — drops whatever it wrote. On a
-      // `requiresProfile` redirect it costs one more, which is
-      // accepted here rather than special-cased.
+      // round trip once the session resolves.
+      //
+      // What a stale token costs is *not* one wasted request. A 401
+      // reaches the shared boundary in `lib/api.ts`, whose listener
+      // signs the session out — which is the right answer for a dead
+      // token, and the same answer the trips screen's own read would
+      // have produced a moment later. The difference this introduces
+      // is that the 401 can now land while `/auth/me` is still in
+      // flight, so a token that expires in the millisecond between the
+      // two requests signs out a restore that had already succeeded.
+      // Accepted rather than papered over: the window is two requests
+      // wide, the outcome is what the next read would do anyway, and
+      // the alternative is a bypass flag on the one boundary the app
+      // deliberately centralised. The failure itself is swallowed here
+      // (`prefetchQuery` resolves rather than throws when the read
+      // fails, so the `catch` is belt and braces), and the next cache
+      // clear — sign-out, or the sign-in path — drops whatever the
+      // prefetch wrote. On a `requiresProfile` redirect it costs one
+      // request, accepted here rather than special-cased.
       void queryClient?.prefetchQuery(tripsListOptions()).catch(() => {});
     })
       .then((result) => {
