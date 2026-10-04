@@ -7,6 +7,7 @@ import { TripService } from "@/services/trip.service.js";
  * Creates a TripService instance and decorates it on the Fastify instance.
  *
  * @depends notification-service - Tells the going members when a trip is cancelled
+ * @depends upload-service - Releases the trip's cover object on cancellation
  */
 export default fp(
   async function tripServicePlugin(fastify: FastifyInstance) {
@@ -15,6 +16,7 @@ export default fp(
       fastify.permissionsService,
       fastify.geocodingService,
       fastify.notificationService,
+      fastify.uploadService,
       fastify.log,
     );
     fastify.decorate("tripService", tripService);
@@ -27,6 +29,7 @@ export default fp(
       "permissions-service",
       "geocoding-service",
       "notification-service",
+      "upload-service",
     ],
   },
 );

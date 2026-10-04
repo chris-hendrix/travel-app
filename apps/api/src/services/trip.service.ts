@@ -30,6 +30,7 @@ import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
 import type { IGeocodingService } from "@/services/geocoding.service.js";
 import type { INotificationService } from "./notification.service.js";
+import type { IUploadService } from "./upload.service.js";
 import type { Logger } from "@/types/logger.js";
 import {
   applyPlaceBlockPatch,
@@ -267,6 +268,7 @@ export class TripService implements ITripService {
     private permissionsService: IPermissionsService,
     private geocodingService: IGeocodingService,
     private notificationService: INotificationService,
+    private uploadService: IUploadService,
     private logger?: Logger,
   ) {}
 
@@ -960,7 +962,11 @@ export class TripService implements ITripService {
       .update(trips)
       .set({ cancelled: true, updatedAt: new Date() })
       .where(and(eq(trips.id, tripId), eq(trips.cancelled, false)))
-      .returning({ id: trips.id, name: trips.name });
+      .returning({
+        id: trips.id,
+        name: trips.name,
+        coverImageUrl: trips.coverImageUrl,
+      });
 
     if (!cancelledTrip) return;
 
@@ -980,6 +986,32 @@ export class TripService implements ITripService {
         err,
         "Failed to notify trip members of cancellation",
       );
+    }
+
+    // The trip is soft-deleted and every read of it 404s from here on, so the
+    // uploaded cover is the one piece of it nothing can name again — leaving it
+    // orphans the object for good. Only the raw upload is ours to release:
+    // `coverImageUrl` is the user's file, never the shared place photo, which
+    // lives in `place_photo_cache` and belongs to every trip that picked the
+    // same place.
+    //
+    // It goes with the trip: this is a soft delete, so a future restore would
+    // bring the trip back without its cover. There is no restore path today, and
+    // the alternative is a sweeper plus a table of pending keys, which is not
+    // this change.
+    //
+    // Its own try, not the notification's: sharing that one would mean a storage
+    // outage silently skips the notice, which is the only explanation a member
+    // gets for a trip vanishing from their list.
+    if (cancelledTrip.coverImageUrl) {
+      try {
+        await this.uploadService.deleteImage(cancelledTrip.coverImageUrl);
+      } catch (err) {
+        this.logger?.error(
+          err,
+          "Failed to release trip cover image on cancellation",
+        );
+      }
     }
   }
 
