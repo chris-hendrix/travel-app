@@ -80,7 +80,9 @@ SDK: gradle is a Linux process and reports `Installed Build Tools revision
 36.0.0 is corrupted` because it is looking at Windows `aapt.exe` under a Linux
 path. Distribution APKs come from CI (`.github/workflows/distribute.yml`), and a
 PR run uploads the APK as the `app-release` artifact — that is the path to an
-installable build without a Linux-side SDK.
+installable build without a Linux-side SDK. That build carries `arm64-v8a` and
+`x86_64` only, which is the phone and the emulator; the reasons are in the root
+`AGENTS.md`, and `make android-apk` still builds all four.
 
 Signing is a config plugin (`plugins/withAndroidSigning.js`) so it survives `prebuild --clean`: it reads `JOURNIFUL_KEYSTORE` / `JOURNIFUL_KEY_ALIAS` / `JOURNIFUL_STORE_PASSWORD` / `JOURNIFUL_KEY_PASSWORD` from `~/.gradle/gradle.properties`. `android/` is gitignored and regenerated; `google-services.json` is gitignored and copied from the Firebase console (or a maintainer) locally, written in CI from a secret.
 
