@@ -49,7 +49,7 @@ make test-exec CMD="cd apps/mobile && pnpm typecheck"
 make test-exec CMD="cd apps/mobile && pnpm lint"
 ```
 
-E2E runs take file paths, not `--grep`: the flag is swallowed through test-exec's bash -c, so pass the spec path (`pnpm test:e2e tests/e2e/auth-journey.spec.ts`). The Expo web build serves on `http://localhost:8081`, which must be present in the API's `FRONTEND_URL` or the browser's CORS preflight fails. The E2E suite drives the Expo web export, so it covers the web localStorage session path — SecureStore and native deep links are not covered by it.
+E2E runs take file paths, not `--grep`: the flag is swallowed through test-exec's bash -c, so pass the spec path (`pnpm test:e2e tests/e2e/auth-journey.spec.ts`). The Expo web build serves on `http://localhost:8081`, which must be present in the API's `FRONTEND_URL` or the browser's CORS preflight fails. **Against the export (`MOBILE_WEB_TARGET=export`) the build must carry `EXPO_PUBLIC_API_URL`**: it is inlined at transform time and `lib/api.ts` fails loudly without it, so the correct invocation is `EXPO_PUBLIC_API_URL=http://localhost:8000/api pnpm export:web` before the run. Without it every read in the browser throws `EXPO_PUBLIC_API_URL is not configured`, every screen renders its generic error block, and all 32 specs fail with `element(s) not found` — a failure that looks exactly like a broken app and is a missing build-time variable. The E2E suite drives the Expo web export, so it covers the web localStorage session path — SecureStore and native deep links are not covered by it.
 
 ### Android
 
