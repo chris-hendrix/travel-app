@@ -222,16 +222,18 @@ jobs:
 
       # The number that says whether the cache above is worth its restore: a
       # warm ccache turns those C++ compiles into copies, a cold one leaves the
-      # job where it was. It belongs in the summary, next to the run it
-      # describes, rather than in a log nobody opens.
+      # job where it was. It goes to both places on purpose — the log is where
+      # the next investigation starts, and the summary is where it is read.
       - name: ccache statistics
         if: always()
         run: |
           if command -v ccache >/dev/null; then
+            STATS="$(ccache -s)"
+            printf '%s\n' "$STATS"
             {
               echo "### ccache"
               echo '```'
-              ccache -s
+              printf '%s\n' "$STATS"
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
           fi
