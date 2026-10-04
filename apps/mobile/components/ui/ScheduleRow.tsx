@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import { Image } from "expo-image";
+import { Image } from "@/components/ui/Image";
 import { useMotion } from "@/hooks/useMotion";
 import { imageSlot } from "@/lib/place-images";
 

@@ -1,5 +1,5 @@
 import { Pressable, Text, View } from "react-native";
-import { Image } from "expo-image";
+import { Image } from "@/components/ui/Image";
 import type { Trip } from "@/components/trip/TripCard";
 import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 import { useMotion } from "@/hooks/useMotion";

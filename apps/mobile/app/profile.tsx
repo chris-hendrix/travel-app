@@ -1,8 +1,8 @@
 import { useCallback, useState } from "react";
 import { Linking, Platform, Pressable, Text, View } from "react-native";
-import { Image } from "expo-image";
 import { Link, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
+import { Image } from "@/components/ui/Image";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { RuledBlock } from "@/components/ui/RuledBlock";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";

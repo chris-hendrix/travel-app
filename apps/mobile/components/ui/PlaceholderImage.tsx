@@ -1,5 +1,5 @@
 import { StyleSheet } from "react-native";
-import { Image } from "expo-image";
+import { Image } from "@/components/ui/Image";
 import { KINDS, type PlaceholderKind } from "@/lib/placeholder";
 
 /**
