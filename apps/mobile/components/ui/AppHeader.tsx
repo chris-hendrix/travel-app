@@ -2,9 +2,10 @@ import { useSyncExternalStore, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Link } from "expo-router";
 import { Bell, User, X } from "lucide-react-native";
-import Svg, { Defs, Path, Pattern, Rect } from "react-native-svg";
 import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SCALLOP_DEPTH } from "@/components/ui/scallopTiles";
+import { ScallopEdge } from "@/components/ui/ScallopEdge";
 import { unreadCountOptions } from "@/lib/queries/notifications";
 import { useStopImpersonation } from "@/lib/impersonation";
 import { isSignedIn, subscribe } from "@/lib/sessionFlag";
@@ -45,25 +46,14 @@ import { INK, SAND } from "@/lib/theme";
  *
  * The height the wave gives up is paid back as padding on the ink band, so
  * the header is exactly as tall as it was and no screen shifts.
- */
-const WAVE_DEPTH = 10;
-
-/**
- * The pattern tile, one pixel taller than the wave is drawn.
  *
- * A tile's **top row is solid ink** — `M0 0 H28` is what joins the wave to
- * the band above it — and Android's device densities are fractional (2.75x,
- * 3.5x), so a 10px svg can land on a fractional number of device pixels and
- * render a sliver of the *next* tile. That sliver is solid ink across the
- * full width, and it shows as a hairline along the bottom edge of the wave:
- * the one place the pattern must not repeat is the one place it did.
- *
- * So the tile carries one row of slack the wave never draws in. The visible
- * row is `WAVE_DEPTH`; the eleventh pixel of the tile is transparent, and an
- * overshoot of any fraction lands there instead of on ink. The wave itself is
- * unchanged — same period, same depth, same shape.
+ * The strip itself — the period, the curve, the slack row and the direction
+ * that turns the tile for a page's own bottom edge — is `scallopTiles.ts`,
+ * and the box and the pattern are `ScallopEdge.tsx`. Both were lifted out of
+ * this file when the boot cover needed the same edge at the other end of the
+ * screen, because two edges of one app drawn from two copies of a curve is
+ * how the second one starts drifting.
  */
-const WAVE_TILE = WAVE_DEPTH + 1;
 
 /**
  * How far the wave's ink reaches *up* into the band it hangs from.
@@ -85,45 +75,6 @@ const WAVE_TILE = WAVE_DEPTH + 1;
  */
 const WAVE_OVERLAP = 1;
 
-function WaveEdge() {
-  return (
-    // `height: WAVE_DEPTH` and not `h-2.5`. They are the same 10px on web and
-    // **not** on native: `h-2.5` is `0.625rem`, and NativeWind's `rem` is 14
-    // on native against 16 on web (A18), so the box is 8.75px on Android. The
-    // ink band's `paddingBottom` is `WAVE_DEPTH` in real pixels, so a rem
-    // height leaves a 1.25px seam between the header and its own wave — sand
-    // showing through, on the phone only, which is exactly the measure-vs-
-    // paint class this repo keeps being bitten by.
-    // The clip is the invariant and the tile slack is the cause: the wave
-    // never draws outside its own depth, whatever a fractional density does
-    // to the svg's box. `overflow: hidden` here is not tidiness — it is the
-    // second defence, and it is the one that holds if the diagnosis behind
-    // `WAVE_TILE` is wrong.
-    <View
-      style={{ height: WAVE_DEPTH, overflow: "hidden" }}
-      className="w-full"
-    >
-      <Svg height={WAVE_DEPTH} width="100%">
-        <Defs>
-          <Pattern
-            id="wave"
-            x="0"
-            y="0"
-            width={28}
-            // `WAVE_TILE`, not `WAVE_DEPTH`: the tile is a row taller than the
-            // row that shows, so a fractional density cannot tile a sliver of
-            // solid ink along the bottom edge.
-            height={WAVE_TILE}
-            patternUnits="userSpaceOnUse"
-          >
-            <Path d="M0 0 H28 V6 Q21 14 14 6 Q7 0 0 6 Z" fill="#000000" />
-          </Pattern>
-        </Defs>
-        <Rect x="0" y="0" width="100%" height={WAVE_DEPTH} fill="url(#wave)" />
-      </Svg>
-    </View>
-  );
-}
 
 /**
  * The zone the times on screen are in, stated once by the chrome rather
@@ -357,7 +308,7 @@ export function AppHeader({
         // The wave is out of the flow, so it contributes no height: it is
         // paid for here instead, or the header would be 10px shorter and
         // every screen in the app would sit 10px higher.
-        style={{ paddingTop: insets.top, paddingBottom: WAVE_DEPTH }}
+        style={{ paddingTop: insets.top, paddingBottom: SCALLOP_DEPTH }}
       >
         <View className="flex-row items-center justify-between bg-ink px-6 pb-3 pt-4">
           {landing ? (
@@ -388,7 +339,7 @@ export function AppHeader({
         </View>
       </View>
       {/*
-        Hangs WAVE_DEPTH past the header's box, over the top of the screen.
+        Hangs SCALLOP_DEPTH past the header's box, over the top of the screen.
         `pointerEvents="none"` because it now covers the first 10px of the
         screen's touch surface and the wave is decoration — without it the
         crests would swallow taps on whatever sits at the top of a page.
@@ -409,19 +360,19 @@ export function AppHeader({
         // of the wave instead of a gap at the top. Growing the box traded one
         // artefact for a worse one; moving it trades nothing.
         //
-        // So: `height: WAVE_DEPTH` on both platforms (never `h-2.5`, which is
-        // `0.625rem` and 8.75px on Android — A18), and the box sits
+        // So: `height: SCALLOP_DEPTH` on both platforms (never `h-2.5`, which
+        // is `0.625rem` and 8.75px on Android — A18), and the box sits
         // `WAVE_OVERLAP` px higher than the band's edge.
         style={{
-          height: WAVE_DEPTH,
-          bottom: -(WAVE_DEPTH - WAVE_OVERLAP),
+          height: SCALLOP_DEPTH,
+          bottom: -(SCALLOP_DEPTH - WAVE_OVERLAP),
           zIndex: 1,
           overflow: "visible",
           pointerEvents: "none",
         }}
         className="absolute left-0 right-0"
       >
-        <WaveEdge />
+        <ScallopEdge direction="down" />
       </View>
       {band}
     </View>
