@@ -13,6 +13,7 @@ import { TripService, type TripSummary } from "@/services/trip.service.js";
 import { PermissionsService } from "@/services/permissions.service.js";
 import type { IGeocodingService } from "@/services/geocoding.service.js";
 import type { INotificationService } from "@/services/notification.service.js";
+import type { IUploadService } from "@/services/upload.service.js";
 import { generateUniquePhone } from "../test-utils.js";
 import type { CreateTripInput } from "@journiful/shared/schemas";
 
@@ -29,6 +30,12 @@ const mockNotificationService = {
   notifyTripMembers: notifyTripMembersMock,
 } as unknown as INotificationService;
 
+// Create mock upload service — the cover release's only collaborator
+const deleteImageMock = vi.fn().mockResolvedValue(undefined);
+const mockUploadService = {
+  deleteImage: deleteImageMock,
+} as unknown as IUploadService;
+
 // Create service instances with db for testing
 const permissionsService = new PermissionsService(db);
 const tripService = new TripService(
@@ -36,6 +43,7 @@ const tripService = new TripService(
   permissionsService,
   mockGeocodingService,
   mockNotificationService,
+  mockUploadService,
 );
 
 describe("trip.service", () => {
@@ -1155,6 +1163,8 @@ describe("trip.service", () => {
 
     beforeEach(async () => {
       notifyTripMembersMock.mockClear();
+      deleteImageMock.mockClear();
+      deleteImageMock.mockResolvedValue(undefined);
       // Generate unique phones
       testPhone1 = generateUniquePhone();
       testPhone2 = generateUniquePhone();
@@ -1381,6 +1391,62 @@ describe("trip.service", () => {
 
         expect(notifyTripMembersMock).toHaveBeenCalledTimes(1);
       }
+    });
+
+    it("should release the cover object when the cancel lands", async () => {
+      await db
+        .update(trips)
+        .set({ coverImageUrl: "/uploads/cover-abc.png" })
+        .where(eq(trips.id, testTripId));
+
+      await tripService.cancelTrip(testTripId, testCreatorId);
+
+      expect(deleteImageMock).toHaveBeenCalledTimes(1);
+      expect(deleteImageMock).toHaveBeenCalledWith("/uploads/cover-abc.png");
+    });
+
+    it("should not touch storage for a trip that never had a cover", async () => {
+      await tripService.cancelTrip(testTripId, testCreatorId);
+
+      expect(deleteImageMock).not.toHaveBeenCalled();
+    });
+
+    it("should not release the cover twice when a cancel is repeated", async () => {
+      await db
+        .update(trips)
+        .set({ coverImageUrl: "/uploads/cover-abc.png" })
+        .where(eq(trips.id, testTripId));
+
+      await tripService.cancelTrip(testTripId, testCreatorId);
+      await expect(
+        tripService.cancelTrip(testTripId, testCreatorId),
+      ).resolves.toBeUndefined();
+
+      // Tied to the write landing, not to the method being entered: the second
+      // cancel returns no row, so there is no cover left to name.
+      expect(deleteImageMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("should still notify, and not fail the cancel, when the release throws", async () => {
+      await db
+        .update(trips)
+        .set({ coverImageUrl: "/uploads/cover-abc.png" })
+        .where(eq(trips.id, testTripId));
+      deleteImageMock.mockRejectedValue(new Error("S3 is down"));
+
+      // The release has its own try/catch: sharing the notification's would let
+      // a storage failure skip the only explanation a member gets.
+      await expect(
+        tripService.cancelTrip(testTripId, testCreatorId),
+      ).resolves.toBeUndefined();
+
+      const [dbTrip] = await db
+        .select()
+        .from(trips)
+        .where(eq(trips.id, testTripId))
+        .limit(1);
+      expect(dbTrip.cancelled).toBe(true);
+      expect(notifyTripMembersMock).toHaveBeenCalledTimes(1);
     });
 
     it("should throw error when trip does not exist", async () => {
