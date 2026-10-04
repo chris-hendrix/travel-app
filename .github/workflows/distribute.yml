@@ -83,7 +83,9 @@ jobs:
       # Version identity comes from app.json, not a gradle property: the
       # generated build.gradle does not read Capacitor's old
       # -PversionNameOverride, so CI writes the identity into the config
-      # before prebuild and gradle reads it from there.
+      # before prebuild and gradle reads it from there. Note what that costs
+      # the two cache keys below, which is the reason neither of them hashes
+      # app.json.
       - name: Stamp the build version
         run: |
           BRANCH_NAME=$(echo "${{ github.head_ref || github.ref_name }}" | tr '/' '-')
@@ -103,6 +105,62 @@ jobs:
       - name: Prebuild the Android project
         run: pnpm --filter @journiful/mobile exec expo prebuild -p android --clean
 
+      # Installing ccache is the whole of this step, because React Native
+      # already wired the rest: `ReactNative-application.cmake` is what the
+      # generated app CMakeLists includes (the `project(appmodules)` build),
+      # and it does `find_program(ccache)` and points `RULE_LAUNCH_COMPILE`
+      # and `RULE_LAUNCH_LINK` at it. Reanimated 4.5 is ccache-aware too —
+      # down to passing `-Xclang -fno-pch-timestamp` so its precompiled
+      # header can be reused. Nothing in this repository has to change.
+      #
+      # It is worth what it costs because the native C++ is where a device
+      # pass actually goes. `--clean` prebuild regenerates android/ and a
+      # fresh install wipes every `.cxx` directory, so every one of the ~49
+      # `configureCMake*`/`buildCMake*` tasks ran on each of the four runs
+      # measured, and not one of them came from the build cache: AGP
+      # does not mark them cacheable, so gradle cannot help here and ccache
+      # is the only cache that survives the next checkout. The app module
+      # alone is 209s of an 11m52s run and 383s of a 16m35s one, and its four
+      # ABIs run back to back (gradle runs one task per project at a time),
+      # with reanimated's C++ about 320s across the four.
+      #
+      # The Expo modules, screens, worklets and gesture-handler do not opt
+      # in, so this is not all of the C++: roughly the app and reanimated,
+      # which is the majority of it.
+      #
+      # `CCACHE_DIR` and `CCACHE_COMPILERCHECK` are the two settings that
+      # matter here. The directory is named rather than left to ccache's
+      # default under $HOME so the three steps that touch it agree. The
+      # compiler check is content because ccache's default is the compiler's
+      # mtime and every file in this job is written fresh on every run; the
+      # mtime check misses every time on CI, which is why the React Native
+      # docs call it out. Sloppiness is what PCH reuse requires.
+      - name: Install and configure ccache
+        run: |
+          command -v ccache || { sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends ccache; }
+          ccache --version | head -1
+          {
+            echo "CCACHE_DIR=$RUNNER_TEMP/ccache"
+            echo "CCACHE_COMPILERCHECK=content"
+            echo "CCACHE_SLOPPINESS=pch_defines,time_macros"
+            echo "CCACHE_MAXSIZE=2G"
+          } >> "$GITHUB_ENV"
+
+      # The run id in the key is deliberate. A key that has already been saved
+      # can never be saved again, so a fixed key would freeze this cache at
+      # whatever the first run happened to compile; a fresh entry per run plus a
+      # prefix restore is what keeps it growing. The prefix is the whole
+      # lockfile hash rather than a bare `-ccache-`, because restoring across a
+      # lockfile change would hand ccache objects compiled against a different
+      # dependency tree.
+      - name: Cache ccache
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: ${{ runner.os }}-ccache-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-${{ hashFiles('pnpm-lock.yaml') }}-
+
       # What a device pass actually waits for: `--clean` regenerates the
       # whole android/ project every run, so without a cache gradle compiles
       # every native module — React Native, the Expo modules, Hermes — from
@@ -112,27 +170,67 @@ jobs:
       # changed replay instead of rebuilding; a JS-only change leaves every
       # native input alone, which is exactly the case a device pass is.
       #
-      # Keyed on the lockfile and the app config, not on the generated gradle
-      # files: those do not exist until prebuild has run, which is after this
-      # step has to. `restore-keys` is what makes the saving real on an
-      # ordinary push — a miss on the exact key still restores the last
-      # prefix match instead of starting cold.
+      # Keyed on the lockfile and the app's dependencies, not on the generated
+      # gradle files: those do not exist until prebuild has run, which is
+      # after this step has to. And not on app.json either, which the version
+      # stamp above rewrites on every run: a key that hashes it is a new key
+      # every time, so it never hits, only the prefix match below does any
+      # work, and the post step uploads another 1.9 GB entry. That is how this
+      # repository's cache came to hold four of them and 8.99 GB of a 10 GB
+      # quota. Neither `version` nor `versionCode` reaches the native inputs.
+      #
+      # Dropping a file from this key cannot make a build stale: the key only
+      # decides which bundle of caches is restored, and gradle keys its own
+      # entries on the real task inputs, so a coarser key restores less and
+      # never restores something wrong.
+      #
+      # `restore-keys` is what makes the saving real on an ordinary push — a
+      # miss on the exact key still restores the last prefix match instead of
+      # starting cold.
       - name: Cache gradle
         uses: actions/cache@v6
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('pnpm-lock.yaml', 'apps/mobile/app.json', 'apps/mobile/package.json') }}
+          key: ${{ runner.os }}-gradle-${{ hashFiles('pnpm-lock.yaml', 'apps/mobile/package.json') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
 
+      # Two ABIs, not four. The app module's native build is serial by
+      # construction — gradle runs one task per project at a time — so the
+      # four ABIs of `:app` are four configure-and-build pairs back to back at
+      # the very end of the build, which is why they are the tail of the job
+      # and not something that overlaps with it. `armeabi-v7a` is 32-bit ARM
+      # and `x86` is a 32-bit emulator image nothing here runs.
+      #
+      # `x86_64` stays and is the one of the four worth its minutes: the APK a
+      # PR uploads is how this app reaches the Windows emulator, because a host
+      # whose ANDROID_HOME is the Windows SDK cannot run `make android-apk` at
+      # all. A local build still builds all four; this flag is CI's. If a
+      # 32-bit device ever needs a build, this is the line to change.
       - name: Build release APK
         run: |
           cd apps/mobile/android
-          ./gradlew assembleRelease --build-cache
+          ./gradlew assembleRelease --build-cache -PreactNativeArchitectures=arm64-v8a,x86_64
         env:
           GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx3g
+
+      # The number that says whether the cache above is worth its restore: a
+      # warm ccache turns those C++ compiles into copies, a cold one leaves the
+      # job where it was. It belongs in the summary, next to the run it
+      # describes, rather than in a log nobody opens.
+      - name: ccache statistics
+        if: always()
+        run: |
+          if command -v ccache >/dev/null; then
+            {
+              echo "### ccache"
+              echo '```'
+              ccache -s
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Upload APK as artifact
         uses: actions/upload-artifact@v7

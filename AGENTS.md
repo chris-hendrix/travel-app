@@ -134,6 +134,8 @@ make android-apk → expo prebuild -p android --clean → android/ → ./gradlew
 CI: .github/workflows/distribute.yml does the same on ubuntu, then firebase appdistribution:distribute
 ```
 
+CI builds two ABIs rather than four (`-PreactNativeArchitectures=arm64-v8a,x86_64`), and `x86_64` is in that list for one reason: a PR's APK artifact is how the app reaches the Windows emulator, since `make android-apk` cannot run against a Windows `ANDROID_HOME`. It also keeps a `ccache` directory between runs, because the native C++ is two thirds to three quarters of that job and no gradle cache can hold it — `prebuild --clean` plus a fresh install leaves every `.cxx` directory empty, and AGP does not mark its CMake tasks cacheable. `make android-apk` still builds all four ABIs.
+
 **Architecture:**
 - Push is FCM with the raw device token (`getDevicePushTokenAsync()`), registered against the API's existing `POST /push/subscribe {provider:"fcm"}`. No Expo push service and no EAS credentials are involved.
 - Version identity lives in `app.json` (`version`, `android.versionCode`). Capacitor's `-PversionNameOverride` gradle property is gone and the generated gradle never read it; CI rewrites the two `app.json` fields before prebuild instead.
