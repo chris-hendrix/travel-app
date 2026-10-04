@@ -9,6 +9,7 @@ import { toE164 } from "@/components/ui/PhoneField";
 import { PhoneFieldAction } from "@/components/ui/PhoneFieldAction";
 import { QuietAction } from "@/components/ui/QuietAction";
 import { Section } from "@/components/ui/Section";
+import { RuledBlock } from "@/components/ui/RuledBlock";
 import { TextField } from "@/components/ui/TextField";
 import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
@@ -483,7 +484,10 @@ function MemberDialog({
             ) : null}
           </View>
 
-          <View className="gap-2 border-t border-gravel pt-6">
+          {/* A block boundary, in the block's own ink: it was drawn in
+              gravel, which is the colour for ground and not for marks,
+              so the strongest seam on this screen was the faintest one. */}
+          <RuledBlock>
             <Text className="font-body-bold text-base text-ink">
               Remove from trip
             </Text>
@@ -512,7 +516,7 @@ function MemberDialog({
               />
             ) : null}
             {removeError ? <InlineError message={removeError} /> : null}
-          </View>
+          </RuledBlock>
         </Section>
       )}
     </FullscreenDialog>

@@ -443,6 +443,10 @@ function AdminUserActions({
   }
 
   return (
+    // Each action is a block, ruled off from the one above it. These
+    // boundaries were drawn in gravel, which is a ground and not a mark:
+    // the strongest seam on the screen was the faintest one, and the
+    // second action's rule was 1.12:1 against the paper it sat on.
     <Section title="Manage">
       {actions.map((action, index) =>
         action === "impersonate" ? (
@@ -461,10 +465,7 @@ function AdminUserActions({
             onCancel={() => onConfirmChange(null)}
           />
         ) : action === "ban" ? (
-          <View
-            key={action}
-            className={index === 0 ? "gap-2" : "gap-2 border-t border-gravel pt-6"}
-          >
+          <RuledBlock key={action} rule={index !== 0}>
             <Text className="font-body-bold text-base text-ink">
               Ban this user
             </Text>
@@ -495,12 +496,9 @@ function AdminUserActions({
             {failedAction === action && failure ? (
               <InlineError message={failure} />
             ) : null}
-          </View>
+          </RuledBlock>
         ) : (
-          <View
-            key={action}
-            className={index === 0 ? "gap-2" : "gap-2 border-t border-gravel pt-6"}
-          >
+          <RuledBlock key={action} rule={index !== 0}>
             <Text className="font-body-bold text-base text-ink">
               {rowTitle(action)}
             </Text>
@@ -522,7 +520,7 @@ function AdminUserActions({
             {failedAction === action && failure ? (
               <InlineError message={failure} />
             ) : null}
-          </View>
+          </RuledBlock>
         ),
       )}
     </Section>
@@ -591,6 +589,12 @@ function AdminImpersonateAction({
   onCancel,
 }: {
   userId: string;
+  /**
+   * Whether this action opens the `Manage` section. It does not get a
+   * block rule of its own: the section's own rule above the heading is
+   * that boundary, and a second one here would stack two rules 20px apart
+   * at the top of every admin user's screen.
+   */
   first: boolean;
   confirming: boolean;
   pending: boolean;
@@ -654,7 +658,7 @@ function AdminImpersonateAction({
 
   if (!confirming) {
     return (
-      <View className={first ? "gap-2" : "gap-2 border-t border-gravel pt-6"}>
+      <RuledBlock rule={!first}>
         <Text className="font-body-bold text-base text-ink">
           Impersonate this user
         </Text>
@@ -667,13 +671,13 @@ function AdminImpersonateAction({
           disabled={pending}
           onPress={onReveal}
         />
-      </View>
+      </RuledBlock>
     );
   }
 
   const busy = starting || sendState === "sending";
   return (
-    <View className={first ? "gap-2" : "gap-2 border-t border-gravel pt-6"}>
+    <RuledBlock rule={!first}>
       <Text className="font-body-bold text-base text-ink">
         Impersonate this user
       </Text>
@@ -720,6 +724,6 @@ function AdminImpersonateAction({
         onPress={() => void submit()}
       />
       <QuietAction label="Cancel" onPress={onCancel} />
-    </View>
+    </RuledBlock>
   );
 }

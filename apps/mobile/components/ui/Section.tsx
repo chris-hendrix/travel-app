@@ -11,10 +11,11 @@ import { RuledBlock } from "@/components/ui/RuledBlock";
  * that the title is optional on the primitive — `Section` is the form for
  * when there is one, `RuledBlock` is the form for when there is not.
  *
- * The landing's sections are deliberately not either: they are tables of
- * rows, closed by a rule underneath and set at the hero's own scale, which
- * is a different block rather than a variant of this one. Folding those in
- * would mean two props serving one caller.
+ * The landing's sections were the reason this component had a shadow to
+ * be confused with: they had their own local copy, set at the hero's own
+ * scale, with the rule drawn *under* the run of rows rather than over the
+ * block. Those two are tables of rows, so the shadow went with the rule —
+ * the sections here, and `RuledRows` for the rows inside them.
  */
 export function Section({
   title,
