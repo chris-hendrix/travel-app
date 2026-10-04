@@ -8,13 +8,14 @@ import { useTrip } from "@/lib/tripsStore";
 import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { useAuth } from "@/lib/authStore";
-import { visiblePhone, viewerOf, type Member } from "@/lib/members";
+import { visiblePhone, viewerOf } from "@/lib/members";
 import { memberLabel } from "@/lib/rsvp";
 import { instagramUrl, venmoUrl } from "@/lib/links";
 import { formatPhoneForDisplay } from "@/lib/phone";
 import { useMembers } from "@/lib/queries/members";
 import { useTripInvitations } from "@/lib/queries/invitations";
 import { rosterRows, type RosterRow } from "@/lib/roster";
+import { RuledRows } from "@/components/ui/RuledRows";
 
 /**
  * The roll call, reached from "6 going" on the trip header.
@@ -86,21 +87,24 @@ function TripMembersDialog() {
       }
       dismissHref={`/trips/detail?id=${trip.id}`}
     >
-      {/* The rows carry their own gravel rules, one under each, and the
-          roster is the dialog's first block: a rule above it would mark
-          a boundary that is not there, since the header already closes
-          the top. The part each person plays sits at the far edge so
-          the column can be read down. */}
-      <View>
+      {/* A table: each row is read across — a name, the accounts you can
+          reach them on, the part they play — so the rows keep one soft
+          rule between them, from `RuledRows`. The first row has none: the
+          header above already closes the top of this list with its own
+          edge, and a rule under that would be a second mark for one
+          boundary. What went with the gravel is the rule *under* the last
+          row, which duplicated nothing above it. The part each person
+          plays sits at the far edge so the column can be read down. */}
+      <RuledRows>
         {rows.map((row) => (
-          <RosterRowItem
+          <MemberRow
             key={row.kind === "person" ? row.member.id : row.invitationId}
             row={row}
             tripId={trip.id}
             viewerIsOrganizer={viewerIsOrganizer}
           />
         ))}
-      </View>
+      </RuledRows>
       {/* Under the list, not in the bar: adding a guest lengthens the
           roll call rather than inviting, which is what the bar is for.
           A described block in the shape the person dialog's own Manage
@@ -127,129 +131,95 @@ function TripMembersDialog() {
 }
 
 /**
- * One row of the roll call. The far column is the row's kind, not its
- * state: a member reads `memberLabel`, a guest reads `Guest` even with
- * a pending invitation behind them (the fold, not a second row, is
- * where that invitation lives), and an invitation with no row behind
- * it reads `Invited`.
+ * One row of the roll call, of either kind, and one wrapper for both.
  *
- * Only the organizer's rows press: they open the person dialog, a
- * member behind `?member=` or an invitee behind `?invite=`. A
- * traveler's rows are not pressable — a traveler never reaches that
- * dialog.
+ * A member and an invitee are the same row with two different far columns
+ * — `memberLabel` or `Guest` for a person, `Invited` for an invitation
+ * with nobody behind it yet — and they were the same row in the markup
+ * too, down to the byte-identical class string, which is why they are one
+ * component now. The far column is the row's *kind*, not its state: a
+ * guest reads `Guest` even with a pending invitation behind them (the
+ * fold, not a second row, is where that invitation lives).
+ *
+ * Only the organizer's rows press: they open the person dialog, a member
+ * behind `?member=` or an invitee behind `?invite=`. A traveler's rows
+ * are not pressable — a traveler never reaches that dialog — and that
+ * conditional is the one piece of behaviour the merge had to keep exactly
+ * as it was, which is why the press target is one `if` at the bottom
+ * rather than something cleverer higher up.
  */
-function RosterRowItem({
+function MemberRow({
   row,
   tripId,
   viewerIsOrganizer,
+  className,
 }: {
   row: RosterRow;
   tripId: string;
   viewerIsOrganizer: boolean;
+  /**
+   * The table's mark, handed down by `RuledRows`. It lands on the row's
+   * own wrapper rather than on the `Pressable`, because the press wrapper
+   * is conditional on the viewer and the row's own measure must not change
+   * with a permission.
+   */
+  className?: string;
 }) {
   const router = useRouter();
   const motion = useMotion();
-  if (row.kind === "invited") {
-    // `rosterRows` falls back to the formatted phone as the name, so
-    // the number hangs below only when there is a real name above it.
-    const showPhone =
-      row.name !== null && row.name !== formatPhoneForDisplay(row.phone);
-    const body = (
-      <View className="flex-row items-center justify-between gap-4 border-b border-b-gravel py-3">
-        <View className="flex-1 gap-1">
-          <Text className="font-body-bold text-base text-ink">
-            {showPhone ? row.name : formatPhoneForDisplay(row.phone)}
-          </Text>
-          {showPhone ? (
-            <Text className="font-body text-sm text-ink">
-              {formatPhoneForDisplay(row.phone)}
-            </Text>
-          ) : null}
-        </View>
-        <Text className="font-body text-sm text-ink">Invited</Text>
-      </View>
-    );
-    if (!viewerIsOrganizer) return body;
-    return (
-      <Pressable
-        role="button"
-        accessibilityRole="button"
-        onPress={() =>
-          router.push(
-            `/trips/members/detail?id=${tripId}&invite=${row.invitationId}`,
-          )
-        }
-        className={motion.row}
-      >
-        {body}
-      </Pressable>
-    );
-  }
+  const invited = row.kind === "invited";
+  // A chip says where an account is, not what it is called — "Insta", not
+  // a username. The handle is the link's business, and a roster is not a
+  // place to publish everyone's usernames. Only a member has one.
+  const handles = invited ? null : row.member.handles;
+  const phone = invited ? null : visiblePhone(row.member, viewerIsOrganizer);
+  // `rosterRows` falls back to the formatted phone as an invitation's
+  // name, so an invitee's number hangs below only when there is a real
+  // name above it.
+  const showInvitedPhone =
+    invited &&
+    row.name !== null &&
+    row.name !== formatPhoneForDisplay(row.phone);
+  const name = invited
+    ? showInvitedPhone
+      ? row.name
+      : formatPhoneForDisplay(row.phone)
+    : row.member.name;
+  const number = invited
+    ? showInvitedPhone
+      ? formatPhoneForDisplay(row.phone)
+      : null
+    : phone
+      ? formatPhoneForDisplay(phone)
+      : null;
+  const farColumn = invited
+    ? "Invited"
+    : row.guest
+      ? "Guest"
+      : memberLabel(row.member);
 
-  return (
-    <MemberRow
-      member={row.member}
-      guest={row.guest}
-      tripId={tripId}
-      viewerIsOrganizer={viewerIsOrganizer}
-    />
-  );
-}
-
-/**
- * One person. The name and the accounts you can reach them on share a
- * line; the number hangs below it; and the part they play is centred
- * against the whole row, so the far column reads down the page however
- * much detail a row happens to carry.
- *
- * A chip says where an account is, not what it is called — "Insta", not
- * a username. The handle is the link's business, and a roster is not a
- * place to publish everyone's usernames.
- */
-function MemberRow({
-  member,
-  guest,
-  tripId,
-  viewerIsOrganizer,
-}: {
-  member: Member;
-  guest: boolean;
-  tripId: string;
-  viewerIsOrganizer: boolean;
-}) {
-  const router = useRouter();
-  const motion = useMotion();
-  const phone = visiblePhone(member, viewerIsOrganizer);
-
+  // The name and the accounts you can reach them on share a line; the
+  // number hangs below it; and the part they play is centred against the
+  // whole row, so the far column reads down the page however much detail
+  // a row happens to carry. The mark is `RuledRows`'s, merged onto the
+  // row's own wrapper.
   const body = (
-    <View className="flex-row items-center justify-between gap-4 border-b border-b-gravel py-3">
+    <View className={[ROW_BODY, className].filter(Boolean).join(" ")}>
       <View className="flex-1 gap-1">
         <View className="flex-row flex-wrap items-center gap-3">
-          <Text className="font-body-bold text-base text-ink">
-            {member.name}
-          </Text>
-          {member.handles?.venmo ? (
-            <ChipLink
-              label="Venmo"
-              href={venmoUrl(member.handles.venmo)}
-            />
+          <Text className="font-body-bold text-base text-ink">{name}</Text>
+          {handles?.venmo ? (
+            <ChipLink label="Venmo" href={venmoUrl(handles.venmo)} />
           ) : null}
-          {member.handles?.instagram ? (
-            <ChipLink
-              label="Insta"
-              href={instagramUrl(member.handles.instagram)}
-            />
+          {handles?.instagram ? (
+            <ChipLink label="Insta" href={instagramUrl(handles.instagram)} />
           ) : null}
         </View>
-        {phone ? (
-          <Text className="font-body text-sm text-ink">
-            {formatPhoneForDisplay(phone)}
-          </Text>
+        {number ? (
+          <Text className="font-body text-sm text-ink">{number}</Text>
         ) : null}
       </View>
-      <Text className="font-body text-sm text-ink">
-        {guest ? "Guest" : memberLabel(member)}
-      </Text>
+      <Text className="font-body text-sm text-ink">{farColumn}</Text>
     </View>
   );
   if (!viewerIsOrganizer) return body;
@@ -258,7 +228,11 @@ function MemberRow({
       role="button"
       accessibilityRole="button"
       onPress={() =>
-        router.push(`/trips/members/detail?id=${tripId}&member=${member.id}`)
+        router.push(
+          invited
+            ? `/trips/members/detail?id=${tripId}&invite=${row.invitationId}`
+            : `/trips/members/detail?id=${tripId}&member=${row.member.id}`,
+        )
       }
       className={motion.row}
     >
@@ -266,3 +240,11 @@ function MemberRow({
     </Pressable>
   );
 }
+
+/**
+ * The row's own body: one line, the person's name and accounts on the
+ * left, the part they play on the right, and the vertical space that
+ * belongs to the row rather than to the mark above it. It was one string
+ * written twice — once per row kind — and the merge is what leaves one.
+ */
+const ROW_BODY = "flex-row items-center justify-between gap-4 py-3";

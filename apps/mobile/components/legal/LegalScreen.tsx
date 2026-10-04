@@ -1,7 +1,8 @@
-import { Linking, Text, View } from "react-native";
+import { Linking, Text } from "react-native";
 import { useRouter } from "expo-router";
 import type { LegalDocument } from "@journiful/shared/legal";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
+import { RuledBlock } from "@/components/ui/RuledBlock";
 import { InlineAction } from "@/components/ui/InlineAction";
 import { Prose } from "@/components/ui/Prose";
 import { googleAttributionFor } from "@/lib/legal";
@@ -32,7 +33,11 @@ export function LegalScreen({ document }: { document: LegalDocument }) {
         }}
       />
       {google ? (
-        <View className="mt-6 border-t border-gravel pt-4">
+        /* A block boundary, in the block's ink: this sat under the prose
+           as a gravel rule with a `mt-6` above it, which is two spacing
+           decisions and a wrong colour for one seam. The block owns its
+           padding now. */
+        <RuledBlock>
           <Text className="font-body text-sm leading-relaxed text-ink/70">
             Place details and photos are provided by the Google Maps
             Platform. Your use of place features is also subject to
@@ -48,7 +53,7 @@ export function LegalScreen({ document }: { document: LegalDocument }) {
             />
             .
           </Text>
-        </View>
+        </RuledBlock>
       ) : null}
     </FullscreenDialog>
   );

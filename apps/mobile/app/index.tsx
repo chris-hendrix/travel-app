@@ -1,10 +1,11 @@
-import type { ReactNode } from "react";
 import { Text, View } from "react-native";
 import { Link, Redirect, useRouter } from "expo-router";
 import { Building2, Calendar, Plane, Users } from "lucide-react-native";
 import { Button } from "@/components/ui/Button";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { Screen } from "@/components/ui/Screen";
+import { Section } from "@/components/ui/Section";
+import { RuledRows } from "@/components/ui/RuledRows";
 import { LEGAL_ROWS } from "@/lib/legal";
 import { useAuth } from "@/lib/authStore";
 import { destinationForRequiresProfile } from "@/lib/queries/auth";
@@ -131,44 +132,53 @@ function Landing() {
 
       <Column>
         <View className="gap-16">
+          {/* Two tables of rows read across, so each row keeps one soft
+              rule between them, from `RuledRows`, and the first row has
+              none: the block's own ink rule above the heading is what
+              closes the top of the table, and a rule under the heading as
+              well would be a second mark for that one boundary. What is
+              gone at the bottom is the closing rule the old local `Section`
+              drew under the last row, which duplicated the next block's
+              opening one. The rows carry no border string of their own at
+              all — `RuledRows` owns that, which is why the class below is
+              only the row's body: an icon and a paragraph, or a number and
+              a paragraph, read across at the hero's own `py-5`. */}
           <Section title="What goes in the trip">
-            {WHAT_GOES_IN.map((feature) => (
-              <View
-                key={feature.title}
-                className="flex-row gap-4 border-t border-ink py-5"
-              >
-                <feature.icon color={INK} size={24} />
-                <View className="flex-1 gap-1">
-                  <Text className="font-display-semibold text-heading-lg uppercase text-ink">
-                    {feature.title}
-                  </Text>
-                  <Text className="font-body text-sm leading-snug text-ink">
-                    {feature.description}
-                  </Text>
+            <RuledRows>
+              {WHAT_GOES_IN.map((feature) => (
+                <View key={feature.title} className="flex-row gap-4 py-5">
+                  <feature.icon color={INK} size={24} />
+                  <View className="flex-1 gap-1">
+                    <Text className="font-display-semibold text-heading-lg uppercase text-ink">
+                      {feature.title}
+                    </Text>
+                    <Text className="font-body text-sm leading-snug text-ink">
+                      {feature.description}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-            ))}
+              ))}
+            </RuledRows>
           </Section>
 
           <Section title="How Journiful works">
-            {STEPS.map((step) => (
-              <View
-                key={step.number}
-                className="flex-row gap-4 border-t border-ink py-5"
-              >
-                <Text className="font-display-extrabold text-display-md text-ink">
-                  {step.number}
-                </Text>
-                <View className="flex-1 gap-1">
-                  <Text className="font-body-bold text-base text-ink">
-                    {step.title}
+            <RuledRows>
+              {STEPS.map((step) => (
+                <View key={step.number} className="flex-row gap-4 py-5">
+                  <Text className="font-display-extrabold text-display-md text-ink">
+                    {step.number}
                   </Text>
-                  <Text className="font-body text-sm leading-snug text-ink">
-                    {step.description}
-                  </Text>
+                  <View className="flex-1 gap-1">
+                    <Text className="font-body-bold text-base text-ink">
+                      {step.title}
+                    </Text>
+                    <Text className="font-body text-sm leading-snug text-ink">
+                      {step.description}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-            ))}
+              ))}
+            </RuledRows>
           </Section>
         </View>
       </Column>
@@ -211,28 +221,6 @@ function Landing() {
         </View>
       </Column>
     </Screen>
-  );
-}
-
-/**
- * A run of hairline rows under a heading. The closing rule is the
- * container's, so a list of four rules reads as one table rather than as
- * three dividers and an accident.
- */
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <View className="gap-6">
-      <Text className="font-display-semibold text-heading-lg uppercase text-ink">
-        {title}
-      </Text>
-      <View className="border-b border-ink">{children}</View>
-    </View>
   );
 }
 

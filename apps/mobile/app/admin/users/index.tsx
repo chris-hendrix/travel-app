@@ -25,6 +25,7 @@ import {
 import { toErrorCopy } from "@/lib/queries/errors";
 import { useMotion } from "@/hooks/useMotion";
 import { Column } from "@/components/ui/Column";
+import { RuledRows } from "@/components/ui/RuledRows";
 
 /**
  * The user list, as a page rather than a dialog: it is a surface you
@@ -109,8 +110,11 @@ function AdminUsersList() {
       {/* Not a FlatList: twenty two-line rows is a screenful or three,
           and this app's other lists are plain stacks inside `Screen`
           (`app/trips/index.tsx`, the roster) — the page already scrolls
-          as one surface. */}
-      <View>
+          as one surface. It is a table, so the rows take the soft rule
+          between them; the first has none, because the result count above
+          it is what this run of rows hangs off, and a rule there would
+          split a heading from the thing it counts. */}
+      <RuledRows>
         {rows.map((user) => (
           <AdminUserRowView
             key={user.id}
@@ -120,7 +124,7 @@ function AdminUsersList() {
             }
           />
         ))}
-      </View>
+      </RuledRows>
       {query.hasNextPage ? (
         <Button
           title={query.isFetchingNextPage ? "Loading more" : "Load more"}
@@ -197,9 +201,12 @@ function AdminUsersFailure({
 function AdminUserRowView({
   user,
   onPress,
+  className,
 }: {
   user: AdminUserRow;
   onPress: () => void;
+  /** The table's mark, handed down by `RuledRows`. */
+  className?: string;
 }) {
   const motion = useMotion();
   const name =
@@ -209,7 +216,12 @@ function AdminUserRowView({
       accessibilityRole="button"
       accessibilityLabel={name}
       onPress={onPress}
-      className={`min-h-11 flex-row items-start justify-between gap-4 border-t border-gravel py-3 ${motion.row}`}
+      className={[
+        `min-h-11 flex-row items-start justify-between gap-4 py-3 ${motion.row}`,
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
     >
       <View className="flex-1 gap-1">
         {/* The badges sit inline on the name's line and wrap under a
