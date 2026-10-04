@@ -59,6 +59,16 @@ function meBody(
   };
 }
 
+/** A promise the test opens and closes itself, so the `/auth/me` read can
+ *  be held open across an assertion. */
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
+
 beforeEach(() => {
   mockedApiFetch.mockReset();
   mockedGetToken.mockReset();
@@ -117,6 +127,42 @@ describe("restoreSession", () => {
     expect(result.user).toBeNull();
     expect(result.isAdmin).toBe(false);
     expect(result.impersonating).toBeNull();
+  });
+
+  it("hands the stored token to the onToken seam before the me read resolves", async () => {
+    // The seam exists so a caller can start its own read while
+    // `/auth/me` is still in flight. If the callback only fired after
+    // the await below, the two reads would still queue behind each
+    // other and the seam would buy nothing.
+    const onToken = vi.fn();
+    const gate = deferred<ReturnType<typeof meBody>>();
+    let tokensWhenTheReadStarted: string[] = [];
+    mockedGetToken.mockResolvedValue("jwt-token-abc");
+    mockedApiFetch.mockImplementation(async () => {
+      tokensWhenTheReadStarted = onToken.mock.calls.map(([token]) => token);
+      return gate.promise;
+    });
+
+    const restore = restoreSession(onToken);
+    await vi.waitFor(() => expect(mockedApiFetch).toHaveBeenCalledTimes(1));
+
+    expect(onToken).toHaveBeenCalledTimes(1);
+    expect(onToken).toHaveBeenCalledWith("jwt-token-abc");
+    expect(tokensWhenTheReadStarted).toEqual(["jwt-token-abc"]);
+
+    gate.resolve(meBody("Ada"));
+    const result = await restore;
+    expect(result.status).toBe("signed-in");
+  });
+
+  it("never calls the onToken seam when there is no token to hand over", async () => {
+    const onToken = vi.fn();
+    mockedGetToken.mockResolvedValue(null);
+
+    const result = await restoreSession(onToken);
+
+    expect(onToken).not.toHaveBeenCalled();
+    expect(result.status).toBe("signed-out");
   });
 
   it("resolves isAdmin and the impersonating pair off an admin body", async () => {

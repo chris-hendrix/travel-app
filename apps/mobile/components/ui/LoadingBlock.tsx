@@ -15,11 +15,24 @@ import { RuledBlock } from "@/components/ui/RuledBlock";
  * "Loading…" on its own, and not a category the reader already knows
  * ("trip details"). A bare "Loading…" is a screen that will not say
  * what is late; a bare noun reads as a broken heading while it loads.
+ *
+ * The label is also the only thing on the page a screen-reader user
+ * can be told about, so it is a polite live region: without one they
+ * hear nothing at all while the page is empty, which is the one
+ * audience the rule above does not reach on its own. React Native maps
+ * `aria-live` to `accessibilityLiveRegion` on Android and to the
+ * `aria-live` attribute on the web export, so the `role` + `aria-*`
+ * spelling is the one that announces on both surfaces.
  */
 export function LoadingBlock({ label }: { label: string }) {
   return (
     <RuledBlock>
-      <Text className="font-body text-sm text-ink opacity-60">{label}</Text>
+      <Text
+        aria-live="polite"
+        className="font-body text-sm text-ink opacity-60"
+      >
+        {label}
+      </Text>
     </RuledBlock>
   );
 }
