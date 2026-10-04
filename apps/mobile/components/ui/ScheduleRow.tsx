@@ -77,7 +77,19 @@ export function ScheduleRow({
       // A LIST row: no rule. This was the worst offender — a full-weight
       // ink rule between every two events on the busiest screen in the
       // app. `py-4` is the separator.
-      className={`cursor-pointer flex-row flex-wrap items-center gap-4 py-4 ${motion.row}`}
+      //
+      // `-mx-3 px-3` is the hover fill's own padding, and it is negative
+      // for a reason: the fill is the row's box, and the row has no
+      // horizontal padding, so `motion.row`'s gravel used to start and
+      // end exactly on the thumbnail and on the right-hand fact — a
+      // highlight with its content flush to its edge. Padding the row
+      // would indent the thumbnail away from the `STAYS` heading above
+      // it, which is the alignment the whole page is built on; the
+      // negative margin moves the fill out instead, so the content stays
+      // put and the highlight gains 12px of air inside it. The column
+      // has 24px of its own padding (`components/ui/Column.tsx`), so the
+      // fill still lands inside the band.
+      className={`-mx-3 cursor-pointer flex-row flex-wrap items-center gap-4 px-3 py-4 ${motion.row}`}
     >
       <View className="overflow-hidden">
         {slot.kind === "placeholder" ? (
