@@ -1,10 +1,18 @@
+import {
+  Children,
+  createElement,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { describe, expect, it } from "vitest";
 
 import {
+  RULE_ROW,
+  RULE_SOFT,
   RULED_BLOCK,
-  RULED_BLOCK_PAGE,
   RULED_BLOCK_UNRULED,
 } from "@/components/ui/ruledBlockClasses";
+import { RuledRows } from "@/components/ui/RuledRows";
 
 /**
  * The two rule forms, asserted as class *sets* rather than as strings.
@@ -83,24 +91,114 @@ describe("RULED_BLOCK_UNRULED", () => {
   });
 });
 
-describe("RULED_BLOCK_PAGE", () => {
-  it("is a full-width hairline and nothing else", () => {
-    expect(classes(RULED_BLOCK_PAGE)).toEqual(classes("h-px w-full bg-ink"));
+describe("RULE_SOFT", () => {
+  it("is the table rule's colour and nothing else", () => {
+    // One spelling, in one file. `RuledRows` hands it to a row and no call
+    // site writes it, which is the whole reason the component exists: the
+    // mark was duplicated across four tables, not the row.
+    expect(classes(RULE_SOFT)).toEqual(["border-rule-soft"]);
   });
 
-  it("paints the ink rather than wearing a border", () => {
-    // `border-t` draws on the box it belongs to; the page rule belongs to
-    // the page, and the page has no box. This is also the only `h-px` in
-    // the app -- `design-lint.mjs` check 2 fails if a second one appears.
-    expect(RULED_BLOCK_PAGE).not.toMatch(/border-/);
-    expect(RULED_BLOCK_PAGE).not.toMatch(/\b(p|m)[trblxy]?-/);
+  it("is a token, so the palette can measure it", () => {
+    // A flattened `--color-rule-soft` rather than `border-ink/40`: an
+    // opacity modifier is a value `lib/color.ts`'s `parseHex` throws on, so
+    // a rule written as alpha could not be held to a floor at all.
+    expect(RULE_SOFT).toMatch(/^border-[a-z-]+$/);
+    expect(RULE_SOFT).not.toMatch(/\//);
+  });
+});
+
+describe("RULE_ROW", () => {
+  it("is one soft rule above the row, and the row's own padding left to it", () => {
+    expect(classes(RULE_ROW)).toEqual(classes("border-t border-rule-soft"));
   });
 
-  it("is not the block rule with its padding removed", () => {
-    // They are two different marks. If the page rule were ever folded
-    // into the block form, the thirteen block sites would inherit an
-    // `h-px` and the page would grow a border.
-    expect(RULED_BLOCK_PAGE).not.toContain("pt-6");
+  it("is the second rank, and is not the first one", () => {
+    // The block rule is ink and carries `pt-6`; the table rule is soft and
+    // carries nothing. If these ever folded together, a table row would
+    // inherit a block's space and a block would inherit a rule it can no
+    // longer see.
+    expect(RULE_ROW).not.toContain("ink");
+    expect(RULE_ROW).not.toContain("pt-6");
+    expect(RULED_BLOCK).not.toContain("rule-soft");
+    expect(RULE_ROW).not.toBe(RULED_BLOCK);
+  });
+
+  it("draws exactly one border, on one side, in one colour", () => {
+    // The same shape as the block rule's assertion, for the same reason: a
+    // list row that quietly picked up a second border would be a third rank.
+    expect(
+      classes(RULE_ROW).filter((name) => name.startsWith("border-")),
+    ).toEqual(["border-rule-soft", "border-t"]);
+  });
+
+  it("leaves the block rule free of the hairline form, now that it is gone", () => {
+    // The page hairline was withdrawn with its component. What it leaves
+    // behind is only the negative: the block rule must not grow one.
     expect(RULED_BLOCK).not.toContain("h-px");
+  });
+});
+
+/**
+ * The wrapper that hands a row its mark.
+ *
+ * `RuledRows.tsx` is the one component this file imports by value, and it
+ * is safe here because it pulls in `react` and the strings above and
+ * nothing else — no `react-native`, which is what the note at the top of
+ * this file is about. It is called as a function rather than rendered:
+ * `vitest.config.ts` is plain node with no renderer, and what is under
+ * test is which children come back carrying a class, which is a question
+ * about the returned element tree and not about anything on a screen.
+ */
+describe("RuledRows", () => {
+  const row = (className: string, key: string) =>
+    createElement("View", { className, key });
+
+  const renderedClasses = (children: ReactNode) => {
+    const tree = RuledRows({ children }) as ReactElement<{
+      children?: ReactNode;
+    }>;
+    return Children.toArray(tree.props.children).map(
+      (child) => (child as ReactElement<{ className?: string }>).props.className,
+    );
+  };
+
+  it("rules every row after the first, and leaves the first alone", () => {
+    // A table's own opening is the boundary above it — the block rule
+    // that opened the block on the landing, the dialog header's chrome
+    // edge on the roster. A rule on the first row as well would be a
+    // second mark for that one boundary, which is the rule book's one
+    // thing it forbids.
+    expect(
+      renderedClasses([row("py-5", "a"), row("py-5", "b"), row("py-5", "c")]),
+    ).toEqual(["py-5", `py-5 ${RULE_ROW}`, `py-5 ${RULE_ROW}`]);
+  });
+
+  it("counts the first row that renders, not the first slot", () => {
+    // A `&&` that renders nothing must not make the first real row the
+    // second child and rule it as if a row were above it.
+    expect(
+      renderedClasses([null, row("py-3", "a"), row("py-3", "b")]),
+    ).toEqual(["py-3", `py-3 ${RULE_ROW}`]);
+  });
+
+  it("merges rather than replaces, and never doubles", () => {
+    expect(renderedClasses([row("py-3", "a"), row(RULE_ROW, "b")])).toEqual([
+      "py-3",
+      RULE_ROW,
+    ]);
+  });
+
+  it("passes the mark to a row component, which is what a roster row is", () => {
+    // Two of the three call sites hand it a component rather than a `View`,
+    // because the row is a body with a press state; the mark still has to
+    // arrive, and still has to skip the first.
+    const Row = (props: { className?: string }) =>
+      createElement("View", { className: props.className });
+    const classes = renderedClasses([
+      createElement(Row, { key: "a" }),
+      createElement(Row, { key: "b", className: "py-3" }),
+    ]);
+    expect(classes).toEqual([undefined, `py-3 ${RULE_ROW}`]);
   });
 });
