@@ -3,6 +3,7 @@ import { Text, View } from "react-native";
 
 import {
   RULED_BLOCK,
+  RULED_BLOCK_PAGE,
   RULED_BLOCK_UNRULED,
 } from "@/components/ui/ruledBlockClasses";
 
@@ -64,4 +65,19 @@ export function RuledBlock({
       {children}
     </View>
   );
+}
+
+/**
+ * The page's own rule — a hairline with nothing under it, for a boundary
+ * that closes what is above and opens what is under. The boot cover's is
+ * the one that draws it: the splash's mark, then the page's rule, then the
+ * page's foot.
+ *
+ * Not a `RuledBlock` with no children: that would carry the block's
+ * padding and its inner gap for a line of ink, and `h-px` against
+ * `border-t` is a different mark — a border belongs to the box it is on,
+ * a page rule belongs to the page.
+ */
+export function PageRule() {
+  return <View className={RULED_BLOCK_PAGE} />;
 }

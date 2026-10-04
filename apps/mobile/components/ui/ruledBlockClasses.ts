@@ -65,3 +65,21 @@ export const RULE_SOFT = "border-rule-soft";
  * over the mark rather than flattening three different rhythms into one.
  */
 export const RULE_ROW = `border-t ${RULE_SOFT}`;
+/**
+ * The page's own hairline: a full-width `h-px` with no title and no
+ * padding, for a boundary that closes a multi-column block and opens
+ * what is under it. Never carries a title — a title is what a *block*
+ * has, and a rule with one would be a block wearing a different box.
+ *
+ * **Reinstated.** This form was withdrawn by the rule-book branch on the
+ * argument that a form the app does not draw is a token with no caller. At
+ * that moment the argument held: the trip page's only call site had been
+ * removed, because the hero band's own lower edge already closed both of
+ * that page's columns and changed the ground. `BootCover` then became a
+ * caller — the boot screen draws the splash's mark, then *the page's rule*,
+ * then the page's foot, and that middle mark is a hairline over nothing,
+ * which is exactly this form and not a block rule. So the premise went out
+ * of date rather than the form going unused, and the constant is back with
+ * the call site that needs it.
+ */
+export const RULED_BLOCK_PAGE = "h-px w-full bg-ink";

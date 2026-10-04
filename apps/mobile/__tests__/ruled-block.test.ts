@@ -12,6 +12,7 @@ import {
   RULE_ROW,
   RULE_SOFT,
   RULED_BLOCK,
+  RULED_BLOCK_PAGE,
   RULED_BLOCK_UNRULED,
 } from "@/components/ui/ruledBlockClasses";
 import { RuledRows } from "@/components/ui/RuledRows";
@@ -306,5 +307,32 @@ describe.each(ROWS)("$name forwards the mark", (row) => {
 
   it("puts it on the row itself", () => {
     expect(rowComponent(row.file, row.name).body).toMatch(row.lands);
+  });
+});
+
+describe("the page hairline", () => {
+  // Withdrawn by the rule book and reinstated on it: the trip page stopped
+  // drawing it, then `BootCover` started. The constant and check 2's `h-px`
+  // arm came back with the call site, and this holds them to each other.
+  it("is a hairline with no padding and no title", () => {
+    expect(RULED_BLOCK_PAGE.split(/\s+/).sort()).toEqual([
+      "bg-ink",
+      "h-px",
+      "w-full",
+    ]);
+  });
+
+  it("is not a block rule wearing a different box", () => {
+    expect(RULED_BLOCK_PAGE).not.toContain("border-t");
+    expect(RULED_BLOCK_PAGE).not.toContain("pt-");
+  });
+
+  it("has a caller — the boot cover draws the page's rule", () => {
+    const boot = fs.readFileSync(
+      path.join(mobileDir, "components/ui/BootCover.tsx"),
+      "utf8",
+    );
+    expect(boot).toMatch(/import \{[^}]*PageRule[^}]*\}/);
+    expect(boot).toMatch(/<PageRule\s*\/>/);
   });
 });

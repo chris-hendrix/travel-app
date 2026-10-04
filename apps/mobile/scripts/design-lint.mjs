@@ -150,15 +150,17 @@ checkButtonRows();
  * them and `RuledBlock.tsx` and `RuledRows.tsx` import them, so the module
  * of strings is the one place either may appear.
  *
- * **The `h-px` arm retired with the page hairline it guarded.** This check
+ * **The `h-px` arm is back, with the page hairline it guards.** This check
  * had a second arm asserting that the page rule's `h-px w-full bg-ink` was
- * written in that module and nowhere else, and it was the only `h-px` in the
- * app. The page hairline itself has been withdrawn — it had one call site,
- * on the trip page, and the hero band's lower edge closed both columns and
- * changed the ground there, so the rule was a second mark saying one thing.
- * A guard on a string nothing renders is a guard on nothing, so the arm went
- * with the constant. If a `h-px` needs guarding again it can return
- * alongside whatever renders it.
+ * written in that module and nowhere else. The page hairline was withdrawn
+ * on this branch — its one call site, the trip page's, had been removed,
+ * because the hero band's lower edge already closed both columns and
+ * changed the ground there, so the rule was a second mark saying one
+ * thing, and a guard on a string nothing renders is a guard on nothing.
+ * `BootCover` then became a caller: the boot screen draws the splash's
+ * mark, then the page's rule, then the page's foot, and that middle mark is
+ * a hairline over nothing. So the arm returned alongside the form it guards,
+ * which is the condition its own retirement note set.
  */
 const RULE_HOME = "components/ui/ruledBlockClasses.ts";
 
@@ -185,6 +187,7 @@ function code(source) {
 
 function checkRuleForms() {
   const block = [];
+  const page = [];
   for (const file of sourcesWith(/\.tsx?$/)) {
     const rel = path.relative(mobile, file);
     const src = code(fs.readFileSync(file, "utf8"));
@@ -200,9 +203,20 @@ function checkRuleForms() {
         block.push(`${rel}:${src.slice(0, at).split("\n").length}`);
       }
     }
+    if (rel !== RULE_HOME) {
+      for (
+        let at = src.indexOf("h-px");
+        at !== -1;
+        at = src.indexOf("h-px", at + 1)
+      ) {
+        page.push(`${rel}:${src.slice(0, at).split("\n").length}`);
+      }
+    }
   }
   check(`the block rule is written only in ${RULE_HOME}`, block.length === 0);
   for (const hit of block) console.error(`  ${hit}`);
+  check(`the page hairline is written only in ${RULE_HOME}`, page.length === 0);
+  for (const hit of page) console.error(`  ${hit}`);
 }
 
 checkRuleForms();

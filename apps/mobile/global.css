@@ -277,11 +277,16 @@
  * second gravel border in that component still fails.
  *
  * The page's own hairline — a full-width `h-px` with no title and no
- * padding — was a fourth form here and has been withdrawn. It had one call
- * site, on the trip page, and the hero band's lower edge closed both of
- * that page's columns *and* changed the ground, so a rule on top of it was
- * a second mark saying one thing. A form the app does not draw is a token
- * with no caller, and does not belong in the rule book.
+ * padding — is a fourth form, and it is *withdrawn on this branch and
+ * reinstated on it*. The trip page was its one call site, and the hero
+ * band's lower edge closed both of that page's columns and changed the
+ * ground, so a rule on top of it was a second mark saying one thing: the
+ * form came out with that call site. Then `BootCover` needed one — the boot
+ * screen draws the splash's mark, then the page's rule, then the page's
+ * foot, and that middle mark is a hairline over nothing, which is this form
+ * and not a block rule. So it came back, with check 2's `h-px` arm, which
+ * had retired with it. A form is withdrawn when nothing draws it, not when
+ * a page it happened to serve stops drawing it.
  */
 
 /*
