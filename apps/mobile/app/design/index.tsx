@@ -645,7 +645,7 @@ function DesignSystemScreen() {
               contract="label"
               note="A screen that is getting there says so where its content will be. The line is the point: not a spinner, not a skeleton — a skeleton is a promise about the shape of content the request has not returned yet — and the label is what is arriving, in the product's own voice, the person's verb and the actual thing. Never a bare Loading on its own (a screen that will not say what is late), and never a category noun: Trip details reads as a broken heading while it loads, where Getting your trip reads as waiting. The system has a motion language now — see the Motion section — and this deliberately does not spend it. A load is a state rather than a transition, it happens dozens of times a session, and a line that says what is late is doing the whole job; the motion that a waiting screen does get is the content's own arrival, which is the Motion section's Enters specimen and lives on the gate rather than in here."
             >
-              <LoadingBlock label="Getting the run." />
+              <LoadingBlock label="Getting the itinerary." />
             </Specimen>
 
             <Specimen

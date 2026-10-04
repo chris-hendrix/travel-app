@@ -215,12 +215,12 @@ export function Itinerary({
           the page's seam is the run's opening line. */}
       <View>
           {eventsStatus === "loading" ? (
-            <LoadingBlock label="Getting the run" />
+            <LoadingBlock label="Getting the itinerary" />
           ) : eventsStatus === "offline" ? (
             <OfflineBlock onRetry={retryEvents} />
           ) : eventsStatus === "error" ? (
             <InlineError
-              message="Couldn't load the run"
+              message="Couldn't load the itinerary"
               onRetry={retryEvents}
             />
           ) : (
