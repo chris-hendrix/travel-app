@@ -139,3 +139,62 @@ describe("lib/fonts.ts is the single source of truth", () => {
     );
   });
 });
+
+/**
+ * The runtime import, which is where the 611 KB went.
+ *
+ * `import { SpaceMono_700Bold } from "@expo-google-fonts/space-mono"` is
+ * a barrel import, and a barrel `require`s every file it re-exports —
+ * all four Space Mono faces including `700Bold_Italic`, which no token
+ * names. `@expo-google-fonts/big-shoulders-display` is the worse case: it
+ * has no per-weight directories, so its `index.js` pulls all nine weights
+ * and five of them are dead. `app.json` was never the problem — it listed
+ * exactly the eight faces below, and the export still shipped fourteen.
+ *
+ * So the wiring imports each face *by path* (`FONTS[].file`), keyed by
+ * family. The import specifier is package-absolute, because
+ * `app/_layout.tsx` lives in `app/` and a `./node_modules/…` would resolve
+ * to `app/node_modules/…`, so the assertions below bind on **names** — the
+ * TTF basename, which is also the family — rather than on specifier
+ * strings, which differ from `FONTS[].file` by construction.
+ */
+describe("app/_layout.tsx registers the faces by path", () => {
+  const layout = read("app/_layout.tsx");
+  /** The TTF basenames the layout imports, one per `.ttf` import. */
+  const imported = [
+    ...layout.matchAll(/from\s+["']([^"']+\.ttf)["']/g),
+  ].map((m) => path.basename(m[1]!, ".ttf"));
+
+  it("imports no @expo-google-fonts barrel", () => {
+    // A barrel is an import of the package itself — no subpath after the
+    // name. The per-face specifiers all carry one.
+    expect(layout, "no barrel import of a package root").not.toMatch(
+      /from\s+["']@expo-google-fonts\/[^/"']+["']/,
+    );
+  });
+
+  it("imports exactly the faces the table names", () => {
+    expect(imported.slice().sort()).toEqual(FONTS.map((f) => f.family).sort());
+  });
+
+  it("registers each face under the family name Android will ask for", () => {
+    // The key is the family, not the file's path or the package's export
+    // name: on Android the TTF basename *is* the family, so a key that
+    // differs paints a system fallback and measures against nothing.
+    const body = layout.match(/useFonts\(\{([^}]*)\}\)/)?.[1] ?? "";
+    const keys = body
+      .split(",")
+      .map((entry) => entry.trim().replace(/:\s*[\s\S]*$/, ""))
+      .filter(Boolean);
+    expect(keys.slice().sort()).toEqual(FONTS.map((f) => f.family).sort());
+  });
+
+  it("every face in the table exists on disk", () => {
+    for (const row of FONTS) {
+      expect(
+        fs.existsSync(path.join(mobileDir, row.file)),
+        `${row.family} (${row.file}) exists`,
+      ).toBe(true);
+    }
+  });
+});

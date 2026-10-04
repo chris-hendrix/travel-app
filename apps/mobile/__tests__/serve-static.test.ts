@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { resolveFile } from "../scripts/serve-static.mjs";
+import { cacheControlFor, resolveFile } from "../scripts/serve-static.mjs";
+
+/** What the export's own hashed filenames carry, in both of its forms. */
+const HASH = "3ff1a2b4c5d6e7f8091a2b3c4d5e6f70";
+const IMMUTABLE = "public, max-age=31536000, immutable";
 
 let dir: string;
 
@@ -20,6 +24,22 @@ beforeEach(() => {
   fs.writeFileSync(path.join(dir, ".well-known", "probe.json"), "{}");
   fs.mkdirSync(path.join(dir, "_expo", "static", "js"), { recursive: true });
   fs.writeFileSync(path.join(dir, "_expo", "static", "js", "bundle-abc123.js"), "x");
+  // The rest of the export's shape: hashed assets under `assets/`, the
+  // manifest, and App Links — the three header outcomes.
+  fs.mkdirSync(path.join(dir, "assets"), { recursive: true });
+  fs.writeFileSync(
+    path.join(dir, "assets", `BungeeShade_400Regular.${HASH}.ttf`),
+    "x",
+  );
+  // react-navigation's own assets put the pixel scale *between* the
+  // content hash and the extension, so this is the second form the
+  // immutable rule has to match.
+  fs.writeFileSync(path.join(dir, "assets", `close-icon.${HASH}@3x.png`), "x");
+  fs.writeFileSync(path.join(dir, "assets", "splash.png"), "x");
+  fs.mkdirSync(path.join(dir, "_expo", "static", "js", "web"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "_expo", "static", "js", "web", `entry-${HASH}.js`), "x");
+  fs.writeFileSync(path.join(dir, "manifest.json"), "{}");
+  fs.writeFileSync(path.join(dir, ".well-known", "assetlinks.json"), "[]");
 });
 
 describe("resolveFile", () => {
@@ -73,5 +93,33 @@ describe("resolveFile", () => {
   it("returns null for unknown paths", () => {
     expect(resolveFile("/privacy", dir)).toBeNull();
     expect(resolveFile("/nonexistent-xyz", dir)).toBeNull();
+  });
+});
+
+/**
+ * The export's own cache policy. This server is the deployed production
+ * origin — nothing in front of it sets headers — so the difference between
+ * "cached forever" and "no header at all" is decided here and nowhere
+ * else. Only the basename matters to the rule, so the fixture files sit
+ * at the paths the real export nests them under.
+ */
+describe("cacheControlFor", () => {
+  it.each([
+    // Metro's own asset naming: the content hash sits before the extension.
+    [`assets/BungeeShade_400Regular.${HASH}.ttf`, IMMUTABLE],
+    // react-navigation's, where the scale sits between hash and extension.
+    // This is why the rule is not `/\.<hex>\.<ext>$/`.
+    [`assets/close-icon.${HASH}@3x.png`, IMMUTABLE],
+    [`_expo/static/js/web/entry-${HASH}.js`, IMMUTABLE],
+    // The document must be revalidated or a deploy is invisible.
+    ["index.html", "no-cache"],
+    // Unhashed, so no freshness claim can be made about it: a header here
+    // would either be immediately stale or would pin it against the very
+    // deploys the app needs.
+    ["manifest.json", null],
+    [".well-known/assetlinks.json", null],
+    ["assets/splash.png", null],
+  ])("%s → %s", (rel, expected) => {
+    expect(cacheControlFor(path.join(dir, rel), dir)).toBe(expected);
   });
 });

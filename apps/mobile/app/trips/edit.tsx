@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Image, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
+import { Image } from "expo-image";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
@@ -380,7 +381,8 @@ function EditTripScreen() {
             {cover ? (
               <Image
                 source={{ uri: cover }}
-                resizeMode="contain"
+                contentFit="contain"
+                cachePolicy="memory-disk"
                 className="w-full h-56 bg-paper"
               />
             ) : (

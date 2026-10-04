@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
-import { Image, Linking, Platform, Pressable, Text, View } from "react-native";
+import { Linking, Platform, Pressable, Text, View } from "react-native";
+import { Image } from "expo-image";
 import { Link, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
@@ -329,7 +330,8 @@ function ProfileForm({ profile }: { profile: Profile }) {
           {profile.profilePhotoUrl ? (
             <Image
               source={{ uri: profile.profilePhotoUrl }}
-              resizeMode="cover"
+              contentFit="cover"
+              cachePolicy="memory-disk"
               className="h-20 w-20"
             />
           ) : (

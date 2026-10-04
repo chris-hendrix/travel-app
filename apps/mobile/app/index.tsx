@@ -3,7 +3,7 @@ import { Text, View } from "react-native";
 import { Link, Redirect, useRouter } from "expo-router";
 import { Building2, Calendar, Plane, Users } from "lucide-react-native";
 import { Button } from "@/components/ui/Button";
-import { LoadingBlock } from "@/components/ui/LoadingBlock";
+import { BootCover } from "@/components/ui/BootCover";
 import { Screen } from "@/components/ui/Screen";
 import { LEGAL_ROWS } from "@/lib/legal";
 import { useAuth } from "@/lib/authStore";
@@ -46,12 +46,11 @@ export default function Index() {
   const { status, user } = useAuth();
 
   if (status === "restoring") {
-    return (
-      <Screen>
-<Column>
-        <LoadingBlock label="Signing you in" />
-      </Column></Screen>
-    );
+    // The boot cover owns the frame: no `Screen` (a cover does not scroll) and
+    // no `Column` of its own, because the cover holds its own measure. See
+    // `components/ui/BootCover.tsx` for why the first frame has to be the
+    // splash's own mark at the splash's own size.
+    return <BootCover label="Signing you in" />;
   }
 
   // Somebody signed in has no business reading the pitch, and somebody

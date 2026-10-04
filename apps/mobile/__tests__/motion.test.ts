@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 
-import { MOTION, REDUCED_MOTION, type MotionRole } from "@/components/ui/motionClasses";
+import { MOTION, REDUCED_MOTION, EASE_MOTION_POINTS, type MotionRole } from "@/components/ui/motionClasses";
 
 /**
  * The reduced-motion rule, asserted rather than described.
@@ -55,6 +55,27 @@ describe("the motion vocabulary", () => {
     for (const role of ROLES) {
       expect(MOTION[role], role).not.toMatch(/\bease-(out|in|in-out)\b/);
     }
+  });
+
+  it("draws the JS side's curve with the CSS token's own numbers", () => {
+    // The `entering` animation on the boot cover's rule cannot take a class, so
+    // it builds the curve in JS from `EASE_MOTION_POINTS` while every transition
+    // in the app reads `--ease-motion`. Two spellings, one curve: the numbers
+    // are the only thing that can be compared, so they are read out of the CSS
+    // and held against the constant.
+    //
+    // This is the guard that existed in spirit and not in fact when the token
+    // was once deleted by an unrelated revert: `ease-motion` then resolved to
+    // no class at all, Tailwind fell back to its own timing function, and every
+    // animation in the app quietly ran on the wrong curve with nothing failing.
+    const css = fs.readFileSync(
+      path.join(__dirname, "..", "global.css"),
+      "utf8",
+    );
+    const declared = /--ease-motion:\s*cubic-bezier\(([^)]+)\)/.exec(css);
+    expect(declared, "--ease-motion is declared in global.css").not.toBeNull();
+    const numbers = declared![1]!.split(",").map((n) => Number(n.trim()));
+    expect(numbers).toEqual([...EASE_MOTION_POINTS]);
   });
 });
 

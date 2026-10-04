@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Image, Linking, Pressable, Text, useWindowDimensions, View } from "react-native";
+import { Linking, Pressable, Text, useWindowDimensions, View } from "react-native";
+import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Screen } from "@/components/ui/Screen";
 import { Badge } from "@/components/ui/Badge";
@@ -309,14 +310,16 @@ function TripDetailScreen() {
                     >
                       <Image
                         source={{ uri: heroImage(trip.image)! }}
-                        resizeMode="cover"
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
                         className="w-full aspect-[2/1]"
                       />
                     </Pressable>
                   ) : (
                     <Image
                       source={{ uri: heroImage(trip.image)! }}
-                      resizeMode="cover"
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
                       className="w-full aspect-[2/1]"
                     />
                   )

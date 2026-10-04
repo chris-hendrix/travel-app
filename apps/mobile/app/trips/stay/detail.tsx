@@ -1,5 +1,6 @@
 import { RuledBlock } from "@/components/ui/RuledBlock";
-import { Image, Linking, Pressable, Text, View } from "react-native";
+import { Linking, Pressable, Text, View } from "react-native";
+import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Fact } from "@/components/ui/Fact";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
@@ -138,14 +139,16 @@ function StayDetailDialog() {
               >
                 <Image
                   source={{ uri: stay.image }}
-                  resizeMode="cover"
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
                   className="w-full aspect-[2/1]"
                 />
               </Pressable>
             ) : (
               <Image
                 source={{ uri: stay.image }}
-                resizeMode="cover"
+                contentFit="cover"
+                cachePolicy="memory-disk"
                 className="w-full aspect-[2/1]"
               />
             )}

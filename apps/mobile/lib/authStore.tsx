@@ -17,6 +17,7 @@ import {
   completeProfile as completeAuthProfile,
   signOutServer,
 } from "@/lib/queries/auth";
+import { tripsListOptions } from "@/lib/queries/trips";
 import type { Profile } from "@/lib/profile";
 import { toProfile } from "@/lib/mapping";
 import { clearToken, getToken } from "@/lib/session";
@@ -142,10 +143,26 @@ export function restorePaint(
  * impersonation pair only while impersonating — `impersonating: true`
  * with no `impersonatingUser` normalizes to `null`, never a
  * half-filled object.
+ *
+ * `onToken` is the one moment the stored token is known and the
+ * network is not yet busy, so it is the caller's chance to start a
+ * read the app is about to want: handed the token synchronously,
+ * before `/auth/me` is issued, so the two requests race instead of
+ * queueing behind each other. It is an optional parameter rather than
+ * a prefetch baked in here because this function is deliberately
+ * React-free and query-client-free, and because the two callers
+ * disagree — the boot effect wants the read, `adoptIdentity` does not
+ * (a sign-in clears the cache and navigates, so it would fetch a list
+ * the flow is about to invalidate). The callback is never awaited and
+ * never able to fail the restore; a caller that starts a read it does
+ * not need pays one wasted request and nothing else.
  */
-export async function restoreSession(): Promise<RestoreResult> {
+export async function restoreSession(
+  onToken?: (token: string) => void,
+): Promise<RestoreResult> {
   const token = await getToken();
   if (!token) return { status: "signed-out", user: null, isAdmin: false, impersonating: null };
+  onToken?.(token);
   try {
     // `meBodyOptions()` explicitly, never `meOptions().queryFn`: the
     // `select` shapes the observer's data and not `queryFn`'s return
@@ -288,7 +305,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // only — nothing here retries or refreshes.
   useEffect(() => {
     let cancelled = false;
-    restoreSession()
+    restoreSession(() => {
+      // Fire-and-forget, and the restore never awaits it: the trips
+      // read now races `/auth/me` instead of queueing behind it, so
+      // the list paints from the prefetch rather than from a second
+      // round trip once the session resolves.
+      //
+      // What a stale token costs is *not* one wasted request. A 401
+      // reaches the shared boundary in `lib/api.ts`, whose listener
+      // signs the session out — which is the right answer for a dead
+      // token, and the same answer the trips screen's own read would
+      // have produced a moment later. The difference this introduces
+      // is that the 401 can now land while `/auth/me` is still in
+      // flight, so a token that expires in the millisecond between the
+      // two requests signs out a restore that had already succeeded.
+      // Accepted rather than papered over: the window is two requests
+      // wide, the outcome is what the next read would do anyway, and
+      // the alternative is a bypass flag on the one boundary the app
+      // deliberately centralised. The failure itself is swallowed here
+      // (`prefetchQuery` resolves rather than throws when the read
+      // fails, so the `catch` is belt and braces), and the next cache
+      // clear — sign-out, or the sign-in path — drops whatever the
+      // prefetch wrote. On a `requiresProfile` redirect it costs one
+      // request, accepted here rather than special-cased.
+      void queryClient?.prefetchQuery(tripsListOptions()).catch(() => {});
+    })
       .then((result) => {
         if (cancelled) return;
         const patch = providerPatchFromRestore(result);

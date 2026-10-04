@@ -79,6 +79,7 @@ import { Column } from "@/components/ui/Column";
 // the product's `Section` is aliased below as `RuledSection`, which is why
 // this one keeps the plain name on this side of the import.
 import { MotionSection } from "./motion";
+import { BootCoverSpecimen } from "./bootCover";
 import { Section, Specimen, TokenRow, TypeRow } from "./frame";
 
 /** Metro resolving a bare package import and a font actually being the
@@ -1385,6 +1386,7 @@ function DesignSystemScreen() {
         </Section>
 
 
+        <BootCoverSpecimen />
         <MotionSection onLog={setLog} />
 
         <Section title="Screens">

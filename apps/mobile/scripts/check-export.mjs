@@ -44,6 +44,54 @@ const hasCss =
   fs.readdirSync(cssDir).some((f) => f.endsWith(".css"));
 check("stylesheet under _expo/static/css/", hasCss);
 
+// The export must ship the eight faces `lib/fonts.ts` names and nothing
+// else. `app.json` has always listed exactly those eight, which is why the
+// mismatch was invisible until the artifact itself was measured: a
+// `from "@expo-google-fonts/…"` barrel import in app/_layout.tsx
+// `require`s every weight the package ships — all nine of
+// big-shoulders-display, five of which no token names — so the bundle grew
+// 611 KB while this gate stayed green. `lib/fonts.ts` is TypeScript and
+// cannot be imported from a dependency-free script, so its `family`
+// columns are read off disk; that is the whole table this check needs.
+const fontsTable = path.join(here, "..", "lib", "fonts.ts");
+const families = fs.existsSync(fontsTable)
+  ? [...fs.readFileSync(fontsTable, "utf8").matchAll(/^\s*family:\s*"([^"]+)"/gm)].map(
+      (m) => m[1],
+    )
+  : [];
+check("lib/fonts.ts names its faces", families.length > 0);
+
+const collectFiles = (dir, out = []) => {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) collectFiles(full, out);
+    else out.push(full);
+  }
+  return out;
+};
+
+// The exported filenames carry Metro's content hash
+// (`BungeeShade_400Regular.<32hex>.ttf`); the face is the basename.
+const shipped = collectFiles(dist)
+  .filter((f) => f.endsWith(".ttf"))
+  .map((f) => path.basename(f).replace(/\.[0-9a-f]{32}\./i, "."));
+const wanted = families.map((f) => `${f}.ttf`);
+const missing = wanted.filter((f) => !shipped.includes(f));
+const extra = shipped.filter((f) => !wanted.includes(f));
+check(
+  "the export ships exactly the faces in lib/fonts.ts",
+  missing.length === 0 && extra.length === 0,
+);
+if (missing.length || extra.length) {
+  console.error(
+    `  missing: ${missing.join(", ") || "none"}` +
+      ` | not in lib/fonts.ts: ${extra.join(", ") || "none"}` +
+      ' — a `from "@expo-google-fonts/…" ` barrel import in app/_layout.tsx drags in' +
+      " every weight the package ships; import each face by path instead" +
+      " (the `file` column), which is what prunes the export.",
+  );
+}
+
 const legalTitles = {
   "privacy.html": "Privacy",
   "terms.html": "Terms",

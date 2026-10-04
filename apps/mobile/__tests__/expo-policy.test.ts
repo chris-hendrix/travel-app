@@ -302,7 +302,7 @@ describe("expo policy: the shell respects the system bars", () => {
     // quietly: out of layout (or the header is 10px short and every screen
     // sits 10px high), not eating taps on the first 10px of the page, and
     // drawn above the screen it now overlaps.
-    expect(header).toMatch(/bottom: -\(WAVE_DEPTH - WAVE_OVERLAP\)/);
+    expect(header).toMatch(/bottom: -\(SCALLOP_DEPTH - WAVE_OVERLAP\)/);
     expect(header).toMatch(/pointerEvents: "none"/);
     expect(header).toMatch(/zIndex: 1/);
     // The box is exactly the wave's depth and the *position* carries the
@@ -310,33 +310,40 @@ describe("expo policy: the shell respects the system bars", () => {
     // native svg that stretches into it tiles the pattern a fraction past one
     // row — the next tile's top row is solid ink, so the fix for a gap at the
     // top becomes a 1px black line at the bottom. That was tried.
-    expect(header).not.toMatch(/height: WAVE_DEPTH \+/);
-    // And the pattern tile is a row taller than the row it is shown in. A
-    // tile's top row is solid ink, so a fractional device density rendering a
-    // sliver of the next tile draws a hairline across the bottom of the wave.
-    // The slack has to be transparent, which means it has to exist.
-    expect(header).toMatch(/const WAVE_TILE = WAVE_DEPTH \+ 1/);
-    expect(header).toMatch(/height=\{WAVE_TILE\}/);
-    expect(header).toMatch(/height=\{WAVE_DEPTH\} fill="url\(#wave\)"/);
-    // And the invariant, which holds whatever the cause: the wave is clipped
-    // to its own depth, so nothing it draws can escape the row.
-    expect(header).toMatch(/height: WAVE_DEPTH, overflow: "hidden"/);
+    expect(header).not.toMatch(/height: SCALLOP_DEPTH \+/);
+    // The strip itself — the tile one row taller than the row it is shown in,
+    // the clip, the real-pixel height — moved to `ScallopEdge.tsx` when the
+    // boot cover needed the same edge at the bottom of the page. The guards
+    // moved with it rather than being dropped: every one of them is a failure
+    // this repo has already had, and the component is where they can be
+    // checked now that the strip is drawn there.
+    const edge = source("components/ui/ScallopEdge.tsx");
+    // From the component to the end of the file, not to the first `\n}`: the
+    // import block's closing brace comes earlier and would scope this to the
+    // imports.
+    const edgeBody = edge.slice(edge.indexOf("export function ScallopEdge"));
+    // The pattern tile is a row taller than the row it is shown in. A tile's
+    // top row is solid ink, so a fractional device density rendering a sliver
+    // of the next tile draws a hairline along the edge. The slack has to be
+    // transparent, which means it has to exist: the value is `SCALLOP_TILE`,
+    // pinned as a number in `__tests__/scallop.test.ts`, and this is that the
+    // component actually asks for it.
+    expect(edgeBody).toMatch(/height=\{SCALLOP_TILE\}/);
+    expect(edgeBody).toMatch(/height: SCALLOP_DEPTH, overflow: "hidden"/);
     // And in `px`, never a rem class. `h-2.5` is `0.625rem`, which is 10px in
     // the browser and **8.75px on Android** — NativeWind's rem is 14 there
     // against 16 on web (A18) — while the band's `paddingBottom` is
-    // `WAVE_DEPTH` in real pixels. The mismatch is a 1.25px seam between the
+    // `SCALLOP_DEPTH` in real pixels. The mismatch is a 1.25px seam between the
     // header and its own wave, visible on the phone only, which is the
     // measure-vs-paint failure this repo keeps re-finding.
     //
-    // Scoped to `WaveEdge`, not the file: the unread dot's `h-2.5 w-2.5` is a
-    // decorative circle where 8.75px is fine, and a file-wide ban would fail
-    // on it for no reason. Scoped to the *class* rather than the body,
-    // because the comment above explains why `h-2.5` is wrong and would
-    // otherwise fail its own assertion.
-    const wave = header.slice(header.indexOf("function WaveEdge"));
-    const waveBody = wave.slice(0, wave.indexOf("\n}"));
-    expect(waveBody).toMatch(/height: WAVE_DEPTH/);
-    expect(waveBody).not.toMatch(/className="[^"]*h-2\.5/);
+    // Scoped to the component, not the file: the unread dot's `h-2.5 w-2.5` is
+    // a decorative circle where 8.75px is fine, and a file-wide ban would fail
+    // on it for no reason. (It is no longer a class-versus-body scoping
+    // question — the explanation for why `h-2.5` is wrong lives in
+    // `scallopTiles.ts` now, not in the component it would fail.)
+    expect(edgeBody).toMatch(/height: SCALLOP_DEPTH/);
+    expect(edgeBody).not.toMatch(/className="[^"]*h-2\.5/);
   });
 
   it("paints the inset under a dialog in the dialog's own ground", () => {
@@ -351,10 +358,21 @@ describe("expo policy: the shell respects the system bars", () => {
   });
 
   it("picks bar content that matches the ground under it", () => {
-    const layout = source("app/_layout.tsx");
-    // Light over the band's ink, dark over the gravel a dialog leaves there.
-    expect(layout).toMatch(
-      /barStyle=\{isDialog \? "dark-content" : "light-content"\}/,
+    // The style lives with the thing that knows the ground, and that is the
+    // session rather than the layout: the shell used to choose it inline, and it
+    // read the *band's* ground because a dialog was the only other case there
+    // was. The boot cover adds a third — `AppHeader` draws nothing while the
+    // session is restoring, so the ground under the bar is the cover's sand, and
+    // light content on sand is white on sand on the one screen every launch
+    // passes through. So the guard follows the expression it is about.
+    const bar = source("components/ui/AppStatusBar.tsx");
+    expect(bar).toMatch(
+      /isDialog \|\| status === "restoring" \? "dark-content" : "light-content"/,
+    );
+    // And the layout still hands it the one thing the layout knows: whether this
+    // route is a dialog, whose ground is gravel.
+    expect(source("app/_layout.tsx")).toMatch(
+      /<AppStatusBar isDialog=\{isDialog\} \/>/,
     );
   });
 

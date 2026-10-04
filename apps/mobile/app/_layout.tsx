@@ -1,8 +1,14 @@
 import { Suspense, useEffect, useRef, useState } from "react";
-import { AppState, Platform, StatusBar, View } from "react-native";
+import { AppState, Platform, View } from "react-native";
 import { QueryClientProvider, focusManager } from "@tanstack/react-query";
 import { makeQueryClient } from "@/lib/queries/client";
 import { Stack, SplashScreen, usePathname, useRouter } from "expo-router";
+// `expo-router` re-exports a *narrow* `SplashScreen` — `preventAutoHideAsync`
+// and `hideAsync`, the two calls its own docs use, and nothing else. The fade
+// comes from the package itself, which is where the API reference imports it
+// from, and the alias is so a bare `setOptions` cannot be mistaken for one of
+// the several other option-setting calls in this file.
+import { setOptions as setSplashOptions } from "expo-splash-screen";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 // The web tab's own label. Expo's shell ships an empty <title>, which
 // reads as the URL on a tab strip; the mark beside it says which product,
@@ -13,22 +19,30 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 // wants its own title renders a Head of its own and the deepest wins.
 import Head from "expo-router/head";
 import { useFonts } from "expo-font";
-import {
-  useFonts as useSpaceMono,
-  SpaceMono_400Regular,
-  SpaceMono_400Regular_Italic,
-  SpaceMono_700Bold,
-} from "@expo-google-fonts/space-mono";
-import { BungeeShade_400Regular } from "@expo-google-fonts/bungee-shade";
-import {
-  BigShouldersDisplay_600SemiBold,
-  BigShouldersDisplay_700Bold,
-  BigShouldersDisplay_800ExtraBold,
-  BigShouldersDisplay_900Black,
-} from "@expo-google-fonts/big-shoulders-display";
+// The eight faces, one import each, **by path**. The import from
+// `@expo-google-fonts/*` is deliberately absent: a package's `index.js`
+// `require`s every face it ships, so one named import brings the whole
+// weight axis with it — and `@expo-google-fonts/big-shoulders-display` has
+// no per-weight directories to import a single weight from, so its nine
+// weights all landed in the bundle and five of them are named by no token
+// at all. The web export shipped 14 TTFs where `app.json` — which was never
+// wrong — lists exactly these eight. `lib/fonts.ts`'s `file` column is what
+// these are bound against, by `__tests__/fonts.test.ts` and by
+// `scripts/check-export.mjs`; the specifiers here are package-absolute
+// because this file lives in `app/`, where `./node_modules/…` would not.
+import BungeeShade_400Regular from "@expo-google-fonts/bungee-shade/400Regular/BungeeShade_400Regular.ttf";
+import BigShouldersDisplay_900Black from "@expo-google-fonts/big-shoulders-display/BigShouldersDisplay_900Black.ttf";
+import BigShouldersDisplay_800ExtraBold from "@expo-google-fonts/big-shoulders-display/BigShouldersDisplay_800ExtraBold.ttf";
+import BigShouldersDisplay_700Bold from "@expo-google-fonts/big-shoulders-display/BigShouldersDisplay_700Bold.ttf";
+import BigShouldersDisplay_600SemiBold from "@expo-google-fonts/big-shoulders-display/BigShouldersDisplay_600SemiBold.ttf";
+import SpaceMono_400Regular from "@expo-google-fonts/space-mono/400Regular/SpaceMono_400Regular.ttf";
+import SpaceMono_700Bold from "@expo-google-fonts/space-mono/700Bold/SpaceMono_700Bold.ttf";
+import SpaceMono_400Regular_Italic from "@expo-google-fonts/space-mono/400Regular_Italic/SpaceMono_400Regular_Italic.ttf";
 import { AppHeader } from "@/components/ui/AppHeader";
+import { AppStatusBar } from "@/components/ui/AppStatusBar";
 import * as SystemNotifications from "expo-notifications";
 import type { NotificationResponse } from "expo-notifications";
+import { BootGate } from "@/components/ui/BootGate";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { BARE_HEADER_ROUTES, DIALOG_ROUTES } from "@/lib/routes";
 import { AuthProvider } from "@/lib/authStore";
@@ -43,7 +57,13 @@ import { DisplayZoneProvider } from "@/lib/displayZone";
 import "../global.css";
 
 SplashScreen.preventAutoHideAsync();
-
+// The native splash's exit, where the platform allows one: a 200ms fade out.
+// `fade` is iOS-only, which is the fact the whole boot cover is built around —
+// on Android the splash is replaced by the first JS frame in a single frame, so
+// the cover's first frame has to *be* the splash (same asset, same width, same
+// sand) rather than something that resembles it. A no-op elsewhere, and `void`,
+// so there is nothing here to catch or await.
+setSplashOptions({ duration: 200, fade: true });
 export default function RootLayout() {
   const pathname = usePathname();
   // The window is edge-to-edge on Android, so the system bars are drawn
@@ -73,20 +93,19 @@ export default function RootLayout() {
   // is in the name, which is why `--font-display-black` and friends are
   // four tokens and not one plus a `font-black` (Task 1).
   //
-  const [displayLoaded, displayError] = useFonts({
+  // The eight above are the only faces in the bundle, keyed by family
+  // (the shorthand is the family name, which is also the TTF's basename —
+  // Android resolves `font-display-black` by exactly that string).
+  const [loaded, fontError] = useFonts({
     BungeeShade_400Regular,
     BigShouldersDisplay_900Black,
     BigShouldersDisplay_800ExtraBold,
     BigShouldersDisplay_700Bold,
     BigShouldersDisplay_600SemiBold,
-  });
-  const [monoLoaded, monoError] = useSpaceMono({
     SpaceMono_400Regular,
-    SpaceMono_400Regular_Italic,
     SpaceMono_700Bold,
+    SpaceMono_400Regular_Italic,
   });
-  const loaded = displayLoaded && monoLoaded;
-  const fontError = displayError ?? monoError;
   // `settled` rather than `loaded`: a font that failed is a font that will
   // never arrive, and the splash has to stop waiting for it. The faces
   // themselves are embedded natively (`expo-font`'s config plugin lists them
@@ -153,9 +172,7 @@ export default function RootLayout() {
                 paddingBottom: insets.bottom,
               }}
             >
-              <StatusBar
-                barStyle={isDialog ? "dark-content" : "light-content"}
-              />
+              <AppStatusBar isDialog={isDialog} />
               {/* App shell: a fixed-height column so the screen scrolls
                   under the header instead of scrolling the whole document
                   (web). The landing and the auth flow wear a band with no
@@ -173,7 +190,7 @@ export default function RootLayout() {
                       // What is arriving here is the app, not a thing in
                       // it: this fallback covers the boot, before any
                       // screen's own read has started.
-                      <LoadingBlock label="Opening Journiful" />
+                      <BootGate label="Opening Journiful" />
                     )
                   }
                 >
