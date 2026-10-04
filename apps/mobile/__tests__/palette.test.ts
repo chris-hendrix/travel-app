@@ -113,6 +113,39 @@ describe("palette: the rules a role implies", () => {
     expect(unfloored).toEqual([]);
   });
 
+  it("holds the rule token to its own declared floor on every ground it names", () => {
+    // The table rank's colour, measured rather than chosen: it is the same
+    // ink as the block rule, flattened, so `contrast()` can be pointed at it.
+    const rule = TOKENS.find((t) => t.role === "rule");
+    expect(rule, "a rule token is declared").toBeDefined();
+    expect(rule?.floor, "a rule token declares a floor").toBeDefined();
+    for (const ground of rule?.floor?.on ?? []) {
+      const ratio = contrast(rule!.hex, GROUNDS[ground]);
+      expect(ratio, `${rule!.name} on ${ground}`).toBeGreaterThanOrEqual(
+        rule!.floor!.min,
+      );
+    }
+    // And the reason the floor is 2.4 and not lower: `gravel` used as a rule
+    // measures 1.12:1 on sand, which clears nothing and is the spellings this
+    // replaces. Asserted here so the number the floor was drawn against is
+    // in the file that holds the floor.
+    expect(contrast(GROUNDS.gravel, GROUNDS.sand)).toBeLessThan(2.4);
+  });
+
+  it("gives every rule token a floor, and declares the role at all", () => {
+    // The converse, modelled on the text guard above: without it a rule
+    // token added with no floor passes every assertion in this file, which
+    // is the whole omission this case exists to catch.
+    //
+    // The `length` assertion is what keeps that converse from being
+    // vacuous. A bare filter is empty on a tree where the role does not
+    // exist yet, so it would pass on an app with no rule in it at all — the
+    // failure it is meant to find.
+    const rules = TOKENS.filter((t) => t.role === "rule");
+    expect(rules.length).toBeGreaterThan(0);
+    expect(rules.filter((t) => !t.floor).map((t) => t.name)).toEqual([]);
+  });
+
   it("keeps every band tone calm", () => {
     const loud = TOKENS.filter((t) => t.role === "band")
       .filter((t) => chroma(t.hex) >= BAND_CHROMA_MAX)

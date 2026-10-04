@@ -406,12 +406,13 @@ function TripDetailScreen() {
         </Column>
       </Band>
 
-      {/* The seam between the two halves of the page used to be a page rule
-          here. The band's lower edge does the same job and does it better:
-          it closes both columns *and* changes the ground, so a rule on top
-          of it would be a second mark saying one thing. That is why
-          `PageRule` is gone from this screen, and why the run below still
-          brings no rule of its own (components/trip/Itinerary.tsx). */}
+      {/* The seam between the two halves of the page used to be a full-width
+          hairline here. The band's lower edge does the same job and does it
+          better: it closes both columns *and* changes the ground, so a rule
+          on top of it would be a second mark saying one thing. That is why
+          the hairline form is gone from this screen, and why the run below
+          still brings no rule of its own (components/trip/Itinerary.tsx) —
+          its rows are read down, which is a list, and a list has no rank. */}
       {/* The run owns its own columns, because its first table is a
           full-bleed band and a band cannot exist inside a constrained column.
           Nothing wraps it, which is what lets that band meet the hero's with

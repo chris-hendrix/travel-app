@@ -15,13 +15,13 @@ import { INK } from "@/lib/theme";
  * different shape saying the same thing less plainly. So it is a polygon,
  * which is also the only way to get one that is solid.
  *
- * It turns rather than swapping. The app's three other disclosures
- * (Accordion, TimeField, the travel row) all hold `ArrowDown` and
- * `ArrowUp` and choose between them; a triangle that rotates says the same
- * thing with one glyph instead of two, and the direction is the whole of
- * what it says. The glyph is `aria-hidden`: the trigger already says what
- * it is and which way it goes through `aria-expanded`, and a mark that only
- * repeats that is noise in the tree.
+ * It turns rather than swapping. The app's two other disclosures
+ * (`TimeField` and the travel row) both hold `ArrowDown` and `ArrowUp` and
+ * choose between them; a triangle that rotates says the same thing with one
+ * glyph instead of two, and the direction is the whole of what it says. The
+ * glyph is `aria-hidden`: the trigger already says what it is and which way
+ * it goes through `aria-expanded`, and a mark that only repeats that is noise
+ * in the tree.
  */
 function Triangle({ open }: { open: boolean }) {
   const motion = useMotion();
@@ -49,9 +49,8 @@ export type DisclosureAction = {
  * The first version of this made every child a `Button`, and a stack of
  * six full-width boxes under one trigger is a wall: six equal weights with
  * no hierarchy, and nothing to tell the trigger from the things it opened
- * except a 12pt triangle. A row is lighter, and the rule underneath it is
- * the app's own list language (`Accordion`, `NotificationRow`: rules, not
- * cards) rather than a box drawn inside a box.
+ * except a 12pt triangle. A row is lighter, and the rule underneath it is a
+ * line rather than a box drawn inside a box.
  *
  * The `+` is why this is not just a word. The system has twice concluded
  * that a bare label on this screen reads as prose rather than as something
@@ -95,6 +94,25 @@ function ActionRow({
 /**
  * A button that opens onto a list of actions, in the flow.
  *
+ * **The rule it sits under is the disclosure rule: a route for content,
+ * this component for verbs, a value picker for a value, and truncation for
+ * long copy.** Disclosure is a route or a verb list, never content.
+ *
+ * Each half of that is here because a screen wanted it. Content gets a
+ * route, because content opened in place pushes the page under it, is gone
+ * the moment the row is pressed again, and has no place to be found from
+ * afterwards. A value gets a picker — `TimeField` opens a column of slots,
+ * `Dropdown` a capped list of matches — because a value is chosen rather
+ * than read, and it is short enough to say on the row. Long copy gets
+ * truncated, because the alternative is a disclosure somebody opens to find
+ * out whether there is anything in it.
+ *
+ * What is left over is verbs: a short list of things that can be done from
+ * here, each of which goes somewhere or changes something. That is this
+ * component and nothing else, and the form it replaced — ruled, nested, and
+ * opening onto content — had no caller for as long as it existed, because
+ * the content it was built to hide is a route.
+ *
  * One trigger, the label at the near edge and a triangle at the far one,
  * and the rows it opens sit directly under it at the same width — nothing
  * floating, no panel, no shadow, and no box drawn around the group. That
@@ -115,8 +133,8 @@ function ActionRow({
  * more here", which is a lie about what pressing it does: the fill is
  * this system's mark for the control that finishes a job (`Button`), and a
  * trigger reveals rather than finishes. Every other disclosure here is
- * unfilled for the same reason — `Accordion` is rules, `TimeField` is the
- * field's own box, the travel row is a rule.
+ * unfilled for the same reason — `TimeField` is the field's own box, the
+ * travel row is a rule.
  *
  * Actions rather than children, because the row is the whole of the look:
  * a caller that could pass anything would eventually pass a `Button`, and

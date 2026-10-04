@@ -12,7 +12,6 @@ import { Segmented } from "@/components/ui/Segmented";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { SuggestionList } from "@/components/ui/SuggestionList";
 import { MapsAttribution } from "@/components/ui/MapsAttribution";
-import { Accordion, AccordionItem } from "@/components/ui/Accordion";
 import { DisclosureButton } from "@/components/ui/DisclosureButton";
 import { Checkbox, CheckboxLabel } from "@/components/ui/Checkbox";
 import { ActionRow } from "@/components/ui/ActionRow";
@@ -31,7 +30,8 @@ import {
 } from "@/lib/eventColors";
 import { EVENT_TYPE_LABEL, type EventType } from "@/lib/itinerary";
 import { initials } from "@/lib/profile";
-import { RuledBlock, PageRule } from "@/components/ui/RuledBlock";
+import { RuledBlock } from "@/components/ui/RuledBlock";
+import { RuledRows } from "@/components/ui/RuledRows";
 import { Fact } from "@/components/ui/Fact";
 // Aliased: this file's own `Section` is the lab's documentation frame, and
 // the product's is the ruled block the frame documents.
@@ -64,6 +64,7 @@ import { TRIPS } from "@/mocks/trips";
 import { eventsFor } from "@/mocks/events";
 import { membersFor } from "@/mocks/members";
 import { staysFor } from "@/mocks/stays";
+import { travelFor } from "@/mocks/travel";
 import { NOTIFICATIONS } from "@/mocks/notifications";
 import { INVITATIONS } from "@/mocks/invitations";
 import { tripFor } from "@/lib/notifications";
@@ -108,6 +109,7 @@ const PRIVACY = legalDocument("privacy");
 const SAMPLE_TRIP = TRIPS[0]!;
 const SAMPLE_EVENT = eventsFor(SAMPLE_TRIP)[0]!;
 const SAMPLE_STAY = staysFor(SAMPLE_TRIP)[0]!;
+const SAMPLE_TRAVEL = travelFor(SAMPLE_TRIP)[0]!;
 /**
  * The sample trip's first two roster rows, for the person links below.
  *
@@ -533,8 +535,8 @@ function DesignSystemScreen() {
 
             <Specimen
               name="RuledBlock"
-              contract="title? · rule? · children? — plus `PageRule`, no props"
-              note="One rule per boundary. A black rule taken from above is a block boundary: it opens a block, it carries the block's padding and the block's inner gap, and its title is optional because eleven of the thirteen sites had no title and a rule over one paragraph reads as an accident until something names it. A `PageRule` is the page's own hairline — full width, no title, no padding — for a boundary that closes a multi-column block and opens what is under it. It had that one site on the trip page until Phase 6 deleted it there, because the hero band's lower seam did the same job; nothing renders it now but this specimen, and it is kept pending a decision on whether a rule the app does not draw belongs in the rule book at all. A `border-gravel` between rows is neither: it is a row separator inside a block, not a boundary between blocks. Below: the real stay screen, where three blocks sat at three different gaps under three hand-written copies of the same rule. `Where` and `Arrival` are the new titles; the check-in block keeps the Fact labels it already had. `rule={false}` is the third form: a block whose boundary is already drawn, so it carries no rule and no padding — the first block inside a `Band`, where the band's edge *is* the seam. Below it is the shape a band uses."
+              contract="title? · rule? · children?"
+              note="One rule per boundary. A black rule taken from above is a block boundary: it opens a block, it carries the block's padding and the block's inner gap, and its title is optional because eleven of the thirteen sites had no title and a rule over one paragraph reads as an accident until something names it. A fourth form was withdrawn from this book and this specimen with it: the page's own hairline, a full-width `h-px` with no title and no padding, for a boundary that closes a multi-column block and opens what is under it. It had exactly one call site, on the trip page, and the hero band's lower seam closed both of that page's columns and changed the ground, so the rule on top of it was a second mark saying one thing. A form the app does not draw is a token with no caller, and the rule book is a list of what the app draws — so it went, and with it the `h-px` guard that was checking it. A `border-gravel` between rows was never a rank at all: it is a row separator inside a block, drawn in the subordinate colour, and that is the fault this book exists to remove. A row read across is a table and takes the soft rule instead; a row read down is a list and takes no mark at all. Below: the real stay screen, where three blocks sat at three different gaps under three hand-written copies of the same rule. `Where` and `Arrival` are the new titles; the check-in block keeps the Fact labels it already had. `rule={false}` is the third form: a block whose boundary is already drawn, so it carries no rule and no padding — the first block inside a `Band`, where the band's edge *is* the seam. Below it is the shape a band uses."
             >
               <RuledBlock title="Where">
                 <Text selectable className="font-body text-base text-ink/70">
@@ -573,8 +575,43 @@ function DesignSystemScreen() {
                   Nothing above me to be ruled off from.
                 </Text>
               </RuledBlock>
-              {/* The page rule, between two blocks rather than above one. */}
-              <PageRule />
+            </Specimen>
+
+            <Specimen
+              name="RuledRows"
+              contract="children — one row per child"
+              note="The table rank. The test is the direction the row is read: a row read ACROSS — a name, some accounts, a role — is a table and its rows need to know where one ends, so each keeps a soft rule above it. A row read DOWN is a list, and a list keeps no mark at all; that is why this specimen and the run above do not look alike, and why a list that reads as ungrouped gets more padding rather than a rule. The rule is `border-rule-soft`, the block rule's ink flattened to 40% and pre-flattened into a 6-digit hex so the palette test can measure it against its floor of 2.4 — 2.79:1 on sand, 2.49 on gravel, 3.35 on paper. It cannot be `border-ink/40`, because an eight-digit hex is a value `lib/color.ts` cannot parse, so an alpha rule could not be held to a floor at all. This owns the mark and nothing else: the row body stays with the caller, because a wrapper that owned the row would have to own its columns and its press state too, and would then hide the table-versus-list decision that is the whole reason it exists. It returns a fragment, so putting a table inside a full-bleed band cannot inset the measure."
+            >
+              <RuledRows>
+                <View className="flex-row items-center gap-3 py-3">
+                  <Text className="font-body-bold text-base text-ink">
+                    Ana Silva
+                  </Text>
+                  <Text className="font-body text-sm text-grey-quiet">
+                    +1 555 0101 · Organizer
+                  </Text>
+                </View>
+                <View className="flex-row items-center gap-3 py-3">
+                  <Text className="font-body-bold text-base text-ink">
+                    Ben Ortiz
+                  </Text>
+                  <Text className="font-body text-sm text-grey-quiet">
+                    +1 555 0102 · Member
+                  </Text>
+                </View>
+                <View className="flex-row items-center gap-3 py-3">
+                  <Text className="font-body-bold text-base text-ink">
+                    Cy Nakamura
+                  </Text>
+                  <Text className="font-body text-sm text-grey-quiet">
+                    Member
+                  </Text>
+                </View>
+              </RuledRows>
+              <Text className="font-body text-sm text-grey-quiet">
+                Three rows, one soft rule each. No rule above the first: a
+                table's own opening is the block above it’s boundary.
+              </Text>
             </Specimen>
 
             <Specimen
@@ -1020,33 +1057,9 @@ function DesignSystemScreen() {
             </Specimen>
 
             <Specimen
-              name="Accordion"
-              contract="title · defaultOpen? · children"
-              note="Disclosure for detail that would otherwise be a nested screen. Rules only — no card, no fill."
-            >
-              <Accordion>
-                <AccordionItem title="Event description" defaultOpen>
-                  <Text className="font-body text-base text-ink">
-                    21+. Doors at 8, last entry 11.
-                  </Text>
-                </AccordionItem>
-                <AccordionItem title="Who's coming">
-                  <Text className="font-body text-base text-ink">
-                    Dana, Rahul, and 2 unconfirmed.
-                  </Text>
-                </AccordionItem>
-                <AccordionItem title="Getting there">
-                  <Text className="font-body text-base text-ink">
-                    12 min walk from the apartment.
-                  </Text>
-                </AccordionItem>
-              </Accordion>
-            </Specimen>
-
-            <Specimen
               name="DisclosureButton"
               contract="title · actions · defaultOpen?"
-              note="A button that opens onto a list of actions, in the flow. One trigger — label at the near edge, filled triangle at the far one — and the rows it opens sit directly under it at the same width: nothing floating, no panel, no card drawn around the group. The actions are rows rather than boxes, and that is the second pass at this. As a stack of full-width buttons it was six equal weights with no hierarchy, and a box drawn inside a box is a panel, which is exactly what this app's own dropdown looks like. The + is why a row is not just a word: the system has twice concluded that a bare label on this screen reads as prose rather than as something to press (profile.tsx on the temperature cells, TripActions on the itinerary head), and the mark is what makes it an action. The rule under each row is the app's own list language — Accordion, NotificationRow: rules, not cards. The trigger is the only box and its rows are ruled lines, and that is what keeps the trigger from dissolving into what it opened; it is deliberately not filled, because a trigger reveals rather than finishes a job and every other disclosure in this app is unfilled. Not Accordion, which is a ruled disclosure for detail that would otherwise be a nested screen, with a heading-scale title and no fill; this is a button onto actions. Not a dropdown either: nothing floats, and the page below moves down when it opens, which is the trade Dropdown and SuggestionList already made."
+              note="A button that opens onto a list of actions, in the flow. One trigger — label at the near edge, filled triangle at the far one — and the rows it opens sit directly under it at the same width: nothing floating, no panel, no card drawn around the group. The actions are rows rather than boxes, and that is the second pass at this. As a stack of full-width buttons it was six equal weights with no hierarchy, and a box drawn inside a box is a panel, which is exactly what this app's own dropdown looks like. The + is why a row is not just a word: the system has twice concluded that a bare label on this screen reads as prose rather than as something to press (profile.tsx on the temperature cells, TripActions on the itinerary head), and the mark is what makes it an action. The rule under each row is the app's own list language: a rule, not a card. The trigger is the only box and its rows are ruled lines, and that is what keeps the trigger from dissolving into what it opened; it is deliberately not filled, because a trigger reveals rather than finishes a job and every other disclosure in this app is unfilled. The rule this component sits under is the disclosure rule, and it is the whole of what this specimen is: a route for content, this component for verbs, a value picker for a value, and truncation for long copy. Disclosure is a route or a verb list, never content. Content gets a route because content opened in place pushes the page under it and is gone the moment the row is pressed again; a value gets a picker because a value is chosen rather than read, and it is short enough to say on the row; long copy gets truncated, because otherwise somebody opens a disclosure to find out whether there is anything in it. What is left is verbs, and the form that stood here before — ruled, nested, and opening onto content — had no caller for as long as it existed, because the content it was built to hide is a route. Not a dropdown either: nothing floats, and the page below moves down when it opens, which is the trade Dropdown and SuggestionList already made."
             >
               <DisclosureButton
                 title="Trip actions"
@@ -1468,6 +1481,18 @@ function DesignSystemScreen() {
             className="font-body-bold text-base text-ink underline"
           >
             Stay detail · traveler
+          </Link>
+          <Link
+            href="/trips/travel?id=picos"
+            className="font-body-bold text-base text-ink underline"
+          >
+            Travel
+          </Link>
+          <Link
+            href={`/trips/travel/detail?id=picos&travel=${SAMPLE_TRAVEL.id}`}
+            className="font-body-bold text-base text-ink underline"
+          >
+            Travel detail
           </Link>
           <Link href="/invite?id=invite-pending" className="font-body-bold text-base text-ink underline">
             Invitation

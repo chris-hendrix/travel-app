@@ -3,7 +3,6 @@ import { Text, View } from "react-native";
 
 import {
   RULED_BLOCK,
-  RULED_BLOCK_PAGE,
   RULED_BLOCK_UNRULED,
 } from "@/components/ui/ruledBlockClasses";
 
@@ -28,6 +27,16 @@ import {
  * than moving to the 28px `heading-lg` the floor guard will want. Phase 3
  * does not pre-empt Phase 5: every one of the thirteen sites has to land
  * looking identical first, and the scale moves in one pass afterwards.
+ *
+ * **This component used to export a second thing** — a full-width hairline
+ * with no title and no padding, for a boundary that closes a multi-column
+ * block and opens what is under it. It had exactly one call site, on the
+ * trip page, and that site stopped needing it: the hero band's lower edge
+ * closes both columns *and* changes the ground, so a rule on top of it was
+ * a second mark saying one thing. With the last caller gone it was a
+ * constant nothing renders, which is the same argument that retired the
+ * lab's old disclosure: a form the app does not draw does not belong in the
+ * rule book, because the rule book is a list of what the app draws.
  */
 export function RuledBlock({
   title,
@@ -54,19 +63,4 @@ export function RuledBlock({
       {children}
     </View>
   );
-}
-
-/**
- * The page's own rule — a hairline with nothing under it, for a boundary
- * that closes a multi-column block and opens what is under it. The one
- * site is the trip page's, where the block above it is two columns and
- * the rule says "that was a grid, this is the next thing".
- *
- * Not a `RuledBlock` with no children: that would carry the block's
- * padding and its inner gap for a line of ink, and `h-px` against
- * `border-t` is a different mark — a border belongs to the box it is on,
- * a page rule belongs to the page.
- */
-export function PageRule() {
-  return <View className={RULED_BLOCK_PAGE} />;
 }
