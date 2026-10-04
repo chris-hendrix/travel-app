@@ -358,10 +358,21 @@ describe("expo policy: the shell respects the system bars", () => {
   });
 
   it("picks bar content that matches the ground under it", () => {
-    const layout = source("app/_layout.tsx");
-    // Light over the band's ink, dark over the gravel a dialog leaves there.
-    expect(layout).toMatch(
-      /barStyle=\{isDialog \? "dark-content" : "light-content"\}/,
+    // The style lives with the thing that knows the ground, and that is the
+    // session rather than the layout: the shell used to choose it inline, and it
+    // read the *band's* ground because a dialog was the only other case there
+    // was. The boot cover adds a third — `AppHeader` draws nothing while the
+    // session is restoring, so the ground under the bar is the cover's sand, and
+    // light content on sand is white on sand on the one screen every launch
+    // passes through. So the guard follows the expression it is about.
+    const bar = source("components/ui/AppStatusBar.tsx");
+    expect(bar).toMatch(
+      /isDialog \|\| status === "restoring" \? "dark-content" : "light-content"/,
+    );
+    // And the layout still hands it the one thing the layout knows: whether this
+    // route is a dialog, whose ground is gravel.
+    expect(source("app/_layout.tsx")).toMatch(
+      /<AppStatusBar isDialog=\{isDialog\} \/>/,
     );
   });
 
