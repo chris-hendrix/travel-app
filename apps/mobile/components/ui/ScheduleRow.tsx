@@ -73,7 +73,10 @@ export function ScheduleRow({
   return (
     <Pressable
       onPress={onPress}
-      className={`cursor-pointer flex-row flex-wrap items-center gap-4 border-b border-b-ink py-4 ${motion.row}`}
+      // A LIST row: no rule. This was the worst offender — a full-weight
+      // ink rule between every two events on the busiest screen in the
+      // app. `py-4` is the separator.
+      className={`cursor-pointer flex-row flex-wrap items-center gap-4 py-4 ${motion.row}`}
     >
       <View className="overflow-hidden">
         {slot.kind === "placeholder" ? (
