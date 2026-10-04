@@ -88,7 +88,7 @@ jobs:
       # app.json.
       - name: Stamp the build version
         run: |
-          BRANCH_NAME=$(echo "${{ github.head_ref || github.ref_name }}" | tr '/' '-')
+          BRANCH_NAME="$(printf '%s' "$BRANCH_NAME" | tr '/' '-')"
           node -e '
             const fs = require("fs");
             const file = "apps/mobile/app.json";
@@ -98,6 +98,10 @@ jobs:
             fs.writeFileSync(file, JSON.stringify(config, null, 2) + "\n");
           '
         env:
+          # Through the environment, never interpolated into the script: this
+          # value is contributor-controlled on a PR (it is the branch name),
+          # a branch name can contain a command substitution, and this step
+          # runs after the upload keystore has been written to disk.
           BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
           SHA: ${{ github.sha }}
           RUN_NUMBER: ${{ github.run_number }}
@@ -283,8 +287,12 @@ jobs:
           ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           EOF
 
+      # Same rule as the version stamp above, and this one reaches the
+      # release notes: the ref name goes through the environment.
       - name: Generate release notes with branch name
-        run: echo "[$(echo '${{ github.head_ref || github.ref_name }}' | tr '/' '-')] $(git log -1 --pretty=%B)" > /tmp/release-notes.txt
+        env:
+          REF_NAME: ${{ github.head_ref || github.ref_name }}
+        run: echo "[$(printf '%s' "$REF_NAME" | tr '/' '-')] $(git log -1 --pretty=%B)" > /tmp/release-notes.txt
 
       - name: Distribute to Firebase
         run: |
