@@ -26,6 +26,7 @@ export const DIALOG_ROUTES = [
   "/trips/events/detail",
   "/trips/new",
   "/trips/travel",
+  "/trips/travel/detail",
   "/trips/travel/form",
   "/trips/stay/new",
   "/trips/stay/detail",
