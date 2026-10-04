@@ -3,6 +3,12 @@ import { AppState, Platform, StatusBar, View } from "react-native";
 import { QueryClientProvider, focusManager } from "@tanstack/react-query";
 import { makeQueryClient } from "@/lib/queries/client";
 import { Stack, SplashScreen, usePathname, useRouter } from "expo-router";
+// `expo-router` re-exports a *narrow* `SplashScreen` — `preventAutoHideAsync`
+// and `hideAsync`, the two calls its own docs use, and nothing else. The fade
+// comes from the package itself, which is where the API reference imports it
+// from, and the alias is so a bare `setOptions` cannot be mistaken for one of
+// the several other option-setting calls in this file.
+import { setOptions as setSplashOptions } from "expo-splash-screen";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 // The web tab's own label. Expo's shell ships an empty <title>, which
 // reads as the URL on a tab strip; the mark beside it says which product,
@@ -35,6 +41,7 @@ import SpaceMono_400Regular_Italic from "@expo-google-fonts/space-mono/400Regula
 import { AppHeader } from "@/components/ui/AppHeader";
 import * as SystemNotifications from "expo-notifications";
 import type { NotificationResponse } from "expo-notifications";
+import { BootGate } from "@/components/ui/BootGate";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { BARE_HEADER_ROUTES, DIALOG_ROUTES } from "@/lib/routes";
 import { AuthProvider } from "@/lib/authStore";
@@ -49,7 +56,13 @@ import { DisplayZoneProvider } from "@/lib/displayZone";
 import "../global.css";
 
 SplashScreen.preventAutoHideAsync();
-
+// The native splash's exit, where the platform allows one: a 200ms fade out.
+// `fade` is iOS-only, which is the fact the whole boot cover is built around —
+// on Android the splash is replaced by the first JS frame in a single frame, so
+// the cover's first frame has to *be* the splash (same asset, same width, same
+// sand) rather than something that resembles it. A no-op elsewhere, and `void`,
+// so there is nothing here to catch or await.
+setSplashOptions({ duration: 200, fade: true });
 export default function RootLayout() {
   const pathname = usePathname();
   // The window is edge-to-edge on Android, so the system bars are drawn
@@ -178,7 +191,7 @@ export default function RootLayout() {
                       // What is arriving here is the app, not a thing in
                       // it: this fallback covers the boot, before any
                       // screen's own read has started.
-                      <LoadingBlock label="Opening Journiful" />
+                      <BootGate label="Opening Journiful" />
                     )
                   }
                 >

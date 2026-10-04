@@ -236,3 +236,22 @@ export const REDUCED_MOTION: Record<MotionRole, string> = {
   // it is open. It snaps, which is what the setting asked for.
   disclosure: "",
 };
+
+/**
+ * The one curve's control points, as numbers.
+ *
+ * `--ease-motion` in `global.css` is this same curve written as a CSS string,
+ * and the boot cover draws its rule with an `entering` animation, which takes
+ * a Reanimated *function* and never a class: `Easing.bezier` in `lib/motion.ts`,
+ * built from these four numbers.
+ *
+ * Two spellings of one curve, so it is one value in a plain module — a module
+ * the test can import. `__tests__/motion.test.ts` reads the CSS token and holds
+ * it to these numbers, and it cannot import `lib/motion.ts` at all, because
+ * `react-native-reanimated` is Flow source vitest cannot parse. The same split,
+ * for the same reason, as this file against `hooks/useMotion.ts`.
+ *
+ * A function and not the string `"cubic-bezier(0.23, 1, 0.32, 1)"`: Reanimated
+ * 4.5 rejects the raw string form, so the string spelling exists only in CSS.
+ */
+export const EASE_MOTION_POINTS = [0.23, 1, 0.32, 1] as const;

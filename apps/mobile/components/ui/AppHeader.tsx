@@ -234,9 +234,18 @@ export function AppHeader({
   // or `useSuspenseQuery` anywhere in this tree crashes the chrome on
   // every route. The stop hook below is local state and plain awaits,
   // never a query read.
-  const { impersonating } = useAuth();
+  const { impersonating, status } = useAuth();
   const { stopping, stop } = useStopImpersonation();
   const motion = useMotion();
+  // Hoisted above the branches below, and that is a fix rather than tidiness:
+  // this context read used to live only in the title-less path, so the two
+  // paths called a different number of hooks and the order changed on the
+  // render that moved between them. React tolerates that in practice because a
+  // route's `title` does not change under a mounted header — which is exactly
+  // why it went unnoticed until a third path (the boot, which returns before
+  // either) made the difference visible as "change in the order of Hooks called
+  // by AppHeader". Every path through this component now runs the same four.
+  const insets = useSafeAreaInsets();
   const band = impersonating ? (
     <ImpersonationBand
       displayName={impersonating.displayName || "No name"}
@@ -244,6 +253,20 @@ export function AppHeader({
       pending={stopping}
     />
   ) : null;
+
+  // The band is not drawn while the stored session is being revalidated, and
+  // that is two fixes in one. The first is geometric: the splash draws its mark
+  // centred in the whole window, so a band above the body would push the boot
+  // cover's mark down by the band's own height — a jump at the start of every
+  // launch, on the one platform that has no crossfade to hide it. The second is
+  // the sentence the band carries: `Sign in` is the one thing on screen that is
+  // definitely false while a token is being revalidated, and it sat directly
+  // above a line saying the app was signing you in.
+  //
+  // After all the hooks above, deliberately: `useStopImpersonation` and
+  // `useMotion` run in both states, and an early return before them would
+  // change the hook order between the boot and the screen that follows it.
+  if (status === "restoring") return null;
 
   if (title) {
     return (
@@ -279,7 +302,8 @@ export function AppHeader({
   // on this inner view and not on the wrapper below it, because the wrapper
   // is also the wave's parent: give *it* a ground and the scallops' negative
   // space fills with ink, which is a straight edge with a wavy top.
-  const insets = useSafeAreaInsets();
+  //
+  // `insets` is read with the other hooks, at the top of the component.
 
   // No ground of its own: the band paints ink and the wave is a
   // silhouette on transparent, so the negative space between the scallops
