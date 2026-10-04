@@ -1,11 +1,9 @@
 import { RuledBlock } from "@/components/ui/RuledBlock";
-import { Button } from "@/components/ui/Button";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { InlineError } from "@/components/ui/InlineError";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
 import { Text, View } from "react-native";
-import { useMemo } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { formatDay } from "@/lib/dateRange";
 import { formatFlightNumber } from "@/lib/flights";
@@ -97,11 +95,10 @@ function TravelDetailDialog() {
   const going = goingMembers(roster);
   const viewer = viewerOf(roster, user?.id);
   // The same board the row was read off, so the two screens can never
-  // disagree about which record a row is.
-  const board = useMemo(
-    () => (trip ? travelBoard(records, timeZone, going) : null),
-    [trip, records, timeZone],
-  );
+  // disagree about which record a row is. Derived rather than memoised:
+  // `records` is a fresh array out of the store on every render, so a
+  // `useMemo` keyed on it re-ran anyway while appearing to cache.
+  const board = trip ? travelBoard(records, timeZone, going) : null;
   const row =
     rowId === undefined || !board
       ? undefined
@@ -162,10 +159,13 @@ function TravelDetailDialog() {
     ? `/trips/travel/form?id=${trip.id}&member=${row.memberId}&direction=${row.travelType}`
     : `/trips/travel/form?id=${trip.id}&travel=${row.id}`;
   // The clock, read on the same zone the board read it on. A row with no
-  // time says so in the board's words rather than showing an empty heading.
-  const when = row.time
-    ? joinFacts(formatDay(row.date!), wallClock(row.time, timeZone).time)
-    : NOT_SHARED;
+  // date and time says so in the board's words rather than showing an empty
+  // heading. `date` and `time` come off the same instant in `travelBoard`,
+  // so this asks about both rather than assuming one from the other.
+  const when =
+    row.date && row.time
+      ? joinFacts(formatDay(row.date), wallClock(row.time, timeZone).time)
+      : NOT_SHARED;
 
   return (
     <FullscreenDialog
@@ -218,22 +218,11 @@ function TravelDetailDialog() {
         </RuledBlock>
       ) : null}
 
-      {/* The organizer corrects from the bar as well as from here, so the
-          block at the foot is the same verb in the place every other
-          dialog keeps its last action: readable without reaching the
-          thumb, and the only thing on the page for a row that owes a
-          time. Secondary, and not full width — the bar already owns the
-          primary, and two primary buttons for one destination is one too
-          many. */}
-      {canEdit ? (
-        <RuledBlock>
-          <Button
-            title={row.time ? "Edit travel" : "Add times"}
-            variant="secondary"
-            onPress={() => router.push(editHref)}
-          />
-        </RuledBlock>
-      ) : null}
+      {/* There is no second Edit button at the foot. The bar above already
+          carries the primary for this same destination — labelled "Edit
+          travel" whether the row has a time or still owes one — and the body
+          button that used to sit here said "Add times" for that identical
+          href: two names for one door. */}
     </FullscreenDialog>
   );
 }

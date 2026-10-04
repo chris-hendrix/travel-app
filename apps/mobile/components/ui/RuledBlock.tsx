@@ -15,18 +15,19 @@ import {
  * at every seam.
  *
  * The title is optional, and that is the whole reason this is a variant of
- * `Section` rather than a rename of it: eleven of the thirteen sites had
- * no title at all — a block rule over a single paragraph reads as an
- * accident until something names it, and a title nobody needed is a
+ * `Section` rather than a rename of it: eighteen of the thirty-nine call
+ * sites have no title at all — a block rule over a single paragraph reads
+ * as an accident until something names it, and a title nobody needed is a
  * heading that repeats what is under it. `Section` delegates here with a
  * title and keeps its required one; the untitled form is what the
  * diagnostics and dialogs have been hand-rolling all along, at three
  * different gaps.
  *
- * The heading keeps `Section`'s own `text-xl` display treatment rather
- * than moving to the 28px `heading-lg` the floor guard will want. Phase 3
- * does not pre-empt Phase 5: every one of the thirteen sites has to land
- * looking identical first, and the scale moves in one pass afterwards.
+ * The heading is `heading-lg` (28px), the display floor `design-lint.mjs`
+ * check 4 holds every display site to: a block boundary is the one thing
+ * a reader reads at a glance rather than in a sentence, so it is not below
+ * the floor, and it is not above it either — a rank is about what a mark
+ * means, not about how loudly it is set.
  *
  * **This component used to export a second thing** — a full-width hairline
  * with no title and no padding, for a boundary that closes a multi-column

@@ -140,9 +140,9 @@ checkButtonRows();
  *
  * A stack of blocks shares its rules; it does not double them at every
  * seam. The rule belongs to `RuledBlock` and the hairline to
- * `ruledBlockClasses.ts`, and each has exactly one home. Thirteen
- * hand-written copies of `border-t border-ink pt-6` had drifted to three
- * different inner gaps while `Section` used a fourth, which is what made
+ * `ruledBlockClasses.ts`, and each has exactly one home. Before this branch
+ * thirteen hand-written copies of `border-t border-ink pt-6` had drifted to
+ * three different inner gaps while `Section` used a fourth, which is what made
  * a stack of them look like a stack of unrelated things rather than one
  * screen.
  *
@@ -188,9 +188,9 @@ function checkRuleForms() {
   for (const file of sourcesWith(/\.tsx?$/)) {
     const rel = path.relative(mobile, file);
     const src = code(fs.readFileSync(file, "utf8"));
-    // Every occurrence, not the first: four of the thirteen sites share
-    // files with three others, and a check reporting one line per file
-    // would let three of them through.
+    // Every occurrence, not the first: four of the thirteen pre-branch
+    // copies shared files with three others, and a check reporting one
+    // line per file would let three of them through.
     if (rel !== RULE_HOME) {
       for (
         let at = src.indexOf("border-t border-ink pt-6");
@@ -519,14 +519,25 @@ checkBandsAreFullBleed();
  * code sites, and `global.css`'s rule book declared one of them. This is the
  * count of those sites, and it may only go **down** — the same shape as check
  * 3's underline ratchet rather than a ban, because the sweep that fixes them
- * is four phases away and a ban would fail every phase between here and there.
+ * runs one phase at a time and a ban would fail every phase between here and
+ * the end of it.
  *
- * **The number is of code sites, not of rendered rules.** `app/index.tsx:138`
- * is one site that draws four rules, because it is one class string inside a
- * `.map`. The two numbers are different on purpose: the ratchet is about
- * places a *person* chose a mark, and a rendered count would reward splitting
- * one `.map` into four call sites, which changes no pixels and halves the
- * constant for free.
+ * **It has been ratcheted.** The seed was 54 and this branch lands it at 42:
+ * arm 1's twenty-nine hand-written marks are down to the six named exceptions,
+ * and arm 2's count is up by eleven because the sweep replaced those marks
+ * with the one component that draws the block rank, which the census counts
+ * as a site. Those are the same pixels moved, not new ones — which is the
+ * other half of what this ratchet is for: it does not reward a rule for
+ * being spelled better, and it does not punish one for going through the
+ * component that owns it. What it forbids is a *net* increase in the places
+ * a person chose a mark.
+ *
+ * **The number is of code sites, not of rendered rules.** A row class
+ * written once inside a `.map` that draws a rule per row is one site, not
+ * one per row. The two numbers are different on purpose: the ratchet is
+ * about places a *person* chose a mark, and a rendered count would reward
+ * splitting one `.map` into four call sites, which changes no pixels and
+ * halves the constant for free.
  *
  * Two arms, and exactly two:
  *
@@ -543,14 +554,21 @@ checkBandsAreFullBleed();
  * `frame.tsx` and `motion.tsx` demonstrate them exactly as deliberately as
  * `index.tsx` does.
  *
- * Measured on this tree: **29 + 25 = 54**. (The plan recorded 14 + 25 = 39;
- * arm 2 measures exactly 25 and arm 1 measures 29 — the latter being the
- * whole of the plan's own "Every site, before and after" table, chrome edges
- * and named exceptions included. The 14 is a miscount; the ratchet is seeded
- * on the measurement, because the check is the authority and the plan is a
- * record of one run.)
+ * Measured on this tree: **6 + 36 = 42** (down from the seeded 29 + 25 = 54
+ * as the sweep landed). Arm 1's six survivors are exactly the marks check 11
+ * grants by name — the Autofill split, three chrome edges, and
+ * `DisclosureButton`'s one deliberate list-row rule; the unread accent is not
+ * among them because it is a `border-l-4` and arm 1 takes a bare side.
+ * Arm 2's thirty-six are `<RuledBlock>`/`<Section>` sites that draw the
+ * block rank, out of thirty-nine call sites: the other three pass
+ * `rule={false}`, because a band's edge is already their boundary. (The plan
+ * recorded 14 + 25 = 39; arm 2 measured exactly 25 at the seed and arm 1
+ * measured 29 — the latter being the whole of the plan's own "Every site,
+ * before and after" table, chrome edges and named exceptions included. The 14
+ * is a miscount; the ratchet is seeded on the measurement, because the check
+ * is the authority and the plan is a record of one run.)
  */
-const RULE_CENSUS_MAX = 54;
+const RULE_CENSUS_MAX = 42;
 
 /**
  * Every string literal with its offset. `classLiterals` (check 4) hands back

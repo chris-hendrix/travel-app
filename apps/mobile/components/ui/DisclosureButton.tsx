@@ -15,11 +15,11 @@ import { INK } from "@/lib/theme";
  * different shape saying the same thing less plainly. So it is a polygon,
  * which is also the only way to get one that is solid.
  *
- * It turns rather than swapping. The app's two other disclosures
- * (`TimeField` and the travel row) both hold `ArrowDown` and `ArrowUp` and
- * choose between them; a triangle that rotates says the same thing with one
- * glyph instead of two, and the direction is the whole of what it says. The
- * glyph is `aria-hidden`: the trigger already says what it is and which way
+ * It turns rather than swapping. The app's other disclosure, `TimeField`,
+ * holds `ArrowDown` and `ArrowUp` and chooses between them; a triangle that
+ * rotates says the same thing with one glyph instead of two, and the
+ * direction is the whole of what it says. The glyph is `aria-hidden`: the
+ * trigger already says what it is and which way
  * it goes through `aria-expanded`, and a mark that only repeats that is noise
  * in the tree.
  */
@@ -133,8 +133,8 @@ function ActionRow({
  * more here", which is a lie about what pressing it does: the fill is
  * this system's mark for the control that finishes a job (`Button`), and a
  * trigger reveals rather than finishes. Every other disclosure here is
- * unfilled for the same reason — `TimeField` is the field's own box, the
- * travel row is a rule.
+ * unfilled for the same reason — `TimeField` is the field's own box, and
+ * the travel row is a plain row that opens a screen rather than a trigger.
  *
  * Actions rather than children, because the row is the whole of the look:
  * a caller that could pass anything would eventually pass a `Button`, and
