@@ -1,10 +1,12 @@
+import fs from "node:fs";
+import path from "node:path";
 import {
   Children,
   createElement,
   type ReactElement,
   type ReactNode,
 } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   RULE_ROW,
@@ -13,6 +15,12 @@ import {
   RULED_BLOCK_UNRULED,
 } from "@/components/ui/ruledBlockClasses";
 import { RuledRows } from "@/components/ui/RuledRows";
+
+// `RuledRows` renders its rows inside a `View` — that wrapper is the row
+// rhythm, and the test below is what holds it to carrying no gap. The only
+// thing this mock has to stand in for is the element itself: the assertion
+// reads the returned tree, never a rendered screen.
+vi.mock("react-native", () => ({ View: "View" }));
 
 /**
  * The two rule forms, asserted as class *sets* rather than as strings.
@@ -143,12 +151,13 @@ describe("RULE_ROW", () => {
  * The wrapper that hands a row its mark.
  *
  * `RuledRows.tsx` is the one component this file imports by value, and it
- * is safe here because it pulls in `react` and the strings above and
- * nothing else — no `react-native`, which is what the note at the top of
- * this file is about. It is called as a function rather than rendered:
- * `vitest.config.ts` is plain node with no renderer, and what is under
- * test is which children come back carrying a class, which is a question
- * about the returned element tree and not about anything on a screen.
+ * is safe here because `react-native` is mocked above and everything else
+ * it pulls in is `react` and the strings this file already imports. It is
+ * called as a function rather than rendered: `vitest.config.ts` is plain
+ * node with no renderer, and what is under test is which children come
+ * back carrying a class and what the element they come back inside looks
+ * like, which are questions about the returned element tree and not about
+ * anything on a screen.
  */
 describe("RuledRows", () => {
   const row = (className: string, key: string) =>
@@ -200,5 +209,102 @@ describe("RuledRows", () => {
       createElement(Row, { key: "b", className: "py-3" }),
     ]);
     expect(classes).toEqual([undefined, `py-3 ${RULE_ROW}`]);
+  });
+
+  it("puts the rows in a wrapper that carries no gap of its own", () => {
+    // THE REGRESSION GUARD. Returning a fragment made every row a direct
+    // flex child of whatever container the table sat in, so that
+    // container's gap — `gap-5` on the landing's `Section`, `gap-4` on the
+    // admin screen, `gap-5` in the roster's dialog body — was applied
+    // between rows that already carry their own `py-3`/`py-5`. A row
+    // pitch nobody declared, on three screens at once.
+    //
+    // So the wrapper is what owns the row rhythm, and it owns it by
+    // carrying nothing: no `gap-*` (the failure itself), and no padding or
+    // margin either, which is the other way a wrapper could quietly change
+    // a table's measure.
+    const tree = RuledRows({
+      children: [row("py-3", "a"), row("py-3", "b")],
+    }) as ReactElement<{ className?: string; children?: ReactNode }>;
+    const wrapper = tree.props.className ?? "";
+    expect(wrapper).not.toMatch(/(?:^|\s)gap-/);
+    expect(wrapper).not.toMatch(/(?:^|\s)[a-z]*[mp][trblxy]?-/);
+    // And the rows are inside it rather than beside it, so the container's
+    // gap has exactly one child of its own to fall after.
+    expect(Children.toArray(tree.props.children)).toHaveLength(2);
+  });
+});
+
+/**
+ * The mark has to arrive, not just be composed.
+ *
+ * The case above proves `RuledRows` hands a row component a `className`.
+ * It cannot prove the component *uses* it: a stub that defines its own
+ * compliance passes whether or not the real rows forward the prop, so if
+ * `MemberRow` or `AdminUserRowView` stopped putting the mark on their root,
+ * every test in this file would still be green and the roster and the
+ * admin list would quietly lose their table rule.
+ *
+ * So these read the two real row components off disk and assert the two
+ * halves: the prop is destructured, and it reaches a `className`
+ * expression. They are screens, they pull in `react-native` and
+ * `expo-router` and the query layer, and there is no renderer here — a
+ * source-level assertion is the level this can honestly be held at.
+ */
+const mobileDir = path.resolve(__dirname, "..");
+
+/**
+ * One component's own source, comments stripped, split into its parameter
+ * list and its body. Comments go because every one of these rows explains
+ * the mark in prose, and a sentence that says `className` is not code that
+ * forwards it.
+ */
+function rowComponent(file: string, name: string) {
+  const src = fs
+    .readFileSync(path.join(mobileDir, file), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, " "))
+    .replace(/^[ \t]*\/\/.*$/gm, (l) => " ".repeat(l.length));
+  const at = src.indexOf(`function ${name}(`);
+  expect(at, `${name} is not in ${file}`).toBeGreaterThan(-1);
+  // From the opening brace of the parameter list to its matching close,
+  // which is the destructuring this component receives the mark through.
+  const open = src.indexOf("{", at + `function ${name}`.length);
+  let depth = 1;
+  let i = open + 1;
+  while (depth > 0) {
+    const ch = src[i];
+    if (ch === "{") depth += 1;
+    else if (ch === "}") depth -= 1;
+    i += 1;
+  }
+  return { params: src.slice(open, i), body: src.slice(i) };
+}
+
+const ROWS = [
+  {
+    file: "app/trips/members.tsx",
+    name: "MemberRow",
+    // The roster row's mark lands on its own wrapper rather than on the
+    // `Pressable`, because the press wrapper is conditional on the viewer
+    // and the row's measure must not change with a permission.
+    lands: /<View className=\{\[ROW_BODY, className\]/,
+  },
+  {
+    file: "app/admin/users/index.tsx",
+    name: "AdminUserRowView",
+    // The admin row is one `Pressable`, and it is the root.
+    lands: /className=\{\[[^\]]*\bclassName\b/,
+  },
+] as const;
+
+describe.each(ROWS)("$name forwards the mark", (row) => {
+  it("takes the mark as a prop", () => {
+    expect(rowComponent(row.file, row.name).params).toMatch(
+      /\bclassName\b\s*,/,
+    );
+  });
+
+  it("puts it on the row itself", () => {
+    expect(rowComponent(row.file, row.name).body).toMatch(row.lands);
   });
 });

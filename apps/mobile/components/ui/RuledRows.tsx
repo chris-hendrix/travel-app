@@ -5,6 +5,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from "react";
+import { View } from "react-native";
 
 import { RULE_ROW, RULE_SOFT } from "@/components/ui/ruledBlockClasses";
 
@@ -20,14 +21,26 @@ import { RULE_ROW, RULE_SOFT } from "@/components/ui/ruledBlockClasses";
  *
  * This owns the mark and nothing else. The row body stays with each caller,
  * which is deliberate and follows `SuggestionList`, where a row keeps what
- * is its own: a wrapper that owned the row would have to own its padding,
- * its columns and its press state too, and it would then hide the
- * table-versus-list decision this component exists to make.
+ * is its own: a wrapper around each row would have to own its padding, its
+ * columns and its press state too, and it would then hide the
+ * table-versus-list decision this component exists to make. The one `View`
+ * below is a container for the rows, not a row.
  *
- * **No wrapper element.** It returns a fragment and hands each child the
- * rule, so putting a table inside it cannot change that table's layout —
- * which matters, because every call site is inside a full-bleed `Band` and
- * a stray `View` between a band and its rows would inset the measure.
+ * **It wraps the rows in a `View`, and that wrapper carries no class at
+ * all.** That is the row rhythm, declared rather than inherited: every
+ * call site is inside a stack that has a gap of its own — the landing's
+ * `Section` is `gap-5`, the admin list's screen is `gap-4`, the roster's
+ * dialog body is `gap-5` — and a fragment let that gap fall between the
+ * rows, so the container's pitch landed in the middle of a table whose
+ * rows already carry their own (`py-5` at the landing's hero scale, `py-3`
+ * on the roster and the admin list). That is what the wrapper is for, and
+ * it is the only thing it is for: no padding, no margin, no width and no
+ * gap, so the rows are still full-bleed in whatever holds them and the
+ * measure does not move at any of the call sites.
+ * `__tests__/ruled-block.test.ts` holds the wrapper to that — a component
+ * that cannot see its container's gap is the only version of this that
+ * cannot leak it — which is also why `RuledRows.tsx` is no longer a module
+ * with no `react-native` import, and why that test file mocks it.
  *
  * **The first row gets no rule.** A table's own opening is the boundary
  * above it: the block rule that opened the block on the landing, the
@@ -52,7 +65,7 @@ export function RuledRows({ children }: { children: ReactNode }) {
   // than the first slot in the JSX.
   const rows = Children.toArray(children);
   return (
-    <>
+    <View>
       {rows.map((child, index) => {
         if (!isValidElement(child) || index === 0) return child;
         const props = (child as ReactElement<{ className?: string }>).props;
@@ -62,6 +75,6 @@ export function RuledRows({ children }: { children: ReactNode }) {
           className: [existing, RULE_ROW].filter(Boolean).join(" "),
         });
       })}
-    </>
+    </View>
   );
 }

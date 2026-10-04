@@ -4,7 +4,7 @@ import type { MockTravel } from "@/mocks/travel";
 
 /**
  * One person's travel as the board reads it: the day it happens, the
- * clock, who, and where. The accordion behind the row holds the rest.
+ * clock, who, and where. The travel screen behind the row holds the rest.
  *
  * The day is on the row rather than in a heading above a run of them.
  * A heading repeats one fact per group and pushes the rows apart; a date
