@@ -1,7 +1,7 @@
 import { type ReactNode, useState } from "react";
 import { Linking, Pressable, Text, View } from "react-native";
-import { Image } from "expo-image";
 import { ArrowUpRight } from "lucide-react-native";
+import { Image } from "@/components/ui/Image";
 import { useMotion } from "@/hooks/useMotion";
 import { INK } from "@/lib/theme";
 import { imageSlot } from "@/lib/place-images";

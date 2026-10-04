@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Linking, Pressable, Text, useWindowDimensions, View } from "react-native";
-import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { Image } from "@/components/ui/Image";
 import { Screen } from "@/components/ui/Screen";
 import { Badge } from "@/components/ui/Badge";
 import { PhotoCredit } from "@/components/ui/PhotoCredit";

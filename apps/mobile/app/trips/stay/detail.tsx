@@ -1,7 +1,7 @@
 import { RuledBlock } from "@/components/ui/RuledBlock";
 import { Linking, Pressable, Text, View } from "react-native";
-import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { Image } from "@/components/ui/Image";
 import { Fact } from "@/components/ui/Fact";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { PhotoCredit } from "@/components/ui/PhotoCredit";
