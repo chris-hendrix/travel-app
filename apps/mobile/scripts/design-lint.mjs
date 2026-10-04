@@ -136,35 +136,40 @@ function checkButtonRows() {
 checkButtonRows();
 
 /**
- * Check 2 — one rule per boundary, in two forms.
+ * Check 2 — one rule per boundary.
  *
  * A stack of blocks shares its rules; it does not double them at every
  * seam. The rule belongs to `RuledBlock` and the hairline to
- * `ruledBlockClasses.ts`, and each has exactly one home. Thirteen
- * hand-written copies of `border-t border-ink pt-6` had drifted to three
- * different inner gaps while `Section` used a fourth, which is what made
+ * `ruledBlockClasses.ts`, and each has exactly one home. Before this branch
+ * thirteen hand-written copies of `border-t border-ink pt-6` had drifted to
+ * three different inner gaps while `Section` used a fourth, which is what made
  * a stack of them look like a stack of unrelated things rather than one
  * screen.
  *
  * Both needles live in the same file: `ruledBlockClasses.ts` *defines*
- * them and `RuledBlock.tsx` imports them, so the module of strings is the
- * one place either may appear. `PageRule` is the same story -- `h-px` is
- * not in a component at all.
+ * them and `RuledBlock.tsx` and `RuledRows.tsx` import them, so the module
+ * of strings is the one place either may appear.
  *
- * `h-px` is checked over `.ts` as well as `.tsx` for that reason. **The
- * plan expected `grep -rn 'h-px' app components` to return nothing after
- * this phase; it cannot, and should not** -- the string has to exist
- * somewhere for `PageRule` to render it. One hit, in the file that
- * defines it, is the correct end state.
+ * **The `h-px` arm is back, with the page hairline it guards.** This check
+ * had a second arm asserting that the page rule's `h-px w-full bg-ink` was
+ * written in that module and nowhere else. The page hairline was withdrawn
+ * on this branch — its one call site, the trip page's, had been removed,
+ * because the hero band's lower edge already closed both columns and
+ * changed the ground there, so the rule was a second mark saying one
+ * thing, and a guard on a string nothing renders is a guard on nothing.
+ * `BootCover` then became a caller: the boot screen draws the splash's
+ * mark, then the page's rule, then the page's foot, and that middle mark is
+ * a hairline over nothing. So the arm returned alongside the form it guards,
+ * which is the condition its own retirement note set.
  */
 const RULE_HOME = "components/ui/ruledBlockClasses.ts";
 
 /**
  * Comments, dropped. These checks look for class strings, and a doc
  * comment that names the class it forbids is not a violation of it --
- * `RuledBlock.tsx` explains why the page rule is not a border, and that
- * sentence contains `h-px` and `border-t`. Without this the check fails on
- * the file that documents it.
+ * `RuledBlock.tsx` explains why a block rule is not a hairline, and that
+ * sentence contains `border-t`. Without this the check fails on the file
+ * that documents it.
  *
  * Block comments are removed wherever they are. `//` comments are removed
  * only when they open a line, because a `//` mid-line is far more likely
@@ -186,27 +191,26 @@ function checkRuleForms() {
   for (const file of sourcesWith(/\.tsx?$/)) {
     const rel = path.relative(mobile, file);
     const src = code(fs.readFileSync(file, "utf8"));
-    // Every occurrence, not the first: four of the thirteen sites share
-    // files with three others, and a check reporting one line per file
-    // would let three of them through.
-    const all = (needle) => {
-      const lines = [];
-      for (
-        let at = src.indexOf(needle);
-        at !== -1;
-        at = src.indexOf(needle, at + 1)
-      ) {
-        lines.push(src.slice(0, at).split("\n").length);
-      }
-      return lines;
-    };
+    // Every occurrence, not the first: four of the thirteen pre-branch
+    // copies shared files with three others, and a check reporting one
+    // line per file would let three of them through.
     if (rel !== RULE_HOME) {
-      for (const at of all("border-t border-ink pt-6")) {
-        block.push(`${rel}:${at}`);
+      for (
+        let at = src.indexOf("border-t border-ink pt-6");
+        at !== -1;
+        at = src.indexOf("border-t border-ink pt-6", at + 1)
+      ) {
+        block.push(`${rel}:${src.slice(0, at).split("\n").length}`);
       }
     }
     if (rel !== RULE_HOME) {
-      for (const at of all("h-px")) page.push(`${rel}:${at}`);
+      for (
+        let at = src.indexOf("h-px");
+        at !== -1;
+        at = src.indexOf("h-px", at + 1)
+      ) {
+        page.push(`${rel}:${src.slice(0, at).split("\n").length}`);
+      }
     }
   }
   check(`the block rule is written only in ${RULE_HOME}`, block.length === 0);
@@ -523,6 +527,136 @@ function checkBandsAreFullBleed() {
 checkBandsAreFullBleed();
 
 /**
+ * Check 9 — the rule census, as a ratchet.
+ *
+ * The app drew structural lines in nine spellings at two weights across 54
+ * code sites, and `global.css`'s rule book declared one of them. This is the
+ * count of those sites, and it may only go **down** — the same shape as check
+ * 3's underline ratchet rather than a ban, because the sweep that fixes them
+ * runs one phase at a time and a ban would fail every phase between here and
+ * the end of it.
+ *
+ * **It has been ratcheted.** The seed was 54 and this branch lands it at 42:
+ * arm 1's twenty-nine hand-written marks are down to the six named exceptions,
+ * and arm 2's count is up by eleven because the sweep replaced those marks
+ * with the one component that draws the block rank, which the census counts
+ * as a site. Those are the same pixels moved, not new ones — which is the
+ * other half of what this ratchet is for: it does not reward a rule for
+ * being spelled better, and it does not punish one for going through the
+ * component that owns it. What it forbids is a *net* increase in the places
+ * a person chose a mark.
+ *
+ * **The number is of code sites, not of rendered rules.** A row class
+ * written once inside a `.map` that draws a rule per row is one site, not
+ * one per row. The two numbers are different on purpose: the ratchet is
+ * about places a *person* chose a mark, and a rendered count would reward
+ * splitting one `.map` into four call sites, which changes no pixels and
+ * halves the constant for free.
+ *
+ * Two arms, and exactly two:
+ *
+ *   1. a className string containing `border-[tblr]` as its own
+ *      whitespace-delimited token — so `border border-ink` on a control,
+ *      which is the control's own edge rather than a rule, is not counted;
+ *   2. a `<RuledBlock` / `<Section` call site that does **not** pass
+ *      `rule={false}` — a component that draws the block rule is a rule site
+ *      whatever its className says.
+ *
+ * Both are restricted to `app/` + `components/`, excluding `app/design/`
+ * as a directory rather than a file: the lab *demonstrates* marks on
+ * purpose, so counting it would make every specimen a rule change, and its
+ * `frame.tsx` and `motion.tsx` demonstrate them exactly as deliberately as
+ * `index.tsx` does.
+ *
+ * Measured on this tree: **6 + 36 = 42** (down from the seeded 29 + 25 = 54
+ * as the sweep landed). Arm 1's six survivors are exactly the marks check 11
+ * grants by name — the Autofill split, three chrome edges, and
+ * `DisclosureButton`'s one deliberate list-row rule; the unread accent is not
+ * among them because it is a `border-l-4` and arm 1 takes a bare side.
+ * Arm 2's thirty-six are `<RuledBlock>`/`<Section>` sites that draw the
+ * block rank, out of thirty-nine call sites: the other three pass
+ * `rule={false}`, because a band's edge is already their boundary. (The plan
+ * recorded 14 + 25 = 39; arm 2 measured exactly 25 at the seed and arm 1
+ * measured 29 — the latter being the whole of the plan's own "Every site,
+ * before and after" table, chrome edges and named exceptions included. The 14
+ * is a miscount; the ratchet is seeded on the measurement, because the check
+ * is the authority and the plan is a record of one run.)
+ */
+const RULE_CENSUS_MAX = 42;
+
+/**
+ * Every string literal with its offset. `classLiterals` (check 4) hands back
+ * the values alone, which is fine there and wrong here: four of this
+ * census's sites share one identical class string, so a value-only scan
+ * would report all four at the first one's line.
+ */
+function classLiteralSpans(src) {
+  const out = [];
+  const re = /"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`/g;
+  let m;
+  while ((m = re.exec(src)) !== null) out.push([m.index, m[0]]);
+  return out;
+}
+
+/**
+ * The end of a JSX opening tag, skipping over `>` inside an attribute
+ * string — a `note="a > b"` would otherwise truncate the tag and hide a
+ * `rule={false}` written after it.
+ */
+function jsxTagEnd(src, from) {
+  let quote = null;
+  for (let i = from; i < src.length; i++) {
+    const ch = src[i];
+    if (quote) {
+      if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === '"' || ch === "'" || ch === "`") quote = ch;
+    else if (ch === ">") return i;
+  }
+  return src.length;
+}
+
+function checkRuleCensus() {
+  const labDir = path.join("app", "design") + path.sep;
+  const marks = [];
+  const blocks = [];
+  for (const file of sources()) {
+    const rel = path.relative(mobile, file);
+    if (rel.startsWith(labDir)) continue;
+    const src = code(fs.readFileSync(file, "utf8"));
+    const lineOf = (i) => src.slice(0, i).split("\n").length;
+    // Arm 1 — a mark typed as a class.
+    for (const [at, literal] of classLiteralSpans(src)) {
+      const tokens = literal.replace(/["'`]/g, "").split(/\s+/).filter(Boolean);
+      if (!tokens.some((name) => /^border-[tblr]$/.test(name))) continue;
+      marks.push(`${rel}:${lineOf(at)}`);
+    }
+    // Arm 2 — a mark drawn by the component that owns it.
+    const tag = /<(RuledBlock|Section)(?=[\s/>])/g;
+    let m;
+    while ((m = tag.exec(src)) !== null) {
+      const end = jsxTagEnd(src, m.index + m[0].length);
+      if (/rule=\{false\}/.test(src.slice(m.index, end))) continue;
+      blocks.push(`${rel}:${lineOf(m.index)}`);
+    }
+  }
+  const total = marks.length + blocks.length;
+  console.log(
+    `census: ${total} — ${marks.length} marked class strings, ${blocks.length} ruled blocks`,
+  );
+  check(
+    `rule sites do not exceed ${RULE_CENSUS_MAX} (currently ${total})`,
+    total <= RULE_CENSUS_MAX,
+  );
+  if (total > RULE_CENSUS_MAX) {
+    for (const hit of [...marks, ...blocks]) console.error(`  ${hit}`);
+  }
+}
+
+checkRuleCensus();
+
+/**
  * Check 10 — a Column's children do not restate its vertical padding.
  *
  * `Column` carries the app's vertical rhythm, `py-6 md:py-10`. A child
@@ -725,5 +859,239 @@ function checkPressStatesComeFromTheVocabulary() {
 }
 
 checkPressStatesComeFromTheVocabulary();
+
+/**
+ * Check 11 — a rule is a declared rank, and gravel is not one.
+ *
+ * `global.css`'s rule book declares three ranks and the app drew its lines
+ * in nine spellings at two weights, so the check holds both halves of that
+ * in one place:
+ *
+ *   1. **No gravel border outside `PushOptIn`'s box.** Gravel is 1.12:1 on
+ *      sand — it is a ground, not a line — so a gravel rule is a smudge
+ *      where the same boundary elsewhere is a black one. Phase 5 took the
+ *      last six off; this is what stops the next one arriving as a copy of
+ *      the row it was copied from.
+ *   2. **A mark is a declared rank.** Every rule in the tree is one of the
+ *      entries below or it is a fourth rank, which is a decision for a
+ *      person. This is the arm the plan's negative case names: a
+ *      `border-b border-ink` typed onto a list row is exactly the fault
+ *      Phase 4 swept, and it is nowhere in the list.
+ *
+ * **The lab is excluded, as a directory, for the reason check 9 excludes
+ * it**: `app/design/` *demonstrates* marks on purpose — `frame.tsx` and
+ * `motion.tsx` show the with-and-without specimens on purpose, and
+ * `index.tsx`'s rule book quotes the very classes being forbidden. Counting
+ * it would make every specimen a lint failure. The four real gravel rules
+ * in `frame.tsx` and `motion.tsx` are therefore outside this check's reach
+ * and stay outside the app; they are specimens, not sites.
+ *
+ * **What counts as a mark.** The same line check 9's arm 1 takes — a side
+ * token, `border-[tblr]`, as a token of its own — widened by exactly two
+ * steps, both forced by survivors: a side with a width (`border-l-4`, the
+ * unread accent) and a side named inside the colour (`border-b-gravel`),
+ * which rule 1 needs in order to see a gravel rule at all. A **bare
+ * `border` is never a mark**. That one exclusion is load-bearing: it is
+ * what keeps `AppHeader`'s `border-b border-ink bg-gravel` a chrome edge
+ * rather than a gravel rule (rule 1 reads the *border's* colour, and a
+ * gravel *ground* beside an ink rule is chrome, not a rule), and it is what
+ * keeps `PushOptIn`'s `border border-gravel` and the controls' own
+ * `border border-ink` outlines out of the rank arm. `border-l-0` is not a
+ * mark either — a zero width draws nothing, and `Segmented` uses it to
+ * cancel the shared left edge between two cells.
+ *
+ * Allow-listed by **file** against the literal's **border tokens**, order
+ * and layout classes ignored, so re-ordering a class string is not a lint
+ * failure and a *changed* mark is. Each entry states the class it permits
+ * and why it is not an oversight, because the difference between an
+ * exception and an oversight is the sentence next to it. The file is the
+ * key rather than the line number: line numbers drift on every edit, and a
+ * stale allow-list that keeps its key has silently stopped guarding
+ * anything. A stale *key* fails loudly instead, which is the trade.
+ *
+ * `ruledBlockClasses.ts` is on the list like any other file, for its two
+ * declared ranks — it is not exempted wholesale, so a `border-b border-ink`
+ * written there would fail too. Its table rank's signature carries no
+ * colour because the colour is the interpolated `${RULE_SOFT}` beside it,
+ * which is the point: a hand-typed `border-t` anywhere else has no
+ * `RULE_SOFT` to point at.
+ */
+const BORDER_TOKEN = /^border(-[a-z0-9]+){1,3}$/;
+/** A rule token: a side, optionally at a width. `border-l-0` draws nothing. */
+const RULE_TOKEN = /^border-[tblrxy](?:-(?!0$)\d+)?$/;
+/** A border painted gravel, on one side or on the whole box. */
+const GRAVEL_BORDER = /^border(-[tblrxy])?-gravel$/;
+
+const DECLARED_RANKS = new Map([
+  [
+    RULE_HOME,
+    [
+      {
+        mark: "border-t border-ink",
+        reason:
+          "THE BLOCK RANK — `RULED_BLOCK`. Written here once and nowhere else, " +
+          "which is what check 2 and `__tests__/ruled-block.test.ts` hold.",
+      },
+      {
+        mark: "border-t",
+        reason:
+          "THE TABLE RANK — `RULE_ROW`. Its colour is the `${RULE_SOFT}` " +
+          "interpolated beside it, so the signature has no colour in it.",
+      },
+    ],
+  ],
+  [
+    "components/ui/AppHeader.tsx",
+    [
+      {
+        mark: "border-b border-ink",
+        reason:
+          "CHROME EDGE (:300) — the bar's own lower edge, ink on a gravel " +
+          "ground so the bar reads as a bar rather than as the last thing in " +
+          "the content. The gravel is the bar's fill, not its rule. Nothing " +
+          "scrolls under it, which is the test that separates a chrome edge " +
+          "from a rule.",
+      },
+    ],
+  ],
+  [
+    "components/ui/ActionBar.tsx",
+    [
+      {
+        mark: "border-t border-ink",
+        reason:
+          "CHROME EDGE (:33 the dialog's pinned foot on gravel, :34 the screen " +
+          "bar on sand) — the bar marks itself at its top edge for the same " +
+          "reason as the other three: the ground here is the page, and without " +
+          "the line the bar is invisible. One entry for both, because the two " +
+          "differ in ground and not in rank.",
+      },
+    ],
+  ],
+  [
+    "components/ui/DatePicker.tsx",
+    [
+      {
+        mark: "border-b border-ink",
+        reason:
+          "CHROME EDGE (:63) — the picker's header separating from its grid. " +
+          "The grid's days are read across, so :62's `border border-ink` box " +
+          "is already the boundary and this is the header's own edge inside " +
+          "it, not a second rule for the same one.",
+      },
+    ],
+  ],
+  [
+    "components/ui/DisclosureButton.tsx",
+    [
+      {
+        mark: "border-b border-ink",
+        reason:
+          "THE ONE DELIBERATE LIST-ROW RULE in the app, and the reason is " +
+          "this file and no other: these rows sit inside the trigger's own " +
+          "box, where the box edge is the boundary and the rules are what " +
+          "stop the stack dissolving into what it just opened. Ink rather " +
+          "than the soft table rule, because the trigger above it is an " +
+          "ink-bordered secondary button and a line a quarter of its weight " +
+          "under it reads as a mistake.",
+      },
+    ],
+  ],
+  [
+    "components/trip/TravelDialog.tsx",
+    [
+      {
+        mark: "border-l border-ink",
+        reason:
+          "THE ONE VERTICAL RULE in the app, and the one place adjacent " +
+          "inline content needs a visible boundary: it splits the flight " +
+          "field from the Autofill button standing in for it. `global.css`'s " +
+          "rule book names it as the field's Autofill split.",
+      },
+    ],
+  ],
+  [
+    "components/notification/NotificationRow.tsx",
+    [
+      {
+        mark: "border-l-4 border-l-strawberry border-l-transparent",
+        reason:
+          "STATE, NOT STRUCTURE — the unread accent. It reports that a " +
+          "notification has not been read, which is a fact about the row " +
+          "rather than a boundary between it and its neighbours, so it is " +
+          "not one of the three ranks and cannot become one. The transparent " +
+          "arm is what keeps read rows flush down the column. Both arms are " +
+          "in the signature because the literal names both.",
+      },
+    ],
+  ],
+]);
+
+const GRAVEL_ALLOW = new Map([
+  [
+    "gap-2 border border-gravel bg-paper p-4",
+    "PushOptIn's box — the one gravel border the app keeps. It is a card " +
+      "outline on a form, not a rule: the box says \"this panel exists\" and " +
+      "nothing is divided by it, so the 1.12:1 that disqualifies a gravel " +
+      "*rule* does not disqualify a gravel box on a paper ground. Allowed " +
+      "by exact class string rather than by file, so a second gravel border " +
+      "in the same component still fails.",
+  ],
+]);
+
+/**
+ * The border tokens of a class string, as its rule's signature.
+ *
+ * First-appearance order, not sorted, so the signature reads the way the
+ * class string does — `border-t border-ink`, which is the order every rank
+ * in the book is written in. Sorted would give `border-ink border-t` and a
+ * reader would have to work out which half of it is the side. Duplicates
+ * are dropped (the NotificationRow ternary names both arms of one accent)
+ * and layout classes are not part of it.
+ */
+function ruleSignature(tokens) {
+  const seen = new Set();
+  const out = [];
+  for (const token of tokens) {
+    if (!BORDER_TOKEN.test(token) || seen.has(token)) continue;
+    seen.add(token);
+    out.push(token);
+  }
+  return out.join(" ");
+}
+
+function checkRuleIsADeclaredRank() {
+  const labDir = path.join("app", "design") + path.sep;
+  const gravel = [];
+  const undeclared = [];
+  for (const file of sourcesWith(/\.tsx?$/)) {
+    const rel = path.relative(mobile, file);
+    if (rel.startsWith(labDir)) continue;
+    const src = code(fs.readFileSync(file, "utf8"));
+    const lineOf = (i) => src.slice(0, i).split("\n").length;
+    for (const [at, literal] of classLiteralSpans(src)) {
+      const tokens = literal.replace(/["'`]/g, "").split(/\s+/).filter(Boolean);
+      const value = tokens.join(" ");
+      if (tokens.some((t) => GRAVEL_BORDER.test(t)) && !GRAVEL_ALLOW.has(value)) {
+        gravel.push(`${rel}:${lineOf(at)} — ${value}`);
+        continue;
+      }
+      if (!tokens.some((t) => RULE_TOKEN.test(t))) continue;
+      const signature = ruleSignature(tokens);
+      if (DECLARED_RANKS.get(rel)?.some((e) => e.mark === signature)) continue;
+      const known = (DECLARED_RANKS.get(rel) ?? []).map((e) => e.mark);
+      undeclared.push(
+        `${rel}:${lineOf(at)} — ${signature}` +
+          (known.length ? ` (this file declares ${known.join(" | ")})` : ""),
+      );
+    }
+  }
+  check("no gravel border outside PushOptIn's box", gravel.length === 0);
+  for (const hit of gravel) console.error(`  ${hit}`);
+  check("every rule is a declared rank", undeclared.length === 0);
+  for (const hit of undeclared) console.error(`  ${hit}`);
+}
+
+checkRuleIsADeclaredRank();
 
 process.exit(failures === 0 ? 0 : 1);

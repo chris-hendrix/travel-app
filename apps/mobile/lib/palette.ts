@@ -23,6 +23,13 @@ import { chroma, contrast, dE } from "@/lib/color";
  *                                       three of its six tokens already
  *                                       sit above the mark bar and would
  *                                       otherwise pass as chip fills.
+ *   rule   `contrast >= 2.4`          — the soft table rule. A rule is not
+ *                                       read, it is *seen*, so it is held
+ *                                       to a contrast floor on every
+ *                                       ground it names rather than to a
+ *                                       chroma bar: `gravel` clears every
+ *                                       chroma rule in this file and is
+ *                                       1.12:1 on sand as a line.
  *   seam   `dE >= 6` between grounds  — else they read as one ground.
  *
  * The rule exists because contrast cannot express "loud": `acid #cbfb6a`
@@ -42,6 +49,13 @@ export type Role =
   | "text"
   /** A saturated mark: an icon, a chip, a rule. Never a ground. */
   | "fill"
+  /**
+   * A structural line between rows — the table rank's rule. Held to a
+   * contrast floor on the grounds it names rather than to a chroma bar,
+   * because a rule has to be visible and has to stay subordinate, and
+   * those are the same measurement.
+   */
+  | "rule"
   /** A desaturated fill for a disabled or inert surface. */
   | "muted";
 
@@ -93,6 +107,14 @@ export const TOKENS: Token[] = [
     role: "ground",
     home: ["css"],
     note: "Dialog ground and hairline fill. Its 4.6 dE from sand is why a rule or a border is required at the seam, and why it is never adjacent to sand bare.",
+  },
+  {
+    name: "rule-soft",
+    hex: "#938c7a",
+    role: "rule",
+    home: ["css"],
+    floor: { on: ["sand", "gravel", "paper"], min: 2.4 },
+    note: "The table rank's rule — ink flattened to a 6-digit hex so the palette test can measure it. 2.79:1 on sand, 2.49 on gravel, 3.35 on paper. A flattened value rather than `border-ink/40` because `parseHex` throws on an 8-digit hex, so an alpha token could not be measured at all. The floor is the point of the token: gravel's 1.12:1 on sand is the spelling it replaces.",
   },
 
   /* Marks — the pop tier */

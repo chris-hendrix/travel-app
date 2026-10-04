@@ -4,6 +4,7 @@ import { Image } from "expo-image";
 import { Link, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
+import { RuledBlock } from "@/components/ui/RuledBlock";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { InlineError } from "@/components/ui/InlineError";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
@@ -630,7 +631,7 @@ function ProfileForm({ profile }: { profile: Profile }) {
           back. Signing out can, with a code, and the action that really
           cannot — deleting the account — has no route behind it yet and
           would have nothing left to wear. */}
-      <View className="border-t border-ink pt-5">
+      <RuledBlock>
         <Button
           title="Sign out"
           variant="secondary"
@@ -643,7 +644,7 @@ function ProfileForm({ profile }: { profile: Profile }) {
           // login screen render while signed-in data is still cached.
           onPress={() => void signOut().then(() => router.replace("/login"))}
         />
-      </View>
+      </RuledBlock>
     </FullscreenDialog>
   );
 }

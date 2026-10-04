@@ -32,6 +32,10 @@
   --color-sand: #f5eacc; /* app ground */
   --color-paper: #ffffff; /* raised surfaces: dialogs, cards */
   --color-gravel: #e2ded5; /* muted fills, hairlines; 4.6 dE from sand, so a rule is required at the seam */
+  /* The table rank's rule. Ink flattened to a 6-digit hex rather than an
+     opacity modifier, so nothing is composited at runtime and
+     `lib/color.ts`'s parseHex can measure it — see the rule book below. */
+  --color-rule-soft: #938c7a; /* the soft rule: 2.79:1 on sand, 2.49 on gravel, 3.35 on paper, floor 2.4. gravel's own 1.12:1 fails it */
 
   /* Marks. Small areas only: chroma >= 0.10, and never a ground. */
   --color-seafoam: #42d177; /* primary: actions, positive states */
@@ -189,33 +193,100 @@
 }
 
 /*
- * The rule book — four lines, and nothing outside them draws a rule.
+ * The rule book — three ranks, and nothing outside them draws a rule.
  *
  * A screen here is a stack of blocks, and the rule is what says where one
- * ends. These were thirteen hand-written copies that had drifted to three
- * inner gaps, so the book is enforced rather than written:
- * `scripts/design-lint.mjs` check 2 fails if either class string is typed
- * anywhere but `components/ui/ruledBlockClasses.ts`.
+ * ends. It was one form across thirteen hand-written copies that had
+ * drifted to three inner gaps, and in practice it was nine spellings at two
+ * weights across 54 code sites — `ink` and `border-gravel` both doing the
+ * same job, with nothing between them in the palette (`ink` on sand is
+ * 17.52:1, `gravel` on sand is 1.12:1), so the same semantic boundary drew
+ * either a black line or a smudge depending on the screen. The book is
+ * enforced rather than written: `scripts/design-lint.mjs` check 2 fails if
+ * a rule string is typed anywhere but `components/ui/ruledBlockClasses.ts`,
+ * check 9 counts the sites and ratchets them down — seeded at 54, sitting at
+ * 42 now, and it may only go down again — and check 11 fails on a mark that
+ * is not one of the ranks below or one of the exceptions named after them.
  *
- *   RuledBlock      A black rule, taken from ABOVE the block it opens:
- *                   `gap-5 border-t border-ink pt-6`. Optional title.
- *                   Thirteen sites. This is a block boundary.
+ * The rank is chosen by the DIRECTION THE ROW IS READ, and that is the
+ * whole test:
  *
- *   PageRule        The page's own hairline: `h-px w-full bg-ink`, full
- *                   width, no title, no padding. One site — the trip
- *                   page's, where the block above is two columns and the
- *                   rule says "that was a grid, this is the next thing".
- *                   Never carries a title: a title is what a block has.
+ *   BLOCK RULE   read as a boundary between blocks. Ink, full-bleed, taken
+ *                from ABOVE the block it opens: `gap-5 border-t border-ink
+ *                pt-6`. Optional title. `RuledBlock`, thirty-nine call
+ *                sites across the app and thirty-six of them ruled — the
+ *                other three are `rule={false}` (below). A
+ *                block rule says "this is a different thing", so it is the
+ *                only rank allowed to be as loud as the ink it is drawn in.
  *
- *   border-gravel   A row separator, INSIDE a block, between rows. Not a
- *                   boundary between blocks, and never a block rule.
+ *   TABLE RULE   a row read ACROSS — a name, some accounts, a role. Ink
+ *                flattened to `--color-rule-soft` (#938c7a), full-bleed,
+ *                above the row. `RuledRows`, four sites. The same ink at
+ *                40%, pre-flattened into a 6-digit hex so the palette can
+ *                measure it: 2.79:1 on sand, 2.49 on gravel, 3.35 on paper,
+ *                against a floor of 2.4 in `lib/palette.ts`. Flattened rather
+ *                than `border-ink/40` because nothing composites at runtime
+ *                and an alpha value cannot be measured at all.
  *
- *   One rule per boundary. A stack of blocks shares its rules; it does
- *   not double them at every seam. That is why the rule sits on top of
- *   its block rather than underneath it.
+ *   LIST         a row read DOWN — a lead and a column, stacked. NO MARK.
+ *                Rows group by proximity and the space between them does
+ *                the work. This is not "the table rule, quieter": it is the
+ *                absence of a rank, and a list that needs more air gets
+ *                padding, never a rule. That is the whole cost of this
+ *                book, and it is paid in vertical space deliberately.
  *
- * `border-b` is the same rule and stays out of this: a `border-b` closes
- * the block above it, which is the one case a shared rule already covers.
+ * One rule per boundary. A stack of blocks shares its rules; it does not
+ * double them at every seam. That is why the rule sits on top of its block
+ * rather than underneath it, and why `rule={false}` drops the rule *and*
+ * its padding for the first block inside a band — the band's own edge is
+ * that boundary.
+ *
+ * Three marks are exempt by name, and each earns it:
+ *
+ *   border-l     the one vertical rule in the app, on the travel dialog's
+ *                Autofill split. The only place adjacent INLINE content
+ *                needs a visible boundary — everywhere else a vertical
+ *                line sits between blocks, and a block boundary is not
+ *                drawn sideways.
+ *
+ *   border-l-4   the notification row's unread accent. This is STATE, not
+ *                structure: it reports that something happened, so it is
+ *                not competing with the rules for the job of being a
+ *                boundary. It is the only line of ink on the notifications
+ *                screen, which is correct.
+ *
+ *   border-b     `DisclosureButton`'s action rows, and the one deliberate
+ *                list-row rule in the app. They sit inside the trigger's
+ *                own box, where the box edge is the boundary and the rules
+ *                are what stop the stack dissolving into what it just
+ *                opened. Ink rather than the soft table rule, because the
+ *                trigger above them is an ink-bordered secondary button and
+ *                a line a quarter of its weight under it reads as a
+ *                mistake.
+ *
+ * `border-b` on a chrome edge — a header, a pinned action bar, a dialog's
+ * foot — is neither of the ranks and is not a rule: it is the edge of the
+ * box it belongs to. Those are allow-listed in check 11 with their reason
+ * written beside them, so an exception cannot be mistaken for an oversight.
+ *
+ * One gravel box is allowed as well, and it is a box rather than a rule:
+ * `PushOptIn`'s card outline, on a form and on paper. It says "this panel
+ * exists" and nothing is divided by it, so the 1.12:1 that disqualifies a
+ * gravel *rule* against sand does not disqualify a gravel box on paper.
+ * Check 11 allows it by exact class string rather than by file, so a
+ * second gravel border in that component still fails.
+ *
+ * The page's own hairline — a full-width `h-px` with no title and no
+ * padding — is a fourth form, and it is *withdrawn on this branch and
+ * reinstated on it*. The trip page was its one call site, and the hero
+ * band's lower edge closed both of that page's columns and changed the
+ * ground, so a rule on top of it was a second mark saying one thing: the
+ * form came out with that call site. Then `BootCover` needed one — the boot
+ * screen draws the splash's mark, then the page's rule, then the page's
+ * foot, and that middle mark is a hairline over nothing, which is this form
+ * and not a block rule. So it came back, with check 2's `h-px` arm, which
+ * had retired with it. A form is withdrawn when nothing draws it, not when
+ * a page it happened to serve stops drawing it.
  */
 
 /*

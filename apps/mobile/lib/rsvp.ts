@@ -17,7 +17,13 @@ export const RSVP_LABEL: Record<RsvpStatus, string> = {
   going: "Going",
   maybe: "Maybe",
   no_response: "No response",
-  not_going: "Not going",
+  // "Not going" is a status flag — it reads as a column in a table, not
+  // as something a person says. The other two answers are already in the
+  // first person ("Going", "Maybe"), so the third one is too: it is the
+  // sentence somebody actually types to a group chat. It also stops
+  // "Going" matching inside a longer label, which is what `exact: true`
+  // existed to work around in the E2E spec.
+  not_going: "Can't go",
 };
 
 /**

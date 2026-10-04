@@ -15,7 +15,7 @@
  * `useLocalSearchParams<{ id }>()` in `app/invite.tsx`, not a guess.
  *
  * RSVP drives the REAL `RsvpControl` in `trips/detail.tsx` (already
- * wired into the detail screen): the `Segmented` radios `Going` / `Maybe` / `Not going`
+ * wired into the detail screen): the `Segmented` radios `Going` / `Maybe` / `Can't go`
  * (`RSVP_LABEL` in `lib/rsvp.ts`), asserted via the radio selected
  * state AND reload persistence (server round-trip, not cache).
  *
@@ -175,11 +175,11 @@ test.describe("Invitation Journey", () => {
     await test.step("accept: tap Going, control shows it selected", async () => {
       // components/trip/RsvpControl.tsx via
       // components/ui/Segmented.tsx: role="radio" cells named by
-      // RSVP_LABEL (lib/rsvp.ts) — "Going", "Maybe", "Not going" —
+      // RSVP_LABEL (lib/rsvp.ts) — "Going", "Maybe", "Can't go" —
       // with aria-selected on the chosen one. The screen defaults to
       // the traveler variant, which renders the control. exact:true
-      // is load-bearing: role-name matching is substring by default,
-      // so "Going" also matches "Not going" without it.
+      // stays: role-name matching is substring by default, and the
+      // labels are the app's to change.
       // Playwright's `selected` only supports option/tab/grid roles,
       // never radio — so the selector stays getByRole and the selected
       // state is asserted as the aria-selected attribute Segmented.tsx
@@ -203,7 +203,7 @@ test.describe("Invitation Journey", () => {
       });
     });
 
-    await test.step("decline: tap Not going, the roster records it", async () => {
+    await test.step("decline: tap Can't go, the roster records it", async () => {
       // A traveler sees every member and every guest now: the API's
       // non-organizer status filter and the `showAllMembers` read it
       // depended on were deleted with this work, so the declined row stays
@@ -213,7 +213,7 @@ test.describe("Invitation Journey", () => {
       // straight from the API (the server's own answer) and the
       // traveler's own control after a reload (what the person sees).
       await page
-        .getByRole("radio", { name: "Not going", exact: true })
+        .getByRole("radio", { name: "Can't go", exact: true })
         .click();
       // GET /trips/:tripId/members as the organizer (full roster).
       // Poll: the tap fires the mutation, the write lands, then the
@@ -245,7 +245,7 @@ test.describe("Invitation Journey", () => {
       // to hide from a non-organizer.
       await page.reload();
       await expect(
-        page.getByRole("radio", { name: "Not going", exact: true }),
+        page.getByRole("radio", { name: "Can't go", exact: true }),
       ).toHaveAttribute("aria-selected", "true", {
         timeout: NAVIGATION_TIMEOUT,
       });
@@ -366,7 +366,7 @@ test.describe("Invitation Journey", () => {
       // Asserting it proves the screen mounted and that the server's rule
       // is honoured rather than shown as a failed section.
       await expect(
-        page.getByText("The run opens when you are going"),
+        page.getByText("Answer above to see the itinerary"),
       ).toBeVisible();
     });
   });

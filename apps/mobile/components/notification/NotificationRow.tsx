@@ -23,7 +23,9 @@ import { relativeTime, type Notification } from "@/lib/notifications";
  * disabled rather than read. The edge is transparent when read so the
  * covers stay flush down the column.
  *
- * Rules, not cards: no fill, no radius, matching the accordion.
+ * Not a card: no fill, no radius, and no rule either. This is a LIST —
+ * rows group by proximity alone, so `py-4` is the separator and the
+ * strawberry edge is the only mark on the screen.
  */
 export function NotificationRow({
   notification,
@@ -40,7 +42,10 @@ export function NotificationRow({
   return (
     <Pressable
       onPress={onPress}
-      className={`flex-row items-center gap-4 border-b border-b-gravel border-l-4 py-4 pl-4 pr-2 ${
+      // A LIST row: no rule. The rows group by proximity alone — `py-4`
+      // is the whole separator. The `border-l-4` is not structure, it is
+      // state: it reports that the notification is unread.
+      className={`flex-row items-center gap-4 border-l-4 py-4 pl-4 pr-2 ${
         unread ? "border-l-strawberry" : "border-l-transparent"
       } ${motion.row}`}
     >

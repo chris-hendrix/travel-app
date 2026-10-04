@@ -63,10 +63,7 @@ export function SuggestionList({
         suggestions.map((suggestion) =>
           // Status rows (loading, failure) read but never commit.
           suggestion.disabled ? (
-            <View
-              key={suggestion.value}
-              className="border-b border-gravel p-3"
-            >
+            <View key={suggestion.value} className="p-4">
               <Text className="font-body text-base text-ink/60">
                 {suggestion.label}
               </Text>
@@ -77,7 +74,9 @@ export function SuggestionList({
               onPress={() => onPick(suggestion.value)}
               accessibilityRole="button"
               accessibilityLabel={entryAccessibilityLabel(suggestion)}
-              className={`cursor-pointer border-b border-gravel p-3 ${motion.row}`}
+              // A LIST row: no rule, and `p-4` rather than `p-3` so the
+              // rows group by proximity alone.
+              className={`cursor-pointer p-4 ${motion.row}`}
             >
               <Text className="font-body-bold text-base text-ink">
                 {suggestion.label}

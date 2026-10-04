@@ -1,5 +1,6 @@
 import { Text, View } from "react-native";
 import { PlaceLink } from "@/components/ui/PlaceLink";
+import { RuledBlock } from "@/components/ui/RuledBlock";
 import { formatDateRange } from "@/lib/dateRange";
 
 /**
@@ -35,7 +36,11 @@ export function InviteCard({
       <Text className="font-body-bold text-sm uppercase tracking-widest text-ink">
         Invitation
       </Text>
-      <View className="gap-2 border-t border-ink pt-4">
+      {/* The block's own boundary, in the block's own form: this drew an
+          ink rule at `pt-4` and a `gap-2` inside, which is the same
+          boundary every other block in the app draws at `pt-6` and
+          `gap-5` — the form, not a variant of it. */}
+      <RuledBlock>
         {startDate ? (
           <Text className="font-body-bold text-lg text-ink">
             {formatDateRange(startDate, endDate ?? startDate)}
@@ -48,7 +53,7 @@ export function InviteCard({
         <Text className="font-body text-base text-ink">
           {inviterName} invited you.
         </Text>
-      </View>
+      </RuledBlock>
     </View>
   );
 }
