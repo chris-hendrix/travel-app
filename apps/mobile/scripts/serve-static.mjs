@@ -106,15 +106,57 @@ function contentTypeFor(filePath) {
   return MIME_TYPES[ext] ?? "application/octet-stream";
 }
 
-function cacheControlFor(filePath, distRoot) {
+/**
+ * The `Cache-Control` for a resolved file, or `null` for no header.
+ *
+ * This server *is* the deployed production origin, so there is no proxy
+ * to add what it leaves out — which is why the hashed assets had none at
+ * all: the `_expo/static` rule predates the fonts and images under
+ * `assets/`, and an unhashed-by-rule asset simply fell off the end into
+ * `null`, leaving every content-hashed TTF and placeholder revalidated on
+ * every load.
+ *
+ * Three outcomes, and the middle one is the whole point:
+ *
+ *   - `.html` is `no-cache`: it names the hashed bundles, so a cached
+ *     document is a stale app until it is revalidated.
+ *   - a filename carrying a content hash is `immutable`: the name changes
+ *     when the bytes do, so it can never be stale. Two forms, and both are
+ *     in the export today —
+ *     `BungeeShade_400Regular.<32hex>.ttf` from Metro's asset registry and
+ *     `close-icon.<32hex>@3x.png` from react-navigation, whose pixel scale
+ *     sits *between* the hash and the extension. That second form is why
+ *     the pattern cannot be `\.<hex>\.<ext>$`.
+ *   - everything unhashed gets no header at all. `manifest.json` and
+ *     `.well-known/assetlinks.json` are copied from `public/` verbatim and
+ *     are not content-hashed, so any freshness claim this server made
+ *     about them would be wrong the moment the file changed — and a
+ *     long max-age would pin Android to a stale App Links fingerprint and
+ *     quietly break `autoVerify`. Headerless leaves the browser to
+ *     revalidate, which is the honest default for a name that does not
+ *     promise immutability.
+ *
+ * @param {string} filePath absolute path of the file being served
+ * @param {string} distRoot absolute path of the export directory
+ * @returns {string|null} header value, or null to send none
+ */
+export function cacheControlFor(filePath, distRoot) {
   const ext = path.extname(filePath).toLowerCase();
   if (ext === ".html") return "no-cache";
   const rel = path.relative(distRoot, filePath);
   if (rel.startsWith(`_expo${path.sep}static${path.sep}`)) {
     return "public, max-age=31536000, immutable";
   }
+  if (CONTENT_HASHED.test(path.basename(filePath))) {
+    return "public, max-age=31536000, immutable";
+  }
   return null;
 }
+
+// Two real forms: `<name>.<32 hex>.ttf` (Metro's asset registry) and
+// `<name>.<32 hex>@3x.png` (react-navigation puts the pixel scale between
+// the hash and the extension, so a `\.<hex>\.<ext>$` anchor misses it).
+const CONTENT_HASHED = /\.[0-9a-f]{32}(@\d+x)?\.[a-z0-9]+$/i;
 
 // This script serves the deployed production origin, not just a local E2E
 // harness, so these headers are the app's — there is no proxy setting them.

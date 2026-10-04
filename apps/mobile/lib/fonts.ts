@@ -29,6 +29,18 @@
  * path is written down rather than computed — it was a real trap the day
  * the display face landed.
  *
+ * **`export` is provenance, not an import.** `app/_layout.tsx` requires each
+ * face *by `file`* rather than importing it from the package, and that is
+ * not a stylistic preference: a package's `index.js` `require`s every face it
+ * ships, so one named import brings the whole weight axis with it — nine
+ * TTFs for `big-shoulders-display`, five of which no token names. That was
+ * 611 KB of the web export, silently, with `app.json` listing only the eight
+ * faces below and every test green. So `export` records where a face came
+ * from (which named export of which package version) and nothing imports it;
+ * `file` is the binding, asserted by `__tests__/fonts.test.ts` and by
+ * `scripts/check-export.mjs` against the built artifact. Reinstating the
+ * barrel import as "cleaner" reintroduces all of it.
+ *
  * The family is the TTF's **basename**, because that is what Android
  * derives the family from. That is also why the four display weights are
  * four families and not one family with four weights: there is no weight
@@ -42,9 +54,20 @@ export type FontRow = {
   family: string;
   /** The npm package the TTF comes from. */
   pkg: string;
-  /** The named export in that package's `index.d.ts`. */
+  /**
+   * Provenance only: the named export in that package's `index.d.ts` the
+   * face was taken from. Nothing imports it — `app/_layout.tsx` requires
+   * the TTF by `file`, because the barrel that exports this name
+   * `require`s every weight the package ships (see the header).
+   */
   export: string;
-  /** Path from `apps/mobile`, for `app.json`'s expo-font list. */
+  /**
+   * Path from `apps/mobile`. `app.json`'s expo-font list uses it verbatim;
+   * `app/_layout.tsx` requires the same file by its module specifier —
+   * this path with the leading `./node_modules/` dropped. Both bindings
+   * are asserted against this column, so a face cannot be wired without
+   * being written down here.
+   */
   file: string;
   /** What a failed load degrades to. Per-face, and it differs. */
   fallback: string;

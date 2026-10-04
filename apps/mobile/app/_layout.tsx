@@ -13,19 +13,25 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 // wants its own title renders a Head of its own and the deepest wins.
 import Head from "expo-router/head";
 import { useFonts } from "expo-font";
-import {
-  useFonts as useSpaceMono,
-  SpaceMono_400Regular,
-  SpaceMono_400Regular_Italic,
-  SpaceMono_700Bold,
-} from "@expo-google-fonts/space-mono";
-import { BungeeShade_400Regular } from "@expo-google-fonts/bungee-shade";
-import {
-  BigShouldersDisplay_600SemiBold,
-  BigShouldersDisplay_700Bold,
-  BigShouldersDisplay_800ExtraBold,
-  BigShouldersDisplay_900Black,
-} from "@expo-google-fonts/big-shoulders-display";
+// The eight faces, one import each, **by path**. The import from
+// `@expo-google-fonts/*` is deliberately absent: a package's `index.js`
+// `require`s every face it ships, so one named import brings the whole
+// weight axis with it — and `@expo-google-fonts/big-shoulders-display` has
+// no per-weight directories to import a single weight from, so its nine
+// weights all landed in the bundle and five of them are named by no token
+// at all. The web export shipped 14 TTFs where `app.json` — which was never
+// wrong — lists exactly these eight. `lib/fonts.ts`'s `file` column is what
+// these are bound against, by `__tests__/fonts.test.ts` and by
+// `scripts/check-export.mjs`; the specifiers here are package-absolute
+// because this file lives in `app/`, where `./node_modules/…` would not.
+import BungeeShade_400Regular from "@expo-google-fonts/bungee-shade/400Regular/BungeeShade_400Regular.ttf";
+import BigShouldersDisplay_900Black from "@expo-google-fonts/big-shoulders-display/BigShouldersDisplay_900Black.ttf";
+import BigShouldersDisplay_800ExtraBold from "@expo-google-fonts/big-shoulders-display/BigShouldersDisplay_800ExtraBold.ttf";
+import BigShouldersDisplay_700Bold from "@expo-google-fonts/big-shoulders-display/BigShouldersDisplay_700Bold.ttf";
+import BigShouldersDisplay_600SemiBold from "@expo-google-fonts/big-shoulders-display/BigShouldersDisplay_600SemiBold.ttf";
+import SpaceMono_400Regular from "@expo-google-fonts/space-mono/400Regular/SpaceMono_400Regular.ttf";
+import SpaceMono_700Bold from "@expo-google-fonts/space-mono/700Bold/SpaceMono_700Bold.ttf";
+import SpaceMono_400Regular_Italic from "@expo-google-fonts/space-mono/400Regular_Italic/SpaceMono_400Regular_Italic.ttf";
 import { AppHeader } from "@/components/ui/AppHeader";
 import * as SystemNotifications from "expo-notifications";
 import type { NotificationResponse } from "expo-notifications";
@@ -73,20 +79,19 @@ export default function RootLayout() {
   // is in the name, which is why `--font-display-black` and friends are
   // four tokens and not one plus a `font-black` (Task 1).
   //
-  const [displayLoaded, displayError] = useFonts({
+  // The eight above are the only faces in the bundle, keyed by family
+  // (the shorthand is the family name, which is also the TTF's basename —
+  // Android resolves `font-display-black` by exactly that string).
+  const [loaded, fontError] = useFonts({
     BungeeShade_400Regular,
     BigShouldersDisplay_900Black,
     BigShouldersDisplay_800ExtraBold,
     BigShouldersDisplay_700Bold,
     BigShouldersDisplay_600SemiBold,
-  });
-  const [monoLoaded, monoError] = useSpaceMono({
     SpaceMono_400Regular,
-    SpaceMono_400Regular_Italic,
     SpaceMono_700Bold,
+    SpaceMono_400Regular_Italic,
   });
-  const loaded = displayLoaded && monoLoaded;
-  const fontError = displayError ?? monoError;
   // `settled` rather than `loaded`: a font that failed is a font that will
   // never arrive, and the splash has to stop waiting for it. The faces
   // themselves are embedded natively (`expo-font`'s config plugin lists them
