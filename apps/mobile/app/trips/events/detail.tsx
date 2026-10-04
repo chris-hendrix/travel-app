@@ -1,5 +1,6 @@
 import { RuledBlock } from "@/components/ui/RuledBlock";
-import { Image, Linking, Pressable, Text, View } from "react-native";
+import { Linking, Pressable, Text, View } from "react-native";
+import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
@@ -147,14 +148,16 @@ function EventDetailDialog() {
               >
                 <Image
                   source={{ uri: event.image }}
-                  resizeMode="cover"
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
                   className="w-full aspect-[2/1]"
                 />
               </Pressable>
             ) : (
               <Image
                 source={{ uri: event.image }}
-                resizeMode="cover"
+                contentFit="cover"
+                cachePolicy="memory-disk"
                 className="w-full aspect-[2/1]"
               />
             )}

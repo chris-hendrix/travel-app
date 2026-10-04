@@ -1,4 +1,5 @@
-import { Image, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
+import { Image } from "expo-image";
 import { KINDS, type PlaceholderKind } from "@/lib/placeholder";
 
 /**
@@ -37,7 +38,7 @@ export function PlaceholderImage({ kind }: { kind: PlaceholderKind }) {
   return (
     <Image
       source={KINDS[kind]}
-      resizeMode="cover"
+      contentFit="cover"
       style={FILL.image}
       accessibilityIgnoresInvertColors
     />

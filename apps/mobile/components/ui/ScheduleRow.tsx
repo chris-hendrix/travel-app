@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { Image, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
+import { Image } from "expo-image";
 import { useMotion } from "@/hooks/useMotion";
 import { imageSlot } from "@/lib/place-images";
 
@@ -81,7 +82,8 @@ export function ScheduleRow({
         ) : (
           <Image
             source={{ uri: slot.url }}
-            resizeMode="cover"
+            contentFit="cover"
+            cachePolicy="memory-disk"
             onError={() => setFailed(true)}
             className="h-14 w-14"
           />

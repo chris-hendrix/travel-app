@@ -74,6 +74,15 @@ export function BootCover({ label }: { label: string }) {
           The mark, at the splash's own width and never animated: see above.
           `resizeMode` is left at the default, which is what the config plugin
           uses, so the two draws are the same draw.
+
+          This is the one React Native `Image` left in the app, and it is not
+          an oversight: every other photo is `expo-image` for its disk cache,
+          and this one has nothing to cache — it is a bundled asset drawn once,
+          on the first frame, where a decode pipeline that can fade or settle
+          is a jump risk on the exact frame that must match the OS splash. It
+          also carries `accessibilityIgnoresInvertColors`, which is a React
+          Native `Image` prop: the mark is a dark tile on sand, and an inverted
+          phone must not render it as a pale one.
         */}
         <Image
           source={require("@/assets/splash.png")}

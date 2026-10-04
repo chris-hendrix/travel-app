@@ -1,4 +1,5 @@
-import { Image, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
+import { Image } from "expo-image";
 import type { Trip } from "@/components/trip/TripCard";
 import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 import { useMotion } from "@/hooks/useMotion";
@@ -47,7 +48,8 @@ export function NotificationRow({
         trip.image ? (
           <Image
             source={{ uri: trip.image }}
-            resizeMode="cover"
+            contentFit="cover"
+            cachePolicy="memory-disk"
             className="h-18 w-18"
           />
         ) : (

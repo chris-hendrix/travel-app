@@ -1,5 +1,6 @@
 import { type ReactNode, useState } from "react";
-import { Image, Linking, Pressable, Text, View } from "react-native";
+import { Linking, Pressable, Text, View } from "react-native";
+import { Image } from "expo-image";
 import { ArrowUpRight } from "lucide-react-native";
 import { useMotion } from "@/hooks/useMotion";
 import { INK } from "@/lib/theme";
@@ -29,6 +30,19 @@ import { imageSlot } from "@/lib/place-images";
  *
  * A 404 is a state, not a blank box: a photo that fails to load
  * falls back to the kind's stock photo, same as a missing one.
+ *
+ * The photo is `expo-image` rather than React Native's `Image`, and the
+ * difference is the cache: a place photo is a remote file shown on a card
+ * the reader scrolls past and comes back to, and `expo-image` keeps it in
+ * memory and on disk, so the second look is not a second download. It is
+ * the same component on the web export, where it is an `<img>` with a
+ * `cachePolicy` instead of the browser's own heuristics.
+ *
+ * No `transition`, deliberately. A photo arriving is a *load* in this
+ * system and not a state change, and the motion vocabulary has no role for
+ * an image fading in — the same reasoning that keeps a skeleton out of
+ * `LoadingBlock`. `recyclingKey` is absent for a reason too: nothing in
+ * this app is virtualized, so it would be a prop with no effect.
  *
  * The press is the card's whole affordance, on both surfaces. It used to
  * zoom under a pointer instead, on the web export and only from md up —
@@ -86,7 +100,8 @@ export function PhotoCard({
         ) : (
           <Image
             source={{ uri: slot.url }}
-            resizeMode="cover"
+            contentFit="cover"
+            cachePolicy="memory-disk"
             onError={() => setFailed(true)}
             className="w-full aspect-[2/1]"
           />
