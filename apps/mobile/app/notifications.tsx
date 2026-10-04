@@ -87,7 +87,11 @@ export default function Notifications() {
           </Text>
         </View>
       ) : (
-        <View className="border-t border-ink">
+        // The list wrapper carries no rule either — a LIST has no mark,
+        // and the strawberry `border-l-4` on an unread row is then the
+        // only line of ink on this screen, which is correct: it reports
+        // something.
+        <View>
           {newestFirst(notifications).map((notification) => (
             <NotificationRow
               key={notification.id}
