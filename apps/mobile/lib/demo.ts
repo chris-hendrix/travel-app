@@ -23,6 +23,8 @@ import type { MockTravel } from "@/mocks/travel";
  * freezes whatever this said: re-capture when this shape changes.
  */
 export type DemoTrip = {
+  /** The adapter's key: the id the real `GET /trips/:id` reads serve. */
+  id: string;
   title: string;
   location: string;
   startDate: string;
@@ -37,6 +39,14 @@ export type DemoTrip = {
 
 /** The viewer's own row. The RSVP control and the roster row share it. */
 export const DEMO_VIEWER_MEMBER_ID = "demo-you";
+
+/** The demo session: the anonymous visitor reads as this traveler. */
+export const DEMO_AUTH_USER = {
+  id: "demo-viewer",
+  phoneNumber: "+15550000001",
+  displayName: "You",
+  profileComplete: true,
+} as const;
 
 function toIsoDay(moment: Date): string {
   const month = `${moment.getUTCMonth() + 1}`.padStart(2, "0");
@@ -79,6 +89,7 @@ function arrival(
   memberName: string,
   dayIso: string,
   clock: string,
+  location = "SJD T1",
 ): MockTravel {
   return {
     id,
@@ -88,7 +99,7 @@ function arrival(
     departureTime: null,
     departureLocation: null,
     arrivalTime: atClock(dayIso, clock),
-    arrivalLocation: "SJD T1",
+    arrivalLocation: location,
     flightNumber: null,
     details: null,
     deletedAt: null,
@@ -236,6 +247,7 @@ export function buildDemoTrip(today: Date = new Date()): DemoTrip {
   ];
 
   return {
+    id: "demo-trip-cabo",
     title: "Cabo",
     location: "Cabo San Lucas, Mexico",
     startDate,
@@ -251,4 +263,165 @@ export function buildDemoTrip(today: Date = new Date()): DemoTrip {
 /** What the demo screen reads: the fixture derived from the real today. */
 export function getDemoTrip(): DemoTrip {
   return buildDemoTrip(new Date());
+}
+
+/**
+ * The demo list: the Cabo trip first, then up to two wholly invented
+ * trips so the real trip list reads as a list. The landing's demo link
+ * depends on Cabo being first; the others exist only so the list has
+ * more than one row and the groupings (upcoming, past) have something
+ * to show. Every privacy rule holds for all three: reserved 555
+ * numbers only, invented names, bundled PlaceholderImage kinds (every
+ * image slot null), no remote URL, dates derived from today. The
+ * viewer rides every roster as the same `demo-viewer` account with
+ * status `going`, so `viewerOf` resolves and `canReadRun` opens the
+ * run on whichever trip the visitor taps.
+ */
+export function buildDemoTrips(today: Date = new Date()): DemoTrip[] {
+  const cabo = buildDemoTrip(today);
+  const caboStart = new Date(`${cabo.startDate}T12:00:00.000Z`);
+
+  // A nearer upcoming weekend: two weeks before Cabo opens, Fri–Sun.
+  const marfaStart = toIsoDay(
+    new Date(caboStart.getTime() - 14 * 86_400_000),
+  );
+  const marfaEnd = addDays(marfaStart, 2);
+  const marfaSaturday = addDays(marfaStart, 1);
+  const marfa: DemoTrip = {
+    id: "demo-trip-marfa",
+    title: "Marfa",
+    location: "Marfa, Texas",
+    startDate: marfaStart,
+    endDate: marfaEnd,
+    viewerMemberId: DEMO_VIEWER_MEMBER_ID,
+    members: [
+      member(DEMO_VIEWER_MEMBER_ID, "You", "going", "+15550000011", false),
+      member("demo-june", "June", "going", "+15550000012", true),
+      member("demo-theo", "Theo", "maybe", "+15550000013", false),
+    ],
+    stay: {
+      id: "demo-stay-marfa",
+      name: "El Cosmico",
+      address: "Shorthorn Street, Marfa, Texas",
+      addressLat: null,
+      addressLon: null,
+      description: "Two yurts and a trailer. Check in at the lobby tent.",
+      checkIn: atClock(marfaStart, "15:00"),
+      checkOut: atClock(marfaEnd, "11:00"),
+      image: null,
+      links: [],
+      deletedAt: null,
+    },
+    events: [
+      event(
+        "demo-event-marfa-lights",
+        "Marfa lights",
+        "outdoors",
+        marfaStart,
+        "21:00",
+        "23:00",
+        "Lights viewing area",
+      ),
+      event(
+        "demo-event-marfa-prada",
+        "Prada Marfa",
+        "arts_and_entertainment",
+        marfaSaturday,
+        "10:00",
+        "12:00",
+        "Highway 90",
+      ),
+    ],
+    travel: [
+      arrival(
+        "demo-travel-marfa-you",
+        DEMO_VIEWER_MEMBER_ID,
+        "You",
+        marfaStart,
+        "13:00",
+        "MRF",
+      ),
+      arrival(
+        "demo-travel-marfa-june",
+        "demo-june",
+        "June",
+        marfaStart,
+        "13:20",
+        "MRF",
+      ),
+    ],
+  };
+
+  // A past trip, seventeen weeks before Cabo opens, Fri–Mon: the list's
+  // past section has a row, and a tapped past trip still reads its run.
+  const portlandStart = toIsoDay(
+    new Date(caboStart.getTime() - 119 * 86_400_000),
+  );
+  const portlandEnd = addDays(portlandStart, 3);
+  const portlandSaturday = addDays(portlandStart, 1);
+  const portland: DemoTrip = {
+    id: "demo-trip-portland",
+    title: "Portland",
+    location: "Portland, Oregon",
+    startDate: portlandStart,
+    endDate: portlandEnd,
+    viewerMemberId: DEMO_VIEWER_MEMBER_ID,
+    members: [
+      member(DEMO_VIEWER_MEMBER_ID, "You", "going", "+15550000011", false),
+      member("demo-ana", "Ana", "going", "+15550000022", true),
+    ],
+    stay: {
+      id: "demo-stay-portland",
+      name: "Jupiter Hotel",
+      address: "Burnside Street, Portland, Oregon",
+      addressLat: null,
+      addressLon: null,
+      description: "Corner rooms when we ask early.",
+      checkIn: atClock(portlandStart, "16:00"),
+      checkOut: atClock(portlandEnd, "11:00"),
+      image: null,
+      links: [],
+      deletedAt: null,
+    },
+    events: [
+      event(
+        "demo-event-portland-powells",
+        "Powell's run",
+        "shopping",
+        portlandSaturday,
+        "10:00",
+        "12:00",
+        "Powell's Books",
+      ),
+      event(
+        "demo-event-portland-carts",
+        "Cart dinner",
+        "food_and_drink",
+        portlandSaturday,
+        "18:00",
+        "20:00",
+        "Cart blocks",
+      ),
+    ],
+    travel: [
+      arrival(
+        "demo-travel-portland-you",
+        DEMO_VIEWER_MEMBER_ID,
+        "You",
+        portlandStart,
+        "09:00",
+        "PDX T2",
+      ),
+      arrival(
+        "demo-travel-portland-ana",
+        "demo-ana",
+        "Ana",
+        portlandStart,
+        "09:20",
+        "PDX T2",
+      ),
+    ],
+  };
+
+  return [cabo, marfa, portland];
 }

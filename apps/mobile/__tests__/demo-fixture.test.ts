@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildDemoTrip } from "@/lib/demo";
+import { DEMO_VIEWER_MEMBER_ID, buildDemoTrip, buildDemoTrips } from "@/lib/demo";
 
 /**
  * The demo fixture's shape, pinned so the captured landing image stays
@@ -91,5 +91,57 @@ describe("the demo fixture", () => {
     const dump = JSON.stringify(trip);
     expect(dump).not.toContain("http://");
     expect(dump).not.toContain("https://");
+  });
+});
+
+describe("the demo list", () => {
+  const today = new Date("2026-10-06T12:00:00.000Z");
+
+  it("holds the Cabo trip first, then wholly invented trips", () => {
+    const trips = buildDemoTrips(today);
+    expect(trips.length).toBeGreaterThanOrEqual(2);
+    expect(trips.length).toBeLessThanOrEqual(3);
+    expect(trips[0]!.title).toBe("Cabo");
+    const ids = trips.map((trip) => trip.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("reads every viewer as the same going demo-viewer account", () => {
+    for (const trip of buildDemoTrips(today)) {
+      const viewer = trip.members.find(
+        (member) => member.id === trip.viewerMemberId,
+      );
+      expect(viewer?.userId).toBe("demo-viewer");
+      expect(viewer?.status).toBe("going");
+      expect(trip.viewerMemberId).toBe(DEMO_VIEWER_MEMBER_ID);
+    }
+  });
+
+  it("keeps every privacy rule on every trip", () => {
+    for (const trip of buildDemoTrips(today)) {
+      const phones = trip.members.flatMap((member) =>
+        [member.phone, member.guestPhone].filter(
+          (phone): phone is string => !!phone,
+        ),
+      );
+      expect(phones.length).toBeGreaterThan(0);
+      for (const phone of phones) expect(phone).toContain("555");
+      const dump = JSON.stringify(trip);
+      expect(dump).not.toContain("http://");
+      expect(dump).not.toContain("https://");
+      // Every dated row falls inside its own window.
+      const dates = [
+        ...trip.events.map((event) => event.startTime.slice(0, 10)),
+        ...(trip.stay.checkIn ? [trip.stay.checkIn.slice(0, 10)] : []),
+        ...(trip.stay.checkOut ? [trip.stay.checkOut.slice(0, 10)] : []),
+        ...trip.travel
+          .map((record) => record.arrivalTime?.slice(0, 10) ?? null)
+          .filter((date): date is string => date !== null),
+      ];
+      expect(dates.length).toBeGreaterThan(0);
+      for (const date of dates) {
+        expect(date >= trip.startDate && date <= trip.endDate).toBe(true);
+      }
+    }
   });
 });

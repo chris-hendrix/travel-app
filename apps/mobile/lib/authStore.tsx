@@ -521,5 +521,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth(): AuthValue {
   const value = useContext(AuthContext);
   if (!value) throw new Error("useAuth must be used inside AuthProvider");
+  // The demo session (see `setDemoAuthUser`): while `/demo` is mounted
+  // the visitor reads as the fixture's traveler, so `viewerOf` finds a
+  // `going` roster row and `canReadRun` opens the real run. Null
+  // everywhere else, where the provider's own session applies untouched.
+  if (demoAuthUser) {
+    return { ...value, status: "signed-in", user: demoAuthUser };
+  }
   return value;
+}
+
+/**
+ * Demo-only session override, set while `/demo` is mounted and cleared
+ * on unmount. The anonymous visitor holds no token, so the provider
+ * restores signed-out with zero network — and the real detail screen
+ * would then lock its run (`canReadRun` needs a `going` viewer). This
+ * paints the fixture's traveler as the session instead of weakening
+ * the auth gate on any real route: production code paths read `user`
+ * exactly as before, and nothing outside `/demo` ever sets this.
+ * Revertible with the demo mount itself.
+ */
+let demoAuthUser: AuthUser | null = null;
+
+export function setDemoAuthUser(user: AuthUser | null): void {
+  demoAuthUser = user;
 }
