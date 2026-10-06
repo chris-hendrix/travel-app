@@ -103,6 +103,11 @@ export const userController = {
    * one. The row is anonymized rather than dropped, so a ban outlives the
    * deletion in the audit trail.
    *
+   * One caller is refused: an admin impersonating a user. Their token carries
+   * `impersonating: true` and `sub` is the *impersonated* user, so the
+   * deletion would land on somebody who never asked for it, filed under the
+   * impersonation. The account holder's own door is untouched.
+   *
    * @route DELETE /api/users/me
    * @middleware authenticate
    * @param request - Fastify request
@@ -114,6 +119,19 @@ export const userController = {
     reply: FastifyReply,
   ): Promise<void> {
     try {
+      // Same flag and same envelope as `stopImpersonation`
+      // (admin.controller.ts). Under impersonation `sub` is the impersonated
+      // user, so this is not the admin's account to delete.
+      if (request.user.impersonating) {
+        return reply.status(403).send({
+          success: false,
+          error: {
+            code: "FORBIDDEN",
+            message: "Stop impersonating to delete an account",
+          },
+        });
+      }
+
       const { userService } = request.server;
       const userId = request.user.sub;
 

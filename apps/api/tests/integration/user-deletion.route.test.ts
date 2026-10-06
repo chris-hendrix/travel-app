@@ -29,6 +29,9 @@ import { generateUniquePhone } from "../test-utils.js";
  *
  * 2. It answers 200 for an already-tombstoned account (a repeat call). The
  *    requirement is that the door works, not that it complains.
+ *
+ * 3. It refuses a token carrying `impersonating: true`, because such a
+ *    token's `sub` is the impersonated user, not the admin holding it.
  */
 describe("DELETE /api/users/me", () => {
   let app: FastifyInstance;
@@ -222,6 +225,46 @@ describe("DELETE /api/users/me", () => {
     });
     expect(second.statusCode).toBe(200);
     expect(JSON.parse(second.body)).toEqual({ success: true });
+  });
+
+  it("should refuse the delete while an admin is impersonating", async () => {
+    app = await buildApp();
+
+    const testUser = await createUser();
+    const admin = await createUser({ role: "admin" });
+
+    // Shaped as `adminService.startImpersonation` mints it: `sub` is the
+    // impersonated user, `adminId` the admin doing it.
+    const token = app.jwt.sign({
+      sub: testUser.id,
+      name: testUser.displayName,
+      adminId: admin.id,
+      impersonating: true,
+      jti: "impersonation-test",
+    });
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: "/api/users/me",
+      cookies: { auth_token: token },
+      payload: { confirm: "delete" },
+    });
+
+    expect(response.statusCode).toBe(403);
+
+    const body = JSON.parse(response.body);
+    expect(body.success).toBe(false);
+    expect(body.error.code).toBe("FORBIDDEN");
+
+    // The account the admin was looking at has to survive untouched.
+    const after = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, testUser.id))
+      .limit(1);
+
+    expect(after[0].deletedAt).toBeNull();
+    expect(after[0].phoneNumber).toBe(testUser.phoneNumber);
   });
 
   it("should appear in the OpenAPI spec", async () => {
