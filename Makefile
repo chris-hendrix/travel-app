@@ -1,4 +1,4 @@
-.PHONY: help install dev dev-api mockup mobile-web-export mobile-web-serve android-setup adb-reverse android-dev android-apk android-install android-logs android-emulator-start android-emulator-kill android-emulator-restart migrate seed studio generate up down clean reset-db test-up test-down test-exec test-run test-status test-setup test-clean
+.PHONY: help install dev dev-api mockup mobile-web-export mobile-web-serve ios-build ios-preview ios-sim ios-submit ios-credentials android-setup adb-reverse android-dev android-apk android-install android-logs android-emulator-start android-emulator-kill android-emulator-restart migrate seed studio generate up down clean reset-db test-up test-down test-exec test-run test-status test-setup test-clean
 
 .DEFAULT_GOAL := help
 
@@ -69,6 +69,31 @@ mobile-web-export: ## Build the Expo web export (apps/mobile dist/)
 
 mobile-web-serve: ## Serve the built Expo web export on the host (expo:8081)
 	cd apps/mobile && pnpm serve:web
+
+# The iOS loop for the Expo app (apps/mobile). Like the `mobile-web-*` pair
+# above, these targets run on the HOST, never in the devcontainer — the CLI
+# talks to EAS's cloud builders, so there is nothing local to be inside of.
+# There is no Mac in this loop: no `ios/` prebuild, no simulator, no Xcode.
+# Build IDs come back on stdout; keep the one you mean rather than guessing.
+ios-build: ## EAS cloud build for iOS (production profile → App Store/TestFlight .ipa)
+	cd apps/mobile && npx eas-cli build -p ios --profile production
+
+ios-preview: ## EAS cloud build for iOS (preview profile → ad-hoc .ipa, internal installs)
+	cd apps/mobile && npx eas-cli build -p ios --profile preview
+
+ios-sim: ## EAS cloud build for iOS (simulator profile → .app, no signing)
+	cd apps/mobile && npx eas-cli build -p ios --profile simulator
+
+# `eas submit --latest` uploads the newest iOS build for the platform, which
+# after an ad-hoc internal pass is the ad-hoc .ipa — the wrong artifact for a
+# review. Pass the build ID: BUILD_ID=<uuid> make ios-submit. And note that
+# `--profile` here names the SUBMIT profile in eas.json, not the build.
+ios-submit: ## Submit the given iOS build to App Store Connect (BUILD_ID=<uuid>)
+	@test -n "$(BUILD_ID)" || { echo 'BUILD_ID is required: BUILD_ID=<uuid> make ios-submit  (see: npx eas-cli build:list -p ios --profile production)'; exit 1; }
+	cd apps/mobile && npx eas-cli submit -p ios --id "$(BUILD_ID)"
+
+ios-credentials: ## Manage the iOS signing credentials held by EAS
+	cd apps/mobile && npx eas-cli credentials -p ios
 
 adb-reverse: ## Forward emulator ports to host (for Android emulator dev)
 	@ADB=$$(command -v adb 2>/dev/null || command -v adb.exe 2>/dev/null); \

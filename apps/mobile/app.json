@@ -32,6 +32,21 @@
         }
       ]
     },
+    "ios": {
+      "bundleIdentifier": "com.journiful.app",
+      "supportsTablet": false,
+      "buildNumber": "1",
+      "icon": "./assets/ios-icon.png",
+      "associatedDomains": [
+        "applinks:journiful.app"
+      ],
+      "config": {
+        "usesNonExemptEncryption": false
+      }
+    },
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
     "web": {
       "output": "static",
       "bundler": "metro",

@@ -119,6 +119,21 @@ merge to `main` is what ships, through Railway.
 | `AWS_SECRET_ACCESS_KEY` | Auto-set by Railway Storage Bucket preset |
 | `AWS_DEFAULT_REGION`    | Auto-set by Railway Storage Bucket preset |
 
+#### APNs (iOS push)
+
+| Variable            | Example                            | Notes                                                     |
+| ------------------- | ---------------------------------- | --------------------------------------------------------- |
+| `APNS_KEY_P8`       | (secret — the `.p8` key contents)  | One-line APNs auth key, issued by Apple                    |
+| `APNS_KEY_ID`       | `ABC1234567`                       | The key's id                                              |
+| `APNS_TEAM_ID`      | `XYZ123456`                        | The Apple Developer team                                   |
+| `APNS_BUNDLE_ID`    | `com.journiful.app`                | Must match the App ID / provisioning profile              |
+| `APNS_USE_SANDBOX`  | `false` (prod)                     | Sandbox tokens for development builds and the simulator   |
+| `REVIEW_PHONES`     | `+1555…,+1555…`                    | Comma-separated numbers the API may text for App Review  |
+
+`aps-environment` is **not** a setting here: it is derived from the provisioning
+profile the build is signed with. Development builds and the simulator get
+sandbox tokens; **ad-hoc, TestFlight and App Store builds get production ones.**
+
 #### Security / Networking
 
 | Variable               | Default        | Notes                                       |

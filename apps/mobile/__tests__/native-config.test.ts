@@ -14,6 +14,14 @@ describe("native config: the app.json keys the native build needs", () => {
       version: unknown;
       icon: unknown;
       web: { output: unknown };
+      ios?: {
+        bundleIdentifier: unknown;
+        supportsTablet: unknown;
+        buildNumber: unknown;
+        associatedDomains: string[];
+        config: { usesNonExemptEncryption: unknown };
+      };
+      infoPlist?: Record<string, unknown>;
       android: {
         package: unknown;
         versionCode: unknown;
@@ -113,9 +121,77 @@ describe("native config: the app.json keys the native build needs", () => {
     }
   });
 
-  it("keeps the web export static and ships no ios block", () => {
+  // The old assertion here was "ships no ios block": the web export is the
+  // only shipped surface, and an `ios` key nobody builds is a promise the
+  // repo does not keep. That is exactly what changes — the iOS app is now a
+  // built and uploaded surface, so the config states it. The web export stays
+  // static; what moved is the other half of the assertion.
+  //
+  // `buildNumber` is the config's own baseline for where the count starts,
+  // not the number that reaches TestFlight: with `cli.appVersionSource:
+  // "remote"` EAS owns the build number it stamps, and this value only has to
+  // exist so the config is complete on its own.
+  it("declares the ios block the App Store build needs", () => {
     expect(appJson.expo.web.output).toBe("static");
-    expect(appJson.expo).not.toHaveProperty("ios");
+    const ios = appJson.expo.ios!;
+    expect(ios.bundleIdentifier).toBe("com.journiful.app");
+    expect(ios.supportsTablet).toBe(false);
+    expect(ios.buildNumber).toBeTruthy();
+    expect(ios.associatedDomains).toContain("applinks:journiful.app");
+    // `usesNonExemptEncryption` is the supported field and writes
+    // ITSAppUsesNonExemptEncryption into the built plist, which is what keeps
+    // App Store Connect from asking for export-compliance documents.
+    expect(ios.config.usesNonExemptEncryption).toBe(false);
+  });
+
+  // The plist key is asserted on the *plugin*, not on a duplicated
+  // `infoPlist` entry: `expo-image-picker` is what writes
+  // NSPhotoLibraryUsageDescription into the built plist, and a second copy in
+  // `infoPlist` is a string that drifts from the plugin it claims to mirror.
+  it("carries the photo library permission on the plugin that writes it", () => {
+    const plugins = appJson.expo.plugins as Array<unknown>;
+    const picker = plugins.find(
+      (p) => Array.isArray(p) && p[0] === "expo-image-picker",
+    ) as [string, { photosPermission?: string }];
+    expect(picker, "expo-image-picker plugin registered").toBeDefined();
+    expect(picker[1].photosPermission).toEqual(expect.any(String));
+    expect(picker[1].photosPermission!.length).toBeGreaterThan(0);
+    const infoPlist = appJson.expo.infoPlist ?? {};
+    expect(
+      infoPlist,
+      "infoPlist does not duplicate NSPhotoLibraryUsageDescription",
+    ).not.toHaveProperty("NSPhotoLibraryUsageDescription");
+  });
+
+  // The update layer lives *inside* the binary: a build shipped without
+  // expo-updates can never receive an update, and adding it after the first
+  // store build costs a review cycle. The fingerprint policy is what makes an
+  // update safe — a native change changes the fingerprint and cannot be
+  // delivered as JS, which is the whole enforcement.
+  //
+  // The three *shipping* profiles are asserted by name. The `simulator`
+  // profile is an availability gate (it proves the prebuild configures), not
+  // an update target, so it is deliberately exempt.
+  it("carries the update layer and a channel per shipping profile", () => {
+    const { expo } = appJson as unknown as {
+      expo: { runtimeVersion?: unknown; updates?: unknown };
+    };
+    expect(expo.runtimeVersion).toEqual({ policy: "fingerprint" });
+
+    const pkg = readJson("package.json") as {
+      dependencies: Record<string, string>;
+    };
+    expect(pkg.dependencies).toHaveProperty("expo-updates");
+
+    const eas = readJson("eas.json") as {
+      build: Record<string, { channel?: string }>;
+    };
+    for (const profile of ["development", "preview", "production"]) {
+      expect(eas.build[profile], `${profile} profile exists`).toBeDefined();
+      expect(eas.build[profile]!.channel, `${profile} names a channel`).toEqual(
+        expect.any(String),
+      );
+    }
   });
 
   it("gitignores prebuild output and the untracked client secret", () => {
