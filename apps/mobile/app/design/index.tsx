@@ -206,7 +206,8 @@ const COLORS: Array<[name: string, token: string, detail: string, swatch: string
  * ramp paints one size in the browser and another on Android — the
  * measure-vs-paint split this repo has already been bitten by (A18).
  * `display-lg` is the one step with a breakpoint jump, the `md:` one it
- * already had.
+ * already had. The landing hero does not take it: the jump is the step's,
+ * not the hero's.
  */
 const TYPE: Array<{
   step: string;
@@ -231,7 +232,7 @@ const TYPE: Array<{
     className:
       "font-display-black text-[60px] leading-[0.9] tracking-[-0.02em] uppercase md:text-[72px]",
     sample: "Group trips",
-    use: "The landing hero, and nothing else. Two words.",
+    use: "The landing hero, and nothing else: a seven-word sentence.",
   },
   {
     step: "display-md",
@@ -281,7 +282,7 @@ const TYPE: Array<{
     face: "body",
     family: "Space Mono Bold",
     className: "font-body-bold text-[20px] leading-[1.15]",
-    sample: "What goes in the trip",
+    sample: "What you do",
     use: "A subheading — the body face, not the display one.",
   },
   {
@@ -526,10 +527,26 @@ function DesignSystemScreen() {
               contract="title · rule? · children?"
               note="A titled block, ruled off from the one above it. The rule sits on top of the block rather than under it, so a stack of them shares its rules instead of doubling them at every boundary. It replaced four local copies that had already drifted apart on gap and heading size. The landing's sections are deliberately not this: they are tables of rows closed by a rule underneath, at the hero's own scale. `rule={false}` is for a block whose boundary is already drawn — the first block inside a `Band`, where the band's own edge is the seam — and it drops the rule *and* its padding, because the air above a banded block belongs to the band. Two marks for one boundary is what the rule book forbids \u2014 one rule per boundary, a stack of blocks shares rules rather than doubling them at every seam. A screen that never needs it is the honest case for leaving this specimen behind."
             >
-              <RuledSection title="What goes in the trip">
+              <RuledSection title="What your friends do">
                 <Text className="font-body text-base text-ink">
                   Ruled off from whatever sits above it.
                 </Text>
+              </RuledSection>
+            </Specimen>
+
+            <Specimen
+              name="Section · marker-less row"
+              contract="title · rule? · children?"
+              note="A titled block whose single row carries no icon and no number: one paragraph inside `RuledRows`, read down rather than across. The landing's two lists are this form — what the organizer does, then what the friends do — each a `Section` with one such row. The row keeps the table's soft rule above it and the block's ink rule above the heading, so a stack of these shares its boundaries instead of doubling them."
+            >
+              <RuledSection title="What you do">
+                <RuledRows>
+                  <View className="py-5">
+                    <Text className="font-body text-sm leading-snug text-ink">
+                      Name the trip. Pick the dates and the place. Send the text.
+                    </Text>
+                  </View>
+                </RuledRows>
               </RuledSection>
             </Specimen>
 
@@ -1544,6 +1561,9 @@ function DesignSystemScreen() {
           </Text>
           <Link href="/" className="font-body-bold text-base text-ink underline">
             Landing
+          </Link>
+          <Link href="/demo" className="font-body-bold text-base text-ink underline">
+            Demo
           </Link>
           <Link href="/login" className="font-body-bold text-base text-ink underline">
             Sign in
