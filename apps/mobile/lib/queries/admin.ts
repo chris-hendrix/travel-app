@@ -39,6 +39,7 @@ import {
 } from "@tanstack/react-query";
 import type { InfiniteData } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
+import type { ReportReason } from "@journiful/shared/schemas";
 import {
   listQuery,
   type AdminAction,
@@ -66,8 +67,31 @@ export type AdminUserRow = {
   updatedAt: string;
 };
 
-/** The detail read carries the same fields as the list row. */
-export type AdminUserDetailRow = AdminUserRow;
+/**
+ * Mirrors `userReportSchema` (`shared/schemas/moderation.ts`) as it
+ * arrives over JSON: `createdAt` is an ISO string, not a `Date`. The
+ * reason is the shared vocabulary, not a bare string.
+ */
+export type AdminUserReportRow = {
+  id: string;
+  reporterId: string;
+  reportedId: string;
+  tripId: string | null;
+  reason: ReportReason;
+  note: string | null;
+  status: "open" | "reviewed" | "actioned" | "dismissed";
+  createdAt: string;
+};
+
+/**
+ * The detail read carries the list row's fields plus the reports still
+ * open against this user, newest first. The list row does NOT: the API's
+ * list response has no such field, and one query per paged row would be
+ * the wrong price for it.
+ */
+export type AdminUserDetailRow = AdminUserRow & {
+  openReports: AdminUserReportRow[];
+};
 
 /** Mirrors `adminUserListResponseSchema` minus the envelope. */
 export type AdminUsersPage = {

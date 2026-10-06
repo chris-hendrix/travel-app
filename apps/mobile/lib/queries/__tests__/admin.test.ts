@@ -168,7 +168,7 @@ describe("fetchAdminUser", () => {
     mockedApiFetch.mockReset();
     mockedApiFetch.mockResolvedValue({
       success: true,
-      user: { id: "u1", tripCount: 3 },
+      user: { id: "u1", tripCount: 3, openReports: [] },
     });
 
     await expect(fetchAdminUser("u1")).resolves.toMatchObject({
@@ -176,6 +176,31 @@ describe("fetchAdminUser", () => {
       tripCount: 3,
     });
     expect(mockedApiFetch).toHaveBeenCalledWith("/admin/users/u1");
+  });
+
+  it("hands back the open reports the detail read carries", async () => {
+    // The detail row and the list row stopped being the same type when
+    // `openReports` arrived. This pins that the read passes them through
+    // untouched rather than dropping or reshaping them.
+    mockedApiFetch.mockReset();
+    const report = {
+      id: "r1",
+      reporterId: "u2",
+      reportedId: "u1",
+      tripId: null,
+      reason: "harassment",
+      note: "Kept messaging after being asked to stop.",
+      status: "open",
+      createdAt: "2026-09-30T10:00:00.000Z",
+    };
+    mockedApiFetch.mockResolvedValue({
+      success: true,
+      user: { id: "u1", tripCount: 3, openReports: [report] },
+    });
+
+    await expect(fetchAdminUser("u1")).resolves.toMatchObject({
+      openReports: [report],
+    });
   });
 
   it("lets a 403 surface as ApiError with status 403", async () => {

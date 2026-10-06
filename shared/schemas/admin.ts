@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { userReportSchema } from "./moderation";
 
 // Query params for listing users
 export const adminListUsersQuerySchema = z.object({
@@ -50,10 +51,17 @@ export const adminUserWithTripCountSchema = adminUserResponseSchema.extend({
   tripCount: z.number().int().nonnegative(),
 });
 
-// Admin user detail response (with trip count)
+// The detail row adds what only one screen needs: the reports still open
+// against this user. The list keeps `adminUserWithTripCountSchema`, because
+// a paged scan must not run a report query per row.
+export const adminUserDetailSchema = adminUserWithTripCountSchema.extend({
+  openReports: z.array(userReportSchema),
+});
+
+// Admin user detail response (with trip count and open reports)
 export const adminUserDetailResponseSchema = z.object({
   success: z.literal(true),
-  user: adminUserWithTripCountSchema,
+  user: adminUserDetailSchema,
 });
 
 // Admin user list response

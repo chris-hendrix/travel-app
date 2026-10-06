@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { users, members, blacklistedTokens, type User } from "@/db/schema/index.js";
+import { users, members, blacklistedTokens, userReports, type User, type UserReport } from "@/db/schema/index.js";
 import type { AppDatabase } from "@/types/index.js";
 import { eq, or, ilike, count, and, desc, inArray } from "drizzle-orm";
 import { auditLog } from "@/utils/audit.js";
@@ -10,8 +10,17 @@ import {
   AdminSelfActionError,
 } from "../errors.js";
 
-export interface AdminUserDetail extends User {
+/**
+ * A user row with a trip count. The list returns these and nothing more:
+ * a paged scan must not run a report query per row.
+ */
+export interface AdminUserRow extends User {
   tripCount: number;
+}
+
+export interface AdminUserDetail extends AdminUserRow {
+  /** Reports still open against this user, newest first. Detail only. */
+  openReports: UserReport[];
 }
 
 export interface IAdminService {
@@ -21,7 +30,7 @@ export interface IAdminService {
     role?: string | undefined;
     page: number;
     limit: number;
-  }): Promise<{ users: AdminUserDetail[]; total: number }>;
+  }): Promise<{ users: AdminUserRow[]; total: number }>;
 
   getUserDetail(userId: string): Promise<AdminUserDetail | null>;
 
@@ -75,7 +84,7 @@ export class AdminService implements IAdminService {
     role?: string | undefined;
     page: number;
     limit: number;
-  }): Promise<{ users: AdminUserDetail[]; total: number }> {
+  }): Promise<{ users: AdminUserRow[]; total: number }> {
     const { search, status, role, page, limit } = params;
     const offset = (page - 1) * limit;
 
@@ -150,14 +159,26 @@ export class AdminService implements IAdminService {
     const user = result[0];
     if (!user) return null;
 
-    const tripCountResult = await this.db
-      .select({ count: count() })
-      .from(members)
-      .where(eq(members.userId, userId));
+    const [tripCountResult, openReports] = await Promise.all([
+      this.db
+        .select({ count: count() })
+        .from(members)
+        .where(eq(members.userId, userId)),
+      // Only what is still open. A report nobody acts on is noise on the
+      // screen the admin reads, and the list query stays report-free.
+      this.db
+        .select()
+        .from(userReports)
+        .where(
+          and(eq(userReports.reportedId, userId), eq(userReports.status, "open")),
+        )
+        .orderBy(desc(userReports.createdAt)),
+    ]);
 
     return {
       ...user,
       tripCount: tripCountResult[0]?.count ?? 0,
+      openReports,
     };
   }
 

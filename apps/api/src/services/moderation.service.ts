@@ -1,5 +1,5 @@
-import { and, eq, or } from "drizzle-orm";
-import { userBlocks, userReports } from "@/db/schema/index.js";
+import { and, desc, eq, or } from "drizzle-orm";
+import { userBlocks, userReports, users } from "@/db/schema/index.js";
 import type { UserReport } from "@/db/schema/index.js";
 import type { AppDatabase } from "@/types/index.js";
 import { CannotModerateSelfError } from "@/errors.js";
@@ -40,7 +40,33 @@ export function withoutBlocked<T extends { userId: string | null }>(
   return recipients.filter((r) => r.userId === null || !blocked.has(r.userId));
 }
 
-export class ModerationService {
+export interface IModerationService {
+  blockUser(blockerId: string, blockedId: string): Promise<void>;
+
+  unblockUser(blockerId: string, blockedId: string): Promise<void>;
+
+  reportUser(input: {
+    reporterId: string;
+    reportedId: string;
+    tripId?: string | null;
+    reason: "spam" | "harassment" | "impersonation" | "other";
+    note?: string | null;
+  }): Promise<UserReport>;
+
+  isBlocked(aId: string, bId: string): Promise<boolean>;
+
+  listBlockedBy(userId: string): Promise<string[]>;
+
+  listBlockedWithProfiles(userId: string): Promise<
+    {
+      userId: string;
+      displayName: string;
+      profilePhotoUrl: string | null;
+    }[]
+  >;
+}
+
+export class ModerationService implements IModerationService {
   constructor(private db: AppDatabase) {}
 
   /**
@@ -139,5 +165,30 @@ export class ModerationService {
       .where(eq(userBlocks.blockerId, userId));
 
     return rows.map((r) => r.blockedId);
+  }
+
+  /**
+   * The people `userId` has blocked, with enough profile to render a row.
+   * `listBlockedBy` answers the id question; a screen needs the name.
+   */
+  async listBlockedWithProfiles(userId: string): Promise<
+    {
+      userId: string;
+      displayName: string;
+      profilePhotoUrl: string | null;
+    }[]
+  > {
+    const rows = await this.db
+      .select({
+        userId: userBlocks.blockedId,
+        displayName: users.displayName,
+        profilePhotoUrl: users.profilePhotoUrl,
+      })
+      .from(userBlocks)
+      .innerJoin(users, eq(userBlocks.blockedId, users.id))
+      .where(eq(userBlocks.blockerId, userId))
+      .orderBy(desc(userBlocks.createdAt));
+
+    return rows;
   }
 }

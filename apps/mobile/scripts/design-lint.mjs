@@ -590,8 +590,19 @@ checkBandsAreFullBleed();
  * before and after" table, chrome edges and named exceptions included. The 14
  * is a miscount; the ratchet is seeded on the measurement, because the check
  * is the authority and the plan is a record of one run.)
+ *
+ * **Raised 42 to 44, 2026-09, for the admin user record's reports block.**
+ * That is a `Section` plus one `RuledBlock` inside a `.map`, which is the
+ * same two sites `AdminUserActions` spends on the same screen's own
+ * `Manage` section. It is a net addition and not a moved mark: the admin
+ * record gained a section it did not have, because a report nobody can read
+ * is a report nobody files. Raised deliberately rather than side-stepped
+ * with `rule={false}`, because nothing above that block is already its
+ * boundary — the screen is a plain gap stack, not a band. The ratchet's
+ * job is to notice a person choosing a mark; this one was chosen on
+ * purpose, and the number moved with it.
  */
-const RULE_CENSUS_MAX = 42;
+const RULE_CENSUS_MAX = 44;
 
 /**
  * Every string literal with its offset. `classLiterals` (check 4) hands back

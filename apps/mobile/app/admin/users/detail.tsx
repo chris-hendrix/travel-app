@@ -22,6 +22,7 @@ import {
   adminActionsFor,
   pendingLabel,
   plural,
+  reportReasonLabel,
   type AdminAction,
 } from "@/lib/admin";
 import { joinedDay } from "@/lib/dateRange";
@@ -32,6 +33,7 @@ import {
   userAction,
   type AdminUserAction,
   type AdminUserDetailRow,
+  type AdminUserReportRow,
 } from "@/lib/queries/admin";
 import {
   UNITS,
@@ -318,6 +320,7 @@ function AdminUserDetail({
           </View>
         )}
       </RuledBlock>
+      <AdminUserReports reports={user.openReports} />
       <AdminUserActions
         user={user}
         viewerId={viewer?.id}
@@ -325,6 +328,63 @@ function AdminUserDetail({
         onConfirmChange={setConfirm}
       />
     </View>
+  );
+}
+
+/**
+ * The reports still open against this user, one block each.
+ *
+ * Renders nothing at all when there are none: a heading over nothing is
+ * a heading that says the admin is looking at a clean account, which is
+ * a claim the screen has not earned.
+ *
+ * The reporter is the report's `reporterId`, in full. The detail payload
+ * carries no `reporterName` — the missing field is named here, and the
+ * id is worth showing whole rather than abbreviated because the admin
+ * user list takes an exact UUID in its search, so the row an admin
+ * needs is one paste away.
+ */
+function AdminUserReports({
+  reports,
+}: {
+  reports: AdminUserReportRow[];
+}) {
+  if (reports.length === 0) return null;
+
+  return (
+    <Section title="Reports">
+      {reports.map((report, index) => (
+        <RuledBlock key={report.id} rule={index !== 0}>
+          <View className="gap-3">
+            <Fact label="Reason">
+              <Text className="font-body text-base text-ink">
+                {reportReasonLabel(report.reason)}
+              </Text>
+            </Fact>
+            <Fact label="Made">
+              {/* The day only, read the way `Joined` above is read:
+                  two admins looking at the same account have to be
+                  told the same day. */}
+              <Text className="font-body text-base text-ink">
+                {joinedDay(report.createdAt)}
+              </Text>
+            </Fact>
+            {report.note ? (
+              <Fact label="Note">
+                <Text className="font-body text-base text-ink">
+                  {report.note}
+                </Text>
+              </Fact>
+            ) : null}
+            <Fact label="Reported by">
+              <Text className="font-body text-base text-ink">
+                {report.reporterId}
+              </Text>
+            </Fact>
+          </View>
+        </RuledBlock>
+      ))}
+    </Section>
   );
 }
 

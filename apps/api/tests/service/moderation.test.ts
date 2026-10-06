@@ -165,7 +165,13 @@ describe("moderation.service (Task 31)", () => {
       await moderation.blockUser(blockerId, blockedId);
       await moderation.blockUser(blockerId, blockedId);
 
-      const rows = await db.select().from(userBlocks);
+      // Scoped to this test's blocker, never the whole table: the suite
+      // shares one database and another file's blocks are not this
+      // file's evidence.
+      const rows = await db
+        .select()
+        .from(userBlocks)
+        .where(eq(userBlocks.blockerId, blockerId));
       expect(rows).toHaveLength(1);
       expect(rows[0]!.blockerId).toBe(blockerId);
       expect(rows[0]!.blockedId).toBe(blockedId);
@@ -184,12 +190,22 @@ describe("moderation.service (Task 31)", () => {
 
       await moderation.unblockUser(blockerId, blockedId);
       expect(await moderation.isBlocked(blockerId, blockedId)).toBe(false);
-      expect(await db.select().from(userBlocks)).toHaveLength(0);
+      expect(
+        await db
+          .select()
+          .from(userBlocks)
+          .where(eq(userBlocks.blockerId, blockerId)),
+      ).toHaveLength(0);
     });
 
     it("refuses to block yourself and writes nothing", async () => {
       await expect(moderation.blockUser(blockerId, blockerId)).rejects.toThrow();
-      expect(await db.select().from(userBlocks)).toHaveLength(0);
+      expect(
+        await db
+          .select()
+          .from(userBlocks)
+          .where(eq(userBlocks.blockerId, blockerId)),
+      ).toHaveLength(0);
     });
   });
 
@@ -435,7 +451,12 @@ describe("moderation.service (Task 31)", () => {
           reason: "other",
         }),
       ).rejects.toThrow();
-      expect(await db.select().from(userReports)).toHaveLength(0);
+      expect(
+        await db
+          .select()
+          .from(userReports)
+          .where(eq(userReports.reporterId, blockerId)),
+      ).toHaveLength(0);
     });
   });
 });
