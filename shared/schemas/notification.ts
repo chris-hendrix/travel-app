@@ -100,6 +100,12 @@ export const pushSubscribeSchema = z.preprocess(
       platform: z.enum(["android", "ios"]),
       userAgent: z.string().optional(),
     }),
+    z.object({
+      token: z.string().min(1),
+      provider: z.literal("apns"),
+      platform: z.literal("ios"),
+      userAgent: z.string().optional(),
+    }),
   ]),
 );
 
@@ -111,6 +117,10 @@ export const pushUnsubscribeSchema = z.discriminatedUnion("provider", [
   }),
   z.object({
     provider: z.literal("fcm"),
+    token: z.string().min(1),
+  }),
+  z.object({
+    provider: z.literal("apns"),
     token: z.string().min(1),
   }),
 ]);

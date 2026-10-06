@@ -4,6 +4,7 @@ import { buildApp } from "../helpers.js";
 import { db } from "@/config/database.js";
 import { users } from "@/db/schema/index.js";
 import { generateUniquePhone } from "../test-utils.js";
+import { unescapePem } from "@/config/env.js";
 
 describe("Config Flags & Improvements", () => {
   let app: FastifyInstance;
@@ -48,6 +49,48 @@ describe("Config Flags & Improvements", () => {
 
       // In test environment (NODE_ENV=test), this defaults to true (not production)
       expect(app.config.ENABLE_FIXED_VERIFICATION_CODE).toBe(true);
+    });
+  });
+
+  describe("APNs Environment Variables", () => {
+    it("should default the APNs credential variables to empty strings", async () => {
+      app = await buildApp();
+
+      expect(app.config.APNS_KEY_P8).toBe("");
+      expect(app.config.APNS_KEY_ID).toBe("");
+      expect(app.config.APNS_TEAM_ID).toBe("");
+    });
+
+    it("should default APNS_BUNDLE_ID to com.journiful.app", async () => {
+      app = await buildApp();
+
+      expect(app.config.APNS_BUNDLE_ID).toBe("com.journiful.app");
+    });
+
+    it("should coerce APNS_USE_SANDBOX to a boolean defaulting to true outside production", async () => {
+      app = await buildApp();
+
+      expect(typeof app.config.APNS_USE_SANDBOX).toBe("boolean");
+      // NODE_ENV=test is not production, so the dev default (sandbox) applies.
+      expect(app.config.APNS_USE_SANDBOX).toBe(true);
+    });
+
+    it("should unescape a newline-escaped PEM on read", () => {
+      const escaped = "-----BEGIN PRIVATE KEY-----\\nMIIEvQIBADANBg\\n-----END PRIVATE KEY-----\\n";
+      const unescaped = unescapePem(escaped);
+
+      expect(unescaped.startsWith("-----BEGIN PRIVATE KEY-----\n")).toBe(true);
+      expect(unescaped).not.toContain("\\n");
+      expect(unescaped.endsWith("-----END PRIVATE KEY-----\n")).toBe(true);
+    });
+
+    it("should leave an already-literal PEM untouched", () => {
+      const literal = "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBg\n-----END PRIVATE KEY-----\n";
+      expect(unescapePem(literal)).toBe(literal);
+    });
+
+    it("should return an empty string for an unset PEM", () => {
+      expect(unescapePem("")).toBe("");
     });
   });
 

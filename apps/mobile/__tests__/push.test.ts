@@ -105,6 +105,74 @@ describe("push client: the Android channel", () => {
   });
 });
 
+describe("push client: the provider follows the platform", () => {
+  async function asPlatform(os: string) {
+    const { Platform } = await import("react-native");
+    Object.defineProperty(Platform, "OS", { value: os, configurable: true });
+    return () =>
+      Object.defineProperty(Platform, "OS", {
+        value: "android",
+        configurable: true,
+      });
+  }
+
+  it("posts provider apns / platform ios on iOS", async () => {
+    const restore = await asPlatform("ios");
+    try {
+      mockGetPermissions.mockResolvedValue({ status: "granted" });
+      mockToken.mockResolvedValue({ data: "apns-token-1" });
+      mockApiFetch.mockResolvedValue(undefined);
+      expect(await registerForPush()).toBe("apns-token-1");
+      const body = JSON.parse(mockApiFetch.mock.calls[0]![1].body);
+      expect(body).toMatchObject({
+        token: "apns-token-1",
+        provider: "apns",
+        platform: "ios",
+      });
+    } finally {
+      restore();
+    }
+  });
+
+  it("never creates a channel on iOS", async () => {
+    const restore = await asPlatform("ios");
+    try {
+      mockGetPermissions.mockResolvedValue({ status: "granted" });
+      mockToken.mockResolvedValue({ data: "apns-token-2" });
+      mockApiFetch.mockResolvedValue(undefined);
+      await registerForPush();
+      expect(mockChannel).not.toHaveBeenCalled();
+      expect(mockDeleteChannel).not.toHaveBeenCalled();
+    } finally {
+      restore();
+    }
+  });
+
+  it("deletes with the provider it registered with", async () => {
+    const restore = await asPlatform("ios");
+    try {
+      mockApiFetch.mockResolvedValue(undefined);
+      await unregisterPush("apns-token-1");
+      expect(mockApiFetch).toHaveBeenCalledWith(
+        "/push/subscribe",
+        expect.objectContaining({
+          method: "DELETE",
+          body: JSON.stringify({ provider: "apns", token: "apns-token-1" }),
+        }),
+      );
+    } finally {
+      restore();
+    }
+  });
+
+  it("deletes with fcm on android", async () => {
+    mockApiFetch.mockResolvedValue(undefined);
+    await unregisterPush("fcm-token-1");
+    const body = JSON.parse(mockApiFetch.mock.calls[0]![1].body);
+    expect(body.provider).toBe("fcm");
+  });
+});
+
 describe("push client: registration lifecycle", () => {
   it("denied permission registers nothing and returns null", async () => {
     mockGetPermissions.mockResolvedValue({ status: "denied" });

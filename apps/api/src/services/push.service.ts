@@ -6,6 +6,7 @@ import { pushSubscriptions } from "@/db/schema/index.js";
 import type { AppDatabase } from "@/types/index.js";
 import type { PushPayload } from "@journiful/shared/types";
 import type { Logger } from "@/types/logger.js";
+import type { ApnsService } from "./apns.service.js";
 
 /**
  * Push Service Interface
@@ -19,7 +20,7 @@ export interface IPushService {
       keys?: { p256dh: string; auth: string };
       token?: string;
       platform: "ios" | "android" | "web";
-      provider: "vapid" | "fcm";
+      provider: "vapid" | "fcm" | "apns";
     },
     userAgent?: string,
   ): Promise<void>;
@@ -41,6 +42,7 @@ export class PushService implements IPushService {
     vapidPrivateKey: string,
     vapidSubject: string,
     firebaseServiceAccount?: string,
+    private apnsOpts?: { apns: ApnsService },
   ) {
     let vapidConfigured = false;
     if (vapidPublicKey && vapidPrivateKey) {
@@ -68,7 +70,8 @@ export class PushService implements IPushService {
       }
     }
 
-    this.enabled = vapidConfigured || this.admin !== null;
+    this.enabled =
+      vapidConfigured || this.admin !== null || this.apnsOpts?.apns.isEnabled === true;
     if (!this.enabled) {
       this.logger.info(
         "VAPID keys not configured — push notifications disabled",
@@ -83,17 +86,17 @@ export class PushService implements IPushService {
       keys?: { p256dh: string; auth: string };
       token?: string;
       platform: "ios" | "android" | "web";
-      provider: "vapid" | "fcm";
+      provider: "vapid" | "fcm" | "apns";
     },
     userAgent?: string,
   ): Promise<void> {
-    if (sub.provider === "fcm") {
+    if (sub.provider === "fcm" || sub.provider === "apns") {
       // For FCM, use a synthetic endpoint to satisfy the unique constraint
       await this.db
         .insert(pushSubscriptions)
         .values({
           userId,
-          endpoint: `fcm:${sub.token}`,
+          endpoint: `${sub.provider}:${sub.token}`,
           p256dh: "",
           auth: "",
           token: sub.token!,
@@ -168,7 +171,10 @@ export class PushService implements IPushService {
       .where(eq(pushSubscriptions.userId, userId));
 
     const fcmSubs = subs.filter((s) => s.provider === "fcm" && s.token);
-    const vapidSubs = subs.filter((s) => s.provider !== "fcm" || !s.token);
+    const apnsSubs = subs.filter((s) => s.provider === "apns" && s.token);
+    const vapidSubs = subs.filter(
+      (s) => (s.provider !== "fcm" && s.provider !== "apns") || !s.token,
+    );
 
     // Send via FCM
     for (const sub of fcmSubs) {
@@ -207,6 +213,18 @@ export class PushService implements IPushService {
             );
           }
         }
+      }
+    }
+
+    // Send via APNs
+    for (const sub of apnsSubs) {
+      try {
+        await this.apnsOpts?.apns.sendToToken(sub.token!, payload);
+      } catch (err: unknown) {
+        this.logger.error(
+          { err, token: sub.token },
+          "APNs delivery failed",
+        );
       }
     }
 

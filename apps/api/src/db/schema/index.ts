@@ -723,7 +723,9 @@ export const pushSubscriptions = pgTable(
     auth: text("auth").notNull(),
     token: text("token"),
     platform: text("platform", { enum: ["ios", "android", "web"] }),
-    provider: text("provider", { enum: ["vapid", "fcm"] })
+    // "apns" is the iOS device-token provider. The column is `text`, so this
+    // widening is type-only and needs no migration.
+    provider: text("provider", { enum: ["vapid", "fcm", "apns"] })
       .notNull()
       .default("vapid"),
     userAgent: text("user_agent"),

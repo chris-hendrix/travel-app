@@ -4,6 +4,15 @@ import { config } from "dotenv";
 // Load environment variables (.env.local takes precedence over .env)
 config({ path: [".env.local", ".env"], quiet: true });
 
+/**
+ * Restore literal newlines in a PEM that was stored `\n`-escaped. An already
+ * literal PEM is returned unchanged; an unset value stays an empty string.
+ */
+export function unescapePem(value: string): string {
+  if (!value) return "";
+  return value.includes("\\n") ? value.replace(/\\n/g, "\n") : value;
+}
+
 const envSchema = z.object({
   // Server Configuration
   NODE_ENV: z
@@ -90,6 +99,20 @@ const envSchema = z.object({
     .default(process.env.NODE_ENV !== "production" ? "true" : "false")
     .transform((v) => v === "true" || v === "1"),
 
+  // App Review sign-in allowlist: comma-separated phone numbers that can
+  // complete sign-in with the fixed code and no Twilio call. Unlike
+  // ENABLE_FIXED_VERIFICATION_CODE this is safe in production — it only
+  // affects the numbers named here.
+  REVIEW_PHONES: z
+    .string()
+    .default("")
+    .transform((v) =>
+      v
+        .split(",")
+        .map((p) => p.trim())
+        .filter((p) => p.length > 0),
+    ),
+
   // Logging
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace"])
@@ -127,6 +150,18 @@ const envSchema = z.object({
 
   // Firebase Admin SDK for FCM push delivery (optional — JSON service account)
   FIREBASE_SERVICE_ACCOUNT: z.string().default(""),
+
+  // Apple Push Notification service (optional — iOS delivery disabled if unset).
+  // APNS_KEY_P8 may arrive with `\n`-escaped newlines (dashes/variables are
+  // single-line), so it is unescaped on read.
+  APNS_KEY_P8: z.string().default("").transform(unescapePem),
+  APNS_KEY_ID: z.string().default(""),
+  APNS_TEAM_ID: z.string().default(""),
+  APNS_BUNDLE_ID: z.string().default("com.journiful.app"),
+  APNS_USE_SANDBOX: z
+    .enum(["true", "false", "1", "0", ""])
+    .default(process.env.NODE_ENV === "production" ? "false" : "true")
+    .transform((v) => v === "true" || v === "1"),
 
   // AeroDataBox Flight Lookup (optional)
   AERODATABOX_API_KEY: z.string().default(""),

@@ -2,6 +2,12 @@ import Twilio from "twilio";
 import type { Logger } from "@/types/logger.js";
 
 /**
+ * The one fixed code, shared by MockVerificationService and the App Review
+ * allowlist so the two never drift apart.
+ */
+export const FIXED_VERIFICATION_CODE = "123456";
+
+/**
  * Verification Service Interface
  * Defines the contract for sending and checking verification codes.
  * Replaces the old ISMSService + AuthService code generation/storage flow.
@@ -71,6 +77,57 @@ export class TwilioVerificationService implements IVerificationService {
 }
 
 /**
+ * ReviewAllowlist Verification Service
+ *
+ * Wraps another IVerificationService so that a small, explicitly configured set
+ * of phone numbers (REVIEW_PHONES) can complete sign-in with the fixed code
+ * without any Twilio call. This is what lets an Apple App Review sign-in run
+ * against production without a real SIM or a Twilio Verify service.
+ *
+ * This is NOT the same mechanism as ENABLE_FIXED_VERIFICATION_CODE. That flag
+ * swaps in MockVerificationService for every number and is forbidden in
+ * production; the allowlist is safe in production because it only affects the
+ * numbers named in REVIEW_PHONES.
+ */
+export class ReviewAllowlistVerificationService implements IVerificationService {
+  private inner: IVerificationService;
+  private allowlist: Set<string>;
+  private logger: Logger | undefined;
+
+  constructor(
+    inner: IVerificationService,
+    reviewPhones: string[],
+    logger?: Logger,
+  ) {
+    this.inner = inner;
+    this.allowlist = new Set(reviewPhones);
+    this.logger = logger;
+  }
+
+  private isAllowlisted(phoneNumber: string): boolean {
+    return this.allowlist.has(phoneNumber);
+  }
+
+  async sendCode(phoneNumber: string): Promise<void> {
+    if (this.isAllowlisted(phoneNumber)) {
+      this.logger?.info(
+        { phoneNumber },
+        `App Review allowlist: code not sent, use ${FIXED_VERIFICATION_CODE}`,
+      );
+      return;
+    }
+    await this.inner.sendCode(phoneNumber);
+  }
+
+  async checkCode(phoneNumber: string, code: string): Promise<boolean> {
+    if (this.isAllowlisted(phoneNumber)) {
+      return code === FIXED_VERIFICATION_CODE;
+    }
+    return this.inner.checkCode(phoneNumber, code);
+  }
+}
+
+/**
  * Mock Verification Service Implementation
  * Uses a fixed code (123456) for development and testing.
  * No database or external service required.
@@ -83,10 +140,13 @@ export class MockVerificationService implements IVerificationService {
   }
 
   async sendCode(phoneNumber: string): Promise<void> {
-    this.logger?.info({ phoneNumber }, "Mock verification code: 123456");
+    this.logger?.info(
+      { phoneNumber },
+      `Mock verification code: ${FIXED_VERIFICATION_CODE}`,
+    );
   }
 
   async checkCode(_phoneNumber: string, code: string): Promise<boolean> {
-    return code === "123456";
+    return code === FIXED_VERIFICATION_CODE;
   }
 }

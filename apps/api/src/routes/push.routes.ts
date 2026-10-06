@@ -52,13 +52,13 @@ export async function pushRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const userId = request.user.sub;
       const body = request.body;
-      if (body.provider === "fcm") {
+      if (body.provider === "fcm" || body.provider === "apns") {
         await fastify.pushService.addSubscription(
           userId,
           {
             token: body.token,
             platform: body.platform,
-            provider: "fcm",
+            provider: body.provider,
           },
           body.userAgent,
         );
@@ -92,8 +92,12 @@ export async function pushRoutes(fastify: FastifyInstance) {
     },
     async (request) => {
       const body = request.body;
+      // Only the vapid arm carries an endpoint; fcm and apns are stored under a
+      // synthetic `apns:<token>` / `fcm:<token>` key.
       const endpoint =
-        body.provider === "fcm" ? `fcm:${body.token}` : body.endpoint;
+        body.provider === "vapid"
+          ? body.endpoint
+          : `${body.provider}:${body.token}`;
       await fastify.pushService.removeSubscription(endpoint, request.user.sub);
       return { success: true };
     },

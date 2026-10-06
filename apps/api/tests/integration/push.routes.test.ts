@@ -264,6 +264,49 @@ describe("Push Routes", () => {
       expect(response.statusCode).toBe(200);
       expect(JSON.parse(response.body)).toEqual({ success: true });
     });
+
+    it("should remove the apns:<token> row, not fcm:<token>", async () => {
+      app = await buildApp();
+      const user = await createTestUser();
+      const token = authToken(app, user.id, user.displayName);
+      const apnsToken = `apns-token-${randomUUID()}`;
+
+      await app.inject({
+        method: "POST",
+        url: "/api/push/subscribe",
+        cookies: { auth_token: token },
+        payload: {
+          token: apnsToken,
+          provider: "apns",
+          platform: "ios",
+        },
+      });
+
+      // A same-valued FCM row must survive the APNs delete — the synthetic
+      // endpoint key is what separates the two providers.
+      await db.insert(pushSubscriptions).values({
+        userId: user.id,
+        endpoint: `fcm:${apnsToken}`,
+        p256dh: "",
+        auth: "",
+      });
+
+      const response = await app.inject({
+        method: "DELETE",
+        url: "/api/push/subscribe",
+        cookies: { auth_token: token },
+        payload: { provider: "apns", token: apnsToken, platform: "ios" },
+      });
+
+      expect(response.statusCode).toBe(200);
+
+      const rows = await db
+        .select()
+        .from(pushSubscriptions)
+        .where(eq(pushSubscriptions.userId, user.id));
+
+      expect(rows.map((r) => r.endpoint)).toEqual([`fcm:${apnsToken}`]);
+    });
   });
 
   describe("GET /api/push/vapid-public-key", () => {
