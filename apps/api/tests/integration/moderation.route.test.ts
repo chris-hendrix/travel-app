@@ -431,9 +431,15 @@ describe("Moderation routes", () => {
         payload: { userId: reported.id, reason: "impersonation" },
       });
 
+      // Searched by the exact id, not just paged to. The suite shares one
+      // database and it accumulates users across files, so "the seeded row
+      // is on page 1" is an assumption that holds on a clean database and
+      // fails on a used one — this test flaked exactly that way. The list
+      // search matches an exact UUID, so the row is the only result and the
+      // assertion is about the list's row shape rather than about ordering.
       const response = await app.inject({
         method: "GET",
-        url: "/api/admin/users?page=1&limit=5",
+        url: `/api/admin/users?page=1&limit=5&search=${reported.id}`,
         cookies: { auth_token: tokenFor(app, admin.id, admin.displayName) },
       });
 
