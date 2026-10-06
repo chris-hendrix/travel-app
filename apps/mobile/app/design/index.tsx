@@ -695,7 +695,7 @@ function DesignSystemScreen() {
             <Specimen
               name="Button"
               contract="title · variant? · onPress? · fullWidth? · align? · disabled? · trailing? · expanded?"
-              note="No two content buttons side by side, at any width: one per row, stacked. A button is a single choice, and putting two in a row makes a choice out of a list — then, at 390, wraps the pair into a ragged 2+1 that reads as a layout accident rather than a decision. Stacked, a button takes the whole row on a phone, where a thumb target beats a tidy box, and from md up drops to its content width on the start edge. Fills the width on a phone; from md up it hugs the edge it is aligned to. disabled keeps it in place rather than hiding it: a control that vanishes leaves nothing to aim at. Inside a row, align='end' is what lines a button up with the field beside it — the default hugs the start of the cross axis and sits high. trailing parks an affordance at the far edge rather than laying it out, so the label stays centred the way every other button's does — DisclosureButton's triangle is its only caller, and the label has to stay short enough not to reach it. expanded announces that the button discloses what is under it, and is left off every button that does not. danger is the alert fill, `strawberry`, shared with the live badge and the unread edge: it is spent only where the press takes something away that cannot be taken back — Delete event, Delete stay, Delete travel, the remove-guest arm, the calendar-link stops, and the trip's own delete on Edit trip."
+              note="No two content buttons side by side, at any width: one per row, stacked. A button is a single choice, and putting two in a row makes a choice out of a list — then, at 390, wraps the pair into a ragged 2+1 that reads as a layout accident rather than a decision. Stacked, a button takes the whole row on a phone, where a thumb target beats a tidy box, and from md up drops to its content width on the start edge. Fills the width on a phone; from md up it hugs the edge it is aligned to. disabled keeps it in place rather than hiding it: a control that vanishes leaves nothing to aim at. Inside a row, align='end' is what lines a button up with the field beside it — the default hugs the start of the cross axis and sits high. trailing parks an affordance at the far edge rather than laying it out, so the label stays centred the way every other button's does — DisclosureButton's triangle is its only caller, and the label has to stay short enough not to reach it. expanded announces that the button discloses what is under it, and is left off every button that does not. danger is the alert fill, `strawberry`, shared with the live badge and the unread edge: it is spent only where the press takes something away that cannot be taken back — Delete event, Delete stay, Delete travel, the remove-guest arm, the calendar-link stops, the trip's own delete on Edit trip, and Delete account on the profile foot."
             >
               <Button
                 title="Create trip"
@@ -1614,20 +1614,9 @@ function DesignSystemScreen() {
 
         <Section title="Parking lot">
           <Text className="font-body text-base text-ink">
-            Discover · deleted items · delete account · session storage, since
-            the sign-in is a mock and nothing survives a reload. Each lands
-            here as a pattern first, then in a screen.
-          </Text>
-          <Text className="font-body text-base text-ink">
-            Delete account is the one with a backend behind it rather than
-            beside it, and it is not a route: an admin can ban an account and
-            nothing anywhere can remove one, and `users` has no `deleted_at`
-            where every other deletable thing in the schema has one. Two
-            decisions come before any screen. `payments` and
-            `payment_participants` have to outlive the person they name, so
-            deleting the account cannot mean deleting the rows. And the phone
-            number is the account, so the row that lets somebody sign up again
-            must not be reachable from the row that was deleted.
+            Discover · deleted items · session storage, since the sign-in is a
+            mock and nothing survives a reload. Each lands here as a pattern
+            first, then in a screen.
           </Text>
         </Section>
       </View>
