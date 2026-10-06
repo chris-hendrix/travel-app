@@ -18,6 +18,10 @@ import type { PgBoss } from "pg-boss";
 import { QUEUE } from "@/queues/types.js";
 import type { NotificationBatchPayload } from "@/queues/types.js";
 import { buildPushPayload } from "@/services/push-payload.builder.js";
+import {
+  blockedCounterpartIds,
+  withoutBlocked,
+} from "@/services/moderation.service.js";
 import type { Logger } from "@/types/logger.js";
 
 /**
@@ -82,6 +86,12 @@ export interface INotificationService {
     body: string;
     data?: Record<string, unknown>;
     excludeUserId?: string;
+    /**
+     * Who triggered the fan-out. Usually the same id as `excludeUserId`,
+     * but the two answer different questions: this one decides which
+     * recipients the actor has blocked, which must not be notified at all.
+     */
+    actorUserId?: string;
   }): Promise<void>;
 
   // Preferences
@@ -375,8 +385,10 @@ export class NotificationService implements INotificationService {
     body: string;
     data?: Record<string, unknown>;
     excludeUserId?: string;
+    actorUserId?: string;
   }): Promise<void> {
-    const { tripId, type, title, body, data, excludeUserId } = params;
+    const { tripId, type, title, body, data, excludeUserId, actorUserId } =
+      params;
 
     // When pg-boss is available, delegate to the notification batch queue
     if (this.boss) {
@@ -387,6 +399,7 @@ export class NotificationService implements INotificationService {
         body,
         data,
         excludeUserId,
+        actorUserId,
       } as NotificationBatchPayload);
       return;
     }
@@ -410,14 +423,27 @@ export class NotificationService implements INotificationService {
         ),
       );
 
-    for (const member of goingMembers) {
-      if (member.userId === null) {
-        continue;
-      }
-      if (excludeUserId && member.userId === excludeUserId) {
-        continue;
-      }
+    // Same two exclusions as the queued path, in the same order and through
+    // the same helpers: the actor is not told about their own action, and
+    // nobody the actor has blocked hears about it either. Without an
+    // `actorUserId` (a caller that does not know who triggered this) the
+    // block filter is simply not applied.
+    let recipients = goingMembers.filter(
+      (m): m is { userId: string; phoneNumber: string } => m.userId !== null,
+    );
 
+    if (excludeUserId) {
+      recipients = recipients.filter((m) => m.userId !== excludeUserId);
+    }
+
+    if (actorUserId) {
+      recipients = withoutBlocked(
+        recipients,
+        await blockedCounterpartIds(this.db, actorUserId),
+      );
+    }
+
+    for (const member of recipients) {
       await this.createNotification({
         userId: member.userId,
         tripId,

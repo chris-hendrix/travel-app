@@ -980,6 +980,9 @@ export class TripService implements ITripService {
         body: `${deleterName} deleted ${cancelledTrip.name}`,
         data: { tripId },
         excludeUserId: userId,
+        // The deleter is the actor: whoever they blocked must not be told
+        // the trip is gone.
+        actorUserId: userId,
       });
     } catch (err) {
       this.logger?.error(

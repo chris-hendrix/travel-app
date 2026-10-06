@@ -14,6 +14,10 @@ import type { IPermissionsService } from "./permissions.service.js";
 import type { ISMSService } from "./sms.service.js";
 import type { INotificationService } from "./notification.service.js";
 import {
+  blockedCounterpartIds,
+  withoutBlocked,
+} from "./moderation.service.js";
+import {
   GuestMemberService,
   type IGuestMemberService,
 } from "./guest-member.service.js";
@@ -1215,10 +1219,18 @@ export class InvitationService implements IInvitationService {
       mutedUserIds = new Set(mutedRows.map((r) => r.userId));
     }
 
+    // A block is symmetric and applies to an organizer too, so there is no
+    // role that outranks it: a blocked member simply is not in this roster.
+    // The relation has one definition, so the roster reads it through the
+    // same helper the push fan-out uses rather than joining a second SQL
+    // shape — guest rows (userId NULL) are never in the set and stay.
+    const blocked = await blockedCounterpartIds(this.db, requestingUserId);
+    const visible = withoutBlocked(results, blocked);
+
     // A non-organizer's roster is the whole trip: every member and every
     // guest is returned, whatever their status. Invitations stay
     // organizer-only, gated separately at the invitations route.
-    return results.map((r) => ({
+    return visible.map((r) => ({
       id: r.id,
       userId: r.userId,
       displayName: r.displayName,

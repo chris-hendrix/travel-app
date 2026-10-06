@@ -1336,6 +1336,9 @@ describe("trip.service", () => {
         body: "Creator deleted Test Trip",
         data: { tripId: testTripId },
         excludeUserId: testCreatorId,
+        // The deleter is also the actor: whoever they blocked must not be
+        // told the trip is gone.
+        actorUserId: testCreatorId,
       });
     });
 

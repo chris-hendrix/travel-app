@@ -10,6 +10,10 @@ import {
   sentReminders,
 } from "@/db/schema/index.js";
 import { buildPushPayload } from "@/services/push-payload.builder.js";
+import {
+  blockedCounterpartIds,
+  withoutBlocked,
+} from "@/services/moderation.service.js";
 
 /**
  * Maps a notification type to its corresponding preference field
@@ -62,7 +66,8 @@ export async function handleNotificationBatch(
   job: Job<NotificationBatchPayload>,
   deps: WorkerDeps,
 ): Promise<void> {
-  const { tripId, type, title, body, data, excludeUserId } = job.data;
+  const { tripId, type, title, body, data, excludeUserId, actorUserId } =
+    job.data;
 
   // 1. Query going members with phone numbers.
   // Guest rows (userId IS NULL) are skipped: no account, no phone, no push.
@@ -85,10 +90,20 @@ export async function handleNotificationBatch(
     (m): m is { userId: string; phoneNumber: string } => m.userId !== null,
   );
 
-  // 2. Filter out excludeUserId
-  const targetMembers = excludeUserId
+  // 2. Filter out excludeUserId, and the actor's blocked counterparts.
+  // The two are independent: the actor is dropped because they caused this,
+  // anyone they blocked is dropped because they must not hear it at all.
+  // An older job carries no actorUserId, and then nothing is filtered.
+  let targetMembers = excludeUserId
     ? notifyableMembers.filter((m) => m.userId !== excludeUserId)
     : notifyableMembers;
+
+  if (actorUserId) {
+    targetMembers = withoutBlocked(
+      targetMembers,
+      await blockedCounterpartIds(deps.db, actorUserId),
+    );
+  }
 
   if (targetMembers.length === 0) {
     return;

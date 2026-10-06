@@ -871,3 +871,70 @@ export const geocodeCache = pgTable("geocode_cache", {
 
 export type GeocodeCache = typeof geocodeCache.$inferSelect;
 export type NewGeocodeCache = typeof geocodeCache.$inferInsert;
+
+// User blocks. The relation is symmetric even though the row is directed:
+// whoever wrote it, the pair does not see each other. `blocked_id` is indexed
+// because "who blocked me" is the other half of every read.
+export const userBlocks = pgTable(
+  "user_blocks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    blockerId: uuid("blocker_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    blockedId: uuid("blocked_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    unique("user_blocks_blocker_blocked_unique").on(
+      table.blockerId,
+      table.blockedId,
+    ),
+    index("user_blocks_blocked_id_idx").on(table.blockedId),
+  ],
+);
+
+export type UserBlock = typeof userBlocks.$inferSelect;
+export type NewUserBlock = typeof userBlocks.$inferInsert;
+
+// User reports. The trip is optional: a report has to outlive the trip it was
+// made in, so deleting the trip clears the column instead of the row. The
+// reason vocabulary is the one the mobile reason list offers.
+export const userReports = pgTable(
+  "user_reports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reporterId: uuid("reporter_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    reportedId: uuid("reported_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tripId: uuid("trip_id").references(() => trips.id, {
+      onDelete: "set null",
+    }),
+    reason: text("reason", {
+      enum: ["spam", "harassment", "impersonation", "other"],
+    }).notNull(),
+    note: text("note"),
+    status: text("status", {
+      enum: ["open", "reviewed", "actioned", "dismissed"],
+    })
+      .notNull()
+      .default("open"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("user_reports_reported_id_idx").on(table.reportedId),
+    index("user_reports_status_idx").on(table.status),
+  ],
+);
+
+export type UserReport = typeof userReports.$inferSelect;
+export type NewUserReport = typeof userReports.$inferInsert;

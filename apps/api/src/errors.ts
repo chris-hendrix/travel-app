@@ -231,6 +231,13 @@ export const AdminSelfActionError = createError(
   400,
 );
 
+// Moderation errors
+export const CannotModerateSelfError = createError(
+  "CANNOT_MODERATE_SELF",
+  "%s",
+  400,
+);
+
 // Generic
 export const InvalidCodeError = createError("INVALID_CODE", "%s", 400);
 export const AccountLockedError = createError("ACCOUNT_LOCKED", "%s", 429);
