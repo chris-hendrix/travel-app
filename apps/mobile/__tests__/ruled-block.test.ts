@@ -242,15 +242,16 @@ describe("RuledRows", () => {
  * The case above proves `RuledRows` hands a row component a `className`.
  * It cannot prove the component *uses* it: a stub that defines its own
  * compliance passes whether or not the real rows forward the prop, so if
- * `MemberRow` or `AdminUserRowView` stopped putting the mark on their root,
+ * `RosterRowView` or `AdminUserRowView` stopped putting the mark on their root,
  * every test in this file would still be green and the roster and the
  * admin list would quietly lose their table rule.
  *
  * So these read the two real row components off disk and assert the two
  * halves: the prop is destructured, and it reaches a `className`
- * expression. They are screens, they pull in `react-native` and
- * `expo-router` and the query layer, and there is no renderer here — a
- * source-level assertion is the level this can honestly be held at.
+ * expression. (`RosterRowView` is the roster row extracted to
+ * components/trip/RosterList.tsx for the demo; it pulls in
+ * `react-native` but no router and no query layer.) There is no renderer
+ * here — a source-level assertion is the level this can honestly be held at.
  */
 const mobileDir = path.resolve(__dirname, "..");
 
@@ -283,11 +284,13 @@ function rowComponent(file: string, name: string) {
 
 const ROWS = [
   {
-    file: "app/trips/members.tsx",
-    name: "MemberRow",
-    // The roster row's mark lands on its own wrapper rather than on the
-    // `Pressable`, because the press wrapper is conditional on the viewer
-    // and the row's measure must not change with a permission.
+    file: "components/trip/RosterList.tsx",
+    name: "RosterRowView",
+    // The roster row's mark lands on its own wrapper. It used to sit
+    // beside a viewer-conditional `Pressable` inside app/trips/members.tsx
+    // (the organizer's rows pressed to the person dialog); the demo
+    // extraction dropped the press — the rows are non-interactive — so
+    // the wrapper is the row's only root, and the mark must stay on it.
     lands: /<View className=\{\[ROW_BODY, className\]/,
   },
   {

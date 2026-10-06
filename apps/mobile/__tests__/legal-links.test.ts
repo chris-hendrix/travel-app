@@ -49,9 +49,13 @@ describe("legal copy, as this app renders it", () => {
     for (const href of hrefs) expect(DIALOG_ROUTES).toContain(href);
   });
 
-  it("keeps the landing, the auth flow, and the invitation bare", () => {
+  it("keeps the landing, the demo, the auth flow, and the invitation bare", () => {
     expect(Object.keys(BARE_HEADER_ROUTES)).toEqual([
       "/",
+      // "/demo" sits beside "/": it is the landing's proof and wears
+      // the landing header, so it is listed with the landing, not the
+      // auth flow. Order-sensitive: insertion order is the contract.
+      "/demo",
       "/login",
       "/verify",
       "/complete-profile",
