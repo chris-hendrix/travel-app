@@ -1,6 +1,7 @@
 /**
- * The moderation writes: the two routes the roster row's panel talks to,
- * and the settle both of them funnel through.
+ * The moderation domain: the routes the roster row's panel and the blocked
+ * list under it talk to, the one read that makes an unblock reachable, and
+ * the settle every write funnels through.
  *
  * Why this is plain writers plus mutation hooks rather than a
  * `*Store.tsx` provider — the same reason `lib/queries/members.ts` gives
@@ -24,9 +25,23 @@
  * nothing the roster shows, and it settles through the same call anyway:
  * one domain, one settle to read, rather than three writes that each
  * invalidate a subtly different set.
+ *
+ * **The blocked list's read is here too, and it is the only door to an
+ * unblock.** The roster omits the blocked pair's rows in both directions
+ * (server-side), so a person you have blocked has no row on the members
+ * screen and no panel to open: an Unblock inside that panel would be a
+ * control nothing can reach. `blockedUsersOptions` reads the list the
+ * server keeps for exactly this, and it is a plain query rather than a
+ * suspended one — it sits beside the roster, not in its gate.
  */
 
-import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import {
+  queryOptions,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
 import type { ReportReason } from "@journiful/shared/schemas";
 import { apiFetch } from "@/lib/api";
 import { invalidateTripPeople } from "@/lib/queries/members";
@@ -62,6 +77,43 @@ export async function unblockUser(userId: string): Promise<void> {
     method: "DELETE",
   });
 }
+
+/** One row of the caller's blocked list: the account, and enough of the
+ *  profile to draw the person without a second read. */
+export type BlockedUserRow = {
+  userId: string;
+  displayName: string;
+  profilePhotoUrl: string | null;
+};
+
+/**
+ * Inline mirror of `blockedUsersResponseSchema`
+ * (`shared/schemas/moderation.ts`): `{success: true, blocks}`. The envelope
+ * is the transport's shape and stops at this module's own `select`, so no
+ * caller renders one.
+ */
+type BlockedUsersResponse = { success: true; blocks: BlockedUserRow[] };
+
+/**
+ * `GET /blocks` (`apps/api/src/routes/moderation.routes.ts:50-56`, served
+ * by `moderationController.listBlocked`): the people the caller has
+ * blocked, with the display name and photo the roster row would have
+ * drawn.
+ *
+ * The caller's own list, never a trip's, because a block is not a trip's:
+ * the server filters the blocked pair on every trip the two share. That is
+ * why this read hangs on `moderationKeys.blocks()` alone and takes no
+ * tripId — a trip-scoped read would be the same rows fetched once per
+ * trip.
+ */
+export const blockedUsersOptions = () =>
+  queryOptions({
+    queryKey: moderationKeys.blocks(),
+    queryFn: () => apiFetch<BlockedUsersResponse>("/blocks"),
+    // The rows, never the envelope: `{success, blocks}` is what the wire
+    // says, and a screen has no business unwrapping a transport.
+    select: (body) => body.blocks,
+  });
 
 /**
  * A report as this app files one. `tripId` is the trip it happened on and
@@ -166,4 +218,28 @@ export function useReportUser(tripId: string) {
     }) => reportUser({ userId, reason, tripId, note }),
     onSuccess: () => settleModeration(queryClient, tripId),
   });
+}
+
+/**
+ * The read half for the caller's blocked list, and the only place the app
+ * can offer an Unblock.
+ *
+ * Deliberately a plain `useQuery` and not `useSuspenseQuery`, unlike the
+ * roster beside it: the members screen is already inside a `TripGate`, and
+ * a secondary read must not be able to take the roster down with it. The
+ * three states a caller could otherwise tell apart — still loading, failed,
+ * nobody blocked — all render nothing at all, which is why this hands back
+ * rows rather than a status union (`useStays`/`useTravel`'s shape, where
+ * each state has something to draw).
+ *
+ * `retry: false` for the same reason: the client's policy retries a
+ * NetworkError once, and a read that draws nothing has nothing to wait for.
+ * One attempt, then it settles.
+ */
+export function useBlockedUsers(): { blocked: BlockedUserRow[] } {
+  const { data } = useQuery({
+    ...blockedUsersOptions(),
+    retry: false,
+  });
+  return { blocked: data ?? [] };
 }

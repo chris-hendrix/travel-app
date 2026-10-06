@@ -1,6 +1,6 @@
 /**
- * The moderation vocabulary, and the sentences the roster row's panel
- * says about it.
+ * The moderation vocabulary, and the sentences the roster row's panel and
+ * the blocked list under it say about it.
  *
  * Node-importable by design: no `react`, no `react-native`, no fetch.
  *
@@ -53,8 +53,37 @@ export function reportReasonLabel(reason: ReportReason): string {
  */
 export const REPORT_NOTE_MAX = 500;
 
-/** The two things the panel can do, which are not one thing. */
+/**
+ * The panel's two actions, which are not one thing: a report needs a
+ * reason and a block does not.
+ */
 export type ModerationAction = "report" | "block";
+
+/**
+ * Every moderation write, which is the panel's two plus the blocked list's
+ * one. `unblock` is the same kind of write and says its own sentence while
+ * it runs, so it belongs in this vocabulary rather than in a second mapper
+ * beside it — and it stays *out* of `ModerationAction`, so a caller that
+ * only has the panel's two cannot name it.
+ */
+export type ModerationWrite = ModerationAction | "unblock";
+
+/** The in-flight word per write: one label, so the words cannot drift. */
+const PENDING_LABELS: Record<ModerationWrite, string> = {
+  report: "Reporting…",
+  block: "Blocking…",
+  unblock: "Unblocking…",
+};
+
+/**
+ * The in-flight label for a write — the `pendingLabel` idiom from
+ * `lib/admin.ts`, held here so the words are values rather than ternaries
+ * in a screen. The label changes only while the write is in flight, so the
+ * thumb that pressed it does not have to find a new word.
+ */
+export function moderationPendingLabel(action: ModerationWrite): string {
+  return PENDING_LABELS[action];
+}
 
 /**
  * Who a row lets you moderate: the account behind it, or nobody.
@@ -83,16 +112,6 @@ export function moderatableUserId(
   const account = row.member.userId;
   if (account === null || account === viewerId) return null;
   return account;
-}
-
-/**
- * The in-flight label for a panel button — the `pendingLabel` idiom from
- * `lib/admin.ts`, held here so the two words are a value rather than two
- * ternaries in a screen. The label changes only while the write is in
- * flight, so the thumb that pressed it does not have to find a new word.
- */
-export function moderationPendingLabel(action: ModerationAction): string {
-  return action === "report" ? "Reporting…" : "Blocking…";
 }
 
 /**

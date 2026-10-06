@@ -25,7 +25,13 @@ import {
   type ReportReason,
 } from "@/lib/moderation";
 import { useMembers } from "@/lib/queries/members";
-import { useBlockUser, useReportUser } from "@/lib/queries/moderation";
+import {
+  useBlockedUsers,
+  useBlockUser,
+  useReportUser,
+  useUnblockUser,
+} from "@/lib/queries/moderation";
+import { toErrorCopy } from "@/lib/queries/errors";
 import { useTripInvitations } from "@/lib/queries/invitations";
 import { rosterRows, type RosterRow } from "@/lib/roster";
 
@@ -81,6 +87,45 @@ function TripMembersDialog() {
   // dialog, so their rows stay plain views.
   const { invitations } = useTripInvitations(trip?.id, viewerIsOrganizer);
   const rows = rosterRows(members, invitations);
+  // The people this viewer has blocked, read beside the roster rather than
+  // inside it: the gate above is the roster's, and this must not be able to
+  // add a second one. A plain query for the same reason (see the hook) — a
+  // failure here is a block that draws nothing, not a screen that fails.
+  const { blocked } = useBlockedUsers();
+  // The undo's own write. The dialog does not render without a trip, so the
+  // empty id is never the one a successful settle is pointed at.
+  const unblock = useUnblockUser(trip?.id ?? "");
+  // Which row is writing, rather than only that one is: the acting row says
+  // what it is doing, and every other press is a no-op until it answers.
+  const [unblockingId, setUnblockingId] = useState<string | null>(null);
+  const [unblockFailure, setUnblockFailure] = useState<string | null>(null);
+
+  /**
+   * One write, one in-flight state. Success needs nothing here:
+   * `useUnblockUser` invalidates the blocks key and the trip's people, so
+   * the person leaves this list and their roster row comes back in one
+   * settle.
+   */
+  async function unblockThem(userId: string): Promise<void> {
+    if (unblockingId !== null) return;
+    setUnblockingId(userId);
+    setUnblockFailure(null);
+    try {
+      await unblock.mutateAsync({ userId });
+    } catch (caught) {
+      // The same shape `removeTrip` uses: the mapper's own sentence when it
+      // has one, the offline one when the request never arrived, and the
+      // act's own when the status says nothing (a 404). No toast.
+      const copy = toErrorCopy(caught);
+      setUnblockFailure(
+        copy.offline
+          ? "You're offline. Check your connection and try again."
+          : (copy.message ?? "Couldn't unblock them."),
+      );
+    } finally {
+      setUnblockingId(null);
+    }
+  }
 
   if (!trip) {
     return <NotFound />;
@@ -160,6 +205,60 @@ function TripMembersDialog() {
             variant="secondary"
             onPress={() => router.push(`/trips/members/new?id=${trip.id}`)}
           />
+        </View>
+      ) : null}
+      {/* The undo, under the list it takes people off. It cannot live on
+          the roster row: the server omits the blocked pair's rows in both
+          directions, so the person you blocked has no row here and no panel
+          to open — an Unblock in that panel would be a control nothing can
+          reach. The list the server keeps is the surface that is actually
+          reachable, and this is where it belongs: under the roll call,
+          after the organizer's own block above.
+
+          For every viewer, never only the organizer: blocking is offered on
+          every member's row, so the undo is not a permission either.
+
+          A block is account-wide, not trip-wide — the server filters the
+          pair on every trip — which is the one thing this screen can say
+          that the trip the block happened on cannot. Mirrored from "Add a
+          guest" above, plain `View`s, so it costs the rule census nothing.
+
+          Nothing at all while the read is loading, when it failed, and when
+          there is nobody blocked: a heading over an empty list claims you
+          have blocked nobody, and a read that never answered has not earned
+          that. `app/admin/users/detail.tsx` says the same about its own
+          reports block. */}
+      {blocked.length > 0 ? (
+        <View className="gap-2 pt-6">
+          <Text className="font-body-bold text-base text-ink">Blocked</Text>
+          <Text className="font-body text-sm text-ink opacity-60">
+            A block hides you from each other. It holds on every trip, not just
+            this one.
+          </Text>
+          {blocked.map((person) => (
+            <View
+              key={person.userId}
+              className="flex-row items-center justify-between gap-4"
+            >
+              <Text className="font-body text-base text-ink">
+                {person.displayName}
+              </Text>
+              {/* `QuietAction` carries no `disabled`, so the press is
+                  guarded and the word changes — the panel's own Cancel
+                  pattern. Two taps must not be two DELETEs. */}
+              <QuietAction
+                label={
+                  unblockingId === person.userId
+                    ? moderationPendingLabel("unblock")
+                    : "Unblock"
+                }
+                onPress={() => {
+                  if (unblockingId === null) void unblockThem(person.userId);
+                }}
+              />
+            </View>
+          ))}
+          {unblockFailure ? <InlineError message={unblockFailure} /> : null}
         </View>
       ) : null}
     </FullscreenDialog>

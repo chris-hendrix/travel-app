@@ -138,6 +138,12 @@ describe("the panel's own words", () => {
     expect(moderationPendingLabel("block")).toBe("Blocking…");
   });
 
+  it("names the unblock write in flight, in the same voice", () => {
+    // The blocked list's one action is the same idiom rather than a second
+    // one: one word per write, and it changes only while the write runs.
+    expect(moderationPendingLabel("unblock")).toBe("Unblocking…");
+  });
+
   it("says the connection failed when the request never arrived", () => {
     // `toErrorCopy` passes a NetworkError through with no message of its
     // own, and "went wrong" is the wrong sentence for a request that never
@@ -204,5 +210,104 @@ describe("the roster row's panel", () => {
     // A block is undone from the same route's DELETE, so it is never the
     // colour reserved for what cannot be taken back.
     expect(SCREEN).not.toContain('variant="danger"');
+  });
+});
+
+/**
+ * The blocked list, off disk, in the same style and for the same reason:
+ * no renderer in this package, so what can be held here is the shape the
+ * claim depends on. The plan's own RED put the undo in the roster row's
+ * dialog, which is a state the roster can never be in — Task 31's filter
+ * omits the blocked pair's rows in both directions, so an already-blocked
+ * member has no row to open a panel from. The undo is a block under the
+ * roster instead, and these are the claims that keep it honest.
+ */
+describe("the blocked list on the roll call", () => {
+  /**
+   * The whole block is the non-empty branch of one ternary: the guard is
+   * `blocked.length > 0`, and the branch ends at the `: null` the dialog
+   * renders otherwise. Everything the block draws has to be inside it.
+   */
+  const guardAt = SCREEN.indexOf("blocked.length > 0 ?");
+  const guarded =
+    guardAt === -1
+      ? ""
+      : SCREEN.slice(guardAt, SCREEN.indexOf(") : null}", guardAt));
+
+  it("draws nothing at all when there is nobody blocked", () => {
+    // Loading, failed and nobody-blocked are one render, and it is
+    // nothing: a heading over an empty list says you have blocked nobody,
+    // which a read that never answered has not earned. This is
+    // `admin/users/detail.tsx`'s own rule about its reports block.
+    expect(guardAt).toBeGreaterThan(-1);
+    expect(SCREEN).toContain("useBlockedUsers(");
+    // The heading is drawn once, and it is inside the guard: one heading,
+    // no other place it could be reached from.
+    expect(SCREEN.match(/Blocked\s*<\/Text>/g)).toHaveLength(1);
+    expect(guarded).toContain("Blocked");
+  });
+
+  it("stands under the roster and under the organizer's own block", () => {
+    // Under the list it takes people off, and after the one block already
+    // there — where a person who has just blocked somebody will look.
+    expect(guardAt).toBeGreaterThan(SCREEN.indexOf("Add a guest"));
+    // Not the organizer's: blocking is offered on every member's row, so
+    // the undo is not a permission either. The guard is the read alone.
+    expect(guarded).not.toContain("viewerIsOrganizer");
+  });
+
+  it("offers one Unblock per person, saying what it is doing while it works", () => {
+    expect(guarded).toMatch(/blocked\.map\(/);
+    expect(guarded).toContain("<QuietAction");
+    // The in-flight word is the mapper's, never a literal typed here.
+    expect(guarded).toMatch(/moderationPendingLabel\("unblock"\)/);
+    expect(SCREEN).not.toContain("Unblocking…");
+    // `QuietAction` carries no `disabled`: the press is guarded while the
+    // write is in flight, which is the panel's own Cancel pattern — a
+    // second press is a no-op rather than a second DELETE.
+    expect(SCREEN).toMatch(/if \(unblockingId !== null\) return;/);
+  });
+
+  it("says the failure under the block, from the same mapper as every write", () => {
+    // `removeTrip` in `app/trips/edit.tsx` is the shape: `toErrorCopy`, the
+    // offline sentence, and the act's own sentence as the fallback for the
+    // status that carries none (a 404). The app has no toast.
+    expect(guarded).toContain("<InlineError");
+    expect(SCREEN).toContain("toErrorCopy(caught)");
+    expect(SCREEN).toContain(
+      "You're offline. Check your connection and try again.",
+    );
+  });
+
+  it("adds no rule of its own to the screen", () => {
+    // The block mirrors "Add a guest": plain `View`s, so the census does
+    // not move. The roster's one `<RuledRows>` came off this screen with
+    // the row it holds — the roll call's table is drawn in
+    // `components/trip/RosterList.tsx` now, which `ruled-block.test.ts`
+    // reads for the same reason — so what is left to hold here is that
+    // the block added no second rule site, and `InlineError` still carries
+    // the one `RuledBlock` it already owns.
+    expect(SCREEN).not.toMatch(/<(RuledRows|Section|RuledBlock)\b/);
+  });
+
+  /**
+   * The read itself, off disk. A plain query with no retry is the whole
+   * difference between a side read and a gate, and it is not something a
+   * render in this package can be asked about: the roster's gate is
+   * above it, and this must not be able to add a second one.
+   */
+  const QUERY_SOURCE = fs.readFileSync(
+    path.join(__dirname, "..", "lib", "queries", "moderation.ts"),
+    "utf8",
+  );
+
+  it("reads the blocked list with a plain query and no retry", () => {
+    // The module names the suspended read in its own prose and must never
+    // call it: the roster's gate is above this one, and a side read that
+    // can add a second gate is not a side read.
+    expect(QUERY_SOURCE).not.toMatch(/useSuspenseQuery\s*\(/);
+    expect(QUERY_SOURCE).toMatch(
+      /useQuery\(\{\s*\.\.\.blockedUsersOptions\(\),\s*retry: false,\s*\}\)/,
+    );
   });
 });

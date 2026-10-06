@@ -18,18 +18,21 @@ vi.mock("@/lib/api", async (importOriginal) => {
   return { ...actual, apiFetch: vi.fn() };
 });
 
-import { QueryClientProvider } from "@tanstack/react-query";
-import { ApiError, apiFetch } from "@/lib/api";
+import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
+import { ApiError, NetworkError, apiFetch } from "@/lib/api";
 import type { Member } from "@/lib/members";
 import { memberKeys } from "@/lib/queries/members";
 import {
   blockUser,
+  blockedUsersOptions,
   moderationKeys,
   reportUser,
   unblockUser,
+  useBlockedUsers,
   useBlockUser,
   useReportUser,
   useUnblockUser,
+  type BlockedUserRow,
 } from "@/lib/queries/moderation";
 import { makeQueryClient } from "@/lib/queries/client";
 
@@ -38,6 +41,20 @@ const mockedApiFetch = vi.mocked(apiFetch);
 beforeEach(() => {
   mockedApiFetch.mockReset();
 });
+
+/**
+ * One row of `GET /blocks`'s own shape (`blockedUsersResponseSchema` in
+ * `shared/schemas/moderation.ts`): the account, a name to render, and the
+ * photo the roster row would have used.
+ */
+function blockedRow(overrides: Partial<BlockedUserRow> = {}): BlockedUserRow {
+  return {
+    userId: "user-2",
+    displayName: "Ava Reyes",
+    profilePhotoUrl: null,
+    ...overrides,
+  };
+}
 
 function cachedMember(overrides: Partial<Member> = {}): Member {
   return {
@@ -78,6 +95,105 @@ describe("unblockUser", () => {
     expect(mockedApiFetch).toHaveBeenCalledWith("/blocks/user-2", {
       method: "DELETE",
     });
+  });
+});
+
+/**
+ * The read half: the list of people the caller has blocked, which is the
+ * only place an unblock can be reached from (the roster omits the blocked
+ * pair in both directions, so the row is not there to undo from).
+ */
+describe("blockedUsersOptions", () => {
+  it("reads GET /blocks and yields the rows, never the envelope", async () => {
+    mockedApiFetch.mockResolvedValue({
+      success: true,
+      blocks: [blockedRow()],
+    });
+
+    const options = blockedUsersOptions();
+    expect(options.queryKey).toEqual(moderationKeys.blocks());
+    const envelope = await options.queryFn!({
+      queryKey: options.queryKey,
+    } as never);
+
+    expect(mockedApiFetch).toHaveBeenCalledTimes(1);
+    expect(mockedApiFetch).toHaveBeenCalledWith("/blocks");
+    // `{success, blocks}` is the transport's shape, and it stays there:
+    // what a caller of this options factory renders is the rows.
+    expect(options.select!(envelope)).toEqual([blockedRow()]);
+  });
+});
+
+/**
+ * The hook, mounted under a Suspense boundary with a fallback that says so.
+ * A `useSuspenseQuery` here would render the fallback and never fill
+ * `seen`, which is the failure this harness exists to catch.
+ */
+function renderBlocked(client: QueryClient = makeQueryClient()) {
+  const seen: { blocked: BlockedUserRow[] | null } = { blocked: null };
+  function Probe() {
+    seen.blocked = useBlockedUsers().blocked;
+    return null;
+  }
+  const html = renderToString(
+    createElement(
+      QueryClientProvider,
+      { client },
+      createElement(
+        Suspense,
+        { fallback: createElement("span", null, "suspended") },
+        createElement(Probe),
+      ),
+    ),
+  );
+  return { seen, html };
+}
+
+describe("useBlockedUsers", () => {
+  it("hands the rows to the render", async () => {
+    mockedApiFetch.mockResolvedValue({
+      success: true,
+      blocks: [
+        blockedRow(),
+        blockedRow({ userId: "user-3", displayName: "Sam Okafor" }),
+      ],
+    });
+
+    // Prefetch into the same client so the render finds fresh data and
+    // never has to reach for it (`members.test.ts`'s own convention).
+    const client = makeQueryClient();
+    await client.fetchQuery(blockedUsersOptions());
+
+    const { seen, html } = renderBlocked(client);
+    expect(html).not.toContain("suspended");
+    expect(seen.blocked).toMatchObject([
+      { userId: "user-2", displayName: "Ava Reyes" },
+      { userId: "user-3", displayName: "Sam Okafor" },
+    ]);
+  });
+
+  it("neither throws nor suspends when the read failed", async () => {
+    mockedApiFetch.mockRejectedValue(
+      new NetworkError("Network request failed"),
+    );
+
+    const client = makeQueryClient();
+    // Seed the failed read the way a screen meets it: the query has
+    // already answered, and the answer was a rejection. `retry: false`
+    // here mirrors the hook's own flag, so the seeding is one attempt.
+    await expect(
+      client.fetchQuery({ ...blockedUsersOptions(), retry: false }),
+    ).rejects.toBeInstanceOf(NetworkError);
+    expect(mockedApiFetch).toHaveBeenCalledWith("/blocks");
+
+    const { seen, html } = renderBlocked(client);
+
+    // The roster above this read is the gate. A side read that can take
+    // the roll call down with it is not a side read.
+    expect(html).not.toContain("suspended");
+    // And it hands back no rows: the screen draws the block only when
+    // there are some, so this is the render that draws nothing at all.
+    expect(seen.blocked).toEqual([]);
   });
 });
 
