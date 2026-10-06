@@ -101,6 +101,20 @@ function TripMembersDialog() {
         viewerAnswer={
           viewer && !viewer.isOrganizer ? viewer.status : null
         }
+        // The press the lift took out of the row. An organizer's row
+        // opens the person dialog and everybody else gets the row
+        // alone, which is what this screen has always done: the
+        // permission picks the render, not the row's own measure.
+        onPressRow={
+          viewerIsOrganizer
+            ? (row) =>
+                router.push(
+                  row.kind === "invited"
+                    ? `/trips/members/detail?id=${trip.id}&invite=${row.invitationId}`
+                    : `/trips/members/detail?id=${trip.id}&member=${row.member.id}`,
+                )
+            : undefined
+        }
       />
       {/* Under the list, not in the bar: adding a guest lengthens the
           roll call rather than inviting, which is what the bar is for.

@@ -1,5 +1,6 @@
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { ChipLink } from "@/components/ui/ChipLink";
+import { useMotion } from "@/hooks/useMotion";
 import { RuledRows } from "@/components/ui/RuledRows";
 import { visiblePhone, type Member } from "@/lib/members";
 import { RSVP_LABEL, memberLabel, type RsvpStatus } from "@/lib/rsvp";
@@ -13,11 +14,13 @@ import type { RosterRow } from "@/lib/roster";
  * without the dialog's queries.
  *
  * No new logic: same conditionals, same class strings, same data
- * mapping. The rows are non-interactive — the source's press pushes
- * the person dialog, an organizer-only route that would dead-end the
- * demo — so the router, the press wrapper and the motion row are
- * gone, and `tripId` goes with them. The traveler's rows were already
- * plain views; now every row is one.
+ * mapping. The press is a prop rather than part of the component: the
+ * source wrapped an organizer's rows in a `Pressable` that pushed the
+ * person dialog, and that press belongs to the screen that knows who
+ * is looking. `app/trips/members.tsx` supplies it for an organizer,
+ * exactly as before the lift, so the organizer's tap survives the
+ * extraction; the demo supplies nothing, so its rows are plain views
+ * and nothing can push an auth-gated route out of it.
  *
  * The one prop the dialog does not have is the viewer's own answer.
  * The dialog reads it off the roster; the demo holds it in `useState`
@@ -30,11 +33,18 @@ export function RosterList({
   viewerIsOrganizer,
   viewerMemberId = null,
   viewerAnswer = null,
+  onPressRow,
 }: {
   rows: RosterRow[];
   viewerIsOrganizer: boolean;
   viewerMemberId?: string | null;
   viewerAnswer?: RsvpStatus | null;
+  /**
+   * The caller's own press, handed in rather than assumed. An
+   * organizer's row opens the person dialog and a caller with no
+   * route to offer passes nothing and gets plain rows.
+   */
+  onPressRow?: ((row: RosterRow) => void) | undefined;
 }) {
   return (
     <RuledRows>
@@ -45,6 +55,7 @@ export function RosterList({
           viewerIsOrganizer={viewerIsOrganizer}
           viewerMemberId={viewerMemberId}
           viewerAnswer={viewerAnswer}
+          onPressRow={onPressRow}
         />
       ))}
     </RuledRows>
@@ -56,12 +67,14 @@ function RosterRowView({
   viewerIsOrganizer,
   viewerMemberId,
   viewerAnswer,
+  onPressRow,
   className,
 }: {
   row: RosterRow;
   viewerIsOrganizer: boolean;
   viewerMemberId?: string | null;
   viewerAnswer?: RsvpStatus | null;
+  onPressRow?: ((row: RosterRow) => void) | undefined;
   /**
    * The table's mark, handed down by `RuledRows`. It lands on the row's
    * own wrapper rather than on a press target, because the row's own
@@ -69,6 +82,7 @@ function RosterRowView({
    */
   className?: string;
 }) {
+  const motion = useMotion();
   const invited = row.kind === "invited";
   // A chip says where an account is, not what it is called — "Insta", not
   // a username. The handle is the link's business, and a roster is not a
@@ -105,7 +119,7 @@ function RosterRowView({
   // whole row, so the far column reads down the page however much detail
   // a row happens to carry. The mark is `RuledRows`'s, merged onto the
   // row's own wrapper.
-  return (
+  const body = (
     <View className={[ROW_BODY, className].filter(Boolean).join(" ")}>
       <View className="flex-1 gap-1">
         <View className="flex-row flex-wrap items-center gap-3">
@@ -123,6 +137,17 @@ function RosterRowView({
       </View>
       <Text className="font-body text-sm text-ink">{farColumn}</Text>
     </View>
+  );
+  if (!onPressRow) return body;
+  return (
+    <Pressable
+      role="button"
+      accessibilityRole="button"
+      onPress={() => onPressRow(row)}
+      className={motion.row}
+    >
+      {body}
+    </Pressable>
   );
 }
 
