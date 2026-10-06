@@ -1,8 +1,9 @@
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { dayNumber, weekdayAbbrev } from "@/lib/dateRange";
 import { wallClock } from "@/lib/timezone";
 import type { TravelRow } from "@/lib/travelBoard";
 import { NOT_SHARED } from "@/lib/wording";
+import { useMotion } from "@/hooks/useMotion";
 
 /**
  * One direction of the travel board, lifted from the travel dialog's
@@ -10,19 +11,28 @@ import { NOT_SHARED } from "@/lib/wording";
  * can read the same board without the dialog's queries.
  *
  * No new logic: same conditionals, same class strings, same data
- * mapping. The rows are non-interactive — the source's press pushes
- * `/trips/travel/detail`, an auth-gated route that would dead-end the
- * demo — so the router, the press target and the motion row are gone,
- * and `tripId` goes with them.
+ * mapping. The press is a prop rather than part of the component: the
+ * source wrapped each row in a `Pressable` that pushed
+ * `/trips/travel/detail`, and that press belongs to the screen that
+ * knows the trip. `app/trips/travel.tsx` supplies it, exactly as before
+ * the lift, so the travel-row tap survives the extraction; a caller
+ * with no route to offer passes nothing and gets plain rows.
  */
 export function ArrivalBoard({
   heading,
   rows,
   timeZone,
+  onPressRow,
 }: {
   heading: string;
   rows: TravelRow[];
   timeZone: string | null;
+  /**
+   * The caller's own press, handed in rather than assumed. The travel
+   * dialog opens the travel detail; a caller with no route to offer
+   * passes nothing and gets plain rows.
+   */
+  onPressRow?: ((row: TravelRow) => void) | undefined;
 }) {
   if (rows.length === 0) return null;
 
@@ -38,7 +48,12 @@ export function ArrivalBoard({
           heading above a run of them. */}
       <View>
         {rows.map((row) => (
-          <ArrivalRow key={row.id} row={row} timeZone={timeZone} />
+          <ArrivalRow
+            key={row.id}
+            row={row}
+            timeZone={timeZone}
+            onPressRow={onPressRow}
+          />
         ))}
       </View>
     </View>
@@ -53,11 +68,14 @@ export function ArrivalBoard({
 function ArrivalRow({
   row,
   timeZone,
+  onPressRow,
 }: {
   row: TravelRow;
   timeZone: string | null;
+  onPressRow?: ((row: TravelRow) => void) | undefined;
 }) {
-  return (
+  const motion = useMotion();
+  const body = (
     <View className="flex-row items-center gap-4 py-4">
       {/* The day's own column, narrow and fixed so it aligns down the
           list. Every row names its day, so a run that outlives the
@@ -90,5 +108,16 @@ function ArrivalRow({
         {row.time ? wallClock(row.time, timeZone).time : NOT_SHARED}
       </Text>
     </View>
+  );
+  if (!onPressRow) return body;
+  return (
+    <Pressable
+      role="button"
+      accessibilityRole="button"
+      onPress={() => onPressRow(row)}
+      className={motion.row}
+    >
+      {body}
+    </Pressable>
   );
 }

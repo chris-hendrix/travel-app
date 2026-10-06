@@ -128,11 +128,24 @@ function TripTravelDialog() {
             heading="Arriving"
             rows={board.arrivals}
             timeZone={timeZone}
+            // The press the lift took out of the row. Every row opens
+            // its own travel detail, which is what this screen has
+            // always done: the board reads, the route shows.
+            onPressRow={(row) =>
+              router.push(
+                `/trips/travel/detail?id=${trip.id}&travel=${row.id}`,
+              )
+            }
           />
           <ArrivalBoard
             heading="Departing"
             rows={board.departures}
             timeZone={timeZone}
+            onPressRow={(row) =>
+              router.push(
+                `/trips/travel/detail?id=${trip.id}&travel=${row.id}`,
+              )
+            }
           />
         </View>
       ) : null}
