@@ -3,15 +3,18 @@
  *
  * Everything here is a value or a string the screens would otherwise
  * eyeball: the list filter and its query string, which actions a row
- * offers, the count line, the empty sentences, the pending labels,
- * the reason labels, and the three-way route guard. No dates: join-date
- * formatting lives in `lib/dateRange.ts` (`joinedDay`, which reads its
- * day through `lib/timezone.ts`), never here.
+ * offers, the count line, the empty sentences, the pending labels, and
+ * the three-way route guard. No dates: join-date formatting lives in
+ * `lib/dateRange.ts` (`joinedDay`, which reads its day through
+ * `lib/timezone.ts`), never here.
+ *
+ * The reason vocabulary's labels are not here any more: they moved to
+ * `lib/moderation.ts`, beside the re-export that names the values, when
+ * the roster row became their second caller. One vocabulary, one label
+ * map.
  *
  * Node-importable by design: no `react`, no `react-native`.
  */
-
-import type { ReportReason } from "@journiful/shared/schemas";
 
 /** An admin user row, mirroring `adminUserResponseSchema` in `shared/schemas/admin.ts`. */
 export type AdminRowUser = {
@@ -109,28 +112,6 @@ export type AdminEmptyState = {
 export function emptyCopy({ search, filter }: AdminEmptyState): string {
   if (search.trim() !== "" || filter !== "all") return "No users match that search.";
   return "No users yet.";
-}
-
-/**
- * The labels for the reason vocabulary, in the order `REPORT_REASONS`
- * gives them, so a list of reasons reads the same here and anywhere else
- * it is drawn.
- *
- * The vocabulary itself is not restated: it comes from
- * `REPORT_REASONS` in `shared/schemas/moderation.ts`, which is the one
- * place the four reasons exist. What lives here is the mobile layer's
- * half — saying them.
- */
-export const REPORT_REASON_LABELS: Record<ReportReason, string> = {
-  spam: "Spam",
-  harassment: "Harassment",
-  impersonation: "Impersonation",
-  other: "Something else",
-};
-
-/** One reason, as the screen says it. */
-export function reportReasonLabel(reason: ReportReason): string {
-  return REPORT_REASON_LABELS[reason];
 }
 
 /** The in-flight label for an action button. */

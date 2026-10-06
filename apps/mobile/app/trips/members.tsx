@@ -1,16 +1,33 @@
+import { useState } from "react";
 import { Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { Button } from "@/components/ui/Button";
+import { ChipToggle } from "@/components/ui/ChipToggle";
+import { InlineError } from "@/components/ui/InlineError";
+import { QuietAction } from "@/components/ui/QuietAction";
+import { TextField } from "@/components/ui/TextField";
 import { RosterList } from "@/components/trip/RosterList";
 import { useTrip } from "@/lib/tripsStore";
 import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { useAuth } from "@/lib/authStore";
 import { viewerOf } from "@/lib/members";
+import {
+  REPORT_NOTE_MAX,
+  REPORT_REASONS,
+  REPORT_REASON_LABELS,
+  REPORT_RECORDED_COPY,
+  moderationFailureCopy,
+  moderationPendingLabel,
+  moderatableUserId,
+  type ModerationAction,
+  type ReportReason,
+} from "@/lib/moderation";
 import { useMembers } from "@/lib/queries/members";
+import { useBlockUser, useReportUser } from "@/lib/queries/moderation";
 import { useTripInvitations } from "@/lib/queries/invitations";
-import { rosterRows } from "@/lib/roster";
+import { rosterRows, type RosterRow } from "@/lib/roster";
 
 /**
  * The roll call, reached from "6 going" on the trip header.
@@ -115,6 +132,14 @@ function TripMembersDialog() {
                 )
             : undefined
         }
+        // The row's second target, under it. It is this screen's to
+        // supply for the same reason the press is: reporting and
+        // blocking are anybody's, not the organizer's, and the panel
+        // needs the trip and the viewer — both of which the dialog
+        // holds. A row with nobody to moderate draws nothing.
+        renderRowFooter={(row) => (
+          <RowModeration row={row} tripId={trip.id} viewerId={user?.id} />
+        )}
       />
       {/* Under the list, not in the bar: adding a guest lengthens the
           roll call rather than inviting, which is what the bar is for.
@@ -138,5 +163,239 @@ function TripMembersDialog() {
         </View>
       ) : null}
     </FullscreenDialog>
+  );
+}
+
+/**
+ * The row's own action, gated before anything draws.
+ *
+ * The gate cannot live in the row: `RosterList` hands the footer to every
+ * row it draws, and three of those rows have nobody to moderate — an
+ * invitation is a phone number and not a person, a guest has no account
+ * behind them, and you cannot report or block yourself. `moderatableUserId`
+ * is where that is decided, in one pure place, and a row that gets `null`
+ * back draws nothing at all rather than a control the API would refuse.
+ */
+function RowModeration({
+  row,
+  tripId,
+  viewerId,
+}: {
+  row: RosterRow;
+  tripId: string;
+  /** The signed-in account, or undefined when the app has not resolved
+   *  one. A row needs it to tell its own account from another's. */
+  viewerId: string | undefined;
+}) {
+  const account = moderatableUserId(row, viewerId);
+  if (account === null) return null;
+  return <MemberModeration tripId={tripId} userId={account} />;
+}
+
+/**
+ * The row's two quiet actions, and the panel they open.
+ *
+ * A person's row already carries one door — the press that opens their
+ * dialog — and this is a second target that leads nowhere: reporting
+ * somebody and blocking them are said *about* a row rather than in it,
+ * and a third column of controls would turn the roll call into a list of
+ * buttons wearing people's names. A word under the name is the shape the
+ * app already gives the quiet things.
+ *
+ * One state, one control: opening the panel replaces the word with the
+ * panel, and the panel carries its own Cancel, so the two are never both
+ * on screen.
+ *
+ * The panel expands in place rather than opening a dialog. This screen is
+ * already a `FullscreenDialog`, and the house pattern for a question
+ * inside a block is the same expansion — `profile.tsx`'s `confirming` and
+ * the armed delete in `app/trips/edit.tsx`. A second surface over the
+ * roster would be a dialog on a dialog.
+ */
+function MemberModeration({
+  tripId,
+  userId,
+}: {
+  tripId: string;
+  userId: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [reported, setReported] = useState(false);
+
+  // A report leaves one line where the panel was. A report changes
+  // nothing the roster shows — no row moves — so a panel that closed on
+  // silence would read as a failure to send anything at all.
+  if (reported) {
+    return (
+      <Text className="pb-3 font-body text-sm text-ink opacity-60">
+        {REPORT_RECORDED_COPY}
+      </Text>
+    );
+  }
+
+  if (!open) {
+    return (
+      <QuietAction label="Report or block" onPress={() => setOpen(true)} />
+    );
+  }
+
+  return (
+    <ModerationPanel
+      tripId={tripId}
+      userId={userId}
+      onDone={() => setOpen(false)}
+      onReported={() => {
+        setReported(true);
+        setOpen(false);
+      }}
+    />
+  );
+}
+
+/**
+ * The panel: the reason list, the note, and the two answers.
+ *
+ * The reasons come from `REPORT_REASONS` and their labels from
+ * `REPORT_REASON_LABELS`, never from a list typed here: the vocabulary
+ * lives in `shared` because the API validates its body against it, and a
+ * fifth reason there is a fifth chip here with no edit.
+ *
+ * **Report and Block are two decisions, not one form with two
+ * submits.** A report needs a reason and changes nothing the caller can
+ * see; a block needs no reason and takes the person off the roll call,
+ * because the server omits the blocked pair in both directions. So
+ * Report is disabled until a reason is chosen, Block is available from
+ * the start, and neither is a variant of the other.
+ *
+ * Block is `secondary`, never `danger`. `danger` is the colour for what
+ * cannot be taken back, and a block is undone from the same route's
+ * DELETE — the blocked list is Task 35's screen, and this is why the word
+ * under it is quiet rather than alarming.
+ *
+ * In flight, the acting button says what it is doing and both go quiet.
+ * On failure the panel stays open, keeps the reason and the note, and
+ * says what happened in an `InlineError` under the buttons: this app has
+ * no toast, and a failure that closed the panel would take the reader's
+ * own words with it.
+ */
+function ModerationPanel({
+  tripId,
+  userId,
+  onDone,
+  onReported,
+}: {
+  tripId: string;
+  userId: string;
+  /** The block's own close, and the Cancel word's. */
+  onDone: () => void;
+  /** The report's close, which leaves a line behind. */
+  onReported: () => void;
+}) {
+  const [reason, setReason] = useState<ReportReason | null>(null);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState<ModerationAction | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
+  const block = useBlockUser(tripId);
+  const report = useReportUser(tripId);
+
+  /**
+   * One write, one in-flight state. `done` runs only on success: a block
+   * closes the panel and lets the invalidated roster do the confirming,
+   * and a report closes it onto the line above.
+   */
+  async function write(
+    action: ModerationAction,
+    send: () => Promise<unknown>,
+    done: () => void,
+  ) {
+    if (busy !== null) return;
+    setBusy(action);
+    setFailure(null);
+    try {
+      await send();
+    } catch (caught) {
+      setFailure(moderationFailureCopy(caught, action));
+      setBusy(null);
+      return;
+    }
+    done();
+  }
+
+  function reportThem() {
+    if (reason === null) return;
+    const words = note.trim();
+    return write(
+      "report",
+      () =>
+        report.mutateAsync({
+          userId,
+          reason,
+          ...(words ? { note: words } : null),
+        }),
+      onReported,
+    );
+  }
+
+  function blockThem() {
+    return write("block", () => block.mutateAsync({ userId }), onDone);
+  }
+
+  return (
+    <View className="gap-3 pb-3">
+      {/* One frame for two actions that are not one: a report goes to an
+          admin, a block is between the two people. The reason below is the
+          report's own — it means nothing to a block, which is why only
+          `Report` is gated on it. */}
+      <View className="gap-1">
+        <Text className="font-body-bold text-sm text-ink">
+          Report or block
+        </Text>
+        <Text className="font-body text-sm text-ink opacity-60">
+          A report goes to an admin. A block hides you from each other.
+        </Text>
+      </View>
+      <View className="flex-row flex-wrap gap-2">
+        {REPORT_REASONS.map((value) => (
+          <ChipToggle
+            key={value}
+            label={REPORT_REASON_LABELS[value]}
+            selected={reason === value}
+            disabled={busy !== null}
+            onPress={() => setReason(value)}
+          />
+        ))}
+      </View>
+      <TextField
+        label="Note"
+        value={note}
+        onChangeText={setNote}
+        placeholder="What happened?"
+        multiline
+        numberOfLines={3}
+        maxLength={REPORT_NOTE_MAX}
+      />
+      {/* Both buttons stack, one per row. `Button`'s own note in the lab
+          is explicit: no two content buttons side by side, at any width. */}
+      <View className="gap-3">
+        <Button
+          title={busy === "report" ? moderationPendingLabel("report") : "Report"}
+          disabled={reason === null || busy !== null}
+          onPress={() => void reportThem()}
+        />
+        <Button
+          title={busy === "block" ? moderationPendingLabel("block") : "Block"}
+          variant="secondary"
+          disabled={busy !== null}
+          onPress={() => void blockThem()}
+        />
+      </View>
+      <QuietAction
+        label="Cancel"
+        onPress={() => {
+          if (busy === null) onDone();
+        }}
+      />
+      {failure ? <InlineError message={failure} /> : null}
+    </View>
   );
 }

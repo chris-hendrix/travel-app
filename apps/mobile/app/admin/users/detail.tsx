@@ -22,9 +22,9 @@ import {
   adminActionsFor,
   pendingLabel,
   plural,
-  reportReasonLabel,
   type AdminAction,
 } from "@/lib/admin";
+import { reportReasonLabel } from "@/lib/moderation";
 import { joinedDay } from "@/lib/dateRange";
 import {
   adminKeys,

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import { ChipLink } from "@/components/ui/ChipLink";
 import { useMotion } from "@/hooks/useMotion";
@@ -27,6 +28,16 @@ import type { RosterRow } from "@/lib/roster";
  * beside its RSVP control, so the row matching `viewerMemberId` reads
  * `viewerAnswer` instead — the tap that changes the control moves the
  * row with it.
+ *
+ * The row's second target is a prop for the same reason the press is.
+ * The members dialog hangs one quiet word under a person's row — the
+ * panel that reports or blocks them — and that panel needs the trip it
+ * was opened on and the account looking at it, which the dialog holds
+ * and the demo does not. It is a render prop rather than a flag because
+ * what goes under the row is a screen's decision; this component only
+ * decides that it is a sibling of the body rather than a control inside
+ * it, since a pressable nested in a pressable answers two presses out of
+ * one box and reads as one control to anything announcing the tree.
  */
 export function RosterList({
   rows,
@@ -34,6 +45,7 @@ export function RosterList({
   viewerMemberId = null,
   viewerAnswer = null,
   onPressRow,
+  renderRowFooter,
 }: {
   rows: RosterRow[];
   viewerIsOrganizer: boolean;
@@ -45,6 +57,12 @@ export function RosterList({
    * route to offer passes nothing and gets plain rows.
    */
   onPressRow?: ((row: RosterRow) => void) | undefined;
+  /**
+   * What goes under the row, under its own body. Nothing by default, and
+   * a caller that passes it answers for every row it is handed —
+   * including the rows with nobody to draw anything for.
+   */
+  renderRowFooter?: ((row: RosterRow) => ReactNode) | undefined;
 }) {
   return (
     <RuledRows>
@@ -56,6 +74,7 @@ export function RosterList({
           viewerMemberId={viewerMemberId}
           viewerAnswer={viewerAnswer}
           onPressRow={onPressRow}
+          renderRowFooter={renderRowFooter}
         />
       ))}
     </RuledRows>
@@ -68,6 +87,7 @@ function RosterRowView({
   viewerMemberId,
   viewerAnswer,
   onPressRow,
+  renderRowFooter,
   className,
 }: {
   row: RosterRow;
@@ -75,6 +95,7 @@ function RosterRowView({
   viewerMemberId?: string | null;
   viewerAnswer?: RsvpStatus | null;
   onPressRow?: ((row: RosterRow) => void) | undefined;
+  renderRowFooter?: ((row: RosterRow) => ReactNode) | undefined;
   /**
    * The table's mark, handed down by `RuledRows`. It lands on the row's
    * own wrapper rather than on a press target, because the row's own
@@ -138,16 +159,30 @@ function RosterRowView({
       <Text className="font-body text-sm text-ink">{farColumn}</Text>
     </View>
   );
-  if (!onPressRow) return body;
+  // The footer is the caller's, and it is the row's sibling rather than
+  // part of the press target: the mark stays on the body above it, so the
+  // row's own measure does not change with a control either.
+  const footer = renderRowFooter?.(row) ?? null;
+  if (!onPressRow) {
+    return (
+      <>
+        {body}
+        {footer}
+      </>
+    );
+  }
   return (
-    <Pressable
-      role="button"
-      accessibilityRole="button"
-      onPress={() => onPressRow(row)}
-      className={motion.row}
-    >
-      {body}
-    </Pressable>
+    <>
+      <Pressable
+        role="button"
+        accessibilityRole="button"
+        onPress={() => onPressRow(row)}
+        className={motion.row}
+      >
+        {body}
+      </Pressable>
+      {footer}
+    </>
   );
 }
 
