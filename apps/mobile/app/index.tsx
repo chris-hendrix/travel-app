@@ -1,6 +1,5 @@
 import { Text, View } from "react-native";
 import { Link, Redirect, useRouter } from "expo-router";
-import { Building2, Calendar, Plane, Users } from "lucide-react-native";
 import { Button } from "@/components/ui/Button";
 import { BootCover } from "@/components/ui/BootCover";
 import { Screen } from "@/components/ui/Screen";
@@ -9,7 +8,6 @@ import { RuledRows } from "@/components/ui/RuledRows";
 import { LEGAL_ROWS } from "@/lib/legal";
 import { useAuth } from "@/lib/authStore";
 import { destinationForRequiresProfile } from "@/lib/queries/auth";
-import { INK } from "@/lib/theme";
 import { Band } from "@/components/ui/Band";
 import { Column } from "@/components/ui/Column";
 
@@ -17,9 +15,8 @@ import { Column } from "@/components/ui/Column";
  * The landing: what the app is, for someone who has not signed in.
  *
  * The page's shape follows the pitch rather than the feature list: the
- * promise, the three things the trip holds, the mess it replaces, what
- * goes in the trip, how a trip gets there, then the same door again at
- * the bottom. Body copy runs the full column at every width, the same
+ * promise, the mess it replaces, what the organizer does, what the
+ * friends do, then what the friends see — the demo — at the bottom. Body copy runs the full column at every width, the same
  * way the rules and the card grid do.
  *
  * Every claim on it is held to what the app does. Three claims are
@@ -88,12 +85,12 @@ function Landing() {
       */}
       <Column>
         <View className="gap-6 pb-12 pt-4 md:pt-14">
-          <Text className="font-display-black text-display-lg uppercase text-ink md:text-display-lg-wide">
-            Group trips made easy
+          <Text className="font-display-black text-display-lg uppercase text-ink">
+            An itinerary your friends will actually read.
           </Text>
           <Text className="font-body text-lg leading-snug text-ink">
-            The itinerary, the hotel or Airbnb, and the flights. All in one
-            place.
+            The Airbnb, the flights, the events and the places. All of it
+            from one text.
           </Text>
           {/* No `fullWidth`: the button already fills the width on a phone
               and hugs its edge from md up, which is the behaviour a hero
@@ -105,7 +102,7 @@ function Landing() {
               is the question a reader has while their thumb is over this
               one. */}
           <Text className="font-body text-sm text-ink">
-            No passwords. Sign in via text.
+            No passwords. Sign in with a text.
           </Text>
         </View>
       </Column>
@@ -118,12 +115,11 @@ function Landing() {
         <Column>
           <View className="gap-4">
             <Text className="font-display-semibold text-heading-lg uppercase text-ink">
-              It starts in the group chat
+              It starts in your group chat
             </Text>
             <Text className="font-body text-base leading-relaxed text-ink">
-              Then the confirmations land in six different inboxes. By the
-              time everyone lands, everyone is digging through their inbox
-              for the same address.
+              The door code is buried in an email. Four friends land twenty
+              minutes apart and take four Ubers.
             </Text>
           </View>
         </Column>
@@ -131,69 +127,46 @@ function Landing() {
 
       <Column>
         <View className="gap-16">
-          {/* Two tables of rows read across, so each row keeps one soft
-              rule between them, from `RuledRows`, and the first row has
-              none: the block's own ink rule above the heading is what
-              closes the top of the table, and a rule under the heading as
-              well would be a second mark for that one boundary. What is
-              gone at the bottom is the closing rule the old local `Section`
-              drew under the last row, which duplicated the next block's
-              opening one. The rows carry no border string of their own at
-              all — `RuledRows` owns that, which is why the class below is
-              only the row's body: an icon and a paragraph, or a number and
-              a paragraph, read across at the hero's own `py-5`. */}
-          <Section title="What goes in the trip">
+          {/* Two single-row tables, each row a paragraph with no marker:
+              what the organizer does, then what the friends do. Each row
+              keeps one soft rule from `RuledRows`; the block's own ink
+              rule above the heading closes the top of the table. */}
+          <Section title="What you do">
             <RuledRows>
-              {WHAT_GOES_IN.map((feature) => (
-                <View key={feature.title} className="flex-row gap-4 py-5">
-                  <feature.icon color={INK} size={24} />
-                  <View className="flex-1 gap-1">
-                    <Text className="font-display-semibold text-heading-lg uppercase text-ink">
-                      {feature.title}
-                    </Text>
-                    <Text className="font-body text-sm leading-snug text-ink">
-                      {feature.description}
-                    </Text>
-                  </View>
-                </View>
-              ))}
+              <View className="py-5">
+                <Text className="font-body text-sm leading-snug text-ink">
+                  Name the trip. Pick the dates and the place. Send the text.
+                </Text>
+              </View>
             </RuledRows>
           </Section>
 
-          <Section title="How Journiful works">
+          <Section title="What your friends do">
             <RuledRows>
-              {STEPS.map((step) => (
-                <View key={step.number} className="flex-row gap-4 py-5">
-                  <Text className="font-display-extrabold text-display-md text-ink">
-                    {step.number}
-                  </Text>
-                  <View className="flex-1 gap-1">
-                    <Text className="font-body-bold text-base text-ink">
-                      {step.title}
-                    </Text>
-                    <Text className="font-body text-sm leading-snug text-ink">
-                      {step.description}
-                    </Text>
-                  </View>
-                </View>
-              ))}
+              <View className="py-5">
+                <Text className="font-body text-sm leading-snug text-ink">
+                  Open the text. Say if they're coming. Add their flight.
+                </Text>
+              </View>
             </RuledRows>
           </Section>
         </View>
       </Column>
 
-      {/* The closing band repeats the hero's ask rather than inventing a
-          second one: one goal, one label, twice down the page. The line
-          above it is the outcome rather than the promise, so the hero's
-          "in one place" is not said a second time. The second tone, because
-          the page has two seams and they are two different things. */}
+      {/* The closing band shows what the trip looks like to a friend:
+          the captured demo trip (Phase 4) and the link to the live demo.
+          One navigation word, not a second button — a ground change
+          carrying a button is not a seam. */}
       <Band tone="baltic">
         <Column>
           <View className="gap-6">
-            <Text className="font-body-bold text-heading-md text-ink">
-              Everyone on the trip, from the first text to the last flight
+            <Text className="font-display-semibold text-heading-lg uppercase text-ink">
+              What your friends see
             </Text>
-            <Button title="Get started" onPress={() => router.push("/login")} />
+            {/* PHASE 4 IMAGE SLOT */}
+            <Link href="/demo" className="font-body text-sm text-ink underline">
+              Look at a real trip
+            </Link>
             {/* The one trust claim available before there are any users, and
                 the one a reader is most likely to be assuming the opposite
                 of: a new app is assumed to have a subscription in it. The
@@ -222,52 +195,3 @@ function Landing() {
     </Screen>
   );
 }
-
-/**
- * The four things the app is for, in the order they come up while a trip
- * is being planned: the plan, the roof, the travel, and everyone else.
- * Titles are sentence case because the display face uppercases them
- * anyway, and this copy gets reused verbatim where it does not.
- */
-const WHAT_GOES_IN = [
-  {
-    icon: Calendar,
-    title: "One itinerary",
-    description: "The organizer builds it. Everyone reads the same one.",
-  },
-  {
-    icon: Building2,
-    title: "The hotel or Airbnb",
-    description: "The address, the check-in, and the note about the door.",
-  },
-  {
-    icon: Plane,
-    title: "Everyone's travel",
-    description: "Each person adds their flight. The trip shows who lands when.",
-  },
-  {
-    icon: Users,
-    title: "Everyone else",
-    description: "Invited by name or number, and looking at the same trip.",
-  },
-] as const;
-
-const STEPS = [
-  {
-    number: "1",
-    title: "Create the trip",
-    description: "Dates, a destination, and a name.",
-  },
-  {
-    number: "2",
-    title: "Invite your friends",
-    description:
-      "By name or by number. They get a text with a link, and they can see the trip before they sign up.",
-  },
-  {
-    number: "3",
-    title: "Build the plan",
-    description:
-      "The organizer adds the days, the stay, and the events. Everyone else answers and adds their own travel.",
-  },
-] as const;

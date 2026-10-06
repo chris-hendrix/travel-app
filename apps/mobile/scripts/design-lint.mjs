@@ -244,8 +244,14 @@ checkRuleForms();
  * component that owns an underlined word is as likely to live in a module
  * as in a screen. The lab is excluded: it *demonstrates* underlines on
  * purpose, so counting it would make every specimen a rule change.
+ *
+ * The sixteenth underlined word is the landing's link to `/demo` ("Look
+ * at a real trip"): a navigation word, and the lab's own rule says a
+ * word that does something is underlined. Bumped 15 → 16 for it here
+ * rather than removing one elsewhere, because every existing underline is
+ * an affordance something relies on.
  */
-const UNDERLINE_RATCHET = 15;
+const UNDERLINE_RATCHET = 16;
 
 function checkUnderlineRatchet() {
   const lab = path.join("app", "design", "index.tsx");
