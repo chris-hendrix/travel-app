@@ -25,6 +25,13 @@ export interface User {
   createdAt: string;
   /** Last update timestamp (ISO 8601 string) */
   updatedAt: string;
+  /**
+   * When the account was deleted (ISO 8601 string), null for a live account.
+   * Mirrors `users.deleted_at`. The API never returns it — every
+   * authenticated read filters a deleted account out — so it is here for
+   * internal and admin surfaces only.
+   */
+  deletedAt?: string | null;
 }
 
 /**

@@ -7,7 +7,7 @@ import {
   type User,
 } from "@/db/schema/index.js";
 import type { JWTPayload, AppDatabase } from "@/types/index.js";
-import { eq, sql, getTableColumns } from "drizzle-orm";
+import { and, eq, sql, isNull, getTableColumns } from "drizzle-orm";
 import { AccountLockedError } from "../errors.js";
 
 /**
@@ -167,14 +167,16 @@ export class AuthService implements IAuthService {
 
   /**
    * Gets a user by their ID
+   * A soft-deleted account resolves to null, exactly like a missing one: the
+   * caller cannot tell the difference and answers 401 either way.
    * @param userId - The UUID of the user to retrieve
-   * @returns The user record or null if not found
+   * @returns The user record or null if not found or deleted
    */
   async getUserById(userId: string): Promise<User | null> {
     const result = await this.db
       .select(getTableColumns(users))
       .from(users)
-      .where(eq(users.id, userId))
+      .where(and(eq(users.id, userId), isNull(users.deletedAt)))
       .limit(1);
 
     return result[0] || null;

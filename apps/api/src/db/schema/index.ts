@@ -28,7 +28,11 @@ export const users = pgTable(
   "users",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    phoneNumber: varchar("phone_number", { length: 20 }).notNull().unique(),
+    // The account *is* the phone number, so deletion cannot blank it: the row
+    // is kept (payments/members reference it) and the number is moved to a
+    // `deleted:<uuid>` tombstone, which releases the number for a new signup.
+    // The tombstone is 44 characters, hence 64 rather than the old 20.
+    phoneNumber: varchar("phone_number", { length: 64 }).notNull().unique(),
     displayName: varchar("display_name", { length: 50 }).notNull(),
     profilePhotoUrl: text("profile_photo_url"),
     handles: jsonb("handles").$type<Record<string, string>>(),
@@ -47,6 +51,10 @@ export const users = pgTable(
       .defaultNow(),
     role: varchar("role", { length: 20 }).notNull().default("user"),
     status: varchar("status", { length: 20 }).notNull().default("active"),
+    // Soft delete: the row survives because payments/members reference it, so
+    // the flag is what marks it as a tombstone. Every authenticated read
+    // filters on it being NULL.
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (table) => [index("users_phone_number_idx").on(table.phoneNumber)],
 );

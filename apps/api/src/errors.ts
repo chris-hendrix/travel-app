@@ -211,6 +211,13 @@ export const DuplicateParticipantError = createError(
   400,
 );
 
+// Account errors
+export const UserNotFoundError = createError(
+  "NOT_FOUND",
+  "User not found",
+  404,
+);
+
 // Admin errors
 export const AdminNotFoundError = createError(
   "ADMIN_NOT_FOUND",

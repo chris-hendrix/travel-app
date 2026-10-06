@@ -37,18 +37,31 @@ export async function requireAdmin(
  * Middleware that checks if the authenticated user's account is active.
  * Must be used AFTER authenticate() middleware.
  * Returns 403 ACCOUNT_SUSPENDED if user is banned.
+ * Returns 401 UNAUTHORIZED if the account has been deleted: a token issued
+ * before the deletion is still cryptographically valid, so this is where the
+ * tombstone closes it. The check rides on the query checkBanned already makes.
  */
 export async function checkBanned(
   request: FastifyRequest,
   reply: FastifyReply,
 ): Promise<void> {
   const result = await request.server.db
-    .select({ status: users.status })
+    .select({ status: users.status, deletedAt: users.deletedAt })
     .from(users)
     .where(eq(users.id, request.user.sub))
     .limit(1);
 
   const user = result[0];
+
+  if (user?.deletedAt) {
+    return reply.status(401).send({
+      success: false,
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Account deleted",
+      },
+    });
+  }
 
   if (user && user.status === "banned") {
     return reply.status(403).send({
