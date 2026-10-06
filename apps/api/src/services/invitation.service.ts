@@ -1263,6 +1263,9 @@ export class InvitationService implements IInvitationService {
         profilePhotoUrl: users.profilePhotoUrl,
         handles: users.handles,
         phoneNumber: users.phoneNumber,
+        // Read so the phone number can be masked below: a soft-deleted
+        // account's number is a `deleted:<uuid>` tombstone.
+        deletedAt: users.deletedAt,
         guestPhone: members.guestPhone,
         sharePhone: members.sharePhone,
         status: members.status,
@@ -1294,28 +1297,37 @@ export class InvitationService implements IInvitationService {
     // A non-organizer's roster is the whole trip: every member and every
     // guest is returned, whatever their status. Invitations stay
     // organizer-only, gated separately at the invitations route.
-    return visible.map((r) => ({
-      id: r.id,
-      userId: r.userId,
-      displayName: r.displayName,
-      profilePhotoUrl: r.profilePhotoUrl,
-      handles: r.handles ?? null,
-      ...(isOrg || r.sharePhone
-        ? r.phoneNumber
-          ? { phoneNumber: r.phoneNumber }
-          : {}
-        : {}),
-      ...(isOrg && r.userId === null && r.guestPhone
-        ? { guestPhone: r.guestPhone }
-        : {}),
-      status: r.status,
-      isOrganizer: r.isOrganizer,
-      ...(isOrg
-        ? { isMuted: r.userId !== null && mutedUserIds.has(r.userId) }
-        : {}),
-      ...(isOrg ? { sharePhone: r.sharePhone } : {}),
-      createdAt: r.createdAt.toISOString(),
-    }));
+    return visible.map((r) => {
+      // A soft-deleted account has no phone number to show. `users.phone_number`
+      // is the account, so deletion cannot blank it — it becomes a
+      // `deleted:<uuid>` tombstone, an internal marker for a number that was
+      // released, not a number anybody should read. The row keeps its place in
+      // the roster (it is the trip's record of the person); the field is simply
+      // absent, which is what the client already renders as no number line.
+      const phoneNumber = r.deletedAt === null ? r.phoneNumber : null;
+      // Organizers see every number and a member sees the ones shared with
+      // them, but a deleted account's number is neither.
+      const phoneIsVisible = (isOrg || r.sharePhone) && phoneNumber !== null;
+
+      return {
+        id: r.id,
+        userId: r.userId,
+        displayName: r.displayName,
+        profilePhotoUrl: r.profilePhotoUrl,
+        handles: r.handles ?? null,
+        ...(phoneIsVisible ? { phoneNumber } : {}),
+        ...(isOrg && r.userId === null && r.guestPhone
+          ? { guestPhone: r.guestPhone }
+          : {}),
+        status: r.status,
+        isOrganizer: r.isOrganizer,
+        ...(isOrg
+          ? { isMuted: r.userId !== null && mutedUserIds.has(r.userId) }
+          : {}),
+        ...(isOrg ? { sharePhone: r.sharePhone } : {}),
+        createdAt: r.createdAt.toISOString(),
+      };
+    });
   }
 
   /**

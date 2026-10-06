@@ -1,5 +1,5 @@
 import type { Job } from "pg-boss";
-import { eq, and, inArray, isNotNull } from "drizzle-orm";
+import { eq, and, inArray, isNotNull, isNull } from "drizzle-orm";
 import type { NotificationBatchPayload, WorkerDeps } from "@/queues/types.js";
 import { QUEUE } from "@/queues/types.js";
 import {
@@ -73,6 +73,12 @@ export async function handleNotificationBatch(
   // Guest rows (userId IS NULL) are skipped: no account, no phone, no push.
   // (innerJoin already drops NULL userIds; the explicit filter + type guard
   // below keep the fanout null-safe against future join changes.)
+  // Soft-deleted accounts (deletedAt set) are skipped for the same reason:
+  // deletion keeps the `members` row, status and all, but `users.phone_number`
+  // is a `deleted:<uuid>` tombstone by then — enqueued as an SMS destination
+  // it is a Twilio call for a number that belongs to nobody, which fails,
+  // retries and dead-letters on every trip-wide message. There is no session
+  // left to read the notification in either.
   const goingMembers = await deps.db
     .select({ userId: members.userId, phoneNumber: users.phoneNumber })
     .from(members)
@@ -82,6 +88,7 @@ export async function handleNotificationBatch(
         eq(members.tripId, tripId),
         eq(members.status, "going"),
         isNotNull(members.userId),
+        isNull(users.deletedAt),
       ),
     );
 

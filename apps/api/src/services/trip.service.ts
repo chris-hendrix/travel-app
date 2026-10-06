@@ -464,6 +464,9 @@ export class TripService implements ITripService {
         id: users.id,
         displayName: sql<string>`COALESCE(${users.displayName}, ${members.guestDisplayName}, 'Guest')`,
         phoneNumber: users.phoneNumber,
+        // Read so the phone number can be masked below: a soft-deleted
+        // account's number is a `deleted:<uuid>` tombstone.
+        deletedAt: users.deletedAt,
         profilePhotoUrl: users.profilePhotoUrl,
         timezone: users.timezone,
       })
@@ -484,7 +487,13 @@ export class TripService implements ITripService {
       organizers: organizerUsers.map((u) => ({
         id: u.id,
         displayName: u.displayName,
-        ...(userIsOrganizer && u.phoneNumber
+        // A soft-deleted account has no phone number to show. The column is a
+        // `deleted:<uuid>` tombstone by then — an internal marker for a number
+        // that was released, not a number for a viewer's eyes — so the field
+        // is simply absent, which is what the client already renders as no
+        // number line. The row itself stays: it is the trip's record of the
+        // person, and the trip keeps its organizers.
+        ...(userIsOrganizer && u.deletedAt === null && u.phoneNumber
           ? { phoneNumber: u.phoneNumber }
           : {}),
         profilePhotoUrl: u.profilePhotoUrl,

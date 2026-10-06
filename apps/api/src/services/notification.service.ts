@@ -408,6 +408,10 @@ export class NotificationService implements INotificationService {
     // Guest rows (userId IS NULL) are excluded: they have no account to notify.
     // (innerJoin already drops NULL userIds; the explicit filter guards
     // against future join changes.)
+    // Soft-deleted accounts are excluded on the same grounds: the `members`
+    // row survives deletion, but the account's phone number is a
+    // `deleted:<uuid>` tombstone and there is nobody left to sign in and read
+    // the notification.
     const goingMembers = await this.db
       .select({
         userId: members.userId,
@@ -420,6 +424,7 @@ export class NotificationService implements INotificationService {
           eq(members.tripId, tripId),
           eq(members.status, "going"),
           isNotNull(members.userId),
+          isNull(users.deletedAt),
         ),
       );
 
