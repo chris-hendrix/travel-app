@@ -673,6 +673,33 @@ describe("Admin Routes", () => {
       expect(response.statusCode).toBe(403);
     });
 
+    it("should return 403 when trying to impersonate a deleted account", async () => {
+      app = await buildApp();
+      const admin = await createUser({ displayName: "Admin", role: "admin" });
+      const target = await createUser({ displayName: "Deleted Target" });
+
+      // Tombstoned directly rather than through `DELETE /me`: that route is
+      // the target's own and would blacklist the token this test needs to
+      // hold. What matters is the row's state, which is what deletion leaves.
+      await db
+        .update(users)
+        .set({ deletedAt: new Date() })
+        .where(eq(users.id, target.id));
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/admin/impersonate/${target.id}`,
+        cookies: { auth_token: adminToken(app, admin.id) },
+        payload: { code: "123456" },
+      });
+
+      // A token whose `sub` is a tombstoned row is a session nobody can sign
+      // into, and `checkBanned` refusing it on most routes is a property of
+      // those routes rather than of the token.
+      expect(response.statusCode).toBe(403);
+      expect(JSON.parse(response.body).error.code).toBe("ADMIN_FORBIDDEN");
+    });
+
     it("should return 404 for non-existent target user", async () => {
       app = await buildApp();
       const admin = await createUser({ displayName: "Admin", role: "admin" });

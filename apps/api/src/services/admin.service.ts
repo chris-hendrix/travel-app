@@ -309,7 +309,12 @@ export class AdminService implements IAdminService {
 
     // Verify target user exists
     const targetResult = await this.db
-      .select({ id: users.id, role: users.role, displayName: users.displayName })
+      .select({
+        id: users.id,
+        role: users.role,
+        displayName: users.displayName,
+        deletedAt: users.deletedAt,
+      })
       .from(users)
       .where(eq(users.id, targetUserId))
       .limit(1);
@@ -317,6 +322,20 @@ export class AdminService implements IAdminService {
     const target = targetResult[0];
     if (!target) {
       throw new AdminNotFoundError();
+    }
+
+    // A soft-deleted account is not a session to hand out. `deleteAccount`
+    // anonymizes the row rather than dropping it, so the record is still here
+    // and its phone number is a `deleted:<uuid>` tombstone — minting a token
+    // whose `sub` is that row would let an admin act as an account nobody can
+    // sign into, and its `checkBanned` refusal on most routes is a property of
+    // those routes rather than of the token. Same envelope as the admin check
+    // below, because it is the same kind of answer: this account is not one
+    // you may wear.
+    if (target.deletedAt) {
+      throw new AdminForbiddenError(
+        "Cannot impersonate a deleted account",
+      );
     }
 
     // Cannot impersonate another admin
