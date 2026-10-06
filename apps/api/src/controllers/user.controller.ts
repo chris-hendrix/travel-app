@@ -108,6 +108,9 @@ export const userController = {
    * deletion would land on somebody who never asked for it, filed under the
    * impersonation. The account holder's own door is untouched.
    *
+   * The caller's own token is blacklisted on the way out, so the deletion is
+   * not merely a row change the JWT can walk past.
+   *
    * @route DELETE /api/users/me
    * @middleware authenticate
    * @param request - Fastify request
@@ -136,6 +139,35 @@ export const userController = {
       const userId = request.user.sub;
 
       await userService.deleteAccount(userId);
+
+      // Kill the token that walked through this door, or it outlives the
+      // account: `authenticate` checks a signature and a blacklist row, never
+      // a live user, so without this the JWT keeps working on every surface
+      // that runs only `authenticate` until it expires — seven days — after
+      // the row it names is a tombstone.
+      //
+      // Best-effort on purpose, and after the deletion on purpose. The account
+      // is already anonymized (its own transaction, already committed) and the
+      // requirement is that deletion succeeds; a blacklist write that fails
+      // would otherwise turn a completed deletion into a 500 the caller reads
+      // as "not deleted" — and prompt a retry that has nothing left to delete.
+      // The failure is logged, not swallowed silently. The blacklist is a
+      // capability, not a guarantee: the row is gone either way, and the
+      // tombstone is what closes the other surfaces (see `checkBanned`).
+      if (request.user?.jti) {
+        try {
+          await request.server.authService.blacklistToken(
+            request.user.jti,
+            request.user.sub,
+            new Date(request.user.exp * 1000),
+          );
+        } catch (error) {
+          request.log.error(
+            { error, userId },
+            "Failed to blacklist token after account deletion",
+          );
+        }
+      }
 
       return reply.status(200).send({ success: true });
     } catch (error) {

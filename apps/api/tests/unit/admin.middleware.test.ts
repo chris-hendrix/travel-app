@@ -5,7 +5,7 @@ import type { FastifyRequest, FastifyReply } from "fastify";
 function mockRequest(overrides?: {
   sub?: string;
   adminId?: string;
-  dbResult?: { role?: string; status?: string }[];
+  dbResult?: { role?: string; status?: string; deletedAt?: Date | null }[];
 }) {
   const dbResult = overrides?.dbResult ?? [{ role: "user", status: "active" }];
 
@@ -84,6 +84,47 @@ describe("requireAdmin", () => {
       error: {
         code: "FORBIDDEN",
         message: "Admin access required",
+      },
+    });
+  });
+
+  it("should return 401 for a deleted admin", async () => {
+    // `deleteAccount` anonymizes the row and never clears `role`, so an admin
+    // who deletes their own account is still an admin by `users.role` alone.
+    const request = mockRequest({
+      sub: "deleted-admin-id",
+      dbResult: [{ role: "admin", status: "active", deletedAt: new Date() }],
+    });
+    const reply = mockReply();
+
+    await requireAdmin(request, reply);
+
+    // The same envelope `checkBanned` sends, so the two guards agree.
+    expect(reply.status).toHaveBeenCalledWith(401);
+    expect(reply.send).toHaveBeenCalledWith({
+      success: false,
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Account deleted",
+      },
+    });
+  });
+
+  it("should return 403 for a banned admin", async () => {
+    const request = mockRequest({
+      sub: "banned-admin-id",
+      dbResult: [{ role: "admin", status: "banned" }],
+    });
+    const reply = mockReply();
+
+    await requireAdmin(request, reply);
+
+    expect(reply.status).toHaveBeenCalledWith(403);
+    expect(reply.send).toHaveBeenCalledWith({
+      success: false,
+      error: {
+        code: "ACCOUNT_SUSPENDED",
+        message: "Your account has been suspended",
       },
     });
   });
