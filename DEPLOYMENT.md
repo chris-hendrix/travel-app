@@ -51,8 +51,8 @@ services whose files it touched — read from the live project config (productio
 
 | Service  | Watch paths                                                          |
 | -------- | -------------------------------------------------------------------- |
-| **api**    | `/apps/api/**`, `/shared/**`, `package.json`, `pnpm-lock.yaml`     |
-| **web**    | `/apps/mobile/**`, `/shared/**`, `package.json`, `pnpm-lock.yaml`  |
+| **api**    | `/apps/api/**`, `/shared/**`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `tsconfig.base.json` |
+| **web**    | `/apps/mobile/**`, `/shared/**`, `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `tsconfig.base.json` |
 
 A service whose paths do not match is recorded as a **SKIPPED** deployment. That is the expected
 outcome, not a failure: a mobile-only merge skips `api`, and an API-only merge skips
@@ -67,14 +67,21 @@ railway deployment list -s web -e production   # newest first, with status
 The raw GraphQL path is not worth it here: `railway api` reads project and service config, but
 deployments come back `Bad Access` for this token.
 
-Three things this pattern does not cover, all of which need a manual redeploy:
+One thing this pattern still does not cover, and it needs a manual redeploy:
 
-- `pnpm-workspace.yaml` and `tsconfig.base.json` are not in any watch list, though a change to either
-  can affect every build.
 - `railway.json` is not used (see [What's Codified vs Dashboard](#whats-codified-vs-dashboard)), so
   these settings live in the dashboard and in this table, not in the repo.
-- Railway's `healthcheckPath` is set only on **web** (`/`, 300s timeout). `api` has none,
-  so a deploy there that starts but serves errors is not rolled back by the platform.
+
+Two holes this table closed on 2026-10-06. Both had been named below as gaps for
+months, and both meant a merge that should have redeployed did not, or a broken deploy
+that should have been rolled back was not:
+
+- **`pnpm-workspace.yaml` and `tsconfig.base.json` joined both watch lists.** A change to either can
+  affect every build and neither was watched, so a merge touching only them rebuilt nothing.
+- **`api` gained a `healthcheckPath`.** It had none, so a deploy there that started but served
+  errors was never rolled back by the platform. The path is `/api/health/ready` and deliberately
+  not `/api/health` — see [Health Checks](#health-checks) for why that distinction is the whole
+  point of the setting.
 
 CI does not deploy anything. The `mobile-web-export` job is a check that runs on pull requests; the
 merge to `main` is what ships, through Railway.
@@ -292,18 +299,51 @@ The API exposes three health endpoints:
 
 | Endpoint                | Purpose         | Failure        |
 | ----------------------- | --------------- | -------------- |
-| `GET /api/health/`      | Full status     | 503 if DB down |
+| `GET /api/health/`      | Full status     | Always 200 — the database is reported in the body, not the status |
 | `GET /api/health/live`  | Liveness probe  | Always 200     |
 | `GET /api/health/ready` | Readiness probe | 503 if DB down |
 
-Use `/api/health/ready` as the Railway health check — it returns 503 when the database is unreachable, preventing traffic to unhealthy instances.
+**The `api` service's `healthcheckPath` is `/api/health/ready`** (300s timeout, the same as
+`web`'s). It is not `/api/health`, and the difference is the reason the setting exists:
+`/api/health` answers `200` whenever the process is up — it reports the database in its body
+rather than in its status — so a deploy whose database is unreachable would pass its health
+check and serve errors to users. `/ready` answers `503` for exactly that case, which is what
+makes Railway roll the deploy back.
 
 ## Database Migrations
 
-Migrations run via `drizzle-kit migrate`. Options:
+Migrations run via `drizzle-kit migrate`, in the API service's **pre-deploy command**:
 
-1. **Pre-deploy command** (recommended): Set in Railway dashboard for the API service: `cd apps/api && pnpm db:migrate`
-2. **Manual**: `railway run -s api -- sh -c "cd apps/api && pnpm db:migrate"`
+```bash
+pnpm --filter @journiful/api db:migrate
+```
+
+Railway runs a pre-deploy command between build and deploy, with the service's variables and
+the private network, and **a failing command stops the deployment** — which is why migrations
+belong there rather than in a start command or a manual step. Manual alternative:
+`railway run -s api -- sh -c "cd apps/api && pnpm db:migrate"`.
+
+`drizzle-kit` is a **runtime** dependency of `apps/api` for this reason. The command runs in the
+deployed image, and a `devDependencies` entry is not in it; it moved into `dependencies` on
+2026-10-06. Without that move the pre-deploy command fails in production and takes the deploy
+with it — so the dependency change has to be live on `main` **before** the pre-deploy command is
+switched on.
+
+### The expand/contract rule
+
+A migration ships in the deploy that reads it, and the code that *stops* using a column ships in
+the next one:
+
+- **Expand** (additive) — add the column or table, backfill, and let the code that reads it ship in
+  the same deploy. Safe to roll back, because the previous build ignores a column it does not know
+  about.
+- **Contract** (destructive) — dropping a column or a table, or tightening a `NOT NULL` that the
+  previous build still writes to. It ships *after* the release that stopped using it.
+
+A destructive migration in the same deploy as the code that dropped the read is the one change
+that cannot be rolled back: the previous build is still the image, and it is now wrong about the
+schema. So a release that removes a column's last reader is followed, one release later, by the
+migration that removes the column.
 
 ## Production Safety Guards
 
