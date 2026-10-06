@@ -45,6 +45,7 @@ import pushServicePlugin from "./plugins/push-service.js";
 import paymentServicePlugin from "./plugins/payment-service.js";
 import balanceServicePlugin from "./plugins/balance-service.js";
 import adminServicePlugin from "./plugins/admin-service.js";
+import userServicePlugin from "./plugins/user-service.js";
 import discoverServicePlugin from "./plugins/discover-service.js";
 import photoCacheServicePlugin from "./plugins/photo-cache-service.js";
 import placeCacheServicePlugin from "./plugins/place-cache-service.js";
@@ -270,6 +271,7 @@ export async function buildApp(
   await app.register(paymentServicePlugin);
   await app.register(balanceServicePlugin);
   await app.register(adminServicePlugin);
+  await app.register(userServicePlugin);
   await app.register(discoverServicePlugin);
   await app.register(photoCacheServicePlugin);
   await app.register(placeCacheServicePlugin);

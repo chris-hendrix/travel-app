@@ -1,5 +1,8 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
-import type { UpdateProfileInput } from "@journiful/shared/schemas";
+import type {
+  UpdateProfileInput,
+  DeleteAccountInput,
+} from "@journiful/shared/schemas";
 import { InvalidFileTypeError, FileTooLargeError } from "../errors.js";
 
 /**
@@ -85,6 +88,56 @@ export const userController = {
         error: {
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to update profile",
+        },
+      });
+    }
+  },
+
+  /**
+   * Delete account endpoint
+   * Anonymizes the authenticated user's account
+   *
+   * Deliberately reachable without `checkBanned` (see the sibling scope in
+   * user.routes.ts): App Store Review Guideline 5.1.1(v) requires account
+   * deletion to be available to every account holder, including a suspended
+   * one. The row is anonymized rather than dropped, so a ban outlives the
+   * deletion in the audit trail.
+   *
+   * @route DELETE /api/users/me
+   * @middleware authenticate
+   * @param request - Fastify request
+   * @param reply - Fastify reply object
+   * @returns Success response with no user payload
+   */
+  async deleteAccount(
+    request: FastifyRequest<{ Body: DeleteAccountInput }>,
+    reply: FastifyReply,
+  ): Promise<void> {
+    try {
+      const { userService } = request.server;
+      const userId = request.user.sub;
+
+      await userService.deleteAccount(userId);
+
+      return reply.status(200).send({ success: true });
+    } catch (error) {
+      // Re-throw typed errors for error handler
+      if (error && typeof error === "object" && "statusCode" in error) {
+        throw error;
+      }
+
+      // Log error for debugging
+      request.log.error(
+        { error, userId: request.user.sub },
+        "Failed to delete account",
+      );
+
+      // Return generic error response
+      return reply.status(500).send({
+        success: false,
+        error: {
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to delete account",
         },
       });
     }

@@ -107,6 +107,9 @@ export {
   userHandlesSchema,
   updateProfileSchema,
   type UpdateProfileInput,
+  deleteAccountSchema,
+  deleteAccountResponseSchema,
+  type DeleteAccountInput,
 } from "./user";
 
 // Re-export message schemas

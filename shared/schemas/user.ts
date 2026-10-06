@@ -46,5 +46,26 @@ export const updateProfileSchema = z.object({
   temperatureUnit: z.enum(["celsius", "fahrenheit"]).optional(),
 });
 
+/**
+ * Validates an account-deletion request.
+ *
+ * `confirm` is a guard, not a field: `DELETE /me` is destructive and
+ * irreversible from the user's side, so the caller has to type the word out
+ * rather than tripping over a mis-tapped button. App Store Review Guideline
+ * 5.1.1(v) requires the deletion path to work; this does not narrow who may
+ * use it, only that the call was meant.
+ */
+export const deleteAccountSchema = z.object({
+  confirm: z.literal("delete", {
+    error: 'Must send { confirm: "delete" } to delete an account',
+  }),
+});
+
+/** Response body for a successful account deletion. */
+export const deleteAccountResponseSchema = z.object({
+  success: z.literal(true),
+});
+
 // Inferred TypeScript types from schemas
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+export type DeleteAccountInput = z.infer<typeof deleteAccountSchema>;
