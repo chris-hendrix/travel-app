@@ -80,9 +80,13 @@ export class MutualsService implements IMutualsService {
     // intent and guards against future join changes. The `m1.user_id !=
     // m2.user_id` self-join predicate is NULL-safe by construction (NULL
     // comparisons yield NULL, i.e. guest rows never match).
+    // u.deleted_at IS NULL: a deleted account is not a tripmate. Its members
+    // rows survive deletion on purpose (they are the trip's record of the
+    // person), so the self-join still finds it — the join is not the filter.
     const whereConditions: ReturnType<typeof sql>[] = [
       sql`m1.user_id = ${userId}`,
       sql`m2.user_id IS NOT NULL`,
+      sql`u.deleted_at IS NULL`,
     ];
 
     if (tripId) {
@@ -187,9 +191,14 @@ export class MutualsService implements IMutualsService {
     // NOT EXISTS (not NOT IN): a NULL user_id in members would make
     // `NOT IN (SELECT user_id ...)` evaluate to UNKNOWN for every row
     // (three-valued logic) and return zero candidates. NOT EXISTS is NULL-safe.
+    // u.deleted_at IS NULL: a deleted account must not be offered as an
+    // invitee. Its members rows survive deletion, so nothing else excludes it,
+    // and the phone the invitation would carry is a `deleted:<uuid>`
+    // tombstone — an invitation to nobody.
     const whereConditions: ReturnType<typeof sql>[] = [
       sql`m1.user_id = ${userId}`,
       sql`m2.user_id IS NOT NULL`,
+      sql`u.deleted_at IS NULL`,
       // Exclude users already in the target trip
       sql`NOT EXISTS (SELECT 1 FROM members m2_excl WHERE m2_excl.trip_id = ${tripId} AND m2_excl.user_id = u.id)`,
     ];

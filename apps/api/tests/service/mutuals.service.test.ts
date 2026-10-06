@@ -4,12 +4,14 @@ import { users, members, trips } from "@/db/schema/index.js";
 import { inArray } from "drizzle-orm";
 import { MutualsService } from "@/services/mutuals.service.js";
 import { PermissionsService } from "@/services/permissions.service.js";
+import { UserService } from "@/services/user.service.js";
 import { generateUniquePhone } from "../test-utils.js";
 import { PermissionDeniedError, InvalidCursorError } from "@/errors.js";
 
 // Create service instances with db for testing
 const permissionsService = new PermissionsService(db);
 const mutualsService = new MutualsService(db, permissionsService);
+const userService = new UserService(db);
 
 describe("mutuals.service", () => {
   // Test data IDs tracked for cleanup
@@ -364,6 +366,62 @@ describe("mutuals.service", () => {
 
       expect(result.mutuals).toHaveLength(1);
       expect(result.mutuals[0].displayName).toBe("Bob");
+    });
+  });
+
+  describe("deleted accounts", () => {
+    /**
+     * A deleted account is not a tripmate. Deletion anonymizes the row and
+     * tombstones the phone number, but the `members` rows survive on purpose
+     * (they are the trip's record of the person), so the self-join still
+     * finds them — the join is not what keeps them out, the deleted_at
+     * filter is. Listing them would offer a tombstone as an invitee, and the
+     * invitation that follows would carry the 44-character `deleted:<uuid>`
+     * into a phone column sized for a real number.
+     */
+    it("does not return a deleted account from getMutuals", async () => {
+      const currentUserId = await createUser("Current User");
+      const aliceId = await createUser("Alice");
+      const bobId = await createUser("Bob");
+
+      const tripId = await createTrip("Trip 1", currentUserId);
+      await addMember(tripId, currentUserId, { isOrganizer: true });
+      await addMember(tripId, aliceId);
+      await addMember(tripId, bobId);
+
+      // Delete through the real path, so the row is anonymized exactly the
+      // way production does it.
+      await userService.deleteAccount(aliceId);
+
+      const result = await mutualsService.getMutuals({ userId: currentUserId });
+
+      expect(result.mutuals.map((m) => m.id)).toEqual([bobId]);
+    });
+
+    it("does not offer a deleted account as an invite suggestion", async () => {
+      const currentUserId = await createUser("Current User");
+      const aliceId = await createUser("Alice");
+      const bobId = await createUser("Bob");
+
+      // Trip 1 is where the current user knows alice and bob from; trip 2 is
+      // the trip the suggestions are for.
+      const trip1Id = await createTrip("Trip 1", currentUserId);
+      await addMember(trip1Id, currentUserId, { isOrganizer: true });
+      await addMember(trip1Id, aliceId);
+      await addMember(trip1Id, bobId);
+
+      const trip2Id = await createTrip("Trip 2", currentUserId);
+      await addMember(trip2Id, currentUserId, { isOrganizer: true });
+
+      await userService.deleteAccount(aliceId);
+
+      const result = await mutualsService.getMutualSuggestions({
+        userId: currentUserId,
+        tripId: trip2Id,
+      });
+
+      // Bob is still offered; the deleted account is not.
+      expect(result.mutuals.map((m) => m.id)).toEqual([bobId]);
     });
   });
 });

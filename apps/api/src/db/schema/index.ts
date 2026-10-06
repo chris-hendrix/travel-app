@@ -152,7 +152,13 @@ export const members = pgTable(
       onDelete: "cascade",
     }),
     guestDisplayName: varchar("guest_display_name", { length: 50 }),
-    guestPhone: varchar("guest_phone", { length: 20 }),
+    // Same class as `invitations.invitee_phone`: a phone that originates in
+    // `users.phone_number`, which deletion can leave as a 44-character
+    // `deleted:<uuid>` tombstone. Sized with that column (64) rather than the
+    // old 20 so a guest row and the invitation it came from can hold the same
+    // value — a column narrower than its source turns a copy into Postgres
+    // 22001 mid-transaction.
+    guestPhone: varchar("guest_phone", { length: 64 }),
     claimedAt: timestamp("claimed_at", { withTimezone: true }),
     status: rsvpStatusEnum("status").notNull().default("no_response"),
     isOrganizer: boolean("is_organizer").notNull().default(false),
@@ -196,7 +202,11 @@ export const invitations = pgTable(
     inviterId: uuid("inviter_id")
       .notNull()
       .references(() => users.id),
-    inviteePhone: varchar("invitee_phone", { length: 20 }).notNull(),
+    // A copy of the invitee's `users.phone_number`, written verbatim, so it is
+    // as wide as that column (64): a `deleted:<uuid>` tombstone is 44
+    // characters, and a narrower column raises Postgres 22001 mid-transaction
+    // — which aborts the batch, not just the one invitation.
+    inviteePhone: varchar("invitee_phone", { length: 64 }).notNull(),
     status: invitationStatusEnum("status").notNull().default("pending"),
     sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
     respondedAt: timestamp("responded_at", { withTimezone: true }),

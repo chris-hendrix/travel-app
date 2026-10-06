@@ -8,7 +8,7 @@ import {
   paymentParticipants,
   type Invitation as DBInvitation,
 } from "@/db/schema/index.js";
-import { eq, and, inArray, count, sql } from "drizzle-orm";
+import { eq, and, inArray, isNotNull, count, sql } from "drizzle-orm";
 import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
 import type { ISMSService } from "./sms.service.js";
@@ -509,7 +509,33 @@ export class InvitationService implements IInvitationService {
         const invitableUserIds = userIds.filter((id) => !blocked.has(id));
         skipped.push(...blockedUserIds);
 
-        if (invitableUserIds.length > 0) {
+        // A deleted account is not an invitee, and this guard sits beside the
+        // block one because it fails in the same place for the same reason:
+        // deletion anonymizes the row but keeps its `members` rows (they are
+        // the trip's record of the person), so the mutual verification below
+        // still passes it — and the phone number it would be invited by is a
+        // `deleted:<uuid>` tombstone, i.e. an invitation addressed to nobody.
+        // The answer is `skipped`, not a throw: 22001 out of the insert used
+        // to take the whole batch down with it, and a distinguishable answer
+        // is exactly what the block guard above avoids. Read off
+        // `invitableUserIds` rather than `userIds` so an id that is both
+        // blocked and deleted is reported once.
+        const deletedRows = await tx
+          .select({ id: users.id })
+          .from(users)
+          .where(
+            and(
+              inArray(users.id, invitableUserIds),
+              isNotNull(users.deletedAt),
+            ),
+          );
+        const deletedUserIds = new Set(deletedRows.map((r) => r.id));
+        const liveInvitableUserIds = invitableUserIds.filter(
+          (id) => !deletedUserIds.has(id),
+        );
+        skipped.push(...deletedUserIds);
+
+        if (liveInvitableUserIds.length > 0) {
           // Verify each userId is a mutual of the inviter (shares at least one trip)
           const mutualCheckResult = await tx.execute<{
             user_id: string;
@@ -519,7 +545,7 @@ export class InvitationService implements IInvitationService {
             JOIN members m2 ON m1.trip_id = m2.trip_id AND m1.user_id != m2.user_id
             WHERE m1.user_id = ${userId}
               AND m2.user_id IN (${sql.join(
-                invitableUserIds.map((id) => sql`${id}`),
+                liveInvitableUserIds.map((id) => sql`${id}`),
                 sql`, `,
               )})
             GROUP BY m2.user_id
@@ -530,7 +556,7 @@ export class InvitationService implements IInvitationService {
           );
 
           // Reject any non-mutual userIds
-          for (const uid of invitableUserIds) {
+          for (const uid of liveInvitableUserIds) {
             if (!verifiedMutualIds.has(uid)) {
               throw new NotAMutualError(
                 `User ${uid} is not a mutual and cannot be invited directly`,
@@ -545,7 +571,7 @@ export class InvitationService implements IInvitationService {
             .where(
               and(
                 eq(members.tripId, tripId),
-                inArray(members.userId, invitableUserIds),
+                inArray(members.userId, liveInvitableUserIds),
               ),
             );
           const alreadyMemberMutualIds = new Set(
@@ -553,10 +579,10 @@ export class InvitationService implements IInvitationService {
           );
 
           // Filter out already-member userIds
-          const newMutualUserIds = invitableUserIds.filter(
+          const newMutualUserIds = liveInvitableUserIds.filter(
             (uid) => !alreadyMemberMutualIds.has(uid),
           );
-          const skippedMutualUserIds = invitableUserIds.filter((uid) =>
+          const skippedMutualUserIds = liveInvitableUserIds.filter((uid) =>
             alreadyMemberMutualIds.has(uid),
           );
           skipped.push(...skippedMutualUserIds);
