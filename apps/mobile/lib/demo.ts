@@ -29,6 +29,8 @@ export type DemoTrip = {
   location: string;
   startDate: string;
   endDate: string;
+  /** Invented prose so the real Description block renders in the demo. */
+  description: string | null;
   /** The friend's view: the demo reads as the traveler, not the organizer. */
   viewerMemberId: string;
   members: Member[];
@@ -252,6 +254,8 @@ export function buildDemoTrip(today: Date = new Date()): DemoTrip {
     location: "Cabo San Lucas, Mexico",
     startDate,
     endDate,
+    description:
+      "Five days in Cabo San Lucas with the whole crew under one roof at Casa Verde. Mornings are unscheduled — beach, pool, or sleep in — and the group meets up for the dinners and the boat day on the shared itinerary. Bring reef-safe sunscreen and one nice outfit for the farewell dinner.",
     viewerMemberId: DEMO_VIEWER_MEMBER_ID,
     members,
     stay,
@@ -293,6 +297,8 @@ export function buildDemoTrips(today: Date = new Date()): DemoTrip[] {
     location: "Marfa, Texas",
     startDate: marfaStart,
     endDate: marfaEnd,
+    description:
+      "A slow desert weekend in Marfa: gallery hopping by day, the lights viewing area after dark. We are in two yurts and a trailer, so pack warm layers for the night chill.",
     viewerMemberId: DEMO_VIEWER_MEMBER_ID,
     members: [
       member(DEMO_VIEWER_MEMBER_ID, "You", "going", "+15550000011", false),
@@ -365,6 +371,8 @@ export function buildDemoTrips(today: Date = new Date()): DemoTrip[] {
     location: "Portland, Oregon",
     startDate: portlandStart,
     endDate: portlandEnd,
+    description:
+      "A long weekend in Portland: bookstores, cart blocks, and one rainy-day museum backup plan. Corner rooms when we ask early, so arrivals before four should plan to roam.",
     viewerMemberId: DEMO_VIEWER_MEMBER_ID,
     members: [
       member(DEMO_VIEWER_MEMBER_ID, "You", "going", "+15550000011", false),

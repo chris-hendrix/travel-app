@@ -53,7 +53,12 @@ describe("the demo data layer", () => {
     const tripId = trips.data[0]!.id;
 
     // The detail screen's reads.
-    await apiFetch(`/trips/${tripId}`);
+    const detail = await apiFetch<{ success: true; trip: { description: string | null } }>(
+      `/trips/${tripId}`,
+    );
+    // The fixture's invented prose reaches the real Description block.
+    expect(typeof detail.trip.description).toBe("string");
+    expect(detail.trip.description!.length).toBeGreaterThan(0);
     await apiFetch(`/trips/${tripId}/members`);
     const before = await apiFetch<{ success: true; events: Array<{ id: string; name: string }> }>(
       `/trips/${tripId}/events`,

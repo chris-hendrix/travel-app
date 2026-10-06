@@ -54,6 +54,11 @@ import { EventsProvider } from "@/lib/eventsStore";
 import { TravelProvider } from "@/lib/travelStore";
 import { StaysProvider } from "@/lib/staysStore";
 import { DisplayZoneProvider } from "@/lib/displayZone";
+// The demo's early install: `lib/demo/installEarly.ts` self-installs at
+// module scope when the app boots on `/demo`, so the shell's restore read
+// and header paint already see the demo session — before any route mounts.
+// A no-op on every other route (no fetch patch, no auth override).
+import "@/lib/demo/installEarly";
 import "../global.css";
 
 SplashScreen.preventAutoHideAsync();

@@ -189,7 +189,7 @@ function detailOf(trip: DemoTrip): TripDetail {
     startDate: trip.startDate,
     endDate: trip.endDate,
     preferredTimezone: "",
-    description: null,
+    description: trip.description ?? null,
     coverImageUrl: null,
     createdBy: organizer.userId,
     allowMembersToAddEvents: false,

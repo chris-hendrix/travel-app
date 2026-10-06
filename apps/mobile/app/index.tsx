@@ -10,6 +10,8 @@ import { useAuth } from "@/lib/authStore";
 import { destinationForRequiresProfile } from "@/lib/queries/auth";
 import { Band } from "@/components/ui/Band";
 import { Column } from "@/components/ui/Column";
+import { Image } from "@/components/ui/Image";
+import demoTripShot from "@/assets/demo/trip.png";
 
 /**
  * The landing: what the app is, for someone who has not signed in.
@@ -163,7 +165,30 @@ function Landing() {
             <Text className="font-display-semibold text-heading-lg uppercase text-ink">
               What your friends see
             </Text>
-            {/* PHASE 4 IMAGE SLOT */}
+            {/*
+              The proof: the demo trip's detail, captured, not drawn.
+              Captured at a 390-wide viewport from the served export:
+              `/demo` cold-loaded, the Cabo card tapped, the hero
+              (`e86`) and the run (`e135`) shot as elements and stacked
+              (hero rows 0-765, run rows 620-1145) into the committed
+              `assets/demo/trip.png` (390x1290). Re-capture when the
+              detail hero changes shape, or when the fixture moves: the
+              rows below the seam are the Cabo trip from
+              `lib/demo.ts` (`buildDemoTrip` — five-day Fri-Tue window,
+              Casa Verde stay, seven events, four arrivals) served through
+              `lib/demo/adapter.ts`, with the invented `description` the
+              real Description block renders (`demo-fixture.test.ts`
+              holds the prose). Never raw `expo-image` here: classNames
+              are dropped on the native view (`image-classes.test.ts`).
+              The `md:` cap keeps the 390px capture at its own width
+              inside the wider column instead of stretching it.
+            */}
+            <Image
+              source={demoTripShot}
+              contentFit="cover"
+              className="w-full md:max-w-[390px] aspect-[390/1290]"
+              accessibilityLabel="A trip in the app: the Cabo itinerary with its events"
+            />
             <Link href="/demo" className="font-body text-sm text-ink underline">
               Look at a real trip
             </Link>

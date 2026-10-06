@@ -6,6 +6,7 @@ import {
   installDemoFetch,
   uninstallDemoFetch,
 } from "@/lib/demo/adapter";
+import { installDemoEarly } from "@/lib/demo/installEarly";
 import { setDemoAuthUser } from "@/lib/authStore";
 
 /**
@@ -35,6 +36,11 @@ import { setDemoAuthUser } from "@/lib/authStore";
  */
 export default function Demo() {
   useState(() => {
+    // The early install (`lib/demo/installEarly.ts`, via `app/_layout.tsx`)
+    // already installed before the shell rendered; re-call it here so a
+    // direct mount without the layout path still resolves, then install
+    // idempotently as before.
+    installDemoEarly();
     installDemoFetch(createDemoStore(buildDemoTrips(new Date())));
     setDemoAuthUser({ ...DEMO_AUTH_USER });
     return null;

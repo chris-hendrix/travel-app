@@ -86,6 +86,14 @@ describe("the demo fixture", () => {
     for (const phone of phones) expect(phone).toContain("555");
   });
 
+  it("carries invented prose for the real Description block", () => {
+    const trip = buildDemoTrip(new Date("2026-10-06T12:00:00.000Z"));
+    expect(typeof trip.description).toBe("string");
+    expect(trip.description!.length).toBeGreaterThan(0);
+    expect(trip.description).not.toContain("http://");
+    expect(trip.description).not.toContain("https://");
+  });
+
   it("carries no remote URL anywhere", () => {
     const trip = buildDemoTrip(new Date("2026-10-06T12:00:00.000Z"));
     const dump = JSON.stringify(trip);

@@ -46,9 +46,12 @@ export const DIALOG_ROUTES = [
  */
 export const BARE_HEADER_ROUTES: Record<string, "landing" | "bare"> = {
   "/": "landing",
-  // The demo is the landing's proof, so it wears the landing header:
-  // the wordmark plus the sign-in word, keeping the way in reachable.
-  "/demo": "landing",
+  // "/demo" is deliberately absent: the demo installs its traveler
+  // session before the shell paints (`lib/demo/installEarly.ts`), so it
+  // wears the app header — bell plus avatar — never the landing's
+  // sign-in word. A signed-out word above a signed-in list is the boot
+  // race this map used to encode; see `app/demo.tsx`.
+  // (no /demo entry: app chrome, not bare)
   "/login": "bare",
   "/verify": "bare",
   "/complete-profile": "bare",

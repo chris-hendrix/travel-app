@@ -49,17 +49,22 @@ describe("legal copy, as this app renders it", () => {
     for (const href of hrefs) expect(DIALOG_ROUTES).toContain(href);
   });
 
-  it("keeps the landing, the demo, the auth flow, and the invitation bare", () => {
+  it("keeps the landing, the auth flow, and the invitation bare", () => {
     expect(Object.keys(BARE_HEADER_ROUTES)).toEqual([
       "/",
-      // "/demo" sits beside "/": it is the landing's proof and wears
-      // the landing header, so it is listed with the landing, not the
-      // auth flow. Order-sensitive: insertion order is the contract.
-      "/demo",
       "/login",
       "/verify",
       "/complete-profile",
       "/invite",
     ]);
+  });
+
+  it("leaves the demo under the app header, never the landing word", () => {
+    // "/demo" installs its traveler session before the shell paints
+    // (`lib/demo/installEarly.ts`), so the list reads signed-in: a bare
+    // entry here would paint the sign-in word above a signed-in list.
+    // Order-sensitive: insertion order is the contract.
+    expect(Object.keys(BARE_HEADER_ROUTES)).not.toContain("/demo");
+    expect(BARE_HEADER_ROUTES["/"]).toBe("landing");
   });
 });
