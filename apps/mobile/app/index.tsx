@@ -10,8 +10,9 @@ import { useAuth } from "@/lib/authStore";
 import { destinationForRequiresProfile } from "@/lib/queries/auth";
 import { Band } from "@/components/ui/Band";
 import { Column } from "@/components/ui/Column";
-import { InviteCard } from "@/components/trip/InviteCard";
+import { PhoneThread } from "@/components/landing/PhoneThread";
 import {
+  DEMO_INVITATION_ID,
   DEMO_INVITER_NAME,
   DEMO_TRIP_ID,
   buildDemoTrip,
@@ -163,46 +164,48 @@ function Landing() {
         </View>
       </Column>
 
-      {/* The closing band shows the invitation the friend gets: the real
-          `InviteCard` against the demo fixture, and the link to the live
-          trip it opens. One navigation word, not a second button — a
-          ground change carrying a button is not a seam. */}
+      {/* The closing band shows the invitation the friend gets: one block
+          in normal flow holding the one incoming message, and the invite
+          link inside it going to the live trip it opens. One action, not
+          two — the bubble's link IS the band's action, so there is no
+          second link beside it: two links to the same place is the
+          repeated ask this page's own design notes warn about. */}
       <Band tone="baltic">
         <Column>
-          <View className="gap-6">
+          {/*
+            One sensible column: the heading, the block, the note. The
+            block sits at a phone-ish width, the band's height follows the
+            content — no absolute positioning, no negative offsets, no
+            bleeding, no cropping. The proof is demonstrated, not asserted:
+            the service's message (`components/landing/PhoneThread.tsx`) —
+            status bar, header, date separator, the template's words, then
+            the URL as plain text, underlined and tappable — reading the
+            same fixture the demo serves (`buildDemoTrip`: the Cabo trip,
+            five-day Fri-Tue window, Casa Verde stay, seven events, four
+            arrivals; `DEMO_INVITATION_ID` for the URL), so the message and
+            the trip it opens can never drift apart. The words are the
+            API's verbatim template, not copy written for this page.
+            Neither lint budget moved for this — the underline count stays
+            put (one link removed, one added) and the block's boxes use
+            bare `border`, which is a box edge rather than a rule site
+            (`scripts/design-lint.mjs` checks 3, 9 and 11).
+          */}
+          <View className="max-w-[420px] gap-5">
             <Text className="font-display-semibold text-heading-lg uppercase text-ink">
               What your friends see
             </Text>
-            {/*
-              The proof: the invitation, demonstrated, not asserted. The
-              real card (`components/trip/InviteCard.tsx`) against the
-              same fixture the demo serves (`buildDemoTrip` — the Cabo
-              trip: five-day Fri-Tue window, Casa Verde stay, seven
-              events, four arrivals), so the card and the trip it opens
-              can never drift apart. Dates derive from today, like the
-              demo's, so both move together (`demo-fixture.test.ts`
-              holds the prose and the privacy rules). The card brings its
-              own rule and its own underlined place link with it, which is
-              the point: the band demonstrates the component, not a copy of
-              it. Neither lint budget moved for this — both checks count
-              source sites, and the card already existed for the invite
-              screen (`scripts/design-lint.mjs` checks 3 and 9).
-            */}
-            <InviteCard
-              inviterName={DEMO_INVITER_NAME}
-              tripName={demoTrip.title}
-              destination={demoTrip.location}
-              startDate={demoTrip.startDate}
-              endDate={demoTrip.endDate}
+            <PhoneThread
+              dayLabel="Wednesday, Nov 4"
+              messageText={`${DEMO_INVITER_NAME} invited you to "${demoTrip.title}" on Journiful!`}
+              linkLabel={`https://journiful.app/invite\n?id=${DEMO_INVITATION_ID}`}
+              href={`/demo?id=${DEMO_TRIP_ID}`}
             />
-            <Link href={`/demo?id=${DEMO_TRIP_ID}`} className="font-body text-sm text-ink underline">
-              Look at a real trip
-            </Link>
-            {/* The one trust claim available before there are any users, and
-                the one a reader is most likely to be assuming the opposite
-                of: a new app is assumed to have a subscription in it. The
-                hero's note answers the other question, the effort of getting
-                in, because that is the one at the first button. */}
+            {/* The one trust claim available before there are any users,
+                and the one a reader is most likely to be assuming the
+                opposite of: a new app is assumed to have a subscription
+                in it. The hero's note answers the other question, the
+                effort of getting in, because that is the one at the first
+                button. */}
             <Text className="font-body text-sm text-ink">
               Free, with no ads.
             </Text>

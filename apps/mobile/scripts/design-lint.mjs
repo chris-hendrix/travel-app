@@ -245,17 +245,16 @@ checkRuleForms();
  * as in a screen. The lab is excluded: it *demonstrates* underlines on
  * purpose, so counting it would make every specimen a rule change.
  *
- * The sixteenth underlined word is the landing's link to `/demo` ("Look
- * at a real trip"): a navigation word, and the lab's own rule says a
- * word that does something is underlined. Bumped 15 → 16 for it here
- * rather than removing one elsewhere, because every existing underline is
- * an affordance something relies on.
+ * The sixteenth underlined word is the landing band's invite link (the
+ * bubble's plain-text URL into `/demo`): a navigation word, and the lab's
+ * own rule says a word that does something is underlined. Bumped 15 → 16
+ * for it here rather than removing one elsewhere, because every existing
+ * underline is an affordance something relies on.
  *
- * Showing the real `InviteCard` in the landing band moved neither this
- * nor the rule census: both checks count source sites across the tree,
- * and the card (with its `PlaceLink` underline and its `RuledBlock`)
- * already existed for the invitation screen — rendering it in one more
- * place adds no new underlined word and no new rule site.
+ * The band shows a sample phone (`components/landing/PhoneThread.tsx`)
+ * rather than the real `InviteCard`, and that moved neither this nor the
+ * rule census: both checks count source sites across the tree, the phone
+ * carries the band's one underline with it, and it draws no rule.
  */
 const UNDERLINE_RATCHET = 16;
 

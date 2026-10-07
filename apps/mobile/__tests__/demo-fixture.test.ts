@@ -7,7 +7,7 @@ import {
 } from "@/lib/demo";
 
 /**
- * The demo fixture's shape, pinned so the landing's live invitation card
+ * The demo fixture's shape, pinned so the landing's live invitation message
  * and the demo trip stay predictable. Content comes from the plan's
  * demo-trip table only:
  * Cabo, Casa Verde with its door note, three days of events, four
@@ -109,7 +109,7 @@ describe("the demo fixture", () => {
   it("names the demo invitation after the Cabo trip and its organizer", () => {
     const trip = buildDemoTrip(new Date("2026-10-06T12:00:00.000Z"));
     // The landing band links `/demo?id=…` with the trip id and renders
-    // the card facts live; the adapter's preview answers the invitation
+    // the invitation facts live; the adapter's preview answers the invitation
     // id with those same card facts.
     expect(DEMO_INVITATION_ID.length).toBeGreaterThan(0);
     expect(trip.id).toBe(DEMO_TRIP_ID);
