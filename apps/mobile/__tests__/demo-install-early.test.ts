@@ -68,7 +68,7 @@ describe("the demo early install", () => {
   });
 
   it("stays installed across a refresh on the demo trip page", async () => {
-    // The Accept button opens `/trips/detail?id=demo-trip-cabo`; a
+    // The demo entry renders the trip at `/demo?id=demo-trip-cabo`; a
     // refresh cold-boots there, with no `/demo` mounted — the gate
     // matches the demo trip id in the query so the demo environment
     // survives the refresh instead of dumping the visitor home.
@@ -103,17 +103,33 @@ describe("the demo early install", () => {
     vi.unstubAllGlobals();
   });
 
-  it("matches /demo subpaths and the demo trip refresh, but not lookalikes", async () => {
+  it("matches /demo subpaths and every demo sheet refresh, but not lookalikes", async () => {
     vi.stubGlobal("window", { location: { pathname: "/trips", search: "" } });
     const early = await freshEarly();
     expect(early.isDemoPath("/demo")).toBe(true);
     expect(early.isDemoPath("/demo/trips")).toBe(true);
-    expect(early.isDemoPath("/demo", "?id=demo-invitation-cabo")).toBe(true);
-    expect(
-      early.isDemoPath("/trips/detail", "?id=demo-trip-cabo"),
-    ).toBe(true);
+    expect(early.isDemoPath("/demo", "?id=demo-trip-cabo")).toBe(true);
+    // Every route the trip screen can push to carries the trip id, so a
+    // refresh on any of them reinstalls — while `/demo` stays mounted
+    // underneath during the walk itself.
+    for (const route of [
+      "/trips/detail",
+      "/trips/events/detail",
+      "/trips/stay/detail",
+      "/trips/members",
+      "/trips/members/detail",
+      "/trips/travel",
+      "/trips/travel/detail",
+      "/trips/travel/form",
+      "/trips/settings",
+    ]) {
+      expect(early.isDemoPath(route, "?id=demo-trip-cabo")).toBe(true);
+    }
     // A real trip's deep link must never install the fixture.
     expect(early.isDemoPath("/trips/detail", "?id=some-real-trip")).toBe(
+      false,
+    );
+    expect(early.isDemoPath("/trips/members", "?id=some-real-trip")).toBe(
       false,
     );
     expect(early.isDemoPath("/trips/detail")).toBe(false);

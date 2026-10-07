@@ -250,6 +250,12 @@ checkRuleForms();
  * word that does something is underlined. Bumped 15 → 16 for it here
  * rather than removing one elsewhere, because every existing underline is
  * an affordance something relies on.
+ *
+ * Showing the real `InviteCard` in the landing band moved neither this
+ * nor the rule census: both checks count source sites across the tree,
+ * and the card (with its `PlaceLink` underline and its `RuledBlock`)
+ * already existed for the invitation screen — rendering it in one more
+ * place adds no new underlined word and no new rule site.
  */
 const UNDERLINE_RATCHET = 16;
 

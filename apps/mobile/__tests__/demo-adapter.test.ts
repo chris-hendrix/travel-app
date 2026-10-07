@@ -53,8 +53,9 @@ describe("the demo data layer", () => {
   });
 
   it("serves the scripted demo interactions with no API egress", async () => {
-    // The invite screen's preview: the landing's demo id loads the
-    // Cabo card facts; any other id 404s into the gone state.
+    // The invitation preview: the demo invitation id loads the Cabo
+    // card facts — the same facts the landing band renders live;
+    // any other id 404s into the gone state.
     const preview = await apiFetch<{
       success: true;
       tripName: string;

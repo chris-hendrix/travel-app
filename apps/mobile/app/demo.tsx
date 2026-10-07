@@ -1,12 +1,6 @@
 import { useEffect, useState } from "react";
-import { Text, View } from "react-native";
-import Invite from "./invite";
-import { Column } from "@/components/ui/Column";
-import {
-  DEMO_AUTH_USER,
-  DEMO_INVITER_NAME,
-  buildDemoTrip,
-} from "@/lib/demo";
+import TripDetail from "./trips/detail";
+import { DEMO_AUTH_USER, buildDemoTrip } from "@/lib/demo";
 import {
   createDemoStore,
   installDemoFetch,
@@ -16,39 +10,43 @@ import { installDemoEarly } from "@/lib/demo/installEarly";
 import { setDemoAuthUser } from "@/lib/authStore";
 
 /**
- * The demo: the REAL invite screen (`app/invite.tsx`) against the demo
- * data layer (`lib/demo/adapter.ts`), which serves the invitation
- * preview and the trip's reads from the fixture with in-memory writes —
- * fully offline. The entry URL carries the demo invitation id
- * (`/demo?id=…`, linked from the landing); the screen reads it through
- * the real `useLocalSearchParams`, exactly like production.
+ * The demo: the REAL trip detail screen (`app/trips/detail.tsx`)
+ * against the demo data layer (`lib/demo/adapter.ts`), which serves
+ * the trip's reads from the fixture with in-memory writes — fully
+ * offline. The entry URL carries the demo trip id
+ * (`/demo?id=demo-trip-cabo`, linked from the landing's "What your
+ * friends see" band); the screen reads it through the real
+ * `useLocalSearchParams`, exactly like production.
  *
- * The single divergence from the product, owned here so `app/invite.tsx`
- * stays untouched for real visitors: the quiet line above the card
- * carries the "it arrives as a text" story without fabricating a
- * phone's message UI. And the honest funnel note: in the product,
- * accepting an invitation IS signing in (`app/invite.tsx` says so) —
- * the demo has no phone number, so the button opens the trip.
+ * The funnel, kept deliberately: the landing already showed the
+ * invitation (the real `InviteCard` against the same fixture), so the
+ * demo skips straight to the payoff — the trip it opens. There is no
+ * accept beat any more: in the product, accepting an invitation IS
+ * signing in, and the demo has no phone number, so the band's link is
+ * the click that opens the trip. Nothing here duplicates the detail
+ * screen's markup; this stays a thin wrapper because the installs are
+ * the whole of what the real screen needs to resolve offline.
  *
  * Two mount-scoped installs make the real screen resolve:
  * - the fetch interceptor, so every read/write the screen fires is
  *   answered locally and recorded (never the network);
  * - the demo session, so `useAuth().user` is the fixture's traveler
- *   and the signed-in "Go to the trip" button is the one that renders.
+ *   and the screen reads as one of the going members.
  *
  * Ordering matters: both install synchronously in the state
  * initializer, which runs during this component's first render —
- * before the invite screen's preview query fires. The effect only owns
- * the unmount cleanup. Both are reverted together, so leaving `/demo`
+ * before the detail screen's queries fire. The effect only owns the
+ * unmount cleanup. Both are reverted together, so leaving `/demo`
  * restores the real session and the real fetch.
  *
  * Dead ends (handled, not silent): anything the visitor can reach
- * that the demo does not implement — invite/people management, cover
- * uploads, notifications, profile, admin — replaces to `/login`
- * through the demo allowlist (`lib/demo/guard.ts` +
+ * that the demo does not implement — creating a trip, inviting
+ * people, notifications, profile, admin, organizer authoring — replaces
+ * to `/login` through the demo allowlist (`lib/demo/guard.ts` +
  * `components/demo/DemoGuard.tsx`), which is the honest answer and the
  * conversion moment. The place picker is served: the adapter answers
- * autocomplete + details from an invented list.
+ * autocomplete + details from an invented list. The trip list is gone,
+ * so there is no list to fall back to either.
  */
 export default function Demo() {
   useState(() => {
@@ -68,14 +66,5 @@ export default function Demo() {
     },
     [],
   );
-  return (
-    <View className="flex-1">
-      <Column>
-        <Text className="font-body text-sm text-ink">
-          You got a text from {DEMO_INVITER_NAME}.
-        </Text>
-      </Column>
-      <Invite />
-    </View>
-  );
+  return <TripDetail />;
 }

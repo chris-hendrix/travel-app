@@ -1,13 +1,13 @@
 /**
  * The demo's allowlist: where a demo visitor may stand.
  *
- * `/demo?id=…` renders the REAL invite screen (`app/invite.tsx`)
- * against the demo data layer, and accepting opens the REAL trip
- * detail (`/trips/detail`) plus the member/travel/stay/event sheets
- * the traveler can reach from it — the stack keeps `/demo` mounted
- * underneath, so the adapter and the fixture traveler stay installed
- * while the visitor walks. Anything the visitor can reach that the
- * demo does not actually implement must end at `/login`, which is the
+ * `/demo?id=…` renders the REAL trip detail screen
+ * (`app/trips/detail.tsx`) against the demo data layer, plus the
+ * member/travel/stay/event sheets the traveler can reach from it — the
+ * stack keeps `/demo` mounted underneath, so the adapter and the fixture
+ * traveler stay installed while the visitor walks. Anything the visitor
+ * can reach that the demo does not actually implement must end at
+ * `/login`, which is the
  * honest answer ("this part needs a real account") and the conversion
  * moment the surface exists for.
  *

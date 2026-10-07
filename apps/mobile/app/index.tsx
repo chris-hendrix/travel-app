@@ -10,9 +10,12 @@ import { useAuth } from "@/lib/authStore";
 import { destinationForRequiresProfile } from "@/lib/queries/auth";
 import { Band } from "@/components/ui/Band";
 import { Column } from "@/components/ui/Column";
-import { Image } from "@/components/ui/Image";
-import { DEMO_INVITATION_ID } from "@/lib/demo";
-import demoTripShot from "@/assets/demo/trip.png";
+import { InviteCard } from "@/components/trip/InviteCard";
+import {
+  DEMO_INVITER_NAME,
+  DEMO_TRIP_ID,
+  buildDemoTrip,
+} from "@/lib/demo";
 
 /**
  * The landing: what the app is, for someone who has not signed in.
@@ -69,6 +72,10 @@ export default function Index() {
 
 function Landing() {
   const router = useRouter();
+  // The band's invitation reads the fixture live, so the card shows
+  // the same Cabo values the demo opens — including dates derived
+  // from today, which is why this is computed, not a literal.
+  const demoTrip = buildDemoTrip(new Date());
 
   return (
     <Screen>
@@ -156,10 +163,10 @@ function Landing() {
         </View>
       </Column>
 
-      {/* The closing band shows what the trip looks like to a friend:
-          the captured demo trip (Phase 4) and the link to the live demo.
-          One navigation word, not a second button — a ground change
-          carrying a button is not a seam. */}
+      {/* The closing band shows the invitation the friend gets: the real
+          `InviteCard` against the demo fixture, and the link to the live
+          trip it opens. One navigation word, not a second button — a
+          ground change carrying a button is not a seam. */}
       <Band tone="baltic">
         <Column>
           <View className="gap-6">
@@ -167,30 +174,28 @@ function Landing() {
               What your friends see
             </Text>
             {/*
-              The proof: the demo trip's detail, captured, not drawn.
-              Captured at a 390-wide viewport from the served export:
-              `/demo?id=…` cold-loaded, the invitation accepted, the hero
-              (`e86`) and the run (`e135`) shot as elements and stacked
-              (hero rows 0-765, run rows 620-1145) into the committed
-              `assets/demo/trip.png` (390x1290). Re-capture when the
-              detail hero changes shape, or when the fixture moves: the
-              rows below the seam are the Cabo trip from
-              `lib/demo.ts` (`buildDemoTrip` — five-day Fri-Tue window,
-              Casa Verde stay, seven events, four arrivals) served through
-              `lib/demo/adapter.ts`, with the invented `description` the
-              real Description block renders (`demo-fixture.test.ts`
-              holds the prose). Never raw `expo-image` here: classNames
-              are dropped on the native view (`image-classes.test.ts`).
-              The `md:` cap keeps the 390px capture at its own width
-              inside the wider column instead of stretching it.
+              The proof: the invitation, demonstrated, not asserted. The
+              real card (`components/trip/InviteCard.tsx`) against the
+              same fixture the demo serves (`buildDemoTrip` — the Cabo
+              trip: five-day Fri-Tue window, Casa Verde stay, seven
+              events, four arrivals), so the card and the trip it opens
+              can never drift apart. Dates derive from today, like the
+              demo's, so both move together (`demo-fixture.test.ts`
+              holds the prose and the privacy rules). The card brings its
+              own rule and its own underlined place link with it, which is
+              the point: the band demonstrates the component, not a copy of
+              it. Neither lint budget moved for this — both checks count
+              source sites, and the card already existed for the invite
+              screen (`scripts/design-lint.mjs` checks 3 and 9).
             */}
-            <Image
-              source={demoTripShot}
-              contentFit="cover"
-              className="w-full md:max-w-[390px] aspect-[390/1290]"
-              accessibilityLabel="A trip in the app: the Cabo itinerary with its events"
+            <InviteCard
+              inviterName={DEMO_INVITER_NAME}
+              tripName={demoTrip.title}
+              destination={demoTrip.location}
+              startDate={demoTrip.startDate}
+              endDate={demoTrip.endDate}
             />
-            <Link href={`/demo?id=${DEMO_INVITATION_ID}`} className="font-body text-sm text-ink underline">
+            <Link href={`/demo?id=${DEMO_TRIP_ID}`} className="font-body text-sm text-ink underline">
               Look at a real trip
             </Link>
             {/* The one trust claim available before there are any users, and

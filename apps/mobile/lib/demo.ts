@@ -19,8 +19,9 @@ import type { MockTravel } from "@/mocks/travel";
  * demo over-promises.
  *
  * Dates derive from today (the next Fri–Tue roughly eight weeks out),
- * so the trip never reads as stale. The landing's captured image
- * freezes whatever this said: re-capture when this shape changes.
+ * so the trip never reads as stale. The landing's invitation band reads
+ * this fixture live, so a shape change shows up there directly — no
+ * capture to re-take.
  */
 export type DemoTrip = {
   /** The adapter's key: the id the real `GET /trips/:id` reads serve. */
@@ -42,10 +43,15 @@ export type DemoTrip = {
 /** The viewer's own row. The RSVP control and the roster row share it. */
 export const DEMO_VIEWER_MEMBER_ID = "demo-you";
 
-/** The demo trip's id: the Accept button's `/trips/detail?id=…` target. */
+/** The demo trip's id: the landing band's `/demo?id=…` link carries it. */
 export const DEMO_TRIP_ID = "demo-trip-cabo";
 
-/** The demo invitation's id: the landing's demo link carries it as `/demo?id=…`. */
+/**
+ * The demo invitation's id: the adapter's invitation preview answers it
+ * (`GET /invitations/:id/preview`), which is what the invite screen's
+ * own query reads. The landing band no longer links it — the band shows
+ * the invitation itself and links the trip it opens.
+ */
 export const DEMO_INVITATION_ID = "demo-invitation-cabo";
 
 /** The demo invitation's inviter: the Cabo trip's organizer, who sent the text. */

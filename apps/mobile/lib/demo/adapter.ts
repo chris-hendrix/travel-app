@@ -365,11 +365,11 @@ export function handleDemoRequest(
 
   const previewMatch = /^\/invitations\/([^/]+)\/preview$/.exec(path);
   if (verb === "GET" && previewMatch) {
-    // The demo IS the invite screen (`app/demo.tsx` renders the real
-    // `app/invite.tsx`, whose preview query is public): the landing's
-    // demo link carries the demo invitation id, and the fixture
-    // answers it with the Cabo trip's card facts. Any other id 404s
-    // into the screen's own gone state, exactly like a real unknown id.
+    // The invitation preview the invite screen's own query reads (public
+    // query): the fixture answers the demo invitation id with the Cabo
+    // trip's card facts — the same facts the landing band renders live.
+    // Any other id 404s into the screen's own gone state, exactly like
+    // a real unknown id.
     const id = decodeURIComponent(previewMatch[1]!);
     if (id !== DEMO_INVITATION_ID) return notFound("Invitation not found");
     const trip = store.trips[0];

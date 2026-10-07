@@ -55,7 +55,7 @@ describe("the demo allowlist", () => {
 
   it("leaves out the genuinely-absent surfaces (they go to /login)", () => {
     for (const route of [
-      // The trip list: the demo opens on the invite, not a list.
+      // The trip list: the demo opens on the trip, not a list.
       "/trips",
       // Creating a trip needs a real account.
       "/trips/new",
