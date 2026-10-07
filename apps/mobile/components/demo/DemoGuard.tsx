@@ -1,11 +1,17 @@
 import { useEffect } from "react";
 import { useGlobalSearchParams, usePathname, useRouter } from "expo-router";
-import { uninstallDemoFetch } from "@/lib/demo/adapter";
-import { DEMO_TRIP_ID } from "@/lib/demo";
+import {
+  createDemoStore,
+  installDemoFetch,
+  isDemoFetchInstalled,
+  uninstallDemoFetch,
+} from "@/lib/demo/adapter";
+import { DEMO_AUTH_USER, DEMO_TRIP_ID, buildDemoTrip } from "@/lib/demo";
 import { getDemoAuthUser, setDemoAuthUser } from "@/lib/authStore";
 import {
   isDemoAllowedRoute,
   isDemoAppRoute,
+  normalizeDemoPath,
   shouldReenterDemo,
 } from "@/lib/demo/guard";
 
@@ -17,6 +23,29 @@ import {
 export function teardownDemoScope(): void {
   uninstallDemoFetch();
   setDemoAuthUser(null);
+}
+
+/**
+ * Reinstall the demo scope when it is missing: the fetch interceptor
+ * plus the fixture session, the same pair `app/demo.tsx` mounts.
+ * A no-op when the scope is already installed, so in-demo walks keep
+ * their in-memory writes.
+ *
+ * Why this exists alongside the entry's mount installs: on web the
+ * stack keeps `/demo` mounted while hidden (a hidden screen is a
+ * `display: none` view, not an unmount), so browser-back tears the
+ * scope down through this guard's pathname effect WITHOUT unmounting
+ * the entry — and browser-forward back to `/demo` remounts nothing.
+ * No mount install re-runs, so nothing would reinstall and the real
+ * trip screen would fire genuine requests. The guard renders above
+ * the stack (see `app/_layout.tsx`), so reinstalling here — during
+ * render, before the trip screen's queries fire — puts the offline
+ * data layer back before any read can reach the network.
+ */
+export function ensureDemoScope(): void {
+  if (isDemoFetchInstalled() && getDemoAuthUser() !== null) return;
+  installDemoFetch(createDemoStore([buildDemoTrip(new Date())]));
+  setDemoAuthUser({ ...DEMO_AUTH_USER });
 }
 
 /**
@@ -40,12 +69,19 @@ export function DemoGuard(): null {
   const pathname = usePathname();
   const router = useRouter();
   const params = useGlobalSearchParams();
+  // Standing on the entry implies the scope — mount or no mount.
+  // Render-phase (not the effect below): the stack's screens render
+  // after this guard, so the interceptor is back before any query
+  // the re-entered trip screen fires. A no-op while installed, so
+  // in-demo walks keep their in-memory writes.
+  if (normalizeDemoPath(pathname) === "/demo") ensureDemoScope();
   useEffect(() => {
     // No demo session: the real app is untouched — except re-entry.
     // Browser-back into a demo sheet URL after leaving tore the
-    // scope down with `/demo` unmounted, so nothing would reinstall
-    // and the sheet would fire real reads with no session. Walk back
-    // through the entry, whose mount reinstalls, instead.
+    // scope down while `/demo` stayed mounted-but-hidden, so the
+    // sheet would fire real reads with no session. Walk back through
+    // the entry, whose render (`ensureDemoScope` above) reinstalls,
+    // instead.
     if (getDemoAuthUser() === null) {
       if (shouldReenterDemo(pathname, params.id)) {
         router.replace(`/demo?id=${DEMO_TRIP_ID}`);

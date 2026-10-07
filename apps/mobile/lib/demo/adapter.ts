@@ -796,6 +796,11 @@ export function installDemoFetch(store: DemoStore): void {
   }) as typeof fetch;
 }
 
+/** Whether the demo interceptor is currently installed. */
+export function isDemoFetchInstalled(): boolean {
+  return wrappedFetch !== null;
+}
+
 /** Restore the wrapped fetch. A no-op when the demo was never mounted. */
 export function uninstallDemoFetch(): void {
   if (wrappedFetch) {

@@ -22,11 +22,9 @@ import {
   DEMO_TRIP_ID,
   buildDemoTrip,
 } from "@/lib/demo";
-import { createDemoStore, installDemoFetch } from "@/lib/demo/adapter";
+import { createDemoStore, installDemoFetch, isDemoFetchInstalled, uninstallDemoFetch } from "@/lib/demo/adapter";
 import { DEMO_APP_ROUTES, normalizeDemoPath } from "@/lib/demo/guard";
 import { setDemoAuthUser } from "@/lib/authStore";
-
-let installed = false;
 
 export function isDemoPath(pathname: string, search = ""): boolean {
   if (pathname === "/demo" || pathname.startsWith("/demo/")) return true;
@@ -67,20 +65,29 @@ export function currentSearch(): string {
 }
 
 export function installDemoEarly(): boolean {
-  if (installed) return true;
+  // Already installed (the adapter's own wrap is the record, not a
+  // sticky module flag — leaving the demo tears the wrap down, so
+  // the next call on a demo URL genuinely reinstalls): a no-op that
+  // reports as installed. The store is deliberately NOT refreshed
+  // here — the mounted entry owns its store through its own
+  // `installDemoFetch` call.
+  if (isDemoFetchInstalled()) return true;
   const pathname = currentPathname();
   if (pathname === null || !isDemoPath(pathname, currentSearch())) {
     return false;
   }
   installDemoFetch(createDemoStore([buildDemoTrip(new Date())]));
   setDemoAuthUser({ ...DEMO_AUTH_USER });
-  installed = true;
   return true;
 }
 
-/** Test-only reset: the module's once-flag, so suites can reinstall. */
+/**
+ * Test-only reset: uninstalls the demo fetch wrap, so suites can
+ * reinstall from clean. (There is no module once-flag any more:
+ * installed-ness is the adapter's own wrap — see above.)
+ */
 export function resetDemoEarlyForTests(): void {
-  installed = false;
+  uninstallDemoFetch();
 }
 
 installDemoEarly();

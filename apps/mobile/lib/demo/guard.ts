@@ -103,11 +103,12 @@ export function isDemoPublicRoute(pathname: string): boolean {
  * Re-entry: browser-back into a demo sheet URL after leaving the demo.
  *
  * Leaving tears the demo scope down (fetch restored, session cleared)
- * while the module's once-flag stays set, and `/demo` is not mounted —
- * so nothing would reinstall and the sheet would fire real reads with
- * no session. The answer is the entry: `/demo?id=…` remounts and
- * reinstalls. `/demo` itself is excluded (its own mount installs),
- * and the `id` match is exact so a real trip's sheet never bounces.
+ * while `/demo` stays mounted-but-hidden on web, and the sheet URL
+ * itself carries no install — so nothing would reinstall and the
+ * sheet would fire real reads with no session. The answer is the
+ * entry: `/demo?id=…`, whose render reinstalls (`ensureDemoScope`).
+ * `/demo` itself is excluded (its own render installs), and the `id`
+ * match is exact so a real trip's sheet never bounces.
  */
 export function shouldReenterDemo(
   pathname: string,
