@@ -2,7 +2,7 @@ import { and, desc, eq, or } from "drizzle-orm";
 import { userBlocks, userReports, users } from "@/db/schema/index.js";
 import type { UserReport } from "@/db/schema/index.js";
 import type { AppDatabase } from "@/types/index.js";
-import { CannotModerateSelfError } from "@/errors.js";
+import { CannotModerateSelfError, UserNotFoundError } from "@/errors.js";
 
 /**
  * Moderation: one user stops seeing another.
@@ -14,9 +14,14 @@ import { CannotModerateSelfError } from "@/errors.js";
  * rather than asking the question its own way.
  */
 
-/** Every user id in a block either way with `userId`. */
+/**
+ * Every user id in a block either way with `userId`.
+ *
+ * The executor is the database or a caller's transaction: the guest phone
+ * guard reads the block inside the transaction that writes the guest row.
+ */
 export async function blockedCounterpartIds(
-  db: AppDatabase,
+  db: Pick<AppDatabase, "select">,
   userId: string,
 ): Promise<Set<string>> {
   const rows = await db
@@ -73,11 +78,18 @@ export class ModerationService implements IModerationService {
    * Blocks `blockedId` from `blockerId`. Idempotent: the ordered pair is
    * unique and the insert is `ON CONFLICT DO NOTHING`, so a repeat writes
    * nothing rather than failing or stacking a second row.
+   *
+   * The target has to be a user: the column is FK-constrained, so an id that
+   * names nobody used to reach the database and come back as the route's
+   * catch-all 500 — which made the call an existence oracle too, since 201
+   * then meant the id was real and 500 meant it was not.
    */
   async blockUser(blockerId: string, blockedId: string): Promise<void> {
     if (blockerId === blockedId) {
       throw new CannotModerateSelfError("You cannot block yourself");
     }
+
+    await this.requireTargetUser(blockedId);
 
     await this.db
       .insert(userBlocks)
@@ -107,6 +119,10 @@ export class ModerationService implements IModerationService {
   /**
    * Records a report. The trip is optional because a report has to outlive
    * the trip it was made in: deleting the trip clears `trip_id`, not the row.
+   *
+   * The reported user has to exist, for the same reason the block above
+   * checks its target: `reported_id` is FK-constrained and the insert would
+   * otherwise answer 500 for an id that names nobody.
    */
   async reportUser(input: {
     reporterId: string;
@@ -120,6 +136,8 @@ export class ModerationService implements IModerationService {
     if (reporterId === reportedId) {
       throw new CannotModerateSelfError("You cannot report yourself");
     }
+
+    await this.requireTargetUser(reportedId);
 
     const [report] = await this.db
       .insert(userReports)
@@ -190,5 +208,27 @@ export class ModerationService implements IModerationService {
       .orderBy(desc(userBlocks.createdAt));
 
     return rows;
+  }
+
+  /**
+   * Refuses a moderation target that names no user.
+   *
+   * `blocked_id` and `reported_id` are FK-constrained, and both writes are
+   * reached through a controller whose catch-all answers 500 for anything
+   * without a `statusCode` — so an unknown id was a 500, and the status said
+   * whether the id existed. The answer is the repo's own not-found envelope
+   * (`UserNotFoundError`): the request is well-formed and the target is what
+   * is missing, which makes this a 404 rather than a 400.
+   */
+  private async requireTargetUser(userId: string): Promise<void> {
+    const [row] = await this.db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (!row) {
+      throw new UserNotFoundError();
+    }
   }
 }

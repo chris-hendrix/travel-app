@@ -10,10 +10,12 @@ import {
 } from "@/db/schema/index.js";
 import { and, eq, inArray } from "drizzle-orm";
 import { InvitationService } from "@/services/invitation.service.js";
+import { GuestMemberService } from "@/services/guest-member.service.js";
 import { PermissionsService } from "@/services/permissions.service.js";
 import { SMSService } from "@/services/sms.service.js";
 import { NotificationService } from "@/services/notification.service.js";
 import { generateUniquePhone } from "../test-utils.js";
+import { DuplicateMemberError } from "@/errors.js";
 
 /**
  * Task 33 RED: an invitation cannot cross a block.
@@ -27,6 +29,11 @@ import { generateUniquePhone } from "../test-utils.js";
  *
  * Every assertion is scoped to rows this file created: the suite shares one
  * database, so a whole-table length of zero would only prove file ordering.
+ *
+ * The guest path is the same act one step earlier. A guest row is an
+ * invitation waiting to happen — `processPendingInvitations` claims it by
+ * phone on the owner's next sign-in — so adding one whose owner is blocked
+ * lands the blocked pair on the same trip, and is covered here too.
  */
 describe("createInvitations across a block (Task 33)", () => {
   const permissionsService = new PermissionsService(db);
@@ -409,6 +416,57 @@ describe("createInvitations across a block (Task 33)", () => {
           blockedYouId,
         ]),
       ).rejects.toThrow(/not a mutual/i);
+    });
+  });
+
+  describe("adding a guest", () => {
+    const guestMemberService = new GuestMemberService(db, permissionsService);
+
+    const guestRows = async (guestPhones: string[]) =>
+      db
+        .select({ guestPhone: members.guestPhone })
+        .from(members)
+        .where(
+          and(
+            eq(members.tripId, tripId),
+            inArray(members.guestPhone, guestPhones),
+          ),
+        );
+
+    it("refuses a blocked phone in both directions with the answer an unavailable one gets, and writes no guest row", async () => {
+      await db.insert(userBlocks).values([
+        { blockerId: blockedMeId, blockedId: organizerId },
+        { blockerId: organizerId, blockedId: blockedYouId },
+      ]);
+
+      // The same error class a phone already on the trip gets, message and
+      // all: the organizer may be the side the block was written against,
+      // so a distinguishable refusal would be the leak.
+      await expect(
+        guestMemberService.createGuest(tripId, organizerId, {
+          displayName: "Blocked Me",
+          guestPhone: blockedMePhone,
+        }),
+      ).rejects.toThrow(DuplicateMemberError);
+      await expect(
+        guestMemberService.createGuest(tripId, organizerId, {
+          displayName: "Blocked You",
+          guestPhone: blockedYouPhone,
+        }),
+      ).rejects.toThrow(DuplicateMemberError);
+
+      expect(await guestRows([blockedMePhone, blockedYouPhone])).toHaveLength(
+        0,
+      );
+
+      // The guard is about the block, not about phones that have an owner:
+      // an unblocked number in the same trip still becomes a guest.
+      const guest = await guestMemberService.createGuest(tripId, organizerId, {
+        displayName: "Third Party",
+        guestPhone: thirdPhone,
+      });
+      expect(guest.userId).toBeNull();
+      expect(guest.guestPhone).toBe(thirdPhone);
     });
   });
 });

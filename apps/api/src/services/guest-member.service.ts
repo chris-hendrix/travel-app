@@ -13,6 +13,7 @@ import type {
   UpdateGuestInput,
 } from "@journiful/shared/schemas";
 import { phoneNumberSchema } from "@journiful/shared/schemas";
+import { blockedCounterpartIds } from "./moderation.service.js";
 import {
   PermissionDeniedError,
   MemberLimitExceededError,
@@ -110,6 +111,11 @@ export class GuestMemberService implements IGuestMemberService {
 
         if (guestPhone !== undefined) {
           await this.assertPhoneAvailableTx(tx, tripId, guestPhone);
+          await this.assertGuestPhoneNotBlockedTx(
+            tx,
+            requesterUserId,
+            guestPhone,
+          );
         }
 
         const [guest] = await tx
@@ -158,6 +164,20 @@ export class GuestMemberService implements IGuestMemberService {
       // when the phone is actually changing, so same-phone PATCH stays 200.
       const phoneChanging = guestPhone !== guest.guestPhone;
       await this.assertPhoneAvailable(tripId, guestPhone, guest.id, phoneChanging);
+
+      // A number this PATCH puts on the row crosses the same block the create
+      // path refuses: the claim on the owner's next sign-in matches on the
+      // phone the row carries, so a re-phone is the same act one PATCH later.
+      // A row that already carries the number is the pre-existing-row case a
+      // block deliberately leaves alone, so only a change is refused — the
+      // same line `checkInvitation` above draws.
+      if (phoneChanging) {
+        await this.assertGuestPhoneNotBlockedTx(
+          this.db,
+          requesterUserId,
+          guestPhone,
+        );
+      }
     }
 
     // A re-phoned guest must not leave its old invitation behind. That
@@ -420,6 +440,46 @@ export class GuestMemberService implements IGuestMemberService {
     checkInvitation = true,
   ): Promise<void> {
     await this.assertPhoneAvailableTx(this.db, tripId, guestPhone, excludeMemberId, checkInvitation);
+  }
+
+  /**
+   * Guard: the number belongs to somebody the organizer is in a block with,
+   * either way round.
+   *
+   * A guest row is a pending invitation under another name:
+   * `processPendingInvitations` claims it by phone on the owner's next
+   * sign-in, and the trip is then in their list, their fan-out and their
+   * message thread. So writing a blocked counterpart's number onto a guest
+   * row is one of the pair inviting the other, which is the act the block
+   * forbids.
+   *
+   * The refusal is the answer an unavailable phone already gets rather than
+   * one of its own. The organizer is the caller and may be the side the block
+   * was written against, so an answer that named a block would tell them what
+   * the block was meant to keep from them; the message is the member-phone
+   * one because it is the closest of the three to "this number belongs to
+   * somebody you cannot add".
+   */
+  private async assertGuestPhoneNotBlockedTx(
+    tx: Pick<AppDatabase, "select">,
+    requesterUserId: string,
+    guestPhone: string,
+  ): Promise<void> {
+    const [owner] = await tx
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.phoneNumber, guestPhone))
+      .limit(1);
+
+    // A number no account carries cannot be in a block.
+    if (!owner) return;
+
+    const blocked = await blockedCounterpartIds(tx, requesterUserId);
+    if (blocked.has(owner.id)) {
+      throw new DuplicateMemberError(
+        "A member with this phone number is already in this trip",
+      );
+    }
   }
 
   /**

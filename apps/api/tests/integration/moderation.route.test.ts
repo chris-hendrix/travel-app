@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest";
 import type { FastifyInstance } from "fastify";
-import { inArray, eq } from "drizzle-orm";
+import { and, inArray, eq } from "drizzle-orm";
 import { buildApp } from "../helpers.js";
 import { db } from "@/config/database.js";
 import { users, userBlocks, userReports } from "@/db/schema/index.js";
@@ -23,11 +23,25 @@ import { generateUniquePhone } from "../test-utils.js";
  *    payload (`GET /api/admin/users/:id`), because that is the response
  *    the screen renders. A report written and never surfaced is a report
  *    nobody reads.
+ *
+ * 4. A target id that exists nowhere is a 404, not the catch-all 500 the
+ *    FK used to produce — and not a 400, because the request is
+ *    well-formed and the target is what is missing. The old answer also
+ *    made the call an existence oracle: 201 meant the id was real.
+ *
+ * 5. A token carrying `impersonating: true` writes nothing here. Its `sub`
+ *    is the impersonated user, so a report filed under it is attributed to
+ *    somebody who did not file it, and a block written under it is one they
+ *    never wrote but the server honours — the same reason `DELETE
+ *    /api/users/me` refuses that token.
  */
 
 function tokenFor(app: FastifyInstance, userId: string, name: string) {
   return app.jwt.sign({ sub: userId, name });
 }
+
+/** A well-formed uuid no test ever inserts — the "target does not exist" case. */
+const GHOST_USER_ID = "7c9e6679-7425-40de-944b-e07fc1f90ae7";
 
 describe("Moderation routes", () => {
   let app: FastifyInstance;
@@ -167,6 +181,36 @@ describe("Moderation routes", () => {
       const body = JSON.parse(response.body);
       expect(body.success).toBe(false);
       expect(body.error.code).toBe("CANNOT_MODERATE_SELF");
+    });
+
+    it("should return 404, not 500, for a user id that exists nowhere", async () => {
+      app = await buildApp();
+      const blocker = await createUser({ displayName: "Ghost Blocker" });
+
+      // A well-formed uuid nobody ever inserted. The body is valid, so the
+      // answer is about the target: without the guard the insert reaches the
+      // FK, the controller's catch-all turns it into a 500, and the status
+      // tells the caller whether the id is real.
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/blocks",
+        cookies: {
+          auth_token: tokenFor(app, blocker.id, blocker.displayName),
+        },
+        payload: { userId: GHOST_USER_ID },
+      });
+
+      expect(response.statusCode).toBe(404);
+      const body = JSON.parse(response.body);
+      expect(body.success).toBe(false);
+      expect(body.error.code).toBe("NOT_FOUND");
+
+      // Refused means nothing written, not a row pointing at a phantom.
+      const rows = await db
+        .select()
+        .from(userBlocks)
+        .where(eq(userBlocks.blockerId, blocker.id));
+      expect(rows).toHaveLength(0);
     });
 
     it("should return 401 without a token", async () => {
@@ -333,6 +377,32 @@ describe("Moderation routes", () => {
       );
     });
 
+    it("should return 404, not 500, for a user id that exists nowhere", async () => {
+      app = await buildApp();
+      const reporter = await createUser({ displayName: "Ghost Reporter" });
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/reports",
+        cookies: {
+          auth_token: tokenFor(app, reporter.id, reporter.displayName),
+        },
+        payload: { userId: GHOST_USER_ID, reason: "spam" },
+      });
+
+      expect(response.statusCode).toBe(404);
+      const body = JSON.parse(response.body);
+      expect(body.success).toBe(false);
+      expect(body.error.code).toBe("NOT_FOUND");
+
+      // No report is left naming a reporter and a phantom target.
+      const rows = await db
+        .select()
+        .from(userReports)
+        .where(eq(userReports.reporterId, reporter.id));
+      expect(rows).toHaveLength(0);
+    });
+
     it("should return 401 without a token", async () => {
       app = await buildApp();
 
@@ -347,6 +417,86 @@ describe("Moderation routes", () => {
 
       expect(response.statusCode).toBe(401);
       expect(JSON.parse(response.body).error.code).toBe("UNAUTHORIZED");
+    });
+  });
+
+  describe("impersonation", () => {
+    it("should refuse all three moderation writes and leave the tables alone", async () => {
+      app = await buildApp();
+      const admin = await createUser({ displayName: "Moderating Admin" });
+      const impersonated = await createUser({ displayName: "Impersonated" });
+      const contact = await createUser({ displayName: "Impersonated Contact" });
+
+      // A block the impersonated user really did write, so the DELETE below
+      // has something it must leave standing.
+      await db
+        .insert(userBlocks)
+        .values({ blockerId: impersonated.id, blockedId: contact.id });
+
+      // Shaped as `adminService.startImpersonation` mints it: `sub` is the
+      // impersonated user, `adminId` the admin holding the token.
+      const token = app.jwt.sign({
+        sub: impersonated.id,
+        name: impersonated.displayName,
+        adminId: admin.id,
+        impersonating: true,
+        jti: "moderation-impersonation-test",
+      });
+      const cookies = { auth_token: token };
+
+      const responses = await Promise.all([
+        app.inject({
+          method: "POST",
+          url: "/api/blocks",
+          cookies,
+          payload: { userId: contact.id },
+        }),
+        app.inject({
+          method: "POST",
+          url: "/api/reports",
+          cookies,
+          payload: { userId: contact.id, reason: "harassment" },
+        }),
+        app.inject({
+          method: "DELETE",
+          url: `/api/blocks/${contact.id}`,
+          cookies,
+        }),
+      ]);
+
+      for (const response of responses) {
+        expect(response.statusCode).toBe(403);
+        const body = JSON.parse(response.body);
+        expect(body.success).toBe(false);
+        expect(body.error.code).toBe("FORBIDDEN");
+      }
+
+      // No block and no report under the impersonated user's name...
+      const blocks = await db
+        .select()
+        .from(userBlocks)
+        .where(eq(userBlocks.blockerId, impersonated.id));
+      expect(blocks).toHaveLength(1);
+      expect(blocks[0]!.blockedId).toBe(contact.id);
+
+      const reports = await db
+        .select()
+        .from(userReports)
+        .where(eq(userReports.reporterId, impersonated.id));
+      expect(reports).toHaveLength(0);
+
+      // ...and the sub-moderated target is still on the list, not blocked by
+      // an admin who was wearing somebody else's name.
+      const blockedByTarget = await db
+        .select()
+        .from(userBlocks)
+        .where(
+          and(
+            eq(userBlocks.blockerId, contact.id),
+            eq(userBlocks.blockedId, impersonated.id),
+          ),
+        );
+      expect(blockedByTarget).toHaveLength(0);
     });
   });
 
