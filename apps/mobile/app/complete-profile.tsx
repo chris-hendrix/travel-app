@@ -46,8 +46,10 @@ export default function CompleteProfile() {
 
   // No session, nothing to complete. And somebody who is already through
   // belongs past this screen, which is what pressing back arrives as.
+  // A signed-out reader lands on the landing, which explains the
+  // product, rather than on a form.
   useEffect(() => {
-    if (!user) router.replace("/login");
+    if (!user) router.replace("/");
   }, [user, router]);
 
   async function save() {
@@ -64,7 +66,7 @@ export default function CompleteProfile() {
   }
 
   if (user?.profileComplete) return <Redirect href="/trips" />;
-  if (!user) return <Redirect href="/login" />;
+  if (!user) return <Redirect href="/" />;
 
   return (
     <Screen>

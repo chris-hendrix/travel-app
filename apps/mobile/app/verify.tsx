@@ -40,9 +40,11 @@ export default function Verify() {
 
   // A code screen with no number behind it is a dead end: a reload, or a
   // deep link, arrives here with nothing to verify. And a reader who is
-  // already through belongs past this screen, not on it.
+  // already through belongs past this screen, not on it. A signed-out
+  // reader lands on the landing, which explains the product, rather
+  // than on a form.
   useEffect(() => {
-    if (!user && !pendingPhone) router.replace("/login");
+    if (!user && !pendingPhone) router.replace("/");
   }, [pendingPhone, router, user]);
 
   useEffect(() => {
@@ -122,7 +124,7 @@ export default function Verify() {
 
   if (user?.profileComplete) return <Redirect href="/trips" />;
   if (user) return <Redirect href="/complete-profile" />;
-  if (!pendingPhone) return <Redirect href="/login" />;
+  if (!pendingPhone) return <Redirect href="/" />;
 
   return (
     <Screen>
@@ -165,7 +167,7 @@ export default function Verify() {
         <View className="flex-row gap-6 md:self-center">
           <QuietAction
             label="Use a different number"
-            onPress={() => router.replace("/login")}
+            onPress={() => router.replace("/")}
           />
           <QuietAction
             label={cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}

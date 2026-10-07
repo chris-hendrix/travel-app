@@ -230,9 +230,11 @@ export function AppHeader({
    *
    * The wordmark is home wherever home exists: the trips list once you
    * are in the app, and the landing everywhere else, including on the
-   * landing itself, where it is a no-op. A wordmark that is dead on one
-   * screen and alive on the next reads as a broken link, and the cost of
-   * the alternative is nothing.
+   * landing itself, where it is a no-op — and including the app chrome
+   * worn while signed out (a cold link into `/trips` with no session),
+   * where `/trips` would only loop back onto an error. A wordmark that
+   * is dead on one screen and alive on the next reads as a broken link,
+   * and the cost of the alternative is nothing.
    */
   variant?: "app" | "landing" | "bare";
 }) {
@@ -351,7 +353,12 @@ export function AppHeader({
             </Link>
           ) : (
             <Link
-              href={app ? "/trips" : "/"}
+              // Signed out, home is the landing even in the app chrome:
+              // a cold link into `/trips` with no session lands on the
+              // page that explains the product, not back onto an error.
+              // The demo reads as signed-in (the fixture traveler), so
+              // its wordmark still points at the demo list.
+              href={app && status === "signed-in" ? "/trips" : "/"}
               className="font-wordmark text-2xl text-sand"
             >
               Journiful
