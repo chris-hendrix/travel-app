@@ -29,7 +29,7 @@ describe("the demo early install", () => {
   }
 
   it("does nothing on a non-demo route: no fetch patch, no auth override", async () => {
-    vi.stubGlobal("window", { location: { pathname: "/trips" } });
+    vi.stubGlobal("window", { location: { pathname: "/trips", search: "" } });
     const before = globalThis.fetch;
     const early = await freshEarly();
     // The module self-installs on import; on /trips it must decline.
@@ -44,7 +44,7 @@ describe("the demo early install", () => {
   });
 
   it("installs both fetch and the demo user on /demo", async () => {
-    vi.stubGlobal("window", { location: { pathname: "/demo" } });
+    vi.stubGlobal("window", { location: { pathname: "/demo", search: "" } });
     const before = globalThis.fetch;
     const early = await freshEarly();
     // Import already self-installed; the explicit call is a safe no-op.
@@ -55,8 +55,10 @@ describe("the demo early install", () => {
     // user was set, with the fixture's traveler identity.
     expect(setDemoUserCalls.length).toBeGreaterThanOrEqual(1);
     expect(setDemoUserCalls[0]).toMatchObject({ id: "demo-viewer" });
-    // The served store answers the real list endpoint offline.
-    const res = await fetch("http://localhost:8000/api/trips");
+    // The served store answers the invite preview offline.
+    const res = await fetch(
+      "http://localhost:8000/api/invitations/demo-invitation-cabo/preview",
+    );
     expect(res.status).toBe(200);
     const body = (await res.json()) as { success: boolean };
     expect(body.success).toBe(true);
@@ -65,8 +67,30 @@ describe("the demo early install", () => {
     vi.unstubAllGlobals();
   });
 
+  it("stays installed across a refresh on the demo trip page", async () => {
+    // The Accept button opens `/trips/detail?id=demo-trip-cabo`; a
+    // refresh cold-boots there, with no `/demo` mounted — the gate
+    // matches the demo trip id in the query so the demo environment
+    // survives the refresh instead of dumping the visitor home.
+    vi.stubGlobal("window", {
+      location: { pathname: "/trips/detail", search: "?id=demo-trip-cabo" },
+    });
+    const before = globalThis.fetch;
+    const early = await freshEarly();
+    expect(early.installDemoEarly()).toBe(true);
+    expect(globalThis.fetch).not.toBe(before);
+    expect(setDemoUserCalls.length).toBeGreaterThanOrEqual(1);
+    const res = await fetch(
+      "http://localhost:8000/api/trips/demo-trip-cabo",
+    );
+    expect(res.status).toBe(200);
+    const adapter = await import("@/lib/demo/adapter");
+    adapter.uninstallDemoFetch();
+    vi.unstubAllGlobals();
+  });
+
   it("is idempotent: a second call does not double-wrap fetch", async () => {
-    vi.stubGlobal("window", { location: { pathname: "/demo" } });
+    vi.stubGlobal("window", { location: { pathname: "/demo", search: "" } });
     const early = await freshEarly();
     expect(early.installDemoEarly()).toBe(true);
     const wrapped = globalThis.fetch;
@@ -79,11 +103,20 @@ describe("the demo early install", () => {
     vi.unstubAllGlobals();
   });
 
-  it("matches /demo subpaths but not lookalikes", async () => {
-    vi.stubGlobal("window", { location: { pathname: "/trips" } });
+  it("matches /demo subpaths and the demo trip refresh, but not lookalikes", async () => {
+    vi.stubGlobal("window", { location: { pathname: "/trips", search: "" } });
     const early = await freshEarly();
     expect(early.isDemoPath("/demo")).toBe(true);
     expect(early.isDemoPath("/demo/trips")).toBe(true);
+    expect(early.isDemoPath("/demo", "?id=demo-invitation-cabo")).toBe(true);
+    expect(
+      early.isDemoPath("/trips/detail", "?id=demo-trip-cabo"),
+    ).toBe(true);
+    // A real trip's deep link must never install the fixture.
+    expect(early.isDemoPath("/trips/detail", "?id=some-real-trip")).toBe(
+      false,
+    );
+    expect(early.isDemoPath("/trips/detail")).toBe(false);
     expect(early.isDemoPath("/demoist")).toBe(false);
     expect(early.isDemoPath("/trips")).toBe(false);
     expect(early.isDemoPath("/")).toBe(false);

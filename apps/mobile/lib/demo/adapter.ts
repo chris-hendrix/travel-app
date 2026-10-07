@@ -10,7 +10,8 @@
  * instead of reaching the network, so the demo can never leak a real
  * request. Nothing here touches production stores, queries or routes.
  *
- * Reads served: `GET /trips`, `GET /trips/:id`, members, events,
+ * Reads served: `GET /invitations/:id/preview` (the demo invitation),
+ * `GET /trips/:id`, members, events,
  * accommodations, member-travel, invitations (empty), the trip-settings
  * trio (sharePhone + notification pair + calendar flag), and the Places
  * autocomplete + details (a small invented list for the demo's own
@@ -24,6 +25,7 @@
  */
 
 import type { DemoTrip } from "@/lib/demo";
+import { DEMO_INVITATION_ID, DEMO_INVITER_NAME } from "@/lib/demo";
 import type { RsvpStatus } from "@/lib/rsvp";
 import type {
   Accommodation,
@@ -31,7 +33,6 @@ import type {
   MemberTravel,
   MemberWithProfile,
   TripDetail,
-  TripSummary,
 } from "@journiful/shared/types";
 
 export type DemoRequestLog = {
@@ -153,30 +154,6 @@ function travelRow(tripId: string, record: DemoTrip["travel"][number]): MemberTr
     createdAt: nowIso() as unknown as Date,
     updatedAt: nowIso() as unknown as Date,
     memberName: record.memberName,
-  };
-}
-
-function summaryOf(trip: DemoTrip): TripSummary {
-  const organizer = organizerOf(trip);
-  return {
-    id: trip.id,
-    name: trip.title,
-    destination: trip.location,
-    startDate: trip.startDate,
-    endDate: trip.endDate,
-    coverImageUrl: null,
-    themeId: null,
-    themeFont: null,
-    isOrganizer: false,
-    rsvpStatus: "going",
-    organizerInfo: [
-      { id: organizer.userId, displayName: organizer.name, profilePhotoUrl: null },
-    ],
-    memberCount: trip.members.length,
-    eventCount: trip.events.length,
-    place: null,
-    placeName: null,
-    placeAddress: null,
   };
 }
 
@@ -386,14 +363,28 @@ export function handleDemoRequest(
   const body = (rawBody ? safeParse(rawBody) : {}) as DemoBody;
   const verb = method.toUpperCase();
 
-  if (verb === "GET" && path === "/trips") {
-    const data = store.trips.map(summaryOf);
+  const previewMatch = /^\/invitations\/([^/]+)\/preview$/.exec(path);
+  if (verb === "GET" && previewMatch) {
+    // The demo IS the invite screen (`app/demo.tsx` renders the real
+    // `app/invite.tsx`, whose preview query is public): the landing's
+    // demo link carries the demo invitation id, and the fixture
+    // answers it with the Cabo trip's card facts. Any other id 404s
+    // into the screen's own gone state, exactly like a real unknown id.
+    const id = decodeURIComponent(previewMatch[1]!);
+    if (id !== DEMO_INVITATION_ID) return notFound("Invitation not found");
+    const trip = store.trips[0];
+    if (!trip) return notFound("Invitation not found");
     return {
       status: 200,
       body: {
         success: true,
-        data,
-        meta: { total: data.length, limit: data.length, hasMore: false, nextCursor: null },
+        tripName: trip.title,
+        destination: trip.location,
+        startDate: trip.startDate,
+        endDate: trip.endDate,
+        inviterName: DEMO_INVITER_NAME,
+        inviteePhone: "+15550000001",
+        tripId: trip.id,
       },
     };
   }

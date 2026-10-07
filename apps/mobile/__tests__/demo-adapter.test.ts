@@ -1,6 +1,11 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { apiFetch } from "@/lib/api";
-import { buildDemoTrips } from "@/lib/demo";
+import {
+  DEMO_INVITATION_ID,
+  DEMO_INVITER_NAME,
+  DEMO_TRIP_ID,
+  buildDemoTrip,
+} from "@/lib/demo";
 import {
   createDemoStore,
   getDemoLog,
@@ -9,7 +14,6 @@ import {
   resetDemoLog,
   uninstallDemoFetch,
 } from "@/lib/demo/adapter";
-import { tripsListOptions } from "@/lib/queries/trips";
 import { fetchPlaceDetails } from "@/lib/queries/places";
 import { lookupFlight } from "@/lib/flights";
 
@@ -24,8 +28,8 @@ vi.mock("react-native", () => ({ Platform: { OS: "web" } }));
  * This test replaces it with the guarantee that actually holds: the
  * demo's data layer serves every request it is given and records it,
  * and the wrapped global fetch is never reached for an API URL during
- * a scripted set of demo interactions (list, detail, roster, run,
- * an event-sheet edit, a stay-sheet edit, an RSVP answer).
+ * a scripted set of demo interactions (invite preview, detail, roster,
+ * run, an event-sheet edit, a stay-sheet edit, an RSVP answer).
  *
  * That is deliberately weaker and differently-shaped than D2: it
  * proves runtime isolation (no egress), not build-time inertness. A
@@ -41,7 +45,7 @@ describe("the demo data layer", () => {
     inner.mockRejectedValue(new Error("network must never be reached"));
     globalThis.fetch = inner as unknown as typeof fetch;
     resetDemoLog();
-    installDemoFetch(createDemoStore(buildDemoTrips(new Date("2026-10-06T12:00:00.000Z"))));
+    installDemoFetch(createDemoStore([buildDemoTrip(new Date("2026-10-06T12:00:00.000Z"))]));
   });
 
   afterEach(() => {
@@ -49,9 +53,26 @@ describe("the demo data layer", () => {
   });
 
   it("serves the scripted demo interactions with no API egress", async () => {
-    const trips = await apiFetch<{ success: true; data: Array<{ id: string }> }>("/trips");
-    expect(trips.data.length).toBeGreaterThanOrEqual(2);
-    const tripId = trips.data[0]!.id;
+    // The invite screen's preview: the landing's demo id loads the
+    // Cabo card facts; any other id 404s into the gone state.
+    const preview = await apiFetch<{
+      success: true;
+      tripName: string;
+      destination: string;
+      startDate: string | null;
+      endDate: string | null;
+      inviterName: string;
+      tripId: string;
+    }>(`/invitations/${DEMO_INVITATION_ID}/preview`);
+    expect(preview.tripName).toBe("Cabo");
+    expect(preview.destination).toBe("Cabo San Lucas, Mexico");
+    expect(preview.inviterName).toBe(DEMO_INVITER_NAME);
+    expect(preview.tripId).toBe(DEMO_TRIP_ID);
+    expect(typeof preview.startDate).toBe("string");
+    expect(typeof preview.endDate).toBe("string");
+    await expect(apiFetch("/invitations/some-other-id/preview")).rejects.toThrow();
+
+    const tripId = DEMO_TRIP_ID;
 
     // The detail screen's reads.
     const detail = await apiFetch<{ success: true; trip: { description: string | null } }>(
@@ -157,20 +178,13 @@ describe("the demo data layer", () => {
     await expect(fetchPlaceDetails("demo-place-nope", "x")).rejects.toThrow();
     await expect(lookupFlight("AA100", "2026-12-01")).resolves.toBeNull();
 
-    // The real list query works unchanged against the adapter.
-    const listOptions = tripsListOptions();
-    const summaries = await listOptions.queryFn!({
-      queryKey: listOptions.queryKey,
-    } as never);
-    expect(summaries.map((trip) => trip.id)).toEqual(trips.data.map((trip) => trip.id));
-
     // No API URL ever reached the wrapped fetch…
     expect(inner).not.toHaveBeenCalled();
     expect(getUnhandledApiUrls()).toEqual([]);
     // …and every served request was recorded.
     const paths = getDemoLog().map((entry) => `${entry.method} ${entry.path}`);
     for (const expected of [
-      "GET /trips",
+      `GET /invitations/${DEMO_INVITATION_ID}/preview`,
       `GET /trips/${tripId}`,
       `GET /trips/${tripId}/members`,
       `GET /trips/${tripId}/events`,

@@ -11,6 +11,7 @@ import { destinationForRequiresProfile } from "@/lib/queries/auth";
 import { Band } from "@/components/ui/Band";
 import { Column } from "@/components/ui/Column";
 import { Image } from "@/components/ui/Image";
+import { DEMO_INVITATION_ID } from "@/lib/demo";
 import demoTripShot from "@/assets/demo/trip.png";
 
 /**
@@ -168,7 +169,7 @@ function Landing() {
             {/*
               The proof: the demo trip's detail, captured, not drawn.
               Captured at a 390-wide viewport from the served export:
-              `/demo` cold-loaded, the Cabo card tapped, the hero
+              `/demo?id=…` cold-loaded, the invitation accepted, the hero
               (`e86`) and the run (`e135`) shot as elements and stacked
               (hero rows 0-765, run rows 620-1145) into the committed
               `assets/demo/trip.png` (390x1290). Re-capture when the
@@ -189,7 +190,7 @@ function Landing() {
               className="w-full md:max-w-[390px] aspect-[390/1290]"
               accessibilityLabel="A trip in the app: the Cabo itinerary with its events"
             />
-            <Link href="/demo" className="font-body text-sm text-ink underline">
+            <Link href={`/demo?id=${DEMO_INVITATION_ID}`} className="font-body text-sm text-ink underline">
               Look at a real trip
             </Link>
             {/* The one trust claim available before there are any users, and

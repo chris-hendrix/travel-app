@@ -17,7 +17,6 @@ describe("the demo allowlist", () => {
   it("serves the demo scope: entry, reads, and working writes", () => {
     for (const route of [
       "/demo",
-      "/trips",
       "/trips/detail",
       "/trips/events/detail",
       "/trips/stay/detail",
@@ -56,6 +55,8 @@ describe("the demo allowlist", () => {
 
   it("leaves out the genuinely-absent surfaces (they go to /login)", () => {
     for (const route of [
+      // The trip list: the demo opens on the invite, not a list.
+      "/trips",
       // Creating a trip needs a real account.
       "/trips/new",
       "/trips/edit",

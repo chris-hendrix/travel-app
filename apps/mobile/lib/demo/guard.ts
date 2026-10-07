@@ -1,9 +1,10 @@
 /**
  * The demo's allowlist: where a demo visitor may stand.
  *
- * `/demo` renders the real trip list against the demo data layer, and
- * tapping through pushes the REAL trip routes (`/trips/detail`, the
- * member/travel/stay/event sheets) — the stack keeps `/demo` mounted
+ * `/demo?id=…` renders the REAL invite screen (`app/invite.tsx`)
+ * against the demo data layer, and accepting opens the REAL trip
+ * detail (`/trips/detail`) plus the member/travel/stay/event sheets
+ * the traveler can reach from it — the stack keeps `/demo` mounted
  * underneath, so the adapter and the fixture traveler stay installed
  * while the visitor walks. Anything the visitor can reach that the
  * demo does not actually implement must end at `/login`, which is the
@@ -14,7 +15,7 @@
  * `router.push` the demo's own screens can fire as the fixture's
  * traveler, who is never the organizer):
  *
- * - `DEMO_APP_ROUTES`: the demo scope. The list itself plus every
+ * - `DEMO_APP_ROUTES`: the demo scope. The invite entry plus every
  *   trips route whose reads AND writes the adapter serves: detail,
  *   members + member detail (traveler rows are plain views), the
  *   travel board + travel detail + travel form (`POST /member-travel`
@@ -32,9 +33,9 @@
  *   scope, not lost: the demo session is torn down and the page
  *   renders signed-out, exactly like a stranger's visit.
  *
- * Deliberately OUT (genuinely absent — creating a trip, inviting
- * people, notifications, profile, admin, authoring as an organizer):
- * `/trips/new`, `/trips/edit`, `/trips/invite`, `/trips/members/new`,
+ * Deliberately OUT (genuinely absent — the trip list, creating a trip,
+ * inviting people, notifications, profile, admin, authoring as an
+ * organizer): `/trips`, `/trips/new`, `/trips/edit`, `/trips/invite`, `/trips/members/new`,
  * `/trips/events/new`, `/trips/events/edit`, `/trips/stay/new`,
  * `/trips/stay/edit`, `/notifications`, `/profile`, `/admin/users`,
  * `/admin/users/detail`, `/design/*`. The traveler never sees a door
@@ -50,7 +51,6 @@
 /** The demo scope: `/demo` plus every trips route the adapter serves. */
 export const DEMO_APP_ROUTES: readonly string[] = [
   "/demo",
-  "/trips",
   "/trips/detail",
   "/trips/events/detail",
   "/trips/stay/detail",
