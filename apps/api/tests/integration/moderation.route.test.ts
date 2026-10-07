@@ -403,6 +403,42 @@ describe("Moderation routes", () => {
       expect(rows).toHaveLength(0);
     });
 
+    it("should return 404, not 500, for a trip id that exists nowhere", async () => {
+      app = await buildApp();
+      const reporter = await createUser({ displayName: "Trip Ghost Reporter" });
+      const reported = await createUser({ displayName: "Trip Ghost Reported" });
+
+      // The trip is optional, so the target check above does not cover it: a
+      // nonexistent trip reached the foreign key and answered 500, the same
+      // bad-input-is-a-server-error shape the user check exists to avoid.
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/reports",
+        cookies: {
+          auth_token: tokenFor(app, reporter.id, reporter.displayName),
+        },
+        payload: {
+          userId: reported.id,
+          tripId: GHOST_USER_ID,
+          reason: "harassment",
+        },
+      });
+
+      expect(response.statusCode).toBe(404);
+      const body = JSON.parse(response.body);
+      expect(body.success).toBe(false);
+      // The code is shared with the missing-user answer; the message is what
+      // says which of the two was missing.
+      expect(body.error.code).toBe("NOT_FOUND");
+      expect(body.error.message).toBe("Trip not found");
+
+      const rows = await db
+        .select()
+        .from(userReports)
+        .where(eq(userReports.reporterId, reporter.id));
+      expect(rows).toHaveLength(0);
+    });
+
     it("should return 401 without a token", async () => {
       app = await buildApp();
 

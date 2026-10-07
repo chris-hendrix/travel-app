@@ -1,8 +1,12 @@
 import { and, desc, eq, or } from "drizzle-orm";
-import { userBlocks, userReports, users } from "@/db/schema/index.js";
+import { trips, userBlocks, userReports, users } from "@/db/schema/index.js";
 import type { UserReport } from "@/db/schema/index.js";
 import type { AppDatabase } from "@/types/index.js";
-import { CannotModerateSelfError, UserNotFoundError } from "@/errors.js";
+import {
+  CannotModerateSelfError,
+  TripNotFoundError,
+  UserNotFoundError,
+} from "@/errors.js";
 
 /**
  * Moderation: one user stops seeing another.
@@ -139,6 +143,15 @@ export class ModerationService implements IModerationService {
 
     await this.requireTargetUser(reportedId);
 
+    // The trip is optional, but a trip that does not exist is not a report to
+    // file: the insert below would hit the foreign key and answer 500, which is
+    // the same bad-input-is-a-server-error shape `requireTargetUser` above
+    // exists to avoid. Whether a report may name a trip the reporter is not on
+    // is a separate question and is deliberately not decided here.
+    if (tripId) {
+      await this.requireTrip(tripId);
+    }
+
     const [report] = await this.db
       .insert(userReports)
       .values({
@@ -229,6 +242,19 @@ export class ModerationService implements IModerationService {
 
     if (!row) {
       throw new UserNotFoundError();
+    }
+  }
+
+  /** The report's optional trip, when one was named. */
+  private async requireTrip(tripId: string): Promise<void> {
+    const [row] = await this.db
+      .select({ id: trips.id })
+      .from(trips)
+      .where(eq(trips.id, tripId))
+      .limit(1);
+
+    if (!row) {
+      throw new TripNotFoundError();
     }
   }
 }
