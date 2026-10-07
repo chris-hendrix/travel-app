@@ -8,6 +8,7 @@ import { SCALLOP_DEPTH } from "@/components/ui/scallopTiles";
 import { ScallopEdge } from "@/components/ui/ScallopEdge";
 import { unreadCountOptions } from "@/lib/queries/notifications";
 import { useStopImpersonation } from "@/lib/impersonation";
+import { teardownDemoScope } from "@/components/demo/DemoGuard";
 import { isSignedIn, subscribe } from "@/lib/sessionFlag";
 import { useAuth } from "@/lib/authStore";
 import { ImpersonationBand } from "@/components/ui/ImpersonationBand";
@@ -207,7 +208,16 @@ function SignInWord() {
     // is a real 44pt box (py-3 around the word, pl-4 growing leftward
     // from the band's right edge, which does not move), with no negative
     // margin, so the band grows to hold it.
-    <Link href="/login" asChild>
+    //
+    // The press tears the demo scope down synchronously, before the
+    // navigation lands: from `/demo` the visitor still reads as the
+    // fixture traveler (the route unmounts after `/login` has already
+    // redirected on `user`), so arriving with the demo session installed
+    // bounced straight to `/trips` signed out. A stranger's page must
+    // never render while the fixture identity is installed. The one door
+    // every landing-variant header shares, so the bare-`/demo`
+    // not-found screen is covered by the same press.
+    <Link href="/login" asChild onPress={() => teardownDemoScope()}>
       <Pressable className={`pl-4 py-3 ${motion.press}`}>
         <Text className="font-body-bold text-sm text-sand">Sign in</Text>
       </Pressable>
