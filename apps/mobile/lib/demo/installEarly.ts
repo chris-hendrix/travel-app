@@ -33,9 +33,12 @@ export function isDemoPath(pathname: string, search = ""): boolean {
   // A refresh on any demo route past the entry: every screen the trip
   // pushes to carries the trip id in the query (`useLocalSearchParams`
   // reads `?id=`), and only the demo trip id installs — any other trip
-  // id is somebody's real deep link.
+  // id is somebody's real deep link. The match is exact on the `id`
+  // param, not a substring: `?id=demo-trip-cabo-evil` or a stray
+  // `?foo=demo-trip-cabo` must never install the fixture.
+  const demoId = new URLSearchParams(search).get("id");
   if (
-    search.includes(DEMO_TRIP_ID) &&
+    demoId === DEMO_TRIP_ID &&
     (DEMO_APP_ROUTES as readonly string[]).includes(
       normalizeDemoPath(pathname),
     )

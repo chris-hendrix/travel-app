@@ -129,6 +129,17 @@ describe("the demo early install", () => {
     expect(early.isDemoPath("/trips/detail", "?id=some-real-trip")).toBe(
       false,
     );
+    // Substring lookalikes must not install either: the match is
+    // exact on the `id` param.
+    expect(
+      early.isDemoPath("/trips/detail", "?id=demo-trip-cabo-evil"),
+    ).toBe(false);
+    expect(early.isDemoPath("/trips/detail", "?foo=demo-trip-cabo")).toBe(
+      false,
+    );
+    expect(early.isDemoPath("/trips/detail", "?id=DEMO-TRIP-CABO")).toBe(
+      false,
+    );
     expect(early.isDemoPath("/trips/members", "?id=some-real-trip")).toBe(
       false,
     );

@@ -233,7 +233,7 @@ export const TOKENS: Token[] = [
     hex: "#9adee4",
     role: "band",
     home: ["css"],
-    note: "Cool band. chroma 0.069, 12.3 dE from sand. Ink text on it is 13.94:1.",
+    note: "Cool band. chroma 0.069, 12.3 dE from sand. Ink text on it is 13.94:1. The card's ocean-deep place link on it is 4.02:1 — under the body floor, but bands carry no floor and this composition (landing band only) is accepted as dark-on-pale.",
   },
 
   /* Muted fills */

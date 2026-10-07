@@ -6,6 +6,7 @@ import {
   isDemoAppRoute,
   isDemoPublicRoute,
   normalizeDemoPath,
+  shouldReenterDemo,
 } from "@/lib/demo/guard";
 
 /**
@@ -91,5 +92,31 @@ describe("the demo allowlist", () => {
     for (const route of DEMO_APP_ROUTES) {
       expect(DEMO_PUBLIC_ROUTES).not.toContain(route);
     }
+  });
+
+  it("re-enters only a demo sheet URL carrying the exact demo trip id", () => {
+    // Browser-back into a sheet after teardown: walk back through
+    // the entry, whose mount reinstalls the demo environment.
+    expect(shouldReenterDemo("/trips/detail", "demo-trip-cabo")).toBe(
+      true,
+    );
+    expect(shouldReenterDemo("/trips/members", "demo-trip-cabo")).toBe(
+      true,
+    );
+    expect(shouldReenterDemo("/trips/detail/", "demo-trip-cabo")).toBe(
+      true,
+    );
+    // `/demo` installs on its own mount; a real trip's sheet, a
+    // lookalike id, a missing id, and a non-demo route never bounce.
+    expect(shouldReenterDemo("/demo", "demo-trip-cabo")).toBe(false);
+    expect(shouldReenterDemo("/trips/detail", "some-real-trip")).toBe(
+      false,
+    );
+    expect(shouldReenterDemo("/trips/detail", "demo-trip-cabo-evil")).toBe(
+      false,
+    );
+    expect(shouldReenterDemo("/trips/detail", undefined)).toBe(false);
+    expect(shouldReenterDemo("/trips", "demo-trip-cabo")).toBe(false);
+    expect(shouldReenterDemo("/login", "demo-trip-cabo")).toBe(false);
   });
 });

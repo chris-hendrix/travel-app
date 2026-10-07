@@ -1,8 +1,13 @@
 import { useEffect } from "react";
-import { usePathname, useRouter } from "expo-router";
+import { useGlobalSearchParams, usePathname, useRouter } from "expo-router";
 import { uninstallDemoFetch } from "@/lib/demo/adapter";
+import { DEMO_TRIP_ID } from "@/lib/demo";
 import { getDemoAuthUser, setDemoAuthUser } from "@/lib/authStore";
-import { isDemoAllowedRoute, isDemoAppRoute } from "@/lib/demo/guard";
+import {
+  isDemoAllowedRoute,
+  isDemoAppRoute,
+  shouldReenterDemo,
+} from "@/lib/demo/guard";
 
 /**
  * Tear down the demo scope: the real fetch and the real (absent)
@@ -26,16 +31,27 @@ export function teardownDemoScope(): void {
  * instead ends the demo scope quietly, so `/login` renders signed-out
  * rather than bouncing off the fixture traveler.
  *
- * Scoping: the first line returns for everyone without a demo
- * session, which is every signed-in visitor on a real trip — the
- * guard cannot fire for them, full stop.
+ * Scoping: without a demo session the guard only ever re-enters a
+ * demo sheet URL through `/demo` (browser-back after teardown) — a
+ * signed-in visitor on a real trip never carries the demo trip id, so
+ * the guard cannot fire for them, full stop.
  */
 export function DemoGuard(): null {
   const pathname = usePathname();
   const router = useRouter();
+  const params = useGlobalSearchParams();
   useEffect(() => {
-    // No demo session, no demo rule: the real app is untouched.
-    if (getDemoAuthUser() === null) return;
+    // No demo session: the real app is untouched — except re-entry.
+    // Browser-back into a demo sheet URL after leaving tore the
+    // scope down with `/demo` unmounted, so nothing would reinstall
+    // and the sheet would fire real reads with no session. Walk back
+    // through the entry, whose mount reinstalls, instead.
+    if (getDemoAuthUser() === null) {
+      if (shouldReenterDemo(pathname, params.id)) {
+        router.replace(`/demo?id=${DEMO_TRIP_ID}`);
+      }
+      return;
+    }
     // Served by the adapter: the visitor stays in the demo.
     if (isDemoAppRoute(pathname)) return;
     // Out of the demo scope either way: what follows is a stranger's
@@ -44,6 +60,6 @@ export function DemoGuard(): null {
     // Public pages render as themselves; anything else is a surface
     // the demo does not implement, and that answer is `/login`.
     if (!isDemoAllowedRoute(pathname)) router.replace("/login");
-  }, [pathname, router]);
+  }, [pathname, params.id, router]);
   return null;
 }

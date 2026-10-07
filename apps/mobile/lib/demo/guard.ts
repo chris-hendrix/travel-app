@@ -46,7 +46,12 @@
  * while the demo session is installed (`getDemoAuthUser() !== null`),
  * which nothing outside `/demo` sets. A signed-in visitor on a real
  * trip never has a demo session, so they can never match this rule.
+ * The one exception is `shouldReenterDemo` (browser-back into a demo
+ * sheet URL after teardown), which re-enters through the entry rather
+ * than touching any session.
  */
+
+import { DEMO_TRIP_ID } from "@/lib/demo";
 
 /** The demo scope: `/demo` plus every trips route the adapter serves. */
 export const DEMO_APP_ROUTES: readonly string[] = [
@@ -94,6 +99,26 @@ export function isDemoPublicRoute(pathname: string): boolean {
 }
 
 /** Either of the two lists above: no redirect for a demo visitor. */
+/**
+ * Re-entry: browser-back into a demo sheet URL after leaving the demo.
+ *
+ * Leaving tears the demo scope down (fetch restored, session cleared)
+ * while the module's once-flag stays set, and `/demo` is not mounted —
+ * so nothing would reinstall and the sheet would fire real reads with
+ * no session. The answer is the entry: `/demo?id=…` remounts and
+ * reinstalls. `/demo` itself is excluded (its own mount installs),
+ * and the `id` match is exact so a real trip's sheet never bounces.
+ */
+export function shouldReenterDemo(
+  pathname: string,
+  id: unknown,
+): boolean {
+  const single = Array.isArray(id) ? id[0] : id;
+  if (single !== DEMO_TRIP_ID) return false;
+  const path = normalizeDemoPath(pathname);
+  if (path === "/demo") return false;
+  return (DEMO_APP_ROUTES as readonly string[]).includes(path);
+}
 export function isDemoAllowedRoute(pathname: string): boolean {
   const path = normalizeDemoPath(pathname);
   return DEMO_APP_ROUTES.includes(path) || DEMO_PUBLIC_ROUTES.includes(path);
