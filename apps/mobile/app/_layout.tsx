@@ -46,6 +46,7 @@ import { BootGate } from "@/components/ui/BootGate";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { BARE_HEADER_ROUTES, DIALOG_ROUTES } from "@/lib/routes";
 import { AuthProvider } from "@/lib/authStore";
+import { DemoGuard } from "@/components/demo/DemoGuard";
 import { NotificationsProvider } from "@/lib/notificationsStore";
 import { ProfileProvider } from "@/lib/profileStore";
 import { TripSettingsProvider } from "@/lib/tripSettingsStore";
@@ -147,6 +148,7 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
     <AuthProvider>
+    <DemoGuard />
     <TripsProvider>
       <EventsProvider>
       <TravelProvider>

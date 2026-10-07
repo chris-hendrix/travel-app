@@ -10,6 +10,7 @@ import {
   uninstallDemoFetch,
 } from "@/lib/demo/adapter";
 import { tripsListOptions } from "@/lib/queries/trips";
+import { fetchPlaceDetails } from "@/lib/queries/places";
 import { lookupFlight } from "@/lib/flights";
 
 vi.mock("react-native", () => ({ Platform: { OS: "web" } }));
@@ -110,10 +111,50 @@ describe("the demo data layer", () => {
     );
     expect(roster.members.find((member) => member.userId === "demo-viewer")?.status).toBe("maybe");
 
-    // Places degrade to empty suggestions; flight lookup reads as
+    // The invented place list: typing shows selectable rows, and every
+    // row resolves through details — flight lookup still reads as
     // "no such flight" through the caller's own 404 handling.
-    const suggestions = await apiFetch<unknown[]>("/locations/autocomplete?q=cabo&sessionToken=x");
-    expect(suggestions).toEqual([]);
+    const suggestions = await apiFetch<
+      Array<{
+        placeId: string;
+        shortName: string;
+        displayName: string;
+        displayAddress: string;
+        types: string[];
+      }>
+    >("/locations/autocomplete?q=cabo&sessionToken=x");
+    // Non-empty, with the fields the picker maps (label + second line).
+    expect(suggestions.length).toBeGreaterThan(0);
+    for (const suggestion of suggestions) {
+      expect(typeof suggestion.placeId).toBe("string");
+      expect(suggestion.placeId.length).toBeGreaterThan(0);
+      expect(typeof suggestion.displayName).toBe("string");
+      expect(suggestion.displayName.length).toBeGreaterThan(0);
+      expect(typeof suggestion.displayAddress).toBe("string");
+      expect(suggestion.displayAddress.length).toBeGreaterThan(0);
+      expect(Array.isArray(suggestion.types)).toBe(true);
+    }
+    // Nothing invented here is a URL: no remote addresses, nothing a
+    // reader could mistake for a real listing.
+    expect(JSON.stringify(suggestions)).not.toContain("http");
+    // A query that matches nothing offers nothing (the picker's own
+    // typed-text row still carries the field).
+    const noMatch = await apiFetch<unknown[]>(
+      "/locations/autocomplete?q=zzz-no-such-place&sessionToken=x",
+    );
+    expect(noMatch).toEqual([]);
+    // Every listed row resolves through details with finite
+    // coordinates, so selecting a row fills the field the way a real
+    // suggestion would.
+    for (const suggestion of suggestions) {
+      const details = await fetchPlaceDetails(suggestion.placeId, "x");
+      expect(details.placeId).toBe(suggestion.placeId);
+      expect(details.address.length).toBeGreaterThan(0);
+      expect(Number.isFinite(details.lat)).toBe(true);
+      expect(Number.isFinite(details.lon)).toBe(true);
+    }
+    // Unknown ids 404 into the picker's typed-text fallback.
+    await expect(fetchPlaceDetails("demo-place-nope", "x")).rejects.toThrow();
     await expect(lookupFlight("AA100", "2026-12-01")).resolves.toBeNull();
 
     // The real list query works unchanged against the adapter.

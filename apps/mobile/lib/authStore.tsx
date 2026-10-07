@@ -546,3 +546,8 @@ let demoAuthUser: AuthUser | null = null;
 export function setDemoAuthUser(user: AuthUser | null): void {
   demoAuthUser = user;
 }
+
+/** Whether the demo scope is installed (`components/demo/DemoGuard.tsx` reads this, never the context). */
+export function getDemoAuthUser(): AuthUser | null {
+  return demoAuthUser;
+}

@@ -29,10 +29,13 @@ import { setDemoAuthUser } from "@/lib/authStore";
  * the unmount cleanup. Both are reverted together, so leaving `/demo`
  * restores the real session and the real fetch.
  *
- * Known limits (out of scope): the list's Create-trip CTA pushes the
- * real `/trips/new` authoring surface, which needs live Places plus a
- * real account — it dead-ends in the demo. Invite/people management
- * and cover uploads are not served and answer the API 404 envelope.
+ * Dead ends (handled, not silent): anything the visitor can reach
+ * that the demo does not implement — the Create-trip CTA's `/trips/new`
+ * submit, invite/people management, cover uploads, notifications,
+ * profile, admin — replaces to `/login` through the demo allowlist
+ * (`lib/demo/guard.ts` + `components/demo/DemoGuard.tsx`), which is the
+ * honest answer and the conversion moment. The place picker is served:
+ * the adapter answers autocomplete + details from an invented list.
  */
 export default function Demo() {
   useState(() => {

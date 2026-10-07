@@ -13,8 +13,10 @@
  * Reads served: `GET /trips`, `GET /trips/:id`, members, events,
  * accommodations, member-travel, invitations (empty), the trip-settings
  * trio (sharePhone + notification pair + calendar flag), and the Places
- * autocomplete (empty suggestions — the Location field degrades to free
- * text, still submittable). Writes served in memory: RSVP, event/stay/
+ * autocomplete + details (a small invented list for the demo's own
+ * destinations — invented names and addresses, no real business data,
+ * no remote URLs — so the Location field offers selectable rows and
+ * picking one fills the field the way a real suggestion would). Writes served in memory: RSVP, event/stay/
  * travel create/update/delete, sharePhone, notification preferences,
  * calendar exclusion. `POST /flights/lookup` answers 404, which
  * `lookupFlight` already reads as "no such flight" — the travel form
@@ -274,11 +276,112 @@ function findRowAnywhere<T extends { id: string }>(
  * Answer one API path from the store. Pure apart from the store's own
  * mutation on writes — no network, no clock reads beyond stamps.
  */
+/**
+ * The demo's invented places: one small list for the fixture's own
+ * destinations, so the sheets' place fields offer selectable rows.
+ * Every privacy rule the fixture keeps holds here too — invented
+ * venue names and street addresses, real geography only (the cities
+ * the fixture already names), no remote URLs, nothing that could be
+ * mistaken for a real listing. Coordinates are rough city-area points,
+ * good enough to pin a details answer and fill the field.
+ */
+type DemoPlace = {
+  placeId: string;
+  shortName: string;
+  displayName: string;
+  displayAddress: string;
+  types: string[];
+  lat: number;
+  lon: number;
+};
+
+export const DEMO_PLACES: readonly DemoPlace[] = [
+  {
+    placeId: "demo-place-casa-verde",
+    shortName: "Casa Verde",
+    displayName: "Casa Verde",
+    displayAddress: "Calle del Sol 12, Cabo San Lucas, Mexico",
+    types: ["lodging"],
+    lat: 22.8951,
+    lon: -109.9112,
+  },
+  {
+    placeId: "demo-place-taqueria-luna",
+    shortName: "Taqueria Luna",
+    displayName: "Taqueria Luna",
+    displayAddress: "Marina Boulevard, Cabo San Lucas, Mexico",
+    types: ["food_and_drink"],
+    lat: 22.8823,
+    lon: -109.9056,
+  },
+  {
+    placeId: "demo-place-santa-maria",
+    shortName: "Playa Santa Maria",
+    displayName: "Playa Santa Maria",
+    displayAddress: "Santa Maria Bay, Cabo San Lucas, Mexico",
+    types: ["outdoors"],
+    lat: 22.8918,
+    lon: -109.9004,
+  },
+  {
+    placeId: "demo-place-stardust-yurts",
+    shortName: "Stardust Yurts",
+    displayName: "Stardust Yurts",
+    displayAddress: "Shorthorn Street, Marfa, Texas",
+    types: ["lodging"],
+    lat: 30.2984,
+    lon: -104.0761,
+  },
+  {
+    placeId: "demo-place-lights-turnout",
+    shortName: "Desert Lights Turnout",
+    displayName: "Desert Lights Turnout",
+    displayAddress: "Highway 90, Marfa, Texas",
+    types: ["outdoors"],
+    lat: 30.3089,
+    lon: -104.0182,
+  },
+  {
+    placeId: "demo-place-burnside-house",
+    shortName: "Burnside House",
+    displayName: "Burnside House",
+    displayAddress: "Burnside Street, Portland, Oregon",
+    types: ["lodging"],
+    lat: 45.5231,
+    lon: -122.6578,
+  },
+];
+
+/** One `key=value` out of a raw query string, without `URLSearchParams` (no Hermes dependency for a stub). */
+function queryParam(query: string, key: string): string {
+  const clean = query.startsWith("?") ? query.slice(1) : query;
+  for (const pair of clean.split("&")) {
+    if (!pair) continue;
+    const eq = pair.indexOf("=");
+    const rawKey = eq < 0 ? pair : pair.slice(0, eq);
+    let decodedKey: string;
+    try {
+      decodedKey = decodeURIComponent(rawKey.replace(/\+/g, " "));
+    } catch {
+      continue;
+    }
+    if (decodedKey !== key) continue;
+    const rawValue = eq < 0 ? "" : pair.slice(eq + 1);
+    try {
+      return decodeURIComponent(rawValue.replace(/\+/g, " "));
+    } catch {
+      return rawValue;
+    }
+  }
+  return "";
+}
+
 export function handleDemoRequest(
   store: DemoStore,
   method: string,
   path: string,
   rawBody?: string,
+  query: string = "",
 ): { status: number; body: unknown } {
   const body = (rawBody ? safeParse(rawBody) : {}) as DemoBody;
   const verb = method.toUpperCase();
@@ -540,9 +643,46 @@ export function handleDemoRequest(
   }
 
   if (verb === "GET" && path.startsWith("/locations/autocomplete")) {
-    // No live Places in the demo: empty suggestions, so the Location
-    // field degrades to free text and the form stays submittable.
-    return { status: 200, body: [] };
+    // The invented list, filtered by the query the caller typed: typing
+    // shows selectable rows, and picking one fills the field through
+    // the details stub below. An empty query offers the whole list;
+    // no match offers nothing (plus the picker's own typed-text row).
+    const needle = queryParam(query, "q").trim().toLowerCase();
+    const matches = DEMO_PLACES.filter(
+      (place) =>
+        needle === "" ||
+        `${place.displayName} ${place.displayAddress}`.toLowerCase().includes(needle),
+    );
+    return {
+      status: 200,
+      body: matches.map((place) => ({
+        placeId: place.placeId,
+        shortName: place.shortName,
+        displayName: place.displayName,
+        displayAddress: place.displayAddress,
+        types: [...place.types],
+      })),
+    };
+  }
+
+  if (verb === "GET" && path.startsWith("/locations/details")) {
+    // Whatever the list above returned resolves here, so selecting a
+    // row commits its label and attaches coordinates the way a real
+    // suggestion would. Unknown ids 404 into the picker's own
+    // typed-text fallback.
+    const placeId = queryParam(query, "placeId");
+    const place = DEMO_PLACES.find((entry) => entry.placeId === placeId);
+    if (!place) return notFound("Place not found");
+    return {
+      status: 200,
+      body: {
+        placeId: place.placeId,
+        displayPlace: place.displayName,
+        displayAddress: place.displayAddress,
+        lat: place.lat,
+        lon: place.lon,
+      },
+    };
   }
 
   // Flight autofill has no demo backend; 404 is the caller's own "no
@@ -597,6 +737,16 @@ function splitPath(url: string): string | null {
   return cut < 0 ? after : after.slice(0, cut);
 }
 
+/** The raw query string for a split path (`""` when the URL carries none). */
+function splitQuery(url: string): string {
+  const marker = "/api/";
+  const at = url.indexOf(marker);
+  if (at < 0) return "";
+  const after = url.slice(at + marker.length - 1);
+  const cut = after.indexOf("?");
+  return cut < 0 ? "" : after.slice(cut + 1);
+}
+
 let wrappedFetch: typeof fetch | null = null;
 let activeStore: DemoStore | null = null;
 const demoLog: DemoRequestLog[] = [];
@@ -643,6 +793,7 @@ export function installDemoFetch(store: DemoStore): void {
       method,
       path,
       typeof init?.body === "string" ? init.body : undefined,
+      splitQuery(href),
     );
     demoLog.push({ method, path, status: outcome.status, served: true });
     return {
