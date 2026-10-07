@@ -190,12 +190,12 @@ function Landing() {
             bare `border`, which is a box edge rather than a rule site
             (`scripts/design-lint.mjs` checks 3, 9 and 11).
           */}
-          <View className="max-w-[420px] gap-5">
-            <Text className="font-display-semibold text-heading-lg uppercase text-ink">
+          <View className="max-w-[420px] gap-5 md:mx-auto md:w-full">
+            <Text className="font-display-semibold text-heading-lg uppercase text-ink md:text-center">
               What your friends see
             </Text>
             <PhoneThread
-              dayLabel="Wednesday, Nov 4"
+              dayLabel="Today"
               messageText={`${DEMO_INVITER_NAME} invited you to "${demoTrip.title}" on Journiful!`}
               linkLabel={`https://journiful.app/invite\n?id=${DEMO_INVITATION_ID}`}
               href={`/demo?id=${DEMO_TRIP_ID}`}
@@ -206,7 +206,7 @@ function Landing() {
                 in it. The hero's note answers the other question, the
                 effort of getting in, because that is the one at the first
                 button. */}
-            <Text className="font-body text-sm text-ink">
+            <Text className="font-body text-sm text-ink md:text-center">
               Free, with no ads.
             </Text>
           </View>
