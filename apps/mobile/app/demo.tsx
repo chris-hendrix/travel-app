@@ -19,7 +19,8 @@ import { setDemoAuthUser } from "@/lib/authStore";
  * `useLocalSearchParams`, exactly like production.
  *
  * The funnel, kept deliberately: the landing already showed the
- * invitation (the real `InviteCard` against the same fixture), so the
+ * invitation (the real invite message against the same fixture, in
+ * `components/landing/PhoneThread.tsx`), so the
  * demo skips straight to the payoff — the trip it opens. There is no
  * accept beat any more: in the product, accepting an invitation IS
  * signing in, and the demo has no phone number, so the band's link is

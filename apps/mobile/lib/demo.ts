@@ -32,8 +32,6 @@ export type DemoTrip = {
   endDate: string;
   /** Invented prose so the real Description block renders in the demo. */
   description: string | null;
-  /** The friend's view: the demo reads as the traveler, not the organizer. */
-  viewerMemberId: string;
   members: Member[];
   stay: Stay;
   events: ItineraryEvent[];
@@ -271,15 +269,9 @@ export function buildDemoTrip(today: Date = new Date()): DemoTrip {
     endDate,
     description:
       "Five days in Cabo San Lucas with the whole crew under one roof at Casa Verde. Mornings are unscheduled — beach, pool, or sleep in — and the group meets up for the dinners and the boat day on the shared itinerary. Bring reef-safe sunscreen and one nice outfit for the farewell dinner.",
-    viewerMemberId: DEMO_VIEWER_MEMBER_ID,
     members,
     stay,
     events,
     travel,
   };
-}
-
-/** What the demo screen reads: the fixture derived from the real today. */
-export function getDemoTrip(): DemoTrip {
-  return buildDemoTrip(new Date());
 }
