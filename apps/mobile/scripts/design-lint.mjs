@@ -691,10 +691,10 @@ checkRuleCensus();
  * wants the owner's eye rather than this script's judgement.
  */
 const COLUMN_PADDING_ALLOW = new Set([
-  // The landing and the invitation open on a display heading and want more
-  // air than the default rhythm. They express a real intent; `Column`'s
-  // `lead` variant is the mechanism built for it and neither uses it yet.
-  "gap-6 pb-12 pt-4 md:pt-14",
+  // The invitation opens on a display heading and wants more air than the
+  // default rhythm. It expresses a real intent; `Column`'s `lead` variant
+  // is the mechanism built for it and it does not use it yet. (The landing
+  // did the same until its hero took `lead` — its string left with it.)
   "gap-8 py-6 pt-4 md:pt-14",
 ]);
 
