@@ -9,7 +9,7 @@ import { TextField } from "@/components/ui/TextField";
 import { formatPhoneForDisplay } from "@/lib/phone";
 import { destinationForRequiresProfile } from "@/lib/queries/auth";
 import { toErrorCopy } from "@/lib/queries/errors";
-import { useAuth } from "@/lib/authStore";
+import { isDemoIdentity, useAuth } from "@/lib/authStore";
 import { Column } from "@/components/ui/Column";
 
 /** Seconds before the code may be asked for again. The API has its own
@@ -31,6 +31,10 @@ const RESEND_COOLDOWN = 30;
 export default function Verify() {
   const router = useRouter();
   const { pendingPhone, requestCode, verifyCode, user } = useAuth();
+  // The demo fixture is viewer identity, not a session: on this screen
+  // it reads as nobody signed in, so the stranger's page renders rather
+  // than a bounce to `/trips` with no session.
+  const sessionUser = isDemoIdentity(user) ? null : user;
 
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -44,8 +48,8 @@ export default function Verify() {
   // reader lands on the landing, which explains the product, rather
   // than on a form.
   useEffect(() => {
-    if (!user && !pendingPhone) router.replace("/");
-  }, [pendingPhone, router, user]);
+    if (!sessionUser && !pendingPhone) router.replace("/");
+  }, [pendingPhone, router, sessionUser]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -122,8 +126,8 @@ export default function Verify() {
     }
   }
 
-  if (user?.profileComplete) return <Redirect href="/trips" />;
-  if (user) return <Redirect href="/complete-profile" />;
+  if (sessionUser?.profileComplete) return <Redirect href="/trips" />;
+  if (sessionUser) return <Redirect href="/complete-profile" />;
   if (!pendingPhone) return <Redirect href="/" />;
 
   return (

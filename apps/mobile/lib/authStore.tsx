@@ -19,6 +19,7 @@ import {
 } from "@/lib/queries/auth";
 import { tripsListOptions } from "@/lib/queries/trips";
 import type { Profile } from "@/lib/profile";
+import { DEMO_AUTH_USER } from "@/lib/demo";
 import { toProfile } from "@/lib/mapping";
 import { clearToken, getToken } from "@/lib/session";
 import { setSignedIn } from "@/lib/sessionFlag";
@@ -550,4 +551,21 @@ export function setDemoAuthUser(user: AuthUser | null): void {
 /** Whether the demo scope is installed (`components/demo/DemoGuard.tsx` reads this, never the context). */
 export function getDemoAuthUser(): AuthUser | null {
   return demoAuthUser;
+}
+
+/**
+ * Whether an identity is the demo's fixture traveler rather than a real
+ * session. The fixture is viewer identity — the demo's own screens need
+ * it so `viewerOf` finds the `going` roster row — but it must never
+ * count as a session on a real route: every route that redirects or
+ * gates on a session (`/`, `/login`, `/verify`, `/complete-profile`)
+ * ignores it, so arriving at one with the fixture still installed
+ * renders the stranger's page instead of bouncing to `/trips` with no
+ * session. Matched on the fixture id, which no real account carries
+ * (server ids are UUIDs; the fixture's is the `demo-viewer` literal).
+ */
+export function isDemoIdentity(
+  user: AuthUser | null | undefined,
+): boolean {
+  return user?.id === DEMO_AUTH_USER.id;
 }

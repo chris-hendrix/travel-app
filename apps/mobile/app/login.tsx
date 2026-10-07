@@ -9,7 +9,7 @@ import { QuietAction } from "@/components/ui/QuietAction";
 import { Screen } from "@/components/ui/Screen";
 import { phoneError, toE164 } from "@/lib/phone";
 import { useLeaveFlow } from "@/hooks/useLeaveFlow";
-import { useAuth } from "@/lib/authStore";
+import { isDemoIdentity, useAuth } from "@/lib/authStore";
 import { Column } from "@/components/ui/Column";
 
 /**
@@ -68,7 +68,9 @@ export default function Login() {
 
   // Signed in already, which is what pressing back from the trips list
   // arrives as: a sign-in form is not a thing to show somebody who is in.
-  if (user) return <Redirect href="/trips" />;
+  // The demo fixture is viewer identity, not a session, so it stays on
+  // the form — the stranger's page — rather than bouncing to `/trips`.
+  if (user && !isDemoIdentity(user)) return <Redirect href="/trips" />;
 
   return (
     <Screen>

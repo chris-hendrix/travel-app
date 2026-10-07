@@ -84,14 +84,18 @@ describe("the demo sign-in door tears down before navigating", () => {
 });
 
 describe("a genuine session still redirects off /login", () => {
-  it("login.tsx redirects on `user`, with no demo special-casing", () => {
+  it("login.tsx redirects on a real session, ignoring the demo fixture", () => {
     const login = source("app/login.tsx");
-    // The real-session redirect is untouched.
-    expect(login).toMatch(/if \(user\) return <Redirect href="\/trips" \/>;/);
-    // The fix lives in the door, not in the session check: login must
-    // not learn about the demo, or every route branching on `user`
-    // would need the same carve-out.
-    expect(login).not.toMatch(/[Dd]emo/);
+    // The real-session redirect is untouched, except that the demo
+    // fixture no longer counts as a session: the door-teardown fix
+    // could not cover the browser back button, so every real session
+    // redirect now shares the one `isDemoIdentity` predicate (see
+    // `__tests__/demo-session-gates.test.ts` for the whole class).
+    expect(login).toMatch(
+      /if \(user && !isDemoIdentity\(user\)\) return <Redirect href="\/trips" \/>;/,
+    );
+    // The fix lives in the shared predicate, not in a local copy:
+    // login learns one predicate, never the demo's teardown or scope.
     expect(login).not.toContain("getDemoAuthUser");
     expect(login).not.toContain("teardownDemoScope");
   });

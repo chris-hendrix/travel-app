@@ -6,7 +6,7 @@ import { Screen } from "@/components/ui/Screen";
 import { Section } from "@/components/ui/Section";
 import { RuledRows } from "@/components/ui/RuledRows";
 import { LEGAL_ROWS } from "@/lib/legal";
-import { useAuth } from "@/lib/authStore";
+import { isDemoIdentity, useAuth } from "@/lib/authStore";
 import { destinationForRequiresProfile } from "@/lib/queries/auth";
 import { Band } from "@/components/ui/Band";
 import { Column } from "@/components/ui/Column";
@@ -60,7 +60,11 @@ export default function Index() {
 
   // Somebody signed in has no business reading the pitch, and somebody
   // signed in without a name belongs on the screen that asks for it.
-  if (status === "signed-in" && user) {
+  // The demo fixture is viewer identity, not a session (`isDemoIdentity`):
+  // arriving here with it still installed — the browser back button out
+  // of `/demo`, whose unmount cleanup runs after this render — reads the
+  // pitch instead of bouncing to `/trips` with no session.
+  if (status === "signed-in" && user && !isDemoIdentity(user)) {
     return (
       <Redirect
         href={destinationForRequiresProfile(!user.profileComplete)}
