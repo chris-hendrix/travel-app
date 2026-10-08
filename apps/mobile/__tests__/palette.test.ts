@@ -80,9 +80,20 @@ describe("palette: every token lives where it says it does", () => {
     expect(placeholder?.hex).toBe(quiet?.hex);
   });
 
-  it("declares no token it does not ship", () => {
-    // Reserved tones are measured, not shipped: if one appears in the css
-    // it is live, and the band set silently became three.
+  it("ships exactly the three band tones, and reserves nothing", () => {
+    // The inverse of the old "declares no token it does not ship": the
+    // band set is named here, so a fourth pale ground cannot join it by
+    // passing the chroma and separation bars alone — every pale token
+    // clears those, which is why `bpink` sat reserved for a while and
+    // why the count has to be asserted rather than measured.
+    expect(BAND_TONES).toEqual(["lilac", "baltic", "bpink"]);
+    expect(RESERVED).toEqual([]);
+  });
+
+  it("declares no reserved token the css ships", () => {
+    // Vacuous while `RESERVED` is empty: kept as the guard for the next
+    // tone that is measured and deliberately not assigned. If one ever
+    // appears in the css it is live, and the band set silently grew.
     const leaked = RESERVED.filter((t) => cssTokens.has(t.name)).map((t) => t.name);
     expect(leaked).toEqual([]);
   });
@@ -228,16 +239,22 @@ describe("palette: the rules a role implies", () => {
     }
   });
 
-  it("records why the reserved tone was reserved", () => {
-    // bpink passes every rule and is still not shipped. If it ever starts
-    // failing one, this note is wrong rather than the decision.
-    const bpink = RESERVED.find((t) => t.name === "bpink")!;
+  it("records the measurement bpink shipped on", () => {
+    // The row moved out of `RESERVED` and into `TOKENS` when the landing's
+    // hero took it. The numbers the decision was made on are asserted here
+    // too, because the note in `lib/palette.ts` is prose and prose cannot
+    // fail — and because the band set's tightest pair is this token against
+    // lilac, which is what forbids them being adjacent on the page.
+    const bpink = TOKENS.find((t) => t.name === "bpink")!;
+    expect(bpink.role).toBe("band");
+    expect(bpink.home).toContain("css");
     expect(chroma(bpink.hex)).toBeLessThan(BAND_CHROMA_MAX);
     expect(dE(bpink.hex, GROUNDS.sand)).toBeGreaterThanOrEqual(SEAM_MIN);
-    expect(bpink.home).toEqual([]);
+    expect(
+      dE(bpink.hex, TOKENS.find((t) => t.name === "lilac")!.hex),
+    ).toBeGreaterThanOrEqual(SEAM_MIN);
   });
 });
-
 describe("palette: the list is complete", () => {
   it("describes every token the css defines", () => {
     // The other direction: a token added to global.css and forgotten here

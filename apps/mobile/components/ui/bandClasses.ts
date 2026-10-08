@@ -9,22 +9,24 @@
  * it lives where a test can reach it.
  *
  * **The literals are not the guard.** `BandTone` stops a tone that is not
- * one of these two, but it cannot stop a *third* pale tone being added —
- * every pale token passes the chroma and separation bars, which is why
- * `bpink #ffd1ed` was a legitimate candidate until A2 dropped it by
- * judgement rather than by measurement. What makes the count real is
+ * one of these three, but the literal union itself is hand-written and
+ * cannot stop a *fourth* pale tone being added — every pale token passes
+ * the chroma and separation bars, which is why `bpink #ffd1ed` sat
+ * measured-but-unshipped in `lib/palette.ts` for a while before the
+ * landing's hero gave it a band. What makes the count real is
  * `__tests__/palette.test.ts`: it asserts this map's keys are exactly
  * `lib/palette.ts`'s band rows, so adding a tone here without adding a row
  * there fails, and vice versa.
  */
-export type BandTone = "lilac" | "baltic";
+export type BandTone = "lilac" | "baltic" | "bpink";
 
 /**
- * The two tones, as class strings rather than hexes: a band is a ground, so
+ * The three tones, as class strings rather than hexes: a band is a ground, so
  * it is painted by the token and never by a value written here. NativeWind
  * resolves `bg-lilac` from `global.css`'s `@theme`.
  */
 export const BAND_CLASSES: Record<BandTone, string> = {
   lilac: "bg-lilac",
   baltic: "bg-baltic",
+  bpink: "bg-bpink",
 };

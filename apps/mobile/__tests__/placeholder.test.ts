@@ -59,21 +59,17 @@ describe("placeholderKind", () => {
   });
 
   it("every kind has a photo", () => {
-    const kinds: PlaceholderKind[] = [
-      "travel",
-      "food_and_drink",
-      "arts_and_entertainment",
-      "outdoors",
-      "nightlife",
-      "wellness",
-      "shopping",
-      "lodging",
-      "misc",
-      "trip",
-    ];
-    expect(kinds).toHaveLength(10);
+    // Derived, not written out: a new `PlaceholderKind` lands here by
+    // existing. The real totality gate is typecheck — `KINDS` is a
+    // `Record<PlaceholderKind, number>`, so a kind without a photo is a
+    // compile error, not a blank frame.
+    const kinds = Object.keys(KINDS) as PlaceholderKind[];
+    expect(kinds.length).toBeGreaterThanOrEqual(10);
+    for (const occasion of ["bachelor", "wedding", "reunion"] as const) {
+      expect(kinds).toContain(occasion);
+    }
     for (const kind of kinds) {
-      expect(KINDS[kind]).toBeDefined();
+      expect(KINDS[kind]).toBeTruthy();
     }
   });
 });

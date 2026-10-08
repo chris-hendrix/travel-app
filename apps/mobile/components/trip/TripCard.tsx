@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/Badge";
 import { PhotoCard } from "@/components/ui/PhotoCard";
 import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
+import type { PlaceholderKind } from "@/lib/placeholder";
 import { tripCountdown } from "@/lib/countdown";
 import { formatDateRange } from "@/lib/dateRange";
 import type { PlacePhotoCredit } from "@/lib/place-images";
@@ -84,18 +85,28 @@ export function TripCard({
   trip,
   onPress,
   today = new Date(),
+  coverKind = "trip",
 }: {
   trip: Trip;
   onPress?: () => void;
   /** Injected so the countdown and the list grouping agree on "now". */
   today?: Date;
+  /**
+   * The stand-in photo this card falls back to when the trip has no
+   * cover, defaulting to the generic trip shot — which is what every
+   * real caller wants, because a real trip's cover comes from `image`.
+   * A fixture supplies its own: the landing's three demo trips have no
+   * cover photo at all, so without this they would render one identical
+   * photo three times, which reads as a bug rather than as a set.
+   */
+  coverKind?: PlaceholderKind;
 }) {
   const countdown = tripCountdown(trip.startDate, trip.endDate, today);
 
   return (
     <PhotoCard
       image={trip.image}
-      placeholder={<PlaceholderImage kind="trip" />}
+      placeholder={<PlaceholderImage kind={coverKind} />}
       photoSourceUri={trip.photoSourceUri ?? null}
       overlay={countdown ? <Badge label={countdown} variant="club" /> : null}
       meta={formatDateRange(trip.startDate, trip.endDate)}
