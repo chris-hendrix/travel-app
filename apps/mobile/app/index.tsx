@@ -152,30 +152,28 @@ function Landing() {
         cards={cards}
         today={today}
         onOpenTrip={(href) => router.push(href)}
-        onGetStarted={() => router.push("/login")}
       />
 
-      {/* The close: the one trust claim available before there are any
-          users, then the legal rows. The claim moved here with the fake
-          phone that used to carry it — a new app is assumed to have a
-          subscription in it, and the cost answer belongs where a reader
-          has finished looking rather than beside the mechanism. */}
+      {/* The close: the legal rows, and nothing else. A trust line
+          ("Free, with no ads.") sat above them through the first pass —
+          moved here when the fake phone that carried it was deleted — and
+          it read as a fourth item in the legal strip: nothing above it
+          raises the question it answers, and the row is a list of
+          documents rather than of claims. A cost claim belongs where a
+          reader is weighing the offer, which on this page is the hero;
+          the deets paragraph and the shelf are not the place for it
+          either, so it is simply gone rather than tidied. */}
       <Column>
-        <View className="gap-6">
-          <Text className="font-body text-sm text-ink">
-            Free, with no ads.
-          </Text>
-          <View className="flex-row flex-wrap gap-x-6 gap-y-2">
-            {LEGAL_ROWS.map((row) => (
-              <Link
-                key={row.href}
-                href={row.href}
-                className="font-body text-sm text-ink underline"
-              >
-                {row.short}
-              </Link>
-            ))}
-          </View>
+        <View className="flex-row flex-wrap gap-x-6 gap-y-2">
+          {LEGAL_ROWS.map((row) => (
+            <Link
+              key={row.href}
+              href={row.href}
+              className="font-body text-sm text-ink underline"
+            >
+              {row.short}
+            </Link>
+          ))}
         </View>
       </Column>
     </Screen>
