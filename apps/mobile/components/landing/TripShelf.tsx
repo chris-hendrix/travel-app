@@ -8,12 +8,43 @@ import { Section } from "@/components/ui/Section";
 import type { DemoTripCard } from "@/lib/demo";
 
 /**
+ * The shelf's name. It sits below the band rather than above it, and its
+ * wording carries all three tiles rather than the two under it — the thing a
+ * reader has to know is that the trip in the band is openable too, and a
+ * heading over two of the three says the opposite. `More trips to open` was
+ * the first attempt and it made exactly that mistake.
+ *
+ * The wording is the page's own register — plain, concrete, no pitch: what
+ * the tiles are (real trips) and what you do with them (look through them).
+ * "look through" is the honest verb for what pressing one does, since the
+ * demo lets a reader read a trip rather than edit it.
+ */
+const SHELF_TITLE = "Real trips to look through";
+
+/**
  * The shelf: three real demo trips, the first sharing the mechanism band.
  *
  * The landing's whole argument is that a trip here is legible at a
  * glance, so the evidence is three trips and not a description of them.
  * The band is where that argument is made, and it has three properties
  * worth stating, because each was arrived at by looking at it:
+ *
+ * - **The steps name their subjects, and there are only two of them.**
+ *   `Name the trip. Pick the dates and the place. Send the text.` was six
+ *   imperatives with no actor, and "the text" arrived from nowhere: the
+ *   reader is a stranger who has never seen an invite. The rows are now the
+ *   two parties and the two moves — **You** set the trip up and invite by
+ *   phone number; **They** open the invite in the text and join — with
+ *   `join` taken from the invite screen's own button ("Sign in to join") so
+ *   the landing and the screen behind it use one vocabulary.
+ *
+ *   A member can also answer the invite and add their own travel, and
+ *   neither is in here. Answering is a formality in a group that already
+ *   knows each other, and the page had already cut "knowing who is coming"
+ *   as a selling point (`app/index.tsx`); travel, the stay and the itinerary
+ *   are the trip's *contents*, so featuring one of them as a chore here made
+ *   it read as an arbitrary third thing. `That's it.` closes the block and
+ *   scopes what it claims: that is the whole setup, not the whole product.
  *
  * - **The band's air is the page's rhythm.** The mechanism row and the
  *   first card share one `baltic` ground, in the page's own container: the
@@ -43,13 +74,14 @@ import type { DemoTripCard } from "@/lib/demo";
  * and it pulled a reader's thumb back up the page they had just come down.
  * The cards are the band's affordances.
  *
- * The other two cards are labelled `More trips to open` and share a two-up
- * `Grid` on sand, in the page's own container — the repo's one layout above
- * 768px, and the arrangement `Grid` documents. They are cards 2 and 3 in the
- * pin order (`lib/demo.ts`), never a re-sorted set: the bachelor party leads
- * because the deets paragraph describes its own detail (four friends landing
- * twenty minutes apart), and a shelf whose order moved with the calendar
- * would make that copy a lie twice a month. They are cards 2 and 3 in the pin order (`lib/demo.ts`), never
+ * The other two cards are a two-up `Grid` on sand, in the page's own
+ * container — the repo's one layout above 768px, and the arrangement `Grid`
+ * documents. They are cards 2 and 3 in the pin order (`lib/demo.ts`), never
+ * a re-sorted set: the bachelor party leads because the deets paragraph
+ * describes its own detail (four friends landing twenty minutes apart), and
+ * a shelf whose order moved with the calendar would make that copy a lie
+ * twice a month. They share the heading below the band with card 1 — one
+ * name for all three tiles, which is why the wording carries the set. They are cards 2 and 3 in the pin order (`lib/demo.ts`), never
  * a re-sorted set: the bachelor party leads because the deets paragraph
  * describes its own detail (four friends landing twenty minutes apart), and
  * a shelf whose order moved with the calendar would make that copy a lie
@@ -86,11 +118,22 @@ export function TripShelf({
             <View className="min-w-0 flex-1">
               <Section title="How it works" rule={false}>
                 <Text className="font-body text-base leading-relaxed text-ink">
-                  Name the trip. Pick the dates and the place. Send the text.
+                  You name the trip, pick the dates and the place, and invite
+                  your friends by phone number.
                 </Text>
                 <Text className="font-body text-base leading-relaxed text-ink">
-                  Open the text. Say if they're coming. Add their flight.
+                  They open the invite in the text and join.
                 </Text>
+                {/* The beat, not a third step. `pt-2` on top of the
+                    `Section`'s own gap is what separates a block closing
+                    from a thing still to do — and it is inside the
+                    `Section` rather than a direct child of the `Column`,
+                    which is the boundary the column-padding check guards. */}
+                <View className="pt-2">
+                  <Text className="font-body text-base leading-relaxed text-ink">
+                    That's it.
+                  </Text>
+                </View>
               </Section>
             </View>
             {/* The card's own width, and nothing of this row's. The
@@ -114,17 +157,16 @@ export function TripShelf({
       </Band>
 
       <Column>
-        {/* The lower row is labelled, and the label is a description rather
-            than a pitch: a reader who has just been shown the mechanism has
-            no way to know that the tiles under it are trips they can open,
-            and "open" is the page's own word for what a tile does (the demo
-            is the thing every card opens). Not a second heading of the
-            page's rank — it is the same `Section` form the mechanism uses,
-            so the shelf reads as one block with two rows rather than as two
-            sections. `rule={false}` because the boundary above it is the
-            band's own edge and a rule there would cut the second row off
-            from the first, which is the opposite of the point. */}
-        <Section title="More trips to open" rule={false}>
+        {/* Below the band, where the reader has just met the first trip, so
+            the heading arrives after the thing it is naming rather than
+            before it. Its wording carries the whole set, not this row:
+            `More trips to open` was the first attempt and it said the wrong
+            thing — a heading over two of three tiles reads as though the
+            third, the one the reader is looking at, is not one of them, and
+            the tile nobody could tell was openable was that first one.
+            `rule={false}` because a rule here would cut the second row off
+            from the band above it, which is the opposite of the point. */}
+        <Section title={SHELF_TITLE} rule={false}>
           <Grid>
             {rest.map((card) => (
               <TripCard
