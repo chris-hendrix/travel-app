@@ -47,11 +47,11 @@
  * which nothing outside `/demo` sets. A signed-in visitor on a real
  * trip never has a demo session, so they can never match this rule.
  * The one exception is `shouldReenterDemo` (browser-back into a demo
- * sheet URL after teardown), which re-enters through the entry rather
- * than touching any session.
+ * sheet URL after teardown), which re-enters through the entry, the
+ * visitor's own trip id in hand, without touching any session.
  */
 
-import { DEMO_TRIP_ID } from "@/lib/demo";
+import { DEMO_TRIP_IDS } from "@/lib/demo";
 
 /** The demo scope: `/demo` plus every trips route the adapter serves. */
 export const DEMO_APP_ROUTES: readonly string[] = [
@@ -108,17 +108,33 @@ export function isDemoPublicRoute(pathname: string): boolean {
  * sheet would fire real reads with no session. The answer is the
  * entry: `/demo?id=…`, whose render reinstalls (`ensureDemoScope`).
  * `/demo` itself is excluded (its own render installs), and the `id`
- * match is exact so a real trip's sheet never bounces.
+ * match is exact against the demo id set so a real trip's sheet, a
+ * lookalike or a missing id never bounces.
  */
 export function shouldReenterDemo(
   pathname: string,
   id: unknown,
 ): boolean {
-  const single = Array.isArray(id) ? id[0] : id;
-  if (single !== DEMO_TRIP_ID) return false;
+  if (demoIdFrom(id) === null) return false;
   const path = normalizeDemoPath(pathname);
   if (path === "/demo") return false;
   return (DEMO_APP_ROUTES as readonly string[]).includes(path);
+}
+
+/**
+ * The demo trip id a route param names, or null. The one exact match
+ * the guard, the re-entry and the early install all read, so a fourth
+ * demo trip cannot sneak in through one door and not the others.
+ *
+ * `useGlobalSearchParams` types a param as `string | string[]`, and a
+ * repeated `?id=` arrives as an array — hence the first-element read.
+ */
+export function demoIdFrom(value: unknown): string | null {
+  const single = Array.isArray(value) ? value[0] : value;
+  return typeof single === "string" &&
+    (DEMO_TRIP_IDS as readonly string[]).includes(single)
+    ? single
+    : null;
 }
 export function isDemoAllowedRoute(pathname: string): boolean {
   const path = normalizeDemoPath(pathname);

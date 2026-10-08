@@ -32,6 +32,14 @@ export type DemoTrip = {
   endDate: string;
   /** Invented prose so the real Description block renders in the demo. */
   description: string | null;
+  /**
+   * ISO 3166-1 alpha-2, the destination's country. The trip-scoped
+   * pickers read it off the detail row (`placeCountry` →
+   * `countryForTrip`) to floor an autocomplete to the trip's own
+   * country — and the adapter's invented place list filters on the
+   * same value, so a San Diego trip is never offered a Cabo venue.
+   */
+  placeCountry: string;
   members: Member[];
   stay: Stay;
   events: ItineraryEvent[];
@@ -41,8 +49,26 @@ export type DemoTrip = {
 /** The viewer's own row. The RSVP control and the roster row share it. */
 export const DEMO_VIEWER_MEMBER_ID = "demo-you";
 
-/** The demo trip's id: the landing band's `/demo?id=…` link carries it. */
+/** The demo trip's id: the landing's first `/demo?id=…` link carries it. */
 export const DEMO_TRIP_ID = "demo-trip-cabo";
+
+/** The wedding trip's id: the landing's second `/demo?id=…` link carries it. */
+export const DEMO_TRIP_WEDDING_ID = "demo-trip-wedding";
+
+/** The reunion trip's id: the landing's third `/demo?id=…` link carries it. */
+export const DEMO_TRIP_REUNION_ID = "demo-trip-reunion";
+
+/**
+ * Every demo trip's id, in the landing's pinned card order (bachelor,
+ * wedding, reunion). The early install, the guard and the card
+ * selector all read this set, so a fourth trip cannot sneak in
+ * through one door but not the others.
+ */
+export const DEMO_TRIP_IDS = [
+  DEMO_TRIP_ID,
+  DEMO_TRIP_WEDDING_ID,
+  DEMO_TRIP_REUNION_ID,
+] as const;
 
 /**
  * The demo invitation's id: the adapter's invitation preview answers it
@@ -86,9 +112,13 @@ function member(
   phone: string,
   isOrganizer: boolean,
 ): Member {
+  // Every trip carries the viewer's own row, each with its own row id
+  // (row ids are globally unique per D2) but all resolving to the
+  // same demo user, which is what the RSVP path keys on.
+  const isViewer = id === DEMO_VIEWER_MEMBER_ID || id.startsWith(`${DEMO_VIEWER_MEMBER_ID}-`);
   return {
     id,
-    userId: id === DEMO_VIEWER_MEMBER_ID ? "demo-viewer" : `demo-user-${id}`,
+    userId: isViewer ? "demo-viewer" : `demo-user-${id}`,
     name,
     status,
     isOrganizer,
@@ -265,6 +295,7 @@ export function buildDemoTrip(today: Date = new Date()): DemoTrip {
     id: DEMO_TRIP_ID,
     title: "Cabo",
     location: "Cabo San Lucas, Mexico",
+    placeCountry: "MX",
     startDate,
     endDate,
     description:
@@ -274,4 +305,240 @@ export function buildDemoTrip(today: Date = new Date()): DemoTrip {
     events,
     travel,
   };
+}
+
+/**
+ * Forward from the given day to the next `weekday` (0 = Sunday).
+ * A fixture window always opens on its own weekday, so it never
+ * reads as stale no matter when today is.
+ */
+function nextWeekday(fromIso: string, weekday: number): string {
+  const forward =
+    (weekday - new Date(`${fromIso}T12:00:00.000Z`).getUTCDay() + 7) % 7;
+  return addDays(fromIso, forward);
+}
+
+/**
+ * The wedding fixture: Todos Santos, twelve weeks out, opening on a
+ * Saturday for three nights. Every row id is namespaced `demo-wed-`
+ * so no id collides with another trip's rows (D2 — the adapter
+ * resolves id-addressed writes by id alone).
+ */
+export function buildDemoWeddingTrip(today: Date = new Date()): DemoTrip {
+  const startDate = nextWeekday(addDays(toIsoDay(today), 84), 6);
+  const endDate = addDays(startDate, 3);
+  const sunday = addDays(startDate, 1);
+  const monday = addDays(startDate, 2);
+
+  const members: Member[] = [
+    member(`${DEMO_VIEWER_MEMBER_ID}-wed`, "You", "going", "+15550000011", false),
+    member("demo-wed-dev", "Dev", "going", "+15550000012", true),
+    member("demo-wed-priya", "Priya", "going", "+15550000013", false),
+    member("demo-wed-marco", "Marco", "maybe", "+15550000014", false),
+    member("demo-wed-liz", "Liz", "no_response", "+15550000015", false),
+  ];
+
+  const stay: Stay = {
+    id: "demo-wed-stay",
+    name: "Casa Marea",
+    address: "Calle del Mar 8, Todos Santos, Mexico",
+    addressLat: null,
+    addressLon: null,
+    description:
+      "Gate code 7734, parking behind the house. Wifi: CasaMarea-5G / slow-dance.",
+    checkIn: atClock(startDate, "15:00"),
+    checkOut: atClock(endDate, "11:00"),
+    image: null,
+    links: [],
+    deletedAt: null,
+  };
+
+  const events: ItineraryEvent[] = [
+    event(
+      "demo-wed-event-welcome",
+      "Welcome dinner",
+      "food_and_drink",
+      startDate,
+      "19:00",
+      "21:30",
+      "Casa Marea terrace",
+    ),
+    event(
+      "demo-wed-event-ceremony",
+      "Ceremony",
+      "arts_and_entertainment",
+      sunday,
+      "16:00",
+      "17:00",
+      "Hacienda Garden",
+    ),
+    event(
+      "demo-wed-event-reception",
+      "Reception",
+      "food_and_drink",
+      sunday,
+      "18:00",
+      "22:00",
+      "Hacienda Garden",
+    ),
+    event(
+      "demo-wed-event-brunch",
+      "Farewell brunch",
+      "food_and_drink",
+      monday,
+      "10:00",
+      "12:00",
+      "Casa Marea patio",
+    ),
+  ];
+
+  const travel: MockTravel[] = [
+    arrival("demo-wed-travel-you", `${DEMO_VIEWER_MEMBER_ID}-wed`, "You", startDate, "10:00", "SJD T2"),
+    arrival("demo-wed-travel-marco", "demo-wed-marco", "Marco", startDate, "10:20", "SJD T2"),
+    arrival("demo-wed-travel-liz", "demo-wed-liz", "Liz", startDate, "10:40", "SJD T2"),
+  ];
+
+  return {
+    id: DEMO_TRIP_WEDDING_ID,
+    title: "Priya & Dev's wedding",
+    location: "Todos Santos, Mexico",
+    placeCountry: "MX",
+    startDate,
+    endDate,
+    description:
+      "Four days in Todos Santos for Priya and Dev's wedding. The group stays together at Casa Marea, the ceremony is Sunday afternoon in the hacienda garden, and Monday is a slow farewell brunch before flights home. Bring dancing shoes and something warm for the terrace evenings.",
+    members,
+    stay,
+    events,
+    travel,
+  };
+}
+
+/**
+ * The reunion fixture: San Diego, three weeks out, opening on a
+ * Friday for two nights. Row ids are namespaced `demo-reu-` (D2).
+ */
+export function buildDemoReunionTrip(today: Date = new Date()): DemoTrip {
+  const startDate = nextWeekday(addDays(toIsoDay(today), 21), 5);
+  const endDate = addDays(startDate, 2);
+  const saturday = addDays(startDate, 1);
+
+  const members: Member[] = [
+    member(`${DEMO_VIEWER_MEMBER_ID}-reu`, "You", "going", "+15550000021", false),
+    member("demo-reu-rosa", "Rosa", "going", "+15550000022", true),
+    member("demo-reu-eddie", "Eddie", "maybe", "+15550000023", false),
+    member("demo-reu-june", "June", "no_response", "+15550000024", false),
+    member("demo-reu-sam", "Sam", "going", "+15550000025", false),
+  ];
+
+  const stay: Stay = {
+    id: "demo-reu-stay",
+    name: "Bayview House",
+    address: "Harbor Lane 4, San Diego, USA",
+    addressLat: null,
+    addressLon: null,
+    description:
+      "Door code 2290, street parking only. Wifi: BayviewHouse-5G / fish-tacos.",
+    checkIn: atClock(startDate, "16:00"),
+    checkOut: atClock(endDate, "11:00"),
+    image: null,
+    links: [],
+    deletedAt: null,
+  };
+
+  const events: ItineraryEvent[] = [
+    event(
+      "demo-reu-event-cookout",
+      "Backyard cookout",
+      "food_and_drink",
+      startDate,
+      "18:00",
+      "21:00",
+      "Bayview House",
+    ),
+    event(
+      "demo-reu-event-zoo",
+      "Zoo morning",
+      "outdoors",
+      saturday,
+      "09:30",
+      "12:30",
+      "Zoo front gate",
+    ),
+    event(
+      "demo-reu-event-tacos",
+      "Taco crawl",
+      "food_and_drink",
+      saturday,
+      "19:00",
+      "21:30",
+      "Barrio Logan",
+    ),
+  ];
+
+  const travel: MockTravel[] = [
+    arrival("demo-reu-travel-you", `${DEMO_VIEWER_MEMBER_ID}-reu`, "You", startDate, "13:00", "SAN T1"),
+    arrival("demo-reu-travel-eddie", "demo-reu-eddie", "Eddie", startDate, "13:20", "SAN T1"),
+    arrival("demo-reu-travel-june", "demo-reu-june", "June", startDate, "13:40", "SAN T1"),
+  ];
+
+  return {
+    id: DEMO_TRIP_REUNION_ID,
+    title: "San Diego reunion",
+    location: "San Diego, USA",
+    placeCountry: "US",
+    startDate,
+    endDate,
+    description:
+      "A long weekend in San Diego with the whole extended family at the Bayview House. Friday is a backyard cookout, Saturday is the zoo by day and a taco crawl by night, and Sunday is checkout and slow goodbyes. Bring a jacket for the bay breeze.",
+    members,
+    stay,
+    events,
+    travel,
+  };
+}
+
+/**
+ * All three fixtures in the landing's pinned card order (bachelor,
+ * wedding, reunion), each derived from the given today.
+ */
+export function buildDemoTrips(today: Date = new Date()): DemoTrip[] {
+  return [buildDemoTrip(today), buildDemoWeddingTrip(today), buildDemoReunionTrip(today)];
+}
+
+/** The deep link a shelf card opens for its trip. */
+export function demoHrefFor(tripId: string): string {
+  return `/demo?id=${tripId}`;
+}
+
+/**
+ * One entry per shelf card, in the pinned order, carrying exactly
+ * what the card needs. Pure — no store, no clock beyond the passed
+ * today — so the landing and its tests share it. The `coverKind`
+ * strings become `PlaceholderKind`s when the occasion kinds land
+ * (Phase 4); until then they only need to be distinct.
+ */
+export type DemoTripCard = {
+  id: string;
+  title: string;
+  location: string;
+  startDate: string;
+  endDate: string;
+  occasion: "bachelor" | "wedding" | "reunion";
+  coverKind: string;
+  href: string;
+};
+
+export function demoTripCards(today: Date = new Date()): DemoTripCard[] {
+  const occasions = ["bachelor", "wedding", "reunion"] as const;
+  return buildDemoTrips(today).map((trip, index) => ({
+    id: trip.id,
+    title: trip.title,
+    location: trip.location,
+    startDate: trip.startDate,
+    endDate: trip.endDate,
+    occasion: occasions[index]!,
+    coverKind: occasions[index]!,
+    href: demoHrefFor(trip.id),
+  }));
 }

@@ -5,24 +5,28 @@
  *
  * Guarded to the demo URLs only: on web the location's pathname installs
  * for `/demo` or `/demo/…` (the entry, which renders the real trip detail
- * against the fixture), and for every other demo route carrying the demo
+ * against the fixture), and for every other demo route carrying a demo
  * trip id in the query (`/trips/detail?id=demo-trip-cabo`, the members /
  * travel / stay / event sheets and settings the trip screen pushes to) —
  * whichever of those a refresh lands on. The trip match is scoped to the
- * demo trip id on purpose: a real trip's deep link must never install the
- * fixture. On native there is no such location, so nothing installs (the
- * demo is a web-export surface). Idempotent: a second call is a no-op —
- * the store is created once and `installDemoFetch` already keeps the first
- * wrap. `app/demo.tsx` keeps its own install plus its unmount cleanup,
- * which calls the same helper.
+ * exported demo id set on purpose: a real trip's deep link must never
+ * install the fixture. On native there is no such location, so nothing
+ * installs (the demo is a web-export surface). Idempotent: a second call
+ * is a no-op — the store is created once and `installDemoFetch` already
+ * keeps the first wrap. `app/demo.tsx` keeps its own install plus its
+ * unmount cleanup, which calls the same helper.
  */
 
 import {
   DEMO_AUTH_USER,
-  DEMO_TRIP_ID,
-  buildDemoTrip,
+  DEMO_TRIP_IDS,
 } from "@/lib/demo";
-import { createDemoStore, installDemoFetch, isDemoFetchInstalled, uninstallDemoFetch } from "@/lib/demo/adapter";
+import {
+  buildDemoStore,
+  installDemoFetch,
+  isDemoFetchInstalled,
+  uninstallDemoFetch,
+} from "@/lib/demo/adapter";
 import { DEMO_APP_ROUTES, normalizeDemoPath } from "@/lib/demo/guard";
 import { setDemoAuthUser } from "@/lib/authStore";
 
@@ -30,13 +34,15 @@ export function isDemoPath(pathname: string, search = ""): boolean {
   if (pathname === "/demo" || pathname.startsWith("/demo/")) return true;
   // A refresh on any demo route past the entry: every screen the trip
   // pushes to carries the trip id in the query (`useLocalSearchParams`
-  // reads `?id=`), and only the demo trip id installs — any other trip
+  // reads `?id=`), and only a demo trip id installs — any other trip
   // id is somebody's real deep link. The match is exact on the `id`
-  // param, not a substring: `?id=demo-trip-cabo-evil` or a stray
-  // `?foo=demo-trip-cabo` must never install the fixture.
+  // param against the exported demo id set, not a substring:
+  // `?id=demo-trip-cabo-evil` or a stray `?foo=demo-trip-cabo` must
+  // never install the fixture.
   const demoId = new URLSearchParams(search).get("id");
   if (
-    demoId === DEMO_TRIP_ID &&
+    demoId !== null &&
+    (DEMO_TRIP_IDS as readonly string[]).includes(demoId) &&
     (DEMO_APP_ROUTES as readonly string[]).includes(
       normalizeDemoPath(pathname),
     )
@@ -76,7 +82,7 @@ export function installDemoEarly(): boolean {
   if (pathname === null || !isDemoPath(pathname, currentSearch())) {
     return false;
   }
-  installDemoFetch(createDemoStore([buildDemoTrip(new Date())]));
+  installDemoFetch(buildDemoStore(new Date()));
   setDemoAuthUser({ ...DEMO_AUTH_USER });
   return true;
 }

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { DEMO_TRIP_IDS } from "@/lib/demo";
 
 const { setDemoUserCalls } = vi.hoisted(() => ({
   setDemoUserCalls: [] as Array<unknown>,
@@ -55,13 +56,21 @@ describe("the demo early install", () => {
     // user was set, with the fixture's traveler identity.
     expect(setDemoUserCalls.length).toBeGreaterThanOrEqual(1);
     expect(setDemoUserCalls[0]).toMatchObject({ id: "demo-viewer" });
-    // The served store answers the invite preview offline.
-    const res = await fetch(
-      "http://localhost:8000/api/invitations/demo-invitation-cabo/preview",
+    // The store holds all three trips, so a read of any demo id
+    // resolves offline — and the invitation preview is genuinely
+    // absent (its only consumer, the landing's fake phone, is gone).
+    for (const id of DEMO_TRIP_IDS) {
+      const res = await fetch(`http://localhost:8000/api/trips/${id}`);
+      expect(res.status).toBe(200);
+    }
+    const unknownTrip = await fetch(
+      "http://localhost:8000/api/trips/demo-trip-nope",
     );
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as { success: boolean };
-    expect(body.success).toBe(true);
+    expect(unknownTrip.status).toBe(404);
+    const preview = await fetch(
+      "http://localhost:8000/api/invitations/anything/preview",
+    );
+    expect(preview.status).toBe(404);
     const adapter = await import("@/lib/demo/adapter");
     adapter.uninstallDemoFetch();
     vi.unstubAllGlobals();
@@ -82,6 +91,28 @@ describe("the demo early install", () => {
     expect(setDemoUserCalls.length).toBeGreaterThanOrEqual(1);
     const res = await fetch(
       "http://localhost:8000/api/trips/demo-trip-cabo",
+    );
+    expect(res.status).toBe(200);
+    const adapter = await import("@/lib/demo/adapter");
+    adapter.uninstallDemoFetch();
+    vi.unstubAllGlobals();
+  });
+
+  it("installs on a refresh of any demo trip's own deep link", async () => {
+    // The refresh case for a trip that is NOT the first card: the
+    // match is the id set, not one hard-coded id.
+    vi.stubGlobal("window", {
+      location: {
+        pathname: "/trips/travel",
+        search: `?id=${DEMO_TRIP_IDS[2]}`,
+      },
+    });
+    const before = globalThis.fetch;
+    const early = await freshEarly();
+    expect(early.installDemoEarly()).toBe(true);
+    expect(globalThis.fetch).not.toBe(before);
+    const res = await fetch(
+      `http://localhost:8000/api/trips/${DEMO_TRIP_IDS[2]}/member-travel`,
     );
     expect(res.status).toBe(200);
     const adapter = await import("@/lib/demo/adapter");
@@ -123,17 +154,25 @@ describe("the demo early install", () => {
       "/trips/travel/form",
       "/trips/settings",
     ]) {
-      expect(early.isDemoPath(route, "?id=demo-trip-cabo")).toBe(true);
+      for (const id of DEMO_TRIP_IDS) {
+        expect(early.isDemoPath(route, `?id=${id}`)).toBe(true);
+      }
     }
     // A real trip's deep link must never install the fixture.
     expect(early.isDemoPath("/trips/detail", "?id=some-real-trip")).toBe(
       false,
     );
     // Substring lookalikes must not install either: the match is
-    // exact on the `id` param.
+    // exact on the `id` param, against the demo id set.
     expect(
       early.isDemoPath("/trips/detail", "?id=demo-trip-cabo-evil"),
     ).toBe(false);
+    expect(
+      early.isDemoPath("/trips/detail", "?id=demo-trip-reunion-evil"),
+    ).toBe(false);
+    expect(early.isDemoPath("/trips/detail", "?id=demo-trip-nope")).toBe(
+      false,
+    );
     expect(early.isDemoPath("/trips/detail", "?foo=demo-trip-cabo")).toBe(
       false,
     );

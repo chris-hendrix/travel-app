@@ -10,8 +10,8 @@
  * instead of reaching the network, so the demo can never leak a real
  * request. Nothing here touches production stores, queries or routes.
  *
- * Reads served: `GET /invitations/:id/preview` (the demo invitation),
- * `GET /trips/:id`, members, events,
+ * Reads served: `GET /trips/:id` for all three demo trips, members,
+ * events,
  * accommodations, member-travel, invitations (empty), the trip-settings
  * trio (sharePhone + notification pair + calendar flag), and the Places
  * autocomplete + details (a small invented list for the demo's own
@@ -25,7 +25,7 @@
  */
 
 import type { DemoTrip } from "@/lib/demo";
-import { DEMO_INVITATION_ID, DEMO_INVITER_NAME } from "@/lib/demo";
+import { buildDemoTrips } from "@/lib/demo";
 import type { RsvpStatus } from "@/lib/rsvp";
 import type {
   Accommodation,
@@ -178,7 +178,26 @@ function detailOf(trip: DemoTrip): TripDetail {
     cancelled: false,
     createdAt: nowIso() as unknown as Date,
     updatedAt: nowIso() as unknown as Date,
-    place: null,
+    // The trip's linked place, present only for its country: the
+    // picker's autocomplete floor reads `placeCountry` off the trip
+    // (`countryForTrip`), which is `place.country` here. `placeId` is
+    // deliberately empty, not a demo id — the detail header's
+    // `PlaceLink` pins a Maps URL to a real place id, and there is no
+    // real place behind an invented venue. Empty reads as absent
+    // (`placeMapsUrl` falls back to a plain search), which is exactly
+    // what the fixture had before the country was needed.
+    place: trip.placeCountry
+      ? {
+          placeId: "",
+          name: trip.location,
+          address: null,
+          photoUrl: null,
+          photoAttribution: null,
+          photoSourceUri: null,
+          country: trip.placeCountry,
+          locality: null,
+        }
+      : null,
     placeName: null,
     placeAddress: null,
     organizers: [
@@ -225,6 +244,24 @@ export function createDemoStore(trips: DemoTrip[]): DemoStore {
   return store;
 }
 
+/**
+ * The demo store every install site shares: all three fixtures seeded
+ * into the in-memory server. One place, so the entry, the early
+ * install and the guard's re-entry can never disagree about which
+ * trips the demo serves — and so a read of any of the three ids
+ * resolves while a fourth 404s.
+ *
+ * It sits beside `createDemoStore` rather than in `lib/demo.ts`
+ * because `lib/demo.ts` holds the fixture's data and this module is
+ * its server: `buildDemoStore` in `lib/demo.ts` would be a value
+ * import of this module from a module this one already value-imports
+ * (`buildDemoTrips`), i.e. a cycle whose failure mode is an undefined
+ * binding at the first call rather than a compile error.
+ */
+export function buildDemoStore(today: Date = new Date()): DemoStore {
+  return createDemoStore(buildDemoTrips(today));
+}
+
 type DemoBody = Record<string, unknown>;
 
 function notFound(message: string): { status: 404; body: DemoBody } {
@@ -261,6 +298,12 @@ function findRowAnywhere<T extends { id: string }>(
  * the fixture already names), no remote URLs, nothing that could be
  * mistaken for a real listing. Coordinates are rough city-area points,
  * good enough to pin a details answer and fill the field.
+ *
+ * Two rows per destination, and `country` is what the picker's own
+ * floor filters on: `/locations/autocomplete` narrows to the
+ * requested country before it matches the query, so the wedding in
+ * Todos Santos is never offered a San Diego venue. The list carries
+ * no city without a trip, and no trip without its own city.
  */
 type DemoPlace = {
   placeId: string;
@@ -268,6 +311,8 @@ type DemoPlace = {
   displayName: string;
   displayAddress: string;
   types: string[];
+  /** ISO 3166-1 alpha-2, matching the trip's own `placeCountry`. */
+  country: string;
   lat: number;
   lon: number;
 };
@@ -279,6 +324,7 @@ export const DEMO_PLACES: readonly DemoPlace[] = [
     displayName: "Casa Verde",
     displayAddress: "Calle del Sol 12, Cabo San Lucas, Mexico",
     types: ["lodging"],
+    country: "MX",
     lat: 22.8951,
     lon: -109.9112,
   },
@@ -288,6 +334,7 @@ export const DEMO_PLACES: readonly DemoPlace[] = [
     displayName: "Taqueria Luna",
     displayAddress: "Marina Boulevard, Cabo San Lucas, Mexico",
     types: ["food_and_drink"],
+    country: "MX",
     lat: 22.8823,
     lon: -109.9056,
   },
@@ -297,35 +344,59 @@ export const DEMO_PLACES: readonly DemoPlace[] = [
     displayName: "Playa Santa Maria",
     displayAddress: "Santa Maria Bay, Cabo San Lucas, Mexico",
     types: ["outdoors"],
+    country: "MX",
     lat: 22.8918,
     lon: -109.9004,
   },
   {
-    placeId: "demo-place-stardust-yurts",
-    shortName: "Stardust Yurts",
-    displayName: "Stardust Yurts",
-    displayAddress: "Shorthorn Street, Marfa, Texas",
+    placeId: "demo-place-casa-marea",
+    shortName: "Casa Marea",
+    displayName: "Casa Marea",
+    displayAddress: "Calle del Mar 8, Todos Santos, Mexico",
     types: ["lodging"],
-    lat: 30.2984,
-    lon: -104.0761,
+    country: "MX",
+    lat: 23.4489,
+    lon: -110.2231,
   },
   {
-    placeId: "demo-place-lights-turnout",
-    shortName: "Desert Lights Turnout",
-    displayName: "Desert Lights Turnout",
-    displayAddress: "Highway 90, Marfa, Texas",
+    placeId: "demo-place-mercado-del-faro",
+    shortName: "Mercado del Faro",
+    displayName: "Mercado del Faro",
+    displayAddress: "Camino al Faro 21, Todos Santos, Mexico",
+    types: ["shopping"],
+    country: "MX",
+    lat: 23.4505,
+    lon: -110.2262,
+  },
+  {
+    placeId: "demo-place-playa-las-palmas",
+    shortName: "Playa Las Palmas",
+    displayName: "Playa Las Palmas",
+    displayAddress: "Coastal Track 5, Todos Santos, Mexico",
     types: ["outdoors"],
-    lat: 30.3089,
-    lon: -104.0182,
+    country: "MX",
+    lat: 23.42,
+    lon: -110.24,
   },
   {
-    placeId: "demo-place-burnside-house",
-    shortName: "Burnside House",
-    displayName: "Burnside House",
-    displayAddress: "Burnside Street, Portland, Oregon",
+    placeId: "demo-place-bayview-house",
+    shortName: "Bayview House",
+    displayName: "Bayview House",
+    displayAddress: "Harbor Lane 4, San Diego, USA",
     types: ["lodging"],
-    lat: 45.5231,
-    lon: -122.6578,
+    country: "US",
+    lat: 32.7157,
+    lon: -117.1611,
+  },
+  {
+    placeId: "demo-place-tidepool-kitchen",
+    shortName: "Tidepool Kitchen",
+    displayName: "Tidepool Kitchen",
+    displayAddress: "Pier Street 30, San Diego, USA",
+    types: ["food_and_drink"],
+    country: "US",
+    lat: 32.709,
+    lon: -117.1685,
   },
 ];
 
@@ -362,32 +433,6 @@ export function handleDemoRequest(
 ): { status: number; body: unknown } {
   const body = (rawBody ? safeParse(rawBody) : {}) as DemoBody;
   const verb = method.toUpperCase();
-
-  const previewMatch = /^\/invitations\/([^/]+)\/preview$/.exec(path);
-  if (verb === "GET" && previewMatch) {
-    // The invitation preview the invite screen's own query reads (public
-    // query): the fixture answers the demo invitation id with the Cabo
-    // trip's card facts — the same facts the landing band renders live.
-    // Any other id 404s into the screen's own gone state, exactly like
-    // a real unknown id.
-    const id = decodeURIComponent(previewMatch[1]!);
-    if (id !== DEMO_INVITATION_ID) return notFound("Invitation not found");
-    const trip = store.trips[0];
-    if (!trip) return notFound("Invitation not found");
-    return {
-      status: 200,
-      body: {
-        success: true,
-        tripName: trip.title,
-        destination: trip.location,
-        startDate: trip.startDate,
-        endDate: trip.endDate,
-        inviterName: DEMO_INVITER_NAME,
-        inviteePhone: "+15550000001",
-        tripId: trip.id,
-      },
-    };
-  }
 
   const tripMatch = /^\/trips\/([^/]+)(\/.*)?$/.exec(path);
   if (tripMatch) {
@@ -638,8 +683,19 @@ export function handleDemoRequest(
     // shows selectable rows, and picking one fills the field through
     // the details stub below. An empty query offers the whole list;
     // no match offers nothing (plus the picker's own typed-text row).
+    //
+    // A trip-scoped picker also sends the trip's own `country`, and
+    // this list honours it before it matches: the wedding in Todos
+    // Santos is never offered a San Diego venue. No country means the
+    // whole list, which is what the destination picker (`trips/new`)
+    // sends — it is itself choosing the country.
+    const country = queryParam(query, "country").trim().toUpperCase();
+    const scoped =
+      country === ""
+        ? DEMO_PLACES
+        : DEMO_PLACES.filter((place) => place.country === country);
     const needle = queryParam(query, "q").trim().toLowerCase();
-    const matches = DEMO_PLACES.filter(
+    const matches = scoped.filter(
       (place) =>
         needle === "" ||
         `${place.displayName} ${place.displayAddress}`.toLowerCase().includes(needle),

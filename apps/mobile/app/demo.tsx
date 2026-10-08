@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import TripDetail from "./trips/detail";
-import { DEMO_AUTH_USER, buildDemoTrip } from "@/lib/demo";
+import { DEMO_AUTH_USER } from "@/lib/demo";
 import {
-  createDemoStore,
+  buildDemoStore,
   installDemoFetch,
   uninstallDemoFetch,
 } from "@/lib/demo/adapter";
@@ -13,20 +13,20 @@ import { setDemoAuthUser } from "@/lib/authStore";
  * The demo: the REAL trip detail screen (`app/trips/detail.tsx`)
  * against the demo data layer (`lib/demo/adapter.ts`), which serves
  * the trip's reads from the fixture with in-memory writes — fully
- * offline. The entry URL carries the demo trip id
- * (`/demo?id=demo-trip-cabo`, linked from the landing's "What your
- * friends see" band); the screen reads it through the real
- * `useLocalSearchParams`, exactly like production.
+ * offline. The entry URL carries a demo trip id
+ * (`/demo?id=demo-trip-cabo`, one of the three cards on the landing);
+ * the screen reads it through the real `useLocalSearchParams`,
+ * exactly like production, and the store holds all three trips, so
+ * whichever card the visitor pressed opens its own trip.
  *
- * The funnel, kept deliberately: the landing already showed the
- * invitation (the real invite message against the same fixture, in
- * `components/landing/PhoneThread.tsx`), so the
- * demo skips straight to the payoff — the trip it opens. There is no
- * accept beat any more: in the product, accepting an invitation IS
- * signing in, and the demo has no phone number, so the band's link is
- * the click that opens the trip. Nothing here duplicates the detail
- * screen's markup; this stays a thin wrapper because the installs are
- * the whole of what the real screen needs to resolve offline.
+ * The funnel, kept deliberately: the landing already showed the three
+ * trips as cards, so the demo skips straight to the payoff — the trip
+ * it opens. There is no accept beat any more: in the product,
+ * accepting an invitation IS signing in, and the demo has no phone
+ * number, so the card's press is the click that opens the trip.
+ * Nothing here duplicates the detail screen's markup; this stays a
+ * thin wrapper because the installs are the whole of what the real
+ * screen needs to resolve offline.
  *
  * Two mount-scoped installs make the real screen resolve:
  * - the fetch interceptor, so every read/write the screen fires is
@@ -56,7 +56,7 @@ export default function Demo() {
     // direct mount without the layout path still resolves, then install
     // idempotently as before.
     installDemoEarly();
-    installDemoFetch(createDemoStore([buildDemoTrip(new Date())]));
+    installDemoFetch(buildDemoStore(new Date()));
     setDemoAuthUser({ ...DEMO_AUTH_USER });
     return null;
   });

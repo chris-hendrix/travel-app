@@ -1,14 +1,15 @@
 import { useEffect } from "react";
 import { useGlobalSearchParams, usePathname, useRouter } from "expo-router";
 import {
-  createDemoStore,
+  buildDemoStore,
   installDemoFetch,
   isDemoFetchInstalled,
   uninstallDemoFetch,
 } from "@/lib/demo/adapter";
-import { DEMO_AUTH_USER, DEMO_TRIP_ID, buildDemoTrip } from "@/lib/demo";
+import { DEMO_AUTH_USER } from "@/lib/demo";
 import { getDemoAuthUser, setDemoAuthUser } from "@/lib/authStore";
 import {
+  demoIdFrom,
   isDemoAllowedRoute,
   isDemoAppRoute,
   normalizeDemoPath,
@@ -44,7 +45,7 @@ export function teardownDemoScope(): void {
  */
 export function ensureDemoScope(): void {
   if (isDemoFetchInstalled() && getDemoAuthUser() !== null) return;
-  installDemoFetch(createDemoStore([buildDemoTrip(new Date())]));
+  installDemoFetch(buildDemoStore(new Date()));
   setDemoAuthUser({ ...DEMO_AUTH_USER });
 }
 
@@ -83,8 +84,12 @@ export function DemoGuard(): null {
     // the entry, whose render (`ensureDemoScope` above) reinstalls,
     // instead.
     if (getDemoAuthUser() === null) {
-      if (shouldReenterDemo(pathname, params.id)) {
-        router.replace(`/demo?id=${DEMO_TRIP_ID}`);
+      // Back into a demo sheet URL: walk through the entry carrying
+      // the visitor's OWN trip, so a browser-back into the reunion's
+      // sheet reopens the reunion rather than the bachelor party.
+      const demoId = demoIdFrom(params.id);
+      if (demoId && shouldReenterDemo(pathname, demoId)) {
+        router.replace(`/demo?id=${demoId}`);
       }
       return;
     }

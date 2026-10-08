@@ -1,13 +1,14 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { apiFetch } from "@/lib/api";
 import {
-  DEMO_INVITATION_ID,
-  DEMO_INVITER_NAME,
   DEMO_TRIP_ID,
-  buildDemoTrip,
+  DEMO_TRIP_REUNION_ID,
+  DEMO_TRIP_WEDDING_ID,
+  buildDemoTrips,
 } from "@/lib/demo";
 import {
-  createDemoStore,
+  DEMO_PLACES,
+  buildDemoStore,
   getDemoLog,
   getUnhandledApiUrls,
   installDemoFetch,
@@ -45,7 +46,7 @@ describe("the demo data layer", () => {
     inner.mockRejectedValue(new Error("network must never be reached"));
     globalThis.fetch = inner as unknown as typeof fetch;
     resetDemoLog();
-    installDemoFetch(createDemoStore([buildDemoTrip(new Date("2026-10-06T12:00:00.000Z"))]));
+    installDemoFetch(buildDemoStore(new Date("2026-10-06T12:00:00.000Z")));
   });
 
   afterEach(() => {
@@ -53,25 +54,10 @@ describe("the demo data layer", () => {
   });
 
   it("serves the scripted demo interactions with no API egress", async () => {
-    // The invitation preview: the demo invitation id loads the Cabo
-    // card facts — the same facts the landing band renders live;
-    // any other id 404s into the gone state.
-    const preview = await apiFetch<{
-      success: true;
-      tripName: string;
-      destination: string;
-      startDate: string | null;
-      endDate: string | null;
-      inviterName: string;
-      tripId: string;
-    }>(`/invitations/${DEMO_INVITATION_ID}/preview`);
-    expect(preview.tripName).toBe("Cabo");
-    expect(preview.destination).toBe("Cabo San Lucas, Mexico");
-    expect(preview.inviterName).toBe(DEMO_INVITER_NAME);
-    expect(preview.tripId).toBe(DEMO_TRIP_ID);
-    expect(typeof preview.startDate).toBe("string");
-    expect(typeof preview.endDate).toBe("string");
-    await expect(apiFetch("/invitations/some-other-id/preview")).rejects.toThrow();
+    // The invitation preview is gone with the fake phone that was its
+    // only consumer: any id 404s into the invite screen's own gone
+    // state, exactly like a real unknown id.
+    await expect(apiFetch("/invitations/anything/preview")).rejects.toThrow();
 
     const tripId = DEMO_TRIP_ID;
 
@@ -185,7 +171,6 @@ describe("the demo data layer", () => {
     // …and every served request was recorded.
     const paths = getDemoLog().map((entry) => `${entry.method} ${entry.path}`);
     for (const expected of [
-      `GET /invitations/${DEMO_INVITATION_ID}/preview`,
       `GET /trips/${tripId}`,
       `GET /trips/${tripId}/members`,
       `GET /trips/${tripId}/events`,
@@ -197,10 +182,147 @@ describe("the demo data layer", () => {
     }
   });
 
+  it("keeps an id-addressed write on its own trip", async () => {
+    // D2's regression guard: `PUT /events/:id`, `PUT /accommodations/:id`
+    // and `DELETE /member-travel/:id` resolve by id ALONE through
+    // `findRowAnywhere`, which takes the first trip's match. Shared row
+    // ids across the three fixtures would therefore edit the wrong
+    // trip — and the RSVP path is trip-scoped, so it would not catch it.
+    const caboEvents = await apiFetch<{
+      success: true;
+      events: Array<{ id: string; name: string }>;
+    }>(`/trips/${DEMO_TRIP_ID}/events`);
+    const reunionEvents = await apiFetch<{
+      success: true;
+      events: Array<{ id: string; name: string }>;
+    }>(`/trips/${DEMO_TRIP_REUNION_ID}/events`);
+    const reunionEvent = reunionEvents.events[0]!;
+    expect(caboEvents.events.map((event) => event.id)).not.toContain(
+      reunionEvent.id,
+    );
+
+    await apiFetch(`/events/${reunionEvent.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Renamed in San Diego" }),
+    });
+
+    // The bachelor trip is byte-identical; the reunion carries the edit.
+    const caboAfter = await apiFetch<{ success: true; events: unknown[] }>(
+      `/trips/${DEMO_TRIP_ID}/events`,
+    );
+    expect(caboAfter.events).toEqual(caboEvents.events);
+    const reunionAfter = await apiFetch<{
+      success: true;
+      events: Array<{ id: string; name: string }>;
+    }>(`/trips/${DEMO_TRIP_REUNION_ID}/events`);
+    expect(
+      reunionAfter.events.find((event) => event.id === reunionEvent.id)?.name,
+    ).toBe("Renamed in San Diego");
+
+    // The same shape for an id-addressed delete on the travel board.
+    const caboTravel = await apiFetch<{
+      success: true;
+      memberTravels: Array<{ id: string }>;
+    }>(`/trips/${DEMO_TRIP_ID}/member-travel`);
+    const reunionTravel = await apiFetch<{
+      success: true;
+      memberTravels: Array<{ id: string }>;
+    }>(`/trips/${DEMO_TRIP_REUNION_ID}/member-travel`);
+    const travelId = reunionTravel.memberTravels[0]!.id;
+    await apiFetch(`/member-travel/${travelId}`, { method: "DELETE" });
+    const caboTravelAfter = await apiFetch<{ success: true; memberTravels: unknown[] }>(
+      `/trips/${DEMO_TRIP_ID}/member-travel`,
+    );
+    expect(caboTravelAfter.memberTravels).toEqual(caboTravel.memberTravels);
+
+    // And the trip-scoped RSVP moves only that trip's viewer row.
+    await apiFetch(`/trips/${DEMO_TRIP_WEDDING_ID}/rsvp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "not_going" }),
+    });
+    const caboRoster = await apiFetch<{
+      success: true;
+      members: Array<{ userId: string | null; status: string }>;
+    }>(`/trips/${DEMO_TRIP_ID}/members`);
+    expect(
+      caboRoster.members.find((row) => row.userId === "demo-viewer")?.status,
+    ).toBe("going");
+  });
+
   it("refuses unknown API paths locally instead of leaking them", async () => {
     await expect(apiFetch("/trips/demo-trip-cabo/members/guests", { method: "POST" })).rejects.toThrow();
     expect(inner).not.toHaveBeenCalled();
     expect(getUnhandledApiUrls()).toEqual([]);
     expect(getDemoLog().at(-1)?.served).toBe(true);
+  });
+
+  it("invents places for every destination, and for no city without a trip", async () => {
+    const trips = buildDemoTrips(new Date("2026-10-06T12:00:00.000Z"));
+    const cities = trips.map((trip) => trip.location.split(",")[0]!.trim());
+
+    // Two rows per destination, so every picker has something to offer.
+    for (const city of cities) {
+      const rows = DEMO_PLACES.filter((place) =>
+        place.displayAddress.includes(city),
+      );
+      expect(rows.length).toBeGreaterThanOrEqual(2);
+    }
+
+    // The invariant behind "invented, and for these trips only": every
+    // row names a city one of the three fixtures is in, and carries
+    // that trip's own country. Real-world venue names are a review
+    // rule, not an assertable one; the machine-checkable half of
+    // "invented" is that nothing here is a URL and no id is reused.
+    for (const place of DEMO_PLACES) {
+      expect(
+        cities.some((city) => place.displayAddress.includes(city)),
+      ).toBe(true);
+      const owner = trips.find((trip) =>
+        place.displayAddress.includes(trip.location.split(",")[0]!.trim()),
+      );
+      expect(place.country).toBe(owner!.placeCountry);
+    }
+    expect(JSON.stringify(DEMO_PLACES)).not.toContain("http");
+    expect(new Set(DEMO_PLACES.map((place) => place.placeId)).size).toBe(
+      DEMO_PLACES.length,
+    );
+  });
+
+  it("carries each trip's country, and scopes the picker's list to it", async () => {
+    // The picker's floor comes off the trip (`countryForTrip` reads
+    // `trip.placeCountry`), so the detail row has to carry it.
+    for (const [tripId, country] of [
+      [DEMO_TRIP_ID, "MX"],
+      [DEMO_TRIP_WEDDING_ID, "MX"],
+      [DEMO_TRIP_REUNION_ID, "US"],
+    ] as const) {
+      const detail = await apiFetch<{
+        success: true;
+        trip: { place: { country: string | null } | null };
+      }>(`/trips/${tripId}`);
+      expect(detail.trip.place?.country).toBe(country);
+    }
+
+    type Row = { placeId: string; displayAddress: string };
+    const mexico = await apiFetch<Row[]>(
+      "/locations/autocomplete?q=&sessionToken=x&country=MX",
+    );
+    expect(mexico.length).toBeGreaterThanOrEqual(3);
+    for (const row of mexico) expect(row.displayAddress).toContain("Mexico");
+
+    const usa = await apiFetch<Row[]>(
+      "/locations/autocomplete?q=&sessionToken=x&country=US",
+    );
+    expect(usa.length).toBeGreaterThanOrEqual(2);
+    for (const row of usa) expect(row.displayAddress).toContain("USA");
+
+    // No country (the destination picker, which is itself choosing the
+    // country): the whole list, both destinations included.
+    const all = await apiFetch<Row[]>(
+      "/locations/autocomplete?q=&sessionToken=x",
+    );
+    expect(all.length).toBe(mexico.length + usa.length);
   });
 });
