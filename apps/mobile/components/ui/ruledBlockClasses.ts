@@ -56,13 +56,15 @@ export const RULE_SOFT = "border-rule-soft";
  * The test that picks this rank over the other two is **the direction the
  * row is read** — a row read *across* (a name, some accounts, a role) is a
  * table and keeps a rule; a row read *down* is a list and keeps nothing at
- * all. The four call sites are the landing's two tables, the roster and the
- * admin user list.
+ * all. The call sites are the roster and the admin user list; the landing's
+ * two tables used to be two more, and went with the fake phone — the shelf's
+ * steps are plain paragraphs, because `rule-soft` is 2.22:1 on `baltic` and
+ * a band's own edge is the only boundary they need.
  *
  * No padding here, unlike `RULED_BLOCK`'s `pt-6`. A table row's vertical
- * space belongs to the row body: the landing's rows are `py-5` at the hero's
- * own scale and the roster's and admin's are `py-3`, and the wrapper hands
- * over the mark rather than flattening three different rhythms into one.
+ * space belongs to the row body: the roster's and the admin list's rows are
+ * `py-3`, and the wrapper hands over the mark rather than flattening the
+ * rhythms into one.
  */
 export const RULE_ROW = `border-t ${RULE_SOFT}`;
 /**

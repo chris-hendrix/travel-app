@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { tripCountdown } from "@/lib/countdown";
 import {
-  DEMO_INVITATION_ID,
-  DEMO_INVITER_NAME,
   DEMO_TRIP_ID,
   DEMO_TRIP_IDS,
   buildDemoTrip,
@@ -145,19 +143,5 @@ describe("the demo fixtures", () => {
     const trip = buildDemoTrip(TODAY);
     expect(trip.id).toBe(DEMO_TRIP_ID);
     expect(new Date(`${trip.startDate}T12:00:00.000Z`).getUTCDay()).toBe(5);
-  });
-
-  it("names the demo invitation after the Cabo trip and its organizer", () => {
-    const trip = buildDemoTrip(TODAY);
-    // The landing band links `/demo?id=…` with the trip id and renders
-    // the invitation facts live; the adapter's preview answers the invitation
-    // id with those same card facts.
-    expect(DEMO_INVITATION_ID.length).toBeGreaterThan(0);
-    expect(trip.id).toBe(DEMO_TRIP_ID);
-    const organizer = trip.members.find((member) => member.isOrganizer);
-    expect(organizer?.name).toBe(DEMO_INVITER_NAME);
-    // The preview carries no URL, like everything else invented here.
-    expect(DEMO_INVITATION_ID).not.toContain("http");
-    expect(DEMO_INVITER_NAME).not.toContain("http");
   });
 });

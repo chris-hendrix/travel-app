@@ -245,18 +245,16 @@ checkRuleForms();
  * as in a screen. The lab is excluded: it *demonstrates* underlines on
  * purpose, so counting it would make every specimen a rule change.
  *
- * The sixteenth underlined word is the landing band's invite link (the
- * bubble's plain-text URL into `/demo`): a navigation word, and the lab's
- * own rule says a word that does something is underlined. Bumped 15 → 16
- * for it here rather than removing one elsewhere, because every existing
- * underline is an affordance something relies on.
- *
- * The band shows a sample phone (`components/landing/PhoneThread.tsx`)
- * rather than the real `InviteCard`, and that moved neither this nor the
- * rule census: both checks count source sites across the tree, the phone
- * carries the band's one underline with it, and it draws no rule.
+ * The sixteenth underlined word was the landing band's invite link (the
+ * fake phone's plain-text URL into `/demo`): a navigation word, and the
+ * lab's own rule says a word that does something is underlined. Both the
+ * phone and that link are gone — the landing now shows three real trip
+ * cards, and a card's whole surface is its affordance, so nothing on it
+ * needs an underline. The constant comes down to 15 with it: the ratchet
+ * exists so a word cannot *gain* a mark quietly, and leaving it at 16 now
+ * would be reserving a slot for a link that no longer exists.
  */
-const UNDERLINE_RATCHET = 16;
+const UNDERLINE_RATCHET = 15;
 
 function checkUnderlineRatchet() {
   const lab = path.join("app", "design", "index.tsx");

@@ -146,9 +146,12 @@ test.describe("Auth Journey", () => {
         (url) => url.pathname === "/",
         { timeout: NAVIGATION_TIMEOUT },
       );
-      await expect(page.getByText("Get started")).toBeVisible({
-        timeout: ELEMENT_TIMEOUT,
-      });
+      // The landing's identity is its hero's headline, not a button
+      // label: "Get started" is also the /login heading, and the
+      // landing itself now carries two of those buttons.
+      await expect(
+        page.getByText("An itinerary your friends will actually read"),
+      ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
     });
   });
 
@@ -156,15 +159,15 @@ test.describe("Auth Journey", () => {
     await test.step("unauthenticated user redirects home", async () => {
       // app/complete-profile.tsx: `if (!user) Redirect /` — the
       // guarded route with a real redirect today lands a signed-out
-      // reader on the landing (its hero answers "Get started"), not
-      // on a form.
+      // reader on the landing (its hero's headline says what the app
+      // is; the button label does not), not on a form.
       await page.goto("/complete-profile");
       await page.waitForURL((url) => url.pathname === "/", {
         timeout: NAVIGATION_TIMEOUT,
       });
-      await expect(page.getByText("Get started")).toBeVisible({
-        timeout: ELEMENT_TIMEOUT,
-      });
+      await expect(
+        page.getByText("An itinerary your friends will actually read"),
+      ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
     });
 
     await test.step("existing user skips complete-profile", async () => {

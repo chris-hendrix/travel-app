@@ -1,5 +1,6 @@
 import type { ItineraryEvent } from "@/lib/itinerary";
 import type { Member } from "@/lib/members";
+import type { OccasionKind } from "@/lib/placeholder";
 import type { Stay } from "@/lib/stays";
 import type { MockTravel } from "@/mocks/travel";
 
@@ -18,10 +19,10 @@ import type { MockTravel } from "@/mocks/travel";
  * person unanswered, one `maybe`, no cover photo — because a flawless
  * demo over-promises.
  *
- * Dates derive from today (the next Fri–Tue roughly eight weeks out),
- * so the trip never reads as stale. The landing's invitation band reads
- * this fixture live, so a shape change shows up there directly — no
- * capture to re-take.
+ * Dates derive from today (each trip's own offset forwards to its own
+ * weekday), so the trip never reads as stale. The landing renders the
+ * three as cards and reads them live, so a shape change shows up there
+ * directly — no capture to re-take.
  */
 export type DemoTrip = {
   /** The adapter's key: the id the real `GET /trips/:id` reads serve. */
@@ -69,17 +70,6 @@ export const DEMO_TRIP_IDS = [
   DEMO_TRIP_WEDDING_ID,
   DEMO_TRIP_REUNION_ID,
 ] as const;
-
-/**
- * The demo invitation's id: the adapter's invitation preview answers it
- * (`GET /invitations/:id/preview`), which is what the invite screen's
- * own query reads. The landing band no longer links it — the band shows
- * the invitation itself and links the trip it opens.
- */
-export const DEMO_INVITATION_ID = "demo-invitation-cabo";
-
-/** The demo invitation's inviter: the Cabo trip's organizer, who sent the text. */
-export const DEMO_INVITER_NAME = "Sam";
 
 /** The demo session: the anonymous visitor reads as this traveler. */
 export const DEMO_AUTH_USER = {
@@ -514,9 +504,12 @@ export function demoHrefFor(tripId: string): string {
 /**
  * One entry per shelf card, in the pinned order, carrying exactly
  * what the card needs. Pure — no store, no clock beyond the passed
- * today — so the landing and its tests share it. The `coverKind`
- * strings become `PlaceholderKind`s when the occasion kinds land
- * (Phase 4); until then they only need to be distinct.
+ * today — so the landing and its tests share it.
+ *
+ * `occasion` is the semantic label; `coverKind` is the image slot, and
+ * they name the same three values today, so the hand-off to `TripCard`
+ * is the shelf's (Task 15) and this module never touches an asset.
+ * A type-only import, so no photo is pulled into the fixture's graph.
  */
 export type DemoTripCard = {
   id: string;
@@ -524,19 +517,22 @@ export type DemoTripCard = {
   location: string;
   startDate: string;
   endDate: string;
-  occasion: "bachelor" | "wedding" | "reunion";
-  coverKind: string;
+  /** The trip's own roster size, which the card does not draw today. */
+  going: number;
+  occasion: OccasionKind;
+  coverKind: OccasionKind;
   href: string;
 };
 
 export function demoTripCards(today: Date = new Date()): DemoTripCard[] {
-  const occasions = ["bachelor", "wedding", "reunion"] as const;
+  const occasions: OccasionKind[] = ["bachelor", "wedding", "reunion"];
   return buildDemoTrips(today).map((trip, index) => ({
     id: trip.id,
     title: trip.title,
     location: trip.location,
     startDate: trip.startDate,
     endDate: trip.endDate,
+    going: trip.members.length,
     occasion: occasions[index]!,
     coverKind: occasions[index]!,
     href: demoHrefFor(trip.id),
