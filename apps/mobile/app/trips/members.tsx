@@ -11,7 +11,7 @@ import { RosterList } from "@/components/trip/RosterList";
 import { useTrip } from "@/lib/tripsStore";
 import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
-import { useAuth } from "@/lib/authStore";
+import { isDemoIdentity, useAuth } from "@/lib/authStore";
 import { viewerOf } from "@/lib/members";
 import {
   REPORT_NOTE_MAX,
@@ -131,6 +131,25 @@ function TripMembersDialog() {
     return <NotFound />;
   }
 
+  /**
+   * The row's second target, and who is handed it.
+   *
+   * The demo visitor is handed nothing at all. This screen is inside the
+   * demo's own scope and the adapter serves its roster read, so every row
+   * comes back with an account behind it — but no block and no report is
+   * served there, and each row would carry a word whose only answer is a
+   * 404. A control that always fails is worse than one that is not there,
+   * which is the sentence `app/profile.tsx` gates its own door on, and
+   * `isDemoIdentity` is the predicate the real routes' session guards
+   * already read. Nothing else about the demo's roster changes: this is
+   * one control the demo cannot answer for, not a doubt about the viewer.
+   */
+  const moderationFooter = isDemoIdentity(user)
+    ? undefined
+    : (row: RosterRow) => (
+        <RowModeration row={row} tripId={trip.id} viewerId={user?.id} />
+      );
+
   return (
     <FullscreenDialog
       title="Who's coming"
@@ -182,9 +201,7 @@ function TripMembersDialog() {
         // blocking are anybody's, not the organizer's, and the panel
         // needs the trip and the viewer — both of which the dialog
         // holds. A row with nobody to moderate draws nothing.
-        renderRowFooter={(row) => (
-          <RowModeration row={row} tripId={trip.id} viewerId={user?.id} />
-        )}
+        renderRowFooter={moderationFooter}
       />
       {/* Under the list, not in the bar: adding a guest lengthens the
           roll call rather than inviting, which is what the bar is for.
@@ -235,29 +252,38 @@ function TripMembersDialog() {
             A block hides you from each other. It holds on every trip, not just
             this one.
           </Text>
-          {blocked.map((person) => (
-            <View
-              key={person.userId}
-              className="flex-row items-center justify-between gap-4"
-            >
-              <Text className="font-body text-base text-ink">
-                {person.displayName}
-              </Text>
-              {/* `QuietAction` carries no `disabled`, so the press is
-                  guarded and the word changes — the panel's own Cancel
-                  pattern. Two taps must not be two DELETEs. */}
-              <QuietAction
-                label={
-                  unblockingId === person.userId
-                    ? moderationPendingLabel("unblock")
-                    : "Unblock"
-                }
-                onPress={() => {
-                  if (unblockingId === null) void unblockThem(person.userId);
-                }}
-              />
-            </View>
-          ))}
+          {blocked.map((person) => {
+            // One word, read twice: the control's visible label and the
+            // name it is announced by are the same word plus the person.
+            // The in-flight word is the mapper's, so a reader who cannot
+            // see the button still hears that the write is running.
+            const word =
+              unblockingId === person.userId
+                ? moderationPendingLabel("unblock")
+                : "Unblock";
+            return (
+              <View
+                key={person.userId}
+                className="flex-row items-center justify-between gap-4"
+              >
+                <Text className="font-body text-base text-ink">
+                  {person.displayName}
+                </Text>
+                {/* `QuietAction` carries no `disabled`, so the press is
+                    guarded and the word changes — the panel's own Cancel
+                    pattern. Two taps must not be two DELETEs. */}
+                <QuietAction
+                  label={word}
+                  // The name lives in a sibling `Text`, so the word on its
+                  // own says which act and never whose list it is in.
+                  ariaLabel={`${word} ${person.displayName}`}
+                  onPress={() => {
+                    if (unblockingId === null) void unblockThem(person.userId);
+                  }}
+                />
+              </View>
+            );
+          })}
           {unblockFailure ? <InlineError message={unblockFailure} /> : null}
         </View>
       ) : null}
@@ -287,8 +313,13 @@ function RowModeration({
   viewerId: string | undefined;
 }) {
   const account = moderatableUserId(row, viewerId);
-  if (account === null) return null;
-  return <MemberModeration tripId={tripId} userId={account} />;
+  // The gate only ever answers for a person's row, which is where the name
+  // this control is announced by comes from — the kind is read again so
+  // TypeScript can see the member behind the account.
+  if (account === null || row.kind !== "person") return null;
+  return (
+    <MemberModeration tripId={tripId} userId={account} name={row.member.name} />
+  );
 }
 
 /**
@@ -314,9 +345,12 @@ function RowModeration({
 function MemberModeration({
   tripId,
   userId,
+  name,
 }: {
   tripId: string;
   userId: string;
+  /** The person the row's word is read out by. */
+  name: string;
 }) {
   const [open, setOpen] = useState(false);
   const [reported, setReported] = useState(false);
@@ -334,7 +368,16 @@ function MemberModeration({
 
   if (!open) {
     return (
-      <QuietAction label="Report or block" onPress={() => setOpen(true)} />
+      <QuietAction
+        label="Report or block"
+        // The word is drawn once per moderatable row, so on its own it names
+        // the act and never the person: a reader walking the roster hears
+        // the same button four times with nothing saying whose row it is on.
+        // The name is the display name — the one thing the row shows for
+        // everybody, never a handle or a number the row withholds.
+        ariaLabel={`Report or block ${name}`}
+        onPress={() => setOpen(true)}
+      />
     );
   }
 
@@ -453,10 +496,19 @@ function ModerationPanel({
           A report goes to an admin. A block hides you from each other.
         </Text>
       </View>
-      <View className="flex-row flex-wrap gap-2">
+      {/* The reasons are one answer out of four and not four filters, so
+          the group says so and each chip announces it — the pair
+          `Segmented` draws for the same choice. Chips rather than cells
+          because four reasons wrap and `Segmented`'s row does not. */}
+      <View
+        className="flex-row flex-wrap gap-2"
+        role="radiogroup"
+        aria-label="Reason"
+      >
         {REPORT_REASONS.map((value) => (
           <ChipToggle
             key={value}
+            role="radio"
             label={REPORT_REASON_LABELS[value]}
             selected={reason === value}
             disabled={busy !== null}
@@ -488,12 +540,21 @@ function ModerationPanel({
           onPress={() => void blockThem()}
         />
       </View>
-      <QuietAction
-        label="Cancel"
-        onPress={() => {
-          if (busy === null) onDone();
-        }}
-      />
+      {/* The guard is the panel's, and on its own it is invisible:
+          `QuietAction` carries no disabled state, so the word keeps its
+          press and the handler is what refuses it. The state is
+          therefore announced around it, which is how `profile.tsx`'s
+          calendar row and the trip page's RSVP control say the same
+          thing — `role` because a state prop on an element that is not
+          anything is a flag a reader is not obliged to read out. */}
+      <View role="group" aria-busy={busy !== null}>
+        <QuietAction
+          label="Cancel"
+          onPress={() => {
+            if (busy === null) onDone();
+          }}
+        />
+      </View>
       {failure ? <InlineError message={failure} /> : null}
     </View>
   );

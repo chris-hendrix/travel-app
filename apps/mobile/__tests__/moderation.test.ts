@@ -211,6 +211,105 @@ describe("the roster row's panel", () => {
     // colour reserved for what cannot be taken back.
     expect(SCREEN).not.toContain('variant="danger"');
   });
+
+  it("announces the reasons as the one choice they are", () => {
+    // Four chips in a wrap row are one answer, not four filters: the group
+    // says which it is and the chip is what carries it — the pair
+    // `Segmented` draws for the same choice (`role="radio"` +
+    // `aria-selected`), which the repo's own rule names and `aria-pressed`
+    // is not.
+    expect(SCREEN).toMatch(/role="radiogroup"/);
+    expect(SCREEN).toMatch(/role="radio"/);
+    // And the primitive has to forward it rather than swallow it: a
+    // `ChipToggle` that took the prop and drew a button would leave this
+    // group a radiogroup over four buttons.
+    const chip = fs.readFileSync(
+      path.join(__dirname, "..", "components", "ui", "ChipToggle.tsx"),
+      "utf8",
+    );
+    expect(chip).toMatch(/role=\{role\}/);
+    expect(chip).toMatch(/aria-selected=\{selected\}/);
+  });
+
+  it("announces the Cancel's guard rather than leaving it silent", () => {
+    // `QuietAction` carries no disabled state, so the panel's Cancel keeps
+    // its press while the handler refuses it — a screen reader would be
+    // offered a control that silently does nothing. The state is announced
+    // around it, the way `profile.tsx`'s calendar row and the trip page's
+    // RSVP control say it.
+    expect(SCREEN).toMatch(/aria-busy=\{busy !== null\}/);
+    expect(SCREEN).toMatch(/role="group"/);
+  });
+});
+
+/**
+ * The footer's wiring, which neither describe above can hold.
+ *
+ * `moderatableUserId` is exercised for real above and the panel's
+ * vocabulary below, and neither would notice if the screen stopped
+ * *routing* through them: draw `MemberModeration` for every row instead of
+ * `RowModeration` and every assertion here stays green, with a panel under
+ * your own row and under a guest. `ruled-block.test.ts` writes its own "the
+ * mark has to arrive, not just be composed" case for exactly this shape.
+ * There is no renderer in this package, so the source is where the wiring
+ * can be held.
+ */
+describe("the footer's wiring on the roll call", () => {
+  it("routes every row's footer through the one gate", () => {
+    // The gate decides, per row, whether there is anybody to moderate, and
+    // the footer it decides for is the one the roster is handed.
+    expect(SCREEN).toMatch(/moderatableUserId\(row, viewerId\)/);
+    expect(SCREEN).toMatch(/renderRowFooter=\{moderationFooter\}/);
+  });
+
+  it("hands the demo visitor no footer at all", () => {
+    // The demo renders this screen and the adapter serves its roster read,
+    // but no block and no report is served there: an ungated footer puts a
+    // word under four rows of the public demo whose only answer is a 404.
+    expect(SCREEN).toMatch(/isDemoIdentity\(user\)\s*\?\s*undefined/);
+    // The predicate is the app's own, read off the store the real routes'
+    // session guards read it off — never a demo id spelled here.
+    expect(SCREEN).toMatch(
+      /import \{ isDemoIdentity, useAuth \} from "@\/lib\/authStore"/,
+    );
+  });
+});
+
+/**
+ * The repeated words name their subject.
+ *
+ * The row's word and the undo's word are each drawn once per person, and a
+ * word on its own names the act and never the person it belongs to: a
+ * reader walking the roster hears the same button N times with nothing
+ * saying whose row it is on. Both call sites add the name, and the
+ * primitive has to forward it rather than swallow it — a `QuietAction` that
+ * took `ariaLabel` and drew the word alone would leave every one of them
+ * anonymous again.
+ */
+describe("the repeated words name their subject", () => {
+  it("names the person the row's own word is about", () => {
+    expect(SCREEN).toMatch(/ariaLabel=\{`Report or block \$\{name\}`\}/);
+    // The name is the display name — the one thing the row shows for
+    // everybody, and never a handle or a number the row withholds.
+    expect(SCREEN).toMatch(/name=\{row\.member\.name\}/);
+  });
+
+  it("names the person the undo is about, without losing the pending word", () => {
+    expect(SCREEN).toMatch(
+      /ariaLabel=\{`\$\{word\} \$\{person\.displayName\}`\}/,
+    );
+    // One word, read twice: the label and the announced name are the same
+    // value, so the in-flight word is not dropped from the name.
+    expect(SCREEN).toMatch(/label=\{word\}/);
+  });
+
+  it("forwards it from the primitive rather than only accepting it", () => {
+    const quiet = fs.readFileSync(
+      path.join(__dirname, "..", "components", "ui", "QuietAction.tsx"),
+      "utf8",
+    );
+    expect(quiet).toMatch(/aria-label=\{ariaLabel\}/);
+  });
 });
 
 /**

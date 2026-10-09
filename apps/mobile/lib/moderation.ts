@@ -47,9 +47,10 @@ export function reportReasonLabel(reason: ReportReason): string {
  * The note's cap, in characters — `reportUserSchema`'s own
  * `z.string().max(500)`. The field stops the writer at the same number the
  * server would refuse, so a note this app accepted is never rejected for
- * its length, and the counter under the field and the field's own limit
- * cannot disagree. `__tests__/moderation.test.ts` pins it by parsing the
- * shared schema rather than by repeating the number here.
+ * its length. There is no counter under the field to agree with it: the
+ * field's own `maxLength` is the cap, and one number in one place cannot
+ * disagree with itself. `__tests__/moderation.test.ts` pins it by parsing
+ * the shared schema rather than by repeating the number here.
  */
 export const REPORT_NOTE_MAX = 500;
 

@@ -844,8 +844,8 @@ function DesignSystemScreen() {
 
             <Specimen
               name="ChipToggle"
-              contract="label · selected? · onPress"
-              note="A filter you can press: a box, filled ink when on and outlined when off. For switches you turn on and off (All day in the event dialog, On/Off in Trip settings), never for a choice among options — that is `Segmented`, whose cells are joined and which holds one value out of a few. A row holding a filter and a choice puts them at the two edges rather than shoulder to shoulder, so they never read as one set. This specimen used to describe a Past events chip on the itinerary's head, which was the one place the two met; that control is gone, so the pair below is the illustration rather than a screen anyone can reach."
+              contract="label · selected? · onPress · role?"
+              note="A filter you can press: a box, filled ink when on and outlined when off. For switches you turn on and off (All day in the event dialog, On/Off in Trip settings), which is what the default role='button' announces. A row holding a filter and a choice puts them at the two edges rather than shoulder to shoulder, so they never read as one set. A standalone choice among options is still `Segmented`: its cells are joined, it holds one value out of a few, and it is the control to reach for while the options fit one row. role='radio' is for the one case where they do not — a single-choice group inside a panel, whose labels wrap: the roster's report panel draws its four reasons that way, inside a `radiogroup`, and the choice is the same kind of thing as a `Segmented` row either way. This specimen used to describe a Past events chip on the itinerary's head, which was the one place the two met; that control is gone, so the pair below is the illustration rather than a screen anyone can reach."
             >
               <View className="flex-row items-center gap-3">
                 <ChipToggle
@@ -1014,8 +1014,8 @@ function DesignSystemScreen() {
 
             <Specimen
               name="QuietAction"
-              contract="label · onPress · align?"
-              note="A secondary action: an underlined word, no box. The system carries one loud button per screen and everything else steps back, so the quieter things — the roll-call doors, Read more, the calendar's Unsubscribe and Reset, the way out of a dialog — are words rather than controls. Underlined, because a word with no affordance is a word. Its target is a 44pt box grown by padding, the way every other target here reaches the floor: it used to be the word's own ~20pt line, which was the one place the rule was not kept. align='center' is for a word sharing a row with a button, where it wants the button's centre line rather than the row's start edge. Not InlineAction, which is boxless on purpose: that one sits inside a sentence, where a box would break the paragraph, and a word in a row of its own is not in a sentence."
+              contract="label · onPress · align? · ariaLabel?"
+              note="A secondary action: an underlined word, no box. The system carries one loud button per screen and everything else steps back, so the quieter things — the roll-call doors, Read more, the calendar's Unsubscribe and Reset, the way out of a dialog — are words rather than controls. Underlined, because a word with no affordance is a word. Its target is a 44pt box grown by padding, the way every other target here reaches the floor: it used to be the word's own ~20pt line, which was the one place the rule was not kept. align='center' is for a word sharing a row with a button, where it wants the button's centre line rather than the row's start edge. ariaLabel is the word's name for a reader, for the one case the word cannot say on its own: the roster draws Report or block under every member, so the prop is what adds the person and N buttons do not become N identical announcements. Not InlineAction, which is boxless on purpose: that one sits inside a sentence, where a box would break the paragraph, and a word in a row of its own is not in a sentence."
             >
               <QuietAction
                 label="Unsubscribe"
