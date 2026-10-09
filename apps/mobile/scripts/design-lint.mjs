@@ -582,9 +582,12 @@ checkBandsAreFullBleed();
  * grants by name — the Autofill split, three chrome edges, and
  * `DisclosureButton`'s one deliberate list-row rule; the unread accent is not
  * among them because it is a `border-l-4` and arm 1 takes a bare side.
- * Arm 2's thirty-six are `<RuledBlock>`/`<Section>` sites that draw the
- * block rank, out of thirty-nine call sites: the other three pass
- * `rule={false}`, because a band's edge is already their boundary. (The plan
+ * Arm 2's thirty-six are the `<RuledBlock>`/`<Section>` sites that draw the
+ * block rank; the rest of that family passes `rule={false}`, because a band's
+ * edge is already their boundary. (This paragraph used to restate that split as
+ * a pair of counts — "thirty-nine sites, three skipped" — and it had already
+ * drifted from what the scan measures, so it names the rule now instead of a
+ * copy of a number the check prints for itself.) (The plan
  * recorded 14 + 25 = 39; arm 2 measured exactly 25 at the seed and arm 1
  * measured 29 — the latter being the whole of the plan's own "Every site,
  * before and after" table, chrome edges and named exceptions included. The 14
@@ -601,6 +604,11 @@ checkBandsAreFullBleed();
  * boundary — the screen is a plain gap stack, not a band. The ratchet's
  * job is to notice a person choosing a mark; this one was chosen on
  * purpose, and the number moved with it.
+ *
+ * The raise is headroom rather than a ceiling that had to move: the census this
+ * branch measures is **42** — the two admin sites took 40 to 42, which the cap
+ * this branch inherited already allowed. Left at 44 by the author's choice; the
+ * number is theirs to spend.
  */
 const RULE_CENSUS_MAX = 44;
 
