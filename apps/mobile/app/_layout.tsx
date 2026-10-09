@@ -45,6 +45,7 @@ import type { NotificationResponse } from "expo-notifications";
 import { BootGate } from "@/components/ui/BootGate";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { BARE_HEADER_ROUTES, DIALOG_ROUTES } from "@/lib/routes";
+import { seoFor } from "@/lib/seo";
 import { AuthProvider } from "@/lib/authStore";
 import { DemoGuard } from "@/components/demo/DemoGuard";
 import { NotificationsProvider } from "@/lib/notificationsStore";
@@ -134,6 +135,11 @@ export default function RootLayout() {
 
   const isLab = pathname === "/design" || pathname.startsWith("/design/");
   const bare = BARE_HEADER_ROUTES[pathname];
+  // The head's content, derived from the same string the chrome above is:
+  // one lookup per render, here beside the other pathname-derived values,
+  // so the title a crawler reads and the header a person reads cannot come
+  // from two different pathnames.
+  const seo = seoFor(pathname);
   usePushRouting();
   usePushRegistration();
 
@@ -157,8 +163,47 @@ export default function RootLayout() {
       <NotificationsProvider>
         <ProfileProvider>
           <TripSettingsProvider>
+            {/*
+              One Head for the whole app, not one per route.
+              `expo-router/head` is react-helmet-async's Helmet gated on
+              `useIsFocused`, so the tags of every mounted instance merge
+              into one document head rather than replacing it: a Head per
+              route would be another copy of each of these tags to
+              reconcile, and which of two titles survives would be a
+              question about nesting order rather than about the route.
+              One instance rendering exactly one of each tag is the
+              arrangement where there is nothing to reconcile at all. It
+              is the root layout's, so it holds on every route including
+              the ones nobody adds a Head to, and `seoFor` is what decides
+              the content per pathname.
+            */}
             <Head>
-              <title>Journiful</title>
+              <title>{seo.title}</title>
+              <meta name="description" content={seo.description} />
+              {/*
+                Absent rather than "index, follow", and the absence is
+                the point rather than a tag's worth of bytes: the export
+                prerenders every route, so an indexable page that also
+                carries a stale noindex serves 200 with every check
+                still green and quietly leaves the index — the silent
+                failure the per-path table exists to avoid. A tag that
+                exists only where the table denies cannot drift from
+                the table.
+              */}
+              {seo.robots ? <meta name="robots" content={seo.robots} /> : null}
+              <link rel="canonical" href={seo.canonicalUrl} />
+              <meta property="og:type" content="website" />
+              <meta property="og:site_name" content="Journiful" />
+              <meta property="og:title" content={seo.title} />
+              <meta property="og:description" content={seo.description} />
+              <meta property="og:url" content={seo.canonicalUrl} />
+              <meta property="og:image" content={seo.ogImageUrl} />
+              <meta property="og:image:width" content="1200" />
+              <meta property="og:image:height" content="630" />
+              <meta name="twitter:card" content="summary_large_image" />
+              <meta name="twitter:title" content={seo.title} />
+              <meta name="twitter:description" content={seo.description} />
+              <meta name="twitter:image" content={seo.ogImageUrl} />
             </Head>
             <View
               className={isDialog ? "flex-1 bg-gravel" : "flex-1 bg-sand"}
