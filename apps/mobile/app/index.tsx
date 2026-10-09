@@ -101,10 +101,12 @@ function Landing() {
           detached object rather than as the page's evidence. */}
       <Band tone="bpink">
         {/* `lead` is the system's air-above-a-display-opener (it names
-            the landing), and its `pb` closes the hero at the same 24/40
-            rhythm every other block keeps — the hand-rolled `pb-12` below
-            the note doubled the hero-to-band gap against all the others. */}
-        <Column lead>
+            the landing), and `roomy` is the landing's own rhythm — the
+            page wears it on every block, so the hero's bottom edge is the
+            same seam as the rest. The hand-rolled `pb-12` that used to sit
+            below the note doubled the hero-to-band gap against all the
+            others; one rhythm for the page is what replaced it. */}
+        <Column lead roomy>
           <Text className="font-display-black text-display-lg uppercase text-ink">
             An itinerary your friends will actually read.
           </Text>
@@ -132,7 +134,7 @@ function Landing() {
           to feel. It kept a lilac band until the hero took a ground of its
           own: two pale bands with a paragraph between them read as two
           sections, and the shelf needs exactly one coloured anchor. */}
-      <Column>
+      <Column roomy>
         <View className="gap-4">
           <Text className="font-display-semibold text-heading-lg uppercase text-ink">
             The deets are all over the place.
@@ -163,7 +165,7 @@ function Landing() {
           reader is weighing the offer, which on this page is the hero;
           the deets paragraph and the shelf are not the place for it
           either, so it is simply gone rather than tidied. */}
-      <Column>
+      <Column roomy>
         <View className="flex-row flex-wrap gap-x-6 gap-y-2">
           {LEGAL_ROWS.map((row) => (
             <Link

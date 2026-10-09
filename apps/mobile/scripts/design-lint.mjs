@@ -668,9 +668,10 @@ checkRuleCensus();
 /**
  * Check 10 — a Column's children do not restate its vertical padding.
  *
- * `Column` carries the app's vertical rhythm, `py-6 md:py-10`. A child
- * inside one that declares its own vertical padding is therefore opening
- * on two of that rhythm where every other block opens on one.
+ * `Column` carries the vertical rhythm — `py-6 md:py-10` for the app, and a
+ * `roomy` variant the landing wears. A child inside one that declares its
+ * own vertical padding is therefore opening on two of that rhythm where
+ * every other block opens on one, whichever variant the page is on.
  *
  * **This check exists because that shipped, six times, and was recorded as
  * deliberate** — the plan's closeout note described the landing's four

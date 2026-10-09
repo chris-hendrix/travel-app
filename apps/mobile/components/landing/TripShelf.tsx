@@ -48,14 +48,18 @@ const SHELF_TITLE = "Real trips to look through";
  *
  * - **The band's air is the page's rhythm.** The mechanism row and the
  *   first card share one `baltic` ground, in the page's own container: the
- *   card is inset by the same 24/40 a block gets, so the band sits 80px
- *   from the deets paragraph above it and 80px from the card row below,
- *   which is exactly the air between the hero's band and the deets. A
- *   first pass gave the ground its own, larger padding on the argument
- *   that a colour change deserves more room than a block does; it read as
- *   a card floating in teal, because the band then had 2.6× the page's
- *   rhythm around it and the rhythm is what the eye is following down the
- *   page.
+ *   card is inset by the same 40/56 a block gets, so the band sits 80px
+ *   from the deets paragraph above it and 80px from the card row below on a
+ *   phone, and 112px from each on a wide one — the page's `roomy` seam, the
+ *   same air between the hero's band and the deets. A first pass gave the
+ *   ground its own, larger padding — 40/64 against a page still on 24/40 —
+ *   on the argument that a colour change deserves more room than a block
+ *   does; it read as a card floating in teal, because the band then had
+ *   2.6× the page's rhythm around it and the rhythm is what the eye is
+ *   following down the page. The fix was to raise the page under it rather
+ *   than to lower the band: `Column`'s `roomy` variant is the whole landing
+ *   wearing one rhythm, which keeps the ratio between a seam and a block's
+ *   own interior while giving both more air.
  * - **The mechanism sits centred against the card.** A heading and two
  *   short paragraphs against a photo and three lines of type: pinned to
  *   the top, the block left the band's lower half empty and read as a
@@ -113,7 +117,7 @@ export function TripShelf({
   return (
     <>
       <Band tone="baltic">
-        <Column>
+        <Column roomy>
           <View className="flex-col gap-10 lg:flex-row lg:items-center lg:gap-6">
             <View className="min-w-0 flex-1">
               <Section title="How it works" rule={false}>
@@ -156,7 +160,7 @@ export function TripShelf({
         </Column>
       </Band>
 
-      <Column>
+      <Column roomy>
         {/* Below the band, where the reader has just met the first trip, so
             the heading arrives after the thing it is naming rather than
             before it. Its wording carries the whole set, not this row:
