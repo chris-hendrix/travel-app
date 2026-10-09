@@ -1,8 +1,8 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { apiFetch } from "@/lib/api";
 import {
+  DEMO_TRIP_BACHELOR_ID,
   DEMO_TRIP_ID,
-  DEMO_TRIP_REUNION_ID,
   DEMO_TRIP_WEDDING_ID,
   buildDemoTrips,
 } from "@/lib/demo";
@@ -192,32 +192,32 @@ describe("the demo data layer", () => {
       success: true;
       events: Array<{ id: string; name: string }>;
     }>(`/trips/${DEMO_TRIP_ID}/events`);
-    const reunionEvents = await apiFetch<{
+    const bachelorEvents = await apiFetch<{
       success: true;
       events: Array<{ id: string; name: string }>;
-    }>(`/trips/${DEMO_TRIP_REUNION_ID}/events`);
-    const reunionEvent = reunionEvents.events[0]!;
+    }>(`/trips/${DEMO_TRIP_BACHELOR_ID}/events`);
+    const bachelorEvent = bachelorEvents.events[0]!;
     expect(caboEvents.events.map((event) => event.id)).not.toContain(
-      reunionEvent.id,
+      bachelorEvent.id,
     );
 
-    await apiFetch(`/events/${reunionEvent.id}`, {
+    await apiFetch(`/events/${bachelorEvent.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "Renamed in San Diego" }),
     });
 
-    // The bachelor trip is byte-identical; the reunion carries the edit.
+    // The beach trip is byte-identical; the bachelor party carries the edit.
     const caboAfter = await apiFetch<{ success: true; events: unknown[] }>(
       `/trips/${DEMO_TRIP_ID}/events`,
     );
     expect(caboAfter.events).toEqual(caboEvents.events);
-    const reunionAfter = await apiFetch<{
+    const bachelorAfter = await apiFetch<{
       success: true;
       events: Array<{ id: string; name: string }>;
-    }>(`/trips/${DEMO_TRIP_REUNION_ID}/events`);
+    }>(`/trips/${DEMO_TRIP_BACHELOR_ID}/events`);
     expect(
-      reunionAfter.events.find((event) => event.id === reunionEvent.id)?.name,
+      bachelorAfter.events.find((event) => event.id === bachelorEvent.id)?.name,
     ).toBe("Renamed in San Diego");
 
     // The same shape for an id-addressed delete on the travel board.
@@ -225,11 +225,11 @@ describe("the demo data layer", () => {
       success: true;
       memberTravels: Array<{ id: string }>;
     }>(`/trips/${DEMO_TRIP_ID}/member-travel`);
-    const reunionTravel = await apiFetch<{
+    const bachelorTravel = await apiFetch<{
       success: true;
       memberTravels: Array<{ id: string }>;
-    }>(`/trips/${DEMO_TRIP_REUNION_ID}/member-travel`);
-    const travelId = reunionTravel.memberTravels[0]!.id;
+    }>(`/trips/${DEMO_TRIP_BACHELOR_ID}/member-travel`);
+    const travelId = bachelorTravel.memberTravels[0]!.id;
     await apiFetch(`/member-travel/${travelId}`, { method: "DELETE" });
     const caboTravelAfter = await apiFetch<{ success: true; memberTravels: unknown[] }>(
       `/trips/${DEMO_TRIP_ID}/member-travel`,
@@ -258,11 +258,12 @@ describe("the demo data layer", () => {
     expect(getDemoLog().at(-1)?.served).toBe(true);
   });
 
-  it("invents places for every destination, and for no city without a trip", async () => {
+  it("names real places, in each trip's own city and country, and no city without a trip", async () => {
     const trips = buildDemoTrips(new Date("2026-10-06T12:00:00.000Z"));
     const cities = trips.map((trip) => trip.location.split(",")[0]!.trim());
 
-    // Two rows per destination, so every picker has something to offer.
+    // At least two rows per destination, so every picker has something to
+    // offer — and every one of them a place the itinerary itself visits.
     for (const city of cities) {
       const rows = DEMO_PLACES.filter((place) =>
         place.displayAddress.includes(city),
@@ -270,11 +271,13 @@ describe("the demo data layer", () => {
       expect(rows.length).toBeGreaterThanOrEqual(2);
     }
 
-    // The invariant behind "invented, and for these trips only": every
-    // row names a city one of the three fixtures is in, and carries
-    // that trip's own country. Real-world venue names are a review
-    // rule, not an assertable one; the machine-checkable half of
-    // "invented" is that nothing here is a URL and no id is reused.
+    // Every row names a city one of the three fixtures is in, and carries
+    // that trip's own country, so the picker's floor can never offer a San
+    // Diego venue for the wedding. The rows are real places now, which no
+    // test can assert; the machine-checkable half is that nothing here is
+    // a URL — a photo of a named business may not be stored at all, so a
+    // URL in this list would be the one that broke the rule — and that no
+    // id is reused.
     for (const place of DEMO_PLACES) {
       expect(
         cities.some((city) => place.displayAddress.includes(city)),
@@ -296,7 +299,7 @@ describe("the demo data layer", () => {
     for (const [tripId, country] of [
       [DEMO_TRIP_ID, "MX"],
       [DEMO_TRIP_WEDDING_ID, "MX"],
-      [DEMO_TRIP_REUNION_ID, "US"],
+      [DEMO_TRIP_BACHELOR_ID, "US"],
     ] as const) {
       const detail = await apiFetch<{
         success: true;

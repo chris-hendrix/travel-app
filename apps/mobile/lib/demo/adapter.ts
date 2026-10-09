@@ -167,6 +167,13 @@ function detailOf(trip: DemoTrip): TripDetail {
     destinationLon: null,
     startDate: trip.startDate,
     endDate: trip.endDate,
+    // Empty on purpose, and it is the other half of the fixture's own
+    // clock: a demo trip has no real zone, so every reader here falls
+    // back to the device's (`wallClock`, `zoneAbbr` and
+    // `zoneOffsetMinutes` all treat a falsy zone that way), and the
+    // fixture writes its wall clocks in that same frame. The result is
+    // that a 19:00 dinner reads 7:00 PM wherever the visitor is, and the
+    // trip never disagrees with itself about which zone it is in.
     preferredTimezone: "",
     description: trip.description ?? null,
     coverImageUrl: null,
@@ -291,19 +298,29 @@ function findRowAnywhere<T extends { id: string }>(
  * mutation on writes — no network, no clock reads beyond stamps.
  */
 /**
- * The demo's invented places: one small list for the fixture's own
- * destinations, so the sheets' place fields offer selectable rows.
- * Every privacy rule the fixture keeps holds here too — invented
- * venue names and street addresses, real geography only (the cities
- * the fixture already names), no remote URLs, nothing that could be
- * mistaken for a real listing. Coordinates are rough city-area points,
- * good enough to pin a details answer and fill the field.
+ * The demo's places: the fixture's own destinations, so the sheets' place
+ * fields offer selectable rows.
  *
- * Two rows per destination, and `country` is what the picker's own
- * floor filters on: `/locations/autocomplete` narrows to the
- * requested country before it matches the query, so the wedding in
- * Todos Santos is never offered a San Diego venue. The list carries
- * no city without a trip, and no trip without its own city.
+ * Every row here is a real, findable place in a city the fixture already
+ * names, and each one is a place the itinerary actually visits — the
+ * picker's list and the events' snapshots are the same list, so a
+ * suggestion and the row it fills can never describe different venues.
+ * That is the deliberate reversal of the earlier rule that invented them:
+ * a demo whose addresses lead nowhere teaches the reader the wrong thing
+ * about the Maps verb, which is the one thing on an event the app hands
+ * off. The rentals stay invented, because a holiday let has no Maps
+ * listing to be real — see `lib/demo.ts`.
+ *
+ * What has not changed: no remote URLs (a photo of a named business may
+ * not be stored at all — see `lib/placeholder.ts`), no place id, and
+ * coordinates that are rough area points, good enough to pin a details
+ * answer and fill the field.
+ *
+ * `country` is what the picker's own floor filters on:
+ * `/locations/autocomplete` narrows to the requested country before it
+ * matches the query, so the wedding in Todos Santos is never offered a
+ * San Diego venue. The list carries no city without a trip, and no trip
+ * without its own city.
  */
 type DemoPlace = {
   placeId: string;
@@ -318,6 +335,7 @@ type DemoPlace = {
 };
 
 export const DEMO_PLACES: readonly DemoPlace[] = [
+  // Cabo San Lucas: the beach trip's own week, house first.
   {
     placeId: "demo-place-casa-verde",
     shortName: "Casa Verde",
@@ -329,25 +347,66 @@ export const DEMO_PLACES: readonly DemoPlace[] = [
     lon: -109.9112,
   },
   {
-    placeId: "demo-place-taqueria-luna",
-    shortName: "Taqueria Luna",
-    displayName: "Taqueria Luna",
-    displayAddress: "Marina Boulevard, Cabo San Lucas, Mexico",
+    placeId: "demo-place-el-paisa",
+    shortName: "Taquería El Paisa",
+    displayName: "Taquería El Paisa",
+    displayAddress: "Boulevard Lázaro Cárdenas, Cabo San Lucas, BCS, Mexico",
     types: ["food_and_drink"],
     country: "MX",
-    lat: 22.8823,
-    lon: -109.9056,
+    lat: 22.8889,
+    lon: -109.9167,
+  },
+  {
+    placeId: "demo-place-rooftop-360",
+    shortName: "The Rooftop 360",
+    displayName: "The Rooftop 360",
+    displayAddress: "Corazón Cabo, Cabo San Lucas, BCS, Mexico",
+    types: ["nightlife"],
+    country: "MX",
+    lat: 22.8905,
+    lon: -109.9136,
+  },
+  {
+    placeId: "demo-place-marina-cabo",
+    shortName: "Marina Cabo San Lucas",
+    displayName: "Marina Cabo San Lucas",
+    displayAddress: "Blvd. Marina, Cabo San Lucas, BCS, Mexico",
+    types: ["outdoors"],
+    country: "MX",
+    lat: 22.8891,
+    lon: -109.9098,
+  },
+  {
+    placeId: "demo-place-el-medano",
+    shortName: "Playa El Médano",
+    displayName: "Playa El Médano",
+    displayAddress: "Playa El Médano, Cabo San Lucas, BCS, Mexico",
+    types: ["outdoors"],
+    country: "MX",
+    lat: 22.8896,
+    lon: -109.9021,
   },
   {
     placeId: "demo-place-santa-maria",
-    shortName: "Playa Santa Maria",
-    displayName: "Playa Santa Maria",
-    displayAddress: "Santa Maria Bay, Cabo San Lucas, Mexico",
+    shortName: "Playa Santa María",
+    displayName: "Playa Santa María",
+    displayAddress: "Playa Santa María, Cabo San Lucas, BCS, Mexico",
     types: ["outdoors"],
     country: "MX",
     lat: 22.8918,
     lon: -109.9004,
   },
+  {
+    placeId: "demo-place-solomons-landing",
+    shortName: "Solomon's Landing",
+    displayName: "Solomon's Landing",
+    displayAddress: "Blvd. Paseo de la Marina, Cabo San Lucas, BCS, Mexico",
+    types: ["food_and_drink"],
+    country: "MX",
+    lat: 22.8925,
+    lon: -109.9077,
+  },
+  // Todos Santos: the wedding's four days.
   {
     placeId: "demo-place-casa-marea",
     shortName: "Casa Marea",
@@ -359,44 +418,75 @@ export const DEMO_PLACES: readonly DemoPlace[] = [
     lon: -110.2231,
   },
   {
-    placeId: "demo-place-mercado-del-faro",
-    shortName: "Mercado del Faro",
-    displayName: "Mercado del Faro",
-    displayAddress: "Camino al Faro 21, Todos Santos, Mexico",
-    types: ["shopping"],
+    placeId: "demo-place-cien-palmas",
+    shortName: "Cien Palmas",
+    displayName: "Cien Palmas",
+    displayAddress: "Centro, Todos Santos, BCS, Mexico",
+    types: ["food_and_drink"],
     country: "MX",
     lat: 23.4505,
     lon: -110.2262,
   },
   {
-    placeId: "demo-place-playa-las-palmas",
-    shortName: "Playa Las Palmas",
-    displayName: "Playa Las Palmas",
-    displayAddress: "Coastal Track 5, Todos Santos, Mexico",
-    types: ["outdoors"],
+    placeId: "demo-place-hacienda-todos-santos",
+    shortName: "Hotel Hacienda Todos Los Santos",
+    displayName: "Hotel Hacienda Todos Los Santos",
+    displayAddress: "Benito Juárez, Todos Santos, BCS, Mexico",
+    types: ["arts_and_entertainment"],
     country: "MX",
-    lat: 23.42,
-    lon: -110.24,
+    lat: 23.4521,
+    lon: -110.2246,
   },
+  // San Diego: the bachelor party's two nights.
   {
-    placeId: "demo-place-bayview-house",
-    shortName: "Bayview House",
-    displayName: "Bayview House",
-    displayAddress: "Harbor Lane 4, San Diego, USA",
+    placeId: "demo-place-wavecrest",
+    shortName: "Wavecrest",
+    displayName: "Wavecrest",
+    displayAddress: "Ocean Front Walk, Pacific Beach, San Diego, USA",
     types: ["lodging"],
     country: "US",
-    lat: 32.7157,
-    lon: -117.1611,
+    lat: 32.794,
+    lon: -117.2543,
   },
   {
-    placeId: "demo-place-tidepool-kitchen",
-    shortName: "Tidepool Kitchen",
-    displayName: "Tidepool Kitchen",
-    displayAddress: "Pier Street 30, San Diego, USA",
+    placeId: "demo-place-pacific-beach",
+    shortName: "Pacific Beach",
+    displayName: "Pacific Beach",
+    displayAddress: "Pacific Beach, San Diego, CA, USA",
+    types: ["outdoors"],
+    country: "US",
+    lat: 32.798,
+    lon: -117.253,
+  },
+  {
+    placeId: "demo-place-petco-park",
+    shortName: "Petco Park",
+    displayName: "Petco Park",
+    displayAddress: "100 Park Blvd, San Diego, CA, USA",
+    types: ["arts_and_entertainment"],
+    country: "US",
+    lat: 32.7076,
+    lon: -117.157,
+  },
+  {
+    placeId: "demo-place-greystone",
+    shortName: "Greystone Steakhouse",
+    displayName: "Greystone Steakhouse",
+    displayAddress: "658 5th Ave, San Diego, CA, USA",
     types: ["food_and_drink"],
     country: "US",
-    lat: 32.709,
-    lon: -117.1685,
+    lat: 32.7123,
+    lon: -117.1597,
+  },
+  {
+    placeId: "demo-place-shout-house",
+    shortName: "The Shout! House",
+    displayName: "The Shout! House",
+    displayAddress: "655 4th Ave, San Diego, CA, USA",
+    types: ["nightlife"],
+    country: "US",
+    lat: 32.7121,
+    lon: -117.1606,
   },
 ];
 

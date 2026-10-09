@@ -168,7 +168,7 @@ describe("the demo early install", () => {
       early.isDemoPath("/trips/detail", "?id=demo-trip-cabo-evil"),
     ).toBe(false);
     expect(
-      early.isDemoPath("/trips/detail", "?id=demo-trip-reunion-evil"),
+      early.isDemoPath("/trips/detail", "?id=demo-trip-bachelor-evil"),
     ).toBe(false);
     expect(early.isDemoPath("/trips/detail", "?id=demo-trip-nope")).toBe(
       false,

@@ -65,7 +65,7 @@ describe("placeholderKind", () => {
     // compile error, not a blank frame.
     const kinds = Object.keys(KINDS) as PlaceholderKind[];
     expect(kinds.length).toBeGreaterThanOrEqual(10);
-    for (const occasion of ["bachelor", "wedding", "reunion"] as const) {
+    for (const occasion of ["beach", "wedding", "bachelor"] as const) {
       expect(kinds).toContain(occasion);
     }
     for (const kind of kinds) {

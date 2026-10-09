@@ -828,7 +828,7 @@ function DesignSystemScreen() {
             <Specimen
               name="PlaceholderImage"
               contract="kind · fills its parent box"
-              note="What a place looks like when nobody has a photo of it. The fallback says which kind of thing it is, not which place: the nine event types, a trip cover, and the three occasion covers the landing's shelf gives its demo trips so three cards are three photos rather than one repeated. Stock, not drawn, and no source link, because there is no source."
+              note="What a place looks like when nobody has a photo of it. The fallback says which kind of thing it is, not which place: the nine event types, a trip cover, and the three occasion covers the landing's shelf gives its demo trips so three cards are three photos rather than one repeated. Those three are the one exception — each is chosen for its destination (a Cabo beach, an invitation, a San Diego skyline) — and it stops there: a stock shot of the destination, never a photograph of a named business, because Places photos may not be stored at all. Stock, not drawn, and no source link, because there is no source."
             >
               <View className="flex-row flex-wrap gap-3">
                 {(Object.keys(KINDS) as PlaceholderKind[]).map((kind) => (

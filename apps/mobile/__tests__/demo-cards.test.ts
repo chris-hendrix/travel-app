@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   DEMO_TRIP_IDS,
+  demoCoverKind,
   demoHrefFor,
   demoTripCards,
 } from "@/lib/demo";
 
 /**
  * The landing's card selector: pure, pinned to the card order
- * (bachelor, wedding, reunion), carrying exactly what the card
+ * (beach, wedding, bachelor), carrying exactly what the card
  * needs — and three distinct covers, or three cards read as one bug.
  */
 describe("the demo cards", () => {
@@ -16,9 +17,9 @@ describe("the demo cards", () => {
     expect(cards).toHaveLength(3);
     expect(cards.map((card) => card.id)).toEqual([...DEMO_TRIP_IDS]);
     expect(cards.map((card) => card.occasion)).toEqual([
-      "bachelor",
+      "beach",
       "wedding",
-      "reunion",
+      "bachelor",
     ]);
     for (const card of cards) {
       expect(typeof card.title).toBe("string");
@@ -33,6 +34,20 @@ describe("the demo cards", () => {
   it("gives each card its own cover", () => {
     const cards = demoTripCards(new Date("2026-10-06T12:00:00.000Z"));
     expect(new Set(cards.map((card) => card.coverKind)).size).toBe(3);
+  });
+
+  it("gives the trip page the cover the card that opened it showed", () => {
+    // A card and the page behind it are two renderings of one photo, so a
+    // reader who presses a beach has to land on a beach rather than on the
+    // generic travel shot. Both read the same list (`lib/demo.ts`), and
+    // this is the seam that says so.
+    const cards = demoTripCards(new Date("2026-10-06T12:00:00.000Z"));
+    for (const card of cards) {
+      expect(demoCoverKind(card.id)).toBe(card.coverKind);
+    }
+    // An id that is not one of the three gets no kind at all, which is the
+    // hero's own `"trip"` default — never a wrong photo.
+    expect(demoCoverKind("demo-trip-nope")).toBeNull();
   });
 
   it("builds hrefs that name the trip id exactly", () => {

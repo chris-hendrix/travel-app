@@ -85,8 +85,9 @@ export function DemoGuard(): null {
     // instead.
     if (getDemoAuthUser() === null) {
       // Back into a demo sheet URL: walk through the entry carrying
-      // the visitor's OWN trip, so a browser-back into the reunion's
-      // sheet reopens the reunion rather than the bachelor party.
+      // the visitor's OWN trip, so a browser-back into the bachelor
+      // party's sheet reopens the bachelor party rather than the beach
+      // trip.
       const demoId = demoIdFrom(params.id);
       if (demoId && shouldReenterDemo(pathname, demoId)) {
         router.replace(`/demo?id=${demoId}`);
