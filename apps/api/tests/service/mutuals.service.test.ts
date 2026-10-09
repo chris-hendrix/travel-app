@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { db } from "@/config/database.js";
-import { users, members, trips } from "@/db/schema/index.js";
+import { users, members, trips, userBlocks } from "@/db/schema/index.js";
 import { inArray } from "drizzle-orm";
 import { MutualsService } from "@/services/mutuals.service.js";
 import { PermissionsService } from "@/services/permissions.service.js";
@@ -422,6 +422,68 @@ describe("mutuals.service", () => {
 
       // Bob is still offered; the deleted account is not.
       expect(result.mutuals.map((m) => m.id)).toEqual([bobId]);
+    });
+  });
+
+  describe("blocks", () => {
+    /**
+     * A block is symmetric, so a counterpart is not a tripmate either: not in
+     * the mutuals list, and not in the picker whose whole job is "people you
+     * can add". The picker is the worse of the two — the invitation that
+     * follows is refused in silence, so the person is offered, selected, and
+     * never arrives, while the block stays invisible.
+     */
+    it("does not return a blocked counterpart from getMutuals, in either direction", async () => {
+      const currentUserId = await createUser("Current User");
+      const blockedMeId = await createUser("Blocked Me");
+      const blockedYouId = await createUser("Blocked You");
+      const visibleId = await createUser("Visible Friend");
+
+      const tripId = await createTrip("Trip 1", currentUserId);
+      await addMember(tripId, currentUserId, { isOrganizer: true });
+      await addMember(tripId, blockedMeId);
+      await addMember(tripId, blockedYouId);
+      await addMember(tripId, visibleId);
+
+      // One block each way round the same reader.
+      await db.insert(userBlocks).values([
+        { blockerId: blockedMeId, blockedId: currentUserId },
+        { blockerId: currentUserId, blockedId: blockedYouId },
+      ]);
+
+      const result = await mutualsService.getMutuals({ userId: currentUserId });
+
+      expect(result.mutuals.map((m) => m.id)).toEqual([visibleId]);
+    });
+
+    it("does not offer a blocked counterpart as an invite suggestion", async () => {
+      const currentUserId = await createUser("Current User");
+      const blockedMeId = await createUser("Blocked Me");
+      const blockedYouId = await createUser("Blocked You");
+      const visibleId = await createUser("Visible Friend");
+
+      // Trip 1 is where the current user knows the others from; trip 2 is the
+      // trip the suggestions are for.
+      const trip1Id = await createTrip("Trip 1", currentUserId);
+      await addMember(trip1Id, currentUserId, { isOrganizer: true });
+      await addMember(trip1Id, blockedMeId);
+      await addMember(trip1Id, blockedYouId);
+      await addMember(trip1Id, visibleId);
+
+      const trip2Id = await createTrip("Trip 2", currentUserId);
+      await addMember(trip2Id, currentUserId, { isOrganizer: true });
+
+      await db.insert(userBlocks).values([
+        { blockerId: blockedMeId, blockedId: currentUserId },
+        { blockerId: currentUserId, blockedId: blockedYouId },
+      ]);
+
+      const result = await mutualsService.getMutualSuggestions({
+        userId: currentUserId,
+        tripId: trip2Id,
+      });
+
+      expect(result.mutuals.map((m) => m.id)).toEqual([visibleId]);
     });
   });
 });

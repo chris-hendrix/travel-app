@@ -36,6 +36,8 @@ import {
   applyPlaceBlockPatch,
   placeBlockPatch,
 } from "./place-block.service.js";
+import { blockedCounterpartIds } from "./moderation.service.js";
+import { phoneForViewer } from "@/lib/phone-visibility.js";
 import {
   TripNotFoundError,
   PermissionDeniedError,
@@ -310,6 +312,8 @@ export class TripService implements ITripService {
         );
       }
 
+      await this.assertCoOrganizerPhonesNotBlocked(userId, coOrganizerUsers);
+
       coOrganizerUserIds = coOrganizerUsers.map((u) => u.id);
     }
 
@@ -464,7 +468,7 @@ export class TripService implements ITripService {
         id: users.id,
         displayName: sql<string>`COALESCE(${users.displayName}, ${members.guestDisplayName}, 'Guest')`,
         phoneNumber: users.phoneNumber,
-        // Read so the phone number can be masked below: a soft-deleted
+        // Read so the phone number can be withheld below: a soft-deleted
         // account's number is a `deleted:<uuid>` tombstone.
         deletedAt: users.deletedAt,
         profilePhotoUrl: users.profilePhotoUrl,
@@ -484,21 +488,26 @@ export class TripService implements ITripService {
     const memberCount = await this.getMemberCount(tripId);
 
     const meta: TripMembershipMeta = {
-      organizers: organizerUsers.map((u) => ({
-        id: u.id,
-        displayName: u.displayName,
-        // A soft-deleted account has no phone number to show. The column is a
-        // `deleted:<uuid>` tombstone by then — an internal marker for a number
-        // that was released, not a number for a viewer's eyes — so the field
-        // is simply absent, which is what the client already renders as no
-        // number line. The row itself stays: it is the trip's record of the
-        // person, and the trip keeps its organizers.
-        ...(userIsOrganizer && u.deletedAt === null && u.phoneNumber
-          ? { phoneNumber: u.phoneNumber }
-          : {}),
-        profilePhotoUrl: u.profilePhotoUrl,
-        timezone: u.timezone,
-      })),
+      organizers: organizerUsers.map((u) => {
+        // Whose number this is decides whether the payload may carry it, and
+        // the rule lives in one helper rather than at each reader. A deleted
+        // account has no number to show; every other organizer's number is
+        // one the viewer may read, because the viewer is an organizer too.
+        // The field is absent rather than null: the client renders absence as
+        // no number line.
+        const phoneNumber = phoneForViewer(
+          { phoneNumber: u.phoneNumber, deletedAt: u.deletedAt },
+          { isOrg: userIsOrganizer },
+        );
+
+        return {
+          id: u.id,
+          displayName: u.displayName,
+          ...(phoneNumber !== null ? { phoneNumber } : {}),
+          profilePhotoUrl: u.profilePhotoUrl,
+          timezone: u.timezone,
+        };
+      }),
       memberCount,
       isPreview,
       userRsvpStatus,
@@ -1082,6 +1091,8 @@ export class TripService implements ITripService {
       );
     }
 
+    await this.assertCoOrganizerPhonesNotBlocked(userId, newCoOrganizerUsers);
+
     // 3-6. Wrap count check + insert in transaction to prevent race conditions
     await this.db.transaction(async (tx) => {
       // 3-4. Get existing members (derive count from result length)
@@ -1133,6 +1144,37 @@ export class TripService implements ITripService {
         }
       }
     });
+  }
+
+  /**
+   * Guard: the number belongs to somebody the caller is in a block with,
+   * either way round.
+   *
+   * A co-organizer is inserted as a `going` organizer member, so submitting a
+   * blocked counterpart's number puts the pair on the same trip and hands the
+   * new member every fan-out any *other* actor triggers: one of the two
+   * inviting the other, which is the act a block forbids. The invitation door
+   * refuses that act silently (the id lands in `skipped`) and the guest door
+   * refuses it as an already-member phone; this door's refusal is the answer an
+   * unknown number already gets, because the caller may be the side the block
+   * was written against — an answer that named a block would tell them what the
+   * block was meant to keep from them.
+   *
+   * The block relation has one definition (`blockedCounterpartIds`), and the
+   * owner lookup is already in hand at both call sites, so this reads that
+   * relation rather than asking the question its own way in SQL.
+   */
+  private async assertCoOrganizerPhonesNotBlocked(
+    requesterUserId: string,
+    coOrganizerUsers: { id: string; phoneNumber: string }[],
+  ): Promise<void> {
+    const blocked = await blockedCounterpartIds(this.db, requesterUserId);
+    const blockedCoOrganizer = coOrganizerUsers.find((u) => blocked.has(u.id));
+    if (blockedCoOrganizer) {
+      throw new CoOrganizerNotFoundError(
+        `Co-organizer not found: ${blockedCoOrganizer.phoneNumber}`,
+      );
+    }
   }
 
   /**

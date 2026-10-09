@@ -2,19 +2,29 @@ import { describe, it, expect, afterEach } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../helpers.js";
 import { db } from "@/config/database.js";
-import { users, trips, members, notifications } from "@/db/schema/index.js";
+import {
+  users,
+  trips,
+  members,
+  invitations,
+  notifications,
+} from "@/db/schema/index.js";
 import { and, eq, inArray } from "drizzle-orm";
 import { UserService } from "@/services/user.service.js";
 import { generateUniquePhone } from "../test-utils.js";
 
 /**
- * The wire, for the two payloads that used to show a tombstone.
+ * The wire, for the three payloads that carry a phone number.
  *
- * `getTripMembers` and `getTripById` mask a soft-deleted account's phone
- * number at the source, so this asserts what actually leaves the server: the
- * `phoneNumber` field is absent rather than present-and-null (the response
- * schemas type it as optional, and the client renders absence as no number
- * line), and the `deleted:<uuid>` tombstone appears nowhere in the body.
+ * `getTripMembers`, `getTripById` and `getInvitationsByTrip` decide whether a
+ * viewer may read a number through one helper, so this asserts what actually
+ * leaves the server on all three: the `phoneNumber` field is absent rather than
+ * present-and-null (the response schemas type it as optional, and the client
+ * renders absence as no number line), the invitation's `inviteePhone` — a
+ * required string — is withheld, and the `deleted:<uuid>` marker appears nowhere
+ * in any body. The invitation payload is the one that was missed when the rule
+ * lived at each call site, which is why it is asserted here rather than left to
+ * the readers that happened to be fixed.
  *
  * The account is deleted through the real `UserService.deleteAccount`, and
  * every assertion is scoped to rows this file created.
@@ -193,5 +203,65 @@ describe("a deleted account in a trip payload", () => {
       "phoneNumber",
       livePhone,
     );
+  });
+
+  it("GET /api/trips/:tripId/invitations withholds the phone of a deleted invitee", async () => {
+    await buildFixture();
+
+    // The representation a deletion leaves in the invitation row:
+    // `invitations.invitee_phone` is a copy of `users.phone_number`, so once
+    // the account is gone the row carries the same `deleted:<uuid>` marker the
+    // users row carries. (Writing that marker is the deletion's half of this
+    // change; this pins the reader, which is the half that was missing.)
+    await db.insert(invitations).values({
+      tripId,
+      inviterId: organizerId,
+      inviteePhone: `deleted:${deletedId}`,
+      status: "pending",
+    });
+    // Two controls, because "no account matched" is not the same thing as
+    // "the account is gone": a live invitee's number, and a number with no
+    // account behind it at all, are both still served digits and all.
+    await db.insert(invitations).values({
+      tripId,
+      inviterId: organizerId,
+      inviteePhone: livePhone,
+      status: "pending",
+    });
+    const typedPhone = generateUniquePhone();
+    await db.insert(invitations).values({
+      tripId,
+      inviterId: organizerId,
+      inviteePhone: typedPhone,
+      status: "pending",
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/trips/${tripId}/invitations`,
+      cookies: { auth_token: tokenFor(organizerId, "Payload Organizer") },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).not.toContain("deleted:");
+
+    const rows = (
+      JSON.parse(response.body) as {
+        invitations: { inviteePhone: string; inviteeName?: string }[];
+      }
+    ).invitations;
+    expect(rows).toHaveLength(3);
+
+    // Withheld, not omitted: `inviteePhone` is required by the response
+    // schema, and the row has to stay visible — it is the trip's record that
+    // an invitation went out, and the organizer revokes it by id.
+    const deletedRow = rows.find((r) => r.inviteePhone === "")!;
+    expect(deletedRow).toBeDefined();
+    // The join on the marker still names the row, so the organizer sees an
+    // invitation to a deleted account rather than a row with no name at all.
+    expect(deletedRow.inviteeName).toBe("Deleted user");
+
+    expect(rows.some((r) => r.inviteePhone === livePhone)).toBe(true);
+    expect(rows.some((r) => r.inviteePhone === typedPhone)).toBe(true);
   });
 });

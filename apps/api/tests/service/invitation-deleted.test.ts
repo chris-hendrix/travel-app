@@ -245,17 +245,29 @@ describe("createInvitations with a deleted account", () => {
     expect(await notificationsFor(liveMutualId)).toHaveLength(1);
   });
 
-  it("still refuses a genuinely live non-mutual with NotAMutualError", async () => {
-    // The deleted filter must not have swallowed the mutual check: a live
-    // account that shares no trip is still the distinguishable answer the
-    // existing contract promises.
+  it("refuses a non-mutual the same way whether the account is live or deleted", async () => {
+    // The deleted guard runs on the verified set, so it is not a shortcut out
+    // of the mutual check: a deleted stranger refuses exactly as a live
+    // stranger does, and neither answer says which of the two the id is. The
+    // live half is the control — it is the refusal the deleted half has to
+    // match, not a second behaviour.
     const strangerPhone = generateUniquePhone();
+    const leaverPhone = generateUniquePhone();
+
     const [stranger] = await db
       .insert(users)
       .values({ phoneNumber: strangerPhone, displayName: "Stranger" })
       .returning();
+    const [leaver] = await db
+      .insert(users)
+      .values({ phoneNumber: leaverPhone, displayName: "Leaver" })
+      .returning();
 
     try {
+      // A real deletion, so the row is anonymized exactly as production does
+      // it — and still shares no trip with the organizer.
+      await userService.deleteAccount(leaver!.id);
+
       await expect(
         invitationService.createInvitations(
           organizerId,
@@ -264,10 +276,22 @@ describe("createInvitations with a deleted account", () => {
           [stranger!.id],
         ),
       ).rejects.toThrow(/not a mutual/i);
+      await expect(
+        invitationService.createInvitations(
+          organizerId,
+          tripId,
+          [],
+          [leaver!.id],
+        ),
+      ).rejects.toThrow(/not a mutual/i);
 
+      // Neither refusal wrote anything.
       expect(await invitationPhones()).toHaveLength(0);
+      expect(await memberRows(leaver!.id)).toHaveLength(0);
     } finally {
-      await db.delete(users).where(eq(users.id, stranger!.id));
+      await db
+        .delete(users)
+        .where(inArray(users.id, [stranger!.id, leaver!.id]));
     }
   });
 });

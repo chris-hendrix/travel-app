@@ -15,7 +15,7 @@ import { PermissionsService } from "@/services/permissions.service.js";
 import { SMSService } from "@/services/sms.service.js";
 import { NotificationService } from "@/services/notification.service.js";
 import { generateUniquePhone } from "../test-utils.js";
-import { DuplicateMemberError } from "@/errors.js";
+import { DuplicateMemberError, NotAMutualError } from "@/errors.js";
 
 /**
  * Task 33 RED: an invitation cannot cross a block.
@@ -29,6 +29,11 @@ import { DuplicateMemberError } from "@/errors.js";
  *
  * Every assertion is scoped to rows this file created: the suite shares one
  * database, so a whole-table length of zero would only prove file ordering.
+ *
+ * The one answer that is *not* silent is the refusal a non-mutual gets, and it
+ * is the same refusal whoever they are: the block and deleted guards run on the
+ * ids the mutual verification has already accepted, so neither guard is a
+ * shortcut out of `NotAMutualError` (see the mutual-flow tests below).
  *
  * The guest path is the same act one step earlier. A guest row is an
  * invitation waiting to happen — `processPendingInvitations` claims it by
@@ -368,25 +373,63 @@ describe("createInvitations across a block (Task 33)", () => {
       );
     });
 
-    it("does not raise NotAMutualError for a blocked non-mutual — a thrown error would leak the block", async () => {
-      // This user shares no trip with the organizer: without the block
-      // check, the mutual-verification loop throws NotAMutualError, which is
-      // exactly the distinguishable answer the task forbids.
-      await db.insert(userBlocks).values({
-        blockerId: blockedYouId,
-        blockedId: organizerId,
-      });
+    it("answers a blocked non-mutual exactly as it answers a live one, so a block cannot be read off the refusal", async () => {
+      // This user shares no trip with the organizer, so the mutual
+      // verification refuses them. The block guard runs on the *verified* set,
+      // which is what makes the refusal identical for both: a blocked id that
+      // answered `skipped` while a live stranger answered NotAMutualError
+      // would be the leak — "there is a block between us" would be the one
+      // thing the two answers disagreed about.
+      const strangerPhone = generateUniquePhone();
+      const [stranger] = await db
+        .insert(users)
+        .values({ phoneNumber: strangerPhone, displayName: "Stranger" })
+        .returning();
 
-      const result = await invitationService.createInvitations(
-        organizerId,
-        tripId,
-        [],
-        [blockedYouId],
-      );
+      const refusal = (call: Promise<unknown>) =>
+        call.then(
+          () => null,
+          (error: { code?: string; statusCode?: number }) => error,
+        );
 
-      expect(result.skipped).toContain(blockedYouId);
-      expect(result.invitations).toHaveLength(0);
-      expect(await memberRows(blockedYouId)).toHaveLength(0);
+      try {
+        await db.insert(userBlocks).values({
+          blockerId: blockedYouId,
+          blockedId: organizerId,
+        });
+
+        const blockedRefusal = await refusal(
+          invitationService.createInvitations(
+            organizerId,
+            tripId,
+            [],
+            [blockedYouId],
+          ),
+        );
+        const strangerRefusal = await refusal(
+          invitationService.createInvitations(
+            organizerId,
+            tripId,
+            [],
+            [stranger!.id],
+          ),
+        );
+
+        // One answer for both: the same error class, code and status.
+        expect(blockedRefusal).toBeInstanceOf(NotAMutualError);
+        expect(blockedRefusal?.code).toBe("NOT_A_MUTUAL");
+        expect(strangerRefusal?.code).toBe(blockedRefusal?.code);
+        expect(strangerRefusal?.statusCode).toBe(blockedRefusal?.statusCode);
+
+        // And the refusal is a refusal: nothing was written for the blocked
+        // non-mutual, or for the stranger.
+        expect(await invitationPhones()).toHaveLength(0);
+        expect(await memberRows(blockedYouId)).toHaveLength(0);
+        expect(await notificationsFor(blockedYouId)).toHaveLength(0);
+        expect(await memberRows(stranger!.id)).toHaveLength(0);
+      } finally {
+        await db.delete(users).where(eq(users.id, stranger!.id));
+      }
     });
 
     it("leaves an unblocked mutual in the same call untouched", async () => {
@@ -409,13 +452,48 @@ describe("createInvitations across a block (Task 33)", () => {
       expect(await memberRows(mutualId)).toHaveLength(1);
     });
 
-    it("still refuses a genuinely unblocked non-mutual with NotAMutualError", async () => {
-      // The block filter must not have swallowed the real check.
-      await expect(
-        invitationService.createInvitations(organizerId, tripId, [], [
-          blockedYouId,
-        ]),
-      ).rejects.toThrow(/not a mutual/i);
+    it("refuses a batch that mixes a mutual with a non-mutual, blocked or not, before anything is written", async () => {
+      // The second shape the ordering decides: the verification runs over every
+      // submitted id, so one bad id refuses the batch as a whole — the
+      // pre-existing behaviour for any bad id, and the same behaviour whether
+      // that id is blocked or a stranger. Nothing is written for the good
+      // mutual in either call.
+      await db.insert(userBlocks).values({
+        blockerId: blockedYouId,
+        blockedId: organizerId,
+      });
+
+      const strangerPhone = generateUniquePhone();
+      const [stranger] = await db
+        .insert(users)
+        .values({ phoneNumber: strangerPhone, displayName: "Stranger" })
+        .returning();
+
+      try {
+        await expect(
+          invitationService.createInvitations(
+            organizerId,
+            tripId,
+            [],
+            [mutualId, blockedYouId],
+          ),
+        ).rejects.toThrow(/not a mutual/i);
+        expect(await invitationPhones()).toHaveLength(0);
+        expect(await memberRows(mutualId)).toHaveLength(0);
+
+        await expect(
+          invitationService.createInvitations(
+            organizerId,
+            tripId,
+            [],
+            [mutualId, stranger!.id],
+          ),
+        ).rejects.toThrow(/not a mutual/i);
+        expect(await invitationPhones()).toHaveLength(0);
+        expect(await memberRows(mutualId)).toHaveLength(0);
+      } finally {
+        await db.delete(users).where(eq(users.id, stranger!.id));
+      }
     });
   });
 

@@ -13,16 +13,18 @@ import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
 import type { ISMSService } from "./sms.service.js";
 import type { INotificationService } from "./notification.service.js";
-import {
-  blockedCounterpartIds,
-  withoutBlocked,
-} from "./moderation.service.js";
+import { blockedCounterpartIds, withoutBlocked } from "./moderation.service.js";
 import {
   GuestMemberService,
   type IGuestMemberService,
 } from "./guest-member.service.js";
 import type { Logger } from "@/types/logger.js";
 import { DEFAULT_FRONTEND_ORIGIN } from "@/config/env.js";
+import {
+  WITHHELD_PHONE,
+  isPhoneTombstone,
+  phoneForViewer,
+} from "@/lib/phone-visibility.js";
 import type { MemberWithProfile } from "@journiful/shared/types";
 import type { PgBoss } from "pg-boss";
 import { QUEUE } from "@/queues/types.js";
@@ -72,7 +74,9 @@ export interface IInvitationService {
    */
   getInvitationsByTrip(
     tripId: string,
-  ): Promise<(DBInvitation & { inviteeName?: string; invitedGuestName?: string })[]>;
+  ): Promise<
+    (DBInvitation & { inviteeName?: string; invitedGuestName?: string })[]
+  >;
 
   /**
    * Revokes an invitation
@@ -398,10 +402,7 @@ export class InvitationService implements IInvitationService {
               // trip, which is the same act as inviting them.
               if (blockedPhones.has(phone)) continue;
               const existingUser = phoneToUserMap.get(phone);
-              if (
-                !existingUser ||
-                alreadyMemberUserIds.has(existingUser.id)
-              ) {
+              if (!existingUser || alreadyMemberUserIds.has(existingUser.id)) {
                 continue;
               }
               const claim = await claimService.claimGuestMember(tx, {
@@ -500,70 +501,72 @@ export class InvitationService implements IInvitationService {
 
       // === Mutual (userId) invitation flow ===
       if (userIds.length > 0) {
-        // A block refuses the invite exactly as an already-invited one
-        // does: the id goes into `skipped`, which is the only answer the
-        // caller can distinguish, and nothing is created. This runs BEFORE
-        // the mutual verification below — a NotAMutualError thrown here
-        // would be a distinguishable answer, i.e. the leak itself.
-        const blockedUserIds = userIds.filter((id) => blocked.has(id));
-        const invitableUserIds = userIds.filter((id) => !blocked.has(id));
-        skipped.push(...blockedUserIds);
-
-        // A deleted account is not an invitee, and this guard sits beside the
-        // block one because it fails in the same place for the same reason:
-        // deletion anonymizes the row but keeps its `members` rows (they are
-        // the trip's record of the person), so the mutual verification below
-        // still passes it — and the phone number it would be invited by is a
-        // `deleted:<uuid>` tombstone, i.e. an invitation addressed to nobody.
-        // The answer is `skipped`, not a throw: 22001 out of the insert used
-        // to take the whole batch down with it, and a distinguishable answer
-        // is exactly what the block guard above avoids. Read off
-        // `invitableUserIds` rather than `userIds` so an id that is both
-        // blocked and deleted is reported once.
-        const deletedRows = await tx
-          .select({ id: users.id })
-          .from(users)
-          .where(
-            and(
-              inArray(users.id, invitableUserIds),
-              isNotNull(users.deletedAt),
-            ),
-          );
-        const deletedUserIds = new Set(deletedRows.map((r) => r.id));
-        const liveInvitableUserIds = invitableUserIds.filter(
-          (id) => !deletedUserIds.has(id),
-        );
-        skipped.push(...deletedUserIds);
-
-        if (liveInvitableUserIds.length > 0) {
-          // Verify each userId is a mutual of the inviter (shares at least one trip)
-          const mutualCheckResult = await tx.execute<{
-            user_id: string;
-          }>(sql`
+        // Verify each userId is a mutual of the inviter (shares at least one trip).
+        // This runs over every submitted id, BEFORE the block and deleted
+        // guards below, because NotAMutualError is the one answer a non-mutual
+        // gets: an id moved out of this check by a block or by a deletion
+        // would make "there is a block between us" or "that account is gone"
+        // readable off the response, which is the leak the guards exist to
+        // prevent. A batch that mixes a mutual with a non-mutual refuses as a
+        // whole, which is the pre-existing behaviour for any bad id.
+        const mutualCheckResult = await tx.execute<{
+          user_id: string;
+        }>(sql`
             SELECT m2.user_id
             FROM members m1
             JOIN members m2 ON m1.trip_id = m2.trip_id AND m1.user_id != m2.user_id
             WHERE m1.user_id = ${userId}
               AND m2.user_id IN (${sql.join(
-                liveInvitableUserIds.map((id) => sql`${id}`),
+                userIds.map((id) => sql`${id}`),
                 sql`, `,
               )})
             GROUP BY m2.user_id
           `);
 
-          const verifiedMutualIds = new Set(
-            mutualCheckResult.rows.map((r) => r.user_id),
-          );
+        const verifiedMutualIds = new Set(
+          mutualCheckResult.rows.map((r) => r.user_id),
+        );
 
-          // Reject any non-mutual userIds
-          for (const uid of liveInvitableUserIds) {
-            if (!verifiedMutualIds.has(uid)) {
-              throw new NotAMutualError(
-                `User ${uid} is not a mutual and cannot be invited directly`,
-              );
-            }
+        // Reject any non-mutual userIds
+        for (const uid of userIds) {
+          if (!verifiedMutualIds.has(uid)) {
+            throw new NotAMutualError(
+              `User ${uid} is not a mutual and cannot be invited directly`,
+            );
           }
+        }
 
+        // Every id that reached this point is a mutual, so a block and a
+        // deletion are then refused exactly as an already-invited one is: the
+        // id goes into `skipped`, which is the only answer the caller can
+        // distinguish, and nothing is created for it. Both filters sit above
+        // the inserts below, so the D5 guarantee is unchanged.
+        //
+        // A deleted account is not an invitee, and this guard sits beside the
+        // block one because it fails in the same place for the same reason:
+        // deletion anonymizes the row but keeps its `members` rows (they are
+        // the trip's record of the person), so the verification above passes
+        // it — and the phone number it would be invited by is a
+        // `deleted:<uuid>` tombstone, i.e. an invitation addressed to nobody.
+        // The answer is `skipped`, not a throw: 22001 out of the insert used
+        // to take the whole batch down with it, and a throw for a mutual would
+        // also say more than a skip does. The two refusals are collected into
+        // one list so an id that is both blocked and deleted is reported once.
+        const deletedRows = await tx
+          .select({ id: users.id })
+          .from(users)
+          .where(and(inArray(users.id, userIds), isNotNull(users.deletedAt)));
+        const deletedUserIds = new Set(deletedRows.map((r) => r.id));
+
+        const refusedUserIds = userIds.filter(
+          (id) => blocked.has(id) || deletedUserIds.has(id),
+        );
+        skipped.push(...refusedUserIds);
+        const liveInvitableUserIds = userIds.filter(
+          (id) => !blocked.has(id) && !deletedUserIds.has(id),
+        );
+
+        if (liveInvitableUserIds.length > 0) {
           // Check which userIds are already members of this trip
           const existingTripMembers = await tx
             .select({ userId: members.userId })
@@ -659,9 +662,7 @@ export class InvitationService implements IInvitationService {
             const unclaimedMutualUsers = mutualUsers.filter((u) =>
               unclaimedMutualUserIds.includes(u.id),
             );
-            const mutualPhones = unclaimedMutualUsers.map(
-              (u) => u.phoneNumber,
-            );
+            const mutualPhones = unclaimedMutualUsers.map((u) => u.phoneNumber);
             const alreadyInvitedMutualRows = await tx
               .select({ inviteePhone: invitations.inviteePhone })
               .from(invitations)
@@ -703,9 +704,7 @@ export class InvitationService implements IInvitationService {
                     status: "pending" as const,
                   };
                 })
-                .filter(
-                  (v): v is NonNullable<typeof v> => v !== null,
-                );
+                .filter((v): v is NonNullable<typeof v> => v !== null);
 
               if (mutualInviteValues.length > 0) {
                 mutualCreatedInvitations = await tx
@@ -841,11 +840,16 @@ export class InvitationService implements IInvitationService {
    */
   async getInvitationsByTrip(
     tripId: string,
-  ): Promise<(DBInvitation & { inviteeName?: string; invitedGuestName?: string })[]> {
+  ): Promise<
+    (DBInvitation & { inviteeName?: string; invitedGuestName?: string })[]
+  > {
     const results = await this.db
       .select({
         invitation: invitations,
         displayName: users.displayName,
+        // Read so a deleted invitee's number can be withheld below: the
+        // account's row is what says whether the number is still theirs.
+        deletedAt: users.deletedAt,
       })
       .from(invitations)
       .leftJoin(users, eq(invitations.inviteePhone, users.phoneNumber))
@@ -857,9 +861,7 @@ export class InvitationService implements IInvitationService {
         guestDisplayName: members.guestDisplayName,
       })
       .from(members)
-      .where(
-        and(eq(members.tripId, tripId), sql`${members.userId} IS NULL`),
-      );
+      .where(and(eq(members.tripId, tripId), sql`${members.userId} IS NULL`));
     const guestNameByPhone = new Map<string, string>();
     for (const g of guestRows) {
       if (g.guestPhone !== null && g.guestDisplayName !== null) {
@@ -868,11 +870,29 @@ export class InvitationService implements IInvitationService {
     }
 
     return results.map((r) => {
+      // Whose number this is decides whether the payload may carry it, through
+      // the same helper the roster and the trip detail use. The reader is
+      // organizer-only (its controller refuses a non-organizer), so the
+      // sharing rule always passes here and the deletion rule is the one that
+      // bites: the number a deleted invitee was invited by is released, and
+      // `invitee_phone` — a copy of `users.phone_number` — carries the
+      // `deleted:<uuid>` marker that says so. The row keeps its place, because
+      // it is the trip's record that an invitation went out and the organizer
+      // revokes it by id, with the number withheld rather than the field
+      // dropped (the response schema requires it).
+      const inviteePhone = phoneForViewer(
+        {
+          phoneNumber: r.invitation.inviteePhone,
+          deletedAt: r.deletedAt,
+        },
+        { isOrg: true },
+      );
       const entry: DBInvitation & {
         inviteeName?: string;
         invitedGuestName?: string;
       } = {
         ...r.invitation,
+        inviteePhone: inviteePhone ?? WITHHELD_PHONE,
       };
       if (r.displayName) {
         entry.inviteeName = r.displayName;
@@ -1298,16 +1318,22 @@ export class InvitationService implements IInvitationService {
     // guest is returned, whatever their status. Invitations stay
     // organizer-only, gated separately at the invitations route.
     return visible.map((r) => {
-      // A soft-deleted account has no phone number to show. `users.phone_number`
-      // is the account, so deletion cannot blank it — it becomes a
-      // `deleted:<uuid>` tombstone, an internal marker for a number that was
-      // released, not a number anybody should read. The row keeps its place in
-      // the roster (it is the trip's record of the person); the field is simply
-      // absent, which is what the client already renders as no number line.
-      const phoneNumber = r.deletedAt === null ? r.phoneNumber : null;
-      // Organizers see every number and a member sees the ones shared with
-      // them, but a deleted account's number is neither.
-      const phoneIsVisible = (isOrg || r.sharePhone) && phoneNumber !== null;
+      // A soft-deleted account has no phone number to show, and a member has no
+      // claim on one that is not shared with them: both rules are the
+      // helper's, so a reader that carries a number routes through it rather
+      // than remembering them. `null` is rendered as the absent field the
+      // client already draws as no number line.
+      const phoneNumber = phoneForViewer(
+        { phoneNumber: r.phoneNumber, deletedAt: r.deletedAt },
+        { isOrg, sharePhone: r.sharePhone },
+      );
+      // The guest number is the organizer's own entry, so the sharing rule
+      // does not apply to it — but it still goes through the helper, because a
+      // released number's marker is not a number whichever column holds it.
+      const guestPhone = phoneForViewer(
+        { phoneNumber: r.guestPhone, deletedAt: null },
+        { isOrg },
+      );
 
       return {
         id: r.id,
@@ -1315,9 +1341,9 @@ export class InvitationService implements IInvitationService {
         displayName: r.displayName,
         profilePhotoUrl: r.profilePhotoUrl,
         handles: r.handles ?? null,
-        ...(phoneIsVisible ? { phoneNumber } : {}),
-        ...(isOrg && r.userId === null && r.guestPhone
-          ? { guestPhone: r.guestPhone }
+        ...(phoneNumber !== null ? { phoneNumber } : {}),
+        ...(isOrg && r.userId === null && guestPhone !== null
+          ? { guestPhone }
           : {}),
         status: r.status,
         isOrganizer: r.isOrganizer,
@@ -1522,8 +1548,7 @@ export class InvitationService implements IInvitationService {
       // member AND no guest row was claimed (invitation-only trips).
       const newMemberTrips = pendingInvitations.filter(
         (inv) =>
-          !existingTripIds.has(inv.tripId) &&
-          !claimedTripIds.has(inv.tripId),
+          !existingTripIds.has(inv.tripId) && !claimedTripIds.has(inv.tripId),
       );
 
       if (newMemberTrips.length > 0) {
@@ -1595,12 +1620,17 @@ export class InvitationService implements IInvitationService {
       return null;
     }
 
-    // Mask phone: show last 4 digits only (e.g. "+1555****890")
-    const phone = row.inviteePhone;
+    // Mask phone: show last 4 digits only (e.g. "+1555****890"). A released
+    // number's marker is not a number and its tail is not one either, so there
+    // is nothing here to mask: the field is withheld rather than sliced. The
+    // freeze below then passes it through unchanged, since it is shorter than
+    // the slice's threshold.
+    const phone = isPhoneTombstone(row.inviteePhone)
+      ? WITHHELD_PHONE
+      : row.inviteePhone;
     const maskedPhone =
       phone.length > 4
-        ? phone.slice(0, phone.length - 4).replace(/\d/g, "*") +
-          phone.slice(-4)
+        ? phone.slice(0, phone.length - 4).replace(/\d/g, "*") + phone.slice(-4)
         : phone;
 
     return {

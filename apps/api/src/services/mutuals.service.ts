@@ -83,10 +83,18 @@ export class MutualsService implements IMutualsService {
     // u.deleted_at IS NULL: a deleted account is not a tripmate. Its members
     // rows survive deletion on purpose (they are the trip's record of the
     // person), so the self-join still finds it — the join is not the filter.
+    // The block predicate is the same rule from the other direction: a block is
+    // symmetric, so the counterpart is not a tripmate either. Listing them
+    // would put somebody in front of the inviter that the invitation door then
+    // refuses in silence, and the block's own contract says the two do not see
+    // each other. It is a SQL predicate rather than `blockedCounterpartIds`
+    // because this query is raw SQL and the helper answers with a `Set`; the
+    // two ask the relation the same way.
     const whereConditions: ReturnType<typeof sql>[] = [
       sql`m1.user_id = ${userId}`,
       sql`m2.user_id IS NOT NULL`,
       sql`u.deleted_at IS NULL`,
+      sql`NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = ${userId} AND b.blocked_id = u.id) OR (b.blocker_id = u.id AND b.blocked_id = ${userId}))`,
     ];
 
     if (tripId) {
@@ -195,10 +203,15 @@ export class MutualsService implements IMutualsService {
     // invitee. Its members rows survive deletion, so nothing else excludes it,
     // and the phone the invitation would carry is a `deleted:<uuid>`
     // tombstone — an invitation to nobody.
+    // The block predicate: this is the picker, and offering a counterpart the
+    // invitation door will skip in silence is worse than in the mutuals list —
+    // the organizer selects them, the call succeeds, and nothing arrives.
+    // Raw SQL for the same reason as above.
     const whereConditions: ReturnType<typeof sql>[] = [
       sql`m1.user_id = ${userId}`,
       sql`m2.user_id IS NOT NULL`,
       sql`u.deleted_at IS NULL`,
+      sql`NOT EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id = ${userId} AND b.blocked_id = u.id) OR (b.blocker_id = u.id AND b.blocked_id = ${userId}))`,
       // Exclude users already in the target trip
       sql`NOT EXISTS (SELECT 1 FROM members m2_excl WHERE m2_excl.trip_id = ${tripId} AND m2_excl.user_id = u.id)`,
     ];

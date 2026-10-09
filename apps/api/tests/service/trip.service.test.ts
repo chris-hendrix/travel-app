@@ -6,6 +6,7 @@ import {
   users,
   events,
   weatherCache,
+  userBlocks,
   type User,
 } from "@/db/schema/index.js";
 import { eq, and } from "drizzle-orm";
@@ -285,6 +286,49 @@ describe("trip.service", () => {
         .from(trips)
         .where(eq(trips.createdBy, testUserId));
       expect(allTrips).toHaveLength(0);
+    });
+
+    it("should refuse a co-organizer whose owner is blocked, with the answer an unknown number gets", async () => {
+      // A co-organizer is inserted as a `going` organizer member, so this door
+      // would put a blocked pair on the same trip — the act the invitation
+      // door refuses in silence and the guest door refuses as a taken phone.
+      // The answer is the one an unregistered number already gets, because the
+      // organizer may be the side the block was written against.
+      await db.insert(userBlocks).values({
+        blockerId: testUserId,
+        blockedId: coOrganizerUserId,
+      });
+
+      const tripData: CreateTripInput = {
+        name: "Blocked Co-Organizer Trip",
+        destination: "Naples",
+        timezone: "Europe/Rome",
+        allowMembersToAddEvents: true,
+        coOrganizerPhones: [coOrganizerPhone],
+      };
+
+      await expect(
+        tripService.createTrip(testUserId, tripData),
+      ).rejects.toThrow(`Co-organizer not found: ${coOrganizerPhone}`);
+
+      // The refusal is a refusal, not a partial write: no trip row and no
+      // member row for the blocked number.
+      const blockedTrip = await db
+        .select()
+        .from(trips)
+        .where(
+          and(
+            eq(trips.createdBy, testUserId),
+            eq(trips.name, "Blocked Co-Organizer Trip"),
+          ),
+        );
+      expect(blockedTrip).toHaveLength(0);
+
+      const memberRows = await db
+        .select()
+        .from(members)
+        .where(eq(members.userId, coOrganizerUserId));
+      expect(memberRows).toHaveLength(0);
     });
 
     it("should throw error when member limit exceeded (>25)", async () => {
@@ -1676,6 +1720,42 @@ describe("trip.service", () => {
 
         // Should only have the creator
         expect(memberRecords).toHaveLength(1);
+      });
+
+      it("should refuse a blocked phone and still admit an unblocked one in the same door", async () => {
+        // The counterpart wrote the block this time: the guard is symmetric,
+        // so it refuses whichever side asked for the block. The refusal is the
+        // unknown-number one, so nothing in the answer says "block".
+        await db.insert(userBlocks).values({
+          blockerId: newCoOrgUserId1,
+          blockedId: testCreatorId,
+        });
+
+        await expect(
+          tripService.addCoOrganizers(testTripId, testCreatorId, [
+            newCoOrgPhone1,
+          ]),
+        ).rejects.toThrow(`Co-organizer not found: ${newCoOrgPhone1}`);
+
+        const afterRefusal = await db
+          .select()
+          .from(members)
+          .where(eq(members.tripId, testTripId));
+        expect(afterRefusal).toHaveLength(1);
+        expect(afterRefusal[0]!.userId).toBe(testCreatorId);
+
+        // The door itself is unchanged for a number with no block on it.
+        await tripService.addCoOrganizers(testTripId, testCreatorId, [
+          newCoOrgPhone2,
+        ]);
+
+        const afterAdmit = await db
+          .select()
+          .from(members)
+          .where(eq(members.tripId, testTripId));
+        expect(afterAdmit.map((m) => m.userId).sort()).toEqual(
+          [testCreatorId, newCoOrgUserId2].sort(),
+        );
       });
 
       it("should filter out users already members of the trip", async () => {
