@@ -299,10 +299,59 @@ jobs:
 
       # Same rule as the version stamp above, and this one reaches the
       # release notes: the ref name goes through the environment.
+      #
+      # The text is the whole squash body of the tip commit, and App
+      # Distribution caps release notes: past the limit it answers HTTP 400
+      # "Release notes length exceeds maximum character limit" and the deploy
+      # step dies. #236 squashed a 22,705-byte message and took the
+      # distribution down with it, twice, until the tip moved on.
+      #
+      # The cap is undocumented and has moved, so the number below is a
+      # judgement rather than a citation: App Distribution staff quoted 65,536
+      # *bytes* in 2021 and 2023, the failures reported from 2024 onward land
+      # at 16,384 *characters*, and our own data agrees with the smaller one —
+      # 22,705 bytes fails under either reading while an 8,568-byte body
+      # passes, which only makes sense if characters are what is counted. 16000
+      # sits under both.
+      #
+      # Truncating by code point rather than by byte is the other half of this:
+      # the commit messages here carry em dashes, and `head -c` would hand
+      # Firebase a file ending in half a character. Nothing is lost either way
+      # — the marker names the commit the rest is in.
       - name: Generate release notes with branch name
         env:
           REF_NAME: ${{ github.head_ref || github.ref_name }}
-        run: echo "[$(printf '%s' "$REF_NAME" | tr '/' '-')] $(git log -1 --pretty=%B)" > /tmp/release-notes.txt
+        run: |
+          node -e '
+            const { execFileSync } = require("node:child_process");
+            const fs = require("node:fs");
+            const MAX = 16000;
+            const prefix = "[" + process.env.REF_NAME.replace(/\//g, "-") + "] ";
+            const message = execFileSync("git", ["log", "-1", "--pretty=%B"], {
+              encoding: "utf8",
+            }).trim();
+            const full = prefix + message;
+            const notes = [...full];
+            if (notes.length <= MAX) {
+              fs.writeFileSync("/tmp/release-notes.txt", full + "\n");
+            } else {
+              const url =
+                "https://github.com/" +
+                process.env.GITHUB_REPOSITORY +
+                "/commit/" +
+                process.env.GITHUB_SHA;
+              const marker = "\n\n[truncated; the rest is in " + url + "]";
+              const kept = notes.slice(0, MAX - [...marker].length).join("");
+              fs.writeFileSync("/tmp/release-notes.txt", kept + marker + "\n");
+              console.log(
+                "::warning::Release notes truncated from " +
+                  notes.length +
+                  " to " +
+                  MAX +
+                  " characters"
+              );
+            }
+          '
 
       - name: Distribute to Firebase
         run: |
