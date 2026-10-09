@@ -93,7 +93,8 @@
           "color": "#ff6352"
         }
       ],
-      "./plugins/withAndroidSigning.js"
+      "./plugins/withAndroidSigning.js",
+      "./plugins/withIosOpaqueIcon.js"
     ]
   }
 }

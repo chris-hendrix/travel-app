@@ -25,6 +25,14 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.journiful.app/api"
       }
+    },
+    "simulator": {
+      "ios": {
+        "simulator": true
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.journiful.app/api"
+      }
     }
   }
 }

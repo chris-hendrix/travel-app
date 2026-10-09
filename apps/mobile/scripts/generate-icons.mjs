@@ -183,9 +183,14 @@ async function onTile(size, markHeight, { radius = 0 } = {}) {
  * alpha channel at all (ITMS-90717), and every icon this script writes is
  * RGBA by construction — the launcher icon masks its own, and `onNothing` is
  * transparency on purpose. So the iOS icon is flattened onto the tile colour
- * *here*, at the source, rather than patched afterwards: the committed PNG
- * then has nothing in it that a future regeneration could undo, and a colour
- * type of 2 instead of 6 is the file's own statement that it has no alpha.
+ * here, and a colour type of 2 instead of 6 is the file's own statement that
+ * it has no alpha.
+ *
+ * That is the input, not the guarantee. Prebuild does not copy this file into
+ * the appiconset, it re-encodes it through `@expo/image-utils`, whose sharp
+ * branch (`ensureAlpha` then a white plate `dest-over`) hands back an icon that
+ * carries an alpha channel after all. `plugins/withIosOpaqueIcon.js` re-flattens
+ * what prebuild writes.
  */
 async function onOpaqueTile(size, markHeight) {
   return sharp(await onTile(size, markHeight))

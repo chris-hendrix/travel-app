@@ -106,9 +106,17 @@ make ios-submit        # eas submit -p ios --id "$(BUILD_ID)"
 make ios-credentials   # eas credentials -p ios
 ```
 
-There is **no Mac in this loop**. No local `expo prebuild -p ios`, no Xcode, no
-simulator on this box, no `ios/` directory to open: every build is EAS's cloud
-builder, driven from WSL2 exactly like the Android targets are driven locally.
+There is **no Mac in this loop**. No Xcode, no simulator to run the result on,
+no committed `ios/` directory to open: every *build* is EAS's cloud builder,
+driven from WSL2 exactly like the Android targets are driven locally. The
+generated project itself can still be produced here — `npx expo prebuild -p ios
+--no-install` writes the gitignored `ios/` and is how the built appiconset is
+read back (`ios/<project>/Images.xcassets/AppIcon.appiconset/`) without paying
+for anything.
+
+`ios-sim` is the one of the three that needs nothing from Apple: an unsigned
+`.app` for a simulator, which is the pre-payment proof that the prebuild
+configures and the only build whose appiconset can be inspected.
 
 Two binaries, two purposes. The **ad-hoc internal build** (`ios-preview`) is
 what the device pass installs — a real `.ipa` on a real phone, sideloaded,
@@ -128,19 +136,30 @@ update server refuses to hand that update to a binary it was not built for —
 the enforcement is the hash, not a convention. Each shipping profile in
 `eas.json` names a `channel` (`development`, `preview`, `production`); a build
 publishes to its profile's channel, and `__tests__/native-config.test.ts`
-asserts the pairing so a profile cannot ship update-less.
+asserts the pairing so a profile cannot ship update-less. The `simulator`
+profile names no channel on purpose: it is a build of the source it was built
+from, not an update target.
 
 Two rules that trip people up:
 
 - **`ios/` is gitignored and regenerated, never hand-edited.** The same is true
   of the Android `android/` (see the signing plugin above). An iOS build change
   is a change to `app.json`, `eas.json` or a config plugin — never a line in
-  `ios/`, which the next prebuild overwrites.
+  `ios/`, which the next prebuild overwrites. Two plugins carry that weight:
+  `plugins/withAndroidSigning.js` for the Android upload key, and
+  `plugins/withIosOpaqueIcon.js`, which re-flattens the appiconset prebuild
+  writes. Prebuild re-encodes `assets/ios-icon.png` through
+  `@expo/image-utils`, whose sharp branch hands Apple an icon that carries an
+  alpha channel (ITMS-90717); flattening the source is the input, not the
+  guarantee.
 - **`make ios-submit` wants a build ID, never `--latest`.** `--latest` uploads
   the newest iOS build for the platform, which after an ad-hoc pass is the
   ad-hoc `.ipa` — the wrong artifact for a review. Keep the ID `eas build`
   printed and pass it in: `BUILD_ID=<uuid> make ios-submit`. And `--profile` on
-  `submit` names the *submit* profile in `eas.json`, not the build.
+  `submit` names the *submit* profile in `eas.json`, not the build — of which
+  there is none yet, because the block needs `ascAppId` and `appleTeamId` from
+  the App Store Connect record. Until that record exists, `eas submit` asks for
+  them instead of reading them.
 
 ### Production web build
 

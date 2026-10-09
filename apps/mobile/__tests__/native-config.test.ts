@@ -171,7 +171,8 @@ describe("native config: the app.json keys the native build needs", () => {
   //
   // The three *shipping* profiles are asserted by name. The `simulator`
   // profile is an availability gate (it proves the prebuild configures), not
-  // an update target, so it is deliberately exempt.
+  // an update target, so it is deliberately exempt here and asserted on its
+  // own below.
   it("carries the update layer and a channel per shipping profile", () => {
     const { expo } = appJson as unknown as {
       expo: { runtimeVersion?: unknown; updates?: unknown };
@@ -192,6 +193,26 @@ describe("native config: the app.json keys the native build needs", () => {
         expect.any(String),
       );
     }
+  });
+
+  // `make ios-sim` and the iOS section of AGENTS.md both name a `simulator`
+  // profile, and both were naming one that eas.json did not define — a
+  // documented command that could only fail. The profile is the pre-payment
+  // verification loop: an unsigned `.app` that proves the prebuild configures
+  // and is the only place the built appiconset can be read, which is what
+  // `plugins/withIosOpaqueIcon.js` exists for.
+  //
+  // No channel, on purpose: a channel would make it an update target, and this
+  // build is meant to show the source it was built from.
+  it("ships the simulator profile the iOS loop documents", () => {
+    const eas = readJson("eas.json") as {
+      build: Record<
+        string,
+        { ios?: { simulator?: boolean }; channel?: string }
+      >;
+    };
+    expect(eas.build.simulator?.ios?.simulator).toBe(true);
+    expect(eas.build.simulator?.channel).toBeUndefined();
   });
 
   it("gitignores prebuild output and the untracked client secret", () => {
