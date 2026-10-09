@@ -36,7 +36,6 @@
 // @ts-nocheck — plain Node config plugin, no types by design.
 const fs = require("fs");
 const path = require("path");
-const sharp = require("sharp");
 const { withFinalizedMod } = require("expo/config-plugins");
 
 /** Where `withIosIcons` puts the icons, under `ios/<project>/`. */
@@ -81,6 +80,13 @@ function appIconSets(projectRoot) {
  * silently — the failure this plugin exists to prevent.
  */
 async function flattenAppIconAsync(file) {
+  // Loaded here rather than at the top of the file on purpose. A config plugin
+  // is evaluated by every Expo command, including the ones that never touch an
+  // iOS appiconset — `expo export --platform web`, an Android prebuild — and
+  // sharp is a devDependency of this package. A top-level require would turn an
+  // install that pruned devDependencies into a config-load failure on paths
+  // that have nothing to do with this icon.
+  const sharp = require("sharp");
   const { hasAlpha } = await sharp(file).metadata();
   if (!hasAlpha) return { flattened: false, channels: null };
 
