@@ -514,10 +514,13 @@ export function buildDemoWeddingTrip(today: Date = new Date()): DemoTrip {
  * The bachelor fixture: San Diego, three weeks out, opening on a Friday
  * for two nights. Row ids are namespaced `demo-bach-` (D2).
  *
- * It is Dev's, and Marco is the best man organizing it — the same Dev
- * and Marco who appear on the wedding trip, which is the point: the three
- * demos read as one friend group's year rather than as three unrelated
- * samples. The groom is the one member who cannot be the organizer.
+ * It is Dev's, and Marco is the best man organizing it, so the names that
+ * recur across the three demos belong to one friend group — Dev and Marco
+ * are on the wedding trip too. What recurs is the *reading*, not the
+ * account: `member()` derives `userId` from the row id (D2 wants globally
+ * unique rows), so `demo-wed-dev` and `demo-bach-dev` are two people who
+ * happen to share a name rather than one shared row. The groom is the one
+ * member who cannot be the organizer.
  */
 export function buildDemoBachelorTrip(today: Date = new Date()): DemoTrip {
   const startDate = nextWeekday(addDays(toIsoDay(today), 21), 5);

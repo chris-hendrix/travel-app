@@ -113,7 +113,7 @@ export default function TripDetail({
    * card side.
    */
   coverKind = "trip",
-}: { coverKind?: PlaceholderKind } = {}) {
+}: { coverKind?: PlaceholderKind }) {
   return (
     <TripGate label="Getting your trip">
       <TripDetailScreen coverKind={coverKind} />

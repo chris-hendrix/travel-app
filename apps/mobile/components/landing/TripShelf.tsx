@@ -81,15 +81,11 @@ const SHELF_TITLE = "Real trips to look through";
  * The other two cards are a two-up `Grid` on sand, in the page's own
  * container — the repo's one layout above 768px, and the arrangement `Grid`
  * documents. They are cards 2 and 3 in the pin order (`lib/demo.ts`), never
- * a re-sorted set: the bachelor party leads because the deets paragraph
+ * a re-sorted set: the **beach** trip leads because the deets paragraph
  * describes its own detail (four friends landing twenty minutes apart), and
  * a shelf whose order moved with the calendar would make that copy a lie
  * twice a month. They share the heading below the band with card 1 — one
- * name for all three tiles, which is why the wording carries the set. They are cards 2 and 3 in the pin order (`lib/demo.ts`), never
- * a re-sorted set: the bachelor party leads because the deets paragraph
- * describes its own detail (four friends landing twenty minutes apart), and
- * a shelf whose order moved with the calendar would make that copy a lie
- * twice a month.
+ * name for all three tiles, which is why the wording carries the set.
  *
  * Routing stays with the caller. This component is the page's *shape*, and
  * a `Link` buried in it would be the second place that knows where the demo
