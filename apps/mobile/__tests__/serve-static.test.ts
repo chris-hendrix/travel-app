@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { cacheControlFor, resolveFile } from "../scripts/serve-static.mjs";
+import { cacheControlFor, contentTypeFor, resolveFile } from "../scripts/serve-static.mjs";
 
 /** What the export's own hashed filenames carry, in both of its forms. */
 const HASH = "3ff1a2b4c5d6e7f8091a2b3c4d5e6f70";
@@ -121,5 +121,11 @@ describe("cacheControlFor", () => {
     ["assets/splash.png", null],
   ])("%s → %s", (rel, expected) => {
     expect(cacheControlFor(path.join(dir, rel), dir)).toBe(expected);
+  });
+});
+
+describe("contentTypeFor", () => {
+  it("serves sitemap.xml as XML", () => {
+    expect(contentTypeFor("sitemap.xml")).toBe("application/xml; charset=utf-8");
   });
 });

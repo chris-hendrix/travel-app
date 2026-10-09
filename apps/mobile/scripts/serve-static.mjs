@@ -29,6 +29,11 @@ const MIME_TYPES = {
   ".webp": "image/webp",
   ".ico": "image/x-icon",
   ".txt": "text/plain; charset=utf-8",
+  // Sitemap/SEO: this server is the deployed production origin, not just
+  // a local harness, so an unmapped extension falls through to
+  // application/octet-stream with nothing in front of it to correct the
+  // header — crawlers would reject the sitemap outright.
+  ".xml": "application/xml; charset=utf-8",
   ".ttf": "font/ttf",
   ".otf": "font/otf",
   ".woff": "font/woff",
@@ -101,7 +106,7 @@ export function resolveFile(urlPath, distDir) {
   return candidate(...parts, "index.html");
 }
 
-function contentTypeFor(filePath) {
+export function contentTypeFor(filePath) {
   const ext = path.extname(filePath).toLowerCase();
   return MIME_TYPES[ext] ?? "application/octet-stream";
 }

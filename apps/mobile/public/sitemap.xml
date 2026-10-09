@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Only the four public indexable pages: / (canonical), /terms, /privacy, /sms-terms. Everything else is app screens (noindex) or needs query params (/demo renders nothing bare). -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://journiful.app/</loc>
+    <lastmod>2026-10-09</lastmod>
+  </url>
+  <url>
+    <loc>https://journiful.app/terms</loc>
+    <lastmod>2026-10-09</lastmod>
+  </url>
+  <url>
+    <loc>https://journiful.app/privacy</loc>
+    <lastmod>2026-10-09</lastmod>
+  </url>
+  <url>
+    <loc>https://journiful.app/sms-terms</loc>
+    <lastmod>2026-10-09</lastmod>
+  </url>
+</urlset>

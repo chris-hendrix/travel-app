@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+# Private routes (/trips, /login, /invite, /design lab) stay crawlable so their own noindex is read; Disallow here is only defence in depth on the admin list.
+Disallow: /admin/
+Sitemap: https://journiful.app/sitemap.xml
