@@ -5,7 +5,7 @@ import {
   authenticate,
   requireCompleteProfile,
 } from "@/middleware/auth.middleware.js";
-import { checkBanned } from "@/middleware/admin.middleware.js";
+import { checkBanned } from "@/middleware/account-state.middleware.js";
 import {
   defaultRateLimitConfig,
   writeRateLimitConfig,
@@ -74,7 +74,8 @@ export async function notificationRoutes(fastify: FastifyInstance) {
         querystring: globalNotificationQuerySchema,
         response: { 200: notificationListResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: defaultRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     notificationController.listNotifications,
   );
@@ -90,7 +91,8 @@ export async function notificationRoutes(fastify: FastifyInstance) {
       schema: {
         response: { 200: unreadCountResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: defaultRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     notificationController.getUnreadCount,
   );
@@ -111,7 +113,8 @@ export async function notificationRoutes(fastify: FastifyInstance) {
         querystring: notificationQuerySchema,
         response: { 200: notificationListResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: defaultRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     notificationController.listTripNotifications,
   );
@@ -130,7 +133,8 @@ export async function notificationRoutes(fastify: FastifyInstance) {
         params: tripIdParamsSchema,
         response: { 200: unreadCountResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: defaultRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     notificationController.getTripUnreadCount,
   );
@@ -149,7 +153,8 @@ export async function notificationRoutes(fastify: FastifyInstance) {
         params: tripIdParamsSchema,
         response: { 200: notificationPreferencesResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: defaultRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     notificationController.getPreferences,
   );
@@ -170,7 +175,8 @@ export async function notificationRoutes(fastify: FastifyInstance) {
         params: notificationIdParamsSchema,
         response: { 200: successResponseSchema },
       },
-      preHandler: [fastify.rateLimit(writeRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: writeRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     notificationController.markAsRead,
   );
@@ -188,20 +194,20 @@ export async function notificationRoutes(fastify: FastifyInstance) {
       schema: {
         response: { 200: successResponseSchema },
       },
-      preHandler: [fastify.rateLimit(writeRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: writeRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     notificationController.markAllAsRead,
   );
 
-  // --- Write scope (authenticate + requireCompleteProfile + writeRateLimitConfig) ---
+  // --- Write scope (authenticate + requireCompleteProfile) ---
 
   /**
    * Write routes scope
-   * All routes registered here share authenticate + requireCompleteProfile hooks
-   * with stricter rate limiting for write operations
+   * All routes registered here share authenticate + requireCompleteProfile
+   * hooks, and each carries `writeRateLimitConfig` as its own route config
    */
   fastify.register(async (scope) => {
-    scope.addHook("preHandler", scope.rateLimit(writeRateLimitConfig));
     scope.addHook("preHandler", authenticate);
     scope.addHook("preHandler", checkBanned);
     scope.addHook("preHandler", requireCompleteProfile);
@@ -216,6 +222,7 @@ export async function notificationRoutes(fastify: FastifyInstance) {
     }>(
       "/trips/:tripId/notification-preferences",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: tripIdParamsSchema,
           body: notificationPreferencesSchema,

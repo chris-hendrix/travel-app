@@ -201,15 +201,19 @@ describe("Security & Schema Validation", () => {
   });
 
   describe("Rate Limiting", () => {
+    // No `rateLimit` override, so this runs the production configuration
+    // (`global: true`). That matters: under it a limiter registered as a route
+    // preHandler never fires, because the global hook takes the request's one
+    // rate-limit slot at onRequest first. The route-config form this asserts is
+    // therefore the shipping behaviour, not a test-only arrangement.
+    //
     // app.inject() arrives over loopback, so this also proves the loopback
     // allowList in app.ts does not exempt the phone-keyed verify-code limiter.
     it("should rate limit verify-code endpoint", async () => {
       const rateLimitPhone = newPhone();
 
-      // Build app with global rate limit disabled but route-specific enabled
       const rateLimitApp = await buildAppDirect({
         fastify: { logger: false },
-        rateLimit: { global: false },
       });
       await rateLimitApp.ready();
 

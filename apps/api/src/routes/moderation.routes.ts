@@ -4,7 +4,7 @@ import { authenticate } from "@/middleware/auth.middleware.js";
 import {
   checkBanned,
   refuseImpersonation,
-} from "@/middleware/admin.middleware.js";
+} from "@/middleware/account-state.middleware.js";
 import { writeRateLimitConfig } from "@/middleware/rate-limit.middleware.js";
 import {
   blockUserSchema,
@@ -35,7 +35,6 @@ import {
  */
 export async function moderationRoutes(fastify: FastifyInstance) {
   fastify.register(async (scope) => {
-    scope.addHook("preHandler", scope.rateLimit(writeRateLimitConfig));
     scope.addHook("preHandler", authenticate);
     scope.addHook("preHandler", checkBanned);
 
@@ -46,6 +45,7 @@ export async function moderationRoutes(fastify: FastifyInstance) {
     scope.post<{ Body: BlockUserInput }>(
       "/blocks",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           body: blockUserSchema,
           response: { 201: successResponseSchema },
@@ -62,6 +62,7 @@ export async function moderationRoutes(fastify: FastifyInstance) {
     scope.get(
       "/blocks",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           response: { 200: blockedUsersResponseSchema },
         },
@@ -76,6 +77,7 @@ export async function moderationRoutes(fastify: FastifyInstance) {
     scope.delete<{ Params: UnblockUserParams }>(
       "/blocks/:userId",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: unblockUserParamsSchema,
           response: { 200: successResponseSchema },
@@ -92,6 +94,7 @@ export async function moderationRoutes(fastify: FastifyInstance) {
     scope.post<{ Body: ReportUserInput }>(
       "/reports",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           body: reportUserSchema,
           response: { 201: successResponseSchema },

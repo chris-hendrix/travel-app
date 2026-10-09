@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { calendarController } from "@/controllers/calendar.controller.js";
 import { authenticate } from "@/middleware/auth.middleware.js";
-import { checkBanned } from "@/middleware/admin.middleware.js";
+import { checkBanned } from "@/middleware/account-state.middleware.js";
 import { writeRateLimitConfig } from "@/middleware/rate-limit.middleware.js";
 import {
   calendarTokenParamsSchema,
@@ -37,7 +37,6 @@ export async function calendarRoutes(fastify: FastifyInstance) {
 
   // Authenticated calendar management routes
   fastify.register(async (scope) => {
-    scope.addHook("preHandler", scope.rateLimit(writeRateLimitConfig));
     scope.addHook("preHandler", authenticate);
     scope.addHook("preHandler", checkBanned);
 
@@ -45,6 +44,7 @@ export async function calendarRoutes(fastify: FastifyInstance) {
     scope.get(
       "/users/me/calendar",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           response: { 200: calendarStatusResponseSchema },
         },
@@ -56,6 +56,7 @@ export async function calendarRoutes(fastify: FastifyInstance) {
     scope.post(
       "/users/me/calendar",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           response: { 200: calendarEnableResponseSchema },
         },
@@ -67,6 +68,7 @@ export async function calendarRoutes(fastify: FastifyInstance) {
     scope.delete(
       "/users/me/calendar",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           response: { 200: calendarSuccessResponseSchema },
         },
@@ -78,6 +80,7 @@ export async function calendarRoutes(fastify: FastifyInstance) {
     scope.post(
       "/users/me/calendar/regenerate",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           response: { 200: calendarEnableResponseSchema },
         },
@@ -89,6 +92,7 @@ export async function calendarRoutes(fastify: FastifyInstance) {
     scope.put<{ Params: { tripId: string }; Body: CalendarExcludedInput }>(
       "/trips/:tripId/members/me/calendar",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           body: calendarExcludedSchema,
           response: { 200: calendarSuccessResponseSchema },

@@ -5,7 +5,7 @@ import {
   verifyCodeRateLimitConfig,
 } from "@/middleware/rate-limit.middleware.js";
 import { authenticate } from "@/middleware/auth.middleware.js";
-import { checkBanned } from "@/middleware/admin.middleware.js";
+import { checkBanned } from "@/middleware/account-state.middleware.js";
 import {
   requestCodeSchema,
   verifyCodeSchema,
@@ -47,7 +47,7 @@ export async function authRoutes(fastify: FastifyInstance) {
         body: requestCodeSchema,
         response: { 200: requestCodeResponseSchema },
       },
-      preHandler: fastify.rateLimit(smsRateLimitConfig),
+      config: { rateLimit: smsRateLimitConfig },
     },
     authController.requestCode,
   );
@@ -64,7 +64,7 @@ export async function authRoutes(fastify: FastifyInstance) {
         body: verifyCodeSchema,
         response: { 200: verifyCodeResponseSchema },
       },
-      preHandler: fastify.rateLimit(verifyCodeRateLimitConfig),
+      config: { rateLimit: verifyCodeRateLimitConfig },
     },
     authController.verifyCode,
   );

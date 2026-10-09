@@ -5,7 +5,7 @@ import {
   authenticate,
   requireCompleteProfile,
 } from "@/middleware/auth.middleware.js";
-import { checkBanned } from "@/middleware/admin.middleware.js";
+import { checkBanned } from "@/middleware/account-state.middleware.js";
 import { defaultRateLimitConfig } from "@/middleware/rate-limit.middleware.js";
 import {
   getMutualsQuerySchema,
@@ -35,7 +35,8 @@ export async function mutualsRoutes(fastify: FastifyInstance) {
         querystring: getMutualsQuerySchema,
         response: { 200: getMutualsResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: defaultRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     mutualsController.getMutuals,
   );
@@ -51,6 +52,7 @@ export async function mutualsRoutes(fastify: FastifyInstance) {
   }>(
     "/trips/:tripId/mutual-suggestions",
     {
+      config: { rateLimit: defaultRateLimitConfig },
       schema: {
         params: z.object({
           tripId: z.string().uuid({ message: "Invalid trip ID format" }),
@@ -58,12 +60,7 @@ export async function mutualsRoutes(fastify: FastifyInstance) {
         querystring: getMutualSuggestionsQuerySchema,
         response: { 200: getMutualsResponseSchema },
       },
-      preHandler: [
-        fastify.rateLimit(defaultRateLimitConfig),
-        authenticate,
-        checkBanned,
-        requireCompleteProfile,
-      ],
+      preHandler: [authenticate, checkBanned, requireCompleteProfile],
     },
     mutualsController.getMutualSuggestions,
   );

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { requireAdmin, checkBanned } from "@/middleware/admin.middleware.js";
+import { requireAdmin } from "@/middleware/admin.middleware.js";
+import { checkBanned } from "@/middleware/account-state.middleware.js";
 import type { FastifyRequest, FastifyReply } from "fastify";
 
 function mockRequest(overrides?: {
@@ -150,6 +151,9 @@ describe("requireAdmin", () => {
   });
 });
 
+// `checkBanned` moved to account-state.middleware.ts with `refuseImpersonation`,
+// away from the admin-scope guard it shares its mock with; this file keeps both
+// cases so the shared envelope stays asserted in one place.
 describe("checkBanned", () => {
   it("should allow active users to proceed", async () => {
     const request = mockRequest({

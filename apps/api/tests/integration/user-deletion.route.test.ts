@@ -283,15 +283,18 @@ describe("DELETE /api/users/me", () => {
     // shared Postgres one, so burning a quota there is load-sensitive and
     // flakes under a parallel run. This probe registers the same route module
     // against @fastify/rate-limit's default in-memory store, so the quota is
-    // private to this test and the assertion is about the hook being wired,
+    // private to this test and the assertion is about the route being wired,
     // not about the shared store's state.
     //
-    // The write limiter is a preHandler that runs *before* `authenticate`, so
-    // the quota is spent whether or not the request authenticates.
+    // `global: true` is the production setting and it is what makes this a real
+    // assertion: under it a limiter registered as a preHandler never fires, so
+    // this goes red if `DELETE /me` is ever moved back to one. The limiter
+    // itself runs at onRequest, before `authenticate`, so the quota is spent
+    // whether or not the request authenticates.
     const probe = Fastify({ logger: false });
     probe.setValidatorCompiler(validatorCompiler);
     probe.setSerializerCompiler(serializerCompiler);
-    await probe.register(rateLimit, { global: false });
+    await probe.register(rateLimit, { global: true });
     await probe.register(userRoutes, { prefix: "/api/users" });
     await probe.ready();
 
@@ -364,6 +367,12 @@ describe("DELETE /api/users/me", () => {
     });
     expect(first.statusCode).toBe(200);
 
+    const [afterFirst] = await db
+      .select({ deletedAt: users.deletedAt })
+      .from(users)
+      .where(eq(users.id, testUser.id))
+      .limit(1);
+
     const second = await app.inject({
       method: "DELETE",
       url: "/api/users/me",
@@ -372,6 +381,23 @@ describe("DELETE /api/users/me", () => {
     });
     expect(second.statusCode).toBe(200);
     expect(JSON.parse(second.body)).toEqual({ success: true });
+
+    // `deleted_at` is the audit record of when the account went away, and the
+    // repeat really does reach the handler: the token above carries no `jti`
+    // (the next test holds the shape a real client has), so nothing blacklists
+    // it. The anonymization is idempotent down to the instant — `COALESCE`
+    // keeps the first one — because a retry or a second device must not rewrite
+    // the record of when the account was deleted.
+    const [afterSecond] = await db
+      .select({ deletedAt: users.deletedAt })
+      .from(users)
+      .where(eq(users.id, testUser.id))
+      .limit(1);
+
+    expect(afterFirst.deletedAt).toBeInstanceOf(Date);
+    expect(afterSecond.deletedAt?.getTime()).toBe(
+      afterFirst.deletedAt?.getTime(),
+    );
   });
 
   it("should answer 401, not 200, to a repeat on a token that carries a jti", async () => {

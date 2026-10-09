@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { authenticate } from "@/middleware/auth.middleware.js";
-import { checkBanned } from "@/middleware/admin.middleware.js";
+import { checkBanned } from "@/middleware/account-state.middleware.js";
 import { PhotoNotCachedError } from "@/services/photo-cache.service.js";
 import {
   autocompletePlaces,
@@ -52,9 +52,11 @@ const detailsQuerySchema = z.object({
  * `authenticate` already spends one indexed SELECT (`blacklisted_tokens` by
  * `jti`) on every request carrying a `jti`, and `checkBanned` is a primary-key
  * lookup on `users` — the same order of cost, on a table the connection is
- * already touching. `/autocomplete` fires while somebody types, but the
- * request is rate limited to `defaultRateLimitConfig.max` per minute per user
- * before either guard runs, so the ceiling is unchanged. What the query buys
+ * already touching. `/autocomplete` fires while somebody types, but the route
+ * carries `defaultRateLimitConfig` — its `max` requests per minute against the
+ * client IP (the key generator's `request.user` branch is dead this early; see
+ * `rate-limit.middleware.ts`) — before either guard runs, so the ceiling is
+ * unchanged. What the query buys
  * is that the server's Google Places key is not spent on behalf of an account
  * that no longer exists; the alternative — refusing the key later — is not
  * possible, because by then the call has been paid for.
@@ -63,6 +65,7 @@ export async function locationRoutes(fastify: FastifyInstance) {
   fastify.get<{ Querystring: z.infer<typeof autocompleteQuerySchema> }>(
     "/autocomplete",
     {
+      config: { rateLimit: defaultRateLimitConfig },
       schema: {
         querystring: autocompleteQuerySchema,
         response: {
@@ -70,11 +73,7 @@ export async function locationRoutes(fastify: FastifyInstance) {
           503: z.object({ success: z.literal(false), error: z.object({ code: z.string(), message: z.string() }) }),
         },
       },
-      preHandler: [
-        fastify.rateLimit(defaultRateLimitConfig),
-        authenticate,
-        checkBanned,
-      ],
+      preHandler: [authenticate, checkBanned],
     },
     async (request, reply) => {
       const { q, lat, lon, country, sessionToken } = request.query;
@@ -125,15 +124,12 @@ export async function locationRoutes(fastify: FastifyInstance) {
   fastify.get<{ Querystring: z.infer<typeof detailsQuerySchema> }>(
     "/details",
     {
+      config: { rateLimit: defaultRateLimitConfig },
       schema: {
         querystring: detailsQuerySchema,
         response: { 200: locationSuggestionSchema },
       },
-      preHandler: [
-        fastify.rateLimit(defaultRateLimitConfig),
-        authenticate,
-        checkBanned,
-      ],
+      preHandler: [authenticate, checkBanned],
     },
     async (request, reply) => {
       const { placeId, sessionToken } = request.query;
@@ -182,7 +178,7 @@ export async function locationRoutes(fastify: FastifyInstance) {
   fastify.get<{ Params: { photoRef: string }; Querystring: { size?: string } }>(
     "/photos/:photoRef",
     {
-      preHandler: [fastify.rateLimit(photoProxyRateLimitConfig)],
+      config: { rateLimit: photoProxyRateLimitConfig },
     },
     async (request, reply) => {
       const { photoRef } = request.params;

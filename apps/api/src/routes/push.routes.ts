@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { authenticate } from "@/middleware/auth.middleware.js";
-import { checkBanned } from "@/middleware/admin.middleware.js";
+import { checkBanned } from "@/middleware/account-state.middleware.js";
 import {
   defaultRateLimitConfig,
   writeRateLimitConfig,
@@ -30,7 +30,7 @@ export async function pushRoutes(fastify: FastifyInstance) {
       schema: {
         response: { 200: vapidPublicKeyResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig)],
+      config: { rateLimit: defaultRateLimitConfig },
     },
     async () => {
       return { publicKey: fastify.config.VAPID_PUBLIC_KEY };
@@ -47,7 +47,8 @@ export async function pushRoutes(fastify: FastifyInstance) {
       schema: {
         body: pushSubscribeSchema,
       },
-      preHandler: [fastify.rateLimit(writeRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: writeRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     async (request, reply) => {
       const userId = request.user.sub;
@@ -88,7 +89,8 @@ export async function pushRoutes(fastify: FastifyInstance) {
       schema: {
         body: pushUnsubscribeSchema,
       },
-      preHandler: [fastify.rateLimit(writeRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: writeRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     async (request) => {
       const body = request.body;

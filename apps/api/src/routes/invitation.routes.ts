@@ -5,7 +5,7 @@ import {
   authenticate,
   requireCompleteProfile,
 } from "@/middleware/auth.middleware.js";
-import { checkBanned } from "@/middleware/admin.middleware.js";
+import { checkBanned } from "@/middleware/account-state.middleware.js";
 import {
   defaultRateLimitConfig,
   writeRateLimitConfig,
@@ -63,7 +63,7 @@ export async function invitationRoutes(fastify: FastifyInstance) {
       schema: {
         params: invitationIdParamsSchema,
       },
-      preHandler: fastify.rateLimit(defaultRateLimitConfig),
+      config: { rateLimit: defaultRateLimitConfig },
     },
     invitationController.getInvitationPreview,
   );
@@ -79,7 +79,8 @@ export async function invitationRoutes(fastify: FastifyInstance) {
       schema: {
         params: invitationIdParamsSchema,
       },
-      preHandler: [fastify.rateLimit(writeRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: writeRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     invitationController.acceptInvitation,
   );
@@ -96,7 +97,8 @@ export async function invitationRoutes(fastify: FastifyInstance) {
         params: tripIdParamsSchema,
         response: { 200: getInvitationsResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: defaultRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     invitationController.getInvitations,
   );
@@ -113,7 +115,8 @@ export async function invitationRoutes(fastify: FastifyInstance) {
         params: tripIdParamsSchema,
         response: { 200: getMembersResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: defaultRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     invitationController.getMembers,
   );
@@ -130,18 +133,18 @@ export async function invitationRoutes(fastify: FastifyInstance) {
         params: tripIdParamsSchema,
         response: { 200: mySettingsResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: defaultRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     invitationController.getMySettings,
   );
 
   /**
    * Write routes scope
-   * All routes registered here share authenticate + requireCompleteProfile hooks
-   * with stricter rate limiting for write operations
+   * All routes registered here share authenticate + requireCompleteProfile
+   * hooks, and each carries `writeRateLimitConfig` as its own route config
    */
   fastify.register(async (scope) => {
-    scope.addHook("preHandler", scope.rateLimit(writeRateLimitConfig));
     scope.addHook("preHandler", authenticate);
     scope.addHook("preHandler", checkBanned);
     scope.addHook("preHandler", requireCompleteProfile);
@@ -153,6 +156,7 @@ export async function invitationRoutes(fastify: FastifyInstance) {
     scope.post<{ Params: { tripId: string }; Body: CreateInvitationsInput }>(
       "/trips/:tripId/invitations",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: tripIdParamsSchema,
           body: createInvitationsSchema,
@@ -170,6 +174,7 @@ export async function invitationRoutes(fastify: FastifyInstance) {
     scope.delete<{ Params: { id: string } }>(
       "/invitations/:id",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: invitationIdParamsSchema,
           response: { 200: successResponseSchema },
@@ -186,6 +191,7 @@ export async function invitationRoutes(fastify: FastifyInstance) {
     scope.delete<{ Params: { tripId: string; memberId: string } }>(
       "/trips/:tripId/members/:memberId",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: memberRemovalParamsSchema,
           response: { 204: z.null().optional() },
@@ -201,6 +207,7 @@ export async function invitationRoutes(fastify: FastifyInstance) {
     scope.post<{ Params: { tripId: string }; Body: UpdateRsvpInput }>(
       "/trips/:tripId/rsvp",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: tripIdParamsSchema,
           body: updateRsvpSchema,
@@ -217,6 +224,7 @@ export async function invitationRoutes(fastify: FastifyInstance) {
     scope.patch<{ Params: { tripId: string }; Body: UpdateMySettingsInput }>(
       "/trips/:tripId/my-settings",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: tripIdParamsSchema,
           body: updateMySettingsSchema,

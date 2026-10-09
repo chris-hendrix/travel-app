@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { balanceController } from "@/controllers/balance.controller.js";
 import { authenticate } from "@/middleware/auth.middleware.js";
-import { checkBanned } from "@/middleware/admin.middleware.js";
+import { checkBanned } from "@/middleware/account-state.middleware.js";
 import { defaultRateLimitConfig } from "@/middleware/rate-limit.middleware.js";
 import {
   balanceResponseSchema,
@@ -25,7 +25,8 @@ export async function balanceRoutes(fastify: FastifyInstance) {
         params: tripIdParamsSchema,
         response: { 200: balanceResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: defaultRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     balanceController.getTripBalances,
   );
@@ -41,7 +42,8 @@ export async function balanceRoutes(fastify: FastifyInstance) {
         params: tripIdParamsSchema,
         response: { 200: myBalanceResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: defaultRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     balanceController.getMyBalance,
   );

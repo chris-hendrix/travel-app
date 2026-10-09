@@ -2,6 +2,22 @@ import type { RateLimitOptions } from "@fastify/rate-limit";
 import type { FastifyRequest } from "fastify";
 
 /**
+ * Per-route rate limits.
+ *
+ * Routes register these as `config: { rateLimit: <config> }` rather than as a
+ * `preHandler` hook. app.ts registers @fastify/rate-limit with `global: true`,
+ * the production setting (server.ts passes no override), and under it the
+ * global hook runs at `onRequest` and marks the request as already limited
+ * before any `preHandler` can run — so a `fastify.rateLimit(...)` preHandler is
+ * wired but never fires. The `config` form is handled by the plugin's own
+ * `onRoute` hook, so it applies under both settings.
+ *
+ * That hook also decides *when* the limiter runs, and it defaults to
+ * `onRequest` — before the body is parsed. The two body-keyed limiters below
+ * therefore set `hook: "preHandler"`.
+ */
+
+/**
  * Rate limiting configuration for SMS verification code requests.
  *
  * Limits each phone number to 5 verification code requests per hour
@@ -16,6 +32,11 @@ function normalizePhone(raw: string): string {
 export const smsRateLimitConfig: RateLimitOptions = {
   max: 5,
   timeWindow: "1 hour",
+  // The key is the phone in the body, and the body is not parsed yet at the
+  // plugin's default `onRequest` hook: without this the key would silently
+  // fall back to the IP, which is a different control and a shared one behind
+  // carrier NAT.
+  hook: "preHandler",
   keyGenerator: (request: FastifyRequest) => {
     const { phoneNumber } = request.body as { phoneNumber?: string };
     return phoneNumber ? normalizePhone(phoneNumber) : request.ip;
@@ -46,6 +67,7 @@ export const smsRateLimitConfig: RateLimitOptions = {
 export const verifyCodeRateLimitConfig: RateLimitOptions = {
   max: 10,
   timeWindow: "15 minutes",
+  hook: "preHandler", // body-keyed, see smsRateLimitConfig
   keyGenerator: (request: FastifyRequest) => {
     const { phoneNumber } = request.body as { phoneNumber?: string };
     return phoneNumber ? normalizePhone(phoneNumber) : request.ip;
@@ -67,7 +89,15 @@ export const verifyCodeRateLimitConfig: RateLimitOptions = {
 
 /**
  * Default rate limiting for authenticated read endpoints (GET).
- * 100 requests per minute per authenticated user (falls back to IP).
+ * 100 requests per minute, keyed on the authenticated user when one is known
+ * and on the client IP otherwise.
+ *
+ * The user half of that key is not reached today: every route in this repo
+ * registers its limiter ahead of `authenticate`, at a hook that runs before it,
+ * so `request.user` is still null and the key is the client IP. A genuine
+ * per-user ceiling means moving the limiter after `authenticate` — a behaviour
+ * change, not a configuration one. The branch is kept because it is what the
+ * limit is meant to be and it degrades to the IP.
  */
 export const defaultRateLimitConfig: RateLimitOptions = {
   max: 100,
@@ -112,7 +142,8 @@ export const photoProxyRateLimitConfig: RateLimitOptions = {
 
 /**
  * Stricter rate limiting for write endpoints (POST/PUT/DELETE).
- * 30 requests per minute per authenticated user (falls back to IP).
+ * 30 requests per minute, keyed like `defaultRateLimitConfig` above — client
+ * IP in practice, because the limiter runs before `authenticate`.
  */
 export const writeRateLimitConfig: RateLimitOptions = {
   max: 30,

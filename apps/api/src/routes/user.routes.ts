@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { userController } from "@/controllers/user.controller.js";
 import { authenticate } from "@/middleware/auth.middleware.js";
-import { checkBanned } from "@/middleware/admin.middleware.js";
+import { checkBanned } from "@/middleware/account-state.middleware.js";
 import { writeRateLimitConfig } from "@/middleware/rate-limit.middleware.js";
 import {
   updateProfileSchema,
@@ -35,7 +35,6 @@ export async function userRoutes(fastify: FastifyInstance) {
   // All user profile routes require authentication, write rate limiting, and
   // a live (not banned, not deleted) account
   fastify.register(async (scope) => {
-    scope.addHook("preHandler", scope.rateLimit(writeRateLimitConfig));
     scope.addHook("preHandler", authenticate);
     scope.addHook("preHandler", checkBanned);
 
@@ -46,6 +45,7 @@ export async function userRoutes(fastify: FastifyInstance) {
     scope.put<{ Body: UpdateProfileInput }>(
       "/me",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           body: updateProfileSchema,
           response: { 200: userProfileResponseSchema },
@@ -62,6 +62,7 @@ export async function userRoutes(fastify: FastifyInstance) {
     scope.post(
       "/me/photo",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           response: { 200: userProfileResponseSchema },
         },
@@ -76,6 +77,7 @@ export async function userRoutes(fastify: FastifyInstance) {
     scope.delete(
       "/me/photo",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           response: { 200: userProfileResponseSchema },
         },
@@ -94,7 +96,6 @@ export async function userRoutes(fastify: FastifyInstance) {
    * the row instead of dropping it, so the suspension survives in the record.
    */
   fastify.register(async (scope) => {
-    scope.addHook("preHandler", scope.rateLimit(writeRateLimitConfig));
     scope.addHook("preHandler", authenticate);
 
     /**
@@ -107,6 +108,7 @@ export async function userRoutes(fastify: FastifyInstance) {
     scope.delete<{ Body: DeleteAccountInput }>(
       "/me",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           body: deleteAccountSchema,
           response: { 200: deleteAccountResponseSchema },

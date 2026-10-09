@@ -5,7 +5,7 @@ import {
   authenticate,
   requireCompleteProfile,
 } from "@/middleware/auth.middleware.js";
-import { checkBanned } from "@/middleware/admin.middleware.js";
+import { checkBanned } from "@/middleware/account-state.middleware.js";
 import {
   defaultRateLimitConfig,
   writeRateLimitConfig,
@@ -67,7 +67,8 @@ export async function accommodationRoutes(fastify: FastifyInstance) {
         querystring: listAccommodationsQuerySchema,
         response: { 200: accommodationListResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: defaultRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     accommodationController.listAccommodations,
   );
@@ -84,18 +85,18 @@ export async function accommodationRoutes(fastify: FastifyInstance) {
         params: accommodationIdParamsSchema,
         response: { 200: accommodationResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: defaultRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     accommodationController.getAccommodation,
   );
 
   /**
    * Write routes scope
-   * All routes registered here share authenticate + requireCompleteProfile hooks
-   * with stricter rate limiting for write operations
+   * All routes registered here share authenticate + requireCompleteProfile
+   * hooks, and each carries `writeRateLimitConfig` as its own route config
    */
   fastify.register(async (scope) => {
-    scope.addHook("preHandler", scope.rateLimit(writeRateLimitConfig));
     scope.addHook("preHandler", authenticate);
     scope.addHook("preHandler", checkBanned);
     scope.addHook("preHandler", requireCompleteProfile);
@@ -107,6 +108,7 @@ export async function accommodationRoutes(fastify: FastifyInstance) {
     scope.post<{ Params: { tripId: string }; Body: CreateAccommodationInput }>(
       "/trips/:tripId/accommodations",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: tripIdParamsSchema,
           body: createAccommodationSchema,
@@ -124,6 +126,7 @@ export async function accommodationRoutes(fastify: FastifyInstance) {
     scope.put<{ Params: { id: string }; Body: UpdateAccommodationInput }>(
       "/accommodations/:id",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: accommodationIdParamsSchema,
           body: updateAccommodationSchema,
@@ -141,6 +144,7 @@ export async function accommodationRoutes(fastify: FastifyInstance) {
     scope.delete<{ Params: { id: string } }>(
       "/accommodations/:id",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: accommodationIdParamsSchema,
           response: { 200: successResponseSchema },
@@ -157,6 +161,7 @@ export async function accommodationRoutes(fastify: FastifyInstance) {
     scope.post<{ Params: { id: string } }>(
       "/accommodations/:id/restore",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: accommodationIdParamsSchema,
           response: { 200: accommodationResponseSchema },

@@ -5,7 +5,7 @@ import {
   authenticate,
   requireCompleteProfile,
 } from "@/middleware/auth.middleware.js";
-import { checkBanned } from "@/middleware/admin.middleware.js";
+import { checkBanned } from "@/middleware/account-state.middleware.js";
 import {
   defaultRateLimitConfig,
   writeRateLimitConfig,
@@ -53,7 +53,8 @@ export async function paymentRoutes(fastify: FastifyInstance) {
         querystring: listPaymentsQuerySchema,
         response: { 200: paymentListResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: defaultRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     paymentController.listPayments,
   );
@@ -62,7 +63,6 @@ export async function paymentRoutes(fastify: FastifyInstance) {
    * Write routes scope
    */
   fastify.register(async (scope) => {
-    scope.addHook("preHandler", scope.rateLimit(writeRateLimitConfig));
     scope.addHook("preHandler", authenticate);
     scope.addHook("preHandler", checkBanned);
     scope.addHook("preHandler", requireCompleteProfile);
@@ -74,6 +74,7 @@ export async function paymentRoutes(fastify: FastifyInstance) {
     scope.post<{ Params: { tripId: string }; Body: CreatePaymentInput }>(
       "/trips/:tripId/payments",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: tripIdParamsSchema,
           body: createPaymentSchema,
@@ -90,6 +91,7 @@ export async function paymentRoutes(fastify: FastifyInstance) {
     scope.put<{ Params: { id: string }; Body: UpdatePaymentInput }>(
       "/payments/:id",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: paymentIdParamsSchema,
           body: updatePaymentSchema,
@@ -106,6 +108,7 @@ export async function paymentRoutes(fastify: FastifyInstance) {
     scope.delete<{ Params: { id: string } }>(
       "/payments/:id",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: paymentIdParamsSchema,
           response: { 200: successResponseSchema },
@@ -121,6 +124,7 @@ export async function paymentRoutes(fastify: FastifyInstance) {
     scope.post<{ Params: { id: string } }>(
       "/payments/:id/restore",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: paymentIdParamsSchema,
           response: { 200: paymentResponseSchema },

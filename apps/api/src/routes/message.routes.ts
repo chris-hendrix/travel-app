@@ -5,7 +5,7 @@ import {
   authenticate,
   requireCompleteProfile,
 } from "@/middleware/auth.middleware.js";
-import { checkBanned } from "@/middleware/admin.middleware.js";
+import { checkBanned } from "@/middleware/account-state.middleware.js";
 import {
   defaultRateLimitConfig,
   writeRateLimitConfig,
@@ -77,7 +77,8 @@ export async function messageRoutes(fastify: FastifyInstance) {
         querystring: paginationQuerySchema,
         response: { 200: messageListResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: defaultRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     messageController.listMessages,
   );
@@ -96,7 +97,8 @@ export async function messageRoutes(fastify: FastifyInstance) {
         params: tripIdParamsSchema,
         response: { 200: messageCountResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: defaultRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     messageController.getMessageCount,
   );
@@ -115,18 +117,18 @@ export async function messageRoutes(fastify: FastifyInstance) {
         params: tripIdParamsSchema,
         response: { 200: latestMessageResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: defaultRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     messageController.getLatestMessage,
   );
 
   /**
    * Write routes scope
-   * All routes registered here share authenticate + requireCompleteProfile hooks
-   * with stricter rate limiting for write operations
+   * All routes registered here share authenticate + requireCompleteProfile
+   * hooks, and each carries `writeRateLimitConfig` as its own route config
    */
   fastify.register(async (scope) => {
-    scope.addHook("preHandler", scope.rateLimit(writeRateLimitConfig));
     scope.addHook("preHandler", authenticate);
     scope.addHook("preHandler", checkBanned);
     scope.addHook("preHandler", requireCompleteProfile);
@@ -138,6 +140,7 @@ export async function messageRoutes(fastify: FastifyInstance) {
     scope.post<{ Params: { tripId: string }; Body: CreateMessageInput }>(
       "/trips/:tripId/messages",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: tripIdParamsSchema,
           body: createMessageSchema,
@@ -157,6 +160,7 @@ export async function messageRoutes(fastify: FastifyInstance) {
     }>(
       "/trips/:tripId/messages/:messageId",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: messageParamsSchema,
           body: updateMessageSchema,
@@ -173,6 +177,7 @@ export async function messageRoutes(fastify: FastifyInstance) {
     scope.delete<{ Params: { tripId: string; messageId: string } }>(
       "/trips/:tripId/messages/:messageId",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: messageParamsSchema,
           response: { 200: successResponseSchema },
@@ -191,6 +196,7 @@ export async function messageRoutes(fastify: FastifyInstance) {
     }>(
       "/trips/:tripId/messages/:messageId/pin",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: messageParamsSchema,
           body: pinMessageSchema,
@@ -210,6 +216,7 @@ export async function messageRoutes(fastify: FastifyInstance) {
     }>(
       "/trips/:tripId/messages/:messageId/reactions",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: messageParamsSchema,
           body: toggleReactionSchema,
@@ -226,6 +233,7 @@ export async function messageRoutes(fastify: FastifyInstance) {
     scope.post<{ Params: { tripId: string; memberId: string } }>(
       "/trips/:tripId/members/:memberId/mute",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: muteParamsSchema,
           response: { 200: successResponseSchema },
@@ -241,6 +249,7 @@ export async function messageRoutes(fastify: FastifyInstance) {
     scope.delete<{ Params: { tripId: string; memberId: string } }>(
       "/trips/:tripId/members/:memberId/mute",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: muteParamsSchema,
           response: { 200: successResponseSchema },
