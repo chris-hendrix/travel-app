@@ -1,0 +1,3 @@
+ALTER TABLE "push_subscriptions" ADD CONSTRAINT "push_subscriptions_provider_check" CHECK ("push_subscriptions"."provider" IN ('vapid', 'fcm', 'apns'));--> statement-breakpoint
+ALTER TABLE "user_reports" ADD CONSTRAINT "user_reports_reason_check" CHECK ("user_reports"."reason" IN ('spam', 'harassment', 'impersonation', 'other'));--> statement-breakpoint
+ALTER TABLE "user_reports" ADD CONSTRAINT "user_reports_status_check" CHECK ("user_reports"."status" IN ('open', 'reviewed', 'actioned', 'dismissed'));

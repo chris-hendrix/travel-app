@@ -13,6 +13,20 @@ export function unescapePem(value: string): string {
   return value.includes("\\n") ? value.replace(/\\n/g, "\n") : value;
 }
 
+/**
+ * The E.164 form of an App Review allowlist entry, or `null` when the entry
+ * cannot be one. The allowlist is compared as an exact string by the validator
+ * (`utils/phone.ts`) and by the verification wrapper
+ * (`services/verification.service.ts`), and a human copies the same value into
+ * the review notes — so every entry is normalised once, here at boot. `+1 (415)
+ * 555-2671` pasted into a Railway variable would otherwise be a list that logs
+ * itself as active and matches nothing.
+ */
+export function normaliseReviewPhone(entry: string): string | null {
+  const stripped = entry.replace(/[\s\-().]/g, "");
+  return /^\+[1-9]\d{7,14}$/.test(stripped) ? stripped : null;
+}
+
 const envSchema = z.object({
   // Server Configuration
   NODE_ENV: z
@@ -102,7 +116,10 @@ const envSchema = z.object({
   // App Review sign-in allowlist: comma-separated phone numbers that can
   // complete sign-in with the fixed code and no Twilio call. Unlike
   // ENABLE_FIXED_VERIFICATION_CODE this is safe in production — it only
-  // affects the numbers named here.
+  // affects the numbers named here. Entries are normalised to E.164, and an
+  // entry that is not one refuses the process rather than sitting in the list
+  // unmatched: a formatted number is an allowlist that is silently inert, and
+  // the operator only finds out when App Review cannot sign in.
   REVIEW_PHONES: z
     .string()
     .default("")
@@ -111,7 +128,12 @@ const envSchema = z.object({
         .split(",")
         .map((p) => p.trim())
         .filter((p) => p.length > 0),
-    ),
+    )
+    .refine(
+      (phones) => phones.every((p) => normaliseReviewPhone(p) !== null),
+      "REVIEW_PHONES entries must be E.164 numbers (e.g. +14155552671)",
+    )
+    .transform((phones) => phones.map((p) => normaliseReviewPhone(p) ?? p)),
 
   // Logging
   LOG_LEVEL: z

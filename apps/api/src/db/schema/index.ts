@@ -16,6 +16,7 @@ import {
   jsonb,
   integer,
   doublePrecision,
+  check,
 } from "drizzle-orm/pg-core";
 import type {
   LinkItem,
@@ -742,7 +743,9 @@ export const pushSubscriptions = pgTable(
     token: text("token"),
     platform: text("platform", { enum: ["ios", "android", "web"] }),
     // "apns" is the iOS device-token provider. The column is `text`, so this
-    // widening is type-only and needs no migration.
+    // widening is type-only and needs no migration. A `CHECK` in the table's
+    // constraints is what makes the vocabulary real in the database, since
+    // Drizzle's enum here is a TypeScript-level one.
     provider: text("provider", { enum: ["vapid", "fcm", "apns"] })
       .notNull()
       .default("vapid"),
@@ -751,7 +754,13 @@ export const pushSubscriptions = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => [index("push_subscriptions_user_id_idx").on(table.userId)],
+  (table) => [
+    index("push_subscriptions_user_id_idx").on(table.userId),
+    check(
+      "push_subscriptions_provider_check",
+      sql`${table.provider} IN ('vapid', 'fcm', 'apns')`,
+    ),
+  ],
 );
 
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
@@ -943,6 +952,18 @@ export const userReports = pgTable(
   (table) => [
     index("user_reports_reported_id_idx").on(table.reportedId),
     index("user_reports_status_idx").on(table.status),
+    // `text({ enum })` is type-only in Drizzle: nothing in the database rejects
+    // a fifth reason or a status outside the four the response serializer
+    // knows, and a row carrying one makes `userReportSchema` fail on read. The
+    // CHECK is the database half of the vocabulary.
+    check(
+      "user_reports_reason_check",
+      sql`${table.reason} IN ('spam', 'harassment', 'impersonation', 'other')`,
+    ),
+    check(
+      "user_reports_status_check",
+      sql`${table.status} IN ('open', 'reviewed', 'actioned', 'dismissed')`,
+    ),
   ],
 );
 

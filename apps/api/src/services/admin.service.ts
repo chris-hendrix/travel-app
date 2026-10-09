@@ -23,6 +23,14 @@ export interface AdminUserDetail extends AdminUserRow {
   openReports: UserReport[];
 }
 
+/**
+ * How many open reports the admin detail carries. Report creation has no cap
+ * and no uniqueness (any account can file as many as the write limiter allows),
+ * so without a bound this query is the one an admin request can be amplified
+ * into: every row anybody ever filed, serialized onto one screen.
+ */
+const OPEN_REPORTS_LIMIT = 50;
+
 export interface IAdminService {
   listUsers(params: {
     search?: string | undefined;
@@ -165,14 +173,18 @@ export class AdminService implements IAdminService {
         .from(members)
         .where(eq(members.userId, userId)),
       // Only what is still open. A report nobody acts on is noise on the
-      // screen the admin reads, and the list query stays report-free.
+      // screen the admin reads, and the list query stays report-free. The cap
+      // bounds what one detail request can load; fifty is more than a screen
+      // shows, and the count that would let the screen say "and N more" is a
+      // field on `AdminUserDetail` (shared/schemas/admin.ts), not this query.
       this.db
         .select()
         .from(userReports)
         .where(
           and(eq(userReports.reportedId, userId), eq(userReports.status, "open")),
         )
-        .orderBy(desc(userReports.createdAt)),
+        .orderBy(desc(userReports.createdAt))
+        .limit(OPEN_REPORTS_LIMIT),
     ]);
 
     return {

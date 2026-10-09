@@ -135,11 +135,18 @@ merge to `main` is what ships, through Railway.
 | `APNS_TEAM_ID`      | `XYZ123456`                        | The Apple Developer team                                   |
 | `APNS_BUNDLE_ID`    | `com.journiful.app`                | Must match the App ID / provisioning profile              |
 | `APNS_USE_SANDBOX`  | `false` (prod)                     | Sandbox tokens for development builds and the simulator   |
-| `REVIEW_PHONES`     | `+1555…,+1555…`                    | Comma-separated numbers the API may text for App Review  |
+| `REVIEW_PHONES`     | `+1XXXXXXXXXX`                     | Signs in with code `123456`, no SMS; unset after review   |
 
 `aps-environment` is **not** a setting here: it is derived from the provisioning
 profile the build is signed with. Development builds and the simulator get
 sandbox tokens; **ad-hoc, TestFlight and App Store builds get production ones.**
+
+`REVIEW_PHONES` is a deliberate sign-in bypass: a number on the list completes
+sign-in with the fixed code `123456` and is never texted, so anyone who reads
+the list can sign in as that number. Set it to an E.164 number nobody owns
+(formatting is normalised at boot; an entry that is not E.164 stops the API),
+keep that number out of this repository, and unset the variable once review is
+done.
 
 #### Security / Networking
 

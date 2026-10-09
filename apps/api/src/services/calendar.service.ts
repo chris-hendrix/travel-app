@@ -55,7 +55,23 @@ export class CalendarService implements ICalendarService {
     const [user] = await this.db
       .select()
       .from(users)
-      .where(eq(users.calendarToken, token))
+      .where(
+        and(
+          eq(users.calendarToken, token),
+          // The feed is the one surface where the token *is* the credential:
+          // it runs no `authenticate`, so no `checkBanned` either, and a
+          // banned account's URL would otherwise keep serving its trips to
+          // whoever holds the link. Filtering here rather than nulling the
+          // column on ban is the smaller fix of the two and the reversible
+          // one: a ban can be lifted, and an unban puts the subscription back
+          // instead of leaving a dead ICS URL on the user's calendar.
+          eq(users.status, "active"),
+          // Deletion already nulls the token; this is the same condition
+          // stated where it is enforced, so a future writer who forgets the
+          // tombstone still cannot serve the feed.
+          isNull(users.deletedAt),
+        ),
+      )
       .limit(1);
     return user ?? null;
   }

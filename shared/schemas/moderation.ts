@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { stripControlChars } from "../utils/sanitize";
 
 /**
  * Moderation: the bodies and payloads for `/blocks` and `/reports`.
@@ -41,12 +42,15 @@ export type UnblockUserParams = z.infer<typeof unblockUserParamsSchema>;
  * `POST /api/reports`. The trip is optional because a report has to
  * outlive the trip it was made in; the note is the reporter's own words
  * and is capped so the admin screen has something bounded to render.
+ * Control characters are stripped like every other free-text field in the
+ * repo (`message.ts`, `event.ts`, `trip.ts`, `invitation.ts`), because this
+ * is the one free-text field an admin reads on a screen of its own.
  */
 export const reportUserSchema = z.object({
   userId: z.string().uuid(),
   tripId: z.string().uuid().optional(),
   reason: reportReasonSchema,
-  note: z.string().max(500).optional(),
+  note: z.string().max(500).transform(stripControlChars).optional(),
 });
 
 export type ReportUserInput = z.infer<typeof reportUserSchema>;
