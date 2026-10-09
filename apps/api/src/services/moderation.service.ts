@@ -29,7 +29,10 @@ export async function blockedCounterpartIds(
   userId: string,
 ): Promise<Set<string>> {
   const rows = await db
-    .select({ blockerId: userBlocks.blockerId, blockedId: userBlocks.blockedId })
+    .select({
+      blockerId: userBlocks.blockerId,
+      blockedId: userBlocks.blockedId,
+    })
     .from(userBlocks)
     .where(
       or(eq(userBlocks.blockerId, userId), eq(userBlocks.blockedId, userId)),
