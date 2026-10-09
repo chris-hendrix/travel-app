@@ -1,9 +1,6 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { createPublicKey, createVerify, generateKeyPairSync } from "node:crypto";
-import {
-  createApnsTokenProvider,
-  __resetApnsTokenCacheForTests,
-} from "@/lib/apns-token.js";
+import { createApnsTokenProvider } from "@/lib/apns-token.js";
 
 /** A throwaway ES256 key pair standing in for an Apple `.p8` download. */
 function makeKeyPair() {
@@ -19,10 +16,6 @@ function decodeSegment(segment: string): string {
 }
 
 describe("apns provider token", () => {
-  beforeEach(() => {
-    __resetApnsTokenCacheForTests();
-  });
-
   it("builds a three-segment JWT with an ES256 header naming the key id", async () => {
     const { p8 } = makeKeyPair();
     const provider = createApnsTokenProvider({

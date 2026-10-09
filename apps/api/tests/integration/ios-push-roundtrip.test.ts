@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { generateKeyPairSync } from "node:crypto";
+import { generateKeyPairSync, randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { generateUniquePhone } from "../test-utils.js";
 
@@ -64,7 +64,11 @@ describe("iOS push round trip", () => {
     const userId = JSON.parse(me.body).user.id as string;
 
     // --- subscribe an apns device ------------------------------------
-    const deviceToken = "faketoken";
+    // Unique per run, like every other record this suite creates:
+    // `push_subscriptions.endpoint` is globally unique, so a fixed token made a
+    // run that failed before its prune step poison the next one — the upsert
+    // matched the leftover row and this run's user got none.
+    const deviceToken = `faketoken-${randomUUID()}`;
     const subscribe = await app.inject({
       method: "POST",
       url: "/api/push/subscribe",
@@ -85,12 +89,21 @@ describe("iOS push round trip", () => {
     // --- one APNs attempt, answered BadDeviceToken --------------------
     const attempts: { path: string; apnsTopic?: string }[] = [];
     const pushService = app.pushService as unknown as {
-      apnsOpts: { apns: { deps: { request?: unknown } } };
+      apns: { deps: { request?: unknown } };
     };
-    const deps = pushService.apnsOpts.apns.deps;
-    deps.request = async (request: { path: string; headers: Record<string, string> }) => {
-      attempts.push({ path: request.path, apnsTopic: request.headers["apns-topic"] });
-      return { status: 400, body: JSON.stringify({ reason: "BadDeviceToken" }) };
+    const deps = pushService.apns.deps;
+    deps.request = async (request: {
+      path: string;
+      headers: Record<string, string>;
+    }) => {
+      attempts.push({
+        path: request.path,
+        apnsTopic: request.headers["apns-topic"],
+      });
+      return {
+        status: 400,
+        body: JSON.stringify({ reason: "BadDeviceToken" }),
+      };
     };
 
     await app.pushService.sendToUser(userId, {

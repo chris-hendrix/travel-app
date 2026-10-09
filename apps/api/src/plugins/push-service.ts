@@ -41,9 +41,16 @@ export default fp(
       config.VAPID_PRIVATE_KEY,
       config.VAPID_SUBJECT,
       config.FIREBASE_SERVICE_ACCOUNT || undefined,
-      { apns },
+      apns,
     );
     fastify.decorate("pushService", pushService);
+
+    // `server.ts` shuts down through close-with-grace -> app.close(), which is
+    // where the APNs HTTP/2 sessions get closed: they are opened once and kept
+    // for the life of the process, so nothing else would release them.
+    fastify.addHook("onClose", () => {
+      apns.close();
+    });
   },
   {
     name: "push-service",

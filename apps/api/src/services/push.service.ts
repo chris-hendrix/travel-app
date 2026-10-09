@@ -42,7 +42,7 @@ export class PushService implements IPushService {
     vapidPrivateKey: string,
     vapidSubject: string,
     firebaseServiceAccount?: string,
-    private apnsOpts?: { apns: ApnsService },
+    private apns?: ApnsService,
   ) {
     let vapidConfigured = false;
     if (vapidPublicKey && vapidPrivateKey) {
@@ -71,7 +71,7 @@ export class PushService implements IPushService {
     }
 
     this.enabled =
-      vapidConfigured || this.admin !== null || this.apnsOpts?.apns.isEnabled === true;
+      vapidConfigured || this.admin !== null || (this.apns?.isEnabled ?? false);
     if (!this.enabled) {
       this.logger.info(
         "VAPID keys not configured — push notifications disabled",
@@ -219,7 +219,7 @@ export class PushService implements IPushService {
     // Send via APNs
     for (const sub of apnsSubs) {
       try {
-        await this.apnsOpts?.apns.sendToToken(sub.token!, payload);
+        await this.apns?.sendToToken(sub.token!, payload);
       } catch (err: unknown) {
         this.logger.error(
           { err, token: sub.token },

@@ -75,13 +75,7 @@ describe("PushService", () => {
     });
 
     it("should not initialize firebase-admin when service account is not provided", () => {
-      new PushService(
-        mockDb,
-        mockLogger,
-        "",
-        "",
-        "mailto:test@example.com",
-      );
+      new PushService(mockDb, mockLogger, "", "", "mailto:test@example.com");
 
       expect(admin.initializeApp).not.toHaveBeenCalled();
     });
@@ -479,7 +473,7 @@ describe("PushService", () => {
         "vapid-private",
         "mailto:test@example.com",
         serviceAccount,
-        { apns: apnsService as never },
+        apnsService as never,
       );
 
       mockSend.mockClear();

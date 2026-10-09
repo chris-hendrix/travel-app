@@ -69,9 +69,3 @@ export function createApnsTokenProvider(
     },
   };
 }
-
-/** Test-only: drop the module-level memo so providers are independent. */
-export function __resetApnsTokenCacheForTests(): void {
-  // Each provider owns its own cache, so there is nothing global to clear.
-  // Present so tests can reset deterministically as the cache grows.
-}
