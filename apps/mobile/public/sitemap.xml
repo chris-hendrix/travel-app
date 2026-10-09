@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Only the four public indexable pages: / (canonical), /terms, /privacy, /sms-terms. Everything else is app screens (noindex) or needs query params (/demo renders nothing bare). -->
+<!-- Only the four public indexable pages: / (canonical), /terms, /privacy, /sms-terms. Everything else is app screens (noindex) or needs query params (/demo renders nothing bare). The lastmod dates are fixed literals that nothing regenerates: whoever edits one of these documents updates them by hand. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://journiful.app/</loc>

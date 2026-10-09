@@ -1,5 +1,8 @@
 User-agent: *
 Allow: /
-# Private routes (/trips, /login, /invite, /design lab) stay crawlable so their own noindex is read; Disallow here is only defence in depth on the admin list.
+# Two files are disallowed and the private routes (/trips, /login, /invite, /design lab) are not: a Disallow stops the crawl before a page's own noindex is read, so those routes stay crawlable and their own tag is what removes them.
+# /admin/ is disallowed as defence in depth.
+# /_sitemap is disallowed because it is the one document that can never carry a noindex — expo-router emits it without the root layout, so the layout never mounts and no tag is emitted for it — and it hydrates to a list of the export's own route files, which nobody should find in a search result.
 Disallow: /admin/
+Disallow: /_sitemap
 Sitemap: https://journiful.app/sitemap.xml

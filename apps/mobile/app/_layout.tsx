@@ -164,18 +164,12 @@ export default function RootLayout() {
         <ProfileProvider>
           <TripSettingsProvider>
             {/*
-              One Head for the whole app, not one per route.
               `expo-router/head` is react-helmet-async's Helmet gated on
               `useIsFocused`, so the tags of every mounted instance merge
-              into one document head rather than replacing it: a Head per
-              route would be another copy of each of these tags to
-              reconcile, and which of two titles survives would be a
-              question about nesting order rather than about the route.
-              One instance rendering exactly one of each tag is the
-              arrangement where there is nothing to reconcile at all. It
+              into one document head: one Head rendering one of each tag
+              is therefore the arrangement with nothing to reconcile. It
               is the root layout's, so it holds on every route including
-              the ones nobody adds a Head to, and `seoFor` is what decides
-              the content per pathname.
+              the ones nobody adds a Head to.
             */}
             <Head>
               <title>{seo.title}</title>

@@ -168,6 +168,18 @@ test.describe("Auth Journey", () => {
       await expect(
         page.getByText("An itinerary your friends will actually read"),
       ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+      // The export's prerendered bytes carry no <img> at all: expo-image mounts
+      // them on hydration, so attached is the wait that means hydrated. The
+      // landing's images are the bundled stock photos, which are decorative and
+      // so carry an empty alt — the one place that can see it, since the SEO
+      // audit reads the hydrated DOM and no unit test here has a renderer.
+      // Critical flow 1 (auth and route guards): the guard lands the reader here.
+      await expect(page.locator("img").first()).toBeAttached({ timeout: ELEMENT_TIMEOUT });
+      const alts = await page
+        .locator("img")
+        .evaluateAll((els) => els.map((el) => el.getAttribute("alt")));
+      expect(alts.length).toBeGreaterThan(0);
+      expect(alts.every((alt) => alt === "")).toBe(true);
     });
 
     await test.step("existing user skips complete-profile", async () => {

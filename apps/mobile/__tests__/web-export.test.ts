@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { SEO_ORIGIN, SEO_ROUTES } from "@/lib/seo";
+import { resolveFile } from "../scripts/serve-static.mjs";
 
 const mobileDir = path.resolve(__dirname, "..");
 const distDir = path.join(mobileDir, "dist");
@@ -123,6 +124,18 @@ describe.skipIf(!fs.existsSync(distDir))("web export SEO surface", () => {
       expect(fs.existsSync(file), name).toBe(true);
       expect(fs.statSync(file).size, name).toBeGreaterThan(0);
     }
+    // The origin is written in lib/seo.ts, sitemap.xml and robots.txt, and
+    // this is the only one of the three nothing else pins: change SEO_ORIGIN
+    // and robots.txt sends crawlers to the old host with every check green.
+    const robots = fs.readFileSync(path.join(distDir, "robots.txt"), "utf8");
+    expect(robots).toContain(`${SEO_ORIGIN}/sitemap.xml`);
+    // A table key whose screen file was renamed advertises a URL that 404s
+    // while the table, the sitemap and every other assertion keep agreeing.
+    for (const pathname of Object.keys(SEO_ROUTES)) {
+      const resolved = resolveFile(pathname, distDir);
+      expect(resolved, pathname).not.toBeNull();
+      expect(resolved && fs.existsSync(resolved), pathname).toBe(true);
+    }
   });
 
   // sitemap.xml is hand-written and nothing regenerates it, so this comparison
@@ -157,6 +170,54 @@ describe.skipIf(!fs.existsSync(distDir))("web export SEO surface", () => {
           .some((tag) => attrOf(tag, "content") === "noindex, nofollow");
       })
       .map((rel) => `${pathnameFor(rel)} (${rel})`);
+    expect(offenders).toEqual([]);
+  });
+
+  // The other direction of that invariant, and the failure D1 exists to
+  // prevent: a stale noindex left on one of the four pages this work exists
+  // to index takes it out of the index while every gate stays green. The
+  // three assertions are the three ways the bytes can disagree with the
+  // table, and the offenders are collected the same way, so one run names
+  // every offending document instead of stopping at the first.
+  it("leaves every document the table indexes crawlable", () => {
+    const offenders = htmlFilesIn(distDir)
+      .filter((rel) =>
+        Object.prototype.hasOwnProperty.call(SEO_ROUTES, pathnameFor(rel)),
+      )
+      .flatMap((rel) => {
+        const pathname = pathnameFor(rel);
+        const html = fs.readFileSync(path.join(distDir, rel), "utf8");
+        const problems: string[] = [];
+
+        // Absence, not a value: "index, follow" and an empty robots tag alike
+        // leave the crawler reading some other directive, so neither is
+        // absence.
+        const robots = tagsNamed(html, "meta")
+          .filter((tag) => attrOf(tag, "name") === "robots")
+          .map((tag) => attrOf(tag, "content"));
+        if (robots.length > 0)
+          problems.push(`carries robots ${JSON.stringify(robots)}`);
+
+        // Compared after trimming, because a title of spaces is a title tag
+        // that renders as nothing in a result.
+        const title = (
+          html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? ""
+        ).trim();
+        if (title.length === 0) problems.push("has an empty <title>");
+
+        // The canonical is the document's own claim about where it is served,
+        // so a prerender that wrote this file under another pathname says so
+        // here rather than silently differing from the table's key.
+        const canonical = tagsNamed(html, "link")
+          .filter((tag) => attrOf(tag, "rel") === "canonical")
+          .map((tag) => attrOf(tag, "href"));
+        if (!canonical.includes(SEO_ORIGIN + pathname))
+          problems.push(
+            `canonical is ${JSON.stringify(canonical)}, expected ${SEO_ORIGIN + pathname}`,
+          );
+
+        return problems.map((problem) => `${pathname} (${rel}) ${problem}`);
+      });
     expect(offenders).toEqual([]);
   });
 });

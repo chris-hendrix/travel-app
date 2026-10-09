@@ -30,9 +30,11 @@ const FILL = StyleSheet.create({
  * the trip in text, so reading the trip name a second time would be noise
  * for a screen reader, not help. An empty `alt` is how the image says it is
  * decorative, and it is also what makes the Lighthouse image-alt audit pass,
- * which is the measurable half of the same fact. Every call site is
- * decorative today, so `alt` stays optional: requiring it would be twelve
- * chances to type the trip name twice.
+ * which is the measurable half of the same fact. `alt` stays optional for
+ * the caller that has a real photo to describe; every call site today is
+ * decorative, which is why the default is the empty string rather than a
+ * required argument — requiring it would be twelve chances to type the trip
+ * name twice.
  *
  * `alt` is expo-image's own prop (the `accessibilityLabel` alias in its
  * types), so both are set to the same value. The pair exists because
@@ -40,7 +42,9 @@ const FILL = StyleSheet.create({
  * forwards only `accessibilityLabel` to the element a crawler reads, so
  * the documented `alt` alias alone leaves the attribute off the `<img>`.
  * Both are set so the pair can collapse to one when upstream reads it;
- * on native the empty string is how the image declares itself decorative.
+ * on native the same empty string is what the accessibility label
+ * carries, which leaves the image unlabelled rather than named after the
+ * trip beside it.
  *
  * `style={FILL}` rather than `className="h-full w-full"`, and that is not a
  * style preference. On the web export both classes are ignored for a static
