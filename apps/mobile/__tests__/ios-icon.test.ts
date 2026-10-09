@@ -21,7 +21,7 @@ import sharp from "sharp";
  * Prebuild re-encodes it through `@expo/image-utils`, and which branch of that
  * library runs decides the colour type of the appiconset it writes — RGBA when
  * sharp is the one it finds, colour type 2 when it falls back to jimp. The
- * second half of the story is `plugins/withIosOpaqueIcon.js`, registered in
+ * second half of the story is `plugins/withIosOpaqueIcon.cjs`, registered in
  * `app.json` and asserted below; the asset prebuild actually writes is only
  * provable from a real `expo prebuild -p ios`.
  *
@@ -99,7 +99,7 @@ type PluginConfig = {
  * `plugins/*.js` is CommonJS inside a `"type": "module"` package: Node refuses
  * to `require` it (the file is read as ESM, where `require` is not defined),
  * and Expo's resolver evaluates the file as CommonJS instead — which is why
- * `plugins/withAndroidSigning.js` has always worked. Reproducing that here is
+ * `plugins/withAndroidSigning.cjs` has always worked. Reproducing that here is
  * what makes the plugin's transform testable at all.
  */
 function loadPlugin(rel: string): IconPlugin {
@@ -151,10 +151,10 @@ describe("the iOS icon", () => {
     const appJson = JSON.parse(
       fs.readFileSync(path.join(mobileDir, "app.json"), "utf8"),
     ) as { expo: { plugins: unknown[] } };
-    expect(appJson.expo.plugins).toContain("./plugins/withIosOpaqueIcon.js");
+    expect(appJson.expo.plugins).toContain("./plugins/withIosOpaqueIcon.cjs");
     expect(
-      fs.existsSync(path.join(mobileDir, "plugins/withIosOpaqueIcon.js")),
-      "plugins/withIosOpaqueIcon.js exists",
+      fs.existsSync(path.join(mobileDir, "plugins/withIosOpaqueIcon.cjs")),
+      "plugins/withIosOpaqueIcon.cjs exists",
     ).toBe(true);
   });
 
@@ -163,7 +163,7 @@ describe("the iOS icon", () => {
     fs.writeFileSync(file, await sharpBranchIcon(sourceIcon));
     expect(ihdr(file).colourType).toBe(6);
 
-    const plugin = loadPlugin("plugins/withIosOpaqueIcon.js");
+    const plugin = loadPlugin("plugins/withIosOpaqueIcon.cjs");
     expect(await plugin.flattenAppIconAsync(file)).toEqual({
       flattened: true,
       channels: 3,
@@ -185,7 +185,7 @@ describe("the iOS icon", () => {
     const file = path.join(dir, APPICON);
     fs.copyFileSync(sourceIcon, file);
 
-    const plugin = loadPlugin("plugins/withIosOpaqueIcon.js");
+    const plugin = loadPlugin("plugins/withIosOpaqueIcon.cjs");
     expect(await plugin.flattenAppIconAsync(file)).toEqual({
       flattened: false,
       channels: null,
@@ -208,7 +208,7 @@ describe("the iOS icon", () => {
     fs.mkdirSync(set, { recursive: true });
     fs.writeFileSync(path.join(set, APPICON), await sharpBranchIcon(sourceIcon));
 
-    const plugin = loadPlugin("plugins/withIosOpaqueIcon.js");
+    const plugin = loadPlugin("plugins/withIosOpaqueIcon.cjs");
     const config = plugin({ ios: { icon: "./assets/ios-icon.png" }, mods: {} });
     await config.mods.ios?.finalized?.({ modRequest: { projectRoot } });
 

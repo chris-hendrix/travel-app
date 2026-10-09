@@ -139,7 +139,7 @@ CI builds two ABIs rather than four (`-PreactNativeArchitectures=arm64-v8a,x86_6
 **Architecture:**
 - Push is FCM with the raw device token (`getDevicePushTokenAsync()`), registered against the API's existing `POST /push/subscribe {provider:"fcm"}`. No Expo push service and no EAS credentials are involved.
 - Version identity lives in `app.json` (`version`, `android.versionCode`). Capacitor's `-PversionNameOverride` gradle property is gone and the generated gradle never read it; CI rewrites the two `app.json` fields before prebuild instead.
-- Release signing comes from `apps/mobile/plugins/withAndroidSigning.js`, not a hand-edited `android/app/build.gradle`, because `expo prebuild --clean` regenerates that file.
+- Release signing comes from `apps/mobile/plugins/withAndroidSigning.cjs`, not a hand-edited `android/app/build.gradle`, because `expo prebuild --clean` regenerates that file.
 
 ### Mock auth for local testing
 

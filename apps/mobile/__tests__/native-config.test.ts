@@ -200,7 +200,7 @@ describe("native config: the app.json keys the native build needs", () => {
   // documented command that could only fail. The profile is the pre-payment
   // verification loop: an unsigned `.app` that proves the prebuild configures
   // and is the only place the built appiconset can be read, which is what
-  // `plugins/withIosOpaqueIcon.js` exists for.
+  // `plugins/withIosOpaqueIcon.cjs` exists for.
   //
   // No channel, on purpose: a channel would make it an update target, and this
   // build is meant to show the source it was built from.

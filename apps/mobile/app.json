@@ -93,8 +93,18 @@
           "color": "#ff6352"
         }
       ],
-      "./plugins/withAndroidSigning.js",
-      "./plugins/withIosOpaqueIcon.js"
-    ]
+      "./plugins/withAndroidSigning.cjs",
+      "./plugins/withIosOpaqueIcon.cjs"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "9ee19694-d274-4841-98d7-e40fc9d35c9d"
+      }
+    },
+    "owner": "chris-hendrix",
+    "updates": {
+      "url": "https://u.expo.dev/9ee19694-d274-4841-98d7-e40fc9d35c9d"
+    }
   }
 }

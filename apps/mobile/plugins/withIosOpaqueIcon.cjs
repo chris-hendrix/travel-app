@@ -26,7 +26,7 @@
  * first — that is where `withIosIcons` writes the appiconset — and finalized
  * mods run last, so this reads the file prebuild generated instead of racing
  * it. A hand-edit of `ios/` cannot be the fix for the same reason
- * `plugins/withAndroidSigning.js` cannot be one for gradle: `expo prebuild
+ * `plugins/withAndroidSigning.cjs` cannot be one for gradle: `expo prebuild
  * --clean` regenerates the directory.
  *
  * Idempotent: an icon that already has no alpha band is left byte-for-byte

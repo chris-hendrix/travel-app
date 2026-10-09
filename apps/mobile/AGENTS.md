@@ -84,7 +84,7 @@ installable build without a Linux-side SDK. That build carries `arm64-v8a` and
 `x86_64` only, which is the phone and the emulator; the reasons are in the root
 `AGENTS.md`, and `make android-apk` still builds all four.
 
-Signing is a config plugin (`plugins/withAndroidSigning.js`) so it survives `prebuild --clean`: it reads `JOURNIFUL_KEYSTORE` / `JOURNIFUL_KEY_ALIAS` / `JOURNIFUL_STORE_PASSWORD` / `JOURNIFUL_KEY_PASSWORD` from `~/.gradle/gradle.properties`. `android/` is gitignored and regenerated; `google-services.json` is gitignored and copied from the Firebase console (or a maintainer) locally, written in CI from a secret.
+Signing is a config plugin (`plugins/withAndroidSigning.cjs`) so it survives `prebuild --clean`: it reads `JOURNIFUL_KEYSTORE` / `JOURNIFUL_KEY_ALIAS` / `JOURNIFUL_STORE_PASSWORD` / `JOURNIFUL_KEY_PASSWORD` from `~/.gradle/gradle.properties`. `android/` is gitignored and regenerated; `google-services.json` is gitignored and copied from the Firebase console (or a maintainer) locally, written in CI from a secret.
 
 Push notes that are easy to get wrong: the FCM payload's `data.url` is a **web url** and `lib/pushRoutes.ts` maps it (`/trips?id=x` → `/trips/detail?id=x`); `data.url` is the only routing signal, since the API no longer sets a `clickAction`; the notification small icon must stay the monochrome asset or Android renders a white square; registration is best-effort everywhere and must never block a sign-in; the channel id the API sends is `"default"`, which is why `ensureChannel()` creates exactly that one. A device holding the old Capacitor APK must be uninstalled first (same package, different signing key).
 
@@ -138,7 +138,12 @@ the enforcement is the hash, not a convention. Each shipping profile in
 publishes to its profile's channel, and `__tests__/native-config.test.ts`
 asserts the pairing so a profile cannot ship update-less. The `simulator`
 profile names no channel on purpose: it is a build of the source it was built
-from, not an update target.
+from, not an update target. `eas update:configure` re-adds a channel to every
+build profile that lacks one, so running it puts `"channel": "simulator"` back
+and turns that assertion red — remove the line again rather than relaxing the
+test, which is the thing that noticed. The same command is otherwise
+idempotent; `eas init` is the one to watch, because it rewrote `intentFilters`
+and `associatedDomains` as duplicated entries when it linked the project.
 
 Two rules that trip people up:
 
@@ -146,8 +151,8 @@ Two rules that trip people up:
   of the Android `android/` (see the signing plugin above). An iOS build change
   is a change to `app.json`, `eas.json` or a config plugin — never a line in
   `ios/`, which the next prebuild overwrites. Two plugins carry that weight:
-  `plugins/withAndroidSigning.js` for the Android upload key, and
-  `plugins/withIosOpaqueIcon.js`, which re-flattens the appiconset prebuild
+  `plugins/withAndroidSigning.cjs` for the Android upload key, and
+  `plugins/withIosOpaqueIcon.cjs`, which re-flattens the appiconset prebuild
   writes. Prebuild re-encodes `assets/ios-icon.png` through
   `@expo/image-utils`, whose sharp branch hands Apple an icon that carries an
   alpha channel (ITMS-90717); flattening the source is the input, not the
