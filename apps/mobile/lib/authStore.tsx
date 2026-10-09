@@ -19,6 +19,7 @@ import {
 } from "@/lib/queries/auth";
 import { tripsListOptions } from "@/lib/queries/trips";
 import type { Profile } from "@/lib/profile";
+import { DEMO_AUTH_USER } from "@/lib/demo";
 import { toProfile } from "@/lib/mapping";
 import { clearToken, getToken } from "@/lib/session";
 import { setSignedIn } from "@/lib/sessionFlag";
@@ -521,5 +522,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth(): AuthValue {
   const value = useContext(AuthContext);
   if (!value) throw new Error("useAuth must be used inside AuthProvider");
+  // The demo session (see `setDemoAuthUser`): while `/demo` is mounted
+  // the visitor reads as the fixture's traveler, so `viewerOf` finds a
+  // `going` roster row and `canReadRun` opens the real run. Null
+  // everywhere else, where the provider's own session applies untouched.
+  if (demoAuthUser) {
+    return { ...value, status: "signed-in", user: demoAuthUser };
+  }
   return value;
+}
+
+/**
+ * Demo-only session override, set while `/demo` is mounted and cleared
+ * on unmount. The anonymous visitor holds no token, so the provider
+ * restores signed-out with zero network — and the real detail screen
+ * would then lock its run (`canReadRun` needs a `going` viewer). This
+ * paints the fixture's traveler as the session instead of weakening
+ * the auth gate on any real route: production code paths read `user`
+ * exactly as before, and nothing outside `/demo` ever sets this.
+ * Revertible with the demo mount itself.
+ */
+let demoAuthUser: AuthUser | null = null;
+
+export function setDemoAuthUser(user: AuthUser | null): void {
+  demoAuthUser = user;
+}
+
+/** Whether the demo scope is installed (`components/demo/DemoGuard.tsx` reads this, never the context). */
+export function getDemoAuthUser(): AuthUser | null {
+  return demoAuthUser;
+}
+
+/**
+ * Whether an identity is the demo's fixture traveler rather than a real
+ * session. The fixture is viewer identity — the demo's own screens need
+ * it so `viewerOf` finds the `going` roster row — but it must never
+ * count as a session on a real route: every route that redirects or
+ * gates on a session (`/`, `/login`, `/verify`, `/complete-profile`)
+ * ignores it, so arriving at one with the fixture still installed
+ * renders the stranger's page instead of bouncing to `/trips` with no
+ * session. Matched on the fixture id, which no real account carries
+ * (server ids are UUIDs; the fixture's is the `demo-viewer` literal).
+ */
+export function isDemoIdentity(
+  user: AuthUser | null | undefined,
+): boolean {
+  return user?.id === DEMO_AUTH_USER.id;
 }

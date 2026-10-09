@@ -46,6 +46,13 @@ export const DIALOG_ROUTES = [
  */
 export const BARE_HEADER_ROUTES: Record<string, "landing" | "bare"> = {
   "/": "landing",
+  // The demo opens on the trip, through the landing's invitation band —
+  // a stranger's first touch like the landing itself — so it wears the
+  // landing's wordmark-plus-sign-in header, never the signed-in app
+  // chrome. The demo session installs
+  // before the shell paints, but the header is picked by route, not by
+  // session, so there is no boot race here.
+  "/demo": "landing",
   "/login": "bare",
   "/verify": "bare",
   "/complete-profile": "bare",

@@ -137,29 +137,37 @@ test.describe("Auth Journey", () => {
     });
 
     await test.step("cannot access a guarded route after logout", async () => {
-      // app/complete-profile.tsx redirects signed-out readers to /login.
+      // app/complete-profile.tsx redirects signed-out readers home to
+      // / (the landing explains the product; the form does not).
       // (The init-script seed only writes when the key is absent, so the
       // cleared session stays cleared.)
       await page.goto("/complete-profile");
-      await page.waitForURL("**/login", {
-        timeout: NAVIGATION_TIMEOUT,
-      });
-      await expect(page.getByText("Get started")).toBeVisible({
-        timeout: ELEMENT_TIMEOUT,
-      });
+      await page.waitForURL(
+        (url) => url.pathname === "/",
+        { timeout: NAVIGATION_TIMEOUT },
+      );
+      // The landing's identity is its hero's headline, not a button
+      // label: "Get started" is also the /login heading, and the
+      // landing itself now carries two of those buttons.
+      await expect(
+        page.getByText("An itinerary your friends will actually read"),
+      ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
     });
   });
 
   test("auth redirects and guards", async ({ page, request }) => {
-    await test.step("unauthenticated user redirects to login", async () => {
-      // app/complete-profile.tsx: `if (!user) Redirect /login` — the
-      // guarded route with a real redirect today (the trips list is
-      // still mock-backed and carries no gate yet).
+    await test.step("unauthenticated user redirects home", async () => {
+      // app/complete-profile.tsx: `if (!user) Redirect /` — the
+      // guarded route with a real redirect today lands a signed-out
+      // reader on the landing (its hero's headline says what the app
+      // is; the button label does not), not on a form.
       await page.goto("/complete-profile");
-      await page.waitForURL("**/login", { timeout: NAVIGATION_TIMEOUT });
-      await expect(page.getByText("Get started")).toBeVisible({
-        timeout: ELEMENT_TIMEOUT,
+      await page.waitForURL((url) => url.pathname === "/", {
+        timeout: NAVIGATION_TIMEOUT,
       });
+      await expect(
+        page.getByText("An itinerary your friends will actually read"),
+      ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
     });
 
     await test.step("existing user skips complete-profile", async () => {

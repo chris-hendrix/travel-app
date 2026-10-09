@@ -244,6 +244,15 @@ checkRuleForms();
  * component that owns an underlined word is as likely to live in a module
  * as in a screen. The lab is excluded: it *demonstrates* underlines on
  * purpose, so counting it would make every specimen a rule change.
+ *
+ * The sixteenth underlined word was the landing band's invite link (the
+ * fake phone's plain-text URL into `/demo`): a navigation word, and the
+ * lab's own rule says a word that does something is underlined. Both the
+ * phone and that link are gone — the landing now shows three real trip
+ * cards, and a card's whole surface is its affordance, so nothing on it
+ * needs an underline. The constant comes down to 15 with it: the ratchet
+ * exists so a word cannot *gain* a mark quietly, and leaving it at 16 now
+ * would be reserving a slot for a link that no longer exists.
  */
 const UNDERLINE_RATCHET = 15;
 
@@ -659,9 +668,10 @@ checkRuleCensus();
 /**
  * Check 10 — a Column's children do not restate its vertical padding.
  *
- * `Column` carries the app's vertical rhythm, `py-6 md:py-10`. A child
- * inside one that declares its own vertical padding is therefore opening
- * on two of that rhythm where every other block opens on one.
+ * `Column` carries the vertical rhythm — `py-6 md:py-10` for the app, and a
+ * `roomy` variant the landing wears. A child inside one that declares its
+ * own vertical padding is therefore opening on two of that rhythm where
+ * every other block opens on one, whichever variant the page is on.
  *
  * **This check exists because that shipped, six times, and was recorded as
  * deliberate** — the plan's closeout note described the landing's four
@@ -680,10 +690,10 @@ checkRuleCensus();
  * wants the owner's eye rather than this script's judgement.
  */
 const COLUMN_PADDING_ALLOW = new Set([
-  // The landing and the invitation open on a display heading and want more
-  // air than the default rhythm. They express a real intent; `Column`'s
-  // `lead` variant is the mechanism built for it and neither uses it yet.
-  "gap-6 pb-12 pt-4 md:pt-14",
+  // The invitation opens on a display heading and wants more air than the
+  // default rhythm. It expresses a real intent; `Column`'s `lead` variant
+  // is the mechanism built for it and it does not use it yet. (The landing
+  // did the same until its hero took `lead` — its string left with it.)
   "gap-8 py-6 pt-4 md:pt-14",
 ]);
 

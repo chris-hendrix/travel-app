@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { QuietAction } from "@/components/ui/QuietAction";
 import { Screen } from "@/components/ui/Screen";
 import { TextField } from "@/components/ui/TextField";
-import { useAuth } from "@/lib/authStore";
+import { isDemoIdentity, useAuth } from "@/lib/authStore";
 import { initials } from "@/lib/profile";
 import { formatPhoneForDisplay } from "@/lib/phone";
 import { joinFacts } from "@/lib/wording";
@@ -28,6 +28,10 @@ import { POP_FILL, initialsHue } from "@/lib/eventColors";
 export default function CompleteProfile() {
   const router = useRouter();
   const { user, completeProfile, signOut } = useAuth();
+  // The demo fixture is viewer identity, not a session: on this screen
+  // it reads as nobody signed in, so the landing answers rather than a
+  // bounce to `/trips` with no session.
+  const sessionUser = isDemoIdentity(user) ? null : user;
 
   const [name, setName] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -46,9 +50,11 @@ export default function CompleteProfile() {
 
   // No session, nothing to complete. And somebody who is already through
   // belongs past this screen, which is what pressing back arrives as.
+  // A signed-out reader lands on the landing, which explains the
+  // product, rather than on a form.
   useEffect(() => {
-    if (!user) router.replace("/login");
-  }, [user, router]);
+    if (!sessionUser) router.replace("/");
+  }, [sessionUser, router]);
 
   async function save() {
     setSubmitted(true);
@@ -63,8 +69,8 @@ export default function CompleteProfile() {
     }
   }
 
-  if (user?.profileComplete) return <Redirect href="/trips" />;
-  if (!user) return <Redirect href="/login" />;
+  if (sessionUser?.profileComplete) return <Redirect href="/trips" />;
+  if (!sessionUser) return <Redirect href="/" />;
 
   return (
     <Screen>

@@ -209,7 +209,7 @@ export const TOKENS: Token[] = [
     role: "text",
     home: ["css"],
     floor: { on: ["sand", "gravel"], min: 4.5 },
-    note: "The reserved pink band's text tone. Kept in step with bpink below, which is measured but not shipped.",
+    note: "The pink band's own text tone, for when a mark has to sit on a bpink band. Kept in step with bpink above.",
   },
   {
     name: "grey-quiet",
@@ -233,7 +233,14 @@ export const TOKENS: Token[] = [
     hex: "#9adee4",
     role: "band",
     home: ["css"],
-    note: "Cool band. chroma 0.069, 12.3 dE from sand. Ink text on it is 13.94:1.",
+    note: "Cool band. chroma 0.069, 12.3 dE from sand. Ink text on it is 13.94:1. The card's ocean-deep place link on it is 4.02:1 — under the body floor, but bands carry no floor and this composition (landing band only) is accepted as dark-on-pale.",
+  },
+  {
+    name: "bpink",
+    hex: "#ffd1ed",
+    role: "band",
+    home: ["css"],
+    note: "The landing hero's band. chroma 0.063, 9.1 dE from sand, 6.5 dE from lilac — the set's tightest pair, which is why the two are never adjacent (sand separates them). Ink text on it is 15.60:1. It was measured and reserved while no surface wanted a third tone; the hero wanted one, because colouring the top is the only way to open the page without putting a ground boundary through the shelf below it.",
   },
 
   /* Muted fills */
@@ -265,22 +272,18 @@ export const TOKENS: Token[] = [
 
 /**
  * A tone that was measured, is a legitimate candidate, and is deliberately
- * **not shipped**: the band set is two tones (lilac, baltic) and no
- * surface wanted a third. Kept here rather than deleted so the next person
- * to reach for pink starts from the measurement instead of re-deriving it.
+ * **not shipped**. Empty today — `bpink` was the last thing on it, and the
+ * landing's hero shipped it — and kept as a list rather than deleted
+ * because the next person to reach for a pale ground should be able to
+ * record the measurement here instead of re-deriving it.
  *
- * `bpink` passes the rules — chroma 0.063, 9.1 dE from sand — and is still
- * not a band, which is the most useful thing this list records.
+ * "Empty" is asserted in both directions, so it cannot fill silently: a
+ * row added here with no `global.css` entry is a tone nothing renders, and
+ * a row that gains a css entry is a band the palette says is not one. The
+ * band set is `lilac`, `baltic` and `bpink`, and
+ * `__tests__/palette.test.ts` says so by name.
  */
-export const RESERVED: Token[] = [
-  {
-    name: "bpink",
-    hex: "#ffd1ed",
-    role: "band",
-    home: [],
-    note: "Measured and rules-passing, but unassigned. Its 6.5 dE from lilac is the tightest pair in the set, and nothing renders it.",
-  },
-];
+export const RESERVED: Token[] = [];
 
 /** Every token, shipped or reserved. */
 export const ALL_TOKENS: Token[] = [...TOKENS, ...RESERVED];

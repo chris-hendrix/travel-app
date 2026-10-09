@@ -147,7 +147,7 @@ describe("guardDestination", () => {
     ).toBeNull();
   });
 
-  it("sends a signed-out reader to the sign-in screen", () => {
+  it("sends a signed-out reader home to the landing", () => {
     expect(
       guardDestination({ status: "signed-out", isAdmin: false }),
     ).toBe("/");

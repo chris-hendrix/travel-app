@@ -1,26 +1,25 @@
 import { Text, View } from "react-native";
 import { Link, Redirect, useRouter } from "expo-router";
-import { Building2, Calendar, Plane, Users } from "lucide-react-native";
 import { Button } from "@/components/ui/Button";
 import { BootCover } from "@/components/ui/BootCover";
 import { Screen } from "@/components/ui/Screen";
-import { Section } from "@/components/ui/Section";
-import { RuledRows } from "@/components/ui/RuledRows";
 import { LEGAL_ROWS } from "@/lib/legal";
-import { useAuth } from "@/lib/authStore";
+import { isDemoIdentity, useAuth } from "@/lib/authStore";
 import { destinationForRequiresProfile } from "@/lib/queries/auth";
-import { INK } from "@/lib/theme";
 import { Band } from "@/components/ui/Band";
 import { Column } from "@/components/ui/Column";
+import { TripShelf } from "@/components/landing/TripShelf";
+import { demoTripCards } from "@/lib/demo";
 
 /**
  * The landing: what the app is, for someone who has not signed in.
  *
  * The page's shape follows the pitch rather than the feature list: the
- * promise, the three things the trip holds, the mess it replaces, what
- * goes in the trip, how a trip gets there, then the same door again at
- * the bottom. Body copy runs the full column at every width, the same
- * way the rules and the card grid do.
+ * promise on a band of its own, the mess it replaces on the page's sand,
+ * and then the evidence — three real demo trips, the first sharing the
+ * mechanism's band (`components/landing/TripShelf.tsx`, where the shape's
+ * two constraints are written down). Nothing here describes the product
+ * that a reader cannot then go and press: every card opens that trip.
  *
  * Every claim on it is held to what the app does. Three claims are
  * gone: the group does not contribute to the itinerary (the organizer
@@ -30,6 +29,13 @@ import { Column } from "@/components/ui/Column";
  * group gets is the plan in front of them, which is why the invitation
  * and the sign-in are both a text, and why the hero states the category
  * rather than the container.
+ *
+ * The hero's band is `bpink`, the palette's measured-but-unassigned pink:
+ * colouring the top is the one way to open the page without putting a
+ * ground boundary through the shelf, which is what made the first card
+ * read as detached. `lilac` is the invitation's own ground, and the
+ * mechanism's band stays `baltic`, because pink and lilac are the band
+ * set's tightest pair at 6.5 dE.
  *
  * The entry gate is here: somebody already signed in has no business
  * reading the pitch, so they go to the trips list. A first run and a
@@ -56,7 +62,11 @@ export default function Index() {
 
   // Somebody signed in has no business reading the pitch, and somebody
   // signed in without a name belongs on the screen that asks for it.
-  if (status === "signed-in" && user) {
+  // The demo fixture is viewer identity, not a session (`isDemoIdentity`):
+  // arriving here with it still installed — the browser back button out
+  // of `/demo`, whose unmount cleanup runs after this render — reads the
+  // pitch instead of bouncing to `/trips` with no session.
+  if (status === "signed-in" && user && !isDemoIdentity(user)) {
     return (
       <Redirect
         href={destinationForRequiresProfile(!user.profileComplete)}
@@ -69,31 +79,39 @@ export default function Index() {
 
 function Landing() {
   const router = useRouter();
+  // The shelf's cards read the fixtures live, so the countdowns and the
+  // dates move with today — a literal here would go stale, which is what
+  // `lib/demo.ts` derives them from a clock for.
+  const today = new Date();
+  const cards = demoTripCards(today);
 
   return (
     <Screen>
       {/*
-        Three sand columns and two bands, and the bands are *siblings* of the
-        columns rather than children of one — a full-bleed ground cannot exist
-        inside a constrained column, which is the whole reason `Screen` stopped
-        wrapping its children.
-
-        The landing's vertical rhythm was a single `gap-16` inside a single
-        column. It is now composed from the pieces, and that is the visible
-        cost of putting a full-bleed ground in the middle of a page: the
-        `gap-16` cannot span a seam. Sand either side of each band, never
-        band-against-band (`design-lint.mjs` check 5), because two touching
-        grounds say "these are two things" with nothing to say what the
-        division means.
+        Three blocks of sand and two bands, and each band is a *sibling*
+        of the columns rather than a child of one — a full-bleed ground
+        cannot exist inside a constrained column, which is the whole
+        reason `Screen` stopped wrapping its children. Sand between the
+        two bands, never band-against-band (`design-lint.mjs` check 5):
+        the hero's pink and the shelf's baltic are separated by the deets.
       */}
-      <Column>
-        <View className="gap-6 pb-12 pt-4 md:pt-14">
-          <Text className="font-display-black text-display-lg uppercase text-ink md:text-display-lg-wide">
-            Group trips made easy
+      {/* The hero's own ground. It was sand, which left the page opening
+          on the same colour as everything else and made the first card's
+          band the only colour above the fold — so the card read as a
+          detached object rather than as the page's evidence. */}
+      <Band tone="bpink">
+        {/* `lead` is the system's air-above-a-display-opener (it names
+            the landing), and `roomy` is the landing's own rhythm — the
+            page wears it on every block, so the hero's bottom edge is the
+            same seam as the rest. The hand-rolled `pb-12` that used to sit
+            below the note doubled the hero-to-band gap against all the
+            others; one rhythm for the page is what replaced it. */}
+        <Column lead roomy>
+          <Text className="font-display-black text-display-lg uppercase text-ink">
+            An itinerary your friends will actually read.
           </Text>
           <Text className="font-body text-lg leading-snug text-ink">
-            The itinerary, the hotel or Airbnb, and the flights. All in one
-            place.
+            Coordinate your trip without overwhelming your friends.
           </Text>
           {/* No `fullWidth`: the button already fills the width on a phone
               and hugs its edge from md up, which is the behaviour a hero
@@ -101,112 +119,53 @@ function Landing() {
               banner, not a button. */}
           <Button title="Get started" onPress={() => router.push("/login")} />
           {/* The friction answer, directly under the button, where the
-              closing band puts the cost answer under its own. Getting in
+              closing block puts the cost answer under its own. Getting in
               is the question a reader has while their thumb is over this
               one. */}
           <Text className="font-body text-sm text-ink">
-            No passwords. Sign in via text.
+            No passwords. Sign in with a text.
+          </Text>
+        </Column>
+      </Band>
+
+      {/* The agitation paragraph, on the page's own sand. It named what a
+          trip is like without the app rather than listing the three
+          things again, and it is the one paragraph here a reader is meant
+          to feel. It kept a lilac band until the hero took a ground of its
+          own: two pale bands with a paragraph between them read as two
+          sections, and the shelf needs exactly one coloured anchor. */}
+      <Column roomy>
+        <View className="gap-4">
+          <Text className="font-display-semibold text-heading-lg uppercase text-ink">
+            The deets are all over the place.
+          </Text>
+          <Text className="font-body text-base leading-relaxed text-ink">
+            Trying to land at the same time as everyone else? Need the
+            door code, but the person who booked the Airbnb is still in
+            the air?
           </Text>
         </View>
       </Column>
 
-      {/* The first band. It names what the trip is like without the app
-          rather than listing the three things again — agitation, not a
-          mirror — and it is the one paragraph on this page a reader is
-          meant to feel, which is why it is the one that changes ground. */}
-      <Band tone="lilac">
-        <Column>
-          <View className="gap-4">
-            <Text className="font-display-semibold text-heading-lg uppercase text-ink">
-              It starts in the group chat
-            </Text>
-            <Text className="font-body text-base leading-relaxed text-ink">
-              Then the confirmations land in six different inboxes. By the
-              time everyone lands, everyone is digging through their inbox
-              for the same address.
-            </Text>
-          </View>
-        </Column>
-      </Band>
+      {/* The mechanism and its evidence. The shelf owns its own band, so
+          it renders as a direct child of `Screen` — see
+          `components/landing/TripShelf.tsx`. */}
+      <TripShelf
+        cards={cards}
+        today={today}
+        onOpenTrip={(href) => router.push(href)}
+      />
 
-      <Column>
-        <View className="gap-16">
-          {/* Two tables of rows read across, so each row keeps one soft
-              rule between them, from `RuledRows`, and the first row has
-              none: the block's own ink rule above the heading is what
-              closes the top of the table, and a rule under the heading as
-              well would be a second mark for that one boundary. What is
-              gone at the bottom is the closing rule the old local `Section`
-              drew under the last row, which duplicated the next block's
-              opening one. The rows carry no border string of their own at
-              all — `RuledRows` owns that, which is why the class below is
-              only the row's body: an icon and a paragraph, or a number and
-              a paragraph, read across at the hero's own `py-5`. */}
-          <Section title="What goes in the trip">
-            <RuledRows>
-              {WHAT_GOES_IN.map((feature) => (
-                <View key={feature.title} className="flex-row gap-4 py-5">
-                  <feature.icon color={INK} size={24} />
-                  <View className="flex-1 gap-1">
-                    <Text className="font-display-semibold text-heading-lg uppercase text-ink">
-                      {feature.title}
-                    </Text>
-                    <Text className="font-body text-sm leading-snug text-ink">
-                      {feature.description}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </RuledRows>
-          </Section>
-
-          <Section title="How Journiful works">
-            <RuledRows>
-              {STEPS.map((step) => (
-                <View key={step.number} className="flex-row gap-4 py-5">
-                  <Text className="font-display-extrabold text-display-md text-ink">
-                    {step.number}
-                  </Text>
-                  <View className="flex-1 gap-1">
-                    <Text className="font-body-bold text-base text-ink">
-                      {step.title}
-                    </Text>
-                    <Text className="font-body text-sm leading-snug text-ink">
-                      {step.description}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </RuledRows>
-          </Section>
-        </View>
-      </Column>
-
-      {/* The closing band repeats the hero's ask rather than inventing a
-          second one: one goal, one label, twice down the page. The line
-          above it is the outcome rather than the promise, so the hero's
-          "in one place" is not said a second time. The second tone, because
-          the page has two seams and they are two different things. */}
-      <Band tone="baltic">
-        <Column>
-          <View className="gap-6">
-            <Text className="font-body-bold text-heading-md text-ink">
-              Everyone on the trip, from the first text to the last flight
-            </Text>
-            <Button title="Get started" onPress={() => router.push("/login")} />
-            {/* The one trust claim available before there are any users, and
-                the one a reader is most likely to be assuming the opposite
-                of: a new app is assumed to have a subscription in it. The
-                hero's note answers the other question, the effort of getting
-                in, because that is the one at the first button. */}
-            <Text className="font-body text-sm text-ink">
-              Free, with no ads.
-            </Text>
-          </View>
-        </Column>
-      </Band>
-
-      <Column>
+      {/* The close: the legal rows, and nothing else. A trust line
+          ("Free, with no ads.") sat above them through the first pass —
+          moved here when the fake phone that carried it was deleted — and
+          it read as a fourth item in the legal strip: nothing above it
+          raises the question it answers, and the row is a list of
+          documents rather than of claims. A cost claim belongs where a
+          reader is weighing the offer, which on this page is the hero;
+          the deets paragraph and the shelf are not the place for it
+          either, so it is simply gone rather than tidied. */}
+      <Column roomy>
         <View className="flex-row flex-wrap gap-x-6 gap-y-2">
           {LEGAL_ROWS.map((row) => (
             <Link
@@ -222,52 +181,3 @@ function Landing() {
     </Screen>
   );
 }
-
-/**
- * The four things the app is for, in the order they come up while a trip
- * is being planned: the plan, the roof, the travel, and everyone else.
- * Titles are sentence case because the display face uppercases them
- * anyway, and this copy gets reused verbatim where it does not.
- */
-const WHAT_GOES_IN = [
-  {
-    icon: Calendar,
-    title: "One itinerary",
-    description: "The organizer builds it. Everyone reads the same one.",
-  },
-  {
-    icon: Building2,
-    title: "The hotel or Airbnb",
-    description: "The address, the check-in, and the note about the door.",
-  },
-  {
-    icon: Plane,
-    title: "Everyone's travel",
-    description: "Each person adds their flight. The trip shows who lands when.",
-  },
-  {
-    icon: Users,
-    title: "Everyone else",
-    description: "Invited by name or number, and looking at the same trip.",
-  },
-] as const;
-
-const STEPS = [
-  {
-    number: "1",
-    title: "Create the trip",
-    description: "Dates, a destination, and a name.",
-  },
-  {
-    number: "2",
-    title: "Invite your friends",
-    description:
-      "By name or by number. They get a text with a link, and they can see the trip before they sign up.",
-  },
-  {
-    number: "3",
-    title: "Build the plan",
-    description:
-      "The organizer adds the days, the stay, and the events. Everyone else answers and adds their own travel.",
-  },
-] as const;

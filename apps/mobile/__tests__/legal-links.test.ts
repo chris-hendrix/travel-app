@@ -49,13 +49,24 @@ describe("legal copy, as this app renders it", () => {
     for (const href of hrefs) expect(DIALOG_ROUTES).toContain(href);
   });
 
-  it("keeps the landing, the auth flow, and the invitation bare", () => {
+  it("keeps the landing, the auth flow, the invitation, and the demo bare", () => {
     expect(Object.keys(BARE_HEADER_ROUTES)).toEqual([
       "/",
+      "/demo",
       "/login",
       "/verify",
       "/complete-profile",
       "/invite",
     ]);
+  });
+
+  it("gives the demo the landing header: the wordmark plus the sign-in word", () => {
+    // "/demo" opens on the invitation — a stranger's first touch, like
+    // the landing — so it wears the landing header, never the app
+    // chrome. The header is picked by route, not by session, so the demo
+    // session installing before the shell paints is no boot race here.
+    // Order-sensitive: insertion order is the contract.
+    expect(BARE_HEADER_ROUTES["/demo"]).toBe("landing");
+    expect(BARE_HEADER_ROUTES["/"]).toBe("landing");
   });
 });

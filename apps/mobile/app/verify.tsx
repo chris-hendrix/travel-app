@@ -9,7 +9,7 @@ import { TextField } from "@/components/ui/TextField";
 import { formatPhoneForDisplay } from "@/lib/phone";
 import { destinationForRequiresProfile } from "@/lib/queries/auth";
 import { toErrorCopy } from "@/lib/queries/errors";
-import { useAuth } from "@/lib/authStore";
+import { isDemoIdentity, useAuth } from "@/lib/authStore";
 import { Column } from "@/components/ui/Column";
 
 /** Seconds before the code may be asked for again. The API has its own
@@ -31,6 +31,10 @@ const RESEND_COOLDOWN = 30;
 export default function Verify() {
   const router = useRouter();
   const { pendingPhone, requestCode, verifyCode, user } = useAuth();
+  // The demo fixture is viewer identity, not a session: on this screen
+  // it reads as nobody signed in, so the stranger's page renders rather
+  // than a bounce to `/trips` with no session.
+  const sessionUser = isDemoIdentity(user) ? null : user;
 
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -40,10 +44,12 @@ export default function Verify() {
 
   // A code screen with no number behind it is a dead end: a reload, or a
   // deep link, arrives here with nothing to verify. And a reader who is
-  // already through belongs past this screen, not on it.
+  // already through belongs past this screen, not on it. A signed-out
+  // reader lands on the landing, which explains the product, rather
+  // than on a form.
   useEffect(() => {
-    if (!user && !pendingPhone) router.replace("/login");
-  }, [pendingPhone, router, user]);
+    if (!sessionUser && !pendingPhone) router.replace("/");
+  }, [pendingPhone, router, sessionUser]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -120,9 +126,9 @@ export default function Verify() {
     }
   }
 
-  if (user?.profileComplete) return <Redirect href="/trips" />;
-  if (user) return <Redirect href="/complete-profile" />;
-  if (!pendingPhone) return <Redirect href="/login" />;
+  if (sessionUser?.profileComplete) return <Redirect href="/trips" />;
+  if (sessionUser) return <Redirect href="/complete-profile" />;
+  if (!pendingPhone) return <Redirect href="/" />;
 
   return (
     <Screen>
@@ -165,7 +171,7 @@ export default function Verify() {
         <View className="flex-row gap-6 md:self-center">
           <QuietAction
             label="Use a different number"
-            onPress={() => router.replace("/login")}
+            onPress={() => router.replace("/")}
           />
           <QuietAction
             label={cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}

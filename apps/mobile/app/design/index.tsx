@@ -48,6 +48,8 @@ import type { Selection } from "@/lib/calendar";
 import { RSVP_LABEL, type RsvpStatus } from "@/lib/rsvp";
 import { formatDateRange } from "@/lib/dateRange";
 import { TripCard } from "@/components/trip/TripCard";
+import { TripShelf } from "@/components/landing/TripShelf";
+import { demoTripCards } from "@/lib/demo";
 import { TripActions } from "@/components/trip/TripActions";
 import { RunLocked } from "@/components/trip/RunLocked";
 import { InviteCard } from "@/components/trip/InviteCard";
@@ -181,6 +183,7 @@ const COLORS: Array<[name: string, token: string, detail: string, swatch: string
   /* Bands: one at a time, chroma < 0.09, a seam from every ground */
   ["Band \u00b7 lilac", "lilac", said("#E2BFE3", loudness("#E2BFE3"), inkOn("#E2BFE3"), seam("#E2BFE3")), "bg-lilac"],
   ["Band \u00b7 baltic", "baltic", said("#9adee4", loudness("#9adee4"), inkOn("#9adee4"), seam("#9adee4")), "bg-baltic"],
+  ["Band \u00b7 bpink", "bpink", said("#ffd1ed", loudness("#ffd1ed"), inkOn("#ffd1ed"), seam("#ffd1ed")), "bg-bpink"],
   /* Muted fills: desaturated on purpose */
   ["Muted \u00b7 concrete", "concrete", said("#b0ad9b", loudness("#b0ad9b")), "bg-concrete"],
   ["Muted \u00b7 silver", "silver", said("#b3b3b3", loudness("#b3b3b3")), "bg-silver"],
@@ -206,7 +209,8 @@ const COLORS: Array<[name: string, token: string, detail: string, swatch: string
  * ramp paints one size in the browser and another on Android — the
  * measure-vs-paint split this repo has already been bitten by (A18).
  * `display-lg` is the one step with a breakpoint jump, the `md:` one it
- * already had.
+ * already had. The landing hero does not take it: the jump is the step's,
+ * not the hero's.
  */
 const TYPE: Array<{
   step: string;
@@ -231,7 +235,7 @@ const TYPE: Array<{
     className:
       "font-display-black text-[60px] leading-[0.9] tracking-[-0.02em] uppercase md:text-[72px]",
     sample: "Group trips",
-    use: "The landing hero, and nothing else. Two words.",
+    use: "The landing hero, and nothing else: a seven-word sentence.",
   },
   {
     step: "display-md",
@@ -281,7 +285,7 @@ const TYPE: Array<{
     face: "body",
     family: "Space Mono Bold",
     className: "font-body-bold text-[20px] leading-[1.15]",
-    sample: "What goes in the trip",
+    sample: "What you do",
     use: "A subheading — the body face, not the display one.",
   },
   {
@@ -509,8 +513,8 @@ function DesignSystemScreen() {
 
             <Specimen
               name="Screen"
-              contract="children (and `Column` carries `lead?`)"
-              note="The ground for every screen, and nothing else. Navigation containers paint their own background, so a screen must paint its own sand or it renders grey. It used to wrap its children in the constrained column as well; that is `Column`'s job now, and the split is forced by `Band` — a full-bleed tone cannot exist inside a constrained column and the negative-margin workaround is forbidden. Children therefore own their own width, and every screen wraps its content in a `Column`. The vertical rhythm moved with the width rather than staying here: `Column` carries `py-6 md:py-10` and the `lead` variant, and a Column that kept the width and dropped the rhythm would have changed all sixteen call sites — the six `lead` screens would have lost their spacing outright."
+              contract="children (and `Column` carries `lead?` and `roomy?`)"
+              note="The ground for every screen, and nothing else. Navigation containers paint their own background, so a screen must paint its own sand or it renders grey. It used to wrap its children in the constrained column as well; that is `Column`'s job now, and the split is forced by `Band` — a full-bleed tone cannot exist inside a constrained column and the negative-margin workaround is forbidden. Children therefore own their own width, and every screen wraps its content in a `Column`. The vertical rhythm moved with the width rather than staying here: `Column` carries `py-6 md:py-10`, the `lead` variant, and the landing's `roomy`, and a Column that kept the width and dropped the rhythm would have changed all sixteen call sites — the six `lead` screens would have lost their spacing outright. The landing's `roomy` rhythm is also exactly the air the shelf band wants — the card is inset by the same 40/56 a block gets, so the band sits 80px from its neighbours on a phone and 112px on a wide screen, like every other block on that page — and the `flush` variant that dropped that rhythm to zero for the one caller was tried first and read as a band with no padding at all."
             >
               <Screen>
                 <Column>
@@ -524,12 +528,28 @@ function DesignSystemScreen() {
             <Specimen
               name="Section"
               contract="title · rule? · children?"
-              note="A titled block, ruled off from the one above it. The rule sits on top of the block rather than under it, so a stack of them shares its rules instead of doubling them at every boundary. It replaced four local copies that had already drifted apart on gap and heading size. The landing's sections are deliberately not this: they are tables of rows closed by a rule underneath, at the hero's own scale. `rule={false}` is for a block whose boundary is already drawn — the first block inside a `Band`, where the band's own edge is the seam — and it drops the rule *and* its padding, because the air above a banded block belongs to the band. Two marks for one boundary is what the rule book forbids \u2014 one rule per boundary, a stack of blocks shares rules rather than doubling them at every seam. A screen that never needs it is the honest case for leaving this specimen behind."
+              note="A titled block, ruled off from the one above it. The rule sits on top of the block rather than under it, so a stack of them shares its rules instead of doubling them at every boundary. It replaced four local copies that had already drifted apart on gap and heading size. The landing's own sections are deliberately not this: when they were tables of rows they were closed by a rule underneath, at the hero's own scale, and now the shelf's mechanism block is this component with `rule={false}` — on a band the band's edge is the boundary, so it drops the rule *and* its padding. `rule={false}` is for a block whose boundary is already drawn — the first block inside a `Band`, where the band's own edge is the seam — and it drops the rule *and* its padding, because the air above a banded block belongs to the band. Two marks for one boundary is what the rule book forbids \u2014 one rule per boundary, a stack of blocks shares rules rather than doubling them at every seam. A screen that never needs it is the honest case for leaving this specimen behind."
             >
-              <RuledSection title="What goes in the trip">
+              <RuledSection title="What your friends do">
                 <Text className="font-body text-base text-ink">
                   Ruled off from whatever sits above it.
                 </Text>
+              </RuledSection>
+            </Specimen>
+
+            <Specimen
+              name="Section · marker-less row"
+              contract="title · rule? · children?"
+              note="A titled block whose single row carries no icon and no number: one paragraph inside `RuledRows`, read down rather than across. The landing's list of steps was this form — the organizer's, then the friends', each a `Section` with one such row — until the steps moved onto a band, where `rule-soft` measures 2.22:1 against its declared floor of 2.4 and the table rank is not available: they are plain paragraphs in an unruled `Section` now. The row keeps the table's soft rule above it and the block's ink rule above the heading, so a stack of these shares its boundaries instead of doubling them."
+            >
+              <RuledSection title="What you do">
+                <RuledRows>
+                  <View className="py-5">
+                    <Text className="font-body text-sm leading-snug text-ink">
+                      Name the trip. Pick the dates and the place. Send the text.
+                    </Text>
+                  </View>
+                </RuledRows>
               </RuledSection>
             </Specimen>
 
@@ -808,7 +828,7 @@ function DesignSystemScreen() {
             <Specimen
               name="PlaceholderImage"
               contract="kind · fills its parent box"
-              note="What a place looks like when nobody has a photo of it. The fallback says which kind of thing it is, not which place: the nine event types and a trip cover. Stock, not drawn, and no source link, because there is no source."
+              note="What a place looks like when nobody has a photo of it. The fallback says which kind of thing it is, not which place: the nine event types, a trip cover, and the three occasion covers the landing's shelf gives its demo trips so three cards are three photos rather than one repeated. Those three are the one exception — each is chosen for its destination (a Cabo beach, an invitation, a San Diego skyline) — and it stops there: a stock shot of the destination, never a photograph of a named business, because Places photos may not be stored at all. Stock, not drawn, and no source link, because there is no source."
             >
               <View className="flex-row flex-wrap gap-3">
                 {(Object.keys(KINDS) as PlaceholderKind[]).map((kind) => (
@@ -1234,8 +1254,8 @@ function DesignSystemScreen() {
 
             <Specimen
               name="TripCard"
-              contract="trip: { title, startDate, endDate, location, image } · onPress? · today?"
-              note="Upcoming trips carry a countdown on the photo; finished trips say nothing. Locations hug the title. Press one: the tile is the target and the press is its whole affordance, on both surfaces. It used to zoom under a pointer instead, on the web export and only from md up — which meant the tile did nothing at all on the platform the app is for, and a pointer fires a press like a thumb does, so the same scale reaches a mouse and there is one behaviour to keep right rather than two."
+              contract="trip: { title, startDate, endDate, location, image } · onPress? · today? · coverKind?"
+              note="Upcoming trips carry a countdown on the photo; finished trips say nothing. Locations hug the title. Press one: the tile is the target and the press is its whole affordance, on both surfaces. It used to zoom under a pointer instead, on the web export and only from md up — which meant the tile did nothing at all on the platform the app is for, and a pointer fires a press like a thumb does, so the same scale reaches a mouse and there is one behaviour to keep right rather than two. coverKind is which stand-in photo the tile falls back to when the trip has no cover — the generic trip shot unless a caller says otherwise, which the landing's shelf does so its three demo cards are three photos rather than one repeated. A real trip never needs it: its cover comes from image."
             >
               <Grid>
                 {TRIPS.map((trip) => (
@@ -1246,6 +1266,18 @@ function DesignSystemScreen() {
                   />
                 ))}
               </Grid>
+            </Specimen>
+
+            <Specimen
+              name="TripShelf"
+              contract="cards · today · onOpenTrip"
+              note="The landing's whole argument: three real demo trips rather than a description of them. The mechanism row and the first card share one baltic band, in the page's own Column: the card is inset by the same 40/56 a block gets, so the band sits 80px from the deets paragraph and 80px from the card row below on a phone, and 112px from each on a wide screen, which is the same air the hero's band leaves above the deets. A first pass gave the ground its own, larger padding — 40/64 against a page still on 24/40 — on the argument that a colour change deserves more room than a block; it read as a card floating in teal, because the band then had 2.6× the page's rhythm around it and the rhythm is what the eye follows down the page. Raising the page under the band rather than lowering the band was the fix: the landing now wears one `roomy` rhythm on every block, so the seam between two blocks still clears each block's own interior by the same ratio, with more air on both. The mechanism is centred against the card rather than pinned to its top: a heading and two short paragraphs against a photo and three lines of type left the band's lower half empty when they opened at the top, which reads as a layout that ran out rather than one that was composed. There is no button in the band on purpose — the hero carries the page's only action, and a second one here pulled a reader's thumb back up the page. The steps carry no row rules, because `rule-soft` measures 2.22:1 on baltic against its declared floor of 2.4: the table rank that the landing used when they sat on sand is not available on a band, so they are plain paragraphs in an unruled Section, and the Section drops its ink rule too because the band's own edge is the boundary above it. The second and third cards are a two-up Grid on sand, in the pinned order — a shelf whose order moved with the calendar would make the deets paragraph above it a lie twice a month. Under the specimen below: a pink band is not used here on purpose. The hero wears `bpink` and the mechanism keeps `baltic`, because those two are the band set's tightest pair at 6.5 dE and they must never be adjacent."
+            >
+              <TripShelf
+                cards={demoTripCards(new Date())}
+                today={new Date()}
+                onOpenTrip={(href) => setLog(`TripShelf opened ${href}`)}
+              />
             </Specimen>
 
             <Specimen
@@ -1544,6 +1576,9 @@ function DesignSystemScreen() {
           </Text>
           <Link href="/" className="font-body-bold text-base text-ink underline">
             Landing
+          </Link>
+          <Link href="/demo" className="font-body-bold text-base text-ink underline">
+            Demo
           </Link>
           <Link href="/login" className="font-body-bold text-base text-ink underline">
             Sign in

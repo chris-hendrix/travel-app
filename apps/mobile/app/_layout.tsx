@@ -46,6 +46,7 @@ import { BootGate } from "@/components/ui/BootGate";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { BARE_HEADER_ROUTES, DIALOG_ROUTES } from "@/lib/routes";
 import { AuthProvider } from "@/lib/authStore";
+import { DemoGuard } from "@/components/demo/DemoGuard";
 import { NotificationsProvider } from "@/lib/notificationsStore";
 import { ProfileProvider } from "@/lib/profileStore";
 import { TripSettingsProvider } from "@/lib/tripSettingsStore";
@@ -54,6 +55,11 @@ import { EventsProvider } from "@/lib/eventsStore";
 import { TravelProvider } from "@/lib/travelStore";
 import { StaysProvider } from "@/lib/staysStore";
 import { DisplayZoneProvider } from "@/lib/displayZone";
+// The demo's early install: `lib/demo/installEarly.ts` self-installs at
+// module scope when the app boots on `/demo`, so the shell's restore read
+// and header paint already see the demo session — before any route mounts.
+// A no-op on every other route (no fetch patch, no auth override).
+import "@/lib/demo/installEarly";
 import "../global.css";
 
 SplashScreen.preventAutoHideAsync();
@@ -142,6 +148,7 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
     <AuthProvider>
+    <DemoGuard />
     <TripsProvider>
       <EventsProvider>
       <TravelProvider>
