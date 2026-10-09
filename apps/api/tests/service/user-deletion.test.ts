@@ -6,6 +6,7 @@ import {
   users,
   trips,
   members,
+  invitations,
   payments,
   paymentParticipants,
   pushSubscriptions,
@@ -115,7 +116,9 @@ describe("user.service deleteAccount (Task 26)", () => {
     await db.delete(payments).where(eq(payments.id, paymentId));
     await db.delete(members).where(eq(members.tripId, tripId));
     await db.delete(trips).where(eq(trips.id, tripId));
-    await db.delete(pushSubscriptions).where(eq(pushSubscriptions.userId, userId));
+    await db
+      .delete(pushSubscriptions)
+      .where(eq(pushSubscriptions.userId, userId));
     // The tombstoned row and the re-signed-up row both hold `userId`'s number.
     await db.delete(users).where(eq(users.phoneNumber, phone));
     await db.delete(users).where(eq(users.id, userId));
@@ -151,6 +154,37 @@ describe("user.service deleteAccount (Task 26)", () => {
       .returning();
     expect(fresh).toBeDefined();
     expect(fresh!.id).not.toBe(userId);
+  });
+
+  it("moves the invitations that carried the number onto the same tombstone", async () => {
+    // An invitation is a verbatim copy of the number (`invitations.invitee_phone`),
+    // so the account's own marker does not reach it on its own: the organizer's
+    // invitations screen would go on serving a released number while the roster
+    // withheld it — one person, two answers, one deletion. This is the half that
+    // makes the reader's withholding reachable at all; without it the reader
+    // masks a marker that nothing ever writes.
+    await db.insert(invitations).values({
+      tripId,
+      inviterId: userId,
+      inviteePhone: phone,
+      status: "pending",
+    });
+
+    await userService.deleteAccount(userId);
+
+    const moved = await db
+      .select()
+      .from(invitations)
+      .where(eq(invitations.inviteePhone, `deleted:${userId}`));
+    expect(moved).toHaveLength(1);
+
+    // The number itself is gone from the invitations table, not merely hidden
+    // from one reader.
+    const stale = await db
+      .select()
+      .from(invitations)
+      .where(eq(invitations.inviteePhone, phone));
+    expect(stale).toHaveLength(0);
   });
 
   it("drops the name, photo, handles and calendar token", async () => {

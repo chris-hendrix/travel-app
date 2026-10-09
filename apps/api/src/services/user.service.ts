@@ -1,10 +1,12 @@
 import {
   users,
+  invitations,
   pushSubscriptions,
   type User,
 } from "@/db/schema/index.js";
 import type { AppDatabase } from "@/types/index.js";
-import { eq } from "drizzle-orm";
+import { isPhoneTombstone } from "@/lib/phone-visibility.js";
+import { eq, sql } from "drizzle-orm";
 import { UserNotFoundError } from "../errors.js";
 
 /**
@@ -55,7 +57,7 @@ export class UserService implements IUserService {
   async deleteAccount(userId: string): Promise<void> {
     await this.db.transaction(async (tx) => {
       const existing = await tx
-        .select({ id: users.id })
+        .select({ id: users.id, phoneNumber: users.phoneNumber })
         .from(users)
         .where(eq(users.id, userId))
         .limit(1);
@@ -63,6 +65,11 @@ export class UserService implements IUserService {
       if (!existing[0]) {
         throw new UserNotFoundError();
       }
+
+      // Read before the row is anonymized: the invitation rows below are
+      // matched on the number this account is giving up, and after the update
+      // below that number exists nowhere to match on.
+      const releasedNumber = existing[0].phoneNumber;
 
       // A push subscription is personal data pointing at a device; drop it
       // before the row is anonymized rather than relying on a cascade that
@@ -81,7 +88,12 @@ export class UserService implements IUserService {
           // a public calendar feed serving a deleted account.
           calendarToken: null,
           phoneNumber: `deleted:${userId}`,
-          deletedAt: new Date(),
+          // The recorded instant is an audit record, and this route is
+          // deliberately idempotent: a client retrying a timed-out call, or a
+          // second device holding a still-valid token, reaches this same
+          // anonymize path. COALESCE keeps the first deletion's instant — only
+          // `updated_at` moves on a repeat.
+          deletedAt: sql`COALESCE(${users.deletedAt}, now())`,
           updatedAt: new Date(),
         })
         .where(eq(users.id, userId))
@@ -89,6 +101,24 @@ export class UserService implements IUserService {
 
       if (!updated[0]) {
         throw new UserNotFoundError();
+      }
+
+      // An invitation carries a verbatim copy of the invitee's number
+      // (`invitations.invitee_phone`), so anonymizing `users` alone would leave
+      // the number readable on the organizer's invitations screen while the
+      // roster withheld it — the same person, two answers, one commit. The
+      // copy moves to the same marker the account's own column took.
+      //
+      // That also keeps `getInvitationsByTrip`'s join
+      // (`invitations.invitee_phone = users.phone_number`) matching after a
+      // deletion, which is what lets the row keep its name; the reader then
+      // withholds the number because the marker is not one. A repeat DELETE
+      // already holds the marker and writes nothing.
+      if (!isPhoneTombstone(releasedNumber)) {
+        await tx
+          .update(invitations)
+          .set({ inviteePhone: `deleted:${userId}`, updatedAt: new Date() })
+          .where(eq(invitations.inviteePhone, releasedNumber));
       }
     });
   }
