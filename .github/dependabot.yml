@@ -10,9 +10,74 @@ updates:
         dependency-type: "production"
       development-dependencies:
         dependency-type: "development"
+
+    # Dependabot applies a three-day cooldown to version updates by default,
+    # with no configuration, and reaches pnpm as
+    # `--config.minimum-release-age=4320`. pnpm applies that floor to
+    # transitive dependencies too, which is what killed every update run on
+    # 2026-10-09: `vitest@5.0.3` requires `tinybench@^6.2.1`, published two
+    # days earlier, so there was no mature version to resolve, pnpm exited 1
+    # with ERR_PNPM_NO_MATURE_MATCHING_VERSION, and all 17 dependencies of the
+    # group came back `unknown_error` — the group PRs then closed themselves
+    # with no replacements. Reproducing it is one command, against the lockfile
+    # as it stands:
+    #
+    #   pnpm update @typescript-eslint/eslint-plugin@8.71.1 \
+    #     --lockfile-only --no-save -r --config.minimum-release-age=4320  # exit 1
+    #   pnpm update @typescript-eslint/eslint-plugin@8.71.1 \
+    #     --lockfile-only --no-save -r --config.minimum-release-age=0    # exit 0
+    #
+    # `0` is the documented way to remove it, and on this pnpm it is also the
+    # only way out. Upstream's fix for the strictness is in dependabot-core —
+    # b952fc4 passes `minimumReleaseAgeStrict=false` so pnpm falls back to the
+    # newest version instead of erroring — but that is a no-op against pnpm
+    # 10.30.1: neither `--config.minimumReleaseAgeStrict=false` nor its
+    # kebab-case spelling stops the failure, since this pnpm predates the
+    # setting. So the real choice is a cooldown that breaks every run or no
+    # cooldown. Restoring one is worth revisiting once pnpm here understands
+    # the non-strict gate and that core fix has reached the hosted runner.
+    #
+    # Note that only version updates were ever delayed by it — security updates
+    # bypass the cooldown, so nothing security-relevant changes by turning it
+    # off. What does change is that a just-published direct dependency can be
+    # proposed again; CI and review are the gates that catch it, as they were
+    # before July 2026.
+    cooldown:
+      default-days: 0
+
+    # Expo SDK 57 pins these in `bundledNativeModules.json`, and the
+    # `mobile-checks` job runs expo-doctor against that file, so a PR bumping
+    # one cannot merge: it opens and fails the gate. `react-native` is worse
+    # than a red check — 0.87.1 is SDK 58's RN, and its
+    # `react-native-worklets` 0.13.0 cannot install under SDK 57 at all, since
+    # `expo-modules-core@57` peer-requires
+    # `^0.7.4 || ^0.8.0 || ^0.9.0 || ^0.10.0`. All of it comes off this list
+    # the day the app moves to SDK 58, when `npx expo install --check` prints
+    # the new pins. `react-native-web` is the odd one out in that it is ignored
+    # by range rather than by version: the SDK allows `~0.21.0`, so 0.21.4 was
+    # taken and a future 0.22 is what this holds back.
+    #
+    # `lightningcss` is here for a different reason, and expo-doctor does not
+    # cover it: `react-native-css@3.1.0-rc.0` round-trips lightningcss's AST
+    # through JS, so its serialization schema is part of the contract, and
+    # 1.33.0 changed it — the Android bundle then dies on `global.css: failed
+    # to deserialize; expected an object-like struct named Specifier`. Bump it
+    # by hand, verify with
+    # `pnpm --filter @journiful/mobile exec expo export --platform android`,
+    # and drop it from this list once that passes.
     ignore:
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "react"
+      - dependency-name: "react-dom"
+      - dependency-name: "react-native"
+      - dependency-name: "react-native-web"
+      - dependency-name: "react-native-svg"
+      - dependency-name: "react-native-safe-area-context"
+      - dependency-name: "react-native-reanimated"
+      - dependency-name: "react-native-worklets"
+      - dependency-name: "@types/react"
+      - dependency-name: "lightningcss"
 
   - package-ecosystem: "github-actions"
     directory: "/"
