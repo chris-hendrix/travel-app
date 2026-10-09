@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import { useLocalSearchParams } from "expo-router";
 import TripDetail from "./trips/detail";
-import { DEMO_AUTH_USER } from "@/lib/demo";
+import { DEMO_AUTH_USER, demoCoverKind } from "@/lib/demo";
 import {
   buildDemoStore,
   installDemoFetch,
@@ -50,6 +51,15 @@ import { setDemoAuthUser } from "@/lib/authStore";
  * so there is no list to fall back to either.
  */
 export default function Demo() {
+  // The trip id decides which occasion photo the hero falls back to
+  // (`demoCoverKind`), which is the one thing this wrapper adds to the
+  // real screen. It is read here, in the demo's own file, rather than
+  // inside `app/trips/detail.tsx`, so the product screen stays free of
+  // demo data and only carries the optional prop — exactly the seam
+  // `TripCard`'s `coverKind` already is.
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const coverKind = demoCoverKind(typeof id === "string" ? id : "") ?? "trip";
+
   useState(() => {
     // The early install (`lib/demo/installEarly.ts`, via `app/_layout.tsx`)
     // already installed before the shell rendered; re-call it here so a
@@ -67,5 +77,5 @@ export default function Demo() {
     },
     [],
   );
-  return <TripDetail />;
+  return <TripDetail coverKind={coverKind} />;
 }

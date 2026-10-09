@@ -32,6 +32,7 @@ import { anyTravelOwed } from "@/lib/travelBoard";
 
 import { boxForWidth } from "@/lib/place-images";
 import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
+import type { PlaceholderKind } from "@/lib/placeholder";
 import { getPertinentTime } from "@journiful/shared/utils";
 import { Band } from "@/components/ui/Band";
 import { useMotion } from "@/hooks/useMotion";
@@ -97,15 +98,30 @@ import { Column } from "@/components/ui/Column";
  * Who you are comes from the server: your own roster row, matched by
  * account, carries your role.
  */
-export default function TripDetail() {
+export default function TripDetail({
+  /**
+   * The kind of photo the hero falls back to when the trip has no cover.
+   *
+   * `"trip"` is right for every real trip: a trip with no cover photo has
+   * no more specific kind to offer, so the generic travel shot is the
+   * honest answer. The demo is the one caller that has one, and it needs
+   * it — its three trips each wear an occasion photo, the shelf card that
+   * opened the page showed that same photo, and without this the reader
+   * presses a beach and lands on a generic landscape. That reads as a bug
+   * in the app rather than as a demo. `app/demo.tsx` is the only caller
+   * that passes it; see `TripCard`'s `coverKind` for the same seam on the
+   * card side.
+   */
+  coverKind = "trip",
+}: { coverKind?: PlaceholderKind } = {}) {
   return (
     <TripGate label="Getting your trip">
-      <TripDetailScreen />
+      <TripDetailScreen coverKind={coverKind} />
     </TripGate>
   );
 }
 
-function TripDetailScreen() {
+function TripDetailScreen({ coverKind }: { coverKind: PlaceholderKind }) {
   const motion = useMotion();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const tripId = typeof id === "string" ? id : undefined;
@@ -325,7 +341,7 @@ function TripDetailScreen() {
                   )
                 ) : (
                   <View className="w-full aspect-[2/1]">
-                    <PlaceholderImage kind="trip" />
+                    <PlaceholderImage kind={coverKind} />
                   </View>
                 )}
                 {countdown ? (
