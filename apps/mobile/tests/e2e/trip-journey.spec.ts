@@ -309,7 +309,17 @@ test.describe("Trip Journey", () => {
       // app/trips/members.tsx MemberRow: the organizer's rows are
       // pressable (role="button" named by the member's name) and
       // push /trips/members/detail?id=…&member=….
-      await page.getByRole("button", { name: leaverName }).click();
+      //
+      // Two buttons on this row now mention the member: the row itself, and
+      // the moderation word under it ("Report or block <name>", added so a
+      // screen reader hears whose row it is). `name` matches as a substring,
+      // so both resolve — and `RosterList` draws the row body before its
+      // footer, which makes the row the first of the row's two press
+      // targets.
+      await page
+        .getByRole("button", { name: leaverName })
+        .first()
+        .click();
       await page.waitForURL("**/trips/members/detail?id=*&member=*", {
         timeout: NAVIGATION_TIMEOUT,
       });
@@ -371,7 +381,12 @@ test.describe("Trip Journey", () => {
     });
 
     await test.step("promote a member to organizer", async () => {
-      await page.getByRole("button", { name: riserName }).click();
+      // Same ambiguity as the removal above: the row and the moderation word
+      // both name this member, and the row is the first of the two.
+      await page
+        .getByRole("button", { name: riserName })
+        .first()
+        .click();
       await page.waitForURL("**/trips/members/detail?id=*&member=*", {
         timeout: NAVIGATION_TIMEOUT,
       });
