@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 const mobileDir = path.resolve(__dirname, "..");
 
@@ -84,6 +86,47 @@ describe("native config: the app.json keys the native build needs", () => {
     ) as [string, Record<string, string>];
     expect(notif, "expo-notifications plugin registered").toBeDefined();
     expect(notif[1].icon).toBe("./assets/notification-icon.png");
+  });
+
+  // The plugins `app.json` names have to be loadable by EAS, not only by Expo.
+  // This package is `"type": "module"`, so a CommonJS plugin under a `.js`
+  // extension cannot be imported at all — `require is not defined in ES module
+  // scope` — while `expo config` and `prebuild` tolerate it, because Expo's
+  // loader shims `require`. That asymmetry cost a debugging session the first
+  // time an EAS account existed: `eas init` created the project and then
+  // refused the config, and `eas config` prints that same config happily, so
+  // no EAS command is a cheap gate for it. This is: a `.cjs` file loads as
+  // CommonJS here exactly as it does there.
+  it("every plugin app.json names is loadable the way EAS loads it", () => {
+    // The array holds package names (resolved from node_modules) and
+    // `[name, options]` pairs as well; the entries that begin with a dot are
+    // this repo's own plugin files, which is the set EAS has to load.
+    const pluginPaths = appJson.expo.plugins.filter(
+      (p): p is string => typeof p === "string" && p.startsWith("."),
+    );
+    // If those entries ever disappear, this test has quietly stopped testing
+    // anything.
+    expect(pluginPaths.length).toBeGreaterThan(0);
+
+    for (const rel of pluginPaths) {
+      const url = pathToFileURL(path.join(mobileDir, rel)).href;
+      // A subprocess, on purpose. Importing the file in-process proves nothing
+      // here: vitest runs modules through Vite's interop, which loads a
+      // CommonJS file happily even where Node refuses it. `node
+      // --input-type=module` is the real loader — the one EAS uses, and the one
+      // that answered `require is not defined in ES module scope` for a
+      // CommonJS plugin named `.js` in this `"type": "module"` package.
+      const probe = `const m = await import(${JSON.stringify(url)});\nconsole.log(typeof (m.default ?? m));`;
+      const out = execFileSync(
+        process.execPath,
+        ["--input-type=module", "-e", probe],
+        { encoding: "utf8" },
+      );
+      expect(
+        out.trim(),
+        `${rel} must load as a module the way EAS loads it`,
+      ).toBe("function");
+    }
   });
 
   // Embedded, not loaded at runtime, and the difference is measurable: a
