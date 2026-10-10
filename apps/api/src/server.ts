@@ -21,7 +21,8 @@ const app = await buildApp({
       }),
     },
     requestIdHeader: "x-request-id",
-    requestIdLogLabel: "reqId",
+    // `requestIdLogLabel: "reqId"` was redundant with Fastify's default and now
+    // warns (FSTDEP024); a custom label goes through a `logController` instance.
     connectionTimeout: 30000,
     keepAliveTimeout: 5000,
     bodyLimit: 10 * 1024 * 1024, // 10MB (allows for 5MB file + multipart overhead)
