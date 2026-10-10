@@ -114,6 +114,15 @@ generated project itself can still be produced here — `npx expo prebuild -p io
 read back (`ios/<project>/Images.xcassets/AppIcon.appiconset/`) without paying
 for anything.
 
+**Authenticating.** Every command above talks to `@chris-hendrix/journiful-mobile`;
+`extra.eas.projectId` in `app.json` is the link and the account is
+`chris-hendrix`. `npx eas-cli login` stores a session in `~/.expo/state.json`.
+Anything that cannot prompt — CI, or an agent — uses an access token instead:
+`EXPO_TOKEN=$(cat ~/.expo-token) npx eas-cli whoami`, with the file outside the
+repo and mode 600. A token is a credential: give CI its own rather than copying
+a developer's, and revoke one the moment it has been pasted somewhere it should
+not be.
+
 `ios-sim` is the one of the three that needs nothing from Apple: an unsigned
 `.app` for a simulator, which is the pre-payment proof that the prebuild
 configures and the only build whose appiconset can be inspected.
@@ -153,7 +162,13 @@ Two rules that trip people up:
   `ios/`, which the next prebuild overwrites. Two plugins carry that weight:
   `plugins/withAndroidSigning.cjs` for the Android upload key, and
   `plugins/withIosOpaqueIcon.cjs`, which re-flattens the appiconset prebuild
-  writes. Prebuild re-encodes `assets/ios-icon.png` through
+  writes. **Both are `.cjs` for a reason, and a third one must be too.** This
+  package is `"type": "module"`, so a CommonJS plugin under a `.js` extension
+  cannot be resolved by EAS at all — `require is not defined in ES module
+  scope` — while `expo config` and `prebuild` tolerate it, because Expo's loader
+  shims `require`. That asymmetry is why the first `eas build` is where it
+  surfaces: the Android gradle path can work for months with a plugin EAS will
+  refuse. Prebuild re-encodes `assets/ios-icon.png` through
   `@expo/image-utils`, whose sharp branch hands Apple an icon that carries an
   alpha channel (ITMS-90717); flattening the source is the input, not the
   guarantee.
