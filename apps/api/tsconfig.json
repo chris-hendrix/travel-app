@@ -4,6 +4,9 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
+    // The migration journal is imported, so the build carries its own
+    // expectation of the schema instead of resolving a path at runtime.
+    "resolveJsonModule": true,
     "lib": ["ES2022"],
     "outDir": "./dist",
     "rootDir": "../../",

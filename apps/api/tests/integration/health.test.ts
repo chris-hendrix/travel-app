@@ -92,4 +92,34 @@ describe("Health Check Endpoint", () => {
     // In test environment with proper setup, database should be connected
     expect(body.database).toBe("connected");
   });
+
+  it("reports the schema state the database carries", async () => {
+    app = await buildApp();
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/health/ready",
+    });
+
+    const body = JSON.parse(response.body);
+
+    // The suite's database is migrated from the same journal this build ships,
+    // so "current" is the only honest answer here. The "behind" path — the one
+    // that makes this probe worth having — is held by the unit test, which can
+    // inject a database that is behind; a live one cannot be.
+    expect(response.statusCode).toBe(200);
+    expect(body.migrations).toBe("current");
+  });
+
+  it("says the same thing on the general health report", async () => {
+    app = await buildApp();
+
+    const response = await app.inject({ method: "GET", url: "/api/health" });
+
+    // Both endpoints read the one service, and the field is named in both
+    // schemas: Fastify's serializer drops what a schema does not list, so a
+    // missing entry would make the signal vanish on the wire rather than fail
+    // a test.
+    expect(JSON.parse(response.body).migrations).toBe("current");
+  });
 });
