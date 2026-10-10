@@ -3,6 +3,7 @@ import journal from "@/db/migrations/meta/_journal.json";
 import {
   expectedMigrationWhen,
   isSchemaBehind,
+  newestMigrationWhen,
   readSchemaState,
 } from "@/lib/schema-state.js";
 
@@ -21,8 +22,24 @@ describe("schema state", () => {
     // Asserting against the journal rather than a literal keeps this honest
     // when a migration lands: the test follows the file, and a pinned number
     // would rot into a test that passes while the check is wrong.
-    const entries = journal.entries;
-    expect(newest).toBe(entries[entries.length - 1]!.when);
+    const whens = journal.entries.map((entry) => entry.when);
+    expect(newest).toBe(Math.max(...whens));
+  });
+
+  it("takes the newest entry, not the last one", () => {
+    // The case the implementation is a max for. This journal really does hold
+    // entries whose `when` precedes their predecessor's — `0034` and `0037`,
+    // retrofitted by hand — so an appended migration can carry the lowest of
+    // the three timestamps. Reading the last entry would set the expectation
+    // below the newest migration the build ships, and a database missing only
+    // that migration would read "current".
+    expect(newestMigrationWhen([{ when: 2 }, { when: 3 }, { when: 1 }])).toBe(
+      3,
+    );
+  });
+
+  it("expects nothing from an empty journal", () => {
+    expect(newestMigrationWhen([])).toBeUndefined();
   });
 
   it("is not behind when the newest migration has been applied", () => {

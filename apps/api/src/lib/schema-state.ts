@@ -24,10 +24,30 @@ import journal from "@/db/migrations/meta/_journal.json";
 /** What the readiness probe can say about the schema. */
 export type SchemaState = "current" | "behind" | "unknown";
 
+/**
+ * The newest timestamp among a journal's entries.
+ *
+ * A max, and not the last entry: this journal is **not monotonic**. `0034` and
+ * `0037` were retrofitted with a `when` months earlier than the entry before
+ * them, so the last entry is not automatically the newest one — and a
+ * migration appended after them can carry the lowest timestamp of the three.
+ * Reading the last entry would put the expectation *below* the newest
+ * migration this build ships, and a database missing only that migration
+ * would read `current`: the failure this check exists to catch, made silent.
+ */
+export function newestMigrationWhen(
+  entries: readonly { when: number }[],
+): number | undefined {
+  let newest: number | undefined;
+  for (const entry of entries) {
+    if (newest === undefined || entry.when > newest) newest = entry.when;
+  }
+  return newest;
+}
+
 /** The newest migration this build ships, by the journal's own timestamp. */
 export function expectedMigrationWhen(): number | undefined {
-  const entries = journal.entries;
-  return entries.length > 0 ? entries[entries.length - 1]!.when : undefined;
+  return newestMigrationWhen(journal.entries);
 }
 
 /**
