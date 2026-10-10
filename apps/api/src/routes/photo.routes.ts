@@ -5,7 +5,7 @@ import {
   authenticate,
   requireCompleteProfile,
 } from "@/middleware/auth.middleware.js";
-import { checkBanned } from "@/middleware/admin.middleware.js";
+import { checkBanned } from "@/middleware/account-state.middleware.js";
 import {
   defaultRateLimitConfig,
   writeRateLimitConfig,
@@ -45,18 +45,18 @@ export async function photoRoutes(fastify: FastifyInstance) {
       schema: {
         params: tripIdParamsSchema,
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: defaultRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     photoController.getPhotos,
   );
 
   /**
    * Write routes scope
-   * All routes registered here share authenticate + requireCompleteProfile hooks
-   * with stricter rate limiting for write operations
+   * All routes registered here share authenticate + requireCompleteProfile
+   * hooks, and each carries `writeRateLimitConfig` as its own route config
    */
   fastify.register(async (scope) => {
-    scope.addHook("preHandler", scope.rateLimit(writeRateLimitConfig));
     scope.addHook("preHandler", authenticate);
     scope.addHook("preHandler", checkBanned);
     scope.addHook("preHandler", requireCompleteProfile);
@@ -69,6 +69,7 @@ export async function photoRoutes(fastify: FastifyInstance) {
     scope.post<{ Params: { id: string } }>(
       "/",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: tripIdParamsSchema,
         },
@@ -86,6 +87,7 @@ export async function photoRoutes(fastify: FastifyInstance) {
     }>(
       "/:photoId",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: photoIdParamsSchema,
           body: updatePhotoCaptionSchema,
@@ -101,6 +103,7 @@ export async function photoRoutes(fastify: FastifyInstance) {
     scope.delete<{ Params: { id: string; photoId: string } }>(
       "/:photoId",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: photoIdParamsSchema,
         },

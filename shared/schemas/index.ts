@@ -107,6 +107,9 @@ export {
   userHandlesSchema,
   updateProfileSchema,
   type UpdateProfileInput,
+  deleteAccountSchema,
+  deleteAccountResponseSchema,
+  type DeleteAccountInput,
 } from "./user";
 
 // Re-export message schemas
@@ -236,6 +239,24 @@ export {
   type PlacePair,
   type PlaceBox,
 } from "./place";
+
+// Re-export moderation schemas. The reason vocabulary is defined once
+// here; the mobile reason list re-exports it rather than redeclaring it.
+export {
+  REPORT_REASONS,
+  type ReportReason,
+  reportReasonSchema,
+  blockUserSchema,
+  unblockUserParamsSchema,
+  reportUserSchema,
+  userReportSchema,
+  blockedUsersResponseSchema,
+  type BlockUserInput,
+  type UnblockUserParams,
+  type ReportUserInput,
+  type UserReportRow,
+  type BlockedUsersResponse,
+} from "./moderation";
 
 // Re-export admin schemas
 export {

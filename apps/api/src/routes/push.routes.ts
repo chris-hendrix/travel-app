@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { authenticate } from "@/middleware/auth.middleware.js";
-import { checkBanned } from "@/middleware/admin.middleware.js";
+import { checkBanned } from "@/middleware/account-state.middleware.js";
 import {
   defaultRateLimitConfig,
   writeRateLimitConfig,
@@ -30,7 +30,7 @@ export async function pushRoutes(fastify: FastifyInstance) {
       schema: {
         response: { 200: vapidPublicKeyResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig)],
+      config: { rateLimit: defaultRateLimitConfig },
     },
     async () => {
       return { publicKey: fastify.config.VAPID_PUBLIC_KEY };
@@ -47,18 +47,19 @@ export async function pushRoutes(fastify: FastifyInstance) {
       schema: {
         body: pushSubscribeSchema,
       },
-      preHandler: [fastify.rateLimit(writeRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: writeRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     async (request, reply) => {
       const userId = request.user.sub;
       const body = request.body;
-      if (body.provider === "fcm") {
+      if (body.provider === "fcm" || body.provider === "apns") {
         await fastify.pushService.addSubscription(
           userId,
           {
             token: body.token,
             platform: body.platform,
-            provider: "fcm",
+            provider: body.provider,
           },
           body.userAgent,
         );
@@ -88,12 +89,17 @@ export async function pushRoutes(fastify: FastifyInstance) {
       schema: {
         body: pushUnsubscribeSchema,
       },
-      preHandler: [fastify.rateLimit(writeRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: writeRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     async (request) => {
       const body = request.body;
+      // Only the vapid arm carries an endpoint; fcm and apns are stored under a
+      // synthetic `apns:<token>` / `fcm:<token>` key.
       const endpoint =
-        body.provider === "fcm" ? `fcm:${body.token}` : body.endpoint;
+        body.provider === "vapid"
+          ? body.endpoint
+          : `${body.provider}:${body.token}`;
       await fastify.pushService.removeSubscription(endpoint, request.user.sub);
       return { success: true };
     },

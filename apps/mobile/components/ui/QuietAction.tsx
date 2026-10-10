@@ -39,6 +39,7 @@ export function QuietAction({
   label,
   onPress,
   align = "start",
+  ariaLabel,
 }: {
   label: string;
   onPress: () => void;
@@ -53,6 +54,19 @@ export function QuietAction({
    * centre it horizontally.
    */
   align?: "start" | "center";
+  /**
+   * What the word is to a reader, when the word alone does not say it.
+   *
+   * A word is the right control for something done once, and the wrong
+   * one for something done once per row: the roster draws "Report or
+   * block" under every member, and N buttons wearing one word announce N
+   * identical actions with nothing saying whose row they belong to. The
+   * name is the subject, never a handle or a number the row withholds.
+   * `TextField` carries the same prop for the same reason, and the
+   * spelling is `aria-label` alone because React Native maps it to the
+   * native label and the web export renders it as the attribute.
+   */
+  ariaLabel?: string | undefined;
 }) {
   const motion = useMotion();
 
@@ -60,6 +74,7 @@ export function QuietAction({
     <Pressable
       onPress={onPress}
       role="button"
+      aria-label={ariaLabel}
       className={`justify-center py-3 ${
         align === "center" ? "self-start md:self-center" : "self-start"
       } ${motion.press}`}

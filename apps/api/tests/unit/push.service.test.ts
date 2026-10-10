@@ -19,6 +19,7 @@ vi.mock("web-push", () => ({
 
 import admin from "firebase-admin";
 import { mockSend } from "../../tests/mocks/firebase-admin.js";
+import webpush from "web-push";
 import { PushService } from "@/services/push.service.js";
 
 describe("PushService", () => {
@@ -74,13 +75,7 @@ describe("PushService", () => {
     });
 
     it("should not initialize firebase-admin when service account is not provided", () => {
-      new PushService(
-        mockDb,
-        mockLogger,
-        "",
-        "",
-        "mailto:test@example.com",
-      );
+      new PushService(mockDb, mockLogger, "", "", "mailto:test@example.com");
 
       expect(admin.initializeApp).not.toHaveBeenCalled();
     });
@@ -416,6 +411,146 @@ describe("PushService", () => {
 
       // FCM send should NOT have been called — no token to send to
       expect(mockSend).not.toHaveBeenCalled();
+    });
+
+    it("routes apns, fcm and vapid rows to their own transports in one call", async () => {
+      const serviceAccount = JSON.stringify({
+        project_id: "test-project",
+        private_key: "test-key",
+        client_email: "test@example.com",
+      });
+
+      const fcmSub = {
+        id: "sub-1",
+        userId: "user-1",
+        endpoint: "fcm:token-1",
+        p256dh: "",
+        auth: "",
+        token: "token-1",
+        platform: "android" as const,
+        provider: "fcm" as const,
+        userAgent: null,
+        createdAt: new Date(),
+      };
+      const apnsSub = {
+        id: "sub-2",
+        userId: "user-1",
+        endpoint: "apns:device-token-1",
+        p256dh: "",
+        auth: "",
+        token: "device-token-1",
+        platform: "ios" as const,
+        provider: "apns" as const,
+        userAgent: null,
+        createdAt: new Date(),
+      };
+      const vapidSub = {
+        id: "sub-3",
+        userId: "user-1",
+        endpoint: "https://example.com/push",
+        p256dh: "p256dh-key",
+        auth: "auth-secret",
+        token: null,
+        platform: "web" as const,
+        provider: "vapid" as const,
+        userAgent: null,
+        createdAt: new Date(),
+      };
+
+      vi.mocked(mockDb.select).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue([fcmSub, apnsSub, vapidSub]),
+        }),
+      } as unknown as ReturnType<typeof mockDb.select>);
+
+      const apnsSend = vi.fn().mockResolvedValue(undefined);
+      const apnsService = { isEnabled: true, sendToToken: apnsSend };
+
+      const pushService = new PushService(
+        mockDb,
+        mockLogger,
+        "vapid-public",
+        "vapid-private",
+        "mailto:test@example.com",
+        serviceAccount,
+        apnsService as never,
+      );
+
+      mockSend.mockClear();
+
+      await pushService.sendToUser("user-1", pushPayload);
+
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({ token: "token-1" }),
+      );
+      // The apns row must reach APNs, not Firebase and not webpush.
+      expect(apnsSend).toHaveBeenCalledTimes(1);
+      expect(apnsSend).toHaveBeenCalledWith("device-token-1", pushPayload);
+      // The regression assertion: a vapid row still goes to webpush.
+      expect(webpush.sendNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ endpoint: "https://example.com/push" }),
+        JSON.stringify(pushPayload),
+      );
+      expect(webpush.sendNotification).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("addSubscription", () => {
+    it("stores an apns row under the synthetic apns:<token> endpoint", async () => {
+      const values = vi.fn().mockReturnValue({
+        onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+      });
+      vi.mocked(mockDb.insert).mockReturnValue({
+        values,
+      } as unknown as ReturnType<typeof mockDb.insert>);
+
+      const pushService = new PushService(
+        mockDb,
+        mockLogger,
+        "vapid-public",
+        "vapid-private",
+        "mailto:test@example.com",
+      );
+
+      await pushService.addSubscription("user-1", {
+        token: "device-token-1",
+        platform: "ios",
+        provider: "apns",
+      });
+
+      expect(values).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: "user-1",
+          endpoint: "apns:device-token-1",
+          p256dh: "",
+          auth: "",
+          token: "device-token-1",
+          provider: "apns",
+        }),
+      );
+    });
+  });
+
+  describe("removeSubscription", () => {
+    it("deletes an apns:<token> row", async () => {
+      const where = vi.fn().mockResolvedValue(undefined);
+      vi.mocked(mockDb.delete).mockReturnValue({
+        where,
+      } as unknown as ReturnType<typeof mockDb.delete>);
+
+      const pushService = new PushService(
+        mockDb,
+        mockLogger,
+        "vapid-public",
+        "vapid-private",
+        "mailto:test@example.com",
+      );
+
+      await pushService.removeSubscription("apns:device-token-1");
+
+      expect(mockDb.delete).toHaveBeenCalled();
+      expect(where).toHaveBeenCalled();
     });
   });
 });

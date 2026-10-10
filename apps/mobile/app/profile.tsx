@@ -46,17 +46,23 @@ import { POP_FILL, initialsHue } from "@/lib/eventColors";
  * buttons in one group. A very loud device used for everything is a very
  * quiet one.
  *
- * The way out is the last thing on the screen, under its one rule, below
+ * The way out is at the foot of the screen, under its one rule, below
  * the documents. Both platforms keep sign-out at the bottom of the
  * account screen, so that is where a thumb goes looking for it, and what
  * made it read as buried before was the three rules above it rather than
  * the position. It is not at the very top because the top is your own
  * face and name, the avatar in that band is already a control, and the
  * way back in is a texted code — a way out does not belong where the
- * thumb lands by accident. The foot also keeps the last slot free, which
- * is where a destructive action goes the day this account has one. It
- * does not yet: the lab's parking lot carries delete account as a pattern
- * waiting on a route, and an account here can only be banned.
+ * thumb lands by accident.
+ *
+ * The foot now carries the door as well, and it is the second action in
+ * it, below the sign-out rather than above it. Sign-out keeps the top seat
+ * because that is where a thumb goes looking for it on both platforms, and
+ * a word above the way out would stand between someone and the thing they
+ * came for. The door takes two presses and only the second one is red:
+ * the first press answers with what deleting an account actually does here,
+ * which is not everything — the trips and the money on them stay, under a
+ * number with no name on it.
  *
  * The identity block reads from the draft, not the saved profile, so
  * typing a new name sets the headline as you go: the clearest proof that
@@ -122,7 +128,7 @@ function ProfileFailure({
 function ProfileForm({ profile }: { profile: Profile }) {
   const motion = useMotion();
   const { saveProfile, savePhoto } = useProfile();
-  const { signOut, isAdmin } = useAuth();
+  const { signOut, deleteAccount, isAdmin, impersonating } = useAuth();
   const router = useRouter();
   const dismiss = useDismiss("/trips");
 
@@ -146,6 +152,12 @@ function ProfileForm({ profile }: { profile: Profile }) {
   // confirm lives here, in the block, as a second row of the buttons
   // this screen already uses — no new dialog to learn.
   const [confirming, setConfirming] = useState<"stop" | "reset" | null>(null);
+  // The foot's own three states, the trip page's arm carried over rather
+  // than reinvented: unarmed and quiet, armed and red, and the failure that
+  // disarms it again.
+  const [armedDelete, setArmedDelete] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteFailure, setDeleteFailure] = useState<string | null>(null);
   const errors = submitted ? validateProfile(draft) : {};
 
   /**
@@ -273,6 +285,37 @@ function ProfileForm({ profile }: { profile: Profile }) {
       }
     } finally {
       setBusy(false);
+    }
+  }
+
+  /**
+   * The second press of the foot's door. The session has to be gone before
+   * this screen moves anywhere: `deleteAccount` in the store runs the DELETE,
+   * the token drop, the cache clear and the same local reset `signOut` does,
+   * so the login screen's guard is not left reading a provider that still
+   * believes there is a session (which bounces the person straight back to
+   * the trips list of an account that no longer exists). It throws like every
+   * other write; the copy below is what a person reads when it does.
+   */
+  async function removeAccount() {
+    setDeletingAccount(true);
+    setDeleteFailure(null);
+    try {
+      await deleteAccount();
+      router.replace("/login");
+    } catch (caught) {
+      // The same mapper `removeTrip` reads, and the same disarm on failure:
+      // a failed delete is not a reason to offer the button again in the
+      // state it was just refused in.
+      const copy = toErrorCopy(caught);
+      setArmedDelete(false);
+      setDeleteFailure(
+        copy.offline
+          ? "You're offline. Check your connection and try again."
+          : (copy.message ?? "Couldn't delete your account."),
+      );
+    } finally {
+      setDeletingAccount(false);
     }
   }
 
@@ -628,22 +671,87 @@ function ProfileForm({ profile }: { profile: Profile }) {
           says the same word is the restating this system took out once
           already — the ITINERARY eyebrow over the run's own day headings —
           and `Button`'s note reserves the alert for what cannot be taken
-          back. Signing out can, with a code, and the action that really
-          cannot — deleting the account — has no route behind it yet and
-          would have nothing left to wear. */}
+          back. So the two words here wear it between them: the sign-out
+          wears nothing, because it can be undone with a code, and the
+          delete wears `danger` on its second press only. That is the
+          first thing on this screen with anything to wear, and it is
+          earned the way `app/trips/edit.tsx` earns it — the arm is what
+          pays, not the position.
+
+          The arm is the trip page's, unchanged: `secondary`, then the
+          reason and the question, then `danger` and a Cancel, with the
+          button staying where it is so the thumb that pressed it does not
+          have to find a new word. Nothing about it is a dialog, because
+          nothing new should have to be learned at the foot of a screen
+          someone came here to change their name in. */}
       <RuledBlock>
-        <Button
-          title="Sign out"
-          variant="secondary"
-          // No fullWidth: it fills a phone and hugs the start edge from md
-          // up, which is what every other content button in this system
-          // does — a lone action stretched across a wide screen is a band,
-          // not a button.
-          // Await the real sign-out (server POST, token drop, cache
-          // clear) before leaving: navigating first would let the
-          // login screen render while signed-in data is still cached.
-          onPress={() => void signOut().then(() => router.replace("/login"))}
-        />
+        <View className="gap-3">
+          <Button
+            title="Sign out"
+            variant="secondary"
+            // No fullWidth: it fills a phone and hugs the start edge from md
+            // up, which is what every other content button in this system
+            // does — a lone action stretched across a wide screen is a band,
+            // not a button.
+            // Await the real sign-out (server POST, token drop, cache
+            // clear) before leaving: navigating first would let the
+            // login screen render while signed-in data is still cached.
+            onPress={() => void signOut().then(() => router.replace("/login"))}
+          />
+          {/* The door is absent under impersonation, not disabled and not
+              explained: the session on screen is the admin's, not this
+              account holder's, so the account behind it is not theirs to
+              delete. The API refuses it too, and a control that always fails
+              is worse than one that is not there (`app/trips/edit.tsx`).
+              `Sign out` stays, because it returns the admin to their own
+              session either way. */}
+          {impersonating ? null : (
+            <>
+              {/* What deleting an account does here, and it is not the whole of
+              the account: the trips and the money on them stay, under a
+              number with no name on it. It is shown on the press rather
+              than before it, because this screen has no room to carry a
+              paragraph of it above a quiet word, and because reading it is
+              what the arm is for. */}
+              {armedDelete ? (
+                <View className="gap-2">
+                  <Text className="font-body text-sm text-ink opacity-60">
+                    Your trips and the money on them stay, under a number with
+                    no name on it. Your name, photo and handles go, and this
+                    number can sign up again as somebody new. It cannot be
+                    undone.
+                  </Text>
+                  {/* The question is the loudest line in the block: the reason
+                  above it is quiet ink, and this is the one asking for an
+                  answer. */}
+                  <Text className="font-body text-sm text-ink">
+                    Are you sure?
+                  </Text>
+                </View>
+              ) : null}
+              <Button
+                title={deletingAccount ? "Deleting account" : "Delete account"}
+                variant={armedDelete ? "danger" : "secondary"}
+                disabled={deletingAccount}
+                onPress={() => {
+                  if (!armedDelete) {
+                    setArmedDelete(true);
+                    setDeleteFailure(null);
+                    return;
+                  }
+                  void removeAccount();
+                }}
+              />
+              {armedDelete ? (
+                <QuietAction
+                  label="Cancel"
+                  onPress={() => setArmedDelete(false)}
+                />
+              ) : null}
+              {deleteFailure ? <InlineError message={deleteFailure} /> : null}
+            </>
+          )}
+        </View>
       </RuledBlock>
     </FullscreenDialog>
   );

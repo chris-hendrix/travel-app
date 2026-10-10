@@ -5,7 +5,7 @@ import {
   authenticate,
   requireCompleteProfile,
 } from "@/middleware/auth.middleware.js";
-import { checkBanned } from "@/middleware/admin.middleware.js";
+import { checkBanned } from "@/middleware/account-state.middleware.js";
 import { writeRateLimitConfig } from "@/middleware/rate-limit.middleware.js";
 import {
   createGuestSchema,
@@ -63,7 +63,6 @@ const updateGuestResponseSchema = z.object({
  */
 export async function guestMemberRoutes(fastify: FastifyInstance) {
   fastify.register(async (scope) => {
-    scope.addHook("preHandler", scope.rateLimit(writeRateLimitConfig));
     scope.addHook("preHandler", authenticate);
     scope.addHook("preHandler", checkBanned);
     scope.addHook("preHandler", requireCompleteProfile);
@@ -75,6 +74,7 @@ export async function guestMemberRoutes(fastify: FastifyInstance) {
     scope.post<{ Params: { tripId: string }; Body: CreateGuestInput }>(
       "/trips/:tripId/members/guests",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: tripIdParamsSchema,
           body: createGuestSchema,
@@ -94,6 +94,7 @@ export async function guestMemberRoutes(fastify: FastifyInstance) {
     }>(
       "/trips/:tripId/members/guests/:memberId",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: guestMemberParamsSchema,
           body: updateGuestSchema,
@@ -110,6 +111,7 @@ export async function guestMemberRoutes(fastify: FastifyInstance) {
     scope.delete<{ Params: { tripId: string; memberId: string } }>(
       "/trips/:tripId/members/guests/:memberId",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: guestMemberParamsSchema,
           response: { 204: z.null().optional() },

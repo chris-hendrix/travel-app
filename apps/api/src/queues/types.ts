@@ -32,6 +32,13 @@ export interface NotificationBatchPayload {
   body: string;
   data?: Record<string, unknown>;
   excludeUserId?: string;
+  /**
+   * Who triggered the fan-out. Carried separately from `excludeUserId` —
+   * today they always hold the same id, but only this one answers "is this
+   * recipient blocked by the person who caused this?", and it is optional so
+   * a job enqueued before this field existed still fans out as it used to.
+   */
+  actorUserId?: string;
 }
 
 export interface NotificationDeliverPayload {

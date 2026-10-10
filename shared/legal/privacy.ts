@@ -1,9 +1,11 @@
 import type { LegalDocument } from "./types";
 
 /**
- * Transcribed from the copy published at journiful.app/privacy. Keep it
- * word for word — the SMS program's consent record names the version of
- * the disclosure a person agreed to, and this is that version.
+ * The published copy itself: `app/privacy.tsx` renders this body, so the
+ * in-app policy and journiful.app/privacy are the same document by
+ * construction. Keep it word for word — the SMS program's consent record
+ * names the version of the disclosure a person agreed to, and this is that
+ * version.
  */
 export const privacy: LegalDocument = {
   id: "privacy",
@@ -60,11 +62,24 @@ export const privacy: LegalDocument = {
     ## Data Retention and Deletion
 
     We retain your personal information for as long as your account is
-    active or as needed to provide you with our services. You may request
-    deletion of your account and associated data at any time by contacting
-    [support@journiful.com](mailto:support@journiful.com). Upon receiving a
-    deletion request, we will remove your data within 30 days, except where
-    retention is required by law.
+    active or as needed to provide you with our services.
+
+    You may delete your account yourself, from your profile screen within the
+    Journiful application. The deletion takes effect immediately. For anything
+    else relating to your account or your data, please contact
+    [support@journiful.com](mailto:support@journiful.com).
+
+    When you delete your account, we remove the account and the personal data
+    on it, which includes your display name, your profile photo, your social
+    handles, and your device's push notification registration. Your phone
+    number is no longer tied to the account, so it may be used to create a new
+    account.
+
+    Your place in a trip is not removed. The trips you belong to, their
+    itineraries, and the expense and settlement records naming you are retained
+    as the records of the trip itself. They belong to the trip and to the other
+    people on it, not to your account. Any personal data we keep is subject to
+    the retention described above, except where retention is required by law.
 
     ## Your Rights
 

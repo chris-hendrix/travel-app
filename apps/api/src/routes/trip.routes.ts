@@ -5,7 +5,7 @@ import {
   authenticate,
   requireCompleteProfile,
 } from "@/middleware/auth.middleware.js";
-import { checkBanned } from "@/middleware/admin.middleware.js";
+import { checkBanned } from "@/middleware/account-state.middleware.js";
 import {
   defaultRateLimitConfig,
   writeRateLimitConfig,
@@ -68,7 +68,8 @@ export async function tripRoutes(fastify: FastifyInstance) {
         querystring: cursorPaginationSchema,
         response: { 200: tripListResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: defaultRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     tripController.getUserTrips,
   );
@@ -86,18 +87,18 @@ export async function tripRoutes(fastify: FastifyInstance) {
         params: tripIdParamsSchema,
         response: { 200: tripDetailResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: defaultRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     tripController.getTripById,
   );
 
   /**
    * Write routes scope
-   * All routes registered here share authenticate + requireCompleteProfile hooks
-   * with stricter rate limiting for write operations
+   * All routes registered here share authenticate + requireCompleteProfile
+   * hooks, and each carries `writeRateLimitConfig` as its own route config
    */
   fastify.register(async (scope) => {
-    scope.addHook("preHandler", scope.rateLimit(writeRateLimitConfig));
     scope.addHook("preHandler", authenticate);
     scope.addHook("preHandler", checkBanned);
     scope.addHook("preHandler", requireCompleteProfile);
@@ -109,6 +110,7 @@ export async function tripRoutes(fastify: FastifyInstance) {
     scope.post<{ Body: CreateTripInput }>(
       "/",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           body: createTripSchema,
           response: { 201: tripResponseSchema },
@@ -125,6 +127,7 @@ export async function tripRoutes(fastify: FastifyInstance) {
     scope.put<{ Params: { id: string }; Body: UpdateTripInput }>(
       "/:id",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: tripIdParamsSchema,
           body: updateTripSchema,
@@ -142,6 +145,7 @@ export async function tripRoutes(fastify: FastifyInstance) {
     scope.delete<{ Params: { id: string } }>(
       "/:id",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: tripIdParamsSchema,
           response: { 200: successResponseSchema },
@@ -158,6 +162,7 @@ export async function tripRoutes(fastify: FastifyInstance) {
     scope.post<{ Params: { id: string }; Body: AddCoOrganizerInput }>(
       "/:id/co-organizers",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: tripIdParamsSchema,
           body: addCoOrganizerSchema,
@@ -175,6 +180,7 @@ export async function tripRoutes(fastify: FastifyInstance) {
     scope.delete<{ Params: { id: string; userId: string } }>(
       "/:id/co-organizers/:userId",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: removeCoOrganizerParamsSchema,
           response: { 200: successResponseSchema },
@@ -192,6 +198,7 @@ export async function tripRoutes(fastify: FastifyInstance) {
     scope.post<{ Params: { id: string } }>(
       "/:id/cover-image",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: tripIdParamsSchema,
           response: { 200: tripResponseSchema },
@@ -208,6 +215,7 @@ export async function tripRoutes(fastify: FastifyInstance) {
     scope.delete<{ Params: { id: string } }>(
       "/:id/cover-image",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: tripIdParamsSchema,
           response: { 200: tripResponseSchema },
@@ -227,6 +235,7 @@ export async function tripRoutes(fastify: FastifyInstance) {
     }>(
       "/:tripId/members/:memberId",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: memberRoleParamsSchema,
           body: updateMemberRoleSchema,

@@ -16,6 +16,7 @@ import {
   jsonb,
   integer,
   doublePrecision,
+  check,
 } from "drizzle-orm/pg-core";
 import type {
   LinkItem,
@@ -28,7 +29,11 @@ export const users = pgTable(
   "users",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    phoneNumber: varchar("phone_number", { length: 20 }).notNull().unique(),
+    // The account *is* the phone number, so deletion cannot blank it: the row
+    // is kept (payments/members reference it) and the number is moved to a
+    // `deleted:<uuid>` tombstone, which releases the number for a new signup.
+    // The tombstone is 44 characters, hence 64 rather than the old 20.
+    phoneNumber: varchar("phone_number", { length: 64 }).notNull().unique(),
     displayName: varchar("display_name", { length: 50 }).notNull(),
     profilePhotoUrl: text("profile_photo_url"),
     handles: jsonb("handles").$type<Record<string, string>>(),
@@ -47,6 +52,10 @@ export const users = pgTable(
       .defaultNow(),
     role: varchar("role", { length: 20 }).notNull().default("user"),
     status: varchar("status", { length: 20 }).notNull().default("active"),
+    // Soft delete: the row survives because payments/members reference it, so
+    // the flag is what marks it as a tombstone. Every authenticated read
+    // filters on it being NULL.
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (table) => [index("users_phone_number_idx").on(table.phoneNumber)],
 );
@@ -144,7 +153,13 @@ export const members = pgTable(
       onDelete: "cascade",
     }),
     guestDisplayName: varchar("guest_display_name", { length: 50 }),
-    guestPhone: varchar("guest_phone", { length: 20 }),
+    // Same class as `invitations.invitee_phone`: a phone that originates in
+    // `users.phone_number`, which deletion can leave as a 44-character
+    // `deleted:<uuid>` tombstone. Sized with that column (64) rather than the
+    // old 20 so a guest row and the invitation it came from can hold the same
+    // value — a column narrower than its source turns a copy into Postgres
+    // 22001 mid-transaction.
+    guestPhone: varchar("guest_phone", { length: 64 }),
     claimedAt: timestamp("claimed_at", { withTimezone: true }),
     status: rsvpStatusEnum("status").notNull().default("no_response"),
     isOrganizer: boolean("is_organizer").notNull().default(false),
@@ -188,7 +203,11 @@ export const invitations = pgTable(
     inviterId: uuid("inviter_id")
       .notNull()
       .references(() => users.id),
-    inviteePhone: varchar("invitee_phone", { length: 20 }).notNull(),
+    // A copy of the invitee's `users.phone_number`, written verbatim, so it is
+    // as wide as that column (64): a `deleted:<uuid>` tombstone is 44
+    // characters, and a narrower column raises Postgres 22001 mid-transaction
+    // — which aborts the batch, not just the one invitation.
+    inviteePhone: varchar("invitee_phone", { length: 64 }).notNull(),
     status: invitationStatusEnum("status").notNull().default("pending"),
     sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
     respondedAt: timestamp("responded_at", { withTimezone: true }),
@@ -723,7 +742,11 @@ export const pushSubscriptions = pgTable(
     auth: text("auth").notNull(),
     token: text("token"),
     platform: text("platform", { enum: ["ios", "android", "web"] }),
-    provider: text("provider", { enum: ["vapid", "fcm"] })
+    // "apns" is the iOS device-token provider. The column is `text`, so this
+    // widening is type-only and needs no migration. A `CHECK` in the table's
+    // constraints is what makes the vocabulary real in the database, since
+    // Drizzle's enum here is a TypeScript-level one.
+    provider: text("provider", { enum: ["vapid", "fcm", "apns"] })
       .notNull()
       .default("vapid"),
     userAgent: text("user_agent"),
@@ -731,7 +754,13 @@ export const pushSubscriptions = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => [index("push_subscriptions_user_id_idx").on(table.userId)],
+  (table) => [
+    index("push_subscriptions_user_id_idx").on(table.userId),
+    check(
+      "push_subscriptions_provider_check",
+      sql`${table.provider} IN ('vapid', 'fcm', 'apns')`,
+    ),
+  ],
 );
 
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
@@ -861,3 +890,82 @@ export const geocodeCache = pgTable("geocode_cache", {
 
 export type GeocodeCache = typeof geocodeCache.$inferSelect;
 export type NewGeocodeCache = typeof geocodeCache.$inferInsert;
+
+// User blocks. The relation is symmetric even though the row is directed:
+// whoever wrote it, the pair does not see each other. `blocked_id` is indexed
+// because "who blocked me" is the other half of every read.
+export const userBlocks = pgTable(
+  "user_blocks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    blockerId: uuid("blocker_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    blockedId: uuid("blocked_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    unique("user_blocks_blocker_blocked_unique").on(
+      table.blockerId,
+      table.blockedId,
+    ),
+    index("user_blocks_blocked_id_idx").on(table.blockedId),
+  ],
+);
+
+export type UserBlock = typeof userBlocks.$inferSelect;
+export type NewUserBlock = typeof userBlocks.$inferInsert;
+
+// User reports. The trip is optional: a report has to outlive the trip it was
+// made in, so deleting the trip clears the column instead of the row. The
+// reason vocabulary is the one the mobile reason list offers.
+export const userReports = pgTable(
+  "user_reports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reporterId: uuid("reporter_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    reportedId: uuid("reported_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tripId: uuid("trip_id").references(() => trips.id, {
+      onDelete: "set null",
+    }),
+    reason: text("reason", {
+      enum: ["spam", "harassment", "impersonation", "other"],
+    }).notNull(),
+    note: text("note"),
+    status: text("status", {
+      enum: ["open", "reviewed", "actioned", "dismissed"],
+    })
+      .notNull()
+      .default("open"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("user_reports_reported_id_idx").on(table.reportedId),
+    index("user_reports_status_idx").on(table.status),
+    // `text({ enum })` is type-only in Drizzle: nothing in the database rejects
+    // a fifth reason or a status outside the four the response serializer
+    // knows, and a row carrying one makes `userReportSchema` fail on read. The
+    // CHECK is the database half of the vocabulary.
+    check(
+      "user_reports_reason_check",
+      sql`${table.reason} IN ('spam', 'harassment', 'impersonation', 'other')`,
+    ),
+    check(
+      "user_reports_status_check",
+      sql`${table.status} IN ('open', 'reviewed', 'actioned', 'dismissed')`,
+    ),
+  ],
+);
+
+export type UserReport = typeof userReports.$inferSelect;
+export type NewUserReport = typeof userReports.$inferInsert;

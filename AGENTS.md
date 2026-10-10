@@ -4,7 +4,7 @@
 
 Journiful is a collaborative trip planning platform. Monorepo managed with pnpm + Turbo:
 
-- `apps/mobile` — Expo 57. **The product.** Wired to the API and shipped two ways: as the Android app (prebuild + gradle) and as the static web export at `journiful.app`. Lane rules live in `apps/mobile/AGENTS.md`.
+- `apps/mobile` — Expo 57. **The product.** Wired to the API and shipped three ways: the Android app (prebuild + gradle, out through Firebase App Distribution), the static web export at `journiful.app`, and the iOS app — which builds end to end through EAS's cloud builder and is **not submitted yet**. See [Native (Android + iOS)](#native-android--ios) below. Lane rules live in `apps/mobile/AGENTS.md`.
 - `apps/api` — Fastify 5 REST API, PostgreSQL 16 via Drizzle ORM, JWT auth. Pattern: `buildApp` factory, route → controller → service. The backend for the app.
 - `shared` — Cross-cutting types, Zod schemas, and pure utilities consumed by the app and the API.
 
@@ -16,7 +16,7 @@ Stated up front because it decides where work goes, and it is easy to infer the 
 
 | | Before | Now |
 | --- | --- | --- |
-| `apps/mobile` | design mockup, in-memory data | the product; wired to the API, the Android app, and the web export |
+| `apps/mobile` | design mockup, in-memory data | the product; wired to the API, the Android app, the iOS app, and the web export |
 | The retired web app (removed 2026-09) | the frozen web app, rollback target and home of `/admin` | deleted; the recovery recipe in `DEPLOYMENT.md` is the only surviving record |
 | `apps/api` | the backend | unchanged; both surfaces talk to it |
 | `shared` | cross-cutting types and schemas | unchanged |
@@ -57,6 +57,13 @@ make android-apk              # Prebuild + assemble the signed release APK
 make android-install          # Install the release APK on the emulator + launch
 make android-logs             # Tail native logs
 make adb-reverse              # Forward emulator ports 8000 & 8081 to host (use -s emulator-XXXX if multiple)
+
+# Mobile / iOS (host) — the same package, built by EAS's cloud builder (no Mac)
+make ios-sim                  # eas build -p ios --profile simulator  (.app, no signing, no Apple account)
+make ios-preview              # eas build -p ios --profile preview    (ad-hoc .ipa for the device pass)
+make ios-build                # eas build -p ios --profile production (App Store / TestFlight)
+make ios-submit               # eas submit -p ios --id "$(BUILD_ID)"  (needs the App Store Connect record)
+make ios-credentials          # eas credentials -p ios
 
 # Android builds run in CI: .github/workflows/distribute.yml prebuilds,
 # signs with the upload key, and ships to Firebase App Distribution.
@@ -110,9 +117,14 @@ Backend: broad unit → service middle → route layer → no API-level E2E. Mob
 #### Database isolation
 Each test that creates records uses `generateUniquePhone()` (or equivalent unique-key strategy). Global setup (`tests/global-setup.ts`) clears three utility tables once per suite run. Known limitation: state accumulates across test files within a run. Documented future improvement: per-test transactional rollback (`BEGIN`/`ROLLBACK`).
 
-### Native (Android)
+### Native (Android + iOS)
 
-The Android app is a build of `apps/mobile` — Expo prebuild produces `android/`, gradle assembles it, and the APK is signed with the upload key. There is no Capacitor shell and no WebView wrapper any more; the details live in `apps/mobile/AGENTS.md`, and this section carries only what is repo-wide.
+**Two apps, one package.** Both surfaces are builds of `apps/mobile` — there is no Capacitor shell and no WebView wrapper any more — and the details live in `apps/mobile/AGENTS.md`. This section carries only what is repo-wide.
+
+- **Android** is assembled on the host: Expo prebuild produces `android/`, gradle assembles it, and the APK is signed with the upload key. It ships — `.github/workflows/distribute.yml` prebuilds, signs and pushes to Firebase App Distribution.
+- **iOS** is assembled by EAS's cloud builder, driven from WSL2. There is **no Mac anywhere in the loop** — no Xcode, no local simulator — which is why its loop is `eas build` rather than gradle. It builds end to end today and is **not submittable**: the App Store side is gated on an Apple Developer membership (the App ID's Push and Associated Domains capabilities, the APNs `.p8`, the App Store Connect record and its `ascAppId`, and the Team ID the `apple-app-site-association` file needs). `make ios-sim` is the one profile that needs nothing from Apple.
+
+The EAS identity is `@chris-hendrix/journiful-mobile` — `extra.eas.projectId` and `updates.url` in `app.json` — under the account `chris-hendrix`. Authenticate with `eas login`, or `EXPO_TOKEN` from an access token when nothing can prompt (CI wants its own token as a repo secret, not a copy of a developer's).
 
 **One-time setup (host):**
 - A JDK 21 (`apps/api/.env` `JAVA_HOME`, the same one the API's gradle path used)
@@ -139,7 +151,7 @@ CI builds two ABIs rather than four (`-PreactNativeArchitectures=arm64-v8a,x86_6
 **Architecture:**
 - Push is FCM with the raw device token (`getDevicePushTokenAsync()`), registered against the API's existing `POST /push/subscribe {provider:"fcm"}`. No Expo push service and no EAS credentials are involved.
 - Version identity lives in `app.json` (`version`, `android.versionCode`). Capacitor's `-PversionNameOverride` gradle property is gone and the generated gradle never read it; CI rewrites the two `app.json` fields before prebuild instead.
-- Release signing comes from `apps/mobile/plugins/withAndroidSigning.js`, not a hand-edited `android/app/build.gradle`, because `expo prebuild --clean` regenerates that file.
+- Release signing comes from `apps/mobile/plugins/withAndroidSigning.cjs`, not a hand-edited `android/app/build.gradle`, because `expo prebuild --clean` regenerates that file.
 
 ### Mock auth for local testing
 
@@ -198,3 +210,4 @@ Expo web / mockup `8081`, API `8000`, PostgreSQL `5433` → container `5432`, Mi
 - **Shared package imports use no file extensions**, despite the repo running NodeNext. Metro and NativeWind require extensionless imports; the resulting TS2835 warnings are cosmetic and must be ignored. Always import as `@journiful/shared/schemas`, never `'../../../shared/schemas/index.js'`.
 - **No `[id]` dynamic route segments.** The Expo export has no server components: screens read query params (`/trips/detail?id=X`) via `useLocalSearchParams()` inside a `<Suspense>` boundary.
 - **Deployment topology**: see [`DEPLOYMENT.md`](./DEPLOYMENT.md) for Railway services, environments, and dashboard configuration.
+- **Scope every filesystem search; never run `find /`.** This workspace is on WSL2, where `/mnt/c` makes an unscoped `find` effectively unbounded — it hangs agents for minutes on a command that should take milliseconds. Use `grep -rn`, `git ls-files`, or `find <dir> -maxdepth N`, and never lean on `find / … || fallback` chains, because a mistyped path silently promotes to a full-disk scan. pnpm nests packages at `node_modules/.pnpm/<name>@<version>/node_modules/`, so a bare `node_modules/<name>/` path usually does not exist.

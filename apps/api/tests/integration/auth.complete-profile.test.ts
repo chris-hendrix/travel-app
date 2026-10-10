@@ -1,8 +1,10 @@
 import { describe, it, expect, afterEach } from "vitest";
+import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../helpers.js";
 import { db } from "@/config/database.js";
 import { users } from "@/db/schema/index.js";
+import { DELETED_DISPLAY_NAME } from "@/services/user.service.js";
 import { eq } from "drizzle-orm";
 import { generateUniquePhone } from "../test-utils.js";
 
@@ -194,6 +196,83 @@ describe("POST /api/auth/complete-profile", () => {
       expect(body.success).toBe(true);
       expect(body.user.displayName).toBe("New Name");
       expect(body.user.timezone).toBe("Europe/London");
+    });
+  });
+
+  describe("Deleted accounts", () => {
+    it("should refuse a token that was never blacklisted, and leave the tombstone alone", async () => {
+      app = await buildApp();
+
+      const [testUser] = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "Second Device",
+          timezone: "UTC",
+        })
+        .returning();
+
+      // Device one walks through the door. Its own token dies with the call.
+      const deletingToken = app.jwt.sign({
+        sub: testUser.id,
+        name: testUser.displayName,
+        jti: randomUUID(),
+      });
+
+      const deleted = await app.inject({
+        method: "DELETE",
+        url: "/api/users/me",
+        cookies: { auth_token: deletingToken },
+        payload: { confirm: "delete" },
+      });
+      expect(deleted.statusCode).toBe(200);
+
+      const tombstone = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, testUser.id))
+        .limit(1);
+      expect(tombstone[0].displayName).toBe(DELETED_DISPLAY_NAME);
+      expect(tombstone[0].deletedAt).toBeInstanceOf(Date);
+
+      // Device two still holds a token minted before the deletion. It was
+      // never blacklisted — device one's was — so this is the case the
+      // `deletedAt` filter has to close, and `complete-profile` used to have
+      // no filter at all: it ran an unconditional `UPDATE users WHERE id =
+      // $1` and answered with a fresh seven-day token.
+      const secondDevice = app.jwt.sign({
+        sub: testUser.id,
+        name: testUser.displayName,
+        jti: randomUUID(),
+      });
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/auth/complete-profile",
+        cookies: { auth_token: secondDevice },
+        payload: { displayName: "Restored Name" },
+      });
+
+      expect(response.statusCode).toBe(401);
+      expect(JSON.parse(response.body)).toEqual({
+        success: false,
+        error: { code: "UNAUTHORIZED", message: "Account deleted" },
+      });
+
+      // No fresh credential on the way out, either.
+      expect(
+        response.cookies.find((c) => c.name === "auth_token"),
+      ).toBeUndefined();
+
+      // The row is what matters, not the status: `displayName` is the field
+      // the privacy copy this branch published promises to remove.
+      const after = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, testUser.id))
+        .limit(1);
+      expect(after[0].displayName).toBe(DELETED_DISPLAY_NAME);
+      expect(after[0].deletedAt).toBeInstanceOf(Date);
     });
   });
 

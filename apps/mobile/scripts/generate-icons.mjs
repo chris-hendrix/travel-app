@@ -23,6 +23,9 @@
  *     form Android renders (a coloured icon becomes a grey blob)
  *   - splash: the tile as a rounded square on transparency, because the
  *     splash background is the sand ground and a cream J on sand is invisible
+ *   - iOS: the mark on the square tile again, but flattened — the one icon
+ *     with no alpha channel, because App Store Connect rejects a marketing
+ *     icon that is transparent or merely carries an alpha channel (ITMS-90717)
  */
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -173,6 +176,29 @@ async function onTile(size, markHeight, { radius = 0 } = {}) {
     .toBuffer();
 }
 
+/**
+ * The mark on the tile with the alpha channel removed.
+ *
+ * App Store Connect refuses a marketing icon that is transparent or carries an
+ * alpha channel at all (ITMS-90717), and every icon this script writes is
+ * RGBA by construction — the launcher icon masks its own, and `onNothing` is
+ * transparency on purpose. So the iOS icon is flattened onto the tile colour
+ * here, and a colour type of 2 instead of 6 is the file's own statement that
+ * it has no alpha.
+ *
+ * That is the input, not the guarantee. Prebuild does not copy this file into
+ * the appiconset, it re-encodes it through `@expo/image-utils`, whose sharp
+ * branch (`ensureAlpha` then a white plate `dest-over`) hands back an icon that
+ * carries an alpha channel after all. `plugins/withIosOpaqueIcon.js` re-flattens
+ * what prebuild writes.
+ */
+async function onOpaqueTile(size, markHeight) {
+  return sharp(await onTile(size, markHeight))
+    .flatten({ background: TILE })
+    .png()
+    .toBuffer();
+}
+
 /** The mark alone on transparency, the letter centred for the same reason. */
 async function onNothing(size, markHeight, content = inner) {
   return sharp({
@@ -207,6 +233,9 @@ const outputs = [
   // White silhouette for the status bar, on a square canvas: a non-square
   // drawable gets scaled by whatever the notification shade decides.
   ["assets/notification-icon.png", await onNothing(96, Math.round(96 * MARK.notification), letterOnly)],
+  // App Store marketing icon: the square tile, flattened, because App Store
+  // Connect rejects an alpha channel outright (ITMS-90717).
+  ["assets/ios-icon.png", await onOpaqueTile(1024, Math.round(1024 * MARK.tile))],
   // Browser tab.
   ["assets/favicon.png", await onTile(512, Math.round(512 * MARK.tile))],
   // PWA / manifest icons.

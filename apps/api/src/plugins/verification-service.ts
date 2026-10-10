@@ -2,7 +2,9 @@ import fp from "fastify-plugin";
 import type { FastifyInstance } from "fastify";
 import {
   MockVerificationService,
+  ReviewAllowlistVerificationService,
   TwilioVerificationService,
+  type IVerificationService,
 } from "@/services/verification.service.js";
 
 /**
@@ -10,6 +12,12 @@ import {
  * Creates the appropriate IVerificationService implementation based on config:
  * - ENABLE_FIXED_VERIFICATION_CODE=true → MockVerificationService (dev/test)
  * - Otherwise → TwilioVerificationService (production)
+ *
+ * REVIEW_PHONES then wraps whichever implementation was chosen. That is the
+ * App Review sign-in escape hatch: the numbers it names complete sign-in with
+ * the fixed code and no Twilio call. It is a different mechanism from
+ * ENABLE_FIXED_VERIFICATION_CODE — the flag applies the fixed code to everyone
+ * and is blocked in production; the allowlist applies to named numbers only.
  */
 export default fp(
   async function verificationServicePlugin(fastify: FastifyInstance) {
@@ -23,9 +31,13 @@ export default fp(
       );
     }
 
+    // One implementation, chosen as before, then optionally wrapped by the
+    // App Review allowlist. Decorated exactly once — this is an fp() plugin,
+    // so a second decorate() of the same name throws FST_ERR_DEC_ALREADY_PRESENT.
+    let impl: IVerificationService;
+
     if (fastify.config.ENABLE_FIXED_VERIFICATION_CODE) {
-      const service = new MockVerificationService(fastify.log);
-      fastify.decorate("verificationService", service);
+      impl = new MockVerificationService(fastify.log);
       fastify.log.warn("Using MockVerificationService (fixed code: 123456)");
     } else {
       const {
@@ -45,15 +57,29 @@ export default fp(
         );
       }
 
-      const service = new TwilioVerificationService({
+      impl = new TwilioVerificationService({
         accountSid: TWILIO_ACCOUNT_SID,
         authToken: TWILIO_AUTH_TOKEN,
         verifyServiceSid: TWILIO_VERIFY_SERVICE_SID,
         logger: fastify.log,
       });
-      fastify.decorate("verificationService", service);
       fastify.log.info("Using TwilioVerificationService");
     }
+
+    const reviewPhones = fastify.config.REVIEW_PHONES;
+    if (reviewPhones.length > 0) {
+      impl = new ReviewAllowlistVerificationService(
+        impl,
+        reviewPhones,
+        fastify.log,
+      );
+      fastify.log.warn(
+        { reviewPhones },
+        "App Review allowlist active: these numbers sign in with the fixed code and no Twilio call",
+      );
+    }
+
+    fastify.decorate("verificationService", impl);
   },
   {
     name: "verification-service",

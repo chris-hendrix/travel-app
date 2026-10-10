@@ -84,7 +84,7 @@ installable build without a Linux-side SDK. That build carries `arm64-v8a` and
 `x86_64` only, which is the phone and the emulator; the reasons are in the root
 `AGENTS.md`, and `make android-apk` still builds all four.
 
-Signing is a config plugin (`plugins/withAndroidSigning.js`) so it survives `prebuild --clean`: it reads `JOURNIFUL_KEYSTORE` / `JOURNIFUL_KEY_ALIAS` / `JOURNIFUL_STORE_PASSWORD` / `JOURNIFUL_KEY_PASSWORD` from `~/.gradle/gradle.properties`. `android/` is gitignored and regenerated; `google-services.json` is gitignored and copied from the Firebase console (or a maintainer) locally, written in CI from a secret.
+Signing is a config plugin (`plugins/withAndroidSigning.cjs`) so it survives `prebuild --clean`: it reads `JOURNIFUL_KEYSTORE` / `JOURNIFUL_KEY_ALIAS` / `JOURNIFUL_STORE_PASSWORD` / `JOURNIFUL_KEY_PASSWORD` from `~/.gradle/gradle.properties`. `android/` is gitignored and regenerated; `google-services.json` is gitignored and copied from the Firebase console (or a maintainer) locally, written in CI from a secret.
 
 Push notes that are easy to get wrong: the FCM payload's `data.url` is a **web url** and `lib/pushRoutes.ts` maps it (`/trips?id=x` → `/trips/detail?id=x`); `data.url` is the only routing signal, since the API no longer sets a `clickAction`; the notification small icon must stay the monochrome asset or Android renders a white square; registration is best-effort everywhere and must never block a sign-in; the channel id the API sends is `"default"`, which is why `ensureChannel()` creates exactly that one. A device holding the old Capacitor APK must be uninstalled first (same package, different signing key).
 
@@ -94,6 +94,92 @@ The emulator and Android Studio live on Windows; the build lives in WSL2. Two fa
 
 - **`adb` in WSL2 must be the Windows one.** Expo and gradle resolve `adb` from `$ANDROID_HOME/platform-tools/adb`, and the Linux adb server cannot see an emulator the Windows adb server owns. A wrapper that `exec`s `adb.exe`, symlinked as `$ANDROID_HOME/platform-tools/adb`, is what makes `npx expo run:android` find the device. `adb reverse tcp:8000 tcp:<host-port>` then maps the *device's* `localhost:8000` to the host port the devcontainer actually publishes (the container maps 8000 and 8081 to random host ports), so a local-API build reaches `http://localhost:8000/api` from the app. For Metro in dev builds, `adb reverse tcp:8081 tcp:8081` reaches Windows, not WSL2 — run the bundle from a release/preview APK instead of a dev build, or point the app at the WSL2 address, rather than assuming the reverse works.
 - **When `adb shell input text` silently does nothing, the IME has a dead input connection** — not the app. `dumpsys input_method` shows `mServedView=null` with a `BaseInputConnection` fallback, the keyboard is visibly shown, and `input text`, digit keyevents and `input keyboard text` all no-op. `adb shell am force-stop com.google.android.inputmethod.latin`, then tap the field again and type; a device reboot is the fallback when that stops working (both happened in one session). Taps on a themed `Checkbox` land on the label's centre, not its glyph. And the UI automator dump (`adb shell uiautomator dump`) is the readable source of truth for what is on screen, because `screencap` from WSL2 has come back blank while the tree was fully rendered.
+
+### iOS
+
+```bash
+# Host, not the devcontainer: eas-cli talks to EAS's cloud builders.
+make ios-build         # eas build -p ios --profile production  (App Store / TestFlight .ipa)
+make ios-preview       # eas build -p ios --profile preview     (ad-hoc .ipa, internal installs)
+make ios-sim           # eas build -p ios --profile simulator  (.app, no signing)
+make ios-submit        # eas submit -p ios --id "$(BUILD_ID)"
+make ios-credentials   # eas credentials -p ios
+```
+
+There is **no Mac in this loop**. No Xcode, no simulator to run the result on,
+no committed `ios/` directory to open: every *build* is EAS's cloud builder,
+driven from WSL2 exactly like the Android targets are driven locally. The
+generated project itself can still be produced here — `npx expo prebuild -p ios
+--no-install` writes the gitignored `ios/` and is how the built appiconset is
+read back (`ios/<project>/Images.xcassets/AppIcon.appiconset/`) without paying
+for anything.
+
+**Authenticating.** Every command above talks to `@chris-hendrix/journiful-mobile`;
+`extra.eas.projectId` in `app.json` is the link and the account is
+`chris-hendrix`. `npx eas-cli login` stores a session in `~/.expo/state.json`.
+Anything that cannot prompt — CI, or an agent — uses an access token instead:
+`EXPO_TOKEN=$(cat ~/.expo-token) npx eas-cli whoami`, with the file outside the
+repo and mode 600. A token is a credential: give CI its own rather than copying
+a developer's, and revoke one the moment it has been pasted somewhere it should
+not be.
+
+`ios-sim` is the one of the three that needs nothing from Apple: an unsigned
+`.app` for a simulator, which is the pre-payment proof that the prebuild
+configures and the only build whose appiconset can be inspected.
+
+Two binaries, two purposes. The **ad-hoc internal build** (`ios-preview`) is
+what the device pass installs — a real `.ipa` on a real phone, sideloaded,
+signed with the EAS-held distribution certificate, and never reaching TestFlight.
+**TestFlight** is where the release goes: `ios-build` uploads to App Store
+Connect and TestFlight distributes it.
+
+**Updates, and what the fingerprint enforces.** The binary ships `expo-updates`,
+so a **JS-only** change (a screen, a query, copy, a token) ships as
+`eas update --channel <name>` to installed apps with no store review and no
+reinstall; a **native** change (a dependency with a native module, a new
+permission, anything that rewrites the plist or the manifest) needs a real
+`eas build`. The line between the two is `expo.runtimeVersion` in `app.json`,
+set to `{"policy": "fingerprint"}`: the runtime version is a hash of the
+native project, so a native change produces a different fingerprint and the
+update server refuses to hand that update to a binary it was not built for —
+the enforcement is the hash, not a convention. Each shipping profile in
+`eas.json` names a `channel` (`development`, `preview`, `production`); a build
+publishes to its profile's channel, and `__tests__/native-config.test.ts`
+asserts the pairing so a profile cannot ship update-less. The `simulator`
+profile names no channel on purpose: it is a build of the source it was built
+from, not an update target. `eas update:configure` re-adds a channel to every
+build profile that lacks one, so running it puts `"channel": "simulator"` back
+and turns that assertion red — remove the line again rather than relaxing the
+test, which is the thing that noticed. The same command is otherwise
+idempotent; `eas init` is the one to watch, because it rewrote `intentFilters`
+and `associatedDomains` as duplicated entries when it linked the project.
+
+Two rules that trip people up:
+
+- **`ios/` is gitignored and regenerated, never hand-edited.** The same is true
+  of the Android `android/` (see the signing plugin above). An iOS build change
+  is a change to `app.json`, `eas.json` or a config plugin — never a line in
+  `ios/`, which the next prebuild overwrites. Two plugins carry that weight:
+  `plugins/withAndroidSigning.cjs` for the Android upload key, and
+  `plugins/withIosOpaqueIcon.cjs`, which re-flattens the appiconset prebuild
+  writes. **Both are `.cjs` for a reason, and a third one must be too.** This
+  package is `"type": "module"`, so a CommonJS plugin under a `.js` extension
+  cannot be resolved by EAS at all — `require is not defined in ES module
+  scope` — while `expo config` and `prebuild` tolerate it, because Expo's loader
+  shims `require`. That asymmetry is why the first `eas build` is where it
+  surfaces: the Android gradle path can work for months with a plugin EAS will
+  refuse. Prebuild re-encodes `assets/ios-icon.png` through
+  `@expo/image-utils`, whose sharp branch hands Apple an icon that carries an
+  alpha channel (ITMS-90717); flattening the source is the input, not the
+  guarantee.
+- **`make ios-submit` wants a build ID, never `--latest`.** `--latest` uploads
+  the newest iOS build for the platform, which after an ad-hoc pass is the
+  ad-hoc `.ipa` — the wrong artifact for a review. Keep the ID `eas build`
+  printed and pass it in: `BUILD_ID=<uuid> make ios-submit`. And `--profile` on
+  `submit` names the *submit* profile in `eas.json`, not the build — of which
+  there is none yet, because the block needs `ascAppId` and `appleTeamId` from
+  the App Store Connect record. Until that record exists, `eas submit` asks for
+  them instead of reading them.
 
 ### Production web build
 

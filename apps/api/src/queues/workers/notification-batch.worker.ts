@@ -1,5 +1,5 @@
 import type { Job } from "pg-boss";
-import { eq, and, inArray, isNotNull } from "drizzle-orm";
+import { eq, and, inArray, isNotNull, isNull } from "drizzle-orm";
 import type { NotificationBatchPayload, WorkerDeps } from "@/queues/types.js";
 import { QUEUE } from "@/queues/types.js";
 import {
@@ -10,6 +10,10 @@ import {
   sentReminders,
 } from "@/db/schema/index.js";
 import { buildPushPayload } from "@/services/push-payload.builder.js";
+import {
+  blockedCounterpartIds,
+  withoutBlocked,
+} from "@/services/moderation.service.js";
 
 /**
  * Maps a notification type to its corresponding preference field
@@ -62,12 +66,19 @@ export async function handleNotificationBatch(
   job: Job<NotificationBatchPayload>,
   deps: WorkerDeps,
 ): Promise<void> {
-  const { tripId, type, title, body, data, excludeUserId } = job.data;
+  const { tripId, type, title, body, data, excludeUserId, actorUserId } =
+    job.data;
 
   // 1. Query going members with phone numbers.
   // Guest rows (userId IS NULL) are skipped: no account, no phone, no push.
   // (innerJoin already drops NULL userIds; the explicit filter + type guard
   // below keep the fanout null-safe against future join changes.)
+  // Soft-deleted accounts (deletedAt set) are skipped for the same reason:
+  // deletion keeps the `members` row, status and all, but `users.phone_number`
+  // is a `deleted:<uuid>` tombstone by then — enqueued as an SMS destination
+  // it is a Twilio call for a number that belongs to nobody, which fails,
+  // retries and dead-letters on every trip-wide message. There is no session
+  // left to read the notification in either.
   const goingMembers = await deps.db
     .select({ userId: members.userId, phoneNumber: users.phoneNumber })
     .from(members)
@@ -77,6 +88,7 @@ export async function handleNotificationBatch(
         eq(members.tripId, tripId),
         eq(members.status, "going"),
         isNotNull(members.userId),
+        isNull(users.deletedAt),
       ),
     );
 
@@ -85,10 +97,20 @@ export async function handleNotificationBatch(
     (m): m is { userId: string; phoneNumber: string } => m.userId !== null,
   );
 
-  // 2. Filter out excludeUserId
-  const targetMembers = excludeUserId
+  // 2. Filter out excludeUserId, and the actor's blocked counterparts.
+  // The two are independent: the actor is dropped because they caused this,
+  // anyone they blocked is dropped because they must not hear it at all.
+  // An older job carries no actorUserId, and then nothing is filtered.
+  let targetMembers = excludeUserId
     ? notifyableMembers.filter((m) => m.userId !== excludeUserId)
     : notifyableMembers;
+
+  if (actorUserId) {
+    targetMembers = withoutBlocked(
+      targetMembers,
+      await blockedCounterpartIds(deps.db, actorUserId),
+    );
+  }
 
   if (targetMembers.length === 0) {
     return;

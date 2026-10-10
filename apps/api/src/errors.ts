@@ -211,6 +211,13 @@ export const DuplicateParticipantError = createError(
   400,
 );
 
+// Account errors
+export const UserNotFoundError = createError(
+  "NOT_FOUND",
+  "User not found",
+  404,
+);
+
 // Admin errors
 export const AdminNotFoundError = createError(
   "ADMIN_NOT_FOUND",
@@ -220,6 +227,13 @@ export const AdminNotFoundError = createError(
 export const AdminForbiddenError = createError("ADMIN_FORBIDDEN", "%s", 403);
 export const AdminSelfActionError = createError(
   "ADMIN_SELF_ACTION",
+  "%s",
+  400,
+);
+
+// Moderation errors
+export const CannotModerateSelfError = createError(
+  "CANNOT_MODERATE_SELF",
   "%s",
   400,
 );

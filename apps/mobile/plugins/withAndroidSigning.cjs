@@ -10,7 +10,6 @@
  * Properties read: JOURNIFUL_KEYSTORE, JOURNIFUL_KEY_ALIAS,
  * JOURNIFUL_STORE_PASSWORD, JOURNIFUL_KEY_PASSWORD.
  */
-/* eslint-disable no-undef */
 // @ts-nocheck — plain Node config plugin, no types by design.
 const { withAppBuildGradle } = require("expo/config-plugins");
 

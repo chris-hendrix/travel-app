@@ -559,6 +559,9 @@ export class MessageService implements IMessageService {
           body: `${authorName}: ${truncatedContent}`,
           data: { messageId: newMessage.id },
           excludeUserId: authorId,
+          // The author is the actor: a message from someone a recipient has
+          // blocked must not fan out to them.
+          actorUserId: authorId,
         });
       } catch (err) {
         this.logger?.error(err, "Failed to send message notifications");

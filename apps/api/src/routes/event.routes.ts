@@ -5,7 +5,7 @@ import {
   authenticate,
   requireCompleteProfile,
 } from "@/middleware/auth.middleware.js";
-import { checkBanned } from "@/middleware/admin.middleware.js";
+import { checkBanned } from "@/middleware/account-state.middleware.js";
 import {
   defaultRateLimitConfig,
   writeRateLimitConfig,
@@ -68,7 +68,8 @@ export async function eventRoutes(fastify: FastifyInstance) {
         querystring: listEventsQuerySchema,
         response: { 200: eventListResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: defaultRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     eventController.listEvents,
   );
@@ -85,18 +86,18 @@ export async function eventRoutes(fastify: FastifyInstance) {
         params: eventIdParamsSchema,
         response: { 200: eventResponseSchema },
       },
-      preHandler: [fastify.rateLimit(defaultRateLimitConfig), authenticate, checkBanned],
+      config: { rateLimit: defaultRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
     },
     eventController.getEvent,
   );
 
   /**
    * Write routes scope
-   * All routes registered here share authenticate + requireCompleteProfile hooks
-   * with stricter rate limiting for write operations
+   * All routes registered here share authenticate + requireCompleteProfile
+   * hooks, and each carries `writeRateLimitConfig` as its own route config
    */
   fastify.register(async (scope) => {
-    scope.addHook("preHandler", scope.rateLimit(writeRateLimitConfig));
     scope.addHook("preHandler", authenticate);
     scope.addHook("preHandler", checkBanned);
     scope.addHook("preHandler", requireCompleteProfile);
@@ -108,6 +109,7 @@ export async function eventRoutes(fastify: FastifyInstance) {
     scope.post<{ Params: { tripId: string }; Body: CreateEventInput }>(
       "/trips/:tripId/events",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: tripIdParamsSchema,
           body: createEventSchema,
@@ -125,6 +127,7 @@ export async function eventRoutes(fastify: FastifyInstance) {
     scope.put<{ Params: { id: string }; Body: UpdateEventInput }>(
       "/events/:id",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: eventIdParamsSchema,
           body: updateEventSchema,
@@ -142,6 +145,7 @@ export async function eventRoutes(fastify: FastifyInstance) {
     scope.delete<{ Params: { id: string } }>(
       "/events/:id",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: eventIdParamsSchema,
           response: { 200: successResponseSchema },
@@ -158,6 +162,7 @@ export async function eventRoutes(fastify: FastifyInstance) {
     scope.post<{ Params: { id: string } }>(
       "/events/:id/restore",
       {
+        config: { rateLimit: writeRateLimitConfig },
         schema: {
           params: eventIdParamsSchema,
           response: { 200: eventResponseSchema },

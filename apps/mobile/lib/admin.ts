@@ -3,10 +3,15 @@
  *
  * Everything here is a value or a string the screens would otherwise
  * eyeball: the list filter and its query string, which actions a row
- * offers, the count line, the empty sentences, the pending labels,
- * and the three-way route guard. No dates: join-date formatting lives
- * in `lib/dateRange.ts` (`joinedDay`, which reads its day through
+ * offers, the count line, the empty sentences, the pending labels, and
+ * the three-way route guard. No dates: join-date formatting lives in
+ * `lib/dateRange.ts` (`joinedDay`, which reads its day through
  * `lib/timezone.ts`), never here.
+ *
+ * The reason vocabulary's labels are not here any more: they moved to
+ * `lib/moderation.ts`, beside the re-export that names the values, when
+ * the roster row became their second caller. One vocabulary, one label
+ * map.
  *
  * Node-importable by design: no `react`, no `react-native`.
  */

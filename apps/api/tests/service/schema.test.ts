@@ -11,7 +11,9 @@ import {
   type PushSubscription,
   type NewPushSubscription,
 } from "@/db/schema/index.js";
-import { getTableName, getTableColumns } from "drizzle-orm";
+import { getTableName, getTableColumns, sql } from "drizzle-orm";
+import { randomUUID } from "crypto";
+import { db } from "@/config/database.js";
 
 describe("Database Schema", () => {
   describe("Users Table", () => {
@@ -106,6 +108,69 @@ describe("Database Schema", () => {
 
       expect(selectType).toBeDefined();
       expect(insertType).toBeDefined();
+    });
+  });
+
+  // Deletion does not blank a phone number, it moves it to a
+  // `deleted:<uuid>` tombstone so the real number can sign up again. The row
+  // stays, and so do the rows that copy that number into a phone column —
+  // an invitation's `invitee_phone` and a guest's `guest_phone` are written
+  // verbatim from `users.phone_number`. A column that is narrower than the
+  // value it receives is not a validation error the caller can handle: the
+  // insert raises Postgres 22001 mid-transaction, the transaction aborts and
+  // the whole batch of invitations goes with it. This is the assertion that
+  // catches a future narrowing in review rather than in production.
+  describe("Phone columns that can receive a deletion tombstone", () => {
+    const tombstone = `deleted:${randomUUID()}`;
+
+    /** What the code assumes: the declared schemas agree on the width. */
+    it("declares the copied phone columns at the width of users.phone_number", () => {
+      expect(tombstone).toHaveLength(44);
+
+      const userColumns = getTableColumns(users);
+      const invitationColumns = getTableColumns(invitations);
+      const memberColumns = getTableColumns(members);
+
+      expect(userColumns.phoneNumber.length).toBe(64);
+      expect(invitationColumns.inviteePhone.length).toBe(64);
+      expect(memberColumns.guestPhone.length).toBe(64);
+    });
+
+    /** What the database actually has: the migration applied, and applies
+     * from empty as well, because the schema declares it. */
+    it("has those widths in the database, and room for a tombstone", async () => {
+      const result = await db.execute<{
+        table_name: string;
+        column_name: string;
+        character_maximum_length: number | null;
+      }>(sql`
+        SELECT table_name, column_name, character_maximum_length
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND ((table_name = 'users' AND column_name = 'phone_number')
+            OR (table_name = 'invitations' AND column_name = 'invitee_phone')
+            OR (table_name = 'members' AND column_name = 'guest_phone'))
+      `);
+
+      const widths = new Map(
+        result.rows.map((row) => [
+          `${row.table_name}.${row.column_name}`,
+          row.character_maximum_length,
+        ]),
+      );
+
+      // A missing row is a failure, not a skip: the column has to exist.
+      expect(widths.size).toBe(3);
+      for (const column of [
+        "users.phone_number",
+        "invitations.invitee_phone",
+        "members.guest_phone",
+      ]) {
+        expect(widths.get(column)).toBe(64);
+        // The value deletion can copy is 44 characters; the column must hold
+        // it with room to spare rather than merely fit it today.
+        expect(widths.get(column)! >= tombstone.length).toBe(true);
+      }
     });
   });
 

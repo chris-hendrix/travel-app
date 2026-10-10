@@ -4,6 +4,29 @@ import { config } from "dotenv";
 // Load environment variables (.env.local takes precedence over .env)
 config({ path: [".env.local", ".env"], quiet: true });
 
+/**
+ * Restore literal newlines in a PEM that was stored `\n`-escaped. An already
+ * literal PEM is returned unchanged; an unset value stays an empty string.
+ */
+export function unescapePem(value: string): string {
+  if (!value) return "";
+  return value.includes("\\n") ? value.replace(/\\n/g, "\n") : value;
+}
+
+/**
+ * The E.164 form of an App Review allowlist entry, or `null` when the entry
+ * cannot be one. The allowlist is compared as an exact string by the validator
+ * (`utils/phone.ts`) and by the verification wrapper
+ * (`services/verification.service.ts`), and a human copies the same value into
+ * the review notes — so every entry is normalised once, here at boot. `+1 (415)
+ * 555-2671` pasted into a Railway variable would otherwise be a list that logs
+ * itself as active and matches nothing.
+ */
+export function normaliseReviewPhone(entry: string): string | null {
+  const stripped = entry.replace(/[\s\-().]/g, "");
+  return /^\+[1-9]\d{7,14}$/.test(stripped) ? stripped : null;
+}
+
 const envSchema = z.object({
   // Server Configuration
   NODE_ENV: z
@@ -90,6 +113,28 @@ const envSchema = z.object({
     .default(process.env.NODE_ENV !== "production" ? "true" : "false")
     .transform((v) => v === "true" || v === "1"),
 
+  // App Review sign-in allowlist: comma-separated phone numbers that can
+  // complete sign-in with the fixed code and no Twilio call. Unlike
+  // ENABLE_FIXED_VERIFICATION_CODE this is safe in production — it only
+  // affects the numbers named here. Entries are normalised to E.164, and an
+  // entry that is not one refuses the process rather than sitting in the list
+  // unmatched: a formatted number is an allowlist that is silently inert, and
+  // the operator only finds out when App Review cannot sign in.
+  REVIEW_PHONES: z
+    .string()
+    .default("")
+    .transform((v) =>
+      v
+        .split(",")
+        .map((p) => p.trim())
+        .filter((p) => p.length > 0),
+    )
+    .refine(
+      (phones) => phones.every((p) => normaliseReviewPhone(p) !== null),
+      "REVIEW_PHONES entries must be E.164 numbers (e.g. +14155552671)",
+    )
+    .transform((phones) => phones.map((p) => normaliseReviewPhone(p) ?? p)),
+
   // Logging
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace"])
@@ -127,6 +172,18 @@ const envSchema = z.object({
 
   // Firebase Admin SDK for FCM push delivery (optional — JSON service account)
   FIREBASE_SERVICE_ACCOUNT: z.string().default(""),
+
+  // Apple Push Notification service (optional — iOS delivery disabled if unset).
+  // APNS_KEY_P8 may arrive with `\n`-escaped newlines (dashes/variables are
+  // single-line), so it is unescaped on read.
+  APNS_KEY_P8: z.string().default("").transform(unescapePem),
+  APNS_KEY_ID: z.string().default(""),
+  APNS_TEAM_ID: z.string().default(""),
+  APNS_BUNDLE_ID: z.string().default("com.journiful.app"),
+  APNS_USE_SANDBOX: z
+    .enum(["true", "false", "1", "0", ""])
+    .default(process.env.NODE_ENV === "production" ? "false" : "true")
+    .transform((v) => v === "true" || v === "1"),
 
   // AeroDataBox Flight Lookup (optional)
   AERODATABOX_API_KEY: z.string().default(""),

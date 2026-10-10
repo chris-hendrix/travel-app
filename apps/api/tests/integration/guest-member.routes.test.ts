@@ -2,8 +2,8 @@ import { describe, it, expect, afterEach } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../helpers.js";
 import { db } from "@/config/database.js";
-import { users, trips, members } from "@/db/schema/index.js";
-import { eq } from "drizzle-orm";
+import { users, trips, members, userBlocks } from "@/db/schema/index.js";
+import { and, eq, inArray } from "drizzle-orm";
 import { generateUniquePhone } from "../test-utils.js";
 
 // Track fixtures per test for DB cleanup (members -> trips -> users).
@@ -57,6 +57,20 @@ async function setupTripWithMember() {
   });
   createdUserIds.push(member!.id);
   return { organizer, trip, member: member! };
+}
+
+/** A user outside both trips above, tracked for the cleanup below. */
+async function createUser(displayName: string) {
+  const [user] = await db
+    .insert(users)
+    .values({
+      phoneNumber: generateUniquePhone(),
+      displayName,
+      timezone: "UTC",
+    })
+    .returning();
+  createdUserIds.push(user!.id);
+  return user!;
 }
 
 describe("Guest Member Routes", () => {
@@ -200,6 +214,91 @@ describe("Guest Member Routes", () => {
       });
       expect(response.statusCode).toBe(400);
     });
+
+    it("should refuse a blocked phone with exactly the answer an unavailable one gets, and write no guest row", async () => {
+      // A guest row is an invitation waiting to happen:
+      // `processPendingInvitations` claims it by phone on the owner's next
+      // sign-in. Adding a guest whose owner is blocked is therefore the
+      // organizer inviting them, which is the act the block forbids.
+      app = await buildApp();
+      const { organizer, trip } = await setupTripWithOrganizer();
+
+      // The baseline the refusal is measured against: a phone that is
+      // genuinely unavailable because its owner is already in the trip.
+      const taken = await createUser("Already On Trip");
+      await db
+        .insert(members)
+        .values({ tripId: trip.id, userId: taken.id, status: "going" });
+
+      // Two blocks, one each way round the organizer, plus a phone nobody
+      // has blocked.
+      const blockedByOrganizer = await createUser("Blocked By Organizer");
+      const blockerOfOrganizer = await createUser("Blocker Of Organizer");
+      const unblocked = await createUser("Unblocked");
+      await db.insert(userBlocks).values([
+        { blockerId: organizer.id, blockedId: blockedByOrganizer.id },
+        { blockerId: blockerOfOrganizer.id, blockedId: organizer.id },
+      ]);
+
+      const token = app.jwt.sign({
+        sub: organizer.id,
+        name: organizer.displayName,
+      });
+      const addGuest = (guestPhone: string) =>
+        app.inject({
+          method: "POST",
+          url: `/api/trips/${trip.id}/members/guests`,
+          cookies: { auth_token: token },
+          payload: { displayName: "Guest", guestPhone },
+        });
+
+      const baseline = await addGuest(taken.phoneNumber);
+      expect(baseline.statusCode).toBe(409);
+      const baselineBody = JSON.parse(baseline.body);
+      expect(baselineBody.error.code).toBe("DUPLICATE_MEMBER");
+
+      for (const phone of [
+        blockedByOrganizer.phoneNumber,
+        blockerOfOrganizer.phoneNumber,
+      ]) {
+        const response = await addGuest(phone);
+
+        // The same answer, status, code and message — the organizer may be
+        // the side the block was written against, so an answer that named a
+        // block would tell them what the block was meant to keep from them.
+        expect(response.statusCode).toBe(baseline.statusCode);
+        expect(JSON.parse(response.body)).toMatchObject({
+          success: false,
+          error: {
+            code: baselineBody.error.code,
+            message: baselineBody.error.message,
+          },
+        });
+      }
+
+      // Refusing has to be the whole of it: a row left behind is one the
+      // blocked user claims on their next sign-in.
+      const written = await db
+        .select({ guestPhone: members.guestPhone })
+        .from(members)
+        .where(
+          and(
+            eq(members.tripId, trip.id),
+            inArray(members.guestPhone, [
+              blockedByOrganizer.phoneNumber,
+              blockerOfOrganizer.phoneNumber,
+            ]),
+          ),
+        );
+      expect(written).toHaveLength(0);
+
+      // The guard is about the block, not about phones with an account.
+      const allowed = await addGuest(unblocked.phoneNumber);
+      expect(allowed.statusCode).toBe(201);
+      expect(JSON.parse(allowed.body).member.guestPhone).toBe(
+        unblocked.phoneNumber,
+      );
+    });
   });
 
   describe("PATCH /api/trips/:tripId/members/guests/:memberId", () => {
@@ -302,6 +401,70 @@ describe("Guest Member Routes", () => {
         payload: { status: "bogus" },
       });
       expect(response.statusCode).toBe(400);
+    });
+
+    it("should refuse a re-phone onto a blocked number, and leave a row that already carries it alone", async () => {
+      // The create guard is one door; a PATCH is the same act one step
+      // later, because the claim on the owner's next sign-in matches on the
+      // phone the row carries. A row that already carries the number is the
+      // pre-existing-row case a block deliberately leaves alone.
+      app = await buildApp();
+      const { organizer, trip } = await setupTripWithOrganizer();
+      const blocked = await createUser("Blocked Counterpart");
+      await db
+        .insert(userBlocks)
+        .values({ blockerId: organizer.id, blockedId: blocked.id });
+
+      const token = app.jwt.sign({
+        sub: organizer.id,
+        name: organizer.displayName,
+      });
+      const created = await app.inject({
+        method: "POST",
+        url: `/api/trips/${trip.id}/members/guests`,
+        cookies: { auth_token: token },
+        payload: { displayName: "Name Only" },
+      });
+      expect(created.statusCode).toBe(201);
+      const guestId = JSON.parse(created.body).member.id;
+
+      const rephoned = await app.inject({
+        method: "PATCH",
+        url: `/api/trips/${trip.id}/members/guests/${guestId}`,
+        cookies: { auth_token: token },
+        payload: { guestPhone: blocked.phoneNumber },
+      });
+      expect(rephoned.statusCode).toBe(409);
+      expect(JSON.parse(rephoned.body).error.code).toBe("DUPLICATE_MEMBER");
+
+      // The number did not land on the row: a refusal that still wrote the
+      // phone would be the crossing it just refused.
+      const after = await db
+        .select({ guestPhone: members.guestPhone })
+        .from(members)
+        .where(eq(members.id, guestId));
+      expect(after[0]!.guestPhone).toBeNull();
+
+      const [preExisting] = await db
+        .insert(members)
+        .values({
+          tripId: trip.id,
+          userId: null,
+          guestDisplayName: "Already There",
+          guestPhone: blocked.phoneNumber,
+        })
+        .returning();
+
+      const samePhone = await app.inject({
+        method: "PATCH",
+        url: `/api/trips/${trip.id}/members/guests/${preExisting!.id}`,
+        cookies: { auth_token: token },
+        payload: { guestPhone: blocked.phoneNumber, status: "going" },
+      });
+      expect(samePhone.statusCode).toBe(200);
+      const samePhoneBody = JSON.parse(samePhone.body);
+      expect(samePhoneBody.member.status).toBe("going");
+      expect(samePhoneBody.member.guestPhone).toBe(blocked.phoneNumber);
     });
 
     it("should return 400 (not 500) on invalid guestPhone", async () => {

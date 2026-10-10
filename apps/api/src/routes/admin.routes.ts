@@ -49,7 +49,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
           querystring: adminListUsersQuerySchema,
           response: { 200: adminUserListResponseSchema },
         },
-        preHandler: [scope.rateLimit(defaultRateLimitConfig)],
+        config: { rateLimit: defaultRateLimitConfig },
       },
       adminController.listUsers,
     );
@@ -65,7 +65,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
           params: adminUserIdParamsSchema,
           response: { 200: adminUserDetailResponseSchema },
         },
-        preHandler: [scope.rateLimit(defaultRateLimitConfig)],
+        config: { rateLimit: defaultRateLimitConfig },
       },
       adminController.getUserDetail,
     );
@@ -82,7 +82,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
           body: adminUpdateUserSchema,
           response: { 200: adminUpdateUserResponseSchema },
         },
-        preHandler: [scope.rateLimit(writeRateLimitConfig)],
+        config: { rateLimit: writeRateLimitConfig },
       },
       adminController.updateUser,
     );
@@ -98,7 +98,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
           params: adminUserIdParamsSchema,
           response: { 200: adminSuccessResponseSchema },
         },
-        preHandler: [scope.rateLimit(writeRateLimitConfig)],
+        config: { rateLimit: writeRateLimitConfig },
       },
       adminController.banUser,
     );
@@ -114,7 +114,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
           params: adminUserIdParamsSchema,
           response: { 200: adminSuccessResponseSchema },
         },
-        preHandler: [scope.rateLimit(writeRateLimitConfig)],
+        config: { rateLimit: writeRateLimitConfig },
       },
       adminController.unbanUser,
     );
@@ -130,7 +130,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
           params: adminUserIdParamsSchema,
           response: { 200: adminSuccessResponseSchema },
         },
-        preHandler: [scope.rateLimit(writeRateLimitConfig)],
+        config: { rateLimit: writeRateLimitConfig },
       },
       adminController.promoteAdmin,
     );
@@ -146,7 +146,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
           params: adminUserIdParamsSchema,
           response: { 200: adminSuccessResponseSchema },
         },
-        preHandler: [scope.rateLimit(writeRateLimitConfig)],
+        config: { rateLimit: writeRateLimitConfig },
       },
       adminController.demoteAdmin,
     );
@@ -166,7 +166,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
           body: adminImpersonateSchema,
           response: { 200: adminImpersonationTokenResponseSchema },
         },
-        preHandler: [scope.rateLimit(writeRateLimitConfig)],
+        config: { rateLimit: writeRateLimitConfig },
       },
       adminController.startImpersonation,
     );
@@ -181,7 +181,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
         schema: {
           response: { 200: adminImpersonationTokenResponseSchema },
         },
-        preHandler: [scope.rateLimit(writeRateLimitConfig)],
+        config: { rateLimit: writeRateLimitConfig },
       },
       adminController.stopImpersonation,
     );
@@ -197,7 +197,7 @@ export async function adminRoutes(fastify: FastifyInstance) {
           params: adminImpersonateUserIdParamsSchema,
           response: { 200: adminImpersonateResponseSchema },
         },
-        preHandler: [scope.rateLimit(writeRateLimitConfig)],
+        config: { rateLimit: writeRateLimitConfig },
       },
       adminController.revokeImpersonation,
     );

@@ -3,9 +3,12 @@
  * API's existing push contract.
  *
  * No Expo push service is involved: `getDevicePushTokenAsync()` returns
- * the raw FCM token, and the API delivers through the Admin SDK
- * directly (`POST /push/subscribe {token, provider:"fcm",
- * platform:"android"}`, `DELETE /push/subscribe {provider, token}`).
+ * the **raw** device token — an FCM token on Android, an APNs token on
+ * iOS — and the API delivers through the Admin SDK (Android) or APNs
+ * (iOS) directly (`POST /push/subscribe {token, provider, platform}`,
+ * `DELETE /push/subscribe {provider, token}`). The provider is therefore
+ * not a constant: it is a function of the platform, so the pair below is
+ * the single source of it.
  *
  * Everything here is best-effort: a failed registration never throws
  * and never blocks sign-in. Registration is retried on the next launch
@@ -54,6 +57,24 @@ const CHANNEL = {
 };
 
 export type PushPermission = "granted" | "denied" | "undetermined";
+
+/** The provider string the API's push contract expects. */
+export type PushProvider = "fcm" | "apns";
+
+/**
+ * The `provider`/`platform` pair for this install, derived once from
+ * `Platform.OS`. iOS registers against APNs; everything else — Android
+ * today, and the web export which never has a device token — is FCM's
+ * shape, which is what the API has always accepted.
+ */
+export function pushProvider(): {
+  provider: PushProvider;
+  platform: string;
+} {
+  return Platform.OS === "ios"
+    ? { provider: "apns", platform: "ios" }
+    : { provider: "fcm", platform: "android" };
+}
 
 function storedTokenSync(): string | null {
   // localStorage when it exists (web export and unit tests); the
@@ -215,8 +236,7 @@ export async function registerForPush(): Promise<string | null> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         token: data,
-        provider: "fcm",
-        platform: "android",
+        ...pushProvider(),
       }),
     });
     if (previous && previous !== data) {
@@ -230,7 +250,8 @@ export async function registerForPush(): Promise<string | null> {
 }
 
 /**
- * The device's current FCM token, or null. Needs no permission: the
+ * The device's current push token (FCM on Android, APNs on iOS), or
+ * null. Needs no permission: the
  * token is what a notification would be addressed to, not a grant to
  * receive one.
  */
@@ -300,7 +321,10 @@ export async function unregisterPush(token?: string): Promise<void> {
       await apiFetch("/push/subscribe", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: "fcm", token: candidate }),
+        body: JSON.stringify({
+          provider: pushProvider().provider,
+          token: candidate,
+        }),
       });
     } catch {
       // Sign-out must complete even when the network is gone.

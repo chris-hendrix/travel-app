@@ -5,6 +5,7 @@ import {
   verifyCodeRateLimitConfig,
 } from "@/middleware/rate-limit.middleware.js";
 import { authenticate } from "@/middleware/auth.middleware.js";
+import { checkBanned } from "@/middleware/account-state.middleware.js";
 import {
   requestCodeSchema,
   verifyCodeSchema,
@@ -46,7 +47,7 @@ export async function authRoutes(fastify: FastifyInstance) {
         body: requestCodeSchema,
         response: { 200: requestCodeResponseSchema },
       },
-      preHandler: fastify.rateLimit(smsRateLimitConfig),
+      config: { rateLimit: smsRateLimitConfig },
     },
     authController.requestCode,
   );
@@ -63,7 +64,7 @@ export async function authRoutes(fastify: FastifyInstance) {
         body: verifyCodeSchema,
         response: { 200: verifyCodeResponseSchema },
       },
-      preHandler: fastify.rateLimit(verifyCodeRateLimitConfig),
+      config: { rateLimit: verifyCodeRateLimitConfig },
     },
     authController.verifyCode,
   );
@@ -72,6 +73,17 @@ export async function authRoutes(fastify: FastifyInstance) {
    * POST /complete-profile
    * Complete user profile with display name and timezone
    * Requires authentication via JWT token
+   *
+   * Carries `checkBanned`, unlike the two routes below. Its handler runs an
+   * unconditional `UPDATE users WHERE id = $1` and hands back a fresh 7-day
+   * token, so a token left over on a second device could write a displayName
+   * back onto a tombstoned row — against the privacy copy that promises the
+   * name is removed — and walk away with a new credential.
+   *
+   * `GET /me` and `POST /logout` deliberately stay on `authenticate` alone:
+   * `/me` is already closed by `getUserById`'s `deletedAt` filter, and logout
+   * has to stay reachable so a device that has just lost its account can
+   * still clear its cookie.
    */
   fastify.post<{ Body: CompleteProfileInput }>(
     "/complete-profile",
@@ -80,7 +92,7 @@ export async function authRoutes(fastify: FastifyInstance) {
         body: completeProfileSchema,
         response: { 200: completeProfileResponseSchema },
       },
-      preHandler: authenticate,
+      preHandler: [authenticate, checkBanned],
     },
     authController.completeProfile,
   );

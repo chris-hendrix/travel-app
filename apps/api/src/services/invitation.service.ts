@@ -8,17 +8,23 @@ import {
   paymentParticipants,
   type Invitation as DBInvitation,
 } from "@/db/schema/index.js";
-import { eq, and, inArray, count, sql } from "drizzle-orm";
+import { eq, and, inArray, isNotNull, count, sql } from "drizzle-orm";
 import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
 import type { ISMSService } from "./sms.service.js";
 import type { INotificationService } from "./notification.service.js";
+import { blockedCounterpartIds, withoutBlocked } from "./moderation.service.js";
 import {
   GuestMemberService,
   type IGuestMemberService,
 } from "./guest-member.service.js";
 import type { Logger } from "@/types/logger.js";
 import { DEFAULT_FRONTEND_ORIGIN } from "@/config/env.js";
+import {
+  WITHHELD_PHONE,
+  isPhoneTombstone,
+  phoneForViewer,
+} from "@/lib/phone-visibility.js";
 import type { MemberWithProfile } from "@journiful/shared/types";
 import type { PgBoss } from "pg-boss";
 import { QUEUE } from "@/queues/types.js";
@@ -68,7 +74,9 @@ export interface IInvitationService {
    */
   getInvitationsByTrip(
     tripId: string,
-  ): Promise<(DBInvitation & { inviteeName?: string; invitedGuestName?: string })[]>;
+  ): Promise<
+    (DBInvitation & { inviteeName?: string; invitedGuestName?: string })[]
+  >;
 
   /**
    * Revokes an invitation
@@ -265,6 +273,14 @@ export class InvitationService implements IInvitationService {
       .limit(1);
     const tripName = tripRow?.name ?? "a trip";
 
+    // A block stops an invitation from crossing it, in either direction.
+    // Read once here, off the transaction handle: it is only used to filter
+    // what the inviter asked for, and there is no consistency requirement
+    // for it inside the transaction. Both flows below consult it, because
+    // the mutual path is the likelier abuse — inviting the person you are
+    // blocked with into a second trip.
+    const blocked = await blockedCounterpartIds(this.db, userId);
+
     let createdInvitations: DBInvitation[] = [];
     let mutualCreatedInvitations: DBInvitation[] = [];
     let skipped: string[] = [];
@@ -319,6 +335,18 @@ export class InvitationService implements IInvitationService {
           existingUsers.map((u) => [u.phoneNumber, u]),
         );
 
+        // A phone whose owner has a block either way with the inviter is
+        // skipped, not refused: an abuser must not be able to tell a block
+        // by the answer. Skipping also means the phone never reaches
+        // newPhones, so it gains no invitation row, no member row, no SMS
+        // and no notification.
+        const blockedPhones = new Set(
+          phoneNumbers.filter((phone) => {
+            const owner = phoneToUserMap.get(phone);
+            return owner !== undefined && blocked.has(owner.id);
+          }),
+        );
+
         const existingUserIds = existingUsers.map((u) => u.id);
         let alreadyMemberUserIds = new Set<string>();
 
@@ -370,11 +398,11 @@ export class InvitationService implements IInvitationService {
             const claimService = this.getGuestClaimService();
             for (const phone of phoneNumbers) {
               if (!guestPhoneSet.has(phone)) continue;
+              // A block stops the claim too: claiming attaches them to the
+              // trip, which is the same act as inviting them.
+              if (blockedPhones.has(phone)) continue;
               const existingUser = phoneToUserMap.get(phone);
-              if (
-                !existingUser ||
-                alreadyMemberUserIds.has(existingUser.id)
-              ) {
+              if (!existingUser || alreadyMemberUserIds.has(existingUser.id)) {
                 continue;
               }
               const claim = await claimService.claimGuestMember(tx, {
@@ -398,7 +426,8 @@ export class InvitationService implements IInvitationService {
           (phone) =>
             !claimedPhoneSet.has(phone) &&
             (alreadyInvitedPhones.has(phone) ||
-              alreadyMemberPhones.has(phone)),
+              alreadyMemberPhones.has(phone) ||
+              blockedPhones.has(phone)),
         );
         skipped.push(...phoneSkipped);
 
@@ -472,20 +501,27 @@ export class InvitationService implements IInvitationService {
 
       // === Mutual (userId) invitation flow ===
       if (userIds.length > 0) {
-        // Verify each userId is a mutual of the inviter (shares at least one trip)
+        // Verify each userId is a mutual of the inviter (shares at least one trip).
+        // This runs over every submitted id, BEFORE the block and deleted
+        // guards below, because NotAMutualError is the one answer a non-mutual
+        // gets: an id moved out of this check by a block or by a deletion
+        // would make "there is a block between us" or "that account is gone"
+        // readable off the response, which is the leak the guards exist to
+        // prevent. A batch that mixes a mutual with a non-mutual refuses as a
+        // whole, which is the pre-existing behaviour for any bad id.
         const mutualCheckResult = await tx.execute<{
           user_id: string;
         }>(sql`
-          SELECT m2.user_id
-          FROM members m1
-          JOIN members m2 ON m1.trip_id = m2.trip_id AND m1.user_id != m2.user_id
-          WHERE m1.user_id = ${userId}
-            AND m2.user_id IN (${sql.join(
-              userIds.map((id) => sql`${id}`),
-              sql`, `,
-            )})
-          GROUP BY m2.user_id
-        `);
+            SELECT m2.user_id
+            FROM members m1
+            JOIN members m2 ON m1.trip_id = m2.trip_id AND m1.user_id != m2.user_id
+            WHERE m1.user_id = ${userId}
+              AND m2.user_id IN (${sql.join(
+                userIds.map((id) => sql`${id}`),
+                sql`, `,
+              )})
+            GROUP BY m2.user_id
+          `);
 
         const verifiedMutualIds = new Set(
           mutualCheckResult.rows.map((r) => r.user_id),
@@ -500,173 +536,204 @@ export class InvitationService implements IInvitationService {
           }
         }
 
-        // Check which userIds are already members of this trip
-        const existingTripMembers = await tx
-          .select({ userId: members.userId })
-          .from(members)
-          .where(
-            and(eq(members.tripId, tripId), inArray(members.userId, userIds)),
-          );
-        const alreadyMemberMutualIds = new Set(
-          existingTripMembers.map((m) => m.userId),
+        // Every id that reached this point is a mutual, so a block and a
+        // deletion are then refused exactly as an already-invited one is: the
+        // id goes into `skipped`, which is the only answer the caller can
+        // distinguish, and nothing is created for it. Both filters sit above
+        // the inserts below, so the D5 guarantee is unchanged.
+        //
+        // A deleted account is not an invitee, and this guard sits beside the
+        // block one because it fails in the same place for the same reason:
+        // deletion anonymizes the row but keeps its `members` rows (they are
+        // the trip's record of the person), so the verification above passes
+        // it — and the phone number it would be invited by is a
+        // `deleted:<uuid>` tombstone, i.e. an invitation addressed to nobody.
+        // The answer is `skipped`, not a throw: 22001 out of the insert used
+        // to take the whole batch down with it, and a throw for a mutual would
+        // also say more than a skip does. The two refusals are collected into
+        // one list so an id that is both blocked and deleted is reported once.
+        const deletedRows = await tx
+          .select({ id: users.id })
+          .from(users)
+          .where(and(inArray(users.id, userIds), isNotNull(users.deletedAt)));
+        const deletedUserIds = new Set(deletedRows.map((r) => r.id));
+
+        const refusedUserIds = userIds.filter(
+          (id) => blocked.has(id) || deletedUserIds.has(id),
+        );
+        skipped.push(...refusedUserIds);
+        const liveInvitableUserIds = userIds.filter(
+          (id) => !blocked.has(id) && !deletedUserIds.has(id),
         );
 
-        // Filter out already-member userIds
-        const newMutualUserIds = userIds.filter(
-          (uid) => !alreadyMemberMutualIds.has(uid),
-        );
-        const skippedMutualUserIds = userIds.filter((uid) =>
-          alreadyMemberMutualIds.has(uid),
-        );
-        skipped.push(...skippedMutualUserIds);
-
-        // Fetch display names and phone numbers for the new mutual invitees
-        // (needed up-front so guest claims can match on phone).
-        const mutualUsers =
-          newMutualUserIds.length > 0
-            ? await tx
-                .select({
-                  id: users.id,
-                  displayName: users.displayName,
-                  phoneNumber: users.phoneNumber,
-                })
-                .from(users)
-                .where(inArray(users.id, newMutualUserIds))
-            : [];
-        const mutualUserMap = new Map(mutualUsers.map((u) => [u.id, u]));
-
-        // Task 4.2 (mutual path): organizer attaching a mutual whose phone
-        // matches a guest row (guest_phone) on this trip claims the guest in
-        // place — no new member row, no new invitation (cap-neutral).
-        const claimedMutualUserIds = new Set<string>();
-        if (mutualUsers.length > 0) {
-          const mutualPhones = mutualUsers.map((u) => u.phoneNumber);
-          const guestRows = await tx
-            .select({ guestPhone: members.guestPhone })
+        if (liveInvitableUserIds.length > 0) {
+          // Check which userIds are already members of this trip
+          const existingTripMembers = await tx
+            .select({ userId: members.userId })
             .from(members)
             .where(
               and(
                 eq(members.tripId, tripId),
-                inArray(members.guestPhone, mutualPhones),
+                inArray(members.userId, liveInvitableUserIds),
               ),
             );
-          const guestPhoneSet = new Set(
-            guestRows
-              .map((r) => r.guestPhone)
-              .filter((p): p is string => p !== null),
+          const alreadyMemberMutualIds = new Set(
+            existingTripMembers.map((m) => m.userId),
           );
-          if (guestPhoneSet.size > 0) {
-            const claimService = this.getGuestClaimService();
-            for (const u of mutualUsers) {
-              if (!guestPhoneSet.has(u.phoneNumber)) continue;
-              const claim = await claimService.claimGuestMember(tx, {
-                tripId,
-                userId: u.id,
-                guestPhone: u.phoneNumber,
-              });
-              if (claim.claimed && claim.member) {
-                claimedMutualUserIds.add(u.id);
-                addedMembers.push({
+
+          // Filter out already-member userIds
+          const newMutualUserIds = liveInvitableUserIds.filter(
+            (uid) => !alreadyMemberMutualIds.has(uid),
+          );
+          const skippedMutualUserIds = liveInvitableUserIds.filter((uid) =>
+            alreadyMemberMutualIds.has(uid),
+          );
+          skipped.push(...skippedMutualUserIds);
+
+          // Fetch display names and phone numbers for the new mutual invitees
+          // (needed up-front so guest claims can match on phone).
+          const mutualUsers =
+            newMutualUserIds.length > 0
+              ? await tx
+                  .select({
+                    id: users.id,
+                    displayName: users.displayName,
+                    phoneNumber: users.phoneNumber,
+                  })
+                  .from(users)
+                  .where(inArray(users.id, newMutualUserIds))
+              : [];
+          const mutualUserMap = new Map(mutualUsers.map((u) => [u.id, u]));
+
+          // Task 4.2 (mutual path): organizer attaching a mutual whose phone
+          // matches a guest row (guest_phone) on this trip claims the guest in
+          // place — no new member row, no new invitation (cap-neutral).
+          const claimedMutualUserIds = new Set<string>();
+          if (mutualUsers.length > 0) {
+            const mutualPhones = mutualUsers.map((u) => u.phoneNumber);
+            const guestRows = await tx
+              .select({ guestPhone: members.guestPhone })
+              .from(members)
+              .where(
+                and(
+                  eq(members.tripId, tripId),
+                  inArray(members.guestPhone, mutualPhones),
+                ),
+              );
+            const guestPhoneSet = new Set(
+              guestRows
+                .map((r) => r.guestPhone)
+                .filter((p): p is string => p !== null),
+            );
+            if (guestPhoneSet.size > 0) {
+              const claimService = this.getGuestClaimService();
+              for (const u of mutualUsers) {
+                if (!guestPhoneSet.has(u.phoneNumber)) continue;
+                const claim = await claimService.claimGuestMember(tx, {
+                  tripId,
                   userId: u.id,
-                  displayName: u.displayName,
+                  guestPhone: u.phoneNumber,
                 });
+                if (claim.claimed && claim.member) {
+                  claimedMutualUserIds.add(u.id);
+                  addedMembers.push({
+                    userId: u.id,
+                    displayName: u.displayName,
+                  });
+                }
               }
             }
           }
-        }
 
-        // Re-check limit after filtering both phone and mutual dedup.
-        // Claimed mutuals reuse the existing guest row, so they don't count.
-        const unclaimedMutualUserIds = newMutualUserIds.filter(
-          (uid) => !claimedMutualUserIds.has(uid),
-        );
-        const totalNew = newPhones.length + unclaimedMutualUserIds.length;
-        if (currentMemberCount + totalNew > 25) {
-          throw new MemberLimitExceededError(
-            `Member limit exceeded: current ${currentMemberCount} + ${totalNew} new invites would exceed 25`,
+          // Re-check limit after filtering both phone and mutual dedup.
+          // Claimed mutuals reuse the existing guest row, so they don't count.
+          const unclaimedMutualUserIds = newMutualUserIds.filter(
+            (uid) => !claimedMutualUserIds.has(uid),
           );
-        }
-
-        if (unclaimedMutualUserIds.length > 0) {
-          // Check for already-invited phones among mutuals (dedup)
-          const unclaimedMutualUsers = mutualUsers.filter((u) =>
-            unclaimedMutualUserIds.includes(u.id),
-          );
-          const mutualPhones = unclaimedMutualUsers.map(
-            (u) => u.phoneNumber,
-          );
-          const alreadyInvitedMutualRows = await tx
-            .select({ inviteePhone: invitations.inviteePhone })
-            .from(invitations)
-            .where(
-              and(
-                eq(invitations.tripId, tripId),
-                inArray(invitations.inviteePhone, mutualPhones),
-              ),
+          const totalNew = newPhones.length + unclaimedMutualUserIds.length;
+          if (currentMemberCount + totalNew > 25) {
+            throw new MemberLimitExceededError(
+              `Member limit exceeded: current ${currentMemberCount} + ${totalNew} new invites would exceed 25`,
             );
-          const alreadyInvitedMutualPhones = new Set(
-            alreadyInvitedMutualRows.map((r) => r.inviteePhone),
-          );
-
-          // Find mutuals whose phones are already invited and add their userId to skipped
-          const phonesToSkipUserIds = new Set<string>();
-          for (const u of unclaimedMutualUsers) {
-            if (alreadyInvitedMutualPhones.has(u.phoneNumber)) {
-              skipped.push(u.id);
-              phonesToSkipUserIds.add(u.id);
-            }
           }
 
-          // Filter to mutuals whose phones are NOT already invited
-          // (claimed mutuals already attached above — never re-inserted)
-          const eligibleMutualUserIds = unclaimedMutualUserIds.filter(
-            (uid) => !phonesToSkipUserIds.has(uid),
-          );
-
-          // Create invitation records for eligible mutuals
-          if (eligibleMutualUserIds.length > 0) {
-            const mutualInviteValues = eligibleMutualUserIds
-              .map((uid) => {
-                const u = mutualUserMap.get(uid);
-                if (!u) return null;
-                return {
-                  tripId,
-                  inviterId: userId,
-                  inviteePhone: u.phoneNumber,
-                  status: "pending" as const,
-                };
-              })
-              .filter(
-                (v): v is NonNullable<typeof v> => v !== null,
+          if (unclaimedMutualUserIds.length > 0) {
+            // Check for already-invited phones among mutuals (dedup)
+            const unclaimedMutualUsers = mutualUsers.filter((u) =>
+              unclaimedMutualUserIds.includes(u.id),
+            );
+            const mutualPhones = unclaimedMutualUsers.map((u) => u.phoneNumber);
+            const alreadyInvitedMutualRows = await tx
+              .select({ inviteePhone: invitations.inviteePhone })
+              .from(invitations)
+              .where(
+                and(
+                  eq(invitations.tripId, tripId),
+                  inArray(invitations.inviteePhone, mutualPhones),
+                ),
               );
-
-            if (mutualInviteValues.length > 0) {
-              mutualCreatedInvitations = await tx
-                .insert(invitations)
-                .values(mutualInviteValues)
-                .returning();
-            }
-          }
-
-          // Create member records for mutual invitees (all eligible, not just those with invitations)
-          if (eligibleMutualUserIds.length > 0) {
-            await tx.insert(members).values(
-              eligibleMutualUserIds.map((uid) => ({
-                tripId,
-                userId: uid,
-                status: "no_response" as const,
-                isOrganizer: false,
-              })),
+            const alreadyInvitedMutualPhones = new Set(
+              alreadyInvitedMutualRows.map((r) => r.inviteePhone),
             );
-          }
 
-          // Build addedMembers entries for mutual invitees
-          for (const uid of eligibleMutualUserIds) {
-            const u = mutualUserMap.get(uid);
-            addedMembers.push({
-              userId: uid,
-              displayName: u?.displayName ?? "Unknown",
-            });
+            // Find mutuals whose phones are already invited and add their userId to skipped
+            const phonesToSkipUserIds = new Set<string>();
+            for (const u of unclaimedMutualUsers) {
+              if (alreadyInvitedMutualPhones.has(u.phoneNumber)) {
+                skipped.push(u.id);
+                phonesToSkipUserIds.add(u.id);
+              }
+            }
+
+            // Filter to mutuals whose phones are NOT already invited
+            // (claimed mutuals already attached above — never re-inserted)
+            const eligibleMutualUserIds = unclaimedMutualUserIds.filter(
+              (uid) => !phonesToSkipUserIds.has(uid),
+            );
+
+            // Create invitation records for eligible mutuals
+            if (eligibleMutualUserIds.length > 0) {
+              const mutualInviteValues = eligibleMutualUserIds
+                .map((uid) => {
+                  const u = mutualUserMap.get(uid);
+                  if (!u) return null;
+                  return {
+                    tripId,
+                    inviterId: userId,
+                    inviteePhone: u.phoneNumber,
+                    status: "pending" as const,
+                  };
+                })
+                .filter((v): v is NonNullable<typeof v> => v !== null);
+
+              if (mutualInviteValues.length > 0) {
+                mutualCreatedInvitations = await tx
+                  .insert(invitations)
+                  .values(mutualInviteValues)
+                  .returning();
+              }
+            }
+
+            // Create member records for mutual invitees (all eligible, not just those with invitations)
+            if (eligibleMutualUserIds.length > 0) {
+              await tx.insert(members).values(
+                eligibleMutualUserIds.map((uid) => ({
+                  tripId,
+                  userId: uid,
+                  status: "no_response" as const,
+                  isOrganizer: false,
+                })),
+              );
+            }
+
+            // Build addedMembers entries for mutual invitees
+            for (const uid of eligibleMutualUserIds) {
+              const u = mutualUserMap.get(uid);
+              addedMembers.push({
+                userId: uid,
+                displayName: u?.displayName ?? "Unknown",
+              });
+            }
           }
         }
       }
@@ -773,11 +840,16 @@ export class InvitationService implements IInvitationService {
    */
   async getInvitationsByTrip(
     tripId: string,
-  ): Promise<(DBInvitation & { inviteeName?: string; invitedGuestName?: string })[]> {
+  ): Promise<
+    (DBInvitation & { inviteeName?: string; invitedGuestName?: string })[]
+  > {
     const results = await this.db
       .select({
         invitation: invitations,
         displayName: users.displayName,
+        // Read so a deleted invitee's number can be withheld below: the
+        // account's row is what says whether the number is still theirs.
+        deletedAt: users.deletedAt,
       })
       .from(invitations)
       .leftJoin(users, eq(invitations.inviteePhone, users.phoneNumber))
@@ -789,9 +861,7 @@ export class InvitationService implements IInvitationService {
         guestDisplayName: members.guestDisplayName,
       })
       .from(members)
-      .where(
-        and(eq(members.tripId, tripId), sql`${members.userId} IS NULL`),
-      );
+      .where(and(eq(members.tripId, tripId), sql`${members.userId} IS NULL`));
     const guestNameByPhone = new Map<string, string>();
     for (const g of guestRows) {
       if (g.guestPhone !== null && g.guestDisplayName !== null) {
@@ -800,11 +870,29 @@ export class InvitationService implements IInvitationService {
     }
 
     return results.map((r) => {
+      // Whose number this is decides whether the payload may carry it, through
+      // the same helper the roster and the trip detail use. The reader is
+      // organizer-only (its controller refuses a non-organizer), so the
+      // sharing rule always passes here and the deletion rule is the one that
+      // bites: the number a deleted invitee was invited by is released, and
+      // `invitee_phone` — a copy of `users.phone_number` — carries the
+      // `deleted:<uuid>` marker that says so. The row keeps its place, because
+      // it is the trip's record that an invitation went out and the organizer
+      // revokes it by id, with the number withheld rather than the field
+      // dropped (the response schema requires it).
+      const inviteePhone = phoneForViewer(
+        {
+          phoneNumber: r.invitation.inviteePhone,
+          deletedAt: r.deletedAt,
+        },
+        { isOrg: true },
+      );
       const entry: DBInvitation & {
         inviteeName?: string;
         invitedGuestName?: string;
       } = {
         ...r.invitation,
+        inviteePhone: inviteePhone ?? WITHHELD_PHONE,
       };
       if (r.displayName) {
         entry.inviteeName = r.displayName;
@@ -1195,6 +1283,9 @@ export class InvitationService implements IInvitationService {
         profilePhotoUrl: users.profilePhotoUrl,
         handles: users.handles,
         phoneNumber: users.phoneNumber,
+        // Read so the phone number can be masked below: a soft-deleted
+        // account's number is a `deleted:<uuid>` tombstone.
+        deletedAt: users.deletedAt,
         guestPhone: members.guestPhone,
         sharePhone: members.sharePhone,
         status: members.status,
@@ -1215,31 +1306,54 @@ export class InvitationService implements IInvitationService {
       mutedUserIds = new Set(mutedRows.map((r) => r.userId));
     }
 
+    // A block is symmetric and applies to an organizer too, so there is no
+    // role that outranks it: a blocked member simply is not in this roster.
+    // The relation has one definition, so the roster reads it through the
+    // same helper the push fan-out uses rather than joining a second SQL
+    // shape — guest rows (userId NULL) are never in the set and stay.
+    const blocked = await blockedCounterpartIds(this.db, requestingUserId);
+    const visible = withoutBlocked(results, blocked);
+
     // A non-organizer's roster is the whole trip: every member and every
     // guest is returned, whatever their status. Invitations stay
     // organizer-only, gated separately at the invitations route.
-    return results.map((r) => ({
-      id: r.id,
-      userId: r.userId,
-      displayName: r.displayName,
-      profilePhotoUrl: r.profilePhotoUrl,
-      handles: r.handles ?? null,
-      ...(isOrg || r.sharePhone
-        ? r.phoneNumber
-          ? { phoneNumber: r.phoneNumber }
-          : {}
-        : {}),
-      ...(isOrg && r.userId === null && r.guestPhone
-        ? { guestPhone: r.guestPhone }
-        : {}),
-      status: r.status,
-      isOrganizer: r.isOrganizer,
-      ...(isOrg
-        ? { isMuted: r.userId !== null && mutedUserIds.has(r.userId) }
-        : {}),
-      ...(isOrg ? { sharePhone: r.sharePhone } : {}),
-      createdAt: r.createdAt.toISOString(),
-    }));
+    return visible.map((r) => {
+      // A soft-deleted account has no phone number to show, and a member has no
+      // claim on one that is not shared with them: both rules are the
+      // helper's, so a reader that carries a number routes through it rather
+      // than remembering them. `null` is rendered as the absent field the
+      // client already draws as no number line.
+      const phoneNumber = phoneForViewer(
+        { phoneNumber: r.phoneNumber, deletedAt: r.deletedAt },
+        { isOrg, sharePhone: r.sharePhone },
+      );
+      // The guest number is the organizer's own entry, so the sharing rule
+      // does not apply to it — but it still goes through the helper, because a
+      // released number's marker is not a number whichever column holds it.
+      const guestPhone = phoneForViewer(
+        { phoneNumber: r.guestPhone, deletedAt: null },
+        { isOrg },
+      );
+
+      return {
+        id: r.id,
+        userId: r.userId,
+        displayName: r.displayName,
+        profilePhotoUrl: r.profilePhotoUrl,
+        handles: r.handles ?? null,
+        ...(phoneNumber !== null ? { phoneNumber } : {}),
+        ...(isOrg && r.userId === null && guestPhone !== null
+          ? { guestPhone }
+          : {}),
+        status: r.status,
+        isOrganizer: r.isOrganizer,
+        ...(isOrg
+          ? { isMuted: r.userId !== null && mutedUserIds.has(r.userId) }
+          : {}),
+        ...(isOrg ? { sharePhone: r.sharePhone } : {}),
+        createdAt: r.createdAt.toISOString(),
+      };
+    });
   }
 
   /**
@@ -1434,8 +1548,7 @@ export class InvitationService implements IInvitationService {
       // member AND no guest row was claimed (invitation-only trips).
       const newMemberTrips = pendingInvitations.filter(
         (inv) =>
-          !existingTripIds.has(inv.tripId) &&
-          !claimedTripIds.has(inv.tripId),
+          !existingTripIds.has(inv.tripId) && !claimedTripIds.has(inv.tripId),
       );
 
       if (newMemberTrips.length > 0) {
@@ -1507,12 +1620,17 @@ export class InvitationService implements IInvitationService {
       return null;
     }
 
-    // Mask phone: show last 4 digits only (e.g. "+1555****890")
-    const phone = row.inviteePhone;
+    // Mask phone: show last 4 digits only (e.g. "+1555****890"). A released
+    // number's marker is not a number and its tail is not one either, so there
+    // is nothing here to mask: the field is withheld rather than sliced. The
+    // freeze below then passes it through unchanged, since it is shorter than
+    // the slice's threshold.
+    const phone = isPhoneTombstone(row.inviteePhone)
+      ? WITHHELD_PHONE
+      : row.inviteePhone;
     const maskedPhone =
       phone.length > 4
-        ? phone.slice(0, phone.length - 4).replace(/\d/g, "*") +
-          phone.slice(-4)
+        ? phone.slice(0, phone.length - 4).replace(/\d/g, "*") + phone.slice(-4)
         : phone;
 
     return {

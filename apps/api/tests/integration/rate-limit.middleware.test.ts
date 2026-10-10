@@ -2,32 +2,59 @@ import { describe, it, expect, afterEach } from "vitest";
 import type { FastifyInstance } from "fastify";
 import Fastify from "fastify";
 import rateLimit from "@fastify/rate-limit";
-import { smsRateLimitConfig } from "@/middleware/rate-limit.middleware.js";
+import {
+  smsRateLimitConfig,
+  writeRateLimitConfig,
+} from "@/middleware/rate-limit.middleware.js";
 import { errorHandler } from "@/middleware/error.middleware.js";
 import { generateUniquePhone } from "../test-utils.js";
 
 /**
- * Build a minimal Fastify app for testing rate limiting
- * We need to register the rate-limit plugin first, then apply route-specific config using preHandler
+ * Build a minimal Fastify app for testing rate limiting.
+ *
+ * The plugin options mirror app.ts's, `global: true` included: that is the
+ * setting production runs (server.ts passes no `rateLimit` override) and the
+ * one under which a limiter registered as a route `preHandler` never fires —
+ * the global hook is added at `onRequest` and marks the request as limited
+ * before any preHandler can run, so the later limiter returns early. Every
+ * limit in this repo is therefore registered as route `config.rateLimit`,
+ * which is how the routes below register theirs.
  */
 async function buildTestApp(): Promise<FastifyInstance> {
   const app = Fastify({
     logger: false,
   });
 
-  // Register rate-limit plugin with global: false
-  // This allows us to apply rate limiting only on specific routes
   await app.register(rateLimit, {
-    global: false,
+    global: true,
+    max: 300,
+    timeWindow: "1 minute",
+    allowList: ["127.0.0.1", "::1", "::ffff:127.0.0.1"],
   });
 
   app.setErrorHandler(errorHandler);
 
-  // Register test route with SMS rate limiting using app.rateLimit() as preHandler
+  // Keyed on the phone in the body, which is what smsRateLimitConfig's
+  // `hook: "preHandler"` is for: the body is not parsed at `onRequest`.
   app.post(
     "/test-sms-rate-limit",
     {
-      preHandler: app.rateLimit(smsRateLimitConfig),
+      config: { rateLimit: smsRateLimitConfig },
+    },
+    async (_request) => {
+      return {
+        success: true,
+        message: "Request processed",
+      };
+    },
+  );
+
+  // Keyed on the caller's address, so requests have to come from somewhere the
+  // allowList above does not exempt.
+  app.post(
+    "/test-write-rate-limit",
+    {
+      config: { rateLimit: writeRateLimitConfig },
     },
     async (_request) => {
       return {
@@ -41,6 +68,9 @@ async function buildTestApp(): Promise<FastifyInstance> {
 
   return app;
 }
+
+/** A real client address: loopback is on the allowList above. */
+const CLIENT = { remoteAddress: "203.0.113.7" };
 
 describe("Rate Limit Middleware", () => {
   let app: FastifyInstance;
@@ -126,6 +156,7 @@ describe("Rate Limit Middleware", () => {
           payload: {
             // No phoneNumber provided
           },
+          ...CLIENT,
         });
 
         expect(response.statusCode).toBe(200);
@@ -138,6 +169,7 @@ describe("Rate Limit Middleware", () => {
         payload: {
           // No phoneNumber provided
         },
+        ...CLIENT,
       });
 
       expect(response.statusCode).toBe(429);
@@ -240,6 +272,60 @@ describe("Rate Limit Middleware", () => {
       // Ensure no extra properties (requestId added by error middleware)
       expect(Object.keys(body)).toEqual(["success", "error", "requestId"]);
       expect(Object.keys(body.error)).toEqual(["code", "message"]);
+    });
+  });
+
+  describe("route config limiters under the production configuration", () => {
+    // The global limiter spends the request's single rate-limit slot at
+    // `onRequest`, so under `global: true` a route's own limit only applies if
+    // it is registered as route `config.rateLimit`. Nothing else in the suite
+    // observes that shape directly: the app-level tests share the Postgres
+    // store and only see the phone-keyed limits, because every IP-keyed key is
+    // the loopback address app.ts allowLists.
+    it("should enforce a route's own limit with the plugin running global: true", async () => {
+      app = await buildTestApp();
+
+      for (let i = 0; i < writeRateLimitConfig.max; i++) {
+        const response = await app.inject({
+          method: "POST",
+          url: "/test-write-rate-limit",
+          ...CLIENT,
+        });
+
+        expect(response.statusCode).toBe(200);
+      }
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/test-write-rate-limit",
+        ...CLIENT,
+      });
+
+      expect(response.statusCode).toBe(429);
+      expect(JSON.parse(response.body)).toMatchObject({
+        success: false,
+        error: {
+          code: "RATE_LIMIT_EXCEEDED",
+          message: "Too many write requests. Please slow down.",
+        },
+      });
+    });
+
+    it("should still exempt loopback from an IP-keyed limit", async () => {
+      // app.ts allowLists loopback so local dev and parallel E2E workers do not
+      // 429 each other. It is also why an uninjected request (`app.inject()`
+      // arrives from 127.0.0.1) cannot see any IP-keyed limit at all — the
+      // tests above inject from a routable address for that reason.
+      app = await buildTestApp();
+
+      for (let i = 0; i < writeRateLimitConfig.max + 1; i++) {
+        const response = await app.inject({
+          method: "POST",
+          url: "/test-write-rate-limit",
+        });
+
+        expect(response.statusCode).toBe(200);
+      }
     });
   });
 });

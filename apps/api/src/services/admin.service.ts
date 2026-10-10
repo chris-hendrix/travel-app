@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { users, members, blacklistedTokens, type User } from "@/db/schema/index.js";
+import { users, members, blacklistedTokens, userReports, type User, type UserReport } from "@/db/schema/index.js";
 import type { AppDatabase } from "@/types/index.js";
 import { eq, or, ilike, count, and, desc, inArray } from "drizzle-orm";
 import { auditLog } from "@/utils/audit.js";
@@ -10,9 +10,26 @@ import {
   AdminSelfActionError,
 } from "../errors.js";
 
-export interface AdminUserDetail extends User {
+/**
+ * A user row with a trip count. The list returns these and nothing more:
+ * a paged scan must not run a report query per row.
+ */
+export interface AdminUserRow extends User {
   tripCount: number;
 }
+
+export interface AdminUserDetail extends AdminUserRow {
+  /** Reports still open against this user, newest first. Detail only. */
+  openReports: UserReport[];
+}
+
+/**
+ * How many open reports the admin detail carries. Report creation has no cap
+ * and no uniqueness (any account can file as many as the write limiter allows),
+ * so without a bound this query is the one an admin request can be amplified
+ * into: every row anybody ever filed, serialized onto one screen.
+ */
+const OPEN_REPORTS_LIMIT = 50;
 
 export interface IAdminService {
   listUsers(params: {
@@ -21,7 +38,7 @@ export interface IAdminService {
     role?: string | undefined;
     page: number;
     limit: number;
-  }): Promise<{ users: AdminUserDetail[]; total: number }>;
+  }): Promise<{ users: AdminUserRow[]; total: number }>;
 
   getUserDetail(userId: string): Promise<AdminUserDetail | null>;
 
@@ -75,7 +92,7 @@ export class AdminService implements IAdminService {
     role?: string | undefined;
     page: number;
     limit: number;
-  }): Promise<{ users: AdminUserDetail[]; total: number }> {
+  }): Promise<{ users: AdminUserRow[]; total: number }> {
     const { search, status, role, page, limit } = params;
     const offset = (page - 1) * limit;
 
@@ -150,14 +167,30 @@ export class AdminService implements IAdminService {
     const user = result[0];
     if (!user) return null;
 
-    const tripCountResult = await this.db
-      .select({ count: count() })
-      .from(members)
-      .where(eq(members.userId, userId));
+    const [tripCountResult, openReports] = await Promise.all([
+      this.db
+        .select({ count: count() })
+        .from(members)
+        .where(eq(members.userId, userId)),
+      // Only what is still open. A report nobody acts on is noise on the
+      // screen the admin reads, and the list query stays report-free. The cap
+      // bounds what one detail request can load; fifty is more than a screen
+      // shows, and the count that would let the screen say "and N more" is a
+      // field on `AdminUserDetail` (shared/schemas/admin.ts), not this query.
+      this.db
+        .select()
+        .from(userReports)
+        .where(
+          and(eq(userReports.reportedId, userId), eq(userReports.status, "open")),
+        )
+        .orderBy(desc(userReports.createdAt))
+        .limit(OPEN_REPORTS_LIMIT),
+    ]);
 
     return {
       ...user,
       tripCount: tripCountResult[0]?.count ?? 0,
+      openReports,
     };
   }
 
@@ -288,7 +321,12 @@ export class AdminService implements IAdminService {
 
     // Verify target user exists
     const targetResult = await this.db
-      .select({ id: users.id, role: users.role, displayName: users.displayName })
+      .select({
+        id: users.id,
+        role: users.role,
+        displayName: users.displayName,
+        deletedAt: users.deletedAt,
+      })
       .from(users)
       .where(eq(users.id, targetUserId))
       .limit(1);
@@ -296,6 +334,20 @@ export class AdminService implements IAdminService {
     const target = targetResult[0];
     if (!target) {
       throw new AdminNotFoundError();
+    }
+
+    // A soft-deleted account is not a session to hand out. `deleteAccount`
+    // anonymizes the row rather than dropping it, so the record is still here
+    // and its phone number is a `deleted:<uuid>` tombstone — minting a token
+    // whose `sub` is that row would let an admin act as an account nobody can
+    // sign into, and its `checkBanned` refusal on most routes is a property of
+    // those routes rather than of the token. Same envelope as the admin check
+    // below, because it is the same kind of answer: this account is not one
+    // you may wear.
+    if (target.deletedAt) {
+      throw new AdminForbiddenError(
+        "Cannot impersonate a deleted account",
+      );
     }
 
     // Cannot impersonate another admin

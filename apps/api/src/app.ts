@@ -45,6 +45,8 @@ import pushServicePlugin from "./plugins/push-service.js";
 import paymentServicePlugin from "./plugins/payment-service.js";
 import balanceServicePlugin from "./plugins/balance-service.js";
 import adminServicePlugin from "./plugins/admin-service.js";
+import moderationServicePlugin from "./plugins/moderation-service.js";
+import userServicePlugin from "./plugins/user-service.js";
 import discoverServicePlugin from "./plugins/discover-service.js";
 import photoCacheServicePlugin from "./plugins/photo-cache-service.js";
 import placeCacheServicePlugin from "./plugins/place-cache-service.js";
@@ -74,6 +76,7 @@ import { pushRoutes } from "./routes/push.routes.js";
 import { paymentRoutes } from "./routes/payment.routes.js";
 import { balanceRoutes } from "./routes/balance.routes.js";
 import { adminRoutes } from "./routes/admin.routes.js";
+import { moderationRoutes } from "./routes/moderation.routes.js";
 import { locationRoutes } from "./routes/location.routes.js";
 import { discoverRoutes } from "./routes/discover.routes.js";
 
@@ -86,10 +89,6 @@ import "./types/index.js";
 export interface BuildAppOptions {
   /** Fastify server options (logger, etc.) */
   fastify?: FastifyServerOptions;
-  /** Rate limit overrides */
-  rateLimit?: {
-    global?: boolean;
-  };
   /** Disable @fastify/under-pressure health monitoring (useful in tests) */
   disableUnderPressure?: boolean;
 }
@@ -129,7 +128,9 @@ export async function buildApp(
   await app.register(queuePlugin);
 
   // Register CORS
-  const frontendOrigins = app.config.FRONTEND_URL.split(",").map((s) => s.trim());
+  const frontendOrigins = app.config.FRONTEND_URL.split(",").map((s) =>
+    s.trim(),
+  );
   await app.register(cors, {
     origin: [
       ...frontendOrigins,
@@ -180,13 +181,17 @@ export async function buildApp(
   });
 
   // Register rate limit plugin with PostgreSQL-backed store
-  // Global limit is a safety net against abuse — per-route configs handle
-  // fine-grained limits (see defaultRateLimitConfig / writeRateLimitConfig).
+  // Global limit is a safety net against abuse — per-route limits handle
+  // fine-grained limits (see defaultRateLimitConfig / writeRateLimitConfig)
+  // and every one of them is registered as route `config.rateLimit`, which is
+  // the form that applies while `global` is true. It has to be: the global
+  // hook below runs at `onRequest` and marks the request as limited before any
+  // `preHandler` could, so a `fastify.rateLimit(...)` preHandler never fires.
   // A single trip page load fires ~15 parallel requests, so the global limit
   // must be high enough to not punish normal browsing.
   const PgRateLimitStore = createPgRateLimitStoreClass(app.db);
   await app.register(rateLimit, {
-    global: opts.rateLimit?.global ?? true,
+    global: true,
     max: 300,
     timeWindow: "1 minute",
     keyGenerator: (request) =>
@@ -194,17 +199,25 @@ export async function buildApp(
       request.ip,
     // Loopback exemption: @fastify/rate-limit compares allowList against the
     // limiter's key, not request.ip, so these entries only ever match
-    // limiters whose key is an IP address. The global limiter keys on
-    // user.sub || request.ip, so authenticated requests are never exempted;
-    // the sms/verify limiters key by phone number (see rate-limit.middleware),
+    // limiters whose key is an IP address. The global limiter's keyGenerator
+    // asks for `user.sub` first, but its hook runs at `onRequest`, where
+    // `request.user` is still null — so the global key is the client IP and
+    // loopback traffic is exempted from it like anything else keyed by IP.
+    // The sms/verify limiters key by phone number (see rate-limit.middleware),
     // so their brute-force protection is unaffected — only their request.ip
     // fallback, when the body carries no phoneNumber, is exempted locally
     // like any other IP key. Local dev and E2E drive all traffic from one
     // interface, and Node resolves localhost to ::1, so exempting only
-    // 127.0.0.1 left parallel E2E workers 429ing each other. Production
-    // sets TRUST_PROXY, so request.ip is the real client and a loopback
-    // key never occurs there.
-    allowList: ["127.0.0.1", "::1", "::ffff:127.0.0.1"],
+    // 127.0.0.1 left parallel E2E workers 429ing each other.
+    //
+    // The exemption is dropped when a proxy is trusted, and that is not
+    // tidiness. With TRUST_PROXY the caller's own `X-Forwarded-For` decides
+    // `request.ip`, so a loopback entry in this list is a header any client can
+    // send to skip every IP-keyed limit — including the write limit that fires
+    // for the first time as of this change. Behind the proxy the forwarding
+    // hop is the real client and a loopback key never occurs anyway, so the
+    // production list is empty by construction rather than by trust.
+    allowList: env.TRUST_PROXY ? [] : ["127.0.0.1", "::1", "::ffff:127.0.0.1"],
     skipOnError: false,
     store: PgRateLimitStore,
   });
@@ -270,6 +283,8 @@ export async function buildApp(
   await app.register(paymentServicePlugin);
   await app.register(balanceServicePlugin);
   await app.register(adminServicePlugin);
+  await app.register(moderationServicePlugin);
+  await app.register(userServicePlugin);
   await app.register(discoverServicePlugin);
   await app.register(photoCacheServicePlugin);
   await app.register(placeCacheServicePlugin);
@@ -304,6 +319,7 @@ export async function buildApp(
   await app.register(paymentRoutes, { prefix: "/api" });
   await app.register(balanceRoutes, { prefix: "/api" });
   await app.register(adminRoutes, { prefix: "/api/admin" });
+  await app.register(moderationRoutes, { prefix: "/api" });
   await app.register(locationRoutes, { prefix: "/api/locations" });
   await app.register(discoverRoutes, { prefix: "/api" });
 

@@ -1,5 +1,8 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
-import type { UpdateProfileInput } from "@journiful/shared/schemas";
+import type {
+  UpdateProfileInput,
+  DeleteAccountInput,
+} from "@journiful/shared/schemas";
 import { InvalidFileTypeError, FileTooLargeError } from "../errors.js";
 
 /**
@@ -85,6 +88,106 @@ export const userController = {
         error: {
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to update profile",
+        },
+      });
+    }
+  },
+
+  /**
+   * Delete account endpoint
+   * Anonymizes the authenticated user's account
+   *
+   * Deliberately reachable without `checkBanned` (see the sibling scope in
+   * user.routes.ts): App Store Review Guideline 5.1.1(v) requires account
+   * deletion to be available to every account holder, including a suspended
+   * one. The row is anonymized rather than dropped, so a ban outlives the
+   * deletion in the audit trail.
+   *
+   * One caller is refused: an admin impersonating a user. Their token carries
+   * `impersonating: true` and `sub` is the *impersonated* user, so the
+   * deletion would land on somebody who never asked for it, filed under the
+   * impersonation. The account holder's own door is untouched.
+   *
+   * The caller's own token is blacklisted on the way out, so the deletion is
+   * not merely a row change the JWT can walk past.
+   *
+   * @route DELETE /api/users/me
+   * @middleware authenticate
+   * @param request - Fastify request
+   * @param reply - Fastify reply object
+   * @returns Success response with no user payload
+   */
+  async deleteAccount(
+    request: FastifyRequest<{ Body: DeleteAccountInput }>,
+    reply: FastifyReply,
+  ): Promise<void> {
+    try {
+      // Same flag and same envelope as `stopImpersonation`
+      // (admin.controller.ts). Under impersonation `sub` is the impersonated
+      // user, so this is not the admin's account to delete.
+      if (request.user.impersonating) {
+        return reply.status(403).send({
+          success: false,
+          error: {
+            code: "FORBIDDEN",
+            message: "Stop impersonating to delete an account",
+          },
+        });
+      }
+
+      const { userService } = request.server;
+      const userId = request.user.sub;
+
+      await userService.deleteAccount(userId);
+
+      // Kill the token that walked through this door, or it outlives the
+      // account: `authenticate` checks a signature and a blacklist row, never
+      // a live user, so without this the JWT keeps working on every surface
+      // that runs only `authenticate` until it expires — seven days — after
+      // the row it names is a tombstone.
+      //
+      // Best-effort on purpose, and after the deletion on purpose. The account
+      // is already anonymized (its own transaction, already committed) and the
+      // requirement is that deletion succeeds; a blacklist write that fails
+      // would otherwise turn a completed deletion into a 500 the caller reads
+      // as "not deleted" — and prompt a retry that has nothing left to delete.
+      // The failure is logged, not swallowed silently. The blacklist is a
+      // capability, not a guarantee: the row is gone either way, and the
+      // tombstone is what closes the other surfaces (see `checkBanned`).
+      if (request.user?.jti) {
+        try {
+          await request.server.authService.blacklistToken(
+            request.user.jti,
+            request.user.sub,
+            new Date(request.user.exp * 1000),
+          );
+        } catch (error) {
+          request.log.error(
+            { error, userId },
+            "Failed to blacklist token after account deletion",
+          );
+        }
+      }
+
+      return reply.status(200).send({ success: true });
+    } catch (error) {
+      // Re-throw typed errors for error handler
+      if (error && typeof error === "object" && "statusCode" in error) {
+        throw error;
+      }
+
+      // Log error for debugging
+      request.log.error(
+        { error, userId: request.user.sub },
+        "Failed to delete account",
+      );
+
+      // Return generic error response
+      return reply.status(500).send({
+        success: false,
+        error: {
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to delete account",
         },
       });
     }

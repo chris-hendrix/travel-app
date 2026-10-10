@@ -60,6 +60,42 @@ describe("Location Routes", () => {
       expect(response.statusCode).toBe(401);
     });
 
+    it("returns 401 for a deleted account and spends no Places key", async () => {
+      app = await buildApp();
+      app.config.GOOGLE_MAPS_API_KEY = "test-key";
+
+      const [testUser] = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "Deleted Location User",
+          timezone: "UTC",
+          deletedAt: new Date(),
+        })
+        .returning();
+
+      // A live token for a dead account: nothing blacklisted it. The point of
+      // the assertion below is that the refusal happens before the proxy
+      // spends the server's key, not after.
+      const fetchSpy = vi
+        .spyOn(global, "fetch")
+        .mockRejectedValue(new Error("fetch must not be reached"));
+      const token = app.jwt.sign({ sub: testUser.id, name: "Deleted" });
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/api/locations/autocomplete?q=starbucks&sessionToken=${SESSION_TOKEN}`,
+        cookies: { auth_token: token },
+      });
+
+      expect(response.statusCode).toBe(401);
+      expect(JSON.parse(response.body)).toEqual({
+        success: false,
+        error: { code: "UNAUTHORIZED", message: "Account deleted" },
+      });
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
     it("returns AutocompleteSuggestion[] (no lat/lon) for valid query", async () => {
       const { token } = await createAuthenticatedApp();
       app.config.GOOGLE_MAPS_API_KEY = "test-key";

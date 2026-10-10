@@ -10,6 +10,7 @@ import {
 import type { QueryClient } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { ApiError, onUnauthorized } from "@/lib/api";
+import { deleteAccount as deleteAccountApi } from "@/lib/account";
 import {
   meBodyOptions,
   requestCode as requestAuthCode,
@@ -274,6 +275,14 @@ type AuthValue = {
   verifyCode: (code: string) => Promise<{ requiresProfile: boolean }>;
   completeProfile: (displayName: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /**
+   * `DELETE /users/me`, then `signOut`'s local reset. The session has to
+   * be gone before the screen navigates: the login screen's guard reads
+   * `status`, and a provider that still says `signed-in` bounces the
+   * person straight back to the trips list of an account that no longer
+   * exists.
+   */
+  deleteAccount: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -458,6 +467,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSignedIn(false);
   }, [queryClient]);
 
+  // `signOut` plus one request in front. `lib/account.ts` does the DELETE,
+  // the token drop and the cache clear; the state below is the same local
+  // reset `signOut` does and it runs only on success, because a failed
+  // delete has to leave a working session behind for the retry. It does not
+  // reuse `performSignOut` — see `lib/account.ts` for why the push
+  // unsubscribe is the wrong call once the account is gone.
+  const deleteAccount = useCallback(async () => {
+    await deleteAccountApi(queryClient);
+    setUser(null);
+    setIsAdmin(false);
+    setImpersonating(null);
+    setPendingPhone(null);
+    setStatus("signed-out");
+    setSignedIn(false);
+  }, [queryClient]);
+
   const adoptSession = useCallback(async () => {
     // `performSignOut`'s cache clear, then the identity the new token
     // names — with NO token drop. The identity changed, so nothing
@@ -500,6 +525,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       verifyCode,
       completeProfile,
       signOut,
+      deleteAccount,
       adoptSession,
     }),
     [
@@ -512,6 +538,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       verifyCode,
       completeProfile,
       signOut,
+      deleteAccount,
       adoptSession,
     ],
   );

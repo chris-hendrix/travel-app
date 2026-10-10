@@ -1,4 +1,4 @@
-.PHONY: help install dev dev-api mockup mobile-web-export mobile-web-serve android-setup adb-reverse android-dev android-apk android-install android-logs android-emulator-start android-emulator-kill android-emulator-restart migrate seed studio generate up down clean reset-db test-up test-down test-exec test-run test-status test-setup test-clean
+.PHONY: help install dev dev-api mockup mobile-web-export mobile-web-serve ios-build ios-preview ios-sim ios-submit ios-credentials android-setup adb-reverse android-dev android-apk android-install android-logs android-emulator-start android-emulator-kill android-emulator-restart migrate seed studio generate up down clean reset-db test-up test-down test-exec test-run test-status test-setup test-clean
 
 .DEFAULT_GOAL := help
 
@@ -14,8 +14,27 @@ install: ## Install all dependencies
 
 # Like `make mockup`, this runs on the host: the devcontainer maps only 8000
 # and 8081 to random host ports, so both servers must run on the host.
-# Ctrl-C stops both (the trap kills the backgrounded API).
+#
+# Two things here are load-bearing. The API is backgrounded so expo can own
+# the terminal, which means it must be cleaned up on *every* exit path, not
+# just Ctrl-C: an orphaned `tsx watch` keeps :8000 and the next run dies with a
+# bare EADDRINUSE while expo still starts, which reads like a bug in the app.
+# Hence the preflight below (fail loudly, name the pid) and the EXIT trap.
+# The pkill pattern is bracketed so it cannot match this recipe's own shell.
 dev: ## Start dev servers (api:8000, expo:8081)
+	@for port in 8000 8081; do \
+		pid=$$(lsof -ti tcp:$$port -sTCP:LISTEN 2>/dev/null | head -1); \
+		if [ -z "$$pid" ] && command -v ss >/dev/null 2>&1; then \
+			pid=$$(ss -ltnpH "sport = :$$port" 2>/dev/null | sed -n 's/.*pid=\([0-9]*\).*/\1/p' | head -1); \
+		fi; \
+		if [ -n "$$pid" ]; then \
+			echo ""; \
+			echo "  port $$port is already in use by pid $$pid ($$(ps -o args= -p $$pid 2>/dev/null | cut -c1-60))"; \
+			echo "  stop it and retry:  kill $$pid"; \
+			echo ""; \
+			exit 1; \
+		fi; \
+	done
 	pnpm docker:up
 	@cd apps/mobile && \
 		echo "" && \
@@ -23,8 +42,8 @@ dev: ## Start dev servers (api:8000, expo:8081)
 		echo "  app (expo web)    http://localhost:8081" && \
 		echo "  design system     http://localhost:8081/design" && \
 		echo ""
-	@trap 'kill 0' INT TERM; \
-		pnpm --filter @journiful/api dev & \
+	@trap 'kill -TERM $$API_PID 2>/dev/null; pkill -TERM -f "src/serve[r].ts" 2>/dev/null' EXIT INT TERM; \
+		pnpm --filter @journiful/api dev & API_PID=$$!; \
 		cd apps/mobile && npx expo start --web --port 8081
 
 dev-api: ## Start API dev server only (with Docker)
@@ -69,6 +88,40 @@ mobile-web-export: ## Build the Expo web export (apps/mobile dist/)
 
 mobile-web-serve: ## Serve the built Expo web export on the host (expo:8081)
 	cd apps/mobile && pnpm serve:web
+
+# The iOS loop for the Expo app (apps/mobile). Like the `mobile-web-*` pair
+# above, these targets run on the HOST, never in the devcontainer — the CLI
+# talks to EAS's cloud builders, so there is nothing local to be inside of.
+# There is no Mac in this loop: no Xcode, no simulator to run the result on,
+# and no committed `ios/` to open. `ios-sim` is the pre-payment check that the
+# prebuild configures, and the only build whose appiconset can be read back.
+# Build IDs come back on stdout; keep the one you mean rather than guessing.
+ios-build: ## EAS cloud build for iOS (production profile → App Store/TestFlight .ipa)
+	cd apps/mobile && npx eas-cli build -p ios --profile production
+
+ios-preview: ## EAS cloud build for iOS (preview profile → ad-hoc .ipa, internal installs)
+	cd apps/mobile && npx eas-cli build -p ios --profile preview
+
+# The only iOS artifact this repo can produce before an Apple membership
+# exists. It is also the one whose built appiconset can be read back — and
+# whether that file carries an alpha channel is decided by prebuild, not by
+# the source PNG, which is what apps/mobile/plugins/withIosOpaqueIcon.js is for.
+ios-sim: ## EAS cloud build for iOS (simulator profile → .app, no signing)
+	cd apps/mobile && npx eas-cli build -p ios --profile simulator
+
+# `eas submit --latest` uploads the newest iOS build for the platform, which
+# after an ad-hoc internal pass is the ad-hoc .ipa — the wrong artifact for a
+# review. Pass the build ID: BUILD_ID=<uuid> make ios-submit. And note that
+# `--profile` here names the SUBMIT profile in eas.json, not the build — of
+# which eas.json has none yet: the block needs `ascAppId` and `appleTeamId`
+# from the App Store Connect record, which needs the Apple membership, so
+# `eas submit` has to ask for them rather than read them.
+ios-submit: ## Submit the given iOS build to App Store Connect (BUILD_ID=<uuid>)
+	@test -n "$(BUILD_ID)" || { echo 'BUILD_ID is required: BUILD_ID=<uuid> make ios-submit  (see: npx eas-cli build:list -p ios --profile production)'; exit 1; }
+	cd apps/mobile && npx eas-cli submit -p ios --id "$(BUILD_ID)"
+
+ios-credentials: ## Manage the iOS signing credentials held by EAS
+	cd apps/mobile && npx eas-cli credentials -p ios
 
 adb-reverse: ## Forward emulator ports to host (for Android emulator dev)
 	@ADB=$$(command -v adb 2>/dev/null || command -v adb.exe 2>/dev/null); \
