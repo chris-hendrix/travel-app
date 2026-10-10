@@ -43,6 +43,13 @@ export interface HealthCheckResponse {
   status: "ok" | "error";
   timestamp: string;
   database: "connected" | "disconnected";
+  /**
+   * Whether the database carries the migrations this build shipped. `behind`
+   * is what `/ready` fails on: the code would answer 500 on every route that
+   * reads a column the migration adds, while a connectivity check alone still
+   * reports `connected`.
+   */
+  migrations: "current" | "behind" | "unknown";
   environment?: string;
 }
 

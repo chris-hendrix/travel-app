@@ -308,7 +308,7 @@ The API exposes three health endpoints:
 | ----------------------- | --------------- | -------------- |
 | `GET /api/health/`      | Full status     | Always 200 — the database is reported in the body, not the status |
 | `GET /api/health/live`  | Liveness probe  | Always 200     |
-| `GET /api/health/ready` | Readiness probe | 503 if DB down |
+| `GET /api/health/ready` | Readiness probe | 503 if DB down or the schema is behind this build |
 
 **The `api` service's `healthcheckPath` is `/api/health/ready`** (300s timeout, the same as
 `web`'s). It is not `/api/health`, and the difference is the reason the setting exists:
@@ -316,6 +316,21 @@ The API exposes three health endpoints:
 rather than in its status — so a deploy whose database is unreachable would pass its health
 check and serve errors to users. `/ready` answers `503` for exactly that case, which is what
 makes Railway roll the deploy back.
+
+`/ready` also asks whether the database carries the migrations this build shipped. The
+expectation is `apps/api/src/db/migrations/meta/_journal.json`, **imported into the bundle**
+rather than read from disk, so it cannot drift from the code or depend on where an image keeps
+its source tree. The database's own ledger supplies the other half: the newest `created_at` in
+`drizzle.__drizzle_migrations`. A database that answers but has not had the deploy's migrations
+applied reads `behind`, and the probe fails — that deploy serves `500` on every route reading a
+column the migration adds, while a connectivity check alone still reads `connected`.
+
+The comparison is `max(created_at)`, never a count: this database is permanently short of the
+journal — `0034`, `0035` and `0037` predate the switch from `db:push` to `migrate` — so a count
+would report a healthy database behind forever. Only positive evidence fails the probe: an
+unreadable journal, a missing ledger table or a query that throws reads `unknown`, which does
+not fail the deploy. Migrations still belong in the pre-deploy command below; this is the check
+that catches the deploy where that setting is missing, or where the command did not run.
 
 ## Database Migrations
 
