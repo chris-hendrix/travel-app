@@ -18,9 +18,9 @@ export default defineConfig({
     // Files run in parallel, but tests within a file run sequentially to prevent
     // database conflicts from shared state in beforeEach/afterEach hooks
     pool: "threads",
-    // Each file gets its own environment, on purpose. Eight files mock the
+    // Each file gets its own environment, on purpose. Seven files mock the
     // process-global `fetch` (`location.photos`, `location.routes`,
-    // `weather.routes`, the discover/flight/geocoding/weather services) and
+    // `weather.routes`, the flight/geocoding/weather services) and
     // several mutate the shared env singleton, so a shared environment lets
     // one file's mock answer - or fail - another file's request. That is
     // exactly how `location.photos` went red twice in CI: the second

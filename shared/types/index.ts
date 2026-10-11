@@ -187,7 +187,3 @@ export type {
 
 // Re-export link types
 export type { LinkItem } from "./link";
-
-// Re-export POI types
-export type { POICategoryKey, POISuggestion, POISuggestionsResponse, POICategoryConfig } from "./poi";
-export { POI_CATEGORIES, googleTypeLabels } from "./poi";

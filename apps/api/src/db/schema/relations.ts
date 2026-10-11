@@ -19,7 +19,6 @@ import {
   pushSubscriptions,
   payments,
   paymentParticipants,
-  poiConversions,
 } from "./index.js";
 
 export const usersRelations = relations(users, ({ many }) => ({
@@ -236,20 +235,6 @@ export const paymentParticipantsRelations = relations(
     member: one(members, {
       fields: [paymentParticipants.memberId],
       references: [members.id],
-    }),
-  }),
-);
-
-export const poiConversionsRelations = relations(
-  poiConversions,
-  ({ one }) => ({
-    trip: one(trips, {
-      fields: [poiConversions.tripId],
-      references: [trips.id],
-    }),
-    event: one(events, {
-      fields: [poiConversions.eventId],
-      references: [events.id],
     }),
   }),
 );

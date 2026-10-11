@@ -21,7 +21,7 @@ Group trips fail in the coordination phase, not the booking phase. Someone becom
 
 **The organizer builds one itinerary. Every traveler can find it, see who's coming, and get where they need to be.**
 
-Phase 1 centres on the **itinerary** and **Discover**, joined by an **invite flow** that brings travelers in.
+Phase 1 centres on the **itinerary**, joined by an **invite flow** that brings travelers in.
 
 ---
 
@@ -40,11 +40,13 @@ So every authoring surface needs an **organizer variant** and a **traveler varia
 
 ## Scope
 
-**In:** auth · trips · invites & RSVP · itinerary · Discover · member travel · accommodations · push notifications · place imagery · phone + wide
+**In:** auth · trips · invites & RSVP · itinerary · member travel · accommodations · push notifications · place imagery · phone + wide
 
 **Deferred — not deleted:** messaging · money / settle · themes · weather · photo gallery · mutuals · calendar sync · admin · guest members
 
 Deferred features restore later against the same data model. Don't design for them, but don't design them out either.
+
+**Discover** was removed from the API on 2026-10-11; its `poi_cache` and `poi_conversions` tables are dropped. Any return is reshaped as per-trip proposals, not a global browse grid.
 
 ---
 
@@ -58,7 +60,6 @@ Deferred features restore later against the same data model. Don't design for th
 - **Trips** — trip list, create trip, trip settings, delete
 - **Invites** — invite members, invite preview, RSVP, phone-sharing consent, member list
 - **Itinerary** — trip shell, day listing (grid / list), event detail, create / edit event, deleted items
-- **Discover** — POI listing (grid / list), POI detail, convert to event
 - **Travel** — my travel, flight lookup, reminder
 - **Info** — trip info, accommodations, member profile
 - **Covers** — trip hero, trip list tile

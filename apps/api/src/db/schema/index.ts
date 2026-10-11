@@ -20,7 +20,6 @@ import {
 } from "drizzle-orm/pg-core";
 import type {
   LinkItem,
-  POISuggestion,
   CachedPlaceDetails,
 } from "@journiful/shared/types";
 
@@ -829,52 +828,6 @@ export const paymentParticipants = pgTable(
 
 export type PaymentParticipant = typeof paymentParticipants.$inferSelect;
 export type NewPaymentParticipant = typeof paymentParticipants.$inferInsert;
-
-// POI Cache (global rows keyed by rounded coords; shared across trips)
-export const poiCache = pgTable(
-  "poi_cache",
-  {
-    lat: doublePrecision("lat").notNull(),
-    lon: doublePrecision("lon").notNull(),
-    source: text("source").notNull(),
-    location: text("location"),
-    cachedAt: timestamp("cached_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    suggestions: jsonb("suggestions")
-      .$type<POISuggestion[]>()
-      .notNull()
-      .default([]),
-  },
-  (table) => [primaryKey({ columns: [table.lat, table.lon] })],
-);
-
-export type PoiCache = typeof poiCache.$inferSelect;
-export type NewPoiCache = typeof poiCache.$inferInsert;
-
-// POI Conversions (per-trip overlay: POIs converted to events)
-export const poiConversions = pgTable(
-  "poi_conversions",
-  {
-    tripId: uuid("trip_id")
-      .notNull()
-      .references(() => trips.id, { onDelete: "cascade" }),
-    sourceId: text("source_id").notNull(),
-    eventId: uuid("event_id")
-      .notNull()
-      .references(() => events.id, { onDelete: "cascade" }),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-  },
-  (table) => [
-    primaryKey({ columns: [table.tripId, table.sourceId] }),
-    index("poi_conversions_trip_id_idx").on(table.tripId),
-  ],
-);
-
-export type PoiConversion = typeof poiConversions.$inferSelect;
-export type NewPoiConversion = typeof poiConversions.$inferInsert;
 
 // Geocode Cache (DB-backed dedupe for Google Geocoding; TTL-on-read, 30 days)
 export const geocodeCache = pgTable("geocode_cache", {
