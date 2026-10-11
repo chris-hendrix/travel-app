@@ -85,8 +85,20 @@ describe("paymentsInOrder", () => {
 });
 
 describe("splitPreview", () => {
-  it("gives the remainder cents to the first id in the array", () => {
+  it("gives the remainder cents to the first ids in the array", () => {
     expect(splitPreview(100, ["a", "b", "c"])).toEqual([34, 33, 33]);
+  });
+
+  it("gives the remainder one cent each, not all of it to the first", () => {
+    // The case that separates the server's rule from the plausible wrong
+    // one. $100.01 between three: the server records [34, 34, 33], and
+    // piling the whole remainder on the first participant would show
+    // [35, 33, 33]. Remainder 0 and 1 cannot tell the two apart, which is
+    // exactly why this case has to be pinned.
+    expect(splitPreview(10001, ["a", "b", "c"])).toEqual([3334, 3334, 3333]);
+    expect(splitPreview(10001, ["a", "b", "c"])).not.toEqual([
+      3335, 3333, 3333,
+    ]);
   });
 
   it("gives everything to a single participant", () => {
@@ -109,8 +121,29 @@ describe("splitPreview", () => {
 
   it("moves the remainder with the order, since the order is what is sent", () => {
     expect(splitPreview(100, ["c", "b", "a"])).toEqual([34, 33, 33]);
-    expect(splitPreview(101, ["c", "b", "a"])[0]).toBe(35);
-    expect(splitPreview(101, ["a", "b", "c"])[0]).toBe(35);
+    expect(splitPreview(101, ["c", "b", "a"])).toEqual([34, 34, 33]);
+    expect(splitPreview(101, ["a", "b", "c"])).toEqual([34, 34, 33]);
+  });
+
+  it("matches the server's own formula for every amount and count", () => {
+    // The server's rule written out here independently of the module
+    // (`PaymentService.computeEqualShares`), so the preview and the thing
+    // it previews cannot drift apart. This is the assertion that would
+    // have caught the remainder bug.
+    const serverShares = (amount: number, count: number) => {
+      const base = Math.floor(amount / count);
+      const remainder = amount - base * count;
+      return Array.from({ length: count }, (_, i) =>
+        i < remainder ? base + 1 : base,
+      );
+    };
+
+    for (const amount of [1, 2, 7, 100, 101, 10001, 99999, 100_000]) {
+      for (const count of [1, 2, 3, 4, 6, 7]) {
+        const ids = Array.from({ length: count }, (_, i) => `m${i}`);
+        expect(splitPreview(amount, ids)).toEqual(serverShares(amount, count));
+      }
+    }
   });
 });
 

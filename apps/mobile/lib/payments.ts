@@ -95,13 +95,15 @@ export function paymentsInOrder(payments: Payment[]): Payment[] {
  *
  * The server's rule, mirrored exactly
  * (`PaymentService.computeEqualShares`): every share is the integer
- * division, and the remainder cents all go to **the first participant in
- * the array it is sent**. A preview that used any other order — or that
- * spread the remainder — would be a lie about the row the reader is
- * about to write, so the form sends this same array in this same order.
- *
- * $100 between three people is therefore `[34, 33, 33]`, not
- * `[33, 33, 34]`.
+ * division, and the remainder cents go **one each to the first
+ * `remainder` participants** — not all of them to the first. The two
+ * readings agree whenever the remainder is 0 or 1, which is why the
+ * difference is easy to miss: $100 between three people is `[34, 33,
+ * 33]` either way, but $100.01 between three is `[34, 34, 33]` here and
+ * `[35, 33, 33]` under the wrong one. A preview that used any other
+ * order — or that piled the remainder on the first — would be a lie
+ * about the row the reader is about to write, so the form sends this
+ * same array in this same order.
  */
 export function splitPreview(amount: number, memberIds: string[]): number[] {
   if (memberIds.length === 0) return [];
@@ -109,7 +111,7 @@ export function splitPreview(amount: number, memberIds: string[]): number[] {
   const base = Math.floor(amount / memberIds.length);
   const remainder = amount - base * memberIds.length;
 
-  return memberIds.map((_, index) => (index === 0 ? base + remainder : base));
+  return memberIds.map((_, index) => (index < remainder ? base + 1 : base));
 }
 
 /**
