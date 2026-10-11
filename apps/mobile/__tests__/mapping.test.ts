@@ -6,10 +6,13 @@ import type { MemberWithProfile } from "@journiful/shared/types";
 import type { Notification as ApiNotification } from "@journiful/shared/types";
 import type { TripDetail, TripSummary } from "@journiful/shared/types";
 import type { User } from "@journiful/shared/types";
+import type { BalanceEntry, Payment as ApiPayment } from "@journiful/shared/types";
 import {
+  toBalance,
   toEvent,
   toMember,
   toNotification,
+  toPayment,
   toProfile,
   toStay,
   toTravel,
@@ -618,5 +621,106 @@ describe("toProfile", () => {
       toProfile({ ...user, handles: { instagram: "ada.lovelace" } }).handles,
     ).toEqual({ instagram: "ada.lovelace" });
     expect(toProfile({ ...user, handles: null }).handles).toBeNull();
+  });
+});
+
+describe("toPayment", () => {
+  const payment: ApiPayment = {
+    id: "payment-1",
+    tripId: "trip-1",
+    description: "Dinner",
+    note: "Venmo",
+    amount: 13500,
+    payerMemberId: "member-1",
+    payerName: "Ava",
+    date: new Date("2026-10-11T10:00:00.000Z"),
+    createdBy: "user-1",
+    deletedAt: null,
+    deletedBy: null,
+    createdAt: new Date("2026-10-11T10:00:00.000Z"),
+    updatedAt: new Date("2026-10-11T10:00:00.000Z"),
+    participants: [
+      {
+        id: "pp-1",
+        paymentId: "payment-1",
+        memberId: "member-1",
+        shareAmount: 6750,
+        name: "Ava",
+        createdAt: new Date("2026-10-11T10:00:00.000Z"),
+      },
+      {
+        id: "pp-2",
+        paymentId: "payment-1",
+        memberId: "member-2",
+        shareAmount: 6750,
+        name: "Priya",
+        createdAt: new Date("2026-10-11T10:00:00.000Z"),
+      },
+    ],
+  };
+
+  it("carries the note and the day across the wire", () => {
+    const mapped = toPayment(payment);
+
+    expect(mapped.note).toBe("Venmo");
+    expect(mapped.date).toBe("2026-10-11T10:00:00.000Z");
+    expect(mapped.createdAt).toBe("2026-10-11T10:00:00.000Z");
+  });
+
+  it("normalises an absent note to null, not undefined", () => {
+    expect(toPayment({ ...payment, note: null }).note).toBeNull();
+  });
+
+  it("carries each participant's name and share", () => {
+    expect(toPayment(payment).participants).toEqual([
+      { id: "pp-1", memberId: "member-1", name: "Ava", shareAmount: 6750 },
+      { id: "pp-2", memberId: "member-2", name: "Priya", shareAmount: 6750 },
+    ]);
+  });
+
+  it("keeps the two id spaces distinct", () => {
+    const mapped = toPayment(payment);
+
+    expect(mapped.createdBy).toBe("user-1");
+    expect(mapped.payerMemberId).toBe("member-1");
+    expect(mapped.participants.map((p) => p.memberId)).toEqual([
+      "member-1",
+      "member-2",
+    ]);
+  });
+
+  it("maps a soft-deleted row's timestamp to an ISO string", () => {
+    const deleted = toPayment({
+      ...payment,
+      deletedAt: new Date("2026-10-12T10:00:00.000Z"),
+    });
+
+    expect(deleted.deletedAt).toBe("2026-10-12T10:00:00.000Z");
+  });
+});
+
+describe("toBalance", () => {
+  it("copies the two people and keeps the amount in cents", () => {
+    const entry: BalanceEntry = {
+      from: { id: "member-1", name: "Ava" },
+      to: { id: "member-2", name: "Priya" },
+      amount: 4500,
+    };
+
+    expect(toBalance(entry)).toEqual({
+      from: { id: "member-1", name: "Ava" },
+      to: { id: "member-2", name: "Priya" },
+      amount: 4500,
+    });
+  });
+
+  it("names a guest as a person, because a guest is one here", () => {
+    const entry: BalanceEntry = {
+      from: { id: "guest-1", name: "Mom" },
+      to: { id: "member-1", name: "Ava" },
+      amount: 1000,
+    };
+
+    expect(toBalance(entry).from).toEqual({ id: "guest-1", name: "Mom" });
   });
 });

@@ -15,12 +15,15 @@ import type { Notification } from "@/lib/notifications";
 import type { Profile } from "@/lib/profile";
 import type { Stay } from "@/lib/stays";
 import type { MockTravel } from "@/mocks/travel";
+import type { BalanceMove, Payment } from "@/lib/payments";
 import type {
   Accommodation,
+  BalanceEntry as ApiBalanceEntry,
   Event,
   MemberTravel,
   MemberWithProfile,
   Notification as ApiNotification,
+  Payment as ApiPayment,
   TripDetail,
   TripSummary,
   User,
@@ -243,5 +246,54 @@ export function toProfile(user: User): Profile {
     handles: handlesOf(user.handles),
     timezone: user.timezone,
     temperatureUnit: user.temperatureUnit ?? "fahrenheit",
+  };
+}
+
+/**
+ * An API expense onto the mobile `Payment`.
+ *
+ * Two things this mapper owns: `date` and `createdAt` cross the wire as
+ * ISO strings and go through the private `iso()`, and `note` — a column
+ * the client only sees at all because it is in `paymentEntitySchema`,
+ * the response serializer — is normalised to an explicit null so the
+ * row's second line can test for absence without also testing for
+ * `undefined`.
+ *
+ * The two id spaces pass through untouched and stay distinct:
+ * `createdBy` is a user id, `payerMemberId` and every participant's
+ * `memberId` are member ids.
+ */
+export function toPayment(payment: ApiPayment): Payment {
+  return {
+    id: payment.id,
+    tripId: payment.tripId,
+    description: payment.description,
+    note: payment.note ?? null,
+    amount: payment.amount,
+    payerMemberId: payment.payerMemberId,
+    payerName: payment.payerName ?? "",
+    date: iso(payment.date),
+    createdBy: payment.createdBy,
+    participants: payment.participants.map((participant) => ({
+      id: participant.id,
+      memberId: participant.memberId,
+      name: participant.name ?? "",
+      shareAmount: participant.shareAmount,
+    })),
+    createdAt: iso(payment.createdAt),
+    deletedAt: deletedAtOf(payment.deletedAt),
+  };
+}
+
+/**
+ * One simplified move onto `BalanceMove`. Amounts stay integer cents;
+ * the people are copied rather than passed through so the mobile shape
+ * owns its own object identity.
+ */
+export function toBalance(entry: ApiBalanceEntry): BalanceMove {
+  return {
+    from: { id: entry.from.id, name: entry.from.name },
+    to: { id: entry.to.id, name: entry.to.name },
+    amount: entry.amount,
   };
 }
