@@ -6,6 +6,7 @@ const healthResponseSchema = z.object({
   status: z.string(),
   timestamp: z.string(),
   database: z.string(),
+  migrations: z.enum(["current", "behind", "unknown"]),
 });
 
 const liveResponseSchema = z.object({
@@ -16,6 +17,11 @@ const readyResponseSchema = z.object({
   status: z.string(),
   timestamp: z.string(),
   database: z.string(),
+  // Named in the schema because Fastify's serializer drops what it does not
+  // find there: a field the probe reports but the schema omits would vanish on
+  // the wire, which is how a readiness signal goes missing without a test
+  // failing.
+  migrations: z.enum(["current", "behind", "unknown"]),
 });
 
 export async function healthRoutes(fastify: FastifyInstance) {
