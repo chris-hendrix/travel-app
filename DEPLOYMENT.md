@@ -113,7 +113,7 @@ merge to `main` is what ships, through Railway.
 
 | Variable              | Example | Notes                                                                     |
 | --------------------- | ------- | ------------------------------------------------------------------------- |
-| `GOOGLE_MAPS_API_KEY` | (secret) | Required for Discover POIs, location autocomplete, geocoding + timezone. Server-side only. |
+| `GOOGLE_MAPS_API_KEY` | (secret) | Required for location autocomplete, geocoding + timezone. Server-side only. |
 
 #### S3 Storage (Railway Storage Bucket)
 

@@ -31,7 +31,6 @@ import type { IBalanceService } from "@/services/balance.service.js";
 import type { IAdminService } from "@/services/admin.service.js";
 import type { IModerationService } from "@/services/moderation.service.js";
 import type { IUserService } from "@/services/user.service.js";
-import type { IDiscoverService } from "@/services/discover.service.js";
 import type { IGuestMemberService } from "@/services/guest-member.service.js";
 import type { PhotoCacheService } from "@/services/photo-cache.service.js";
 import type { PlaceCacheService } from "@/services/place-cache.service.js";
@@ -105,7 +104,6 @@ declare module "fastify" {
     adminService: IAdminService;
     moderationService: IModerationService;
     userService: IUserService;
-    discoverService: IDiscoverService;
     photoCache: PhotoCacheService;
     placeCache: PlaceCacheService;
     healthService: { getStatus(): Promise<HealthCheckResponse> };

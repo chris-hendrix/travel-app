@@ -22,7 +22,6 @@ export const QUEUE = {
   TOKEN_BLACKLIST_CLEANUP: "token-blacklist/cleanup",
   PLACE_PHOTOS_PURGE: "place-photos/cleanup",
   PLACE_CACHE_PURGE: "place-cache/cleanup",
-  POI_CACHE_PURGE: "poi-cache/cleanup",
 } as const;
 
 export interface NotificationBatchPayload {

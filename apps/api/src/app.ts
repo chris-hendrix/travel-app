@@ -47,7 +47,6 @@ import balanceServicePlugin from "./plugins/balance-service.js";
 import adminServicePlugin from "./plugins/admin-service.js";
 import moderationServicePlugin from "./plugins/moderation-service.js";
 import userServicePlugin from "./plugins/user-service.js";
-import discoverServicePlugin from "./plugins/discover-service.js";
 import photoCacheServicePlugin from "./plugins/photo-cache-service.js";
 import placeCacheServicePlugin from "./plugins/place-cache-service.js";
 import queueWorkersPlugin from "./queues/index.js";
@@ -78,7 +77,6 @@ import { balanceRoutes } from "./routes/balance.routes.js";
 import { adminRoutes } from "./routes/admin.routes.js";
 import { moderationRoutes } from "./routes/moderation.routes.js";
 import { locationRoutes } from "./routes/location.routes.js";
-import { discoverRoutes } from "./routes/discover.routes.js";
 
 // Config
 import { env } from "./config/env.js";
@@ -290,7 +288,6 @@ export async function buildApp(
   await app.register(adminServicePlugin);
   await app.register(moderationServicePlugin);
   await app.register(userServicePlugin);
-  await app.register(discoverServicePlugin);
   await app.register(photoCacheServicePlugin);
   await app.register(placeCacheServicePlugin);
   await app.register(queueWorkersPlugin);
@@ -326,7 +323,6 @@ export async function buildApp(
   await app.register(adminRoutes, { prefix: "/api/admin" });
   await app.register(moderationRoutes, { prefix: "/api" });
   await app.register(locationRoutes, { prefix: "/api/locations" });
-  await app.register(discoverRoutes, { prefix: "/api" });
 
   // Not-found handler for unmatched routes
   app.setNotFoundHandler((request, reply) => {

@@ -46,7 +46,7 @@ const detailsQuerySchema = z.object({
 
 /**
  * Both authenticated routes carry `checkBanned`, the same way
- * `discover.routes.ts` does for its own authenticated proxy.
+ * `flight.routes.ts` does for its own authenticated proxy.
  *
  * The extra per-request query is worth it here, and it is not really extra:
  * `authenticate` already spends one indexed SELECT (`blacklisted_tokens` by
