@@ -56,8 +56,7 @@ export class BalanceService implements IBalanceService {
     await this.assertMember(userId, tripId);
 
     // Resolve the caller via their member row: guests (userId NULL rows) are
-    // never callers, and the caller key is member:<members.id>. The guard is
-    // a race guard only — `assertMember` above already proved the row exists.
+    // never callers, and the caller key is member:<members.id>.
     const [caller] = await this.db
       .select({ id: members.id })
       .from(members)
@@ -65,7 +64,13 @@ export class BalanceService implements IBalanceService {
       .limit(1);
 
     if (!caller) {
-      return { netBalance: 0, details: [] };
+      // `assertMember` above already proved the row exists, so this is a
+      // race: the member row went away between the two reads. It must not
+      // fall back to zeros — a 200 with an empty ledger reads as "you owe
+      // nothing", which is the opposite of failing closed.
+      throw new PermissionDeniedError(
+        "Permission denied: only trip members can read a trip's money",
+      );
     }
 
     const balances = await this.computeTripBalances(tripId);

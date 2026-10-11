@@ -32,7 +32,12 @@ const basePaymentSchema = z.object({
   date: z.string().datetime().optional(),
   // "how was it paid" ("Venmo") — a separate fact from what it was.
   // Control chars are stripped first, then an empty-or-whitespace note is
-  // null: the same rule a stay's description follows.
+  // null. Note the two consequences: the value is stored as typed
+  // (padding included — `description` is not trimmed either), and the
+  // clearing value is "", never null: `updatePaymentSchema` is
+  // `basePaymentSchema.partial()`, so an explicit `null` is a 400 even
+  // though the read side hands the client `null`. A form echoing a read
+  // value back must map null -> "".
   note: z
     .string()
     .max(280, { message: "Note must not exceed 280 characters" })
