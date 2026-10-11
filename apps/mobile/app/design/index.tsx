@@ -18,6 +18,7 @@ import { ActionRow } from "@/components/ui/ActionRow";
 import { QuietAction } from "@/components/ui/QuietAction";
 import { PhoneField } from "@/components/ui/PhoneField";
 import { toE164 } from "@/lib/phone";
+import { MAX_CENTS, amountError, formatCents, parseAmount } from "@/lib/money";
 import { Screen } from "@/components/ui/Screen";
 import { Band } from "@/components/ui/Band";
 import type { BandTone } from "@/components/ui/bandClasses";
@@ -391,6 +392,7 @@ function DesignSystemScreen() {
   const [log, setLog] = useState("No interaction yet.");
   const [consent, setConsent] = useState(false);
   const [labPhone, setLabPhone] = useState("");
+  const [moneyAmount, setMoneyAmount] = useState("45.00");
   const { width } = useWindowDimensions();
 
   return (
@@ -1394,6 +1396,41 @@ function DesignSystemScreen() {
                 ))}
               </View>
             </Specimen>
+
+            {/* The money convention, and the one place an amount is
+                typed in this app. */}
+            <Specimen
+              name="Money"
+              contract="no primitive: TextField + suffix + FieldError, and the rules in lib/money.ts"
+              note="An amount is an integer count of cents from the keypad to the column, and the only decimal point in the whole path is the one printed: payments.amount is an integer in the database for the same reason. parseAmount reads what a person actually types — a leading $, thousands separators, one or two decimals — and refuses everything else, three decimals included, because silently rounding 12.345 would record a different number than the one on screen. formatCents prints it back, and it is the only thing allowed to. The cap is MAX_CENTS, one million dollars, and it is there so a slipped keypad cannot record a trip debt of a billion; over it is a third sentence, because a well-formed number can still be unusable. The suffix names the currency the whole surface is in rather than adding a second column to the row — payments has no currency column, so there is nothing else it could say. Errors sit under the field, never in a toast, which is FieldError's rule and why a group of fields — the split, say — uses FieldError where a single field passes error. Type in the field: the sentence and the parsed amount are both live."
+            >
+              <View className="gap-3">
+                <TextField
+                  label="Amount"
+                  value={moneyAmount}
+                  onChangeText={setMoneyAmount}
+                  placeholder="45.00"
+                  keyboardType="decimal-pad"
+                  suffix={
+                    <View className="justify-center px-4">
+                      <Text className="font-body text-sm text-ink opacity-60">
+                        USD
+                      </Text>
+                    </View>
+                  }
+                  error={amountError(moneyAmount)}
+                />
+                {/* The group form: a set of fields — the split, say —
+                    has no single field to sit under, so its complaint is
+                    one FieldError for the group rather than one per row. */}
+                <FieldError message="Pick at least one person to split it with." />
+                <Text className="font-body text-sm text-ink opacity-60">
+                  {parseAmount(moneyAmount) === null
+                    ? `Nothing parsed yet. The cap is ${formatCents(MAX_CENTS)}.`
+                    : `${formatCents(parseAmount(moneyAmount)!)} — ${parseAmount(moneyAmount)} cents. The cap is ${formatCents(MAX_CENTS)}.`}
+                </Text>
+              </View>
+            </Specimen>
           </View>
         </Section>
 
@@ -1477,6 +1514,18 @@ function DesignSystemScreen() {
           </Link>
           <Link href="/trips/edit?id=picos" className="font-body-bold text-base text-ink underline">
             Edit trip
+          </Link>
+          <Link href="/trips/settle?id=picos" className="font-body-bold text-base text-ink underline">
+            Settle
+          </Link>
+          <Link href="/trips/settle/form?id=picos" className="font-body-bold text-base text-ink underline">
+            Add an expense
+          </Link>
+          <Link
+            href="/trips/settle/detail?id=picos&payment=demo"
+            className="font-body-bold text-base text-ink underline"
+          >
+            Expense detail
           </Link>
           <Link href="/trips/events/new?id=picos" className="font-body-bold text-base text-ink underline">
             Add event
