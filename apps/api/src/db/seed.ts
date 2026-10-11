@@ -364,6 +364,214 @@ async function main() {
     },
   ]);
 
+  // --- Money ---
+  //
+  // A trip's ledger is invisible without a second person: the balance
+  // service credits and debits the same member key, and the simplifier
+  // drops zero balances, so a trip whose only member is its creator nets
+  // to exactly zero and the sheet has no debt row to show at all. Every
+  // trip below is therefore split across at least two people, and Tokyo
+  // carries a **guest** — the case the API allows (a guest may be named
+  // as the payer) and the app must not hide.
+  const memberOf = (tripId: string, userId: string) =>
+    memberRows.find((m) => m.tripId === tripId && m.userId === userId)!;
+
+  const [tokyoGuest] = await db
+    .insert(schema.members)
+    .values({
+      tripId: tokyo.id,
+      userId: null,
+      guestDisplayName: "Mom",
+      status: "going" as const,
+    })
+    .returning();
+
+  /**
+   * The server's own rule (`PaymentService.computeEqualShares`): integer
+   * division, with the remainder cents going one each to the first
+   * `remainder` participants. Spelled out here rather than imported,
+   * because that method is private — but it has to stay in step, or the
+   * seeded shares stop summing to the seeded amounts.
+   */
+  const equalShares = (amount: number, count: number): number[] => {
+    const base = Math.floor(amount / count);
+    const remainder = amount - base * count;
+    return Array.from({ length: count }, (_, i) =>
+      i < remainder ? base + 1 : base,
+    );
+  };
+
+  const tokyoAlice = memberOf(tokyo.id, alice.id);
+  const tokyoBob = memberOf(tokyo.id, bob.id);
+  const tokyoCarol = memberOf(tokyo.id, carol.id);
+  const tokyoEve = memberOf(tokyo.id, eve.id);
+  const barcelonaBob = memberOf(barcelona.id, bob.id);
+  const barcelonaAlice = memberOf(barcelona.id, alice.id);
+  const barcelonaEve = memberOf(barcelona.id, eve.id);
+  const nycCarol = memberOf(nyc.id, carol.id);
+  const nycAlice = memberOf(nyc.id, alice.id);
+  const nycDavid = memberOf(nyc.id, david.id);
+  const nycEve = memberOf(nyc.id, eve.id);
+
+  const moneyPlans: {
+    tripId: string;
+    description: string;
+    note: string | null;
+    amount: number;
+    payerMemberId: string;
+    participants: string[];
+    createdBy: string;
+    /** Days from today, stamped at noon so the day survives any zone. */
+    day: number;
+  }[] = [
+    // Tokyo — the rich one: a remainder that is not 0 or 1, a note, no
+    // note, a guest as a participant, a guest as the payer, and one
+    // settlement so the sheet shows a `Settled up` row.
+    {
+      tripId: tokyo.id,
+      description: "Sushi dinner",
+      note: "Paid by card",
+      amount: 13501,
+      payerMemberId: tokyoAlice.id,
+      participants: [tokyoAlice.id, tokyoBob.id, tokyoCarol.id],
+      createdBy: alice.id,
+      day: -2,
+    },
+    {
+      tripId: tokyo.id,
+      description: "Airport transfer",
+      note: "Paid by Venmo",
+      amount: 6800,
+      payerMemberId: tokyoAlice.id,
+      participants: [tokyoAlice.id, tokyoGuest!.id],
+      createdBy: alice.id,
+      day: -3,
+    },
+    {
+      // $50.00 across three: the remainder is 2, so this is the row that
+      // tells the two readings of the split rule apart. The shares are
+      // [1667, 1667, 1666] — one cent each to the first two — and not
+      // [1668, 1666, 1666]. A ledger seeded only with remainders of 0 and
+      // 1 looks identical either way, which is how the preview drifted
+      // from the server once already.
+      tripId: tokyo.id,
+      description: "Ramen lunch",
+      note: null,
+      amount: 5000,
+      payerMemberId: tokyoBob.id,
+      participants: [tokyoAlice.id, tokyoBob.id, tokyoCarol.id],
+      createdBy: bob.id,
+      day: -1,
+    },
+    {
+      // The organizer records that a guest paid — the app allows this
+      // from any member, and the guest stays the payer either way.
+      tripId: tokyo.id,
+      description: "Temple tickets",
+      note: null,
+      amount: 4500,
+      payerMemberId: tokyoGuest!.id,
+      participants: [tokyoAlice.id, tokyoBob.id, tokyoGuest!.id],
+      createdBy: alice.id,
+      day: -1,
+    },
+    {
+      // A settlement, not a purchase: one participant, and the debt goes.
+      tripId: tokyo.id,
+      description: "Settled up",
+      note: null,
+      amount: 4500,
+      payerMemberId: tokyoCarol.id,
+      participants: [tokyoAlice.id],
+      createdBy: carol.id,
+      day: 0,
+    },
+    {
+      tripId: tokyo.id,
+      description: "Karaoke night",
+      note: "Put it on my card, settle later",
+      amount: 21000,
+      payerMemberId: tokyoEve.id,
+      participants: [
+        tokyoAlice.id,
+        tokyoBob.id,
+        tokyoCarol.id,
+        tokyoEve.id,
+        tokyoGuest!.id,
+      ],
+      createdBy: eve.id,
+      day: 0,
+    },
+    // Barcelona
+    {
+      tripId: barcelona.id,
+      description: "Tapas night",
+      note: "Split the bill",
+      amount: 12000,
+      payerMemberId: barcelonaBob.id,
+      participants: [barcelonaBob.id, barcelonaAlice.id, barcelonaEve.id],
+      createdBy: bob.id,
+      day: 14,
+    },
+    {
+      tripId: barcelona.id,
+      description: "Sagrada Familia tickets",
+      note: "Booked online",
+      amount: 9000,
+      payerMemberId: barcelonaEve.id,
+      participants: [barcelonaEve.id, barcelonaAlice.id],
+      createdBy: eve.id,
+      day: 15,
+    },
+    // NYC
+    {
+      tripId: nyc.id,
+      description: "Hamilton tickets",
+      note: "Saturday 7:30pm",
+      amount: 45000,
+      payerMemberId: nycCarol.id,
+      participants: [nycCarol.id, nycAlice.id, nycEve.id],
+      createdBy: carol.id,
+      day: -9,
+    },
+    {
+      tripId: nyc.id,
+      description: "Brunch",
+      note: null,
+      amount: 7600,
+      payerMemberId: nycEve.id,
+      participants: [nycCarol.id, nycAlice.id, nycDavid.id, nycEve.id],
+      createdBy: eve.id,
+      day: -8,
+    },
+  ];
+
+  for (const plan of moneyPlans) {
+    const [payment] = await db
+      .insert(schema.payments)
+      .values({
+        tripId: plan.tripId,
+        description: plan.description,
+        note: plan.note,
+        amount: plan.amount,
+        memberId: plan.payerMemberId,
+        // Noon, so the day reads the same in the trip's zone as it does
+        // in UTC — the rule the app's own form follows.
+        date: daysFromNow(plan.day, 12),
+        createdBy: plan.createdBy,
+      })
+      .returning();
+
+    const shares = equalShares(plan.amount, plan.participants.length);
+    await db.insert(schema.paymentParticipants).values(
+      plan.participants.map((memberId, i) => ({
+        paymentId: payment!.id,
+        memberId,
+        shareAmount: shares[i]!,
+      })),
+    );
+  }
+
   // Messages
   const [tokyoMsg1] = await db
     .insert(schema.messages)
