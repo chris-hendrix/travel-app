@@ -8,6 +8,7 @@ export const balanceController = {
   ) {
     try {
       const balances = await request.server.balanceService.getTripBalances(
+        request.user.sub,
         request.params.tripId,
       );
       return reply.send({ success: true, balances });
@@ -29,8 +30,8 @@ export const balanceController = {
   ) {
     try {
       const result = await request.server.balanceService.getMyBalance(
-        request.params.tripId,
         request.user.sub,
+        request.params.tripId,
       );
       return reply.send({ success: true, ...result });
     } catch (error) {

@@ -6,6 +6,8 @@ import {
 } from "@/db/schema/index.js";
 import { eq, and, isNull, inArray, sql } from "drizzle-orm";
 import type { AppDatabase } from "@/types/index.js";
+import type { IPermissionsService } from "./permissions.service.js";
+import { PermissionDeniedError } from "../errors.js";
 
 interface BalancePerson {
   id: string;
@@ -24,28 +26,38 @@ interface MyBalanceDetail {
 }
 
 export interface IBalanceService {
-  getTripBalances(tripId: string): Promise<BalanceEntry[]>;
+  getTripBalances(userId: string, tripId: string): Promise<BalanceEntry[]>;
   getMyBalance(
-    tripId: string,
     userId: string,
+    tripId: string,
   ): Promise<{ netBalance: number; details: MyBalanceDetail[] }>;
 }
 
 export class BalanceService implements IBalanceService {
-  constructor(private db: AppDatabase) {}
+  constructor(
+    private db: AppDatabase,
+    private permissionsService: IPermissionsService,
+  ) {}
 
-  async getTripBalances(tripId: string): Promise<BalanceEntry[]> {
-    const netBalances = await this.computeNetBalances(tripId);
-    const personMap = await this.buildPersonMap(tripId);
-    return this.simplifyDebts(netBalances, personMap);
+  async getTripBalances(
+    userId: string,
+    tripId: string,
+  ): Promise<BalanceEntry[]> {
+    await this.assertMember(userId, tripId);
+    return this.computeTripBalances(tripId);
   }
 
   async getMyBalance(
-    tripId: string,
     userId: string,
+    tripId: string,
   ): Promise<{ netBalance: number; details: MyBalanceDetail[] }> {
-    // Resolve the caller via their member row first — guests (userId NULL
-    // rows) are never callers, and the caller key is member:<members.id>.
+    // Assert once, then compute directly — re-asserting through
+    // `getTripBalances` would run the membership query twice per call.
+    await this.assertMember(userId, tripId);
+
+    // Resolve the caller via their member row: guests (userId NULL rows) are
+    // never callers, and the caller key is member:<members.id>. The guard is
+    // a race guard only — `assertMember` above already proved the row exists.
     const [caller] = await this.db
       .select({ id: members.id })
       .from(members)
@@ -56,7 +68,7 @@ export class BalanceService implements IBalanceService {
       return { netBalance: 0, details: [] };
     }
 
-    const balances = await this.getTripBalances(tripId);
+    const balances = await this.computeTripBalances(tripId);
     const myId = caller.id;
 
     let netBalance = 0;
@@ -75,6 +87,26 @@ export class BalanceService implements IBalanceService {
     }
 
     return { netBalance, details };
+  }
+
+  /**
+   * A trip's money is readable by its members and nobody else. Fails closed:
+   * a caller with no member row on the trip gets 403, never an empty ledger.
+   */
+  private async assertMember(userId: string, tripId: string): Promise<void> {
+    const isMember = await this.permissionsService.isMember(userId, tripId);
+    if (!isMember) {
+      throw new PermissionDeniedError(
+        "Permission denied: only trip members can read a trip's money",
+      );
+    }
+  }
+
+  /** The unguarded compute path — callers must have passed `assertMember`. */
+  private async computeTripBalances(tripId: string): Promise<BalanceEntry[]> {
+    const netBalances = await this.computeNetBalances(tripId);
+    const personMap = await this.buildPersonMap(tripId);
+    return this.simplifyDebts(netBalances, personMap);
   }
 
   /**

@@ -318,6 +318,34 @@ describe("Payment Routes", () => {
       expect(body.payments[0].participants[0].memberId).toBe(plainMember.id);
       expect(body.payments[0].participants[0].name).toBe("Member");
     });
+
+    it("should return 403 for a non-member", async () => {
+      app = await buildApp();
+      const { trip } = await setupTrip();
+      const [stranger] = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "Stranger",
+          timezone: "UTC",
+        })
+        .returning();
+      const token = app.jwt.sign({
+        sub: stranger!.id,
+        name: stranger!.displayName,
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/api/trips/${trip.id}/payments`,
+        cookies: { auth_token: token },
+      });
+
+      expect(response.statusCode).toBe(403);
+      const body = JSON.parse(response.body);
+      expect(body.success).toBe(false);
+      expect(body.error.code).toBe("PERMISSION_DENIED");
+    });
   });
 
   describe("DELETE /api/payments/:id", () => {

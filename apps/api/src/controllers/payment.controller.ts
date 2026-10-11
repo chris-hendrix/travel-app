@@ -15,6 +15,7 @@ export const paymentController = {
   ) {
     try {
       const paymentsList = await request.server.paymentService.getPaymentsByTrip(
+        request.user.sub,
         request.params.tripId,
         request.query.includeDeleted,
       );

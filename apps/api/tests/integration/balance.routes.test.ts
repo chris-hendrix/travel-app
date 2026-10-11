@@ -95,6 +95,34 @@ describe("Balance Routes", () => {
         amount: 1000,
       });
     });
+
+    it("should return 403 for a non-member", async () => {
+      app = await buildApp();
+      const { trip } = await setupTripWithPayment();
+      const [stranger] = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "Stranger",
+          timezone: "UTC",
+        })
+        .returning();
+      const token = app.jwt.sign({
+        sub: stranger!.id,
+        name: stranger!.displayName,
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/api/trips/${trip.id}/balances`,
+        cookies: { auth_token: token },
+      });
+
+      expect(response.statusCode).toBe(403);
+      const body = JSON.parse(response.body);
+      expect(body.success).toBe(false);
+      expect(body.error.code).toBe("PERMISSION_DENIED");
+    });
   });
 
   describe("GET /api/trips/:tripId/balances/me", () => {
@@ -113,6 +141,34 @@ describe("Balance Routes", () => {
       const body = JSON.parse(response.body);
       expect(body.success).toBe(true);
       expect(body.netBalance).toBe(1000); // Alice is owed $10
+    });
+
+    it("should return 403 for a non-member instead of zeros", async () => {
+      app = await buildApp();
+      const { trip } = await setupTripWithPayment();
+      const [stranger] = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "Stranger",
+          timezone: "UTC",
+        })
+        .returning();
+      const token = app.jwt.sign({
+        sub: stranger!.id,
+        name: stranger!.displayName,
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/api/trips/${trip.id}/balances/me`,
+        cookies: { auth_token: token },
+      });
+
+      expect(response.statusCode).toBe(403);
+      const body = JSON.parse(response.body);
+      expect(body.success).toBe(false);
+      expect(body.error.code).toBe("PERMISSION_DENIED");
     });
 
     it("should return 401 if not authenticated", async () => {

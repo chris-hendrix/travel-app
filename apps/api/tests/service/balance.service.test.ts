@@ -9,9 +9,12 @@ import {
 } from "@/db/schema/index.js";
 import { eq, or } from "drizzle-orm";
 import { BalanceService } from "@/services/balance.service.js";
+import { PermissionsService } from "@/services/permissions.service.js";
+import { PermissionDeniedError } from "@/errors.js";
 import { generateUniquePhone } from "../test-utils.js";
 
-const balanceService = new BalanceService(db);
+const permissionsService = new PermissionsService(db);
+const balanceService = new BalanceService(db, permissionsService);
 
 describe("balance.service", () => {
   let phoneA: string;
@@ -129,8 +132,29 @@ describe("balance.service", () => {
     await cleanup();
   });
 
+  it("rejects a non-member reading the trip's balances with 403", async () => {
+    const outsiderPhone = generateUniquePhone();
+    const [outsider] = await db
+      .insert(users)
+      .values({
+        phoneNumber: outsiderPhone,
+        displayName: "Outsider",
+        timezone: "UTC",
+      })
+      .returning();
+    try {
+      const err = await balanceService
+        .getTripBalances(outsider!.id, tripId)
+        .catch((e) => e);
+      expect(err).toBeInstanceOf(PermissionDeniedError);
+      expect(err.statusCode).toBe(403);
+    } finally {
+      await db.delete(users).where(eq(users.id, outsider!.id));
+    }
+  });
+
   it("should return empty balances when no payments exist", async () => {
-    const balances = await balanceService.getTripBalances(tripId);
+    const balances = await balanceService.getTripBalances(userAId, tripId);
     expect(balances).toEqual([]);
   });
 
@@ -146,7 +170,7 @@ describe("balance.service", () => {
       "Dinner",
     );
 
-    const balances = await balanceService.getTripBalances(tripId);
+    const balances = await balanceService.getTripBalances(userAId, tripId);
     expect(balances).toHaveLength(2);
 
     // Bob owes Alice $15, Charlie owes Alice $15
@@ -176,7 +200,7 @@ describe("balance.service", () => {
       "Lunch",
     );
 
-    const balances = await balanceService.getTripBalances(tripId);
+    const balances = await balanceService.getTripBalances(userAId, tripId);
     expect(balances).toHaveLength(2);
 
     // Alice is owed $20 net (paid 30, owes self 10)
@@ -214,7 +238,7 @@ describe("balance.service", () => {
       "Settlement",
     );
 
-    const balances = await balanceService.getTripBalances(tripId);
+    const balances = await balanceService.getTripBalances(userAId, tripId);
     expect(balances).toHaveLength(0);
   });
 
@@ -232,7 +256,7 @@ describe("balance.service", () => {
       "Gum",
     );
 
-    const balances = await balanceService.getTripBalances(tripId);
+    const balances = await balanceService.getTripBalances(userAId, tripId);
     // Alice net: 100 - 34 = 66 (owed)
     // Bob net: -33 (owes)
     // Charlie net: -33 (owes)
@@ -261,7 +285,7 @@ describe("balance.service", () => {
       "Lunch",
     );
 
-    const balances = await balanceService.getTripBalances(tripId);
+    const balances = await balanceService.getTripBalances(userAId, tripId);
 
     // Net balances:
     // Alice: +3000 (paid) - 2000 (owes Bob) = +1000
@@ -293,7 +317,7 @@ describe("balance.service", () => {
       { paymentId: payment!.id, memberId: memberBId, shareAmount: 5000 },
     ]);
 
-    const balances = await balanceService.getTripBalances(tripId);
+    const balances = await balanceService.getTripBalances(userAId, tripId);
     expect(balances).toHaveLength(0);
   });
 
@@ -319,7 +343,7 @@ describe("balance.service", () => {
       "Dinner",
     );
 
-    const balances = await balanceService.getTripBalances(tripId);
+    const balances = await balanceService.getTripBalances(userAId, tripId);
     expect(balances).toHaveLength(1);
     expect(balances[0]).toMatchObject({
       from: { id: guest!.id, name: "Mom" },
@@ -351,7 +375,7 @@ describe("balance.service", () => {
       "Mom treats",
     );
 
-    const balances = await balanceService.getTripBalances(tripId);
+    const balances = await balanceService.getTripBalances(userAId, tripId);
     expect(balances).toHaveLength(2);
     for (const b of balances) {
       expect(b.to).toMatchObject({ id: guest!.id, name: "Mom" });
@@ -384,7 +408,7 @@ describe("balance.service", () => {
       "Dinner",
     );
 
-    const before = await balanceService.getTripBalances(tripId);
+    const before = await balanceService.getTripBalances(userAId, tripId);
     expect(before).toHaveLength(1);
     expect(before[0]!.from.id).toBe(guestMemberId);
     expect(before[0]!.from.name).toBe("Mom");
@@ -408,7 +432,7 @@ describe("balance.service", () => {
       })
       .where(eq(members.id, guestMemberId));
 
-    const after = await balanceService.getTripBalances(tripId);
+    const after = await balanceService.getTripBalances(userAId, tripId);
     expect(after).toHaveLength(1);
     // Same member id, name now resolves to the profile name
     expect(after[0]!.from.id).toBe(guestMemberId);
@@ -438,14 +462,14 @@ describe("balance.service", () => {
         "Dinner",
       );
 
-      const result = await balanceService.getMyBalance(tripId, userAId);
+      const result = await balanceService.getMyBalance(userAId, tripId);
       // Alice is owed 2000 net (paid 3000, owes self 1000)
       expect(result.netBalance).toBe(2000);
       expect(result.details).toHaveLength(2);
     });
 
     it("should return zero when user has no payments", async () => {
-      const result = await balanceService.getMyBalance(tripId, userAId);
+      const result = await balanceService.getMyBalance(userAId, tripId);
       expect(result.netBalance).toBe(0);
       expect(result.details).toHaveLength(0);
     });
@@ -472,7 +496,7 @@ describe("balance.service", () => {
         "Dinner",
       );
 
-      const alice = await balanceService.getMyBalance(tripId, userAId);
+      const alice = await balanceService.getMyBalance(userAId, tripId);
       expect(alice.netBalance).toBe(1000);
       expect(alice.details).toHaveLength(1);
       expect(alice.details[0]).toMatchObject({
@@ -491,7 +515,7 @@ describe("balance.service", () => {
         "Lunch",
       );
 
-      const bob = await balanceService.getMyBalance(tripId, userBId);
+      const bob = await balanceService.getMyBalance(userBId, tripId);
       expect(bob.netBalance).toBe(1000);
       expect(bob.details).toHaveLength(1);
       expect(bob.details[0]!.person).toMatchObject({
@@ -500,7 +524,7 @@ describe("balance.service", () => {
       });
     });
 
-    it("should return zero for a non-member caller", async () => {
+    it("rejects a non-member caller with 403 instead of returning zeros", async () => {
       const outsiderPhone = generateUniquePhone();
       const [outsider] = await db
         .insert(users)
@@ -511,8 +535,11 @@ describe("balance.service", () => {
         })
         .returning();
       try {
-        const result = await balanceService.getMyBalance(tripId, outsider!.id);
-        expect(result).toEqual({ netBalance: 0, details: [] });
+        const err = await balanceService
+          .getMyBalance(outsider!.id, tripId)
+          .catch((e) => e);
+        expect(err).toBeInstanceOf(PermissionDeniedError);
+        expect(err.statusCode).toBe(403);
       } finally {
         await db.delete(users).where(eq(users.id, outsider!.id));
       }

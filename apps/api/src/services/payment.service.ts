@@ -42,6 +42,7 @@ export interface IPaymentService {
   ): Promise<PaymentWithParticipants>;
 
   getPaymentsByTrip(
+    userId: string,
     tripId: string,
     includeDeleted?: boolean,
   ): Promise<PaymentWithParticipants[]>;
@@ -103,6 +104,7 @@ export class PaymentService implements IPaymentService {
           .values({
             tripId,
             description: data.description,
+            note: data.note ?? null,
             amount: data.amount,
             memberId: data.payerMemberId,
             date: data.date ? new Date(data.date) : new Date(),
@@ -132,9 +134,12 @@ export class PaymentService implements IPaymentService {
   }
 
   async getPaymentsByTrip(
+    userId: string,
     tripId: string,
     includeDeleted = false,
   ): Promise<PaymentWithParticipants[]> {
+    await this.assertMember(userId, tripId);
+
     const conditions = [eq(payments.tripId, tripId)];
     if (!includeDeleted) {
       conditions.push(isNull(payments.deletedAt));
@@ -232,6 +237,7 @@ export class PaymentService implements IPaymentService {
     // Build update data
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
     if (data.description !== undefined) updateData.description = data.description;
+    if (data.note !== undefined) updateData.note = data.note;
     if (data.amount !== undefined) updateData.amount = data.amount;
     if (data.payerMemberId !== undefined)
       updateData.memberId = data.payerMemberId;
@@ -425,6 +431,19 @@ export class PaymentService implements IPaymentService {
   ): Promise<boolean> {
     if (payment.createdBy === userId) return true;
     return this.permissionsService.isOrganizer(userId, payment.tripId);
+  }
+
+  /**
+   * A trip's payments are readable by its members and nobody else. Fails
+   * closed: a caller with no member row on the trip gets 403.
+   */
+  private async assertMember(userId: string, tripId: string): Promise<void> {
+    const isMember = await this.permissionsService.isMember(userId, tripId);
+    if (!isMember) {
+      throw new PermissionDeniedError(
+        "Permission denied: only trip members can read a trip's payments",
+      );
+    }
   }
 
   private async enrichPayment(

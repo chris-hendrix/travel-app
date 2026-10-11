@@ -21,6 +21,8 @@ export interface Payment {
   id: string;
   tripId: string;
   description: string;
+  /** How it was paid ("Venmo") — separate from what it was. Null when unset. */
+  note: string | null;
   amount: number;
   payerMemberId: string;
   date: Date;
