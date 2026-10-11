@@ -31,6 +31,13 @@ export const DIALOG_ROUTES = [
   "/trips/stay/new",
   "/trips/stay/detail",
   "/trips/stay/edit",
+  // The ledger and its two dialogs. All three are registered here even
+  // though the form and the detail land behind the same door later: the
+  // list is what says a route is a dialog, and a dialog the shell does
+  // not know wears the app's band above its own title.
+  "/trips/settle",
+  "/trips/settle/form",
+  "/trips/settle/detail",
   "/terms",
   "/privacy",
   "/sms-terms",

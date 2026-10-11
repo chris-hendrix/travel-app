@@ -412,6 +412,20 @@ function TripDetailScreen({ coverKind }: { coverKind: PlaceholderKind }) {
                     />
                   </>
                 ) : null}
+                {/* The fourth door, and the last: money is the third
+                    question of the same weight as the roll call and the
+                    travel board, and it is asked by the same trip. It
+                    carries no condition on purpose — not on your role,
+                    not on whether there is a balance to read. Every
+                    member of a trip may look at its ledger, and a door
+                    that appears only once you owe something would be a
+                    door nobody could find when they came to record the
+                    dinner that made them owe it. */}
+                <Text className="font-body text-sm text-ink">·</Text>
+                <QuietAction
+                  label="Settle"
+                  onPress={() => router.push(`/trips/settle?id=${trip.id}`)}
+                />
               </View>
             </View>
 

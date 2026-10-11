@@ -8,6 +8,7 @@ import {
   type BalanceMove,
   type Payment,
 } from "@/lib/payments";
+import { formatDay } from "@/lib/dateRange";
 import { zoneOffsetMinutes } from "@/lib/timezone";
 
 function makePayment(overrides: Partial<Payment> = {}): Payment {
@@ -156,6 +157,24 @@ describe("paymentDay", () => {
 
     expect(paymentDay(payment, null)).toBe("2026-10-11");
   });
+
+  // The ledger's row does not print the raw day: it prints
+  // `formatDay(paymentDay(payment, timeZone))`, which is the day the
+  // reader sees and the only thing the discrepancy between the two zones
+  // could move. Pinned as a pair because the row is the pair.
+  it("prints the day the ledger's row shows, in the zone it was stamped in", () => {
+    const payment = makePayment({ date: noonIn("2026-10-11", "Europe/Rome") });
+
+    expect(formatDay(paymentDay(payment, "Europe/Rome"))).toBe("Sun Oct 11");
+  });
+
+  it("prints the same day in the other zone, and the same one at a month boundary", () => {
+    for (const timeZone of ["Europe/Rome", "America/Los_Angeles"]) {
+      const payment = makePayment({ date: noonIn("2026-06-30", timeZone) });
+
+      expect(formatDay(paymentDay(payment, timeZone))).toBe("Tue Jun 30");
+    }
+  });
 });
 
 describe("positionFor", () => {
@@ -169,6 +188,13 @@ describe("positionFor", () => {
 
   it("answers for money the reader owes", () => {
     expect(positionFor(-4500)).toBe("You owe $45.00");
+  });
+
+  // The headline is a string the sheet renders straight, cents and all, so
+  // the pennies and the thousands separator are the sheet's own copy.
+  it("carries the cents and the separators of the amount it prints", () => {
+    expect(positionFor(4550)).toBe("You are owed $45.50");
+    expect(positionFor(-123456789)).toBe("You owe $1,234,567.89");
   });
 });
 
@@ -199,5 +225,25 @@ describe("moveFor", () => {
     };
 
     expect(moveFor(toGuest, "member-1")).toBe("You owe Mom $45.00");
+  });
+
+  it("reads a guest the reader is not part of as one person among two", () => {
+    const fromGuest: BalanceMove = {
+      from: { id: "guest-1", name: "Mom" },
+      to: { id: "member-2", name: "Priya" },
+      amount: 4550,
+    };
+
+    expect(moveFor(fromGuest, "member-1")).toBe("Mom owes Priya $45.50");
+  });
+
+  it("prints the whole amount, separators and cents included", () => {
+    const big: BalanceMove = {
+      from: { id: "member-1", name: "Ava" },
+      to: { id: "member-2", name: "Priya" },
+      amount: 123456789,
+    };
+
+    expect(moveFor(big, "member-1")).toBe("You owe Priya $1,234,567.89");
   });
 });
