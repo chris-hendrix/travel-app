@@ -17,6 +17,16 @@ import { useDismiss } from "@/hooks/useDismiss";
  *
  * Header and action bar span the screen like app chrome; only the body
  * content sits in the centred column.
+ *
+ * **The body lets a tap through to whatever it lands on**
+ * (`keyboardShouldPersistTaps="handled"`). The expense form is the first
+ * dialog whose field asks for a numbered keypad and whose next control is
+ * *inside* the scroll — type an amount, then tap a `Split with` row — and
+ * without this the first tap only dismisses the keyboard, which reads as
+ * the row being unpressable. It is the same choice the suggestion list
+ * makes, for the same reason (`SuggestionList.tsx`). The primary button is
+ * outside the scroll, so it was never the control this affected; the
+ * fields are the ones behind the keypad.
  */
 export function FullscreenDialog({
   title,
@@ -118,7 +128,11 @@ export function FullscreenDialog({
     <FieldErrorRegistry.Provider value={{ register, unregister }}>
       <View className="flex-1 bg-gravel">
         <AppHeader title={title} onClose={dismiss} />
-        <ScrollView ref={body} className="flex-1">
+        <ScrollView
+          ref={body}
+          className="flex-1"
+          keyboardShouldPersistTaps="handled"
+        >
           <View className="mx-auto w-full max-w-[960px] gap-5 p-6 md:px-12 md:py-10">
             {children}
             {dangerTitle && onDanger ? (
