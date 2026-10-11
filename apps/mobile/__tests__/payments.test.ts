@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  findMove,
   moveFor,
   paymentDay,
   paymentsInOrder,
@@ -228,6 +229,46 @@ describe("positionFor", () => {
   it("carries the cents and the separators of the amount it prints", () => {
     expect(positionFor(4550)).toBe("You are owed $45.50");
     expect(positionFor(-123456789)).toBe("You owe $1,234,567.89");
+  });
+});
+
+describe("findMove", () => {
+  const moves: BalanceMove[] = [
+    {
+      from: { id: "member-1", name: "Ava" },
+      to: { id: "member-2", name: "Priya" },
+      amount: 4500,
+    },
+    {
+      from: { id: "member-2", name: "Priya" },
+      to: { id: "guest-1", name: "Mom" },
+      amount: 1000,
+    },
+  ];
+
+  it("finds the move a settle-up link points at", () => {
+    expect(findMove(moves, "member-1", "member-2")).toEqual(moves[0]);
+  });
+
+  it("answers null when the ledger no longer has that move", () => {
+    expect(findMove(moves, "member-1", "guest-1")).toBeNull();
+  });
+
+  it("does not match a move backwards", () => {
+    // The direction is the debt's, and a link that swaps the ends names a
+    // move that does not exist — reading it the other way would offer to
+    // record the opposite payment.
+    expect(findMove(moves, "member-2", "member-1")).toBeNull();
+  });
+
+  it("answers null when the link named only one end", () => {
+    expect(findMove(moves, "member-1", null)).toBeNull();
+    expect(findMove(moves, null, "member-2")).toBeNull();
+    expect(findMove(moves, null, null)).toBeNull();
+  });
+
+  it("answers null for an empty ledger", () => {
+    expect(findMove([], "member-1", "member-2")).toBeNull();
   });
 });
 

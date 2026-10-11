@@ -264,6 +264,10 @@ function temporaryPayment(
     payerMemberId: input.payerMemberId,
     payerName: nameOf(input.payerMemberId),
     date: input.date ?? new Date().toISOString(),
+    // No user id exists for a row the server has not accepted yet. The
+    // empty string is deliberate: it can never equal a real
+    // `viewer.userId`, so the detail's `createdBy === viewer.userId`
+    // predicate cannot offer Edit on a row that is not there.
     createdBy: "",
     participants: input.participants.map((participant, index) => ({
       id: `pending-participant-${index}`,
@@ -274,6 +278,47 @@ function temporaryPayment(
     createdAt: new Date().toISOString(),
     deletedAt: null,
   };
+}
+
+/**
+ * The optimistic half every money write shares: cancel whatever is in
+ * flight, snapshot the list, paint, and hand the snapshot back for the
+ * rollback.
+ *
+ * All three writes below need exactly this, and the rollback is where
+ * copies would drift — a hook that forgot `cancelQueries` would let a
+ * late refetch land on top of its paint, and no test here would see it.
+ * So the mechanics live once and each write supplies only its own paint.
+ */
+async function optimistically(
+  queryClient: QueryClient,
+  tripId: string,
+  paint: (rows: Payment[]) => Payment[],
+): Promise<{ previous: Payment[] | undefined }> {
+  await queryClient.cancelQueries({ queryKey: paymentKeys.list(tripId) });
+  const previous = queryClient.getQueryData<Payment[]>(
+    paymentKeys.list(tripId),
+  );
+
+  queryClient.setQueryData<Payment[]>(paymentKeys.list(tripId), (old) =>
+    paint(old ?? []),
+  );
+
+  return { previous };
+}
+
+/** Put the snapshot back. A no-op when there was no list to begin with. */
+function rollBack(
+  queryClient: QueryClient,
+  tripId: string,
+  context: { previous: Payment[] | undefined } | undefined,
+): void {
+  if (context?.previous !== undefined) {
+    queryClient.setQueryData<Payment[]>(
+      paymentKeys.list(tripId),
+      context.previous,
+    );
+  }
 }
 
 /**
@@ -288,20 +333,18 @@ export function useCreatePayment(tripId: string) {
   return useMutation({
     mutationFn: (input: CreatePaymentRequest) => createPayment(tripId, input),
     onMutate: async (input: CreatePaymentRequest) => {
-      await queryClient.cancelQueries({ queryKey: paymentKeys.list(tripId) });
-      const previous = queryClient.getQueryData<Payment[]>(
-        paymentKeys.list(tripId),
-      );
+      // The roster names the painted row, so it is read before the paint
+      // rather than leaving the row to flash blank.
       const roster =
         queryClient.getQueryData<Member[]>(memberKeys.list(tripId)) ?? [];
       const temporary = temporaryPayment(tripId, input, roster);
 
-      queryClient.setQueryData<Payment[]>(paymentKeys.list(tripId), (old) => [
+      const context = await optimistically(queryClient, tripId, (rows) => [
         temporary,
-        ...(old ?? []),
+        ...rows,
       ]);
 
-      return { previous, temporaryId: temporary.id };
+      return { ...context, temporaryId: temporary.id };
     },
     onSuccess: (payment: Payment, _input, context) => {
       queryClient.setQueryData<Payment[]>(paymentKeys.list(tripId), (old) =>
@@ -310,18 +353,8 @@ export function useCreatePayment(tripId: string) {
         ),
       );
     },
-    onError: (
-      _error: unknown,
-      _input,
-      context: { previous: Payment[] | undefined } | undefined,
-    ) => {
-      if (context?.previous !== undefined) {
-        queryClient.setQueryData<Payment[]>(
-          paymentKeys.list(tripId),
-          context.previous,
-        );
-      }
-    },
+    onError: (_error: unknown, _input, context) =>
+      rollBack(queryClient, tripId, context),
     onSettled: () => {
       void invalidateTripMoney(queryClient, tripId);
     },
@@ -338,14 +371,28 @@ export function useCreatePayment(tripId: string) {
  * refetch is left to bring it. A `""` note becomes `null` here for the
  * same reason the server does it: that is what cleared means.
  */
-function patchFrom(input: UpdatePaymentRequest): Partial<Payment> {
+function patchFrom(
+  input: UpdatePaymentRequest,
+  roster: Member[],
+): Partial<Payment> {
+  // A changed payer carries its name too, or the ledger's payer line
+  // reads the previous person until the refetch lands. When the roster
+  // is cold the name is left alone rather than blanked: the refetch
+  // gives the same answer either way, and blanking does not.
+  const payerName = roster.find(
+    (member) => member.id === input.payerMemberId,
+  )?.name;
+
   return {
     ...(input.description !== undefined
       ? { description: input.description }
       : null),
     ...(input.amount !== undefined ? { amount: input.amount } : null),
     ...(input.payerMemberId !== undefined
-      ? { payerMemberId: input.payerMemberId }
+      ? {
+          payerMemberId: input.payerMemberId,
+          ...(payerName !== undefined ? { payerName } : null),
+        }
       : null),
     ...(input.date !== undefined ? { date: input.date } : null),
     ...(input.note !== undefined
@@ -377,31 +424,17 @@ export function useUpdatePayment(tripId: string) {
       paymentId: string;
       input: UpdatePaymentRequest;
     }) => {
-      await queryClient.cancelQueries({ queryKey: paymentKeys.list(tripId) });
-      const previous = queryClient.getQueryData<Payment[]>(
-        paymentKeys.list(tripId),
-      );
+      const roster =
+        queryClient.getQueryData<Member[]>(memberKeys.list(tripId)) ?? [];
 
-      queryClient.setQueryData<Payment[]>(paymentKeys.list(tripId), (old) =>
-        (old ?? []).map((row) =>
-          row.id === paymentId ? { ...row, ...patchFrom(input) } : row,
+      return optimistically(queryClient, tripId, (rows) =>
+        rows.map((row) =>
+          row.id === paymentId ? { ...row, ...patchFrom(input, roster) } : row,
         ),
       );
-
-      return { previous };
     },
-    onError: (
-      _error: unknown,
-      _variables,
-      context: { previous: Payment[] | undefined } | undefined,
-    ) => {
-      if (context?.previous !== undefined) {
-        queryClient.setQueryData<Payment[]>(
-          paymentKeys.list(tripId),
-          context.previous,
-        );
-      }
-    },
+    onError: (_error: unknown, _variables, context) =>
+      rollBack(queryClient, tripId, context),
     onSettled: () => {
       void invalidateTripMoney(queryClient, tripId);
     },
@@ -419,34 +452,16 @@ export function useDeletePayment(tripId: string) {
   return useMutation({
     mutationFn: ({ paymentId }: { paymentId: string }) =>
       deletePayment(paymentId),
-    onMutate: async ({ paymentId }: { paymentId: string }) => {
-      await queryClient.cancelQueries({ queryKey: paymentKeys.list(tripId) });
-      const previous = queryClient.getQueryData<Payment[]>(
-        paymentKeys.list(tripId),
-      );
-
-      queryClient.setQueryData<Payment[]>(paymentKeys.list(tripId), (old) =>
-        (old ?? []).map((row) =>
+    onMutate: async ({ paymentId }: { paymentId: string }) =>
+      optimistically(queryClient, tripId, (rows) =>
+        rows.map((row) =>
           row.id === paymentId
             ? { ...row, deletedAt: new Date().toISOString() }
             : row,
         ),
-      );
-
-      return { previous };
-    },
-    onError: (
-      _error: unknown,
-      _variables,
-      context: { previous: Payment[] | undefined } | undefined,
-    ) => {
-      if (context?.previous !== undefined) {
-        queryClient.setQueryData<Payment[]>(
-          paymentKeys.list(tripId),
-          context.previous,
-        );
-      }
-    },
+      ),
+    onError: (_error: unknown, _variables, context) =>
+      rollBack(queryClient, tripId, context),
     onSettled: () => {
       void invalidateTripMoney(queryClient, tripId);
     },

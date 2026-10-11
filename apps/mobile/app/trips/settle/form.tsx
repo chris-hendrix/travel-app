@@ -13,7 +13,7 @@ import { useDismiss } from "@/hooks/useDismiss";
 import { useAuth } from "@/lib/authStore";
 import { formatCents } from "@/lib/money";
 import { viewerOf } from "@/lib/members";
-import { paymentDay } from "@/lib/payments";
+import { findMove, paymentDay } from "@/lib/payments";
 import { useBalances } from "@/lib/queries/balances";
 import { toErrorCopy } from "@/lib/queries/errors";
 import { useMembers } from "@/lib/queries/members";
@@ -125,12 +125,11 @@ function ExpenseFormScreen() {
       : null;
   // The amount is the **move's**, never the URL's: a stale number in a
   // link is a lie about what is owed, and the ledger is what actually
-  // knows.
+  // knows. `findMove` is the rule, and it is unit-tested rather than
+  // driven through the browser.
   const move =
-    settleMode && debts.status === "success" && fromId && toId
-      ? (debts.balances.find(
-          (entry) => entry.from.id === fromId && entry.to.id === toId,
-        ) ?? null)
+    settleMode && debts.status === "success"
+      ? findMove(debts.balances, fromId, toId)
       : null;
 
   const create = useCreatePayment(trip?.id ?? "");

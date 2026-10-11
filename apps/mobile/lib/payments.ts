@@ -141,6 +141,32 @@ export function positionFor(netBalance: number): string {
 }
 
 /**
+ * The move a settle-up link points at, or null when the ledger no longer
+ * has one.
+ *
+ * The amount is the **move's**, never the URL's: a stale number in a link
+ * is a lie about what is owed, and the ledger is what actually knows. A
+ * move that has gone answers null so the form can say so rather than
+ * offering to record a payment against arithmetic that no longer holds.
+ *
+ * The two ids are **member** ids — the same space as `move.from.id`.
+ */
+export function findMove(
+  moves: BalanceMove[],
+  fromMemberId: string | null,
+  toMemberId: string | null,
+): BalanceMove | null {
+  if (!fromMemberId || !toMemberId) return null;
+
+  return (
+    moves.find(
+      (move) =>
+        move.from.id === fromMemberId && move.to.id === toMemberId,
+    ) ?? null
+  );
+}
+
+/**
  * One simplified move, told from the reader's side.
  *
  * Their own member id reads as "You", in whichever position it sits; a
