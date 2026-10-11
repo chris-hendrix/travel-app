@@ -187,19 +187,33 @@ export function SettleLedger({
 }
 
 /**
- * The run's heading form, and the ledger's: the display face's smallest
- * step, in caps. `RuledBlock` writes this same string for its title, and
- * these two headings are the plain version of it.
+ * The sheet's headline: the one number, and the only thing here at
+ * display size. `display-sm` is the step the app's own screen titles
+ * wear (`app/trips/index.tsx`, `app/notifications.tsx`), which is what
+ * this is — the thing the door was pressed for.
+ *
+ * It was `heading-lg` until it was read on a screen: that is the step
+ * `RuledBlock` gives a *section title*, so the answer and the two labels
+ * below it were drawn identically and the sheet read as three peers with
+ * no answer in it.
  */
-const HEADLINE = "font-display-semibold text-heading-lg uppercase text-ink";
+const HEADLINE = "font-display-bold text-display-sm uppercase text-ink";
 
 /**
  * A heading that leads a run of rows, with the line of air the run puts
- * under its own day headings (`pb-3`). The air belongs to the heading
- * rather than to the table, because a table whose first row already
- * carries no mark has no opening of its own to open on.
+ * under its own day headings (`pb-3`).
+ *
+ * `heading-md` is one step below `RuledBlock`'s title and wears the
+ * **body** face, which is the scale's own rule: the display face never
+ * sets anything a reader reads in a sentence, and a section label inside
+ * a dialog is not a section title. The ladder is then display 32 for the
+ * answer, body-bold 20 for its labels, body 16 for the rows.
+ *
+ * The air belongs to the heading rather than to the table, because a
+ * table whose first row already carries no mark has no opening of its
+ * own to open on.
  */
-const SECTION_HEADING = `pb-3 ${HEADLINE}`;
+const SECTION_HEADING = `pb-3 font-body-bold text-heading-md uppercase text-ink`;
 
 /** The row body: the sentence on the left, the door at the far edge. */
 const ROW = "flex-row items-center justify-between gap-4 py-3";
@@ -310,8 +324,13 @@ function ExpenseRow({
             from the left edge, the number keeps the right one, and the
             description above them spans both. `joinFacts` drops the note
             when there is not one, so a row with none is two facts and
-            never a stranded separator. */}
-        <View className="flex-row items-center justify-between gap-4">
+            never a stranded separator.
+
+            `items-start`, not `items-center`: a long note wraps the meta
+            to two lines, and centring dropped that row's amount half a
+            line below every other row's, so the column read as broken
+            rather than as a column. */}
+        <View className="flex-row items-start justify-between gap-4">
           <Text className="flex-1 font-body text-sm text-ink opacity-60">
             {joinFacts(payer, day, payment.note)}
           </Text>
