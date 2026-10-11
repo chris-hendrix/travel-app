@@ -126,18 +126,34 @@ export function SettleLedger({
               <NothingYet />
             ) : (
               <RuledRows>
-                {debts.balances.map((move) => (
-                  <MoveRow
-                    key={`${move.from.id}-${move.to.id}`}
-                    move={move}
-                    viewerMemberId={viewerMemberId}
-                    onSettle={() =>
-                      router.push(
-                        `/trips/settle/form?id=${tripId}&settle=1&from=${move.from.id}&to=${move.to.id}`,
-                      )
-                    }
-                  />
-                ))}
+                {debts.balances.map((move) => {
+                  // The door belongs to the reader's own moves. "Settle up"
+                  // on "Liz owes Sam" is an invitation to record that
+                  // somebody else paid somebody else, and four identical
+                  // underlines down the column is the inflation the
+                  // underline ratchet exists to stop. The other rows are
+                  // the trip's picture, which is what "who owes whom" is
+                  // for.
+                  const mine =
+                    viewerMemberId !== null &&
+                    (move.from.id === viewerMemberId ||
+                      move.to.id === viewerMemberId);
+                  return (
+                    <MoveRow
+                      key={`${move.from.id}-${move.to.id}`}
+                      move={move}
+                      viewerMemberId={viewerMemberId}
+                      onSettle={
+                        mine
+                          ? () =>
+                              router.push(
+                                `/trips/settle/form?id=${tripId}&settle=1&from=${move.from.id}&to=${move.to.id}`,
+                              )
+                          : undefined
+                      }
+                    />
+                  );
+                })}
               </RuledRows>
             )}
           </>
@@ -260,7 +276,9 @@ function MoveRow({
 }: {
   move: BalanceMove;
   viewerMemberId: string | null;
-  onSettle: () => void;
+  /** The reader's own move. Omitted for a move between two other people,
+   *  which is a fact about the trip rather than something to do. */
+  onSettle?: (() => void) | undefined;
   /** The table's mark, handed down by `RuledRows`. */
   className?: string | undefined;
 }) {
@@ -269,11 +287,13 @@ function MoveRow({
   return (
     <View className={[ROW, className].filter(Boolean).join(" ")}>
       <Text className="flex-1 font-body text-base text-ink">{sentence}</Text>
-      <QuietAction
-        label="Settle up"
-        ariaLabel={`Settle up ${sentence}`}
-        onPress={onSettle}
-      />
+      {onSettle ? (
+        <QuietAction
+          label="Settle up"
+          ariaLabel={`Settle up ${sentence}`}
+          onPress={onSettle}
+        />
+      ) : null}
     </View>
   );
 }
