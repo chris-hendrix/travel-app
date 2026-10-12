@@ -271,8 +271,19 @@ checkRuleForms();
  * needs an underline. The constant comes down to 15 with it: the ratchet
  * exists so a word cannot *gain* a mark quietly, and leaving it at 16 now
  * would be reserving a slot for a link that no longer exists.
+ *
+ * Sixteen again, and this one is not a word at all. `DayStrip` is the
+ * app's second day cell — a trip's own days, on the travel form — and it
+ * marks today with `DatePicker`'s own idiom (`isToday && !selected ?
+ * "underline"`), which has been one of these fifteen since the check was
+ * written. Counting a calendar's day cell here is the census being blunt
+ * about what an underline looks like in source; refusing the mark would
+ * mean the app's two calendars marking today in two different ways, and
+ * that is the worse trade. So the slot is spent deliberately and in the
+ * open, per the paragraph above. The next thing that wants a slot should
+ * change `DayStrip`'s marker rather than this number.
  */
-const UNDERLINE_RATCHET = 15;
+const UNDERLINE_RATCHET = 16;
 
 function checkUnderlineRatchet() {
   const lab = path.join("app", "design", "index.tsx");

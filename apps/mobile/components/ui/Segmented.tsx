@@ -42,13 +42,6 @@ const TONES: Record<SegmentedTone, { box: string; label: string }> = {
  * row of these sits in a stack of buttons without a step. Its height is
  * its own proof: whatever the button above it measures, this measures.
  *
- * `mark` is a short mark drawn after the label — a tick against a choice
- * that is done, say. It is a string inside the label rather than a node
- * beside it so it takes the label's colour: a cell that fills with ink
- * would otherwise show a black mark on black, and recolouring someone
- * else's node from in here would mean this primitive knowing what it was
- * given.
- *
  * `value` is nullable on purpose — "nothing chosen yet" is a real state,
  * not an error.
  */
@@ -64,7 +57,6 @@ export function Segmented<T extends string>({
     value: T;
     label: string;
     tone?: SegmentedTone;
-    mark?: string;
   }>;
   value: T | null;
   onChange: (value: T) => void;
@@ -137,7 +129,7 @@ export function Segmented<T extends string>({
                 chosen ? fill.label : "text-ink"
               }`}
             >
-              {option.mark ? `${option.label} ${option.mark}` : option.label}
+              {option.label}
             </Text>
           </Pressable>
         );

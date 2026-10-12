@@ -4,15 +4,13 @@ import { Pressable, Text, View } from "react-native";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
-import { Segmented } from "@/components/ui/Segmented";
-import { DatePicker } from "@/components/ui/DatePicker";
+import { DayStrip } from "@/components/ui/DayStrip";
 import { FieldError } from "@/components/ui/FieldError";
 import { TimeField } from "@/components/ui/TimeField";
 import { InlineError } from "@/components/ui/InlineError";
-import { dayLabel } from "@/lib/itinerary";
-import { addDays, toIso } from "@/lib/dateRange";
 import { NOT_SHARED } from "@/lib/wording";
 import { formatFlightNumber, isFlightNumber, lookupFlight } from "@/lib/flights";
+import { travelDays } from "@/lib/travelDays";
 import {
   farEndNote,
   legFromLookup,
@@ -37,26 +35,8 @@ const DIRECTIONS: Array<{ value: TravelDirection; heading: string }> = [
   { value: "departure", heading: "Departing" },
 ];
 
-/** How the times are being given: off a flight number, or typed. */
-type TravelMode = "flight" | "times";
-
-const MODES: Array<{ value: TravelMode; label: string }> = [
-  { value: "flight", label: "Flight number" },
-  { value: "times", label: "Enter times" },
-];
-
-/**
- * Which way a direction opens, given how it was answered: a number it
- * can be looked up from, times somebody typed, or nothing at all. The
- * blank case is the one this rule exists for, and it is the flight.
- */
-function openingMode(leg: TravelLeg | undefined): TravelMode {
-  if (leg?.flightNumber) return "flight";
-  const hasTimes = Boolean(
-    leg?.departureTime.trim() || leg?.arrivalTime.trim(),
-  );
-  return hasTimes ? "times" : "flight";
-}
+/** What a field says when there is nothing to say with a place name. */
+const WHERE_PLACEHOLDER = "Airport, station, address";
 
 /**
  * The travel form, in one place because there is one of it: one member,
@@ -67,22 +47,28 @@ function openingMode(leg: TravelLeg | undefined): TravelMode {
  * a traveler is that member already, so the picker is simply absent —
  * the same form with one field fewer, not a second form.
  *
- * The two directions are a disclosure each, not a pair of tabs. They are
- * not alternatives — most people have both, and both usually arrive in
- * the same conversation — so the form shows the state of each at once
- * and opens one at a time. Both headings carry their own answer, which
- * is the thing a row of tabs cannot do: "Arriving — Fri Sep 18 · 3:40 PM
- * · BCN T2" beside "Departing — Not shared yet" reads the whole record
- * without opening anything, and an unfilled direction is visibly a state
- * rather than a screen you have not visited.
+ * The two directions are two panels, not two toggles. Each panel's own
+ * ink-filled header *is* the control and the readout at once: filling a
+ * row with ink already means "this is the one you are on" everywhere
+ * else in this system, and the same row can carry the answer — "Fri Sep
+ * 18 · 3:40 PM · BCN T2" under one direction and "Not shared yet" under
+ * the other reads the whole record without opening anything. That is one
+ * mark where there used to be four signals that could disagree: a
+ * direction toggle, a tick or a dash per cell, a floating "Not shared
+ * yet" line, and a summary line, all saying overlapping things about the
+ * same two facts.
  *
- * One panel open at a time is also the practical answer to bulk: a month
- * of days and a column of times is most of a screen, and rendering two
- * of each would be a scroll, not a form.
+ * There is no way to ask for times *instead of* a flight number, because
+ * there is nothing to ask: every field of a direction is on screen at
+ * once. The toggle that used to hide the where and both times behind it
+ * was the same primitive at the same size as the direction toggle above
+ * it, and it answered a question nobody had — a blank form opened on the
+ * flight number and showed one field beside a dead button.
  *
- * The calendar is bounded by the trip, which cannot express the morning
- * after the last day — the red-eye home. Next day is that morning, and
- * nothing else.
+ * The day is the trip's own days (`DayStrip`), because a leg's day is
+ * bounded by the trip. A month grid bounded by a trip offers 31 days to
+ * choose one of nine and draws the legal ninth — the morning after the
+ * trip ends, where the red-eye home lands — as an unmarked grey cell.
  */
 export function TravelDialog({
   title,
@@ -116,7 +102,7 @@ export function TravelDialog({
    * member will see.
    */
   timeZone: string | null;
-  /** Who travel can belong to — the trip's going members. */
+  /** Who travel can belong to — the going roster plus the record holders. */
   members: Member[];
   /** The organizer files for anyone; a traveler is the member already. */
   viewerIsOrganizer: boolean;
@@ -153,6 +139,7 @@ export function TravelDialog({
   /** A write is in flight: the dialog's own two buttons stop. */
   pending?: boolean;
 }) {
+  const motion = useMotion();
   // One rule for what the fields hold: the picked member's record for
   // that direction, else the seed a duplicate arrived with, else nothing
   // (`legsForMember`). The fields are *about* this member, so a `Who`
@@ -166,18 +153,8 @@ export function TravelDialog({
   const [legs, setLegs] = useState<Record<TravelDirection, TravelLeg>>(() =>
     legsForMember(records, seed, memberId, readLeg),
   );
-  // How each direction's times are being given: off a flight number, or
-  // typed. A direction that already holds a number opens on the flight it
-  // came from, and one whose times were typed by hand opens on the times,
-  // because that is how each was answered the first time. A blank
-  // direction opens on the flight number: it is the shorter way to answer
-  // the question, and it is the one the placeholder offers.
-  const [modes, setModes] = useState<Record<TravelDirection, TravelMode>>({
-    arrival: openingMode(legs.arrival),
-    departure: openingMode(legs.departure),
-  });
-  // Which direction is on screen: the one that was tapped if there was
-  // one, the arrival otherwise — arrival is what a trip is waiting on.
+  // Which panel is open: the one that was tapped if there was one, the
+  // arrival otherwise — arrival is what a trip is waiting on.
   const [direction, setDirection] = useState<TravelDirection>(openDirection);
   const [submitted, setSubmitted] = useState(false);
   // Neither direction has anything in it. That is not the same as a
@@ -195,20 +172,14 @@ export function TravelDialog({
   const latest = useRef({ readLeg, records, seed });
   latest.current = { readLeg, records, seed };
   useEffect(() => {
-    const next = legsForMember(
-      latest.current.records,
-      latest.current.seed,
-      memberId,
-      latest.current.readLeg,
+    setLegs(
+      legsForMember(
+        latest.current.records,
+        latest.current.seed,
+        memberId,
+        latest.current.readLeg,
+      ),
     );
-    setLegs(next);
-    // The mode follows the leg it is about: a member whose arrival was
-    // filed off a number opens on the number, and a blank one opens on
-    // the flight, which is the shorter way to answer.
-    setModes({
-      arrival: openingMode(next.arrival),
-      departure: openingMode(next.departure),
-    });
     // A clean slate per member: the last one's "nothing was filled in"
     // complaint has no business following you to this one.
     setSubmitted(false);
@@ -227,8 +198,6 @@ export function TravelDialog({
     setLegs((current) => ({ ...current, [direction]: next }));
   }
 
-  const shown = legs[direction];
-
   function submit() {
     setSubmitted(true);
     // Nothing in either direction: the dialog would dismiss on an empty
@@ -236,14 +205,17 @@ export function TravelDialog({
     // validator already uses to tell "unshared" from "not filled in yet",
     // and it says an untouched direction is not an error, which is true
     // of one direction and not of two.
-    if (!legIsFiled(legs.arrival, "arrival") && !legIsFiled(legs.departure, "departure")) {
+    if (
+      !legIsFiled(legs.arrival, "arrival") &&
+      !legIsFiled(legs.departure, "departure")
+    ) {
       setBlank(true);
       return;
     }
     const found = validateNewTravel(input);
     if (Object.keys(found).length > 0) {
-      // The fault may be in the direction you are not looking at: switch
-      // to it rather than failing behind a screen you cannot see.
+      // The fault may be in the panel you are not looking at: open it
+      // rather than failing behind a header you cannot see into.
       if (found.arrival) setDirection("arrival");
       else if (found.departure) setDirection("departure");
       return;
@@ -257,9 +229,10 @@ export function TravelDialog({
       primaryTitle={primaryTitle}
       onPrimary={submit}
       pending={pending}
-      // The footer is the scaffold's now, and the label is the one thing
-      // the form still owns: this dialog deletes a direction rather than
-      // a record, so which one it is belongs in the title.
+      // The footer is the scaffold's, and the label is the one thing the
+      // form still owns: this dialog deletes a direction rather than a
+      // record, so which one it is belongs in the title — and it is
+      // absent while no direction is filed.
       dangerTitle={
         onDelete && filed[direction]
           ? `Delete ${direction === "arrival" ? "arrival" : "departure"}`
@@ -296,41 +269,8 @@ export function TravelDialog({
         </Text>
       )}
 
-      {/* Which end of the trip you are filing. A toggle rather than a
-          disclosure: it is the first question and it is a choice, and one
-          control that says so is clearer than two panels that each imply
-          the other.
-          
-          Each cell carries its own state: a tick once the direction
-          holds times, a dash while it does not. Two glyphs rather than
-          "Not shared yet" in each cell, because that phrase is a third
-          of a phone's half-width cell — the words appear in the line
-          below when you select the empty one. What matters is that
-          neither state is the absence of the other: an unfilled
-          direction reads as empty, not as unvisited. */}
-      <Segmented
-        options={DIRECTIONS.map((option) => ({
-          value: option.value,
-          label: option.heading,
-          // A tick once the direction holds times, a dash while it does
-          // not: two marks, so an unfilled direction reads as empty
-          // rather than as unvisited.
-          mark: legIsFiled(legs[option.value], option.value) ? "✓" : "–",
-        }))}
-        value={direction}
-        onChange={setDirection}
-      />
-
-      {/* The line under the toggle is the selection: what this direction
-          already holds, in the same words its row uses on the board —
-          clock and zone both, since a time with no place is a guess. */}
-      <Text className="font-body text-base text-ink">
-        {legSummary(shown, direction) || NOT_SHARED}
-      </Text>
-
-      {/* The whole form's complaint, which is why it sits under the
-          switch rather than under a field: no single field is at fault
-          when none of them has been answered. */}
+      {/* The whole form's complaint, above both panels because no single
+          field is at fault when none of them has been answered. */}
       <FieldError
         message={
           blank
@@ -339,36 +279,78 @@ export function TravelDialog({
         }
       />
 
-      <LegFields
-        direction={direction}
-        leg={shown}
-        onChange={setLeg}
-        mode={modes[direction]}
-        onModeChange={(mode) =>
-          setModes((current) => ({ ...current, [direction]: mode }))
-        }
-        trip={trip}
-        timeZone={timeZone}
-        whereSuggestions={whereSuggestions}
-        errors={submitted ? errors[direction] : undefined}
-      />
+      {/* Two panels in fixed order, arrival first. Each header is a
+          radio: the chosen one is filled with ink and pressing it does
+          nothing, the other is paper and opens its panel. `radiogroup`
+          because it is a choice among visible options — the same role
+          pair the toggle it replaces carried. */}
+      <View role="radiogroup" className="gap-2">
+        {DIRECTIONS.map((panel) => {
+          const open = panel.value === direction;
+          const leg = legs[panel.value];
+          return (
+            <View key={panel.value} className="gap-2">
+              <Pressable
+                role="radio"
+                aria-selected={open}
+                onPress={() => setDirection(panel.value)}
+                className={`border border-ink px-3 py-3 ${
+                  open ? "bg-ink" : `bg-paper ${motion.pressDim}`
+                }`}
+              >
+                <Text
+                  className={`font-display-semibold text-heading-lg uppercase ${
+                    open ? "text-sand" : "text-ink"
+                  }`}
+                >
+                  {panel.heading}
+                </Text>
+                {/* The panel's own answer, in the same words the board's
+                    row uses: the day, the clock, and where. An unfilled
+                    direction says so here rather than reading as a
+                    screen you have not visited. */}
+                <Text
+                  className={`font-body text-sm ${
+                    open ? "text-sand" : "text-ink"
+                  }`}
+                >
+                  {legSummary(leg, panel.value) || NOT_SHARED}
+                </Text>
+              </Pressable>
+
+              {open ? (
+                <LegFields
+                  direction={panel.value}
+                  leg={leg}
+                  onChange={setLeg}
+                  trip={trip}
+                  timeZone={timeZone}
+                  whereSuggestions={whereSuggestions}
+                  errors={submitted ? errors[panel.value] : undefined}
+                />
+              ) : null}
+            </View>
+          );
+        })}
+      </View>
     </FullscreenDialog>
   );
 }
 
 /**
- * One direction's questions, in the order they are answered: the day,
- * then how the times are being given, then whichever fields that choice
- * asks for, then where and the two times — filled in by a lookup or by
- * hand. The day leads because the lookup needs it, and the number sits
- * directly under it so nothing scrolls between the two.
+ * One direction's questions, all of them, in the order they are
+ * answered: the day, then the number the times can come from, then
+ * where and the two times — filled in by a lookup or by hand.
+ *
+ * Every field is always rendered. The day leads because the lookup needs
+ * it, and the number sits directly under the day so nothing scrolls
+ * between the two; that adjacency is also the answer to "why will
+ * Autofill not press" that the old hidden-field version never gave.
  */
 function LegFields({
   direction,
   leg,
   onChange,
-  mode,
-  onModeChange,
   trip,
   timeZone,
   whereSuggestions,
@@ -377,11 +359,9 @@ function LegFields({
   direction: TravelDirection;
   leg: TravelLeg;
   onChange: (leg: TravelLeg) => void;
-  mode: TravelMode;
-  onModeChange: (mode: TravelMode) => void;
   trip: Trip;
   /** See the dialog: for reading a lookup back into the fields, nothing
-   *  more. The pickers and the summary say the time and nothing else. */
+   *  more. The pickers and the readout say the time and nothing else. */
   timeZone: string | null;
   whereSuggestions: string[];
   errors: LegErrors | undefined;
@@ -390,26 +370,12 @@ function LegFields({
   const [lookingUp, setLookingUp] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
 
-  const today = toIso(new Date());
   const arrival = direction === "arrival";
-  // The other end's day, said back under the field that owns it. Null
-  // when the leg does not cross midnight, where "the same day" would be
-  // noise the day line above already covers.
-  const departureNote = farEndNote(leg, direction);
-  const arrivalNote = farEndNote(leg, direction);
-  const hasTimes = Boolean(leg.departureTime.trim() || leg.arrivalTime.trim());
-  const hasWhere = Boolean(leg.location.trim());
-  // Where and the times are what a flight number answers, so in flight
-  // mode they wait until there is an answer to show — and then they stay,
-  // because a looked-up value is a starting point rather than a verdict
-  // and hiding it would leave nothing to correct. An error opens them
-  // too: a complaint about a field nobody can see is not a complaint.
-  const showWhere =
-    mode === "times" || hasWhere || Boolean(errors?.location);
-  const showTimes =
-    mode === "times" ||
-    hasTimes ||
-    Boolean(errors?.departureTime || errors?.arrivalTime);
+  // The far end's day, said back under the field that owns it — the
+  // arrival's departure, or the departure's arrival. Null when the leg
+  // does not cross midnight, where "the same day" would be noise the
+  // chosen day already covers.
+  const farNote = farEndNote(leg, direction);
 
   // The lookup flies on the leg's own day: one date, one number, and the
   // time and the where fill themselves in.
@@ -424,10 +390,9 @@ function LegFields({
     try {
       const result = await lookupFlight(leg.flightNumber, leg.day);
       if (!result) {
-        // No dead end: the times are right below, so a lookup that finds
+        // No dead end: the times are right there, so a lookup that finds
         // nothing leaves you typing them instead of stuck.
-        setLookupError("Flight not found for this date. Enter the times below.");
-        onModeChange("times");
+        setLookupError("Flight not found for this date. Fill in the times.");
         return;
       }
       onChange(
@@ -436,10 +401,9 @@ function LegFields({
     } catch {
       // lookupFlight propagates transport and timeout failures by design
       // (lib/flights.ts): a down API is not "no such flight", but the
-      // field-level answer is the same — the times below, by hand. The
-      // flag always clears so the spinner cannot stick.
-      setLookupError("Flight lookup failed. Enter the times below.");
-      onModeChange("times");
+      // field-level answer is the same — the times by hand. The flag
+      // always clears so the spinner cannot stick.
+      setLookupError("Flight lookup failed. Fill in the times.");
     } finally {
       setLookingUp(false);
     }
@@ -447,38 +411,18 @@ function LegFields({
 
   return (
     <View className="gap-4">
-      <View className="gap-2">
-        <Text className="font-body-bold text-sm text-ink">
-          {arrival ? "Arrival day" : "Departure day"}
-        </Text>
-        {/* Bounded by the trip, and one day past its end: a stay is
-            booked through its last night, so check-out and the flight
-            home are the morning after the last day. */}
-        <DatePicker
-          selection={{ start: leg.day || null, end: leg.day || null }}
-          onChange={(dates) => onChange({ ...leg, day: dates.start ?? "" })}
-          single
-          min={trip.startDate}
-          max={addDays(trip.endDate, 1)}
+      {/* The trip's own days, and the morning after it ends. No label
+          above it: the cells carry their own weekday and number, and the
+          panel header above read the chosen day back in full. */}
+      <View className="gap-1">
+        <DayStrip
+          days={travelDays(trip)}
+          value={leg.day || null}
+          onChange={(day) => onChange({ ...leg, day })}
         />
-        {leg.day ? (
-          <Text className="font-body text-sm text-ink">
-            {dayLabel(leg.day, today)}
-          </Text>
-        ) : null}
         <FieldError message={errors?.day} />
       </View>
 
-      {/* How the times are being given, sitting with the number it
-          governs: below the day, above the field. The day is the leg's
-          first question; this one is about the field under it. */}
-      <Segmented options={MODES} value={mode} onChange={onModeChange} />
-
-      {/* The shortcut, and only in the mode that asks for it. Directly
-          under the day because the day is what the lookup needs: type a
-          number, press once, and the where and the times below fill in
-          without a scroll between them. */}
-      {mode === "flight" ? (
       <View className="gap-1">
         <TextField
           label="Flight number"
@@ -511,73 +455,67 @@ function LegFields({
           <Text className="font-body text-sm text-ink">{lookupError}</Text>
         ) : null}
       </View>
-      ) : null}
 
-      {showWhere ? (
-        <Dropdown
-          label="Where"
-          options={whereSuggestions}
-          value={leg.location || null}
-          onChange={(location) => {
-            setLookupError(null);
-            onChange({ ...leg, location });
-          }}
-          placeholder={arrival ? "BCN T2" : "Sants station"}
-          error={errors?.location}
-          freeText
-          openOnPress
-        />
-      ) : null}
+      <Dropdown
+        label="Where"
+        options={whereSuggestions}
+        value={leg.location || null}
+        onChange={(location) => {
+          setLookupError(null);
+          onChange({ ...leg, location });
+        }}
+        placeholder={WHERE_PLACEHOLDER}
+        error={errors?.location}
+        freeText
+        openOnPress
+      />
 
-      {showTimes ? (
-      <>
       {/* Both ends, the way a flight has both, side by side the way the
           event form puts Starts and Ends: two times being compared are
           easier to compare next to each other.
 
+          The two labels are the subject's own words — what you do at
+          each end of a leg, in the order it happens — rather than the
+          transport's: "Leaves 7:00 AM" and "Lands 8:40 PM" read as a
+          sentence about the person, which is whose travel this is.
+
           A leg that crosses midnight says so under the field that owns
-          the far end — "Left Thu Sep 18" under a departure, "Lands Sat
-          Sep 26" under an arrival. It is a readout, not a control: what
-          the two times already mean, said back, so it cannot disagree
-          with them. */}
+          the far end. It is a readout, not a control: what the two times
+          already mean, said back, so it cannot disagree with them. */}
       <View className="gap-4 md:flex-row">
         <View className="gap-1 md:flex-1">
           <TimeField
-            label="Departure time"
+            label="Leaves"
             value={leg.departureTime || null}
             onChange={(time) => onChange({ ...leg, departureTime: time ?? "" })}
             error={errors?.departureTime}
           />
-          {arrival && departureNote ? (
+          {arrival && farNote ? (
             <Text className="font-body text-sm text-ink opacity-60">
-              {departureNote}
+              {farNote}
             </Text>
           ) : null}
         </View>
         <View className="gap-1 md:flex-1">
           <TimeField
-            label="Arrival time"
+            label="Lands"
             value={leg.arrivalTime || null}
             onChange={(time) => onChange({ ...leg, arrivalTime: time ?? "" })}
             error={errors?.arrivalTime}
           />
-          {!arrival && arrivalNote ? (
+          {!arrival && farNote ? (
             <Text className="font-body text-sm text-ink opacity-60">
-              {arrivalNote}
+              {farNote}
             </Text>
           ) : null}
         </View>
       </View>
-      </>
-      ) : null}
 
       <TextField
         label="Details"
         value={leg.details}
         onChangeText={(details) => onChange({ ...leg, details })}
-        placeholder={
-          arrival ? "Bags take twenty minutes." : "Can drop bags at the flat."
-        }
+        placeholder="Anything the others should know."
         multiline
         numberOfLines={2}
       />

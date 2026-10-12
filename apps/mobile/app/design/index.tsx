@@ -44,6 +44,8 @@ import { InlineError } from "@/components/ui/InlineError";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
 import { DatePicker } from "@/components/ui/DatePicker";
+import { DayStrip } from "@/components/ui/DayStrip";
+import { travelDays } from "@/lib/travelDays";
 import { TimeField } from "@/components/ui/TimeField";
 import type { Selection } from "@/lib/calendar";
 import { RSVP_LABEL, type RsvpStatus } from "@/lib/rsvp";
@@ -380,6 +382,11 @@ function DesignSystemScreen() {
   const [rsvp, setRsvp] = useState<RsvpStatus | null>(null);
   const [layout, setLayout] = useState<"list" | "grid">("list");
   const [units, setUnits] = useState<"c" | "f">("c");
+  // The day strip's own choice. Pinned to the specimen trip's second day
+  // so the ink cell is somewhere a reader can see it, and a `today` is
+  // passed below rather than read from the clock, so the underline does
+  // not move with the build.
+  const [travelDay, setTravelDay] = useState<string | null>("2026-09-19");
   const [pastEvents, setPastEvents] = useState(false);
   const [range, setRange] = useState<Selection>({
     start: null,
@@ -868,9 +875,37 @@ function DesignSystemScreen() {
             </Specimen>
 
             <Specimen
+              name="DayStrip"
+              contract="days (iso · weekday · day) · value (nullable) · onChange · today?"
+              note="A trip's own days, plus the morning after it ends, and nothing else. It exists because a leg's day is bounded by the trip: the month grid that used to answer on the travel form offered 31 days to choose one of nine, and the one legal day past the end — the morning a red-eye home lands — was a greyed, unmarked cell in the last row rather than a day you could pick. Nine cells instead of thirty-one, five to a row, with the last row padded so a short one keeps the same cell width as a full one; without that padding the four cells under five would stretch and the grid would read as broken rather than short. Ink means chosen, the same as the calendar and the time column, and today is underlined — both are values rather than actions, which is why neither takes a colour. Forty-four points per cell, the calendar's own target. No label above it: the cells carry their own weekday and number, and the panel header that owns the strip reads the chosen day back in full, so a label here would be the third statement of one fact. Travel was the only caller of DatePicker whose range was the trip; events, stays and trips keep the month grid, which is right — a stay really can land on any of thirty-one days. Below: a chosen day, then nothing chosen yet, which is a state this control is expected to be in."
+            >
+              <DayStrip
+                days={travelDays({
+                  startDate: "2026-09-18",
+                  endDate: "2026-09-25",
+                })}
+                value={travelDay}
+                today="2026-09-19"
+                onChange={(day) => {
+                  setTravelDay(day);
+                  setLog(`DayStrip "${day}"`);
+                }}
+              />
+              <DayStrip
+                days={travelDays({
+                  startDate: "2026-09-18",
+                  endDate: "2026-09-25",
+                })}
+                value={null}
+                today="2026-09-19"
+                onChange={(day) => setLog(`DayStrip (empty) "${day}"`)}
+              />
+            </Specimen>
+
+            <Specimen
               name="Segmented"
-              contract="options (value · label · tone? · mark?) · value (nullable) · onChange · size? · width?"
-              note="One choice out of a few, all of them visible. Bordered cells in a row rather than bare words: a word with no box and no underline is a label, not something a thumb can be asked to press, and every control in this system is a box. The cells are button-sized — the same p-4 and text-sm as a button, so a row of these sits in a stack of buttons without a step — and ink rather than a colour, because choosing a direction is not an action: the calendar and the time column already invert what is chosen, and two coloured toggles left the form's one real button looking like one of them. tone is for answers that carry a meaning of their own, which the RSVP has; mark is a short mark after the label, drawn in the label's own colour, for a choice with something to say about itself (travel puts a tick against a direction already filed). value is nullable because having chosen nothing yet is a real state rather than an error — and an always-set value wears the same cells (the profile's temperature), because a control that looks different depending on whether a value has been chosen yet would be two controls for one idea. width says how far the row reaches on a wide screen: fill, the default, splits the block between its cells, which is what makes three RSVP cells read as one control; content keeps the cells at their labels' width from md up for a short pair like the units toggle, on a phone being the same thing. size='sm' is a chrome row's switch, the same box as a chip, and always hugs."
+              contract="options (value · label · tone?) · value (nullable) · onChange · size? · width?"
+              note="One choice out of a few, all of them visible. Bordered cells in a row rather than bare words: a word with no box and no underline is a label, not something a thumb can be asked to press, and every control in this system is a box. The cells are button-sized — the same p-4 and text-sm as a button, so a row of these sits in a stack of buttons without a step — and ink rather than a colour, because choosing a direction is not an action: the calendar and the time column already invert what is chosen, and two coloured toggles left the form's one real button looking like one of them. tone is for answers that carry a meaning of their own, which the RSVP has. value is nullable because having chosen nothing yet is a real state rather than an error — and an always-set value wears the same cells (the profile's temperature), because a control that looks different depending on whether a value has been chosen yet would be two controls for one idea. width says how far the row reaches on a wide screen: fill, the default, splits the block between its cells, which is what makes three RSVP cells read as one control; content keeps the cells at their labels' width from md up for a short pair like the units toggle, on a phone being the same thing. size='sm' is a chrome row's switch, the same box as a chip, and always hugs."
             >
               <RsvpControl
                 value={rsvp ?? "no_response"}
