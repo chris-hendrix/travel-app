@@ -1,8 +1,17 @@
+import { DEMO_AUTH_USER, DEMO_VIEWER_MEMBER_ID, atClock, userIdOf } from "@/lib/demo/fixture";
+import type { DemoPayment } from "@/lib/demo/money";
+import { bachelorLedger, caboLedger, weddingLedger } from "@/lib/demo/money";
 import type { ItineraryEvent } from "@/lib/itinerary";
 import type { Member } from "@/lib/members";
 import type { OccasionKind } from "@/lib/placeholder";
 import type { Stay } from "@/lib/stays";
 import type { MockTravel } from "@/mocks/travel";
+
+// The two ids and the two helpers above live in `lib/demo/fixture.ts`, which
+// the ledger (`lib/demo/money.ts`) is written in too — this module cannot own
+// them and read the ledger back. The ids are re-exported so every reader of
+// them still names one place.
+export { DEMO_AUTH_USER, DEMO_VIEWER_MEMBER_ID };
 
 /**
  * The demo trip: the one sanctioned exception to "screens never read
@@ -57,55 +66,6 @@ export type DemoTrip = {
   payments: DemoPayment[];
 };
 
-/**
- * One expense in a trip's ledger, in the fixture's own shorthand.
- *
- * The shares are deliberately **not** written down here: they are the
- * server's own rule (`PaymentService.computeEqualShares`, mirrored by
- * `splitPreview`), and `lib/demo/adapter.ts` applies it when it builds
- * the row. So a fixture row cannot state shares that disagree with its
- * own amount, and every balance the demo serves is arithmetic over
- * these rows rather than a number written beside them.
- *
- * A trip's ledger is invisible unless it is split across more than one
- * person: the balance service credits the payer and debits each
- * participant, and the simplifier drops a zero, so a ledger whose only
- * member is the reader nets to exactly nothing and the sheet has no row
- * to draw at all. Every trip below therefore involves several members,
- * and each carries one **guest** — a member row with no account behind
- * it, which the API allows as a payer and as a participant and the app
- * must not hide.
- */
-export type DemoPayment = {
-  id: string;
-  description: string;
-  /** "how was it paid" — null when unset, which is different from "". */
-  note: string | null;
-  /** The whole expense, in integer cents. */
-  amount: number;
-  /** Who paid: a **member** id. */
-  payerMemberId: string;
-  /**
-   * Everyone splitting it, in the order the remainder cents are handed
-   * out: **member** ids, and the order is load-bearing — the first
-   * `amount % count` people in this list get one cent more than the
-   * rest (`splitPreview`).
-   */
-  participants: string[];
-  /**
-   * Who filed it: a **user** id (`userIdOf`), which is a different space
-   * from the two above — `createdBy` matches a `member.userId` and never
-   * a `member.id`, and the detail's Edit predicate is exactly that
-   * comparison.
-   */
-  createdBy: string;
-  /** Noon-anchored, and inside the trip's own window (`atClock`). */
-  date: string;
-};
-
-/** The viewer's own row. The RSVP control and the roster row share it. */
-export const DEMO_VIEWER_MEMBER_ID = "demo-you";
-
 /** The demo trip's id: the landing's first `/demo?id=…` link carries it. */
 export const DEMO_TRIP_ID = "demo-trip-cabo";
 
@@ -126,14 +86,6 @@ export const DEMO_TRIP_IDS = [
   DEMO_TRIP_WEDDING_ID,
   DEMO_TRIP_BACHELOR_ID,
 ] as const;
-
-/** The demo session: the anonymous visitor reads as this traveler. */
-export const DEMO_AUTH_USER = {
-  id: "demo-viewer",
-  phoneNumber: "+15550000001",
-  displayName: "You",
-  profileComplete: true,
-} as const;
 
 /**
  * The whole fixture is built on the **viewer's own wall clock**, and that
@@ -160,38 +112,6 @@ function addDays(dayIso: string, days: number): string {
   const moment = dayMoment(dayIso);
   moment.setDate(moment.getDate() + days);
   return toIsoDay(moment);
-}
-
-/**
- * A wall clock on a day, as the instant it names *in the viewer's own
- * zone*: `new Date("…T19:00:00")` with no trailing `Z` is parsed as
- * local time, which is what makes a 19:00 dinner read back as 7:00 PM
- * rather than as 3:00 PM in New York. `lib/newEvent.ts` stamps a real
- * event the same way, off the trip's own zone — there is no trip zone
- * here to read it off, which is the whole point of the demo.
- */
-function atClock(dayIso: string, clock: string): string {
-  return new Date(`${dayIso}T${clock}:00`).toISOString();
-}
-
-/**
- * The **user** id behind a member row: the account the row belongs to.
- *
- * Two id spaces meet here and are never interchangeable. This returns a
- * user id — what `payments.createdBy` holds — while `payerMemberId` and
- * every `participants[].memberId` are **member** ids. Crossing them is
- * what makes an Edit button appear on somebody else's row. The viewer's
- * user id is `DEMO_AUTH_USER.id`, the account the demo signs in as.
- *
- * Each trip carries the viewer's own row under its own id (row ids are
- * globally unique per D2) and all of them resolve to the same demo user,
- * which is what the RSVP path keys on — hence the prefix test.
- */
-function userIdOf(memberId: string): string {
-  const isViewer =
-    memberId === DEMO_VIEWER_MEMBER_ID ||
-    memberId.startsWith(`${DEMO_VIEWER_MEMBER_ID}-`);
-  return isViewer ? DEMO_AUTH_USER.id : `demo-user-${memberId}`;
 }
 
 function member(
@@ -257,36 +177,6 @@ function guest(id: string, name: string): Member {
     phone: "",
     sharePhone: false,
     handles: null,
-  };
-}
-
-/**
- * One ledger row. The shares are not a parameter: the adapter derives
- * them from `amount` and `participants` with the server's own rule (see
- * `DemoPayment`), so this can only ever state the payer, the people and
- * the total.
- */
-function payment(
-  id: string,
-  description: string,
-  note: string | null,
-  amount: number,
-  payerMemberId: string,
-  participants: string[],
-  /** A day inside the trip's window; the row is stamped at local noon on it. */
-  dayIso: string,
-  /** A **user** id — `userIdOf(memberId)`, never the member id itself. */
-  createdBy: string,
-): DemoPayment {
-  return {
-    id,
-    description,
-    note,
-    amount,
-    payerMemberId,
-    participants,
-    createdBy,
-    date: atClock(dayIso, "12:00"),
   };
 }
 
@@ -488,71 +378,7 @@ export function buildDemoTrip(today: Date = new Date()): DemoTrip {
     arrival("demo-travel-sam", "demo-sam", "Sam", startDate, "12:40"),
   ];
 
-  // The ledger, dated on the days the itinerary already runs: the boat
-  // deposit on the boat day, the tacos on the tacos night, and a
-  // settlement two days in. Two rows carry a note and three do not,
-  // because the sheet drops an absent note rather than printing a blank
-  // one; one row is a settlement (a payment whose only participant is
-  // somebody other than the payer), which is the row the sheet reads as
-  // "Settled up"; and the tacos are deliberately $50.00 across three
-  // people, where the remainder is 2 — the only kind of row that tells
-  // the two readings of the split rule apart ([1667, 1667, 1666], one
-  // cent each to the first two, not [1668, 1666, 1666]).
-  const payments: DemoPayment[] = [
-    payment(
-      "demo-payment-boat",
-      "Boat day",
-      "Paid by card",
-      48000,
-      "demo-sam",
-      [DEMO_VIEWER_MEMBER_ID, "demo-liz", "demo-marco", "demo-sam"],
-      sunday,
-      userIdOf("demo-sam"),
-    ),
-    // A guest paid, and the viewer is the one who filed it — so this row
-    // is one the viewer may edit without being its payer.
-    payment(
-      "demo-payment-groceries",
-      "Groceries at the house",
-      null,
-      15750,
-      "demo-guest-cabo",
-      [DEMO_VIEWER_MEMBER_ID, "demo-liz", "demo-marco", "demo-sam"],
-      startDate,
-      userIdOf(DEMO_VIEWER_MEMBER_ID),
-    ),
-    payment(
-      "demo-payment-tacos",
-      "Tacos in town",
-      null,
-      5000,
-      "demo-liz",
-      [DEMO_VIEWER_MEMBER_ID, "demo-liz", "demo-sam"],
-      saturday,
-      userIdOf("demo-liz"),
-    ),
-    payment(
-      "demo-payment-drinks",
-      "Sunset drinks",
-      "Venmo",
-      9600,
-      DEMO_VIEWER_MEMBER_ID,
-      [DEMO_VIEWER_MEMBER_ID, "demo-liz", "demo-marco"],
-      saturday,
-      userIdOf(DEMO_VIEWER_MEMBER_ID),
-    ),
-    payment(
-      "demo-payment-settled",
-      "Settled up",
-      null,
-      7500,
-      "demo-marco",
-      [DEMO_VIEWER_MEMBER_ID],
-      monday,
-      userIdOf("demo-marco"),
-    ),
-  ];
-
+  const payments = caboLedger({ startDate, saturday, sunday, monday });
   return {
     id: DEMO_TRIP_ID,
     title: "Cabo",
@@ -685,85 +511,7 @@ export function buildDemoWeddingTrip(today: Date = new Date()): DemoTrip {
     arrival("demo-wed-travel-liz", "demo-wed-liz", "Liz", startDate, "10:40", "SJD T2"),
   ];
 
-  // Dev fronted the dinner and the four of them settle the rest between
-  // them, which is what makes the moves read as people rather than as a
-  // single tab. The taxis carry the guest, and one row is a settlement
-  // (Liz's only participant is the viewer) so the sheet shows a
-  // "Settled up" entry here too.
-  const payments: DemoPayment[] = [
-    payment(
-      "demo-wed-payment-welcome",
-      "Welcome dinner",
-      "Paid by card",
-      24600,
-      "demo-wed-dev",
-      [
-        `${DEMO_VIEWER_MEMBER_ID}-wed`,
-        "demo-wed-dev",
-        "demo-wed-priya",
-        "demo-wed-marco",
-        "demo-wed-liz",
-      ],
-      startDate,
-      userIdOf("demo-wed-dev"),
-    ),
-    payment(
-      "demo-wed-payment-groceries",
-      "Casa Marea groceries",
-      null,
-      9020,
-      `${DEMO_VIEWER_MEMBER_ID}-wed`,
-      [
-        `${DEMO_VIEWER_MEMBER_ID}-wed`,
-        "demo-wed-dev",
-        "demo-wed-priya",
-        "demo-wed-marco",
-      ],
-      startDate,
-      userIdOf(`${DEMO_VIEWER_MEMBER_ID}-wed`),
-    ),
-    payment(
-      "demo-wed-payment-taxis",
-      "Airport taxis",
-      null,
-      7000,
-      "demo-wed-marco",
-      [
-        `${DEMO_VIEWER_MEMBER_ID}-wed`,
-        "demo-wed-marco",
-        "demo-wed-liz",
-        "demo-wed-guest",
-      ],
-      startDate,
-      userIdOf("demo-wed-marco"),
-    ),
-    payment(
-      "demo-wed-payment-brunch",
-      "Farewell brunch",
-      "Venmo",
-      11900,
-      "demo-wed-priya",
-      [
-        `${DEMO_VIEWER_MEMBER_ID}-wed`,
-        "demo-wed-dev",
-        "demo-wed-priya",
-        "demo-wed-liz",
-      ],
-      monday,
-      userIdOf("demo-wed-priya"),
-    ),
-    payment(
-      "demo-wed-payment-settled",
-      "Settled up",
-      null,
-      2000,
-      "demo-wed-liz",
-      [`${DEMO_VIEWER_MEMBER_ID}-wed`],
-      monday,
-      userIdOf("demo-wed-liz"),
-    ),
-  ];
-
+  const payments = weddingLedger({ startDate, monday });
   return {
     id: DEMO_TRIP_WEDDING_ID,
     title: "Priya & Dev's wedding",
@@ -921,87 +669,7 @@ export function buildDemoBachelorTrip(today: Date = new Date()): DemoTrip {
     arrival("demo-bach-travel-sam", "demo-bach-sam", "Sam", startDate, "13:40", "SAN T1"),
   ];
 
-  // Marco booked the tickets, Eddie got the table, and everyone else
-  // carried a piece — the ledger is a party splitting a weekend rather
-  // than one person's tab. The steak dinner is deliberately $227.10
-  // across six, so its shares are even (3785 each) and the guest Danny
-  // holds a real share of the trip.
-  const payments: DemoPayment[] = [
-    payment(
-      "demo-bach-payment-groceries",
-      "House groceries",
-      null,
-      11220,
-      `${DEMO_VIEWER_MEMBER_ID}-bac`,
-      [
-        `${DEMO_VIEWER_MEMBER_ID}-bac`,
-        "demo-bach-dev",
-        "demo-bach-marco",
-        "demo-bach-sam",
-      ],
-      startDate,
-      userIdOf(`${DEMO_VIEWER_MEMBER_ID}-bac`),
-    ),
-    payment(
-      "demo-bach-payment-tickets",
-      "Padres game tickets",
-      "Paid by card",
-      33600,
-      "demo-bach-marco",
-      [
-        `${DEMO_VIEWER_MEMBER_ID}-bac`,
-        "demo-bach-dev",
-        "demo-bach-marco",
-        "demo-bach-sam",
-        "demo-bach-eddie",
-      ],
-      saturday,
-      userIdOf("demo-bach-marco"),
-    ),
-    payment(
-      "demo-bach-payment-steak",
-      "Steak dinner",
-      null,
-      22710,
-      "demo-bach-eddie",
-      [
-        `${DEMO_VIEWER_MEMBER_ID}-bac`,
-        "demo-bach-dev",
-        "demo-bach-marco",
-        "demo-bach-sam",
-        "demo-bach-eddie",
-        "demo-bach-guest",
-      ],
-      saturday,
-      userIdOf("demo-bach-eddie"),
-    ),
-    payment(
-      "demo-bach-payment-surf",
-      "Surf lesson",
-      "Venmo",
-      16000,
-      "demo-bach-dev",
-      [
-        `${DEMO_VIEWER_MEMBER_ID}-bac`,
-        "demo-bach-dev",
-        "demo-bach-marco",
-        "demo-bach-sam",
-      ],
-      saturday,
-      userIdOf("demo-bach-dev"),
-    ),
-    payment(
-      "demo-bach-payment-settled",
-      "Settled up",
-      null,
-      5000,
-      "demo-bach-sam",
-      [`${DEMO_VIEWER_MEMBER_ID}-bac`],
-      sunday,
-      userIdOf("demo-bach-sam"),
-    ),
-  ];
-
+  const payments = bachelorLedger({ startDate, saturday, sunday });
   return {
     id: DEMO_TRIP_BACHELOR_ID,
     title: "Dev's bachelor party",
