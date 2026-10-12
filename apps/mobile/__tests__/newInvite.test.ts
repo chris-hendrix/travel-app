@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   filterTripmates,
+  outcomeFromResponse,
   phoneNumberError,
   sendInvitations,
 } from "@/lib/newInvite";
@@ -121,6 +122,120 @@ describe("sendInvitations", () => {
       "+1 555 999 9999",
     ]);
     expect(outcome.added).toEqual(["Rafa Moreno"]);
+  });
+});
+
+describe("outcomeFromResponse", () => {
+  const names = new Map([
+    ["mutual-1", "Dana Mercer"],
+    ["mutual-2", "Rafa Moreno"],
+  ]);
+
+  it("counts a picked mutual once, though the server also invites them", () => {
+    // The bug: a mutual gets an invitation row (the text with the deep
+    // link) and an `addedMembers` entry (the member row), and the dialog
+    // read both as separate people — "2 invitations sent" plus "Dana
+    // Mercer joined straight away".
+    const outcome = outcomeFromResponse({
+      picked: ["mutual-1"],
+      pickedNames: names,
+      numbers: [],
+      invitations: [{ inviteePhone: "+15550000000" }],
+      addedMembers: [{ userId: "mutual-1", displayName: "Dana Mercer" }],
+      skipped: [],
+    });
+
+    expect(outcome.invited).toEqual(["Dana Mercer"]);
+    expect(outcome.added).toEqual([]);
+  });
+
+  it("keeps a picked mutual a single invitation when nobody was texted", () => {
+    // Claimed in place: the number already has an account the server
+    // made a member on the spot, so there is no row in `invitations`.
+    const outcome = outcomeFromResponse({
+      picked: ["mutual-1"],
+      pickedNames: names,
+      numbers: [],
+      invitations: [],
+      addedMembers: [{ userId: "mutual-1", displayName: "Dana Mercer" }],
+      skipped: [],
+    });
+
+    expect(outcome.invited).toEqual(["Dana Mercer"]);
+    expect(outcome.added).toEqual([]);
+  });
+
+  it("invites a typed number nobody has an account on", () => {
+    const outcome = outcomeFromResponse({
+      picked: [],
+      pickedNames: names,
+      numbers: ["+15559999999"],
+      invitations: [{ inviteePhone: "+15559999999" }],
+      addedMembers: [],
+      skipped: [],
+    });
+
+    expect(outcome.invited).toEqual(["+1 555 999 9999"]);
+    expect(outcome.added).toEqual([]);
+  });
+
+  it("adds a typed number that already has an account", () => {
+    const outcome = outcomeFromResponse({
+      picked: [],
+      pickedNames: names,
+      numbers: ["+15550000137"],
+      invitations: [{ inviteePhone: "+15550000137" }],
+      addedMembers: [{ userId: "mutual-2", displayName: "Rafa Moreno" }],
+      skipped: [],
+    });
+
+    expect(outcome.invited).toEqual(["+1 555 000 0137"]);
+    expect(outcome.added).toEqual(["Rafa Moreno"]);
+  });
+
+  it("keeps the screen's order with a mutual and a number at once", () => {
+    const outcome = outcomeFromResponse({
+      picked: ["mutual-1"],
+      pickedNames: names,
+      numbers: ["+15550000137"],
+      invitations: [
+        { inviteePhone: "+15550000000" },
+        { inviteePhone: "+15550000137" },
+      ],
+      addedMembers: [
+        { userId: "mutual-1", displayName: "Dana Mercer" },
+        { userId: "mutual-2", displayName: "Rafa Moreno" },
+      ],
+      skipped: [],
+    });
+
+    expect(outcome.invited).toEqual(["Dana Mercer", "+1 555 000 0137"]);
+    // The account, not the mutual: the mutual is the invitation above.
+    expect(outcome.added).toEqual(["Rafa Moreno"]);
+  });
+
+  it("names a skipped user id, and only reads a phone as a phone", () => {
+    // `skipped` is mixed: the server puts a blocked, deleted,
+    // already-member or already-invited mutual in it as a raw id, and
+    // formatting an id as a phone hands back the uuid unchanged.
+    const outcome = outcomeFromResponse({
+      picked: ["mutual-1"],
+      pickedNames: names,
+      numbers: [],
+      invitations: [],
+      addedMembers: [],
+      skipped: [
+        "mutual-1",
+        "9f1b9b0e-0000-4000-8000-000000000000",
+        "+15550000274",
+      ],
+    });
+
+    expect(outcome.skipped).toEqual([
+      "Dana Mercer",
+      "Someone you picked",
+      "+1 555 000 0274",
+    ]);
   });
 });
 

@@ -9,7 +9,11 @@ import { RuledBlock } from "@/components/ui/RuledBlock";
 import { SuggestionList } from "@/components/ui/SuggestionList";
 import { TextField } from "@/components/ui/TextField";
 import { useDismiss } from "@/hooks/useDismiss";
-import { phoneNumberError, type InviteOutcome } from "@/lib/newInvite";
+import {
+  outcomeFromResponse,
+  phoneNumberError,
+  type InviteOutcome,
+} from "@/lib/newInvite";
 import { formatPhoneForDisplay, toE164 } from "@/lib/phone";
 import { joinFacts } from "@/lib/wording";
 import {
@@ -108,20 +112,16 @@ export function InviteDialog({
         ]),
       );
       setSendError(null);
-      setSent({
-        // The screen's order — the people picked, then the numbers
-        // typed — so what comes back reads like the thing sent.
-        invited: [
-          ...picked.map(
-            (id) => pickedNames.get(id) ?? "Someone you picked",
-          ),
-          ...body.invitations.map((invitation) =>
-            formatPhoneForDisplay(invitation.inviteePhone),
-          ),
-        ],
-        added: body.addedMembers.map((member) => member.displayName),
-        skipped: body.skipped.map((phone) => formatPhoneForDisplay(phone)),
-      });
+      setSent(
+        outcomeFromResponse({
+          picked,
+          pickedNames,
+          numbers,
+          invitations: body.invitations,
+          addedMembers: body.addedMembers,
+          skipped: body.skipped,
+        }),
+      );
     },
     onError: () => {
       setSendError("Couldn't send those invitations.");
