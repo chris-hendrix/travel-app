@@ -7,8 +7,12 @@ import {
   legFromLookup,
   legFromRecord,
   legSummary,
+  legsForMember,
+  travelForMemberDirection,
   validateNewTravel,
   type NewTravelInput,
+  type TravelDirection,
+  type TravelLeg,
 } from "@/lib/newTravel";
 import { wallClock } from "@/lib/timezone";
 
@@ -314,5 +318,139 @@ describe("legFromRecord", () => {
       "2026-09-25",
     );
     expect(leg.flightNumber).toBe("UA 1842");
+  });
+});
+
+describe("travelForMemberDirection", () => {
+  const row = (
+    id: string,
+    memberId: string,
+    travelType: "arrival" | "departure",
+  ) => ({ id, memberId, travelType });
+
+  it("returns the member's record for the direction", () => {
+    const records = [
+      row("depart", "m-1", "departure"),
+      row("other", "m-3", "arrival"),
+      row("mine", "m-1", "arrival"),
+    ];
+    expect(travelForMemberDirection(records, "m-1", "arrival")?.id).toBe(
+      "mine",
+    );
+  });
+
+  it("ignores another member's record for the same direction", () => {
+    expect(
+      travelForMemberDirection([row("a", "m-2", "arrival")], "m-1", "arrival"),
+    ).toBeUndefined();
+  });
+
+  it("ignores the other direction for the same member", () => {
+    expect(
+      travelForMemberDirection(
+        [row("a", "m-1", "departure")],
+        "m-1",
+        "arrival",
+      ),
+    ).toBeUndefined();
+  });
+
+  it("returns undefined for no member", () => {
+    expect(
+      travelForMemberDirection([row("a", "m-1", "arrival")], "", "arrival"),
+    ).toBeUndefined();
+  });
+
+  it("returns the first row when a pair holds two", () => {
+    // No tie-break exists — the store's order is the order the API
+    // returned — so this pins the selector as deterministic given an
+    // order. Keeping the pair unique is phase 2's upsert, not a
+    // tie-break here.
+    const records = [
+      row("first", "m-1", "arrival"),
+      row("second", "m-1", "arrival"),
+    ];
+    expect(travelForMemberDirection(records, "m-1", "arrival")?.id).toBe(
+      "first",
+    );
+  });
+});
+
+describe("legsForMember", () => {
+  const row = (
+    id: string,
+    memberId: string,
+    travelType: TravelDirection,
+  ) => ({ id, memberId, travelType });
+
+  /** A stand-in for legFromRecord: the direction is enough to tell them apart. */
+  const read = (_record: unknown, direction: TravelDirection): TravelLeg => ({
+    ...emptyLeg(),
+    day: direction === "arrival" ? "2026-09-18" : "2026-09-25",
+    location: `from ${direction}`,
+  });
+
+  it("reads each direction's own record", () => {
+    const legs = legsForMember(
+      [row("a", "m-1", "arrival")],
+      undefined,
+      "m-1",
+      read,
+    );
+    expect(legs.arrival.location).toBe("from arrival");
+    // Nothing filed the other way: empty, not the arrival again.
+    expect(legs.departure.location).toBe("");
+  });
+
+  it("prefers the record over the seed, per direction", () => {
+    const seed = {
+      arrival: { ...emptyLeg(), location: "seeded" },
+      departure: { ...emptyLeg(), location: "seeded" },
+    };
+    const legs = legsForMember(
+      [row("a", "m-1", "arrival")],
+      seed,
+      "m-1",
+      read,
+    );
+    expect(legs.arrival.location).toBe("from arrival");
+    expect(legs.departure.location).toBe("seeded");
+  });
+
+  it("falls back to the seed for a member who has nothing", () => {
+    const seed = {
+      arrival: { ...emptyLeg(), location: "seeded arrival" },
+      departure: { ...emptyLeg(), location: "seeded departure" },
+    };
+    const legs = legsForMember([], seed, "m-9", read);
+    expect(legs.arrival.location).toBe("seeded arrival");
+    expect(legs.departure.location).toBe("seeded departure");
+  });
+
+  it("returns empty legs for a member with neither a record nor a seed", () => {
+    expect(legsForMember([], undefined, "m-9", read)).toEqual({
+      arrival: emptyLeg(),
+      departure: emptyLeg(),
+    });
+  });
+
+  it("never leaks another member's leg", () => {
+    const legs = legsForMember(
+      [row("a", "m-2", "arrival")],
+      undefined,
+      "m-1",
+      read,
+    );
+    expect(legs.arrival.location).toBe("");
+    expect(legs.departure.location).toBe("");
+  });
+
+  it("is stable across calls for the same member", () => {
+    // The form calls this on every `Who` change; a rule that accumulated
+    // state would leave a leg behind from the last member.
+    const records = [row("a", "m-1", "arrival")];
+    expect(legsForMember(records, undefined, "m-1", read)).toEqual(
+      legsForMember(records, undefined, "m-1", read),
+    );
   });
 });

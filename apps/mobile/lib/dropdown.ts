@@ -61,3 +61,21 @@ export function displayTextForValue(
   const selected = entries.find((option) => option.value === value);
   return selected?.fieldText ?? selected?.label ?? value ?? "";
 }
+
+/**
+ * Whether entering the field should open its list.
+ *
+ * A plain option list — every member, this trip's own wheres — is worth
+ * showing the moment the field is entered: the answer is already here,
+ * and pressing the field is the question. A live list is not: Places
+ * fetches on a query, so an empty one has no rows to show and focusing
+ * the field must leave it shut.
+ *
+ * The flag alone is the whole guard, deliberately. What has been typed
+ * is a thing the component knows; why it is here is a thing the caller
+ * knows, and the caller is the one that knows which kind of list it
+ * handed over.
+ */
+export function shouldOpenOnPress(liveOptions: boolean): boolean {
+  return !liveOptions;
+}

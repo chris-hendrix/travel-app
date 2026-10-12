@@ -95,6 +95,79 @@ export function legIsFiled(
   );
 }
 
+/**
+ * The live row for one member and one direction, or nothing.
+ *
+ * The pair is the identity the whole feature assumes — a person has at
+ * most one arrival and one departure — so this is the one place that
+ * lookup is written. It is a `find`, not a filter: the store's order is
+ * the order the API returned, and the invariant that keeps the pair
+ * unique lives on the server (the create endpoint upserts on it), not
+ * in a tie-break here.
+ *
+ * Every record is structurally enough: both the `MockTravel` rows the
+ * board reads and the wire rows behind them carry these two keys.
+ */
+export function travelForMemberDirection<
+  T extends { memberId: string; travelType: TravelDirection },
+>(
+  records: readonly T[],
+  memberId: string,
+  direction: TravelDirection,
+): T | undefined {
+  if (!memberId) return undefined;
+  return records.find(
+    (record) =>
+      record.memberId === memberId && record.travelType === direction,
+  );
+}
+
+/** The directions, in the order the form shows them. */
+const DIRECTIONS = ["arrival", "departure"] as const;
+
+/**
+ * The legs a duplicate carries before a recipient is picked: one per
+ * direction, absent where there was nothing to copy.
+ */
+export type LegSeed = Partial<Record<TravelDirection, TravelLeg>>;
+
+/**
+ * The one rule for what the fields hold: the picked member's own record
+ * for that direction, else the seed a duplicate arrived with, else
+ * nothing.
+ *
+ * One rule on purpose, because each half of it alone is wrong. Reloading
+ * on every `Who` change would wipe the copy the instant you chose its
+ * recipient; never reloading would leave the previous person's leg in
+ * the fields when you switched away, which files one person's times
+ * under another's name — and `filed`, and therefore Delete, still
+ * pointing at the member you started on.
+ *
+ * `read` turns a record into a leg — `legFromRecord` in the app, a
+ * one-liner in the tests — so this stays pure and knows nothing about
+ * zones or trip bounds.
+ */
+export function legsForMember<
+  T extends { memberId: string; travelType: TravelDirection },
+>(
+  records: readonly T[],
+  seed: LegSeed | undefined,
+  memberId: string,
+  read: (record: T, direction: TravelDirection) => TravelLeg,
+): Record<TravelDirection, TravelLeg> {
+  const legs: Record<TravelDirection, TravelLeg> = {
+    arrival: emptyLeg(),
+    departure: emptyLeg(),
+  };
+  for (const direction of DIRECTIONS) {
+    const record = travelForMemberDirection(records, memberId, direction);
+    legs[direction] = record
+      ? read(record, direction)
+      : (seed?.[direction] ?? emptyLeg());
+  }
+  return legs;
+}
+
 export function validateLeg(
   leg: TravelLeg,
   direction: TravelDirection,

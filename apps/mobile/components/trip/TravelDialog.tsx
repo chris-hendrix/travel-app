@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Stack } from "expo-router";
 import { Pressable, Text, View } from "react-native";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
@@ -14,18 +14,21 @@ import { addDays, toIso } from "@/lib/dateRange";
 import { NOT_SHARED } from "@/lib/wording";
 import { formatFlightNumber, isFlightNumber, lookupFlight } from "@/lib/flights";
 import {
-  emptyLeg,
   farEndNote,
   legFromLookup,
+  legFromRecord,
   legIsFiled,
+  legsForMember,
   legSummary,
   validateNewTravel,
   type LegErrors,
+  type LegSeed,
   type NewTravelInput,
   type TravelDirection,
   type TravelLeg,
 } from "@/lib/newTravel";
 import type { Trip } from "@/components/trip/TripCard";
+import type { MockTravel } from "@/mocks/travel";
 import { useMotion } from "@/hooks/useMotion";
 import type { Member } from "@/lib/members";
 
@@ -89,8 +92,12 @@ export function TravelDialog({
   members,
   viewerIsOrganizer,
   lockedMember,
+  memberId,
+  onMemberChange,
+  records,
+  seed,
+  openDirection,
   whereSuggestions,
-  initial,
   filed,
   dismissHref,
   serverError,
@@ -115,21 +122,28 @@ export function TravelDialog({
   viewerIsOrganizer: boolean;
   /** The signed-in traveler, when the viewer is not the organizer. */
   lockedMember: Member | null;
+  /**
+   * The picked member, owned by the screen rather than by this dialog:
+   * both the delete target and the save target are decided up there, and
+   * both of them read it. A traveler is already the answer, so the
+   * picker is simply not rendered for them.
+   */
+  memberId: string;
+  onMemberChange: (memberId: string) => void;
+  /** The trip's live rows, so the picked member's legs can be read. */
+  records: MockTravel[];
+  /**
+   * Legs a duplicate arrived with, before a recipient was picked: the
+   * middle term of D5's one rule. Absent for every other way in.
+   */
+  seed?: LegSeed | undefined;
+  /** Which direction opens — the one that was tapped. */
+  openDirection: TravelDirection;
   /** Past wheres, so the field autocompletes instead of guessing. */
   whereSuggestions: string[];
   dismissHref: string;
   /** The last save's or delete's failure: the dialog stays open on it. */
   serverError?: string | null;
-  /** Prefill, for editing. Nothing means a blank form. */
-  initial:
-    | {
-        memberId: string;
-        arrival: TravelLeg | undefined;
-        departure: TravelLeg | undefined;
-        /** Which direction to open on — the one that was tapped. */
-        direction: TravelDirection;
-      }
-    | undefined;
   /** Which directions already have a record, so Delete knows its scope. */
   filed: { arrival: boolean; departure: boolean };
   /** Handed an input that has already passed validation. */
@@ -139,13 +153,19 @@ export function TravelDialog({
   /** A write is in flight: the dialog's own two buttons stop. */
   pending?: boolean;
 }) {
-  const [memberId, setMemberId] = useState(
-    initial?.memberId ?? lockedMember?.id ?? "",
+  // One rule for what the fields hold: the picked member's record for
+  // that direction, else the seed a duplicate arrived with, else nothing
+  // (`legsForMember`). The fields are *about* this member, so a `Who`
+  // change re-derives them instead of leaving the previous person's leg
+  // behind — which filed one person's times under another's name.
+  const readLeg = useCallback(
+    (record: MockTravel, direction: TravelDirection) =>
+      legFromRecord(record, direction, timeZone, trip.startDate, trip.endDate),
+    [timeZone, trip.startDate, trip.endDate],
   );
-  const [legs, setLegs] = useState<Record<TravelDirection, TravelLeg>>({
-    arrival: initial?.arrival ?? emptyLeg(),
-    departure: initial?.departure ?? emptyLeg(),
-  });
+  const [legs, setLegs] = useState<Record<TravelDirection, TravelLeg>>(() =>
+    legsForMember(records, seed, memberId, readLeg),
+  );
   // How each direction's times are being given: off a flight number, or
   // typed. A direction that already holds a number opens on the flight it
   // came from, and one whose times were typed by hand opens on the times,
@@ -153,20 +173,47 @@ export function TravelDialog({
   // direction opens on the flight number: it is the shorter way to answer
   // the question, and it is the one the placeholder offers.
   const [modes, setModes] = useState<Record<TravelDirection, TravelMode>>({
-    arrival: openingMode(initial?.arrival),
-    departure: openingMode(initial?.departure),
+    arrival: openingMode(legs.arrival),
+    departure: openingMode(legs.departure),
   });
   // Which direction is on screen: the one that was tapped if there was
   // one, the arrival otherwise — arrival is what a trip is waiting on.
-  const [direction, setDirection] = useState<TravelDirection>(
-    initial?.direction ?? "arrival",
-  );
+  const [direction, setDirection] = useState<TravelDirection>(openDirection);
   const [submitted, setSubmitted] = useState(false);
   // Neither direction has anything in it. That is not the same as a
   // direction left unshared, which is a real answer: a form sent with
   // both blank would close having written nothing, which reads exactly
   // like having written something.
   const [blank, setBlank] = useState(false);
+
+  // Keyed on the member alone, and that is the whole point. Re-deriving
+  // whenever `records` changes would wipe the field you are typing in the
+  // moment a save invalidates the list, and a seed that did not survive
+  // the first pick would make the duplicate need its own exception. The
+  // ref carries the latest read without joining the dependency list, so
+  // the effect says what it means: this runs when the member changes.
+  const latest = useRef({ readLeg, records, seed });
+  latest.current = { readLeg, records, seed };
+  useEffect(() => {
+    const next = legsForMember(
+      latest.current.records,
+      latest.current.seed,
+      memberId,
+      latest.current.readLeg,
+    );
+    setLegs(next);
+    // The mode follows the leg it is about: a member whose arrival was
+    // filed off a number opens on the number, and a blank one opens on
+    // the flight, which is the shorter way to answer.
+    setModes({
+      arrival: openingMode(next.arrival),
+      departure: openingMode(next.departure),
+    });
+    // A clean slate per member: the last one's "nothing was filled in"
+    // complaint has no business following you to this one.
+    setSubmitted(false);
+    setBlank(false);
+  }, [memberId]);
 
   const input: NewTravelInput = {
     memberId,
@@ -235,9 +282,13 @@ export function TravelDialog({
             label: member.name,
           }))}
           value={memberId || null}
-          onChange={setMemberId}
+          onChange={onMemberChange}
           placeholder="Pick who this is for…"
           error={errors.memberId}
+          // The roster is already here, so entering the field is the
+          // question: showing nothing until a keystroke was how "Who"
+          // looked empty on a form that had everyone in it.
+          openOnPress
         />
       ) : (
         <Text className="font-body-bold text-base text-ink">
@@ -474,6 +525,7 @@ function LegFields({
           placeholder={arrival ? "BCN T2" : "Sants station"}
           error={errors?.location}
           freeText
+          openOnPress
         />
       ) : null}
 

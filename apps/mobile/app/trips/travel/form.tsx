@@ -6,7 +6,7 @@ import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { TravelDialog } from "@/components/trip/TravelDialog";
 import {
   buildLegRecord,
-  legFromRecord,
+  travelForMemberDirection,
   type TravelDirection,
   type TravelLeg,
 } from "@/lib/newTravel";
@@ -20,7 +20,7 @@ import { toErrorCopy } from "@/lib/queries/errors";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { useAuth } from "@/lib/authStore";
-import { viewerOf } from "@/lib/members";
+import { goingMembers, travelMemberOptions, viewerOf } from "@/lib/members";
 import { useMembers } from "@/lib/queries/members";
 import type { MockTravel } from "@/mocks/travel";
 
@@ -88,40 +88,59 @@ function TravelFormScreen() {
   // The member picker is server state now, suspended under the same
   // gate as the trip above.
   const { members: roster } = useMembers(trip?.id);
-  const members = useMemo(
-    () => roster.filter((member) => member.status === "going"),
-    [roster],
-  );
+  // The board's own roster: who is going. Deliberately narrower than the
+  // picker's list below. The viewer's own row and its organizer flag are
+  // read from here, so a non-going member who happens to hold a record
+  // cannot widen the list into granting that flag.
+  const going = useMemo(() => goingMembers(roster), [roster]);
 
-  const records = useMemo(
-    () => (trip ? travelForTrip(trip) : []),
-    [trip?.id],
-  );
+  // Read per render, never through a memo: a memo whose deps cannot
+  // change (`[trip?.id]`) snapshots an empty list on a cold first render,
+  // and the form then opens blank on a record that exists — the bug this
+  // phase is here to kill. The board's own screens already read it this
+  // way (`app/trips/travel.tsx`, `app/trips/travel/detail.tsx`).
+  const records = trip ? travelForTrip(trip) : [];
+
+  // Who can be filed for: everyone going, plus anyone who already holds
+  // a record. Rebuilt per render rather than memoized, because `records`
+  // is a fresh array each render and a memo over it would defeat itself;
+  // the work is a Set and a filter over a dozen rows.
+  const memberOptions = travelMemberOptions(roster, records);
 
   // Whose form this is: the record's member, a linked row's member, or
   // the viewer themselves — your own roster row, matched by account.
-  const viewer = viewerOf(members, user?.id);
+  const viewer = viewerOf(going, user?.id);
   const viewerIsOrganizer = viewer?.isOrganizer ?? false;
   const linkedMember =
-    member && members.some((candidate) => candidate.id === member)
+    member && going.some((candidate) => candidate.id === member)
       ? member
       : undefined;
-  const memberId = record?.memberId ?? linkedMember ?? viewer?.id ?? "";
 
-  // Both directions for that member, so the tabs open prefilled and
-  // saving keeps the pair in step.
-  const theirs = records.filter(
-    (candidate) => candidate.memberId === memberId,
+  // Which member the fields are about, owned here rather than in the
+  // dialog: both the delete target and the save target are decided on
+  // this screen, and both of them read it. Safe to seed once — the
+  // roster read suspends under the gate above, so `viewer` is already
+  // resolved on the first render.
+  const [memberId, setMemberId] = useState(
+    () => record?.memberId ?? linkedMember ?? viewer?.id ?? "",
   );
-  const arrivalRecord = theirs.find(
-    (candidate) => candidate.travelType === "arrival",
-  );
-  const departureRecord = theirs.find(
-    (candidate) => candidate.travelType === "departure",
-  );
+
+  // What the picked member already holds, per direction. `filed` and the
+  // delete target derive from the same lookup, so Delete always names
+  // the row of the member you are looking at — not the one you started
+  // on before a `Who` change.
+  const filed = {
+    arrival: Boolean(travelForMemberDirection(records, memberId, "arrival")),
+    departure: Boolean(
+      travelForMemberDirection(records, memberId, "departure"),
+    ),
+  };
+  // The verb follows whether saving will update or create for the picked
+  // member, which is a question about this member, not about how the
+  // screen was opened.
+  const editingExisting = filed.arrival || filed.departure;
 
   const boardHref = `/trips/travel?id=${trip?.id ?? ""}`;
-
   if (!trip) {
     return <NotFound />;
   }
@@ -145,43 +164,11 @@ function TravelFormScreen() {
     );
   }
 
-  const initial = record
-    ? {
-        memberId,
-        arrival: arrivalRecord
-          ? legFromRecord(
-              arrivalRecord,
-              "arrival",
-              timeZone,
-              trip.startDate,
-              trip.endDate,
-            )
-          : undefined,
-        departure: departureRecord
-          ? legFromRecord(
-              departureRecord,
-              "departure",
-              timeZone,
-              trip.startDate,
-              trip.endDate,
-            )
-          : undefined,
-        direction: record.travelType,
-      }
-    : linkedMember || directionParam
-      ? {
-          memberId,
-          arrival: undefined,
-          departure: undefined,
-          direction: directionParam ?? "arrival",
-        }
-      : undefined;
-
   return (
     <TravelDialog
-      title={record ? "Edit travel" : "Add travel"}
+      title={editingExisting ? "Edit travel" : "Add travel"}
       primaryTitle={
-        record
+        editingExisting
           ? saving
             ? "Saving changes"
             : "Save changes"
@@ -191,55 +178,55 @@ function TravelFormScreen() {
       }
       trip={trip}
       timeZone={timeZone}
-      members={members}
+      members={memberOptions}
       viewerIsOrganizer={viewerIsOrganizer}
       lockedMember={viewer}
+      memberId={memberId}
+      onMemberChange={setMemberId}
+      records={records}
+      openDirection={record?.travelType ?? directionParam ?? "arrival"}
       whereSuggestions={suggestionsFrom(records)}
-      filed={{
-        arrival: Boolean(arrivalRecord),
-        departure: Boolean(departureRecord),
-      }}
+      filed={filed}
       dismissHref={boardHref}
-      initial={initial}
       serverError={serverError}
       pending={saving}
-      onDelete={
-        record
-          ? (direction) => {
-              // Deleting is per direction: the panel you are in is what
-              // goes, and each direction is its own server row.
-              const existing =
-                direction === "arrival" ? arrivalRecord : departureRecord;
-              if (!existing) return;
-              // A failed delete stays on the form with the failure
-              // instead of leaving.
-              setServerError(null);
-              setSaving(true);
-              void deleteTravel(trip.id, existing.id)
-                .then(
-                  () => router.replace(boardHref),
-                  (error: unknown) =>
-                    setServerError(
-                      toErrorCopy(error).message ??
-                        "Couldn't delete the travel.",
-                    ),
-                )
-                .finally(() => setSaving(false));
-            }
-          : undefined
-      }
+      onDelete={(direction) => {
+        // Deleting is per direction: the panel you are in is what goes,
+        // and each direction is its own server row. The row is looked up
+        // by the member and the direction rather than remembered, so it
+        // follows a `Who` change.
+        const existing = travelForMemberDirection(
+          records,
+          memberId,
+          direction,
+        );
+        if (!existing) return;
+        // A failed delete stays on the form with the failure instead of
+        // leaving.
+        setServerError(null);
+        setSaving(true);
+        void deleteTravel(trip.id, existing.id)
+          .then(
+            () => router.replace(boardHref),
+            (error: unknown) =>
+              setServerError(
+                toErrorCopy(error).message ?? "Couldn't delete the travel.",
+              ),
+          )
+          .finally(() => setSaving(false));
+      }}
       onSubmit={(input) => {
-        const target = members.find(
+        const target = memberOptions.find(
           (candidate) => candidate.id === input.memberId,
         );
         const memberName = target?.name ?? record?.memberName ?? "";
 
         const saves: Array<Promise<unknown>> = [];
         for (const legDirection of ["arrival", "departure"] as const) {
-          const existing = records.find(
-            (candidate) =>
-              candidate.memberId === input.memberId &&
-              candidate.travelType === legDirection,
+          const existing = travelForMemberDirection(
+            records,
+            input.memberId,
+            legDirection,
           );
           const next = buildLegRecord(
             input[legDirection],

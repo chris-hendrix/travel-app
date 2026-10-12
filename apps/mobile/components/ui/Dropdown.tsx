@@ -6,6 +6,7 @@ import { MapsAttribution } from "@/components/ui/MapsAttribution";
 import {
   displayTextForValue,
   filterPickerEntries,
+  shouldOpenOnPress,
   type PickerEntry,
 } from "@/lib/dropdown";
 
@@ -34,6 +35,7 @@ export function Dropdown({
   freeText = false,
   onSearchText,
   liveOptions = false,
+  openOnPress = false,
   attribution = false,
 }: {
   label: string;
@@ -52,6 +54,13 @@ export function Dropdown({
    * whose label does not contain the raw keystrokes.
    */
   liveOptions?: boolean;
+  /**
+   * Entering the field opens its list. Opt-in, because it is only right
+   * for a list that already holds the whole answer — every member, this
+   * trip's own wheres. A live list has nothing to show until you type,
+   * so the Places pickers simply do not pass this.
+   */
+  openOnPress?: boolean;
   /** Render the Google Maps mark under the rows. Place pickers only. */
   attribution?: boolean;
 }) {
@@ -102,6 +111,12 @@ export function Dropdown({
           setOpen(liveOptions ? v.trim() !== "" : true);
           onSearchText?.(v);
           if (freeText) onChange(v);
+        }}
+        onFocus={() => {
+          // The whole answer is already here when the list is local, so
+          // entering the field is the question. A live list waits for a
+          // query, which is what its own keystrokes supply.
+          if (openOnPress && shouldOpenOnPress(liveOptions)) setOpen(true);
         }}
       />
 
