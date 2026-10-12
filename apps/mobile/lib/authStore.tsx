@@ -347,11 +347,12 @@ type AuthValue = {
   completeProfile: (displayName: string) => Promise<void>;
   signOut: () => Promise<void>;
   /**
-   * `DELETE /users/me`, then `signOut`'s local reset. The session has to
-   * be gone before the screen navigates: the login screen's guard reads
-   * `status`, and a provider that still says `signed-in` bounces the
-   * person straight back to the trips list of an account that no longer
-   * exists.
+   * `DELETE /users/me`, then the rest of `endSession`'s seam: the local
+   * reset, the way out of the session's screens, the token drop and the
+   * cache clear. The session has to be gone before anything navigates: the
+   * login screen's guard reads `status`, and a provider that still says
+   * `signed-in` bounces the person straight back to the trips list of an
+   * account that no longer exists.
    */
   deleteAccount: () => Promise<void>;
 };
@@ -561,19 +562,19 @@ export function AuthProvider({
     [queryClient, resetSessionState, leaveRoutes],
   );
 
-  // `signOut` plus one request in front. `lib/account.ts` does the DELETE,
-  // the token drop and the cache clear; the state below is the same local
-  // reset `signOut` does, and here it runs only on success, because a failed
-  // delete has to leave a working session behind for the retry — which is
-  // also why it cannot run first. What that costs is the refetch
-  // `endSession` prevents: `lib/account.ts` empties the cache while the
-  // screens are still mounted, so their 401 is still a follow-up. It does
-  // not reuse `performSignOut` — see `lib/account.ts` for why the push
-  // unsubscribe is the wrong call once the account is gone.
-  const deleteAccount = useCallback(async () => {
-    await deleteAccountApi(queryClient);
-    resetSessionState();
-  }, [queryClient, resetSessionState]);
+  // `signOut` plus one request in front, and now the same seam: the DELETE
+  // goes first (it needs the live bearer), then the local reset, the way
+  // out of the session's screens, the token drop and the cache clear. The
+  // reset is a callback rather than a line after the call, because it must
+  // run only once the delete has succeeded — a failed one has to leave a
+  // working session behind for the retry, and `lib/account.ts` throws
+  // before any callback runs. It does not reuse `performSignOut`: see
+  // `lib/account.ts` for why the push unsubscribe is the wrong call once
+  // the account is gone.
+  const deleteAccount = useCallback(
+    () => deleteAccountApi(queryClient, resetSessionState, leaveRoutes),
+    [queryClient, resetSessionState, leaveRoutes],
+  );
 
   const adoptSession = useCallback(async () => {
     // `performSignOut`'s cache clear, then the identity the new token

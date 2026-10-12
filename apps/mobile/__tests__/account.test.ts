@@ -8,8 +8,12 @@ vi.mock("@/lib/api", async (importOriginal) => {
 
 // The order is the whole contract of this module, so it is recorded rather
 // than inferred from call counts: `apiFetch` first (a failed delete must
-// leave the session intact so the person can try again), then the token
-// drop, then the cache clear. A reverse of the last two still clears both,
+// leave the session intact so the person can try again), then the session's
+// own state, then its screens, then the token drop, then the cache clear —
+// `endSession`'s shape with the request in front. The clear is last here and
+// first in sign-out, and the difference is real: this bearer cannot answer
+// anything once the account is gone, so an early clear would only invite the
+// 401 that seam exists to avoid. A reverse of the last two still clears both,
 // and would still look right to anyone reading the calls.
 const order: string[] = [];
 vi.mock("@/lib/session", async (importOriginal) => {
@@ -91,19 +95,36 @@ describe("deleteAccount", () => {
   });
 
   it("drops the session before the caller navigates, in that order", async () => {
-    // `DELETE`, then the token, then the cache. The token before the cache
-    // because the cache is what the next screen would otherwise read while
-    // it still believes there is a session; the delete first because a
-    // failed one must leave both intact.
+    // `DELETE`, then the session's own state, then its screens, then the
+    // token, then the cache — `endSession`'s shape with the request in
+    // front, because the request needs the live bearer. The clear is after
+    // the token here, the opposite of sign-out: the account is gone
+    // server-side, so the bearer cannot answer anything and an early clear
+    // would only invite a 401. The leaving is what keeps the navigator's
+    // re-render off the emptied list.
     mockedApiFetch.mockImplementation(async (path: string) => {
       order.push(path);
       return { success: true as const };
     });
     const client = seededClient();
 
-    await deleteAccount(client);
+    await deleteAccount(
+      client,
+      () => {
+        order.push("deleted");
+      },
+      () => {
+        order.push("leaveRoutes");
+      },
+    );
 
-    expect(order).toEqual(["/users/me", "clear-token", "clear-cache"]);
+    expect(order).toEqual([
+      "/users/me",
+      "deleted",
+      "leaveRoutes",
+      "clear-token",
+      "clear-cache",
+    ]);
     expect(mockedClearToken).toHaveBeenCalledTimes(1);
     expect(client.getQueryData(["auth", "me"])).toBeUndefined();
     expect(client.getQueryData(["trips", "list"])).toBeUndefined();
@@ -125,13 +146,25 @@ describe("deleteAccount", () => {
 
   it("keeps the whole session when the delete fails", async () => {
     // The retry is the point. A failed delete that signed the person out
-    // would leave them unable to try again, and unable to get back in.
+    // would leave them unable to try again, and unable to get back in — and
+    // the callbacks are the session's own state and its screens, so neither
+    // may have run: the throw lands before the first of them.
     mockedApiFetch.mockRejectedValue(
       new ApiError(429, "Too many tries", "RATE_LIMIT_EXCEEDED"),
     );
     const client = seededClient();
 
-    await expect(deleteAccount(client)).rejects.toBeInstanceOf(ApiError);
+    await expect(
+      deleteAccount(
+        client,
+        () => {
+          order.push("deleted");
+        },
+        () => {
+          order.push("leaveRoutes");
+        },
+      ),
+    ).rejects.toBeInstanceOf(ApiError);
 
     expect(order).toEqual([]);
     expect(mockedClearToken).not.toHaveBeenCalled();

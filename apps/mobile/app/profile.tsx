@@ -308,20 +308,23 @@ function ProfileForm({ profile }: { profile: Profile }) {
   }
 
   /**
-   * The second press of the foot's door. The session has to be gone before
-   * this screen moves anywhere: `deleteAccount` in the store runs the DELETE,
-   * the token drop, the cache clear and the same local reset `signOut` does,
-   * so the login screen's guard is not left reading a provider that still
-   * believes there is a session (which bounces the person straight back to
-   * the trips list of an account that no longer exists). It throws like every
-   * other write; the copy below is what a person reads when it does.
+   * The second press of the foot's door. The whole of it is the store's:
+   * `deleteAccount` runs the DELETE and then the same seam `signOut` uses —
+   * the local reset, the way out of the session's screens, the token drop
+   * and the cache clear — so the session is gone before anything moves and
+   * the leaving already lands on `/login`. Nothing here navigates, for the
+   * reason the sign-out belt is gone: a `replace` on this side would fire
+   * once the DELETE had answered, with the reader somewhere else already,
+   * and it swaps only the top of the stack — `/trips` would stay mounted
+   * behind `/login` rebuilding the query the clear had just emptied. It
+   * throws like every other write; the copy below is what a person reads
+   * when it does.
    */
   async function removeAccount() {
     setDeletingAccount(true);
     setDeleteFailure(null);
     try {
       await deleteAccount();
-      router.replace("/login");
     } catch (caught) {
       // The same mapper `removeTrip` reads, and the same disarm on failure:
       // a failed delete is not a reason to offer the button again in the
@@ -723,7 +726,8 @@ function ProfileForm({ profile }: { profile: Profile }) {
             // route a new key and remounts it — enough to clear a
             // half-typed number, or to pull someone out of `/verify` and
             // back to the start. And nothing needed carrying: `Delete
-            // account` navigates itself.
+            // account` leaves the session through the store's own seam,
+            // which lands in the same place.
             onPress={() => void signOut()}
           />
           {/* The door is absent under impersonation, not disabled and not
