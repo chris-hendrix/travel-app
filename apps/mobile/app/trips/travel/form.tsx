@@ -129,21 +129,30 @@ function TravelFormScreen() {
       ? member
       : undefined;
 
-  // Which member the fields are about, owned here rather than in the
-  // dialog: both the delete target and the save target are decided on
-  // this screen, and both of them read it. Safe to seed once — the
-  // roster read suspends under the gate above, so `viewer` is already
-  // resolved on the first render.
+  // Which member the fields are about. The state holds only the *pick*;
+  // until somebody picks, the answer is derived — which is what lets this
+  // survive the read landing late.
   //
-  // A duplicate starts with nobody picked, because picking is the act:
-  // the seed is a flight waiting for a name. Only an organizer can
-  // duplicate at all, so a traveler still falls back to their own row
-  // rather than to nobody.
-  const [memberId, setMemberId] = useState(() =>
-    duplicateFrom && viewerIsOrganizer
+  // It cannot be a `useState` seeded once, and that is not a style choice.
+  // The travel section is a plain query, not a suspended one, so on a cold
+  // load `record` is undefined on the first render and a seed captured
+  // there resolves to the *viewer* — leaving the form editing whoever is
+  // signed in while the URL asks for somebody else's row, and saving it
+  // would write to the wrong person. The gate below returns a loading
+  // block on that render, so nothing is shown yet, but the hook has
+  // already run by then and its value would outlive the wait. Derived, the
+  // answer is simply right whenever the record arrives.
+  //
+  // A duplicate starts with nobody picked, because picking is the act: the
+  // seed is a flight waiting for a name. Only an organizer can duplicate
+  // at all, so a traveler still falls back to their own row rather than to
+  // nobody.
+  const [pickedMemberId, setPickedMemberId] = useState<string | null>(null);
+  const memberId =
+    pickedMemberId ??
+    (duplicateFrom && viewerIsOrganizer
       ? ""
-      : (record?.memberId ?? linkedMember ?? viewer?.id ?? ""),
-  );
+      : (record?.memberId ?? linkedMember ?? viewer?.id ?? ""));
 
   // What the picked member already holds, per direction. `filed` and the
   // delete target derive from the same lookup, so Delete always names
@@ -241,7 +250,7 @@ function TravelFormScreen() {
       viewerIsOrganizer={viewerIsOrganizer}
       lockedMember={viewer}
       memberId={memberId}
-      onMemberChange={setMemberId}
+      onMemberChange={setPickedMemberId}
       records={records}
       seed={seed}
       openDirection={
