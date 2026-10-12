@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -14,6 +15,9 @@ import {
   uploadPhotoOptions,
 } from "@/lib/queries/profile";
 import { applyDraftToUser, type Profile, type ProfileDraft } from "@/lib/profile";
+// The session, for the parts of the app that cannot ask (`lib/sessionFlag.ts`):
+// the me read belongs to a session, so it must be able to see one end.
+import { isSignedIn, subscribe } from "@/lib/sessionFlag";
 
 type ProfileValue = {
   /** Null while the me read is pending or failed — the screen gates
@@ -79,7 +83,23 @@ function envelopeWithProfile(previous: MeResponse, updated: Profile): MeResponse
 
 export function ProfileProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
-  const meQuery = useQuery(meOptions());
+  // A read belongs to a session, and there is nobody to ask about while
+  // there is none. Signed out this is worse than an anonymous request the
+  // API counts against its rate limiter: sign-out empties the query cache
+  // while the session's screens are still mounted, so the render that
+  // follows (the route change's, not the sign-out's — the sign-out does
+  // not re-render this provider) built the emptied entry again and asked
+  // `GET /auth/me` with the token already gone. It came back `Invalid or
+  // expired token`, and the header's own read of the same key went with
+  // it. `sessionFlag` rather than `useAuth`, for the reason
+  // `lib/notificationsStore.tsx` gives — and `enabled` is safe here and
+  // only here because `meOptions()` is a plain `useQuery`: a
+  // `useSuspenseQuery` fed a `false` still fetches (`Query.fetch` reads no
+  // `enabled`), one request per render attempt. The third argument is the
+  // server snapshot: during the web prerender the honest answer is the
+  // same one the client starts with — no session, so nothing to fetch.
+  const signedIn = useSyncExternalStore(subscribe, isSignedIn, isSignedIn);
+  const meQuery = useQuery({ ...meOptions(), enabled: signedIn });
   const profile = useMemo(
     () => meQuery.data ?? null,
     [meQuery.data],

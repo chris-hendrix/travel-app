@@ -26,6 +26,19 @@ import {
   SLOW_NAVIGATION_TIMEOUT,
 } from "./helpers/timeouts";
 
+/**
+ * How long the sign-out step watches for a request nobody should make.
+ *
+ * The assertion is a negative — no request 401s after the logout — and a
+ * negative is only as good as the window it watched. The request the old
+ * order fired came from the very next render after the query cache was
+ * emptied, inside the sign-out itself, so a second past the redirect is
+ * ample; and it is bounded rather than "wait until quiet" because the web
+ * dev server keeps an HMR socket open, which is never quiet. Local to the
+ * one step that needs it: no other spec watches a window.
+ */
+const SIGN_OUT_SETTLE_MS = 1_500;
+
 test.describe("Auth Journey", () => {
   test("signup chain: phone → code → complete profile → trips", async ({
     page,
@@ -125,8 +138,28 @@ test.describe("Auth Journey", () => {
       await page.waitForURL("**/profile", {
         timeout: NAVIGATION_TIMEOUT,
       });
-      // app/profile.tsx: Button title="Sign out" awaits performSignOut
-      // (server POST, token drop, cache clear) before replacing to /login.
+
+      // The recorders are armed before the press, never after it: what
+      // this asserts about is issued *during* the sign-out. Emptying the
+      // query cache while the session's screens are still mounted left
+      // each observer to build its query again on the next render — with
+      // the token already gone — so the sign-out fired a request nobody
+      // asked for and the screen's error boundary caught its 401
+      // (critical flow 1: ending the session, not only starting it).
+      const unauthorized: string[] = [];
+      const consoleErrors: string[] = [];
+      page.on("response", (response) => {
+        if (response.status() !== 401) return;
+        const { pathname } = new URL(response.url());
+        unauthorized.push(`${response.request().method()} ${pathname}`);
+      });
+      page.on("console", (message) => {
+        if (message.type() === "error") consoleErrors.push(message.text());
+      });
+
+      // app/profile.tsx: Button title="Sign out" leaves the session first
+      // (its state, then the server POST, the token drop and the cache
+      // clear) and only then replaces to /login.
       await page.getByRole("button", { name: "Sign out" }).click();
       await page.waitForURL("**/login", {
         timeout: SLOW_NAVIGATION_TIMEOUT,
@@ -134,6 +167,15 @@ test.describe("Auth Journey", () => {
       expect(
         await page.evaluate((key) => localStorage.getItem(key), AUTH_TOKEN_KEY),
       ).toBeNull();
+
+      // A negative needs a window to be a negative: the app has to have
+      // stopped asking before "no 401" means anything, and the request
+      // the old order fired came from the render right after the cache
+      // clear — the same second this waits out.
+      await page.waitForTimeout(SIGN_OUT_SETTLE_MS);
+
+      expect(unauthorized).toEqual([]);
+      expect(consoleErrors).toEqual([]);
     });
 
     await test.step("cannot access a guarded route after logout", async () => {

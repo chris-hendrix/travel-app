@@ -693,9 +693,16 @@ function ProfileForm({ profile }: { profile: Profile }) {
             // up, which is what every other content button in this system
             // does — a lone action stretched across a wide screen is a band,
             // not a button.
-            // Await the real sign-out (server POST, token drop, cache
-            // clear) before leaving: navigating first would let the
-            // login screen render while signed-in data is still cached.
+            // `signOut` does the whole of it — the local reset, the way
+            // out of the session's screens, then the server POST, the
+            // token drop and the cache clear (see `endSession`) — and the
+            // replace below is the belt: it is the same destination, and
+            // it carries the paths that end a session without going
+            // through `endSession` (`Delete account`). Leaving the screen
+            // no longer waits for the token, because the two providers
+            // that outlive a session (`me`, the notifications list) are
+            // gated on `sessionFlag` and paint nothing while signed out —
+            // so the login screen cannot show the session it just ended.
             onPress={() => void signOut().then(() => router.replace("/login"))}
           />
           {/* The door is absent under impersonation, not disabled and not
