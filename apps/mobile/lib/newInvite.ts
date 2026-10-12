@@ -95,7 +95,14 @@ export function filterTripmates(
  * `sendInvitations` above, rather than beside the copy that renders it.
  *
  * A picked mutual is named from what we picked them by: the response
- * carries the phone their text went to, never a name.
+ * carries the phone their text went to, never a name. What picking does
+ * not do is *send*. The server skips a mutual who is blocked, deleted
+ * or already on the trip, and it skips one whose number was typed into
+ * the same batch, because the phone pass runs first and makes the member
+ * row the mutual pass then finds — so in every one of those cases the id
+ * comes back in `skipped` with no row for it, and a picked id is read
+ * against that list before anything is counted as sent. Otherwise the
+ * summary answers "1 invitation sent" for somebody nobody asked.
  */
 export function outcomeFromResponse({
   picked,
@@ -121,12 +128,21 @@ export function outcomeFromResponse({
   const invitedPhones = new Set(
     invitations.map((invitation) => invitation.inviteePhone),
   );
+  // The server folds a blocked, deleted, already-member or
+  // already-invited mutual into `skipped` as a raw id, so an entry that
+  // is not a number is a person, and printing the id would put a uuid in
+  // front of the reader. Those ids are also the picks that were not sent.
+  const skippedUserIds = new Set(
+    skipped.filter((entry) => !toE164(entry)),
+  );
 
   return {
     // The screen's order, the people picked then the numbers typed, and
-    // a picked mutual only once.
+    // a picked mutual only once, and only when the server sent them.
     invited: [
-      ...picked.map((id) => pickedNames.get(id) ?? "Someone you picked"),
+      ...picked
+        .filter((id) => !skippedUserIds.has(id))
+        .map((id) => pickedNames.get(id) ?? "Someone you picked"),
       ...numbers
         .filter((phone) => invitedPhones.has(phone))
         .map((phone) => formatPhoneForDisplay(phone)),
@@ -138,13 +154,9 @@ export function outcomeFromResponse({
       .filter((member) => !picked.includes(member.userId))
       .map((member) => member.displayName),
     skipped: skipped.map((entry) =>
-      // The server folds a blocked, deleted, already-member or
-      // already-invited mutual into `skipped` as a raw id, so an entry
-      // that is not a number is a person, and printing the id would put
-      // a uuid in front of the reader.
-      toE164(entry)
-        ? formatPhoneForDisplay(entry)
-        : (pickedNames.get(entry) ?? "Someone you picked"),
+      skippedUserIds.has(entry)
+        ? (pickedNames.get(entry) ?? "Someone you picked")
+        : formatPhoneForDisplay(entry),
     ),
   };
 }

@@ -236,6 +236,93 @@ describe("outcomeFromResponse", () => {
       "Someone you picked",
       "+1 555 000 0274",
     ]);
+    // And the same contradiction read the other way: the id in `skipped`
+    // is one of the picked, and nobody sent them anything.
+    expect(outcome.invited).toEqual([]);
+  });
+
+  it("does not invite a picked mutual the server skipped", () => {
+    // A mutual who is blocked, deleted or already on the trip belongs in
+    // `skipped` with no invitation row and no member row, so picking them
+    // is not sending them anything.
+    const outcome = outcomeFromResponse({
+      picked: ["mutual-1"],
+      pickedNames: names,
+      numbers: [],
+      invitations: [],
+      addedMembers: [],
+      skipped: ["mutual-1"],
+    });
+
+    expect(outcome.invited).toEqual([]);
+    expect(outcome.added).toEqual([]);
+    expect(outcome.skipped).toEqual(["Dana Mercer"]);
+  });
+
+  it("counts the typed number, not the pick, when both are the same person", () => {
+    // Nothing stops picking a mutual and typing the number they hold, and
+    // the server runs the numbers first: the invitation is addressed to
+    // the number and the mutual pass that follows finds the member row it
+    // has just made, so the id comes back skipped. One person, one
+    // invitation, and it is the number that carries it.
+    const outcome = outcomeFromResponse({
+      picked: ["mutual-1"],
+      pickedNames: names,
+      numbers: ["+15550000000"],
+      invitations: [{ inviteePhone: "+15550000000" }],
+      addedMembers: [{ userId: "mutual-1", displayName: "Dana Mercer" }],
+      skipped: ["mutual-1"],
+    });
+
+    expect(outcome.invited).toEqual(["+1 555 000 0000"]);
+    expect(outcome.added).toEqual([]);
+    expect(outcome.skipped).toEqual(["Dana Mercer"]);
+  });
+
+  it("does not invite a typed number the server skipped", () => {
+    // Already a member, or already invited: the number comes back with no
+    // row, and a summary that read the numbers it sent as numbers it
+    // invited would report the one thing that did not happen.
+    const outcome = outcomeFromResponse({
+      picked: [],
+      pickedNames: names,
+      numbers: ["+15550000274"],
+      invitations: [],
+      addedMembers: [],
+      skipped: ["+15550000274"],
+    });
+
+    expect(outcome.invited).toEqual([]);
+    expect(outcome.added).toEqual([]);
+    expect(outcome.skipped).toEqual(["+1 555 000 0274"]);
+  });
+
+  it("keeps the picks around a skipped one in the screen's order", () => {
+    // Dropping the skipped id must not move or lose the people beside it.
+    const everyone = new Map([
+      ["mutual-1", "Dana Mercer"],
+      ["mutual-2", "Rafa Moreno"],
+      ["mutual-3", "Sofia Reyes"],
+    ]);
+
+    const outcome = outcomeFromResponse({
+      picked: ["mutual-1", "mutual-2", "mutual-3"],
+      pickedNames: everyone,
+      numbers: [],
+      invitations: [
+        { inviteePhone: "+15550000000" },
+        { inviteePhone: "+15550000388" },
+      ],
+      addedMembers: [
+        { userId: "mutual-1", displayName: "Dana Mercer" },
+        { userId: "mutual-2", displayName: "Rafa Moreno" },
+      ],
+      skipped: ["mutual-2"],
+    });
+
+    expect(outcome.invited).toEqual(["Dana Mercer", "Sofia Reyes"]);
+    expect(outcome.added).toEqual([]);
+    expect(outcome.skipped).toEqual(["Rafa Moreno"]);
   });
 });
 
