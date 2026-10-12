@@ -44,8 +44,7 @@ type DeleteAccountResponse = { success: true };
  * side, and a failed delete must leave the session exactly as it was so
  * the second press has something to be spent against. The token next, then
  * the cache, because the cache is what the next screen reads while it
- * still believes there is a session — the sign-out foot's own reason for
- * awaiting before it leaves.
+ * still believes there is a session.
  *
  * Throws on failure like every other write in this app (`apiFetch`'s
  * `ApiError` / `TimeoutError` / `NetworkError`); the caller renders it

@@ -29,13 +29,14 @@ import {
 /**
  * How long the sign-out step watches for a request nobody should make.
  *
- * The assertion is a negative — no request 401s after the logout — and a
- * negative is only as good as the window it watched. The request the old
- * order fired came from the very next render after the query cache was
- * emptied, inside the sign-out itself, so a second past the redirect is
- * ample; and it is bounded rather than "wait until quiet" because the web
- * dev server keeps an HMR socket open, which is never quiet. Local to the
- * one step that needs it: no other spec watches a window.
+ * The assertions are negatives — no request 401s after the logout, and no
+ * API request issued after the press is anonymous — and a negative is only
+ * as good as the window it watched. The request the old order fired came
+ * from the very next render after the query cache was emptied, inside the
+ * sign-out itself, so a second past the token's disappearance is ample;
+ * and it is bounded rather than "wait until quiet" because the web dev
+ * server keeps an HMR socket open, which is never quiet. Local to the one
+ * step that needs it: no other spec watches a window.
  */
 const SIGN_OUT_SETTLE_MS = 1_500;
 
@@ -118,6 +119,26 @@ test.describe("Auth Journey", () => {
         timeout: ELEMENT_TIMEOUT,
       });
     });
+
+    await test.step("profile opens after a sign-in through the UI", async () => {
+      // In-app, not a reload: `ProfileProvider`'s read of `GET /auth/me`
+      // is `enabled` on `sessionFlag`, and the flag is written by
+      // `verifyCode` and `completeProfile` in `lib/authStore.tsx`. A
+      // `page.goto` would write it from the boot restore instead and hide
+      // a sign-in that forgot to, which is why this goes through the
+      // header — the suite's only other `/profile` visit is a cold boot
+      // with a seeded token. Without the write the screen spins "Loading
+      // profile" for good.
+      // components/ui/AppHeader.tsx: AvatarButton Pressable
+      // aria-label="Profile" (app chrome variant on /trips).
+      await page.getByLabel("Profile").click();
+      await page.waitForURL("**/profile", { timeout: NAVIGATION_TIMEOUT });
+      // app/profile.tsx: the form's foot, which the loading block and the
+      // failure block do not carry.
+      await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible(
+        { timeout: ELEMENT_TIMEOUT },
+      );
+    });
   });
 
   test("logout and post-logout guard", async ({ page, request }) => {
@@ -148,6 +169,25 @@ test.describe("Auth Journey", () => {
       // (critical flow 1: ending the session, not only starting it).
       const unauthorized: string[] = [];
       const consoleErrors: string[] = [];
+      // Every API request the sign-out issues, recorded rather than
+      // inferred. The invariant this expresses is that none of them is
+      // anonymous: an unauthenticated request is the 401 this branch
+      // removes, whatever it comes back with. Preflights are excluded
+      // because CORS sends them without the header by definition, and
+      // the filter is `/api/` because the dev server's own traffic is
+      // not the app's.
+      const apiRequests: { method: string; path: string; authorized: boolean }[] =
+        [];
+      page.on("request", (request) => {
+        const { pathname } = new URL(request.url());
+        if (!pathname.startsWith("/api/")) return;
+        if (request.method() === "OPTIONS") return;
+        apiRequests.push({
+          method: request.method(),
+          path: pathname,
+          authorized: request.headers()["authorization"] !== undefined,
+        });
+      });
       page.on("response", (response) => {
         if (response.status() !== 401) return;
         const { pathname } = new URL(response.url());
@@ -157,25 +197,53 @@ test.describe("Auth Journey", () => {
         if (message.type() === "error") consoleErrors.push(message.text());
       });
 
-      // app/profile.tsx: Button title="Sign out" leaves the session first
-      // (its state, then the server POST, the token drop and the cache
-      // clear) and only then replaces to /login.
+      // app/profile.tsx: Button title="Sign out" runs the whole of
+      // `endSession` — the session's state, the way out of its screens
+      // (which is what lands on /login, before anything is sent), then
+      // the cache clear, the server POST and the token drop. So the
+      // anchor below resolves at the *start* of the sign-out.
       await page.getByRole("button", { name: "Sign out" }).click();
       await page.waitForURL("**/login", {
         timeout: SLOW_NAVIGATION_TIMEOUT,
       });
-      expect(
-        await page.evaluate((key) => localStorage.getItem(key), AUTH_TOKEN_KEY),
-      ).toBeNull();
+      // Retried, not read once: the token is still in storage at this
+      // point — the POST and the drop come after the navigation — so this
+      // poll is what marks the real end of the sign-out.
+      await expect
+        .poll(
+          () => page.evaluate((key) => localStorage.getItem(key), AUTH_TOKEN_KEY),
+          { timeout: SLOW_NAVIGATION_TIMEOUT },
+        )
+        .toBeNull();
 
       // A negative needs a window to be a negative: the app has to have
-      // stopped asking before "no 401" means anything, and the request
-      // the old order fired came from the render right after the cache
-      // clear — the same second this waits out.
+      // stopped asking before "no 401" means anything. The window starts
+      // here rather than at the redirect because the clear it covers runs
+      // after the token is gone, and a window opened at the redirect would
+      // be half spent by the time the sign-out reached that point.
       await page.waitForTimeout(SIGN_OUT_SETTLE_MS);
 
       expect(unauthorized).toEqual([]);
-      expect(consoleErrors).toEqual([]);
+      // Scoped, and the filter is the point: Chromium forwards browser Log
+      // entries into console messages, so `type() === "error"` also catches
+      // resource-load failures, dev-server and HMR noise, and any React
+      // `console.error` from anywhere in the tree — and local and CI differ
+      // by construction (one has an HMR socket, the other does not). What
+      // means this bug is the API's own sentence, and the boundary's
+      // sentence where the failure surfaced.
+      const bugReports = consoleErrors.filter(
+        (text) =>
+          text.includes("Invalid or expired token") ||
+          text.includes("failed to load"),
+      );
+      expect(bugReports).toEqual([]);
+      // The request list is complete by now — the token poll above is the
+      // boundary — so this can assert the invariant itself rather than
+      // sampling it through a status code.
+      expect(apiRequests.length).toBeGreaterThan(0);
+      expect(
+        apiRequests.filter((request) => !request.authorized),
+      ).toEqual([]);
     });
 
     await test.step("cannot access a guarded route after logout", async () => {

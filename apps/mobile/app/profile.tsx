@@ -713,16 +713,18 @@ function ProfileForm({ profile }: { profile: Profile }) {
             // does — a lone action stretched across a wide screen is a band,
             // not a button.
             // `signOut` does the whole of it — the local reset, the way
-            // out of the session's screens, then the server POST, the
-            // token drop and the cache clear (see `endSession`) — and the
-            // replace below is the belt: it is the same destination, and
-            // it carries the paths that end a session without going
-            // through `endSession` (`Delete account`). Leaving the screen
-            // no longer waits for the token, because the two providers
-            // that outlive a session (`me`, the notifications list) are
-            // gated on `sessionFlag` and paint nothing while signed out —
-            // so the login screen cannot show the session it just ended.
-            onPress={() => void signOut().then(() => router.replace("/login"))}
+            // out of the session's screens, the cache clear, then the
+            // server POST and the token drop (see `endSession`) — and its
+            // leaving already lands on `/login`, so a second `replace`
+            // here has nothing left to do. It was worse than redundant:
+            // it fires only once the logout round trip has answered (up to
+            // `REQUEST_TIMEOUT_MS` when the API is unreachable), and by
+            // then the reader is on `/login`, where a `replace` gives the
+            // route a new key and remounts it — enough to clear a
+            // half-typed number, or to pull someone out of `/verify` and
+            // back to the start. And nothing needed carrying: `Delete
+            // account` navigates itself.
+            onPress={() => void signOut()}
           />
           {/* The door is absent under impersonation, not disabled and not
               explained: the session on screen is the admin's, not this

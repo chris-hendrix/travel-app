@@ -238,20 +238,38 @@ export async function performSignOut(client?: QueryClient): Promise<void> {
 
 /**
  * The whole of sign-out, in the only order that holds: the session's
- * local state goes first, the token and the cache after it.
+ * local state goes first, then its screens, then the cache — and the
+ * token and the network last, because both the unsubscribe and the
+ * logout need a live bearer.
  *
- * `performSignOut` empties the query cache, and an emptied entry is
- * built again — empty, pending, and fetched — by the very next render
- * of an observer still mounted on it. The session's screens are still
- * mounted at that moment: the profile dialog covers the trips list
- * rather than replacing it. So the render that flips the local state is
- * the one that must not come after the clear, and running the caller's
- * own `setState`s ahead of everything else is what puts it before: those
- * screens repaint from data that is still cached, and the clear lands
- * behind them. The requests the old order fired came back 401
- * `Invalid or expired token` — no token is stored by then — into the
- * screen's error boundary, which is what a dev build showed over the
- * sign-out itself.
+ * Two different things have to be true before the cache is emptied, and
+ * they are not the same thing. The **leave** is what removes the
+ * observers: flipping the session's state re-renders `useAuth`'s
+ * consumers and nothing else, so the screens behind the dialog never
+ * hear about it and stay mounted — with the cache emptied under them,
+ * the next render of any of those observers builds its query again,
+ * empty and pending, and fetches. The **flip** is what closes the reads
+ * that are gated on the flag (`me`, the notifications list, the header's
+ * bell): they answer `enabled: false` from the moment the session is
+ * gone, so even a render that slips past the leave issues nothing. The
+ * requests the old order fired came back 401 `Invalid or expired token`
+ * into the screen's error boundary, which is what a dev build showed
+ * over the sign-out itself.
+ *
+ * The clear runs between the two halves rather than at the end of
+ * `performSignOut`, and that is the rest of the fix rather than a
+ * tidy-up. `performSignOut` only empties the cache once its unsubscribe
+ * and its logout have answered, so the previous session's data stayed in
+ * memory for the length of a round trip — up to `REQUEST_TIMEOUT_MS`
+ * when the API is unreachable — and `leaveRoutes` rewrites only the top
+ * history entry, so the browser's Back during that window lands on
+ * `/trips` and paints the account that just signed out. Clearing while
+ * the bearer still works buys two things and costs nothing: a render
+ * that does slip through issues an *authenticated* request (harmless)
+ * instead of the anonymous 401 this branch exists to remove, and the
+ * cache is empty before anything can read it, rather than depending on
+ * the unmount having been committed by then. `performSignOut`'s own
+ * clear stays as the backstop for whatever such a request wrote.
  *
  * React-free on purpose, like `performSignOut` and for the same reason
  * (the unit suite is plain node, no renderer): the local half arrives
@@ -266,10 +284,10 @@ export async function performSignOut(client?: QueryClient): Promise<void> {
  * enough for the same reason it looked like it would be: flipping the
  * session's state re-renders `useAuth`'s consumers and nothing else, so
  * the screens behind the dialog never hear about it and stay mounted —
- * with the token gone, their next render is what asked the API again.
- * It arrives as a callback too: routing lives in `app/_layout.tsx` and
- * a store must not import the router (`lib/authStore.tsx` is loaded by
- * node tests that mock `react-native` and nothing else).
+ * and a screen that outlives the session is a screen that can read for
+ * one. It arrives as a callback too: routing lives in `app/_layout.tsx`
+ * and a store must not import the router (`lib/authStore.tsx` is loaded
+ * by node tests that mock `react-native` and nothing else).
  */
 export async function endSession(
   client: QueryClient | undefined,
@@ -279,9 +297,13 @@ export async function endSession(
   leaveSession();
   // The screens go next, and before `performSignOut` reaches the token:
   // the render that leaves them can want a read of its own, and one that
-  // goes out now still carries a valid bearer. The cache is emptied at the
-  // end, when there is no screen left to rebuild what it removed.
+  // goes out now still carries a valid bearer.
   leaveRoutes?.();
+  // Then the cache, still ahead of the token: what a late render can
+  // build from here is an authenticated request rather than the 401 this
+  // branch removes, and nothing of the previous account's is left in
+  // memory for a Back during `performSignOut`'s round trip.
+  client?.clear();
   await performSignOut(client);
 }
 
@@ -577,9 +599,17 @@ export function AuthProvider({
   // where a signed-out reader belongs — `/complete-profile` sends them to
   // the landing, and it is not this path's place to overrule that (the
   // auth journey's guard step failed on exactly that when the two were
-  // wired together). What the recovery path needs from the gate above is
-  // the read that started it: the session's own reads are gated on
-  // `sessionFlag` now, so a dead token cannot set another one going.
+  // wired together).
+  //
+  // What the recovery path needs from the gate above is the read that
+  // started it, and it gets that for three of them: `me`, the
+  // notifications list and the header's bell are gated on `sessionFlag`,
+  // so a dead token cannot set another one going. The screens' own reads
+  // are plain suspense reads and cannot take that gate —
+  // `useSuspenseQuery` forces `enabled: true` — so for those this path
+  // keeps the old behaviour. That is not a regression: it is where the
+  // whole app already stood before the gate, and the leaving that removes
+  // those observers is the button path's.
   useEffect(() => {
     return onUnauthorized(() => {
       void endSession(queryClient, resetSessionState);

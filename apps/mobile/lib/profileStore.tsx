@@ -87,15 +87,20 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   // there is none. Signed out this is worse than an anonymous request the
   // API counts against its rate limiter: sign-out empties the query cache
   // while the session's screens are still mounted, so the render that
-  // follows (the route change's, not the sign-out's — the sign-out does
-  // not re-render this provider) built the emptied entry again and asked
-  // `GET /auth/me` with the token already gone. It came back `Invalid or
-  // expired token`, and the header's own read of the same key went with
-  // it. `sessionFlag` rather than `useAuth`, for the reason
-  // `lib/notificationsStore.tsx` gives — and `enabled` is safe here and
-  // only here because `meOptions()` is a plain `useQuery`: a
-  // `useSuspenseQuery` fed a `false` still fetches (`Query.fetch` reads no
-  // `enabled`), one request per render attempt. The third argument is the
+  // followed built the emptied entry again and asked `GET /auth/me` with
+  // the token already gone. It came back `Invalid or expired token`, and
+  // the header's own read of the same key went with it. This provider is
+  // one of the places that render arrives at: `setSignedIn(false)`
+  // notifies the flag's subscribers, and `enabled: false` is what the
+  // re-render reads — so the emptied entry stays empty instead of being
+  // fetched. `sessionFlag` rather than `useAuth`, for the reason
+  // `lib/notificationsStore.tsx` gives, and `enabled` is the same gate
+  // the two other above-Stack reads already use
+  // (`lib/notificationsStore.tsx`, `AppHeader`'s bell). What is not true
+  // of it is that it would work anywhere: a `useSuspenseQuery` fed a
+  // `false` still fetches (`Query.fetch` reads no `enabled`), one request
+  // per render attempt, so the screens' own reads cannot take this gate
+  // and rely on `endSession`'s leaving instead. The third argument is the
   // server snapshot: during the web prerender the honest answer is the
   // same one the client starts with — no session, so nothing to fetch.
   const signedIn = useSyncExternalStore(subscribe, isSignedIn, isSignedIn);
