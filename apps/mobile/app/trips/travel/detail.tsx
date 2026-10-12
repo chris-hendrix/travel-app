@@ -1,4 +1,5 @@
 import { RuledBlock } from "@/components/ui/RuledBlock";
+import { Button } from "@/components/ui/Button";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { InlineError } from "@/components/ui/InlineError";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
@@ -215,6 +216,29 @@ function TravelDetailDialog() {
           >
             {row.details}
           </Text>
+        </RuledBlock>
+      ) : null}
+
+      {/* Duplicating is the couple's case, and it belongs on this screen
+          because this is the one that shows a person's travel whole: the
+          same flight, filed for someone else.
+
+          Organizer-only, and that is not caution — the API refuses a
+          `memberId` from anyone else, so showing this to a traveler
+          would be a door onto a 403. An unscheduled row has nothing to
+          copy, so it has no door either. */}
+      {(viewer?.isOrganizer ?? false) && !row.id.startsWith("pending-") ? (
+        <RuledBlock title="Duplicate">
+          <Button
+            title="Duplicate for someone"
+            variant="secondary"
+            fullWidth
+            onPress={() =>
+              router.push(
+                `/trips/travel/form?id=${trip.id}&duplicate=${row.id}`,
+              )
+            }
+          />
         </RuledBlock>
       ) : null}
 

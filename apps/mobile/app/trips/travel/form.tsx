@@ -6,7 +6,9 @@ import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { TravelDialog } from "@/components/trip/TravelDialog";
 import {
   buildLegRecord,
+  legFromRecord,
   travelForMemberDirection,
+  type LegSeed,
   type TravelDirection,
   type TravelLeg,
 } from "@/lib/newTravel";
@@ -46,12 +48,14 @@ export default function TravelForm() {
 }
 
 function TravelFormScreen() {
-  const { id, travel: travelId, member, direction } = useLocalSearchParams<{
-    id?: string;
-    travel?: string;
-    member?: string;
-    direction?: string;
-  }>();
+  const { id, travel: travelId, duplicate: duplicateId, member, direction } =
+    useLocalSearchParams<{
+      id?: string;
+      travel?: string;
+      duplicate?: string;
+      member?: string;
+      direction?: string;
+    }>();
   const { travelById, travelForTrip, addTravel, updateTravel, deleteTravel } =
     useTravel();
   // The last save's or delete's failure, fed to the dialog's
@@ -82,6 +86,15 @@ function TravelFormScreen() {
   const { user } = useAuth();
   const editingId = typeof travelId === "string" ? travelId : undefined;
   const record = trip ? travelById(trip, editingId) : undefined;
+  // The row a duplicate copies from. `travel` wins when both are present:
+  // an edit is about one record, and a seed under it would only be
+  // confusing.
+  const duplicateOf =
+    typeof duplicateId === "string" ? duplicateId : undefined;
+  const duplicateFrom =
+    !editingId && duplicateOf && trip
+      ? travelById(trip, duplicateOf)
+      : undefined;
   const directionParam: TravelDirection | undefined =
     direction === "arrival" || direction === "departure" ? direction : undefined;
 
@@ -121,8 +134,15 @@ function TravelFormScreen() {
   // this screen, and both of them read it. Safe to seed once — the
   // roster read suspends under the gate above, so `viewer` is already
   // resolved on the first render.
-  const [memberId, setMemberId] = useState(
-    () => record?.memberId ?? linkedMember ?? viewer?.id ?? "",
+  //
+  // A duplicate starts with nobody picked, because picking is the act:
+  // the seed is a flight waiting for a name. Only an organizer can
+  // duplicate at all, so a traveler still falls back to their own row
+  // rather than to nobody.
+  const [memberId, setMemberId] = useState(() =>
+    duplicateFrom && viewerIsOrganizer
+      ? ""
+      : (record?.memberId ?? linkedMember ?? viewer?.id ?? ""),
   );
 
   // What the picked member already holds, per direction. `filed` and the
@@ -164,9 +184,48 @@ function TravelFormScreen() {
     );
   }
 
+  // The same gate for a duplicate: falling straight through would open an
+  // unseeded form, which looks like the copy worked and copied nothing.
+  if (duplicateOf && !duplicateFrom && sectionStatus === "loading") {
+    return (
+      <FullscreenDialog title="Travel" dismissHref="/trips">
+        <LoadingBlock label="Loading travel details" />
+      </FullscreenDialog>
+    );
+  }
+
+  // Both directions, read out of the one row being copied: a leg's two
+  // ends live in a single record, so the same row read as an arrival and
+  // as a departure is the flight both ways. A seat that the record never
+  // had stays empty, and an empty leg is untouched rather than wrong.
+  const seed: LegSeed | undefined = duplicateFrom
+    ? {
+        arrival: legFromRecord(
+          duplicateFrom,
+          "arrival",
+          timeZone,
+          trip.startDate,
+          trip.endDate,
+        ),
+        departure: legFromRecord(
+          duplicateFrom,
+          "departure",
+          timeZone,
+          trip.startDate,
+          trip.endDate,
+        ),
+      }
+    : undefined;
+
   return (
     <TravelDialog
-      title={editingExisting ? "Edit travel" : "Add travel"}
+      title={
+        duplicateFrom
+          ? "Duplicate travel"
+          : editingExisting
+            ? "Edit travel"
+            : "Add travel"
+      }
       primaryTitle={
         editingExisting
           ? saving
@@ -184,7 +243,10 @@ function TravelFormScreen() {
       memberId={memberId}
       onMemberChange={setMemberId}
       records={records}
-      openDirection={record?.travelType ?? directionParam ?? "arrival"}
+      seed={seed}
+      openDirection={
+        record?.travelType ?? duplicateFrom?.travelType ?? directionParam ?? "arrival"
+      }
       whereSuggestions={suggestionsFrom(records)}
       filed={filed}
       dismissHref={boardHref}
