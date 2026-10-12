@@ -59,12 +59,12 @@ export const travelOptions = (tripId: string) =>
 export type CreateTravelRequest = {
   travelType: "arrival" | "departure";
   memberId?: string;
-  departureLocation?: string;
+  departureLocation?: string | null;
   departureTime?: string;
-  arrivalLocation?: string;
+  arrivalLocation?: string | null;
   arrivalTime?: string;
-  details?: string;
-  flightNumber?: string;
+  details?: string | null;
+  flightNumber?: string | null;
 };
 
 /**
@@ -76,12 +76,12 @@ export type CreateTravelRequest = {
  */
 export type UpdateTravelRequest = {
   travelType?: "arrival" | "departure";
-  departureLocation?: string;
+  departureLocation?: string | null;
   departureTime?: string;
-  arrivalLocation?: string;
+  arrivalLocation?: string | null;
   arrivalTime?: string;
-  details?: string;
-  flightNumber?: string;
+  details?: string | null;
+  flightNumber?: string | null;
 };
 
 /**

@@ -110,32 +110,39 @@ function toCreateRequest(record: MockTravel): CreateTravelRequest {
  *
  * Membership is fixed at create (`memberId` is create-only), so a patch
  * never carries it — only the leg's ends, the flight, and the details.
- * Empty strings stay absent rather than sent: clearing a side means
- * leaving it out of the patch is out of scope for the form, which
- * always sends full values, never a clear.
+ *
+ * A key that is present and empty is a *clear*: it goes over the wire as
+ * an explicit null, which is what the schema's four nullable fields are
+ * for. The distinction that matters is present-but-empty (the member
+ * took the value back) against absent (this patch is not about that
+ * field), so the test is `!== undefined` rather than truthiness.
+ *
+ * The two times are never sent as null: they stay non-nullable and
+ * `pertinentTimeRefine` depends on that, so a direction is removed with
+ * Delete rather than by blanking the time the board files on.
  */
-function toUpdateRequest(patch: Partial<MockTravel>): UpdateTravelRequest {
+export function toUpdateRequest(patch: Partial<MockTravel>): UpdateTravelRequest {
   return {
     ...(patch.travelType !== undefined
       ? { travelType: patch.travelType }
       : null),
-    ...(typeof patch.departureLocation === "string" && patch.departureLocation
-      ? { departureLocation: patch.departureLocation }
+    ...(patch.departureLocation !== undefined
+      ? { departureLocation: patch.departureLocation || null }
       : null),
     ...(typeof patch.departureTime === "string" && patch.departureTime
       ? { departureTime: patch.departureTime }
       : null),
-    ...(typeof patch.arrivalLocation === "string" && patch.arrivalLocation
-      ? { arrivalLocation: patch.arrivalLocation }
+    ...(patch.arrivalLocation !== undefined
+      ? { arrivalLocation: patch.arrivalLocation || null }
       : null),
     ...(typeof patch.arrivalTime === "string" && patch.arrivalTime
       ? { arrivalTime: patch.arrivalTime }
       : null),
-    ...(typeof patch.details === "string" && patch.details
-      ? { details: patch.details }
+    ...(patch.details !== undefined
+      ? { details: patch.details || null }
       : null),
-    ...(typeof patch.flightNumber === "string" && patch.flightNumber
-      ? { flightNumber: patch.flightNumber }
+    ...(patch.flightNumber !== undefined
+      ? { flightNumber: patch.flightNumber || null }
       : null),
   };
 }
@@ -194,10 +201,24 @@ export function TravelProvider({ children }: { children: ReactNode }) {
     onSuccess: (record, _input, context) => {
       queryClient.setQueryData<MockTravel[]>(
         travelKeys.list(context?.tripId ?? ""),
-        (old) =>
-          old?.map((row) =>
-            row.id === context?.optimisticId ? record : row,
-          ),
+        (old) => {
+          if (!old) return old;
+          // The server may have answered with a row that is already in
+          // the cache: a POST on a pair that already holds a live row
+          // updates that row and returns it, so swapping by the
+          // stand-in's id would leave the stand-in *and* the real row,
+          // and the pair would be drawn twice. Drop the stand-in, then
+          // let the returned row replace whichever entry already carries
+          // its id — or append it when nothing does.
+          const withoutStandIn = old.filter(
+            (row) => row.id !== context?.optimisticId,
+          );
+          return withoutStandIn.some((row) => row.id === record.id)
+            ? withoutStandIn.map((row) =>
+                row.id === record.id ? record : row,
+              )
+            : [...withoutStandIn, record];
+        },
       );
     },
     onSettled: (_data, _error, _input, context) => {

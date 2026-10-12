@@ -690,18 +690,41 @@ export function handleDemoRequest(
     }
     if (verb === "POST" && rest === "/member-travel") {
       if (!trip) return notFound("Trip not found");
-      store.counters.travel += 1;
-      const row: MemberTravel = {
-        id: `demo-travel-created-${store.counters.travel}`,
-        tripId,
-        memberId: typeof body.memberId === "string" ? body.memberId : "demo-you",
-        travelType: body.travelType === "departure" ? "departure" : "arrival",
+      const memberId = typeof body.memberId === "string" ? body.memberId : "demo-you";
+      const travelType: MemberTravel["travelType"] =
+        body.travelType === "departure" ? "departure" : "arrival";
+      const values = {
         departureLocation: typeof body.departureLocation === "string" ? body.departureLocation : null,
         departureTime: (typeof body.departureTime === "string" ? body.departureTime : null) as unknown as Date | null,
         arrivalLocation: typeof body.arrivalLocation === "string" ? body.arrivalLocation : null,
         arrivalTime: (typeof body.arrivalTime === "string" ? body.arrivalTime : null) as unknown as Date | null,
         details: typeof body.details === "string" ? body.details : null,
         flightNumber: typeof body.flightNumber === "string" ? body.flightNumber : null,
+      };
+      // One live row per member and direction, the API's own rule. The
+      // demo is a shipped surface with no network under it, so it has to
+      // answer the same way the real endpoint does — otherwise the same
+      // save that the API now folds into one row would draw the member
+      // twice here, which is exactly the bug the API just stopped doing.
+      const existing = (store.travel.get(tripId) ?? []).find(
+        (row) =>
+          row.memberId === memberId &&
+          row.travelType === travelType &&
+          !row.deletedAt,
+      );
+      if (existing) {
+        Object.assign(existing, values, {
+          updatedAt: nowIso() as unknown as Date,
+        });
+        return { status: 200, body: { success: true, memberTravel: existing } };
+      }
+      store.counters.travel += 1;
+      const row: MemberTravel = {
+        id: `demo-travel-created-${store.counters.travel}`,
+        tripId,
+        memberId,
+        travelType,
+        ...values,
         deletedAt: null,
         deletedBy: null,
         createdAt: nowIso() as unknown as Date,

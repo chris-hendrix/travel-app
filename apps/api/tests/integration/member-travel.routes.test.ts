@@ -4,6 +4,7 @@ import { buildApp } from "../helpers.js";
 import { db } from "@/config/database.js";
 import { users, trips, members, memberTravel } from "@/db/schema/index.js";
 import { generateUniquePhone } from "../test-utils.js";
+import { and, eq, isNull } from "drizzle-orm";
 
 describe("Member Travel Routes", () => {
   let app: FastifyInstance;
@@ -752,6 +753,160 @@ describe("Member Travel Routes", () => {
     });
   });
 
+  describe("POST /api/trips/:tripId/member-travel on the member and direction", () => {
+    /** A user, a trip they created, their member row and a bearer token. */
+    const seed = async (label: string) => {
+      const [user] = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: label,
+          timezone: "UTC",
+        })
+        .returning();
+
+      const [trip] = await db
+        .insert(trips)
+        .values({
+          name: `${label} Trip`,
+          destination: "Lisbon",
+          preferredTimezone: "Europe/Lisbon",
+          createdBy: user!.id,
+        })
+        .returning();
+
+      await db.insert(members).values({
+        tripId: trip!.id,
+        userId: user!.id,
+        status: "going",
+      });
+
+      const token = app.jwt.sign({
+        sub: user!.id,
+        name: user!.displayName,
+      });
+
+      return { token, tripId: trip!.id };
+    };
+
+    it("answers 201 for a new pair and 200 for the same pair again", async () => {
+      app = await buildApp();
+      const { token, tripId } = await seed("Upsert Test User");
+
+      const payload = {
+        travelType: "arrival" as const,
+        arrivalTime: "2026-07-01T14:00:00Z",
+        arrivalLocation: "Airport",
+      };
+
+      const first = await app.inject({
+        method: "POST",
+        url: `/api/trips/${tripId}/member-travel`,
+        cookies: { auth_token: token },
+        payload,
+      });
+      expect(first.statusCode).toBe(201);
+      const created = JSON.parse(first.body);
+
+      const second = await app.inject({
+        method: "POST",
+        url: `/api/trips/${tripId}/member-travel`,
+        cookies: { auth_token: token },
+        payload: { ...payload, arrivalLocation: "Terminal 1" },
+      });
+      expect(second.statusCode).toBe(200);
+      const updated = JSON.parse(second.body);
+
+      // The same row and the same body shape: only the status says which
+      // happened, so a client can read one response shape either way.
+      expect(updated.memberTravel.id).toBe(created.memberTravel.id);
+      expect(updated.memberTravel.arrivalLocation).toBe("Terminal 1");
+      expect(Object.keys(updated).sort()).toEqual(
+        Object.keys(created).sort(),
+      );
+
+      const rows = await db
+        .select()
+        .from(memberTravel)
+        .where(
+          and(
+            eq(memberTravel.tripId, tripId),
+            isNull(memberTravel.deletedAt),
+          ),
+        );
+      expect(rows).toHaveLength(1);
+    });
+
+    it("clears only the field a PUT sends as null", async () => {
+      app = await buildApp();
+      const { token, tripId } = await seed("Clear Test User");
+
+      const created = await app.inject({
+        method: "POST",
+        url: `/api/trips/${tripId}/member-travel`,
+        cookies: { auth_token: token },
+        payload: {
+          travelType: "arrival",
+          arrivalTime: "2026-07-01T14:00:00Z",
+          arrivalLocation: "Airport",
+          details: "Landing T2",
+        },
+      });
+      expect(created.statusCode).toBe(201);
+      const id = JSON.parse(created.body).memberTravel.id;
+
+      const cleared = await app.inject({
+        method: "PUT",
+        url: `/api/member-travel/${id}`,
+        cookies: { auth_token: token },
+        payload: { arrivalLocation: null },
+      });
+      expect(cleared.statusCode).toBe(200);
+      const body = JSON.parse(cleared.body);
+      // The null clears its own column and nothing else: the detail the
+      // patch never mentioned is still there.
+      expect(body.memberTravel.arrivalLocation).toBeNull();
+      expect(body.memberTravel.details).toBe("Landing T2");
+      expect(body.memberTravel.arrivalTime).toBe(
+        "2026-07-01T14:00:00.000Z",
+      );
+    });
+
+    it("still rejects a null time, on the PUT and on the POST", async () => {
+      // The two time columns stay non-nullable: a direction is removed
+      // with Delete, not by blanking the time the board files on.
+      app = await buildApp();
+      const { token, tripId } = await seed("Null Time Test User");
+
+      const created = await app.inject({
+        method: "POST",
+        url: `/api/trips/${tripId}/member-travel`,
+        cookies: { auth_token: token },
+        payload: {
+          travelType: "arrival",
+          arrivalTime: "2026-07-01T14:00:00Z",
+        },
+      });
+      const id = JSON.parse(created.body).memberTravel.id;
+
+      const viaPut = await app.inject({
+        method: "PUT",
+        url: `/api/member-travel/${id}`,
+        cookies: { auth_token: token },
+        payload: { arrivalTime: null },
+      });
+      expect(viaPut.statusCode).toBe(400);
+
+      const viaPost = await app.inject({
+        method: "POST",
+        url: `/api/trips/${tripId}/member-travel`,
+        cookies: { auth_token: token },
+        payload: { travelType: "arrival", arrivalTime: null },
+      });
+      expect(viaPost.statusCode).toBe(400);
+    });
+  });
+
   describe("Entity count limits", () => {
     it("should return 400 when member travel limit exceeded", async () => {
       app = await buildApp();
@@ -784,18 +939,16 @@ describe("Member Travel Routes", () => {
         })
         .returning();
 
-      // Bulk insert 20 travel entries (at the limit)
+      // Bulk insert 20 travel entries (at the limit), all one direction.
+      // The cap is reached on the member, but the *pair* the POST targets
+      // has to be free: one row per direction already live would let the
+      // POST fold into it and answer 200 instead of reaching the cap.
       await db.insert(memberTravel).values(
         Array.from({ length: 20 }, (_, i) => ({
           tripId: trip.id,
           memberId: member.id,
           createdBy: testUser.id,
-          travelType: (i % 2 === 0 ? "arrival" : "departure") as
-            | "arrival"
-            | "departure",
-          arrivalTime: new Date(
-            `2026-06-${String(15 + (i % 15)).padStart(2, "0")}T${String(i % 24).padStart(2, "0")}:00:00Z`,
-          ),
+          travelType: "departure" as const,
           departureTime: new Date(
             `2026-06-${String(15 + (i % 15)).padStart(2, "0")}T${String(i % 24).padStart(2, "0")}:00:00Z`,
           ),
@@ -860,18 +1013,16 @@ describe("Member Travel Routes", () => {
         })
         .returning();
 
-      // Insert 19 active travel entries + 1 soft-deleted
+      // Insert 19 active travel entries, all departures, plus 1
+      // soft-deleted arrival. One direction keeps the arrival pair free,
+      // so the POST below is an insert rather than an update of one of
+      // these; the soft-deleted arrival is what must not count.
       await db.insert(memberTravel).values(
         Array.from({ length: 19 }, (_, i) => ({
           tripId: trip.id,
           memberId: member.id,
           createdBy: testUser.id,
-          travelType: (i % 2 === 0 ? "arrival" : "departure") as
-            | "arrival"
-            | "departure",
-          arrivalTime: new Date(
-            `2026-06-${String(15 + (i % 15)).padStart(2, "0")}T${String(i % 24).padStart(2, "0")}:00:00Z`,
-          ),
+          travelType: "departure" as const,
           departureTime: new Date(
             `2026-06-${String(15 + (i % 15)).padStart(2, "0")}T${String(i % 24).padStart(2, "0")}:00:00Z`,
           ),

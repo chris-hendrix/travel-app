@@ -2,7 +2,14 @@
 
 import { z } from "zod";
 
-const locationField = z.string().max(500).optional();
+/**
+ * A location, or an explicit null to clear it. Nullable rather than
+ * merely optional because clearing a filed value is a real answer: a
+ * member who no longer wants "BCN T2" on their arrival needs a way to
+ * say so, and until now the only way to unset one was to delete the
+ * whole direction.
+ */
+const locationField = z.string().max(500).nullable().optional();
 
 /**
  * Base member travel data schema
@@ -24,13 +31,19 @@ const baseMemberTravelSchema = z.object({
     .max(500, {
       error: "Details must not exceed 500 characters",
     })
+    .nullable()
     .optional(),
-  flightNumber: z.string().max(10).optional(),
+  flightNumber: z.string().max(10).nullable().optional(),
 });
 
 /**
  * Server-side invariant: a record must carry at least the pertinent time
  * for its travelType (arrival → arrivalTime, departure → departureTime).
+ *
+ * The two time columns stay non-nullable, and that is what keeps this
+ * refine true as written: a direction is removed with Delete, not by
+ * blanking its time. Only the four fields that can be cleared — the two
+ * locations, the details and the flight number — carry `.nullable()`.
  */
 const pertinentTimeRefine = (data: {
   travelType: "arrival" | "departure";

@@ -15,6 +15,7 @@ import type { IPermissionsService } from "./permissions.service.js";
 import {
   MemberTravelNotFoundError,
   MemberTravelLimitExceededError,
+  MemberTravelConflictError,
   MemberNotFoundError,
   PermissionDeniedError,
   TripNotFoundError,
@@ -26,11 +27,12 @@ import {
  */
 export interface IMemberTravelService {
   /**
-   * Creates a new member travel record for a trip
+   * Creates a new member travel record for a trip, or updates the one
+   * already filed for the same member and direction
    * @param userId - The ID of the user creating the member travel
    * @param tripId - The ID of the trip
    * @param data - The member travel creation data
-   * @returns Promise that resolves to the created member travel
+   * @returns Promise that resolves to the row and whether it was inserted
    * @throws TripNotFoundError if trip not found or user not a member
    * @throws PermissionDeniedError if user lacks permission
    */
@@ -38,7 +40,7 @@ export interface IMemberTravelService {
     userId: string,
     tripId: string,
     data: CreateMemberTravelInput,
-  ): Promise<MemberTravel>;
+  ): Promise<CreateMemberTravelResult>;
 
   /**
    * Gets a member travel record by ID
@@ -98,6 +100,18 @@ export interface IMemberTravelService {
 }
 
 /**
+ * What a create did. The pair of member and direction is the identity
+ * the feature assumes, so a POST on a pair that already holds a live row
+ * updates that row rather than putting a second one beside it — and the
+ * caller needs to know which happened in order to answer 201 or 200.
+ */
+export interface CreateMemberTravelResult {
+  memberTravel: MemberTravel;
+  /** False when the pair already held a live row and it was updated. */
+  created: boolean;
+}
+
+/**
  * Member Travel Service Implementation
  * Handles member travel creation, management, and soft delete operations
  * Member travel is linked to a specific member (not directly to userId)
@@ -109,12 +123,14 @@ export class MemberTravelService implements IMemberTravelService {
   ) {}
 
   /**
-   * Creates a new member travel record for a trip
-   * Resolves the memberId from userId and tripId before creating
+   * Creates a member travel record for a trip, or updates the live one
+   * already filed for the same member and direction.
+   *
+   * Resolves the memberId from userId and tripId before writing.
    * @param userId - The ID of the user creating the member travel
    * @param tripId - The ID of the trip
    * @param data - The member travel creation data
-   * @returns The created member travel
+   * @returns The row, and whether this call inserted it
    * @throws TripNotFoundError if trip not found or user not a member
    * @throws PermissionDeniedError if user lacks permission
    */
@@ -122,7 +138,7 @@ export class MemberTravelService implements IMemberTravelService {
     userId: string,
     tripId: string,
     data: CreateMemberTravelInput,
-  ): Promise<MemberTravel> {
+  ): Promise<CreateMemberTravelResult> {
     // Check if user can add member travel to this trip (any member can)
     const canAdd = await this.permissionsService.canAddMemberTravel(
       userId,
@@ -187,7 +203,58 @@ export class MemberTravelService implements IMemberTravelService {
       resolvedMemberId = member.id;
     }
 
-    // Check member travel count limit
+    // One live row per member and direction. This lookup runs *before*
+    // the cap on purpose: an update adds no row, so a cap on how many
+    // rows a member holds does not apply to it. Running the cap first
+    // would refuse an edit at the limit while the very pair being edited
+    // is one of the rows the check is complaining about.
+    const [existing] = await this.db
+      .select({ id: memberTravel.id })
+      .from(memberTravel)
+      .where(
+        and(
+          eq(memberTravel.tripId, tripId),
+          eq(memberTravel.memberId, resolvedMemberId),
+          eq(memberTravel.travelType, data.travelType),
+          isNull(memberTravel.deletedAt),
+        ),
+      )
+      .limit(1);
+
+    // Destructure to exclude memberId from data before writing
+    const { memberId: _memberId, travelType, ...rest } = data;
+
+    // The create body is a full statement of the leg, so an absent field
+    // is a cleared one: the form sends what the member answered, and a
+    // value it no longer carries is one they took back. On the update
+    // branch an explicit null says the same thing.
+    const values = {
+      departureTime: rest.departureTime ? new Date(rest.departureTime) : null,
+      departureLocation: rest.departureLocation || null,
+      arrivalTime: rest.arrivalTime ? new Date(rest.arrivalTime) : null,
+      arrivalLocation: rest.arrivalLocation || null,
+      flightNumber: rest.flightNumber || null,
+      details: rest.details || null,
+    };
+
+    // The pair is taken: update it in place, which is what keeps the
+    // client's save from filing a second row and drawing the member
+    // twice on the board.
+    if (existing) {
+      const [updated] = await this.db
+        .update(memberTravel)
+        .set({ ...values, updatedAt: new Date() })
+        .where(eq(memberTravel.id, existing.id))
+        .returning();
+
+      if (!updated) {
+        throw new Error("Failed to update member travel");
+      }
+
+      return { memberTravel: updated, created: false };
+    }
+
+    // Check member travel count limit — inserts only.
     const [travelCount] = await this.db
       .select({ value: count() })
       .from(memberTravel)
@@ -203,26 +270,14 @@ export class MemberTravelService implements IMemberTravelService {
       );
     }
 
-    // Destructure to exclude memberId from data before insert
-    const { memberId: _memberId, ...insertData } = data;
-
     // Create the member travel
     const [travel] = await this.db
       .insert(memberTravel)
       .values({
         tripId,
         memberId: resolvedMemberId,
-        travelType: insertData.travelType,
-        departureTime: insertData.departureTime
-          ? new Date(insertData.departureTime)
-          : null,
-        departureLocation: insertData.departureLocation || null,
-        arrivalTime: insertData.arrivalTime
-          ? new Date(insertData.arrivalTime)
-          : null,
-        arrivalLocation: insertData.arrivalLocation || null,
-        flightNumber: insertData.flightNumber || null,
-        details: insertData.details || null,
+        travelType,
+        ...values,
       })
       .returning();
 
@@ -230,7 +285,7 @@ export class MemberTravelService implements IMemberTravelService {
       throw new Error("Failed to create member travel");
     }
 
-    return travel;
+    return { memberTravel: travel, created: true };
   }
 
   /**
@@ -433,12 +488,13 @@ export class MemberTravelService implements IMemberTravelService {
     userId: string,
     memberTravelId: string,
   ): Promise<MemberTravel> {
-    // Load member travel to get tripId
+    // Load member travel to get tripId, memberId and direction
     const [travel] = await this.db
       .select({
         id: memberTravel.id,
         tripId: memberTravel.tripId,
         memberId: memberTravel.memberId,
+        travelType: memberTravel.travelType,
       })
       .from(memberTravel)
       .where(eq(memberTravel.id, memberTravelId))
@@ -457,6 +513,30 @@ export class MemberTravelService implements IMemberTravelService {
       throw new PermissionDeniedError(
         "Permission denied: only organizers can restore member travel",
       );
+    }
+
+    // The pair must not already hold a live row. A soft-deleted row can
+    // sit beside a live one — the create path only looks for a live row,
+    // so "delete, then file it again" inserts a new one and leaves this
+    // one behind. Restoring it is the only other way a row becomes live,
+    // and therefore the only other place the one-per-pair invariant
+    // could break: two live rows would draw the member twice on the
+    // board, which is the state this whole change exists to prevent.
+    const [twin] = await this.db
+      .select({ id: memberTravel.id })
+      .from(memberTravel)
+      .where(
+        and(
+          eq(memberTravel.tripId, travel.tripId),
+          eq(memberTravel.memberId, travel.memberId),
+          eq(memberTravel.travelType, travel.travelType),
+          isNull(memberTravel.deletedAt),
+        ),
+      )
+      .limit(1);
+
+    if (twin) {
+      throw new MemberTravelConflictError();
     }
 
     // Check member travel count limit before restoring

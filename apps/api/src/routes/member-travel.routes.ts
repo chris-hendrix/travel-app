@@ -103,7 +103,9 @@ export async function memberTravelRoutes(fastify: FastifyInstance) {
 
     /**
      * POST /trips/:tripId/member-travel
-     * Create a new member travel for a trip
+     * Create a new member travel for a trip, or update the live one
+     * already filed for the same member and direction: 201 when a row was
+     * inserted, 200 when an existing pair was updated in place.
      */
     scope.post<{ Params: { tripId: string }; Body: CreateMemberTravelInput }>(
       "/trips/:tripId/member-travel",
@@ -112,7 +114,10 @@ export async function memberTravelRoutes(fastify: FastifyInstance) {
         schema: {
           params: tripIdParamsSchema,
           body: createMemberTravelSchema,
-          response: { 201: memberTravelResponseSchema },
+          response: {
+            201: memberTravelResponseSchema,
+            200: memberTravelResponseSchema,
+          },
         },
       },
       memberTravelController.createMemberTravel,
