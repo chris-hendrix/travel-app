@@ -1,8 +1,17 @@
+import { DEMO_AUTH_USER, DEMO_VIEWER_MEMBER_ID, atClock, userIdOf } from "@/lib/demo/fixture";
+import type { DemoPayment } from "@/lib/demo/money";
+import { bachelorLedger, caboLedger, weddingLedger } from "@/lib/demo/money";
 import type { ItineraryEvent } from "@/lib/itinerary";
 import type { Member } from "@/lib/members";
 import type { OccasionKind } from "@/lib/placeholder";
 import type { Stay } from "@/lib/stays";
 import type { MockTravel } from "@/mocks/travel";
+
+// The two ids and the two helpers above live in `lib/demo/fixture.ts`, which
+// the ledger (`lib/demo/money.ts`) is written in too — this module cannot own
+// them and read the ledger back. The ids are re-exported so every reader of
+// them still names one place.
+export { DEMO_AUTH_USER, DEMO_VIEWER_MEMBER_ID };
 
 /**
  * The demo trip: the one sanctioned exception to "screens never read
@@ -53,10 +62,9 @@ export type DemoTrip = {
   stay: Stay;
   events: ItineraryEvent[];
   travel: MockTravel[];
+  /** The trip's ledger: what the Settle sheet's three reads are computed from. */
+  payments: DemoPayment[];
 };
-
-/** The viewer's own row. The RSVP control and the roster row share it. */
-export const DEMO_VIEWER_MEMBER_ID = "demo-you";
 
 /** The demo trip's id: the landing's first `/demo?id=…` link carries it. */
 export const DEMO_TRIP_ID = "demo-trip-cabo";
@@ -78,14 +86,6 @@ export const DEMO_TRIP_IDS = [
   DEMO_TRIP_WEDDING_ID,
   DEMO_TRIP_BACHELOR_ID,
 ] as const;
-
-/** The demo session: the anonymous visitor reads as this traveler. */
-export const DEMO_AUTH_USER = {
-  id: "demo-viewer",
-  phoneNumber: "+15550000001",
-  displayName: "You",
-  profileComplete: true,
-} as const;
 
 /**
  * The whole fixture is built on the **viewer's own wall clock**, and that
@@ -114,18 +114,6 @@ function addDays(dayIso: string, days: number): string {
   return toIsoDay(moment);
 }
 
-/**
- * A wall clock on a day, as the instant it names *in the viewer's own
- * zone*: `new Date("…T19:00:00")` with no trailing `Z` is parsed as
- * local time, which is what makes a 19:00 dinner read back as 7:00 PM
- * rather than as 3:00 PM in New York. `lib/newEvent.ts` stamps a real
- * event the same way, off the trip's own zone — there is no trip zone
- * here to read it off, which is the whole point of the demo.
- */
-function atClock(dayIso: string, clock: string): string {
-  return new Date(`${dayIso}T${clock}:00`).toISOString();
-}
-
 function member(
   id: string,
   name: string,
@@ -133,13 +121,9 @@ function member(
   phone: string,
   isOrganizer: boolean,
 ): Member {
-  // Every trip carries the viewer's own row, each with its own row id
-  // (row ids are globally unique per D2) but all resolving to the
-  // same demo user, which is what the RSVP path keys on.
-  const isViewer = id === DEMO_VIEWER_MEMBER_ID || id.startsWith(`${DEMO_VIEWER_MEMBER_ID}-`);
   return {
     id,
-    userId: isViewer ? "demo-viewer" : `demo-user-${id}`,
+    userId: userIdOf(id),
     name,
     status,
     isOrganizer,
@@ -169,6 +153,30 @@ function arrival(
     flightNumber: null,
     details: null,
     deletedAt: null,
+  };
+}
+
+/**
+ * A guest on the trip: a member row with no account behind it, which is
+ * what the roster's far column reads as "Guest" and what the expense
+ * dialogs join onto a payer's name.
+ *
+ * The number is empty on purpose. A guest is invited by phone, but the
+ * number is the organizer's to see (`guestPhone` comes back only to
+ * them), a guest with no number is a row the API's own flow creates, and
+ * the demo viewer is never an organizer — so a number here would be a
+ * fact the real API would not have handed this reader.
+ */
+function guest(id: string, name: string): Member {
+  return {
+    id,
+    userId: null,
+    name,
+    status: "going",
+    isOrganizer: false,
+    phone: "",
+    sharePhone: false,
+    handles: null,
   };
 }
 
@@ -231,6 +239,11 @@ export function buildDemoTrip(today: Date = new Date()): DemoTrip {
     member("demo-marco", "Marco", "maybe", "+15550000003", false),
     member("demo-priya", "Priya", "no_response", "+15550000004", false),
     member("demo-sam", "Sam", "going", "+15550000005", true),
+    // The ledger's second payer, and the trip's guest: Nina is on the
+    // trip without an account behind her row. She paid for the groceries
+    // the group landed on, which is the shape the API allows — a guest
+    // as a payer — and the shape the roster's far column prints.
+    guest("demo-guest-cabo", "Nina"),
   ];
 
   const stay: Stay = {
@@ -365,6 +378,7 @@ export function buildDemoTrip(today: Date = new Date()): DemoTrip {
     arrival("demo-travel-sam", "demo-sam", "Sam", startDate, "12:40"),
   ];
 
+  const payments = caboLedger({ startDate, saturday, sunday, monday });
   return {
     id: DEMO_TRIP_ID,
     title: "Cabo",
@@ -378,6 +392,7 @@ export function buildDemoTrip(today: Date = new Date()): DemoTrip {
     stay,
     events,
     travel,
+    payments,
   };
 }
 
@@ -410,6 +425,8 @@ export function buildDemoWeddingTrip(today: Date = new Date()): DemoTrip {
     member("demo-wed-priya", "Priya", "going", "+15550000013", false),
     member("demo-wed-marco", "Marco", "maybe", "+15550000014", false),
     member("demo-wed-liz", "Liz", "no_response", "+15550000015", false),
+    // The wedding's guest, and a share of the taxis she rode in.
+    guest("demo-wed-guest", "Rosa"),
   ];
 
   const stay: Stay = {
@@ -494,6 +511,7 @@ export function buildDemoWeddingTrip(today: Date = new Date()): DemoTrip {
     arrival("demo-wed-travel-liz", "demo-wed-liz", "Liz", startDate, "10:40", "SJD T2"),
   ];
 
+  const payments = weddingLedger({ startDate, monday });
   return {
     id: DEMO_TRIP_WEDDING_ID,
     title: "Priya & Dev's wedding",
@@ -507,6 +525,7 @@ export function buildDemoWeddingTrip(today: Date = new Date()): DemoTrip {
     stay,
     events,
     travel,
+    payments,
   };
 }
 
@@ -534,6 +553,8 @@ export function buildDemoBachelorTrip(today: Date = new Date()): DemoTrip {
     member("demo-bach-marco", "Marco", "going", "+15550000033", true),
     member("demo-bach-sam", "Sam", "maybe", "+15550000034", false),
     member("demo-bach-eddie", "Eddie", "no_response", "+15550000035", false),
+    // The bachelor party's guest, and a share of the steak dinner.
+    guest("demo-bach-guest", "Danny"),
   ];
 
   const stay: Stay = {
@@ -648,6 +669,7 @@ export function buildDemoBachelorTrip(today: Date = new Date()): DemoTrip {
     arrival("demo-bach-travel-sam", "demo-bach-sam", "Sam", startDate, "13:40", "SAN T1"),
   ];
 
+  const payments = bachelorLedger({ startDate, saturday, sunday });
   return {
     id: DEMO_TRIP_BACHELOR_ID,
     title: "Dev's bachelor party",
@@ -661,6 +683,7 @@ export function buildDemoBachelorTrip(today: Date = new Date()): DemoTrip {
     stay,
     events,
     travel,
+    payments,
   };
 }
 

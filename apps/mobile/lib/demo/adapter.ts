@@ -12,13 +12,17 @@
  *
  * Reads served: `GET /trips/:id` for all three demo trips, members,
  * events,
- * accommodations, member-travel, invitations (empty), the trip-settings
+ * accommodations, member-travel, the ledger (`payments`, `balances` and
+ * `balances/me`, all computed from the fixture's expenses rather than
+ * written down — see `tripBalances` in `lib/demo/money.ts`), invitations
+ * (empty), the trip-settings
  * trio (sharePhone + notification pair + calendar flag), and the Places
  * autocomplete + details (a small invented list for the demo's own
  * destinations — invented names and addresses, no real business data,
  * no remote URLs — so the Location field offers selectable rows and
  * picking one fills the field the way a real suggestion would). Writes served in memory: RSVP, event/stay/
- * travel create/update/delete, sharePhone, notification preferences,
+ * travel create/update/delete, payment create/update/delete (soft, as the
+ * API's is), sharePhone, notification preferences,
  * calendar exclusion. `POST /flights/lookup` answers 404, which
  * `lookupFlight` already reads as "no such flight" — the travel form
  * still files by hand. Everything else answers the API 404 envelope.
@@ -26,6 +30,18 @@
 
 import type { DemoTrip } from "@/lib/demo";
 import { buildDemoTrips } from "@/lib/demo";
+import {
+  createPayment,
+  deletePayment,
+  listBalances,
+  listPayments,
+  myBalance,
+  paymentRowById,
+  seedLedger,
+  updatePayment,
+} from "@/lib/demo/money";
+import { findRowAnywhere, notFound, nowIso } from "@/lib/demo/store";
+import type { DemoBody, DemoStore } from "@/lib/demo/store";
 import type { RsvpStatus } from "@/lib/rsvp";
 import type {
   Accommodation,
@@ -42,21 +58,6 @@ export type DemoRequestLog = {
   /** False when no local handler matched and the request was refused. */
   served: boolean;
 };
-
-type DemoStore = {
-  trips: DemoTrip[];
-  events: Map<string, Event[]>;
-  stays: Map<string, Accommodation[]>;
-  travel: Map<string, MemberTravel[]>;
-  members: Map<string, MemberWithProfile[]>;
-  sharePhone: Map<string, boolean>;
-  notifications: Map<string, { dailyItinerary: boolean; tripMessages: boolean }>;
-  counters: { event: number; stay: number; travel: number };
-};
-
-function nowIso(): string {
-  return new Date().toISOString();
-}
 
 function organizerOf(trip: DemoTrip): { userId: string; name: string } {
   const organizer = trip.members.find((member) => member.isOrganizer);
@@ -227,9 +228,10 @@ export function createDemoStore(trips: DemoTrip[]): DemoStore {
     stays: new Map(),
     travel: new Map(),
     members: new Map(),
+    payments: new Map(),
     sharePhone: new Map(),
     notifications: new Map(),
-    counters: { event: 0, stay: 0, travel: 0 },
+    counters: { event: 0, stay: 0, travel: 0, payment: 0 },
   };
   for (const trip of trips) {
     store.events.set(
@@ -245,6 +247,9 @@ export function createDemoStore(trips: DemoTrip[]): DemoStore {
       trip.id,
       trip.members.map((member) => memberRow(member)),
     );
+    // The ledger, seeded after the roster because every name on a
+    // payment comes off it — `seedLedger` carries the reasoning.
+    seedLedger(store, trip);
     store.sharePhone.set(trip.id, true);
     store.notifications.set(trip.id, { dailyItinerary: true, tripMessages: true });
   }
@@ -269,28 +274,8 @@ export function buildDemoStore(today: Date = new Date()): DemoStore {
   return createDemoStore(buildDemoTrips(today));
 }
 
-type DemoBody = Record<string, unknown>;
-
-function notFound(message: string): { status: 404; body: DemoBody } {
-  return {
-    status: 404,
-    body: { success: false, error: { code: "NOT_FOUND", message } },
-  };
-}
-
 function tripOf(store: DemoStore, tripId: string): DemoTrip | undefined {
   return store.trips.find((trip) => trip.id === tripId);
-}
-
-function findRowAnywhere<T extends { id: string }>(
-  rows: Map<string, T[]>,
-  id: string,
-): { tripId: string; list: T[]; row: T } | null {
-  for (const [tripId, list] of rows) {
-    const row = list.find((entry) => entry.id === id);
-    if (row) return { tripId, list, row };
-  }
-  return null;
 }
 
 /**
@@ -556,6 +541,18 @@ export function handleDemoRequest(
         body: { success: true, memberTravels: store.travel.get(tripId) ?? [] },
       };
     }
+    if (verb === "GET" && rest === "/payments") {
+      if (!trip) return notFound("Trip not found");
+      return listPayments(store, tripId);
+    }
+    if (verb === "GET" && rest === "/balances") {
+      if (!trip) return notFound("Trip not found");
+      return listBalances(store, tripId);
+    }
+    if (verb === "GET" && rest === "/balances/me") {
+      if (!trip) return notFound("Trip not found");
+      return myBalance(store, tripId);
+    }
     if (verb === "GET" && rest === "/invitations") {
       if (!trip) return notFound("Trip not found");
       return { status: 200, body: { success: true, invitations: [] } };
@@ -687,6 +684,10 @@ export function handleDemoRequest(
       store.stays.get(tripId)?.push(row);
       return { status: 201, body: { success: true, accommodation: row } };
     }
+    if (verb === "POST" && rest === "/payments") {
+      if (!trip) return notFound("Trip not found");
+      return createPayment(store, tripId, body);
+    }
     if (verb === "POST" && rest === "/member-travel") {
       if (!trip) return notFound("Trip not found");
       store.counters.travel += 1;
@@ -747,6 +748,18 @@ export function handleDemoRequest(
       found.list.splice(found.list.indexOf(found.row), 1);
       return { status: 200, body: { success: true } };
     }
+  }
+
+  const paymentMatch = /^\/payments\/([^/]+)$/.exec(path);
+  if (paymentMatch) {
+    const id = decodeURIComponent(paymentMatch[1]!);
+    // The row is resolved before the verb is read, exactly as this route
+    // always did: an id nothing addresses answers the same 404 whatever
+    // the method is (`paymentRowById`).
+    const row = paymentRowById(store, id);
+    if (!row) return notFound("Payment not found");
+    if (verb === "PUT") return updatePayment(store, row, body);
+    if (verb === "DELETE") return deletePayment(row);
   }
 
   const travelMatch = /^\/(member-travel)\/([^/]+)$/.exec(path);

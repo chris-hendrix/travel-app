@@ -273,7 +273,7 @@ function GuestDialog({
             error.status === 409 &&
             error.code === "MEMBER_HAS_PAYMENTS"
           ) {
-            setRemoveError("This trip has fees recorded against them.");
+            setRemoveError("This trip has expenses recorded against them.");
             return;
           }
           setRemoveError("Couldn't remove them.");
@@ -424,7 +424,7 @@ function MemberDialog({
             error.status === 409 &&
             error.code === "MEMBER_HAS_PAYMENTS"
           ) {
-            setRemoveError("This trip has fees recorded against them.");
+            setRemoveError("This trip has expenses recorded against them.");
             return;
           }
           setRemoveError("Couldn't remove them.");

@@ -30,6 +30,20 @@ const basePaymentSchema = z.object({
     .array(participantSchema)
     .min(1, { message: "At least one participant is required" }),
   date: z.string().datetime().optional(),
+  // "how was it paid" ("Venmo") — a separate fact from what it was.
+  // Control chars are stripped first, then an empty-or-whitespace note is
+  // null. Note the two consequences: the value is stored as typed
+  // (padding included — `description` is not trimmed either), and the
+  // clearing value is "", never null: `updatePaymentSchema` is
+  // `basePaymentSchema.partial()`, so an explicit `null` is a 400 even
+  // though the read side hands the client `null`. A form echoing a read
+  // value back must map null -> "".
+  note: z
+    .string()
+    .max(280, { message: "Note must not exceed 280 characters" })
+    .transform(stripControlChars)
+    .transform((s) => (s.trim() === "" ? null : s))
+    .optional(),
 });
 
 /**
@@ -39,6 +53,7 @@ const basePaymentSchema = z.object({
  * - payerMemberId: payer member (any trip member, guests allowed) (required)
  * - participants: array of {memberId} (at least 1)
  * - date: ISO 8601 datetime (optional)
+ * - note: how it was paid, 1-280 characters (optional; "" becomes null)
  */
 export const createPaymentSchema = basePaymentSchema;
 
@@ -65,6 +80,9 @@ const paymentEntitySchema = z.object({
   id: z.string(),
   tripId: z.string(),
   description: z.string(),
+  // Load-bearing: this is the response serializer, so a field absent here
+  // never reaches the client whatever the service returns.
+  note: z.string().nullable(),
   amount: z.number(),
   payerMemberId: z.string(),
   date: z.date(),

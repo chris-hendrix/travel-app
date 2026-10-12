@@ -3,6 +3,7 @@ import { apiFetch } from "@/lib/api";
 import {
   DEMO_TRIP_BACHELOR_ID,
   DEMO_TRIP_ID,
+  DEMO_TRIP_IDS,
   DEMO_TRIP_WEDDING_ID,
   buildDemoTrips,
 } from "@/lib/demo";
@@ -17,8 +18,38 @@ import {
 } from "@/lib/demo/adapter";
 import { fetchPlaceDetails } from "@/lib/queries/places";
 import { lookupFlight } from "@/lib/flights";
+import { wallClock } from "@/lib/timezone";
 
 vi.mock("react-native", () => ({ Platform: { OS: "web" } }));
+
+/** One expense as the API serves it (the fields this walk reads). */
+type PaymentRow = {
+  id: string;
+  amount: number;
+  note: string | null;
+  payerMemberId: string;
+  payerName: string;
+  date: string;
+  /** A **user** id, never a member id. */
+  createdBy: string;
+  participants: {
+    id: string;
+    memberId: string;
+    name: string;
+    shareAmount: number;
+  }[];
+  deletedAt: string | null;
+};
+
+/** One simplified move, as `GET /trips/:id/balances` serves it. */
+type MoveRow = {
+  from: { id: string; name: string };
+  to: { id: string; name: string };
+  amount: number;
+};
+
+/** A roster row, which is where both id spaces come from. */
+type MemberRow = { id: string; userId: string | null; displayName: string };
 
 /**
  * The demo's isolation guarantee — and what it is NOT.
@@ -75,6 +106,31 @@ describe("the demo data layer", () => {
     await apiFetch(`/trips/${tripId}/accommodations`);
     await apiFetch(`/trips/${tripId}/member-travel`);
     expect(before.events.length).toBeGreaterThan(0);
+
+    // The ledger's three reads, which is what the Settle door opens: the
+    // entries, the trip's simplified moves, and the viewer's own position.
+    // All three used to fall through to the generic 404, which left the
+    // sheet showing three failures — so the walk reads them like any
+    // other screen read.
+    const ledger = await apiFetch<{ success: true; payments: PaymentRow[] }>(
+      `/trips/${tripId}/payments`,
+    );
+    expect(ledger.payments.length).toBeGreaterThan(0);
+    const debts = await apiFetch<{ success: true; balances: MoveRow[] }>(
+      `/trips/${tripId}/balances`,
+    );
+    // A debt row to draw, which a ledger split across one person could
+    // never produce.
+    expect(debts.balances.length).toBeGreaterThan(0);
+    const position = await apiFetch<{
+      success: true;
+      netBalance: number;
+      details: { person: { id: string; name: string }; amount: number }[];
+    }>(`/trips/${tripId}/balances/me`);
+    // The viewer owes on this fixture: the headline has a number and the
+    // details name who it is owed to.
+    expect(position.netBalance).toBeLessThan(0);
+    expect(position.details.length).toBeGreaterThan(0);
 
     // An event-sheet edit submits and is visible afterwards.
     const eventId = before.events[0]!.id;
@@ -174,6 +230,9 @@ describe("the demo data layer", () => {
       `GET /trips/${tripId}`,
       `GET /trips/${tripId}/members`,
       `GET /trips/${tripId}/events`,
+      `GET /trips/${tripId}/payments`,
+      `GET /trips/${tripId}/balances`,
+      `GET /trips/${tripId}/balances/me`,
       `PUT /events/${eventId}`,
       `PUT /accommodations/${stayId}`,
       `POST /trips/${tripId}/rsvp`,
@@ -327,5 +386,295 @@ describe("the demo data layer", () => {
       "/locations/autocomplete?q=&sessionToken=x",
     );
     expect(all.length).toBe(mexico.length + usa.length);
+  });
+
+  it("computes the ledger's moves from the expenses it serves", async () => {
+    const tripId = DEMO_TRIP_ID;
+    const roster = await apiFetch<{ success: true; members: MemberRow[] }>(
+      `/trips/${tripId}/members`,
+    );
+    const viewer = roster.members.find((row) => row.userId === "demo-viewer");
+    expect(viewer).toBeDefined();
+
+    const { payments } = await apiFetch<{
+      success: true;
+      payments: PaymentRow[];
+    }>(`/trips/${tripId}/payments`);
+    const { balances } = await apiFetch<{
+      success: true;
+      balances: MoveRow[];
+    }>(`/trips/${tripId}/balances`);
+    const mine = await apiFetch<{
+      success: true;
+      netBalance: number;
+      details: { person: { id: string; name: string }; amount: number }[];
+    }>(`/trips/${tripId}/balances/me`);
+
+    expect(payments.length).toBeGreaterThan(0);
+    expect(balances.length).toBeGreaterThan(0);
+
+    // Every expense names its people, and its shares add up to it — the
+    // sheet draws the split straight off these rows.
+    for (const payment of payments) {
+      expect(payment.participants.length).toBeGreaterThan(0);
+      expect(
+        payment.participants.reduce(
+          (sum, participant) => sum + participant.shareAmount,
+          0,
+        ),
+      ).toBe(payment.amount);
+      expect(payment.payerName.length).toBeGreaterThan(0);
+      expect(
+        roster.members.some((row) => row.id === payment.payerMemberId),
+      ).toBe(true);
+      for (const participant of payment.participants) {
+        expect(participant.name.length).toBeGreaterThan(0);
+        expect(
+          roster.members.some((row) => row.id === participant.memberId),
+        ).toBe(true);
+      }
+    }
+
+    // The one row that tells the two readings of the split rule apart:
+    // $50.00 across three is [1667, 1667, 1666] — the remainder cent goes
+    // one each to the first two — and never [1668, 1666, 1666].
+    const tacos = payments.find(
+      (payment) => payment.id === "demo-payment-tacos",
+    );
+    expect(tacos?.amount).toBe(5000);
+    expect(tacos?.participants.map((p) => p.shareAmount)).toEqual([
+      1667, 1667, 1666,
+    ]);
+
+    // The arithmetic the balances have to be: what each member paid, less
+    // what they owe. Recomputing it here is the point — a hardcoded
+    // balance would agree with the entries only until one of them moved.
+    const net = new Map<string, number>();
+    for (const payment of payments) {
+      net.set(
+        payment.payerMemberId,
+        (net.get(payment.payerMemberId) ?? 0) + payment.amount,
+      );
+      for (const participant of payment.participants) {
+        net.set(
+          participant.memberId,
+          (net.get(participant.memberId) ?? 0) - participant.shareAmount,
+        );
+      }
+    }
+    // Every cent paid is a cent somebody owes.
+    expect([...net.values()].reduce((sum, amount) => sum + amount, 0)).toBe(0);
+    const viewerNet = net.get(viewer!.id) ?? 0;
+    expect(viewerNet).not.toBe(0);
+
+    // The moves settle exactly that ledger: applying them zeroes
+    // everybody, which no other set of moves can do.
+    for (const move of balances) {
+      expect(move.amount).toBeGreaterThan(0);
+      expect(move.from.name.length).toBeGreaterThan(0);
+      expect(move.to.name.length).toBeGreaterThan(0);
+      net.set(move.from.id, (net.get(move.from.id) ?? 0) + move.amount);
+      net.set(move.to.id, (net.get(move.to.id) ?? 0) - move.amount);
+    }
+    for (const amount of net.values()) expect(amount).toBe(0);
+
+    // The reader's own read is those same moves told from their side.
+    expect(
+      balances.some(
+        (move) => move.from.id === viewer!.id || move.to.id === viewer!.id,
+      ),
+    ).toBe(true);
+    expect(mine.netBalance).toBe(viewerNet);
+    expect(mine.details.reduce((sum, detail) => sum + detail.amount, 0)).toBe(
+      -mine.netBalance,
+    );
+    for (const detail of mine.details) {
+      expect(detail.person.name.length).toBeGreaterThan(0);
+      expect(roster.members.some((row) => row.id === detail.person.id)).toBe(
+        true,
+      );
+    }
+
+    expect(getUnhandledApiUrls()).toEqual([]);
+  });
+
+  it("gives every demo trip a ledger the sheet can draw", async () => {
+    for (const tripId of DEMO_TRIP_IDS) {
+      const { payments } = await apiFetch<{
+        success: true;
+        payments: PaymentRow[];
+      }>(`/trips/${tripId}/payments`);
+      const detail = await apiFetch<{
+        success: true;
+        trip: { startDate: string; endDate: string };
+      }>(`/trips/${tripId}`);
+      const roster = await apiFetch<{ success: true; members: MemberRow[] }>(
+        `/trips/${tripId}/members`,
+      );
+
+      expect(payments.length).toBeGreaterThan(1);
+      // A note and no note: the sheet drops an absent note rather than
+      // printing a blank one, so both shapes have to be in the fixture.
+      expect(payments.some((payment) => (payment.note ?? "").length > 0)).toBe(
+        true,
+      );
+      expect(payments.some((payment) => payment.note === null)).toBe(true);
+      // A settlement: one participant, and not the payer — the row the
+      // sheet reads as "Settled up".
+      expect(
+        payments.filter(
+          (payment) =>
+            payment.participants.length === 1 &&
+            payment.participants[0]!.memberId !== payment.payerMemberId,
+        ).length,
+      ).toBeGreaterThan(0);
+      // A guest — the row the roster prints as "Guest", and a shape the
+      // API allows on either side of an expense. Without a second person
+      // a ledger nets to nothing and the sheet has no debt row at all,
+      // which is why every trip here carries one.
+      const guests = roster.members.filter((row) => row.userId === null);
+      expect(guests.length).toBeGreaterThan(0);
+      const guestIds = new Set(guests.map((row) => row.id));
+      expect(
+        payments.some(
+          (payment) =>
+            guestIds.has(payment.payerMemberId) ||
+            payment.participants.some((p) => guestIds.has(p.memberId)),
+        ),
+      ).toBe(true);
+
+      // Every day is inside the trip's own window, like every other date
+      // in the fixture, and reads back on the viewer's calendar — the
+      // zone the fixture writes its wall clocks in.
+      for (const payment of payments) {
+        const day = wallClock(payment.date, null).date;
+        expect(day >= detail.trip.startDate && day <= detail.trip.endDate).toBe(
+          true,
+        );
+      }
+
+      // Two id spaces, never crossed: `createdBy` is a **user** id, while
+      // the payer and every participant are **member** ids. Comparing one
+      // to the other is what puts Edit on somebody else's row.
+      const memberIds = new Set(roster.members.map((row) => row.id));
+      const userIds = new Set(roster.members.map((row) => row.userId));
+      for (const payment of payments) {
+        expect(userIds.has(payment.createdBy)).toBe(true);
+        expect(memberIds.has(payment.createdBy)).toBe(false);
+        expect(memberIds.has(payment.payerMemberId)).toBe(true);
+      }
+      // And one row the viewer filed, which is the one whose detail
+      // offers Edit — the viewer is never the organizer here.
+      expect(
+        payments.some((payment) => payment.createdBy === "demo-viewer"),
+      ).toBe(true);
+    }
+
+    expect(getUnhandledApiUrls()).toEqual([]);
+  });
+
+  it("records, edits and soft-deletes an expense", async () => {
+    const tripId = DEMO_TRIP_ID;
+    const roster = await apiFetch<{ success: true; members: MemberRow[] }>(
+      `/trips/${tripId}/members`,
+    );
+    const viewer = roster.members.find((row) => row.userId === "demo-viewer")!;
+    const others = roster.members.filter((row) => row.id !== viewer.id);
+    const [first, second] = [others[0]!.id, others[1]!.id];
+
+    const before = await apiFetch<{ success: true; netBalance: number }>(
+      `/trips/${tripId}/balances/me`,
+    );
+
+    // $100.01 across three: the remainder is 2, so the shares are
+    // [3334, 3334, 3333]. The form previews this and the server records
+    // it, so the demo's own write has to answer with it too.
+    const created = await apiFetch<{ success: true; payment: PaymentRow }>(
+      `/trips/${tripId}/payments`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          description: "Boat fuel",
+          amount: 10001,
+          payerMemberId: viewer.id,
+          participants: [
+            { memberId: viewer.id },
+            { memberId: first },
+            { memberId: second },
+          ],
+          note: "Venmo",
+        }),
+      },
+    );
+    expect(created.payment.participants.map((p) => p.shareAmount)).toEqual([
+      3334, 3334, 3333,
+    ]);
+    expect(created.payment.payerName).toBe("You");
+    expect(created.payment.note).toBe("Venmo");
+    expect(created.payment.createdBy).toBe("demo-viewer");
+
+    // It is in the trip's list, it stays out of the other trips' lists,
+    // and it moves the reader's own position by what they paid less their
+    // own share.
+    const listed = await apiFetch<{ success: true; payments: PaymentRow[] }>(
+      `/trips/${tripId}/payments`,
+    );
+    expect(listed.payments.some((row) => row.id === created.payment.id)).toBe(
+      true,
+    );
+    const otherTrip = await apiFetch<{
+      success: true;
+      payments: PaymentRow[];
+    }>(`/trips/${DEMO_TRIP_WEDDING_ID}/payments`);
+    expect(
+      otherTrip.payments.some((row) => row.id === created.payment.id),
+    ).toBe(false);
+    const afterCreate = await apiFetch<{ success: true; netBalance: number }>(
+      `/trips/${tripId}/balances/me`,
+    );
+    expect(afterCreate.netBalance).toBe(before.netBalance + (10001 - 3334));
+
+    // An edit recomputes the shares from the new amount — $90.01 across
+    // three is [3001, 3000, 3000] — and an empty note is the clearing
+    // value the server stores as null.
+    const updated = await apiFetch<{ success: true; payment: PaymentRow }>(
+      `/payments/${created.payment.id}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: 9001, note: "" }),
+      },
+    );
+    expect(updated.payment.amount).toBe(9001);
+    expect(updated.payment.participants.map((p) => p.shareAmount)).toEqual([
+      3001, 3000, 3000,
+    ]);
+    expect(updated.payment.note).toBeNull();
+    const afterEdit = await apiFetch<{ success: true; netBalance: number }>(
+      `/trips/${tripId}/balances/me`,
+    );
+    expect(afterEdit.netBalance).toBe(before.netBalance + (9001 - 3001));
+
+    // The delete is soft: the row leaves the list and the arithmetic with
+    // it, and a second delete is a 404 rather than a resurrection.
+    await apiFetch(`/payments/${created.payment.id}`, { method: "DELETE" });
+    const afterDelete = await apiFetch<{
+      success: true;
+      payments: PaymentRow[];
+    }>(`/trips/${tripId}/payments`);
+    expect(
+      afterDelete.payments.some((row) => row.id === created.payment.id),
+    ).toBe(false);
+    const finalBalance = await apiFetch<{ success: true; netBalance: number }>(
+      `/trips/${tripId}/balances/me`,
+    );
+    expect(finalBalance.netBalance).toBe(before.netBalance);
+    await expect(
+      apiFetch(`/payments/${created.payment.id}`, { method: "DELETE" }),
+    ).rejects.toThrow();
+
+    expect(inner).not.toHaveBeenCalled();
+    expect(getUnhandledApiUrls()).toEqual([]);
   });
 });

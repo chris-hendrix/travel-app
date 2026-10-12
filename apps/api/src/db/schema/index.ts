@@ -774,6 +774,8 @@ export const payments = pgTable(
       .notNull()
       .references(() => trips.id, { onDelete: "cascade" }),
     description: text("description").notNull(),
+    // "how was it paid" — a separate fact from what it was (nullable)
+    note: varchar("note", { length: 280 }),
     amount: integer("amount").notNull(), // cents to avoid floating point
     // Payer — a trip member (guests allowed; organizer records who paid)
     memberId: uuid("member_id")

@@ -20,7 +20,9 @@
  *   members + member detail (traveler rows are plain views), the
  *   travel board + travel detail + travel form (`POST /member-travel`
  *   is served, and "Add travel" is a real working submit), the event
- *   and stay detail dialogs (traveler gets "Done", served reads), and
+ *   and stay detail dialogs (traveler gets "Done", served reads), the
+ *   ledger + its detail + its form (the three money reads and the
+ *   three money writes are served), and
  *   trip settings (the "Trip settings" row serves `my-settings` plus
  *   the notification pair). `/trips/travel/form` and `/trips/settings`
  *   are NOT in the operator's minimum set but belong here: both are
@@ -65,6 +67,17 @@ export const DEMO_APP_ROUTES: readonly string[] = [
   "/trips/travel/detail",
   "/trips/travel/form",
   "/trips/settings",
+  // The ledger. The trip detail's `Settle` door is unconditional — it
+  // is not hidden on role or balance, because a door that appears only
+  // once you owe something is one nobody can find when they come to
+  // record the dinner that made them owe it — so the demo renders it
+  // and the visitor can press it. The adapter serves the three reads
+  // and the three writes, so by this file's own rule all three routes
+  // belong here: bouncing the visitor out of a screen we fully serve
+  // would be a dead end of our own making.
+  "/trips/settle",
+  "/trips/settle/detail",
+  "/trips/settle/form",
 ];
 
 /** Public pages: never bounced, and they end the demo scope. */

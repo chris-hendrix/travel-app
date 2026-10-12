@@ -128,6 +128,45 @@ describe("Payment Routes", () => {
       expect(names).toEqual(["Member", "Organizer"]);
     });
 
+    it("carries a note over the wire, and clears it with an empty string", async () => {
+      app = await buildApp();
+      const { organizer, trip, organizerMember } = await setupTrip();
+      const token = app.jwt.sign({
+        sub: organizer.id,
+        name: organizer.displayName,
+      });
+
+      const created = await app.inject({
+        method: "POST",
+        url: `/api/trips/${trip.id}/payments`,
+        cookies: { auth_token: token },
+        payload: {
+          description: "Dinner",
+          note: "Venmo",
+          amount: 3000,
+          payerMemberId: organizerMember.id,
+          participants: [{ memberId: organizerMember.id }],
+        },
+      });
+
+      expect(created.statusCode).toBe(201);
+      const createdBody = JSON.parse(created.body);
+      // `paymentEntitySchema` is the response serializer, so this line is
+      // the only thing that can prove the field reaches the client at all:
+      // drop `note` from that schema and this assertion is what fails.
+      expect(createdBody.payment.note).toBe("Venmo");
+
+      const cleared = await app.inject({
+        method: "PUT",
+        url: `/api/payments/${createdBody.payment.id}`,
+        cookies: { auth_token: token },
+        payload: { note: "" },
+      });
+
+      expect(cleared.statusCode).toBe(200);
+      expect(JSON.parse(cleared.body).payment.note).toBeNull();
+    });
+
     it("should resolve guest names for guest participant and guest payer", async () => {
       app = await buildApp();
       const { organizer, trip, plainMember } = await setupTrip();
@@ -317,6 +356,34 @@ describe("Payment Routes", () => {
       expect(body.payments[0].payerName).toBe("Organizer");
       expect(body.payments[0].participants[0].memberId).toBe(plainMember.id);
       expect(body.payments[0].participants[0].name).toBe("Member");
+    });
+
+    it("should return 403 for a non-member", async () => {
+      app = await buildApp();
+      const { trip } = await setupTrip();
+      const [stranger] = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "Stranger",
+          timezone: "UTC",
+        })
+        .returning();
+      const token = app.jwt.sign({
+        sub: stranger!.id,
+        name: stranger!.displayName,
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/api/trips/${trip.id}/payments`,
+        cookies: { auth_token: token },
+      });
+
+      expect(response.statusCode).toBe(403);
+      const body = JSON.parse(response.body);
+      expect(body.success).toBe(false);
+      expect(body.error.code).toBe("PERMISSION_DENIED");
     });
   });
 

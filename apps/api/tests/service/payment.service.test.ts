@@ -6,7 +6,11 @@ import { generateUniquePhone } from "../test-utils.js";
 import { PaymentService } from "@/services/payment.service.js";
 import { PermissionsService } from "@/services/permissions.service.js";
 import { GuestMemberService } from "@/services/guest-member.service.js";
-import { PaymentMemberNotInTripError, DuplicateParticipantError } from "@/errors.js";
+import { PaymentMemberNotInTripError, DuplicateParticipantError, PermissionDeniedError } from "@/errors.js";
+import {
+  createPaymentSchema,
+  updatePaymentSchema,
+} from "@journiful/shared/schemas";
 
 /**
  * Task 6.1 RED: payment.service member-keyed write path.
@@ -314,5 +318,121 @@ describe("payment.service member-keyed write path (Task 6.1)", () => {
         ],
       }),
     ).rejects.toThrow(PaymentMemberNotInTripError);
+  });
+
+  it("rejects a non-member reading the trip's payments with 403", async () => {
+    const outsider = await createUser("Outsider");
+
+    const err = await paymentService
+      .getPaymentsByTrip(outsider.id, tripId)
+      .catch((e) => e);
+
+    expect(err).toBeInstanceOf(PermissionDeniedError);
+    expect(err.statusCode).toBe(403);
+  });
+
+  /**
+   * The rules live in `shared/schemas/payment.ts` (strip control chars, then
+   * an empty-or-whitespace note is null), so each case drives the real wire
+   * path: schema parse -> service -> row read back.
+   */
+  describe("the note on a payment", () => {
+    const base = () => ({
+      description: "Dinner",
+      amount: 4000,
+      payerMemberId: organizerMemberId,
+      participants: [{ memberId: memberAMemberId }],
+    });
+
+    it("reads back the note it was created with", async () => {
+      const input = createPaymentSchema.parse({ ...base(), note: "Venmo" });
+
+      const payment = await paymentService.createPayment(
+        organizerId,
+        tripId,
+        input,
+      );
+
+      expect(payment.note).toBe("Venmo");
+
+      // And it survives a fresh read, not just the insert's echo
+      const [listed] = await paymentService.getPaymentsByTrip(
+        organizerId,
+        tripId,
+      );
+      expect(listed!.note).toBe("Venmo");
+    });
+
+    it("reads back null when no note was given", async () => {
+      const payment = await paymentService.createPayment(
+        organizerId,
+        tripId,
+        createPaymentSchema.parse(base()),
+      );
+
+      expect(payment.note).toBeNull();
+    });
+
+    it("treats an empty or whitespace-only note as null", async () => {
+      const empty = await paymentService.createPayment(
+        organizerId,
+        tripId,
+        createPaymentSchema.parse({ ...base(), note: "" }),
+      );
+      expect(empty.note).toBeNull();
+
+      const blank = await paymentService.createPayment(
+        organizerId,
+        tripId,
+        createPaymentSchema.parse({ ...base(), note: "   " }),
+      );
+      expect(blank.note).toBeNull();
+    });
+
+    it("strips control characters from a note", async () => {
+      const payment = await paymentService.createPayment(
+        organizerId,
+        tripId,
+        createPaymentSchema.parse({ ...base(), note: "Venmo\u0000\u0007 now" }),
+      );
+
+      expect(payment.note).toBe("Venmo now");
+    });
+
+    it("writes a note on update, and clears it with an empty string", async () => {
+      const payment = await paymentService.createPayment(
+        organizerId,
+        tripId,
+        createPaymentSchema.parse(base()),
+      );
+      expect(payment.note).toBeNull();
+
+      const withNote = await paymentService.updatePayment(
+        organizerId,
+        payment.id,
+        updatePaymentSchema.parse({ note: "Paid by Venmo" }),
+      );
+      expect(withNote.note).toBe("Paid by Venmo");
+
+      const cleared = await paymentService.updatePayment(
+        organizerId,
+        payment.id,
+        updatePaymentSchema.parse({ note: "" }),
+      );
+      expect(cleared.note).toBeNull();
+    });
+
+    it("rejects a note longer than 280 characters", () => {
+      const result = createPaymentSchema.safeParse({
+        ...base(),
+        note: "x".repeat(281),
+      });
+
+      expect(result.success).toBe(false);
+      expect(
+        createPaymentSchema.safeParse({ ...base(), note: "x".repeat(280) })
+          .success,
+      ).toBe(true);
+    });
   });
 });
