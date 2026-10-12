@@ -194,6 +194,18 @@ test.describe("Auth Journey", () => {
       await expect(
         page.getByText("An itinerary your friends will actually read"),
       ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+
+      // app/profile.tsx: a settled signed-out session lands here too. Its
+      // read is gated on the session flag, so without that guard the
+      // screen would spin "Loading profile" for good, with no copy and no
+      // retry to leave by.
+      await page.goto("/profile");
+      await page.waitForURL((url) => url.pathname === "/", {
+        timeout: NAVIGATION_TIMEOUT,
+      });
+      await expect(
+        page.getByText("An itinerary your friends will actually read"),
+      ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
     });
   });
 

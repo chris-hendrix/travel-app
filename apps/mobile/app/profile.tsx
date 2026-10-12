@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { Linking, Platform, Pressable, Text, View } from "react-native";
-import { Link, useRouter } from "expo-router";
+import { Link, Redirect, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "@/components/ui/Image";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
@@ -79,7 +79,26 @@ import { POP_FILL, initialsHue } from "@/lib/eventColors";
  */
 export default function ProfileScreen() {
   const { profile, status, error, retry } = useProfile();
+  const { status: session } = useAuth();
 
+  // A session that has positively ended has no profile to wait for, and
+  // the spinner below would be the whole of what this screen ever shows:
+  // the read behind it is gated on `sessionFlag`, so a signed-out
+  // visitor's query never starts, `status` stays `pending` for good, and
+  // there is no copy and no retry to get out with. The landing answers
+  // instead, the way `app/complete-profile.tsx` answers a reader with no
+  // session. It is reachable: this route carries no session guard, and
+  // the header's avatar renders whatever the session is, so a signed-out
+  // reader on `/trips` (a bookmark, a shared link, the browser's Back)
+  // opens this in one tap.
+  //
+  // The gate is `status` and never a null `user`: during `restoring` the
+  // person a deep link arrived for is still becoming known, and a stored
+  // token that resolves a moment later would have been thrown away by a
+  // bounce home. Only the settled answer that there is no session leaves.
+  if (session === "signed-out") {
+    return <Redirect href="/" />;
+  }
   if (status === "pending" || profile === null) {
     return (
       <FullscreenDialog title="Profile">
