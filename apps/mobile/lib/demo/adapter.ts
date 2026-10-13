@@ -158,6 +158,50 @@ function travelRow(tripId: string, record: DemoTrip["travel"][number]): MemberTr
   };
 }
 
+/**
+ * The demo's `GET /member-travel/locations` answer: the viewer's own
+ * travel wheres across the demo's trips, most recently updated first,
+ * deduped case-insensitively, capped at 20 — the API's own rule, so the
+ * demo ships the same list the real endpoint does rather than a
+ * placeholder. The viewer is always `demo-viewer` here; every trip's
+ * roster names them, and a trip they are not on contributes nothing.
+ */
+function demoMyLocations(store: DemoStore): string[] {
+  const seen = new Set<string>();
+  const locations: string[] = [];
+
+  for (const trip of store.trips) {
+    const viewerMemberId = (store.members.get(trip.id) ?? []).find(
+      (member) => member.userId === "demo-viewer",
+    )?.id;
+    if (!viewerMemberId) continue;
+
+    const rows = [...(store.travel.get(trip.id) ?? [])].sort(
+      (left, right) =>
+        new Date(right.updatedAt as unknown as string).getTime() -
+        new Date(left.updatedAt as unknown as string).getTime(),
+    );
+    for (const row of rows) {
+      if (row.memberId !== viewerMemberId) continue;
+      const ends =
+        row.travelType === "arrival"
+          ? [row.arrivalLocation, row.departureLocation]
+          : [row.departureLocation, row.arrivalLocation];
+      for (const end of ends) {
+        const location = end?.trim();
+        if (!location) continue;
+        const key = location.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        locations.push(location);
+        if (locations.length >= 20) return locations;
+      }
+    }
+  }
+
+  return locations;
+}
+
 function detailOf(trip: DemoTrip): TripDetail {
   const organizer = organizerOf(trip);
   return {
@@ -783,6 +827,15 @@ export function handleDemoRequest(
     if (!row) return notFound("Payment not found");
     if (verb === "PUT") return updatePayment(store, row, body);
     if (verb === "DELETE") return deletePayment(row);
+  }
+
+  // Before the id matcher, because `/member-travel/locations` would
+  // otherwise be read as the row whose id is "locations".
+  if (verb === "GET" && path === "/member-travel/locations") {
+    return {
+      status: 200,
+      body: { success: true, locations: demoMyLocations(store) },
+    };
   }
 
   const travelMatch = /^\/(member-travel)\/([^/]+)$/.exec(path);

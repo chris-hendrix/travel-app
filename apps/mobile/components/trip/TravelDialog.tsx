@@ -9,7 +9,12 @@ import { FieldError } from "@/components/ui/FieldError";
 import { TimeField } from "@/components/ui/TimeField";
 import { InlineError } from "@/components/ui/InlineError";
 import { NOT_SHARED } from "@/lib/wording";
-import { formatFlightNumber, isFlightNumber, lookupFlight } from "@/lib/flights";
+import type { PickerEntry } from "@/lib/dropdown";
+import {
+  formatFlightNumber,
+  isFlightNumber,
+  lookupFlight,
+} from "@/lib/flights";
 import { travelDays } from "@/lib/travelDays";
 import {
   farEndNote,
@@ -83,7 +88,7 @@ export function TravelDialog({
   records,
   seed,
   openDirection,
-  whereSuggestions,
+  whereEntries,
   filed,
   dismissHref,
   serverError,
@@ -125,8 +130,13 @@ export function TravelDialog({
   seed?: LegSeed | undefined;
   /** Which direction opens — the one that was tapped. */
   openDirection: TravelDirection;
-  /** Past wheres, so the field autocompletes instead of guessing. */
-  whereSuggestions: string[];
+  /**
+   * The `Where` field's rows: this trip's own wheres, the trip's
+   * destination, then the caller's other-trip wheres, ranked and deduped
+   * (`travelWhere`). A local list, which is why the field opens on press
+   * and why it needs no attribution.
+   */
+  whereEntries: PickerEntry[];
   dismissHref: string;
   /** The last save's or delete's failure: the dialog stays open on it. */
   serverError?: string | null;
@@ -325,7 +335,7 @@ export function TravelDialog({
                   onChange={setLeg}
                   trip={trip}
                   timeZone={timeZone}
-                  whereSuggestions={whereSuggestions}
+                  whereEntries={whereEntries}
                   errors={submitted ? errors[panel.value] : undefined}
                 />
               ) : null}
@@ -353,7 +363,7 @@ function LegFields({
   onChange,
   trip,
   timeZone,
-  whereSuggestions,
+  whereEntries,
   errors,
 }: {
   direction: TravelDirection;
@@ -363,7 +373,7 @@ function LegFields({
   /** See the dialog: for reading a lookup back into the fields, nothing
    *  more. The pickers and the readout say the time and nothing else. */
   timeZone: string | null;
-  whereSuggestions: string[];
+  whereEntries: PickerEntry[];
   errors: LegErrors | undefined;
 }) {
   const motion = useMotion();
@@ -458,7 +468,7 @@ function LegFields({
 
       <Dropdown
         label="Where"
-        options={whereSuggestions}
+        options={whereEntries}
         value={leg.location || null}
         onChange={(location) => {
           setLookupError(null);

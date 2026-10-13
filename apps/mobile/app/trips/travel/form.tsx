@@ -12,19 +12,21 @@ import {
   type TravelDirection,
   type TravelLeg,
 } from "@/lib/newTravel";
-import { getPertinentLocation } from "@journiful/shared/utils";
 import { useTrip } from "@/lib/tripsStore";
 import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { useTravel } from "@/lib/travelStore";
-import { useTravel as useTravelSection } from "@/lib/queries/travel";
+import {
+  useTravel as useTravelSection,
+  useMyTravelLocations,
+} from "@/lib/queries/travel";
+import { travelWhere } from "@/lib/travelWhere";
 import { toErrorCopy } from "@/lib/queries/errors";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { useAuth } from "@/lib/authStore";
 import { goingMembers, travelMemberOptions, viewerOf } from "@/lib/members";
 import { useMembers } from "@/lib/queries/members";
-import type { MockTravel } from "@/mocks/travel";
 
 import { useDismiss } from "@/hooks/useDismiss";
 
@@ -73,6 +75,11 @@ function TravelFormScreen() {
   // Warms the section query the store reads from, so a cold load
   // (deep link straight here) still finds the record once it lands.
   const { status: sectionStatus } = useTravelSection(trip?.id);
+  // The `Where` field's cross-trip suggestions. Read for its rows only,
+  // never for its status: the field already works from this trip's own
+  // wheres and the trip's destination, so a failed read narrows the list
+  // instead of blocking the form (see `useMyTravelLocations`).
+  const { locations: otherLocations } = useMyTravelLocations();
   // The zone the fields mean: the trip's own clock setting, the same one
   // the board behind this form is reading. What is typed is stamped in
   // it, and what it stamps is read back in it.
@@ -256,7 +263,7 @@ function TravelFormScreen() {
       openDirection={
         record?.travelType ?? duplicateFrom?.travelType ?? directionParam ?? "arrival"
       }
-      whereSuggestions={suggestionsFrom(records)}
+      whereEntries={travelWhere(records, trip, otherLocations)}
       filed={filed}
       dismissHref={boardHref}
       serverError={serverError}
@@ -333,16 +340,6 @@ function TravelFormScreen() {
       }}
     />
   );
-}
-
-/** Past wheres on this trip, so the field suggests rather than guesses. */
-function suggestionsFrom(records: MockTravel[]): string[] {
-  const seen = new Set<string>();
-  for (const record of records) {
-    const location = getPertinentLocation(record);
-    if (location) seen.add(location);
-  }
-  return [...seen].sort();
 }
 
 export type { TravelLeg };
