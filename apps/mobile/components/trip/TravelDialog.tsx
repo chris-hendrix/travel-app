@@ -5,7 +5,7 @@ import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { DayStrip } from "@/components/ui/DayStrip";
-import { Triangle } from "@/components/ui/DisclosureButton";
+import { Segmented } from "@/components/ui/Segmented";
 import { FieldError } from "@/components/ui/FieldError";
 import { TimeField } from "@/components/ui/TimeField";
 import { InlineError } from "@/components/ui/InlineError";
@@ -150,7 +150,6 @@ export function TravelDialog({
   /** A write is in flight: the dialog's own two buttons stop. */
   pending?: boolean;
 }) {
-  const motion = useMotion();
   // One rule for what the fields hold: the picked member's record for
   // that direction, else the seed a duplicate arrived with, else nothing
   // (`legsForMember`). The fields are *about* this member, so a `Who`
@@ -269,10 +268,13 @@ export function TravelDialog({
           onChange={onMemberChange}
           placeholder="Pick who this is for…"
           error={errors.memberId}
-          // The roster is already here, so entering the field is the
-          // question: showing nothing until a keystroke was how "Who"
-          // looked empty on a form that had everyone in it.
-          openOnPress
+          // A picker, not a search box. The roster is already here, so
+          // the field shows who is chosen and opens the list on press —
+          // and nothing can be typed into it that is not a member, which
+          // is what a menu that keeps uncommitted text gets wrong: the
+          // field read "Bob" while the form still held Alice, and the
+          // save went to Alice.
+          searchable={false}
         />
       ) : (
         <Text className="font-body-bold text-base text-ink">
@@ -290,82 +292,51 @@ export function TravelDialog({
         }
       />
 
-      {/* Two panels in fixed order, arrival first. Each header is a
-          radio: the chosen one is filled with ink and pressing it does
-          nothing, the other is paper and opens its panel. `radiogroup`
-          because it is a choice among visible options — the same role
-          pair the toggle it replaces carried. */}
-      <View role="radiogroup" className="gap-2">
-        {DIRECTIONS.map((panel) => {
-          const open = panel.value === direction;
-          const leg = legs[panel.value];
-          return (
-            <View key={panel.value} className="gap-2">
-              <Pressable
-                role="radio"
-                aria-selected={open}
-                onPress={() => setDirection(panel.value)}
-                className={`flex-row items-center gap-3 border border-ink px-3 py-3 ${
-                  open ? "bg-ink" : motion.pressDim
-                }`}
-              >
-                <View className="flex-1">
-                  <Text
-                    className={`font-display-semibold text-heading-lg uppercase ${
-                      open ? "text-sand" : "text-ink"
-                    }`}
-                  >
-                    {panel.heading}
-                  </Text>
-                  {/* The panel's own answer, in the same words the board's
-                      row uses: the day, the clock, and where. An unfilled
-                      direction says so here rather than reading as a
-                      screen you have not visited. */}
-                  <Text
-                    className={`font-body text-sm ${
-                      open ? "text-sand" : "text-ink"
-                    }`}
-                  >
-                    {legSummary(leg, panel.value) || NOT_SHARED}
-                  </Text>
-                </View>
+      {/* The two directions, as one choice *above* the fields rather than
+          a pair of panels around them.
 
-                {/* The shut panel's mark, and the answer to the question a
-                    shut panel raises: does this do anything? It reveals
-                    its fields in place, which is `DisclosureButton`'s
-                    shape exactly — a heading, its readout, and its
-                    content opening directly under it at the same width —
-                    so it wears that component's triangle rather than a
-                    mark of its own. The open panel carries none: the ink
-                    fill already says which one is chosen, and a second
-                    answer to one question is what this form has been
-                    getting rid of.
+          Both were visible before only by accident: the panels were
+          siblings, so the open one rendered its fields inside its own
+          wrapper and the other direction's header sat a whole screenful
+          below them. Filing an arrival and a departure meant scrolling
+          past everything to discover the second one existed. A segmented
+          pair puts the choice where the eye already is, and the fields
+          under it belong to whichever cell is filled — which is the same
+          relationship `Segmented` already carries everywhere else: a
+          choice among visible options, ink on the chosen one.
 
-                    The ground is the other half of it. A shut panel used
-                    to sit on `paper`, which is the ground a *field* wears
-                    (`TextField` is `border-ink bg-paper`), so a panel
-                    heading and a text input were the same white box with
-                    an ink border. Transparent is what the system's other
-                    borderless-fill control wears (`Button secondary`), and
-                    paper now means a field again. */}
-                {open ? null : <Triangle open={false} />}
-              </Pressable>
-
-              {open ? (
-                <LegFields
-                  direction={panel.value}
-                  leg={leg}
-                  onChange={setLeg}
-                  trip={trip}
-                  timeZone={timeZone}
-                  whereEntries={whereEntries}
-                  errors={submitted ? errors[panel.value] : undefined}
-                />
-              ) : null}
-            </View>
-          );
-        })}
+          The readout stays, because it was never about the control. It
+          is the chosen direction's own answer in the words the board's
+          row uses — the day, the clock and where — so a form that has
+          not been touched still says what this member has filed, and an
+          unfilled direction says so rather than reading as a screen
+          nobody has visited. */}
+      <View className="gap-2">
+        <Segmented
+          options={DIRECTIONS.map((panel) => ({
+            value: panel.value,
+            label: panel.heading,
+          }))}
+          value={direction}
+          onChange={setDirection}
+          // Two short labels: filling a 960px column would put a canyon
+          // between them, and this is the prop's own example.
+          width="content"
+        />
+        <Text className="font-body text-sm text-ink">
+          {legSummary(legs[direction], direction) || NOT_SHARED}
+        </Text>
       </View>
+
+      <LegFields
+        direction={direction}
+        leg={legs[direction]}
+        onChange={setLeg}
+        trip={trip}
+        timeZone={timeZone}
+        whereEntries={whereEntries}
+        errors={submitted ? errors[direction] : undefined}
+      />
     </FullscreenDialog>
   );
 }

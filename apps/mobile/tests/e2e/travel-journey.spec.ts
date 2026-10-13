@@ -125,22 +125,23 @@ test.describe("Travel Journey", () => {
       // and its one action reads `Add travel`.
       await page.getByRole("button", { name: "Add travel" }).last().click();
 
-      // The Who picker is an organizer's field, and the only member is
+      // The Who field is an organizer's picker, and the only member is
       // the viewer, so it opens answered: the roster's own name for them.
-      await expect(page.getByRole("textbox", { name: "Who" })).toHaveValue(
-        memberName,
-        { timeout: NAVIGATION_TIMEOUT },
-      );
+      // It is a picker rather than a text box now, so it is read as the
+      // button it is, named by the value it shows.
+      await expect(page.getByRole("button", { name: memberName })).toBeVisible({
+        timeout: NAVIGATION_TIMEOUT,
+      });
 
       // components/ui/DayStrip.tsx: each cell is `role="radio"` named
       // "Thu 12" — the trip's own days, and the morning after it ends.
       await page.getByRole("radio", { name: dayCellLabel(startDate) }).click();
 
       // components/ui/TimeField.tsx: closed, the field is a button
-      // named by what it shows. Nothing is set yet, so both read
-      // "Pick a time"; the arrival's own end is `Lands`, which is the
-      // second one in the panel, and the far end is never required.
-      await page.getByRole("button", { name: "Pick a time" }).last().click();
+      // named by what it shows. The arrival's own end is `Lands`, the
+      // only one still asking — `Leaves` is optional for an arrival and
+      // says so — so the required field is the one to press.
+      await page.getByRole("button", { name: "Pick a time" }).click();
       // Open, the field is a column of `role="radio"` slots labelled the
       // way the itinerary prints them.
       await page.getByRole("radio", { name: "9:00 AM" }).click();
@@ -254,12 +255,16 @@ test.describe("Travel Journey", () => {
       await expect(
         page.getByRole("button", { name: clockIn(arrivalIso(), tripZone) }),
       ).toBeVisible();
-      // The far end was never filed, so exactly one time field is still
-      // asking — which is how this spec reads "the record's own values"
-      // without re-testing the formatter.
+      // The far end was never filed, and it says so rather than asking:
+      // a leg's counterpart is optional, so the one field still asking is
+      // the arrival's own end — which is how this spec reads "the
+      // record's own values" without re-testing the formatter.
+      await expect(page.getByRole("button", { name: "Pick a time" })).toHaveCount(
+        0,
+      );
       await expect(
-        page.getByRole("button", { name: "Pick a time" }),
-      ).toHaveCount(1);
+        page.getByRole("button", { name: "No departure time" }),
+      ).toBeVisible();
       // Delete names the direction this URL is about. It is only
       // rendered for a filed direction, and it is the clearest signal
       // that the form resolved the record rather than the viewer.
@@ -367,18 +372,23 @@ test.describe("Travel Journey", () => {
       await expect(page.getByText("Edit travel", { exact: true })).toBeVisible({
         timeout: NAVIGATION_TIMEOUT,
       });
-      await expect(page.getByRole("textbox", { name: "Who" })).toHaveValue(
-        memberName,
-      );
+      await expect(page.getByRole("button", { name: memberName })).toBeVisible();
       // The deleted direction's fields are empty and its door is gone —
       // a panel still holding the deleted record's values would offer to
       // re-file it under a verb that says "Add travel".
       await expect(page.getByRole("textbox", { name: "Where" })).toHaveValue(
         "",
       );
+      // One field still asks — the arrival's own end, which is required —
+      // and the other says it is optional, which is the difference the
+      // form draws between an answer nobody has given and one nobody has
+      // to.
       await expect(page.getByRole("button", { name: "Pick a time" })).toHaveCount(
-        2,
+        1,
       );
+      await expect(
+        page.getByRole("button", { name: "No departure time" }),
+      ).toBeVisible();
       await expect(page.getByText("Not shared yet")).toHaveCount(1);
       await expect(
         page.getByRole("button", { name: "Delete arrival" }),

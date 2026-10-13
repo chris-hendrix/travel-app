@@ -22,14 +22,8 @@ import { INK } from "@/lib/theme";
  * trigger already says what it is and which way
  * it goes through `aria-expanded`, and a mark that only repeats that is noise
  * in the tree.
- *
- * Exported because there is now a second thing that reveals content in
- * place: the travel form's shut direction panel, which is the same shape
- * of control — a heading, its readout, and its fields opening directly
- * under it at the same width. One mark, one owner: the second caller
- * imports this rather than drawing its own triangle.
  */
-export function Triangle({ open }: { open: boolean }) {
+function Triangle({ open }: { open: boolean }) {
   const motion = useMotion();
 
   return (
