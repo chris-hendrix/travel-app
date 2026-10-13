@@ -120,7 +120,18 @@ function TripTravelDialog() {
         <Text className="font-body text-base text-ink">
           Nobody has shared their times yet.
         </Text>
-      ) : null}
+      ) : (
+        // Said once rather than marked eight times. The row carries the
+        // day, the name and the clock; the where, the flight and the
+        // prose are on the row's own screen, and nothing on a row says
+        // so — the system's rows take no chevron (`ScheduleRow` carries
+        // the rule), and the press fill is gravel on gravel here. So the
+        // board says what a press does, in the form's own vocabulary,
+        // and only when there is a filed record behind a row to open.
+        <Text className="font-body text-sm text-grey-quiet">
+          A row opens on the where, the flight and the details.
+        </Text>
+      )}
 
       {travelStatus === "success" ? (
         <View className="gap-8">
