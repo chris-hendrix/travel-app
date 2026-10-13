@@ -9,7 +9,7 @@ import { DisclosureButton } from "@/components/ui/DisclosureButton";
 import { QuietAction } from "@/components/ui/QuietAction";
 import { Segmented } from "@/components/ui/Segmented";
 import { MOTION, REDUCED_MOTION } from "@/components/ui/motionClasses";
-import { Section, Specimen } from "./frame";
+import { Section, Specimen } from "@/components/design/frame";
 
 /**
  * The six questions, in the order they are asked.
