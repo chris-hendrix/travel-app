@@ -158,6 +158,31 @@ const row =
   "transition-colors duration-150 ease-motion active:bg-gravel md:hover:bg-gravel";
 
 /**
+ * The same press as `row`, on a dialog's ground.
+ *
+ * A dialog's ground is gravel, and `row`'s fill is gravel too — so on the
+ * screens with the most rows in them (the travel board, the roster, the
+ * ledger) a row lit up to the colour it already was. Measured, not
+ * guessed: the row's computed background is `rgba(0, 0, 0, 0)` at rest
+ * and `rgb(226, 222, 213)` on hover *and* on press, and that is the
+ * dialog's own ground. A control with no press state feels dead — the
+ * vocabulary's own rule — and these had one that could not be seen.
+ *
+ * `concrete` is the palette's other muted fill, so a row lights *darker*
+ * on gravel the way it lights darker on sand, and the vocabulary keeps one
+ * answer per ground rather than a fill that only reads on one of them. It
+ * is not in the mark tier either, so the same promise holds: a lit row
+ * cannot be mistaken for a chosen one.
+ *
+ * A control that inverts on its own press does not need this — a
+ * `Checkbox`'s tick is its feedback, and its row is a target around it —
+ * which is why `row` stays on the checkbox and this is spent on the rows
+ * that only navigate.
+ */
+const rowOnGravel =
+  "transition-colors duration-150 ease-motion active:bg-concrete md:hover:bg-concrete";
+
+/**
  * A control that inverts when its value changes and is not itself the
  * target: the inner box of a `Checkbox`, whose fill goes to ink on the tick.
  * Its press lives on the row around it (`row`), which is the target.
@@ -202,6 +227,7 @@ export const MOTION = {
   pressFill,
   pressDim,
   row,
+  rowOnGravel,
   state,
   disclosure,
 } as const;
@@ -230,6 +256,9 @@ export const REDUCED_MOTION: Record<MotionRole, string> = {
   // same in both modes. The one entry here with nothing to say.
   pressDim,
   row,
+  // Colour, and colour is kept: this role is a fill in both modes, so it
+  // reads the same either way.
+  rowOnGravel,
   state,
   // Turns are the thing being dropped, and there is no substitute: the row
   // it opens is the state change, and the trigger already announces whether
