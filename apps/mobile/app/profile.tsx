@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { Linking, Platform, Pressable, Text, View } from "react-native";
-import { Link, useRouter } from "expo-router";
+import { Link, Redirect, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "@/components/ui/Image";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
@@ -79,7 +79,26 @@ import { POP_FILL, initialsHue } from "@/lib/eventColors";
  */
 export default function ProfileScreen() {
   const { profile, status, error, retry } = useProfile();
+  const { status: session } = useAuth();
 
+  // A session that has positively ended has no profile to wait for, and
+  // the spinner below would be the whole of what this screen ever shows:
+  // the read behind it is gated on `sessionFlag`, so a signed-out
+  // visitor's query never starts, `status` stays `pending` for good, and
+  // there is no copy and no retry to get out with. The landing answers
+  // instead, the way `app/complete-profile.tsx` answers a reader with no
+  // session. It is reachable: this route carries no session guard, and
+  // the header's avatar renders whatever the session is, so a signed-out
+  // reader on `/trips` (a bookmark, a shared link, the browser's Back)
+  // opens this in one tap.
+  //
+  // The gate is `status` and never a null `user`: during `restoring` the
+  // person a deep link arrived for is still becoming known, and a stored
+  // token that resolves a moment later would have been thrown away by a
+  // bounce home. Only the settled answer that there is no session leaves.
+  if (session === "signed-out") {
+    return <Redirect href="/" />;
+  }
   if (status === "pending" || profile === null) {
     return (
       <FullscreenDialog title="Profile">
@@ -289,20 +308,23 @@ function ProfileForm({ profile }: { profile: Profile }) {
   }
 
   /**
-   * The second press of the foot's door. The session has to be gone before
-   * this screen moves anywhere: `deleteAccount` in the store runs the DELETE,
-   * the token drop, the cache clear and the same local reset `signOut` does,
-   * so the login screen's guard is not left reading a provider that still
-   * believes there is a session (which bounces the person straight back to
-   * the trips list of an account that no longer exists). It throws like every
-   * other write; the copy below is what a person reads when it does.
+   * The second press of the foot's door. The whole of it is the store's:
+   * `deleteAccount` runs the DELETE and then the same seam `signOut` uses —
+   * the local reset, the way out of the session's screens, the token drop
+   * and the cache clear — so the session is gone before anything moves and
+   * the leaving already lands on `/login`. Nothing here navigates, for the
+   * reason the sign-out belt is gone: a `replace` on this side would fire
+   * once the DELETE had answered, with the reader somewhere else already,
+   * and it swaps only the top of the stack — `/trips` would stay mounted
+   * behind `/login` rebuilding the query the clear had just emptied. It
+   * throws like every other write; the copy below is what a person reads
+   * when it does.
    */
   async function removeAccount() {
     setDeletingAccount(true);
     setDeleteFailure(null);
     try {
       await deleteAccount();
-      router.replace("/login");
     } catch (caught) {
       // The same mapper `removeTrip` reads, and the same disarm on failure:
       // a failed delete is not a reason to offer the button again in the
@@ -693,10 +715,20 @@ function ProfileForm({ profile }: { profile: Profile }) {
             // up, which is what every other content button in this system
             // does — a lone action stretched across a wide screen is a band,
             // not a button.
-            // Await the real sign-out (server POST, token drop, cache
-            // clear) before leaving: navigating first would let the
-            // login screen render while signed-in data is still cached.
-            onPress={() => void signOut().then(() => router.replace("/login"))}
+            // `signOut` does the whole of it — the local reset, the way
+            // out of the session's screens, the cache clear, then the
+            // server POST and the token drop (see `endSession`) — and its
+            // leaving already lands on `/login`, so a second `replace`
+            // here has nothing left to do. It was worse than redundant:
+            // it fires only once the logout round trip has answered (up to
+            // `REQUEST_TIMEOUT_MS` when the API is unreachable), and by
+            // then the reader is on `/login`, where a `replace` gives the
+            // route a new key and remounts it — enough to clear a
+            // half-typed number, or to pull someone out of `/verify` and
+            // back to the start. And nothing needed carrying: `Delete
+            // account` leaves the session through the store's own seam,
+            // which lands in the same place.
+            onPress={() => void signOut()}
           />
           {/* The door is absent under impersonation, not disabled and not
               explained: the session on screen is the admin's, not this

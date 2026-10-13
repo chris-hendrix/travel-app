@@ -33,7 +33,7 @@ vi.mock("@/lib/push", async (importOriginal) => {
 import { QueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import { signOutServer } from "@/lib/queries/auth";
-import { performSignOut } from "@/lib/authStore";
+import { endSession, performSignOut } from "@/lib/authStore";
 import { clearToken } from "@/lib/session";
 
 const mockedApiFetch = vi.mocked(apiFetch);
@@ -103,5 +103,109 @@ describe("performSignOut", () => {
     await performSignOut(new QueryClient());
 
     expect(order).toEqual(["unregister", "logout"]);
+  });
+});
+
+/**
+ * The whole of sign-out as one sequence, because the order is the only
+ * thing standing between the person and a 401 they never asked for.
+ *
+ * Two things have to be true before the cache is emptied, and this test
+ * pins both ends of it. The **leave** removes the observers: the
+ * session's screens are still mounted while they are being signed out
+ * (the profile dialog covers the trips list rather than replacing it),
+ * and an emptied entry is built again — empty, pending, and fetched — by
+ * the next render of any observer still on it. A flip of the session's
+ * state alone re-renders `useAuth`'s consumers and nothing else, so the
+ * leaving has to be a navigation out of those screens. The **clear** then
+ * runs while the bearer still answers, so a render that slips through
+ * issues an authenticated request instead of the anonymous one that came
+ * back 401 `Invalid or expired token` into the screen's error boundary —
+ * and nothing of the previous account's is left in memory for a Back
+ * during `performSignOut`'s round trip.
+ *
+ * The reset and the way out are a caller's own steps, so they arrive here
+ * as callbacks and are asserted by order against everything that must come
+ * after them: the clear (still ahead of the token), the push unsubscribe
+ * (still authenticated, and it has to stay that way), the logout, and the
+ * token drop. The 401 recovery listener signs out through the same seam,
+ * so this is the one order to pin rather than two.
+ */
+describe("the session leaves before the token goes", () => {
+  it("resets the session's state and its screens, clears the cache, then drops the token", async () => {
+    mockedApiFetch.mockImplementation(async (path: string) => {
+      order.push(path === "/auth/logout" ? "logout" : "other");
+      return logoutBody();
+    });
+    // The token store and the cache clear report themselves too, so the
+    // assertion is the sequence rather than any one call's count.
+    mockedClearToken.mockImplementation(async () => {
+      order.push("clearToken");
+    });
+    const client = new QueryClient();
+    const clear = client.clear.bind(client);
+    vi.spyOn(client, "clear").mockImplementation(() => {
+      order.push("clear");
+      clear();
+    });
+
+    await endSession(
+      client,
+      () => {
+        order.push("leave");
+      },
+      () => {
+        order.push("leaveRoutes");
+      },
+    );
+
+    // `clear` twice, and the first one is the point: the cache is emptied
+    // while the bearer still answers, so a late render cannot 401, and the
+    // second is `performSignOut`'s backstop for whatever that render wrote.
+    expect(order).toEqual([
+      "leave",
+      "leaveRoutes",
+      "clear",
+      "unregister",
+      "logout",
+      "clearToken",
+      "clear",
+    ]);
+  });
+
+  it("the recovery path's two-argument call signs out without leaving", async () => {
+    // The 401 listener passes no `leaveRoutes` on purpose: the auth flow's
+    // own guards decide where a signed-out reader belongs, and `dismissAll`
+    // plus `/login` would overrule them (`/complete-profile` sends them to
+    // the landing). So a call with two arguments has to do the whole of
+    // sign-out and route nothing — the absence of a `leaveRoutes` step in
+    // the sequence below is the assertion. The call site's own shape is
+    // pinned in `session-end-wiring.test.ts`.
+    mockedApiFetch.mockImplementation(async (path: string) => {
+      order.push(path === "/auth/logout" ? "logout" : "other");
+      return logoutBody();
+    });
+    mockedClearToken.mockImplementation(async () => {
+      order.push("clearToken");
+    });
+    const client = new QueryClient();
+    const clear = client.clear.bind(client);
+    vi.spyOn(client, "clear").mockImplementation(() => {
+      order.push("clear");
+      clear();
+    });
+
+    await endSession(client, () => {
+      order.push("leave");
+    });
+
+    expect(order).toEqual([
+      "leave",
+      "clear",
+      "unregister",
+      "logout",
+      "clearToken",
+      "clear",
+    ]);
   });
 });

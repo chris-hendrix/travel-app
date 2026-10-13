@@ -27,10 +27,11 @@ export const REQUEST_TIMEOUT_MS = 10_000;
  * A 401 reached the shared boundary: the stored token is dead (expired
  * or revoked server-side) and staying signed in only replays the same
  * failure on every screen. Listeners run once per 401 — the auth
- * provider subscribes and signs out through `performSignOut` (token
- * drop, cache clear, state reset), which is what routes back to
- * sign-in. Field-level 401 copy (`lib/queries/errors.ts`) is untouched:
- * it still describes the failure where its content would have been.
+ * provider subscribes and signs out through `endSession` (state reset,
+ * way out of the session's screens, cache clear, then the token drop),
+ * which is what routes back to sign-in. Field-level 401 copy
+ * (`lib/queries/errors.ts`) is untouched: it still describes the failure
+ * where its content would have been.
  */
 type UnauthorizedListener = () => void;
 

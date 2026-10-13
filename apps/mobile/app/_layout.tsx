@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Platform, View } from "react-native";
 import { QueryClientProvider, focusManager } from "@tanstack/react-query";
 import { makeQueryClient } from "@/lib/queries/client";
@@ -73,6 +73,20 @@ SplashScreen.preventAutoHideAsync();
 setSplashOptions({ duration: 200, fade: true });
 export default function RootLayout() {
   const pathname = usePathname();
+  // The way out of the screens a session was showing.
+  //
+  // The store owns *when* a session ends and knows nothing about routing,
+  // so the leaving is handed to it from here, where the stack lives. The
+  // pop comes first and matters: the screens a session opened are dialogs
+  // on top of the one it started from (the profile dialog covers the trips
+  // list), and `replace` alone swaps only the top screen — `/login` would
+  // land on top of the list, which would then sit behind it rebuilding the
+  // query whose cache sign-out had just emptied.
+  const router = useRouter();
+  const leaveSessionRoutes = useCallback(() => {
+    router.dismissAll();
+    router.replace("/login");
+  }, [router]);
   // The window is edge-to-edge on Android, so the system bars are drawn
   // over the app: without these the header's row (the wordmark, the bell,
   // Sign in) sits under the clock and the battery, and a dialog's title
@@ -153,7 +167,7 @@ export default function RootLayout() {
   // app screen's copy, and vice versa.
   return (
     <QueryClientProvider client={queryClient}>
-    <AuthProvider>
+    <AuthProvider leaveRoutes={leaveSessionRoutes}>
     <DemoGuard />
     <TripsProvider>
       <EventsProvider>

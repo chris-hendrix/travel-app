@@ -10,9 +10,16 @@
  * and no imports, so a store can gate a query on the session without
  * dragging a native module into its static graph.
  *
- * It is a *cache* of the auth store's state, never a second source of
- * truth: `AuthProvider` writes it on every transition, and readers only
- * ever ask "should I fetch yet".
+ * It means a *real* session, and that is narrower than "somebody is
+ * reading the app as someone": the demo's fixture identity is
+ * deliberately not written here (`setDemoAuthUser` paints `useAuth` and
+ * nothing else), because the reads this gates must not be issued by an
+ * anonymous visitor, and a demo visitor holds no token. So the flag is a
+ * *cache* of the auth store's state, never a second source of truth:
+ * `AuthProvider` writes it on restore, sign-in and sign-out, and readers
+ * only ever ask "should I fetch yet". The same distinction is why
+ * `useAuth()` is the wrong gate for a read that must not fire without a
+ * session — it reports the fixture as signed in.
  */
 let signedIn = false;
 const listeners = new Set<() => void>();
