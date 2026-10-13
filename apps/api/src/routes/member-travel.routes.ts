@@ -15,6 +15,7 @@ import {
   updateMemberTravelSchema,
   memberTravelListResponseSchema,
   memberTravelResponseSchema,
+  myTravelLocationsResponseSchema,
   successResponseSchema,
 } from "@journiful/shared/schemas";
 import type {
@@ -71,6 +72,26 @@ export async function memberTravelRoutes(fastify: FastifyInstance) {
       preHandler: [authenticate, checkBanned],
     },
     memberTravelController.listMemberTravel,
+  );
+
+  /**
+   * GET /member-travel/locations
+   * The caller's own travel locations across trips, most recently
+   * updated first, capped at 20 — the `Where` field's cross-trip
+   * suggestions. Declared before `GET /member-travel/:id` so the static
+   * segment is read as the route it is rather than as an id.
+   * Requires authentication only (not complete profile)
+   */
+  fastify.get(
+    "/member-travel/locations",
+    {
+      schema: {
+        response: { 200: myTravelLocationsResponseSchema },
+      },
+      config: { rateLimit: defaultRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
+    },
+    memberTravelController.getMyLocations,
   );
 
   /**

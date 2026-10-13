@@ -546,6 +546,123 @@ describe("member-travel.service", () => {
     });
   });
 
+  describe("getMyLocations", () => {
+    it("returns the caller's own locations, a leg's own end first", async () => {
+      // The fixture row is member 1's arrival: "Airport" is its own end,
+      // and the departure the flight lookup filled in is the counterpart.
+      await db
+        .update(memberTravel)
+        .set({ departureLocation: "JFK T4" })
+        .where(eq(memberTravel.id, testMemberTravelId));
+
+      const locations = await memberTravelService.getMyLocations(testMember1Id);
+
+      expect(locations).toEqual(["Airport", "JFK T4"]);
+    });
+
+    it("never returns another member's locations", async () => {
+      await db.insert(memberTravel).values({
+        tripId: testTripId,
+        memberId: testMember2MemberId,
+        travelType: "arrival",
+        arrivalTime: new Date("2026-06-11T09:00:00Z"),
+        arrivalLocation: "Member 2 Airport",
+      });
+
+      expect(await memberTravelService.getMyLocations(testMember1Id)).toEqual([
+        "Airport",
+      ]);
+      expect(await memberTravelService.getMyLocations(testMember2Id)).toEqual([
+        "Member 2 Airport",
+      ]);
+      // A signed-in user with no member row on any trip has nothing.
+      expect(await memberTravelService.getMyLocations(testNonMemberId)).toEqual(
+        [],
+      );
+    });
+
+    it("returns nothing for a caller with no travel at all", async () => {
+      expect(await memberTravelService.getMyLocations(testOrganizerId)).toEqual(
+        [],
+      );
+    });
+
+    it("dedupes case-insensitively, keeping the newest spelling", async () => {
+      await db
+        .update(memberTravel)
+        .set({
+          arrivalLocation: "  bcn t2  ",
+          updatedAt: new Date(Date.now() - 60_000),
+        })
+        .where(eq(memberTravel.id, testMemberTravelId));
+      await db.insert(memberTravel).values({
+        tripId: testTripId,
+        memberId: testMember1MemberId,
+        travelType: "departure",
+        departureTime: new Date("2026-06-20T10:00:00Z"),
+        departureLocation: "BCN T2",
+      });
+
+      expect(await memberTravelService.getMyLocations(testMember1Id)).toEqual([
+        "BCN T2",
+      ]);
+    });
+
+    it("orders by the record's own updated_at, newest first", async () => {
+      await db
+        .update(memberTravel)
+        .set({ updatedAt: new Date(Date.now() - 60_000) })
+        .where(eq(memberTravel.id, testMemberTravelId));
+      await db.insert(memberTravel).values({
+        tripId: testTripId,
+        memberId: testMember1MemberId,
+        travelType: "departure",
+        departureTime: new Date("2026-06-20T10:00:00Z"),
+        departureLocation: "BCN T2",
+      });
+
+      expect(await memberTravelService.getMyLocations(testMember1Id)).toEqual([
+        "BCN T2",
+        "Airport",
+      ]);
+    });
+
+    it("leaves out a soft-deleted record", async () => {
+      await memberTravelService.deleteMemberTravel(
+        testMember1Id,
+        testMemberTravelId,
+      );
+
+      expect(await memberTravelService.getMyLocations(testMember1Id)).toEqual(
+        [],
+      );
+    });
+
+    it("caps the list at 20 while still ordering it newest first", async () => {
+      // Ahead of the fixture row, so the cap's cut is what the assertion
+      // reads rather than which row happened to be written first.
+      const base = Date.now() + 1_000;
+      for (let index = 0; index < 25; index += 1) {
+        await db.insert(memberTravel).values({
+          tripId: testTripId,
+          memberId: testMember1MemberId,
+          travelType: "arrival",
+          arrivalTime: new Date("2026-06-12T09:00:00Z"),
+          arrivalLocation: `Where ${index}`,
+          updatedAt: new Date(base + index * 1_000),
+        });
+      }
+
+      const locations = await memberTravelService.getMyLocations(testMember1Id);
+
+      expect(locations).toHaveLength(20);
+      // The last one written is the first one read, and the oldest five
+      // — 0 through 4, plus the fixture's own where — are what fall off.
+      expect(locations[0]).toBe("Where 24");
+      expect(locations).not.toContain("Where 4");
+    });
+  });
+
   describe("updateMemberTravel", () => {
     it("should update member travel as owner", async () => {
       const updateData = {

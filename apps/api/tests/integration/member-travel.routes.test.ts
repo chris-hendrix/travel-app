@@ -355,6 +355,82 @@ describe("Member Travel Routes", () => {
     });
   });
 
+  describe("GET /api/member-travel/locations", () => {
+    it("returns the caller's own locations", async () => {
+      app = await buildApp();
+
+      const [testUser] = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "Test User",
+          timezone: "UTC",
+        })
+        .returning();
+
+      const [trip] = await db
+        .insert(trips)
+        .values({
+          name: "Test Trip",
+          destination: "Paris",
+          preferredTimezone: "Europe/Paris",
+          createdBy: testUser.id,
+        })
+        .returning();
+
+      const [member] = await db
+        .insert(members)
+        .values({ tripId: trip.id, userId: testUser.id, status: "going" })
+        .returning();
+
+      await db.insert(memberTravel).values({
+        tripId: trip.id,
+        memberId: member.id,
+        travelType: "arrival",
+        arrivalTime: new Date("2026-06-15T14:00:00Z"),
+        arrivalLocation: "CDG Airport",
+      });
+
+      const token = app.jwt.sign({
+        sub: testUser.id,
+        name: testUser.displayName,
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/member-travel/locations",
+        cookies: { auth_token: token },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(JSON.parse(response.body)).toEqual({
+        success: true,
+        locations: ["CDG Airport"],
+      });
+
+      // Cleanup
+      await db.delete(memberTravel).where(eq(memberTravel.tripId, trip.id));
+      await db.delete(members).where(eq(members.tripId, trip.id));
+      await db.delete(trips).where(eq(trips.id, trip.id));
+      await db.delete(users).where(eq(users.id, testUser.id));
+    });
+
+    it("returns 401 if not authenticated", async () => {
+      app = await buildApp();
+
+      // 401 rather than 400 is also what proves the static segment
+      // resolves ahead of `GET /member-travel/:id`: a request that fell
+      // into the id route would fail its UUID param schema before the
+      // authenticate hook ever ran.
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/member-travel/locations",
+      });
+
+      expect(response.statusCode).toBe(401);
+    });
+  });
+
   describe("GET /api/member-travel/:id", () => {
     it("should get member travel by ID", async () => {
       app = await buildApp();

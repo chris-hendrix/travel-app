@@ -135,6 +135,52 @@ export const memberTravelController = {
   },
 
   /**
+   * Locations endpoint
+   * Returns the caller's own travel locations across trips, as the
+   * `Where` field's cross-trip suggestions (D6).
+   *
+   * @route GET /api/member-travel/locations
+   * @middleware authenticate
+   * @param request - Fastify request
+   * @param reply - Fastify reply object
+   * @returns Success response with the caller's own location strings
+   */
+  async getMyLocations(
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<void> {
+    try {
+      const { memberTravelService } = request.server;
+      const userId = request.user.sub;
+
+      const locations = await memberTravelService.getMyLocations(userId);
+
+      return reply.status(200).send({
+        success: true,
+        locations,
+      });
+    } catch (error) {
+      // Re-throw typed errors for error handler
+      if (error && typeof error === "object" && "statusCode" in error) {
+        throw error;
+      }
+
+      request.log.error(
+        { error, userId: request.user.sub },
+        "Failed to get member travel locations",
+      );
+
+      return reply.status(500).send({
+        success: false,
+        error: {
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to get member travel locations",
+        },
+      });
+    }
+  },
+
+  /**
    * Get member travel by ID
    * Returns member travel details for authorized users
    *

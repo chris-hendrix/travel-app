@@ -113,6 +113,21 @@ export const memberTravelResponseSchema = z.object({
   memberTravel: memberTravelEntitySchema,
 });
 
+/**
+ * GET /api/member-travel/locations — the travel wheres the caller's own
+ * records already hold, across trips. Strings only, on purpose: this
+ * feeds the `Where` field's suggestion list (D6), which autocompletes
+ * from strings we already have and never from a place lookup — no place
+ * id, no coordinates, and therefore no maps attribution.
+ */
+export const myTravelLocationsResponseSchema = z.object({
+  success: z.literal(true),
+  locations: z.array(z.string()),
+});
+
 // Inferred TypeScript types from schemas
 export type CreateMemberTravelInput = z.infer<typeof createMemberTravelSchema>;
 export type UpdateMemberTravelInput = z.infer<typeof updateMemberTravelSchema>;
+export type MyTravelLocationsResponse = z.infer<
+  typeof myTravelLocationsResponseSchema
+>;

@@ -5,7 +5,7 @@ import {
   trips,
   type MemberTravel,
 } from "@/db/schema/index.js";
-import { eq, and, isNull, getTableColumns, count, sql } from "drizzle-orm";
+import { eq, and, isNull, getTableColumns, count, sql, desc } from "drizzle-orm";
 import type {
   CreateMemberTravelInput,
   UpdateMemberTravelInput,
@@ -59,6 +59,15 @@ export interface IMemberTravelService {
     tripId: string,
     includeDeleted?: boolean,
   ): Promise<MemberTravel[]>;
+
+  /**
+   * Gets the travel locations the caller's own records already hold,
+   * across trips.
+   * @param userId - The ID of the signed-in user
+   * @returns The caller's own distinct non-blank locations, most
+   *   recently updated first, at most 20 — never another member's
+   */
+  getMyLocations(userId: string): Promise<string[]>;
 
   /**
    * Updates a member travel record
@@ -340,6 +349,62 @@ export class MemberTravelService implements IMemberTravelService {
       .innerJoin(members, eq(memberTravel.memberId, members.id))
       .leftJoin(users, eq(members.userId, users.id))
       .where(and(...conditions));
+  }
+
+  /**
+   * The wheres the caller's own travel already holds, across trips.
+   *
+   * The `Where` field autocompletes from strings we already have (D6),
+   * and a member's own past wheres are the most useful source there is:
+   * the airport they flew into for the last trip is the one they are
+   * flying into for this one. Strings only — no coordinates, no place
+   * ids — which is why this read needs no attribution and no provider.
+   *
+   * Deduped case-insensitively ("BCN T2" and "bcn t2" are one airport),
+   * ordered by the record's own `updated_at` descending, capped at 20.
+   * Both ends of a leg count: a record holds the whole leg, and the
+   * counterpart end is a real where even when it came from a lookup
+   * rather than a field.
+   *
+   * Only the caller's rows: the join is on `members.user_id`, so a row
+   * filed for another member never leaks into your suggestions.
+   */
+  async getMyLocations(userId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({
+        travelType: memberTravel.travelType,
+        arrivalLocation: memberTravel.arrivalLocation,
+        departureLocation: memberTravel.departureLocation,
+        updatedAt: memberTravel.updatedAt,
+      })
+      .from(memberTravel)
+      .innerJoin(members, eq(memberTravel.memberId, members.id))
+      .where(and(eq(members.userId, userId), isNull(memberTravel.deletedAt)))
+      .orderBy(desc(memberTravel.updatedAt));
+
+    const seen = new Set<string>();
+    const locations: string[] = [];
+    // Most recently updated first: the row order is the answer's order,
+    // so the first spelling of a location is the one the member wrote
+    // most recently, and it is the one that survives the dedupe.
+    for (const row of rows) {
+      // The record's own end leads its counterpart — the end the member
+      // filed, before the one a lookup filled in silently.
+      const ends =
+        row.travelType === "arrival"
+          ? [row.arrivalLocation, row.departureLocation]
+          : [row.departureLocation, row.arrivalLocation];
+      for (const end of ends) {
+        const location = end?.trim();
+        if (!location) continue;
+        const key = location.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        locations.push(location);
+        if (locations.length >= 20) return locations;
+      }
+    }
+    return locations;
   }
 
   /**
