@@ -3,7 +3,7 @@ import { Text, View } from "react-native";
 
 import { BootCover } from "@/components/ui/BootCover";
 import { Button } from "@/components/ui/Button";
-import { Section, Specimen } from "./frame";
+import { Section, Specimen } from "@/components/design/frame";
 
 /**
  * The boot cover's specimen, in its own module for the reason the Motion

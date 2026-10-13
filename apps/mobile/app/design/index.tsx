@@ -81,10 +81,12 @@ import { Column } from "@/components/ui/Column";
 // The lab's own documentation frame, and the one section that outgrew the
 // page. `Section` here is this file's heading and `Specimen` its exhibit;
 // the product's `Section` is aliased below as `RuledSection`, which is why
-// this one keeps the plain name on this side of the import.
-import { MotionSection } from "./motion";
-import { BootCoverSpecimen } from "./bootCover";
-import { Section, Specimen, TokenRow, TypeRow } from "./frame";
+// this one keeps the plain name on this side of the import. The three
+// modules now live in `components/design/`, because everything under `app/`
+// is a route and these are specimens.
+import { MotionSection } from "@/components/design/motion";
+import { BootCoverSpecimen } from "@/components/design/bootCover";
+import { Section, Specimen, TokenRow, TypeRow } from "@/components/design/frame";
 
 /** Metro resolving a bare package import and a font actually being the
  *  font are the two things a bundle can fail at silently, and neither
