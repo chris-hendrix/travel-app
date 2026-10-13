@@ -47,3 +47,25 @@ export async function seedTripViaAPI(
   const body = (await res.json()) as { trip: { id: string } };
   return { id: body.trip.id, startDate };
 }
+
+/**
+ * The zone the API gave the trip. Not the one this helper posts: creation
+ * prefers the zone geocoded from the destination and falls back to the
+ * body's `timezone` (`trip.service.ts`), so a spec that needs the clock a
+ * travel record will be read in has to ask the trip rather than assume
+ * what it sent.
+ */
+export async function tripTimezoneViaAPI(
+  request: APIRequestContext,
+  token: string,
+  tripId: string,
+): Promise<string> {
+  const res = await request.get(`${API_BASE}/trips/${tripId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok()) {
+    throw new Error(`get-trip failed: ${res.status()} ${await res.text()}`);
+  }
+  const body = (await res.json()) as { trip: { preferredTimezone: string } };
+  return body.trip.preferredTimezone;
+}
