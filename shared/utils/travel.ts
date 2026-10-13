@@ -80,6 +80,64 @@ export function getCounterpartLocation(travel: {
     : travel.arrivalLocation;
 }
 
+/**
+ * How many locations the `Where` field's cross-trip source serves, at
+ * most — the answer's cap, not a read's bound.
+ */
+export const MY_TRAVEL_LOCATIONS_LIMIT = 20;
+
+/**
+ * The distinct wheres a set of travel rows holds, newest first.
+ *
+ * One rule in one place, because two surfaces answer it: `GET
+ * /member-travel/locations`, which reads the caller's rows across trips,
+ * and the demo adapter that stands in for that endpoint with no network
+ * under it. Deduped case-insensitively — "BCN T2" and "bcn t2" are one
+ * airport — trimmed, capped, and ordered by `updatedAt` descending, which
+ * is what decides which spelling of a duplicated where survives.
+ *
+ * Both ends of a leg count, and the record's own end leads its
+ * counterpart: the end the member filed, before the one a lookup filled
+ * in silently. A row with no usable end contributes nothing and does not
+ * consume the cap, which is why the cap counts locations rather than
+ * rows.
+ *
+ * Order-owning on purpose: a caller may hand rows over in any order, so
+ * the one that can only sort in SQL and the one that only has an array
+ * cannot disagree about what "newest first" means. The sort is stable,
+ * so rows sharing an `updatedAt` keep the order they arrived in.
+ */
+export function rankTravelLocations(
+  rows: readonly {
+    travelType: MemberTravelType;
+    arrivalLocation: string | null;
+    departureLocation: string | null;
+    updatedAt: Date | string;
+  }[],
+  limit: number = MY_TRAVEL_LOCATIONS_LIMIT,
+): string[] {
+  const newestFirst = [...rows].sort(
+    (left, right) =>
+      new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime(),
+  );
+
+  const seen = new Set<string>();
+  const locations: string[] = [];
+  for (const row of newestFirst) {
+    const ends = [getPertinentLocation(row), getCounterpartLocation(row)];
+    for (const end of ends) {
+      const location = end?.trim();
+      if (!location) continue;
+      const key = location.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      locations.push(location);
+      if (locations.length >= limit) return locations;
+    }
+  }
+  return locations;
+}
+
 /** Google Maps search URL for a free-text location (keyless pattern). */
 export function mapsSearchUrl(location: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;

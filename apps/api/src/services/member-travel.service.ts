@@ -10,6 +10,10 @@ import type {
   CreateMemberTravelInput,
   UpdateMemberTravelInput,
 } from "@journiful/shared/schemas";
+import {
+  rankTravelLocations,
+  MY_TRAVEL_LOCATIONS_LIMIT,
+} from "@journiful/shared/utils";
 import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
 import {
@@ -24,8 +28,7 @@ import {
 /**
  * Member Travel Service Interface
  * Defines the contract for member travel management operations
- */
-export interface IMemberTravelService {
+ */export interface IMemberTravelService {
   /**
    * Creates a new member travel record for a trip, or updates the one
    * already filed for the same member and direction
@@ -382,29 +385,7 @@ export class MemberTravelService implements IMemberTravelService {
       .where(and(eq(members.userId, userId), isNull(memberTravel.deletedAt)))
       .orderBy(desc(memberTravel.updatedAt));
 
-    const seen = new Set<string>();
-    const locations: string[] = [];
-    // Most recently updated first: the row order is the answer's order,
-    // so the first spelling of a location is the one the member wrote
-    // most recently, and it is the one that survives the dedupe.
-    for (const row of rows) {
-      // The record's own end leads its counterpart — the end the member
-      // filed, before the one a lookup filled in silently.
-      const ends =
-        row.travelType === "arrival"
-          ? [row.arrivalLocation, row.departureLocation]
-          : [row.departureLocation, row.arrivalLocation];
-      for (const end of ends) {
-        const location = end?.trim();
-        if (!location) continue;
-        const key = location.toLowerCase();
-        if (seen.has(key)) continue;
-        seen.add(key);
-        locations.push(location);
-        if (locations.length >= 20) return locations;
-      }
-    }
-    return locations;
+    return rankTravelLocations(rows, MY_TRAVEL_LOCATIONS_LIMIT);
   }
 
   /**

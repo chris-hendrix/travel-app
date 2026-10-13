@@ -43,6 +43,7 @@ import {
 import { findRowAnywhere, notFound, nowIso } from "@/lib/demo/store";
 import type { DemoBody, DemoStore } from "@/lib/demo/store";
 import type { RsvpStatus } from "@/lib/rsvp";
+import { rankTravelLocations } from "@journiful/shared/utils";
 import type {
   Accommodation,
   Event,
@@ -160,15 +161,25 @@ function travelRow(tripId: string, record: DemoTrip["travel"][number]): MemberTr
 
 /**
  * The demo's `GET /member-travel/locations` answer: the viewer's own
- * travel wheres across the demo's trips, most recently updated first,
- * deduped case-insensitively, capped at 20 — the API's own rule, so the
- * demo ships the same list the real endpoint does rather than a
- * placeholder. The viewer is always `demo-viewer` here; every trip's
- * roster names them, and a trip they are not on contributes nothing.
+ * travel wheres across the demo's trips, ranked by the API's own rule
+ * (`rankTravelLocations` — newest first, deduped case-insensitively,
+ * capped at 20), so the demo ships the same list the real endpoint does
+ * rather than a placeholder. The viewer is always `demo-viewer` here;
+ * every trip's roster names them, and a trip they are not on contributes
+ * nothing.
+ *
+ * The rows are gathered across every trip before they are ranked, not
+ * ranked per trip and concatenated: the endpoint's answer is about the
+ * person, and which trip a where came from does not affect where it sits
+ * in the list.
  */
 function demoMyLocations(store: DemoStore): string[] {
-  const seen = new Set<string>();
-  const locations: string[] = [];
+  const rows: Array<{
+    travelType: MemberTravel["travelType"];
+    arrivalLocation: string | null;
+    departureLocation: string | null;
+    updatedAt: string | Date;
+  }> = [];
 
   for (const trip of store.trips) {
     const viewerMemberId = (store.members.get(trip.id) ?? []).find(
@@ -176,30 +187,18 @@ function demoMyLocations(store: DemoStore): string[] {
     )?.id;
     if (!viewerMemberId) continue;
 
-    const rows = [...(store.travel.get(trip.id) ?? [])].sort(
-      (left, right) =>
-        new Date(right.updatedAt as unknown as string).getTime() -
-        new Date(left.updatedAt as unknown as string).getTime(),
-    );
-    for (const row of rows) {
+    for (const row of store.travel.get(trip.id) ?? []) {
       if (row.memberId !== viewerMemberId) continue;
-      const ends =
-        row.travelType === "arrival"
-          ? [row.arrivalLocation, row.departureLocation]
-          : [row.departureLocation, row.arrivalLocation];
-      for (const end of ends) {
-        const location = end?.trim();
-        if (!location) continue;
-        const key = location.toLowerCase();
-        if (seen.has(key)) continue;
-        seen.add(key);
-        locations.push(location);
-        if (locations.length >= 20) return locations;
-      }
+      rows.push({
+        travelType: row.travelType,
+        arrivalLocation: row.arrivalLocation,
+        departureLocation: row.departureLocation,
+        updatedAt: row.updatedAt as unknown as string,
+      });
     }
   }
 
-  return locations;
+  return rankTravelLocations(rows);
 }
 
 function detailOf(trip: DemoTrip): TripDetail {
