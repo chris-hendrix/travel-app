@@ -84,6 +84,11 @@ describe("Invitation Routes", () => {
       expect(body).toHaveProperty("success", true);
       expect(body).toHaveProperty("invitations");
       expect(body.invitations).toHaveLength(2);
+      // What the app sent is what it gets back: the invite dialog answers
+      // "was this number merely skipped?" by comparing the E.164 it
+      // submitted against this echo, so a row that carried anything else
+      // would read as an invitation for a number nobody typed.
+      expect(body.invitations[0].inviteePhone).toBe(phone1);
       expect(body).toHaveProperty("skipped");
       expect(body.skipped).toHaveLength(0);
     });
