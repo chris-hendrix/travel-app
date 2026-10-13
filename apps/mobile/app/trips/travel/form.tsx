@@ -285,7 +285,32 @@ function TravelFormScreen() {
         setSaving(true);
         void deleteTravel(trip.id, existing.id)
           .then(
-            () => router.replace(boardHref),
+            () => {
+              // The form is about the member's travel, and a direction is
+              // part of it: with the other direction still filed there is
+              // still something on screen to read and edit, so deleting
+              // one of two does not throw the reader out to the board.
+              // It leaves only when nothing is left — the same rule the
+              // board's own door follows.
+              const other: TravelDirection =
+                direction === "arrival" ? "departure" : "arrival";
+              if (!travelForMemberDirection(records, memberId, other)) {
+                router.replace(boardHref);
+                return;
+              }
+              // Staying means the URL must stop naming the row that is
+              // gone: `travel=<id>` resolves to nothing now, and the gate
+              // above would answer "that travel is not on this trip any
+              // more" over a form that is still perfectly usable. So the
+              // address becomes the member's, which is what this screen
+              // is about, plus the panel that was open — the reader keeps
+              // the direction they were looking at, now empty.
+              router.replace(
+                `/trips/travel/form?id=${trip.id}` +
+                  (memberId ? `&member=${memberId}` : "") +
+                  `&direction=${direction}`,
+              );
+            },
             (error: unknown) =>
               setServerError(
                 toErrorCopy(error).message ?? "Couldn't delete the travel.",

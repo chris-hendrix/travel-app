@@ -296,4 +296,111 @@ test.describe("Travel Journey", () => {
         .toEqual([`${travelId}:${editedWhere}`]);
     });
   });
+
+  test("deleting one of two entries leaves the form open on the other", async ({
+    page,
+    request,
+  }) => {
+    const tripName = uniqueLabel("E2E Delete Travel");
+    const memberName = uniqueLabel("Travel Deleter");
+    const arrivalWhere = uniqueLabel("SJD T1");
+    const departureWhere = uniqueLabel("SJD T2");
+
+    let tripId: string;
+    let startDate: string;
+    let memberId: string;
+    let token: string;
+    let arrivalId: string;
+
+    await test.step("seed a session, a trip and both directions", async () => {
+      ({ token } = await seedUserViaAPI(
+        request,
+        generateUniquePhone(),
+        memberName,
+      ));
+      ({ id: tripId, startDate } = await seedTripViaAPI(
+        request,
+        token,
+        tripName,
+      ));
+      memberId = await organizerMemberIdViaAPI(request, token, tripId);
+      // Both ends of the member's travel are filed, which is the state
+      // this test is about: deleting one of two is not deleting the
+      // screen's subject.
+      arrivalId = await seedTravelViaAPI(
+        request,
+        token,
+        tripId,
+        memberId,
+        "arrival",
+        { arrivalTime: `${startDate}T14:00:00Z` },
+        arrivalWhere,
+      );
+      await seedTravelViaAPI(
+        request,
+        token,
+        tripId,
+        memberId,
+        "departure",
+        { departureTime: `${startDate}T18:00:00Z` },
+        departureWhere,
+      );
+    });
+
+    await test.step("open the arrival's form and delete it", async () => {
+      await armSession(page, token);
+      await page.goto(`/trips/travel/form?id=${tripId}&travel=${arrivalId}`);
+      await expect(page.getByText("Edit travel", { exact: true })).toBeVisible({
+        timeout: NAVIGATION_TIMEOUT,
+      });
+      await expect(page.getByRole("textbox", { name: "Where" })).toHaveValue(
+        arrivalWhere,
+        { timeout: NAVIGATION_TIMEOUT },
+      );
+
+      await page.getByRole("button", { name: "Delete arrival" }).click();
+    });
+
+    await test.step("the form stays, on the member, with the deleted panel empty", async () => {
+      // Still the same screen: the title, the member and the other
+      // direction's panel are all still here.
+      await expect(page.getByText("Edit travel", { exact: true })).toBeVisible({
+        timeout: NAVIGATION_TIMEOUT,
+      });
+      await expect(page.getByRole("textbox", { name: "Who" })).toHaveValue(
+        memberName,
+      );
+      // The deleted direction's fields are empty and its door is gone —
+      // a panel still holding the deleted record's values would offer to
+      // re-file it under a verb that says "Add travel".
+      await expect(page.getByRole("textbox", { name: "Where" })).toHaveValue(
+        "",
+      );
+      await expect(page.getByRole("button", { name: "Pick a time" })).toHaveCount(
+        2,
+      );
+      await expect(page.getByText("Not shared yet")).toHaveCount(1);
+      await expect(
+        page.getByRole("button", { name: "Delete arrival" }),
+      ).toHaveCount(0);
+      // And the URL no longer names the row that is gone: it names the
+      // member and the panel instead.
+      await expect(page).not.toHaveURL(/travel=/);
+      await expect(page).toHaveURL(new RegExp(`member=${memberId}`));
+    });
+
+    await test.step("the server holds the departure and nothing else", async () => {
+      await expect
+        .poll(
+          async () => {
+            const rows = await travelRowsViaAPI(request, token, tripId);
+            return rows
+              .filter((row) => row.memberId === memberId)
+              .map((row) => `${row.travelType}:${row.departureLocation ?? row.arrivalLocation}`);
+          },
+          { timeout: NAVIGATION_TIMEOUT },
+        )
+        .toEqual([`departure:${departureWhere}`]);
+    });
+  });
 });
