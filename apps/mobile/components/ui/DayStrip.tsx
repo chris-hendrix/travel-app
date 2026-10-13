@@ -4,14 +4,21 @@ import { toIso } from "@/lib/dateRange";
 import { travelDayRows, type TravelDay } from "@/lib/travelDays";
 
 /**
- * A trip's own days, as a picker.
+ * A trip's days, with a couple of margin days either side, as a picker.
  *
- * This exists because a leg's day is bounded by the trip, and the month
- * grid that used to answer here offered 31 days to choose one of nine —
- * with the legal ninth day, the morning after the trip ends, drawn as an
- * unmarked grey cell in the last row. The strip is the trip's days and
- * that one morning, so every cell is a day you can actually pick, and
- * the whole thing is two rows instead of five.
+ * This exists because a leg's day is about the trip rather than bounded by
+ * it, and the month grid that used to answer here offered 31 days to
+ * choose one of nine — with the days people actually travel on, the
+ * evening before and the morning after, drawn as unmarked grey cells in
+ * the last row. The strip is the trip's days and two either side, so every
+ * day a leg could plausibly fall on is a cell you can press, and the
+ * whole thing is two or three rows instead of five.
+ *
+ * The trip's own days are the ink ones; the margin is `grey-quiet`, the
+ * palette's de-emphasised *text* tone. Not an opacity: this app dims a
+ * disabled control with one, and a margin day is a real answer — it is
+ * simply not the trip, and the strip has to say which is which or the
+ * margin reads as more trip.
  *
  * No label above it. The cells carry their own weekday and number, and
  * the panel header above reads the chosen day back in full — a third
@@ -52,7 +59,11 @@ export function DayStrip({
             }
 
             const chosen = day.iso === value;
-            const label = chosen ? "text-sand" : "text-ink";
+            const label = chosen
+              ? "text-sand"
+              : day.inTrip
+                ? "text-ink"
+                : "text-grey-quiet";
             return (
               <Pressable
                 key={day.iso}
