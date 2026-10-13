@@ -5,6 +5,7 @@ import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { DayStrip } from "@/components/ui/DayStrip";
+import { Triangle } from "@/components/ui/DisclosureButton";
 import { FieldError } from "@/components/ui/FieldError";
 import { TimeField } from "@/components/ui/TimeField";
 import { InlineError } from "@/components/ui/InlineError";
@@ -304,28 +305,50 @@ export function TravelDialog({
                 role="radio"
                 aria-selected={open}
                 onPress={() => setDirection(panel.value)}
-                className={`border border-ink px-3 py-3 ${
-                  open ? "bg-ink" : `bg-paper ${motion.pressDim}`
+                className={`flex-row items-center gap-3 border border-ink px-3 py-3 ${
+                  open ? "bg-ink" : motion.pressDim
                 }`}
               >
-                <Text
-                  className={`font-display-semibold text-heading-lg uppercase ${
-                    open ? "text-sand" : "text-ink"
-                  }`}
-                >
-                  {panel.heading}
-                </Text>
-                {/* The panel's own answer, in the same words the board's
-                    row uses: the day, the clock, and where. An unfilled
-                    direction says so here rather than reading as a
-                    screen you have not visited. */}
-                <Text
-                  className={`font-body text-sm ${
-                    open ? "text-sand" : "text-ink"
-                  }`}
-                >
-                  {legSummary(leg, panel.value) || NOT_SHARED}
-                </Text>
+                <View className="flex-1">
+                  <Text
+                    className={`font-display-semibold text-heading-lg uppercase ${
+                      open ? "text-sand" : "text-ink"
+                    }`}
+                  >
+                    {panel.heading}
+                  </Text>
+                  {/* The panel's own answer, in the same words the board's
+                      row uses: the day, the clock, and where. An unfilled
+                      direction says so here rather than reading as a
+                      screen you have not visited. */}
+                  <Text
+                    className={`font-body text-sm ${
+                      open ? "text-sand" : "text-ink"
+                    }`}
+                  >
+                    {legSummary(leg, panel.value) || NOT_SHARED}
+                  </Text>
+                </View>
+
+                {/* The shut panel's mark, and the answer to the question a
+                    shut panel raises: does this do anything? It reveals
+                    its fields in place, which is `DisclosureButton`'s
+                    shape exactly — a heading, its readout, and its
+                    content opening directly under it at the same width —
+                    so it wears that component's triangle rather than a
+                    mark of its own. The open panel carries none: the ink
+                    fill already says which one is chosen, and a second
+                    answer to one question is what this form has been
+                    getting rid of.
+
+                    The ground is the other half of it. A shut panel used
+                    to sit on `paper`, which is the ground a *field* wears
+                    (`TextField` is `border-ink bg-paper`), so a panel
+                    heading and a text input were the same white box with
+                    an ink border. Transparent is what the system's other
+                    borderless-fill control wears (`Button secondary`), and
+                    paper now means a field again. */}
+                {open ? null : <Triangle open={false} />}
               </Pressable>
 
               {open ? (
@@ -489,6 +512,13 @@ function LegFields({
           transport's: "Leaves 7:00 AM" and "Lands 8:40 PM" read as a
           sentence about the person, which is whose travel this is.
 
+          Only the direction's own end is asked for; the far one is
+          optional and says so. Filing an arrival is answering "when do
+          you land", and the departure time is a thing the member often
+          does not have — the same rule the stay form carries for two
+          times that are often unknown. A blank there used to read as a
+          field nobody had filled in yet.
+
           A leg that crosses midnight says so under the field that owns
           the far end. It is a readout, not a control: what the two times
           already mean, said back, so it cannot disagree with them. */}
@@ -499,6 +529,8 @@ function LegFields({
             value={leg.departureTime || null}
             onChange={(time) => onChange({ ...leg, departureTime: time ?? "" })}
             error={errors?.departureTime}
+            optional={arrival}
+            noneLabel="No departure time"
           />
           {arrival && farNote ? (
             <Text className="font-body text-sm text-ink opacity-60">
@@ -512,6 +544,8 @@ function LegFields({
             value={leg.arrivalTime || null}
             onChange={(time) => onChange({ ...leg, arrivalTime: time ?? "" })}
             error={errors?.arrivalTime}
+            optional={!arrival}
+            noneLabel="No arrival time"
           />
           {!arrival && farNote ? (
             <Text className="font-body text-sm text-ink opacity-60">
