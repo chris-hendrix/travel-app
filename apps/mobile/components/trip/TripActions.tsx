@@ -139,7 +139,11 @@ export function TripActions({
           // which makes the hero's one action the screen's one filled
           // control.
           variant="primary"
-          fullWidth
+          // No `fullWidth`: on a wide screen this fills the hero band edge
+          // to edge and reads as a banner rather than as a control. It
+          // fills the phone and hugs the start edge from md up, like
+          // every other button, and the disclosure under it does the
+          // same so the two line up on one edge.
           onPress={() => router.push(`/trips/invite?id=${tripId}`)}
         />
       ) : (

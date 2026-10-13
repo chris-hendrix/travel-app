@@ -27,7 +27,13 @@ export function Button({
   title: string;
   variant?: ButtonVariant;
   onPress?: () => void;
-  /** Always fill the width, at every size. */
+  /**
+   * Fill the container at every size. One caller: `DisclosureButton`'s
+   * trigger, whose width is not its own choice — it has to match the rows
+   * it opens, and those rows are the group's widest child. Every other
+   * button fills a phone and hugs its edge from md up, which is the rule
+   * this prop exists to suspend.
+   */
   fullWidth?: boolean;
   /** Which edge it hugs on wide screens. Fills the width on a phone,
    *  where a thumb target beats a tidy box. */
