@@ -28,11 +28,15 @@ export function Button({
   variant?: ButtonVariant;
   onPress?: () => void;
   /**
-   * Fill the container at every size. One caller: `DisclosureButton`'s
-   * trigger, whose width is not its own choice — it has to match the rows
-   * it opens, and those rows are the group's widest child. Every other
-   * button fills a phone and hugs its edge from md up, which is the rule
-   * this prop exists to suspend.
+   * Fill the container at every size, suspending the rule below.
+   *
+   * Two callers, and both are the same situation: a control whose width
+   * is not its own choice. `DisclosureButton`'s trigger has to match the
+   * rows it opens, which are the group's widest child; the trip hero
+   * band's buttons fill the column the hero picture sets, because that
+   * band is the one block in the app with its own hierarchy and full-width
+   * boxes in it line up on one edge. Every other button fills a phone and
+   * hugs its edge from md up.
    */
   fullWidth?: boolean;
   /** Which edge it hugs on wide screens. Fills the width on a phone,
