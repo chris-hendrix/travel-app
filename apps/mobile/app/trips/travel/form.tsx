@@ -2,7 +2,9 @@ import { useMemo, useState } from "react";
 import { Text } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
+import { InlineError } from "@/components/ui/InlineError";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
+import { OfflineBlock } from "@/components/ui/OfflineBlock";
 import { TravelDialog } from "@/components/trip/TravelDialog";
 import {
   buildLegRecord,
@@ -21,6 +23,7 @@ import {
   useMyTravelLocations,
 } from "@/lib/queries/travel";
 import { travelWhere } from "@/lib/travelWhere";
+import { travelFormGate } from "@/lib/travelGate";
 import { toErrorCopy } from "@/lib/queries/errors";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
@@ -73,8 +76,12 @@ function TravelFormScreen() {
   const tripId = typeof id === "string" ? id : undefined;
   const { trip } = useTrip(tripId);
   // Warms the section query the store reads from, so a cold load
-  // (deep link straight here) still finds the record once it lands.
-  const { status: sectionStatus } = useTravelSection(trip?.id);
+  // (deep link straight here) still finds the record once it lands. Its
+  // `retry` is the gate's below: a read that failed is a form that must
+  // not open empty, and asking again is how it opens.
+  const { status: sectionStatus, retry: retrySection } = useTravelSection(
+    trip?.id,
+  );
   // The `Where` field's cross-trip suggestions. Read for its rows only,
   // never for its status: the field already works from this trip's own
   // wheres and the trip's destination, so a failed read narrows the list
@@ -190,36 +197,45 @@ function TravelFormScreen() {
   }
 
   // Nothing opens until the section read has landed — one gate for every
-  // door, because the reason is the same for all of them.
+  // door, because the reason is the same for all of them. The rule is
+  // `travelFormGate` (`lib/travelGate.ts`), which is where the reasoning
+  // lives and where it is tested; what belongs here is the screen's half
+  // of it, the copy each way out gets.
   //
   // The section is a plain query, not a suspension, while the two reads
   // above it are suspended by the trip gate: a cold load reaches this line
-  // with `records` still empty and the roster already here. The dialog
-  // seeds its panels from `records` in a `useState` keyed on the member
-  // (`components/trip/TravelDialog.tsx`), so an empty read is not a blank
-  // that fills in later — it *is* the seed. The panels then say "Not
-  // shared yet" for a member who has filed, while `Delete` and `Save
-  // changes` — which read the record — say otherwise, and a save posts a
-  // leg the server folds into the existing row, clearing every field the
-  // body left out. The `travel=` door was guarded by the record it names;
-  // the `member=` door and the bare add door name no record, so they had
-  // nothing to wait for and opened on the empty read.
-  if (sectionStatus === "loading") {
-    return (
-      <FullscreenDialog title="Travel" dismissHref="/trips">
-        <LoadingBlock label="Loading travel details" />
-      </FullscreenDialog>
-    );
-  }
+  // with `records` still empty and the roster already here, and an empty
+  // read is the seed rather than a blank that fills in later
+  // (`components/trip/TravelDialog.tsx`). The `travel=` door was guarded
+  // by the record it names; the `member=` door and the bare add door name
+  // no record, so they had nothing to wait for and opened on the empty
+  // read. That is why "not still loading" is not the test — a failed read
+  // is just as empty, and the save that follows it clears every field the
+  // body leaves out.
+  const gate = travelFormGate({
+    status: sectionStatus,
+    namesRecord: Boolean(editingId),
+    recordFound: Boolean(record),
+  });
 
-  // Landed, and this door names a row that is not here. Only a landed read
-  // gets to say it is gone.
-  if (editingId && !record) {
+  if (gate !== "open") {
     return (
       <FullscreenDialog title="Travel" dismissHref="/trips">
-        <Text className="font-body text-base text-ink">
-          That travel is not on this trip any more.
-        </Text>
+        {gate === "loading" ? (
+          <LoadingBlock label="Loading travel details" />
+        ) : gate === "offline" ? (
+          <OfflineBlock onRetry={retrySection} />
+        ) : gate === "failed" ? (
+          <InlineError
+            message="Couldn't load the travel"
+            onRetry={retrySection}
+          />
+        ) : (
+          // Landed, and this door names a row that is not in the answer.
+          <Text className="font-body text-base text-ink">
+            That travel is not on this trip any more.
+          </Text>
+        )}
       </FullscreenDialog>
     );
   }

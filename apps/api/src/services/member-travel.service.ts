@@ -273,11 +273,12 @@ export class MemberTravelService implements IMemberTravelService {
       resolvedMemberId = member.id;
     }
 
-    // One live row per member and direction. This lookup runs *before*
-    // the cap on purpose: an update adds no row, so a cap on how many
-    // rows a member holds does not apply to it. Running the cap first
-    // would refuse an edit at the limit while the very pair being edited
-    // is one of the rows the check is complaining about.
+    // One live row per member and direction: this is the row the pair's
+    // next write edits in place, so that a save edits what is filed
+    // rather than adding a second row beside it — two live rows is what
+    // draws a member twice on the board. The race this read cannot close
+    // on its own (two POSTs on a free pair both missing it) is settled by
+    // the partial unique index on the insert below.
     const [existing] = await this.db
       .select({ id: memberTravel.id })
       .from(memberTravel)
@@ -472,9 +473,17 @@ export class MemberTravelService implements IMemberTravelService {
       .where(and(eq(members.userId, userId), isNull(memberTravel.deletedAt)))
       // The order is what makes the bound a *cut* rather than an arbitrary
       // sample: `LIMIT` without it would drop whichever rows the planner
-      // happened to reach. `rankTravelLocations` re-sorts (and owns the
-      // rule), so the SQL order exists for this bound alone.
-      .orderBy(desc(memberTravel.updatedAt))
+      // happened to reach. For that it has to be a *total* order, so it
+      // walks the same three keys the migration's reconciliation does —
+      // `updated_at`, then `created_at`, then `id` — because a tie at the
+      // hundredth row is otherwise a row that is inside the cut on one run
+      // and outside it on the next. `rankTravelLocations` re-sorts (and
+      // owns the rule), so the SQL order exists for this bound alone.
+      .orderBy(
+        desc(memberTravel.updatedAt),
+        desc(memberTravel.createdAt),
+        desc(memberTravel.id),
+      )
       .limit(LOCATION_SOURCE_ROWS);
 
     return rankTravelLocations(rows, MY_TRAVEL_LOCATIONS_LIMIT);
