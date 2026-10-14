@@ -4,6 +4,7 @@ import { addDays as shift, formatDay } from "@/lib/dateRange";
 import { formatFlightNumber, normalizeFlightNumber } from "@/lib/flights";
 import { formatClock, isClockTime, minutesOf } from "@/lib/time";
 import { wallClock, zoneOffsetMinutes } from "@/lib/timezone";
+import { TRIP_MARGIN_DAYS } from "@/lib/travelDays";
 import { joinFacts } from "@/lib/wording";
 import type { MockTravel } from "@/mocks/travel";
 
@@ -15,8 +16,9 @@ export type TravelDirection = "arrival" | "departure";
  *
  * `day` is the day of this direction's own event, which is the day the
  * board files: the day you land for an arrival, the day you leave for a
- * departure. Both of those fall inside the trip, which is what lets the
- * calendar be bounded by the trip's own dates.
+ * departure. Both of those fall on a day the strip can show — the trip's
+ * own days, and the couple of margin days either side of it that
+ * `travelDays` draws for the evening-before arrival and the red-eye home.
  *
  * The other end is not always the same day. That is not a preference to
  * ask for, it is arithmetic: an arrival earlier than its departure can
@@ -405,12 +407,24 @@ export function legFromRecord(
 
   // The record carries real instants, so the two ends' dates are known
   // rather than inferred — and reading them back is what lets the day
-  // stay inside the trip while the far end stays where it belongs.
+  // stay on a day the strip can show while the far end stays where it
+  // belongs.
+  //
+  // "A day the strip can show" is the trip's own days *and the margin
+  // either side* of it (`travelDays`). This used to be clamped to the
+  // trip's own bounds, which was right only while the picker was a month
+  // grid bounded by the trip: an arrival filed the evening before — the
+  // case the margin was widened for — came back selected on the *last*
+  // day of the trip, and saving it moved the arrival a week. Off the strip
+  // entirely, the day is still pulled to the nearest cell there is,
+  // because no cell can show it.
   const day = pertinent?.date ?? "";
-  const outsideTrip = Boolean(day && (day < tripStartDate || day > tripEndDate));
+  const firstCell = shift(tripStartDate, -TRIP_MARGIN_DAYS);
+  const lastCell = shift(tripEndDate, TRIP_MARGIN_DAYS);
+  const offStrip = Boolean(day && (day < firstCell || day > lastCell));
 
   return {
-    day: outsideTrip ? tripEndDate : day,
+    day: offStrip ? (day < firstCell ? firstCell : lastCell) : day,
     // Both ends read from the side each belongs to, not by position:
     // the departure is this direction's own end when the direction is a
     // departure, and the far end only when it is an arrival.

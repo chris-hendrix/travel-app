@@ -1,21 +1,35 @@
 /**
  * E2E Journey: travel entry (mobile).
  *
- * Critical flow 8 (Travel entry). Two tests, one flow: a member files
- * their own arrival and the board shows it, and a **cold load** of a
- * filed record's edit URL opens that record and saves over it rather
- * than beside it.
+ * Critical flow 8 (Travel entry). Four tests, one flow: a member files
+ * their own arrival and the board shows it, a **cold load** of a filed
+ * record's edit URL opens that record and saves over it rather than
+ * beside it, deleting one of two directions keeps the form open on the
+ * other, and a delete on a member who is not going keeps the form on
+ * *that member*.
  *
- * The second test is the reason this spec exists at all. The regression
- * it covers is about *when* a value is computed — a `useState` seed that
- * captured the viewer because the section query had not landed on the
- * first render — and this suite has no renderer, so no unit test can see
- * `e9e024e0`. A unit test cannot see "the form edited the wrong person
- * while the URL named someone else" either: the memo/seed class of bug
- * only exists once something mounts. So the assertion of record is a
+ * The cold-load test is the reason this spec exists at all. The
+ * regression it covers is about *when* a value is computed — a `useState`
+ * seed that captured the viewer because the section query had not landed
+ * on the first render — and this suite has no renderer, so no unit test
+ * can see `e9e024e0`. A unit test cannot see "the form edited the wrong
+ * person while the URL named someone else" either: the memo/seed class of
+ * bug only exists once something mounts. So the assertion of record is a
  * fresh `page.goto` on the form URL, and the proof that the save went to
  * the right row is a re-read from the API: exactly one live row for that
- * member and direction, the same id, carrying the change.
+ * member and direction, the same id, carrying the change. A last step
+ * cold-loads the `member=` door as well — the URL the app itself builds
+ * for a traveler who still owes a direction, which names the member and
+ * not the record, so the row it is about can only come from the section
+ * read.
+ *
+ * The last test is that same class on the delete path: a member who is on
+ * the trip but not on the going roster (a guest, or anyone who answered
+ * "maybe" after filing) holds records, and the delete redirect hands the
+ * form a `member=` URL. Resolving that against the going roster rather
+ * than against everyone the picker can name put the *viewer's* travel on
+ * the screen — no unit test can see it, and the other three tests cannot
+ * either, because their member is going.
  *
  * Selectors are accessible names, never `testID`. Nothing here
  * re-verifies a unit test: `__tests__/travel-where.test.ts` owns the
@@ -32,6 +46,7 @@ import {
   uniqueLabel,
 } from "./helpers/auth";
 import { NAVIGATION_TIMEOUT } from "./helpers/timeouts";
+import { seedGuestViaAPI } from "./helpers/members";
 import { seedTripViaAPI, tripTimezoneViaAPI } from "./helpers/trip";
 import {
   organizerMemberIdViaAPI,
@@ -161,9 +176,19 @@ test.describe("Travel Journey", () => {
     await test.step("the board shows the filed arrival", async () => {
       // The save dismisses back to the board, whose rows now carry a
       // clock instead of "Not shared yet".
-      await expect(page.getByText("9:00 AM")).toBeVisible({
-        timeout: NAVIGATION_TIMEOUT,
-      });
+      //
+      // Asserted on the row, not on the clock alone: a bare
+      // `getByText("9:00 AM")` resolved to three nodes and failed strict
+      // mode, because the dismissed form is still in the tree while the
+      // route resolves and it renders the same clock (and its own summary
+      // line). The row is named by the member and carries the clock — the
+      // form's own controls carry one or the other, never both.
+      await expect(
+        page
+          .getByRole("button")
+          .filter({ hasText: memberName })
+          .filter({ hasText: "9:00 AM" }),
+      ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
       await expect(
         page.getByText("Nobody has shared their times yet."),
       ).toHaveCount(0);
@@ -300,6 +325,29 @@ test.describe("Travel Journey", () => {
         )
         .toEqual([`${travelId}:${editedWhere}`]);
     });
+
+    await test.step("cold-load the member's own door onto the same row", async () => {
+      // The same class on the door the app builds for a traveler who still
+      // owes a direction (`components/trip/TripActions.tsx`): that URL
+      // names the *member*, not the record, so nothing in it says which
+      // row this is about — the section read does. On a cold load the
+      // dialog used to mount before that read landed and seed its panels
+      // from nothing, which said "Not shared yet" over a member who has
+      // filed, while `Delete` said otherwise, and a save then posted a leg
+      // the server folded into the row, clearing what the body left out.
+      await page.goto(`/trips/travel/form?id=${tripId}&member=${memberId}`);
+      await expect(page.getByText("Edit travel", { exact: true })).toBeVisible({
+        timeout: NAVIGATION_TIMEOUT,
+      });
+      await expect(page.getByRole("textbox", { name: "Where" })).toHaveValue(
+        editedWhere,
+        { timeout: NAVIGATION_TIMEOUT },
+      );
+      await expect(
+        page.getByRole("button", { name: "Delete arrival" }),
+      ).toBeVisible();
+      await expect(page.getByText("Not shared yet")).toHaveCount(0);
+    });
   });
 
   test("deleting one of two entries leaves the form open on the other", async ({
@@ -407,6 +455,115 @@ test.describe("Travel Journey", () => {
             return rows
               .filter((row) => row.memberId === memberId)
               .map((row) => `${row.travelType}:${row.departureLocation ?? row.arrivalLocation}`);
+          },
+          { timeout: NAVIGATION_TIMEOUT },
+        )
+        .toEqual([`departure:${departureWhere}`]);
+    });
+  });
+
+  test("a delete on a member who is not going keeps the form on that member", async ({
+    page,
+    request,
+  }) => {
+    const tripName = uniqueLabel("E2E Maybe Travel");
+    const organizerName = uniqueLabel("Travel Organizer");
+    const guestName = uniqueLabel("Maybe Traveler");
+    const arrivalWhere = uniqueLabel("LIS T1");
+    const departureWhere = uniqueLabel("LIS T2");
+
+    let tripId: string;
+    let startDate: string;
+    let token: string;
+    let guestMemberId: string;
+    let arrivalId: string;
+
+    await test.step("seed a member who is not going, holding both directions", async () => {
+      ({ token } = await seedUserViaAPI(
+        request,
+        generateUniquePhone(),
+        organizerName,
+      ));
+      ({ id: tripId, startDate } = await seedTripViaAPI(
+        request,
+        token,
+        tripName,
+      ));
+      // A guest is inserted with `status: "no_response"`
+      // (`apps/api/src/db/schema/index.ts:163`), so they are on the trip and
+      // off the going roster — while still being someone an organizer can
+      // file for. A member who answered "maybe" after filing is the same
+      // pair of facts, and it is the state the delete redirect has to name.
+      guestMemberId = await seedGuestViaAPI(request, token, tripId, guestName);
+      arrivalId = await seedTravelViaAPI(
+        request,
+        token,
+        tripId,
+        guestMemberId,
+        "arrival",
+        { arrivalTime: `${startDate}T14:00:00Z` },
+        arrivalWhere,
+      );
+      await seedTravelViaAPI(
+        request,
+        token,
+        tripId,
+        guestMemberId,
+        "departure",
+        { departureTime: `${startDate}T18:00:00Z` },
+        departureWhere,
+      );
+    });
+
+    await test.step("open the arrival's form and delete it", async () => {
+      await armSession(page, token);
+      await page.goto(`/trips/travel/form?id=${tripId}&travel=${arrivalId}`);
+      await expect(page.getByText("Edit travel", { exact: true })).toBeVisible({
+        timeout: NAVIGATION_TIMEOUT,
+      });
+      // The picker names the member the URL named: a member who holds a
+      // record is one the picker can name even when they are not going
+      // (`lib/members.ts` `travelMemberOptions`).
+      await expect(page.getByRole("button", { name: guestName })).toBeVisible({
+        timeout: NAVIGATION_TIMEOUT,
+      });
+
+      await page.getByRole("button", { name: "Delete arrival" }).click();
+    });
+
+    await test.step("the form stays on the member, and on the member's other direction", async () => {
+      // The redirect keeps the member and drops the id of the row that is
+      // gone — and this member is outside the going roster, which is
+      // exactly the state that used to resolve to the *viewer*
+      // (`form.tsx`'s `linkedMember`). Every assertion below is a fact
+      // about the guest that only holds if the form is still about them.
+      await expect(page).toHaveURL(new RegExp(`member=${guestMemberId}`));
+      await expect(page.getByRole("button", { name: guestName })).toBeVisible();
+      // Their other direction is still here, still filled in, and the
+      // screen is still editing rather than adding.
+      await page.getByRole("radio", { name: "Departing" }).click();
+      await expect(page.getByRole("textbox", { name: "Where" })).toHaveValue(
+        departureWhere,
+      );
+      await expect(
+        page.getByRole("button", { name: "Save changes" }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Delete departure" }),
+      ).toBeVisible();
+    });
+
+    await test.step("the server holds the member's departure and nothing else", async () => {
+      await expect
+        .poll(
+          async () => {
+            const rows = await travelRowsViaAPI(request, token, tripId);
+            return rows
+              .filter((row) => row.memberId === guestMemberId)
+              .map(
+                (row) =>
+                  `${row.travelType}:${row.departureLocation ?? row.arrivalLocation}`,
+              );
           },
           { timeout: NAVIGATION_TIMEOUT },
         )

@@ -8,8 +8,14 @@ import { z } from "zod";
  * member who no longer wants "BCN T2" on their arrival needs a way to
  * say so, and until now the only way to unset one was to delete the
  * whole direction.
+ *
+ * Trimmed at the boundary, like the other three clearable fields, so a
+ * where that is only whitespace is the empty where the member meant
+ * rather than a distinct value the suggestion list would offer back. The
+ * trim runs before the length check, so trailing space is not what pushes
+ * a long location over the limit.
  */
-const locationField = z.string().max(500).nullable().optional();
+const locationField = z.string().trim().max(500).nullable().optional();
 
 /**
  * Base member travel data schema
@@ -28,12 +34,13 @@ const baseMemberTravelSchema = z.object({
   arrivalTime: z.string().datetime().optional(),
   details: z
     .string()
+    .trim()
     .max(500, {
       error: "Details must not exceed 500 characters",
     })
     .nullable()
     .optional(),
-  flightNumber: z.string().max(10).nullable().optional(),
+  flightNumber: z.string().trim().max(10).nullable().optional(),
 });
 
 /**
@@ -75,10 +82,21 @@ export const createMemberTravelSchema = baseMemberTravelSchema
 
 /**
  * Validates member travel update data (all fields optional)
- * - Allows partial updates to any member travel field
+ * - Allows partial updates to any member travel field but `travelType`
  * - Same validation rules as createMemberTravelSchema when fields are provided
+ *
+ * `travelType` is create-only for the same reason `memberId` is: the
+ * member and direction pair is the row's identity, and a PUT that flipped
+ * the direction would file a second live row for that member (turning an
+ * arrival into a departure leaves the departure pair free). A direction is
+ * changed by deleting the leg and filing the other one, which is the flow
+ * the delete/restore pair already owns. zod strips the unknown key rather
+ * than rejecting it, so an older client that still sends its direction
+ * gets its other edits applied rather than a 400.
  */
-export const updateMemberTravelSchema = baseMemberTravelSchema.partial();
+export const updateMemberTravelSchema = baseMemberTravelSchema
+  .omit({ travelType: true })
+  .partial();
 
 // --- Response schemas ---
 

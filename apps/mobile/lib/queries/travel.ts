@@ -70,13 +70,15 @@ export type CreateTravelRequest = {
 
 /**
  * Inline mirror of `updateMemberTravelSchema`
- * (`shared/schemas/member-travel.ts` = `baseMemberTravelSchema.partial()`):
- * every field optional, so an edit sends only what changed. No
- * `memberId`: membership is fixed at create. zod is not a mobile dep,
- * so the shape is declared inline.
+ * (`shared/schemas/member-travel.ts` = `baseMemberTravelSchema
+ * .omit({ travelType: true }).partial()`): every field optional, so an
+ * edit sends only what changed, and no `travelType` — a direction is
+ * create-only, exactly like `memberId`, because changing it would put a
+ * second live row on the pair the feature is built around (the API
+ * strips the key if it is sent anyway). zod is not a mobile dep, so the
+ * shape is declared inline.
  */
 export type UpdateTravelRequest = {
-  travelType?: "arrival" | "departure";
   departureLocation?: string | null;
   departureTime?: string;
   arrivalLocation?: string | null;
@@ -88,8 +90,10 @@ export type UpdateTravelRequest = {
 /**
  * `POST /trips/:tripId/member-travel`
  * (`apps/api/src/routes/member-travel.routes.ts:108`, body
- * `createMemberTravelSchema`, 201 `memberTravelResponseSchema`),
- * mapped through `toTravel`.
+ * `createMemberTravelSchema`, response `memberTravelResponseSchema` on
+ * **200 or 201** — 201 when this call filed a new row, 200 when the member
+ * and direction already held one and it was updated in place), mapped
+ * through `toTravel`.
  *
  * The response carries the full entity, so `toTravel` needs nothing
  * the response does not have — same full-entity shape as the stays

@@ -134,11 +134,6 @@ export const AccommodationLimitExceededError = createError(
   "%s",
   400,
 );
-export const MemberTravelLimitExceededError = createError(
-  "MEMBER_TRAVEL_LIMIT_EXCEEDED",
-  "%s",
-  400,
-);
 /**
  * Restoring would put a second live row on one member and direction.
  * The pair is the identity the whole feature assumes, and a soft-deleted

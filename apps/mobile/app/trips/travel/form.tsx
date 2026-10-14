@@ -131,8 +131,16 @@ function TravelFormScreen() {
   // the viewer themselves — your own roster row, matched by account.
   const viewer = viewerOf(going, user?.id);
   const viewerIsOrganizer = viewer?.isOrganizer ?? false;
+  // A `member=` in the URL may name anyone *the picker can name*: the same
+  // list, not the narrower going roster. The delete path below redirects to
+  // exactly this URL when one of two directions goes, and a member who
+  // answered "maybe" after filing still owns what they filed — resolving
+  // their id against `going` alone would drop the form back onto the
+  // viewer, which is the wrong-member failure this file exists to prevent.
+  // Outside this list the param is still ignored: a member nobody can name
+  // would otherwise print their raw id in the field.
   const linkedMember =
-    member && going.some((candidate) => candidate.id === member)
+    member && memberOptions.some((option) => option.id === member)
       ? member
       : undefined;
 
@@ -181,31 +189,37 @@ function TravelFormScreen() {
     return <NotFound />;
   }
 
+  // Nothing opens until the section read has landed — one gate for every
+  // door, because the reason is the same for all of them.
+  //
+  // The section is a plain query, not a suspension, while the two reads
+  // above it are suspended by the trip gate: a cold load reaches this line
+  // with `records` still empty and the roster already here. The dialog
+  // seeds its panels from `records` in a `useState` keyed on the member
+  // (`components/trip/TravelDialog.tsx`), so an empty read is not a blank
+  // that fills in later — it *is* the seed. The panels then say "Not
+  // shared yet" for a member who has filed, while `Delete` and `Save
+  // changes` — which read the record — say otherwise, and a save posts a
+  // leg the server folds into the existing row, clearing every field the
+  // body left out. The `travel=` door was guarded by the record it names;
+  // the `member=` door and the bare add door name no record, so they had
+  // nothing to wait for and opened on the empty read.
+  if (sectionStatus === "loading") {
+    return (
+      <FullscreenDialog title="Travel" dismissHref="/trips">
+        <LoadingBlock label="Loading travel details" />
+      </FullscreenDialog>
+    );
+  }
+
+  // Landed, and this door names a row that is not here. Only a landed read
+  // gets to say it is gone.
   if (editingId && !record) {
-    // While the section loads the record may simply not have arrived
-    // yet: only the landed read gets to say it is gone.
-    if (sectionStatus === "loading") {
-      return (
-        <FullscreenDialog title="Travel" dismissHref="/trips">
-          <LoadingBlock label="Loading travel details" />
-        </FullscreenDialog>
-      );
-    }
     return (
       <FullscreenDialog title="Travel" dismissHref="/trips">
         <Text className="font-body text-base text-ink">
           That travel is not on this trip any more.
         </Text>
-      </FullscreenDialog>
-    );
-  }
-
-  // The same gate for a duplicate: falling straight through would open an
-  // unseeded form, which looks like the copy worked and copied nothing.
-  if (duplicateOf && !duplicateFrom && sectionStatus === "loading") {
-    return (
-      <FullscreenDialog title="Travel" dismissHref="/trips">
-        <LoadingBlock label="Loading travel details" />
       </FullscreenDialog>
     );
   }

@@ -5,7 +5,15 @@ import {
   trips,
   type MemberTravel,
 } from "@/db/schema/index.js";
-import { eq, and, isNull, getTableColumns, count, sql, desc } from "drizzle-orm";
+import {
+  eq,
+  ne,
+  and,
+  isNull,
+  getTableColumns,
+  sql,
+  desc,
+} from "drizzle-orm";
 import type {
   CreateMemberTravelInput,
   UpdateMemberTravelInput,
@@ -18,7 +26,6 @@ import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
 import {
   MemberTravelNotFoundError,
-  MemberTravelLimitExceededError,
   MemberTravelConflictError,
   MemberNotFoundError,
   PermissionDeniedError,
@@ -26,9 +33,60 @@ import {
 } from "../errors.js";
 
 /**
+ * How many rows the locations read walks before ranking them.
+ *
+ * Not the answer's cap: `MY_TRAVEL_LOCATIONS_LIMIT` counts *locations*,
+ * and a row whose ends are both blank contributes none, so the walk needs
+ * slack over the cap — five times it. That keeps the answer identical for
+ * every caller who filed a where on each row (the difference needs eighty
+ * of the newest hundred rows to be blank-ended), and this list enriches a
+ * field that already works without it, where a shorter list is a narrower
+ * list rather than a wrong one.
+ */
+const LOCATION_SOURCE_ROWS = MY_TRAVEL_LOCATIONS_LIMIT * 5;
+
+/** Postgres' class for a unique-constraint violation. */
+const UNIQUE_VIOLATION = "23505";
+
+/** The partial unique index that holds one live row per pair. */
+const PAIR_LIVE_INDEX = "member_travel_pair_live_unique";
+
+/**
+ * A field of the Postgres error behind `error`, if there is one.
+ *
+ * `pg` puts `code` and `constraint` on the driver error; Drizzle wraps
+ * that error in its own, so the fields can sit on the error itself or on
+ * its `cause`. guest-member.service.ts unwraps the same two places for
+ * the same reason.
+ */
+function pgErrorField(error: unknown, field: "code" | "constraint") {
+  if (error === null || typeof error !== "object") return undefined;
+  const own = (error as Record<string, unknown>)[field];
+  if (own !== undefined) return own;
+  const cause = (error as { cause?: unknown }).cause;
+  if (cause === null || typeof cause !== "object") return undefined;
+  return (cause as Record<string, unknown>)[field];
+}
+
+/**
+ * Did this error come from the pair index refusing a write?
+ *
+ * A 23505 whose constraint name is present has to name this index. When
+ * the name is absent — a driver that does not report it — a 23505 on this
+ * table can only be this index anyway: the table's other unique key is
+ * `id`, a random UUID, and a collision there is not a thing that happens.
+ */
+function isPairLiveConflict(error: unknown): boolean {
+  if (pgErrorField(error, "code") !== UNIQUE_VIOLATION) return false;
+  const constraint = pgErrorField(error, "constraint");
+  return constraint === undefined || constraint === PAIR_LIVE_INDEX;
+}
+
+/**
  * Member Travel Service Interface
  * Defines the contract for member travel management operations
- */export interface IMemberTravelService {
+ */
+export interface IMemberTravelService {
   /**
    * Creates a new member travel record for a trip, or updates the one
    * already filed for the same member and direction
@@ -266,32 +324,61 @@ export class MemberTravelService implements IMemberTravelService {
       return { memberTravel: updated, created: false };
     }
 
-    // Check member travel count limit — inserts only.
-    const [travelCount] = await this.db
-      .select({ value: count() })
-      .from(memberTravel)
-      .where(
-        and(
-          eq(memberTravel.memberId, resolvedMemberId),
-          isNull(memberTravel.deletedAt),
-        ),
-      );
-    if ((travelCount?.value ?? 0) >= 20) {
-      throw new MemberTravelLimitExceededError(
-        "Maximum 20 travel entries per member reached.",
-      );
-    }
+    // No per-member row count here: the pair rule is the ceiling now — one
+    // live row per member and direction, held by
+    // `member_travel_pair_live_unique` — so there are no rows past the two
+    // (arrival, departure) for a count to bound.
 
-    // Create the member travel
-    const [travel] = await this.db
-      .insert(memberTravel)
-      .values({
-        tripId,
-        memberId: resolvedMemberId,
-        travelType,
-        ...values,
-      })
-      .returning();
+    // Create the member travel.
+    //
+    // This is the one write that can still race the lookup above: two
+    // POSTs on a free pair both miss it and both try to insert. A
+    // `SELECT ... FOR UPDATE` is not the guard here — it locks rows that
+    // exist, and the row this call would need to lock is the one it is
+    // about to create, so there is nothing to lock. The partial unique
+    // index is the guard: the loser's INSERT is refused by the database
+    // (23505 on `member_travel_pair_live_unique`), which is exactly the
+    // signal that the pair was taken between the lookup and the write.
+    // Catch it, take the same update-in-place path against whatever row
+    // the winner left behind, and answer as if it had been found there:
+    // the pair holds one live row and this call is the one that did not
+    // insert it.
+    let travel: MemberTravel | undefined;
+    try {
+      [travel] = await this.db
+        .insert(memberTravel)
+        .values({
+          tripId,
+          memberId: resolvedMemberId,
+          travelType,
+          ...values,
+        })
+        .returning();
+    } catch (error) {
+      if (!isPairLiveConflict(error)) throw error;
+
+      // The winner's row is committed (an INSERT only reports the
+      // conflict once the row it collided with is), so this statement
+      // sees it. `deletedAt IS NULL` keeps the write on the live row: if
+      // the winner has already soft-deleted it, there is no live pair
+      // left to fold into and the original error is the honest answer.
+      const [raced] = await this.db
+        .update(memberTravel)
+        .set({ ...values, updatedAt: new Date() })
+        .where(
+          and(
+            eq(memberTravel.tripId, tripId),
+            eq(memberTravel.memberId, resolvedMemberId),
+            eq(memberTravel.travelType, travelType),
+            isNull(memberTravel.deletedAt),
+          ),
+        )
+        .returning();
+
+      if (!raced) throw error;
+
+      return { memberTravel: raced, created: false };
+    }
 
     if (!travel) {
       throw new Error("Failed to create member travel");
@@ -383,7 +470,12 @@ export class MemberTravelService implements IMemberTravelService {
       .from(memberTravel)
       .innerJoin(members, eq(memberTravel.memberId, members.id))
       .where(and(eq(members.userId, userId), isNull(memberTravel.deletedAt)))
-      .orderBy(desc(memberTravel.updatedAt));
+      // The order is what makes the bound a *cut* rather than an arbitrary
+      // sample: `LIMIT` without it would drop whichever rows the planner
+      // happened to reach. `rankTravelLocations` re-sorts (and owns the
+      // rule), so the SQL order exists for this bound alone.
+      .orderBy(desc(memberTravel.updatedAt))
+      .limit(LOCATION_SOURCE_ROWS);
 
     return rankTravelLocations(rows, MY_TRAVEL_LOCATIONS_LIMIT);
   }
@@ -438,6 +530,16 @@ export class MemberTravelService implements IMemberTravelService {
       ...data,
       updatedAt: new Date(),
     };
+
+    // `travelType` is create-only — `updateMemberTravelSchema` omits it and
+    // the route's body validation strips it before this runs, so a typed
+    // caller cannot carry one. Delete it anyway: the pair is the row's
+    // identity, and a PUT that flipped the direction would leave the new
+    // direction's pair free for the *next* write while the old row still
+    // claims the old one, which is the second-live-row state the index
+    // exists to prevent. Deleting the key here keeps the guard true even
+    // for a caller that never went through the schema.
+    delete updateData.travelType;
 
     // Convert time strings to Date objects if provided
     if (data.arrivalTime) {
@@ -561,13 +663,19 @@ export class MemberTravelService implements IMemberTravelService {
       );
     }
 
-    // The pair must not already hold a live row. A soft-deleted row can
-    // sit beside a live one — the create path only looks for a live row,
-    // so "delete, then file it again" inserts a new one and leaves this
-    // one behind. Restoring it is the only other way a row becomes live,
-    // and therefore the only other place the one-per-pair invariant
-    // could break: two live rows would draw the member twice on the
-    // board, which is the state this whole change exists to prevent.
+    // The pair must not already hold a *different* live row. What actually
+    // enforces one live row per pair is the partial unique index
+    // (`member_travel_pair_live_unique`): the create path leans on it to
+    // settle its insert race, and the restore below is no exception — its
+    // own UPDATE re-enters the index, which is why the 23505 it can raise
+    // is mapped to the same conflict. This check exists to answer 409 with
+    // a message rather than let that constraint error out raw.
+    //
+    // The row being restored is excluded from the check (`ne`): it is the
+    // row this call is about, so matching it would make restoring an
+    // already-live row — the idempotent no-op this endpoint has always
+    // been — answer 409 instead. A row that was deleted and then replaced
+    // has a live twin under a *different* id, and that one still conflicts.
     const [twin] = await this.db
       .select({ id: memberTravel.id })
       .from(memberTravel)
@@ -576,6 +684,7 @@ export class MemberTravelService implements IMemberTravelService {
           eq(memberTravel.tripId, travel.tripId),
           eq(memberTravel.memberId, travel.memberId),
           eq(memberTravel.travelType, travel.travelType),
+          ne(memberTravel.id, memberTravelId),
           isNull(memberTravel.deletedAt),
         ),
       )
@@ -585,32 +694,34 @@ export class MemberTravelService implements IMemberTravelService {
       throw new MemberTravelConflictError();
     }
 
-    // Check member travel count limit before restoring
-    const [travelCount] = await this.db
-      .select({ value: count() })
-      .from(memberTravel)
-      .where(
-        and(
-          eq(memberTravel.memberId, travel.memberId),
-          isNull(memberTravel.deletedAt),
-        ),
-      );
-    if ((travelCount?.value ?? 0) >= 20) {
-      throw new MemberTravelLimitExceededError(
-        "Maximum 20 travel entries per member reached.",
-      );
-    }
+    // No cap check here either: the pair rule is the ceiling (see
+    // createMemberTravel), so a restore adds no row beyond the two a member
+    // can hold for the trip.
 
-    // Restore member travel
-    const result = await this.db
-      .update(memberTravel)
-      .set({
-        deletedAt: null,
-        deletedBy: null,
-        updatedAt: new Date(),
-      })
-      .where(eq(memberTravel.id, memberTravelId))
-      .returning();
+    // Restore member travel.
+    //
+    // A create can commit between the twin check above and this statement,
+    // and then this UPDATE is the loser: the index refuses to make a
+    // second live row on the pair (23505). That is the same conflict the
+    // check reports, so it answers the same way instead of surfacing as a
+    // 500.
+    let result: MemberTravel[];
+    try {
+      result = await this.db
+        .update(memberTravel)
+        .set({
+          deletedAt: null,
+          deletedBy: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(memberTravel.id, memberTravelId))
+        .returning();
+    } catch (error) {
+      if (isPairLiveConflict(error)) {
+        throw new MemberTravelConflictError();
+      }
+      throw error;
+    }
 
     if (!result[0]) {
       throw new MemberTravelNotFoundError();

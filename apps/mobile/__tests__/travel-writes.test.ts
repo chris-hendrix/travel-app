@@ -46,7 +46,12 @@ describe("toUpdateRequest", () => {
     expect(body).not.toHaveProperty("arrivalTime");
   });
 
-  it("keeps a real value, and still rides travelType", () => {
+  it("keeps a real value, and never rides a direction change", () => {
+    // The API's update schema drops `travelType` (a direction is
+    // create-only), so sending it would be a key the server throws away —
+    // and the one key that could ask it to put a second live row on the
+    // pair. The patch still builds from a full leg record, which is why
+    // this is asserted rather than left to the type.
     expect(
       toUpdateRequest({
         travelType: "departure",
@@ -54,7 +59,6 @@ describe("toUpdateRequest", () => {
         details: "Bag drop",
       }),
     ).toEqual({
-      travelType: "departure",
       departureLocation: "BCN T2",
       details: "Bag drop",
     });

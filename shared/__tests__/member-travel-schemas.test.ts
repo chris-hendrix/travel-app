@@ -195,6 +195,36 @@ describe("createMemberTravelSchema", () => {
     expect(() => createMemberTravelSchema.parse(memberTravel)).not.toThrow();
   });
 
+  it("should trim the four clearable text fields", () => {
+    // A where that is only whitespace is the empty where the member meant
+    // rather than a distinct value the suggestion list would offer back —
+    // and the rest of the field is their own words, whose edges are not
+    // part of the answer.
+    const parsed = createMemberTravelSchema.parse({
+      travelType: "arrival" as const,
+      arrivalTime: "2026-07-15T10:30:00Z",
+      arrivalLocation: "  BCN T2  ",
+      departureLocation: "   ",
+      details: "  Bags take twenty minutes.  ",
+      flightNumber: "  IB 3453  ",
+    });
+
+    expect(parsed.arrivalLocation).toBe("BCN T2");
+    expect(parsed.departureLocation).toBe("");
+    expect(parsed.details).toBe("Bags take twenty minutes.");
+    expect(parsed.flightNumber).toBe("IB 3453");
+  });
+
+  it("should not count trailing space against a location's length", () => {
+    const parsed = createMemberTravelSchema.parse({
+      travelType: "arrival" as const,
+      arrivalTime: "2026-07-15T10:30:00Z",
+      arrivalLocation: `${"x".repeat(500)}${" ".repeat(20)}`,
+    });
+
+    expect(parsed.arrivalLocation).toBe("x".repeat(500));
+  });
+
   it("should accept valid create data with memberId (UUID)", () => {
     const memberTravel = {
       travelType: "arrival" as const,
@@ -247,12 +277,12 @@ describe("createMemberTravelSchema", () => {
 describe("updateMemberTravelSchema", () => {
   it("should accept partial updates with any single field", () => {
     const partialUpdates = [
-      { travelType: "departure" as const },
       { arrivalTime: "2026-08-01T12:00:00Z" },
       { departureTime: "2026-08-01T12:00:00Z" },
       { arrivalLocation: "New Airport" },
       { departureLocation: "New Airport" },
       { details: "Updated flight information" },
+      { flightNumber: "IB 3453" },
     ];
 
     partialUpdates.forEach((update) => {
@@ -262,7 +292,6 @@ describe("updateMemberTravelSchema", () => {
 
   it("should accept partial updates with multiple fields", () => {
     const update = {
-      travelType: "arrival" as const,
       arrivalTime: "2026-08-15T09:00:00Z",
       arrivalLocation: "Updated Airport",
       details: "New flight details",
@@ -271,13 +300,42 @@ describe("updateMemberTravelSchema", () => {
     expect(() => updateMemberTravelSchema.parse(update)).not.toThrow();
   });
 
+  it("should strip travelType rather than carry a direction change", () => {
+    // The pair of member and direction is the row's identity, so the
+    // direction is create-only: an update that handed the service one
+    // would leave the old pair's row behind while the new one sat free
+    // for the next write — a second live row for that member, from a
+    // plain edit. Stripping rather than rejecting is what lets a client
+    // that still sends its direction through the PUT keep its other
+    // edits.
+    const parsed = updateMemberTravelSchema.parse({
+      travelType: "departure",
+      arrivalLocation: "New Airport",
+    });
+
+    expect(parsed).toEqual({ arrivalLocation: "New Airport" });
+    expect("travelType" in parsed).toBe(false);
+  });
+
+  it("should ignore an invalid travelType instead of failing the update", () => {
+    // A stripped key is not validated, which is the same rule seen from
+    // the other side: the direction is not this schema's business, so a
+    // bad one cannot make the edit fail either.
+    const parsed = updateMemberTravelSchema.safeParse({
+      travelType: "sideways",
+      details: "Kept",
+    });
+
+    expect(parsed.success).toBe(true);
+    expect(parsed.data).toEqual({ details: "Kept" });
+  });
+
   it("should accept empty object (no updates)", () => {
     expect(() => updateMemberTravelSchema.parse({})).not.toThrow();
   });
 
   it("should still validate field constraints when provided", () => {
     const invalidUpdates = [
-      { travelType: "invalid" }, // Invalid enum
       { arrivalTime: "not-a-datetime" }, // Invalid datetime format
       { departureTime: "2026-07-15" }, // Date only, missing time
       { details: "a".repeat(501) }, // Too long
@@ -298,21 +356,6 @@ describe("updateMemberTravelSchema", () => {
 
     const invalidUpdate = {
       details: "a".repeat(501),
-    };
-
-    const result = updateMemberTravelSchema.safeParse(invalidUpdate);
-    expect(result.success).toBe(false);
-  });
-
-  it("should validate travelType enum when provided", () => {
-    const validUpdate = {
-      travelType: "arrival" as const,
-    };
-
-    expect(() => updateMemberTravelSchema.parse(validUpdate)).not.toThrow();
-
-    const invalidUpdate = {
-      travelType: "invalid",
     };
 
     const result = updateMemberTravelSchema.safeParse(invalidUpdate);

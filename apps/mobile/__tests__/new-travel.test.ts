@@ -300,6 +300,83 @@ describe("legFromRecord", () => {
     expect(leg.location).toBe("BCN T2");
   });
 
+  it("keeps an arrival filed the evening before on its margin day", () => {
+    // The margin exists for this: a leg's day is about the trip rather
+    // than bounded by it. Clamping the read to the trip's own bounds
+    // selected the *last* day of the trip for a flight that lands the
+    // evening before, and saving it then moved the arrival a week.
+    const leg = legFromRecord(
+      {
+        departureTime: "2026-09-17T17:00:00.000Z",
+        departureLocation: "JFK T4",
+        arrivalTime: "2026-09-17T20:30:00.000Z",
+        arrivalLocation: "BCN T2",
+        flightNumber: null,
+        details: null,
+      },
+      "arrival",
+      null,
+      "2026-09-18",
+      "2026-09-25",
+    );
+    expect(leg.day).toBe("2026-09-17");
+  });
+
+  it("keeps a departure filed the morning after on its margin day", () => {
+    const leg = legFromRecord(
+      {
+        departureTime: "2026-09-26T09:00:00.000Z",
+        departureLocation: "BCN T2",
+        arrivalTime: null,
+        arrivalLocation: null,
+        flightNumber: null,
+        details: null,
+      },
+      "departure",
+      null,
+      "2026-09-18",
+      "2026-09-25",
+    );
+    expect(leg.day).toBe("2026-09-26");
+  });
+
+  it("pulls a day off the strip to the nearest cell there is", () => {
+    // A record hand-written, or filed while the margin was smaller: no
+    // cell can show the day, so it lands on the strip's own edge rather
+    // than on a day the form cannot mark.
+    const before = legFromRecord(
+      {
+        departureTime: null,
+        departureLocation: null,
+        arrivalTime: "2026-08-01T12:00:00.000Z",
+        arrivalLocation: "BCN T2",
+        flightNumber: null,
+        details: null,
+      },
+      "arrival",
+      null,
+      "2026-09-18",
+      "2026-09-25",
+    );
+    expect(before.day).toBe("2026-09-16");
+
+    const after = legFromRecord(
+      {
+        departureTime: "2026-11-01T12:00:00.000Z",
+        departureLocation: "BCN T2",
+        arrivalTime: null,
+        arrivalLocation: null,
+        flightNumber: null,
+        details: null,
+      },
+      "departure",
+      null,
+      "2026-09-18",
+      "2026-09-25",
+    );
+    expect(after.day).toBe("2026-09-27");
+  });
+
   it("reads a stored number back in the field's own shape", () => {
     // Built compact, shown spaced: `buildLegRecord` and this are the two
     // ends of that, and a record that came from the API is compact.

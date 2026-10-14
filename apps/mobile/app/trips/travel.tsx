@@ -14,7 +14,8 @@ import { useTravel } from "@/lib/travelStore";
 import { useTravel as useTravelSection } from "@/lib/queries/travel";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
-import { goingMembers } from "@/lib/members";import { useMembers } from "@/lib/queries/members";
+import { goingMembers } from "@/lib/members";
+import { useMembers } from "@/lib/queries/members";
 
 /**
  * Travel, reached from "Travel" beside "N going" on the trip header.
@@ -125,9 +126,10 @@ function TripTravelDialog() {
         // day, the name and the clock; the where, the flight and the
         // prose are on the row's own screen, and nothing on a row says
         // so — the system's rows take no chevron (`ScheduleRow` carries
-        // the rule), and the press fill is gravel on gravel here. So the
-        // board says what a press does, in the form's own vocabulary,
-        // and only when there is a filed record behind a row to open.
+        // the rule), and a press fill is not a signpost: it answers a
+        // press, it does not promise one. So the board says what a press
+        // does, in the form's own vocabulary, and only when there is a
+        // filed record behind a row to open.
         <Text className="font-body text-sm text-grey-quiet">
           A row opens on the where, the flight and the details.
         </Text>

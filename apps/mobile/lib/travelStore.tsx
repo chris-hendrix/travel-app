@@ -5,7 +5,7 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import type { Trip } from "@/components/trip/TripCard";
 import type { MockTravel } from "@/mocks/travel";
 import { useDomainVersion } from "@/lib/domainVersion";
@@ -59,6 +59,42 @@ function revertOwnedKeys<T extends Record<string, unknown>>(
     }
   }
   return restored;
+}
+
+/**
+ * What a completed write leaves stale, in one place.
+ *
+ * The trip's own list is the board's and the form's, and the caller's
+ * cross-trip wheres are the `Where` field's third source — the where you
+ * just filed is the one it should offer next, and it is not part of the
+ * list above, so every write has to say both. Named rather than repeated
+ * because it was three copies of one key and the copies had already
+ * drifted from the reads they were serving.
+ */
+function invalidateTravelWrite(
+  queryClient: QueryClient,
+  tripId: string,
+): void {
+  void queryClient.invalidateQueries({ queryKey: travelKeys.list(tripId) });
+  void queryClient.invalidateQueries({ queryKey: travelKeys.locations });
+}
+
+/**
+ * A write response as the board reads it.
+ *
+ * The write endpoints answer with `.returning()` — the row and no join —
+ * while `memberName` is what the *list* read adds (`toTravel` maps the
+ * absent field to `""`). Taking the response row as-is therefore blanks
+ * the name on the row you just saved, until the invalidation's refetch
+ * lands: the member is drawn without a name for a round trip, and stays
+ * that way if that refetch never lands. Every other field is the server's.
+ */
+function withCachedName(
+  record: MockTravel,
+  cached: MockTravel | undefined,
+): MockTravel {
+  if (record.memberName || !cached?.memberName) return record;
+  return { ...record, memberName: cached.memberName };
 }
 
 /** An edit merges into the slot so a soft delete survives it. */
@@ -117,15 +153,18 @@ function toCreateRequest(record: MockTravel): CreateTravelRequest {
  * took the value back) against absent (this patch is not about that
  * field), so the test is `!== undefined` rather than truthiness.
  *
+ * `travelType` is not among the keys, and that is the schema's rule
+ * rather than a preference: a direction is create-only, so a patch that
+ * carried one would be asking the server to put a second live row on the
+ * pair. The optimistic paint still carries it — the leg's own direction
+ * rides on every `MockTravel` — but the wire does not.
+ *
  * The two times are never sent as null: they stay non-nullable and
  * `pertinentTimeRefine` depends on that, so a direction is removed with
  * Delete rather than by blanking the time the board files on.
  */
 export function toUpdateRequest(patch: Partial<MockTravel>): UpdateTravelRequest {
   return {
-    ...(patch.travelType !== undefined
-      ? { travelType: patch.travelType }
-      : null),
     ...(patch.departureLocation !== undefined
       ? { departureLocation: patch.departureLocation || null }
       : null),
@@ -213,20 +252,23 @@ export function TravelProvider({ children }: { children: ReactNode }) {
           const withoutStandIn = old.filter(
             (row) => row.id !== context?.optimisticId,
           );
+          // The stand-in is the only row that carries the name here: a
+          // POST answers with a new id, so the common path appends rather
+          // than swaps, and the dropped stand-in is where the picker's
+          // answer lives.
+          const standIn = old.find(
+            (row) => row.id === context?.optimisticId,
+          );
           return withoutStandIn.some((row) => row.id === record.id)
             ? withoutStandIn.map((row) =>
-                row.id === record.id ? record : row,
+                row.id === record.id ? withCachedName(record, row) : row,
               )
-            : [...withoutStandIn, record];
+            : [...withoutStandIn, withCachedName(record, standIn)];
         },
       );
     },
     onSettled: (_data, _error, _input, context) => {
-      if (context) {
-        queryClient.invalidateQueries({
-          queryKey: travelKeys.list(context.tripId),
-        });
-      }
+      if (context) invalidateTravelWrite(queryClient, context.tripId);
     },
   });
 
@@ -272,19 +314,19 @@ export function TravelProvider({ children }: { children: ReactNode }) {
       );
     },
     onSuccess: (record, _input, context) => {
-      // The PUT response carries the full entity, so `toTravel` needs
-      // no merge. The swap is by id, not position.
+      // The PUT response carries the entity's own columns, so `toTravel`
+      // needs no field merged — only the name, which the write cannot
+      // carry. The swap is by id, not position.
       queryClient.setQueryData<MockTravel[]>(
         travelKeys.list(context?.tripId ?? ""),
-        (old) => old?.map((row) => (row.id === record.id ? record : row)),
+        (old) =>
+          old?.map((row) =>
+            row.id === record.id ? withCachedName(record, row) : row,
+          ),
       );
     },
     onSettled: (_data, _error, _input, context) => {
-      if (context) {
-        queryClient.invalidateQueries({
-          queryKey: travelKeys.list(context.tripId),
-        });
-      }
+      if (context) invalidateTravelWrite(queryClient, context.tripId);
     },
   });
 
@@ -328,12 +370,11 @@ export function TravelProvider({ children }: { children: ReactNode }) {
     },
     onSettled: (_data, _error, _input, context) => {
       // Soft server-side with `includeDeleted` off: the row
-      // disappears on this refetch. No undelete UI yet — plan.
-      if (context) {
-        queryClient.invalidateQueries({
-          queryKey: travelKeys.list(context.tripId),
-        });
-      }
+      // disappears on this refetch. No undelete UI yet — plan. Its
+      // wheres leave the suggestion list with it: that read is live rows
+      // only (`getMyLocations`), so a deleted row's where is not a
+      // suggestion any more either.
+      if (context) invalidateTravelWrite(queryClient, context.tripId);
     },
   });
 
