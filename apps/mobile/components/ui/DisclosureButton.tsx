@@ -148,10 +148,21 @@ export function DisclosureButton({
   title,
   actions,
   defaultOpen = false,
+  fullWidth = false,
 }: {
   title: string;
   actions: DisclosureAction[];
   defaultOpen?: boolean;
+  /**
+   * Fill the column at every width, which is what the hero band's own
+   * buttons do and therefore what this has to do when it sits under them.
+   *
+   * Opt-in, because the band is the exception rather than the rule: every
+   * other button fills a phone and hugs its edge from md up
+   * (`components/ui/Button.tsx`), and a trigger that quietly filled the
+   * column on its own would be the one control on the screen that did.
+   */
+  fullWidth?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
 
@@ -162,7 +173,13 @@ export function DisclosureButton({
   if (actions.length === 0) return null;
 
   return (
-    <View>
+    // Hugs its trigger from md up unless the caller says to fill: the
+    // group's width is the widest row's, and the trigger fills it so the
+    // rows sit under the trigger at the same width rather than wider than
+    // it. `fullWidth` suspends that hugging for the one place whose
+    // buttons own the column — the trip hero band, where the trigger has
+    // to line up with the filled button above it.
+    <View className={fullWidth ? "" : "md:self-start"}>
       <Button
         title={title}
         variant="secondary"

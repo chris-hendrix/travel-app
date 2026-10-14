@@ -77,3 +77,31 @@ export function viewerOf(
 export function goingMembers(members: Member[]): Member[] {
   return members.filter((member) => member.status === "going");
 }
+
+/**
+ * Who the travel form can file for: everyone going, plus anyone who
+ * already holds a record on this trip.
+ *
+ * The second half is not a courtesy, it is the fix for a raw member id
+ * appearing in the field. A member who answered "maybe" can still hold
+ * an arrival — the board draws them, and the API accepts a record for
+ * them — but they have no place in the going roster, so a picker built
+ * on that roster alone cannot name them and the form falls back to
+ * printing their id. The going roster stays first because that is the
+ * order the trip is planned in; the holders follow it.
+ */
+export function travelMemberOptions(
+  members: Member[],
+  records: ReadonlyArray<{ memberId: string }>,
+): Member[] {
+  const holding = new Set(records.map((record) => record.memberId));
+  const going = goingMembers(members);
+  const goingIds = new Set(going.map((member) => member.id));
+  // `goingIds` rather than a dedupe pass: a member who is already in
+  // the first list cannot enter the second, so no id is ever emitted
+  // twice and a member holding a record never moves.
+  const holders = members.filter(
+    (member) => holding.has(member.id) && !goingIds.has(member.id),
+  );
+  return [...going, ...holders];
+}

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { membersFor } from "@/mocks/members";
 import { TRIPS } from "@/mocks/trips";
 import type { Trip } from "@/components/trip/TripCard";
-import { viewerOf, type Member } from "@/lib/members";
+import { travelMemberOptions, viewerOf, type Member } from "@/lib/members";
 
 function member(over: Partial<Member> = {}): Member {
   return {
@@ -143,5 +143,55 @@ describe("viewerOf", () => {
     expect(viewerOf(roster, "u1")?.isOrganizer ?? false).toBe(true);
     expect(viewerOf(roster, "u2")?.isOrganizer ?? false).toBe(false);
     expect(viewerOf(roster, "u999")?.isOrganizer ?? false).toBe(false);
+  });
+});
+
+describe("travelMemberOptions", () => {
+  const records = (...memberIds: string[]) =>
+    memberIds.map((memberId) => ({ memberId }));
+
+  it("keeps the going roster, in its own order, first", () => {
+    const ada = member({ id: "m1", name: "Ada", status: "going" });
+    const bo = member({ id: "m2", name: "Bo", status: "going" });
+    expect(travelMemberOptions([ada, bo], records("m2")).map((m) => m.id)).toEqual([
+      "m1",
+      "m2",
+    ]);
+  });
+
+  it("adds a member who holds a record but is not going", () => {
+    // The case that put a raw member id in the Who field: David Kim is
+    // a `maybe` with an arrival, so the going roster cannot name him.
+    const ada = member({ id: "m1", name: "Ada", status: "going" });
+    const david = member({ id: "m9", name: "David", status: "maybe" });
+    expect(
+      travelMemberOptions([ada, david], records("m1", "m9")).map(
+        (m) => m.name,
+      ),
+    ).toEqual(["Ada", "David"]);
+  });
+
+  it("leaves out an undecided member with no record", () => {
+    const ada = member({ id: "m1", status: "going" });
+    const david = member({ id: "m9", name: "David", status: "maybe" });
+    expect(
+      travelMemberOptions([ada, david], records("m1")).map((m) => m.id),
+    ).toEqual(["m1"]);
+  });
+
+  it("leaves out a member who said no and holds nothing", () => {
+    const ada = member({ id: "m1", status: "going" });
+    const no = member({ id: "m8", name: "No", status: "not_going" });
+    expect(travelMemberOptions([ada, no], []).map((m) => m.id)).toEqual([
+      "m1",
+    ]);
+  });
+
+  it("never lists the same member twice", () => {
+    const ada = member({ id: "m1", status: "going" });
+    const ids = travelMemberOptions([ada], records("m1", "m1")).map(
+      (m) => m.id,
+    );
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });

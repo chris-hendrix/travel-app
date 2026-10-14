@@ -403,6 +403,13 @@ export const memberTravel = pgTable(
     index("member_travel_trip_id_not_deleted_idx")
       .on(table.tripId)
       .where(sql`${table.deletedAt} IS NULL`),
+    // One live row per member and direction — the feature's identity, and
+    // the backstop for the read-then-write the create path cannot make
+    // atomic on its own. Partial on `deleted_at IS NULL` so a soft-deleted
+    // row never blocks the replacement the member files next.
+    uniqueIndex("member_travel_pair_live_unique")
+      .on(table.tripId, table.memberId, table.travelType)
+      .where(sql`${table.deletedAt} IS NULL`),
   ],
 );
 

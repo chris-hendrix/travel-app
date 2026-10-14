@@ -1,16 +1,18 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { db } from "@/config/database.js";
+import { db, pool } from "@/config/database.js";
 import { users, trips, members, memberTravel } from "@/db/schema/index.js";
-import { eq, or, and } from "drizzle-orm";
+import { eq, or, and, count, isNull } from "drizzle-orm";
 import { MemberTravelService } from "@/services/member-travel.service.js";
 import { PermissionsService } from "@/services/permissions.service.js";
 import { generateUniquePhone } from "../test-utils.js";
 import {
   MemberTravelNotFoundError,
+  MemberTravelConflictError,
   MemberNotFoundError,
   PermissionDeniedError,
   TripNotFoundError,
 } from "@/errors.js";
+import type { UpdateMemberTravelInput } from "@journiful/shared/schemas";
 
 // Create service instances with db for testing
 const permissionsService = new PermissionsService(db);
@@ -167,6 +169,37 @@ describe("member-travel.service", () => {
 
   afterEach(cleanup);
 
+  /** Every live row this member holds, straight from the table. */
+  const liveRowsFor = async (memberId: string) => {
+    const [row] = await db
+      .select({ value: count() })
+      .from(memberTravel)
+      .where(
+        and(
+          eq(memberTravel.memberId, memberId),
+          isNull(memberTravel.deletedAt),
+        ),
+      );
+    return row?.value ?? 0;
+  };
+
+  const pairRowsFor = async (
+    memberId: string,
+    travelType: "arrival" | "departure",
+  ) =>
+    (
+      await db
+        .select({ id: memberTravel.id })
+        .from(memberTravel)
+        .where(
+          and(
+            eq(memberTravel.memberId, memberId),
+            eq(memberTravel.travelType, travelType),
+            isNull(memberTravel.deletedAt),
+          ),
+        )
+    ).map((row) => row.id);
+
   describe("createMemberTravel", () => {
     it("should create member travel as member", async () => {
       const travelData = {
@@ -176,7 +209,8 @@ describe("member-travel.service", () => {
         details: "Train to NYC",
       };
 
-      const travel = await memberTravelService.createMemberTravel(
+      const { memberTravel: travel } =
+        await memberTravelService.createMemberTravel(
         testMember1Id,
         testTripId,
         travelData,
@@ -192,8 +226,14 @@ describe("member-travel.service", () => {
     });
 
     it("should persist flightNumber and all flight fields on create", async () => {
+      // A departure for member 1: the seeded row holds that member's
+      // *arrival*, so this pair is free and the call takes the insert
+      // branch. Pointed at the arrival pair it would quietly exercise the
+      // update branch instead, and the field mapping the insert does —
+      // both sides plus the flight number, in one statement — would go
+      // unasserted.
       const travelData = {
-        travelType: "arrival" as const,
+        travelType: "departure" as const,
         arrivalTime: "2026-06-10T14:00:00Z",
         arrivalLocation: "JFK Airport",
         departureTime: "2026-06-10T10:00:00Z",
@@ -202,12 +242,15 @@ describe("member-travel.service", () => {
         details: "Flight from SFO",
       };
 
-      const travel = await memberTravelService.createMemberTravel(
+      const { memberTravel: travel, created } =
+        await memberTravelService.createMemberTravel(
         testMember1Id,
         testTripId,
         travelData,
       );
 
+      expect(created).toBe(true);
+      expect(travel.travelType).toBe("departure");
       expect(travel.flightNumber).toBe("UA123");
       expect(travel.arrivalTime).toEqual(new Date(travelData.arrivalTime));
       expect(travel.arrivalLocation).toBe(travelData.arrivalLocation);
@@ -215,6 +258,7 @@ describe("member-travel.service", () => {
         new Date(travelData.departureTime),
       );
       expect(travel.departureLocation).toBe(travelData.departureLocation);
+      expect(travel.details).toBe(travelData.details);
     });
 
     it("should persist counterpart fields on update", async () => {
@@ -244,7 +288,8 @@ describe("member-travel.service", () => {
         arrivalLocation: "Bus Station",
       };
 
-      const travel = await memberTravelService.createMemberTravel(
+      const { memberTravel: travel } =
+        await memberTravelService.createMemberTravel(
         testMember2Id,
         testTripId,
         travelData,
@@ -290,7 +335,8 @@ describe("member-travel.service", () => {
         departureTime: "2026-06-21T08:00:00Z",
       };
 
-      const travel = await memberTravelService.createMemberTravel(
+      const { memberTravel: travel } =
+        await memberTravelService.createMemberTravel(
         testMember1Id,
         testTripId,
         travelData,
@@ -299,6 +345,225 @@ describe("member-travel.service", () => {
       expect(travel).toBeDefined();
       expect(travel.departureLocation).toBeNull();
       expect(travel.details).toBeNull();
+    });
+  });
+
+  describe("createMemberTravel on the member and direction", () => {
+    it("updates the live row for the same member and direction", async () => {
+      // The pair is the feature's whole identity: a second arrival is the
+      // same arrival answered again, not a second one beside it. This is
+      // the server half of the bug that drew a member twice on the board.
+      const [seededId] = await pairRowsFor(testMember1MemberId, "arrival");
+
+      const { memberTravel, created } =
+        await memberTravelService.createMemberTravel(testMember1Id, testTripId, {
+          travelType: "arrival",
+          arrivalTime: "2026-06-10T18:30:00Z",
+          arrivalLocation: "Terminal 1",
+        });
+
+      expect(created).toBe(false);
+      expect(memberTravel.id).toBe(seededId);
+      expect(memberTravel.arrivalTime).toEqual(
+        new Date("2026-06-10T18:30:00Z"),
+      );
+      expect(memberTravel.arrivalLocation).toBe("Terminal 1");
+      expect(await pairRowsFor(testMember1MemberId, "arrival")).toEqual([
+        seededId,
+      ]);
+    });
+
+    it("clears a column the create no longer carries", async () => {
+      // The body is a full statement of the leg, so a field the client
+      // stopped sending is one the member took back — the seeded arrival
+      // has both a location and details, and this body has neither.
+      const { memberTravel } = await memberTravelService.createMemberTravel(
+        testMember1Id,
+        testTripId,
+        { travelType: "arrival", arrivalTime: "2026-06-10T18:30:00Z" },
+      );
+
+      expect(memberTravel.arrivalLocation).toBeNull();
+      expect(memberTravel.details).toBeNull();
+    });
+
+    it("does not let a soft-deleted row block a new insert", async () => {
+      const [seededId] = await pairRowsFor(testMember1MemberId, "arrival");
+      await memberTravelService.deleteMemberTravel(testMember1Id, seededId!);
+
+      const { memberTravel, created } =
+        await memberTravelService.createMemberTravel(testMember1Id, testTripId, {
+          travelType: "arrival",
+          arrivalTime: "2026-06-12T09:00:00Z",
+          arrivalLocation: "Gate 4",
+        });
+
+      expect(created).toBe(true);
+      expect(memberTravel.id).not.toBe(seededId);
+      expect(await pairRowsFor(testMember1MemberId, "arrival")).toEqual([
+        memberTravel.id,
+      ]);
+    });
+
+    it("still inserts the other direction for the same member", async () => {
+      const { created } = await memberTravelService.createMemberTravel(
+        testMember1Id,
+        testTripId,
+        { travelType: "departure", departureTime: "2026-06-20T16:00:00Z" },
+      );
+
+      expect(created).toBe(true);
+    });
+
+    it("still inserts another member's first arrival", async () => {
+      const { created, memberTravel } =
+        await memberTravelService.createMemberTravel(testMember2Id, testTripId, {
+          travelType: "arrival",
+          arrivalTime: "2026-06-11T09:00:00Z",
+        });
+
+      expect(created).toBe(true);
+      expect(memberTravel.memberId).toBe(testMember2MemberId);
+    });
+
+    it("keeps one live row when two creates race on the same pair", async () => {
+      // Both calls read the pair as free and both go on to insert: the
+      // read-then-write that no amount of checking can order, which is
+      // why the database gets the last word. The loser is refused by
+      // `member_travel_pair_live_unique` and folds into the row the
+      // winner inserted, so the pair still holds one row and no caller
+      // sees an error. Two live rows here is exactly the artifact this
+      // change exists to remove.
+      const body = {
+        travelType: "departure" as const,
+        departureTime: "2026-06-20T16:00:00Z",
+        departureLocation: "Gate 4",
+      };
+
+      const results = await Promise.all([
+        memberTravelService.createMemberTravel(testMember1Id, testTripId, body),
+        memberTravelService.createMemberTravel(testMember1Id, testTripId, body),
+      ]);
+
+      expect(results).toHaveLength(2);
+      const rows = await pairRowsFor(testMember1MemberId, "departure");
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toBe(results[0]!.memberTravel.id);
+      expect(rows[0]).toBe(results[1]!.memberTravel.id);
+
+      // Exactly one of them inserted it: the other was the loser of the
+      // race and says so, which is what lets the route answer 201 or 200.
+      expect(results.filter((result) => result.created)).toHaveLength(1);
+    });
+
+    it("folds into the row an uncommitted insert left behind", async () => {
+      // The same race in a form the test can hold open: a second connection
+      // inserts the pair and does not commit, so this call's lookup — which
+      // only ever sees committed rows — misses it, and its own INSERT is
+      // the one that blocks on that row and then loses when it commits.
+      // That is the branch the pair index exists for. Timing cannot decide
+      // the outcome (a slow run simply takes the fast path and lands on the
+      // same row), so nothing here depends on the scheduler; the sleep only
+      // gives the insert time to be blocked rather than queued behind the
+      // winner.
+      const client = await pool.connect();
+      let committed = false;
+      try {
+        await client.query("BEGIN");
+        await client.query(
+          `INSERT INTO member_travel (trip_id, member_id, travel_type, departure_time, departure_location)
+           VALUES ($1, $2, 'departure', $3, $4)`,
+          [testTripId, testMember1MemberId, "2026-06-20T16:00:00Z", "Gate 4"],
+        );
+
+        const pending = memberTravelService.createMemberTravel(
+          testMember1Id,
+          testTripId,
+          {
+            travelType: "departure",
+            departureTime: "2026-06-20T18:00:00Z",
+            departureLocation: "Gate 9",
+          },
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        await client.query("COMMIT");
+        committed = true;
+
+        const result = await pending;
+
+        expect(result.created).toBe(false);
+        const rows = await pairRowsFor(testMember1MemberId, "departure");
+        expect(rows).toHaveLength(1);
+        expect(rows[0]).toBe(result.memberTravel.id);
+        // The loser's statement is the one that stands, like any other
+        // upsert of the same leg: both callers filed this pair.
+        expect(result.memberTravel.departureLocation).toBe("Gate 9");
+      } finally {
+        if (!committed) {
+          await client.query("ROLLBACK").catch(() => undefined);
+        }
+        client.release();
+      }
+    });
+
+    it("bounds a member's live rows to the pair, not a count", async () => {
+      // The pair rule is the ceiling: one live row per direction, so two
+      // live rows for a member on a trip, and every later POST for either
+      // direction folds into the row already there rather than adding one.
+      // There is no per-member row count to reach past this — a member
+      // cannot hold a third live row to be counted — and the assertions
+      // below are what says so without inventing a state the table refuses.
+      const arrival = await memberTravelService.createMemberTravel(
+        testMember2Id,
+        testTripId,
+        {
+          travelType: "arrival",
+          arrivalTime: "2026-06-11T09:00:00Z",
+          arrivalLocation: "Airport",
+        },
+      );
+      const departure = await memberTravelService.createMemberTravel(
+        testMember2Id,
+        testTripId,
+        {
+          travelType: "departure",
+          departureTime: "2026-06-20T16:00:00Z",
+          departureLocation: "Train Station",
+        },
+      );
+
+      expect(arrival.created).toBe(true);
+      expect(departure.created).toBe(true);
+      expect(await liveRowsFor(testMember2MemberId)).toBe(2);
+
+      // The same direction a second time is the same row answered again.
+      const arrivalAgain = await memberTravelService.createMemberTravel(
+        testMember2Id,
+        testTripId,
+        {
+          travelType: "arrival",
+          arrivalTime: "2026-06-11T11:00:00Z",
+          arrivalLocation: "Terminal 2",
+        },
+      );
+      const departureAgain = await memberTravelService.createMemberTravel(
+        testMember2Id,
+        testTripId,
+        {
+          travelType: "departure",
+          departureTime: "2026-06-21T07:00:00Z",
+          departureLocation: "St Pancras",
+        },
+      );
+
+      expect(arrivalAgain.created).toBe(false);
+      expect(arrivalAgain.memberTravel.id).toBe(arrival.memberTravel.id);
+      expect(arrivalAgain.memberTravel.arrivalLocation).toBe("Terminal 2");
+      expect(departureAgain.created).toBe(false);
+      expect(departureAgain.memberTravel.id).toBe(departure.memberTravel.id);
+      expect(departureAgain.memberTravel.departureLocation).toBe("St Pancras");
+      expect(await liveRowsFor(testMember2MemberId)).toBe(2);
     });
   });
 
@@ -396,6 +661,157 @@ describe("member-travel.service", () => {
     });
   });
 
+  describe("getMyLocations", () => {
+    it("returns the caller's own locations, a leg's own end first", async () => {
+      // The fixture row is member 1's arrival: "Airport" is its own end,
+      // and the departure the flight lookup filled in is the counterpart.
+      await db
+        .update(memberTravel)
+        .set({ departureLocation: "JFK T4" })
+        .where(eq(memberTravel.id, testMemberTravelId));
+
+      const locations = await memberTravelService.getMyLocations(testMember1Id);
+
+      expect(locations).toEqual(["Airport", "JFK T4"]);
+    });
+
+    it("never returns another member's locations", async () => {
+      await db.insert(memberTravel).values({
+        tripId: testTripId,
+        memberId: testMember2MemberId,
+        travelType: "arrival",
+        arrivalTime: new Date("2026-06-11T09:00:00Z"),
+        arrivalLocation: "Member 2 Airport",
+      });
+
+      expect(await memberTravelService.getMyLocations(testMember1Id)).toEqual([
+        "Airport",
+      ]);
+      expect(await memberTravelService.getMyLocations(testMember2Id)).toEqual([
+        "Member 2 Airport",
+      ]);
+      // A signed-in user with no member row on any trip has nothing.
+      expect(await memberTravelService.getMyLocations(testNonMemberId)).toEqual(
+        [],
+      );
+    });
+
+    it("returns nothing for a caller with no travel at all", async () => {
+      expect(await memberTravelService.getMyLocations(testOrganizerId)).toEqual(
+        [],
+      );
+    });
+
+    it("dedupes case-insensitively, keeping the newest spelling", async () => {
+      await db
+        .update(memberTravel)
+        .set({
+          arrivalLocation: "  bcn t2  ",
+          updatedAt: new Date(Date.now() - 60_000),
+        })
+        .where(eq(memberTravel.id, testMemberTravelId));
+      await db.insert(memberTravel).values({
+        tripId: testTripId,
+        memberId: testMember1MemberId,
+        travelType: "departure",
+        departureTime: new Date("2026-06-20T10:00:00Z"),
+        departureLocation: "BCN T2",
+      });
+
+      expect(await memberTravelService.getMyLocations(testMember1Id)).toEqual([
+        "BCN T2",
+      ]);
+    });
+
+    it("orders by the record's own updated_at, newest first", async () => {
+      await db
+        .update(memberTravel)
+        .set({ updatedAt: new Date(Date.now() - 60_000) })
+        .where(eq(memberTravel.id, testMemberTravelId));
+      await db.insert(memberTravel).values({
+        tripId: testTripId,
+        memberId: testMember1MemberId,
+        travelType: "departure",
+        departureTime: new Date("2026-06-20T10:00:00Z"),
+        departureLocation: "BCN T2",
+      });
+
+      expect(await memberTravelService.getMyLocations(testMember1Id)).toEqual([
+        "BCN T2",
+        "Airport",
+      ]);
+    });
+
+    it("leaves out a soft-deleted record", async () => {
+      await memberTravelService.deleteMemberTravel(
+        testMember1Id,
+        testMemberTravelId,
+      );
+
+      expect(await memberTravelService.getMyLocations(testMember1Id)).toEqual(
+        [],
+      );
+    });
+
+    it("caps the list at 20 while still ordering it newest first", async () => {
+      // A caller's row can only sit on a trip they are a member of, and the
+      // pair rule allows two live rows per trip — so 25 rows is 25 trips,
+      // each contributing the one where this test files. The list is per
+      // caller across trips (that is what makes it useful: the airport from
+      // the last trip is the one for this one), which is also what keeps a
+      // 20-location cut reachable at all.
+      //
+      // Ahead of the fixture row, so the cap's cut is what the assertion
+      // reads rather than which row happened to be written first.
+      const base = Date.now() + 1_000;
+      const extraTripIds: string[] = [];
+      for (let index = 0; index < 25; index += 1) {
+        const [trip] = await db
+          .insert(trips)
+          .values({
+            name: `Where Trip ${index}`,
+            destination: "Lisbon",
+            preferredTimezone: "Europe/Lisbon",
+            createdBy: testOrganizerId,
+          })
+          .returning();
+        extraTripIds.push(trip!.id);
+
+        const [member] = await db
+          .insert(members)
+          .values({
+            tripId: trip!.id,
+            userId: testMember1Id,
+            status: "going",
+          })
+          .returning();
+
+        await db.insert(memberTravel).values({
+          tripId: trip!.id,
+          memberId: member!.id,
+          travelType: "arrival",
+          arrivalTime: new Date("2026-06-12T09:00:00Z"),
+          arrivalLocation: `Where ${index}`,
+          updatedAt: new Date(base + index * 1_000),
+        });
+      }
+
+      const locations = await memberTravelService.getMyLocations(testMember1Id);
+
+      expect(locations).toHaveLength(20);
+      // The last one written is the first one read, and the oldest five
+      // — 0 through 4, plus the fixture's own where — are what fall off.
+      expect(locations[0]).toBe("Where 24");
+      expect(locations).not.toContain("Where 4");
+
+      // The trips cascade to the members and rows filed under them, so this
+      // is the whole of what the test added.
+      for (const tripId of extraTripIds) {
+        await db.delete(trips).where(eq(trips.id, tripId));
+      }
+    });
+  });
+
   describe("updateMemberTravel", () => {
     it("should update member travel as owner", async () => {
       const updateData = {
@@ -472,7 +888,7 @@ describe("member-travel.service", () => {
 
     it("should allow partial updates", async () => {
       const updateData = {
-        travelType: "departure" as const,
+        details: "Updated details",
       };
 
       const updatedTravel = await memberTravelService.updateMemberTravel(
@@ -481,8 +897,33 @@ describe("member-travel.service", () => {
         updateData,
       );
 
-      expect(updatedTravel.travelType).toBe("departure");
+      expect(updatedTravel.details).toBe("Updated details");
       expect(updatedTravel.arrivalLocation).toBe("Airport"); // Unchanged
+    });
+
+    it("ignores a direction in the update body instead of flipping it", async () => {
+      // `travelType` is create-only, so an update that carries one gets
+      // its other fields applied and its direction dropped: writing it
+      // would leave this row claiming the arrival pair while the
+      // departure pair sat free for the next write — a second live row on
+      // the member, produced by a plain edit. The route's schema strips
+      // the key (zod objects drop unknown ones) before the service runs;
+      // this cast is what reaches the service with one anyway, so the
+      // guard is asserted both where the schema applies it and where the
+      // service owns it.
+      const updatedTravel = await memberTravelService.updateMemberTravel(
+        testMember1Id,
+        testMemberTravelId,
+        {
+          travelType: "departure",
+          details: "Still an arrival",
+        } as unknown as UpdateMemberTravelInput,
+      );
+
+      expect(updatedTravel.travelType).toBe("arrival");
+      expect(updatedTravel.arrivalLocation).toBe("Airport"); // Unchanged
+      expect(updatedTravel.details).toBe("Still an arrival");
+      expect(await pairRowsFor(testMember1MemberId, "departure")).toEqual([]);
     });
 
     it("should update time field correctly", async () => {
@@ -678,6 +1119,59 @@ describe("member-travel.service", () => {
         .delete(memberTravel)
         .where(eq(memberTravel.id, organizerTravelId));
     });
+
+    it("restores an already-live row as the no-op it is", async () => {
+      // The twin check asks whether a *different* live row holds the pair.
+      // This row is the one the call is about, so it has nothing to
+      // conflict with: the endpoint answers 200 with the row it already
+      // has. Matching itself here — which the check did before the `ne` —
+      // turned that idempotent restore into a 409.
+      const seeded = await memberTravelService.getMemberTravel(
+        testMemberTravelId,
+      );
+      expect(seeded?.deletedAt).toBeNull();
+
+      const restored = await memberTravelService.restoreMemberTravel(
+        testOrganizerId,
+        testMemberTravelId,
+      );
+
+      expect(restored.id).toBe(testMemberTravelId);
+      expect(restored.deletedAt).toBeNull();
+      expect(restored.deletedBy).toBeNull();
+      expect(await pairRowsFor(testMember1MemberId, "arrival")).toEqual([
+        testMemberTravelId,
+      ]);
+    });
+
+    it("refuses to restore a row whose pair already holds a live one", async () => {
+      // Delete, then file the same direction again: the create path looks
+      // only for a *live* row, so it inserts a new one and leaves this
+      // deleted row beside it. Restoring it is the second live row on the
+      // pair — the state that draws the member twice on the board.
+      await memberTravelService.deleteMemberTravel(
+        testMember1Id,
+        testMemberTravelId,
+      );
+
+      const { memberTravel } = await memberTravelService.createMemberTravel(
+        testMember1Id,
+        testTripId,
+        {
+          travelType: "arrival",
+          arrivalTime: "2026-06-12T09:00:00Z",
+          arrivalLocation: "Gate 4",
+        },
+      );
+      expect(memberTravel.id).not.toBe(testMemberTravelId);
+
+      await expect(
+        memberTravelService.restoreMemberTravel(
+          testOrganizerId,
+          testMemberTravelId,
+        ),
+      ).rejects.toThrow(MemberTravelConflictError);
+    });
   });
 
   describe("edge cases", () => {
@@ -689,7 +1183,8 @@ describe("member-travel.service", () => {
         details: longDetails,
       };
 
-      const travel = await memberTravelService.createMemberTravel(
+      const { memberTravel: travel } =
+        await memberTravelService.createMemberTravel(
         testMember1Id,
         testTripId,
         travelData,
@@ -706,7 +1201,8 @@ describe("member-travel.service", () => {
         departureLocation: "Airport",
       };
 
-      const travel = await memberTravelService.createMemberTravel(
+      const { memberTravel: travel } =
+        await memberTravelService.createMemberTravel(
         testMember1Id,
         testTripId,
         travelData,
@@ -727,7 +1223,8 @@ describe("member-travel.service", () => {
         arrivalTime: "2026-06-11T09:00:00Z",
       };
 
-      const travel = await memberTravelService.createMemberTravel(
+      const { memberTravel: travel } =
+        await memberTravelService.createMemberTravel(
         testMember2Id,
         testTripId,
         travelData,
@@ -746,25 +1243,36 @@ describe("member-travel.service", () => {
 
   describe("member travel delegation", () => {
     it("should allow organizer to create travel for another member", async () => {
+      // Member 2 holds nothing and this is a departure, so the pair is
+      // free: the assertion below is the insert's field mapping for a
+      // delegated create. Filing member 1's arrival would have landed on
+      // the seeded row and asserted the update branch instead.
       const travelData = {
-        travelType: "arrival" as const,
-        arrivalTime: "2026-06-10T14:00:00Z",
-        arrivalLocation: "Airport",
-        details: "Flight AA123",
-        memberId: testMember1MemberId,
+        travelType: "departure" as const,
+        departureTime: "2026-06-20T16:00:00Z",
+        departureLocation: "St Pancras",
+        flightNumber: "UA456",
+        details: "Eurostar 9044",
+        memberId: testMember2MemberId,
       };
 
-      const travel = await memberTravelService.createMemberTravel(
+      const { memberTravel: travel, created } =
+        await memberTravelService.createMemberTravel(
         testOrganizerId,
         testTripId,
         travelData,
       );
 
+      expect(created).toBe(true);
       expect(travel).toBeDefined();
-      expect(travel.memberId).toBe(testMember1MemberId);
-      expect(travel.travelType).toBe("arrival");
-      expect(travel.arrivalLocation).toBe("Airport");
-      expect(travel.details).toBe("Flight AA123");
+      expect(travel.memberId).toBe(testMember2MemberId);
+      expect(travel.travelType).toBe("departure");
+      expect(travel.departureTime).toEqual(
+        new Date(travelData.departureTime),
+      );
+      expect(travel.departureLocation).toBe("St Pancras");
+      expect(travel.flightNumber).toBe("UA456");
+      expect(travel.details).toBe("Eurostar 9044");
       expect(travel.tripId).toBe(testTripId);
     });
 
@@ -859,7 +1367,8 @@ describe("member-travel.service", () => {
         departureLocation: "Train Station",
       };
 
-      const travel = await memberTravelService.createMemberTravel(
+      const { memberTravel: travel } =
+        await memberTravelService.createMemberTravel(
         testMember1Id,
         testTripId,
         travelData,

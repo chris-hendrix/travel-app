@@ -19,10 +19,11 @@ export type GetTravelResponse = {
   memberTravels: MemberTravel[];
 };
 
-/** Key factory for the travel domain: `all` / `list(tripId)`. */
+/** Key factory for the travel domain: `all` / `list(tripId)` / `locations`. */
 export const travelKeys = {
   all: ["travel"] as const,
   list: (tripId: string) => [...travelKeys.all, "list", tripId] as const,
+  locations: ["travel", "locations"] as const,
 };
 
 /**
@@ -59,36 +60,40 @@ export const travelOptions = (tripId: string) =>
 export type CreateTravelRequest = {
   travelType: "arrival" | "departure";
   memberId?: string;
-  departureLocation?: string;
+  departureLocation?: string | null;
   departureTime?: string;
-  arrivalLocation?: string;
+  arrivalLocation?: string | null;
   arrivalTime?: string;
-  details?: string;
-  flightNumber?: string;
+  details?: string | null;
+  flightNumber?: string | null;
 };
 
 /**
  * Inline mirror of `updateMemberTravelSchema`
- * (`shared/schemas/member-travel.ts` = `baseMemberTravelSchema.partial()`):
- * every field optional, so an edit sends only what changed. No
- * `memberId`: membership is fixed at create. zod is not a mobile dep,
- * so the shape is declared inline.
+ * (`shared/schemas/member-travel.ts` = `baseMemberTravelSchema
+ * .omit({ travelType: true }).partial()`): every field optional, so an
+ * edit sends only what changed, and no `travelType` — a direction is
+ * create-only, exactly like `memberId`, because changing it would put a
+ * second live row on the pair the feature is built around (the API
+ * strips the key if it is sent anyway). zod is not a mobile dep, so the
+ * shape is declared inline.
  */
 export type UpdateTravelRequest = {
-  travelType?: "arrival" | "departure";
-  departureLocation?: string;
+  departureLocation?: string | null;
   departureTime?: string;
-  arrivalLocation?: string;
+  arrivalLocation?: string | null;
   arrivalTime?: string;
-  details?: string;
-  flightNumber?: string;
+  details?: string | null;
+  flightNumber?: string | null;
 };
 
 /**
  * `POST /trips/:tripId/member-travel`
  * (`apps/api/src/routes/member-travel.routes.ts:108`, body
- * `createMemberTravelSchema`, 201 `memberTravelResponseSchema`),
- * mapped through `toTravel`.
+ * `createMemberTravelSchema`, response `memberTravelResponseSchema` on
+ * **200 or 201** — 201 when this call filed a new row, 200 when the member
+ * and direction already held one and it was updated in place), mapped
+ * through `toTravel`.
  *
  * The response carries the full entity, so `toTravel` needs nothing
  * the response does not have — same full-entity shape as the stays
@@ -205,6 +210,70 @@ export function useTravel(tripId: string | undefined): {
       : "success";
   return {
     travel: query.data ?? [],
+    status,
+    retry: () => {
+      void query.refetch();
+    },
+  };
+}
+
+/**
+ * Inline mirror of `myTravelLocationsResponseSchema`
+ * (`shared/schemas/member-travel.ts`): `{success, locations}` — the
+ * caller's own travel wheres across trips, strings only. zod is not a
+ * mobile dep, so the shape is declared inline (the `GetTravelResponse`
+ * precedent above).
+ */
+export type GetMyLocationsResponse = {
+  success: true;
+  locations: string[];
+};
+
+/**
+ * `GET /member-travel/locations`
+ * (`apps/api/src/routes/member-travel.routes.ts`, served by
+ * `memberTravelController.getMyLocations`, response
+ * `myTravelLocationsResponseSchema`).
+ *
+ * Cross-trip by design: the endpoint carries no trip id, because the
+ * answer is about the person, not the trip they are filing for — the
+ * airport they flew into last time is the one they want suggested now.
+ */
+export const myLocationsOptions = () =>
+  queryOptions({
+    queryKey: travelKeys.locations,
+    queryFn: async (): Promise<string[]> =>
+      (await apiFetch<GetMyLocationsResponse>("/member-travel/locations"))
+        .locations,
+  });
+
+/**
+ * Section state for the `Where` field's cross-trip source. Same shape as
+ * `useTravel` above — `loading` / `offline` / `error` / `success`, with
+ * `retry` — so a caller can read it the same way.
+ *
+ * The travel form reads only `locations`, and that is deliberate: this
+ * list is an enrichment of a field that already works without it (this
+ * trip's own wheres and the trip's destination), so a failed or absent
+ * read narrows the suggestions rather than blocking the form. Two
+ * sources of truth for one screen's readiness would make a Places-free
+ * field the reason a form will not open.
+ */
+export function useMyTravelLocations(): {
+  locations: string[];
+  status: TravelStatus;
+  retry: () => void;
+} {
+  const query = useQuery(myLocationsOptions());
+  const status: TravelStatus = query.isPending
+    ? "loading"
+    : query.isError
+      ? isOffline(query.error)
+        ? "offline"
+        : "error"
+      : "success";
+  return {
+    locations: query.data ?? [],
     status,
     retry: () => {
       void query.refetch();

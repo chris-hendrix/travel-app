@@ -12,13 +12,14 @@ import { MemberTravelNotFoundError, TripNotFoundError } from "../errors.js";
 export const memberTravelController = {
   /**
    * Create member travel endpoint
-   * Creates a new member travel for a trip
+   * Creates a new member travel for a trip, or updates the one already
+   * filed for the same member and direction
    *
    * @route POST /api/trips/:tripId/member-travel
    * @middleware authenticate, requireCompleteProfile
    * @param request - Fastify request with member travel data in body
    * @param reply - Fastify reply object
-   * @returns Success response with created member travel
+   * @returns 201 with the inserted row, or 200 with the updated one
    */
   async createMemberTravel(
     request: FastifyRequest<{
@@ -38,14 +39,13 @@ export const memberTravelController = {
       const userId = request.user.sub;
 
       // Create member travel via service
-      const memberTravel = await memberTravelService.createMemberTravel(
-        userId,
-        tripId,
-        data,
-      );
+      const { memberTravel, created } =
+        await memberTravelService.createMemberTravel(userId, tripId, data);
 
-      // Return success response with 201 status
-      return reply.status(201).send({
+      // 201 when this call filed a new row, 200 when the pair already
+      // held one and it was updated in place. The body is the same
+      // either way: only the status says which happened.
+      return reply.status(created ? 201 : 200).send({
         success: true,
         memberTravel,
       });
@@ -129,6 +129,52 @@ export const memberTravelController = {
         error: {
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to get member travel",
+        },
+      });
+    }
+  },
+
+  /**
+   * Locations endpoint
+   * Returns the caller's own travel locations across trips, as the
+   * `Where` field's cross-trip suggestions (D6).
+   *
+   * @route GET /api/member-travel/locations
+   * @middleware authenticate
+   * @param request - Fastify request
+   * @param reply - Fastify reply object
+   * @returns Success response with the caller's own location strings
+   */
+  async getMyLocations(
+    request: FastifyRequest,
+    reply: FastifyReply,
+  ): Promise<void> {
+    try {
+      const { memberTravelService } = request.server;
+      const userId = request.user.sub;
+
+      const locations = await memberTravelService.getMyLocations(userId);
+
+      return reply.status(200).send({
+        success: true,
+        locations,
+      });
+    } catch (error) {
+      // Re-throw typed errors for error handler
+      if (error && typeof error === "object" && "statusCode" in error) {
+        throw error;
+      }
+
+      request.log.error(
+        { error, userId: request.user.sub },
+        "Failed to get member travel locations",
+      );
+
+      return reply.status(500).send({
+        success: false,
+        error: {
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to get member travel locations",
         },
       });
     }

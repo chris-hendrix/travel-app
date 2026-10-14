@@ -1,4 +1,5 @@
 import { RuledBlock } from "@/components/ui/RuledBlock";
+import { QuietAction } from "@/components/ui/QuietAction";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { InlineError } from "@/components/ui/InlineError";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
@@ -215,6 +216,33 @@ function TravelDetailDialog() {
           >
             {row.details}
           </Text>
+        </RuledBlock>
+      ) : null}
+
+      {/* Duplicating is the couple's case, and it belongs on this screen
+          because this is the one that shows a person's travel whole: the
+          same flight, filed for someone else.
+
+          A sentence rather than a box, which is what a secondary door is
+          in this system: the loud box is the screen's one action, and
+          everything quieter is an underlined word (`QuietAction`). It
+          also stops it filling the column on a wide screen — a
+          secondary action as wide as the page reads as the page's own.
+
+          Organizer-only, and that is not caution — the API refuses a
+          `memberId` from anyone else, so showing this to a traveler
+          would be a door onto a 403. An unscheduled row has nothing to
+          copy, so it has no door either. */}
+      {(viewer?.isOrganizer ?? false) && !row.id.startsWith("pending-") ? (
+        <RuledBlock title="Duplicate">
+          <QuietAction
+            label="For someone else"
+            onPress={() =>
+              router.push(
+                `/trips/travel/form?id=${trip.id}&duplicate=${row.id}`,
+              )
+            }
+          />
         </RuledBlock>
       ) : null}
 

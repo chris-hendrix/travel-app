@@ -73,8 +73,10 @@ export {
   updateMemberTravelSchema,
   memberTravelListResponseSchema,
   memberTravelResponseSchema,
+  myTravelLocationsResponseSchema,
   type CreateMemberTravelInput,
   type UpdateMemberTravelInput,
+  type MyTravelLocationsResponse,
 } from "./member-travel";
 
 // Re-export invitation schemas

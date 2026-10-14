@@ -9,6 +9,8 @@ export {
   getPertinentLocation,
   getCounterpartTime,
   getCounterpartLocation,
+  rankTravelLocations,
+  MY_TRAVEL_LOCATIONS_LIMIT,
   mapsSearchUrl,
 } from "./travel";
 export type {

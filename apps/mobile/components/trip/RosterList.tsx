@@ -177,7 +177,7 @@ function RosterRowView({
         role="button"
         accessibilityRole="button"
         onPress={() => onPressRow(row)}
-        className={motion.row}
+        className={motion.rowOnGravel}
       >
         {body}
       </Pressable>

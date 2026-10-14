@@ -241,6 +241,32 @@ describe("the demo data layer", () => {
     }
   });
 
+  it("answers the Where field's cross-trip locations, from the viewer's own rows", async () => {
+    const answer = await apiFetch<{ success: true; locations: string[] }>(
+      "/member-travel/locations",
+    );
+
+    // The demo viewer flies into SJD on two of its trips, under two
+    // different terminals — the cross-trip source the sheet's `Where`
+    // field needs, as the real endpoint serves it. Answered locally, so
+    // the no-egress assertion below still holds for it.
+    expect(answer.locations).toContain("SJD T1");
+    expect(answer.locations).toContain("SJD T2");
+    // The shape the ranking relies on: trimmed, non-blank, deduped
+    // case-insensitively, capped.
+    for (const location of answer.locations) {
+      expect(location).toBe(location.trim());
+      expect(location).not.toBe("");
+    }
+    expect(new Set(answer.locations.map((l) => l.toLowerCase())).size).toBe(
+      answer.locations.length,
+    );
+    expect(answer.locations.length).toBeLessThanOrEqual(20);
+
+    expect(inner).not.toHaveBeenCalled();
+    expect(getUnhandledApiUrls()).toEqual([]);
+  });
+
   it("keeps an id-addressed write on its own trip", async () => {
     // D2's regression guard: `PUT /events/:id`, `PUT /accommodations/:id`
     // and `DELETE /member-travel/:id` resolve by id ALONE through

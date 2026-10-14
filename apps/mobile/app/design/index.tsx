@@ -44,6 +44,8 @@ import { InlineError } from "@/components/ui/InlineError";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
 import { DatePicker } from "@/components/ui/DatePicker";
+import { DayStrip } from "@/components/ui/DayStrip";
+import { travelDays } from "@/lib/travelDays";
 import { TimeField } from "@/components/ui/TimeField";
 import type { Selection } from "@/lib/calendar";
 import { RSVP_LABEL, type RsvpStatus } from "@/lib/rsvp";
@@ -380,6 +382,11 @@ function DesignSystemScreen() {
   const [rsvp, setRsvp] = useState<RsvpStatus | null>(null);
   const [layout, setLayout] = useState<"list" | "grid">("list");
   const [units, setUnits] = useState<"c" | "f">("c");
+  // The day strip's own choice. Pinned to the specimen trip's second day
+  // so the ink cell is somewhere a reader can see it, and a `today` is
+  // passed below rather than read from the clock, so the underline does
+  // not move with the build.
+  const [travelDay, setTravelDay] = useState<string | null>("2026-09-19");
   const [pastEvents, setPastEvents] = useState(false);
   const [range, setRange] = useState<Selection>({
     start: null,
@@ -699,7 +706,7 @@ function DesignSystemScreen() {
             <Specimen
               name="Button"
               contract="title · variant? · onPress? · fullWidth? · align? · disabled? · trailing? · expanded?"
-              note="No two content buttons side by side, at any width: one per row, stacked. A button is a single choice, and putting two in a row makes a choice out of a list — then, at 390, wraps the pair into a ragged 2+1 that reads as a layout accident rather than a decision. Stacked, a button takes the whole row on a phone, where a thumb target beats a tidy box, and from md up drops to its content width on the start edge. Fills the width on a phone; from md up it hugs the edge it is aligned to. disabled keeps it in place rather than hiding it: a control that vanishes leaves nothing to aim at. Inside a row, align='end' is what lines a button up with the field beside it — the default hugs the start of the cross axis and sits high. trailing parks an affordance at the far edge rather than laying it out, so the label stays centred the way every other button's does — DisclosureButton's triangle is its only caller, and the label has to stay short enough not to reach it. expanded announces that the button discloses what is under it, and is left off every button that does not. danger is the alert fill, `strawberry`, shared with the live badge and the unread edge: it is spent only where the press takes something away that cannot be taken back — Delete event, Delete stay, Delete travel, the remove-guest arm, the calendar-link stops, the trip's own delete on Edit trip, and Delete account on the profile foot."
+              note="No two content buttons side by side, at any width: one per row, stacked. A button is a single choice, and putting two in a row makes a choice out of a list — then, at 390, wraps the pair into a ragged 2+1 that reads as a layout accident rather than a decision. Stacked, a button takes the whole row on a phone, where a thumb target beats a tidy box, and from md up drops to its content width on the start edge. Fills the width on a phone; from md up it hugs the edge it is aligned to. fullWidth suspends that and fills the container at every width, and its two callers are the ones whose width is not their own choice: the trip hero band's buttons, which fill the column the hero picture sets and line up on one edge under it — the one block in the app with its own hierarchy, so the one place a filled box belongs — and DisclosureButton's trigger, which has to match the rows it opens. disabled keeps it in place rather than hiding it: a control that vanishes leaves nothing to aim at. Inside a row, align='end' is what lines a button up with the field beside it — the default hugs the start of the cross axis and sits high. trailing parks an affordance at the far edge rather than laying it out, so the label stays centred the way every other button's does — DisclosureButton's triangle is its only caller, and the label has to stay short enough not to reach it. expanded announces that the button discloses what is under it, and is left off every button that does not. danger is the alert fill, `strawberry`, shared with the live badge and the unread edge: it is spent only where the press takes something away that cannot be taken back — Delete event, Delete stay, Delete travel, the remove-guest arm, the calendar-link stops, the trip's own delete on Edit trip, and Delete account on the profile foot."
             >
               <Button
                 title="Create trip"
@@ -868,9 +875,37 @@ function DesignSystemScreen() {
             </Specimen>
 
             <Specimen
+              name="DayStrip"
+              contract="days (iso · weekday · day · inTrip) · value (nullable) · onChange · today?"
+              note="A trip's days with a couple of margin days either side — the evening-before arrival, the red-eye home — and nothing else. It exists because a leg's day is about the trip rather than bounded by it: the month grid that used to answer on the travel form offered 31 days to choose one of nine, and the days people actually travel on were greyed, unmarked cells in the last row rather than days you could pick. Twelve cells instead of thirty-one, five to a row, with the last row padded so a short one keeps the same cell width as a full one; without that padding the four cells under five would stretch and the grid would read as broken rather than short. The trip's own days are ink and the margin is grey-quiet — the palette's de-emphasised text tone rather than an opacity, because this app dims a disabled control with one and a margin day is a real answer that is simply not the trip. Ink means chosen, the same as the calendar and the time column, and today is underlined — both are values rather than actions, which is why neither takes a colour. Forty-four points per cell, the calendar's own target. No label above it: the cells carry their own weekday and number, and the panel header that owns the strip reads the chosen day back in full, so a label here would be the third statement of one fact. Travel was the only caller of DatePicker whose range was the trip; events, stays and trips keep the month grid, which is right — a stay really can land on any of thirty-one days. Below: a chosen day, then nothing chosen yet, which is a state this control is expected to be in."
+            >
+              <DayStrip
+                days={travelDays({
+                  startDate: "2026-09-18",
+                  endDate: "2026-09-25",
+                })}
+                value={travelDay}
+                today="2026-09-19"
+                onChange={(day) => {
+                  setTravelDay(day);
+                  setLog(`DayStrip "${day}"`);
+                }}
+              />
+              <DayStrip
+                days={travelDays({
+                  startDate: "2026-09-18",
+                  endDate: "2026-09-25",
+                })}
+                value={null}
+                today="2026-09-19"
+                onChange={(day) => setLog(`DayStrip (empty) "${day}"`)}
+              />
+            </Specimen>
+
+            <Specimen
               name="Segmented"
-              contract="options (value · label · tone? · mark?) · value (nullable) · onChange · size? · width?"
-              note="One choice out of a few, all of them visible. Bordered cells in a row rather than bare words: a word with no box and no underline is a label, not something a thumb can be asked to press, and every control in this system is a box. The cells are button-sized — the same p-4 and text-sm as a button, so a row of these sits in a stack of buttons without a step — and ink rather than a colour, because choosing a direction is not an action: the calendar and the time column already invert what is chosen, and two coloured toggles left the form's one real button looking like one of them. tone is for answers that carry a meaning of their own, which the RSVP has; mark is a short mark after the label, drawn in the label's own colour, for a choice with something to say about itself (travel puts a tick against a direction already filed). value is nullable because having chosen nothing yet is a real state rather than an error — and an always-set value wears the same cells (the profile's temperature), because a control that looks different depending on whether a value has been chosen yet would be two controls for one idea. width says how far the row reaches on a wide screen: fill, the default, splits the block between its cells, which is what makes three RSVP cells read as one control; content keeps the cells at their labels' width from md up for a short pair like the units toggle, on a phone being the same thing. size='sm' is a chrome row's switch, the same box as a chip, and always hugs."
+              contract="options (value · label · tone?) · value (nullable) · onChange · size? · width?"
+              note="One choice out of a few, all of them visible. Bordered cells in a row rather than bare words: a word with no box and no underline is a label, not something a thumb can be asked to press, and every control in this system is a box. The cells are button-sized — the same p-4 and text-sm as a button, so a row of these sits in a stack of buttons without a step — and ink rather than a colour, because choosing a direction is not an action: the calendar and the time column already invert what is chosen, and two coloured toggles left the form's one real button looking like one of them. tone is for answers that carry a meaning of their own, which the RSVP has. value is nullable because having chosen nothing yet is a real state rather than an error — and an always-set value wears the same cells (the profile's temperature), because a control that looks different depending on whether a value has been chosen yet would be two controls for one idea. width says how far the row reaches on a wide screen: fill, the default, splits the block between its cells, which is what makes three RSVP cells read as one control; content keeps the cells at their labels' width from md up for a short pair like the units toggle, on a phone being the same thing. size='sm' is a chrome row's switch, the same box as a chip, and always hugs."
             >
               <RsvpControl
                 value={rsvp ?? "no_response"}
@@ -1044,8 +1079,8 @@ function DesignSystemScreen() {
 
             <Specimen
               name="Dropdown"
-              contract="label · options · value · onChange · placeholder? · error? · freeText? · onSearchText? · liveOptions? · attribution?"
-              note="Single-select with autocomplete. The list expands inline — never a nested dialog. Stands in for Google Places. An option is a string when its value reads well and a value-and-label pair when it does not, so a day can say Today · Fri Sep 19 while committing an ISO date. With freeText, typing is itself an answer: a suggestion machine rather than a menu, which is how a place gets entered when Places has never heard of it. A live picker hands the field its own rows instead of a static list: liveOptions skips the local substring filter, which would otherwise hide an answer whose label does not contain the raw keystrokes — the provider renames the row as you type, so the row you are looking at can stop matching the string that found it — and onSearchText takes every keystroke for the query while committing nothing. attribution renders MapsAttribution under the rows, which is not optional on a Places-backed field."
+              contract="label · options · value · onChange · placeholder? · error? · freeText? · onSearchText? · liveOptions? · openOnPress? · searchable? · attribution?"
+              note="Single-select with autocomplete. The list expands inline — never a nested dialog. Stands in for Google Places. An option is a string when its value reads well and a value-and-label pair when it does not, so a day can say Today · Fri Sep 19 while committing an ISO date. With freeText, typing is itself an answer: a suggestion machine rather than a menu, which is how a place gets entered when Places has never heard of it. A live picker hands the field its own rows instead of a static list: liveOptions skips the local substring filter, which would otherwise hide an answer whose label does not contain the raw keystrokes — the provider renames the row as you type, so the row you are looking at can stop matching the string that found it — and onSearchText takes every keystroke for the query while committing nothing. openOnPress opens the list the moment the field is entered, which is right only for a list that already holds the whole answer, such as every member or a trip's own wheres; a live list has nothing to show until you type and leaves it off. searchable={false} is the picker, and it is what a fixed list wants: the field becomes a box showing the chosen row with an arrow that opens the options — TimeField's closed row, because that is this system's control for a value that opens a list — and nothing can be typed into it. That last part is the whole point of the mode. A menu that keeps uncommitted text reads Bob while the form still holds Alice, and the save goes to Alice; a roster has nothing to search for anyway. attribution renders MapsAttribution under the rows, which is not optional on a Places-backed field."
             >
               <Dropdown
                 label="Venue"
@@ -1056,6 +1091,17 @@ function DesignSystemScreen() {
                   setLog(`Dropdown committed "${v}"`);
                 }}
                 placeholder="Type to filter venues…"
+              />
+              <Dropdown
+                label="Who"
+                options={VENUES}
+                value={venue}
+                onChange={(v) => {
+                  setVenue(v);
+                  setLog(`Picker committed "${v}"`);
+                }}
+                placeholder="Pick one…"
+                searchable={false}
               />
             </Specimen>
 
@@ -1082,8 +1128,8 @@ function DesignSystemScreen() {
 
             <Specimen
               name="DisclosureButton"
-              contract="title · actions · defaultOpen?"
-              note="A button that opens onto a list of actions, in the flow. One trigger — label at the near edge, filled triangle at the far one — and the rows it opens sit directly under it at the same width: nothing floating, no panel, no card drawn around the group. The actions are rows rather than boxes, and that is the second pass at this. As a stack of full-width buttons it was six equal weights with no hierarchy, and a box drawn inside a box is a panel, which is exactly what this app's own dropdown looks like. The + is why a row is not just a word: the system has twice concluded that a bare label on this screen reads as prose rather than as something to press (profile.tsx on the temperature cells, TripActions on the itinerary head), and the mark is what makes it an action. The rule under each row is the app's own list language: a rule, not a card. The trigger is the only box and its rows are ruled lines, and that is what keeps the trigger from dissolving into what it opened; it is deliberately not filled, because a trigger reveals rather than finishes a job and every other disclosure in this app is unfilled. The rule this component sits under is the disclosure rule, and it is the whole of what this specimen is: a route for content, this component for verbs, a value picker for a value, and truncation for long copy. Disclosure is a route or a verb list, never content. Content gets a route because content opened in place pushes the page under it and is gone the moment the row is pressed again; a value gets a picker because a value is chosen rather than read, and it is short enough to say on the row; long copy gets truncated, because otherwise somebody opens a disclosure to find out whether there is anything in it. What is left is verbs, and the form that stood here before — ruled, nested, and opening onto content — had no caller for as long as it existed, because the content it was built to hide is a route. Not a dropdown either: nothing floats, and the page below moves down when it opens, which is the trade Dropdown and SuggestionList already made."
+              contract="title · actions · defaultOpen? · fullWidth?"
+              note="A button that opens onto a list of actions, in the flow. One trigger — label at the near edge, filled triangle at the far one — and the rows it opens sit directly under it at the same width: nothing floating, no panel, no card drawn around the group. The actions are rows rather than boxes, and that is the second pass at this. As a stack of full-width buttons it was six equal weights with no hierarchy, and a box drawn inside a box is a panel, which is exactly what this app's own dropdown looks like. The + is why a row is not just a word: the system has twice concluded that a bare label on this screen reads as prose rather than as something to press (profile.tsx on the temperature cells, TripActions on the itinerary head), and the mark is what makes it an action. The rule under each row is the app's own list language: a rule, not a card. The trigger is the only box and its rows are ruled lines, and that is what keeps the trigger from dissolving into what it opened; it is deliberately not filled, because a trigger reveals rather than finishes a job and every other disclosure in this app is unfilled. The rule this component sits under is the disclosure rule, and it is the whole of what this specimen is: a route for content, this component for verbs, a value picker for a value, and truncation for long copy. Disclosure is a route or a verb list, never content. Content gets a route because content opened in place pushes the page under it and is gone the moment the row is pressed again; a value gets a picker because a value is chosen rather than read, and it is short enough to say on the row; long copy gets truncated, because otherwise somebody opens a disclosure to find out whether there is anything in it. What is left is verbs, and the form that stood here before — ruled, nested, and opening onto content — had no caller for as long as it existed, because the content it was built to hide is a route. Not a dropdown either: nothing floats, and the page below moves down when it opens, which is the trade Dropdown and SuggestionList already made. fullWidth fills the column at every width instead of hugging from md up — the trip hero band is where it is spent, because the trigger there sits under the band's filled Invite button and the two have to line up on one edge; everywhere else the hugging is what puts the rows at the trigger's width rather than the trigger at the column's."
             >
               <DisclosureButton
                 title="Trip actions"
@@ -1113,6 +1159,16 @@ function DesignSystemScreen() {
               />
               <DisclosureButton
                 title="Trip actions"
+                actions={[
+                  {
+                    title: "Add event",
+                    onPress: () => setLog("DisclosureButton row fired"),
+                  },
+                ]}
+              />
+              <DisclosureButton
+                title="Trip actions"
+                fullWidth
                 actions={[
                   {
                     title: "Add event",
