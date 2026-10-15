@@ -32,7 +32,7 @@ they cover.
 | 5 | **Admin** | `admin-journey.spec.ts` | Admin user management (moved into the app; the retired web app's `/admin` is gone) |
 | 6 | **Notifications** | `notifications.spec.ts` | Notification center UX (badge, tap-to-navigate, mark as read) |
 |  7 | **Money** |  `settle-journey.spec.ts` | Recording an expense and reading the resulting debt, full stack |
-| 8 | **Travel entry** | `travel-journey.spec.ts` | Filing an arrival, a **cold load** of a filed row's edit URL and of the traveler's own `member=` door, and per-direction delete — the wrong-member/frozen-memo class has no unit test, because the Vitest suite has no renderer |
+| 8 | **Travel entry** | `travel-journey.spec.ts` | Filing an arrival, a **cold load** of a filed row's edit URL and of the traveler's own `member=` door, per-direction delete, and a **hire**'s round trip — a chip committing its mode, the board wearing that chip, and a cold-loaded panel showing both of a hire's ends — the wrong-member/frozen-memo class has no unit test, because the Vitest suite has no renderer |
 
 ## Banned at E2E level
 

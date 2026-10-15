@@ -1,12 +1,13 @@
 /**
  * E2E Journey: travel entry (mobile).
  *
- * Critical flow 8 (Travel entry). Four tests, one flow: a member files
+ * Critical flow 8 (Travel entry). Five tests, one flow: a member files
  * their own arrival and the board shows it, a **cold load** of a filed
  * record's edit URL opens that record and saves over it rather than
  * beside it, deleting one of two directions keeps the form open on the
- * other, and a delete on a member who is not going keeps the form on
- * *that member*.
+ * other, a delete on a member who is not going keeps the form on *that
+ * member*, and a **hire** filed with both its ends carries its mode to
+ * the board and both ends back into a cold-loaded panel.
  *
  * The cold-load test is the reason this spec exists at all. The
  * regression it covers is about *when* a value is computed — a `useState`
@@ -31,11 +32,24 @@
  * the screen — no unit test can see it, and the other three tests cannot
  * either, because their member is going.
  *
- * Selectors are accessible names, never `testID`. Nothing here
- * re-verifies a unit test: `__tests__/travel-where.test.ts` owns the
- * ranking, `travel-days.test.ts` the strip's cells and
- * `new-travel.test.ts` the D5 leg rule. Field-level validation is banned
- * at this level and is not asserted.
+ * The fifth test is the mode's own relay, and the reason it is here is
+ * that its claims are three renderings of one field: the chips showing
+ * the mode the record carries, the board's row wearing the chip its
+ * record names, and a cold-loaded hire's panel showing **both** its ends
+ * on the filed day — then a chip committing another mode and the board
+ * wearing that instead. The Vitest suite has no renderer, so no unit test
+ * can watch a chip, a badge and a panel agree; the wire itself is Task
+ * 4's and the derived day Task 9's, and neither is re-verified here.
+ *
+ * Selectors are accessible names, never `testID`. The form's fields are
+ * named by the mode's own word for their end (`lib/transportMode.ts`,
+ * D3), so an arrival's `Where` reads `Lands at` on the default flight and
+ * `Pickup at` on a hire — the words are the feature, and a spec that
+ * named a field by its position would be asserting the shape this change
+ * removed. Nothing here re-verifies a unit test:
+ * `__tests__/travel-where.test.ts` owns the ranking, `travel-days.test.ts`
+ * the strip's cells and `new-travel.test.ts` the D5 leg rule. Field-level
+ * validation is banned at this level and is not asserted.
  */
 
 import { test, expect } from "@playwright/test";
@@ -166,7 +180,11 @@ test.describe("Travel Journey", () => {
       // through `freeText` — the list narrows to "No matches" and the
       // field keeps the words. `pressSequentially`, not `fill`: `fill()`
       // desynchronizes controlled RN inputs.
-      const whereInput = page.getByRole("textbox", { name: "Where" });
+      //
+      // Named `Lands at`, not `Where`: the label is the end's own word
+      // from the mode's table (`lib/transportMode.ts`), and a flight's
+      // arrival lands.
+      const whereInput = page.getByRole("textbox", { name: "Lands at" });
       await whereInput.click();
       await whereInput.pressSequentially(where);
 
@@ -270,7 +288,7 @@ test.describe("Travel Journey", () => {
         timeout: NAVIGATION_TIMEOUT,
       });
       // Its own values: the where it was filed with, its day, its clock.
-      await expect(page.getByRole("textbox", { name: "Where" })).toHaveValue(
+      await expect(page.getByRole("textbox", { name: "Lands at" })).toHaveValue(
         seededWhere,
         { timeout: NAVIGATION_TIMEOUT },
       );
@@ -280,15 +298,18 @@ test.describe("Travel Journey", () => {
       await expect(
         page.getByRole("button", { name: clockIn(arrivalIso(), tripZone) }),
       ).toBeVisible();
-      // The far end was never filed, and it says so rather than asking:
-      // a leg's counterpart is optional, so the one field still asking is
-      // the arrival's own end — which is how this spec reads "the
-      // record's own values" without re-testing the formatter.
+      // The far end was never filed, and its pair is shut behind its own
+      // trigger: a leg's counterpart is optional, so what says so is a
+      // line offering to add it — `Add the departure`, named by the side
+      // it would fill — rather than an empty pair of fields. The one
+      // field still asking is the arrival's own end, which is how this
+      // spec reads "the record's own values" without re-testing the
+      // formatter.
       await expect(page.getByRole("button", { name: "Pick a time" })).toHaveCount(
         0,
       );
       await expect(
-        page.getByRole("button", { name: "No departure time" }),
+        page.getByRole("button", { name: "Add the departure" }),
       ).toBeVisible();
       // Delete names the direction this URL is about. It is only
       // rendered for a filed direction, and it is the clearest signal
@@ -299,7 +320,7 @@ test.describe("Travel Journey", () => {
     });
 
     await test.step("edit the where and save", async () => {
-      const whereInput = page.getByRole("textbox", { name: "Where" });
+      const whereInput = page.getByRole("textbox", { name: "Lands at" });
       await whereInput.click();
       await whereInput.selectText();
       await whereInput.pressSequentially(editedWhere);
@@ -339,7 +360,7 @@ test.describe("Travel Journey", () => {
       await expect(page.getByText("Edit travel", { exact: true })).toBeVisible({
         timeout: NAVIGATION_TIMEOUT,
       });
-      await expect(page.getByRole("textbox", { name: "Where" })).toHaveValue(
+      await expect(page.getByRole("textbox", { name: "Lands at" })).toHaveValue(
         editedWhere,
         { timeout: NAVIGATION_TIMEOUT },
       );
@@ -406,7 +427,7 @@ test.describe("Travel Journey", () => {
       await expect(page.getByText("Edit travel", { exact: true })).toBeVisible({
         timeout: NAVIGATION_TIMEOUT,
       });
-      await expect(page.getByRole("textbox", { name: "Where" })).toHaveValue(
+      await expect(page.getByRole("textbox", { name: "Lands at" })).toHaveValue(
         arrivalWhere,
         { timeout: NAVIGATION_TIMEOUT },
       );
@@ -424,18 +445,17 @@ test.describe("Travel Journey", () => {
       // The deleted direction's fields are empty and its door is gone —
       // a panel still holding the deleted record's values would offer to
       // re-file it under a verb that says "Add travel".
-      await expect(page.getByRole("textbox", { name: "Where" })).toHaveValue(
+      await expect(page.getByRole("textbox", { name: "Lands at" })).toHaveValue(
         "",
       );
       // One field still asks — the arrival's own end, which is required —
-      // and the other says it is optional, which is the difference the
-      // form draws between an answer nobody has given and one nobody has
-      // to.
+      // and the counterpart is optional, which the form draws as a pair
+      // shut behind its own trigger rather than as an empty field.
       await expect(page.getByRole("button", { name: "Pick a time" })).toHaveCount(
         1,
       );
       await expect(
-        page.getByRole("button", { name: "No departure time" }),
+        page.getByRole("button", { name: "Add the departure" }),
       ).toBeVisible();
       await expect(page.getByText("Not shared yet")).toHaveCount(1);
       await expect(
@@ -542,9 +562,11 @@ test.describe("Travel Journey", () => {
       // Their other direction is still here, still filled in, and the
       // screen is still editing rather than adding.
       await page.getByRole("radio", { name: "Departing" }).click();
-      await expect(page.getByRole("textbox", { name: "Where" })).toHaveValue(
-        departureWhere,
-      );
+      // The departure's own word now, not the arrival's: `Leaves from` on
+      // the default flight.
+      await expect(
+        page.getByRole("textbox", { name: "Leaves from" }),
+      ).toHaveValue(departureWhere);
       await expect(
         page.getByRole("button", { name: "Save changes" }),
       ).toBeVisible();
@@ -568,6 +590,146 @@ test.describe("Travel Journey", () => {
           { timeout: NAVIGATION_TIMEOUT },
         )
         .toEqual([`departure:${departureWhere}`]);
+    });
+  });
+
+  test("a hire keeps its mode and both ends through the round trip", async ({
+    page,
+    request,
+  }) => {
+    const tripName = uniqueLabel("E2E Hire");
+    const memberName = uniqueLabel("Travel Hirer");
+    const pickupWhere = uniqueLabel("PMI Desk");
+    const dropoffWhere = uniqueLabel("PMI Garage");
+
+    let tripId: string;
+    let startDate: string;
+    let memberId: string;
+    let token: string;
+    let travelId: string;
+    let tripZone: string;
+    // Two ends of one hire, hours apart on the filed day, stamped in UTC
+    // and read back through the zone the API geocoded for the trip — the
+    // spec never asserts a clock it guessed.
+    const pickupIso = () => `${startDate}T10:00:00Z`;
+    const dropoffIso = () => `${startDate}T14:00:00Z`;
+
+    await test.step("seed a trip and a hire holding both its ends", async () => {
+      ({ token } = await seedUserViaAPI(
+        request,
+        generateUniquePhone(),
+        memberName,
+      ));
+      ({ id: tripId, startDate } = await seedTripViaAPI(
+        request,
+        token,
+        tripName,
+      ));
+      memberId = await organizerMemberIdViaAPI(request, token, tripId);
+      tripZone = await tripTimezoneViaAPI(request, token, tripId);
+      // Filed through the real endpoint with the mode the chips would
+      // commit and with *both* ends, which is the one shape the form
+      // files as a single record and the board reads back as one row.
+      travelId = await seedTravelViaAPI(
+        request,
+        token,
+        tripId,
+        memberId,
+        "arrival",
+        { arrivalTime: pickupIso(), departureTime: dropoffIso() },
+        pickupWhere,
+        { mode: "rental", farLocation: dropoffWhere },
+      );
+    });
+
+    await test.step("the board wears the chip the record names", async () => {
+      await armSession(page, token);
+      await page.goto(`/trips/travel?id=${tripId}`);
+      await expect(
+        page
+          .getByRole("button")
+          .filter({ hasText: memberName })
+          .filter({ hasText: "Rental" }),
+      ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
+    });
+
+    await test.step("a cold load opens the hire on both its ends", async () => {
+      // A fresh load of the record's own URL, the way the class of bug
+      // the other tests cover is reached: whatever the pane shows has to
+      // come from the record, not from a leg a previous screen left in
+      // memory.
+      await page.goto(`/trips/travel/form?id=${tripId}&travel=${travelId}`);
+      await expect(page.getByText("Edit travel", { exact: true })).toBeVisible({
+        timeout: NAVIGATION_TIMEOUT,
+      });
+      // The mode the record carries, on the control that commits it: the
+      // chips are the one place a mode reaches a screen.
+      await expect(page.getByRole("radio", { name: "Rental" })).toHaveAttribute(
+        "aria-selected",
+        "true",
+        { timeout: NAVIGATION_TIMEOUT },
+      );
+      // A hire's own end on an arrival row is the pickup — the word is
+      // keyed by the *side*, not by the field's position (D3), so the
+      // field the flight calls `Lands at` reads `Pickup at` here.
+      await expect(
+        page.getByRole("textbox", { name: "Pickup at" }),
+      ).toHaveValue(pickupWhere, { timeout: NAVIGATION_TIMEOUT });
+      await expect(
+        page.getByRole("button", {
+          name: clockIn(pickupIso(), tripZone),
+          exact: true,
+        }),
+      ).toBeVisible();
+      // The far end is open because it *holds* something rather than
+      // because it was asked (D4): the pair renders on the value, and
+      // the dropoff is where the record put it.
+      await expect(
+        page.getByRole("textbox", { name: "Dropoff at" }),
+      ).toHaveValue(dropoffWhere);
+      // Exact, because the shut line above reads the same clock back
+      // inside a sentence (`Dropoff · 3:00 PM · PMI Garage`).
+      await expect(
+        page.getByRole("button", {
+          name: clockIn(dropoffIso(), tripZone),
+          exact: true,
+        }),
+      ).toBeVisible();
+      // Both ends on the filed day, which is what the absence of the far
+      // end's note says: `farEndNote` exists only when its day is not the
+      // one the strip above shows, and its word comes from the same table
+      // as the labels.
+      await expect(
+        page.getByText(/^Dropoff (Mon|Tue|Wed|Thu|Fri|Sat|Sun) /),
+      ).toHaveCount(0);
+      await expect(
+        page.getByRole("radio", { name: dayCellLabel(startDate) }),
+      ).toHaveAttribute("aria-selected", "true");
+    });
+
+    await test.step("a chip commits another mode, and the board wears that", async () => {
+      // The chip renames the fields and never gates them (D2): the hire's
+      // two ends stay where they are while the mode changes, so the field
+      // the hire called `Pickup at` is a train's `Arrives at` over the
+      // same where — one leg, two vocabularies, and the words come from
+      // the one table.
+      await page.getByRole("radio", { name: "Train" }).click();
+      await expect(
+        page.getByRole("textbox", { name: "Arrives at" }),
+      ).toHaveValue(pickupWhere);
+      await page.getByRole("button", { name: "Save changes" }).click();
+      // The save dismisses, and where it dismisses to is not this test's
+      // claim: a cold-loaded form has no stack behind it, so
+      // `useDismiss` falls back (`hooks/useDismiss.ts`) instead of
+      // returning to a board it never came from. The board is asked for
+      // by URL, and the chip it wears is the mode the press committed.
+      await page.goto(`/trips/travel?id=${tripId}`);
+      await expect(
+        page
+          .getByRole("button")
+          .filter({ hasText: memberName })
+          .filter({ hasText: "Train" }),
+      ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
     });
   });
 });
