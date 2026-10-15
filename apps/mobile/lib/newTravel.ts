@@ -3,6 +3,7 @@ import type { FlightLookupResult } from "@journiful/shared/types";
 import { addDays as shift, formatDay } from "@/lib/dateRange";
 import { formatFlightNumber, normalizeFlightNumber } from "@/lib/flights";
 import { formatClock, isClockTime, minutesOf } from "@/lib/time";
+import { farEndWord } from "@/lib/transportMode";
 import { wallClock, zoneOffsetMinutes } from "@/lib/timezone";
 import { TRIP_MARGIN_DAYS } from "@/lib/travelDays";
 import { joinFacts } from "@/lib/wording";
@@ -427,6 +428,15 @@ export function farEndDay(
  * that owns it. Null when the leg does not cross midnight: saying "the
  * same day" under a field is noise, and the day line above already says
  * which day that is.
+ *
+ * The word is the far end's own, read from the one table every label in
+ * the feature comes from (`lib/transportMode.ts`): the note sits under
+ * that end's own field, so it names the end the way the label above it
+ * does — `Leaves Thu Sep 17` under a flight's departure, `Pickup …` under
+ * a hire's. A second vocabulary for the same end is the drift D3 forbids,
+ * and the flight's own words (`Left`/`Lands`, what this said before the
+ * mode existed) could not read a hire at all: on an arrival row a hire's
+ * far end is a dropoff, and the member never left anywhere.
  */
 export function farEndNote(
   leg: TravelLeg,
@@ -435,9 +445,7 @@ export function farEndNote(
   if (!legCrossesMidnight(leg)) return null;
   const day = farEndDay(leg, direction);
   if (!day) return null;
-  return direction === "arrival"
-    ? `Left ${formatDay(day)}`
-    : `Lands ${formatDay(day)}`;
+  return `${farEndWord(leg.transportMode, direction)} ${formatDay(day)}`;
 }
 
 /** A record as the form wants it back, in the trip's own zone. */
