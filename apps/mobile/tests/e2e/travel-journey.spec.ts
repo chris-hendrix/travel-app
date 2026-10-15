@@ -731,5 +731,51 @@ test.describe("Travel Journey", () => {
           .filter({ hasText: "Train" }),
       ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
     });
+
+    await test.step("the same hire's other direction reads pickup then dropoff", async () => {
+      // A hire's pickup is always the arrival-side end and its dropoff the
+      // departure-side one, so the arrival-side pair leads whichever way the
+      // row faces. On a *departure* row that pair is the far one, so the
+      // pickup has to read above the dropoff — the only row whose order
+      // differs from "the row's own end leads", and the reason the board's
+      // half of this hire is not enough. Nothing in the Vitest suite has a
+      // renderer, so two fields' order is only assertable here, as geometry.
+      const departureTravelId = await seedTravelViaAPI(
+        request,
+        token,
+        tripId,
+        memberId,
+        "departure",
+        { departureTime: dropoffIso(), arrivalTime: pickupIso() },
+        dropoffWhere,
+        { mode: "rental", farLocation: pickupWhere },
+      );
+      await page.goto(
+        `/trips/travel/form?id=${tripId}&travel=${departureTravelId}`,
+      );
+      await expect(page.getByText("Edit travel", { exact: true })).toBeVisible({
+        timeout: NAVIGATION_TIMEOUT,
+      });
+      await expect(page.getByRole("radio", { name: "Rental" })).toHaveAttribute(
+        "aria-selected",
+        "true",
+        { timeout: NAVIGATION_TIMEOUT },
+      );
+      // The own end of a departure row is the departure column, which a hire
+      // calls `Dropoff at`; the far end is the pickup the record holds.
+      const pickupField = page.getByRole("textbox", { name: "Pickup at" });
+      const dropoffField = page.getByRole("textbox", { name: "Dropoff at" });
+      await expect(pickupField).toHaveValue(pickupWhere, {
+        timeout: NAVIGATION_TIMEOUT,
+      });
+      await expect(dropoffField).toHaveValue(dropoffWhere);
+      const [pickupBox, dropoffBox] = await Promise.all([
+        pickupField.boundingBox(),
+        dropoffField.boundingBox(),
+      ]);
+      expect(pickupBox).not.toBeNull();
+      expect(dropoffBox).not.toBeNull();
+      expect(pickupBox?.y ?? 0).toBeLessThan(dropoffBox?.y ?? 0);
+    });
   });
 });
