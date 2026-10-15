@@ -1038,6 +1038,128 @@ describe("Member Travel Routes", () => {
     });
   });
 
+  describe("The mode a leg is filed with", () => {
+    it("answers flight for a POST that names no mode", async () => {
+      app = await buildApp();
+      const { token, tripId } = await seed("Mode Default User");
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/trips/${tripId}/member-travel`,
+        cookies: { auth_token: token },
+        payload: {
+          travelType: "arrival",
+          arrivalTime: "2026-07-01T14:00:00Z",
+          arrivalLocation: "Airport",
+        },
+      });
+
+      expect(response.statusCode).toBe(201);
+      const body = JSON.parse(response.body);
+      // The column's own default, and the reason the entity schema
+      // declares the field at all: the route answers through
+      // `memberTravelResponseSchema`, which strips every field the entity
+      // does not name, so an undeclared mode would never reach a client.
+      expect(body.memberTravel.transportMode).toBe("flight");
+    });
+
+    it("answers the mode a POST named", async () => {
+      app = await buildApp();
+      const { token, tripId } = await seed("Mode Post User");
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/trips/${tripId}/member-travel`,
+        cookies: { auth_token: token },
+        payload: {
+          travelType: "departure",
+          departureTime: "2026-07-08T09:00:00Z",
+          departureLocation: "Valencia",
+          transportMode: "car",
+        },
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(JSON.parse(response.body).memberTravel.transportMode).toBe("car");
+
+      const rows = await db
+        .select({ transportMode: memberTravel.transportMode })
+        .from(memberTravel)
+        .where(
+          and(eq(memberTravel.tripId, tripId), isNull(memberTravel.deletedAt)),
+        );
+      expect(rows.map((row) => row.transportMode)).toEqual(["car"]);
+    });
+
+    it("answers the mode a PUT set", async () => {
+      app = await buildApp();
+      const { token, tripId } = await seed("Mode Put User");
+
+      const created = await app.inject({
+        method: "POST",
+        url: `/api/trips/${tripId}/member-travel`,
+        cookies: { auth_token: token },
+        payload: {
+          travelType: "arrival",
+          arrivalTime: "2026-07-01T14:00:00Z",
+          arrivalLocation: "St Pancras",
+        },
+      });
+      expect(created.statusCode).toBe(201);
+      const id = JSON.parse(created.body).memberTravel.id;
+
+      const updated = await app.inject({
+        method: "PUT",
+        url: `/api/member-travel/${id}`,
+        cookies: { auth_token: token },
+        payload: { transportMode: "train" },
+      });
+
+      expect(updated.statusCode).toBe(200);
+      expect(JSON.parse(updated.body).memberTravel.transportMode).toBe("train");
+    });
+
+    it("leaves the filed mode alone when the POST names none", async () => {
+      // The route half of the pair-update guard: a phone that has not
+      // been updated still POSTs a leg with no mode, and that POST must
+      // not read as "make this a flight".
+      app = await buildApp();
+      const { token, tripId } = await seed("Mode Guard User");
+
+      const created = await app.inject({
+        method: "POST",
+        url: `/api/trips/${tripId}/member-travel`,
+        cookies: { auth_token: token },
+        payload: {
+          travelType: "arrival",
+          arrivalTime: "2026-07-01T14:00:00Z",
+          arrivalLocation: "BCN T2",
+          transportMode: "rental",
+        },
+      });
+      expect(created.statusCode).toBe(201);
+      expect(JSON.parse(created.body).memberTravel.transportMode).toBe(
+        "rental",
+      );
+
+      const again = await app.inject({
+        method: "POST",
+        url: `/api/trips/${tripId}/member-travel`,
+        cookies: { auth_token: token },
+        payload: {
+          travelType: "arrival",
+          arrivalTime: "2026-07-01T15:00:00Z",
+          arrivalLocation: "BCN T2",
+        },
+      });
+
+      expect(again.statusCode).toBe(200);
+      const body = JSON.parse(again.body);
+      expect(body.memberTravel.transportMode).toBe("rental");
+      expect(body.memberTravel.arrivalTime).toBe("2026-07-01T15:00:00.000Z");
+    });
+  });
+
   describe("POST /api/member-travel/:id/restore on a replaced pair", () => {
     it("answers 409 MEMBER_TRAVEL_CONFLICT for a pair that is live again", async () => {
       // Delete, then file the same direction again: the create path looks

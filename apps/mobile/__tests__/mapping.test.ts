@@ -456,6 +456,7 @@ describe("toTravel", () => {
     tripId: "trip-1",
     memberId: "member-1",
     travelType: "arrival",
+    transportMode: "rental",
     departureLocation: "JFK T4",
     departureTime: new Date("2026-09-20T07:00:00Z"),
     arrivalLocation: "BCN T2",
@@ -475,6 +476,9 @@ describe("toTravel", () => {
       memberId: "member-1",
       memberName: "Dana Mercer",
       travelType: "arrival",
+      // The row's own mode, carried through rather than re-derived: the
+      // column is `NOT NULL`, so what the API sends is what is stored.
+      transportMode: "rental",
       departureTime: "2026-09-20T07:00:00.000Z",
       departureLocation: "JFK T4",
       arrivalTime: "2026-09-20T15:40:00.000Z",

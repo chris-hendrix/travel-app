@@ -2,6 +2,34 @@ import type { FlightLookupResult } from "../schemas/flight.js";
 
 export type MemberTravelType = "arrival" | "departure";
 
+/**
+ * The six ways a leg can be taken, in the order the chips offer them.
+ *
+ * Declared once, in the travel module every consumer already imports:
+ * `shared/schemas/member-travel.ts` builds its request and entity enums
+ * from this array, the API's `member_travel_transport_mode` column reads
+ * it, and the mobile's label table is keyed by it — so no two of them can
+ * disagree about the six or their order.
+ *
+ * `flight` leads because it is the column's default and the one mode
+ * whose number is looked up rather than typed.
+ *
+ * The field is `transportMode`, never `TravelMode`: that name was the
+ * deleted field-visibility toggle, and the two must not be confused by
+ * the next reader who greps for "mode".
+ */
+export const TRANSPORT_MODES = [
+  "flight",
+  "train",
+  "bus",
+  "car",
+  "rental",
+  "other",
+] as const;
+
+/** One of the six ways a leg can be taken. */
+export type TransportMode = (typeof TRANSPORT_MODES)[number];
+
 export interface FlightAutofillFields {
   departureTime?: string | undefined;
   departureLocation?: string | undefined;

@@ -2,6 +2,8 @@
  * Member travel types and response interfaces
  */
 
+import type { TransportMode } from "../utils/travel";
+
 /**
  * Member travel entity
  */
@@ -10,6 +12,13 @@ export interface MemberTravel {
   tripId: string;
   memberId: string;
   travelType: "arrival" | "departure";
+  /**
+   * How the leg is taken. Non-nullable, and required, because the column
+   * is `NOT NULL DEFAULT 'flight'`: every row read back from the API
+   * carries one, so no reader has to carry an "unknown" branch — which
+   * is the state the feature went out of its way to avoid.
+   */
+  transportMode: TransportMode;
   departureLocation: string | null;
   departureTime: Date | null;
   arrivalLocation: string | null;

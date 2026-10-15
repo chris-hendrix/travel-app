@@ -62,6 +62,7 @@ function row(overrides: Record<string, unknown> = {}): MemberTravel {
     memberId: "member-1",
     memberName: "Ana",
     travelType: "arrival",
+    transportMode: "flight",
     departureLocation: "JFK T4",
     departureTime: "2026-06-04T11:00:00.000Z",
     arrivalLocation: "BCN T2",
@@ -84,6 +85,7 @@ function cachedTravel(overrides: Partial<MockTravel> = {}): MockTravel {
     memberId: "member-1",
     memberName: "Ana",
     travelType: "arrival",
+    transportMode: "flight",
     departureTime: "2026-06-04T11:00:00.000Z",
     departureLocation: "JFK T4",
     arrivalTime: "2026-06-04T19:40:00.000Z",
@@ -325,6 +327,7 @@ describe("flight lookup (lib/flights.ts, untouched)", () => {
 const createInput = {
   travelType: "arrival" as const,
   memberId: "member-1",
+  transportMode: "rental" as const,
   departureLocation: "JFK T4",
   departureTime: "2026-06-04T11:00:00.000Z",
   arrivalLocation: "BCN T2",
@@ -335,7 +338,10 @@ const createInput = {
 describe("createTravel", () => {
   it("POSTs /trips/:tripId/member-travel and returns the mapped record", async () => {
     mockedApiFetch.mockReset();
-    mockedApiFetch.mockResolvedValue({ success: true, memberTravel: row() });
+    mockedApiFetch.mockResolvedValue({
+      success: true,
+      memberTravel: row({ transportMode: "rental" }),
+    });
 
     const options = createTravelOptions();
     expect(options.mutationKey).toEqual(["travel", "create"]);
@@ -353,11 +359,14 @@ describe("createTravel", () => {
     );
     // Mapped through `toTravel`: both ends, the member name off the
     // join. The response carries the full entity, so no placeholder
-    // merge is needed (unlike the trips writes).
+    // merge is needed (unlike the trips writes). The mode is the row's
+    // own — the API's column is `NOT NULL`, so it is never absent from
+    // what comes back, and `toTravel` is the only source of it here.
     expect(record).toMatchObject({
       id: "travel-1",
       memberName: "Ana",
       travelType: "arrival",
+      transportMode: "rental",
       arrivalLocation: "BCN T2",
     });
   });

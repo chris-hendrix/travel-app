@@ -287,6 +287,9 @@ export function buildLegRecord(
     memberId,
     memberName,
     travelType: direction,
+    // The leg gains its own mode in a later task; today the form's chips
+    // pre-select flight, which is also the column's own default.
+    transportMode: "flight",
     departureTime: leg.departureTime.trim()
       ? stamp(departureDay, leg.departureTime, timeZone)
       : null,

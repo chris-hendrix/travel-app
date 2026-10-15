@@ -145,6 +145,7 @@ function travelRow(tripId: string, record: DemoTrip["travel"][number]): MemberTr
     tripId,
     memberId: record.memberId,
     travelType: record.travelType,
+    transportMode: record.transportMode,
     departureLocation: record.departureLocation,
     departureTime: (record.departureTime ?? null) as unknown as Date | null,
     arrivalLocation: record.arrivalLocation,
@@ -767,6 +768,12 @@ export function handleDemoRequest(
         tripId,
         memberId,
         travelType,
+        // The mode is on the row and in the column, but no writer here
+        // reads the body's yet: a POST through the demo files a flight,
+        // which is the column's own default. The gap is deliberate — the
+        // demo's three writers (this one, the pair update, and the PUT
+        // whitelist) are the next commit's subject, with their own test.
+        transportMode: "flight",
         ...values,
         deletedAt: null,
         deletedBy: null,

@@ -299,6 +299,16 @@ export class MemberTravelService implements IMemberTravelService {
     // is a cleared one: the form sends what the member answered, and a
     // value it no longer carries is one they took back. On the update
     // branch an explicit null says the same thing.
+    //
+    // The mode is the one exception, and the exception is load-bearing.
+    // `values` is not only the insert's: the pair-update branch below
+    // `.set()`s the same object over the live row, so an unconditional
+    // entry — `transportMode: rest.transportMode ?? "flight"` — would
+    // answer a mode-less POST by resetting a filed rental back to a
+    // flight. Joined only when the body carried one, the insert takes the
+    // column's own default and the pair update leaves the row's mode
+    // alone, which is what a caller that said nothing about the mode
+    // meant either way.
     const values = {
       departureTime: rest.departureTime ? new Date(rest.departureTime) : null,
       departureLocation: rest.departureLocation || null,
@@ -306,6 +316,9 @@ export class MemberTravelService implements IMemberTravelService {
       arrivalLocation: rest.arrivalLocation || null,
       flightNumber: rest.flightNumber || null,
       details: rest.details || null,
+      ...(rest.transportMode !== undefined
+        ? { transportMode: rest.transportMode }
+        : null),
     };
 
     // The pair is taken: update it in place, which is what keeps the

@@ -21,6 +21,9 @@ function record(
     memberId: overrides.id,
     memberName: overrides.id,
     travelType,
+    // A mode is on every record; the board does not read it yet, so
+    // these rows state the column's own default.
+    transportMode: "flight",
     departureTime: travelType === "departure" ? time : null,
     departureLocation: travelType === "departure" ? location : null,
     arrivalTime: travelType === "arrival" ? time : null,
