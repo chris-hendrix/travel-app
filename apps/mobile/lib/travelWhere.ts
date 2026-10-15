@@ -12,8 +12,11 @@
  * `Dropdown` (a local list filters itself), and the only way to hand it
  * up here is `onSearchText` — the live-search shape
  * `travel-where-source.test.ts` exists to keep out of the travel files.
- * `freeText` already commits what you type, so a typed row would be a
- * row nobody needs. See the note in `__tests__/travel-where.test.ts`.
+ * The typed row is `Dropdown`'s too: `withTypedRow` (`lib/dropdown.ts`)
+ * offers what you typed as the list's **first** row, built inside the
+ * component from the trimmed query after the filter, so this ranking
+ * keeps no copy of the keystroke and no row of its own. See the note in
+ * `__tests__/travel-where.test.ts`.
  *
  * Pure and framework-free (the `lib/dropdown.ts` precedent) so the
  * order, the dedupe and the provenance are all unit-testable.
