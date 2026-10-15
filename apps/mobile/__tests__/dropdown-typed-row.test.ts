@@ -74,12 +74,22 @@ describe("withTypedRow", () => {
       const rows = localRows(TRAVEL_WHERES, query);
       expect(rows.map((row) => row.label), query).toEqual(["BCN T2"]);
     }
-    // The comparison trims, so a padded query asks the same question — of
-    // the whole list here rather than of the filter's `matches`, because
-    // `filterPickerEntries` itself does not trim.
-    expect(
-      withTypedRow(TRAVEL_WHERES, "  bcn t2  ").map((row) => row.label),
-    ).toEqual(["BCN T2", "GVA", "Valencia"]);
+    // The comparison trims, so a padded query asks the same question of
+    // the rows that are *drawn* — the whole of the rule, because the
+    // component builds its rows as `withTypedRow(matches, query)` and
+    // `filterPickerEntries` does not trim. A padded needle therefore
+    // matches no label at all, the filter keeps nothing, and the typed row
+    // (built from the trimmed text) is the whole list — the pre-existing
+    // row is not drawn beside it. Nothing is suppressed here; the rule is
+    // about the rows drawn, not about the option set behind them.
+    expect(localRows(TRAVEL_WHERES, "  bcn t2  ")).toEqual([
+      {
+        value: "bcn t2",
+        label: '"bcn t2"',
+        secondary: "Use what you typed",
+        fieldText: "bcn t2",
+      },
+    ]);
   });
 
   it("survives a query with a trailing space", () => {

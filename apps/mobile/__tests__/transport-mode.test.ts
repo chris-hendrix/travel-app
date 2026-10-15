@@ -152,7 +152,7 @@ describe("the number the mode keeps", () => {
   it("hints at a number that looks like the one it wants", () => {
     expect(numberPlaceholder("flight")).toBe("UA 1842");
     expect(numberPlaceholder("train")).toBe("TGV 8412");
-    expect(numberPlaceholder("bus")).toBe("FlixBus 042");
+    expect(numberPlaceholder("bus")).toBe("FlixBus 42");
   });
 });
 
@@ -187,7 +187,7 @@ describe("switchLegMode", () => {
   it("clears the number when the mode leaves the flight", () => {
     // The number is the flight's: it is formatted as a flight's and it
     // is what the lookup is asked about, and `formatFlightNumber(
-    // "FlixBus 042")` would print `FLI XBUS042`.
+    // "FlixBus 42")` would print `FLI XBUS42`.
     const next = switchLegMode(
       leg({ transportMode: "flight", flightNumber: "UA 1842" }),
       "rental",
@@ -198,11 +198,11 @@ describe("switchLegMode", () => {
 
   it("keeps a hand-typed number between two modes that are not flights", () => {
     const next = switchLegMode(
-      leg({ transportMode: "train", flightNumber: "FlixBus 042" }),
+      leg({ transportMode: "train", flightNumber: "FlixBus 42" }),
       "bus",
     );
     expect(next.transportMode).toBe("bus");
-    expect(next.flightNumber).toBe("FlixBus 042");
+    expect(next.flightNumber).toBe("FlixBus 42");
   });
 
   it("leaves the number empty when a car becomes a flight", () => {

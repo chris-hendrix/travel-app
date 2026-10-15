@@ -18,6 +18,7 @@ import {
   endLabel,
   farEndWord,
   hasLookup,
+  hasNumberField,
   modeLabel,
   numberLabel,
   numberPlaceholder,
@@ -63,8 +64,11 @@ const WHERE_PLACEHOLDER = "Airport, station, address";
  * The column's own cap: `flight_number` is `varchar(10)`, and the field
  * was free to type past it the moment the mode stopped being a flight.
  * A flight number cannot reach it — the API's own shape is at most an
- * airline code and four digits — so the cap only ever bites a coach's
- * service number, which is the case it is here for.
+ * airline code and four digits — so the cap bites a coach's service
+ * number, and the coach's own placeholder is what it bit first:
+ * `FlixBus 042` is eleven characters, so `NUMBER_FIELDS.bus` reads
+ * `FlixBus 42` here — a hint may not demonstrate a value the field
+ * refuses.
  */
 const NUMBER_MAX_LENGTH = 10;
 
@@ -450,10 +454,13 @@ function LegFields({
         leg.otherLocation.trim(),
       )
     : `Add the ${farSide}`;
-  // The number the mode keeps, or null where it keeps none. `numberLabel`
-  // is null exactly where `hasNumberField` is false, so the gate and the
-  // label are one table's answer — there is no third thing to disagree.
-  const number = numberLabel(mode);
+  // The number the mode keeps, where it keeps one. The gate below asks
+  // `hasNumberField` itself — the rule's own name for the decision — and
+  // the label is the same table's answer, `numberLabel` being null exactly
+  // where it is false, so the field's presence and its words cannot drift
+  // apart. The `?? ""` never renders: a mode with no number has no field
+  // at all rather than an empty one.
+  const number = numberLabel(mode) ?? "";
   const numberHint = numberPlaceholder(mode) ?? "";
 
   // The lookup flies on the leg's own day: one date, one number, and the
@@ -543,7 +550,7 @@ function LegFields({
           label, the placeholder and the Autofill all follow the mode, and
           a mode with no number has no field at all rather than an empty
           one — a driver's form has nothing to put in it. */}
-      {number !== null ? (
+      {hasNumberField(mode) ? (
         <View className="gap-1">
           <TextField
             label={number}
@@ -555,7 +562,7 @@ function LegFields({
               // code, a space, the number — because that is the shape the
               // placeholder promises and the form the lookup reads. A
               // coach's service number is the member's own words, and
-              // `formatFlightNumber("FlixBus 042")` is `FLI XBUS042`.
+              // `formatFlightNumber("FlixBus 42")` is `FLI XBUS42`.
               onChange({
                 ...leg,
                 flightNumber: hasLookup(mode)

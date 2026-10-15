@@ -64,7 +64,7 @@ const MODE_LABELS: Record<TransportMode, string> = {
  * has, and a mode absent from this table has no field at all: car,
  * rental and other are a driver's and a walker's business, and the
  * placeholder is the mode's own so the field hints at the shape it
- * wants (`UA 1842`, `TGV 8412`, `FlixBus 042`).
+ * wants (`UA 1842`, `TGV 8412`, `FlixBus 42`).
  *
  * `lookup` is the flight's alone: a flight number is what
  * `POST /flights/lookup` is asked about, and the times it answers with
@@ -75,7 +75,7 @@ const NUMBER_FIELDS: Partial<
 > = {
   flight: { label: "Flight number", placeholder: "UA 1842", lookup: true },
   train: { label: "Train number", placeholder: "TGV 8412", lookup: false },
-  bus: { label: "Bus service", placeholder: "FlixBus 042", lookup: false },
+  bus: { label: "Bus service", placeholder: "FlixBus 42", lookup: false },
 };
 
 /** The leg's two columns, one from the other. */
@@ -162,8 +162,8 @@ export function pairOrder(
  * keep.
  *
  * The number is the *flight's*: it is what `formatFlightNumber` formats
- * and what the lookup is asked about, so a bus typed as `FlixBus 042`
- * would show `FLI XBUS042` — and a bus has no flight number anyway. It
+ * and what the lookup is asked about, so a bus typed as `FlixBus 42`
+ * would show `FLI XBUS42` — and a bus has no flight number anyway. It
  * is cleared only when the mode **leaves** the flight, which is a
  * narrower rule than "is not a flight": `train` to `bus` keeps a
  * hand-typed value, and a car that becomes a flight keeps the empty

@@ -1158,6 +1158,39 @@ describe("Member Travel Routes", () => {
       expect(body.memberTravel.transportMode).toBe("rental");
       expect(body.memberTravel.arrivalTime).toBe("2026-07-01T15:00:00.000Z");
     });
+
+    it("answers the mode on the trip's listing, where the board's chip reads it", async () => {
+      // The board reads a member's mode off the branch's own list, and no
+      // test above touches it: the write paths answer one record at a
+      // time. `rental` rather than the column's default, so a listing that
+      // answered `flight` for everything cannot pass.
+      app = await buildApp();
+      const { token, tripId } = await seed("Mode List User");
+
+      await app.inject({
+        method: "POST",
+        url: `/api/trips/${tripId}/member-travel`,
+        cookies: { auth_token: token },
+        payload: {
+          travelType: "arrival",
+          arrivalTime: "2026-07-01T14:00:00Z",
+          arrivalLocation: "BCN T2",
+          transportMode: "rental",
+        },
+      });
+
+      const listed = await app.inject({
+        method: "GET",
+        url: `/api/trips/${tripId}/member-travel`,
+        cookies: { auth_token: token },
+      });
+
+      expect(
+        JSON.parse(listed.body).memberTravels.map(
+          (row: { transportMode: string }) => row.transportMode,
+        ),
+      ).toEqual(["rental"]);
+    });
   });
 
   describe("POST /api/member-travel/:id/restore on a replaced pair", () => {
