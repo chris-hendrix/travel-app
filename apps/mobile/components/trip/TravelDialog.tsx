@@ -19,6 +19,7 @@ import {
   farEndWord,
   hasLookup,
   hasNumberField,
+  leadingPair,
   modeLabel,
   numberLabel,
   numberPlaceholder,
@@ -385,9 +386,12 @@ export function TravelDialog({
  * the lookup needs it, and the number sits directly under the day so
  * nothing scrolls between the two; that adjacency is also the answer to
  * "why will Autofill not press" that the old hidden-field version never
- * gave. The direction's own end comes next, and the leg's other end last,
- * behind a word — it is optional, and it costs the panel two fields and
- * ~150pt at 390 on every leg that does not use it (D4).
+ * gave. The direction's own end comes next, and the leg's other end after
+ * it, behind a word — it is optional, and it costs the panel two fields and
+ * ~150pt at 390 on every leg that does not use it (D4). Which of the two is
+ * drawn first is the row's and not the form's: a hire is read pickup-first
+ * whichever direction it is, so its departure row draws the optional pair
+ * on top (`leadingPair`).
  *
  * Every word and every field here follows the mode: which field exists,
  * what it is called, and what it reads are all `lib/transportMode.ts`'
@@ -504,6 +508,59 @@ function LegFields({
     }
   }
 
+  // The leg's two ends, each built once and read in the order `leadingPair`
+  // answers: the row's own pair — the end its direction names, and the only
+  // one the validator asks for — and the far one, behind its own trigger.
+  // Which of them leads is not the order they are written in here.
+  //
+  // This row's own end: the pair the row is *about*. Its two labels are the
+  // end's own words, read from the mode's table by the side.
+  const ownPair = (
+    <EndPair
+      mode={mode}
+      side={direction}
+      leg={leg}
+      onChange={onChange}
+      whereEntries={whereEntries}
+      errors={errors}
+      onEdit={clearLookupError}
+    />
+  );
+
+  // The far end, behind its own value. Shut, this is one quiet line that
+  // either asks for the end or reads the fact back — the panel header's own
+  // idiom one level down, and the reason hiding a filed end loses nothing.
+  // Open, it is the same two fields in the mode's other word.
+  //
+  // Opened when it holds a value or the member opened it: a lookup that
+  // fills the takeoff opens the pair rather than leaving it a line, and a
+  // press shuts it again with the fact still on screen.
+  //
+  // No block rule over the pair, though the mockup draws one. The rule's
+  // home is `RuledBlock`, and `design-lint.mjs` check 9 counts every such
+  // site against a ratchet that sits exactly at its cap (44) — adding one is
+  // a deliberate raise of that constant with its own recorded reason, not
+  // something this phase can spend. The line above is the boundary either
+  // way: a word on its own, then the pair it names.
+  const farPair = (
+    <View className="gap-4">
+      <QuietAction label={farLine} onPress={() => setFarOpened(!farOpen)} />
+      {farOpen ? (
+        <EndPair
+          mode={mode}
+          side={farSide}
+          leg={leg}
+          onChange={onChange}
+          whereEntries={whereEntries}
+          errors={errors}
+          onEdit={clearLookupError}
+          far
+          note={farNote}
+        />
+      ) : null}
+    </View>
+  );
+
   return (
     <View className="gap-4">
       {/* How: the six ways, as chips, under the direction they belong to.
@@ -598,52 +655,23 @@ function LegFields({
         </View>
       ) : null}
 
-      {/* This row's own end: the pair the row is *about*, and the only one
-          the validator asks for. Its two labels are the end's own words,
-          read from the mode's table by the side. */}
-      <EndPair
-        mode={mode}
-        side={direction}
-        leg={leg}
-        onChange={onChange}
-        whereEntries={whereEntries}
-        errors={errors}
-        onEdit={clearLookupError}
-      />
-
-      {/* The far end, behind its own value. Shut, this is one quiet line
-          that either asks for the end or reads the fact back — the panel
-          header's own idiom one level down, and the reason hiding a filed
-          end loses nothing. Open, it is the same two fields in the mode's
-          other word.
-
-          Opened when it holds a value or the member opened it: a lookup
-          that fills the takeoff opens the pair rather than leaving it a
-          line, and a press shuts it again with the fact still on screen.
-
-          No block rule over the pair, though the mockup draws one. The
-          rule's home is `RuledBlock`, and `design-lint.mjs` check 9 counts
-          every such site against a ratchet that sits exactly at its cap
-          (44) — adding one is a deliberate raise of that constant with its
-          own recorded reason, not something this phase can spend. The
-          line above is the boundary either way: a word on its own, then
-          the pair it names. */}
-      <View className="gap-4">
-        <QuietAction label={farLine} onPress={() => setFarOpened(!farOpen)} />
-        {farOpen ? (
-          <EndPair
-            mode={mode}
-            side={farSide}
-            leg={leg}
-            onChange={onChange}
-            whereEntries={whereEntries}
-            errors={errors}
-            onEdit={clearLookupError}
-            far
-            note={farNote}
-          />
-        ) : null}
-      </View>
+      {/* The leg's two ends, in the order the row reads them
+          (`leadingPair`): a hire is read pickup-first whichever row it is
+          on — a pickup is the arrival side's word, so on a hire's
+          departure row the far pair leads — and every other mode reads the
+          row's own end first, which is the mockup's `Lands at` above
+          `Leaves from`. */}
+      {leadingPair(mode, direction) === "own" ? (
+        <>
+          {ownPair}
+          {farPair}
+        </>
+      ) : (
+        <>
+          {farPair}
+          {ownPair}
+        </>
+      )}
 
       <TextField
         label="Details"

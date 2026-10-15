@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { TRANSPORT_MODES } from "@journiful/shared/utils";
+import { TRANSPORT_MODES, type TransportMode } from "@journiful/shared/utils";
 import { emptyLeg, type TravelDirection, type TravelLeg } from "@/lib/newTravel";
 import {
   endLabel,
   farEndWord,
   hasLookup,
   hasNumberField,
+  leadingPair,
   modeLabel,
   numberLabel,
   numberPlaceholder,
-  pairOrder,
   switchLegMode,
   whereLabel,
 } from "@/lib/transportMode";
@@ -156,25 +156,77 @@ describe("the number the mode keeps", () => {
   });
 });
 
-describe("the pair's order", () => {
-  it("reads a journey in the order it happens", () => {
+describe("which of the pair leads", () => {
+  /**
+   * The rule, which is two rules: **a hire's arrival-side pair always
+   * leads** — a pickup is the arrival side's word and is always the end
+   * that happens first, whichever row the leg is read on — and **every
+   * other mode reads the row's own end first**, both ways round.
+   */
+  it("reads a hire pickup-first, and everything else's own end first", () => {
+    // rental, arrival row: the own pair *is* the pickup, so the pickup
+    // reads above the dropoff.
+    expect(leadingPair("rental", "arrival")).toBe("own");
+    // rental, departure row: the own pair is the dropoff, so the pair
+    // that leads is the far one — the pickup.
+    expect(leadingPair("rental", "departure")).toBe("far");
+    // flight, arrival row: the own pair is the arrival, which is the
+    // mockup's `Lands at` above `Leaves from`.
+    expect(leadingPair("flight", "arrival")).toBe("own");
+    // flight, departure row, the same way round: the own end leads.
+    expect(leadingPair("flight", "departure")).toBe("own");
+  });
+
+  it("reads every other mode as the flight reads", () => {
     for (const mode of TRANSPORT_MODES) {
       if (mode === "rental") continue;
-      expect(pairOrder(mode)).toEqual(["departure", "arrival"]);
+      for (const direction of ["arrival", "departure"] as const) {
+        expect(leadingPair(mode, direction)).toBe("own");
+      }
     }
   });
+});
 
-  it("reads a hire pickup-first, whichever row it is on", () => {
-    // The hire's own order and not the columns': an arrival row reads
-    // Pickup above Dropoff, and a departure row reads the same pair with
-    // its own end — the dropoff — second.
-    expect(pairOrder("rental")).toEqual(["arrival", "departure"]);
+/**
+ * The deploy window. An EAS Update lands on a phone the moment it is
+ * published while the API deploys on its own schedule, so a bundle can
+ * read a record that predates the mode: the leg is handed `undefined`,
+ * and the tables used to be indexed by it, which is a `TypeError` — on a
+ * phone, the travel form's white screen. `transport_mode` is
+ * `NOT NULL DEFAULT 'flight'`, so the flight's reading is the honest
+ * degradation: what the column's own default would have said.
+ *
+ * Two shapes of "not a mode this bundle has": one the API does not send
+ * at all, and one a newer API knows and this bundle does not. The
+ * assertions are also the proof that neither throws — a throw would fail
+ * the case rather than be caught by it.
+ */
+const NOT_A_MODE: ReadonlyArray<[string, TransportMode]> = [
+  ["a mode that never arrived", undefined as unknown as TransportMode],
+  ["a mode the tables have no row for", "hyperloop" as TransportMode],
+];
+
+describe.each(NOT_A_MODE)("read as a flight: %s", (_shape, mode) => {
+  it("reads both ends and the Where in the flight's words", () => {
+    expect(endLabel(mode, "departure")).toBe("Leaves");
+    expect(endLabel(mode, "arrival")).toBe("Lands");
+    expect(whereLabel(mode, "departure")).toBe("Leaves from");
+    expect(whereLabel(mode, "arrival")).toBe("Lands at");
+    expect(farEndWord(mode, "arrival")).toBe("Leaves");
+    expect(farEndWord(mode, "departure")).toBe("Lands");
   });
 
-  it("is both ends once each, for every mode", () => {
-    for (const mode of TRANSPORT_MODES) {
-      expect([...pairOrder(mode)].sort()).toEqual(["arrival", "departure"]);
-    }
+  it("reads the mode's own name and its number as the flight's", () => {
+    expect(modeLabel(mode)).toBe("Flight");
+    expect(numberLabel(mode)).toBe("Flight number");
+    expect(numberPlaceholder(mode)).toBe("UA 1842");
+    expect(hasNumberField(mode)).toBe(true);
+    expect(hasLookup(mode)).toBe(true);
+  });
+
+  it("leads with the row's own pair, which is what a flight does", () => {
+    expect(leadingPair(mode, "arrival")).toBe("own");
+    expect(leadingPair(mode, "departure")).toBe("own");
   });
 });
 

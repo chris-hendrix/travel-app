@@ -162,6 +162,12 @@ function RosterRowView({
       }
       detail={number}
       far={farColumn}
+      // The roster capped neither line — the body this row replaced
+      // (`077bb2e6`'s `RosterRowView`) put no `numberOfLines` on the name
+      // or on the number — so a long member name wraps on the members
+      // list exactly as it always did. The board's row wants the cap, and
+      // that is `PersonRow`'s default.
+      truncate={false}
       className={className}
     />
   );

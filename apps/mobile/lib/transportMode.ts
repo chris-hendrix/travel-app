@@ -83,17 +83,60 @@ function otherSide(side: TravelSide): TravelSide {
   return side === "departure" ? "arrival" : "departure";
 }
 
+/**
+ * The modes the tables above have a row for — this file's one statement
+ * of which modes it can read.
+ */
+const TABLE_MODES: ReadonlySet<string> = new Set(Object.keys(END_WORDS));
+
+/**
+ * The mode a table is read by: the one it was handed where the tables
+ * have a row for it, the flight where they do not.
+ *
+ * **This is a deploy-window guard, not a default to store.** An EAS
+ * Update lands on a phone the moment it is published while the API
+ * deploys on its own schedule, so a bundle can meet an API that predates
+ * the mode: the row carries no `transportMode`, the leg is handed
+ * `undefined`, and every table in this file was indexed by it —
+ * `END_WORDS[undefined]` is `undefined`, and reading `["departure"]` off
+ * that is a `TypeError`, which is the travel form's white screen rather
+ * than a word that reads a little oddly. The column is
+ * `NOT NULL DEFAULT 'flight'`, so the flight's row is what such a leg
+ * honestly is: the reading the column's own default would have given it.
+ *
+ * It is **not** a licence to file a default. Nothing that *writes* a leg
+ * may read this: the form files the mode it was handed, as it found it
+ * (`newTravel.ts`'s `legFromRecord` carries it through, and a payload
+ * that omits it leaves the column alone), so an absent mode stays absent
+ * rather than becoming a flight on the way out.
+ *
+ * An absent mode is the one case this admits. `null` stays out, because
+ * a record with no mode to wear is a state this feature does have — a
+ * row nobody has filed, which its callers draw without a chip and
+ * without a block — and that is not a flight to be read into it.
+ */
+function knownMode(mode: TransportMode | undefined): TransportMode {
+  // The tables' own keys, rather than `mode in END_WORDS`, which answers
+  // true for `constructor` and the rest of the prototype: a mode from the
+  // wire may be any string at all, and a table read through the prototype
+  // is the shape of hole this guard exists to close.
+  return mode !== undefined && TABLE_MODES.has(mode) ? mode : "flight";
+}
+
 /** The mode's own name: the chip's word and the board's badge. */
-export function modeLabel(mode: TransportMode): string {
-  return MODE_LABELS[mode];
+export function modeLabel(mode: TransportMode | undefined): string {
+  return MODE_LABELS[knownMode(mode)];
 }
 
 /**
  * The end's word, on its own — what a time field is called, and the
  * first word of the line that reads a filed far end back.
  */
-export function endLabel(mode: TransportMode, side: TravelSide): string {
-  return END_WORDS[mode][side];
+export function endLabel(
+  mode: TransportMode | undefined,
+  side: TravelSide,
+): string {
+  return END_WORDS[knownMode(mode)][side];
 }
 
 /**
@@ -101,7 +144,10 @@ export function endLabel(mode: TransportMode, side: TravelSide): string {
  * you are at it. One table, two renderings — the time field is the word
  * itself — so the form and the detail cannot title one fact twice.
  */
-export function whereLabel(mode: TransportMode, side: TravelSide): string {
+export function whereLabel(
+  mode: TransportMode | undefined,
+  side: TravelSide,
+): string {
   // A hire is *at* both ends — you pick the car up at the desk and drop
   // it back there — where a journey leaves *from* its departure end.
   const preposition = mode === "rental" ? "at" : WHERE_PREPOSITION[side];
@@ -116,45 +162,70 @@ export function whereLabel(mode: TransportMode, side: TravelSide): string {
  * one, which is the arithmetic this keeps out of the screens.
  */
 export function farEndWord(
-  mode: TransportMode,
+  mode: TransportMode | undefined,
   direction: TravelDirection,
 ): string {
   return endLabel(mode, otherSide(direction));
 }
 
 /** The number field's label, or null where the mode keeps no number. */
-export function numberLabel(mode: TransportMode): string | null {
-  return NUMBER_FIELDS[mode]?.label ?? null;
+export function numberLabel(mode: TransportMode | undefined): string | null {
+  return NUMBER_FIELDS[knownMode(mode)]?.label ?? null;
 }
 
 /** The number field's placeholder, or null where there is no field. */
-export function numberPlaceholder(mode: TransportMode): string | null {
-  return NUMBER_FIELDS[mode]?.placeholder ?? null;
+export function numberPlaceholder(
+  mode: TransportMode | undefined,
+): string | null {
+  return NUMBER_FIELDS[knownMode(mode)]?.placeholder ?? null;
 }
 
 /** Whether the mode has a number field at all — the render gate. */
-export function hasNumberField(mode: TransportMode): boolean {
+export function hasNumberField(mode: TransportMode | undefined): boolean {
   return numberLabel(mode) !== null;
 }
 
 /** Whether the number is looked up rather than typed: the flight alone. */
-export function hasLookup(mode: TransportMode): boolean {
-  return NUMBER_FIELDS[mode]?.lookup === true;
+export function hasLookup(mode: TransportMode | undefined): boolean {
+  return NUMBER_FIELDS[knownMode(mode)]?.lookup === true;
 }
 
 /**
- * The order the pair is read in, which is the leg's own order rather
- * than the columns': a journey runs departure then arrival, and a hire
- * runs pickup then dropoff — the arrival column first — because a hire's
- * own end is the pickup on an arrival row and the dropoff on a departure
- * one, and the pickup is what happens first either way.
+ * Which of the leg's two pairs is read first: the row's **own** end — the
+ * one its direction names, and the only one the validator asks for — or
+ * the leg's **far** one, which is optional and sits behind a trigger.
  */
-export function pairOrder(
+export type PairLead = "own" | "far";
+
+/**
+ * Which of the two pairs the form draws comes first.
+ *
+ * Two rules, and the four cases fall out of them:
+ *
+ * - **A hire is read pickup-first, whichever row it is on.** A pickup is
+ *   always the arrival side's word and always the end that happens
+ *   first, so a hire's *arrival-side* pair leads: on an arrival row that
+ *   is the row's own pair — `Pickup at` above `Dropoff at` — and on a
+ *   departure row it is the far one, which makes a hire's departure row
+ *   the one row in this form whose far pair is not second.
+ * - **Every other mode reads the row's own end first**, both ways round:
+ *   a flight's arrival is `Lands at` above `Leaves from`, which is the
+ *   order the mockup draws, and its departure is `Leaves from` above
+ *   `Lands at`.
+ *
+ * The caller has two blocks and one question — which comes first — so
+ * this answers that, and not the columns in some order of its own. The
+ * pair's own order (`departure` then `arrival` for a journey) is the
+ * order the *record* runs, and read as a rendering rule it puts an
+ * arrival row's far pair on top, which is the mockup's flight drawn
+ * backwards.
+ */
+export function leadingPair(
   mode: TransportMode,
-): readonly [TravelSide, TravelSide] {
-  return mode === "rental"
-    ? ["arrival", "departure"]
-    : ["departure", "arrival"];
+  direction: TravelDirection,
+): PairLead {
+  if (mode === "rental") return direction === "arrival" ? "own" : "far";
+  return "own";
 }
 
 /**

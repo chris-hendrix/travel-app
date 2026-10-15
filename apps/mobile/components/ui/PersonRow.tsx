@@ -27,9 +27,13 @@ import { Text, View } from "react-native";
  * in a pressable answers two presses out of one box and reads as one
  * control to anything announcing the tree.
  *
- * The name and the detail are one line each (`numberOfLines={1}`): a row
- * read across has a far column to protect, and a name that wraps pushes
- * that column into a second line of its own.
+ * The name and the detail are one line each (`numberOfLines={1}`) unless
+ * the caller says otherwise: a row read across has a far column to protect,
+ * and a name that wraps pushes that column into a second line of its own.
+ * That is the board's row, and the members list is the other answer — it
+ * wrapped a long name before this row was extracted from it and must go on
+ * wrapping — so the cap is `truncate`, and the two lines move together
+ * because neither call site has ever capped one and not the other.
  */
 export function PersonRow({
   name,
@@ -37,6 +41,7 @@ export function PersonRow({
   detail,
   far,
   className,
+  truncate = true,
 }: {
   name: string;
   /** Beside the name, and wrapping under it when the line runs out. */
@@ -51,18 +56,32 @@ export function PersonRow({
    * measure must not change with a permission.
    */
   className?: string | undefined;
+  /**
+   * Whether the name and the detail stop at one line each. True by
+   * default, which is the board's row: its far column is a day and a
+   * clock, and a name that wraps pushes it down. The members list passes
+   * `false`, because the row it drew before this component existed capped
+   * neither line and the extraction is meant to be invisible there.
+   */
+  truncate?: boolean;
 }) {
+  // `undefined` is React Native's own "as many lines as it takes".
+  const lines = truncate ? 1 : undefined;
+
   return (
     <View className={[ROW_BODY, className].filter(Boolean).join(" ")}>
       <View className="flex-1 gap-1">
         <View className="flex-row flex-wrap items-center gap-3">
-          <Text numberOfLines={1} className="font-body-bold text-base text-ink">
+          <Text
+            numberOfLines={lines}
+            className="font-body-bold text-base text-ink"
+          >
             {name}
           </Text>
           {chips}
         </View>
         {detail ? (
-          <Text numberOfLines={1} className="font-body text-sm text-ink">
+          <Text numberOfLines={lines} className="font-body text-sm text-ink">
             {detail}
           </Text>
         ) : null}
