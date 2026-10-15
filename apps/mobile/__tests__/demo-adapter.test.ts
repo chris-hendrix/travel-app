@@ -51,6 +51,16 @@ type MoveRow = {
 /** A roster row, which is where both id spaces come from. */
 type MemberRow = { id: string; userId: string | null; displayName: string };
 
+/** One travel row as the demo serves it (the fields this walk reads). */
+type TravelRow = {
+  id: string;
+  memberId: string;
+  travelType: "arrival" | "departure";
+  transportMode: string;
+  departureLocation: string | null;
+  arrivalLocation: string | null;
+};
+
 /**
  * The demo's isolation guarantee — and what it is NOT.
  *
@@ -596,6 +606,99 @@ describe("the demo data layer", () => {
       ).toBe(true);
     }
 
+    expect(getUnhandledApiUrls()).toEqual([]);
+  });
+
+  it("files the mode a travel write states, and keeps the one it does not", async () => {
+    const tripId = DEMO_TRIP_ID;
+    const roster = await apiFetch<{ success: true; members: MemberRow[] }>(
+      `/trips/${tripId}/members`,
+    );
+    const trip = await apiFetch<{
+      success: true;
+      trip: { startDate: string; endDate: string };
+    }>(`/trips/${tripId}`);
+    // Priya has filed nothing, which is the member the demo's own form
+    // posts for — so both creates below are inserts, not pair updates.
+    const priya = roster.members.find((row) => row.id === "demo-priya")!;
+    const list = () =>
+      apiFetch<{ success: true; memberTravels: TravelRow[] }>(
+        `/trips/${tripId}/member-travel`,
+      );
+    expect(
+      (await list()).memberTravels.some((row) => row.memberId === priya.id),
+    ).toBe(false);
+    const post = (body: Record<string, unknown>) =>
+      apiFetch<{ success: true; memberTravel: TravelRow }>(
+        `/trips/${tripId}/member-travel`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+      );
+
+    // A create that says nothing files the column's own default…
+    const plain = await post({
+      memberId: priya.id,
+      travelType: "arrival",
+      arrivalLocation: "SJD T2",
+      arrivalTime: `${trip.trip.startDate}T19:40:00.000Z`,
+    });
+    expect(plain.memberTravel.transportMode).toBe("flight");
+
+    // …a create that states a mode stores it…
+    const hire = await post({
+      memberId: priya.id,
+      travelType: "departure",
+      transportMode: "rental",
+      departureLocation: "Marina Cabo San Lucas",
+      departureTime: `${trip.trip.endDate}T17:00:00.000Z`,
+    });
+    expect(hire.memberTravel.transportMode).toBe("rental");
+
+    // …and a create that says nothing about a pair already holding a
+    // mode leaves that row's mode alone, while the fields it does state
+    // still land. The API's own rule: `values` is the pair update's patch
+    // as well as the insert's, so a mode the body does not carry must not
+    // join it.
+    const again = await post({
+      memberId: priya.id,
+      travelType: "departure",
+      departureLocation: "Marina Cabo San Lucas, slip 4",
+      departureTime: `${trip.trip.endDate}T17:30:00.000Z`,
+    });
+    expect(again.memberTravel.id).toBe(hire.memberTravel.id);
+    expect(again.memberTravel.transportMode).toBe("rental");
+    expect(again.memberTravel.departureLocation).toBe(
+      "Marina Cabo San Lucas, slip 4",
+    );
+
+    // An edit states the mode, and the fields the patch does not mention
+    // survive it — which is what the PUT's whitelist is for: a key it
+    // omits is that field dropped on every edit the demo serves.
+    const edited = await apiFetch<{ success: true; memberTravel: TravelRow }>(
+      `/member-travel/${hire.memberTravel.id}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transportMode: "train" }),
+      },
+    );
+    expect(edited.memberTravel.transportMode).toBe("train");
+    expect(edited.memberTravel.departureLocation).toBe(
+      "Marina Cabo San Lucas, slip 4",
+    );
+
+    // And both writers are visible on the next read, not only in the
+    // answer they returned.
+    const listed = await list();
+    const read = (id: string) =>
+      listed.memberTravels.find((row) => row.id === id);
+    expect(read(plain.memberTravel.id)?.transportMode).toBe("flight");
+    expect(read(hire.memberTravel.id)?.transportMode).toBe("train");
+
+    expect(inner).not.toHaveBeenCalled();
     expect(getUnhandledApiUrls()).toEqual([]);
   });
 
