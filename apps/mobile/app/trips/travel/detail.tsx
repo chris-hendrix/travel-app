@@ -1,5 +1,6 @@
 import { RuledBlock } from "@/components/ui/RuledBlock";
 import { QuietAction } from "@/components/ui/QuietAction";
+import { Badge } from "@/components/ui/Badge";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { InlineError } from "@/components/ui/InlineError";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
@@ -10,6 +11,13 @@ import { formatDay } from "@/lib/dateRange";
 import { formatFlightNumber } from "@/lib/flights";
 import { joinFacts, NOT_SHARED } from "@/lib/wording";
 import { wallClock } from "@/lib/timezone";
+import {
+  hasLookup,
+  modeLabel,
+  numberLabel,
+  whereLabel,
+  type TravelSide,
+} from "@/lib/transportMode";
 import { travelBoard } from "@/lib/travelBoard";
 import { useTravel } from "@/lib/travelStore";
 import { useTravel as useTravelSection } from "@/lib/queries/travel";
@@ -37,12 +45,19 @@ const DIRECTION_WORD = {
 /**
  * Travel detail, as a dialog: one person's travel, seen whole.
  *
- * The board's row is three facts — the day, the name, the clock — and
- * this screen is the rest of the record behind it, in the order a person
- * coordinates a landing: when, where, which flight, and the prose. Every
- * one of those facts is optional, so each block hides itself rather than
- * ruling over nothing: a rule above an empty block is a line that says
- * "something is here" when nothing is.
+ * The board's row is the roll call's row — the name with the mode beside
+ * it, the where on the line under it, the day and the clock at the far
+ * edge — and this screen is the rest of the record behind it, in the
+ * order a person coordinates a landing: when, where, which number, and
+ * the prose. It says the mode once, in the chip under the heading, and
+ * every word about the leg then follows from it: each of the two ends
+ * wears the table's own word for the side it is (`Lands at` over the end
+ * a flight lands at, `Leaves from` over the one it left, and on a hire
+ * `Pickup at` over the pickup and `Dropoff at` over the dropoff), and the
+ * number wears the mode's own name for it (`Flight number`, `Train
+ * number`, `Bus service`). Every one of those facts is optional, so each
+ * block hides itself rather than ruling over nothing: a rule above an
+ * empty block is a line that says "something is here" when nothing is.
  *
  * There is no state here to get wrong. The row this came from used to
  * open under the thumb with a triangle and a stack of facts, which meant
@@ -55,7 +70,10 @@ const DIRECTION_WORD = {
  * a filed row's record id, or the `pending-<direction>-<memberId>` a row
  * still owed carries on the board. Reading the row back out of
  * `travelBoard` rather than `travelById` is what keeps an unscheduled row
- * reachable: it has no record to look up, only a place on the board.
+ * reachable: it has no record to look up, only a place on the board. That
+ * row's *far end* is the one fact read the other way, off the record
+ * itself through `travelById`: the board's row carries the half the board
+ * shows, and the other half is only on the `MockTravel` the store holds.
  */
 export default function TravelDetail() {
   return (
@@ -70,7 +88,7 @@ function TravelDetailDialog() {
     id?: string;
     travel?: string;
   }>();
-  const { travelForTrip } = useTravel();
+  const { travelById, travelForTrip } = useTravel();
   const { for: settingsFor, update } = useTripSettings();
   const router = useRouter();
   const dismiss = useDismiss("/trips");
@@ -167,6 +185,85 @@ function TravelDetailDialog() {
     row.date && row.time
       ? joinFacts(formatDay(row.date), wallClock(row.time, timeZone).time)
       : NOT_SHARED;
+  // The mode the row wears, and with it every word this sheet says about
+  // how the leg is taken. Null on a row nobody has filed — the board's own
+  // rule, the one that keeps a chip off an owed row — so such a row has no
+  // mode to wear, no word from the table and no far end, and reads exactly
+  // as it did before there was a mode at all: the name, the direction, and
+  // the heading's `Not shared yet`.
+  const mode = row.transportMode;
+  // The leg's other side, and it is the *side* the mode's words are keyed
+  // by rather than the position of the field: the direction names the side
+  // the record files and the validator requires, and the far end is the
+  // side it does not, in every mode and both directions — a hire's own end
+  // is the pickup on an arrival row and the dropoff on a departure one
+  // (D4). Same two lines as the form's own far end.
+  const farSide: TravelSide =
+    row.travelType === "arrival" ? "departure" : "arrival";
+  // The far end is the one fact the board's row does not carry: `TravelRow`
+  // holds the half the board shows, so the other half is read back off the
+  // record, by the same id the edit destination opens the form with. A
+  // pending row has no record behind its id, so this is undefined for it
+  // and nothing below renders.
+  const record = travelById(trip, row.id);
+  const arrived = row.travelType === "arrival";
+  const farPlace = record
+    ? arrived
+      ? record.departureLocation
+      : record.arrivalLocation
+    : null;
+  const farIso = record
+    ? arrived
+      ? record.departureTime
+      : record.arrivalTime
+    : null;
+  const farClock = farIso ? wallClock(farIso, timeZone) : null;
+  // The far end's day, said back only when it is not the heading's: a day
+  // line under a heading that already names that day is the noise the
+  // form's `farEndNote` refuses, for the same reason. A row that shares no
+  // time has no day in its heading and the far end's own is then the only
+  // one there is — which is what this very comparison gives, since no date
+  // can equal nothing.
+  const farEnd = joinFacts(
+    farPlace,
+    farClock && farClock.date !== row.date ? formatDay(farClock.date) : null,
+    farClock?.time,
+  );
+  // The leg's two ends, as the sheet's blocks: the one this row is about,
+  // then the one behind it. Each is titled from the end's own word, read
+  // out of the one label table the form's fields come from, and an end
+  // that holds nothing is not in the list at all — the block is the thing
+  // that hides, rather than a rule over an empty line.
+  //
+  // Both from one site, because they are one block twice. The rule census
+  // (check 9) counts the places a person chose a mark rather than the
+  // rules that reach the screen, so a second hand-written `<RuledBlock>`
+  // here would spend a mark on a copy of the one above it — the ratchet
+  // sits at its cap, and this is the shape its own note blesses.
+  const ends: Array<{ side: TravelSide; title: string; body: string }> =
+    mode === null
+      ? []
+      : [
+          {
+            side: row.travelType,
+            title: whereLabel(mode, row.travelType),
+            body: row.location ?? "",
+          },
+          { side: farSide, title: whereLabel(mode, farSide), body: farEnd },
+        ].filter((end) => end.body.trim() !== "");
+  // The number, under the mode's own name for it — and no block at all
+  // where the mode keeps none (D5): car, rental and other have no number
+  // field in the form either, so a number a record holds against one of
+  // them is not this sheet's to announce. The space goes back in for the
+  // flight alone, the one mode's number the app formats (`hasLookup`, the
+  // same gate the field's Autofill and `formatFlightNumber` use); every
+  // other mode's reads as it was filed.
+  const number = mode === null ? null : numberLabel(mode);
+  const numberText = !row.flightNumber
+    ? null
+    : mode !== null && hasLookup(mode)
+      ? formatFlightNumber(row.flightNumber)
+      : row.flightNumber;
 
   return (
     <FullscreenDialog
@@ -178,33 +275,41 @@ function TravelDetailDialog() {
       dismissHref={`/trips/travel?id=${trip.id}`}
     >
       {/* The time is the heading, because that is the fact the row was
-          pressed for; whose it is and which way it goes sit under it as
-          the two facts a reader needs before they can act on it. */}
+          pressed for; whose it is, which way it goes and how they are
+          travelling sit under it as the facts a reader needs before they
+          can act on it. The chip is the mode's own name and nothing else —
+          never a word read off the direction or the where, and no hue (a
+          mode is a classifier, and `Badge`'s neutral ink is what a
+          classifier wears). It appears once, and a row nobody has filed
+          wears none: the chip says what a member answered. */}
       <View className="gap-2">
         <Text className="font-body-bold text-heading-md text-ink">
           {when}
         </Text>
-        <Text className="font-body text-base text-ink">
-          {joinFacts(row.memberName, DIRECTION_WORD[row.travelType])}
-        </Text>
+        <View className="flex-row flex-wrap items-center gap-2">
+          <Text className="font-body text-base text-ink">
+            {row.memberName}
+          </Text>
+          {mode ? (
+            <Badge label={modeLabel(mode)} variant="category" size="sm" />
+          ) : null}
+          <Text className="font-body text-base text-ink">
+            {DIRECTION_WORD[row.travelType]}
+          </Text>
+        </View>
       </View>
 
-      {row.location ? (
-        <RuledBlock title="Where">
-          <Text className="font-body text-base text-ink">
-            {row.location}
-          </Text>
+      {/* The two ends of the leg, the one this row is about first, and
+          nothing at all for an end that holds nothing. */}
+      {ends.map((end) => (
+        <RuledBlock key={end.side} title={end.title}>
+          <Text className="font-body text-base text-ink">{end.body}</Text>
         </RuledBlock>
-      ) : null}
+      ))}
 
-      {row.flightNumber ? (
-        <RuledBlock title="Flight">
-          <Text className="font-body text-base text-ink">
-            {/* The row holds the compact form the lookup wants
-                ("UA1842"); the space is the app's, put back where a
-                person expects to see it. */}
-            {formatFlightNumber(row.flightNumber)}
-          </Text>
+      {number && numberText ? (
+        <RuledBlock title={number}>
+          <Text className="font-body text-base text-ink">{numberText}</Text>
         </RuledBlock>
       ) : null}
 
