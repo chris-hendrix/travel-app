@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { RuledBlock } from "@/components/ui/RuledBlock";
 import { Fact } from "@/components/ui/Fact";
 import { Badge } from "@/components/ui/Badge";
@@ -6,6 +7,7 @@ import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { InlineError } from "@/components/ui/InlineError";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
+import { QuietAction } from "@/components/ui/QuietAction";
 import { Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { formatDay } from "@/lib/dateRange";
@@ -21,8 +23,11 @@ import {
   type TravelSide,
 } from "@/lib/transportMode";
 import { travelBoard } from "@/lib/travelBoard";
+import { travelForMemberDirection } from "@/lib/newTravel";
+import { copyTravelFor } from "@/lib/travelCopy";
 import { useTravel } from "@/lib/travelStore";
 import { useTravel as useTravelSection } from "@/lib/queries/travel";
+import { toErrorCopy } from "@/lib/queries/errors";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
 import { useAuth } from "@/lib/authStore";
@@ -107,7 +112,7 @@ function TravelDetailDialog() {
     id?: string;
     travel?: string;
   }>();
-  const { travelById, travelForTrip } = useTravel();
+  const { travelById, travelForTrip, addTravel } = useTravel();
   const { for: settingsFor, update } = useTripSettings();
   const router = useRouter();
   const dismiss = useDismiss("/trips");
@@ -143,6 +148,19 @@ function TravelDetailDialog() {
       : [...board.arrivals, ...board.departures].find(
           (candidate) => candidate.id === rowId,
         );
+
+  // The copy's own three answers — which press this is, whether a write is
+  // in flight, and what failed — and they are declared above the guards
+  // because a hook called after a return is a hook called a different
+  // number of times.
+  const [confirmingCopy, setConfirmingCopy] = useState(false);
+  const [copying, setCopying] = useState(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
+  // Where a copy leaves you, which is the board it filed a row onto. A
+  // dialog with no history to pop — a deep link, a reload — replaces with
+  // this instead, so a copy that saved always lands where its result is.
+  const boardHref = tripId ? `/trips/travel?id=${tripId}` : "/trips";
+  const dismissToBoard = useDismiss(boardHref);
 
   if (!trip) {
     return <NotFound />;
@@ -275,6 +293,73 @@ function TravelDetailDialog() {
   // what the rule census (check 9) counts: it counts the places a person
   // chose a mark, not the rules that reach the screen, so a block per fact
   // here would spend five marks on the one boundary this block draws.
+  // Whether a copy would replace rather than add, and it is not a
+  // preference: the API's create upserts on (member, direction) — that
+  // pair is the record's identity — so a copy aimed at a direction you
+  // have already filed overwrites the leg you have there. Read with the
+  // form's own helper, so the two screens agree on what "your leg in this
+  // direction" is rather than deriving it twice.
+  const replacing = viewer
+    ? travelForMemberDirection(records, viewer.id, row.travelType)
+    : undefined;
+
+  /**
+   * Copy this leg onto your own travel. No form and no navigation: the
+   * press is the whole of it, and what it files is a row on the board
+   * behind this sheet.
+   *
+   * The record is built by `copyTravelFor`, which is pure and tested on
+   * its own — the mobile suite has no renderer, so a rule that lived here
+   * would be a rule nothing could check. All this does is hand it the two
+   * things only the screen knows: the leg, read back off the record
+   * behind the row, and the id the store paints the optimistic row with
+   * (`custom-…`, the convention the form's own save uses — the store
+   * swaps the server's record in by it).
+   *
+   * A leg you already filed in that direction is replaced rather than
+   * added beside it, so the first press only says so. The second one
+   * writes. Failure keeps the sheet open, the form's own behaviour: it
+   * would otherwise dismiss as if it had saved.
+   */
+  function copyForMe() {
+    if (replacing && !confirmingCopy) {
+      setConfirmingCopy(true);
+      return;
+    }
+    // The guards above have already answered these three for this render,
+    // and this function is a scope of its own, so it asks again rather
+    // than reaching through them for a value that might not be there.
+    if (!viewer || !trip || !row) return;
+    // The record behind the board's row. `TravelRow` carries the half the
+    // board files and nothing else — the far end, the prose, the mode as
+    // the record holds it — so the source is the record and not the row. A
+    // row with no record is one still owed (`pending-…`), which draws no
+    // copy block at all.
+    const source = travelById(trip, row.id);
+    if (!source) return;
+    setCopyError(null);
+    setCopying(true);
+    void addTravel(
+      trip.id,
+      copyTravelFor(source, {
+        id: `custom-${row.travelType}-${Date.now()}`,
+        memberId: viewer.id,
+        memberName: viewer.name,
+      }),
+    )
+      .then(
+        // The result is a row on the board, so the board is where the
+        // sheet leaves you — the same destination this dialog's own
+        // dismissHref names.
+        () => dismissToBoard(),
+        (error: unknown) =>
+          setCopyError(
+            toErrorCopy(error).message ?? "Couldn't copy the travel.",
+          ),
+      )
+      .finally(() => setCopying(false));
+  }
+
   const facts: Array<{ label: string; value: string }> =
     mode === null
       ? []
@@ -298,7 +383,7 @@ function TravelDetailDialog() {
       onPrimary={
         canEdit ? () => router.push(editHref) : dismiss
       }
-      dismissHref={`/trips/travel?id=${trip.id}`}
+      dismissHref={boardHref}
     >
       {/* The name is the title, the way every other record sheet in this
           app opens: the row was pressed for a person, and what this
@@ -388,6 +473,84 @@ function TravelDetailDialog() {
                 )
               }
             />
+          </View>
+        </RuledBlock>
+      ) : null}
+
+      {/* Copy for me: this leg, filed on your own travel, with no entry
+          form and no navigation — the press is the whole of it. It sits
+          under Duplicate because the two are the same act read in
+          opposite directions: Duplicate files this member's leg for
+          somebody else, and this files somebody else's leg for you.
+
+          It copies the leg's facts and only its facts — the times, the
+          places, the mode and the number — which is what the sentence
+          above the button commits to. The prose is left behind: `details`
+          is often about the other person's own trip ("Bags take twenty
+          minutes" is their landing and their bags), so carrying it would
+          put somebody else's sentence on your record.
+
+          Hidden on your own row, because copying a leg onto itself is a
+          press with nothing behind it, and on a row the board files as
+          still owed. `pending-` is the library's own test for that — the
+          row a member with no record is given — but the board's answer is
+          wider than the id: it gathers every row with no time among the
+          owed ones, and a record can be that without being a `pending-`
+          id. Such a row has no leg to copy, which is a press onto a 400:
+          the API's create requires the direction's own time (the schema
+          refines on it), so the far end would go over as nothing and the
+          end that decides the direction with it. The sentence above the
+          button promises times, places and a number, and a row holding
+          none of them has nothing for it to promise.
+
+          The sentence carries the meaning, so the button carries nothing
+          but its verb — the shape the Duplicate block above and the
+          roster's own action blocks use. It takes `secondary` and neither
+          `fullWidth` nor `align`: it fills the column on a phone, where a
+          thumb target beats a tidy box, and hugs the start edge from md
+          up, where a secondary action as wide as the page would read as
+          the page's own.
+
+          The one thing this press cannot do is add. The pair of member
+          and direction is the record's identity and the API's create
+          upserts on it, so a copy aimed at a direction you have already
+          filed replaces that leg rather than sitting beside it — which
+          must not happen under a thumb. So when there is something there
+          to lose, the sentence says so and the button inverts and asks
+          first, the way the roster asks before it removes anybody.
+          Otherwise one press files the copy. */}
+      {viewer &&
+      viewer.id !== row.memberId &&
+      !row.id.startsWith("pending-") &&
+      row.time !== null ? (
+        <RuledBlock>
+          <View className="gap-2">
+            <Text className="font-body text-sm text-ink opacity-60">
+              {replacing
+                ? "Files the same times, places and number as your own travel, replacing the leg you filed for this direction."
+                : "Files the same times, places and number as your own travel."}
+            </Text>
+            {/* The question appears only once the button is armed, and it
+                is the loudest line here: the reason above is quiet ink,
+                and this is the one asking for an answer. */}
+            {confirmingCopy ? (
+              <Text className="font-body text-sm text-ink">Are you sure?</Text>
+            ) : null}
+            <Button
+              title="Copy for me"
+              variant={confirmingCopy ? "danger" : "secondary"}
+              onPress={copyForMe}
+              disabled={copying}
+            />
+            {confirmingCopy ? (
+              <QuietAction
+                label="Cancel"
+                onPress={() => setConfirmingCopy(false)}
+              />
+            ) : null}
+            {copyError ? (
+              <InlineError message={copyError} onRetry={copyForMe} />
+            ) : null}
           </View>
         </RuledBlock>
       ) : null}
