@@ -1,8 +1,9 @@
-import { applyFlightLookup } from "@journiful/shared/utils";
+import { applyFlightLookup, type TransportMode } from "@journiful/shared/utils";
 import type { FlightLookupResult } from "@journiful/shared/types";
 import { addDays as shift, formatDay } from "@/lib/dateRange";
 import { formatFlightNumber, normalizeFlightNumber } from "@/lib/flights";
 import { formatClock, isClockTime, minutesOf } from "@/lib/time";
+import { farEndWord } from "@/lib/transportMode";
 import { wallClock, zoneOffsetMinutes } from "@/lib/timezone";
 import { TRIP_MARGIN_DAYS } from "@/lib/travelDays";
 import { joinFacts } from "@/lib/wording";
@@ -26,9 +27,20 @@ export type TravelDirection = "arrival" | "departure";
  * a negative duration. `crossesMidnight` is that sum — `null` to work it
  * out from the two times, or a fact when the source already knows it,
  * which a flight lookup does because it carries both timestamps.
+ *
+ * A hire is the arithmetic the other way round, and the mode on the leg
+ * is what tells the two apart: see `legCrossesMidnight` and
+ * `farEndShift`.
  */
 export type TravelLeg = {
   day: string;
+  /**
+   * How the leg is taken. It rides on the leg rather than beside it:
+   * the words follow it (`lib/transportMode.ts`), and so does the day
+   * the far end falls on, which the three functions that own that day
+   * read off the leg they were handed and nothing else.
+   */
+  transportMode: TransportMode;
   /** The leg's start: when it leaves. */
   departureTime: string;
   /** The leg's end: when it lands. */
@@ -65,6 +77,10 @@ export type NewTravelErrors = {
 export function emptyLeg(): TravelLeg {
   return {
     day: "",
+    // The column's default and the chip the form pre-selects. A leg
+    // always has a mode: "unknown" is one state this feature deliberately
+    // does not have.
+    transportMode: "flight",
     departureTime: "",
     arrivalTime: "",
     crossesMidnight: null,
@@ -277,16 +293,22 @@ export function buildLegRecord(
 
   const arrival = direction === "arrival";
   // Which way the far end sits: back for an arrival that left the
-  // evening before, forward for a departure that lands in the morning.
-  const crossed = legCrossesMidnight(leg);
-  const departureDay = crossed && arrival ? shift(leg.day, -1) : leg.day;
-  const arrivalDay = crossed && !arrival ? shift(leg.day, 1) : leg.day;
+  // evening before, forward for a departure that lands in the morning —
+  // and the other way round for a hire, whose own end is the pickup. Only
+  // the far end moves: the leg's own day is the day the strip picked and
+  // the day the board files.
+  const farShift = legCrossesMidnight(leg) ? farEndShift(leg, direction) : 0;
+  const departureDay = arrival ? shift(leg.day, farShift) : leg.day;
+  const arrivalDay = arrival ? leg.day : shift(leg.day, farShift);
 
   return {
     id,
     memberId,
     memberName,
     travelType: direction,
+    // The leg's own mode, not a default: the row the form builds states
+    // how the member is travelling, and the column is NOT NULL.
+    transportMode: leg.transportMode,
     departureTime: leg.departureTime.trim()
       ? stamp(departureDay, leg.departureTime, timeZone)
       : null,
@@ -343,19 +365,54 @@ function stamp(day: string, clock: string, timeZone: string | null): string {
  * a same-day leg with that shape would have a negative duration. So the
  * two clocks are enough to say it, and a source that carries real dates
  * can say it outright instead.
+ *
+ * A hire is read the other way round, and the leg's own mode is what
+ * says so: its own end is the pickup on an arrival row and the dropoff
+ * on a departure row (D4), so the pair runs *forwards* from the own end
+ * and 10:00 picked up with a 17:00 dropoff is one day — where a flight
+ * with those two clocks left the evening before. Inverting the
+ * predicate is half of the hire; `farEndShift` is the other half, and
+ * either one without the other stamps the same hire the same wrong day.
  */
 export function legCrossesMidnight(leg: TravelLeg): boolean {
   if (leg.crossesMidnight !== null) return leg.crossesMidnight;
   if (!isClockTime(leg.departureTime.trim())) return false;
   if (!isClockTime(leg.arrivalTime.trim())) return false;
-  return minutesOf(leg.arrivalTime) < minutesOf(leg.departureTime);
+  const departure = minutesOf(leg.departureTime);
+  const arrival = minutesOf(leg.arrivalTime);
+  return leg.transportMode === "rental"
+    ? arrival > departure
+    : arrival < departure;
+}
+
+/**
+ * Which way the far end sits from the leg's own day, once the leg
+ * crossed midnight: `-1` for the day before, `1` for the day after.
+ *
+ * A journey's far end lies back from the day the board files when the
+ * row is an arrival — you left the evening before — and forward when it
+ * is a departure, where the red-eye home lands in the morning. A hire's
+ * is the other way round, because its own end is the pickup on an
+ * arrival row and the dropoff on a departure one: the far end runs
+ * forward from an arrival and back from a departure.
+ *
+ * The second half of the hire's inversion — `legCrossesMidnight` is the
+ * first — and the two are only correct together: with the predicate
+ * inverted and this not, a 20:00 pickup and a 01:30 dropoff stamps the
+ * dropoff the day *before* instead of the day after.
+ */
+function farEndShift(leg: TravelLeg, direction: TravelDirection): number {
+  const rental = leg.transportMode === "rental";
+  const forward = direction === "arrival" ? rental : !rental;
+  return forward ? 1 : -1;
 }
 
 /**
  * The day the leg's other end falls on: back a day for an arrival that
  * left the evening before, on a day for a departure that lands in the
- * morning, and the leg's own day when it does not cross at all. Null
- * when there is no day picked yet.
+ * morning, and the leg's own day when it does not cross at all. A hire
+ * is the other way round, the way its predicate is. Null when there is
+ * no day picked yet.
  */
 export function farEndDay(
   leg: TravelLeg,
@@ -363,7 +420,7 @@ export function farEndDay(
 ): string | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(leg.day)) return null;
   if (!legCrossesMidnight(leg)) return leg.day;
-  return shift(leg.day, direction === "arrival" ? -1 : 1);
+  return shift(leg.day, farEndShift(leg, direction));
 }
 
 /**
@@ -371,6 +428,15 @@ export function farEndDay(
  * that owns it. Null when the leg does not cross midnight: saying "the
  * same day" under a field is noise, and the day line above already says
  * which day that is.
+ *
+ * The word is the far end's own, read from the one table every label in
+ * the feature comes from (`lib/transportMode.ts`): the note sits under
+ * that end's own field, so it names the end the way the label above it
+ * does — `Leaves Thu Sep 17` under a flight's departure, `Pickup …` under
+ * a hire's. A second vocabulary for the same end is the drift D3 forbids,
+ * and the flight's own words (`Left`/`Lands`, what this said before the
+ * mode existed) could not read a hire at all: on an arrival row a hire's
+ * far end is a dropoff, and the member never left anywhere.
  */
 export function farEndNote(
   leg: TravelLeg,
@@ -379,14 +445,19 @@ export function farEndNote(
   if (!legCrossesMidnight(leg)) return null;
   const day = farEndDay(leg, direction);
   if (!day) return null;
-  return direction === "arrival"
-    ? `Left ${formatDay(day)}`
-    : `Lands ${formatDay(day)}`;
+  return `${farEndWord(leg.transportMode, direction)} ${formatDay(day)}`;
 }
 
 /** A record as the form wants it back, in the trip's own zone. */
 export function legFromRecord(
   record: {
+    /**
+     * How the record is filed. Required, like `MockTravel`'s: the column
+     * is `NOT NULL`, so a record that reached the app carries one, and a
+     * reader that defaulted it would show a filed hire as a flight — and
+     * write that back on save.
+     */
+    transportMode: TransportMode;
     departureTime: string | null;
     departureLocation: string | null;
     arrivalTime: string | null;
@@ -424,6 +495,7 @@ export function legFromRecord(
   const offStrip = Boolean(day && (day < firstCell || day > lastCell));
 
   return {
+    transportMode: record.transportMode,
     day: offStrip ? (day < firstCell ? firstCell : lastCell) : day,
     // Both ends read from the side each belongs to, not by position:
     // the departure is this direction's own end when the direction is a

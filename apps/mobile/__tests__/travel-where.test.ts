@@ -4,17 +4,18 @@
  * other trips — ranked, deduped and labelled here, so the field stays a
  * thin shell over a pure rule (the `travel-days.test.ts` precedent).
  *
- * The ranking takes **no query**, and that is the one place this file
- * departs from the plan's task list. The plan asked for a query-driven
- * ranking with a typed row appended last; but the component that owns
- * the keystroke is `Dropdown`, which already filters a local list by its
- * own query, and the only way to hand the keystroke up here is
- * `onSearchText` — the live-search shape the sibling source guard exists
- * to keep out of the travel files. A local list also cannot contain a
- * typed row without that same keystroke, while `freeText` already
- * commits what you type with no row at all. So the ranking ranks, and
- * the field filters: every row these tests assert is a row a person can
- * see by pressing `Where`.
+ * The ranking takes **no query**. The component that owns the keystroke
+ * is `Dropdown`, which already filters a local list by its own query,
+ * and the only way to hand the keystroke up here is `onSearchText` — the
+ * live-search shape the sibling source guard exists to keep out of the
+ * travel files. The typed row is no exception: `withTypedRow`
+ * (`lib/dropdown.ts`) offers your words as the list's **first** row,
+ * built inside the component from the trimmed query, after the filter —
+ * so no keystroke crosses into this file and the ranking stays a pure
+ * function of the strings we hold. So the ranking ranks, and the field
+ * filters and offers: every row these tests assert is a row a person can
+ * see by pressing `Where`, and the one row they cannot assert — the
+ * typed row, which no entry holds — is `dropdown-typed-row.test.ts`'s.
  */
 
 import { describe, expect, it } from "vitest";

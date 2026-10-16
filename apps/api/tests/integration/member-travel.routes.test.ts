@@ -1038,6 +1038,161 @@ describe("Member Travel Routes", () => {
     });
   });
 
+  describe("The mode a leg is filed with", () => {
+    it("answers flight for a POST that names no mode", async () => {
+      app = await buildApp();
+      const { token, tripId } = await seed("Mode Default User");
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/trips/${tripId}/member-travel`,
+        cookies: { auth_token: token },
+        payload: {
+          travelType: "arrival",
+          arrivalTime: "2026-07-01T14:00:00Z",
+          arrivalLocation: "Airport",
+        },
+      });
+
+      expect(response.statusCode).toBe(201);
+      const body = JSON.parse(response.body);
+      // The column's own default, and the reason the entity schema
+      // declares the field at all: the route answers through
+      // `memberTravelResponseSchema`, which strips every field the entity
+      // does not name, so an undeclared mode would never reach a client.
+      expect(body.memberTravel.transportMode).toBe("flight");
+    });
+
+    it("answers the mode a POST named", async () => {
+      app = await buildApp();
+      const { token, tripId } = await seed("Mode Post User");
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/trips/${tripId}/member-travel`,
+        cookies: { auth_token: token },
+        payload: {
+          travelType: "departure",
+          departureTime: "2026-07-08T09:00:00Z",
+          departureLocation: "Valencia",
+          transportMode: "car",
+        },
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(JSON.parse(response.body).memberTravel.transportMode).toBe("car");
+
+      const rows = await db
+        .select({ transportMode: memberTravel.transportMode })
+        .from(memberTravel)
+        .where(
+          and(eq(memberTravel.tripId, tripId), isNull(memberTravel.deletedAt)),
+        );
+      expect(rows.map((row) => row.transportMode)).toEqual(["car"]);
+    });
+
+    it("answers the mode a PUT set", async () => {
+      app = await buildApp();
+      const { token, tripId } = await seed("Mode Put User");
+
+      const created = await app.inject({
+        method: "POST",
+        url: `/api/trips/${tripId}/member-travel`,
+        cookies: { auth_token: token },
+        payload: {
+          travelType: "arrival",
+          arrivalTime: "2026-07-01T14:00:00Z",
+          arrivalLocation: "St Pancras",
+        },
+      });
+      expect(created.statusCode).toBe(201);
+      const id = JSON.parse(created.body).memberTravel.id;
+
+      const updated = await app.inject({
+        method: "PUT",
+        url: `/api/member-travel/${id}`,
+        cookies: { auth_token: token },
+        payload: { transportMode: "train" },
+      });
+
+      expect(updated.statusCode).toBe(200);
+      expect(JSON.parse(updated.body).memberTravel.transportMode).toBe("train");
+    });
+
+    it("leaves the filed mode alone when the POST names none", async () => {
+      // The route half of the pair-update guard: a phone that has not
+      // been updated still POSTs a leg with no mode, and that POST must
+      // not read as "make this a flight".
+      app = await buildApp();
+      const { token, tripId } = await seed("Mode Guard User");
+
+      const created = await app.inject({
+        method: "POST",
+        url: `/api/trips/${tripId}/member-travel`,
+        cookies: { auth_token: token },
+        payload: {
+          travelType: "arrival",
+          arrivalTime: "2026-07-01T14:00:00Z",
+          arrivalLocation: "BCN T2",
+          transportMode: "rental",
+        },
+      });
+      expect(created.statusCode).toBe(201);
+      expect(JSON.parse(created.body).memberTravel.transportMode).toBe(
+        "rental",
+      );
+
+      const again = await app.inject({
+        method: "POST",
+        url: `/api/trips/${tripId}/member-travel`,
+        cookies: { auth_token: token },
+        payload: {
+          travelType: "arrival",
+          arrivalTime: "2026-07-01T15:00:00Z",
+          arrivalLocation: "BCN T2",
+        },
+      });
+
+      expect(again.statusCode).toBe(200);
+      const body = JSON.parse(again.body);
+      expect(body.memberTravel.transportMode).toBe("rental");
+      expect(body.memberTravel.arrivalTime).toBe("2026-07-01T15:00:00.000Z");
+    });
+
+    it("answers the mode on the trip's listing, where the board's chip reads it", async () => {
+      // The board reads a member's mode off the branch's own list, and no
+      // test above touches it: the write paths answer one record at a
+      // time. `rental` rather than the column's default, so a listing that
+      // answered `flight` for everything cannot pass.
+      app = await buildApp();
+      const { token, tripId } = await seed("Mode List User");
+
+      await app.inject({
+        method: "POST",
+        url: `/api/trips/${tripId}/member-travel`,
+        cookies: { auth_token: token },
+        payload: {
+          travelType: "arrival",
+          arrivalTime: "2026-07-01T14:00:00Z",
+          arrivalLocation: "BCN T2",
+          transportMode: "rental",
+        },
+      });
+
+      const listed = await app.inject({
+        method: "GET",
+        url: `/api/trips/${tripId}/member-travel`,
+        cookies: { auth_token: token },
+      });
+
+      expect(
+        JSON.parse(listed.body).memberTravels.map(
+          (row: { transportMode: string }) => row.transportMode,
+        ),
+      ).toEqual(["rental"]);
+    });
+  });
+
   describe("POST /api/member-travel/:id/restore on a replaced pair", () => {
     it("answers 409 MEMBER_TRAVEL_CONFLICT for a pair that is live again", async () => {
       // Delete, then file the same direction again: the create path looks
@@ -1342,6 +1497,94 @@ describe("Member Travel Routes", () => {
       expect(body.memberTravel.memberId).toBe(regularMember.id);
       expect(body.memberTravel.travelType).toBe("arrival");
       expect(body.memberTravel.arrivalLocation).toBe("Airport");
+    });
+
+    it("should create travel for a non-organizer's own memberId (201)", async () => {
+      app = await buildApp();
+
+      // Create organizer (trip creator)
+      const [organizer] = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "Organizer",
+          timezone: "UTC",
+        })
+        .returning();
+
+      // Create a regular user
+      const [memberUser] = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "Member",
+          timezone: "UTC",
+        })
+        .returning();
+
+      // Create trip
+      const [trip] = await db
+        .insert(trips)
+        .values({
+          name: "Own Travel Trip",
+          destination: "Tokyo",
+          preferredTimezone: "Asia/Tokyo",
+          createdBy: organizer.id,
+        })
+        .returning();
+
+      // Add organizer as member
+      await db.insert(members).values({
+        tripId: trip.id,
+        userId: organizer.id,
+        status: "going",
+        isOrganizer: true,
+      });
+
+      // Add the regular user as a member - not an organizer
+      const [ownMember] = await db
+        .insert(members)
+        .values({
+          tripId: trip.id,
+          userId: memberUser.id,
+          status: "going",
+        })
+        .returning();
+
+      // The client always sends a memberId, and for a traveler that id is
+      // their own roster row - so this is the self case, which
+      // `canAddMemberTravel` already promises any member may do.
+      const token = app.jwt.sign({
+        sub: memberUser.id,
+        name: memberUser.displayName,
+      });
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/trips/${trip.id}/member-travel`,
+        cookies: { auth_token: token },
+        payload: {
+          travelType: "arrival",
+          arrivalTime: "2026-06-10T14:00:00Z",
+          arrivalLocation: "Airport",
+          details: "Flight AA123",
+          memberId: ownMember.id,
+        },
+      });
+
+      expect(response.statusCode).toBe(201);
+
+      const body = JSON.parse(response.body);
+      expect(body.success).toBe(true);
+      expect(body.memberTravel.memberId).toBe(ownMember.id);
+
+      // And the row really is filed against that member.
+      const [filed] = await db
+        .select({ memberId: memberTravel.memberId })
+        .from(memberTravel)
+        .where(eq(memberTravel.id, body.memberTravel.id))
+        .limit(1);
+      expect(filed?.memberId).toBe(ownMember.id);
     });
 
     it("should return 403 when non-organizer creates travel with memberId", async () => {

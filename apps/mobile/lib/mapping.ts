@@ -186,13 +186,14 @@ export function toStay(accommodation: Accommodation): Stay {
   };
 }
 
-/** A member-travel row onto `MockTravel`, both ends of the leg. */
+/** A member-travel row onto `MockTravel`: both ends of the leg, its mode. */
 export function toTravel(travel: MemberTravel): MockTravel {
   return {
     id: travel.id,
     memberId: travel.memberId,
     memberName: travel.memberName ?? "",
     travelType: travel.travelType,
+    transportMode: travel.transportMode,
     departureTime: travel.departureTime === null ? null : iso(travel.departureTime),
     departureLocation: travel.departureLocation,
     arrivalTime: travel.arrivalTime === null ? null : iso(travel.arrivalTime),

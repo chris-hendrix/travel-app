@@ -346,6 +346,48 @@ describe("member-travel.service", () => {
       expect(travel.departureLocation).toBeNull();
       expect(travel.details).toBeNull();
     });
+
+    it("files the column's own default when the body names no mode", async () => {
+      // A body from a build that predates the mode: the pair is free
+      // (member 1's seeded row is the arrival), so this is the insert
+      // branch, and `flight` is the value the column supplies rather than
+      // one the service invents — which is why the schema carries no
+      // default of its own.
+      const travelData = {
+        travelType: "departure" as const,
+        departureTime: "2026-06-21T08:00:00Z",
+        departureLocation: "St Pancras",
+      };
+
+      const { memberTravel: travel, created } =
+        await memberTravelService.createMemberTravel(
+        testMember1Id,
+        testTripId,
+        travelData,
+      );
+
+      expect(created).toBe(true);
+      expect(travel.transportMode).toBe("flight");
+    });
+
+    it("files the mode the body named", async () => {
+      const travelData = {
+        travelType: "departure" as const,
+        departureTime: "2026-06-21T08:00:00Z",
+        departureLocation: "Valencia",
+        transportMode: "car" as const,
+      };
+
+      const { memberTravel: travel, created } =
+        await memberTravelService.createMemberTravel(
+        testMember1Id,
+        testTripId,
+        travelData,
+      );
+
+      expect(created).toBe(true);
+      expect(travel.transportMode).toBe("car");
+    });
   });
 
   describe("createMemberTravel on the member and direction", () => {
@@ -385,6 +427,54 @@ describe("member-travel.service", () => {
 
       expect(memberTravel.arrivalLocation).toBeNull();
       expect(memberTravel.details).toBeNull();
+    });
+
+    it("leaves a filed mode alone when the body does not carry one", async () => {
+      // The pair-update branch writes `values` over the live row, which
+      // is why the mode joins `values` only when the body carried one. An
+      // unconditional `flight` there would turn a mode-less POST — a
+      // build already on a phone, saying nothing about the mode — into a
+      // silent reset of the rental it was looking at.
+      const filed = await memberTravelService.createMemberTravel(
+        testMember1Id,
+        testTripId,
+        {
+          travelType: "arrival",
+          arrivalTime: "2026-06-10T18:30:00Z",
+          arrivalLocation: "BCN T2",
+          transportMode: "rental",
+        },
+      );
+
+      // The seeded arrival pair: this call updated it rather than filing
+      // a second row, which is the branch the guard is about.
+      expect(filed.created).toBe(false);
+      expect(filed.memberTravel.transportMode).toBe("rental");
+
+      const again = await memberTravelService.createMemberTravel(
+        testMember1Id,
+        testTripId,
+        {
+          travelType: "arrival",
+          arrivalTime: "2026-06-10T19:00:00Z",
+          arrivalLocation: "BCN T2",
+        },
+      );
+
+      expect(again.created).toBe(false);
+      expect(again.memberTravel.transportMode).toBe("rental");
+      // Everything else the body did carry still lands: the mode is left
+      // out of the write, not the body.
+      expect(again.memberTravel.arrivalTime).toEqual(
+        new Date("2026-06-10T19:00:00Z"),
+      );
+
+      // Straight from the table, which is where a silent reset would sit.
+      const [row] = await db
+        .select({ transportMode: memberTravel.transportMode })
+        .from(memberTravel)
+        .where(eq(memberTravel.id, filed.memberTravel.id));
+      expect(row?.transportMode).toBe("rental");
     });
 
     it("does not let a soft-deleted row block a new insert", async () => {
@@ -898,6 +988,22 @@ describe("member-travel.service", () => {
       );
 
       expect(updatedTravel.details).toBe("Updated details");
+      expect(updatedTravel.arrivalLocation).toBe("Airport"); // Unchanged
+    });
+
+    it("carries the mode through the update path", async () => {
+      // The mode is editable, unlike the direction: a leg that started as
+      // a flight and became a train is the same leg. The update path
+      // spreads the parsed body into `.set()`, so this needs no code of
+      // its own — it is pinned here because the update and the create are
+      // two different writes and only one of them has a guard.
+      const updatedTravel = await memberTravelService.updateMemberTravel(
+        testMember1Id,
+        testMemberTravelId,
+        { transportMode: "train" },
+      );
+
+      expect(updatedTravel.transportMode).toBe("train");
       expect(updatedTravel.arrivalLocation).toBe("Airport"); // Unchanged
     });
 

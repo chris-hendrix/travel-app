@@ -196,7 +196,10 @@ export class MemberTravelService implements IMemberTravelService {
    * Creates a member travel record for a trip, or updates the live one
    * already filed for the same member and direction.
    *
-   * Resolves the memberId from userId and tripId before writing.
+   * Resolves the memberId from userId and tripId before writing: a body
+   * naming the caller's own member is the self case, which any member may
+   * file, and one naming a different member is a delegation, which only an
+   * organizer may make.
    * @param userId - The ID of the user creating the member travel
    * @param tripId - The ID of the trip
    * @param data - The member travel creation data
@@ -231,30 +234,47 @@ export class MemberTravelService implements IMemberTravelService {
       );
     }
 
-    // Resolve memberId: either from delegation (data.memberId) or from authenticated user
+    // Resolve memberId: either the caller's own row, or another member's
+    // on an organizer's delegation.
     let resolvedMemberId: string;
 
     if (data.memberId) {
-      // Delegation: organizer creating travel for another member
-      const isOrganizer = await this.permissionsService.isOrganizer(
-        userId,
-        tripId,
-      );
-      if (!isOrganizer) {
-        throw new PermissionDeniedError(
-          "Permission denied: only organizers can add travel for other members",
-        );
-      }
-
-      // Verify target member belongs to this trip
-      const [targetMember] = await this.db
+      // Whose row is `data.memberId`? The client always sends one, and for
+      // a traveler it sends their own — `memberId` is not a statement that
+      // the caller is acting for someone else. So resolve the caller's own
+      // row for this trip first, and only when the id names a *different*
+      // member is this a delegation that needs an organizer. Requiring an
+      // organizer outright was what stopped a regular member filing their
+      // own travel, which is the case `canAddMemberTravel` above already
+      // answered yes to ("any member can").
+      const [ownMember] = await this.db
         .select({ id: members.id })
         .from(members)
-        .where(and(eq(members.id, data.memberId), eq(members.tripId, tripId)))
+        .where(and(eq(members.tripId, tripId), eq(members.userId, userId)))
         .limit(1);
 
-      if (!targetMember) {
-        throw new MemberNotFoundError();
+      if (ownMember?.id !== data.memberId) {
+        // Delegation: organizer creating travel for another member
+        const isOrganizer = await this.permissionsService.isOrganizer(
+          userId,
+          tripId,
+        );
+        if (!isOrganizer) {
+          throw new PermissionDeniedError(
+            "Permission denied: only organizers can add travel for other members",
+          );
+        }
+
+        // Verify target member belongs to this trip
+        const [targetMember] = await this.db
+          .select({ id: members.id })
+          .from(members)
+          .where(and(eq(members.id, data.memberId), eq(members.tripId, tripId)))
+          .limit(1);
+
+        if (!targetMember) {
+          throw new MemberNotFoundError();
+        }
       }
 
       resolvedMemberId = data.memberId;
@@ -299,6 +319,16 @@ export class MemberTravelService implements IMemberTravelService {
     // is a cleared one: the form sends what the member answered, and a
     // value it no longer carries is one they took back. On the update
     // branch an explicit null says the same thing.
+    //
+    // The mode is the one exception, and the exception is load-bearing.
+    // `values` is not only the insert's: the pair-update branch below
+    // `.set()`s the same object over the live row, so an unconditional
+    // entry — `transportMode: rest.transportMode ?? "flight"` — would
+    // answer a mode-less POST by resetting a filed rental back to a
+    // flight. Joined only when the body carried one, the insert takes the
+    // column's own default and the pair update leaves the row's mode
+    // alone, which is what a caller that said nothing about the mode
+    // meant either way.
     const values = {
       departureTime: rest.departureTime ? new Date(rest.departureTime) : null,
       departureLocation: rest.departureLocation || null,
@@ -306,6 +336,9 @@ export class MemberTravelService implements IMemberTravelService {
       arrivalLocation: rest.arrivalLocation || null,
       flightNumber: rest.flightNumber || null,
       details: rest.details || null,
+      ...(rest.transportMode !== undefined
+        ? { transportMode: rest.transportMode }
+        : null),
     };
 
     // The pair is taken: update it in place, which is what keeps the

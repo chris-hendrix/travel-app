@@ -1,6 +1,7 @@
 // Member travel validation schemas for the Journiful platform
 
 import { z } from "zod";
+import { TRANSPORT_MODES } from "../utils/travel";
 
 /**
  * A location, or an explicit null to clear it. Nullable rather than
@@ -18,6 +19,20 @@ import { z } from "zod";
 const locationField = z.string().trim().max(500).nullable().optional();
 
 /**
+ * The mode the leg is taken by — one of the six
+ * (`TRANSPORT_MODES`, `shared/utils/travel.ts`), and non-nullable: the
+ * column is `NOT NULL DEFAULT 'flight'`, so there is no "unknown" for a
+ * reader to carry, and an absent mode is a statement the client did not
+ * make rather than one it made as null.
+ *
+ * The message is built from the array rather than written out, so a
+ * seventh mode cannot leave the refusal naming six.
+ */
+const transportModeField = z.enum(TRANSPORT_MODES, {
+  error: `Transport mode must be one of: ${TRANSPORT_MODES.join(", ")}`,
+});
+
+/**
  * Base member travel data schema
  * - Used as the foundation for both create and update schemas
  * - Direction-based columns: arrival records carry arrivalTime/arrivalLocation
@@ -28,6 +43,11 @@ const baseMemberTravelSchema = z.object({
   travelType: z.enum(["arrival", "departure"], {
     error: "Travel type must be one of: arrival, departure",
   }),
+  // Optional here and non-nullable everywhere: the column's own default
+  // is the only default, so a body that carries no mode says nothing
+  // about the mode rather than resetting it — which is what lets the
+  // service join it to the create `values` only when it is present.
+  transportMode: transportModeField.optional(),
   departureLocation: locationField,
   departureTime: z.string().datetime().optional(),
   arrivalLocation: locationField,
@@ -68,6 +88,7 @@ const pertinentTimeMessage = {
 /**
  * Validates member travel creation data
  * - travelType: one of "arrival", "departure" (required)
+ * - transportMode: one of the six (optional; the column defaults to "flight")
  * - arrivalTime/arrivalLocation: pertinent for arrivals (arrivalTime required)
  * - departureTime/departureLocation: pertinent for departures (departureTime required)
  * - details: max 500 characters (optional)
@@ -84,6 +105,9 @@ export const createMemberTravelSchema = baseMemberTravelSchema
  * Validates member travel update data (all fields optional)
  * - Allows partial updates to any member travel field but `travelType`
  * - Same validation rules as createMemberTravelSchema when fields are provided
+ * - The mode is editable, unlike the member and the direction: a leg
+ *   that started as a flight and became a train is the same leg, so
+ *   `transportMode` rides on both schemas and stays non-nullable.
  *
  * `travelType` is create-only for the same reason `memberId` is: the
  * member and direction pair is the row's identity, and a PUT that flipped
@@ -106,6 +130,11 @@ const memberTravelEntitySchema = z.object({
   tripId: z.string(),
   memberId: z.string(),
   travelType: z.enum(["arrival", "departure"]),
+  // Declared here as well as on the request schemas, and that is not
+  // duplication for its own sake: Fastify answers through this schema,
+  // which strips every field it does not declare — an undeclared mode
+  // would leave the route's 200 carrying a column the client never sees.
+  transportMode: transportModeField,
   departureLocation: z.string().nullable(),
   departureTime: z.date().nullable(),
   arrivalLocation: z.string().nullable(),

@@ -242,16 +242,18 @@ describe("RuledRows", () => {
  * The case above proves `RuledRows` hands a row component a `className`.
  * It cannot prove the component *uses* it: a stub that defines its own
  * compliance passes whether or not the real rows forward the prop, so if
- * `RosterRowView` or `AdminUserRowView` stopped putting the mark on their root,
- * every test in this file would still be green and the roster and the
- * admin list would quietly lose their table rule.
+ * `PersonRow` or `AdminUserRowView` stopped putting the mark on their root,
+ * every test in this file would still be green and the roster, the admin
+ * list and the travel board would quietly lose their table rule.
  *
  * So these read the two real row components off disk and assert the two
  * halves: the prop is destructured, and it reaches a `className`
- * expression. (`RosterRowView` is the roster row extracted to
- * components/trip/RosterList.tsx for the demo; it pulls in
- * `react-native` but no router and no query layer.) There is no renderer
- * here — a source-level assertion is the level this can honestly be held at.
+ * expression. (`PersonRow` is the row extracted to
+ * components/ui/PersonRow.tsx, and it is where the mark lands now: the
+ * roster's `RosterRowView` and the board's `ArrivalRow` both hand their
+ * class straight to it. It pulls in `react-native` but no router and no
+ * query layer.) There is no renderer here — a source-level assertion is
+ * the level this can honestly be held at.
  */
 const mobileDir = path.resolve(__dirname, "..");
 
@@ -284,13 +286,15 @@ function rowComponent(file: string, name: string) {
 
 const ROWS = [
   {
-    file: "components/trip/RosterList.tsx",
-    name: "RosterRowView",
-    // The roster row's mark lands on its own wrapper. It used to sit
-    // beside a viewer-conditional `Pressable` inside app/trips/members.tsx
-    // (the organizer's rows pressed to the person dialog); the demo
-    // extraction dropped the press — the rows are non-interactive — so
-    // the wrapper is the row's only root, and the mark must stay on it.
+    file: "components/ui/PersonRow.tsx",
+    name: "PersonRow",
+    // The row's mark lands on its own wrapper, and it is the same wrapper
+    // the roster and the board both draw. It used to sit on the roster's
+    // `RosterRowView` (which drew the whole body itself, beside a
+    // viewer-conditional `Pressable` inside app/trips/members.tsx); the
+    // body moved here when the board's row became this row, and the two
+    // callers now hand their class straight down, so the wrapper is the
+    // row's only root and the mark must stay on it.
     lands: /<View className=\{\[ROW_BODY, className\]/,
   },
   {

@@ -1,0 +1,21 @@
+-- A leg carries the mode it is taken by: flight, train, bus, car, rental
+-- or other.
+--
+-- One additive column, `NOT NULL DEFAULT 'flight'`, and the default is
+-- the entire backfill: the model before this column was a direction with
+-- a flight number, so `flight` is the honest value for the rows already
+-- here, Postgres fills them all on the ALTER TABLE in one pass, and
+-- there is deliberately no UPDATE statement against `member_travel`
+-- (which would also be a full rewrite of a table the app is serving).
+--
+-- The same default is what answers a client that sends no
+-- `transportMode` at all. A phone still running the build before this
+-- feature files its leg without a mode and gets the flight it would
+-- have been assumed to be anyway; a mode-less write on a pair that
+-- already holds a row leaves that row's mode untouched, because the
+-- service joins the mode to a write only when the body carried one
+-- (`member-travel.service.ts`). So the default belongs to the column,
+-- not to the write path, and an absent mode is a statement the client
+-- did not make rather than a request for `flight`.
+CREATE TYPE "public"."member_travel_transport_mode" AS ENUM('flight', 'train', 'bus', 'car', 'rental', 'other');--> statement-breakpoint
+ALTER TABLE "member_travel" ADD COLUMN "transport_mode" "member_travel_transport_mode" DEFAULT 'flight' NOT NULL;

@@ -4,7 +4,9 @@ import { describe, it, expect } from "vitest";
 import {
   createMemberTravelSchema,
   updateMemberTravelSchema,
+  memberTravelResponseSchema,
 } from "../schemas/index.js";
+import { TRANSPORT_MODES } from "../utils/travel.js";
 
 describe("createMemberTravelSchema", () => {
   it("should accept valid member travel data with pertinent time", () => {
@@ -272,6 +274,68 @@ describe("createMemberTravelSchema", () => {
       }
     });
   });
+
+  it("files no mode of its own when the body carries none", () => {
+    // The column's own default is the only default. A schema that filled
+    // `flight` here would turn every mode-less write into a statement
+    // about the mode, which is the reset the pair-update branch would
+    // then commit.
+    const parsed = createMemberTravelSchema.parse({
+      travelType: "arrival" as const,
+      arrivalTime: "2026-07-15T10:30:00Z",
+    });
+
+    expect("transportMode" in parsed).toBe(false);
+    expect(parsed.transportMode).toBeUndefined();
+  });
+
+  it("accepts each of the six modes", () => {
+    for (const mode of TRANSPORT_MODES) {
+      const parsed = createMemberTravelSchema.parse({
+        travelType: "arrival" as const,
+        arrivalTime: "2026-07-15T10:30:00Z",
+        transportMode: mode,
+      });
+
+      expect(parsed.transportMode).toBe(mode);
+    }
+  });
+
+  it("refuses a mode that is not one of the six, by name", () => {
+    const invalidModes = ["ferry", "FLIGHT", "", "journey", null];
+
+    invalidModes.forEach((transportMode) => {
+      const result = createMemberTravelSchema.safeParse({
+        travelType: "arrival" as const,
+        arrivalTime: "2026-07-15T10:30:00Z",
+        transportMode,
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0]?.message).toContain(
+          "Transport mode must be one of: flight, train, bus, car, rental, other",
+        );
+      }
+    });
+  });
+});
+
+describe("TRANSPORT_MODES", () => {
+  it("is the six the feature names, in the order the chips read", () => {
+    // One declaration with its consumers on both sides: the request and
+    // entity schemas build their enums from this array, the API's own
+    // column does too, and the mobile's label table is keyed by it — so
+    // this order is the order the chips offer.
+    expect(TRANSPORT_MODES).toEqual([
+      "flight",
+      "train",
+      "bus",
+      "car",
+      "rental",
+      "other",
+    ]);
+  });
 });
 
 describe("updateMemberTravelSchema", () => {
@@ -375,5 +439,53 @@ describe("updateMemberTravelSchema", () => {
 
     const result = updateMemberTravelSchema.safeParse(invalidUpdate);
     expect(result.success).toBe(false);
+  });
+
+  it("carries a mode, and refuses a null one", () => {
+    // Editable, unlike `travelType`: a leg that started as a flight and
+    // became a train is the same leg, so the mode is a field of the edit.
+    // It stays non-nullable all the same — the column is NOT NULL with a
+    // default, and there is no "unknown" for a reader to carry.
+    expect(
+      updateMemberTravelSchema.parse({ transportMode: "rental" }),
+    ).toEqual({ transportMode: "rental" });
+
+    expect(updateMemberTravelSchema.safeParse({ transportMode: null }).success).toBe(
+      false,
+    );
+    expect(
+      updateMemberTravelSchema.safeParse({ transportMode: "ferry" }).success,
+    ).toBe(false);
+  });
+});
+
+describe("memberTravelResponseSchema", () => {
+  it("carries the mode, which is how it reaches the client at all", () => {
+    // Fastify serializes a response through this schema, so a field the
+    // entity does not declare is stripped off the wire no matter what the
+    // service returned. This is the whole reason the mode is declared in
+    // two places rather than one.
+    const parsed = memberTravelResponseSchema.parse({
+      success: true as const,
+      memberTravel: {
+        id: "t-1",
+        tripId: "trip-1",
+        memberId: "m-1",
+        travelType: "arrival" as const,
+        transportMode: "rental" as const,
+        departureLocation: null,
+        departureTime: null,
+        arrivalLocation: "BCN T2",
+        arrivalTime: new Date("2026-07-15T10:30:00Z"),
+        details: null,
+        flightNumber: null,
+        deletedAt: null,
+        deletedBy: null,
+        createdAt: new Date("2026-07-01T10:30:00Z"),
+        updatedAt: new Date("2026-07-01T10:30:00Z"),
+      },
+    });
+
+    expect(parsed.memberTravel.transportMode).toBe("rental");
   });
 });

@@ -283,23 +283,36 @@ async function main() {
         m.tripId === trip.id && (m.status === "going" || m.status === "maybe"),
     );
 
+    // The mode is the fact, and the prose follows it. It is chosen *with* the
+    // prose rather than derived from it later, because a leg's mode is what
+    // names its fields: a row the column defaulted to `flight` over a line
+    // reading "Train from nearby city" wears a chip that contradicts the
+    // sentence under it. One entry per shape, so the two cannot disagree.
+    const arrivals = [
+      { details: "Flight from SFO", transportMode: "flight" },
+      { details: "Flight from LAX", transportMode: "flight" },
+      { details: "Flight from JFK", transportMode: "flight" },
+      { details: "Flight from ORD", transportMode: "flight" },
+      { details: "Flight from LHR", transportMode: "flight" },
+      { details: "Train from nearby city", transportMode: "train" },
+    ] as const;
+    // A departure row carries no prose, so its mode stands alone — and the
+    // seed keeps a mix of them, so a seeded database shows the chip's other
+    // readings rather than six flights a trip.
+    const departureModes = ["flight", "flight", "train"] as const;
+
     for (const m of goingMembers) {
       const location = `${pick(cities)} Airport`;
+      const arrival = pick(arrivals);
 
       travelValues.push({
         tripId: trip.id,
         memberId: m.id,
         travelType: "arrival",
+        transportMode: arrival.transportMode,
         arrivalTime: daysFromNow(startDay, randInt(7, 16)),
         arrivalLocation: location,
-        details: pick([
-          "Flight from SFO",
-          "Flight from LAX",
-          "Flight from JFK",
-          "Flight from ORD",
-          "Flight from LHR",
-          "Train from nearby city",
-        ]),
+        details: arrival.details,
       });
 
       if (Math.random() < 0.8) {
@@ -307,6 +320,7 @@ async function main() {
           tripId: trip.id,
           memberId: m.id,
           travelType: "departure",
+          transportMode: pick(departureModes),
           departureTime: daysFromNow(startDay + days, randInt(8, 18)),
           departureLocation: location,
         });
@@ -655,6 +669,7 @@ async function main() {
       tripId: lisbon!.id,
       memberId: bobMember.id,
       travelType: "arrival",
+      transportMode: "flight",
       arrivalTime: daysFromNow(7, 10),
       arrivalLocation: "Lisbon Airport",
       details: "Flight from LHR",
@@ -663,6 +678,7 @@ async function main() {
       tripId: lisbon!.id,
       memberId: bobMember.id,
       travelType: "departure",
+      transportMode: "flight",
       departureTime: daysFromNow(13, 16),
       departureLocation: "Lisbon Airport",
     },

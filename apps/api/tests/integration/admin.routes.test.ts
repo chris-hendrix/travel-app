@@ -332,14 +332,39 @@ describe("Admin Routes", () => {
       for (const u of body.users) {
         expect(typeof u.tripCount).toBe("number");
       }
-      const travelerRow = body.users.find(
-        (u: { id: string }) => u.id === traveler.id,
-      );
-      const lonerRow = body.users.find(
-        (u: { id: string }) => u.id === loner.id,
-      );
-      expect(travelerRow.tripCount).toBe(2);
-      expect(lonerRow.tripCount).toBe(0);
+
+      // The two counts are read back by the user's own id, not found on the
+      // page above. That page is `limit: 20`, newest first
+      // (`adminListUsersQuerySchema`, `listUsers`), and this suite runs its
+      // files in parallel — so between creating these three accounts and
+      // asking for them, another file can insert enough users to push them
+      // off page one. `find` then returns `undefined` and the test dies on
+      // `undefined.tripCount`, which is a failure about the page rather
+      // than about the count. `search` matches a UUID against the id
+      // (`listUsers`), so this lookup is about the user.
+      const rowById = async (id: string) => {
+        const lookedUp = await app.inject({
+          method: "GET",
+          url: `/api/admin/users?search=${id}`,
+          cookies: { auth_token: adminToken(app, admin.id) },
+        });
+        expect(lookedUp.statusCode).toBe(200);
+        const filtered = JSON.parse(lookedUp.body) as {
+          users: { id: string; tripCount: number }[];
+          total: number;
+        };
+        // Exactly one row matches an id, so the default page cannot hide it
+        // however many accounts the run has accumulated or is adding now.
+        expect(filtered.total).toBe(1);
+        return filtered.users[0];
+      };
+
+      const travelerRow = await rowById(traveler.id);
+      const lonerRow = await rowById(loner.id);
+      expect(travelerRow).toBeDefined();
+      expect(lonerRow).toBeDefined();
+      expect(travelerRow?.tripCount).toBe(2);
+      expect(lonerRow?.tripCount).toBe(0);
     });
   });
 

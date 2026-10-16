@@ -43,7 +43,8 @@ import {
 import { findRowAnywhere, notFound, nowIso } from "@/lib/demo/store";
 import type { DemoBody, DemoStore } from "@/lib/demo/store";
 import type { RsvpStatus } from "@/lib/rsvp";
-import { rankTravelLocations } from "@journiful/shared/utils";
+import { TRANSPORT_MODES, rankTravelLocations } from "@journiful/shared/utils";
+import type { TransportMode } from "@journiful/shared/utils";
 import type {
   Accommodation,
   Event,
@@ -145,6 +146,7 @@ function travelRow(tripId: string, record: DemoTrip["travel"][number]): MemberTr
     tripId,
     memberId: record.memberId,
     travelType: record.travelType,
+    transportMode: record.transportMode,
     departureLocation: record.departureLocation,
     departureTime: (record.departureTime ?? null) as unknown as Date | null,
     arrivalLocation: record.arrivalLocation,
@@ -736,7 +738,15 @@ export function handleDemoRequest(
       const memberId = typeof body.memberId === "string" ? body.memberId : "demo-you";
       const travelType: MemberTravel["travelType"] =
         body.travelType === "departure" ? "departure" : "arrival";
+      // The mode the body states, or nothing. `values` is the insert's
+      // body AND the pair-update branch's patch (the API's own shape: one
+      // live row per member and direction), so a create that says nothing
+      // about the mode must not join it — an unconditional entry, or an
+      // `?? "flight"`, would answer a mode-less POST by resetting a filed
+      // rental back to a flight.
+      const transportMode = asTransportMode(body.transportMode);
       const values = {
+        ...(transportMode ? { transportMode } : {}),
         departureLocation: typeof body.departureLocation === "string" ? body.departureLocation : null,
         departureTime: (typeof body.departureTime === "string" ? body.departureTime : null) as unknown as Date | null,
         arrivalLocation: typeof body.arrivalLocation === "string" ? body.arrivalLocation : null,
@@ -767,6 +777,11 @@ export function handleDemoRequest(
         tripId,
         memberId,
         travelType,
+        // The column's own default, which is the whole of the backfill a
+        // create with no mode gets: the demo stands in for the API, so it
+        // answers a mode-less POST the way the column does rather than
+        // inventing a mode of its own.
+        transportMode: transportMode ?? "flight",
         ...values,
         deletedAt: null,
         deletedBy: null,
@@ -845,7 +860,7 @@ export function handleDemoRequest(
     if (verb === "PUT") {
       Object.assign(
         found.row,
-        patchOf(body, ["travelType", "departureLocation", "departureTime", "arrivalLocation", "arrivalTime", "details", "flightNumber"]),
+        patchOf(body, ["travelType", "transportMode", "departureLocation", "departureTime", "arrivalLocation", "arrivalTime", "details", "flightNumber"]),
         { updatedAt: nowIso() },
       );
       return { status: 200, body: { success: true, memberTravel: found.row } };
@@ -925,6 +940,18 @@ function safeParse(raw: string): unknown {
   } catch {
     return {};
   }
+}
+
+function asTransportMode(value: unknown): TransportMode | undefined {
+  // `undefined` for anything that is not one of the six, which is what
+  // the conditional spread above needs. The API refuses a bad value with
+  // a 400 (`transportMode` is an enum there); the demo's writers are the
+  // app's own typed requests, so the difference between the two is a
+  // request the API would reject, not a path the demo has to serve.
+  if (typeof value !== "string") return undefined;
+  return (TRANSPORT_MODES as readonly string[]).includes(value)
+    ? (value as TransportMode)
+    : undefined;
 }
 
 function asEventType(value: unknown): Event["eventType"] {

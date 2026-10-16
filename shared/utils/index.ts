@@ -11,10 +11,12 @@ export {
   getCounterpartLocation,
   rankTravelLocations,
   MY_TRAVEL_LOCATIONS_LIMIT,
+  TRANSPORT_MODES,
   mapsSearchUrl,
 } from "./travel";
 export type {
   MemberTravelType,
+  TransportMode,
   FlightAutofillFields,
 } from "./travel";
 

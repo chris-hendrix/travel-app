@@ -9,7 +9,9 @@ import { INK } from "@/lib/theme";
 import {
   displayTextForValue,
   filterPickerEntries,
+  resolvePickedEntry,
   shouldOpenOnPress,
+  withTypedRow,
   type PickerEntry,
 } from "@/lib/dropdown";
 
@@ -24,7 +26,12 @@ import {
  *
  * With `freeText`, typing is itself an answer: the field is a suggestion
  * machine, not a menu, which is how a place gets entered when Places has
- * never heard of it.
+ * never heard of it. On a local free-text list it also offers your words
+ * as the **first** row (`withTypedRow`), once — suppressed when a row
+ * already answers the query — so a string we have never ranked is one
+ * tap away rather than committed blind. The Places pickers are left
+ * alone: they are `liveOptions`, and their own rows already carry the
+ * typed one.
  */
 export type DropdownOption = PickerEntry;
 
@@ -106,6 +113,12 @@ export function Dropdown({
     ? filterPickerEntries(entries, query, liveOptions)
     : entries;
 
+  // The rows the list draws. A local free-text list leads with the typed
+  // text; a live list skips this, because its caller already hands over a
+  // typed row of its own (`placePickerRows`).
+  const rows =
+    freeText && !liveOptions ? withTypedRow(matches, query) : matches;
+
   function select(option: DropdownOption) {
     // The field echoes the picked row's own reading — except the typed
     // row, whose quotes mark "your words" in the list but would read
@@ -151,10 +164,14 @@ export function Dropdown({
 
       {open ? (
         <SuggestionList
-          suggestions={matches}
+          suggestions={rows}
           empty="No matches"
           onPick={(value) => {
-            const option = entries.find((entry) => entry.value === value);
+            // Resolved against the rows that were *drawn*, not against
+            // `entries`: a row that exists only in the drawn list — the
+            // typed row — would otherwise be inert, drawing and doing
+            // nothing. `entries` stays as the fallback.
+            const option = resolvePickedEntry(rows, entries, value);
             if (option && !option.disabled) select(option);
           }}
           footer={attribution ? <MapsAttribution /> : undefined}

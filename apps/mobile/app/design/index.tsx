@@ -33,6 +33,7 @@ import { EVENT_TYPE_LABEL, type EventType } from "@/lib/itinerary";
 import { initials } from "@/lib/profile";
 import { RuledBlock } from "@/components/ui/RuledBlock";
 import { RuledRows } from "@/components/ui/RuledRows";
+import { PersonRow } from "@/components/ui/PersonRow";
 import { Fact } from "@/components/ui/Fact";
 // Aliased: this file's own `Section` is the lab's documentation frame, and
 // the product's is the ruled block the frame documents.
@@ -46,6 +47,7 @@ import { OfflineBlock } from "@/components/ui/OfflineBlock";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { DayStrip } from "@/components/ui/DayStrip";
 import { travelDays } from "@/lib/travelDays";
+import { modeLabel } from "@/lib/transportMode";
 import { TimeField } from "@/components/ui/TimeField";
 import type { Selection } from "@/lib/calendar";
 import { RSVP_LABEL, type RsvpStatus } from "@/lib/rsvp";
@@ -611,7 +613,7 @@ function DesignSystemScreen() {
             <Specimen
               name="RuledRows"
               contract="children — one row per child"
-              note="The table rank. The test is the direction the row is read: a row read ACROSS — a name, some accounts, a role — is a table and its rows need to know where one ends, so each keeps a soft rule above it. A row read DOWN is a list, and a list keeps no mark at all; that is why this specimen and the run above do not look alike, and why a list that reads as ungrouped gets more padding rather than a rule. The rule is `border-rule-soft`, the block rule's ink flattened to 40% and pre-flattened into a 6-digit hex so the palette test can measure it against its floor of 2.4 — 2.79:1 on sand, 2.49 on gravel, 3.35 on paper. It cannot be `border-ink/40`, because an eight-digit hex is a value `lib/color.ts` cannot parse, so an alpha rule could not be held to a floor at all. This owns the mark and nothing else: the row body stays with the caller, because a wrapper that owned the row would have to own its columns and its press state too, and would then hide the table-versus-list decision that is the whole reason it exists. It does wrap the rows in a `View`, and that wrapper carries no class at all: it is what stops the container's gap — `gap-5` on the landing's `Section`, `gap-4` on the admin screen, `gap-5` in the roster's dialog body — from falling between rows that already carry their own padding. A wrapper with no padding, no margin and no width cannot inset the measure either."
+              note="The table rank. The test is the direction the row is read: a row read ACROSS — a name, some accounts, a role — is a table and its rows need to know where one ends, so each keeps a soft rule above it. A row read DOWN is a list, and a list keeps no mark at all; that is why this specimen and the run above do not look alike, and why a list that reads as ungrouped gets more padding rather than a rule. The rule is `border-rule-soft`, the block rule's ink flattened to 40% and pre-flattened into a 6-digit hex so the palette test can measure it against its floor of 2.4 — 2.79:1 on sand, 2.49 on gravel, 3.35 on paper. It cannot be `border-ink/40`, because an eight-digit hex is a value `lib/color.ts` cannot parse, so an alpha rule could not be held to a floor at all. This owns the mark and nothing else: the row body stays with the caller, because a wrapper that owned the row would have to own its columns and its press state too, and would then hide the table-versus-list decision that is the whole reason it exists. It does wrap the rows in a `View`, and that wrapper carries no class at all: it is what stops the container's gap — `gap-5` on the landing's `Section`, `gap-4` on the admin screen, `gap-5` in the roster's dialog body — from falling between rows that already carry their own padding. A wrapper with no padding, no margin and no width cannot inset the measure either. The rows it rules need not be alike: `ScheduleRow`'s (an event, a stay) read across with a thumbnail and a clock, `PersonRow`'s (the roll call's, the travel board's) read across with a name and one far fact — what makes a row a table is the direction it is read, not what it holds."
             >
               <RuledRows>
                 <View className="flex-row items-center gap-3 py-3">
@@ -643,6 +645,40 @@ function DesignSystemScreen() {
                 Three rows, one soft rule each. No rule above the first: a
                 table's own opening is the block above it’s boundary.
               </Text>
+            </Specimen>
+
+            {/* The row body the two people tables share. It sits beside
+                `RuledRows` because a row read across is exactly these two
+                things: the mark above it, and the body inside it. */}
+            <Specimen
+              name="PersonRow"
+              contract="name · chips? · detail? · far · className? · truncate?"
+              note="A person's row, read across: the name with its chips beside it, one line of detail under it, and one fact at the far edge, on one line or two. It is the roll call's own row, extracted rather than invented, and the travel board wears it too — a person, their mode, their where, their when — because two hand-written rows that 'happen to' match is the drift this book exists against. What it shares with the roster row is the whole of the shape: one body, the name at text-base in the bold face, the detail under it at text-sm, the far column at the roster's own weight (a clock or a role is read, not announced), and a className merged onto the row's own wrapper, which is the slot RuledRows hands the table's soft rule — the row's measure must not change with a permission. The name and the detail stop at one line each unless the caller says otherwise, which is the board's answer: its far column is a day and a clock, and a name that wraps pushes it down. The members list is the other answer — it capped neither line before this row was extracted from it and must go on wrapping — so `truncate={false}` is what it passes. What it deliberately does not have: no thumbnail and no display-uppercase title, because those are ScheduleRow's and a person's row announces a person rather than illustrating a thing; no second far column; no footer of its own — the roster's quiet word is the roster's; and no press, because each caller knows what its row opens, and a press nested in a press answers two presses out of one box."
+            >
+              <View className="border-t border-ink">
+                <RuledRows>
+                  <PersonRow
+                    name="Ana Silva"
+                    chips={
+                      <Badge label="Venmo" variant="category" size="sm" />
+                    }
+                    detail="+1 555 0101"
+                    far="Organizer"
+                  />
+                  <PersonRow
+                    name={SAMPLE_MEMBER.name}
+                    chips={
+                      <Badge
+                        label={modeLabel("rental")}
+                        variant="category"
+                        size="sm"
+                      />
+                    }
+                    detail="GVA · Geneva airport"
+                    far="Sat Mar 13 · 3:40 PM"
+                  />
+                </RuledRows>
+              </View>
             </Specimen>
 
             <Specimen
@@ -1080,7 +1116,7 @@ function DesignSystemScreen() {
             <Specimen
               name="Dropdown"
               contract="label · options · value · onChange · placeholder? · error? · freeText? · onSearchText? · liveOptions? · openOnPress? · searchable? · attribution?"
-              note="Single-select with autocomplete. The list expands inline — never a nested dialog. Stands in for Google Places. An option is a string when its value reads well and a value-and-label pair when it does not, so a day can say Today · Fri Sep 19 while committing an ISO date. With freeText, typing is itself an answer: a suggestion machine rather than a menu, which is how a place gets entered when Places has never heard of it. A live picker hands the field its own rows instead of a static list: liveOptions skips the local substring filter, which would otherwise hide an answer whose label does not contain the raw keystrokes — the provider renames the row as you type, so the row you are looking at can stop matching the string that found it — and onSearchText takes every keystroke for the query while committing nothing. openOnPress opens the list the moment the field is entered, which is right only for a list that already holds the whole answer, such as every member or a trip's own wheres; a live list has nothing to show until you type and leaves it off. searchable={false} is the picker, and it is what a fixed list wants: the field becomes a box showing the chosen row with an arrow that opens the options — TimeField's closed row, because that is this system's control for a value that opens a list — and nothing can be typed into it. That last part is the whole point of the mode. A menu that keeps uncommitted text reads Bob while the form still holds Alice, and the save goes to Alice; a roster has nothing to search for anyway. attribution renders MapsAttribution under the rows, which is not optional on a Places-backed field."
+              note="Single-select with autocomplete. The list expands inline — never a nested dialog. Stands in for Google Places. An option is a string when its value reads well and a value-and-label pair when it does not, so a day can say Today · Fri Sep 19 while committing an ISO date. With freeText, typing is itself an answer: a suggestion machine rather than a menu, which is how a place gets entered when Places has never heard of it. A live picker hands the field its own rows instead of a static list: liveOptions skips the local substring filter, which would otherwise hide an answer whose label does not contain the raw keystrokes — the provider renames the row as you type, so the row you are looking at can stop matching the string that found it — and onSearchText takes every keystroke for the query while committing nothing. openOnPress opens the list the moment the field is entered, which is right only for a list that already holds the whole answer, such as every member or a trip's own wheres; a live list has nothing to show until you type and leaves it off. searchable={false} is the picker, and it is what a fixed list wants: the field becomes a box showing the chosen row with an arrow that opens the options — TimeField's closed row, because that is this system's control for a value that opens a list — and nothing can be typed into it. That last part is the whole point of the mode. A menu that keeps uncommitted text reads Bob while the form still holds Alice, and the save goes to Alice; a roster has nothing to search for anyway. attribution renders MapsAttribution under the rows, which is not optional on a Places-backed field. A **local** free-text list also offers your words as its **first** row: the trimmed query leads the filtered rows, once — suppressed when a row's label already matches it case-insensitively — and it is built after the filter, so a trailing space cannot take it away. The press is resolved against the rows that were *drawn* rather than against the whole option set, without which that row would draw and do nothing. The Places pickers are left alone: they are `liveOptions`, and their own rows already carry the typed one."
             >
               <Dropdown
                 label="Venue"
@@ -1426,7 +1462,7 @@ function DesignSystemScreen() {
             <Specimen
               name="EventRow"
               contract="event · timeZone? · onPress?"
-              note="An event as a row of the run. Its twin is StayRow and they share ScheduleRow, so the thumbnail, the name's face and size, the chip line and the right-hand column's weight are decided in one place and cannot drift apart again. What makes it an event is data: the chip reads its type, and the right-hand column holds a clock. The chip beside the type is the place's name — which is what the stay row's is too, since a stay linked to a place should say which place, not only which town."
+              note="An event as a row of the run. Its twin is StayRow and they share ScheduleRow, so the thumbnail, the name's face and size, the chip line and the right-hand column's weight are decided in one place and cannot drift apart again. What makes it an event is data: the chip reads its type, and the right-hand column holds a clock. The chip beside the type is the place's name — which is what the stay row's is too, since a stay linked to a place should say which place, not only which town. The rows of this system come in two shared bodies, and this is the first: `ScheduleRow`, worn by this row and `StayRow` — a thumbnail, a name and a clock. `PersonRow` (`components/ui/PersonRow.tsx`), above in Primitives, is the other: the roll call's row and the travel board's row, a person with their chips and one far fact."
             >
               <View className="border-t border-ink">
                 {eventsFor(TRIPS[0]!).slice(0, 2).map((event) => (
@@ -1442,7 +1478,7 @@ function DesignSystemScreen() {
             <Specimen
               name="StayRow"
               contract="stay · timeZone? · onPress?"
-              note="A roof, as a row of the run, and EventRow's twin — same ScheduleRow, so the two cannot drift apart. The chip reads Stay where an event's reads its type, and the right-hand column holds the range the stay covers where an event's holds a clock. The nights are not here: that is the sheet's line, the way an event's description is. The venue chip names the place when the stay is linked to one and the town when the address was typed instead, because the two rows have to agree about what where means."
+              note="A roof, as a row of the run, and EventRow's twin — same ScheduleRow, so the two cannot drift apart. The chip reads Stay where an event's reads its type, and the right-hand column holds the range the stay covers where an event's holds a clock. The nights are not here: that is the sheet's line, the way an event's description is. The venue chip names the place when the stay is linked to one and the town when the address was typed instead, because the two rows have to agree about what where means. The second body is `PersonRow` (`components/ui/PersonRow.tsx`), shared by the roll call and the travel board: these two rows decide a *thing's* row and that one decides a *person's*, and neither is hand-written at a call site."
             >
               <View className="border-t border-ink">
                 {staysFor(TRIPS[0]!).slice(0, 2).map((stay) => (

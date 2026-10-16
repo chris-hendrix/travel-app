@@ -146,6 +146,10 @@ function arrival(
     memberId,
     memberName,
     travelType: "arrival",
+    // The demo's rows are flights: the mode is a required column of the
+    // row, and the column's own default is what a fixture with no mode
+    // to state would be imitating.
+    transportMode: "flight",
     departureTime: null,
     departureLocation: null,
     arrivalTime: atClock(dayIso, clock),

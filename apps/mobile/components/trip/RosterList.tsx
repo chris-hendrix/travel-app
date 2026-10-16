@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable } from "react-native";
 import { ChipLink } from "@/components/ui/ChipLink";
+import { PersonRow } from "@/components/ui/PersonRow";
 import { useMotion } from "@/hooks/useMotion";
 import { RuledRows } from "@/components/ui/RuledRows";
 import { visiblePhone, type Member } from "@/lib/members";
@@ -28,6 +29,11 @@ import type { RosterRow } from "@/lib/roster";
  * beside its RSVP control, so the row matching `viewerMemberId` reads
  * `viewerAnswer` instead — the tap that changes the control moves the
  * row with it.
+ *
+ * The row's own body is `PersonRow` (`components/ui/PersonRow.tsx`), which
+ * the travel board wears too: the shape of a person's row is one thing,
+ * and what a row *does* — the press, the footer and the word this screen
+ * puts in its far column — stays here.
  *
  * The row's second target is a prop for the same reason the press is.
  * The members dialog hangs one quiet word under a person's row — the
@@ -138,26 +144,32 @@ function RosterRowView({
   // The name and the accounts you can reach them on share a line; the
   // number hangs below it; and the part they play is centred against the
   // whole row, so the far column reads down the page however much detail
-  // a row happens to carry. The mark is `RuledRows`'s, merged onto the
-  // row's own wrapper.
+  // a row happens to carry. That shape is `PersonRow`'s, which the board
+  // wears too; the mark is `RuledRows`'s, merged onto the row's own
+  // wrapper by that component.
   const body = (
-    <View className={[ROW_BODY, className].filter(Boolean).join(" ")}>
-      <View className="flex-1 gap-1">
-        <View className="flex-row flex-wrap items-center gap-3">
-          <Text className="font-body-bold text-base text-ink">{name}</Text>
+    <PersonRow
+      name={name ?? ""}
+      chips={
+        <>
           {handles?.venmo ? (
             <ChipLink label="Venmo" href={venmoUrl(handles.venmo)} />
           ) : null}
           {handles?.instagram ? (
             <ChipLink label="Insta" href={instagramUrl(handles.instagram)} />
           ) : null}
-        </View>
-        {number ? (
-          <Text className="font-body text-sm text-ink">{number}</Text>
-        ) : null}
-      </View>
-      <Text className="font-body text-sm text-ink">{farColumn}</Text>
-    </View>
+        </>
+      }
+      detail={number}
+      far={farColumn}
+      // The roster capped neither line — the body this row replaced
+      // (`077bb2e6`'s `RosterRowView`) put no `numberOfLines` on the name
+      // or on the number — so a long member name wraps on the members
+      // list exactly as it always did. The board's row wants the cap, and
+      // that is `PersonRow`'s default.
+      truncate={false}
+      className={className}
+    />
   );
   // The footer is the caller's, and it is the row's sibling rather than
   // part of the press target: the mark stays on the body above it, so the
@@ -207,11 +219,3 @@ function farColumnFor(
   }
   return memberLabel(member);
 }
-
-/**
- * The row's own body: one line, the person's name and accounts on the
- * left, the part they play on the right, and the vertical space that
- * belongs to the row rather than to the mark above it. It was one string
- * written twice — once per row kind — and the merge is what leaves one.
- */
-const ROW_BODY = "flex-row items-center justify-between gap-4 py-3";

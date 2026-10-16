@@ -1,6 +1,7 @@
 import type { Trip } from "@/components/trip/TripCard";
 import { membersFor } from "@/mocks/members";
 import { zoneOffsetFor } from "@/mocks/events";
+import type { TransportMode } from "@journiful/shared/utils";
 
 /**
  * One person's travel in one direction, shaped after the API's
@@ -9,6 +10,12 @@ import { zoneOffsetFor } from "@/mocks/events";
  * arrival side, a departure carries its departure side. Flight-lookup
  * autofill may also fill the counterpart side silently, which is why
  * both ends exist even when only one is asked for.
+ *
+ * The mode is a required field of the row for the same reason the ends
+ * are: the API's column is `NOT NULL DEFAULT 'flight'`, so every row read
+ * back carries one and no reader has to hold an "unknown" branch for a
+ * value that always exists. A required field here also means the row the
+ * form builds cannot save without saying how the leg is taken.
  *
  * Times are ISO datetimes on the trip's own dates, so the board always
  * has arrivals to group. Null times mean the member has shared nothing
@@ -20,6 +27,7 @@ export type MockTravel = {
   memberId: string;
   memberName: string;
   travelType: "arrival" | "departure";
+  transportMode: TransportMode;
   departureTime: string | null;
   departureLocation: string | null;
   arrivalTime: string | null;
@@ -70,6 +78,10 @@ function blank(
     memberId,
     memberName,
     travelType,
+    // `blank()`'s own default, and the column's: a row nobody has filed
+    // yet is a flight. The templates below state the modes they mean, so
+    // a row that is not a flight says so where it is written.
+    transportMode: "flight",
     departureTime: null,
     departureLocation: null,
     arrivalTime: null,
@@ -89,7 +101,8 @@ function blank(
  * A mix of flights, a driver, and a train, so rows read like a group
  * of friends rather than one booking reference. The overnight one has
  * both ends on different days, which is the case the form's far-day
- * flag exists for.
+ * flag exists for, and the mix is in the modes as well as the
+ * locations: a mode is a field of the row, never a sentence in a where.
  */
 export function travelFor(trip: Trip): MockTravel[] {
   const offset = zoneOffsetFor(trip.id);
@@ -106,6 +119,8 @@ export function travelFor(trip: Trip): MockTravel[] {
     overnight: boolean;
     day: string;
     location: string;
+    /** How the member arrives: the row's own mode, not a where's words. */
+    mode: TransportMode;
     flight: string | null;
     details: string | null;
   }> = [
@@ -116,6 +131,7 @@ export function travelFor(trip: Trip): MockTravel[] {
       overnight: false,
       day: first,
       location: "BCN T2",
+      mode: "flight",
       flight: "UA 1842",
       details: "Landing T2, bags take twenty minutes.",
     },
@@ -126,6 +142,7 @@ export function travelFor(trip: Trip): MockTravel[] {
       overnight: false,
       day: first,
       location: "BCN T1",
+      mode: "flight",
       flight: "VY 8421",
       details: null,
     },
@@ -135,7 +152,11 @@ export function travelFor(trip: Trip): MockTravel[] {
       from: "",
       overnight: false,
       day: second,
-      location: "Driving from Valencia",
+      // The driver: this where used to read "Driving from Valencia",
+      // which is a mode, a direction and a place in one string. The mode
+      // is the row's own field now (`car`), so the where says only where.
+      location: "Valencia",
+      mode: "car",
       flight: null,
       details: "Two spare seats if anyone lands Saturday morning.",
     },
@@ -148,6 +169,7 @@ export function travelFor(trip: Trip): MockTravel[] {
       overnight: true,
       day: second,
       location: "BCN T1",
+      mode: "flight",
       flight: "FR 3204",
       details: null,
     },
@@ -160,6 +182,8 @@ export function travelFor(trip: Trip): MockTravel[] {
     /** Lands the morning after: the case the far-day flag is for. */
     overnight: boolean;
     location: string;
+    /** How the member leaves: the train home is a train, not a flight. */
+    mode: TransportMode;
     flight: string | null;
     details: string | null;
   }> = [
@@ -169,6 +193,7 @@ export function travelFor(trip: Trip): MockTravel[] {
       to: "JFK T4",
       overnight: false,
       location: "BCN T2",
+      mode: "flight",
       flight: "UA 1843",
       details: null,
     },
@@ -178,6 +203,7 @@ export function travelFor(trip: Trip): MockTravel[] {
       to: null,
       overnight: false,
       location: "Sants station",
+      mode: "train",
       flight: null,
       details: "Train home, can drop bags at the flat first.",
     },
@@ -187,6 +213,7 @@ export function travelFor(trip: Trip): MockTravel[] {
       to: "JFK T4",
       overnight: true,
       location: "BCN T2",
+      mode: "flight",
       flight: "DL 0148",
       details: "Red-eye. Landing in the morning, so nobody wait up.",
     },
@@ -208,6 +235,7 @@ export function travelFor(trip: Trip): MockTravel[] {
     const arrival = arrivals[index % arrivals.length]!;
     records.push({
       ...blank(trip, member.id, member.name, "arrival"),
+      transportMode: arrival.mode,
       arrivalTime: at(arrival.day, arrival.clock, offset),
       arrivalLocation: arrival.location,
       departureTime: arrival.fromClock
@@ -225,6 +253,7 @@ export function travelFor(trip: Trip): MockTravel[] {
     const departure = departures[index % departures.length]!;
     records.push({
       ...blank(trip, member.id, member.name, "departure"),
+      transportMode: departure.mode,
       departureTime: at(last, departure.clock, offset),
       departureLocation: departure.location,
       // A red-eye home departs on the last day and lands the morning

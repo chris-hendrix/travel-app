@@ -122,11 +122,18 @@ export function mergeTravelDelete(
  * the flight lookup filled it in silently. `memberId` rides along so
  * the organizer files for the member the form picked; nulls stay
  * absent rather than sent, since the schema's fields are optional.
+ *
+ * The mode is sent unconditionally, unlike the fields above: a create
+ * is a full statement of the leg, and `MockTravel.transportMode` is
+ * required, so there is always one to send. Optional on the wire is not
+ * the same as omitted — a body without a mode would leave the column's
+ * default as the only thing that could fill it in.
  */
-function toCreateRequest(record: MockTravel): CreateTravelRequest {
+export function toCreateRequest(record: MockTravel): CreateTravelRequest {
   return {
     travelType: record.travelType,
     memberId: record.memberId,
+    transportMode: record.transportMode,
     ...(record.departureLocation
       ? { departureLocation: record.departureLocation }
       : null),
@@ -145,7 +152,8 @@ function toCreateRequest(record: MockTravel): CreateTravelRequest {
  * (`updateMemberTravelSchema` = `baseMemberTravelSchema.partial()`).
  *
  * Membership is fixed at create (`memberId` is create-only), so a patch
- * never carries it — only the leg's ends, the flight, and the details.
+ * never carries it — only the leg's ends, the flight, the details and,
+ * since the mode is editable, the mode when this patch is about it.
  *
  * A key that is present and empty is a *clear*: it goes over the wire as
  * an explicit null, which is what the schema's four nullable fields are
@@ -157,7 +165,11 @@ function toCreateRequest(record: MockTravel): CreateTravelRequest {
  * rather than a preference: a direction is create-only, so a patch that
  * carried one would be asking the server to put a second live row on the
  * pair. The optimistic paint still carries it — the leg's own direction
- * rides on every `MockTravel` — but the wire does not.
+ * rides on every `MockTravel` — but the wire does not. The mode is the
+ * opposite case: it is a column the update schema takes, so it goes over
+ * when the patch carries one and stays off the wire when the patch is
+ * about something else (every `MockTravel` has a mode, so a patch built
+ * from a stale record would otherwise rewrite it).
  *
  * The two times are never sent as null: they stay non-nullable and
  * `pertinentTimeRefine` depends on that, so a direction is removed with
@@ -165,6 +177,9 @@ function toCreateRequest(record: MockTravel): CreateTravelRequest {
  */
 export function toUpdateRequest(patch: Partial<MockTravel>): UpdateTravelRequest {
   return {
+    ...(patch.transportMode !== undefined
+      ? { transportMode: patch.transportMode }
+      : null),
     ...(patch.departureLocation !== undefined
       ? { departureLocation: patch.departureLocation || null }
       : null),
