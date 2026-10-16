@@ -6,7 +6,7 @@ import { formatDay } from "@/lib/dateRange";
 import { modeLabel } from "@/lib/transportMode";
 import { wallClock } from "@/lib/timezone";
 import type { TravelRow } from "@/lib/travelBoard";
-import { joinFacts, NOT_SHARED } from "@/lib/wording";
+import { NOT_SHARED } from "@/lib/wording";
 import { useMotion } from "@/hooks/useMotion";
 
 /**
@@ -89,12 +89,16 @@ function ArrivalRow({
   className?: string | undefined;
 }) {
   const motion = useMotion();
-  // The day and the clock are one fact, joined the way the detail sheet
-  // joins them. A row nobody has filed says so in the board's own words
-  // rather than showing an empty line.
+  // The day and the clock are one fact, and the column stacks its two lines
+  // rather than joining them. At 390 the joined form is the widest thing in
+  // the row — some 44% of it — and it is what squeezed the name, which has
+  // to stay beside its chip. The detail sheet still joins the same pair
+  // (`joinFacts`, `app/trips/travel/detail.tsx`), because a sheet has a
+  // line's worth of room and no column to protect. A row nobody has filed
+  // says so in the board's own words rather than showing an empty line.
   const when =
     row.date && row.time
-      ? joinFacts(formatDay(row.date), wallClock(row.time, timeZone).time)
+      ? [formatDay(row.date), wallClock(row.time, timeZone).time]
       : NOT_SHARED;
   const body = (
     <PersonRow

@@ -668,6 +668,20 @@ test.describe("Travel Journey", () => {
       // below the name's own box.
       expect(chipBox!.y).toBeLessThan(nameBox!.y + nameBox!.height);
       expect(chipBox!.y + chipBox!.height).toBeGreaterThan(nameBox!.y);
+      // The far column stacks the day over the clock rather than joining
+      // them, because the joined form was the widest thing in the row and
+      // is what squeezed this name. The clock has no element of its own to
+      // match when the two are one string, so this cannot pass on a joined
+      // column.
+      const farDay = await row
+        .getByText(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) /)
+        .boundingBox();
+      const farClock = await row
+        .getByText(clockIn(pickupIso(), tripZone), { exact: true })
+        .boundingBox();
+      expect(farDay).not.toBeNull();
+      expect(farClock).not.toBeNull();
+      expect(farDay!.y).toBeLessThan(farClock!.y);
     });
 
     await test.step("a cold load opens the hire on both its ends", async () => {

@@ -52,8 +52,13 @@ export function PersonRow({
   chips?: ReactNode;
   /** The line under the name: a number, a place. Null when there is none. */
   detail?: string | null;
-  /** The far column: one fact, read down the page. */
-  far: string;
+  /**
+   * The far column: one fact, read down the page — or the lines of one
+   * fact, when a caller needs two of them (the board's day over its
+   * clock). Either way the column's weight, its size and its alignment
+   * are this component's, not the caller's: a caller hands over strings.
+   */
+  far: string | readonly string[];
   /**
    * The table's mark, handed down by `RuledRows`. It lands on the row's
    * own wrapper rather than on a press target, because the row's own
@@ -114,7 +119,15 @@ export function PersonRow({
           </Text>
         ) : null}
       </View>
-      <Text className="font-body text-sm text-ink">{far}</Text>
+      {/* `items-end` so that when a far fact is two lines, the shorter one
+          sits under the longer rather than under its own start. */}
+      <View className="items-end">
+        {(typeof far === "string" ? [far] : far).map((line) => (
+          <Text key={line} className="font-body text-sm text-ink">
+            {line}
+          </Text>
+        ))}
+      </View>
     </View>
   );
 }
