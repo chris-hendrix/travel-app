@@ -48,6 +48,34 @@ const WHERE_PREPOSITION: Record<TravelSide, string> = {
   arrival: "at",
 };
 
+/**
+ * What an end is *called* — the noun, where `END_WORDS` above holds the
+ * verb a field wears.
+ *
+ * Two places need the noun rather than the verb, and both are the same
+ * sentence about an end that holds no value: the shut pair's line
+ * (`Add the departure`) and the no-choice row inside an open time field
+ * (`No departure time`). Neither can wear `END_WORDS`' word — "No lands
+ * time" and "No arrives time" are not English, and `Add the Leaves`
+ * reads as a category error — so the noun is a row of its own here
+ * rather than a lower-cased verb at the call site.
+ *
+ * It is not simply the side, and the hire is why: a hire's end words are
+ * already nouns (`Pickup`/`Dropoff`), so calling its dropoff "the
+ * departure" would put a second word for one end on the screen — the
+ * drift this file exists to prevent — on the one mode whose whole point
+ * is that its ends are read the other way round. Every other mode's ends
+ * have no noun of their own, so they take the side's.
+ */
+const END_NOUNS: Record<TransportMode, Record<TravelSide, string>> = {
+  flight: { departure: "departure", arrival: "arrival" },
+  train: { departure: "departure", arrival: "arrival" },
+  bus: { departure: "departure", arrival: "arrival" },
+  car: { departure: "departure", arrival: "arrival" },
+  rental: { departure: "dropoff", arrival: "pickup" },
+  other: { departure: "departure", arrival: "arrival" },
+};
+
 const MODE_LABELS: Record<TransportMode, string> = {
   flight: "Flight",
   train: "Train",
@@ -56,6 +84,21 @@ const MODE_LABELS: Record<TransportMode, string> = {
   rental: "Rental",
   other: "Other",
 };
+
+/**
+ * The longest value the number field will take, and the column's own cap:
+ * `flight_number` is `varchar(10)`, and the field was free to type past it
+ * the moment the mode stopped being a flight.
+ *
+ * It lives here, beside the placeholders it constrains, because the two
+ * are one invariant: a hint may not demonstrate a value the field
+ * refuses. `FlixBus 042` is eleven characters, which is why the bus's
+ * placeholder reads `FlixBus 42` below — and it lives here rather than in
+ * the component so that `__tests__/transport-mode.test.ts` can hold every
+ * placeholder under it in one assertion, the Vitest suite having no
+ * renderer to import a screen with.
+ */
+export const NUMBER_MAX_LENGTH = 10;
 
 /**
  * The number's field, where the mode keeps one.
@@ -152,6 +195,20 @@ export function whereLabel(
   // it back there — where a journey leaves *from* its departure end.
   const preposition = mode === "rental" ? "at" : WHERE_PREPOSITION[side];
   return `${endLabel(mode, side)} ${preposition}`;
+}
+
+/**
+ * The end as a noun, for the two sentences about an end that holds no
+ * value: the shut far pair's line and the no-choice row inside a time
+ * field. Read by the side, like every other word here, and from
+ * `END_NOUNS` — so a hire's dropoff is "the dropoff" in both of them
+ * rather than the side's noun in one and its own word above the other.
+ */
+export function endNoun(
+  mode: TransportMode | undefined,
+  side: TravelSide,
+): string {
+  return END_NOUNS[knownMode(mode)][side];
 }
 
 /**

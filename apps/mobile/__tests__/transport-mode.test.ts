@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import { TRANSPORT_MODES, type TransportMode } from "@journiful/shared/utils";
 import { emptyLeg, type TravelDirection, type TravelLeg } from "@/lib/newTravel";
 import {
+  NUMBER_MAX_LENGTH,
   endLabel,
+  endNoun,
   farEndWord,
   hasLookup,
   hasNumberField,
@@ -115,6 +117,39 @@ describe("the table of words", () => {
   });
 });
 
+describe("the end's noun", () => {
+  it("names a hire's ends what they are, and every other mode's by its side", () => {
+    // The noun is the side's for a mode whose end words are verbs; a
+    // hire's are already nouns, so it keeps its own. `No arrival time`
+    // under a field reading `Lands` is one fact said two ways at worst —
+    // under one reading `Dropoff` it is two names for one end.
+    for (const mode of TRANSPORT_MODES) {
+      if (mode === "rental") continue;
+      for (const side of SIDES) expect(endNoun(mode, side)).toBe(side);
+    }
+
+    expect(endNoun("rental", "arrival")).toBe("pickup");
+    expect(endNoun("rental", "departure")).toBe("dropoff");
+  });
+
+  it("reads the two sentences it is for in the field's own word", () => {
+    // The two sites: `Add the …` over a shut pair, and `No … time` inside
+    // an open time field. A hire names the end its own labels name.
+    expect(`Add the ${endNoun("rental", "departure")}`).toBe(
+      "Add the dropoff",
+    );
+    expect(`No ${endNoun("rental", "arrival")} time`).toBe("No pickup time");
+    // The non-hire reading is what it always was, and is what the travel
+    // journey's spec looks for on a flight.
+    expect(`Add the ${endNoun("flight", "departure")}`).toBe(
+      "Add the departure",
+    );
+    expect(`No ${endNoun("flight", "departure")} time`).toBe(
+      "No departure time",
+    );
+  });
+});
+
 describe("the number the mode keeps", () => {
   it("has a field for the modes that have a number", () => {
     expect(hasNumberField("flight")).toBe(true);
@@ -153,6 +188,19 @@ describe("the number the mode keeps", () => {
     expect(numberPlaceholder("flight")).toBe("UA 1842");
     expect(numberPlaceholder("train")).toBe("TGV 8412");
     expect(numberPlaceholder("bus")).toBe("FlixBus 42");
+  });
+
+  it("hints at a value the field will take", () => {
+    // The cap and the hints are one invariant, and the bus is where it
+    // bit: `FlixBus 042` is eleven characters, so the field reading `Bus
+    // service` refused the shape its own placeholder demonstrated.
+    // Asserted over the table rather than string by string, so a fourth
+    // number field cannot arrive over the cap.
+    for (const mode of TRANSPORT_MODES) {
+      const hint = numberPlaceholder(mode);
+      if (hint === null) continue;
+      expect(hint.length).toBeLessThanOrEqual(NUMBER_MAX_LENGTH);
+    }
   });
 });
 

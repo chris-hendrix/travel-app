@@ -15,7 +15,9 @@ import { InlineError } from "@/components/ui/InlineError";
 import { joinFacts, NOT_SHARED } from "@/lib/wording";
 import { formatClock, isClockTime } from "@/lib/time";
 import {
+  NUMBER_MAX_LENGTH,
   endLabel,
+  endNoun,
   farEndWord,
   hasLookup,
   hasNumberField,
@@ -60,18 +62,6 @@ const DIRECTIONS: Array<{ value: TravelDirection; heading: string }> = [
 
 /** What a field says when there is nothing to say with a place name. */
 const WHERE_PLACEHOLDER = "Airport, station, address";
-
-/**
- * The column's own cap: `flight_number` is `varchar(10)`, and the field
- * was free to type past it the moment the mode stopped being a flight.
- * A flight number cannot reach it — the API's own shape is at most an
- * airline code and four digits — so the cap bites a coach's service
- * number, and the coach's own placeholder is what it bit first:
- * `FlixBus 042` is eleven characters, so `NUMBER_FIELDS.bus` reads
- * `FlixBus 42` here — a hint may not demonstrate a value the field
- * refuses.
- */
-const NUMBER_MAX_LENGTH = 10;
 
 /**
  * The travel form, in one place because there is one of it: one member,
@@ -448,16 +438,18 @@ function LegFields({
   // so the line and the label under it cannot disagree — and on a hire it
   // reads `Dropoff`, not `Leaves`.
   //
-  // With nothing to read, the line names the *end* and not the row: an
-  // arrival is asked to add the departure it left from, which is the
-  // mockup's own words. A mode's word would say `Add the dropoff`.
+  // With nothing to read, the line names the end the pair would fill,
+  // and it names it in the mode's own noun: a hire's arrival row is asked
+  // to add *the dropoff*, under a pair that reads `Dropoff at` /
+  // `Pickup at`, where the side's word would have said "the departure"
+  // over them. See `endNoun`.
   const farLine = farHolds
     ? joinFacts(
         farEndWord(mode, direction),
         isClockTime(farTime.trim()) ? formatClock(farTime.trim()) : "",
         leg.otherLocation.trim(),
       )
-    : `Add the ${farSide}`;
+    : `Add the ${endNoun(mode, farSide)}`;
   // The number the mode keeps, where it keeps one. The gate below asks
   // `hasNumberField` itself — the rule's own name for the decision — and
   // the label is the same table's answer, `numberLabel` being null exactly
@@ -778,7 +770,7 @@ function EndPair({
           // often does not know when they left, and the direction's own
           // end is the question this row exists to answer.
           optional={far}
-          noneLabel={`No ${side} time`}
+          noneLabel={`No ${endNoun(mode, side)} time`}
         />
         {/* The far end's day, said back under the field that owns it. A
             readout, not a control: what the two times already mean, so it
