@@ -134,10 +134,16 @@ export const AccommodationLimitExceededError = createError(
   "%s",
   400,
 );
-export const MemberTravelLimitExceededError = createError(
-  "MEMBER_TRAVEL_LIMIT_EXCEEDED",
-  "%s",
-  400,
+/**
+ * Restoring would put a second live row on one member and direction.
+ * The pair is the identity the whole feature assumes, and a soft-deleted
+ * row can sit beside a live one because the create path only looks for a
+ * live row — so this is where that contradiction has to be refused.
+ */
+export const MemberTravelConflictError = createError(
+  "MEMBER_TRAVEL_CONFLICT",
+  "This member already has live travel for that direction",
+  409,
 );
 
 // Messaging errors

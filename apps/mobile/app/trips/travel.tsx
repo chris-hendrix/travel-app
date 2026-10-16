@@ -14,7 +14,8 @@ import { useTravel } from "@/lib/travelStore";
 import { useTravel as useTravelSection } from "@/lib/queries/travel";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useDisplayZone, zoneFor } from "@/lib/displayZone";
-import { goingMembers } from "@/lib/members";import { useMembers } from "@/lib/queries/members";
+import { goingMembers } from "@/lib/members";
+import { useMembers } from "@/lib/queries/members";
 
 /**
  * Travel, reached from "Travel" beside "N going" on the trip header.
@@ -24,17 +25,18 @@ import { goingMembers } from "@/lib/members";import { useMembers } from "@/lib/q
  * press is a route change — and authoring happens in the form the bar's
  * Add travel reaches.
  *
- * Arrivals first, departures after, each grouped by day: the organizer
- * scans times top to bottom with no taps, and a traveler hunting the
- * same flight reads the flight numbers down the rows. One row per
- * person, no flight grouping — sharing a flight shows as adjacent rows
- * with the same number.
+ * Arrivals first, departures after, each ordered the way a person
+ * coordinates them — by day, then by the clock, then by name: the
+ * organizer scans times top to bottom with no taps, and a traveler
+ * hunting the same flight reads the rows by name. One row per person, no
+ * flight grouping: sharing a flight shows as adjacent rows.
  *
- * The row is three facts — day, name, where — and nothing else. The
- * rest of the record, the flight and the details and the Edit link, is
- * a screen of its own at `/trips/travel/detail`: a row press is a route
- * change rather than a panel, so the board holds one shape of each
- * travel instead of two. If a field would cost a tap every time, it
+ * The row is the roll call's row — the name with the mode beside it, the
+ * where on the line under it, and the day with the clock at the far edge.
+ * The rest of the record, the number, the far end and the details and the
+ * Edit link, is a screen of its own at `/trips/travel/detail`: a row press
+ * is a route change rather than a panel, so the board holds one shape of
+ * each travel instead of two. If a field would cost a tap every time, it
  * belongs on the row.
  */
 export default function TripTravel() {
@@ -120,7 +122,19 @@ function TripTravelDialog() {
         <Text className="font-body text-base text-ink">
           Nobody has shared their times yet.
         </Text>
-      ) : null}
+      ) : (
+        // Said once rather than marked eight times. The row carries the
+        // person, the mode, the where and the when; the number, the far end
+        // and the prose are on the row's own screen, and nothing on a row
+        // says so — the system's rows take no chevron (`ScheduleRow`
+        // carries the rule), and a press fill is not a signpost: it answers
+        // a press, it does not promise one. So the board says what a press
+        // does, in the form's own vocabulary, and only when there is a
+        // filed record behind a row to open.
+        <Text className="font-body text-sm text-grey-quiet">
+          A row opens on the number, the far end and the details.
+        </Text>
+      )}
 
       {travelStatus === "success" ? (
         <View className="gap-8">

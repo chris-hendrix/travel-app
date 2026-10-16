@@ -2,6 +2,34 @@ import type { FlightLookupResult } from "../schemas/flight.js";
 
 export type MemberTravelType = "arrival" | "departure";
 
+/**
+ * The six ways a leg can be taken, in the order the chips offer them.
+ *
+ * Declared once, in the travel module every consumer already imports:
+ * `shared/schemas/member-travel.ts` builds its request and entity enums
+ * from this array, the API's `member_travel_transport_mode` column reads
+ * it, and the mobile's label table is keyed by it — so no two of them can
+ * disagree about the six or their order.
+ *
+ * `flight` leads because it is the column's default and the one mode
+ * whose number is looked up rather than typed.
+ *
+ * The field is `transportMode`, never `TravelMode`: that name was the
+ * deleted field-visibility toggle, and the two must not be confused by
+ * the next reader who greps for "mode".
+ */
+export const TRANSPORT_MODES = [
+  "flight",
+  "train",
+  "bus",
+  "car",
+  "rental",
+  "other",
+] as const;
+
+/** One of the six ways a leg can be taken. */
+export type TransportMode = (typeof TRANSPORT_MODES)[number];
+
 export interface FlightAutofillFields {
   departureTime?: string | undefined;
   departureLocation?: string | undefined;
@@ -78,6 +106,64 @@ export function getCounterpartLocation(travel: {
   return travel.travelType === "arrival"
     ? travel.departureLocation
     : travel.arrivalLocation;
+}
+
+/**
+ * How many locations the `Where` field's cross-trip source serves, at
+ * most — the answer's cap, not a read's bound.
+ */
+export const MY_TRAVEL_LOCATIONS_LIMIT = 20;
+
+/**
+ * The distinct wheres a set of travel rows holds, newest first.
+ *
+ * One rule in one place, because two surfaces answer it: `GET
+ * /member-travel/locations`, which reads the caller's rows across trips,
+ * and the demo adapter that stands in for that endpoint with no network
+ * under it. Deduped case-insensitively — "BCN T2" and "bcn t2" are one
+ * airport — trimmed, capped, and ordered by `updatedAt` descending, which
+ * is what decides which spelling of a duplicated where survives.
+ *
+ * Both ends of a leg count, and the record's own end leads its
+ * counterpart: the end the member filed, before the one a lookup filled
+ * in silently. A row with no usable end contributes nothing and does not
+ * consume the cap, which is why the cap counts locations rather than
+ * rows.
+ *
+ * Order-owning on purpose: a caller may hand rows over in any order, so
+ * the one that can only sort in SQL and the one that only has an array
+ * cannot disagree about what "newest first" means. The sort is stable,
+ * so rows sharing an `updatedAt` keep the order they arrived in.
+ */
+export function rankTravelLocations(
+  rows: readonly {
+    travelType: MemberTravelType;
+    arrivalLocation: string | null;
+    departureLocation: string | null;
+    updatedAt: Date | string;
+  }[],
+  limit: number = MY_TRAVEL_LOCATIONS_LIMIT,
+): string[] {
+  const newestFirst = [...rows].sort(
+    (left, right) =>
+      new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime(),
+  );
+
+  const seen = new Set<string>();
+  const locations: string[] = [];
+  for (const row of newestFirst) {
+    const ends = [getPertinentLocation(row), getCounterpartLocation(row)];
+    for (const end of ends) {
+      const location = end?.trim();
+      if (!location) continue;
+      const key = location.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      locations.push(location);
+      if (locations.length >= limit) return locations;
+    }
+  }
+  return locations;
 }
 
 /** Google Maps search URL for a free-text location (keyless pattern). */

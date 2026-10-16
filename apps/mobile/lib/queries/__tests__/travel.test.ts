@@ -62,6 +62,7 @@ function row(overrides: Record<string, unknown> = {}): MemberTravel {
     memberId: "member-1",
     memberName: "Ana",
     travelType: "arrival",
+    transportMode: "flight",
     departureLocation: "JFK T4",
     departureTime: "2026-06-04T11:00:00.000Z",
     arrivalLocation: "BCN T2",
@@ -84,6 +85,7 @@ function cachedTravel(overrides: Partial<MockTravel> = {}): MockTravel {
     memberId: "member-1",
     memberName: "Ana",
     travelType: "arrival",
+    transportMode: "flight",
     departureTime: "2026-06-04T11:00:00.000Z",
     departureLocation: "JFK T4",
     arrivalTime: "2026-06-04T19:40:00.000Z",
@@ -325,6 +327,7 @@ describe("flight lookup (lib/flights.ts, untouched)", () => {
 const createInput = {
   travelType: "arrival" as const,
   memberId: "member-1",
+  transportMode: "rental" as const,
   departureLocation: "JFK T4",
   departureTime: "2026-06-04T11:00:00.000Z",
   arrivalLocation: "BCN T2",
@@ -335,7 +338,10 @@ const createInput = {
 describe("createTravel", () => {
   it("POSTs /trips/:tripId/member-travel and returns the mapped record", async () => {
     mockedApiFetch.mockReset();
-    mockedApiFetch.mockResolvedValue({ success: true, memberTravel: row() });
+    mockedApiFetch.mockResolvedValue({
+      success: true,
+      memberTravel: row({ transportMode: "rental" }),
+    });
 
     const options = createTravelOptions();
     expect(options.mutationKey).toEqual(["travel", "create"]);
@@ -353,11 +359,14 @@ describe("createTravel", () => {
     );
     // Mapped through `toTravel`: both ends, the member name off the
     // join. The response carries the full entity, so no placeholder
-    // merge is needed (unlike the trips writes).
+    // merge is needed (unlike the trips writes). The mode is the row's
+    // own — the API's column is `NOT NULL`, so it is never absent from
+    // what comes back, and `toTravel` is the only source of it here.
     expect(record).toMatchObject({
       id: "travel-1",
       memberName: "Ana",
       travelType: "arrival",
+      transportMode: "rental",
       arrivalLocation: "BCN T2",
     });
   });
@@ -468,6 +477,52 @@ describe("useTravel() writes (travelStore)", () => {
     // The list invalidates, so the next mount reads server truth.
     expect(
       client.getQueryState(travelKeys.list("trip-1"))?.isInvalidated,
+    ).toBe(true);
+  });
+
+  it("keeps the name the form picked when the write response carries none", async () => {
+    // `POST` answers with a new id and `.returning()` — no join — so the
+    // row the server sends has no `memberName` at all and `toTravel` maps
+    // that to "". Appending it as-is would draw the member without a name
+    // for a round trip, and for good if the refetch never lands. The
+    // optimistic stand-in is the only row that knows the name here.
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({
+      success: true,
+      memberTravel: row({ id: "travel-9", memberName: "" }),
+    });
+
+    const { client, actions } = captureTravel();
+    await actions.addTravel("trip-1", {
+      ...cachedTravel(),
+      id: "custom-arrival-1",
+      memberName: "Bo",
+    });
+
+    const rows = client.getQueryData<MockTravel[]>(travelKeys.list("trip-1"));
+    expect(rows?.find((row) => row.id === "travel-9")?.memberName).toBe("Bo");
+  });
+
+  it("invalidates the caller's cross-trip wheres with the list", async () => {
+    // The `Where` field reads two keys: this trip's rows and the caller's
+    // wheres across trips (`travelKeys.locations`). A write changes both,
+    // and the where just filed is the one the field should offer next.
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({
+      success: true,
+      memberTravel: row({ id: "travel-9" }),
+    });
+
+    const { client, actions } = captureTravel();
+    client.setQueryData(travelKeys.locations, ["BCN T2"]);
+
+    await actions.addTravel("trip-1", {
+      ...cachedTravel(),
+      id: "custom-arrival-1",
+    });
+
+    expect(
+      client.getQueryState(travelKeys.locations)?.isInvalidated,
     ).toBe(true);
   });
 

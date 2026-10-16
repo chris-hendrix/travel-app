@@ -1,6 +1,6 @@
 # E2E Tests — Playwright (mobile)
 
-7 Playwright specs cover 7 critical user flows across the full
+8 Playwright specs cover 8 critical user flows across the full
 browser→Expo-export→API→DB stack. Ported from the retired web E2E policy
 (its `tests/e2e/AGENTS.md`) after the web app was removed; the mechanics
 differ (the suite drives the Expo web export, not a Next.js server) but the
@@ -32,6 +32,7 @@ they cover.
 | 5 | **Admin** | `admin-journey.spec.ts` | Admin user management (moved into the app; the retired web app's `/admin` is gone) |
 | 6 | **Notifications** | `notifications.spec.ts` | Notification center UX (badge, tap-to-navigate, mark as read) |
 |  7 | **Money** |  `settle-journey.spec.ts` | Recording an expense and reading the resulting debt, full stack |
+| 8 | **Travel entry** | `travel-journey.spec.ts` | Filing an arrival, a **cold load** of a filed row's edit URL and of the traveler's own `member=` door, per-direction delete, and a **hire**'s round trip — a chip committing its mode, the board wearing that chip, and a cold-loaded panel showing both of a hire's ends — the wrong-member/frozen-memo class has no unit test, because the Vitest suite has no renderer |
 
 ## Banned at E2E level
 

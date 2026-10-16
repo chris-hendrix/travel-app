@@ -43,6 +43,8 @@ import {
 import { findRowAnywhere, notFound, nowIso } from "@/lib/demo/store";
 import type { DemoBody, DemoStore } from "@/lib/demo/store";
 import type { RsvpStatus } from "@/lib/rsvp";
+import { TRANSPORT_MODES, rankTravelLocations } from "@journiful/shared/utils";
+import type { TransportMode } from "@journiful/shared/utils";
 import type {
   Accommodation,
   Event,
@@ -144,6 +146,7 @@ function travelRow(tripId: string, record: DemoTrip["travel"][number]): MemberTr
     tripId,
     memberId: record.memberId,
     travelType: record.travelType,
+    transportMode: record.transportMode,
     departureLocation: record.departureLocation,
     departureTime: (record.departureTime ?? null) as unknown as Date | null,
     arrivalLocation: record.arrivalLocation,
@@ -156,6 +159,48 @@ function travelRow(tripId: string, record: DemoTrip["travel"][number]): MemberTr
     updatedAt: nowIso() as unknown as Date,
     memberName: record.memberName,
   };
+}
+
+/**
+ * The demo's `GET /member-travel/locations` answer: the viewer's own
+ * travel wheres across the demo's trips, ranked by the API's own rule
+ * (`rankTravelLocations` — newest first, deduped case-insensitively,
+ * capped at 20), so the demo ships the same list the real endpoint does
+ * rather than a placeholder. The viewer is always `demo-viewer` here;
+ * every trip's roster names them, and a trip they are not on contributes
+ * nothing.
+ *
+ * The rows are gathered across every trip before they are ranked, not
+ * ranked per trip and concatenated: the endpoint's answer is about the
+ * person, and which trip a where came from does not affect where it sits
+ * in the list.
+ */
+function demoMyLocations(store: DemoStore): string[] {
+  const rows: Array<{
+    travelType: MemberTravel["travelType"];
+    arrivalLocation: string | null;
+    departureLocation: string | null;
+    updatedAt: string | Date;
+  }> = [];
+
+  for (const trip of store.trips) {
+    const viewerMemberId = (store.members.get(trip.id) ?? []).find(
+      (member) => member.userId === "demo-viewer",
+    )?.id;
+    if (!viewerMemberId) continue;
+
+    for (const row of store.travel.get(trip.id) ?? []) {
+      if (row.memberId !== viewerMemberId) continue;
+      rows.push({
+        travelType: row.travelType,
+        arrivalLocation: row.arrivalLocation,
+        departureLocation: row.departureLocation,
+        updatedAt: row.updatedAt as unknown as string,
+      });
+    }
+  }
+
+  return rankTravelLocations(rows);
 }
 
 function detailOf(trip: DemoTrip): TripDetail {
@@ -690,18 +735,54 @@ export function handleDemoRequest(
     }
     if (verb === "POST" && rest === "/member-travel") {
       if (!trip) return notFound("Trip not found");
-      store.counters.travel += 1;
-      const row: MemberTravel = {
-        id: `demo-travel-created-${store.counters.travel}`,
-        tripId,
-        memberId: typeof body.memberId === "string" ? body.memberId : "demo-you",
-        travelType: body.travelType === "departure" ? "departure" : "arrival",
+      const memberId = typeof body.memberId === "string" ? body.memberId : "demo-you";
+      const travelType: MemberTravel["travelType"] =
+        body.travelType === "departure" ? "departure" : "arrival";
+      // The mode the body states, or nothing. `values` is the insert's
+      // body AND the pair-update branch's patch (the API's own shape: one
+      // live row per member and direction), so a create that says nothing
+      // about the mode must not join it — an unconditional entry, or an
+      // `?? "flight"`, would answer a mode-less POST by resetting a filed
+      // rental back to a flight.
+      const transportMode = asTransportMode(body.transportMode);
+      const values = {
+        ...(transportMode ? { transportMode } : {}),
         departureLocation: typeof body.departureLocation === "string" ? body.departureLocation : null,
         departureTime: (typeof body.departureTime === "string" ? body.departureTime : null) as unknown as Date | null,
         arrivalLocation: typeof body.arrivalLocation === "string" ? body.arrivalLocation : null,
         arrivalTime: (typeof body.arrivalTime === "string" ? body.arrivalTime : null) as unknown as Date | null,
         details: typeof body.details === "string" ? body.details : null,
         flightNumber: typeof body.flightNumber === "string" ? body.flightNumber : null,
+      };
+      // One live row per member and direction, the API's own rule. The
+      // demo is a shipped surface with no network under it, so it has to
+      // answer the same way the real endpoint does — otherwise the same
+      // save that the API now folds into one row would draw the member
+      // twice here, which is exactly the bug the API just stopped doing.
+      const existing = (store.travel.get(tripId) ?? []).find(
+        (row) =>
+          row.memberId === memberId &&
+          row.travelType === travelType &&
+          !row.deletedAt,
+      );
+      if (existing) {
+        Object.assign(existing, values, {
+          updatedAt: nowIso() as unknown as Date,
+        });
+        return { status: 200, body: { success: true, memberTravel: existing } };
+      }
+      store.counters.travel += 1;
+      const row: MemberTravel = {
+        id: `demo-travel-created-${store.counters.travel}`,
+        tripId,
+        memberId,
+        travelType,
+        // The column's own default, which is the whole of the backfill a
+        // create with no mode gets: the demo stands in for the API, so it
+        // answers a mode-less POST the way the column does rather than
+        // inventing a mode of its own.
+        transportMode: transportMode ?? "flight",
+        ...values,
         deletedAt: null,
         deletedBy: null,
         createdAt: nowIso() as unknown as Date,
@@ -762,6 +843,15 @@ export function handleDemoRequest(
     if (verb === "DELETE") return deletePayment(row);
   }
 
+  // Before the id matcher, because `/member-travel/locations` would
+  // otherwise be read as the row whose id is "locations".
+  if (verb === "GET" && path === "/member-travel/locations") {
+    return {
+      status: 200,
+      body: { success: true, locations: demoMyLocations(store) },
+    };
+  }
+
   const travelMatch = /^\/(member-travel)\/([^/]+)$/.exec(path);
   if (travelMatch) {
     const id = decodeURIComponent(travelMatch[2]!);
@@ -770,7 +860,7 @@ export function handleDemoRequest(
     if (verb === "PUT") {
       Object.assign(
         found.row,
-        patchOf(body, ["travelType", "departureLocation", "departureTime", "arrivalLocation", "arrivalTime", "details", "flightNumber"]),
+        patchOf(body, ["travelType", "transportMode", "departureLocation", "departureTime", "arrivalLocation", "arrivalTime", "details", "flightNumber"]),
         { updatedAt: nowIso() },
       );
       return { status: 200, body: { success: true, memberTravel: found.row } };
@@ -850,6 +940,18 @@ function safeParse(raw: string): unknown {
   } catch {
     return {};
   }
+}
+
+function asTransportMode(value: unknown): TransportMode | undefined {
+  // `undefined` for anything that is not one of the six, which is what
+  // the conditional spread above needs. The API refuses a bad value with
+  // a 400 (`transportMode` is an enum there); the demo's writers are the
+  // app's own typed requests, so the difference between the two is a
+  // request the API would reject, not a path the demo has to serve.
+  if (typeof value !== "string") return undefined;
+  return (TRANSPORT_MODES as readonly string[]).includes(value)
+    ? (value as TransportMode)
+    : undefined;
 }
 
 function asEventType(value: unknown): Event["eventType"] {

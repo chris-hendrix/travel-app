@@ -15,6 +15,7 @@ import {
   updateMemberTravelSchema,
   memberTravelListResponseSchema,
   memberTravelResponseSchema,
+  myTravelLocationsResponseSchema,
   successResponseSchema,
 } from "@journiful/shared/schemas";
 import type {
@@ -74,6 +75,26 @@ export async function memberTravelRoutes(fastify: FastifyInstance) {
   );
 
   /**
+   * GET /member-travel/locations
+   * The caller's own travel locations across trips, most recently
+   * updated first, capped at 20 — the `Where` field's cross-trip
+   * suggestions. Declared before `GET /member-travel/:id` so the static
+   * segment is read as the route it is rather than as an id.
+   * Requires authentication only (not complete profile)
+   */
+  fastify.get(
+    "/member-travel/locations",
+    {
+      schema: {
+        response: { 200: myTravelLocationsResponseSchema },
+      },
+      config: { rateLimit: defaultRateLimitConfig },
+      preHandler: [authenticate, checkBanned],
+    },
+    memberTravelController.getMyLocations,
+  );
+
+  /**
    * GET /member-travel/:id
    * Get member travel by ID
    * Requires authentication only (not complete profile)
@@ -103,7 +124,9 @@ export async function memberTravelRoutes(fastify: FastifyInstance) {
 
     /**
      * POST /trips/:tripId/member-travel
-     * Create a new member travel for a trip
+     * Create a new member travel for a trip, or update the live one
+     * already filed for the same member and direction: 201 when a row was
+     * inserted, 200 when an existing pair was updated in place.
      */
     scope.post<{ Params: { tripId: string }; Body: CreateMemberTravelInput }>(
       "/trips/:tripId/member-travel",
@@ -112,7 +135,10 @@ export async function memberTravelRoutes(fastify: FastifyInstance) {
         schema: {
           params: tripIdParamsSchema,
           body: createMemberTravelSchema,
-          response: { 201: memberTravelResponseSchema },
+          response: {
+            201: memberTravelResponseSchema,
+            200: memberTravelResponseSchema,
+          },
         },
       },
       memberTravelController.createMemberTravel,

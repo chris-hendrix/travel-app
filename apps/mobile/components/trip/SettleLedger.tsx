@@ -335,7 +335,7 @@ function ExpenseRow({
       : `${payment.payerName} paid`;
 
   return (
-    <Pressable role="button" onPress={onPress} className={motion.row}>
+    <Pressable role="button" onPress={onPress} className={motion.rowOnGravel}>
       <View className={[ENTRY_ROW, className].filter(Boolean).join(" ")}>
         <Text className="font-body-bold text-base text-ink">
           {payment.description}

@@ -39,6 +39,66 @@ export function filterPickerEntries(
 }
 
 /**
+ * The typed text as a row, on a local list that commits what you type.
+ *
+ * Applied **after** the filter, deliberately: the row is built from the
+ * trimmed query rather than filtered by it, so a trailing space — a
+ * needle no label contains — cannot take the row away. An empty query
+ * offers nothing; there is nothing to offer, and the field's own value
+ * already is the text. A query a row already answers is not offered
+ * twice, because this list is our own strings and an exact match is the
+ * common case.
+ *
+ * The row is the twin of the Places pickers' typed row
+ * (`placePickerRows`, `lib/queries/places.ts`): its label quotes the
+ * text so the list reads it as your words, and its `fieldText` is the
+ * raw text, so the quotes never reach the field once it is committed.
+ * The two must agree.
+ */
+export function withTypedRow(
+  entries: PickerEntry[],
+  query: string,
+): PickerEntry[] {
+  const text = query.trim();
+  if (text === "") return entries;
+  const answered = entries.some(
+    (entry) => entry.label.trim().toLowerCase() === text.toLowerCase(),
+  );
+  if (answered) return entries;
+  return [
+    {
+      value: text,
+      label: `"${text}"`,
+      secondary: "Use what you typed",
+      fieldText: text,
+    },
+    ...entries,
+  ];
+}
+
+/**
+ * What a pressed row commits: the row from the list that was **drawn**,
+ * falling back to the whole option set.
+ *
+ * The list renders its own rows — filtered, and on a local free-text
+ * field led by the typed row — while `entries` is every option the
+ * caller handed over. Resolving a press against `entries` alone leaves a
+ * row that exists only in the drawn list inert: it draws, and pressing
+ * it does nothing, which is exactly the typed row's fate because it is
+ * in no `entries` at all.
+ */
+export function resolvePickedEntry(
+  drawn: readonly PickerEntry[],
+  entries: readonly PickerEntry[],
+  value: string,
+): PickerEntry | undefined {
+  return (
+    drawn.find((entry) => entry.value === value) ??
+    entries.find((entry) => entry.value === value)
+  );
+}
+
+/**
  * What a screen reader announces for a row: the primary. The secondary
  * is visible detail, not identity.
  */
@@ -60,4 +120,22 @@ export function displayTextForValue(
 ): string {
   const selected = entries.find((option) => option.value === value);
   return selected?.fieldText ?? selected?.label ?? value ?? "";
+}
+
+/**
+ * Whether entering the field should open its list.
+ *
+ * A plain option list — every member, this trip's own wheres — is worth
+ * showing the moment the field is entered: the answer is already here,
+ * and pressing the field is the question. A live list is not: Places
+ * fetches on a query, so an empty one has no rows to show and focusing
+ * the field must leave it shut.
+ *
+ * The flag alone is the whole guard, deliberately. What has been typed
+ * is a thing the component knows; why it is here is a thing the caller
+ * knows, and the caller is the one that knows which kind of list it
+ * handed over.
+ */
+export function shouldOpenOnPress(liveOptions: boolean): boolean {
+  return !liveOptions;
 }

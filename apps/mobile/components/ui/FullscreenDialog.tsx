@@ -67,6 +67,11 @@ export function FullscreenDialog({
    * of the body, under a rule, as far from the primary button as the
    * dialog allows. Three dialogs drew that footer by hand and they had
    * already started to differ.
+   *
+   * It hugs its edge from md up like every other button. It used to fill
+   * the column at every size, which on a wide screen made a destructive
+   * box as wide as the page — the loudest thing on the screen, for an
+   * action the reader came to the dialog to avoid.
    */
   dangerTitle?: string | undefined;
   onDanger?: (() => void) | undefined;
@@ -140,7 +145,6 @@ export function FullscreenDialog({
                 <Button
                   title={dangerTitle}
                   variant="danger"
-                  fullWidth
                   disabled={pending}
                   onPress={onDanger}
                 />

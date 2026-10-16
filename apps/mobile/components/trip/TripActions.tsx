@@ -139,6 +139,13 @@ export function TripActions({
           // which makes the hero's one action the screen's one filled
           // control.
           variant="primary"
+          // The band's own buttons fill the column at every width, and this
+          // is the one place in the app that does: everywhere else a
+          // control fills a phone and hugs its edge from md up, because a
+          // page of full-width boxes has no hierarchy in it. Here the
+          // block under the hero picture is the hierarchy — one filled
+          // action and the verbs under it — so both fill, and they line up
+          // on one edge to say so.
           fullWidth
           onPress={() => router.push(`/trips/invite?id=${tripId}`)}
         />
@@ -148,6 +155,7 @@ export function TripActions({
 
       <DisclosureButton
         title="Trip actions"
+        fullWidth
         actions={[
           ...tripActions,
           {

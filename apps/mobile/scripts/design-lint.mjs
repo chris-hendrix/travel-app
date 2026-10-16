@@ -51,6 +51,24 @@ function sourcesWith(pattern) {
 }
 
 /**
+ * The lab's two addresses, and why there are two.
+ *
+ * `app/design/index.tsx` is the lab screen. The three modules it draws its
+ * sections with live in `components/design/` instead, and not for tidiness:
+ * everything under `app/` is a route, so the router walked `frame.tsx`,
+ * `motion.tsx` and `bootCover.tsx` as routes — it warned about each one's
+ * missing default export and `expo export` wrote `dist/design/frame.html`,
+ * `motion.html` and `bootCover.html` as empty pages into the artifact that
+ * ships. They are documentation, not screens, so they left the routes tree.
+ *
+ * The exclusion follows them. It is the same three files, demonstrating the
+ * same things on purpose, as when they sat beside `index.tsx`; what moved is
+ * the address, so the checks that read around the lab read around both.
+ */
+const LAB_DIRS = ["app/design/", "components/design/"];
+const inTheLab = (rel) => LAB_DIRS.some((dir) => rel.startsWith(dir));
+
+/**
  * The app's own rule, deliberately not a check: `ActionBar` is a dialog's
  * pinned foot and holds one action, and `ActionRow` is a form's foot,
  * where the one button sits beside quiet words by design. Both are the
@@ -253,8 +271,19 @@ checkRuleForms();
  * needs an underline. The constant comes down to 15 with it: the ratchet
  * exists so a word cannot *gain* a mark quietly, and leaving it at 16 now
  * would be reserving a slot for a link that no longer exists.
+ *
+ * Sixteen again, and this one is not a word at all. `DayStrip` is the
+ * app's second day cell — a trip's own days, on the travel form — and it
+ * marks today with `DatePicker`'s own idiom (`isToday && !selected ?
+ * "underline"`), which has been one of these fifteen since the check was
+ * written. Counting a calendar's day cell here is the census being blunt
+ * about what an underline looks like in source; refusing the mark would
+ * mean the app's two calendars marking today in two different ways, and
+ * that is the worse trade. So the slot is spent deliberately and in the
+ * open, per the paragraph above. The next thing that wants a slot should
+ * change `DayStrip`'s marker rather than this number.
  */
-const UNDERLINE_RATCHET = 15;
+const UNDERLINE_RATCHET = 16;
 
 function checkUnderlineRatchet() {
   const lab = path.join("app", "design", "index.tsx");
@@ -571,11 +600,11 @@ checkBandsAreFullBleed();
  *      `rule={false}` — a component that draws the block rule is a rule site
  *      whatever its className says.
  *
- * Both are restricted to `app/` + `components/`, excluding `app/design/`
- * as a directory rather than a file: the lab *demonstrates* marks on
- * purpose, so counting it would make every specimen a rule change, and its
- * `frame.tsx` and `motion.tsx` demonstrate them exactly as deliberately as
- * `index.tsx` does.
+ * Both are restricted to `app/` + `components/`, excluding the lab as a
+ * directory rather than a file — both of its addresses, `LAB_DIRS`: the lab
+ * *demonstrates* marks on purpose, so counting it would make every specimen
+ * a rule change, and its `frame.tsx` and `motion.tsx` demonstrate them
+ * exactly as deliberately as `index.tsx` does.
  *
  * Measured on this tree: **6 + 36 = 42** (down from the seeded 29 + 25 = 54
  * as the sweep landed). Arm 1's six survivors are exactly the marks check 11
@@ -646,12 +675,11 @@ function jsxTagEnd(src, from) {
 }
 
 function checkRuleCensus() {
-  const labDir = path.join("app", "design") + path.sep;
   const marks = [];
   const blocks = [];
   for (const file of sources()) {
     const rel = path.relative(mobile, file);
-    if (rel.startsWith(labDir)) continue;
+    if (inTheLab(rel)) continue;
     const src = code(fs.readFileSync(file, "utf8"));
     const lineOf = (i) => src.slice(0, i).split("\n").length;
     // Arm 1 — a mark typed as a class.
@@ -723,7 +751,7 @@ function checkColumnChildrenCarryNoPadding() {
     const rel = path.relative(mobile, file);
     // The lab is documentation and demonstrates spacing on purpose, and
     // `Column.tsx` is where the rhythm is defined rather than restated.
-    if (rel === "components/ui/Column.tsx" || rel.startsWith("app/design/")) {
+    if (rel === "components/ui/Column.tsx" || inTheLab(rel)) {
       continue;
     }
     const src = code(fs.readFileSync(file, "utf8"));
@@ -908,12 +936,16 @@ checkPressStatesComeFromTheVocabulary();
  *      Phase 4 swept, and it is nowhere in the list.
  *
  * **The lab is excluded, as a directory, for the reason check 9 excludes
- * it**: `app/design/` *demonstrates* marks on purpose — `frame.tsx` and
+ * it**: the lab *demonstrates* marks on purpose — `frame.tsx` and
  * `motion.tsx` show the with-and-without specimens on purpose, and
  * `index.tsx`'s rule book quotes the very classes being forbidden. Counting
  * it would make every specimen a lint failure. The four real gravel rules
  * in `frame.tsx` and `motion.tsx` are therefore outside this check's reach
- * and stay outside the app; they are specimens, not sites.
+ * and stay outside the app; they are specimens, not sites. The directory
+ * this check reads around is `LAB_DIRS`, both halves of it: the specimens
+ * left `app/` for `components/design/` because a file under `app/` is a
+ * route, and a rule about the app's own marks should not have been keeping
+ * them out on an accident of address.
  *
  * **What counts as a mark.** The same line check 9's arm 1 takes — a side
  * token, `border-[tblr]`, as a token of its own — widened by exactly two
@@ -1090,12 +1122,11 @@ function ruleSignature(tokens) {
 }
 
 function checkRuleIsADeclaredRank() {
-  const labDir = path.join("app", "design") + path.sep;
   const gravel = [];
   const undeclared = [];
   for (const file of sourcesWith(/\.tsx?$/)) {
     const rel = path.relative(mobile, file);
-    if (rel.startsWith(labDir)) continue;
+    if (inTheLab(rel)) continue;
     const src = code(fs.readFileSync(file, "utf8"));
     const lineOf = (i) => src.slice(0, i).split("\n").length;
     for (const [at, literal] of classLiteralSpans(src)) {

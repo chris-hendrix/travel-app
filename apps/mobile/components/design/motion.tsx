@@ -9,7 +9,7 @@ import { DisclosureButton } from "@/components/ui/DisclosureButton";
 import { QuietAction } from "@/components/ui/QuietAction";
 import { Segmented } from "@/components/ui/Segmented";
 import { MOTION, REDUCED_MOTION } from "@/components/ui/motionClasses";
-import { Section, Specimen } from "./frame";
+import { Section, Specimen } from "@/components/design/frame";
 
 /**
  * The six questions, in the order they are asked.
@@ -60,6 +60,8 @@ const MOTION_ROLE_PURPOSE: Record<keyof typeof MOTION, string> = {
   pressDim:
     "A control that is pressed and must not change size. A full-bleed hero cannot scale — five per cent of a wide column reaches into the margins — and a fill is invisible under a photo, so it dims; and a segmented cell cannot scale either, because the join is shared with its neighbours.",
   row: "A full-width row. It highlights rather than scaling, because a row that scales reads as the whole screen squishing.",
+  rowOnGravel:
+    "The same press on a dialog's ground, which is gravel: there, gravel-on-gravel is a fill nobody can see, so the row fills to concrete instead. The rows that only navigate wear it; a checkbox keeps `row`, because its own tick is the feedback.",
   state:
     "A control that inverts when its value changes and is not itself the target: the inner box of a checkbox, whose fill goes to ink on the tick.",
   disclosure:
@@ -217,8 +219,8 @@ export function MotionSection({ onLog }: { onLog: (line: string) => void }) {
 
         <Specimen
           name="Row"
-          contract="motion.row"
-          note="A full-width row is the one exception to the press rule: it highlights its background instead of scaling, because a row that scales reads as the whole screen squishing rather than as a row responding. The fill is gravel, the app's own inert tone, so a press cannot be mistaken for a selection — nothing in the mark tier is spent on this, which is what keeps a highlighted row from looking chosen. On a pointer the row takes the same fill on hover, and that is the whole of what hover is allowed to be in this system — it is added to a resting state that is already correct without it, never a control that hides and reveals. The same role is on the notification rows, the roster rows, the rows inside a disclosure, the suggestion list, the time column, and the run's own event and stay rows."
+          contract="motion.row · motion.rowOnGravel"
+          note="A full-width row is the one exception to the press rule: it highlights its background instead of scaling, because a row that scales reads as the whole screen squishing rather than as a row responding. The fill is a muted palette tone, so a press cannot be mistaken for a selection — nothing in the mark tier is spent on this, which is what keeps a highlighted row from looking chosen. On a pointer the row takes the same fill on hover, and that is the whole of what hover is allowed to be in this system — it is added to a resting state that is already correct without it, never a control that hides and reveals. The same role is on the notification rows, the rows inside a disclosure, the suggestion list, the time column, and the run's own event and stay rows. rowOnGravel is the same press on a dialog's ground, which is gravel: there, gravel-on-gravel is a fill nobody can see, so the fill is concrete instead. It is on the travel board's rows, the roster's and the ledger's — every row that only navigates — while a checkbox keeps row, because its own tick is the feedback."
         >
           <Checkbox
             checked={consent}

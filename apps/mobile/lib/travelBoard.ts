@@ -1,22 +1,40 @@
 import { wallClock } from "@/lib/timezone";
-import { getPertinentLocation, getPertinentTime } from "@journiful/shared/utils";
+import {
+  getPertinentLocation,
+  getPertinentTime,
+  type TransportMode,
+} from "@journiful/shared/utils";
 import type { MockTravel } from "@/mocks/travel";
 
 /**
- * One person's travel as the board reads it: the day it happens, the
- * clock, who, and where. The travel screen behind the row holds the rest.
+ * One person's travel as the board reads it: who, how they are coming,
+ * where, and when. The travel screen behind the row holds the rest — the
+ * far end, the number, the prose.
  *
- * The day is on the row rather than in a heading above a run of them.
- * A heading repeats one fact per group and pushes the rows apart; a date
- * column says the same thing once per row and stays true however far the
- * list is scrolled. What it gives up is the tally — you can read that
- * three people land on Friday by adjacency, not by a count.
+ * The row is the members list's row (`components/ui/PersonRow.tsx`): a
+ * person, a chip beside their name, one line of detail under it, and one
+ * fact at the far edge. What the far edge holds is the day *and* the
+ * clock, joined, because a row read across has one column for the when
+ * rather than a column of its own for the date.
+ *
+ * The day is still on every row rather than on a heading above a run of
+ * them: a heading repeats one fact per group, pushes the rows apart, and
+ * stops saying which day it is the moment the run scrolls off the screen.
+ * What that gives up is the tally — you can read that three people land on
+ * Friday by adjacency, not by a count.
  */
 export type TravelRow = {
   id: string;
   memberId: string;
   memberName: string;
   travelType: "arrival" | "departure";
+  /**
+   * How they are travelling, as the record filed it. Null on a row nobody
+   * has filed: an owed row has no mode to wear, the same way it has no day
+   * — the chip says what a member answered, never what the column would
+   * default them to.
+   */
+  transportMode: TransportMode | null;
   /** Local date, yyyy-mm-dd. Null until the member shares a time. */
   date: string | null;
   /** ISO instant; null until the member shares it. */
@@ -48,6 +66,7 @@ function toRow(record: MockTravel, timeZone: string | null): TravelRow {
     memberId: record.memberId,
     memberName: record.memberName,
     travelType: record.travelType,
+    transportMode: record.transportMode,
     date: time ? wallClock(time, timeZone).date : null,
     time,
     location: getPertinentLocation(record),
@@ -84,6 +103,7 @@ function orderDirection(
       memberId: member.id,
       memberName: member.name,
       travelType: direction,
+      transportMode: null,
       date: null,
       time: null,
       location: null,

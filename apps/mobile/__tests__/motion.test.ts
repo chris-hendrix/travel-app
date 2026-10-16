@@ -38,6 +38,7 @@ describe("the motion vocabulary", () => {
       "pressFill",
       "pressDim",
       "row",
+      "rowOnGravel",
       "state",
       "disclosure",
     ]);
@@ -174,14 +175,20 @@ describe("reduced motion", () => {
  * beside the press it accompanies, and never as a reveal.
  */
 describe("hover", () => {
-  it("adds a pointer state to a row, and appears on no other role", () => {
+  it("adds a pointer state to the row family, and appears on no other role", () => {
+    // The two rows: one per ground. Both are the same interaction — a row
+    // lighting up — so both carry the hover that accompanies it, and
+    // nothing else in the vocabulary has one.
     expect(ROLES.filter((role) => MOTION[role].includes("hover:"))).toEqual([
       "row",
+      "rowOnGravel",
     ]);
     // The press it accompanies is still there: hover is the second state,
     // not the only one.
     expect(MOTION.row).toContain("active:bg-gravel");
     expect(MOTION.row).toContain("md:hover:bg-gravel");
+    expect(MOTION.rowOnGravel).toContain("active:bg-concrete");
+    expect(MOTION.rowOnGravel).toContain("md:hover:bg-concrete");
   });
 
   it("never hides anything", () => {

@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { tripCountdown } from "@/lib/countdown";
 import { wallClock } from "@/lib/timezone";
+import { travelFor } from "@/mocks/travel";
+import { TRIPS } from "@/mocks/trips";
 import {
   DEMO_TRIP_ID,
   DEMO_TRIP_IDS,
   buildDemoTrip,
   buildDemoTrips,
 } from "@/lib/demo";
+import { TRANSPORT_MODES } from "@journiful/shared/utils";
 
 /**
  * The demo fixtures' shape, pinned so the three demo trips stay
@@ -15,8 +18,8 @@ import {
  * with its own stay, events, timed arrivals twenty minutes apart, five
  * answers, mid-planning (one unanswered, one maybe, no cover photo),
  * bundled placeholder kinds, reserved 555 numbers, no remote URL —
- * real places on every event, and globally unique row ids, because the
- * adapter resolves id-addressed writes by id alone.
+ * real places on every event, a mode on every leg, and globally unique
+ * row ids, because the adapter resolves id-addressed writes by id alone.
  */
 const TODAY = new Date("2026-10-06T12:00:00.000Z");
 
@@ -45,6 +48,55 @@ describe("the demo fixtures", () => {
     ]);
     expect(ids.length).toBeGreaterThan(0);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("files a mode on every leg, and never a sentence in a where", () => {
+    // Two fixtures, one board: the mock fixture is the lab's and the
+    // mockup's (`travelFor`, which the lab's Travel link renders), the
+    // demo fixture is the public demo's. A where that describes how the
+    // leg is taken is the fact the row now carries itself.
+    const mockRows = travelFor(TRIPS[0]!);
+    const demoRows = buildDemoTrips(TODAY).flatMap((trip) => trip.travel);
+    expect(mockRows.length).toBeGreaterThan(0);
+    expect(demoRows.length).toBeGreaterThan(0);
+    for (const row of [...mockRows, ...demoRows]) {
+      expect(TRANSPORT_MODES).toContain(row.transportMode);
+      for (const where of [row.arrivalLocation, row.departureLocation]) {
+        expect(where ?? "").not.toMatch(/driving from/i);
+      }
+    }
+  });
+
+  it("files the driver as a car and the train home as a train", () => {
+    const rows = travelFor(TRIPS[0]!);
+
+    // The driver used to be the string "Driving from Valencia" on an
+    // arrival's where: one field carrying a mode, a direction and a
+    // place. The mode is its own field now, so the where says only
+    // where — and the mode that row means is `car`.
+    const cars = rows.filter((row) => row.transportMode === "car");
+    expect(cars).toHaveLength(1);
+    expect(cars[0]!.travelType).toBe("arrival");
+    expect(cars[0]!.arrivalLocation).toBe("Valencia");
+
+    // And the train home is a train, not a flight with a note saying so.
+    const trains = rows.filter((row) => row.transportMode === "train");
+    expect(trains.length).toBeGreaterThan(0);
+    for (const train of trains) {
+      expect(train.travelType).toBe("departure");
+      expect(train.departureLocation).toBe("Sants station");
+    }
+
+    // The rest stay flights. A fixture where every row moved would prove
+    // nothing about the mix the board has to draw.
+    expect(
+      rows.filter(
+        (row) => !["flight", "car", "train"].includes(row.transportMode),
+      ),
+    ).toEqual([]);
+    expect(rows.filter((row) => row.transportMode === "flight").length).toBe(
+      rows.length - cars.length - trains.length,
+    );
   });
 
   it("keeps the Cabo row ids unchanged", () => {

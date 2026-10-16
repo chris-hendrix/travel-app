@@ -1,5 +1,9 @@
 import { Pressable, Text, View } from "react-native";
-import { dayNumber, weekdayAbbrev } from "@/lib/dateRange";
+import { Badge } from "@/components/ui/Badge";
+import { PersonRow } from "@/components/ui/PersonRow";
+import { RuledRows } from "@/components/ui/RuledRows";
+import { formatDay } from "@/lib/dateRange";
+import { modeLabel } from "@/lib/transportMode";
 import { wallClock } from "@/lib/timezone";
 import type { TravelRow } from "@/lib/travelBoard";
 import { NOT_SHARED } from "@/lib/wording";
@@ -41,12 +45,14 @@ export function ArrivalBoard({
       <Text className="font-display-bold text-display-sm uppercase text-ink">
         {heading}
       </Text>
-      {/* No mark on this list. A board row is read DOWN — the day's own
-          narrow column, the name, the clock — so the rows group by
-          proximity and the padding does the work. One list per
-          direction, with the day carried on each row rather than on a
-          heading above a run of them. */}
-      <View>
+      {/* The board's rows are the roster's rows, and the roster's rank:
+          a board row is read *across* — the person with the chip that
+          says how they are coming beside their name, the where on the
+          line under it, and the day and the clock at the far edge — so
+          the rows keep the table's soft rule and `RuledRows` owns it.
+          The first row keeps none, because the block above the table is
+          its opening boundary. */}
+      <RuledRows>
         {rows.map((row) => (
           <ArrivalRow
             key={row.id}
@@ -55,59 +61,61 @@ export function ArrivalBoard({
             onPressRow={onPressRow}
           />
         ))}
-      </View>
+      </RuledRows>
     </View>
   );
 }
 
 /**
- * One person's travel. The day, the name and the clock are the row —
- * when, who, and how late — and nothing else, so the column reads
- * straight down.
+ * One person's travel, in the table's own row: the name with the mode
+ * beside it, the where under it, and the day with the clock at the far
+ * edge. The day used to be a narrow column of its own on the left; it
+ * moved into the far column with the clock, which is where the detail
+ * sheet prints the same pair. The clock keeps the roster's far-column
+ * weight rather than the row's: a time is read, not announced, and bold
+ * here made every row shout while leaving the name nothing to anchor
+ * against.
  */
 function ArrivalRow({
   row,
   timeZone,
   onPressRow,
+  className,
 }: {
   row: TravelRow;
   timeZone: string | null;
   onPressRow?: ((row: TravelRow) => void) | undefined;
+  /** The table's mark, handed down by `RuledRows`. */
+  className?: string | undefined;
 }) {
   const motion = useMotion();
+  // The day and the clock are one fact, and the column stacks its two lines
+  // rather than joining them. At 390 the joined form is the widest thing in
+  // the row — some 44% of it — and it is what squeezed the name, which has
+  // to stay beside its chip. The detail sheet still joins the same pair
+  // (`joinFacts`, `app/trips/travel/detail.tsx`), because a sheet has a
+  // line's worth of room and no column to protect. A row nobody has filed
+  // says so in the board's own words rather than showing an empty line.
+  const when =
+    row.date && row.time
+      ? [formatDay(row.date), wallClock(row.time, timeZone).time]
+      : NOT_SHARED;
   const body = (
-    <View className="flex-row items-center gap-4 py-4">
-      {/* The day's own column, narrow and fixed so it aligns down the
-          list. Every row names its day, so a run that outlives the
-          screen still says when it is. The number reads at the same
-          weight as the facts beside it: the column's position already
-          says it is a date. */}
-      <View className="w-10 items-center">
-        {row.date ? (
-          <>
-            <Text className="font-body text-xs text-ink opacity-60">
-              {weekdayAbbrev(row.date)}
-            </Text>
-            <Text className="font-body text-base leading-none text-ink">
-              {dayNumber(row.date)}
-            </Text>
-          </>
-        ) : (
-          <Text className="font-body text-base text-ink opacity-40">–</Text>
-        )}
-      </View>
-
-      <Text className="flex-1 font-body-bold text-base text-ink">
-        {row.memberName}
-      </Text>
-
-      {/* The clock is a fact about the row, like the members dialog's
-          status: read, not announced. Bold here made every row shout
-          and left the name with nothing to anchor against. */}
-      <Text className="font-body text-base text-ink">
-        {row.time ? wallClock(row.time, timeZone).time : NOT_SHARED}
-      </Text>
-    </View>
+    <PersonRow
+      name={row.memberName}
+      chips={
+        row.transportMode ? (
+          <Badge
+            label={modeLabel(row.transportMode)}
+            variant="category"
+            size="sm"
+          />
+        ) : null
+      }
+      detail={row.location}
+      far={when}
+      className={className}
+    />
   );
   if (!onPressRow) return body;
   return (
@@ -115,7 +123,7 @@ function ArrivalRow({
       role="button"
       accessibilityRole="button"
       onPress={() => onPressRow(row)}
-      className={motion.row}
+      className={motion.rowOnGravel}
     >
       {body}
     </Pressable>

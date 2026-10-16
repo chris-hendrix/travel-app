@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { joinFacts, NOT_SHARED } from "@/lib/wording";
+import { formatDay } from "@/lib/dateRange";
+import { emptyLeg, farEndNote } from "@/lib/newTravel";
 
 describe("joinFacts", () => {
   it("joins separate facts with a middot", () => {
@@ -31,5 +33,89 @@ describe("joinFacts", () => {
 describe("NOT_SHARED", () => {
   it("is one phrase, so one state has one name", () => {
     expect(NOT_SHARED).toBe("Not shared yet");
+  });
+});
+
+describe("the far end's day, in words", () => {
+  // One note, every mode, and it is the only place a leg's far end is said
+  // out loud. Pinned here because the wording is the feature: the line has
+  // to read as what the two times already mean, not as a second control or
+  // a second date field.
+  //
+  // The verb is the *far end's own word*, read from the same table the
+  // form's labels come from (`lib/transportMode.ts`): the note sits under
+  // that end's field, and a line that named the end differently from the
+  // label above it would be two vocabularies for one fact — the drift D3
+  // forbids. It also means a hire reads, because a hire's far end on an
+  // arrival row is a dropoff and the flight's `Left`/`Lands` could not say
+  // so.
+  const overnight = {
+    ...emptyLeg(),
+    day: "2026-09-18",
+    departureTime: "22:50",
+    arrivalTime: "12:30",
+  };
+
+  it("names the far end in the end's own word, under an arrival", () => {
+    expect(farEndNote(overnight, "arrival")).toBe(
+      `Leaves ${formatDay("2026-09-17")}`,
+    );
+  });
+
+  it("reads a hire's far end as the dropoff it is", () => {
+    // A hire's own end is the pickup on an arrival row (D4), so the far
+    // end is the dropoff — the day the two clocks work out, in the right
+    // word. The flight's words said `Left <the day>`, which is a fact
+    // about a departure the member never made.
+    const hire = {
+      ...emptyLeg(),
+      transportMode: "rental" as const,
+      day: "2026-09-18",
+      arrivalTime: "20:00",
+      departureTime: "01:30",
+    };
+    expect(farEndNote(hire, "arrival")).toBe(
+      `Dropoff ${formatDay("2026-09-19")}`,
+    );
+  });
+
+  it("reads a hire's far end as the pickup on a departure row", () => {
+    const hire = {
+      ...emptyLeg(),
+      transportMode: "rental" as const,
+      day: "2026-09-20",
+      arrivalTime: "20:00",
+      departureTime: "08:00",
+    };
+    expect(farEndNote(hire, "departure")).toBe(
+      `Pickup ${formatDay("2026-09-19")}`,
+    );
+  });
+
+  it("reads forward as Lands <the morning after> under a departure", () => {
+    const redEye = {
+      ...emptyLeg(),
+      day: "2026-09-25",
+      departureTime: "23:30",
+      arrivalTime: "07:15",
+    };
+    expect(farEndNote(redEye, "departure")).toBe(
+      `Lands ${formatDay("2026-09-26")}`,
+    );
+  });
+
+  it("says nothing when the leg does not cross midnight", () => {
+    // "The same day" under a field is noise the chosen day already covers.
+    expect(
+      farEndNote(
+        {
+          ...emptyLeg(),
+          day: "2026-09-18",
+          departureTime: "07:00",
+          arrivalTime: "15:40",
+        },
+        "arrival",
+      ),
+    ).toBeNull();
   });
 });

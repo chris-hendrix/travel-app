@@ -1,14 +1,20 @@
 import { describe, expect, it } from "vitest";
 import type { FlightLookupResult } from "@journiful/shared/types";
+import { TRANSPORT_MODES } from "@journiful/shared/utils";
 import {
   buildLegRecord,
   emptyLeg,
+  farEndDay,
   legCrossesMidnight,
   legFromLookup,
   legFromRecord,
   legSummary,
+  legsForMember,
+  travelForMemberDirection,
   validateNewTravel,
   type NewTravelInput,
+  type TravelDirection,
+  type TravelLeg,
 } from "@/lib/newTravel";
 import { wallClock } from "@/lib/timezone";
 
@@ -191,6 +197,299 @@ describe("buildLegRecord", () => {
   });
 });
 
+/**
+ * The mode rides **on the leg** rather than beside it: the words follow
+ * it, and so does the day a hire's far end falls on. On the leg rather
+ * than as a parameter of the day functions because the three that own
+ * that day (`legCrossesMidnight`, `farEndDay`, `farEndNote`) are called
+ * with a leg and nothing else — `wording.test.ts` included.
+ */
+describe("the leg's mode", () => {
+  it("starts a leg nobody has set on the flight", () => {
+    // The column's default, and the chip the form pre-selects. A leg
+    // always has a mode: "unknown" is the state this feature
+    // deliberately does not have.
+    expect(emptyLeg().transportMode).toBe("flight");
+  });
+
+  it("reads a record's mode back onto the leg", () => {
+    const leg = legFromRecord(
+      {
+        transportMode: "rental",
+        departureTime: null,
+        departureLocation: null,
+        arrivalTime: "2026-09-18T15:40:00.000Z",
+        arrivalLocation: "Valencia",
+        flightNumber: null,
+        details: null,
+      },
+      "arrival",
+      "UTC",
+      "2026-09-18",
+      "2026-09-25",
+    );
+    expect(leg.transportMode).toBe("rental");
+  });
+
+  it("files the leg's mode on the record it builds", () => {
+    const record = buildLegRecord(
+      { ...ARRIVAL, transportMode: "train" },
+      "arrival",
+      "t-1",
+      "m-1",
+      "Ana",
+      "UTC",
+    );
+    expect(record?.transportMode).toBe("train");
+  });
+
+  it("round-trips every mode the wire knows", () => {
+    // The six are declared once in `@journiful/shared/utils`, so a
+    // seventh mode arrives here as a compile error and as a failing
+    // loop rather than as a leg that quietly reads back as a flight.
+    for (const mode of TRANSPORT_MODES) {
+      const filed = buildLegRecord(
+        { ...ARRIVAL, transportMode: mode },
+        "arrival",
+        "t-1",
+        "m-1",
+        "Ana",
+        "UTC",
+      );
+      if (!filed) throw new Error(`a ${mode} leg was not filed`);
+      expect(filed.transportMode).toBe(mode);
+      expect(
+        legFromRecord(filed, "arrival", "UTC", "2026-09-18", "2026-09-25")
+          .transportMode,
+      ).toBe(mode);
+    }
+  });
+
+  it("leaves the mode alone when a lookup fills the ends in", () => {
+    // Only a flight is looked up, and a lookup is about the ends: the
+    // mode the chips set is not the lookup's to change.
+    expect(
+      legFromLookup(
+        { ...emptyLeg(), transportMode: "rental" },
+        "arrival",
+        LOOKUP,
+        "UA 1842",
+        null,
+      ).transportMode,
+    ).toBe("rental");
+  });
+});
+
+/**
+ * A hire's two ends are not a journey. D4: the own end is the pickup on
+ * an arrival row and the dropoff on a departure row, so the pair runs
+ * *forwards* from the day the strip picked. That inverts both halves of
+ * the derived day — the predicate that reads a crossing, and the sign
+ * that places the far end — and inverting only one of them mirrors the
+ * same bug: a 10:00 pickup with a 17:00 dropoff would be stamped the day
+ * before instead of the day after.
+ */
+describe("a hire's day is the other way round", () => {
+  const hire = (overrides: Partial<TravelLeg>): TravelLeg => ({
+    ...emptyLeg(),
+    transportMode: "rental",
+    location: "Valencia",
+    ...overrides,
+  });
+
+  /** A leg filed on the trip's own clock, the way the form files it. */
+  const filed = (leg: TravelLeg, direction: TravelDirection) =>
+    buildLegRecord(leg, direction, "t-1", "m-1", "Ana", "UTC");
+
+  it("stamps both ends of a same-day hire on the day it was picked up", () => {
+    // The own end of a hire on an arrival row is the pickup, so 10:00 to
+    // 17:00 is one day. Read as a flight it is a crossing, and the
+    // dropoff lands the day before the pickup.
+    const record = filed(
+      hire({ day: "2026-09-18", arrivalTime: "10:00", departureTime: "17:00" }),
+      "arrival",
+    );
+    expect(record?.arrivalTime).toBe("2026-09-18T10:00:00.000Z");
+    expect(record?.departureTime).toBe("2026-09-18T17:00:00.000Z");
+  });
+
+  it("keeps a same-day hire's return on its own day, on a departure row", () => {
+    const record = filed(
+      hire({ day: "2026-09-18", arrivalTime: "10:00", departureTime: "17:00" }),
+      "departure",
+    );
+    expect(record?.arrivalTime).toBe("2026-09-18T10:00:00.000Z");
+    expect(record?.departureTime).toBe("2026-09-18T17:00:00.000Z");
+  });
+
+  it("lands a hire's dropoff after midnight on the next day", () => {
+    const record = filed(
+      hire({ day: "2026-09-18", arrivalTime: "20:00", departureTime: "01:30" }),
+      "arrival",
+    );
+    expect(record?.arrivalTime).toBe("2026-09-18T20:00:00.000Z");
+    expect(record?.departureTime).toBe("2026-09-19T01:30:00.000Z");
+  });
+
+  it("puts a hire's pickup the evening before, on a departure row", () => {
+    const record = filed(
+      hire({ day: "2026-09-20", arrivalTime: "20:00", departureTime: "08:00" }),
+      "departure",
+    );
+    expect(record?.arrivalTime).toBe("2026-09-19T20:00:00.000Z");
+    expect(record?.departureTime).toBe("2026-09-20T08:00:00.000Z");
+  });
+
+  it("reads a hire written as one day back as one day", () => {
+    // A record's own dates are the fact the flag carries, so a hire both
+    // of whose ends are on the 18th stays on the 18th. This is the row a
+    // cold-loaded panel opens.
+    const leg = legFromRecord(
+      {
+        transportMode: "rental",
+        departureTime: "2026-09-18T17:00:00.000Z",
+        departureLocation: "Valencia",
+        arrivalTime: "2026-09-18T10:00:00.000Z",
+        arrivalLocation: "Valencia",
+        flightNumber: null,
+        details: null,
+      },
+      "arrival",
+      "UTC",
+      "2026-09-18",
+      "2026-09-25",
+    );
+    expect(leg.day).toBe("2026-09-18");
+    expect(leg.crossesMidnight).toBe(false);
+    const refiled = filed(leg, "arrival");
+    expect(refiled?.arrivalTime).toBe("2026-09-18T10:00:00.000Z");
+    expect(refiled?.departureTime).toBe("2026-09-18T17:00:00.000Z");
+  });
+
+  it("re-derives a hire's far end to one day out on save", () => {
+    // The form cannot create a hire longer than a day — the far end has
+    // no day picker of its own (D4) — but a record written outside it
+    // can. Opening one and saving it collapses the far end to the
+    // adjacent day. Pinned rather than left to be discovered.
+    const leg = legFromRecord(
+      {
+        transportMode: "rental",
+        departureTime: "2026-09-20T10:00:00.000Z",
+        departureLocation: "Valencia",
+        arrivalTime: "2026-09-18T10:00:00.000Z",
+        arrivalLocation: "Valencia",
+        flightNumber: null,
+        details: null,
+      },
+      "arrival",
+      "UTC",
+      "2026-09-18",
+      "2026-09-25",
+    );
+    expect(leg.day).toBe("2026-09-18");
+    // The two ends really are on different days, so the flag is a stated
+    // fact rather than the predicate's answer.
+    expect(leg.crossesMidnight).toBe(true);
+    expect(filed(leg, "arrival")?.departureTime).toBe(
+      "2026-09-19T10:00:00.000Z",
+    );
+  });
+
+  it("inverts nothing but the hire", () => {
+    // A train's red-eye is a flight's red-eye: departs the 25th, lands
+    // the 26th.
+    const record = filed(
+      {
+        ...emptyLeg(),
+        transportMode: "train",
+        day: "2026-09-25",
+        departureTime: "23:30",
+        arrivalTime: "07:15",
+        location: "BCN Sants",
+      },
+      "departure",
+    );
+    expect(record?.departureTime).toBe("2026-09-25T23:30:00.000Z");
+    expect(record?.arrivalTime).toBe("2026-09-26T07:15:00.000Z");
+  });
+});
+
+describe("the hire's far end, in days", () => {
+  const hire = (overrides: Partial<TravelLeg>): TravelLeg => ({
+    ...emptyLeg(),
+    transportMode: "rental",
+    ...overrides,
+  });
+
+  it("runs forward from the day it was picked up", () => {
+    expect(
+      farEndDay(
+        hire({
+          day: "2026-09-18",
+          arrivalTime: "20:00",
+          departureTime: "01:30",
+        }),
+        "arrival",
+      ),
+    ).toBe("2026-09-19");
+  });
+
+  it("runs back from the day it was dropped off", () => {
+    expect(
+      farEndDay(
+        hire({
+          day: "2026-09-20",
+          arrivalTime: "20:00",
+          departureTime: "08:00",
+        }),
+        "departure",
+      ),
+    ).toBe("2026-09-19");
+  });
+
+  it("is the leg's own day when the hire's two ends are one day", () => {
+    // Saying "the day after" under a field that is on the same day is the
+    // noise `farEndNote` already refuses to make.
+    expect(
+      farEndDay(
+        hire({
+          day: "2026-09-18",
+          arrivalTime: "10:00",
+          departureTime: "17:00",
+        }),
+        "arrival",
+      ),
+    ).toBe("2026-09-18");
+  });
+
+  it("leaves a flight's far end where the words already put it", () => {
+    // The other side of the same rule: the hire is the only mode that
+    // moves.
+    expect(
+      farEndDay(
+        {
+          ...emptyLeg(),
+          day: "2026-09-18",
+          departureTime: "22:50",
+          arrivalTime: "12:30",
+        },
+        "arrival",
+      ),
+    ).toBe("2026-09-17");
+    expect(
+      farEndDay(
+        {
+          ...emptyLeg(),
+          day: "2026-09-25",
+          departureTime: "23:30",
+          arrivalTime: "07:15",
+        },
+        "departure",
+      ),
+    ).toBe("2026-09-26");
+  });
+});
+
 describe("legSummary", () => {
   it("is empty for a direction nobody has filled in", () => {
     expect(legSummary(emptyLeg(), "arrival")).toBe("");
@@ -224,6 +523,7 @@ describe("legFromRecord", () => {
   it("reads a red-eye home back as the last day plus the flag", () => {
     const leg = legFromRecord(
       {
+        transportMode: "flight",
         departureTime: "2026-09-25T23:30:00.000Z",
         departureLocation: "BCN T2",
         arrivalTime: "2026-09-26T07:15:00.000Z",
@@ -252,6 +552,7 @@ describe("legFromRecord", () => {
   it("reads an arrival's own end as the arrival", () => {
     const leg = legFromRecord(
       {
+        transportMode: "flight",
         departureTime: "2026-09-18T07:00:00.000Z",
         departureLocation: "JFK T4",
         arrivalTime: "2026-09-18T15:40:00.000Z",
@@ -276,6 +577,7 @@ describe("legFromRecord", () => {
   it("leaves a leg inside the trip alone", () => {
     const leg = legFromRecord(
       {
+        transportMode: "flight",
         departureTime: null,
         departureLocation: null,
         arrivalTime: "2026-09-18T15:40:00.000Z",
@@ -296,11 +598,93 @@ describe("legFromRecord", () => {
     expect(leg.location).toBe("BCN T2");
   });
 
+  it("keeps an arrival filed the evening before on its margin day", () => {
+    // The margin exists for this: a leg's day is about the trip rather
+    // than bounded by it. Clamping the read to the trip's own bounds
+    // selected the *last* day of the trip for a flight that lands the
+    // evening before, and saving it then moved the arrival a week.
+    const leg = legFromRecord(
+      {
+        transportMode: "flight",
+        departureTime: "2026-09-17T17:00:00.000Z",
+        departureLocation: "JFK T4",
+        arrivalTime: "2026-09-17T20:30:00.000Z",
+        arrivalLocation: "BCN T2",
+        flightNumber: null,
+        details: null,
+      },
+      "arrival",
+      null,
+      "2026-09-18",
+      "2026-09-25",
+    );
+    expect(leg.day).toBe("2026-09-17");
+  });
+
+  it("keeps a departure filed the morning after on its margin day", () => {
+    const leg = legFromRecord(
+      {
+        transportMode: "flight",
+        departureTime: "2026-09-26T09:00:00.000Z",
+        departureLocation: "BCN T2",
+        arrivalTime: null,
+        arrivalLocation: null,
+        flightNumber: null,
+        details: null,
+      },
+      "departure",
+      null,
+      "2026-09-18",
+      "2026-09-25",
+    );
+    expect(leg.day).toBe("2026-09-26");
+  });
+
+  it("pulls a day off the strip to the nearest cell there is", () => {
+    // A record hand-written, or filed while the margin was smaller: no
+    // cell can show the day, so it lands on the strip's own edge rather
+    // than on a day the form cannot mark.
+    const before = legFromRecord(
+      {
+        transportMode: "flight",
+        departureTime: null,
+        departureLocation: null,
+        arrivalTime: "2026-08-01T12:00:00.000Z",
+        arrivalLocation: "BCN T2",
+        flightNumber: null,
+        details: null,
+      },
+      "arrival",
+      null,
+      "2026-09-18",
+      "2026-09-25",
+    );
+    expect(before.day).toBe("2026-09-16");
+
+    const after = legFromRecord(
+      {
+        transportMode: "flight",
+        departureTime: "2026-11-01T12:00:00.000Z",
+        departureLocation: "BCN T2",
+        arrivalTime: null,
+        arrivalLocation: null,
+        flightNumber: null,
+        details: null,
+      },
+      "departure",
+      null,
+      "2026-09-18",
+      "2026-09-25",
+    );
+    expect(after.day).toBe("2026-09-27");
+  });
+
   it("reads a stored number back in the field's own shape", () => {
     // Built compact, shown spaced: `buildLegRecord` and this are the two
     // ends of that, and a record that came from the API is compact.
     const leg = legFromRecord(
       {
+        transportMode: "flight",
         departureTime: null,
         departureLocation: null,
         arrivalTime: "2026-09-18T15:40:00.000Z",
@@ -314,5 +698,139 @@ describe("legFromRecord", () => {
       "2026-09-25",
     );
     expect(leg.flightNumber).toBe("UA 1842");
+  });
+});
+
+describe("travelForMemberDirection", () => {
+  const row = (
+    id: string,
+    memberId: string,
+    travelType: "arrival" | "departure",
+  ) => ({ id, memberId, travelType });
+
+  it("returns the member's record for the direction", () => {
+    const records = [
+      row("depart", "m-1", "departure"),
+      row("other", "m-3", "arrival"),
+      row("mine", "m-1", "arrival"),
+    ];
+    expect(travelForMemberDirection(records, "m-1", "arrival")?.id).toBe(
+      "mine",
+    );
+  });
+
+  it("ignores another member's record for the same direction", () => {
+    expect(
+      travelForMemberDirection([row("a", "m-2", "arrival")], "m-1", "arrival"),
+    ).toBeUndefined();
+  });
+
+  it("ignores the other direction for the same member", () => {
+    expect(
+      travelForMemberDirection(
+        [row("a", "m-1", "departure")],
+        "m-1",
+        "arrival",
+      ),
+    ).toBeUndefined();
+  });
+
+  it("returns undefined for no member", () => {
+    expect(
+      travelForMemberDirection([row("a", "m-1", "arrival")], "", "arrival"),
+    ).toBeUndefined();
+  });
+
+  it("returns the first row when a pair holds two", () => {
+    // No tie-break exists — the store's order is the order the API
+    // returned — so this pins the selector as deterministic given an
+    // order. Keeping the pair unique is phase 2's upsert, not a
+    // tie-break here.
+    const records = [
+      row("first", "m-1", "arrival"),
+      row("second", "m-1", "arrival"),
+    ];
+    expect(travelForMemberDirection(records, "m-1", "arrival")?.id).toBe(
+      "first",
+    );
+  });
+});
+
+describe("legsForMember", () => {
+  const row = (
+    id: string,
+    memberId: string,
+    travelType: TravelDirection,
+  ) => ({ id, memberId, travelType });
+
+  /** A stand-in for legFromRecord: the direction is enough to tell them apart. */
+  const read = (_record: unknown, direction: TravelDirection): TravelLeg => ({
+    ...emptyLeg(),
+    day: direction === "arrival" ? "2026-09-18" : "2026-09-25",
+    location: `from ${direction}`,
+  });
+
+  it("reads each direction's own record", () => {
+    const legs = legsForMember(
+      [row("a", "m-1", "arrival")],
+      undefined,
+      "m-1",
+      read,
+    );
+    expect(legs.arrival.location).toBe("from arrival");
+    // Nothing filed the other way: empty, not the arrival again.
+    expect(legs.departure.location).toBe("");
+  });
+
+  it("prefers the record over the seed, per direction", () => {
+    const seed = {
+      arrival: { ...emptyLeg(), location: "seeded" },
+      departure: { ...emptyLeg(), location: "seeded" },
+    };
+    const legs = legsForMember(
+      [row("a", "m-1", "arrival")],
+      seed,
+      "m-1",
+      read,
+    );
+    expect(legs.arrival.location).toBe("from arrival");
+    expect(legs.departure.location).toBe("seeded");
+  });
+
+  it("falls back to the seed for a member who has nothing", () => {
+    const seed = {
+      arrival: { ...emptyLeg(), location: "seeded arrival" },
+      departure: { ...emptyLeg(), location: "seeded departure" },
+    };
+    const legs = legsForMember([], seed, "m-9", read);
+    expect(legs.arrival.location).toBe("seeded arrival");
+    expect(legs.departure.location).toBe("seeded departure");
+  });
+
+  it("returns empty legs for a member with neither a record nor a seed", () => {
+    expect(legsForMember([], undefined, "m-9", read)).toEqual({
+      arrival: emptyLeg(),
+      departure: emptyLeg(),
+    });
+  });
+
+  it("never leaks another member's leg", () => {
+    const legs = legsForMember(
+      [row("a", "m-2", "arrival")],
+      undefined,
+      "m-1",
+      read,
+    );
+    expect(legs.arrival.location).toBe("");
+    expect(legs.departure.location).toBe("");
+  });
+
+  it("is stable across calls for the same member", () => {
+    // The form calls this on every `Who` change; a rule that accumulated
+    // state would leave a leg behind from the last member.
+    const records = [row("a", "m-1", "arrival")];
+    expect(legsForMember(records, undefined, "m-1", read)).toEqual(
+      legsForMember(records, undefined, "m-1", read),
+    );
   });
 });

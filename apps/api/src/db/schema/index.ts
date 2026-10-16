@@ -22,6 +22,7 @@ import type {
   LinkItem,
   CachedPlaceDetails,
 } from "@journiful/shared/types";
+import { TRANSPORT_MODES } from "@journiful/shared/utils";
 
 // Users table
 export const users = pgTable(
@@ -89,6 +90,17 @@ export const memberTravelTypeEnum = pgEnum("member_travel_type", [
   "arrival",
   "departure",
 ]);
+
+// Member travel transport mode enum
+//
+// The six ways a leg can be taken, read from the one declaration
+// (`TRANSPORT_MODES`, `shared/utils/travel.ts`) that the request schemas'
+// `z.enum` is built from too — so the column's type, the wire's type and
+// the client's type cannot drift into three lists.
+export const memberTravelTransportModeEnum = pgEnum(
+  "member_travel_transport_mode",
+  TRANSPORT_MODES,
+);
 
 // Invitation status enum
 export const invitationStatusEnum = pgEnum("invitation_status", [
@@ -371,6 +383,15 @@ export const memberTravel = pgTable(
       .notNull()
       .references(() => members.id, { onDelete: "cascade" }),
     travelType: memberTravelTypeEnum("travel_type").notNull(),
+    // How the leg is taken. Per direction, on the row: flying in and
+    // taking the train home is two rows, one call each, so a member-level
+    // mode could not express it. NOT NULL with a default because there is
+    // no "unknown" anyone should have to render, and the default is what
+    // files every leg written before this column — plus any client that
+    // sends no mode — as the flight it was assumed to be.
+    transportMode: memberTravelTransportModeEnum("transport_mode")
+      .notNull()
+      .default("flight"),
     departureLocation: text("departure_location"),
     departureTime: timestamp("departure_time", { withTimezone: true }),
     arrivalLocation: text("arrival_location"),
@@ -402,6 +423,13 @@ export const memberTravel = pgTable(
     ),
     index("member_travel_trip_id_not_deleted_idx")
       .on(table.tripId)
+      .where(sql`${table.deletedAt} IS NULL`),
+    // One live row per member and direction — the feature's identity, and
+    // the backstop for the read-then-write the create path cannot make
+    // atomic on its own. Partial on `deleted_at IS NULL` so a soft-deleted
+    // row never blocks the replacement the member files next.
+    uniqueIndex("member_travel_pair_live_unique")
+      .on(table.tripId, table.memberId, table.travelType)
       .where(sql`${table.deletedAt} IS NULL`),
   ],
 );

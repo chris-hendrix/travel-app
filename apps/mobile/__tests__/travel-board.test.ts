@@ -21,6 +21,9 @@ function record(
     memberId: overrides.id,
     memberName: overrides.id,
     travelType,
+    // A mode is on every record — the column's own default until somebody
+    // says otherwise — and the board carries it onto the row it reads.
+    transportMode: "flight",
     departureTime: travelType === "departure" ? time : null,
     departureLocation: travelType === "departure" ? location : null,
     arrivalTime: travelType === "arrival" ? time : null,
@@ -142,6 +145,53 @@ describe("travelBoard", () => {
     );
 
     expect(board.arrivals).toHaveLength(2);
+  });
+
+  it("carries the record's mode onto the row", () => {
+    // The row wears the mode as a chip, so the board has to hand it over:
+    // the record's own column, and never a word derived from the location
+    // or from the direction.
+    const board = travelBoard(
+      [
+        record({
+          id: "a",
+          time: "2026-09-18T15:40:00",
+          memberName: "Ana",
+          transportMode: "rental",
+        }),
+        record({
+          id: "d",
+          travelType: "departure",
+          time: "2026-09-20T09:05:00",
+          memberName: "Dee",
+          transportMode: "train",
+        }),
+      ],
+      null,
+    );
+
+    expect(board.arrivals[0]!.transportMode).toBe("rental");
+    expect(board.departures[0]!.transportMode).toBe("train");
+  });
+
+  it("invents no mode for a member who has filed nothing", () => {
+    // A row with no record behind it is owed, not filed under some default
+    // — the same reason it carries no date. The chip is on the rows where a
+    // member has said how they are coming; until then the board draws
+    // nothing rather than the column's default on their behalf.
+    const board = travelBoard(
+      [record({ id: "a", time: "2026-09-18T15:40:00", memberName: "Ana" })],
+      null,
+      [
+        { id: "a", name: "Ana" },
+        { id: "b", name: "Bea" },
+      ],
+    );
+
+    expect(board.arrivals.map((row) => row.transportMode)).toEqual([
+      "flight",
+      null,
+    ]);
   });
 });
 
