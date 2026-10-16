@@ -645,12 +645,29 @@ test.describe("Travel Journey", () => {
     await test.step("the board wears the chip the record names", async () => {
       await armSession(page, token);
       await page.goto(`/trips/travel?id=${tripId}`);
-      await expect(
-        page
-          .getByRole("button")
-          .filter({ hasText: memberName })
-          .filter({ hasText: "Rental" }),
-      ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
+      const row = page
+        .getByRole("button")
+        .filter({ hasText: memberName })
+        .filter({ hasText: "Rental" });
+      await expect(row).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
+      // The chip sits *beside* the name — the row is read across (chip,
+      // where, when), which is the whole reason the board wears the
+      // roster's row. Asserted as geometry because this name is
+      // deliberately long (`uniqueLabel` makes it so): a name too wide for
+      // its column has to yield rather than push the chip onto a second
+      // line, or the row's shape ends up depending on how long someone's
+      // name is. Only the phone project can catch this; at 1280 there is
+      // room for any name.
+      const nameBox = await row
+        .getByText(memberName, { exact: true })
+        .boundingBox();
+      const chipBox = await row.getByText("Rental", { exact: true }).boundingBox();
+      expect(nameBox).not.toBeNull();
+      expect(chipBox).not.toBeNull();
+      // Vertically overlapping means one line: a wrapped chip would begin
+      // below the name's own box.
+      expect(chipBox!.y).toBeLessThan(nameBox!.y + nameBox!.height);
+      expect(chipBox!.y + chipBox!.height).toBeGreaterThan(nameBox!.y);
     });
 
     await test.step("a cold load opens the hire on both its ends", async () => {

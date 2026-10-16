@@ -44,7 +44,11 @@ export function PersonRow({
   truncate = true,
 }: {
   name: string;
-  /** Beside the name, and wrapping under it when the line runs out. */
+  /**
+   * Beside the name, and wrapping under it when the line runs out — unless
+   * the row caps its lines, in which case the name gives way instead and
+   * the chips keep the line. See the note on `nameClass`.
+   */
   chips?: ReactNode;
   /** The line under the name: a number, a place. Null when there is none. */
   detail?: string | null;
@@ -67,15 +71,39 @@ export function PersonRow({
 }) {
   // `undefined` is React Native's own "as many lines as it takes".
   const lines = truncate ? 1 : undefined;
+  // **A capped line has to be allowed to give way, or the cap is
+  // decorative.** The name and the chips share a line, so a name too wide
+  // for its column pushes the chip onto a second line rather than
+  // truncating — and the row's shape then depends on how long someone's
+  // name is. That is how the travel board read before this: `Carol
+  // Martinez` with the chip beneath her and `Eve Chen` with hers beside,
+  // decided by name length alone, on a margin of a few pixels.
+  //
+  // Two things had to change, and the first is the one that looks
+  // innocent. **Wrapping beats shrinking**: a wrapped line is broken before
+  // any `flex-shrink` is consulted, so a name that is allowed to give way
+  // still pushes the chip down while `flex-wrap` is on. So a capped row
+  // turns wrapping *off* and lets the name shrink instead; the roster,
+  // which wraps its chips on purpose, keeps it on.
+  //
+  // The other two properties each matter on one platform: `min-w-0`,
+  // because a flex item refuses to shrink below its own content
+  // (`components/ui/TextField.tsx` carries the same note), and `shrink`,
+  // because React Native's own default is not to shrink at all.
+  const nameClass = [
+    "font-body-bold text-base text-ink",
+    truncate ? "min-w-0 shrink" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <View className={[ROW_BODY, className].filter(Boolean).join(" ")}>
       <View className="flex-1 gap-1">
-        <View className="flex-row flex-wrap items-center gap-3">
-          <Text
-            numberOfLines={lines}
-            className="font-body-bold text-base text-ink"
-          >
+        <View
+          className={`flex-row items-center gap-3${truncate ? "" : " flex-wrap"}`}
+        >
+          <Text numberOfLines={lines} className={nameClass}>
             {name}
           </Text>
           {chips}
