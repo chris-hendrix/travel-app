@@ -10,7 +10,7 @@ import type { TravelDirection, TravelLeg } from "@/lib/newTravel";
  * at all: on an arrival row the side the direction requires is the
  * arrival one, and its word there is `Pickup`. Everything that says a
  * leg's words reads them from here: the form's `Where` and time labels,
- * the far-end trigger's words, the detail's block titles and the chips.
+ * the far-end trigger's words, the detail's `Fact` labels and the chips.
  * A second table beside this one is the drift this file exists to
  * prevent.
  *
