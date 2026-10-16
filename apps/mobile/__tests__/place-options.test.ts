@@ -132,6 +132,36 @@ describe("placePickerRows", () => {
       placePickerRows({ suggestions: [], query: "La Bod" }).footer,
     ).toBe("Google Maps");
   });
+
+  it("commits a live row's own short reading when the caller asks for text", () => {
+    // The travel `Where` field's mode: a place's name, never a link to
+    // it. The value becomes the row's reading — the tight one, because
+    // this string *is* the record and a board row prints it beside a name
+    // and a clock — so the id is not in the row at all and cannot be
+    // saved by anything downstream.
+    const { rows } = placePickerRows({
+      suggestions: [
+        {
+          placeId: "ChIJ1",
+          name: "Humberto Delgado Airport (LIS), Alameda das Comunidades Portuguesas, Lisbon, Portugal",
+          shortName: "Humberto Delgado Airport (LIS)",
+          address: "Alameda das Comunidades Portuguesas, Lisbon, Portugal",
+          types: ["airport"],
+        },
+      ],
+      query: "Humberto",
+      commit: "shortName",
+    });
+
+    expect(rows[0]).toEqual({
+      value: "Humberto Delgado Airport (LIS)",
+      label: "Humberto Delgado Airport (LIS)",
+      secondary: "Alameda das Comunidades Portuguesas, Lisbon, Portugal",
+    });
+    expect(rows[0]?.value).not.toContain("ChIJ1");
+    // The typed row is unaffected: it already commits what it shows.
+    expect(rows[1]).toMatchObject({ value: "Humberto", fieldText: "Humberto" });
+  });
 });
 
 describe("live rows are never locally filtered", () => {

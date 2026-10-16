@@ -1,21 +1,21 @@
 /**
- * `Where` suggests from strings we already hold (D6): this trip's own
- * wheres, then the trip's destination, then the caller's locations from
- * other trips — ranked, deduped and labelled here, so the field stays a
- * thin shell over a pure rule (the `travel-days.test.ts` precedent).
+ * `Where` suggests from live Places **and** from strings we already hold:
+ * this trip's own wheres, then the trip's destination, then the caller's
+ * locations from other trips — ranked, deduped and labelled here, so the
+ * field stays a thin shell over a pure rule (the `travel-days.test.ts`
+ * precedent).
  *
- * The ranking takes **no query**. The component that owns the keystroke
- * is `Dropdown`, which already filters a local list by its own query,
- * and the only way to hand the keystroke up here is `onSearchText` — the
- * live-search shape the sibling source guard exists to keep out of the
- * travel files. The typed row is no exception: `withTypedRow`
- * (`lib/dropdown.ts`) offers your words as the list's **first** row,
- * built inside the component from the trimmed query, after the filter —
- * so no keystroke crosses into this file and the ranking stays a pure
- * function of the strings we hold. So the ranking ranks, and the field
- * filters and offers: every row these tests assert is a row a person can
- * see by pressing `Where`, and the one row they cannot assert — the
- * typed row, which no entry holds — is `dropdown-typed-row.test.ts`'s.
+ * `travelWhere` is the local half; `travelWhereRows` puts Google's live
+ * answers in front of it and pins the typed row after them. Both are pure
+ * functions of what they were handed: the query arrives as one argument
+ * rather than as a keystroke the file has to hold, which is what keeps
+ * the ranking testable without a renderer.
+ *
+ * The rows these tests assert are the rows a person sees. What they do
+ * **not** assert is that a live row commits a place's words rather than
+ * its id — that is `placePickerRows`' own option, spec'd in
+ * `place-options.test.ts`, and asserted for travel by the source guard in
+ * `travel-place-metadata.test.ts`.
  */
 
 import { describe, expect, it } from "vitest";
@@ -23,7 +23,27 @@ import {
   DESTINATION_PROVENANCE,
   OTHER_TRIPS_PROVENANCE,
   travelWhere,
+  travelWhereRows,
 } from "@/lib/travelWhere";
+import type { PlaceSuggestion } from "@/lib/queries/places";
+
+/**
+ * One live Google result.
+ *
+ * `shortName` is deliberately never equal to `name` here: the field
+ * commits the short reading, and a helper that made them the same string
+ * would let a regression to the full `displayName` pass every assertion
+ * below. The long name is `shortName` plus a tail, the way Google's own
+ * is the main text plus the address.
+ */
+function suggestion(
+  placeId: string,
+  shortName: string,
+  address = "",
+  name = `${shortName}, somewhere much longer`,
+): PlaceSuggestion {
+  return { placeId, name, shortName, address, types: [] };
+}
 
 /** The columns the ranking reads, and nothing else. */
 function row(
@@ -138,5 +158,133 @@ describe("travelWhere", () => {
       expect(entry.value).not.toBe("");
       expect(entry.label).toBe(entry.value);
     }
+  });
+});
+
+/** The local half, for the merge cases below. */
+function localRows() {
+  return travelWhere(
+    [row("arrival", "BCN T2", null)],
+    { location: "Mallorca, Spain" },
+    ["AMS Schiphol"],
+  );
+}
+
+describe("travelWhereRows", () => {
+  it("leads with Google's answers and follows with this trip's own", () => {
+    const rows = travelWhereRows({
+      local: localRows(),
+      suggestions: [suggestion("ChIJ1", "Barcelona–El Prat (BCN)", "El Prat")],
+      query: "BCN",
+    });
+
+    expect(rows.map((entry) => entry.label)).toEqual([
+      "Barcelona–El Prat (BCN)",
+      // `BCN T2` is this trip's own filed where and matches the query;
+      // the destination and `AMS Schiphol` do not, so they are dropped.
+      "BCN T2",
+      '"BCN"',
+    ]);
+  });
+
+  it("offers only local rows when Google has nothing", () => {
+    const rows = travelWhereRows({
+      local: localRows(),
+      suggestions: [],
+      query: "Mal",
+    });
+
+    expect(rows.map((entry) => entry.label)).toEqual([
+      "Mallorca, Spain",
+      '"Mal"',
+    ]);
+    expect(rows[0]?.secondary).toBe(DESTINATION_PROVENANCE);
+  });
+
+  it("keeps the trip's own rows when the lookup fails or has no key", () => {
+    // CI is this case: no `GOOGLE_MAPS_API_KEY` means the proxy answers
+    // 503, which the pickers read as failure rather than as "no such
+    // place". The field must still answer with something a person can
+    // commit — the local half and their own words.
+    const rows = travelWhereRows({
+      local: localRows(),
+      suggestions: undefined,
+      query: "AMS",
+      isError: true,
+    });
+
+    expect(rows.map((entry) => entry.label)).toEqual([
+      "Couldn't reach Google Places",
+      "AMS Schiphol",
+      '"AMS"',
+    ]);
+    expect(rows[0]?.disabled).toBe(true);
+    expect(rows[rows.length - 1]).toMatchObject({
+      value: "AMS",
+      fieldText: "AMS",
+    });
+  });
+
+  it("never draws the same string twice", () => {
+    // The typed row carries the query, and a local row may carry it too:
+    // one row, not two, and the typed one is preferred because it is the
+    // row the press was resolved against.
+    const rows = travelWhereRows({
+      local: travelWhere([row("arrival", "BCN T2", null)], null, []),
+      suggestions: [suggestion("ChIJ1", "BCN T2", "El Prat")],
+      query: "BCN T2",
+    });
+
+    expect(rows.map((entry) => entry.label)).toEqual(["BCN T2"]);
+    expect(rows).toHaveLength(1);
+  });
+
+  it("commits text, never a place id or a display name", () => {
+    const rows = travelWhereRows({
+      local: localRows(),
+      suggestions: [
+        suggestion("ChIJ1", "Barcelona–El Prat (BCN)", "El Prat"),
+      ],
+      query: "BCN",
+    });
+
+    // The whole point of the field: the id stops inside this function,
+    // and so does Google's long reading of the place. A value that were
+    // either would be saved as the leg's location and printed on the
+    // board.
+    for (const entry of rows) {
+      expect(entry.value).not.toBe("ChIJ1");
+      expect(entry.value).not.toContain("much longer");
+      expect(entry.disabled).toBeUndefined();
+    }
+    expect(rows[0]).toMatchObject({
+      value: "Barcelona–El Prat (BCN)",
+      label: "Barcelona–El Prat (BCN)",
+      secondary: "El Prat",
+    });
+  });
+
+  it("offers nothing before the first keystroke", () => {
+    // A live list closes on an empty field (`Dropdown`): there is no
+    // query to answer, and the rows that would answer it are the whole
+    // local list rather than a suggestion.
+    expect(
+      travelWhereRows({ local: localRows(), suggestions: [], query: "   " }),
+    ).toEqual([]);
+  });
+
+  it("shows a Searching… row in flight without losing the local half", () => {
+    const rows = travelWhereRows({
+      local: localRows(),
+      suggestions: undefined,
+      query: "BCN",
+      isFetching: true,
+    });
+
+    expect(rows.map((entry) => entry.label)).toEqual([
+      "Searching…",
+      "BCN T2",
+      '"BCN"',
+    ]);
   });
 });

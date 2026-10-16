@@ -342,6 +342,7 @@ export function placePickerRows({
   isFetching = false,
   isError = false,
   failed = false,
+  commit = "id",
 }: {
   /** Undefined while the lookup has not answered yet. */
   suggestions: PlaceSuggestion[] | undefined;
@@ -350,6 +351,26 @@ export function placePickerRows({
   isError?: boolean;
   /** Alias for callers holding a differently-named failure flag. */
   failed?: boolean;
+  /**
+   * What a live row commits.
+   *
+   * `"id"` is the place picker's: the value is the placeId, which a
+   * details lookup reads and which a saved link points at. `"shortName"`
+   * is for a field that wants the place's **text** and nothing else: the
+   * value is Google's own tightest reading of it — the main text, with
+   * the address stripped — so no id leaves the row and the string a
+   * person reads is the string the row commits.
+   *
+   * The tight reading matters where the committed text *is* the record.
+   * A travel where is printed on a board row beside a name and a clock,
+   * and `name` there is the full `displayName` — "Humberto Delgado
+   * Airport (LIS), Alameda das Comunidades Portuguesas, Lisbon,
+   * Portugal" — which is three lines of address for the one fact the
+   * row is about. `shortName` is the same place as its row's own
+   * `secondary` line, which is what the list already shows the address
+   * for.
+   */
+  commit?: "id" | "shortName";
 }): { rows: PlacePickerRow[]; hasTypedRow: boolean; footer: string } {
   const footer = GOOGLE_MAPS_ATTRIBUTION;
   const trimmed = query.trim();
@@ -364,9 +385,11 @@ export function placePickerRows({
     });
   } else {
     for (const suggestion of suggestions ?? []) {
+      const text = suggestion.shortName || suggestion.name;
       rows.push({
-        value: suggestion.placeId,
-        label: suggestion.name,
+        value: commit === "shortName" ? text : suggestion.placeId,
+        label:
+          commit === "shortName" ? text : suggestion.name,
         secondary: suggestion.address || undefined,
       });
     }

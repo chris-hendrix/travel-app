@@ -21,7 +21,7 @@
  *      list was inert: it drew, and pressing it did nothing.
  *
  * The last describe reads `components/ui/Dropdown.tsx` off disk to hold
- * that wiring in place, the `travel-where-source.test.ts` way: the
+ * that wiring in place, the `travel-place-metadata.test.ts` way: the
  * resolution is inside the component, and nothing without a renderer can
  * press a row to find out.
  */

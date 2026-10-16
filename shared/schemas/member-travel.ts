@@ -163,9 +163,9 @@ export const memberTravelResponseSchema = z.object({
 /**
  * GET /api/member-travel/locations — the travel wheres the caller's own
  * records already hold, across trips. Strings only, on purpose: this
- * feeds the `Where` field's suggestion list (D6), which autocompletes
- * from strings we already have and never from a place lookup — no place
- * id, no coordinates, and therefore no maps attribution.
+ * feeds the `Where` field's suggestion list, which merges live Places
+ * results with these but keeps a place's text and never its id or
+ * coordinates.
  */
 export const myTravelLocationsResponseSchema = z.object({
   success: z.literal(true),

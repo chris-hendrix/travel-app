@@ -5,6 +5,7 @@ import { TRANSPORT_MODES, type TransportMode } from "@journiful/shared/utils";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { TextField } from "@/components/ui/TextField";
 import { Dropdown } from "@/components/ui/Dropdown";
+import { TravelWhereField } from "@/components/trip/TravelWhereField";
 import { DayStrip } from "@/components/ui/DayStrip";
 import { Segmented } from "@/components/ui/Segmented";
 import { ChipToggle } from "@/components/ui/ChipToggle";
@@ -151,10 +152,12 @@ export function TravelDialog({
   /** Which direction opens — the one that was tapped. */
   openDirection: TravelDirection;
   /**
-   * The `Where` field's rows: this trip's own wheres, the trip's
-   * destination, then the caller's other-trip wheres, ranked and deduped
-   * (`travelWhere`). A local list, which is why the field opens on press
-   * and why it needs no attribution.
+   * The local half of the `Where` field's rows: this trip's own wheres,
+   * the trip's destination, then the caller's other-trip wheres, ranked
+   * and deduped (`travelWhere`). Live Places results lead them in the
+   * field itself (`TravelWhereField`), which is why this is the half the
+   * screen hands over: the trip's own vocabulary, which no lookup can
+   * supply, and which is all there is when the lookup is unavailable.
    */
   whereEntries: PickerEntry[];
   dismissHref: string;
@@ -347,14 +350,18 @@ export function TravelDialog({
         </Text>
       </View>
 
-      {/* Keyed on the direction, so the panel's own state is about one
-          leg: whether a lookup is in flight, its complaint, and whether
-          the far end was opened are facts about the row you are looking
-          at. Without the key they would follow you to the other
-          direction and open its far pair on the strength of the last
-          leg's press. */}
+      {/* Keyed on the direction **and** the member, so the panel's own
+          state is about one leg: whether a lookup is in flight, its
+          complaint, whether the far end was opened, and the `Where`
+          field's live query are facts about the row you are looking at.
+          With only the direction in the key they followed you to the
+          other direction and opened its far pair on the strength of the
+          last leg's press; across a `Who` change they followed you to
+          another person, which is D5's own leak one level down — the
+          rows ranked for the member you left would sit under the member
+          you picked. */}
       <LegFields
-        key={direction}
+        key={`${memberId}:${direction}`}
         direction={direction}
         leg={legs[direction]}
         onChange={setLeg}
@@ -513,6 +520,7 @@ function LegFields({
       side={direction}
       leg={leg}
       onChange={onChange}
+      trip={trip}
       whereEntries={whereEntries}
       errors={errors}
       onEdit={clearLookupError}
@@ -543,6 +551,7 @@ function LegFields({
           side={farSide}
           leg={leg}
           onChange={onChange}
+          trip={trip}
           whereEntries={whereEntries}
           errors={errors}
           onEdit={clearLookupError}
@@ -710,6 +719,7 @@ function EndPair({
   side,
   leg,
   onChange,
+  trip,
   whereEntries,
   errors,
   onEdit,
@@ -720,6 +730,8 @@ function EndPair({
   side: TravelSide;
   leg: TravelLeg;
   onChange: (leg: TravelLeg) => void;
+  /** The trip the leg belongs to; the `Where` field's bias and floor. */
+  trip: Trip;
   whereEntries: PickerEntry[];
   errors: LegErrors | undefined;
   /** The lookup's complaint, cleared the moment a field here is edited. */
@@ -736,9 +748,10 @@ function EndPair({
   return (
     <View className="gap-4 md:flex-row">
       <View className="gap-1 md:flex-1">
-        <Dropdown
+        <TravelWhereField
           label={whereLabel(mode, side)}
-          options={whereEntries}
+          trip={trip}
+          whereEntries={whereEntries}
           value={place || null}
           onChange={(value) => {
             onEdit();
@@ -750,8 +763,6 @@ function EndPair({
           }}
           placeholder={WHERE_PLACEHOLDER}
           error={far ? undefined : errors?.location}
-          freeText
-          openOnPress
         />
       </View>
       <View className="gap-1 md:flex-1">

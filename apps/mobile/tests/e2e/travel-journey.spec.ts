@@ -175,11 +175,17 @@ test.describe("Travel Journey", () => {
       // way the itinerary prints them.
       await page.getByRole("radio", { name: "9:00 AM" }).click();
 
-      // components/ui/Dropdown.tsx: a local list, so entering the field
-      // opens it (openOnPress) with no request in flight. Typing commits
-      // through `freeText` — the list narrows to "No matches" and the
-      // field keeps the words. `pressSequentially`, not `fill`: `fill()`
-      // desynchronizes controlled RN inputs.
+      // components/ui/Dropdown.tsx: a live list, so the list opens on the
+      // first keystroke rather than on focus, and `freeText` commits every
+      // one of them — the field keeps the words and the list is merely
+      // advising. `pressSequentially`, not `fill`: `fill()` desynchronizes
+      // controlled RN inputs.
+      //
+      // CI carries no `GOOGLE_MAPS_API_KEY`, so the live half degrades to a
+      // status row and this path is the local one: the trip's own wheres,
+      // the typed row, and nothing that needs Google
+      // (`components/trip/TravelWhereField.tsx`). That is the same
+      // degradation the stay and event address fields already rely on.
       //
       // Named `Lands at`, not `Where`: the label is the end's own word
       // from the mode's table (`lib/transportMode.ts`), and a flight's
