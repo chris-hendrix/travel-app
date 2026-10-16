@@ -1499,6 +1499,94 @@ describe("Member Travel Routes", () => {
       expect(body.memberTravel.arrivalLocation).toBe("Airport");
     });
 
+    it("should create travel for a non-organizer's own memberId (201)", async () => {
+      app = await buildApp();
+
+      // Create organizer (trip creator)
+      const [organizer] = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "Organizer",
+          timezone: "UTC",
+        })
+        .returning();
+
+      // Create a regular user
+      const [memberUser] = await db
+        .insert(users)
+        .values({
+          phoneNumber: generateUniquePhone(),
+          displayName: "Member",
+          timezone: "UTC",
+        })
+        .returning();
+
+      // Create trip
+      const [trip] = await db
+        .insert(trips)
+        .values({
+          name: "Own Travel Trip",
+          destination: "Tokyo",
+          preferredTimezone: "Asia/Tokyo",
+          createdBy: organizer.id,
+        })
+        .returning();
+
+      // Add organizer as member
+      await db.insert(members).values({
+        tripId: trip.id,
+        userId: organizer.id,
+        status: "going",
+        isOrganizer: true,
+      });
+
+      // Add the regular user as a member - not an organizer
+      const [ownMember] = await db
+        .insert(members)
+        .values({
+          tripId: trip.id,
+          userId: memberUser.id,
+          status: "going",
+        })
+        .returning();
+
+      // The client always sends a memberId, and for a traveler that id is
+      // their own roster row - so this is the self case, which
+      // `canAddMemberTravel` already promises any member may do.
+      const token = app.jwt.sign({
+        sub: memberUser.id,
+        name: memberUser.displayName,
+      });
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/trips/${trip.id}/member-travel`,
+        cookies: { auth_token: token },
+        payload: {
+          travelType: "arrival",
+          arrivalTime: "2026-06-10T14:00:00Z",
+          arrivalLocation: "Airport",
+          details: "Flight AA123",
+          memberId: ownMember.id,
+        },
+      });
+
+      expect(response.statusCode).toBe(201);
+
+      const body = JSON.parse(response.body);
+      expect(body.success).toBe(true);
+      expect(body.memberTravel.memberId).toBe(ownMember.id);
+
+      // And the row really is filed against that member.
+      const [filed] = await db
+        .select({ memberId: memberTravel.memberId })
+        .from(memberTravel)
+        .where(eq(memberTravel.id, body.memberTravel.id))
+        .limit(1);
+      expect(filed?.memberId).toBe(ownMember.id);
+    });
+
     it("should return 403 when non-organizer creates travel with memberId", async () => {
       app = await buildApp();
 

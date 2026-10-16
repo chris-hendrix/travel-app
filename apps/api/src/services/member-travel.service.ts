@@ -196,7 +196,10 @@ export class MemberTravelService implements IMemberTravelService {
    * Creates a member travel record for a trip, or updates the live one
    * already filed for the same member and direction.
    *
-   * Resolves the memberId from userId and tripId before writing.
+   * Resolves the memberId from userId and tripId before writing: a body
+   * naming the caller's own member is the self case, which any member may
+   * file, and one naming a different member is a delegation, which only an
+   * organizer may make.
    * @param userId - The ID of the user creating the member travel
    * @param tripId - The ID of the trip
    * @param data - The member travel creation data
@@ -231,30 +234,47 @@ export class MemberTravelService implements IMemberTravelService {
       );
     }
 
-    // Resolve memberId: either from delegation (data.memberId) or from authenticated user
+    // Resolve memberId: either the caller's own row, or another member's
+    // on an organizer's delegation.
     let resolvedMemberId: string;
 
     if (data.memberId) {
-      // Delegation: organizer creating travel for another member
-      const isOrganizer = await this.permissionsService.isOrganizer(
-        userId,
-        tripId,
-      );
-      if (!isOrganizer) {
-        throw new PermissionDeniedError(
-          "Permission denied: only organizers can add travel for other members",
-        );
-      }
-
-      // Verify target member belongs to this trip
-      const [targetMember] = await this.db
+      // Whose row is `data.memberId`? The client always sends one, and for
+      // a traveler it sends their own — `memberId` is not a statement that
+      // the caller is acting for someone else. So resolve the caller's own
+      // row for this trip first, and only when the id names a *different*
+      // member is this a delegation that needs an organizer. Requiring an
+      // organizer outright was what stopped a regular member filing their
+      // own travel, which is the case `canAddMemberTravel` above already
+      // answered yes to ("any member can").
+      const [ownMember] = await this.db
         .select({ id: members.id })
         .from(members)
-        .where(and(eq(members.id, data.memberId), eq(members.tripId, tripId)))
+        .where(and(eq(members.tripId, tripId), eq(members.userId, userId)))
         .limit(1);
 
-      if (!targetMember) {
-        throw new MemberNotFoundError();
+      if (ownMember?.id !== data.memberId) {
+        // Delegation: organizer creating travel for another member
+        const isOrganizer = await this.permissionsService.isOrganizer(
+          userId,
+          tripId,
+        );
+        if (!isOrganizer) {
+          throw new PermissionDeniedError(
+            "Permission denied: only organizers can add travel for other members",
+          );
+        }
+
+        // Verify target member belongs to this trip
+        const [targetMember] = await this.db
+          .select({ id: members.id })
+          .from(members)
+          .where(and(eq(members.id, data.memberId), eq(members.tripId, tripId)))
+          .limit(1);
+
+        if (!targetMember) {
+          throw new MemberNotFoundError();
+        }
       }
 
       resolvedMemberId = data.memberId;
