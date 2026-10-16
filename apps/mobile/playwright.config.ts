@@ -105,7 +105,20 @@ export default defineConfig({
         reuseExistingServer: !process.env.CI,
         stdout: "pipe" as const,
         stderr: "pipe" as const,
-        env: { ADMIN_PHONE_NUMBERS: ADMIN_PHONES.join(",") },
+        // `ADMIN_PHONE_NUMBERS` promotes these numbers so the specs can act
+        // as an organizer. `RATE_LIMIT_EXEMPT_PHONES` is the other half and
+        // has to name the same list: the suite signs in as these numbers
+        // repeatedly, and the API's phone-keyed limiters are 5 per hour for
+        // the SMS request and 10 per 15 minutes for the code. Without the
+        // exemption a run spends a phone's whole budget on its own sign-ins
+        // and the last admin spec of the run is the one that fails — which
+        // is exactly the flake this pair exists to end. The API honours the
+        // exemption only while `ENABLE_FIXED_VERIFICATION_CODE` is on, which
+        // is here and cannot be in production (`config/env.ts` refuses it).
+        env: {
+          ADMIN_PHONE_NUMBERS: ADMIN_PHONES.join(","),
+          RATE_LIMIT_EXEMPT_PHONES: ADMIN_PHONES.join(","),
+        },
       },
       expoServer,
     ];

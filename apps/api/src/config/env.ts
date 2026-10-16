@@ -135,6 +135,33 @@ const envSchema = z.object({
     )
     .transform((phones) => phones.map((p) => normaliseReviewPhone(p) ?? p)),
 
+  // The rate limiters' own escape hatch, and it is a different mechanism
+  // from both of the above. These numbers skip every limiter that keys on
+  // them — the SMS request limit and the verify-code limit — which is what
+  // the E2E suite needs: it signs in as the same handful of admin numbers
+  // over and over, so the 5-per-hour budget is spent by the suite itself
+  // rather than by anything it is testing. It is honoured only while
+  // ENABLE_FIXED_VERIFICATION_CODE is on (see `rateLimitAllowList`, and
+  // app.ts, which refuses the flag in production), so it cannot widen
+  // anything a real deployment enforces. Validated exactly like
+  // REVIEW_PHONES and for the same reason: an entry that cannot match the
+  // key it is compared against is a silently inert exemption, and the
+  // operator's first clue would be a suite that flakes.
+  RATE_LIMIT_EXEMPT_PHONES: z
+    .string()
+    .default("")
+    .transform((v) =>
+      v
+        .split(",")
+        .map((p) => p.trim())
+        .filter((p) => p.length > 0),
+    )
+    .refine(
+      (phones) => phones.every((p) => normaliseReviewPhone(p) !== null),
+      "RATE_LIMIT_EXEMPT_PHONES entries must be E.164 numbers (e.g. +15550000099)",
+    )
+    .transform((phones) => phones.map((p) => normaliseReviewPhone(p) ?? p)),
+
   // Logging
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace"])

@@ -19,6 +19,7 @@ import configPlugin from "./plugins/config.js";
 import swaggerPlugin from "./plugins/swagger.js";
 import databasePlugin from "./plugins/database.js";
 import { createPgRateLimitStoreClass } from "./plugins/pg-rate-limit-store.js";
+import { rateLimitAllowList } from "./middleware/rate-limit.middleware.js";
 import queuePlugin from "./plugins/queue.js";
 import authServicePlugin from "./plugins/auth-service.js";
 import permissionsServicePlugin from "./plugins/permissions-service.js";
@@ -200,27 +201,13 @@ export async function buildApp(
     keyGenerator: (request) =>
       (request as typeof request & { user?: { sub: string } }).user?.sub ||
       request.ip,
-    // Loopback exemption: @fastify/rate-limit compares allowList against the
-    // limiter's key, not request.ip, so these entries only ever match
-    // limiters whose key is an IP address. The global limiter's keyGenerator
-    // asks for `user.sub` first, but its hook runs at `onRequest`, where
-    // `request.user` is still null — so the global key is the client IP and
-    // loopback traffic is exempted from it like anything else keyed by IP.
-    // The sms/verify limiters key by phone number (see rate-limit.middleware),
-    // so their brute-force protection is unaffected — only their request.ip
-    // fallback, when the body carries no phoneNumber, is exempted locally
-    // like any other IP key. Local dev and E2E drive all traffic from one
-    // interface, and Node resolves localhost to ::1, so exempting only
-    // 127.0.0.1 left parallel E2E workers 429ing each other.
-    //
-    // The exemption is dropped when a proxy is trusted, and that is not
-    // tidiness. With TRUST_PROXY the caller's own `X-Forwarded-For` decides
-    // `request.ip`, so a loopback entry in this list is a header any client can
-    // send to skip every IP-keyed limit — including the write limit that fires
-    // for the first time as of this change. Behind the proxy the forwarding
-    // hop is the real client and a loopback key never occurs anyway, so the
-    // production list is empty by construction rather than by trust.
-    allowList: env.TRUST_PROXY ? [] : ["127.0.0.1", "::1", "::ffff:127.0.0.1"],
+    // The keys that skip every limiter. The rule — loopback when no proxy is
+    // trusted, plus the suite's own phone numbers while the fixed dev code is
+    // on — is stated once in `rateLimitAllowList`, where it is tested; this is
+    // only the wiring. @fastify/rate-limit compares the list against each
+    // limiter's key rather than `request.ip`, so a loopback entry can only
+    // match an address-keyed limiter and a phone entry only a phone-keyed one.
+    allowList: rateLimitAllowList(env),
     skipOnError: false,
     store: PgRateLimitStore,
   });

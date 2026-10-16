@@ -18,17 +18,71 @@ import type { FastifyRequest } from "fastify";
  */
 
 /**
+ * The keys that skip the rate limiters altogether.
+ *
+ * `@fastify/rate-limit` compares this list against each limiter's **key**,
+ * not `request.ip`. So an entry only ever matches a limiter that keys on
+ * the same kind of value, and the two kinds this app keys on are addresses
+ * (the global net and the write limit) and phone numbers (the SMS request
+ * limit and the verify-code limit).
+ *
+ * **Loopback**, and only when no proxy is trusted. The global limiter's
+ * `keyGenerator` asks for `user.sub` first, but its hook runs at
+ * `onRequest`, where `request.user` is still null — so the global key is
+ * the client address and loopback traffic is exempted from it like
+ * anything else keyed by an address. Local dev and E2E drive all traffic
+ * from one interface, and Node resolves `localhost` to `::1`, so exempting
+ * only `127.0.0.1` left parallel E2E workers 429ing each other.
+ *
+ * The exemption is dropped when a proxy is trusted, and that is not
+ * tidiness. With `TRUST_PROXY` the caller's own `X-Forwarded-For` decides
+ * `request.ip`, so a loopback entry here is a header any client can send to
+ * skip every address-keyed limit. Behind the proxy the forwarding hop is
+ * the real client and a loopback key never occurs anyway, so the production
+ * list is empty by construction rather than by trust.
+ *
+ * **The suite's own phone numbers**, and only while
+ * `ENABLE_FIXED_VERIFICATION_CODE` is on. That flag swaps in
+ * `MockVerificationService`, so no message is sent, no cost is incurred,
+ * and the code is the same for every number — which leaves the two
+ * phone-keyed limiters protecting nothing and failing the E2E suite instead:
+ * it signs in as the same handful of admin numbers repeatedly, so the
+ * 5-per-hour budget is spent by the suite rather than by anything it tests.
+ * The flag cannot be true in production (`config/env.ts` refuses the
+ * process, and the verification plugin refuses again), so this list is
+ * empty in every deployment that enforces anything, and the real limiters
+ * keep their coverage in `tests/integration/rate-limit.middleware.test.ts`
+ * and `tests/integration/auth.request-code.test.ts`, which use numbers no
+ * exemption names.
+ */
+export function rateLimitAllowList(config: {
+  TRUST_PROXY: boolean;
+  ENABLE_FIXED_VERIFICATION_CODE: boolean;
+  RATE_LIMIT_EXEMPT_PHONES: readonly string[];
+}): string[] {
+  return [
+    ...(config.TRUST_PROXY ? [] : LOOPBACK),
+    ...(config.ENABLE_FIXED_VERIFICATION_CODE
+      ? config.RATE_LIMIT_EXEMPT_PHONES
+      : []),
+  ];
+}
+
+/** The addresses a locally-run client connects from. */
+const LOOPBACK = ["127.0.0.1", "::1", "::ffff:127.0.0.1"];
+
+/** Strip spaces, dashes, and parens from phone — keep leading + for E.164 */
+function normalizePhone(raw: string): string {
+  return raw.replace(/[\s\-()]/g, "");
+}
+
+/**
  * Rate limiting configuration for SMS verification code requests.
  *
  * Limits each phone number to 5 verification code requests per hour
  * to prevent abuse and reduce SMS costs. Uses IP address as fallback
  * when phone number is not provided in the request body.
  */
-/** Strip spaces, dashes, and parens from phone — keep leading + for E.164 */
-function normalizePhone(raw: string): string {
-  return raw.replace(/[\s\-()]/g, "");
-}
-
 export const smsRateLimitConfig: RateLimitOptions = {
   max: 5,
   timeWindow: "1 hour",
