@@ -2,7 +2,8 @@
  * E2E Journey: travel entry (mobile).
  *
  * Critical flow 8 (Travel entry). Five tests, one flow: a member files
- * their own arrival and the board shows it, a **cold load** of a filed
+ * their own arrival and the board shows it — and the sheet behind that
+ * row, where the where offers `Open in Maps` — a **cold load** of a filed
  * record's edit URL opens that record and saves over it rather than
  * beside it, deleting one of two directions keeps the form open on the
  * other, a delete on a member who is not going keeps the form on *that
@@ -216,6 +217,27 @@ test.describe("Travel Journey", () => {
       await expect(
         page.getByText("Nobody has shared their times yet."),
       ).toHaveCount(0);
+    });
+
+    await test.step("the sheet behind the row offers Maps for the where", async () => {
+      // The board's row is the press (`app/trips/travel.tsx`), and the
+      // sheet it opens is the leg read whole. Its where carries
+      // `Open in Maps` — the verb the stay and event sheets put under
+      // their own address — which is the one place on this screen a reader
+      // can leave the app from, and the door the port from the web sheet
+      // lost once. The URL it builds is `lib/links.ts`' own and is
+      // unit-tested in `__tests__/links.test.ts`; what no unit test can
+      // see (this suite has no renderer) is that a filed where still
+      // offers the press at all.
+      await page
+        .getByRole("button")
+        .filter({ hasText: memberName })
+        .filter({ hasText: "9:00 AM" })
+        .click();
+      await expect(page).toHaveURL(/\/trips\/travel\/detail/);
+      await expect(
+        page.getByRole("button", { name: `Open ${where} in Google Maps` }),
+      ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
     });
 
     await test.step("the server holds exactly one arrival for the member", async () => {
