@@ -33,13 +33,14 @@ import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
  * Stay detail, as a dialog: one roof, seen whole.
  *
  * The facts read like the row it was opened from — the span, the name,
- * the address — and then the description, which is the reason anybody
- * opens this screen. The way in has no field of its own on the row: the
- * door code, the lockbox, the wifi and the host's number are prose the
- * organizer pasted out of a message, so this block sits directly under
- * the address rather than at the foot where an event's description
- * goes. It is selectable, because the password is the one string on this
- * screen somebody needs a copy of.
+ * the address — then the two times, then the description last. The way
+ * in has no field of its own on the row: the door code, the lockbox, the
+ * wifi and the host's number are prose the organizer pasted out of a
+ * message, which is why the description carries more than an event's
+ * note does. It is still the column the form names `Description`, and
+ * the times are what a reader wants ahead of the prose — the order the
+ * form asks for them in. It is selectable, because the password is the
+ * one string on this screen somebody needs a copy of.
  *
  * The address leads out of the app rather than into a screen of ours,
  * for the same reason an event's place does: the trip is where it is,
@@ -197,24 +198,10 @@ function StayDetailDialog() {
         </RuledBlock>
       ) : null}
 
-      {/* Directly under the address, because this is what people open
-          the screen for. An event's description is the organizer's
-          colour and sits at the foot; here the prose is the arrival
-          instructions, so it is the block the eye should land on after
-          the address. Selectable: the wifi password is the one string
-          here anybody needs to copy, and the platform's own selection
-          gives the copy without a clipboard dependency. */}
-      {stay.description ? (
-        <RuledBlock title="Arrival">
-          <Text
-            selectable
-            className="font-body text-base leading-relaxed text-ink"
-          >
-            {stay.description}
-          </Text>
-        </RuledBlock>
-      ) : null}
-
+      {/* The booking's two times, above the prose: the form asks for
+          them in this order — check-in, check-out, then the description —
+          and arriving is read the same way: where, then when, then the
+          way in. */}
       {checkInDay || checkOutDay ? (
         <RuledBlock>
           {checkInDay ? (
@@ -237,6 +224,23 @@ function StayDetailDialog() {
               </Text>
             </Fact>
           ) : null}
+        </RuledBlock>
+      ) : null}
+
+      {/* Titled with the column's own word. The form labels this field
+          `Description` and keeps the arrival framing in its placeholder —
+          the code, the lockbox, the wifi — so this screen does not invent
+          a second name for one field. Selectable: the wifi password is
+          the one string here anybody needs to copy, and the platform's
+          own selection gives the copy without a clipboard dependency. */}
+      {stay.description ? (
+        <RuledBlock title="Description">
+          <Text
+            selectable
+            className="font-body text-base leading-relaxed text-ink"
+          >
+            {stay.description}
+          </Text>
         </RuledBlock>
       ) : null}
     </FullscreenDialog>

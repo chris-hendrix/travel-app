@@ -570,7 +570,7 @@ function DesignSystemScreen() {
             <Specimen
               name="RuledBlock"
               contract="title? · rule? · children?"
-              note="One rule per boundary. A black rule taken from above is a block boundary: it opens a block, it carries the block's padding and the block's inner gap, and its title is optional because eighteen of the thirty-nine call sites have no title and a rule over one paragraph reads as an accident until something names it. A fourth form was withdrawn from this book with the trip page that drew it, and reinstated on it with the boot cover that now does: the page's own hairline, a full-width one-pixel line with no title and no padding, for a boundary that closes what is above and opens what is under. The trip page's call site went because the hero band's lower seam closed both of that page's columns and changed the ground, so the rule on top of it was a second mark saying one thing. `BootCover` then needed one — the splash's mark, then the page's rule, then the page's foot — so the form and the guard on its class string came back together. A form is withdrawn when nothing draws it, not when a page it happened to serve stops drawing it. A `border-gravel` between rows was never a rank at all: it is a row separator inside a block, drawn in the subordinate colour, and that is the fault this book exists to remove. A row read across is a table and takes the soft rule instead; a row read down is a list and takes no mark at all. Below: the real stay screen, where three blocks sat at three different gaps under three hand-written copies of the same rule. `Where` and `Arrival` are the new titles; the check-in block keeps the Fact labels it already had. `rule={false}` is the third form: a block whose boundary is already drawn, so it carries no rule and no padding — the first block inside a `Band`, where the band's edge *is* the seam. Below it is the shape a band uses."
+              note="One rule per boundary. A black rule taken from above is a block boundary: it opens a block, it carries the block's padding and the block's inner gap, and its title is optional because eighteen of the thirty-nine call sites have no title and a rule over one paragraph reads as an accident until something names it. A fourth form was withdrawn from this book with the trip page that drew it, and reinstated on it with the boot cover that now does: the page's own hairline, a full-width one-pixel line with no title and no padding, for a boundary that closes what is above and opens what is under. The trip page's call site went because the hero band's lower seam closed both of that page's columns and changed the ground, so the rule on top of it was a second mark saying one thing. `BootCover` then needed one — the splash's mark, then the page's rule, then the page's foot — so the form and the guard on its class string came back together. A form is withdrawn when nothing draws it, not when a page it happened to serve stops drawing it. A `border-gravel` between rows was never a rank at all: it is a row separator inside a block, drawn in the subordinate colour, and that is the fault this book exists to remove. A row read across is a table and takes the soft rule instead; a row read down is a list and takes no mark at all. Below: the real stay screen, where three blocks sat at three different gaps under three hand-written copies of the same rule. `Where` and `Description` are the new titles — the second is the form's own word for the column — and the check-in block keeps the Fact labels it already had. `rule={false}` is the third form: a block whose boundary is already drawn, so it carries no rule and no padding — the first block inside a `Band`, where the band's edge *is* the seam. Below it is the shape a band uses."
             >
               <RuledBlock title="Where">
                 <Text selectable className="font-body text-base text-ink/70">
@@ -580,14 +580,6 @@ function DesignSystemScreen() {
                   1 Willow St, London
                 </Text>
                 <QuietAction label="Open in Maps" onPress={() => setLog("RuledBlock: Open in Maps")} />
-              </RuledBlock>
-              <RuledBlock title="Arrival">
-                <Text
-                  selectable
-                  className="font-body text-base leading-relaxed text-ink"
-                >
-                  Ring the bell for flat 4. Wifi: hoxton-guest / 4471.
-                </Text>
               </RuledBlock>
               {/* Untitled: the form eighteen of the thirty-nine call sites wanted all along. */}
               <RuledBlock>
@@ -601,6 +593,14 @@ function DesignSystemScreen() {
                     Sun, Jun 16, 11:00 AM
                   </Text>
                 </Fact>
+              </RuledBlock>
+              <RuledBlock title="Description">
+                <Text
+                  selectable
+                  className="font-body text-base leading-relaxed text-ink"
+                >
+                  Ring the bell for flat 4. Wifi: hoxton-guest / 4471.
+                </Text>
               </RuledBlock>
               {/* Unruled: no boundary above it, so no mark and no padding.
                   This is the form the first block inside a band wears. */}
