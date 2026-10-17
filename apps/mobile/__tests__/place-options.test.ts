@@ -133,12 +133,13 @@ describe("placePickerRows", () => {
     ).toBe("Google Maps");
   });
 
-  it("commits a live row's own short reading when the caller asks for text", () => {
-    // The travel `Where` field's mode: a place's name, never a link to
-    // it. The value becomes the row's reading — the tight one, because
-    // this string *is* the record and a board row prints it beside a name
-    // and a clock — so the id is not in the row at all and cannot be
-    // saved by anything downstream.
+  it("commits a live row's whole reading when the caller asks for text", () => {
+    // The travel `Where` field's mode: a place's words, never a link to
+    // it, and all of them — the name and the address under it, because
+    // this string *is* the record, printed on a board row and on the
+    // leg's own sheet, and a name alone is a place somebody still has to
+    // search for. The id is not in the row at all, so nothing downstream
+    // can save it.
     const { rows } = placePickerRows({
       suggestions: [
         {
@@ -150,14 +151,18 @@ describe("placePickerRows", () => {
         },
       ],
       query: "Humberto",
-      commit: "shortName",
+      commit: "name",
     });
 
-    expect(rows[0]).toEqual({
-      value: "Humberto Delgado Airport (LIS)",
-      label: "Humberto Delgado Airport (LIS)",
-      secondary: "Alameda das Comunidades Portuguesas, Lisbon, Portugal",
+    expect(rows[0]).toMatchObject({
+      value:
+        "Humberto Delgado Airport (LIS), Alameda das Comunidades Portuguesas, Lisbon, Portugal",
+      label:
+        "Humberto Delgado Airport (LIS), Alameda das Comunidades Portuguesas, Lisbon, Portugal",
     });
+    // No second line: the address is inside the string the row commits,
+    // and saying it twice reads as a bug rather than as detail.
+    expect(rows[0]?.secondary).toBeUndefined();
     expect(rows[0]?.value).not.toContain("ChIJ1");
     // The typed row is unaffected: it already commits what it shows.
     expect(rows[1]).toMatchObject({ value: "Humberto", fieldText: "Humberto" });

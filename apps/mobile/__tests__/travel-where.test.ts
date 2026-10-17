@@ -30,17 +30,17 @@ import type { PlaceSuggestion } from "@/lib/queries/places";
 /**
  * One live Google result.
  *
- * `shortName` is deliberately never equal to `name` here: the field
- * commits the short reading, and a helper that made them the same string
- * would let a regression to the full `displayName` pass every assertion
- * below. The long name is `shortName` plus a tail, the way Google's own
- * is the main text plus the address.
+ * The default `name` is Google's own shape — the main text and the
+ * address under it, joined — and it is deliberately never equal to
+ * `shortName`: the field commits the whole reading, and a helper that
+ * made the two the same string would let a regression back to the short
+ * one pass every assertion below.
  */
 function suggestion(
   placeId: string,
   shortName: string,
   address = "",
-  name = `${shortName}, somewhere much longer`,
+  name = address === "" ? shortName : `${shortName}, ${address}`,
 ): PlaceSuggestion {
   return { placeId, name, shortName, address, types: [] };
 }
@@ -179,7 +179,9 @@ describe("travelWhereRows", () => {
     });
 
     expect(rows.map((entry) => entry.label)).toEqual([
-      "Barcelona–El Prat (BCN)",
+      // The live row reads the whole place, address and all: that string
+      // is what it commits, so it is what a person has to see.
+      "Barcelona–El Prat (BCN), El Prat",
       // `BCN T2` is this trip's own filed where and matches the query;
       // the destination and `AMS Schiphol` do not, so they are dropped.
       "BCN T2",
@@ -226,12 +228,14 @@ describe("travelWhereRows", () => {
   });
 
   it("never draws the same string twice", () => {
-    // The typed row carries the query, and a local row may carry it too:
-    // one row, not two, and the typed one is preferred because it is the
-    // row the press was resolved against.
+    // The live answer, this trip's own where and the typed row are one
+    // string here: one row, not three. The list keys a drawn row by what
+    // it commits, and a press resolves against the rows that were drawn,
+    // so two rows reading the same would be one answer that the press had
+    // to choose between.
     const rows = travelWhereRows({
       local: travelWhere([row("arrival", "BCN T2", null)], null, []),
-      suggestions: [suggestion("ChIJ1", "BCN T2", "El Prat")],
+      suggestions: [suggestion("ChIJ1", "BCN T2", "", "BCN T2")],
       query: "BCN T2",
     });
 
@@ -239,7 +243,7 @@ describe("travelWhereRows", () => {
     expect(rows).toHaveLength(1);
   });
 
-  it("commits text, never a place id or a display name", () => {
+  it("commits the place's whole reading, never a place id", () => {
     const rows = travelWhereRows({
       local: localRows(),
       suggestions: [
@@ -248,20 +252,22 @@ describe("travelWhereRows", () => {
       query: "BCN",
     });
 
-    // The whole point of the field: the id stops inside this function,
-    // and so does Google's long reading of the place. A value that were
-    // either would be saved as the leg's location and printed on the
-    // board.
+    // The whole point of the field: the id stops inside this function. A
+    // value that were one would be saved as the leg's location and
+    // printed on the board, where nothing can use it and nobody can read
+    // it — while what does get saved is every word of the place, because
+    // that string is the record.
     for (const entry of rows) {
       expect(entry.value).not.toBe("ChIJ1");
-      expect(entry.value).not.toContain("much longer");
       expect(entry.disabled).toBeUndefined();
     }
     expect(rows[0]).toMatchObject({
-      value: "Barcelona–El Prat (BCN)",
-      label: "Barcelona–El Prat (BCN)",
-      secondary: "El Prat",
+      value: "Barcelona–El Prat (BCN), El Prat",
+      label: "Barcelona–El Prat (BCN), El Prat",
     });
+    // The address is in the string the row commits, so the row does not
+    // carry it a second time underneath.
+    expect(rows[0]?.secondary).toBeUndefined();
   });
 
   it("offers nothing before the first keystroke", () => {

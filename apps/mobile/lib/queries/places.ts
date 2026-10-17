@@ -53,8 +53,11 @@ export const SUGGESTION_MIN_CHARS = 2;
 /** One autocomplete row, mapped off the proxy's bare 200 array. */
 export type PlaceSuggestion = {
   placeId: string;
-  /** Full display name — what the picker commits to the field. */
+  /** Full display text — Google's name and address together. What a
+   *  text picker commits, and what a place row reads in every picker. */
   name: string;
+  /** Google's main text: the same name with the address stripped, which
+   *  is what a snapshot of the place's *name* wants (`placeName`). */
   shortName: string;
   address: string;
   /** Google place types — what the event's type is derived from. */
@@ -355,22 +358,27 @@ export function placePickerRows({
    * What a live row commits.
    *
    * `"id"` is the place picker's: the value is the placeId, which a
-   * details lookup reads and which a saved link points at. `"shortName"`
-   * is for a field that wants the place's **text** and nothing else: the
-   * value is Google's own tightest reading of it — the main text, with
-   * the address stripped — so no id leaves the row and the string a
-   * person reads is the string the row commits.
+   * details lookup reads and which a saved link points at. `"name"` is
+   * for a field that wants the place's **text** and nothing else: the
+   * value is the row's own reading — Google's full display text, the
+   * name and the address together — so no id leaves the row and the
+   * string a person reads is the string the row commits.
    *
-   * The tight reading matters where the committed text *is* the record.
-   * A travel where is printed on a board row beside a name and a clock,
-   * and `name` there is the full `displayName` — "Humberto Delgado
-   * Airport (LIS), Alameda das Comunidades Portuguesas, Lisbon,
-   * Portugal" — which is three lines of address for the one fact the
-   * row is about. `shortName` is the same place as its row's own
-   * `secondary` line, which is what the list already shows the address
-   * for.
+   * The whole reading is the answer where the committed text *is* the
+   * record. A travel where is filed by a member and read back on a board
+   * row, in the form and on the leg's own sheet, and it is the only
+   * thing the app knows about where that end is: a name alone —
+   * "Humberto Delgado Airport (LIS)" — is a place somebody still has to
+   * search for, and the address hanging off it is where they are going.
+   * `text.text` is Google's whole reading of the prediction, so the
+   * committed string is the provider's own answer rather than a
+   * shortening of it.
+   *
+   * This mode leaves the `secondary` off: the string the row commits
+   * already ends in the address, and a label with its own tail repeated
+   * underneath reads as a bug rather than as detail.
    */
-  commit?: "id" | "shortName";
+  commit?: "id" | "name";
 }): { rows: PlacePickerRow[]; hasTypedRow: boolean; footer: string } {
   const footer = GOOGLE_MAPS_ATTRIBUTION;
   const trimmed = query.trim();
@@ -385,12 +393,16 @@ export function placePickerRows({
     });
   } else {
     for (const suggestion of suggestions ?? []) {
-      const text = suggestion.shortName || suggestion.name;
+      // The reading is Google's whole display text in both modes — the
+      // name and the address together — so a place row is the same row
+      // whichever picker draws it. What the mode decides is only what
+      // the row commits: the id, or those same words.
+      const reading = suggestion.name || suggestion.shortName;
+      const commitsText = commit === "name";
       rows.push({
-        value: commit === "shortName" ? text : suggestion.placeId,
-        label:
-          commit === "shortName" ? text : suggestion.name,
-        secondary: suggestion.address || undefined,
+        value: commitsText ? reading : suggestion.placeId,
+        label: reading,
+        secondary: commitsText ? undefined : suggestion.address || undefined,
       });
     }
   }
