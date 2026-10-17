@@ -38,8 +38,7 @@ export function placeMapsUrl(
  * The query for a place on a trip: the place, then the trip it is on.
  * "Trattoria Nuova, Mallorca" finds the restaurant; "Trattoria Nuova"
  * on its own finds every one of them.
- */
-export function placeQuery(place: string, near?: string | null): string {
+ */export function placeQuery(place: string, near?: string | null): string {
   const trimmed = place.trim();
   const context = near?.trim();
   if (!context) return trimmed;
@@ -49,6 +48,21 @@ export function placeQuery(place: string, near?: string | null): string {
   return trimmed.toLowerCase().includes(context.toLowerCase())
     ? trimmed
     : `${trimmed}, ${context}`;
+}
+
+/**
+ * What a place's copy verb puts on the clipboard: the **address**, because
+ * that is the string somebody pastes into a taxi app, a message or a form,
+ * and a name is what they would have to search for again. A place whose
+ * details carried no address falls back to the name it is called, which is
+ * all a typed place has.
+ */
+export function placeCopyText(
+  name: string,
+  address?: string | null,
+): string {
+  const trimmed = address?.trim();
+  return trimmed ? trimmed : name.trim();
 }
 
 /**

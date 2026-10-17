@@ -15,6 +15,7 @@ import { MapsAttribution } from "@/components/ui/MapsAttribution";
 import { DisclosureButton } from "@/components/ui/DisclosureButton";
 import { Checkbox, CheckboxLabel } from "@/components/ui/Checkbox";
 import { ActionRow } from "@/components/ui/ActionRow";
+import { PlaceActions } from "@/components/ui/PlaceActions";
 import { QuietAction } from "@/components/ui/QuietAction";
 import { PhoneField } from "@/components/ui/PhoneField";
 import { toE164 } from "@/lib/phone";
@@ -1085,6 +1086,19 @@ function DesignSystemScreen() {
                   onPress={() => setLog("ActionRow quiet action fired")}
                 />
               </ActionRow>
+            </Specimen>
+
+            <Specimen
+              name="PlaceActions"
+              contract="name? · address? · placeId?"
+              note="A place's two verbs, in one row: the Maps link, and the address beside it. One component because they are one decision read twice — what lands on the clipboard is the string the link searches — and a pair written out at each call site is a pair that drifts. The link pins to the linked place when there is one (`placeMapsUrl`) and searches the address otherwise; the copy takes the address itself (`placeCopyText`), falling back to the name for a place that has only one, which is a typed place and a travel where (that field files the provider's whole reading in one string, address included). The copy answers by inverting itself — Copied, for two seconds — rather than by a message: nothing on the screen changes when a string lands on a clipboard, so the word that took it is the whole of the state, and Copied replaces Copy address rather than sitting beside it because the word is the control. It names what it takes: Copy address where there is one, plain Copy where there is only a name. The second specimen has no address, so it draws one verb and the short word."
+            >
+              <PlaceActions
+                name="La Bodega"
+                address="Carrer de la Mar 14, Sóller"
+                placeId="ChIJKeens123"
+              />
+              <PlaceActions name="Konoba Free Text" />
             </Specimen>
 
             <Specimen

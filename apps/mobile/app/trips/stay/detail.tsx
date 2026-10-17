@@ -5,9 +5,8 @@ import { Image } from "@/components/ui/Image";
 import { Fact } from "@/components/ui/Fact";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { PhotoCredit } from "@/components/ui/PhotoCredit";
-import { QuietAction } from "@/components/ui/QuietAction";
+import { PlaceActions } from "@/components/ui/PlaceActions";
 import { formatDay } from "@/lib/dateRange";
-import { placeMapsUrl } from "@/lib/links";
 import {
   nightsLabel,
   stayEnd,
@@ -176,11 +175,11 @@ function StayDetailDialog() {
 
       {/* The place block: the picked place's name leading in bold, its
           address following lighter on the same line — the reading of
-          the picker row it came from — and the one verb a place has
-          leading out to Maps, pinned to the place itself. The address
-          falls back to the stay's own column, so every stay created
-          before this feature keeps its address; the line hides when
-          there is neither. */}
+          the picker row it came from — and the two verbs a place has under
+          it (`PlaceActions`): the Maps link, pinned to the place itself,
+          and the address beside it. The address falls back to the stay's
+          own column, so every stay created before this feature keeps its
+          address; the line hides when there is neither. */}
       {rows.name ?? rows.address ? (
         <RuledBlock title="Where">
           <Text selectable className="font-body text-base text-ink/70">
@@ -190,16 +189,11 @@ function StayDetailDialog() {
             {rows.name && rows.address ? " " : null}
             {rows.address}
           </Text>
-          {rows.address || stay.placeId ? (
-            <QuietAction
-              label="Open in Maps"
-              onPress={() =>
-                void Linking.openURL(
-                  placeMapsUrl(stay.placeId, rows.address ?? rows.name!),
-                )
-              }
-            />
-          ) : null}
+          <PlaceActions
+            name={rows.name}
+            address={rows.address}
+            placeId={stay.placeId}
+          />
         </RuledBlock>
       ) : null}
 

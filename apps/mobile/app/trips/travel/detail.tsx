@@ -7,12 +7,12 @@ import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { InlineError } from "@/components/ui/InlineError";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
+import { PlaceActions } from "@/components/ui/PlaceActions";
 import { QuietAction } from "@/components/ui/QuietAction";
-import { Linking, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { formatDay } from "@/lib/dateRange";
 import { formatFlightNumber } from "@/lib/flights";
-import { mapsSearchUrl } from "@/lib/links";
 import { joinFacts, NOT_SHARED } from "@/lib/wording";
 import { wallClock } from "@/lib/timezone";
 import {
@@ -446,15 +446,15 @@ function TravelDetailDialog() {
           owed row has no mode, so it has none of these words and says the
           one thing it can instead.
 
-          A where carries the verb a place has, under it and inside the same
-          row: `Open in Maps` hands the string the leg filed to Google Maps
-          as a search. A search rather than a pinned place, because travel
-          keeps no place id by design (`travel-place-metadata.test.ts`) —
-          and it does not need one, since what it files is Google's own
-          whole reading of the place, address and all. The two presses wear
-          the same word because they are the same act read at two ends, so
-          each names its own place to a reader who cannot see which row it
-          belongs to. */}
+          A where carries the two verbs a place has, under it and inside the
+          same row (`PlaceActions`): `Open in Maps` hands the string the leg
+          filed to Google Maps as a search, and the word beside it takes the
+          same string to the clipboard. A search rather than a pinned place,
+          because travel keeps no place id by design
+          (`travel-place-metadata.test.ts`) — and it does not need one, since
+          what it files is Google's own whole reading of the place, address
+          and all. Both ends wear them, and both words name their own place
+          to a reader who cannot see which row they belong to. */}
       {mode === null || facts.length > 0 ? (
         <RuledBlock>
           {mode === null ? (
@@ -465,15 +465,7 @@ function TravelDetailDialog() {
                 <Text className="font-body text-base text-ink">
                   {fact.value}
                 </Text>
-                {fact.place ? (
-                  <QuietAction
-                    label="Open in Maps"
-                    ariaLabel={`Open ${fact.value} in Google Maps`}
-                    onPress={() =>
-                      void Linking.openURL(mapsSearchUrl(fact.value))
-                    }
-                  />
-                ) : null}
+                {fact.place ? <PlaceActions name={fact.value} /> : null}
               </Fact>
             ))
           )}
