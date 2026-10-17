@@ -74,8 +74,9 @@ const DIRECTION_WORD = {
  * it. Every word still comes from the one table
  * (`lib/transportMode.ts`) — `whereLabel` over a place and `endLabel`
  * over a time, so a flight reads `Lands at`/`Lands` over its arrival and
- * `Leaves from`/`Leaves` over the other end, and a hire reads `Pickup
- * at`/`Pickup` over its pickup — and the number wears the mode's own name
+ * `Leaves from`/`Leaves` over the other end, and a hire reads
+ * `Arrives at`/`Arrives` over the end its row is about with `Pickup at` /
+ * `Dropoff at` over the counter at the far one — and the number wears the
  * for it (`Flight number`, `Train number`, `Bus service`). Every one of
  * those facts is optional, so a fact that holds nothing is not drawn at
  * all, and the block is drawn only where it has something to say: a
@@ -240,12 +241,11 @@ function TravelDetailDialog() {
   // as it did before there was a mode at all: the name, the direction, and
   // `Not shared yet` where the leg's facts would be.
   const mode = row.transportMode;
-  // The leg's other side, and it is the *side* the mode's words are keyed
-  // by rather than the position of the field: the direction names the side
-  // the record files and the validator requires, and the far end is the
-  // side it does not, in every mode and both directions — a hire's own end
-  // is the pickup on an arrival row and the dropoff on a departure one
-  // (D4). Same two lines as the form's own far end.
+  // The leg's other side, and which of the two a hire calls its counter is
+  // the table's answer rather than this screen's: the direction names the
+  // side the record files and the validator requires, and the far end is
+  // the side it does not, in every mode and both directions. Same two
+  // lines as the form's own far end.
   const farSide: TravelSide =
     row.travelType === "arrival" ? "departure" : "arrival";
   // The far end is the one fact the board's row does not carry: `TravelRow`
@@ -294,10 +294,11 @@ function TravelDetailDialog() {
   // its where and then its when, the far end the same way, and the number
   // last. Each label is the end's own word out of the one table the form's
   // fields come from — `whereLabel` over a place, `endLabel` over a time —
-  // read by the **side** the end is, which is what makes a hire's own end
-  // read `Pickup at` on an arrival row and `Dropoff at` on a departure
-  // one. A fact that holds nothing is not in the list at all: a label over
-  // an empty line is a word about nothing.
+  // read by the **side** the end is, and by whether the fact is the row's
+  // own end or its far one, which is what makes a hire read `Arrives at`
+  // over the trip end and `Pickup at` over the counter behind it. A fact
+  // that holds nothing is not in the list at all: a label over an empty
+  // line is a word about nothing.
   //
   // They are rows of one block rather than a block each, which is also
   // what the rule census (check 9) counts: it counts the places a person
@@ -397,11 +398,11 @@ function TravelDetailDialog() {
           },
           { label: endLabel(mode, row.travelType), value: when },
           {
-            label: whereLabel(mode, farSide),
+            label: whereLabel(mode, farSide, true),
             value: farPlace ?? "",
             place: true,
           },
-          { label: endLabel(mode, farSide), value: farWhen },
+          { label: endLabel(mode, farSide, true), value: farWhen },
           ...(number && numberText
             ? [{ label: number, value: numberText }]
             : []),

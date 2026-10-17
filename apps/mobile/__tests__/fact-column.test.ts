@@ -155,9 +155,18 @@ function nouns(): string[] {
     "other",
   ];
   const sides = ["departure", "arrival"] as const;
+  // Both halves of every row: a hire's far end is the only place the
+  // counter's own words reach a `Fact` (`Pickup at`, `Dropoff at`), and a
+  // set that skipped them would measure the column against a label the
+  // sheet can print.
+  const halves = [false, true] as const;
   const fromTables = [
-    ...modes.flatMap((mode) => sides.map((side) => whereLabel(mode, side))),
-    ...modes.flatMap((mode) => sides.map((side) => endLabel(mode, side))),
+    ...modes.flatMap((mode) =>
+      halves.flatMap((far) => sides.map((side) => whereLabel(mode, side, far))),
+    ),
+    ...modes.flatMap((mode) =>
+      halves.flatMap((far) => sides.map((side) => endLabel(mode, side, far))),
+    ),
     ...modes.map((mode) => numberLabel(mode)).filter((label) => label !== null),
   ];
   const literals: string[] = [];
