@@ -12,9 +12,6 @@ export const AUTOCOMPLETE_FIELD_MASK =
 export const DETAILS_FIELD_MASK =
   "id,photos,formattedAddress,location,addressComponents,attributions";
 
-/** Gross-distance outlier cutoff in metres (matches distanceMeters units). */
-export const AUTOCOMPLETE_MAX_DISTANCE_METERS = 250_000;
-
 /** Named photo boxes in pixels (square). */
 export const BOX_PIXELS = { card: 1024, hero: 1920 } as const;
 export type PlaceBoxName = keyof typeof BOX_PIXELS;
@@ -135,25 +132,27 @@ export async function autocompletePlaces(opts: {
     };
     const seen = new Set<string>();
     const out: AutocompleteSuggestion[] = [];
+    // Everything Google ranks is kept, however far away it is. The bias is a
+    // nudge, not a fence: typing a place the trip is not near is the normal
+    // case for a travel where — an airport, a station, a hire desk — and this
+    // loop used to drop anything past 250km as an "outlier", which from
+    // inside a trip is every airport somebody is flying into. Google has
+    // already ranked by relevance with the origin behind it, so the far
+    // answers come last and only when nothing nearer matches; a distance
+    // cutoff is what turned "Heathrow" into an empty list on the travel
+    // form. `distanceMeters` still rides along for a caller that wants it.
     for (const s of data.suggestions ?? []) {
       const p = s.placePrediction;
       if (seen.has(p.placeId)) continue;
       seen.add(p.placeId);
-      const distanceMeters =
-        typeof p.distanceMeters === "number" ? p.distanceMeters : null;
-      if (
-        distanceMeters != null &&
-        distanceMeters > AUTOCOMPLETE_MAX_DISTANCE_METERS
-      ) {
-        continue;
-      }
       out.push({
         placeId: p.placeId,
         shortName: p.structuredFormat?.mainText?.text ?? p.text.text,
         displayName: p.text.text,
         displayAddress: p.structuredFormat?.secondaryText?.text ?? "",
         types: p.types ?? [],
-        distanceMeters,
+        distanceMeters:
+          typeof p.distanceMeters === "number" ? p.distanceMeters : null,
       });
     }
     return out;
