@@ -92,7 +92,7 @@ test.describe("Trip Journey", () => {
       await nameInput.click();
       await nameInput.pressSequentially(tripName);
 
-      // app/trips/new.tsx: Dropdown label="Location" backed by live Places
+      // app/trips/new.tsx: Dropdown label="Destination" backed by live Places
       // suggestions plus the typed text as a row (lib/queries/places.ts
       // placePickerRows). The Dropdown only commits on a suggestion
       // pick, so a typed-but-unpicked string fails validation ("Where
@@ -104,10 +104,12 @@ test.describe("Trip Journey", () => {
       // components/ui/SuggestionList.tsx: each row is role="button"
       // named by its label; the typed row's label is the query in
       // quotes with secondary "Use what you typed".
-      const locationInput = page.getByRole("textbox", { name: "Location" });
-      await locationInput.click();
+      const destinationInput = page.getByRole("textbox", {
+        name: "Destination",
+      });
+      await destinationInput.click();
       const placeText = uniqueLabel("E2E Place");
-      await locationInput.pressSequentially(placeText);
+      await destinationInput.pressSequentially(placeText);
       await page
         .getByRole("button", { name: `"${placeText}"`, exact: true })
         .click();
@@ -306,20 +308,13 @@ test.describe("Trip Journey", () => {
     });
 
     await test.step("remove a member with the confirm the guest also takes", async () => {
-      // app/trips/members.tsx MemberRow: the organizer's rows are
-      // pressable (role="button" named by the member's name) and
-      // push /trips/members/detail?id=…&member=….
-      //
-      // Two buttons on this row now mention the member: the row itself, and
-      // the moderation word under it ("Report or block <name>", added so a
-      // screen reader hears whose row it is). `name` matches as a substring,
-      // so both resolve — and `RosterList` draws the row body before its
-      // footer, which makes the row the first of the row's two press
-      // targets.
-      await page
-        .getByRole("button", { name: leaverName })
-        .first()
-        .click();
+      // app/trips/members.tsx: the organizer's rows are pressable
+      // (role="button" named by the member's name) and push
+      // /trips/members/detail?id=…&member=…. The row is the only target that
+      // mentions the member now: the moderation word that used to sit under
+      // it lives on the card it opens (`components/trip/ReportOrBlock.tsx`),
+      // which is where a traveler finds it too.
+      await page.getByRole("button", { name: leaverName }).click();
       await page.waitForURL("**/trips/members/detail?id=*&member=*", {
         timeout: NAVIGATION_TIMEOUT,
       });
@@ -331,6 +326,12 @@ test.describe("Trip Journey", () => {
       await expect(page.getByText("Manage")).toBeVisible({
         timeout: ELEMENT_TIMEOUT,
       });
+      // …and the card's last word, which is the moderation the roll call's
+      // rows used to carry under every name: one word, named by the person
+      // it is about.
+      await expect(
+        page.getByRole("button", { name: `Report or block ${leaverName}` }),
+      ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
       const removeButton = page.getByRole("button", {
         name: "Remove",
         exact: true,
