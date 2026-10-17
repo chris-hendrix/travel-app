@@ -284,7 +284,7 @@ export function EventDialog({
             rotateSessionToken();
           }
         }}
-        placeholder="Search for a place…"
+        placeholder="Mercat de l'Olivar"
         error={errors.place}
         freeText
       />

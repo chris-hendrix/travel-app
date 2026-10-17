@@ -315,7 +315,7 @@ function EditTripScreen() {
       />
 
       <Dropdown
-        label="Location"
+        label="Destination"
         options={placeOptions}
         liveOptions
         attribution
@@ -341,7 +341,7 @@ function EditTripScreen() {
             rotateSessionToken();
           }
         }}
-        placeholder="Start typing a place…"
+        placeholder="Mallorca, Spain"
         error={errors.location}
       />
 
