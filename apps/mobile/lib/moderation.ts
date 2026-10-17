@@ -1,6 +1,6 @@
 /**
- * The moderation vocabulary, and the sentences the roster row's panel and
- * the blocked list under it say about it.
+ * The moderation vocabulary, and the sentences the person's own panel and
+ * the blocked list under the roll call say about it.
  *
  * Node-importable by design: no `react`, no `react-native`, no fetch.
  *
@@ -19,7 +19,7 @@
 
 import { REPORT_REASONS } from "@journiful/shared/schemas";
 import type { ReportReason } from "@journiful/shared/schemas";
-import type { RosterRow } from "@/lib/roster";
+import type { Member } from "@/lib/members";
 import { toErrorCopy } from "@/lib/queries/errors";
 
 export { REPORT_REASONS, type ReportReason };
@@ -87,30 +87,33 @@ export function moderationPendingLabel(action: ModerationWrite): string {
 }
 
 /**
- * Who a row lets you moderate: the account behind it, or nobody.
+ * Who lets you moderate them: the account behind the member, or nobody.
  *
  * One decision, in one pure place, so it is testable without a renderer
- * and the row is not left spending its own condition on it. Three rows
- * answer `null`:
+ * and no screen is left spending its own condition on it. Two answers are
+ * `null`:
  *
- * - an `invited` row has no account at all — an invitation is a phone
- *   number, not a person to block;
- * - a guest row's `userId` is null for the same reason (`guest` is that
- *   same fact read off the member, so this reads the account and not the
- *   flag);
+ * - a guest's `userId` is null — there is no account to report or block
+ *   (`guest` is that same fact read off the member, so this reads the
+ *   account and not the flag);
  * - your own row: you cannot report or block yourself, and the API
  *   refuses it, so the control is not offered rather than answered with
  *   a 4xx.
  *
  * An unknown viewer (`viewerId` undefined) moderates every account with a
  * user behind it, since nothing matches an absent id.
+ *
+ * It took a `RosterRow` while the roll call drew the word under every
+ * account-backed row. The word lives on the person's own card now
+ * (`components/trip/ReportOrBlock.tsx`), where the member is the argument —
+ * and an invitation, which is a phone number with no account behind it, is
+ * not one of these at all.
  */
 export function moderatableUserId(
-  row: RosterRow,
+  member: Pick<Member, "userId">,
   viewerId: string | undefined,
 ): string | null {
-  if (row.kind !== "person") return null;
-  const account = row.member.userId;
+  const account = member.userId;
   if (account === null || account === viewerId) return null;
   return account;
 }
