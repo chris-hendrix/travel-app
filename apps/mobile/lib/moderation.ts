@@ -90,31 +90,41 @@ export function moderationPendingLabel(action: ModerationWrite): string {
  * Who lets you moderate them: the account behind the member, or nobody.
  *
  * One decision, in one pure place, so it is testable without a renderer
- * and no screen is left spending its own condition on it. Two answers are
- * `null`:
+ * and no screen is left spending its own conditions on it. Three answers
+ * are `null`:
  *
  * - a guest's `userId` is null — there is no account to report or block
  *   (`guest` is that same fact read off the member, so this reads the
  *   account and not the flag);
- * - your own row: you cannot report or block yourself, and the API
+ * - your own card: you cannot report or block yourself, and the API
  *   refuses it, so the control is not offered rather than answered with
- *   a 4xx.
+ *   a 4xx;
+ * - every card the demo draws. The adapter serves the roster read and no
+ *   block and no report, so a word there — or a press onto it — is a
+ *   control whose only answer is a 404. `demo` is `isDemoIdentity`'s
+ *   answer, handed in rather than read here: this file stays free of the
+ *   auth store.
  *
- * An unknown viewer (`viewerId` undefined) moderates every account with a
- * user behind it, since nothing matches an absent id.
+ * An unknown viewer (`id` undefined) moderates every account with a user
+ * behind it, since nothing matches an absent id.
  *
- * It took a `RosterRow` while the roll call drew the word under every
- * account-backed row. The word lives on the person's own card now
- * (`components/trip/ReportOrBlock.tsx`), where the member is the argument —
- * and an invitation, which is a phone number with no account behind it, is
- * not one of these at all.
+ * It answered about a `RosterRow` while the roll call drew the word under
+ * every account-backed row, and its argument is a member now that the word
+ * lives on the person's own card (`components/trip/ReportOrBlock.tsx`).
+ * What it answers is still one thing, and both halves of the card read it:
+ * the word at the foot of it, and the press the roll call hands out
+ * (`app/trips/members.tsx`) that opens it. The second half asked only the
+ * demo question for a while, and a press with nothing behind it is how a
+ * traveler came to tap a guest's row and land on "only an organizer can
+ * manage the people on this trip".
  */
-export function moderatableUserId(
+export function moderationTarget(
   member: Pick<Member, "userId">,
-  viewerId: string | undefined,
+  viewer: { id: string | undefined; demo: boolean },
 ): string | null {
+  if (viewer.demo) return null;
   const account = member.userId;
-  if (account === null || account === viewerId) return null;
+  if (account === null || account === viewer.id) return null;
   return account;
 }
 

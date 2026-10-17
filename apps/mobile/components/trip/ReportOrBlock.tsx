@@ -12,9 +12,9 @@ import {
   REPORT_REASONS,
   REPORT_REASON_LABELS,
   REPORT_RECORDED_COPY,
-  moderatableUserId,
   moderationFailureCopy,
   moderationPendingLabel,
+  moderationTarget,
   type ModerationAction,
   type ReportReason,
 } from "@/lib/moderation";
@@ -35,12 +35,12 @@ import { useBlockUser, useReportUser } from "@/lib/queries/moderation";
  * on a user detail for the same reason (`app/admin/users/detail.tsx`).
  *
  * Whoever can open the card gets this word: the gate is
- * `moderatableUserId`'s — a member with an account behind it, never your
- * own card — and it is deliberately not the organizer's, because a report
- * and a block are anybody's (`lib/moderation.ts`). No undo is offered
- * here: a block is account-wide on the server, so the pair vanish from
- * each other everywhere, and the list that can actually still reach them
- * is the one under the roll call.
+ * `moderationTarget`'s — a member with an account behind it, never your own
+ * card, and nothing at all in the demo — and it is deliberately not the
+ * organizer's, because a report and a block are anybody's
+ * (`lib/moderation.ts`). No undo is offered here: a block is account-wide
+ * on the server, so the pair vanish from each other everywhere, and the
+ * list that can actually still reach them is the one under the roll call.
  *
  * A card already carries one door and this is a second target that leads
  * nowhere: reporting somebody and blocking them are said *about* a person
@@ -65,12 +65,15 @@ export function ReportOrBlock({
   onBlocked: () => void;
 }) {
   const { user } = useAuth();
-  // The demo visitor is handed nothing: the adapter serves reports nowhere
-  // and blocks nowhere, so a word here would be a control whose only
-  // answer is a 404. `isDemoIdentity` is the same predicate the real
-  // routes' session guards read.
-  if (isDemoIdentity(user)) return null;
-  const account = moderatableUserId(member, user?.id);
+  // One gate, read here and by the roll call's press that opens this card,
+  // so the word and the way in cannot disagree. `isDemoIdentity` is the
+  // predicate the real routes' session guards read, and the demo is handed
+  // nothing: the adapter serves no block and no report, so a word there
+  // would be a control whose only answer is a 404.
+  const account = moderationTarget(member, {
+    id: user?.id,
+    demo: isDemoIdentity(user),
+  });
   if (account === null) return null;
   return (
     <ModerationPanel

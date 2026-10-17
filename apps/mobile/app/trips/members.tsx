@@ -9,9 +9,9 @@ import { RosterList } from "@/components/trip/RosterList";
 import { useTrip } from "@/lib/tripsStore";
 import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
-import { useAuth } from "@/lib/authStore";
+import { isDemoIdentity, useAuth } from "@/lib/authStore";
 import { viewerOf } from "@/lib/members";
-import { moderationPendingLabel } from "@/lib/moderation";
+import { moderationPendingLabel, moderationTarget } from "@/lib/moderation";
 import { useMembers } from "@/lib/queries/members";
 import { useBlockedUsers, useUnblockUser } from "@/lib/queries/moderation";
 import { toErrorCopy } from "@/lib/queries/errors";
@@ -146,23 +146,39 @@ function TripMembersDialog() {
         viewerAnswer={
           viewer && !viewer.isOrganizer ? viewer.status : null
         }
-        // The press the lift took out of the row, decided per row: every
-        // person's card opens, because that card is where report and block
-        // live and those are anybody's. An organizer opens the guest rows
-        // and the invitations too — those two cards are management, with
-        // nothing a traveler may do — so a traveler's guest row comes back
-        // a plain row rather than a button onto a refusal. The
-        // permission picks the render, not the row's own measure.
-        onPressRow={(row) =>
-          row.kind !== "person" && !viewerIsOrganizer
-            ? undefined
-            : () =>
+        // The press the lift took out of the row, decided per row. An
+        // organizer opens every card: a person's, and the two that are
+        // management — a guest's and an invitation's. A traveler's card is
+        // the person's, because that is where report and block live and
+        // those are anybody's — and it opens exactly where that card has
+        // something to say, which is `moderationTarget`'s answer: a guest
+        // has no account behind them to name, and the demo is served
+        // neither word. So a traveler's guest row, and every row the demo
+        // draws, comes back plain rather than a button onto the
+        // organizer's refusal. The permission picks the render, not the
+        // row's own measure.
+        onPressRow={(row) => {
+          if (row.kind === "invited") {
+            return viewerIsOrganizer
+              ? () =>
+                  router.push(
+                    `/trips/members/detail?id=${trip.id}&invite=${row.invitationId}`,
+                  )
+              : undefined;
+          }
+          const opens =
+            viewerIsOrganizer ||
+            moderationTarget(row.member, {
+              id: user?.id,
+              demo: isDemoIdentity(user),
+            }) !== null;
+          return opens
+            ? () =>
                 router.push(
-                  row.kind === "invited"
-                    ? `/trips/members/detail?id=${trip.id}&invite=${row.invitationId}`
-                    : `/trips/members/detail?id=${trip.id}&member=${row.member.id}`,
+                  `/trips/members/detail?id=${trip.id}&member=${row.member.id}`,
                 )
-        }
+            : undefined;
+        }}
       />
       {/* Under the list, not in the bar: adding a guest lengthens the
           roll call rather than inviting, which is what the bar is for.

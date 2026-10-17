@@ -10,7 +10,7 @@ import {
   REPORT_RECORDED_COPY,
   moderationFailureCopy,
   moderationPendingLabel,
-  moderatableUserId,
+  moderationTarget,
   reportReasonLabel,
 } from "@/lib/moderation";
 
@@ -85,11 +85,13 @@ describe("the reason vocabulary", () => {
   });
 });
 
-describe("moderatableUserId", () => {
+describe("moderationTarget", () => {
+  /** A viewer in the app rather than in the demo, signed in as `id`. */
+  const viewer = (id: string | undefined) => ({ id, demo: false });
+
   it("names the account behind another member", () => {
-    expect(moderatableUserId(member({ userId: "user-2" }), "user-1")).toBe(
-      "user-2",
-    );
+    const other = member({ userId: "user-2" });
+    expect(moderationTarget(other, viewer("user-1"))).toBe("user-2");
   });
 
   it("leaves a guest alone", () => {
@@ -98,20 +100,30 @@ describe("moderatableUserId", () => {
     // row is not an argument at all any more: a card belongs to a member,
     // and an invitation is a phone number with nobody behind it.
     const guest = member({ id: "member-2", userId: null, name: "Mom" });
-    expect(moderatableUserId(guest, "user-1")).toBeNull();
+    expect(moderationTarget(guest, viewer("user-1"))).toBeNull();
   });
 
   it("leaves your own card alone", () => {
     // You cannot report or block yourself, and the API refuses it, so the
     // control is not offered rather than answered with a 4xx.
-    expect(moderatableUserId(member({ userId: "user-1" }), "user-1")).toBeNull();
+    const mine = member({ userId: "user-1" });
+    expect(moderationTarget(mine, viewer("user-1"))).toBeNull();
   });
 
   it("moderates every other account when the viewer is unknown", () => {
     // An unresolved session matches no id, and nothing matches nothing.
-    expect(moderatableUserId(member({ userId: "user-1" }), undefined)).toBe(
-      "user-1",
-    );
+    const other = member({ userId: "user-1" });
+    expect(moderationTarget(other, viewer(undefined))).toBe("user-1");
+  });
+
+  it("leaves the demo's visitor nobody at all", () => {
+    // The adapter serves no block and no report, so neither the word nor
+    // the press that opens the card it sits on is offered there. This is
+    // the half the roll call's press used to skip, which is what put a
+    // card reading "only an organizer can manage the people on this trip"
+    // behind a guest's row.
+    const other = member({ userId: "user-2" });
+    expect(moderationTarget(other, { id: "user-1", demo: true })).toBeNull();
   });
 });
 
@@ -241,7 +253,7 @@ describe("the person's panel", () => {
 /**
  * The wiring, which neither describe above can hold.
  *
- * `moderatableUserId` is exercised for real above and the panel's
+ * `moderationTarget` is exercised for real above and the panel's
  * vocabulary beside it, and neither would notice if the card stopped
  * *routing* through them: draw the panel for every member rather than
  * through the gate and every assertion here stays green, with a word on
@@ -261,7 +273,7 @@ describe("the card's wiring", () => {
   it("gates the panel on the one pure decision, and mounts it on the card", () => {
     // The gate decides whether there is anybody to moderate, and a press on
     // the roll call is what the card is opened by.
-    expect(PANEL).toMatch(/moderatableUserId\(member, user\?\.id\)/);
+    expect(PANEL).toMatch(/moderationTarget\(member, \{/);
     expect(CARD).toContain("<ReportOrBlock");
   });
 
@@ -269,12 +281,21 @@ describe("the card's wiring", () => {
     // The demo serves the roster read, but no block and no report is served
     // there: an ungated word would be a control on the public demo whose
     // only answer is a 404.
-    expect(PANEL).toMatch(/if \(isDemoIdentity\(user\)\) return null;/);
+    expect(PANEL).toMatch(/demo: isDemoIdentity\(user\)/);
     // The predicate is the app's own, read off the store the real routes'
     // session guards read it off — never a demo id spelled here.
     expect(PANEL).toMatch(
       /import \{ isDemoIdentity, useAuth \} from "@\/lib\/authStore"/,
     );
+  });
+
+  it("opens a traveler's card exactly where the card has a word", () => {
+    // The other half of the same decision, and the half that had drifted:
+    // the roll call handed a press to every row a traveler could see, so a
+    // guest's row — an account short of a card that has anything for them —
+    // opened onto the organizer's refusal. The press and the word are one
+    // answer now, and this is the guard that keeps them one.
+    expect(SCREEN).toMatch(/moderationTarget\(row\.member, \{/);
   });
 
   it("keeps the word off the roll call", () => {
