@@ -281,15 +281,17 @@ describe("the leg's mode", () => {
 });
 
 /**
- * A hire's two ends are not a journey. D4: the own end is the pickup on
- * an arrival row and the dropoff on a departure row, so the pair runs
- * *forwards* from the day the strip picked. That inverts both halves of
- * the derived day — the predicate that reads a crossing, and the sign
- * that places the far end — and inverting only one of them mirrors the
- * same bug: a 10:00 pickup with a 17:00 dropoff would be stamped the day
- * before instead of the day after.
+ * A hire's day is a journey's. Its own end is the plan at the trip — the
+ * arrival on an arrival row, the departure on a departure one — so both
+ * halves of the derived day are the ordinary ones: the predicate that
+ * reads a crossing, and the sign that places the far end. What the mode
+ * buys is a word on the far end (`lib/transportMode.ts`), not arithmetic.
+ *
+ * The examples below are read the way the form files a hire, in the order
+ * its two ends happen: the car is collected before the row's own day, and
+ * handed back after it.
  */
-describe("a hire's day is the other way round", () => {
+describe("a hire's day is a journey's", () => {
   const hire = (overrides: Partial<TravelLeg>): TravelLeg => ({
     ...emptyLeg(),
     transportMode: "rental",
@@ -302,42 +304,48 @@ describe("a hire's day is the other way round", () => {
     buildLegRecord(leg, direction, "t-1", "m-1", "Ana", "UTC");
 
   it("stamps both ends of a same-day hire on the day it was picked up", () => {
-    // The own end of a hire on an arrival row is the pickup, so 10:00 to
-    // 17:00 is one day. Read as a flight it is a crossing, and the
-    // dropoff lands the day before the pickup.
+    // Collected at 10:00 and arriving at 17:00 is one day, and each end is
+    // in its own column: the car is collected at the *departure* end,
+    // which is the far one on this row.
     const record = filed(
-      hire({ day: "2026-09-18", arrivalTime: "10:00", departureTime: "17:00" }),
+      hire({ day: "2026-09-18", departureTime: "10:00", arrivalTime: "17:00" }),
       "arrival",
     );
-    expect(record?.arrivalTime).toBe("2026-09-18T10:00:00.000Z");
-    expect(record?.departureTime).toBe("2026-09-18T17:00:00.000Z");
+    expect(record?.departureTime).toBe("2026-09-18T10:00:00.000Z");
+    expect(record?.arrivalTime).toBe("2026-09-18T17:00:00.000Z");
   });
 
   it("keeps a same-day hire's return on its own day, on a departure row", () => {
+    // Leaving at 10:00 and handing the car back at 17:00, on the day the
+    // strip picked.
     const record = filed(
-      hire({ day: "2026-09-18", arrivalTime: "10:00", departureTime: "17:00" }),
+      hire({ day: "2026-09-18", departureTime: "10:00", arrivalTime: "17:00" }),
       "departure",
     );
-    expect(record?.arrivalTime).toBe("2026-09-18T10:00:00.000Z");
-    expect(record?.departureTime).toBe("2026-09-18T17:00:00.000Z");
+    expect(record?.departureTime).toBe("2026-09-18T10:00:00.000Z");
+    expect(record?.arrivalTime).toBe("2026-09-18T17:00:00.000Z");
+  });
+
+  it("puts a hire's pickup the evening before", () => {
+    // Collected at 20:00 and arriving at 01:30: the far end — the pickup,
+    // in the departure column — is the day before the row's own day.
+    const record = filed(
+      hire({ day: "2026-09-18", departureTime: "20:00", arrivalTime: "01:30" }),
+      "arrival",
+    );
+    expect(record?.departureTime).toBe("2026-09-17T20:00:00.000Z");
+    expect(record?.arrivalTime).toBe("2026-09-18T01:30:00.000Z");
   });
 
   it("lands a hire's dropoff after midnight on the next day", () => {
+    // Left at 20:00 and handed back at 01:30: the far end — the dropoff,
+    // in the arrival column — is the morning after.
     const record = filed(
-      hire({ day: "2026-09-18", arrivalTime: "20:00", departureTime: "01:30" }),
-      "arrival",
-    );
-    expect(record?.arrivalTime).toBe("2026-09-18T20:00:00.000Z");
-    expect(record?.departureTime).toBe("2026-09-19T01:30:00.000Z");
-  });
-
-  it("puts a hire's pickup the evening before, on a departure row", () => {
-    const record = filed(
-      hire({ day: "2026-09-20", arrivalTime: "20:00", departureTime: "08:00" }),
+      hire({ day: "2026-09-20", departureTime: "20:00", arrivalTime: "01:30" }),
       "departure",
     );
-    expect(record?.arrivalTime).toBe("2026-09-19T20:00:00.000Z");
-    expect(record?.departureTime).toBe("2026-09-20T08:00:00.000Z");
+    expect(record?.departureTime).toBe("2026-09-20T20:00:00.000Z");
+    expect(record?.arrivalTime).toBe("2026-09-21T01:30:00.000Z");
   });
 
   it("reads a hire written as one day back as one day", () => {
@@ -347,9 +355,9 @@ describe("a hire's day is the other way round", () => {
     const leg = legFromRecord(
       {
         transportMode: "rental",
-        departureTime: "2026-09-18T17:00:00.000Z",
+        departureTime: "2026-09-18T10:00:00.000Z",
         departureLocation: "Valencia",
-        arrivalTime: "2026-09-18T10:00:00.000Z",
+        arrivalTime: "2026-09-18T17:00:00.000Z",
         arrivalLocation: "Valencia",
         flightNumber: null,
         details: null,
@@ -362,15 +370,16 @@ describe("a hire's day is the other way round", () => {
     expect(leg.day).toBe("2026-09-18");
     expect(leg.crossesMidnight).toBe(false);
     const refiled = filed(leg, "arrival");
-    expect(refiled?.arrivalTime).toBe("2026-09-18T10:00:00.000Z");
-    expect(refiled?.departureTime).toBe("2026-09-18T17:00:00.000Z");
+    expect(refiled?.departureTime).toBe("2026-09-18T10:00:00.000Z");
+    expect(refiled?.arrivalTime).toBe("2026-09-18T17:00:00.000Z");
   });
 
   it("re-derives a hire's far end to one day out on save", () => {
     // The form cannot create a hire longer than a day — the far end has
     // no day picker of its own (D4) — but a record written outside it
     // can. Opening one and saving it collapses the far end to the
-    // adjacent day. Pinned rather than left to be discovered.
+    // adjacent day, which for a pickup behind an arrival is the day
+    // before. Pinned rather than left to be discovered.
     const leg = legFromRecord(
       {
         transportMode: "rental",
@@ -391,13 +400,13 @@ describe("a hire's day is the other way round", () => {
     // fact rather than the predicate's answer.
     expect(leg.crossesMidnight).toBe(true);
     expect(filed(leg, "arrival")?.departureTime).toBe(
-      "2026-09-19T10:00:00.000Z",
+      "2026-09-17T10:00:00.000Z",
     );
   });
 
-  it("inverts nothing but the hire", () => {
-    // A train's red-eye is a flight's red-eye: departs the 25th, lands
-    // the 26th.
+  it("reads a train's red-eye as it always has", () => {
+    // The control: what a hire now shares with every other mode, and what
+    // the hire's own reading used to differ from.
     const record = filed(
       {
         ...emptyLeg(),
@@ -421,30 +430,30 @@ describe("the hire's far end, in days", () => {
     ...overrides,
   });
 
-  it("runs forward from the day it was picked up", () => {
+  it("runs back from an arrival, where the car was collected", () => {
     expect(
       farEndDay(
         hire({
           day: "2026-09-18",
-          arrivalTime: "20:00",
-          departureTime: "01:30",
+          departureTime: "20:00",
+          arrivalTime: "01:30",
         }),
         "arrival",
       ),
-    ).toBe("2026-09-19");
+    ).toBe("2026-09-17");
   });
 
-  it("runs back from the day it was dropped off", () => {
+  it("runs forward from a departure, where it is handed back", () => {
     expect(
       farEndDay(
         hire({
           day: "2026-09-20",
-          arrivalTime: "20:00",
-          departureTime: "08:00",
+          departureTime: "20:00",
+          arrivalTime: "01:30",
         }),
         "departure",
       ),
-    ).toBe("2026-09-19");
+    ).toBe("2026-09-21");
   });
 
   it("is the leg's own day when the hire's two ends are one day", () => {
@@ -454,17 +463,17 @@ describe("the hire's far end, in days", () => {
       farEndDay(
         hire({
           day: "2026-09-18",
-          arrivalTime: "10:00",
-          departureTime: "17:00",
+          departureTime: "10:00",
+          arrivalTime: "17:00",
         }),
         "arrival",
       ),
     ).toBe("2026-09-18");
   });
 
-  it("leaves a flight's far end where the words already put it", () => {
-    // The other side of the same rule: the hire is the only mode that
-    // moves.
+  it("leaves a flight's far end where the two clocks put it", () => {
+    // The mode has no say in the day at all: a flight's far end lands
+    // where its own clocks say, which is now the whole of the rule.
     expect(
       farEndDay(
         {

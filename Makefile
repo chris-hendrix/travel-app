@@ -1,4 +1,4 @@
-.PHONY: help install dev dev-api mockup mobile-web-export mobile-web-serve ios-build ios-preview ios-sim ios-submit ios-credentials android-setup adb-reverse android-dev android-apk android-install android-logs android-emulator-start android-emulator-kill android-emulator-restart migrate seed studio generate up down clean reset-db test-up test-down test-exec test-run test-status test-setup test-clean
+.PHONY: help install dev-deps dev dev-api mockup metro-clean mobile-web-export mobile-web-serve ios-build ios-preview ios-sim ios-submit ios-credentials android-setup adb-reverse android-dev android-apk android-install android-logs android-emulator-start android-emulator-kill android-emulator-restart migrate seed studio generate up down clean reset-db test-up test-down test-exec test-run test-status test-setup test-clean
 
 .DEFAULT_GOAL := help
 
@@ -11,6 +11,20 @@ help: ## Show available commands
 
 install: ## Install all dependencies
 	pnpm install
+
+# Metro reads the dependency tree twice: once to resolve, once to transform, and
+# it caches both (`apps/mobile/metro.config.cjs` keys that cache to what pnpm
+# last installed). A tree left stale under it is therefore not a one-off — the
+# crawl memoizes the package it could not follow, and every later start reports
+# "Unable to resolve module X" from a tree that has X. So the host's two Metro
+# entry points install before Metro starts, and `make metro-clean` is the cure if
+# such a cache is already on disk.
+dev-deps: ## Put the host's dependency tree in sync before Metro reads it
+	pnpm install
+
+metro-clean: ## Drop Metro's caches — the cure for "Unable to resolve module X"
+	@rm -rf "$${TMPDIR:-/tmp}"/metro-cache "$${TMPDIR:-/tmp}"/metro-file-map-*
+	@echo "  Metro's caches dropped — the next start re-crawls and re-transforms"
 
 # Like `make mockup`, this runs on the host: the devcontainer maps only 8000
 # and 8081 to random host ports, so both servers must run on the host.
@@ -36,6 +50,7 @@ dev: ## Start dev servers (api:8000, expo:8081)
 		fi; \
 	done
 	pnpm docker:up
+	@$(MAKE) --no-print-directory dev-deps
 	@cd apps/mobile && \
 		echo "" && \
 		echo "  api               http://localhost:8000" && \
@@ -56,6 +71,7 @@ dev-api: ## Start API dev server only (with Docker)
 # dev server (a static export compiles __DEV__ to false, and the lab's first
 # line redirects /design away in that build).
 mockup: ## Serve the design mockup on the host (design system at /design)
+	@$(MAKE) --no-print-directory dev-deps
 	@cd apps/mobile && \
 		echo "" && \
 		echo "  mockup          http://localhost:8081" && \

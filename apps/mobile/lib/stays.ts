@@ -15,8 +15,8 @@ export type StayLink = { url: string; name: string };
  *
  * The description is doing more work here than it does on an event. The
  * way in — the code, the lockbox, the wifi — has no column of its own,
- * so it lives in that prose, which makes the description the block
- * everybody opens the screen for rather than the note at the bottom.
+ * so it lives in that prose: the largest field on the form, and the
+ * block the detail reads last, under the two times.
  *
  * `links` is carried but not shown. The sheet is the arrival screen —
  * the address, the way in, the times — and a list of links at the foot

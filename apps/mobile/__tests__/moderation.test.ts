@@ -4,14 +4,13 @@ import path from "node:path";
 import { reportUserSchema, REPORT_REASONS } from "@journiful/shared/schemas";
 import { ApiError, NetworkError } from "@/lib/api";
 import type { Member } from "@/lib/members";
-import type { RosterRow } from "@/lib/roster";
 import {
   REPORT_NOTE_MAX,
   REPORT_REASON_LABELS,
   REPORT_RECORDED_COPY,
   moderationFailureCopy,
   moderationPendingLabel,
-  moderatableUserId,
+  moderationTarget,
   reportReasonLabel,
 } from "@/lib/moderation";
 
@@ -29,17 +28,6 @@ function member(over: Partial<Member> = {}): Member {
     ...over,
   };
 }
-
-function personRow(over: Partial<Member> = {}, guest = false): RosterRow {
-  return { kind: "person", member: member(over), guest, invited: false };
-}
-
-const INVITED_ROW: RosterRow = {
-  kind: "invited",
-  invitationId: "inv-1",
-  phone: "+15550000009",
-  name: null,
-};
 
 /**
  * The reason vocabulary is the API's, not this file's.
@@ -97,36 +85,45 @@ describe("the reason vocabulary", () => {
   });
 });
 
-describe("moderatableUserId", () => {
-  it("names the account behind another person's row", () => {
-    expect(moderatableUserId(personRow({ userId: "user-2" }), "user-1")).toBe(
-      "user-2",
-    );
-  });
+describe("moderationTarget", () => {
+  /** A viewer in the app rather than in the demo, signed in as `id`. */
+  const viewer = (id: string | undefined) => ({ id, demo: false });
 
-  it("leaves an invitation alone", () => {
-    // An invited row is a phone number: there is no account to block.
-    expect(moderatableUserId(INVITED_ROW, "user-1")).toBeNull();
+  it("names the account behind another member", () => {
+    const other = member({ userId: "user-2" });
+    expect(moderationTarget(other, viewer("user-1"))).toBe("user-2");
   });
 
   it("leaves a guest alone", () => {
     // A guest's `userId` is null, which is the same fact `guest: true`
-    // carries; the account is what is read, and there is none.
-    const guest = personRow({ id: "member-2", userId: null, name: "Mom" }, true);
-    expect(moderatableUserId(guest, "user-1")).toBeNull();
+    // carries; the account is what is read, and there is none. An invited
+    // row is not an argument at all any more: a card belongs to a member,
+    // and an invitation is a phone number with nobody behind it.
+    const guest = member({ id: "member-2", userId: null, name: "Mom" });
+    expect(moderationTarget(guest, viewer("user-1"))).toBeNull();
   });
 
-  it("leaves your own row alone", () => {
+  it("leaves your own card alone", () => {
     // You cannot report or block yourself, and the API refuses it, so the
     // control is not offered rather than answered with a 4xx.
-    expect(moderatableUserId(personRow({ userId: "user-1" }), "user-1")).toBeNull();
+    const mine = member({ userId: "user-1" });
+    expect(moderationTarget(mine, viewer("user-1"))).toBeNull();
   });
 
   it("moderates every other account when the viewer is unknown", () => {
     // An unresolved session matches no id, and nothing matches nothing.
-    expect(moderatableUserId(personRow({ userId: "user-1" }), undefined)).toBe(
-      "user-1",
-    );
+    const other = member({ userId: "user-1" });
+    expect(moderationTarget(other, viewer(undefined))).toBe("user-1");
+  });
+
+  it("leaves the demo's visitor nobody at all", () => {
+    // The adapter serves no block and no report, so neither the word nor
+    // the press that opens the card it sits on is offered there. This is
+    // the half the roll call's press used to skip, which is what put a
+    // card reading "only an organizer can manage the people on this trip"
+    // behind a guest's row.
+    const other = member({ userId: "user-2" });
+    expect(moderationTarget(other, { id: "user-1", demo: true })).toBeNull();
   });
 });
 
@@ -176,7 +173,8 @@ describe("the panel's own words", () => {
 });
 
 /**
- * The roster row's panel, read off disk.
+ * The panel, read off disk — the word and the answers it opens, which live
+ * with the person's own card now (`components/trip/ReportOrBlock.tsx`).
  *
  * A source-level assertion, and the level is the honest one: there is no
  * renderer in this package (`apps/mobile/vitest.config.ts` is plain node),
@@ -187,29 +185,39 @@ describe("the panel's own words", () => {
  * labels are iterated, so a reason added to `shared` has to reach the chips
  * or this fails.
  */
+const PANEL = fs.readFileSync(
+  path.join(__dirname, "..", "components", "trip", "ReportOrBlock.tsx"),
+  "utf8",
+);
+
+/**
+ * The roll call, read off disk for the one moderation surface that stayed on
+ * it: the blocked list under the roster, which is the undo and is nobody
+ * else's to draw.
+ */
 const SCREEN = fs.readFileSync(
   path.join(__dirname, "..", "app", "trips", "members.tsx"),
   "utf8",
 );
 
-describe("the roster row's panel", () => {
+describe("the person's panel", () => {
   it("lists the reasons from the vocabulary, never from a list typed here", () => {
-    expect(SCREEN).toMatch(/REPORT_REASONS\.map\(/);
+    expect(PANEL).toMatch(/REPORT_REASONS\.map\(/);
     for (const label of Object.values(REPORT_REASON_LABELS)) {
       // A hardcoded chip reads as `label="Spam"`; neither of the two
       // spellings can appear if the map is what draws them.
-      expect(SCREEN).not.toContain(`"${label}"`);
-      expect(SCREEN).not.toContain(`>${label}<`);
+      expect(PANEL).not.toContain(`"${label}"`);
+      expect(PANEL).not.toContain(`>${label}<`);
     }
   });
 
   it("reports a failure in the panel, and keeps a block out of the alert colour", () => {
     // The app has no toast: a failed write says so where the content
     // would have been, which is `InlineError`'s whole contract.
-    expect(SCREEN).toContain("<InlineError");
+    expect(PANEL).toContain("<InlineError");
     // A block is undone from the same route's DELETE, so it is never the
     // colour reserved for what cannot be taken back.
-    expect(SCREEN).not.toContain('variant="danger"');
+    expect(PANEL).not.toContain('variant="danger"');
   });
 
   it("announces the reasons as the one choice they are", () => {
@@ -218,8 +226,8 @@ describe("the roster row's panel", () => {
     // `Segmented` draws for the same choice (`role="radio"` +
     // `aria-selected`), which the repo's own rule names and `aria-pressed`
     // is not.
-    expect(SCREEN).toMatch(/role="radiogroup"/);
-    expect(SCREEN).toMatch(/role="radio"/);
+    expect(PANEL).toMatch(/role="radiogroup"/);
+    expect(PANEL).toMatch(/role="radio"/);
     // And the primitive has to forward it rather than swallow it: a
     // `ChipToggle` that took the prop and drew a button would leave this
     // group a radiogroup over four buttons.
@@ -237,41 +245,65 @@ describe("the roster row's panel", () => {
     // offered a control that silently does nothing. The state is announced
     // around it, the way `profile.tsx`'s calendar row and the trip page's
     // RSVP control say it.
-    expect(SCREEN).toMatch(/aria-busy=\{busy !== null\}/);
-    expect(SCREEN).toMatch(/role="group"/);
+    expect(PANEL).toMatch(/aria-busy=\{busy !== null\}/);
+    expect(PANEL).toMatch(/role="group"/);
   });
 });
 
 /**
- * The footer's wiring, which neither describe above can hold.
+ * The wiring, which neither describe above can hold.
  *
- * `moderatableUserId` is exercised for real above and the panel's
- * vocabulary below, and neither would notice if the screen stopped
- * *routing* through them: draw `MemberModeration` for every row instead of
- * `RowModeration` and every assertion here stays green, with a panel under
- * your own row and under a guest. `ruled-block.test.ts` writes its own "the
+ * `moderationTarget` is exercised for real above and the panel's
+ * vocabulary beside it, and neither would notice if the card stopped
+ * *routing* through them: draw the panel for every member rather than
+ * through the gate and every assertion here stays green, with a word on
+ * your own card and on a guest's. `ruled-block.test.ts` writes its own "the
  * mark has to arrive, not just be composed" case for exactly this shape.
  * There is no renderer in this package, so the source is where the wiring
- * can be held.
+ * can be held — and the arrival itself, the card that draws the component
+ * at all, is the third file.
  */
-describe("the footer's wiring on the roll call", () => {
-  it("routes every row's footer through the one gate", () => {
-    // The gate decides, per row, whether there is anybody to moderate, and
-    // the footer it decides for is the one the roster is handed.
-    expect(SCREEN).toMatch(/moderatableUserId\(row, viewerId\)/);
-    expect(SCREEN).toMatch(/renderRowFooter=\{moderationFooter\}/);
+describe("the card's wiring", () => {
+  /** The person's card: where a reader actually meets the word. */
+  const CARD = fs.readFileSync(
+    path.join(__dirname, "..", "app", "trips", "members", "detail.tsx"),
+    "utf8",
+  );
+
+  it("gates the panel on the one pure decision, and mounts it on the card", () => {
+    // The gate decides whether there is anybody to moderate, and a press on
+    // the roll call is what the card is opened by.
+    expect(PANEL).toMatch(/moderationTarget\(member, \{/);
+    expect(CARD).toContain("<ReportOrBlock");
   });
 
-  it("hands the demo visitor no footer at all", () => {
-    // The demo renders this screen and the adapter serves its roster read,
-    // but no block and no report is served there: an ungated footer puts a
-    // word under four rows of the public demo whose only answer is a 404.
-    expect(SCREEN).toMatch(/isDemoIdentity\(user\)\s*\?\s*undefined/);
+  it("hands the demo visitor nothing at all", () => {
+    // The demo serves the roster read, but no block and no report is served
+    // there: an ungated word would be a control on the public demo whose
+    // only answer is a 404.
+    expect(PANEL).toMatch(/demo: isDemoIdentity\(user\)/);
     // The predicate is the app's own, read off the store the real routes'
     // session guards read it off — never a demo id spelled here.
-    expect(SCREEN).toMatch(
+    expect(PANEL).toMatch(
       /import \{ isDemoIdentity, useAuth \} from "@\/lib\/authStore"/,
     );
+  });
+
+  it("opens a traveler's card exactly where the card has a word", () => {
+    // The other half of the same decision, and the half that had drifted:
+    // the roll call handed a press to every row a traveler could see, so a
+    // guest's row — an account short of a card that has anything for them —
+    // opened onto the organizer's refusal. The press and the word are one
+    // answer now, and this is the guard that keeps them one.
+    expect(SCREEN).toMatch(/moderationTarget\(row\.member, \{/);
+  });
+
+  it("keeps the word off the roll call", () => {
+    // The roll call drew it under every account-backed row, which is what
+    // turned the list into a column of buttons wearing people's names. It is
+    // one word on one card now, and this is the guard against it creeping
+    // back into the list.
+    expect(SCREEN).not.toContain("Report or block");
   });
 });
 
@@ -287,11 +319,11 @@ describe("the footer's wiring on the roll call", () => {
  * anonymous again.
  */
 describe("the repeated words name their subject", () => {
-  it("names the person the row's own word is about", () => {
-    expect(SCREEN).toMatch(/ariaLabel=\{`Report or block \$\{name\}`\}/);
-    // The name is the display name — the one thing the row shows for
-    // everybody, and never a handle or a number the row withholds.
-    expect(SCREEN).toMatch(/name=\{row\.member\.name\}/);
+  it("names the person the card's own word is about", () => {
+    expect(PANEL).toMatch(/ariaLabel=\{`Report or block \$\{name\}`\}/);
+    // The name is the display name — the one thing the card shows for
+    // everybody, and never a handle or a number the card withholds.
+    expect(PANEL).toMatch(/name=\{member\.name\}/);
   });
 
   it("names the person the undo is about, without losing the pending word", () => {

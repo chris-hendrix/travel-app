@@ -3,16 +3,25 @@ import type { TravelDirection, TravelLeg } from "@/lib/newTravel";
 
 /**
  * The words one leg wears, in one table, keyed by the mode and by the
- * **side** of the leg the word belongs to.
+ * **side** of the leg the word belongs to — and, for a hire, by which
+ * half of the row is asking.
  *
- * By the side — the departure column or the arrival one — and not by the
- * position of the field on the screen, which is what makes a hire work
- * at all: on an arrival row the side the direction requires is the
- * arrival one, and its word there is `Pickup`. Everything that says a
- * leg's words reads them from here: the form's `Where` and time labels,
- * the far-end trigger's words, the detail's `Fact` labels and the chips.
- * A second table beside this one is the drift this file exists to
- * prevent.
+ * By the side, not by the position of the field on the screen:
+ * everything that says a leg's words reads them from here — the form's
+ * `Where` and time labels, the far-end trigger's words, the detail's
+ * `Fact` labels and the chips — and a second table beside this one is the
+ * drift this file exists to prevent.
+ *
+ * A hire is the one mode whose two ends are not both a journey's, and it
+ * is the whole reason the functions below take a `far`. Its **own** end —
+ * the one its direction names, the one the validator requires, the plan
+ * the group is owed — is a journey's: you arrive at the trip and you
+ * leave it, so it wears the neutral pair a car wears. Its **far** end,
+ * the optional one, is the counter: the car is collected at the end that
+ * came before, and handed back at the end that comes after. So the side
+ * alone cannot name a hire's end — the departure side reads `Departs` at
+ * the own end and `Pickup` at the far one — and every word below is asked
+ * for the half of the row it is about.
  *
  * The words are the person's, not the transport's: `Takeoff`/`Landing`
  * was considered and rejected (`components/trip/TravelDialog.tsx`),
@@ -37,8 +46,37 @@ const END_WORDS: Record<TransportMode, Record<TravelSide, string>> = {
   // Nobody lands a car: `Leaves`/`Lands` stays the flight's, and the
   // neutral pair is what a drive, a ferry and a walk all do.
   car: { departure: "Departs", arrival: "Arrives" },
-  rental: { departure: "Dropoff", arrival: "Pickup" },
+  // A hire's own end is a journey's too — arriving at the trip is
+  // arriving and leaving it is leaving — so it reads as a car's does. The
+  // counter's two errands are the *far* end's, and they live in
+  // `HIRE_FAR_WORDS` below rather than in a row here.
+  rental: { departure: "Departs", arrival: "Arrives" },
   other: { departure: "Departs", arrival: "Arrives" },
+};
+
+/**
+ * The two errands a hire is not a journey for, keyed by the side they fall
+ * on — which the row's direction decides. On an arrival row the far end is
+ * the departure side, the end the car was collected from; on a departure
+ * row it is the arrival side, the end it is handed back to.
+ *
+ * The only words in this file a mode reads from outside its own row, and
+ * the only ones that pair a counter with a clock rather than a journey
+ * with one.
+ */
+const HIRE_FAR_WORDS: Record<TravelSide, string> = {
+  departure: "Pickup",
+  arrival: "Dropoff",
+};
+
+/**
+ * The same two ends as nouns, for the two sentences about an end that
+ * holds no value: `Add the pickup` over a shut far pair, and `No dropoff
+ * time` inside an open time field.
+ */
+const HIRE_FAR_NOUNS: Record<TravelSide, string> = {
+  departure: "pickup",
+  arrival: "dropoff",
 };
 
 /** Where you are at an end of the leg, or from it: you leave a place
@@ -46,34 +84,6 @@ const END_WORDS: Record<TransportMode, Record<TravelSide, string>> = {
 const WHERE_PREPOSITION: Record<TravelSide, string> = {
   departure: "from",
   arrival: "at",
-};
-
-/**
- * What an end is *called* — the noun, where `END_WORDS` above holds the
- * verb a field wears.
- *
- * Two places need the noun rather than the verb, and both are the same
- * sentence about an end that holds no value: the shut pair's line
- * (`Add the departure`) and the no-choice row inside an open time field
- * (`No departure time`). Neither can wear `END_WORDS`' word — "No lands
- * time" and "No arrives time" are not English, and `Add the Leaves`
- * reads as a category error — so the noun is a row of its own here
- * rather than a lower-cased verb at the call site.
- *
- * It is not simply the side, and the hire is why: a hire's end words are
- * already nouns (`Pickup`/`Dropoff`), so calling its dropoff "the
- * departure" would put a second word for one end on the screen — the
- * drift this file exists to prevent — on the one mode whose whole point
- * is that its ends are read the other way round. Every other mode's ends
- * have no noun of their own, so they take the side's.
- */
-const END_NOUNS: Record<TransportMode, Record<TravelSide, string>> = {
-  flight: { departure: "departure", arrival: "arrival" },
-  train: { departure: "departure", arrival: "arrival" },
-  bus: { departure: "departure", arrival: "arrival" },
-  car: { departure: "departure", arrival: "arrival" },
-  rental: { departure: "dropoff", arrival: "pickup" },
-  other: { departure: "departure", arrival: "arrival" },
 };
 
 const MODE_LABELS: Record<TransportMode, string> = {
@@ -174,11 +184,17 @@ export function modeLabel(mode: TransportMode | undefined): string {
 /**
  * The end's word, on its own — what a time field is called, and the
  * first word of the line that reads a filed far end back.
+ *
+ * `far` asks for the other half of the row, which is a question only a
+ * hire makes a difference to: its own end is a journey's, and `Pickup` /
+ * `Dropoff` name the counter at the end the row is not about.
  */
 export function endLabel(
   mode: TransportMode | undefined,
   side: TravelSide,
+  far = false,
 ): string {
+  if (far && knownMode(mode) === "rental") return HIRE_FAR_WORDS[side];
   return END_WORDS[knownMode(mode)][side];
 }
 
@@ -190,39 +206,52 @@ export function endLabel(
 export function whereLabel(
   mode: TransportMode | undefined,
   side: TravelSide,
+  far = false,
 ): string {
-  // A hire is *at* both ends — you pick the car up at the desk and drop
-  // it back there — where a journey leaves *from* its departure end.
-  const preposition = mode === "rental" ? "at" : WHERE_PREPOSITION[side];
-  return `${endLabel(mode, side)} ${preposition}`;
+  // A hire's counter is *at* both its ends — the desk you collect from
+  // and the desk you hand back to — where a journey leaves *from* its
+  // departure end. The hire's own end is a journey's and takes the
+  // journey's preposition, which is why this asks about the half rather
+  // than about the mode.
+  const atCounter = far && knownMode(mode) === "rental";
+  const preposition = atCounter ? "at" : WHERE_PREPOSITION[side];
+  return `${endLabel(mode, side, far)} ${preposition}`;
 }
 
 /**
  * The end as a noun, for the two sentences about an end that holds no
- * value: the shut far pair's line and the no-choice row inside a time
- * field. Read by the side, like every other word here, and from
- * `END_NOUNS` — so a hire's dropoff is "the dropoff" in both of them
- * rather than the side's noun in one and its own word above the other.
+ * value: the shut far pair's line (`Add the departure`) and the no-choice
+ * row inside a time field (`No departure time`).
+ *
+ * It is the side's own name — which is why this is not a table, since
+ * every mode's own end would fill it with the same six rows: the noun
+ * cannot be the word above it, because "No lands time" is not English and
+ * `Add the Leaves` reads as a category error. A hire's *far* end is the
+ * exception, and the only one: `Pickup` and `Dropoff` are already nouns,
+ * and calling that end "the departure" would put a second name for one
+ * end on a screen.
  */
 export function endNoun(
   mode: TransportMode | undefined,
   side: TravelSide,
+  far = false,
 ): string {
-  return END_NOUNS[knownMode(mode)][side];
+  if (far && knownMode(mode) === "rental") return HIRE_FAR_NOUNS[side];
+  return side;
 }
 
 /**
- * The word the *far* end of this row wears, from the row's own
- * direction: an arrival's far end is its departure, a departure's is its
- * arrival, and on a hire those are the dropoff and the pickup. The
- * caller knows its direction and not which column that makes the far
- * one, which is the arithmetic this keeps out of the screens.
+ * The word the *far* end of this row wears, from the row's own direction:
+ * an arrival's far end is its departure, a departure's is its arrival, and
+ * on a hire those are the pickup and the dropoff. The caller knows its
+ * direction and not which column that makes the far one, which is the
+ * arithmetic this keeps out of the screens.
  */
 export function farEndWord(
   mode: TransportMode | undefined,
   direction: TravelDirection,
 ): string {
-  return endLabel(mode, otherSide(direction));
+  return endLabel(mode, otherSide(direction), true);
 }
 
 /** The number field's label, or null where the mode keeps no number. */
@@ -245,44 +274,6 @@ export function hasNumberField(mode: TransportMode | undefined): boolean {
 /** Whether the number is looked up rather than typed: the flight alone. */
 export function hasLookup(mode: TransportMode | undefined): boolean {
   return NUMBER_FIELDS[knownMode(mode)]?.lookup === true;
-}
-
-/**
- * Which of the leg's two pairs is read first: the row's **own** end — the
- * one its direction names, and the only one the validator asks for — or
- * the leg's **far** one, which is optional and sits behind a trigger.
- */
-export type PairLead = "own" | "far";
-
-/**
- * Which of the two pairs the form draws comes first.
- *
- * Two rules, and the four cases fall out of them:
- *
- * - **A hire is read pickup-first, whichever row it is on.** A pickup is
- *   always the arrival side's word and always the end that happens
- *   first, so a hire's *arrival-side* pair leads: on an arrival row that
- *   is the row's own pair — `Pickup at` above `Dropoff at` — and on a
- *   departure row it is the far one, which makes a hire's departure row
- *   the one row in this form whose far pair is not second.
- * - **Every other mode reads the row's own end first**, both ways round:
- *   a flight's arrival is `Lands at` above `Leaves from`, which is the
- *   order the mockup draws, and its departure is `Leaves from` above
- *   `Lands at`.
- *
- * The caller has two blocks and one question — which comes first — so
- * this answers that, and not the columns in some order of its own. The
- * pair's own order (`departure` then `arrival` for a journey) is the
- * order the *record* runs, and read as a rendering rule it puts an
- * arrival row's far pair on top, which is the mockup's flight drawn
- * backwards.
- */
-export function leadingPair(
-  mode: TransportMode,
-  direction: TravelDirection,
-): PairLead {
-  if (mode === "rental") return direction === "arrival" ? "own" : "far";
-  return "own";
 }
 
 /**

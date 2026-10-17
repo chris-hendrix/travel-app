@@ -47,8 +47,9 @@ pnpm docker:up        # Start PostgreSQL + MinIO
 
 # Development (host)
 make migrate          # Run pending migrations (after git pull with schema changes)
-make dev              # Start dev servers (api:8000, expo:8081)
+make dev              # Start dev servers (api:8000, expo:8081) — installs first
 make mockup           # The design mockup in a browser (design system at /design)
+make metro-clean      # Drop Metro's caches: the cure for "Unable to resolve module X"
 pnpm dev:api          # Backend only
 
 # Mobile / Android (host) — the Expo app in apps/mobile
@@ -68,6 +69,15 @@ make ios-credentials          # eas credentials -p ios
 # Android builds run in CI: .github/workflows/distribute.yml prebuilds,
 # signs with the upload key, and ships to Firebase App Distribution.
 ```
+
+`make dev` and `make mockup` run `pnpm install` before Metro starts, because
+Metro caches module **resolution** as well as transforms, keyed to the
+dependency tree (`apps/mobile/metro.config.cjs`). A tree left stale by a pull is
+therefore not a one-off: the cached miss outlives the install that fixes it, and
+the app keeps answering `Unable to resolve module zod` from a tree that has zod.
+`make metro-clean` drops those caches. The devcontainer's node_modules are named
+volumes, so a container install never repairs the host's tree — the same fix has
+to happen on whichever side is running Metro.
 
 ### Testing — devcontainer only
 

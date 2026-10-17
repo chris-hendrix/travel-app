@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   instagramUrl,
   mapsSearchUrl,
+  placeCopyText,
   placeMapsUrl,
   placeQuery,
   venmoUrl,
@@ -27,6 +28,33 @@ describe("placeQuery", () => {
     expect(placeQuery("Trattoria Nuova, Mallorca", "mallorca")).toBe(
       "Trattoria Nuova, Mallorca",
     );
+  });
+});
+
+describe("placeCopyText", () => {
+  it("copies the address, which is the string somebody pastes", () => {
+    expect(
+      placeCopyText(
+        "Hotel Hacienda Todos Los Santos",
+        "Benito Juárez, Todos Santos, BCS, Mexico",
+      ),
+    ).toBe("Benito Juárez, Todos Santos, BCS, Mexico");
+  });
+
+  it("falls back to the name for a place with no address", () => {
+    // A typed place, and a travel where, which files the provider's whole
+    // reading in one string with the address already in it.
+    expect(placeCopyText("Konoba Free Text")).toBe("Konoba Free Text");
+    expect(placeCopyText("Konoba Free Text", "   ")).toBe("Konoba Free Text");
+  });
+
+  it("trims, so nothing lands on the clipboard with padding on it", () => {
+    expect(
+      placeCopyText(
+        "  Casa Verde  ",
+        "  Calle del Sol 12, Cabo San Lucas, Mexico  ",
+      ),
+    ).toBe("Calle del Sol 12, Cabo San Lucas, Mexico");
   });
 });
 

@@ -2,7 +2,8 @@
  * E2E Journey: travel entry (mobile).
  *
  * Critical flow 8 (Travel entry). Five tests, one flow: a member files
- * their own arrival and the board shows it, a **cold load** of a filed
+ * their own arrival and the board shows it — and the sheet behind that
+ * row, where the where offers `Open in Maps` — a **cold load** of a filed
  * record's edit URL opens that record and saves over it rather than
  * beside it, deleting one of two directions keeps the form open on the
  * other, a delete on a member who is not going keeps the form on *that
@@ -42,11 +43,13 @@
  * 4's and the derived day Task 9's, and neither is re-verified here.
  *
  * Selectors are accessible names, never `testID`. The form's fields are
- * named by the mode's own word for their end (`lib/transportMode.ts`,
- * D3), so an arrival's `Where` reads `Lands at` on the default flight and
- * `Pickup at` on a hire — the words are the feature, and a spec that
- * named a field by its position would be asserting the shape this change
- * removed. Nothing here re-verifies a unit test:
+ * named by the mode's own word for their end and for which half of the row
+ * they are (`lib/transportMode.ts`, D3), so an arrival's `Where` reads
+ * `Lands at` on the default flight and `Arrives at` on a hire — whose
+ * counter is the `Pickup at` behind the trigger — the words are the
+ * feature, and a spec that named a field by its position would be
+ * asserting the shape this change removed. Nothing here re-verifies a unit
+ * test:
  * `__tests__/travel-where.test.ts` owns the ranking, `travel-days.test.ts`
  * the strip's cells and `new-travel.test.ts` the D5 leg rule. Field-level
  * validation is banned at this level and is not asserted.
@@ -216,6 +219,27 @@ test.describe("Travel Journey", () => {
       await expect(
         page.getByText("Nobody has shared their times yet."),
       ).toHaveCount(0);
+    });
+
+    await test.step("the sheet behind the row offers Maps for the where", async () => {
+      // The board's row is the press (`app/trips/travel.tsx`), and the
+      // sheet it opens is the leg read whole. Its where carries
+      // `Open in Maps` — the verb the stay and event sheets put under
+      // their own address — which is the one place on this screen a reader
+      // can leave the app from, and the door the port from the web sheet
+      // lost once. The URL it builds is `lib/links.ts`' own and is
+      // unit-tested in `__tests__/links.test.ts`; what no unit test can
+      // see (this suite has no renderer) is that a filed where still
+      // offers the press at all.
+      await page
+        .getByRole("button")
+        .filter({ hasText: memberName })
+        .filter({ hasText: "9:00 AM" })
+        .click();
+      await expect(page).toHaveURL(/\/trips\/travel\/detail/);
+      await expect(
+        page.getByRole("button", { name: `Open ${where} in Google Maps` }),
+      ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
     });
 
     await test.step("the server holds exactly one arrival for the member", async () => {
@@ -605,6 +629,12 @@ test.describe("Travel Journey", () => {
   }) => {
     const tripName = uniqueLabel("E2E Hire");
     const memberName = uniqueLabel("Travel Hirer");
+    // The three places a hire has: the trip-facing plan each row is about,
+    // and the counter at that row's far end — the desk the car is
+    // collected from on an arrival row, the garage it goes back to on a
+    // departure one.
+    const arriveWhere = uniqueLabel("PMI Arrivals");
+    const leaveWhere = uniqueLabel("PMI Departures");
     const pickupWhere = uniqueLabel("PMI Desk");
     const dropoffWhere = uniqueLabel("PMI Garage");
 
@@ -614,11 +644,15 @@ test.describe("Travel Journey", () => {
     let token: string;
     let travelId: string;
     let tripZone: string;
-    // Two ends of one hire, hours apart on the filed day, stamped in UTC
-    // and read back through the zone the API geocoded for the trip — the
-    // spec never asserts a clock it guessed.
+    // Two ends of one hire, hours apart on the filed day and in the order
+    // they happen — the car is collected before the row's own end and
+    // handed back after it — stamped in UTC and read back through the zone
+    // the API geocoded for the trip: the spec never asserts a clock it
+    // guessed.
     const pickupIso = () => `${startDate}T10:00:00Z`;
-    const dropoffIso = () => `${startDate}T14:00:00Z`;
+    const arrivalIso = () => `${startDate}T14:00:00Z`;
+    const leaveIso = () => `${startDate}T09:00:00Z`;
+    const dropoffIso = () => `${startDate}T11:00:00Z`;
 
     await test.step("seed a trip and a hire holding both its ends", async () => {
       ({ token } = await seedUserViaAPI(
@@ -642,9 +676,9 @@ test.describe("Travel Journey", () => {
         tripId,
         memberId,
         "arrival",
-        { arrivalTime: pickupIso(), departureTime: dropoffIso() },
-        pickupWhere,
-        { mode: "rental", farLocation: dropoffWhere },
+        { arrivalTime: arrivalIso(), departureTime: pickupIso() },
+        arriveWhere,
+        { mode: "rental", farLocation: pickupWhere },
       );
     });
 
@@ -683,7 +717,7 @@ test.describe("Travel Journey", () => {
         .getByText(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) /)
         .boundingBox();
       const farClock = await row
-        .getByText(clockIn(pickupIso(), tripZone), { exact: true })
+        .getByText(clockIn(arrivalIso(), tripZone), { exact: true })
         .boundingBox();
       expect(farDay).not.toBeNull();
       expect(farClock).not.toBeNull();
@@ -706,29 +740,29 @@ test.describe("Travel Journey", () => {
         "true",
         { timeout: NAVIGATION_TIMEOUT },
       );
-      // A hire's own end on an arrival row is the pickup — the word is
-      // keyed by the *side*, not by the field's position (D3), so the
-      // field the flight calls `Lands at` reads `Pickup at` here.
+      // A hire's own end is the plan at the trip, so the field the flight
+      // calls `Lands at` reads `Arrives at` here — the word a train wears
+      // — and it is the arrival the record holds.
       await expect(
-        page.getByRole("textbox", { name: "Pickup at" }),
-      ).toHaveValue(pickupWhere, { timeout: NAVIGATION_TIMEOUT });
+        page.getByRole("textbox", { name: "Arrives at" }),
+      ).toHaveValue(arriveWhere, { timeout: NAVIGATION_TIMEOUT });
       await expect(
         page.getByRole("button", {
-          name: clockIn(pickupIso(), tripZone),
+          name: clockIn(arrivalIso(), tripZone),
           exact: true,
         }),
       ).toBeVisible();
       // The far end is open because it *holds* something rather than
-      // because it was asked (D4): the pair renders on the value, and
-      // the dropoff is where the record put it.
+      // because it was asked (D4): the pair renders on the value, and the
+      // pickup is where the record put it.
       await expect(
-        page.getByRole("textbox", { name: "Dropoff at" }),
-      ).toHaveValue(dropoffWhere);
+        page.getByRole("textbox", { name: "Pickup at" }),
+      ).toHaveValue(pickupWhere);
       // Exact, because the shut line above reads the same clock back
-      // inside a sentence (`Dropoff · 3:00 PM · PMI Garage`).
+      // inside a sentence (`Pickup · 10:00 AM · PMI Desk`).
       await expect(
         page.getByRole("button", {
-          name: clockIn(dropoffIso(), tripZone),
+          name: clockIn(pickupIso(), tripZone),
           exact: true,
         }),
       ).toBeVisible();
@@ -737,7 +771,7 @@ test.describe("Travel Journey", () => {
       // one the strip above shows, and its word comes from the same table
       // as the labels.
       await expect(
-        page.getByText(/^Dropoff (Mon|Tue|Wed|Thu|Fri|Sat|Sun) /),
+        page.getByText(/^Pickup (Mon|Tue|Wed|Thu|Fri|Sat|Sun) /),
       ).toHaveCount(0);
       await expect(
         page.getByRole("radio", { name: dayCellLabel(startDate) }),
@@ -746,13 +780,17 @@ test.describe("Travel Journey", () => {
 
     await test.step("a chip commits another mode, and the board wears that", async () => {
       // The chip renames the fields and never gates them (D2): the hire's
-      // two ends stay where they are while the mode changes, so the field
-      // the hire called `Pickup at` is a train's `Arrives at` over the
-      // same where — one leg, two vocabularies, and the words come from
-      // the one table.
+      // two ends stay where they are while the mode changes, so the own
+      // where holds its value under a label it keeps — `Arrives at` is the
+      // train's own arrival word and the hire's own end wears it too — and
+      // the counter behind the trigger becomes a journey's `Departs from`.
+      // One leg, two vocabularies, and the words come from the one table.
       await page.getByRole("radio", { name: "Train" }).click();
       await expect(
         page.getByRole("textbox", { name: "Arrives at" }),
+      ).toHaveValue(arriveWhere);
+      await expect(
+        page.getByRole("textbox", { name: "Departs from" }),
       ).toHaveValue(pickupWhere);
       await page.getByRole("button", { name: "Save changes" }).click();
       // The save dismisses, and where it dismisses to is not this test's
@@ -769,23 +807,21 @@ test.describe("Travel Journey", () => {
       ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
     });
 
-    await test.step("the same hire's other direction reads pickup then dropoff", async () => {
-      // A hire's pickup is always the arrival-side end and its dropoff the
-      // departure-side one, so the arrival-side pair leads whichever way the
-      // row faces. On a *departure* row that pair is the far one, so the
-      // pickup has to read above the dropoff — the only row whose order
-      // differs from "the row's own end leads", and the reason the board's
-      // half of this hire is not enough. Nothing in the Vitest suite has a
-      // renderer, so two fields' order is only assertable here, as geometry.
+    await test.step("the same hire's other direction reads its own end first", async () => {
+      // The own pair leads on every row, and a hire's departure row is no
+      // exception any more: it reads `Departs from` above the `Dropoff at`
+      // behind it, where it used to read pickup-first. Nothing in the
+      // Vitest suite has a renderer, so two fields' order is only
+      // assertable here, as geometry.
       const departureTravelId = await seedTravelViaAPI(
         request,
         token,
         tripId,
         memberId,
         "departure",
-        { departureTime: dropoffIso(), arrivalTime: pickupIso() },
-        dropoffWhere,
-        { mode: "rental", farLocation: pickupWhere },
+        { departureTime: leaveIso(), arrivalTime: dropoffIso() },
+        leaveWhere,
+        { mode: "rental", farLocation: dropoffWhere },
       );
       await page.goto(
         `/trips/travel/form?id=${tripId}&travel=${departureTravelId}`,
@@ -798,21 +834,21 @@ test.describe("Travel Journey", () => {
         "true",
         { timeout: NAVIGATION_TIMEOUT },
       );
-      // The own end of a departure row is the departure column, which a hire
-      // calls `Dropoff at`; the far end is the pickup the record holds.
-      const pickupField = page.getByRole("textbox", { name: "Pickup at" });
+      // The own end of a departure row is the leaving, which a hire calls
+      // `Departs from`; the far end is the dropoff the record holds.
+      const ownField = page.getByRole("textbox", { name: "Departs from" });
       const dropoffField = page.getByRole("textbox", { name: "Dropoff at" });
-      await expect(pickupField).toHaveValue(pickupWhere, {
+      await expect(ownField).toHaveValue(leaveWhere, {
         timeout: NAVIGATION_TIMEOUT,
       });
       await expect(dropoffField).toHaveValue(dropoffWhere);
-      const [pickupBox, dropoffBox] = await Promise.all([
-        pickupField.boundingBox(),
+      const [ownBox, dropoffBox] = await Promise.all([
+        ownField.boundingBox(),
         dropoffField.boundingBox(),
       ]);
-      expect(pickupBox).not.toBeNull();
+      expect(ownBox).not.toBeNull();
       expect(dropoffBox).not.toBeNull();
-      expect(pickupBox?.y ?? 0).toBeLessThan(dropoffBox?.y ?? 0);
+      expect(ownBox?.y ?? 0).toBeLessThan(dropoffBox?.y ?? 0);
     });
   });
 });

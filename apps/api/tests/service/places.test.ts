@@ -10,7 +10,6 @@ describe("places.service (RED: module does not exist yet)", () => {
     expect(mod.AUTOCOMPLETE_FIELD_MASK).toContain(
       "suggestions.placePrediction.types",
     );
-    expect(mod.AUTOCOMPLETE_MAX_DISTANCE_METERS).toBe(250_000);
 
     vi.spyOn(global, "fetch").mockImplementationOnce(async (url, init) => {
       const body = JSON.parse((init as { body: string }).body);
@@ -64,11 +63,15 @@ describe("places.service (RED: module does not exist yet)", () => {
       country: "ES",
       apiKey: "test-key",
     });
-    // 1_400_000m dropped, 90_000 kept, missing distance kept
-    expect(out.map((s) => s.placeId)).toEqual(["A", "C"]);
+    // Every ranked row is kept, the far one included: the bias is a nudge,
+    // and a where that is 1,400km away is the normal case for a leg — the
+    // 250km cutoff that used to drop "Far Away" here is what made the travel
+    // form's `Where` answer nothing for an airport you actually fly into.
+    expect(out.map((s) => s.placeId)).toEqual(["A", "B", "C"]);
     expect(out[0].types).toEqual(["restaurant", "food"]);
     expect(out[0].distanceMeters).toBe(90000);
-    expect(out[1].distanceMeters).toBeNull();
+    expect(out[1].distanceMeters).toBe(1_400_000);
+    expect(out[2].distanceMeters).toBeNull();
   });
 
   it("details mask is exact, types absent, photos map to CachedPhoto", async () => {

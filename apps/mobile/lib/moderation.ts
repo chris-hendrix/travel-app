@@ -1,6 +1,6 @@
 /**
- * The moderation vocabulary, and the sentences the roster row's panel and
- * the blocked list under it say about it.
+ * The moderation vocabulary, and the sentences the person's own panel and
+ * the blocked list under the roll call say about it.
  *
  * Node-importable by design: no `react`, no `react-native`, no fetch.
  *
@@ -19,7 +19,7 @@
 
 import { REPORT_REASONS } from "@journiful/shared/schemas";
 import type { ReportReason } from "@journiful/shared/schemas";
-import type { RosterRow } from "@/lib/roster";
+import type { Member } from "@/lib/members";
 import { toErrorCopy } from "@/lib/queries/errors";
 
 export { REPORT_REASONS, type ReportReason };
@@ -87,31 +87,44 @@ export function moderationPendingLabel(action: ModerationWrite): string {
 }
 
 /**
- * Who a row lets you moderate: the account behind it, or nobody.
+ * Who lets you moderate them: the account behind the member, or nobody.
  *
  * One decision, in one pure place, so it is testable without a renderer
- * and the row is not left spending its own condition on it. Three rows
- * answer `null`:
+ * and no screen is left spending its own conditions on it. Three answers
+ * are `null`:
  *
- * - an `invited` row has no account at all — an invitation is a phone
- *   number, not a person to block;
- * - a guest row's `userId` is null for the same reason (`guest` is that
- *   same fact read off the member, so this reads the account and not the
- *   flag);
- * - your own row: you cannot report or block yourself, and the API
+ * - a guest's `userId` is null — there is no account to report or block
+ *   (`guest` is that same fact read off the member, so this reads the
+ *   account and not the flag);
+ * - your own card: you cannot report or block yourself, and the API
  *   refuses it, so the control is not offered rather than answered with
- *   a 4xx.
+ *   a 4xx;
+ * - every card the demo draws. The adapter serves the roster read and no
+ *   block and no report, so a word there — or a press onto it — is a
+ *   control whose only answer is a 404. `demo` is `isDemoIdentity`'s
+ *   answer, handed in rather than read here: this file stays free of the
+ *   auth store.
  *
- * An unknown viewer (`viewerId` undefined) moderates every account with a
- * user behind it, since nothing matches an absent id.
+ * An unknown viewer (`id` undefined) moderates every account with a user
+ * behind it, since nothing matches an absent id.
+ *
+ * It answered about a `RosterRow` while the roll call drew the word under
+ * every account-backed row, and its argument is a member now that the word
+ * lives on the person's own card (`components/trip/ReportOrBlock.tsx`).
+ * What it answers is still one thing, and both halves of the card read it:
+ * the word at the foot of it, and the press the roll call hands out
+ * (`app/trips/members.tsx`) that opens it. The second half asked only the
+ * demo question for a while, and a press with nothing behind it is how a
+ * traveler came to tap a guest's row and land on "only an organizer can
+ * manage the people on this trip".
  */
-export function moderatableUserId(
-  row: RosterRow,
-  viewerId: string | undefined,
+export function moderationTarget(
+  member: Pick<Member, "userId">,
+  viewer: { id: string | undefined; demo: boolean },
 ): string | null {
-  if (row.kind !== "person") return null;
-  const account = row.member.userId;
-  if (account === null || account === viewerId) return null;
+  if (viewer.demo) return null;
+  const account = member.userId;
+  if (account === null || account === viewer.id) return null;
   return account;
 }
 

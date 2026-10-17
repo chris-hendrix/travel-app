@@ -6,8 +6,7 @@ import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { Badge } from "@/components/ui/Badge";
 import { PhotoCredit } from "@/components/ui/PhotoCredit";
-import { QuietAction } from "@/components/ui/QuietAction";
-import { placeMapsUrl } from "@/lib/links";
+import { PlaceActions } from "@/components/ui/PlaceActions";
 import { placeRows } from "@/lib/place-rows";
 import {
   EVENT_TYPE_LABEL,
@@ -194,9 +193,9 @@ function EventDetailDialog() {
 
       {/* The place block: the picked place's name leading in bold, its
           address following lighter on the same line — the reading of
-          the picker row it came from — and the one verb a place has
-          leading out to Maps, pinned to the place itself. The line
-          hides when there is neither. */}
+          the picker row it came from — and the two verbs a place has under
+          it (`PlaceActions`): the Maps link, pinned to the place itself,
+          and the address beside it. The line hides when there is neither. */}
       {rows.name ?? rows.address ? (
         <RuledBlock title="Where">
           <Text selectable className="font-body text-base text-ink/70">
@@ -206,25 +205,22 @@ function EventDetailDialog() {
             {rows.name && rows.address ? " " : null}
             {rows.address}
           </Text>
-          {rows.address || event.placeId ? (
-            <QuietAction
-              label="Open in Maps"
-              onPress={() =>
-                void Linking.openURL(
-                  placeMapsUrl(event.placeId, rows.address ?? rows.name!),
-                )
-              }
-            />
-          ) : null}
+          <PlaceActions
+            name={rows.name}
+            address={rows.address}
+            placeId={event.placeId}
+          />
         </RuledBlock>
       ) : null}
 
       {/* The organizer's prose, at full width under both columns: it is
           the one thing here that is a paragraph rather than a fact, and
           a paragraph squeezed into a column beside a photo reads as
-          caption. */}
+          caption. Titled with the column's own word — the form labels
+          this field `Description` — which is the rule the stay sheet
+          follows too. */}
       {event.description ? (
-        <RuledBlock>
+        <RuledBlock title="Description">
           <Text className="font-body text-base leading-relaxed text-ink">
             {event.description}
           </Text>

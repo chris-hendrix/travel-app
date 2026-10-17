@@ -355,7 +355,6 @@ function tripOf(store: DemoStore, tripId: string): DemoTrip | undefined {
 type DemoPlace = {
   placeId: string;
   shortName: string;
-  displayName: string;
   displayAddress: string;
   types: string[];
   /** ISO 3166-1 alpha-2, matching the trip's own `placeCountry`. */
@@ -364,12 +363,27 @@ type DemoPlace = {
   lon: number;
 };
 
+/**
+ * Google's whole reading of a place, which its autocomplete answers with
+ * as `text.text`: the main text and the structured address joined —
+ * "Casa Verde, Calle del Sol 12, Cabo San Lucas, Mexico". Derived rather
+ * than stored, because the list already carries both halves and a fixture
+ * that spelled the join out a second time could drift from them.
+ *
+ * The join is what a text picker commits (`placePickerRows`,
+ * `commit: "name"`), so the travel `Where` field files in the demo exactly
+ * what it files against the live API: every word of the place, the
+ * address included.
+ */
+function demoPlaceName(place: DemoPlace): string {
+  return `${place.shortName}, ${place.displayAddress}`;
+}
+
 export const DEMO_PLACES: readonly DemoPlace[] = [
   // Cabo San Lucas: the beach trip's own week, house first.
   {
     placeId: "demo-place-casa-verde",
     shortName: "Casa Verde",
-    displayName: "Casa Verde",
     displayAddress: "Calle del Sol 12, Cabo San Lucas, Mexico",
     types: ["lodging"],
     country: "MX",
@@ -379,7 +393,6 @@ export const DEMO_PLACES: readonly DemoPlace[] = [
   {
     placeId: "demo-place-el-paisa",
     shortName: "Taquería El Paisa",
-    displayName: "Taquería El Paisa",
     displayAddress: "Boulevard Lázaro Cárdenas, Cabo San Lucas, BCS, Mexico",
     types: ["food_and_drink"],
     country: "MX",
@@ -389,7 +402,6 @@ export const DEMO_PLACES: readonly DemoPlace[] = [
   {
     placeId: "demo-place-rooftop-360",
     shortName: "The Rooftop 360",
-    displayName: "The Rooftop 360",
     displayAddress: "Corazón Cabo, Cabo San Lucas, BCS, Mexico",
     types: ["nightlife"],
     country: "MX",
@@ -399,7 +411,6 @@ export const DEMO_PLACES: readonly DemoPlace[] = [
   {
     placeId: "demo-place-marina-cabo",
     shortName: "Marina Cabo San Lucas",
-    displayName: "Marina Cabo San Lucas",
     displayAddress: "Blvd. Marina, Cabo San Lucas, BCS, Mexico",
     types: ["outdoors"],
     country: "MX",
@@ -409,7 +420,6 @@ export const DEMO_PLACES: readonly DemoPlace[] = [
   {
     placeId: "demo-place-el-medano",
     shortName: "Playa El Médano",
-    displayName: "Playa El Médano",
     displayAddress: "Playa El Médano, Cabo San Lucas, BCS, Mexico",
     types: ["outdoors"],
     country: "MX",
@@ -419,7 +429,6 @@ export const DEMO_PLACES: readonly DemoPlace[] = [
   {
     placeId: "demo-place-santa-maria",
     shortName: "Playa Santa María",
-    displayName: "Playa Santa María",
     displayAddress: "Playa Santa María, Cabo San Lucas, BCS, Mexico",
     types: ["outdoors"],
     country: "MX",
@@ -429,7 +438,6 @@ export const DEMO_PLACES: readonly DemoPlace[] = [
   {
     placeId: "demo-place-solomons-landing",
     shortName: "Solomon's Landing",
-    displayName: "Solomon's Landing",
     displayAddress: "Blvd. Paseo de la Marina, Cabo San Lucas, BCS, Mexico",
     types: ["food_and_drink"],
     country: "MX",
@@ -440,7 +448,6 @@ export const DEMO_PLACES: readonly DemoPlace[] = [
   {
     placeId: "demo-place-casa-marea",
     shortName: "Casa Marea",
-    displayName: "Casa Marea",
     displayAddress: "Calle del Mar 8, Todos Santos, Mexico",
     types: ["lodging"],
     country: "MX",
@@ -450,7 +457,6 @@ export const DEMO_PLACES: readonly DemoPlace[] = [
   {
     placeId: "demo-place-cien-palmas",
     shortName: "Cien Palmas",
-    displayName: "Cien Palmas",
     displayAddress: "Centro, Todos Santos, BCS, Mexico",
     types: ["food_and_drink"],
     country: "MX",
@@ -460,7 +466,6 @@ export const DEMO_PLACES: readonly DemoPlace[] = [
   {
     placeId: "demo-place-hacienda-todos-santos",
     shortName: "Hotel Hacienda Todos Los Santos",
-    displayName: "Hotel Hacienda Todos Los Santos",
     displayAddress: "Benito Juárez, Todos Santos, BCS, Mexico",
     types: ["arts_and_entertainment"],
     country: "MX",
@@ -471,7 +476,6 @@ export const DEMO_PLACES: readonly DemoPlace[] = [
   {
     placeId: "demo-place-wavecrest",
     shortName: "Wavecrest",
-    displayName: "Wavecrest",
     displayAddress: "Ocean Front Walk, Pacific Beach, San Diego, USA",
     types: ["lodging"],
     country: "US",
@@ -481,7 +485,6 @@ export const DEMO_PLACES: readonly DemoPlace[] = [
   {
     placeId: "demo-place-pacific-beach",
     shortName: "Pacific Beach",
-    displayName: "Pacific Beach",
     displayAddress: "Pacific Beach, San Diego, CA, USA",
     types: ["outdoors"],
     country: "US",
@@ -491,7 +494,6 @@ export const DEMO_PLACES: readonly DemoPlace[] = [
   {
     placeId: "demo-place-petco-park",
     shortName: "Petco Park",
-    displayName: "Petco Park",
     displayAddress: "100 Park Blvd, San Diego, CA, USA",
     types: ["arts_and_entertainment"],
     country: "US",
@@ -501,7 +503,6 @@ export const DEMO_PLACES: readonly DemoPlace[] = [
   {
     placeId: "demo-place-greystone",
     shortName: "Greystone Steakhouse",
-    displayName: "Greystone Steakhouse",
     displayAddress: "658 5th Ave, San Diego, CA, USA",
     types: ["food_and_drink"],
     country: "US",
@@ -511,7 +512,6 @@ export const DEMO_PLACES: readonly DemoPlace[] = [
   {
     placeId: "demo-place-shout-house",
     shortName: "The Shout! House",
-    displayName: "The Shout! House",
     displayAddress: "655 4th Ave, San Diego, CA, USA",
     types: ["nightlife"],
     country: "US",
@@ -891,14 +891,14 @@ export function handleDemoRequest(
     const matches = scoped.filter(
       (place) =>
         needle === "" ||
-        `${place.displayName} ${place.displayAddress}`.toLowerCase().includes(needle),
+        `${place.shortName} ${place.displayAddress}`.toLowerCase().includes(needle),
     );
     return {
       status: 200,
       body: matches.map((place) => ({
         placeId: place.placeId,
         shortName: place.shortName,
-        displayName: place.displayName,
+        displayName: demoPlaceName(place),
         displayAddress: place.displayAddress,
         types: [...place.types],
       })),
@@ -917,7 +917,7 @@ export function handleDemoRequest(
       status: 200,
       body: {
         placeId: place.placeId,
-        displayPlace: place.displayName,
+        displayPlace: demoPlaceName(place),
         displayAddress: place.displayAddress,
         lat: place.lat,
         lon: place.lon,

@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
 import { TRANSPORT_MODES, type TransportMode } from "@journiful/shared/utils";
 import { emptyLeg, type TravelDirection, type TravelLeg } from "@/lib/newTravel";
 import {
@@ -8,7 +10,6 @@ import {
   farEndWord,
   hasLookup,
   hasNumberField,
-  leadingPair,
   modeLabel,
   numberLabel,
   numberPlaceholder,
@@ -71,13 +72,28 @@ describe("the table of words", () => {
     expect(modeLabel("bus")).toBe("Bus");
   });
 
-  it("reads a hire as what you do with it", () => {
-    // The hire's own words, and the reason the table is keyed by the
-    // side rather than by the field's position: on an arrival row the
-    // arrival side — the one the direction requires — is the pickup.
-    expect(endLabel("rental", "departure")).toBe("Dropoff");
-    expect(endLabel("rental", "arrival")).toBe("Pickup");
+  it("reads a hire's own end as the journey's, and its counter as the counter's", () => {
+    // The own end is the plan at the trip — you arrive at it and you leave
+    // it — so it wears the neutral pair a car wears, whichever row it is
+    // on. The errands are the *far* end's, and it is the same two sides
+    // asked for the other half of the row: the departure side is the end
+    // the car was collected from, the arrival side the end it goes back to.
+    expect(endLabel("rental", "departure")).toBe("Departs");
+    expect(endLabel("rental", "arrival")).toBe("Arrives");
+    expect(endLabel("rental", "departure", true)).toBe("Pickup");
+    expect(endLabel("rental", "arrival", true)).toBe("Dropoff");
     expect(modeLabel("rental")).toBe("Rental");
+  });
+
+  it("leaves every other mode's far end reading what its own end reads", () => {
+    // The counter is the hire's alone: a train's far end is a departure
+    // like any other, and `far` changes nothing about it.
+    for (const mode of TRANSPORT_MODES) {
+      if (mode === "rental") continue;
+      for (const side of SIDES) {
+        expect(endLabel(mode, side, true)).toBe(endLabel(mode, side));
+      }
+    }
   });
 
   it("reads a car and anything else as the neutral pair", () => {
@@ -97,18 +113,23 @@ describe("the table of words", () => {
     expect(whereLabel("flight", "arrival")).toBe("Lands at");
     expect(whereLabel("flight", "departure")).toBe("Leaves from");
     expect(whereLabel("train", "arrival")).toBe("Arrives at");
-    expect(whereLabel("rental", "arrival")).toBe("Pickup at");
-    expect(whereLabel("rental", "departure")).toBe("Dropoff at");
+    expect(whereLabel("rental", "arrival")).toBe("Arrives at");
+    expect(whereLabel("rental", "departure")).toBe("Departs from");
+    // The counter is *at* both its ends — the desk you collect from and
+    // the desk you hand back to — which is the one preposition the mode
+    // brings of its own.
+    expect(whereLabel("rental", "departure", true)).toBe("Pickup at");
+    expect(whereLabel("rental", "arrival", true)).toBe("Dropoff at");
   });
 
   it("names the far end by the side it is, not by where the field sits", () => {
     // An arrival row's far end is its departure — you are answering
     // "when do you land" and the takeoff is the other end — and on a
-    // hire that far end is the dropoff.
+    // hire that far end is where the car was collected from.
     expect(farEndWord("flight", "arrival")).toBe("Leaves");
     expect(farEndWord("flight", "departure")).toBe("Lands");
-    expect(farEndWord("rental", "arrival")).toBe("Dropoff");
-    expect(farEndWord("rental", "departure")).toBe("Pickup");
+    expect(farEndWord("rental", "arrival")).toBe("Pickup");
+    expect(farEndWord("rental", "departure")).toBe("Dropoff");
 
     for (const direction of ["arrival", "departure"] as const) {
       const far: TravelDirection = direction === "arrival" ? "departure" : "arrival";
@@ -118,27 +139,37 @@ describe("the table of words", () => {
 });
 
 describe("the end's noun", () => {
-  it("names a hire's ends what they are, and every other mode's by its side", () => {
-    // The noun is the side's for a mode whose end words are verbs; a
-    // hire's are already nouns, so it keeps its own. `No arrival time`
-    // under a field reading `Lands` is one fact said two ways at worst —
-    // under one reading `Dropoff` it is two names for one end.
+  it("is the side's own name, at every mode's own end", () => {
+    // The noun cannot be the word above it: `Add the Leaves` reads as a
+    // category error and "No lands time" is not English. Every mode's own
+    // end is the side, which is why this may be a function rather than the
+    // table `END_WORDS` is — six rows of it would say the same thing.
     for (const mode of TRANSPORT_MODES) {
-      if (mode === "rental") continue;
       for (const side of SIDES) expect(endNoun(mode, side)).toBe(side);
     }
+  });
 
-    expect(endNoun("rental", "arrival")).toBe("pickup");
-    expect(endNoun("rental", "departure")).toBe("dropoff");
+  it("names a hire's counter what its own labels name it", () => {
+    // The one exception: `Pickup` and `Dropoff` are nouns already, and
+    // calling that end "the departure" would be two names for one end.
+    expect(endNoun("rental", "departure", true)).toBe("pickup");
+    expect(endNoun("rental", "arrival", true)).toBe("dropoff");
+    for (const mode of TRANSPORT_MODES) {
+      if (mode === "rental") continue;
+      for (const side of SIDES) expect(endNoun(mode, side, true)).toBe(side);
+    }
   });
 
   it("reads the two sentences it is for in the field's own word", () => {
-    // The two sites: `Add the …` over a shut pair, and `No … time` inside
-    // an open time field. A hire names the end its own labels name.
-    expect(`Add the ${endNoun("rental", "departure")}`).toBe(
-      "Add the dropoff",
+    // The two sites: `Add the …` over a shut far pair, and `No … time`
+    // inside an open time field. A hire names the counter the way the
+    // labels over that end name it.
+    expect(`Add the ${endNoun("rental", "departure", true)}`).toBe(
+      "Add the pickup",
     );
-    expect(`No ${endNoun("rental", "arrival")} time`).toBe("No pickup time");
+    expect(`No ${endNoun("rental", "arrival", true)} time`).toBe(
+      "No dropoff time",
+    );
     // The non-hire reading is what it always was, and is what the travel
     // journey's spec looks for on a flight.
     expect(`Add the ${endNoun("flight", "departure")}`).toBe(
@@ -147,6 +178,25 @@ describe("the end's noun", () => {
     expect(`No ${endNoun("flight", "departure")} time`).toBe(
       "No departure time",
     );
+  });
+
+  /**
+   * The form, read off disk for the one thing the compositions above cannot
+   * hold: the argument. `endNoun` is the only word here that is asked which
+   * *half* of the row it is about, and a call site that leaves the third
+   * argument off — which the `Add the …` line did while every test above
+   * stayed green, because those pass it by hand — puts the side's word over
+   * a pair that names the counter: `Add the departure` under `Pickup at`,
+   * the drift this file's one table exists to prevent.
+   */
+  it("asks for the half at both of the form's two call sites", () => {
+    const form = fs.readFileSync(
+      path.join(__dirname, "..", "components", "trip", "TravelDialog.tsx"),
+      "utf8",
+    );
+    // The shut far pair's line, and the no-choice row inside a time field.
+    expect(form).toMatch(/endNoun\(mode, farSide, true\)/);
+    expect(form).toMatch(/endNoun\(mode, side, far\)/);
   });
 });
 
@@ -204,37 +254,6 @@ describe("the number the mode keeps", () => {
   });
 });
 
-describe("which of the pair leads", () => {
-  /**
-   * The rule, which is two rules: **a hire's arrival-side pair always
-   * leads** — a pickup is the arrival side's word and is always the end
-   * that happens first, whichever row the leg is read on — and **every
-   * other mode reads the row's own end first**, both ways round.
-   */
-  it("reads a hire pickup-first, and everything else's own end first", () => {
-    // rental, arrival row: the own pair *is* the pickup, so the pickup
-    // reads above the dropoff.
-    expect(leadingPair("rental", "arrival")).toBe("own");
-    // rental, departure row: the own pair is the dropoff, so the pair
-    // that leads is the far one — the pickup.
-    expect(leadingPair("rental", "departure")).toBe("far");
-    // flight, arrival row: the own pair is the arrival, which is the
-    // mockup's `Lands at` above `Leaves from`.
-    expect(leadingPair("flight", "arrival")).toBe("own");
-    // flight, departure row, the same way round: the own end leads.
-    expect(leadingPair("flight", "departure")).toBe("own");
-  });
-
-  it("reads every other mode as the flight reads", () => {
-    for (const mode of TRANSPORT_MODES) {
-      if (mode === "rental") continue;
-      for (const direction of ["arrival", "departure"] as const) {
-        expect(leadingPair(mode, direction)).toBe("own");
-      }
-    }
-  });
-});
-
 /**
  * The deploy window. An EAS Update lands on a phone the moment it is
  * published while the API deploys on its own schedule, so a bundle can
@@ -262,6 +281,11 @@ describe.each(NOT_A_MODE)("read as a flight: %s", (_shape, mode) => {
     expect(whereLabel(mode, "arrival")).toBe("Lands at");
     expect(farEndWord(mode, "arrival")).toBe("Leaves");
     expect(farEndWord(mode, "departure")).toBe("Lands");
+    // The far half too: an unknown mode is not a hire, so the counter's
+    // words are not read into it either.
+    expect(endLabel(mode, "departure", true)).toBe("Leaves");
+    expect(whereLabel(mode, "arrival", true)).toBe("Lands at");
+    expect(endNoun(mode, "departure", true)).toBe("departure");
   });
 
   it("reads the mode's own name and its number as the flight's", () => {
@@ -270,11 +294,6 @@ describe.each(NOT_A_MODE)("read as a flight: %s", (_shape, mode) => {
     expect(numberPlaceholder(mode)).toBe("UA 1842");
     expect(hasNumberField(mode)).toBe(true);
     expect(hasLookup(mode)).toBe(true);
-  });
-
-  it("leads with the row's own pair, which is what a flight does", () => {
-    expect(leadingPair(mode, "arrival")).toBe("own");
-    expect(leadingPair(mode, "departure")).toBe("own");
   });
 });
 

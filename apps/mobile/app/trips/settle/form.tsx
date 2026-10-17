@@ -299,7 +299,14 @@ function ExpenseFormScreen() {
               remove.mutate(
                 { paymentId: rowId },
                 {
-                  onSuccess: () => dismiss(),
+                  // The success path hangs off the router rather than
+                  // `dismiss`, which is `router.back()`: this form is the
+                  // edit door, so the screen behind it is the deleted
+                  // row's own sheet, and that sheet answers "That expense
+                  // is not here any more" over a row nobody can get back
+                  // to. The ledger is the surface the row left, which is
+                  // where the trip, the event and the stay each land.
+                  onSuccess: () => router.replace(ledgerHref),
                   onError: (error: unknown) =>
                     spent(error, "Couldn't delete the expense."),
                 },

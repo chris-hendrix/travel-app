@@ -14,6 +14,16 @@ import { EVENT_HUES } from "@/lib/eventColors";
  * Everything about how a row looks lives in ScheduleRow; what is here is
  * what makes it an event — the type chip, the place beside it, and the
  * clock in the right-hand column.
+ *
+ * The venue chip names the place, the way the stay row's does, and for the
+ * same reason (`StayRow`'s comment records that disagreement from the other
+ * side): an event at the roof the stay is at read
+ * "Casa Verde, Calle del Sol 12, Cabo San Lucas, Mexico" on one row and
+ * "Casa Verde" on the row under it. What the picker filed is still the whole
+ * reading — the name and the address together — because that is what a place
+ * has to be to be found again; a chip is not the place to print it. The
+ * snapshot is the name Google gave the place, and the filed text is the
+ * fallback, which is all a typed place has.
  */
 export function EventRow({
   event,
@@ -25,6 +35,8 @@ export function EventRow({
   timeZone?: string | null;
   onPress?: () => void;
 }) {
+  const venue = event.placeName?.trim() || event.place;
+
   return (
     <ScheduleRow
       image={event.image}
@@ -37,7 +49,7 @@ export function EventRow({
             variant="category"
             hue={EVENT_HUES[event.type] ?? undefined}
           />
-          <Badge label={event.place} variant="venue" />
+          <Badge label={venue} variant="venue" />
         </>
       }
       fact={eventTimeLabel(event, timeZone)}

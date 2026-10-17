@@ -10,13 +10,14 @@ import { PhoneFieldAction } from "@/components/ui/PhoneFieldAction";
 import { QuietAction } from "@/components/ui/QuietAction";
 import { Section } from "@/components/ui/Section";
 import { RuledBlock } from "@/components/ui/RuledBlock";
+import { ReportOrBlock } from "@/components/trip/ReportOrBlock";
 import { TextField } from "@/components/ui/TextField";
 import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
 import { useDismiss } from "@/hooks/useDismiss";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/authStore";
-import { viewerOf, type Member } from "@/lib/members";
+import { viewerOf, visiblePhone, type Member } from "@/lib/members";
 import { formatPhoneForDisplay } from "@/lib/phone";
 import { memberLabel } from "@/lib/rsvp";
 import { useTrip } from "@/lib/tripsStore";
@@ -78,24 +79,14 @@ function PersonDetailDialog() {
     return <NotFound />;
   }
 
-  // The roll call only offers the way in on its organizer variant, but a
-  // URL is not a door that closes. Without this, a traveler who opens
-  // `/trips/members/detail?id=…&member=…` gets the organizer's dialogs —
-  // and the `invite` branch below would read "not on this trip any more",
-  // because a traveler is handed no invitations to match against.
-  if (!organizer) {
-    return (
-      <FullscreenDialog
-        title="Person"
-        dismissHref={`/trips/members?id=${trip.id}`}
-      >
-        <Text className="font-body text-base text-ink">
-          Only an organizer can manage the people on this trip.
-        </Text>
-      </FullscreenDialog>
-    );
-  }
-
+  // The roll call gives every person's card a press, because that card is
+  // where reporting and blocking live (`components/trip/ReportOrBlock.tsx`)
+  // and those are anybody's. The *other* two cards are the organizer's: a
+  // guest's and an invitation's are a set of controls over somebody with no
+  // account — saving their details, sending their invite, taking them off
+  // the trip — and the API refuses every one of them to anyone else. Saying
+  // so is better than a row of 403s, and it is why this is a gate and not
+  // only a missing press on the roll call: a URL is not a door that closes.
   const memberId = typeof member === "string" ? member : undefined;
   const inviteId = typeof invite === "string" ? invite : undefined;
   const found = memberId
@@ -104,6 +95,7 @@ function PersonDetailDialog() {
 
   if (found) {
     if (found.userId === null) {
+      if (!organizer) return <OrganizersOnly trip={trip} />;
       return (
         <GuestDialog
           trip={trip}
@@ -117,12 +109,14 @@ function PersonDetailDialog() {
       <MemberDialog
         trip={trip}
         member={found}
+        organizer={organizer}
         dismissHref={`/trips/members?id=${trip.id}`}
       />
     );
   }
 
   if (inviteId) {
+    if (!organizer) return <OrganizersOnly trip={trip} />;
     const invitation = invitations.find(
       (candidate) => candidate.id === inviteId,
     );
@@ -148,6 +142,28 @@ function PersonDetailDialog() {
     >
       <Text className="font-body text-base text-ink">
         That person is not on this trip any more.
+      </Text>
+    </FullscreenDialog>
+  );
+}
+
+/**
+ * The refusal a guest's card and an invitation's show a traveler.
+ *
+ * Both cards are their own subject's management — a guest's details and
+ * their invite, an invitation's cancellation — and every control on them
+ * is organizer-only server-side. One sentence for both, because the two
+ * cards are one situation: there is nothing here for you, and it is not a
+ * permission this screen invented.
+ */
+function OrganizersOnly({ trip }: { trip: Trip }) {
+  return (
+    <FullscreenDialog
+      title="Person"
+      dismissHref={`/trips/members?id=${trip.id}`}
+    >
+      <Text className="font-body text-base text-ink">
+        Only an organizer can manage the people on this trip.
       </Text>
     </FullscreenDialog>
   );
@@ -364,18 +380,30 @@ function GuestDialog({
 
 /**
  * The member dialog (mockup 4): facts, then `Manage` with the inverting
- * role row and the remove. No bar primary: nothing here is a form. Your
- * own row, and the creator's row, replace the whole `Manage` section
- * with the one line saying why there is nothing to do. A traveler never
- * reaches this dialog: the roll call gives them no pressable rows.
+ * role row and the remove, then report or block at the foot.
+ *
+ * **Two audiences, one card.** An organizer gets the management half; a
+ * traveler gets the facts and `ReportOrBlock`, which is the whole reason
+ * the roll call hands them a press at all — reporting somebody and
+ * blocking them are anybody's, and a person's own card is where a reader
+ * looks for them. `organizer` is what tells the two halves apart, and the
+ * facts obey it too: the number is `visiblePhone`'s, which is the API's
+ * own rule and the one the roster row already reads.
+ *
+ * No bar primary: nothing here is a form. Your own row, and the creator's
+ * row, replace the whole `Manage` section with the one line saying why
+ * there is nothing to do.
  */
 function MemberDialog({
   trip,
   member,
+  organizer,
   dismissHref,
 }: {
   trip: Trip;
   member: Member;
+  /** Whether the viewer runs the trip: the management half's gate. */
+  organizer: boolean;
   dismissHref: string;
 }) {
   const { user } = useAuth();
@@ -433,6 +461,13 @@ function MemberDialog({
     );
   }
 
+  // Which numbers a viewer is handed is the API's rule and not this
+  // card's: an organizer sees every number, because somebody has to be able
+  // to reach the group, and everybody else sees the numbers of the members
+  // who chose to share theirs. The roster row reads the same function, so
+  // the card cannot show a number the row behind it withheld.
+  const phone = visiblePhone(member, organizer);
+
   return (
     <FullscreenDialog title="Member" dismissHref={dismissHref}>
       <Text className="font-display-extrabold text-display-md uppercase text-ink md:text-display-md-wide">
@@ -445,24 +480,25 @@ function MemberDialog({
             {memberLabel(member)}
           </Text>
         </Fact>
-        {member.phone ? (
+        {phone ? (
           <Fact label="Phone">
             <Text className="font-body text-base text-ink">
-              {formatPhoneForDisplay(member.phone)}
+              {formatPhoneForDisplay(phone)}
             </Text>
           </Fact>
         ) : null}
       </View>
 
-      {isSelf ? (
-        <Text className="font-body text-base text-ink">
-          You can&apos;t remove yourself or change your own part.
-        </Text>
-      ) : isCreator ? (
-        <Text className="font-body text-base text-ink">
-          The creator stays on the trip.
-        </Text>
-      ) : (
+      {organizer ? (
+        isSelf ? (
+          <Text className="font-body text-base text-ink">
+            You can&apos;t remove yourself or change your own part.
+          </Text>
+        ) : isCreator ? (
+          <Text className="font-body text-base text-ink">
+            The creator stays on the trip.
+          </Text>
+        ) : (
         <Section title="Manage">
           <View className="gap-2">
             <Text className="font-body-bold text-base text-ink">
@@ -518,7 +554,17 @@ function MemberDialog({
             {removeError ? <InlineError message={removeError} /> : null}
           </RuledBlock>
         </Section>
-      )}
+        )
+      ) : null}
+
+      {/* The card's last word, and the reason a traveler has this card at
+          all. It draws nothing on your own — you cannot report or block
+          yourself — and nothing in the demo, which serves neither write. */}
+      <ReportOrBlock
+        member={member}
+        tripId={trip.id}
+        onBlocked={dismiss}
+      />
     </FullscreenDialog>
   );
 }

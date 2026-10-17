@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { Pressable } from "react-native";
 import { ChipLink } from "@/components/ui/ChipLink";
 import { PersonRow } from "@/components/ui/PersonRow";
@@ -32,18 +31,15 @@ import type { RosterRow } from "@/lib/roster";
  *
  * The row's own body is `PersonRow` (`components/ui/PersonRow.tsx`), which
  * the travel board wears too: the shape of a person's row is one thing,
- * and what a row *does* — the press, the footer and the word this screen
- * puts in its far column — stays here.
+ * and what a row *does* — the press, and the word this screen puts in its
+ * far column — stays here.
  *
- * The row's second target is a prop for the same reason the press is.
- * The members dialog hangs one quiet word under a person's row — the
- * panel that reports or blocks them — and that panel needs the trip it
- * was opened on and the account looking at it, which the dialog holds
- * and the demo does not. It is a render prop rather than a flag because
- * what goes under the row is a screen's decision; this component only
- * decides that it is a sibling of the body rather than a control inside
- * it, since a pressable nested in a pressable answers two presses out of
- * one box and reads as one control to anything announcing the tree.
+ * Reporting a person and blocking them are not on this row, and they are
+ * not a missing prop either: those two decisions are about a person
+ * rather than about a row in a list, and they live on the person's own
+ * card (`components/trip/ReportOrBlock.tsx`). A word under every
+ * account-backed row turned the roll call into a column of buttons
+ * wearing people's names.
  */
 export function RosterList({
   rows,
@@ -51,24 +47,20 @@ export function RosterList({
   viewerMemberId = null,
   viewerAnswer = null,
   onPressRow,
-  renderRowFooter,
 }: {
   rows: RosterRow[];
   viewerIsOrganizer: boolean;
   viewerMemberId?: string | null;
   viewerAnswer?: RsvpStatus | null;
   /**
-   * The caller's own press, handed in rather than assumed. An
-   * organizer's row opens the person dialog and a caller with no
-   * route to offer passes nothing and gets plain rows.
+   * The caller's own press, handed in rather than assumed **and asked for
+   * per row**: the function is called with each row and answers with that
+   * row's handler, or with `undefined` where the caller has no route to
+   * offer. A row with no handler is drawn as a plain row, never as a
+   * button that leads nowhere — a traveler's guest row is exactly that,
+   * and so is every row the demo draws.
    */
-  onPressRow?: ((row: RosterRow) => void) | undefined;
-  /**
-   * What goes under the row, under its own body. Nothing by default, and
-   * a caller that passes it answers for every row it is handed —
-   * including the rows with nobody to draw anything for.
-   */
-  renderRowFooter?: ((row: RosterRow) => ReactNode) | undefined;
+  onPressRow?: ((row: RosterRow) => (() => void) | undefined) | undefined;
 }) {
   return (
     <RuledRows>
@@ -80,7 +72,6 @@ export function RosterList({
           viewerMemberId={viewerMemberId}
           viewerAnswer={viewerAnswer}
           onPressRow={onPressRow}
-          renderRowFooter={renderRowFooter}
         />
       ))}
     </RuledRows>
@@ -93,15 +84,13 @@ function RosterRowView({
   viewerMemberId,
   viewerAnswer,
   onPressRow,
-  renderRowFooter,
   className,
 }: {
   row: RosterRow;
   viewerIsOrganizer: boolean;
   viewerMemberId?: string | null;
   viewerAnswer?: RsvpStatus | null;
-  onPressRow?: ((row: RosterRow) => void) | undefined;
-  renderRowFooter?: ((row: RosterRow) => ReactNode) | undefined;
+  onPressRow?: ((row: RosterRow) => (() => void) | undefined) | undefined;
   /**
    * The table's mark, handed down by `RuledRows`. It lands on the row's
    * own wrapper rather than on a press target, because the row's own
@@ -171,30 +160,20 @@ function RosterRowView({
       className={className}
     />
   );
-  // The footer is the caller's, and it is the row's sibling rather than
-  // part of the press target: the mark stays on the body above it, so the
-  // row's own measure does not change with a control either.
-  const footer = renderRowFooter?.(row) ?? null;
-  if (!onPressRow) {
-    return (
-      <>
-        {body}
-        {footer}
-      </>
-    );
-  }
+  if (!onPressRow) return body;
+  // Asked per row: a caller with no route for this one draws a plain row
+  // rather than a button onto nothing.
+  const press = onPressRow(row);
+  if (!press) return body;
   return (
-    <>
-      <Pressable
-        role="button"
-        accessibilityRole="button"
-        onPress={() => onPressRow(row)}
-        className={motion.rowOnGravel}
-      >
-        {body}
-      </Pressable>
-      {footer}
-    </>
+    <Pressable
+      role="button"
+      accessibilityRole="button"
+      onPress={press}
+      className={motion.rowOnGravel}
+    >
+      {body}
+    </Pressable>
   );
 }
 

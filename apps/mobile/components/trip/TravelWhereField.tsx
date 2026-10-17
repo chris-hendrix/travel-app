@@ -16,11 +16,14 @@ import type { Trip } from "@/components/trip/TripCard";
  * It is a component of its own so that the one thing travel does
  * differently from the stay, event and trip pickers is said in one
  * place — it never learns a place id. The rows are asked to commit each
- * live result's own short reading (`commit: "shortName"`,
- * `placePickerRows`), so what the field hands back, and therefore what
- * the leg holds, what the board prints and what the API stores, is the
- * place's tightest name and nothing else: no details lookup, no
- * coordinates, no snapshot, no id to save.
+ * live result's own whole reading (`commit: "name"`, `placePickerRows`),
+ * so what the field hands back, and therefore what the leg holds, what
+ * the board prints and what the API stores, is the name and the address
+ * together and nothing else: no details lookup, no coordinates, no
+ * snapshot, no id to save. The address is the point of keeping the
+ * provider's own string: a where is read back on the board and on the
+ * leg's own sheet, and "Humberto Delgado Airport (LIS)" is a place to go
+ * and search for where the address under it is the way there.
  *
  * It is still a live Places field, and that has consequences it cannot
  * opt out of. The search carries the trip's own coordinates as a ~50 km

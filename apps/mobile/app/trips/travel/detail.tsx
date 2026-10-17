@@ -7,6 +7,7 @@ import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { InlineError } from "@/components/ui/InlineError";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
+import { PlaceActions } from "@/components/ui/PlaceActions";
 import { QuietAction } from "@/components/ui/QuietAction";
 import { Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -73,8 +74,9 @@ const DIRECTION_WORD = {
  * it. Every word still comes from the one table
  * (`lib/transportMode.ts`) — `whereLabel` over a place and `endLabel`
  * over a time, so a flight reads `Lands at`/`Lands` over its arrival and
- * `Leaves from`/`Leaves` over the other end, and a hire reads `Pickup
- * at`/`Pickup` over its pickup — and the number wears the mode's own name
+ * `Leaves from`/`Leaves` over the other end, and a hire reads
+ * `Arrives at`/`Arrives` over the end its row is about with `Pickup at` /
+ * `Dropoff at` over the counter at the far one — and the number wears the
  * for it (`Flight number`, `Train number`, `Bus service`). Every one of
  * those facts is optional, so a fact that holds nothing is not drawn at
  * all, and the block is drawn only where it has something to say: a
@@ -82,6 +84,15 @@ const DIRECTION_WORD = {
  * is. A row nobody has filed has no mode, so it has none of those words
  * and the block says the one thing there is to say instead —
  * `Not shared yet`.
+ *
+ * Two of those facts are places, and a place is the one thing on this
+ * sheet a reader may want to leave the app for: each where carries
+ * `Open in Maps` under it, the same word the stay and event sheets put
+ * under their own address. It hands the string the leg filed to Google
+ * Maps as a search. A search rather than a pinned place, and not for want
+ * of a pin: travel keeps no place id — that is the whole of why
+ * `TravelWhereField` exists — and needs none, because what it files is
+ * Google's own whole reading of the place, address and all.
  *
  * There is no state here to get wrong. The row this came from used to
  * open under the thumb with a triangle and a stack of facts, which meant
@@ -230,12 +241,11 @@ function TravelDetailDialog() {
   // as it did before there was a mode at all: the name, the direction, and
   // `Not shared yet` where the leg's facts would be.
   const mode = row.transportMode;
-  // The leg's other side, and it is the *side* the mode's words are keyed
-  // by rather than the position of the field: the direction names the side
-  // the record files and the validator requires, and the far end is the
-  // side it does not, in every mode and both directions — a hire's own end
-  // is the pickup on an arrival row and the dropoff on a departure one
-  // (D4). Same two lines as the form's own far end.
+  // The leg's other side, and which of the two a hire calls its counter is
+  // the table's answer rather than this screen's: the direction names the
+  // side the record files and the validator requires, and the far end is
+  // the side it does not, in every mode and both directions. Same two
+  // lines as the form's own far end.
   const farSide: TravelSide =
     row.travelType === "arrival" ? "departure" : "arrival";
   // The far end is the one fact the board's row does not carry: `TravelRow`
@@ -284,10 +294,11 @@ function TravelDetailDialog() {
   // its where and then its when, the far end the same way, and the number
   // last. Each label is the end's own word out of the one table the form's
   // fields come from — `whereLabel` over a place, `endLabel` over a time —
-  // read by the **side** the end is, which is what makes a hire's own end
-  // read `Pickup at` on an arrival row and `Dropoff at` on a departure
-  // one. A fact that holds nothing is not in the list at all: a label over
-  // an empty line is a word about nothing.
+  // read by the **side** the end is, and by whether the fact is the row's
+  // own end or its far one, which is what makes a hire read `Arrives at`
+  // over the trip end and `Pickup at` over the counter behind it. A fact
+  // that holds nothing is not in the list at all: a label over an empty
+  // line is a word about nothing.
   //
   // They are rows of one block rather than a block each, which is also
   // what the rule census (check 9) counts: it counts the places a person
@@ -360,17 +371,38 @@ function TravelDetailDialog() {
       .finally(() => setCopying(false));
   }
 
-  const facts: Array<{ label: string; value: string }> =
+  /**
+   * The leg's facts, in the order the sheet reads them: the row's own end,
+   * its where and then its when, the far end the same way, and the number
+   * under the mode's own name for it. A fact that holds nothing is not in
+   * the list, and the block is not drawn where the list is empty — an
+   * owed row has no mode, so it has none of these words and says the one
+   * thing it can instead.
+   *
+   * `place` marks the two facts that name somewhere, which is what earns
+   * them the one verb a place has (`Open in Maps`, the word the stay and
+   * event sheets carry under their own address). Both ends wear it rather
+   * than the leg's own alone: which of the two somebody wants directions
+   * to depends on the direction they are travelling — for an arrival it is
+   * where the plane lands, and for a departure it is where the far end
+   * is — so neither is the more useful one to offer.
+   */
+  const facts: Array<{ label: string; value: string; place?: boolean }> =
     mode === null
       ? []
       : [
           {
             label: whereLabel(mode, row.travelType),
             value: row.location ?? "",
+            place: true,
           },
           { label: endLabel(mode, row.travelType), value: when },
-          { label: whereLabel(mode, farSide), value: farPlace ?? "" },
-          { label: endLabel(mode, farSide), value: farWhen },
+          {
+            label: whereLabel(mode, farSide, true),
+            value: farPlace ?? "",
+            place: true,
+          },
+          { label: endLabel(mode, farSide, true), value: farWhen },
           ...(number && numberText
             ? [{ label: number, value: numberText }]
             : []),
@@ -413,7 +445,17 @@ function TravelDetailDialog() {
           the mode's own name for it. A fact that holds nothing is not in
           the list, and the block is not drawn where the list is empty — an
           owed row has no mode, so it has none of these words and says the
-          one thing it can instead. */}
+          one thing it can instead.
+
+          A where carries the two verbs a place has, under it and inside the
+          same row (`PlaceActions`): `Open in Maps` hands the string the leg
+          filed to Google Maps as a search, and the word beside it takes the
+          same string to the clipboard. A search rather than a pinned place,
+          because travel keeps no place id by design
+          (`travel-place-metadata.test.ts`) — and it does not need one, since
+          what it files is Google's own whole reading of the place, address
+          and all. Both ends wear them, and both words name their own place
+          to a reader who cannot see which row they belong to. */}
       {mode === null || facts.length > 0 ? (
         <RuledBlock>
           {mode === null ? (
@@ -424,14 +466,19 @@ function TravelDetailDialog() {
                 <Text className="font-body text-base text-ink">
                   {fact.value}
                 </Text>
+                {fact.place ? <PlaceActions name={fact.value} /> : null}
               </Fact>
             ))
           )}
         </RuledBlock>
       ) : null}
 
+      {/* The leg's own words, titled with the column's name: the form
+          labels this field `Details` (`TravelDialog`), and a block that
+          renders a column says which column it is. The fact list above
+          it is not a column, so that block stays untitled. */}
       {row.details ? (
-        <RuledBlock>
+        <RuledBlock title="Details">
           <Text
             selectable
             className="font-body text-base leading-relaxed text-ink"
