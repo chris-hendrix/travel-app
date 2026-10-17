@@ -159,6 +159,11 @@ export default function NewTrip() {
         error={errors.title}
       />
 
+      {/* Which field is which, said once: a trip's destination is the
+          place the trip is *in*, and the first place anybody looks for
+          when they are standing in a form like this one is the roof they
+          are sleeping under — which is the stay's field on the trip, not
+          this one. */}
       <Dropdown
         label="Destination"
         options={placeOptions}
@@ -209,14 +214,14 @@ export default function NewTrip() {
         <Text className="font-body-bold text-sm text-ink">
           What happens next
         </Text>
-        {/* Which field is which, said once: a trip's destination is the
-            place the trip is *in*, and the first place anybody looks for
-            when they are standing in a form like this one is the roof they
-            are sleeping under — which is the stay's field on the trip, not
-            this one. */}
+        {/* Where this leaves you, said once. Creation replaces to the new
+            trip's own detail (`router.replace` above), so the reader
+            arrives inside the trip they just made — and that empty state
+            is the one offering the stay and the event. The sentence used
+            to promise the Upcoming list, which is where nobody lands. */}
         <Text className="font-body text-sm text-ink">
-          The trip appears in Upcoming straight away, empty but yours.
-          You can add the stay and the events before inviting people.
+          You'll be taken to your empty trip, where you can add stays,
+          events, and friends.
         </Text>
       </View>
     </FullscreenDialog>
