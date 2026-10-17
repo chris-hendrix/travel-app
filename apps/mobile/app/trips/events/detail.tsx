@@ -216,9 +216,11 @@ function EventDetailDialog() {
       {/* The organizer's prose, at full width under both columns: it is
           the one thing here that is a paragraph rather than a fact, and
           a paragraph squeezed into a column beside a photo reads as
-          caption. */}
+          caption. Titled with the column's own word — the form labels
+          this field `Description` — which is the rule the stay sheet
+          follows too. */}
       {event.description ? (
-        <RuledBlock>
+        <RuledBlock title="Description">
           <Text className="font-body text-base leading-relaxed text-ink">
             {event.description}
           </Text>

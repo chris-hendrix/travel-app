@@ -472,8 +472,12 @@ function TravelDetailDialog() {
         </RuledBlock>
       ) : null}
 
+      {/* The leg's own words, titled with the column's name: the form
+          labels this field `Details` (`TravelDialog`), and a block that
+          renders a column says which column it is. The fact list above
+          it is not a column, so that block stays untitled. */}
       {row.details ? (
-        <RuledBlock>
+        <RuledBlock title="Details">
           <Text
             selectable
             className="font-body text-base leading-relaxed text-ink"
