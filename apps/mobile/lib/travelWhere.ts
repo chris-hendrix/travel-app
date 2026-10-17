@@ -54,7 +54,7 @@ export const OTHER_TRIPS_PROVENANCE = "From your other trips";
  * One rule runs the whole list: **one row per string.** Two rows that read
  * the same are one answer, and the first source to offer it keeps it. That
  * is not a tidy-up — a live row's value *is* its reading here, because
- * travel asks `placePickerRows` for `commit: "shortName"`, and `Dropdown`'s
+ * travel asks `placePickerRows` for `commit: "name"`, and `Dropdown`'s
  * list keys a drawn row by its value. Two rows sharing one value would
  * collide, and a press resolves against the rows that were drawn, so the
  * string has to appear exactly once whatever else happens.
@@ -73,10 +73,14 @@ export const OTHER_TRIPS_PROVENANCE = "From your other trips";
  * and last the typed text, which is where it belongs: a fallback, under
  * the things that are answers rather than words still being chosen.
  *
- * Text only, throughout. `commit: "shortName"` is what makes that true — a
- * live row commits the place's own tight reading rather than a placeId, so
- * no id leaves this function for anything downstream to save. Travel's
- * locations are `text` and stay `text`; see `travel-place-metadata.test.ts`.
+ * Text only, throughout, and all of it. `commit: "name"` is what makes
+ * that true — a live row commits the place's own whole reading rather than
+ * a placeId, so no id leaves this function for anything downstream to
+ * save. The reading is Google's full display text, the name with the
+ * address it hangs off: a where is the one thing the app knows about that
+ * end of the leg, and it has to be a place somebody can get to, not a name
+ * they would have to look up. Travel's locations are `text` and stay
+ * `text`; see `travel-place-metadata.test.ts`.
  *
  * A blank query offers nothing, the `placePickerRows` rule: the field
  * closes on an empty value, and the rows that would answer a blank one are
@@ -105,10 +109,11 @@ export function travelWhereRows({
     query: trimmed,
     isFetching,
     isError,
-    // The placeId is deliberately not committed: a leg keeps the place's
-    // own short reading — "Humberto Delgado Airport (LIS)", not the id
-    // and not the display name with its street address on the end.
-    commit: "shortName",
+    // The placeId is deliberately not committed. What is: the place's own
+    // whole reading — "Humberto Delgado Airport (LIS), Alameda das
+    // Comunidades Portuguesas, Lisbon, Portugal" — because the name alone
+    // is a place to search for and the address is where somebody is going.
+    commit: "name",
   });
   // `placePickerRows` pins the typed row among the live ones. It is the
   // one row here that is not an answer to the query but the words of it.

@@ -4,9 +4,12 @@
  * `Where` shows live Google Places results and keeps a place's **words**
  * and nothing else: no `placeId` on the leg, no coordinates, no snapshot,
  * no details lookup. The place id stops inside `travelWhereRows`
- * (`commit: "label"`), so what the field hands back — and therefore what
- * the store sends and the API stores — is the text a person picked. The
- * location columns stay `text`.
+ * (`commit: "name"`), so what the field hands back — and therefore what
+ * the store sends and the API stores — is the text a person picked, whole:
+ * the name and the address under it, because a where is the one thing the
+ * app knows about that end of the leg and it has to be a place somebody
+ * can get to. What the text *says* is not this guard's business; that it
+ * is text, and only text, is. The location columns stay `text`.
  *
  * That is a design decision the compiler cannot state. A `placeId` riding
  * along beside the text would typecheck, lint and run: the dialog would
@@ -94,13 +97,13 @@ describe("travel keeps a place's text and nothing else", () => {
     });
   }
 
-  it("the rows are asked to commit the place's short reading, not its id", () => {
+  it("the rows are asked to commit the place's own reading, not its id", () => {
     // The positive half of the rule above: nothing in a record source
     // names a place id, and this is *why* — `travelWhereRows` tells the
-    // row builder to make each live row's value the place's own tight
+    // row builder to make each live row's value the place's own whole
     // reading, so the id is not in the row for a caller to reach for.
     const source = read(path.join(mobileDir, "lib", "travelWhere.ts"));
-    expect(source).toMatch(/commit:\s*"shortName"/);
+    expect(source).toMatch(/commit:\s*"name"/);
     expect(source).not.toMatch(/commit:\s*"id"/);
   });
 
