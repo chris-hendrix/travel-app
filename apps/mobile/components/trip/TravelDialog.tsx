@@ -458,7 +458,7 @@ function LegFields({
         isClockTime(farTime.trim()) ? formatClock(farTime.trim()) : "",
         leg.otherLocation.trim(),
       )
-    : `Add the ${endNoun(mode, farSide)}`;
+    : `Add the ${endNoun(mode, farSide, true)}`;
   // The number the mode keeps, where it keeps one. The gate below asks
   // `hasNumberField` itself — the rule's own name for the decision — and
   // the label is the same table's answer, `numberLabel` being null exactly

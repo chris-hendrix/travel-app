@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
 import { TRANSPORT_MODES, type TransportMode } from "@journiful/shared/utils";
 import { emptyLeg, type TravelDirection, type TravelLeg } from "@/lib/newTravel";
 import {
@@ -176,6 +178,25 @@ describe("the end's noun", () => {
     expect(`No ${endNoun("flight", "departure")} time`).toBe(
       "No departure time",
     );
+  });
+
+  /**
+   * The form, read off disk for the one thing the compositions above cannot
+   * hold: the argument. `endNoun` is the only word here that is asked which
+   * *half* of the row it is about, and a call site that leaves the third
+   * argument off — which the `Add the …` line did while every test above
+   * stayed green, because those pass it by hand — puts the side's word over
+   * a pair that names the counter: `Add the departure` under `Pickup at`,
+   * the drift this file's one table exists to prevent.
+   */
+  it("asks for the half at both of the form's two call sites", () => {
+    const form = fs.readFileSync(
+      path.join(__dirname, "..", "components", "trip", "TravelDialog.tsx"),
+      "utf8",
+    );
+    // The shut far pair's line, and the no-choice row inside a time field.
+    expect(form).toMatch(/endNoun\(mode, farSide, true\)/);
+    expect(form).toMatch(/endNoun\(mode, side, far\)/);
   });
 });
 
