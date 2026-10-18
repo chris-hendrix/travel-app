@@ -126,10 +126,19 @@ function TravelDetailDialog() {
   const { travelById, travelForTrip, addTravel } = useTravel();
   const { for: settingsFor, update } = useTripSettings();
   const router = useRouter();
-  const dismiss = useDismiss("/trips");
 
   const tripId = typeof id === "string" ? id : undefined;
   const rowId = typeof travelId === "string" ? travelId : undefined;
+  // Where this sheet belongs, which is one address for the whole dialog:
+  // the board. It is the screen the row was pressed on, so a pop is
+  // right, and it is also what a cold load replaces with, so a deep link
+  // that ends here still leaves onto the board rather than the trips
+  // list. It used to be two answers — the copy fell back to the board and
+  // the plain Done fell back to `/trips` — which meant the same sheet,
+  // reached the same way, left you somewhere different depending on which
+  // button you pressed.
+  const boardHref = tripId ? `/trips/travel?id=${tripId}` : "/trips";
+  const dismiss = useDismiss(boardHref);
   const { trip } = useTrip(tripId);
   const { user } = useAuth();
   // Read before the guard: a hook called after a return is a hook called
@@ -167,11 +176,6 @@ function TravelDetailDialog() {
   const [confirmingCopy, setConfirmingCopy] = useState(false);
   const [copying, setCopying] = useState(false);
   const [copyError, setCopyError] = useState<string | null>(null);
-  // Where a copy leaves you, which is the board it filed a row onto. A
-  // dialog with no history to pop — a deep link, a reload — replaces with
-  // this instead, so a copy that saved always lands where its result is.
-  const boardHref = tripId ? `/trips/travel?id=${tripId}` : "/trips";
-  const dismissToBoard = useDismiss(boardHref);
 
   if (!trip) {
     return <NotFound />;
@@ -181,24 +185,27 @@ function TravelDetailDialog() {
     // While the list loads the row may simply not have arrived yet: only
     // the landed read gets to say it is gone. The states are the board's
     // own, so a cold link from a phone with no signal says so instead of
-    // claiming the travel is missing.
+    // claiming the travel is missing. Every one of them leaves onto the
+    // board, like the sheet they stand in for: a URL naming a row is a
+    // URL the board handed out, so the board is where the reader came
+    // from even when the row itself never arrived.
     if (status === "loading") {
       return (
-        <FullscreenDialog title="Travel" dismissHref="/trips">
+        <FullscreenDialog title="Travel" dismissHref={boardHref}>
           <LoadingBlock label="Loading travel details" />
         </FullscreenDialog>
       );
     }
     if (status === "offline") {
       return (
-        <FullscreenDialog title="Travel" dismissHref="/trips">
+        <FullscreenDialog title="Travel" dismissHref={boardHref}>
           <OfflineBlock onRetry={retry} />
         </FullscreenDialog>
       );
     }
     if (status === "error") {
       return (
-        <FullscreenDialog title="Travel" dismissHref="/trips">
+        <FullscreenDialog title="Travel" dismissHref={boardHref}>
           <InlineError
             message="Couldn't load the travel"
             onRetry={retry}
@@ -207,7 +214,7 @@ function TravelDetailDialog() {
       );
     }
     return (
-      <FullscreenDialog title="Travel" dismissHref="/trips">
+      <FullscreenDialog title="Travel" dismissHref={boardHref}>
         <Text className="font-body text-base text-ink">
           That travel is not on this trip any more.
         </Text>
@@ -361,8 +368,9 @@ function TravelDetailDialog() {
       .then(
         // The result is a row on the board, so the board is where the
         // sheet leaves you — the same destination this dialog's own
-        // dismissHref names.
-        () => dismissToBoard(),
+        // dismissHref names, and the same one a save lands on, so a copy
+        // that saved always lands where its result is.
+        () => dismiss(),
         (error: unknown) =>
           setCopyError(
             toErrorCopy(error).message ?? "Couldn't copy the travel.",

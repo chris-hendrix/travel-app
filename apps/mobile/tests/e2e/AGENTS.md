@@ -32,7 +32,7 @@ they cover.
 | 5 | **Admin** | `admin-journey.spec.ts` | Admin user management (moved into the app; the retired web app's `/admin` is gone) |
 | 6 | **Notifications** | `notifications.spec.ts` | Notification center UX (badge, tap-to-navigate, mark as read) |
 |  7 | **Money** |  `settle-journey.spec.ts` | Recording an expense and reading the resulting debt, full stack |
-| 8 | **Travel entry** | `travel-journey.spec.ts` | Filing an arrival, the sheet behind the board's row opening on the where's `Open in Maps`, a **cold load** of a filed row's edit URL and of the traveler's own `member=` door, per-direction delete, and a **hire**'s round trip — a chip committing its mode, the board wearing that chip, and a cold-loaded panel showing both of a hire's ends — the wrong-member/frozen-memo class has no unit test, because the Vitest suite has no renderer |
+| 8 | **Travel entry** | `travel-journey.spec.ts` | Filing an arrival, the sheet behind the board's row opening on the where's `Open in Maps`, a **cold load** of a filed row's edit URL and of the traveler's own `member=` door, per-direction delete, a **hire**'s round trip — a chip committing its mode, the board wearing that chip, and a cold-loaded panel showing both of a hire's ends — and a **duplicate**'s landing on the board, over the leg its recipient had already filed — the wrong-member/frozen-memo class has no unit test, because the Vitest suite has no renderer; and where a save lands you is a navigation, which no unit test has an opinion about either |
 
 ## Banned at E2E level
 

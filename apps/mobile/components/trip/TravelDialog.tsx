@@ -37,6 +37,7 @@ import {
 } from "@/lib/flights";
 import { travelDays } from "@/lib/travelDays";
 import {
+  duplicateReplaces,
   farEndNote,
   legFromLookup,
   legFromRecord,
@@ -171,11 +172,13 @@ export function TravelDialog({
   /** A write is in flight: the dialog's own two buttons stop. */
   pending?: boolean;
 }) {
-  // One rule for what the fields hold: the picked member's record for
-  // that direction, else the seed a duplicate arrived with, else nothing
-  // (`legsForMember`). The fields are *about* this member, so a `Who`
-  // change re-derives them instead of leaving the previous person's leg
-  // behind — which filed one person's times under another's name.
+  // One rule for what the fields hold, in a duplicate and out of one
+  // (`legsForMember`): a direction the seed holds is the leg being
+  // duplicated, whichever record the picked member happens to have, and
+  // every other direction is that member's own record or nothing. The
+  // fields are *about* this member, so a `Who` change re-derives them
+  // instead of leaving the previous person's leg behind — which filed one
+  // person's times under another's name.
   const readLeg = useCallback(
     (record: MockTravel, direction: TravelDirection) =>
       legFromRecord(record, direction, timeZone, trip.startDate, trip.endDate),
@@ -223,6 +226,15 @@ export function TravelDialog({
     departure: legs.departure,
   };
   const errors = submitted ? validateNewTravel(input) : {};
+  // Which directions this duplicate is about to replace rather than file
+  // (`duplicateReplaces`), and the member it is about to do it to. Read
+  // per render from the same pair the fields were derived from, so the
+  // sentence and the fields can never disagree about what is going where.
+  const replacing = duplicateReplaces(records, seed, memberId);
+  const pickedName =
+    members.find((member) => member.id === memberId)?.name ??
+    lockedMember?.name ??
+    "";
 
   function setLeg(next: TravelLeg) {
     setBlank(false);
@@ -302,6 +314,26 @@ export function TravelDialog({
           {lockedMember?.name ?? ""}
         </Text>
       )}
+
+      {/* A duplicate's one consequence that its own button does not say:
+          the leg is going onto a member who already has one in that
+          direction, so saving replaces theirs instead of adding beside
+          it — the API upserts on the member and the direction, which is
+          the pair the record is (see `duplicateReplaces`). The sentence
+          sits under the picker that made it true, in the quiet ink every
+          reason this app states before a press uses, and it names the
+          directions rather than saying "their travel": a duplicate
+          carries both ends of a leg, and which of the two lands on
+          something is the whole of what the reader has to decide about.
+          It names the member the way the picker does, so it cannot be
+          read as being about the reader's own travel — and it says
+          nothing at all while nobody is picked, because nothing is going
+          anywhere yet. */}
+      {replacing.length > 0 ? (
+        <Text className="font-body text-sm text-ink opacity-60">
+          {`Replaces the ${replacing.join(" and ")} ${pickedName} filed.`}
+        </Text>
+      ) : null}
 
       {/* The whole form's complaint, above both panels because no single
           field is at fault when none of them has been answered. */}

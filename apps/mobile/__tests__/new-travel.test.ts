@@ -3,6 +3,7 @@ import type { FlightLookupResult } from "@journiful/shared/types";
 import { TRANSPORT_MODES } from "@journiful/shared/utils";
 import {
   buildLegRecord,
+  duplicateReplaces,
   emptyLeg,
   farEndDay,
   legCrossesMidnight,
@@ -791,10 +792,19 @@ describe("legsForMember", () => {
     expect(legs.departure.location).toBe("");
   });
 
-  it("prefers the record over the seed, per direction", () => {
+  it("prefers the record over the seed for a direction the seed does not hold", () => {
+    // A seed picks up one direction from the record it was built from — a
+    // departure-only leg leaves the arrival's own end empty — and an empty
+    // leg is not an answer: the member's own record fills that direction,
+    // while the seed keeps the direction it does hold.
     const seed = {
-      arrival: { ...emptyLeg(), location: "seeded" },
-      departure: { ...emptyLeg(), location: "seeded" },
+      arrival: { ...emptyLeg(), location: "seeded arrival" },
+      departure: {
+        ...emptyLeg(),
+        day: "2026-09-25",
+        departureTime: "09:00",
+        location: "seeded departure",
+      },
     };
     const legs = legsForMember(
       [row("a", "m-1", "arrival")],
@@ -803,7 +813,61 @@ describe("legsForMember", () => {
       read,
     );
     expect(legs.arrival.location).toBe("from arrival");
-    expect(legs.departure.location).toBe("seeded");
+    expect(legs.departure.location).toBe("seeded departure");
+  });
+
+  it("prefers the seed over the record for a direction the seed holds", () => {
+    // The duplicate's rule, and the press's own meaning: the leg being
+    // filed is the seed's, so a member who already has that leg is about
+    // to have it replaced rather than read back at itself (which is what
+    // the record-first rule did, and it filed nothing).
+    const seed = {
+      arrival: {
+        ...emptyLeg(),
+        day: "2026-09-18",
+        arrivalTime: "15:40",
+        location: "seeded arrival",
+      },
+    };
+    const legs = legsForMember(
+      [row("a", "m-1", "arrival")],
+      seed,
+      "m-1",
+      read,
+    );
+    expect(legs.arrival.location).toBe("seeded arrival");
+    // The direction the seed does not hold is untouched: duplicating an
+    // arrival leaves the member's own departure alone.
+    expect(legs.departure.location).toBe("");
+  });
+
+  it("tells the screen which directions a duplicate replaces", () => {
+    const seed = {
+      arrival: {
+        ...emptyLeg(),
+        day: "2026-09-18",
+        arrivalTime: "15:40",
+        location: "seeded arrival",
+      },
+      departure: {
+        ...emptyLeg(),
+        day: "2026-09-25",
+        departureTime: "09:00",
+        location: "seeded departure",
+      },
+    };
+    // Their arrival is the one the seed lands on; nothing is filed the
+    // other way, and an unfiled direction is not a replacement.
+    expect(
+      duplicateReplaces([row("a", "m-1", "arrival")], seed, "m-1"),
+    ).toEqual(["arrival"]);
+    // A member with nothing filed: a duplicate adds, so nothing is said.
+    expect(duplicateReplaces([], seed, "m-9")).toEqual([]);
+    // No seed at all is every other way into the form, and none of them
+    // replaces anything.
+    expect(
+      duplicateReplaces([row("a", "m-1", "arrival")], undefined, "m-1"),
+    ).toEqual([]);
   });
 
   it("falls back to the seed for a member who has nothing", () => {

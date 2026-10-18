@@ -31,7 +31,7 @@ import { useAuth } from "@/lib/authStore";
 import { goingMembers, travelMemberOptions, viewerOf } from "@/lib/members";
 import { useMembers } from "@/lib/queries/members";
 
-import { useDismiss } from "@/hooks/useDismiss";
+import { useDismiss, useDismissTo } from "@/hooks/useDismiss";
 
 /**
  * Travel form — one screen for both verbs, and the same screen for both
@@ -70,10 +70,21 @@ function TravelFormScreen() {
   // press cannot save twice or delete a direction being saved.
   const [saving, setSaving] = useState(false);
   const { for: settingsFor, update } = useTripSettings();
-  const dismiss = useDismiss("/trips");
   const router = useRouter();
 
   const tripId = typeof id === "string" ? id : undefined;
+  // Where this form's writes belong, and the one address the dialog's
+  // chrome and its save share. The board, not the trips list: the list
+  // is the app's home, not this form's parent — the board is what files
+  // travel and what a filed row appears on. Read from the param rather
+  // than from the trip so a failed trip read still has somewhere to go.
+  const boardHref = tripId ? `/trips/travel?id=${tripId}` : "/trips";
+  // One pop: an edit belongs to the record sheet it was opened from, and
+  // an add belongs to the board it was pushed from.
+  const dismiss = useDismiss(boardHref);
+  // A duplicate's row is on the board, two screens down — see the save's
+  // own note, and `useDismissTo`.
+  const dismissToBoard = useDismissTo(boardHref);
   const { trip } = useTrip(tripId);
   // Warms the section query the store reads from, so a cold load
   // (deep link straight here) still finds the record once it lands. Its
@@ -191,7 +202,6 @@ function TravelFormScreen() {
   // screen was opened.
   const editingExisting = filed.arrival || filed.departure;
 
-  const boardHref = `/trips/travel?id=${trip?.id ?? ""}`;
   if (!trip) {
     return <NotFound />;
   }
@@ -383,9 +393,24 @@ function TravelFormScreen() {
         // it saved.
         setServerError(null);
         setSaving(true);
+        // Where a save lands is a question about the write, not about the
+        // form, and there are three answers. An edit goes back to the
+        // record's sheet: one pop, the thing you changed, updated. An add
+        // goes back to the board it was pushed from: one pop, with the new
+        // row on it. A duplicate is the one that is neither — its row is
+        // on the board, but the form sits on top of the *source* record's
+        // sheet, so a single pop leaves you reading somebody else's record
+        // with nothing on it of what you just filed, which is what the
+        // screen did until this became a rule. `dismissToBoard` takes the
+        // whole stack off down to the board, and replaces when a cold load
+        // has no stack to take off (see `useDismissTo`). The sheet already
+        // answers this for the copy it files itself — "the result is a row
+        // on the board, so the board is where the sheet leaves you"
+        // (`detail.tsx`) — and this is that rule one screen deeper rather
+        // than a second opinion about it.
         void Promise.all(saves)
           .then(
-            () => dismiss(),
+            () => (duplicateFrom ? dismissToBoard() : dismiss()),
             (error: unknown) =>
               setServerError(
                 toErrorCopy(error).message ?? "Couldn't save the travel.",
