@@ -74,10 +74,13 @@ function TravelFormScreen() {
 
   const tripId = typeof id === "string" ? id : undefined;
   // Where this form's writes belong, and the one address the dialog's
-  // chrome and its save share. The board, not the trips list: the list
-  // is the app's home, not this form's parent — the board is what files
-  // travel and what a filed row appears on. Read from the param rather
-  // than from the trip so a failed trip read still has somewhere to go.
+  // chrome, its gate and its save share. The board, not the trips list:
+  // the list is the app's home, not this form's parent — the board is what
+  // files travel and what a filed row appears on — and the form has two
+  // parents (the board's own Add travel, and the trip page's action list),
+  // so the one address has to be the screen they both lead through. Read
+  // from the param rather than from the trip so a failed trip read still
+  // has somewhere to go.
   const boardHref = tripId ? `/trips/travel?id=${tripId}` : "/trips";
   // One pop: an edit belongs to the record sheet it was opened from, and
   // an add belongs to the board it was pushed from.
@@ -216,21 +219,35 @@ function TravelFormScreen() {
   // above it are suspended by the trip gate: a cold load reaches this line
   // with `records` still empty and the roster already here, and an empty
   // read is the seed rather than a blank that fills in later
-  // (`components/trip/TravelDialog.tsx`). The `travel=` door was guarded
-  // by the record it names; the `member=` door and the bare add door name
-  // no record, so they had nothing to wait for and opened on the empty
-  // read. That is why "not still loading" is not the test — a failed read
-  // is just as empty, and the save that follows it clears every field the
-  // body leaves out.
+  // (`components/trip/TravelDialog.tsx`). The `travel=` and `duplicate=`
+  // doors are guarded by the record each names — the one to edit and the
+  // one to copy; the `member=` door and the bare add door name no record,
+  // so they had nothing to wait for and opened on the empty read. That is
+  // why "not still loading" is not the test — a failed read is just as
+  // empty, and the save that follows it clears every field the body
+  // leaves out.
   const gate = travelFormGate({
     status: sectionStatus,
-    namesRecord: Boolean(editingId),
-    recordFound: Boolean(record),
+    // Both doors that name a row count here, and the duplicate names the
+    // *source* one: `travel=` is the record this form edits, `duplicate=`
+    // the record it copies. Reading only the first left a stale duplicate
+    // URL opening a blank add whose Who had already fallen back to the
+    // viewer (`memberId` above), so a save from it filed for the wrong
+    // person — the same class of failure this gate exists for, one door
+    // further out. A URL carrying both is an edit: it says so below, in
+    // the note above the seed.
+    namesRecord: Boolean(editingId) || Boolean(duplicateOf),
+    recordFound: Boolean(record) || Boolean(duplicateFrom),
   });
 
   if (gate !== "open") {
+    // The board, like every other way out of this form: the gate stands in
+    // for the form the address asked for (`boardHref` above), so it leaves
+    // onto the screen that form belongs to rather than onto the trips
+    // list. Without it the form answered "where do you land with no
+    // history behind you" twice, in two different places.
     return (
-      <FullscreenDialog title="Travel" dismissHref="/trips">
+      <FullscreenDialog title="Travel" dismissHref={boardHref}>
         {gate === "loading" ? (
           <LoadingBlock label="Loading travel details" />
         ) : gate === "offline" ? (

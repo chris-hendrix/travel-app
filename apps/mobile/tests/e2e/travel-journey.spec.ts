@@ -360,6 +360,16 @@ test.describe("Travel Journey", () => {
       // The verb follows what saving will do to this member's row: an
       // edit updates it.
       await page.getByRole("button", { name: "Save changes" }).click();
+      // And where that save leaves you, which only a cold load can reach:
+      // there is no stack behind this form, so `useDismiss` replaces rather
+      // than pops, and what it replaces with is the board — the screen this
+      // form belongs to — rather than the trips list. Asserted inside this
+      // test rather than as a case of its own because this is the file's
+      // only save with no history behind it.
+      await expect(page).toHaveURL(
+        new RegExp(`/trips/travel\\?id=${tripId}`),
+        { timeout: NAVIGATION_TIMEOUT },
+      );
     });
 
     await test.step("the server holds the one row, changed, under its own id", async () => {

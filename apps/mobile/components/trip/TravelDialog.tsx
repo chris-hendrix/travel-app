@@ -227,10 +227,13 @@ export function TravelDialog({
   };
   const errors = submitted ? validateNewTravel(input) : {};
   // Which directions this duplicate is about to replace rather than file
-  // (`duplicateReplaces`), and the member it is about to do it to. Read
-  // per render from the same pair the fields were derived from, so the
-  // sentence and the fields can never disagree about what is going where.
-  const replacing = duplicateReplaces(records, seed, memberId);
+  // (`duplicateReplaces`, over the same `filed` the verb and the Delete
+  // button read), and the member it is about to do it to. Derived per
+  // render rather than captured, so a `Who` change moves the sentence with
+  // the pick — the fields follow the same change one effect later
+  // (`:195`-`213`), which is where the two can disagree for a frame and
+  // nowhere else.
+  const replaces = duplicateReplaces(seed, filed);
   const pickedName =
     members.find((member) => member.id === memberId)?.name ??
     lockedMember?.name ??
@@ -337,9 +340,9 @@ export function TravelDialog({
           and this dialog is only handed it for a traveler; an organizer
           picking themselves is the other way into the same sentence, and
           there the name is what every other line about them says too. */}
-      {replacing.length > 0 ? (
+      {replaces.length > 0 ? (
         <Text className="font-body text-sm text-ink opacity-60">
-          {`Replaces the ${replacing.join(" and ")} ${pickedName} filed.`}
+          {`Replaces the ${replaces.join(" and ")} ${pickedName} filed.`}
         </Text>
       ) : null}
 

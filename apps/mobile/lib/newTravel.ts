@@ -173,10 +173,17 @@ function seededLeg(
  * it was wrong in a way only a duplicate can show — "Duplicate" onto a
  * member who already had that leg opened *their* record in the fields and
  * saved it back over itself, so the press filed nothing and replaced
- * nothing while looking like it had done something. A direction the seed
- * does not hold keeps whatever that member filed: duplicating an
- * arrival-only leg onto somebody leaves their own departure alone, which
- * is what the button's sentence promises.
+ * nothing while looking like it had done something.
+ *
+ * A direction the seed does not hold is the member's own, in three terms:
+ * their record for that direction if they have one, else the seed's own
+ * empty half, else nothing. That middle term is not nothing, and it is the
+ * one part of this rule that is not about the record: `legFromRecord`
+ * fills the un-held half's *far* end from the held one, so a duplicate of
+ * an arrival-only leg carries the takeoff behind the departure panel's
+ * trigger — the leg's counterpart, which is what the panel is for. It
+ * files nothing on its own (`buildLegRecord` returns null for an unfiled
+ * direction), and a member who has filed that direction keeps theirs.
  *
  * One caller per case rather than two rules that have to agree: the
  * seed's presence is the duplicate, so a screen cannot be a duplicate and
@@ -204,6 +211,9 @@ export function legsForMember<
     departure: emptyLeg(),
   };
   for (const direction of DIRECTIONS) {
+    // The held direction is the leg being duplicated, so it wins over the
+    // record; everything else is the member's, in the three terms above —
+    // and the middle one is why this cannot simply be `record ?? empty`.
     const held = seededLeg(seed, direction);
     if (held) {
       legs[direction] = held;
@@ -218,11 +228,15 @@ export function legsForMember<
 }
 
 /**
- * The directions a duplicate is about to replace rather than add:
- * `legsForMember`'s rule read the other way, over the member it is about
- * to be filed for.
+ * The directions a duplicate is about to replace rather than add: the
+ * seed's half and the screen's own answer to "does this member hold that
+ * direction", which is the same pair the verb, the Delete button and
+ * `editingExisting` read (`filed` in `app/trips/travel/form.tsx`). It is
+ * handed `filed` rather than the rows, so the sentence cannot point at a
+ * different member's record than the button under it — the shape this
+ * file's rule and the screen would otherwise have to keep in step.
  *
- * The screen needs the list rather than the rule because a replacement is
+ * The screen needs the list rather than a boolean because a replacement is
  * the one thing a duplicate does that its own sentence does not say, and
  * an overwrite under a thumb is what this app refuses everywhere else —
  * the copy's own block asks "Are you sure?" before it does the same thing
@@ -231,17 +245,13 @@ export function legsForMember<
  * being filed, so the answer is in front of the reader rather than behind
  * a second press.
  */
-export function duplicateReplaces<
-  T extends { memberId: string; travelType: TravelDirection },
->(
-  records: readonly T[],
+export function duplicateReplaces(
   seed: LegSeed | undefined,
-  memberId: string,
+  filed: Record<TravelDirection, boolean>,
 ): TravelDirection[] {
   return DIRECTIONS.filter(
     (direction) =>
-      seededLeg(seed, direction) !== undefined &&
-      travelForMemberDirection(records, memberId, direction) !== undefined,
+      seededLeg(seed, direction) !== undefined && filed[direction],
   );
 }
 

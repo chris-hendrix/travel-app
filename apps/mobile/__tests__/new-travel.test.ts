@@ -793,12 +793,18 @@ describe("legsForMember", () => {
   });
 
   it("prefers the record over the seed for a direction the seed does not hold", () => {
-    // A seed picks up one direction from the record it was built from — a
-    // departure-only leg leaves the arrival's own end empty — and an empty
-    // leg is not an answer: the member's own record fills that direction,
-    // while the seed keeps the direction it does hold.
+    // A departure-only record read as an arrival: its own end empty, its
+    // *far* end filled, which is the shape `legFromRecord` really produces
+    // (`location` and the day belong to the own end, `otherLocation` and
+    // the far clock to the other one). "The seed holds nothing there" has
+    // to mean the own end, or a leg carrying only its counterpart would
+    // shadow the member's own arrival.
     const seed = {
-      arrival: { ...emptyLeg(), location: "seeded arrival" },
+      arrival: {
+        ...emptyLeg(),
+        departureTime: "20:00",
+        otherLocation: "BCN T2",
+      },
       departure: {
         ...emptyLeg(),
         day: "2026-09-25",
@@ -814,6 +820,30 @@ describe("legsForMember", () => {
     );
     expect(legs.arrival.location).toBe("from arrival");
     expect(legs.departure.location).toBe("seeded departure");
+  });
+
+  it("keeps the member's own other direction", () => {
+    // The save-side half of the rule, and the one an organizer relies on:
+    // a duplicate that carries an arrival must not touch the departure
+    // that member filed — the fields are what the save writes, so a leg
+    // read back off their record is the thing that keeps it.
+    const seed = {
+      arrival: {
+        ...emptyLeg(),
+        day: "2026-09-18",
+        arrivalTime: "15:40",
+        location: "seeded arrival",
+      },
+      departure: { ...emptyLeg(), arrivalTime: "15:40", otherLocation: "LIS" },
+    };
+    const legs = legsForMember(
+      [row("b", "m-1", "departure")],
+      seed,
+      "m-1",
+      read,
+    );
+    expect(legs.arrival.location).toBe("seeded arrival");
+    expect(legs.departure.location).toBe("from departure");
   });
 
   it("prefers the seed over the record for a direction the seed holds", () => {
@@ -859,31 +889,34 @@ describe("legsForMember", () => {
     // Their arrival is the one the seed lands on; nothing is filed the
     // other way, and an unfiled direction is not a replacement.
     expect(
-      duplicateReplaces([row("a", "m-1", "arrival")], seed, "m-1"),
+      duplicateReplaces(seed, { arrival: true, departure: false }),
     ).toEqual(["arrival"]);
     // Both ends of the leg land on both of theirs: the sentence names two
     // directions rather than one, which is what the form's own wording
     // has to hold.
     expect(
-      duplicateReplaces(
-        [row("a", "m-1", "arrival"), row("b", "m-1", "departure")],
-        seed,
-        "m-1",
-      ),
+      duplicateReplaces(seed, { arrival: true, departure: true }),
     ).toEqual(["arrival", "departure"]);
     // A member with nothing filed: a duplicate adds, so nothing is said.
-    expect(duplicateReplaces([], seed, "m-9")).toEqual([]);
-    // No seed at all is every other way into the form, and none of them
-    // replaces anything.
     expect(
-      duplicateReplaces([row("a", "m-1", "arrival")], undefined, "m-1"),
+      duplicateReplaces(seed, { arrival: false, departure: false }),
+    ).toEqual([]);
+    // No seed at all is every other way into the form, and none of them
+    // replaces anything — not even with a leg filed both ways.
+    expect(
+      duplicateReplaces(undefined, { arrival: true, departure: true }),
     ).toEqual([]);
   });
 
   it("falls back to the seed for a member who has nothing", () => {
     const seed = {
       arrival: { ...emptyLeg(), location: "seeded arrival" },
-      departure: { ...emptyLeg(), location: "seeded departure" },
+      departure: {
+        ...emptyLeg(),
+        day: "2026-09-25",
+        departureTime: "09:00",
+        location: "seeded departure",
+      },
     };
     const legs = legsForMember([], seed, "m-9", read);
     expect(legs.arrival.location).toBe("seeded arrival");

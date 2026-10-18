@@ -30,7 +30,9 @@ export function useDismiss(fallbackHref: string) {
  * is on the board. One pop would leave the reader on the sheet they
  * duplicated *from* — somebody else's record, showing nothing of what
  * they just filed — which is what this hook exists to stop. `dismissTo`
- * walks back until the named screen is reached, however deep it is.
+ * walks back until the named screen is reached, however deep it is, and
+ * the call site is where that case is written out
+ * (`app/trips/travel/form.tsx`); what belongs here is the rule.
  *
  * A dialog opened directly has the screen nowhere in its stack at all,
  * and the router replaces with it rather than leaving the reader where
@@ -38,6 +40,12 @@ export function useDismiss(fallbackHref: string) {
  * belongs to. That is why this takes the destination rather than a count
  * of screens: the count is the thing that goes wrong when a door is
  * added above it.
+ *
+ * The match is on the route **name**, and the href's params are what the
+ * landed screen is then given — so the params here are load-bearing for
+ * how it lands, not decoration on the match (`POP_TO` in expo-router's
+ * vendored stack router: it walks the stack for the name, and replaces the
+ * top route with the href when the name is not in the stack at all).
  */
 export function useDismissTo(href: string) {
   const router = useRouter();
