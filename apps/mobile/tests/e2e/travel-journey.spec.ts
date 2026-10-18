@@ -1,14 +1,16 @@
 /**
  * E2E Journey: travel entry (mobile).
  *
- * Critical flow 8 (Travel entry). Five tests, one flow: a member files
+ * Critical flow 8 (Travel entry). Six tests, one flow: a member files
  * their own arrival and the board shows it — and the sheet behind that
  * row, where the where offers `Open in Maps` — a **cold load** of a filed
  * record's edit URL opens that record and saves over it rather than
  * beside it, deleting one of two directions keeps the form open on the
  * other, a delete on a member who is not going keeps the form on *that
- * member*, and a **hire** filed with both its ends carries its mode to
- * the board and both ends back into a cold-loaded panel.
+ * member*, a **hire** filed with both its ends carries its mode to the
+ * board and both ends back into a cold-loaded panel, and a **duplicate**
+ * lands on the board rather than on the record it was copied from, over
+ * the leg its recipient had already filed.
  *
  * The cold-load test is the reason this spec exists at all. The
  * regression it covers is about *when* a value is computed — a `useState`
@@ -63,7 +65,7 @@ import {
   uniqueLabel,
 } from "./helpers/auth";
 import { NAVIGATION_TIMEOUT } from "./helpers/timeouts";
-import { seedGuestViaAPI } from "./helpers/members";
+import { seedGoingMemberViaAPI, seedGuestViaAPI } from "./helpers/members";
 import { seedTripViaAPI, tripTimezoneViaAPI } from "./helpers/trip";
 import {
   organizerMemberIdViaAPI,
@@ -358,6 +360,16 @@ test.describe("Travel Journey", () => {
       // The verb follows what saving will do to this member's row: an
       // edit updates it.
       await page.getByRole("button", { name: "Save changes" }).click();
+      // And where that save leaves you, which only a cold load can reach:
+      // there is no stack behind this form, so `useDismiss` replaces rather
+      // than pops, and what it replaces with is the board — the screen this
+      // form belongs to — rather than the trips list. Asserted inside this
+      // test rather than as a case of its own because this is the file's
+      // only save with no history behind it.
+      await expect(page).toHaveURL(
+        new RegExp(`/trips/travel\\?id=${tripId}`),
+        { timeout: NAVIGATION_TIMEOUT },
+      );
     });
 
     await test.step("the server holds the one row, changed, under its own id", async () => {
@@ -849,6 +861,182 @@ test.describe("Travel Journey", () => {
       expect(ownBox).not.toBeNull();
       expect(dropoffBox).not.toBeNull();
       expect(ownBox?.y ?? 0).toBeLessThan(dropoffBox?.y ?? 0);
+    });
+  });
+
+  test("a duplicate lands on the board, over the leg its recipient already filed", async ({
+    page,
+    request,
+  }) => {
+    /**
+     * Critical flow 8 (travel entry), the duplicate's own half — and it
+     * is E2E-worthy for the reason the flow is on the list at all: there
+     * is no renderer under the Vitest suite, so "which screen a save
+     * leaves you on" is a claim no unit test can make, and the rule that
+     * decides it is a navigation rather than a value. The second half is
+     * the same class one level down: the form's fields are derived when
+     * the member is picked, and whether the leg being duplicated or the
+     * leg already filed wins is only visible once a screen holds them.
+     *
+     * Both halves are read back from the API where they can be: the
+     * landing from the URL the app builds, the overwrite from the one
+     * live row the member has afterwards, which is a server fact rather
+     * than a cache one.
+     */
+    const tripName = uniqueLabel("E2E Duplicate");
+    const memberName = uniqueLabel("Duplicate Host");
+    const secondName = uniqueLabel("Duplicate Target");
+    const ownWhere = uniqueLabel("Own Arrival");
+    const theirWhere = uniqueLabel("Their Arrival");
+
+    let tripId: string;
+    let startDate: string;
+    let memberId: string;
+    let secondMemberId: string;
+    let token: string;
+    let tripZone: string;
+    const ownIso = () => `${startDate}T09:00:00Z`;
+    const boardUrl = () => new RegExp(`/trips/travel\\?id=${tripId}`);
+
+    await test.step("seed a trip, a second member who is going, and the source leg", async () => {
+      ({ token } = await seedUserViaAPI(
+        request,
+        generateUniquePhone(),
+        memberName,
+      ));
+      ({ id: tripId, startDate } = await seedTripViaAPI(
+        request,
+        token,
+        tripName,
+      ));
+      memberId = await organizerMemberIdViaAPI(request, token, tripId);
+      tripZone = await tripTimezoneViaAPI(request, token, tripId);
+      // A guest will not do here, and that is the picker's own rule
+      // rather than this test's convenience: the form offers the going
+      // roster plus whoever already holds a record, so a member the
+      // organizer can file for has to have answered Going (`helpers/
+      // members.ts:seedGoingMemberViaAPI`).
+      secondMemberId = await seedGoingMemberViaAPI(
+        request,
+        token,
+        tripId,
+        secondName,
+      );      // The leg to be duplicated: the organizer's own arrival.
+      await seedTravelViaAPI(
+        request,
+        token,
+        tripId,
+        memberId,
+        "arrival",
+        { arrivalTime: ownIso() },
+        ownWhere,
+      );
+    });
+
+    await test.step("open the source record's sheet and duplicate it", async () => {
+      await armSession(page, token);
+      await page.goto(`/trips/travel?id=${tripId}`);
+      // The row is the press (`app/trips/travel.tsx`), and the where is
+      // what tells it apart from the same member's owed departure.
+      await page
+        .getByRole("button")
+        .filter({ hasText: memberName })
+        .filter({ hasText: ownWhere })
+        .click();
+      await expect(page).toHaveURL(/\/trips\/travel\/detail/);
+      await page.getByRole("button", { name: "Duplicate" }).click();
+      await expect(
+        page.getByText("Duplicate travel", { exact: true }),
+      ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
+      // A duplicate starts with nobody picked, because picking is the
+      // act: the seed is a flight waiting for a name.
+      await page
+        .getByRole("button", { name: "Pick who this is for…" })
+        .click();
+      await page.getByRole("button", { name: secondName }).last().click();
+      // They have filed nothing, so this duplicate adds rather than
+      // replaces, and the form says nothing about replacing.
+      await expect(page.getByText(/^Replaces the/)).toHaveCount(0);
+      await page.getByRole("button", { name: "Add travel" }).last().click();
+    });
+
+    await test.step("the save lands on the board, with the row it filed on it", async () => {
+      // The regression this test is here for. The form is pushed from the
+      // *source* record's sheet, so a single pop left the reader on that
+      // sheet: somebody else's record, byte for byte the screen it was
+      // before the save, showing nothing of what had just been filed.
+      await expect(page).toHaveURL(boardUrl(), { timeout: NAVIGATION_TIMEOUT });
+      const filed = page
+        .getByRole("button")
+        .filter({ hasText: secondName })
+        .filter({ hasText: ownWhere });
+      await expect(filed).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
+      await expect(filed).toContainText(clockIn(ownIso(), tripZone));
+    });
+
+    await test.step("a duplicate onto a member who has one replaces it, and says so", async () => {
+      // Their own leg, filed through the real endpoint, and a *different*
+      // where from the source's: a replacement is only visible in a diff,
+      // and a difference is what the assertions below are about.
+      await seedTravelViaAPI(
+        request,
+        token,
+        tripId,
+        secondMemberId,
+        "arrival",
+        { arrivalTime: `${startDate}T11:00:00Z` },
+        theirWhere,
+      );
+
+      await page.goto(`/trips/travel?id=${tripId}`);
+      await page
+        .getByRole("button")
+        .filter({ hasText: memberName })
+        .filter({ hasText: ownWhere })
+        .click();
+      await page.getByRole("button", { name: "Duplicate" }).click();
+      await expect(
+        page.getByText("Duplicate travel", { exact: true }),
+      ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
+      await page
+        .getByRole("button", { name: "Pick who this is for…" })
+        .click();
+      await page.getByRole("button", { name: secondName }).last().click();
+
+      // The rule that makes the press mean what it says. The fields hold
+      // the leg being duplicated rather than the one already on the
+      // member — the record-first rule opened *their* leg and saved it
+      // back over itself, so the duplicate filed nothing while looking
+      // like it had — and the consequence is stated under the picker that
+      // caused it, before the press rather than after it.
+      await expect(
+        page.getByText(`Replaces the arrival ${secondName} filed.`),
+      ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
+      await expect(page.getByRole("textbox", { name: "Lands at" })).toHaveValue(
+        ownWhere,
+      );
+      // The verb follows what this save will do to *their* row, which is
+      // what a replacement is.
+      await page.getByRole("button", { name: "Save changes" }).click();
+      await expect(page).toHaveURL(boardUrl(), { timeout: NAVIGATION_TIMEOUT });
+    });
+
+    await test.step("the server holds one arrival for the member, carrying the duplicated where", async () => {
+      await expect
+        .poll(
+          async () => {
+            const rows = await travelRowsViaAPI(request, token, tripId);
+            return rows
+              .filter(
+                (row) =>
+                  row.memberId === secondMemberId &&
+                  row.travelType === "arrival",
+              )
+              .map((row) => row.arrivalLocation);
+          },
+          { timeout: NAVIGATION_TIMEOUT },
+        )
+        .toEqual([ownWhere]);
     });
   });
 });

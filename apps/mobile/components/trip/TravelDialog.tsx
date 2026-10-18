@@ -37,6 +37,7 @@ import {
 } from "@/lib/flights";
 import { travelDays } from "@/lib/travelDays";
 import {
+  duplicateReplaces,
   farEndNote,
   legFromLookup,
   legFromRecord,
@@ -171,11 +172,13 @@ export function TravelDialog({
   /** A write is in flight: the dialog's own two buttons stop. */
   pending?: boolean;
 }) {
-  // One rule for what the fields hold: the picked member's record for
-  // that direction, else the seed a duplicate arrived with, else nothing
-  // (`legsForMember`). The fields are *about* this member, so a `Who`
-  // change re-derives them instead of leaving the previous person's leg
-  // behind — which filed one person's times under another's name.
+  // One rule for what the fields hold, in a duplicate and out of one
+  // (`legsForMember`): a direction the seed holds is the leg being
+  // duplicated, whichever record the picked member happens to have, and
+  // every other direction is that member's own record or nothing. The
+  // fields are *about* this member, so a `Who` change re-derives them
+  // instead of leaving the previous person's leg behind — which filed one
+  // person's times under another's name.
   const readLeg = useCallback(
     (record: MockTravel, direction: TravelDirection) =>
       legFromRecord(record, direction, timeZone, trip.startDate, trip.endDate),
@@ -223,6 +226,18 @@ export function TravelDialog({
     departure: legs.departure,
   };
   const errors = submitted ? validateNewTravel(input) : {};
+  // Which directions this duplicate is about to replace rather than file
+  // (`duplicateReplaces`, over the same `filed` the verb and the Delete
+  // button read), and the member it is about to do it to. Derived per
+  // render rather than captured, so a `Who` change moves the sentence with
+  // the pick — the fields follow the same change one effect later
+  // (`:195`-`213`), which is where the two can disagree for a frame and
+  // nowhere else.
+  const replaces = duplicateReplaces(seed, filed);
+  const pickedName =
+    members.find((member) => member.id === memberId)?.name ??
+    lockedMember?.name ??
+    "";
 
   function setLeg(next: TravelLeg) {
     setBlank(false);
@@ -302,6 +317,34 @@ export function TravelDialog({
           {lockedMember?.name ?? ""}
         </Text>
       )}
+
+      {/* A duplicate's one consequence that its own button does not say:
+          the leg is going onto a member who already has one in that
+          direction, so saving replaces theirs instead of adding beside
+          it — the API upserts on the member and the direction, which is
+          the pair the record is (see `duplicateReplaces`). The sentence
+          sits under the picker that made it true, in the quiet ink every
+          reason this app states before a press uses, and it names the
+          directions rather than saying "their travel": a duplicate
+          carries both ends of a leg, and which of the two lands on
+          something is the whole of what the reader has to decide about.
+          It names the member the way the picker above it does, and it
+          says nothing at all while nobody is picked, because nothing is
+          going anywhere yet. The one case it names the *reader* is a
+          traveler's own leg: the picker is not rendered for them (they
+          are the answer), so a duplicate URL opened by a traveler — a
+          deep link, since the button that builds it is the organizer's —
+          reads "Replaces the arrival Alice filed" about Alice, who is
+          reading. Said with the name rather than the app's own "You"
+          (`ExpenseDetail`) because that word needs the reader's member id
+          and this dialog is only handed it for a traveler; an organizer
+          picking themselves is the other way into the same sentence, and
+          there the name is what every other line about them says too. */}
+      {replaces.length > 0 ? (
+        <Text className="font-body text-sm text-ink opacity-60">
+          {`Replaces the ${replaces.join(" and ")} ${pickedName} filed.`}
+        </Text>
+      ) : null}
 
       {/* The whole form's complaint, above both panels because no single
           field is at fault when none of them has been answered. */}

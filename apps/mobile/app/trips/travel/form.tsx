@@ -31,7 +31,7 @@ import { useAuth } from "@/lib/authStore";
 import { goingMembers, travelMemberOptions, viewerOf } from "@/lib/members";
 import { useMembers } from "@/lib/queries/members";
 
-import { useDismiss } from "@/hooks/useDismiss";
+import { useDismiss, useDismissTo } from "@/hooks/useDismiss";
 
 /**
  * Travel form — one screen for both verbs, and the same screen for both
@@ -70,10 +70,24 @@ function TravelFormScreen() {
   // press cannot save twice or delete a direction being saved.
   const [saving, setSaving] = useState(false);
   const { for: settingsFor, update } = useTripSettings();
-  const dismiss = useDismiss("/trips");
   const router = useRouter();
 
   const tripId = typeof id === "string" ? id : undefined;
+  // Where this form's writes belong, and the one address the dialog's
+  // chrome, its gate and its save share. The board, not the trips list:
+  // the list is the app's home, not this form's parent — the board is what
+  // files travel and what a filed row appears on — and the form has two
+  // parents (the board's own Add travel, and the trip page's action list),
+  // so the one address has to be the screen they both lead through. Read
+  // from the param rather than from the trip so a failed trip read still
+  // has somewhere to go.
+  const boardHref = tripId ? `/trips/travel?id=${tripId}` : "/trips";
+  // One pop: an edit belongs to the record sheet it was opened from, and
+  // an add belongs to the board it was pushed from.
+  const dismiss = useDismiss(boardHref);
+  // A duplicate's row is on the board, two screens down — see the save's
+  // own note, and `useDismissTo`.
+  const dismissToBoard = useDismissTo(boardHref);
   const { trip } = useTrip(tripId);
   // Warms the section query the store reads from, so a cold load
   // (deep link straight here) still finds the record once it lands. Its
@@ -191,7 +205,6 @@ function TravelFormScreen() {
   // screen was opened.
   const editingExisting = filed.arrival || filed.departure;
 
-  const boardHref = `/trips/travel?id=${trip?.id ?? ""}`;
   if (!trip) {
     return <NotFound />;
   }
@@ -206,21 +219,35 @@ function TravelFormScreen() {
   // above it are suspended by the trip gate: a cold load reaches this line
   // with `records` still empty and the roster already here, and an empty
   // read is the seed rather than a blank that fills in later
-  // (`components/trip/TravelDialog.tsx`). The `travel=` door was guarded
-  // by the record it names; the `member=` door and the bare add door name
-  // no record, so they had nothing to wait for and opened on the empty
-  // read. That is why "not still loading" is not the test — a failed read
-  // is just as empty, and the save that follows it clears every field the
-  // body leaves out.
+  // (`components/trip/TravelDialog.tsx`). The `travel=` and `duplicate=`
+  // doors are guarded by the record each names — the one to edit and the
+  // one to copy; the `member=` door and the bare add door name no record,
+  // so they had nothing to wait for and opened on the empty read. That is
+  // why "not still loading" is not the test — a failed read is just as
+  // empty, and the save that follows it clears every field the body
+  // leaves out.
   const gate = travelFormGate({
     status: sectionStatus,
-    namesRecord: Boolean(editingId),
-    recordFound: Boolean(record),
+    // Both doors that name a row count here, and the duplicate names the
+    // *source* one: `travel=` is the record this form edits, `duplicate=`
+    // the record it copies. Reading only the first left a stale duplicate
+    // URL opening a blank add whose Who had already fallen back to the
+    // viewer (`memberId` above), so a save from it filed for the wrong
+    // person — the same class of failure this gate exists for, one door
+    // further out. A URL carrying both is an edit: it says so below, in
+    // the note above the seed.
+    namesRecord: Boolean(editingId) || Boolean(duplicateOf),
+    recordFound: Boolean(record) || Boolean(duplicateFrom),
   });
 
   if (gate !== "open") {
+    // The board, like every other way out of this form: the gate stands in
+    // for the form the address asked for (`boardHref` above), so it leaves
+    // onto the screen that form belongs to rather than onto the trips
+    // list. Without it the form answered "where do you land with no
+    // history behind you" twice, in two different places.
     return (
-      <FullscreenDialog title="Travel" dismissHref="/trips">
+      <FullscreenDialog title="Travel" dismissHref={boardHref}>
         {gate === "loading" ? (
           <LoadingBlock label="Loading travel details" />
         ) : gate === "offline" ? (
@@ -383,9 +410,24 @@ function TravelFormScreen() {
         // it saved.
         setServerError(null);
         setSaving(true);
+        // Where a save lands is a question about the write, not about the
+        // form, and there are three answers. An edit goes back to the
+        // record's sheet: one pop, the thing you changed, updated. An add
+        // goes back to the board it was pushed from: one pop, with the new
+        // row on it. A duplicate is the one that is neither — its row is
+        // on the board, but the form sits on top of the *source* record's
+        // sheet, so a single pop leaves you reading somebody else's record
+        // with nothing on it of what you just filed, which is what the
+        // screen did until this became a rule. `dismissToBoard` takes the
+        // whole stack off down to the board, and replaces when a cold load
+        // has no stack to take off (see `useDismissTo`). The sheet already
+        // answers this for the copy it files itself — "the result is a row
+        // on the board, so the board is where the sheet leaves you"
+        // (`detail.tsx`) — and this is that rule one screen deeper rather
+        // than a second opinion about it.
         void Promise.all(saves)
           .then(
-            () => dismiss(),
+            () => (duplicateFrom ? dismissToBoard() : dismiss()),
             (error: unknown) =>
               setServerError(
                 toErrorCopy(error).message ?? "Couldn't save the travel.",
