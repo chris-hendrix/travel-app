@@ -110,15 +110,17 @@ export async function seedGuestViaAPI(
  * *invitation* id and the two id spaces are not the same one.
  *
  * Returns the member id, the id space a travel row's `memberId` lives
- * in, plus the second phone's token, for a spec that needs to look at the
- * trip through the second member's own eyes.
+ * in — the same one thing `seedGuestViaAPI` answers with. The second
+ * phone's token stays in here: nothing reads the trip as them yet, and a
+ * helper that hands back what no caller uses is a second thing to keep in
+ * step with the roster it was read from.
  */
 export async function seedGoingMemberViaAPI(
   request: APIRequestContext,
   organizerToken: string,
   tripId: string,
   displayName: string,
-): Promise<{ memberId: string; token: string; phone: string }> {
+): Promise<string> {
   const phone = generateUniquePhone();
   const invite = await postWithRetry(
     request,
@@ -151,13 +153,19 @@ export async function seedGoingMemberViaAPI(
     throw new Error(`list-members failed: ${members.status()}`);
   }
   const body = (await members.json()) as {
-    members: Array<{ id: string; displayName: string }>;
+    members: Array<{ id: string; phoneNumber?: string }>;
   };
-  const added = body.members.find((member) => member.displayName === displayName);
+  // Matched on the number this helper minted rather than on the display
+  // name it was handed: a name is not an identity (a trip may hold two
+  // people called Bob, and the organizer is on this list too), while the
+  // number is the one thing here that was generated rather than chosen.
+  // It is visible because the caller is the organizer, which
+  // `memberWithProfileSchema` gates server-side.
+  const added = body.members.find((member) => member.phoneNumber === phone);
   if (!added) {
     throw new Error(
-      `list-members named no ${displayName} on trip ${tripId}`,
+      `list-members named no member holding ${phone} on trip ${tripId}`,
     );
   }
-  return { memberId: added.id, token, phone };
+  return added.id;
 }

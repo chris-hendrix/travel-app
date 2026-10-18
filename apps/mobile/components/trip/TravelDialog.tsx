@@ -325,10 +325,18 @@ export function TravelDialog({
           directions rather than saying "their travel": a duplicate
           carries both ends of a leg, and which of the two lands on
           something is the whole of what the reader has to decide about.
-          It names the member the way the picker does, so it cannot be
-          read as being about the reader's own travel — and it says
-          nothing at all while nobody is picked, because nothing is going
-          anywhere yet. */}
+          It names the member the way the picker above it does, and it
+          says nothing at all while nobody is picked, because nothing is
+          going anywhere yet. The one case it names the *reader* is a
+          traveler's own leg: the picker is not rendered for them (they
+          are the answer), so a duplicate URL opened by a traveler — a
+          deep link, since the button that builds it is the organizer's —
+          reads "Replaces the arrival Alice filed" about Alice, who is
+          reading. Said with the name rather than the app's own "You"
+          (`ExpenseDetail`) because that word needs the reader's member id
+          and this dialog is only handed it for a traveler; an organizer
+          picking themselves is the other way into the same sentence, and
+          there the name is what every other line about them says too. */}
       {replacing.length > 0 ? (
         <Text className="font-body text-sm text-ink opacity-60">
           {`Replaces the ${replacing.join(" and ")} ${pickedName} filed.`}

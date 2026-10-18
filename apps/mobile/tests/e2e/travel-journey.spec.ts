@@ -906,13 +906,12 @@ test.describe("Travel Journey", () => {
       // roster plus whoever already holds a record, so a member the
       // organizer can file for has to have answered Going (`helpers/
       // members.ts:seedGoingMemberViaAPI`).
-      ({ memberId: secondMemberId } = await seedGoingMemberViaAPI(
+      secondMemberId = await seedGoingMemberViaAPI(
         request,
         token,
         tripId,
         secondName,
-      ));
-      // The leg to be duplicated: the organizer's own arrival.
+      );      // The leg to be duplicated: the organizer's own arrival.
       await seedTravelViaAPI(
         request,
         token,

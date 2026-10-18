@@ -861,6 +861,16 @@ describe("legsForMember", () => {
     expect(
       duplicateReplaces([row("a", "m-1", "arrival")], seed, "m-1"),
     ).toEqual(["arrival"]);
+    // Both ends of the leg land on both of theirs: the sentence names two
+    // directions rather than one, which is what the form's own wording
+    // has to hold.
+    expect(
+      duplicateReplaces(
+        [row("a", "m-1", "arrival"), row("b", "m-1", "departure")],
+        seed,
+        "m-1",
+      ),
+    ).toEqual(["arrival", "departure"]);
     // A member with nothing filed: a duplicate adds, so nothing is said.
     expect(duplicateReplaces([], seed, "m-9")).toEqual([]);
     // No seed at all is every other way into the form, and none of them
