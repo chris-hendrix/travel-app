@@ -95,9 +95,16 @@ type LinkedTextProps = Shared &
  * fighting a default it cannot remove.
  */
 export function LinkedText(props: LinkedTextProps) {
-  const { className, onLink, text, runs } = props;
+  const { className, onLink } = props;
 
-  const parsed = useMemo(() => runs ?? linkedRuns(text ?? ""), [runs, text]);
+  // Narrowed on `props`, and not destructured first: the prop is either
+  // prose or runs and never both, which is the union's whole point — a
+  // destructure makes that inexpressible and leaves a fallback that only
+  // papers over it.
+  const parsed = useMemo(
+    () => (props.runs ? props.runs : linkedRuns(props.text)),
+    [props.runs, props.text],
+  );
   const follow = onLink ?? openInBrowser;
 
   return (

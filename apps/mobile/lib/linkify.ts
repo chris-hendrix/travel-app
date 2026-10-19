@@ -5,15 +5,67 @@ import type { Opts } from "linkifyjs";
 const ELLIPSIS = "\u2026";
 
 /**
- * The characters a link may never carry: the zero-width joiners and marks
- * that hide part of an address, and the bidi embeddings, overrides and
- * isolates that re-read it backwards. U+200B–U+200F, U+202A–U+202E,
- * U+2066–U+2069 and the byte-order mark.
+ * Invisible characters a link may never carry: the format controls that
+ * reorder text or vanish inside it, the zero-width characters that hide it,
+ * the C0/C1 controls that truncate a URL at the platform, the fillers that
+ * stand in for a syllable, and the variation selectors and tag characters
+ * that can carry a whole hidden string after a visible address. BMP only;
+ * the astral ranges are checked separately because a surrogate pair is not
+ * one character to a regex without the `u` flag.
  *
- * No `g` flag, deliberately: `test` on a global regexp keeps state between
- * calls and would start refusing every other address.
+ * The isolates, U+2066–U+2069, are in the U+2060–U+206F run and not left to
+ * a range of their own: they are the ones that re-read an address backwards
+ * without a matching pop, so a set that skipped them would be a narrower
+ * guard than the one this replaced.
  */
-const INVISIBLE = /[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/;
+const INVISIBLE_BMP =
+  /[\u0000-\u001F\u007F-\u009F\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180B-\u180F\u200B-\u200F\u202A-\u202E\u2060-\u206F\u3164\uFE00-\uFE0F\uFEFF\uFFA0\uFFF0-\uFFFB]/;
+/**
+ * The astral half, in surrogate pairs: U+1BCA0–1BCA3 shorthand format
+ * controls, U+1D173–1D17A musical format controls, U+E0001–E007F tag
+ * characters, U+E0100–E01EF variation selectors.
+ *
+ * One unit is enough to read them in `stoppedAtInvisible`, because the
+ * matcher swallows these rather than stopping at them — measured, an
+ * address carrying one comes back as a single match with the pair inside
+ * it, so `validate.url` refuses it and no half-pair ever reaches a
+ * boundary. The guard list in the test iterates them, so a linkifyjs that
+ * changed its mind would fail there rather than here.
+ */
+const INVISIBLE_ASTRAL =
+  /\uD82F[\uDCA0-\uDCA3]|\uD834[\uDD73-\uDD7A]|\uDB40[\uDC01-\uDC7F]|\uDB40[\uDD00-\uDDEF]/;
+
+/**
+ * Neither regexp above carries the `g` flag, deliberately: `test` on a
+ * global regexp keeps state between calls, and the guard would start
+ * accepting every other address.
+ */
+const hasInvisible = (value: string) =>
+  INVISIBLE_BMP.test(value) || INVISIBLE_ASTRAL.test(value);
+
+/**
+ * The whitespace a match may legitimately sit against — a link at the start
+ * of a line is a link — written out rather than `\s`, which is not the set
+ * it looks like. ECMAScript's `\s` includes U+FEFF, and the byte-order mark
+ * is one of the six characters the matcher stops at, so `\s` here would
+ * hand the mark back the very check it is being exempted from.
+ */
+const WHITESPACE = /[\t\n\v\f\r]/;
+
+/** The schemes a press can follow. See `linkedRuns` — tested on `href`. */
+const FOLLOWABLE = /^https?:\/\//i;
+
+/**
+ * A match the matcher stopped at: the invisible character is still there,
+ * on one side of it, and the address a reader sees spans both halves.
+ */
+const stoppedAtInvisible = (text: string, start: number, end: number) => {
+  const before = text[start - 1];
+  const after = text[end];
+  const traps = (char: string | undefined) =>
+    char !== undefined && hasInvisible(char) && !WHITESPACE.test(char);
+  return traps(before) || traps(after);
+};
 
 const FIND_OPTIONS: Opts = {
   // The scheme an author on a phone leaves off, which is nearly all of
@@ -21,8 +73,10 @@ const FIND_OPTIONS: Opts = {
   defaultProtocol: "https",
   validate: {
     // Returning false refuses the match outright: the address stays prose,
-    // in place, with nothing lost.
-    url: (value: string) => !INVISIBLE.test(value),
+    // in place, with nothing lost. This is the guard's first line, and it
+    // catches most of the class: the matcher swallows the character into
+    // the match, so `value` is where it shows up.
+    url: (value: string) => !hasInvisible(value),
   },
 };
 
@@ -70,14 +124,43 @@ export type ProseRun =
  * cannot get in. The underline is the cheaper mistake, so it is the one
  * taken.
  *
- * **One guard, and it is not cosmetic.** No link carries a bidi override or
- * a zero-width character. An address with one inside it is an address whose
- * visible text is not where it goes — `https://example.com/\u202Excod.exe`
- * reads as `.exe` — and in prose written by another member that is the shape
- * a spoof takes. Such a match is refused whole and stays prose. A character
- * the matcher stops at instead of swallowing simply ends the match early,
- * which is the same safe outcome by another route: the character never lands
- * in a link either way.
+ * **One guard, and it is not cosmetic.** No link carries an invisible
+ * character: not the format controls that re-read an address backwards, not
+ * the zero-width characters that hide part of it, not the C0/C1 controls
+ * that truncate it at the platform, not the variation selectors and tag
+ * characters that can spell a second string after a visible one. An address
+ * with one inside it is an address whose visible text is not where it goes —
+ * `https://example.com/\u202Excod.exe` reads as `.exe` — and in prose
+ * written by another member that is the shape a spoof takes. Such a match is
+ * refused whole and stays prose.
+ *
+ * **The guard is two checks, because the matcher has two ways through.**
+ * Measured against linkifyjs, it swallows nearly the whole class: the
+ * character lands inside the match, `validate.url` sees it, and one refusal
+ * settles it. Six characters are different — the five ASCII whitespace
+ * controls and U+FEFF, the byte-order mark — because at those the matcher
+ * *stops*, and stopping is worse than swallowing. `https://exa\uFEFFmple.com/a`
+ * comes back as a link to `https://exa`, the mark as prose, and then a second
+ * link to `https://mple.com/a` — a host the author never wrote, under an
+ * underline a reader reads as one continuous address. So a match is refused
+ * when the character on either side of it is invisible too: the character
+ * the matcher stopped at is still in the text, and what a reader sees spans
+ * both halves of it. Refused, both halves stay prose and in place, and the
+ * address is neither pressable nor a lie about where it goes.
+ *
+ * **Whitespace is the one exception, and it is why the exemption is spelled
+ * out.** Five of those six characters are `\t`, `\n`, `\r` and friends, and
+ * they sit inside the C0 block the guard refuses — so adjacency alone would
+ * unlink every address that begins a line. The exemption cannot be `\s`:
+ * ECMAScript's `\s` includes U+FEFF, so it would wave through the one
+ * character of the six that the check exists for.
+ *
+ * **What reaches `Linking.openURL` is http(s) or nothing.** The matcher also
+ * recognises `file:`, `ftp:` and `mailto:`, and each is a press that lies or
+ * a press that dies: `file:///etc/passwd` opens nothing on Android and an
+ * address in prose is a place to go on the web. `javascript:` and `data:`
+ * the matcher refuses already, and the allowlist makes that a rule rather
+ * than a habit.
  *
  * Runs come back in document order, and concatenating every `value`
  * reproduces the input exactly — whitespace, newlines and paragraph breaks
@@ -93,6 +176,18 @@ export function linkedRuns(text: string): ProseRun[] {
   const runs: ProseRun[] = [];
   let cursor = 0;
   for (const match of matches) {
+    // Two refusals, both leaving the text exactly where it is: a scheme no
+    // press can follow, and a match that has an invisible character on one
+    // side of it. The scheme is read off `href` and not off the matched
+    // text, because the schemeless `booking.com` an author typed has no
+    // scheme in it at all while its `href` is the `https://booking.com`
+    // the press will follow.
+    if (
+      !FOLLOWABLE.test(match.href) ||
+      stoppedAtInvisible(text, match.start, match.end)
+    ) {
+      continue;
+    }
     if (match.start > cursor) {
       runs.push({ type: "text", value: text.slice(cursor, match.start) });
     }
@@ -121,12 +216,18 @@ export function linkedRuns(text: string): ProseRun[] {
  * of a cut stretch of prose — comes back as prose, and only a link that
  * survives whole stays pressable.
  *
+ * A link that survives is kept whole or not at all: trimming one's label
+ * would leave it pointing at an address it no longer spells.
+ *
  * `truncated` is a fact about the description it was handed, not about what
  * survives it. Trailing whitespace at the cut is trimmed (`…` should close
  * the last word, not float after a space), which can leave the visible text
  * well short of the limit and still be a description somebody has to press
  * "Read more" to finish. Recomputing the flag from the visible length would
- * silently take that press away.
+ * silently take that press away. Which also means the flag describes the
+ * list it was handed and not the list it hands back: cutting an already-cut
+ * list is not a supported input, and a second cut of one the trim left below
+ * the limit reports `false`.
  */
 export function truncateRuns(
   runs: ProseRun[],
@@ -145,21 +246,29 @@ export function truncateRuns(
       continue;
     }
     // The cut lands inside this run: whatever it was, only prose survives.
-    kept.push({ type: "text", value: run.value.slice(0, budget) });
+    // `budget` counts UTF-16 units, the same unit as the `slice` this
+    // replaces, so an emoji is two of the limit's characters — but a cut
+    // between a surrogate pair would draw half a character, so the last
+    // unit of the cut goes with the pair it belongs to.
+    const cut = run.value.slice(0, budget);
+    const safe = /[\uD800-\uDBFF]$/.test(cut) ? cut.slice(0, -1) : cut;
+    kept.push({ type: "text", value: safe });
     break;
   }
 
   // The whitespace the cut left hanging, trimmed off the end — and a run it
-  // empties goes with it.
+  // empties goes with it. A link is never trimmed: its label is the address
+  // the press follows, so a shorter label is a link that misdirects. It is
+  // kept whole instead, and the `…` arrives as the run after it.
   let tail: ProseRun | undefined = kept.pop();
   while (tail) {
+    if (tail.type === "link") {
+      kept.push(tail);
+      break;
+    }
     const trimmed = tail.value.trimEnd();
     if (trimmed.length > 0) {
-      kept.push(
-        tail.type === "text"
-          ? { type: "text", value: trimmed }
-          : { type: "link", value: trimmed, href: tail.href },
-      );
+      kept.push({ type: "text", value: trimmed });
       break;
     }
     tail = kept.pop();
