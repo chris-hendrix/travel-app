@@ -6,6 +6,7 @@ import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { Badge } from "@/components/ui/Badge";
 import { PhotoCredit } from "@/components/ui/PhotoCredit";
+import { LinkedText } from "@/components/ui/LinkedText";
 import { PlaceActions } from "@/components/ui/PlaceActions";
 import { placeRows } from "@/lib/place-rows";
 import {
@@ -221,9 +222,7 @@ function EventDetailDialog() {
           follows too. */}
       {event.description ? (
         <RuledBlock title="Description">
-          <Text className="font-body text-base leading-relaxed text-ink">
-            {event.description}
-          </Text>
+          <LinkedText text={event.description} />
         </RuledBlock>
       ) : null}
     </FullscreenDialog>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Linking, Pressable, Text, useWindowDimensions, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Image } from "@/components/ui/Image";
@@ -6,11 +6,13 @@ import { Screen } from "@/components/ui/Screen";
 import { Badge } from "@/components/ui/Badge";
 import { PhotoCredit } from "@/components/ui/PhotoCredit";
 import { QuietAction } from "@/components/ui/QuietAction";
+import { LinkedText } from "@/components/ui/LinkedText";
 import { PlaceLink } from "@/components/ui/PlaceLink";
 import { RsvpControl } from "@/components/trip/RsvpControl";
 import { Itinerary } from "@/components/trip/Itinerary";
 import { RunLocked } from "@/components/trip/RunLocked";
 import { TripActions } from "@/components/trip/TripActions";
+import { linkedRuns, truncateRuns } from "@/lib/linkify";
 import { tripCountdown } from "@/lib/countdown";
 import { formatDateRange } from "@/lib/dateRange";
 import { todayIn } from "@/lib/timezone";
@@ -464,24 +466,39 @@ function TripDetailScreen({ coverKind }: { coverKind: PlaceholderKind }) {
   );
 }
 
+/** How much of a description reads before the cut. */
+const LIMIT = 160;
+
 /**
  * The description as prose, not a disclosure: short ones read whole,
  * long ones clamp at a few lines behind Read more. Character count
  * rather than measured lines — predictable in the lab, and close
  * enough on a phone.
+ *
+ * The cut is run-aware rather than a slice of the string, because a
+ * description can carry an address: half an address is worse than no
+ * address at all — a press that goes nowhere, or a label that lies about
+ * where it goes. `truncateRuns` demotes whatever the cut lands inside
+ * back to prose and appends the mark itself, so this file names the
+ * number once and never types an ellipsis.
+ *
+ * `truncated` is a fact about the whole description, never about what is
+ * on screen. Derived from the visible text it would go false the moment
+ * the reader expanded, taking `Show less` away under the press that
+ * asked for it.
  */
 function Description({ text }: { text: string }) {
   const [expanded, setExpanded] = useState(false);
-  const long = text.length > 160;
-  const shown =
-    expanded || !long ? text : `${text.slice(0, 160).trimEnd()}…`;
+  // Split once per description rather than per render: this screen
+  // settles a query at a time, and neither call is free.
+  const runs = useMemo(() => linkedRuns(text), [text]);
+  const cut = useMemo(() => truncateRuns(runs, LIMIT), [runs]);
+  const truncated = cut.truncated;
 
   return (
     <View className="gap-1">
-      <Text className="font-body text-base leading-relaxed text-ink">
-        {shown}
-      </Text>
-      {long ? (
+      <LinkedText runs={expanded ? runs : cut.runs} />
+      {truncated ? (
         <QuietAction
           label={expanded ? "Show less" : "Read more"}
           onPress={() => setExpanded(!expanded)}
