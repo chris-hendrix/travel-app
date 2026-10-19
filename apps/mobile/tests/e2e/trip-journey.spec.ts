@@ -347,18 +347,17 @@ test.describe("Trip Journey", () => {
         page.getByRole("button", { name: "Cancel" }),
       ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
       await removeButton.click();
-      // The DELETE lands and the dialog re-reads the roster: with
-      // the row gone it renders its gone state rather than the
-      // Manage block. (The dialog does not auto-dismiss back to the
-      // roll call in this flow — flagged in the task report — so the
-      // spec returns there explicitly instead of asserting a
-      // navigation the app does not perform.)
-      // app/trips/members/detail.tsx PersonDetailDialog fallback.
-      await expect(
-        page.getByText("That person is not on this trip any more."),
-      ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+      // The DELETE lands and the reader is taken off the card they pressed
+      // it on. The roster paints the row out of the cache before the server
+      // answers, which unmounts that card, so the landing is the screen's
+      // rather than a callback on the card the removal took away
+      // (app/trips/members/detail.tsx `removedId` and `LeavingTo`).
+      // Asserted on the address, because a landing is a navigation and the
+      // Vitest suite has no renderer to have an opinion about one.
+      await page.waitForURL("**/trips/members?id=*", {
+        timeout: NAVIGATION_TIMEOUT,
+      });
       // Back on the roll call, the row is gone.
-      await page.goto(`/trips/members?id=${tripId}`);
       await expect(page.getByText("Who's coming")).toBeVisible({
         timeout: NAVIGATION_TIMEOUT,
       });

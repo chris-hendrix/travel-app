@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { Button } from "@/components/ui/Button";
@@ -14,7 +14,7 @@ import { ReportOrBlock } from "@/components/trip/ReportOrBlock";
 import { TextField } from "@/components/ui/TextField";
 import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
-import { useDismiss } from "@/hooks/useDismiss";
+import { useDismiss, useDismissTo } from "@/hooks/useDismiss";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/lib/authStore";
 import { viewerOf, visiblePhone, type Member } from "@/lib/members";
@@ -75,6 +75,27 @@ function PersonDetailDialog() {
   const organizer = viewerOf(members, user?.id)?.isOrganizer ?? false;
   const { invitations } = useTripInvitations(trip?.id, organizer);
 
+  /**
+   * The row this screen's own card took off the roster.
+   *
+   * A removal is painted out of the roster before the server answers
+   * (`lib/queries/members.ts`), so the card below loses its subject on the
+   * next render and unmounts — and a `mutate` landing on an unmounted card
+   * never runs, because the observer that carries it is gone with the
+   * component. Where a removal leaves the reader cannot live in the thing
+   * the removal unmounts, so the card reports the press and this screen,
+   * which outlives the write, takes the outcome (`LeavingTo` at the foot of
+   * this file).
+   *
+   * The press is recorded rather than the write's result, so this holds
+   * whether the removal is painted optimistically or left until the server
+   * answers. What it buys is the landing: the row leaves the cache and the
+   * reader goes to the roll call the row left. A person who was already
+   * gone when the link was opened is not this — nothing here removed them,
+   * and they get the gone state.
+   */
+  const [removedId, setRemovedId] = useState<string | null>(null);
+
   if (!trip) {
     return <NotFound />;
   }
@@ -92,6 +113,9 @@ function PersonDetailDialog() {
   const found = memberId
     ? members.find((candidate) => candidate.id === memberId)
     : undefined;
+  // Where the roll call is, named once: every card here leaves to the same
+  // screen, and a removal is a card leaving to it too.
+  const rosterHref = `/trips/members?id=${trip.id}`;
 
   if (found) {
     if (found.userId === null) {
@@ -101,7 +125,8 @@ function PersonDetailDialog() {
           trip={trip}
           member={found}
           invitations={invitations}
-          dismissHref={`/trips/members?id=${trip.id}`}
+          dismissHref={rosterHref}
+          onRemoveStart={() => setRemovedId(found.id)}
         />
       );
     }
@@ -110,7 +135,8 @@ function PersonDetailDialog() {
         trip={trip}
         member={found}
         organizer={organizer}
-        dismissHref={`/trips/members?id=${trip.id}`}
+        dismissHref={rosterHref}
+        onRemoveStart={() => setRemovedId(found.id)}
       />
     );
   }
@@ -129,17 +155,58 @@ function PersonDetailDialog() {
         <InvitedDialog
           trip={trip}
           invitation={invitation}
-          dismissHref={`/trips/members?id=${trip.id}`}
+          dismissHref={rosterHref}
+          onRemoveStart={() => setRemovedId(invitation.id)}
         />
       );
     }
   }
 
+  // The row went, and it went because the card this screen was showing took
+  // it off: land on the roll call the row left. Nothing is painted before
+  // the effect in `LeavingTo` runs, so this reads as the removal landing
+  // rather than as a sentence about somebody else's change.
+  if (
+    removedId !== null &&
+    (removedId === memberId || removedId === inviteId)
+  ) {
+    return <LeavingTo href={rosterHref} />;
+  }
+
   return (
-    <FullscreenDialog
-      title="Person"
-      dismissHref={`/trips/members?id=${trip.id}`}
-    >
+    <FullscreenDialog title="Person" dismissHref={rosterHref}>
+      <Text className="font-body text-base text-ink">
+        That person is not on this trip any more.
+      </Text>
+    </FullscreenDialog>
+  );
+}
+
+/**
+ * The landing a removal takes, owned by the screen rather than the card.
+ *
+ * The card cannot take it — the roster paints the row out first, which is
+ * what unmounts the card (see `removedId` above) — so the outcome is a
+ * component of this screen's, rendered the moment the row is gone. It is
+ * `dismissTo` rather than `back` for the reason every other landing here is
+ * a destination: the roll call is not always the screen directly behind the
+ * card, and a link that arrived at a card has nothing behind it at all.
+ *
+ * The body is the gone state's sentence, and in practice nobody reads it:
+ * a layout effect runs before paint, so the roster is what the frame shows.
+ * It is there because a dialog with no body is not a state this app has,
+ * and because a `dismissTo` that somehow did not land should leave the
+ * reader somewhere that is true rather than somewhere blank.
+ */
+function LeavingTo({ href }: { href: string }) {
+  const leave = useDismissTo(href);
+
+  useLayoutEffect(() => {
+    leave();
+  }, [leave]);
+
+  return (
+    <FullscreenDialog title="Person" dismissHref={href}>
       <Text className="font-body text-base text-ink">
         That person is not on this trip any more.
       </Text>
@@ -180,11 +247,18 @@ function GuestDialog({
   member,
   invitations,
   dismissHref,
+  onRemoveStart,
 }: {
   trip: Trip;
   member: Member;
   invitations: TripInvitationRow[];
   dismissHref: string;
+  /**
+   * The press that sends the removal, before the write goes: the screen is
+   * told which row is on its way out, because this card will not be here to
+   * report the outcome (see `removedId` at the top of this file).
+   */
+  onRemoveStart: () => void;
 }) {
   const storedName = member.name;
   const storedPhone = member.guestPhone ?? member.phone ?? "";
@@ -279,10 +353,13 @@ function GuestDialog({
       return;
     }
     setRemoveError(null);
+    onRemoveStart();
     removeMember.mutate(
       { memberId: member.id },
       {
-        onSuccess: () => dismiss(),
+        // No landing here, deliberately: the roster paints the row out
+        // before the server answers, which unmounts this card, and a
+        // callback on an unmounted card never runs. The screen takes it.
         onError: (error: unknown) => {
           if (
             error instanceof ApiError &&
@@ -399,12 +476,18 @@ function MemberDialog({
   member,
   organizer,
   dismissHref,
+  onRemoveStart,
 }: {
   trip: Trip;
   member: Member;
   /** Whether the viewer runs the trip: the management half's gate. */
   organizer: boolean;
   dismissHref: string;
+  /**
+   * The press that sends the removal, before the write goes: see
+   * `GuestDialog`'s, which asks it the same way.
+   */
+  onRemoveStart: () => void;
 }) {
   const { user } = useAuth();
   const [roleError, setRoleError] = useState<string | null>(null);
@@ -442,10 +525,13 @@ function MemberDialog({
       return;
     }
     setRemoveError(null);
+    onRemoveStart();
     removeMember.mutate(
       { memberId: member.id },
       {
-        onSuccess: () => dismiss(),
+        // No landing here, deliberately: the roster paints the row out
+        // before the server answers, which unmounts this card, and a
+        // callback on an unmounted card never runs. The screen takes it.
         onError: (error: unknown) => {
           if (
             error instanceof ApiError &&
@@ -578,22 +664,31 @@ function InvitedDialog({
   trip,
   invitation,
   dismissHref,
+  onRemoveStart,
 }: {
   trip: Trip;
   invitation: TripInvitationRow;
   dismissHref: string;
+  /**
+   * The press that sends the cancel, before the write goes: the invitation
+   * is painted out of the roster the same way a member row is, so the
+   * crossing to the roll call belongs to the screen (`removedId`).
+   */
+  onRemoveStart: () => void;
 }) {
   const [removeError, setRemoveError] = useState<string | null>(null);
-  const dismiss = useDismiss(dismissHref);
 
   const removeInvitation = useRemoveInvitation(trip.id);
 
   function remove() {
     setRemoveError(null);
+    onRemoveStart();
     removeInvitation.mutate(
       { id: invitation.id },
       {
-        onSuccess: () => dismiss(),
+        // No landing here, deliberately: the roster paints the invitation
+        // out before the server answers, which unmounts this card, and a
+        // callback on an unmounted card never runs. The screen takes it.
         onError: () => setRemoveError("Couldn't remove them."),
       },
     );

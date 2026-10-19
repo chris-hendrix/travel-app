@@ -46,6 +46,17 @@ export function useDismiss(fallbackHref: string) {
  * how it lands, not decoration on the match (`POP_TO` in expo-router's
  * vendored stack router: it walks the stack for the name, and replaces the
  * top route with the href when the name is not in the stack at all).
+ *
+ * A **delete** lands here too, and for the same reason a duplicate does:
+ * the surface the row left is not the surface the record's card came from.
+ * `replace` is not the answer either, because the card was opened from that
+ * very surface — replacing the card with the roll call leaves two copies of
+ * it in the stack, and back from the roll call lands on the roll call.
+ * Where such a write *unmounts* the thing that started it (the roster
+ * paints a removed row out before the server answers, so the card goes with
+ * it), the call has to be made by the screen above the card rather than by
+ * a `mutate` callback on the card; `app/trips/members/detail.tsx` is that
+ * case written out.
  */
 export function useDismissTo(href: string) {
   const router = useRouter();
