@@ -40,6 +40,7 @@
     "expo-system-ui": "~57.0.4",
     "expo-updates": "~57.0.26",
     "libphonenumber-js": "^1.13.14",
+    "linkifyjs": "^4.3.3",
     "lucide-react-native": "^1.59.0",
     "nativewind": "5.0.0-rc.0",
     "react": "19.2.3",
