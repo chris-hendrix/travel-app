@@ -1,6 +1,10 @@
+import { useEffect, useState } from "react";
 import { Text, View } from "react-native";
+import * as Clipboard from "expo-clipboard";
 
 import { Fact } from "@/components/ui/Fact";
+import { LinkedText } from "@/components/ui/LinkedText";
+import { QuietAction } from "@/components/ui/QuietAction";
 import { RuledBlock } from "@/components/ui/RuledBlock";
 import { RuledRows } from "@/components/ui/RuledRows";
 import { formatDay } from "@/lib/dateRange";
@@ -43,6 +47,16 @@ import {
  * (`payment.service.ts` joins them), so the split arrives with everything
  * it draws.
  */
+
+/**
+ * How long the copy verb stays answered. The same two seconds the stay's copy
+ * and `PlaceActions` hold, because three copies answering at three speeds is
+ * a difference nobody could tell you the reason for; spelled out here rather
+ * than shared, because it is one number with three call sites and a module
+ * for it would be more plumbing than the fact is worth.
+ */
+const COPIED_MS = 2000;
+
 export function ExpenseDetail({
   payment,
   timeZone,
@@ -55,6 +69,18 @@ export function ExpenseDetail({
   /** The reader's own **member** id: the row that reads as "You". */
   viewerMemberId: string | null;
 }) {
+  // The note's own answer, held for the word that gave it, and the note
+  // itself beside it: the copy's press is a closure and TypeScript does not
+  // carry a property's narrowing into one.
+  const note = payment.note;
+  const [copiedNote, setCopiedNote] = useState(false);
+
+  useEffect(() => {
+    if (!copiedNote) return;
+    const timer = setTimeout(() => setCopiedNote(false), COPIED_MS);
+    return () => clearTimeout(timer);
+  }, [copiedNote]);
+
   return (
     <View className="gap-6">
       <View className="gap-1">
@@ -88,14 +114,43 @@ export function ExpenseDetail({
         </Fact>
         {/* No note, no row: an absent fact is not an empty one, and a
             labelled blank reads as something the reader failed to fill
-            in. Selectable, because the handle in it is the one string on
-            this screen somebody copies. */}
-        {payment.note ? (
-          <Fact label="Note">
-            <Text selectable className="font-body text-base text-ink">
-              {payment.note}
-            </Text>
-          </Fact>
+            in. The note is prose, so it is read through `LinkedText` and
+            an address in it presses where it sits; the whole of it is
+            taken by the `Copy` under the row, which is the sibling of the
+            `Fact` rather than its child because `Fact` is a label and a
+            value and nothing else.
+
+            That word is what replaced the platform's selection here. The
+            two cannot share a `Text`: the selection mode is a different
+            native view on Android, where the presses nested inside it stop
+            firing, so selection and links are one or the other and this
+            row takes the links; the word is the better answer besides,
+            since it hands the note over whole rather than the line a long
+            press happened to catch, it is a deliberate press rather than a
+            gesture the reader has to know about, and it does not fight the
+            addresses sitting in the same row. */}
+        {note ? (
+          <>
+            <Fact label="Note">
+              <LinkedText
+                className="font-body text-base text-ink"
+                text={note}
+              />
+            </Fact>
+            <QuietAction
+              label={copiedNote ? "Copied" : "Copy"}
+              ariaLabel="Copy the note"
+              onPress={() => {
+                void Clipboard.setStringAsync(note).then(
+                  () => setCopiedNote(true),
+                  // Nothing was copied, so nothing is confirmed: the word
+                  // stays as it was, which is the answer a write that never
+                  // landed gets.
+                  () => setCopiedNote(false),
+                );
+              }}
+            />
+          </>
         ) : null}
       </View>
     </View>

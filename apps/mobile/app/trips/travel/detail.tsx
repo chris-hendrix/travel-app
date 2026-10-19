@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { InlineError } from "@/components/ui/InlineError";
+import { LinkedText } from "@/components/ui/LinkedText";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
 import { PlaceActions } from "@/components/ui/PlaceActions";
@@ -487,12 +488,7 @@ function TravelDetailDialog() {
           it is not a column, so that block stays untitled. */}
       {row.details ? (
         <RuledBlock title="Details">
-          <Text
-            selectable
-            className="font-body text-base leading-relaxed text-ink"
-          >
-            {row.details}
-          </Text>
+          <LinkedText text={row.details} />
         </RuledBlock>
       ) : null}
 
