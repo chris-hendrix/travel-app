@@ -23,18 +23,19 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@typescript-eslint/eslint-plugin": "^8.71.0",
-    "@typescript-eslint/parser": "^8.71.0",
-    "eslint": "^10.11.0",
+    "@typescript-eslint/eslint-plugin": "^8.71.2",
+    "@typescript-eslint/parser": "^8.71.2",
+    "eslint": "^10.13.0",
     "globals": "^17.13.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",
     "prettier": "^3.9.10",
-    "turbo": "^2.11.6",
+    "turbo": "^2.11.9",
     "typescript": "^6.0.3"
   },
   "pnpm": {
     "//": "auditConfig.ignoreGhsas is for advisories with NO patched release, and every entry must say why. An override in `overrides` below is the fix wherever one exists; this list is not a place to silence things that could be bumped. GHSA-86w9-cpqp-85rv: node-forge<=1.4.0, and 1.4.0 is the newest published version, so there is nothing to override to (`Patched versions <0.0.0`). Reached only as apps/mobile > expo > @expo/cli > node-forge: build tooling, never bundled into the app. Delete this entry once upstream ships a fix. GHSA-vfj7-8cjw-p6xm: braces<=3.0.3, and 3.0.3 is the newest published version, so there is nothing to override to (`Patched versions <0.0.0`). Reached only as apps/mobile > expo > @expo/cli > @expo/metro-file-map > micromatch > braces: build tooling, never bundled into the app. Delete this entry once upstream ships a fix.",
+    "//overrides": "`@fastify/jwt` is pinned to 10.2.4. 10.2.5 no longer enforces token expiry under the way apps/api registers the plugin (nested `sign`/`verify` beside `secret`/`cookie`, `src/app.ts`): two integration tests that pass on 10.2.4, `should return 401 when token is expired` in GET /api/auth/me and in POST /api/auth/logout, come back 200 instead, and `pnpm audit` cannot decide that — only `pnpm --filter @journiful/api test` does. It is not the fast-jwt floor: 10.2.5 fails the same way against the 6.3.5 it asks for. It is also ignored in .github/dependabot.yml, so lifting this pin means doing both. Reached as apps/api > @fastify/jwt, and by apps/mobile in no way at all.",
     "auditConfig": {
       "ignoreGhsas": [
         "GHSA-86w9-cpqp-85rv",
@@ -49,6 +50,7 @@
       "protobufjs"
     ],
     "overrides": {
+      "@fastify/jwt": "10.2.4",
       "esbuild@<=0.24.2": ">=0.25.0",
       "serialize-javascript@<7.0.5": ">=7.0.5",
       "fast-jwt": ">=6.2.4",
