@@ -204,24 +204,15 @@ function event(
    * invented name and address, which is exactly the typed-text case.
    */
   picked: { name: string; address: string },
-  /**
-   * The prose the organizer wrote for this row, when they wrote any.
-   *
-   * Omitted everywhere but the demo's boat day, and that one is here for
-   * a reason the lab cannot cover: the demo is public and needs no
-   * session, so it is the only place the autolinked address in an event
-   * description can be looked at without signing in. One event is enough
-   * to show it; a description on every row would be a fixture nobody
-   * reads, and every other event's silence is the case the sheet has to
-   * hold together without.
-   */
-  description: string | null = null,
+  /** Prose, when the row has any: only the boat day does, because the public
+   *  demo is the one place an autolinked address is visible without a session. */
+  options: { description?: string } = {},
 ): ItineraryEvent {
   return {
     id,
     name,
     type,
-    description,
+    description: options.description ?? null,
     startTime: clock ? atClock(dayIso, clock) : atClock(dayIso, "09:00"),
     endTime: endClock ? atClock(dayIso, endClock) : null,
     allDay: clock === null,
@@ -329,9 +320,10 @@ export function buildDemoTrip(today: Date = new Date()): DemoTrip {
         name: "Marina Cabo San Lucas",
         address: "Blvd. Marina, Cabo San Lucas, BCS, Mexico",
       },
-      // The one event in the demo that carries prose, so the boat day's
-      // sheet shows a live address on a page anybody can open.
-      "Booked under Sam's name. Meet at the marina gate twenty minutes early, and the operator's check-in page is on example.com/marina-cabo.",
+      {
+        description:
+          "Booked under Sam's name. Meet at the marina gate twenty minutes early, and the operator's check-in page is on example.com/marina-cabo.",
+      },
     ),
     event(
       "demo-event-beach",

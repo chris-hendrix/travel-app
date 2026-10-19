@@ -1,7 +1,5 @@
 import { RuledBlock } from "@/components/ui/RuledBlock";
-import { useEffect, useState } from "react";
 import { Linking, Pressable, Text, View } from "react-native";
-import * as Clipboard from "expo-clipboard";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Image } from "@/components/ui/Image";
 import { Fact } from "@/components/ui/Fact";
@@ -27,6 +25,7 @@ import { viewerOf } from "@/lib/members";
 import { useMembers } from "@/lib/queries/members";
 import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
+import { useCopied } from "@/hooks/useCopied";
 import { useDismiss } from "@/hooks/useDismiss";
 import { joinFacts } from "@/lib/wording";
 import { placeRows } from "@/lib/place-rows";
@@ -44,13 +43,10 @@ import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
  * note does. It is still the column the form names `Description`, and
  * the times are what a reader wants ahead of the prose — the order the
  * form asks for them in. The prose itself is read through `LinkedText`,
- * so an address the host pasted is pressable where it sits, and the copy
- * the password wants is the `Copy` word under the block rather than the
- * platform's selection: a selectable `Text` is a different native view on
- * Android, where the presses nested inside it stop firing. Selection and
- * links are one or the other, not both, and a word that takes the arrival
- * details whole is worth more than a long press that catches the line a
- * finger landed on.
+ * so an address the host pasted is pressable where it sits; the copy the
+ * password wants is the `Copy` word under the block rather than the
+ * platform's selection, because selection and links cannot share a `Text`
+ * (`LinkedText` argues it).
  *
  * The address leads out of the app rather than into a screen of ours,
  * for the same reason an event's place does: the trip is where it is,
@@ -61,14 +57,6 @@ import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
  * same bar, one word for the only thing left to do with a dialog you
  * have finished reading.
  */
-
-/**
- * How long the copy verb stays answered. Long enough to read the word, short
- * enough that nobody presses it twice wondering whether it took — the same
- * beat `PlaceActions` holds, because two copies on two screens answering at
- * two speeds is a difference nobody could tell you the reason for.
- */
-const COPIED_MS = 2000;
 
 export default function StayDetail() {
   return (
@@ -110,13 +98,7 @@ function StayDetailDialog() {
   // The description's own answer, held for the word that gave it. Above the
   // guards, because a hook called after a return is a hook called a
   // different number of times.
-  const [copiedDescription, setCopiedDescription] = useState(false);
-
-  useEffect(() => {
-    if (!copiedDescription) return;
-    const timer = setTimeout(() => setCopiedDescription(false), COPIED_MS);
-    return () => clearTimeout(timer);
-  }, [copiedDescription]);
+  const { copied, copy } = useCopied();
 
   if (!trip) {
     return <NotFound />;
@@ -140,7 +122,7 @@ function StayDetailDialog() {
   const rows = placeRows(stay);
   // The way-in, as the organizer pasted it. A stay with none draws neither
   // the prose nor the copy that would take it.
-  const description = stay.description ?? "";
+  const description = stay.description;
 
   return (
     <FullscreenDialog
@@ -259,36 +241,21 @@ function StayDetailDialog() {
         </RuledBlock>
       ) : null}
 
-      {/* Titled with the column's own word. The form labels this field
-          `Description` and keeps the arrival framing in its placeholder —
-          the code, the lockbox, the wifi — so this screen does not invent
-          a second name for one field. Read through `LinkedText`, so an
-          address the host pasted is pressable where it sits. Not
-          selectable, though this is the one string here somebody takes
-          with them: on Android a selectable `Text` is a different native
-          view, and the presses nested inside it stop firing, so selection
-          and links are one or the other and this block takes the links.
-          The copy that was wanted is the word underneath — `Copy` hands
-          the description over verbatim, the whole of it rather than the
-          line a long press caught, and answers by inverting itself for
-          two seconds the way `PlaceActions` does. It names what it takes
-          besides, so a screen reader hears arrival details and not an
-          anonymous verb. */}
+      {/* Titled with the column's own word: the form labels this field
+          `Description` and keeps the arrival framing in its placeholder, so
+          this screen does not invent a second name for one field. The prose
+          is read through `LinkedText`, so an address the host pasted presses
+          where it sits, and selection went because it and links cannot share
+          a `Text` (`LinkedText` argues it). The `Copy` is a sibling of the
+          prose rather than part of it, because it takes the description
+          whole and a press is not a word in a sentence. */}
       {description ? (
         <RuledBlock title="Description">
           <LinkedText text={description} />
           <QuietAction
-            label={copiedDescription ? "Copied" : "Copy"}
+            label={copied ? "Copied" : "Copy"}
             ariaLabel="Copy arrival details"
-            onPress={() => {
-              void Clipboard.setStringAsync(description).then(
-                () => setCopiedDescription(true),
-                // Nothing was copied, so nothing is confirmed: the word
-                // stays as it was, which is the answer a write that never
-                // landed gets.
-                () => setCopiedDescription(false),
-              );
-            }}
+            onPress={() => copy(description)}
           />
         </RuledBlock>
       ) : null}
