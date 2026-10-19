@@ -204,12 +204,24 @@ function event(
    * invented name and address, which is exactly the typed-text case.
    */
   picked: { name: string; address: string },
+  /**
+   * The prose the organizer wrote for this row, when they wrote any.
+   *
+   * Omitted everywhere but the demo's boat day, and that one is here for
+   * a reason the lab cannot cover: the demo is public and needs no
+   * session, so it is the only place the autolinked address in an event
+   * description can be looked at without signing in. One event is enough
+   * to show it; a description on every row would be a fixture nobody
+   * reads, and every other event's silence is the case the sheet has to
+   * hold together without.
+   */
+  description: string | null = null,
 ): ItineraryEvent {
   return {
     id,
     name,
     type,
-    description: null,
+    description,
     startTime: clock ? atClock(dayIso, clock) : atClock(dayIso, "09:00"),
     endTime: endClock ? atClock(dayIso, endClock) : null,
     allDay: clock === null,
@@ -266,7 +278,7 @@ export function buildDemoTrip(today: Date = new Date()): DemoTrip {
     // The lilac band's door code, answered: the way in lives in the
     // description, which is what the stay screen is for.
     description:
-      "Door code 4821, lockbox by the side gate. Wifi: CasaVerde-5G / tacos-tuesday.",
+      "Door code 4821, lockbox by the side gate. Wifi: CasaVerde-5G / tacos-tuesday. The listing and the house rules are on example.com/casa-verde.",
     checkIn: atClock(startDate, "16:00"),
     checkOut: atClock(endDate, "11:00"),
     image: null,
@@ -317,6 +329,9 @@ export function buildDemoTrip(today: Date = new Date()): DemoTrip {
         name: "Marina Cabo San Lucas",
         address: "Blvd. Marina, Cabo San Lucas, BCS, Mexico",
       },
+      // The one event in the demo that carries prose, so the boat day's
+      // sheet shows a live address on a page anybody can open.
+      "Booked under Sam's name. Meet at the marina gate twenty minutes early, and the operator's check-in page is on example.com/marina-cabo.",
     ),
     event(
       "demo-event-beach",
@@ -391,7 +406,7 @@ export function buildDemoTrip(today: Date = new Date()): DemoTrip {
     startDate,
     endDate,
     description:
-      "Five days in Cabo San Lucas with the whole crew under one roof at Casa Verde. Mornings are unscheduled — beach, pool, or sleep in — and the group meets up for the dinners and the boat day on the shared itinerary. Bring reef-safe sunscreen and one nice outfit for the farewell dinner.",
+      "Five days in Cabo San Lucas with the whole crew under one roof at Casa Verde. Costs, splits and the packing list are on example.com/cabo. Mornings are unscheduled — beach, pool, or sleep in — and the group meets up for the dinners and the boat day on the shared itinerary. Bring reef-safe sunscreen and one nice outfit for the farewell dinner.",
     members,
     stay,
     events,
