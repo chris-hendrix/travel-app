@@ -90,9 +90,16 @@ function PersonDetailDialog() {
    * The press is recorded rather than the write's result, so this holds
    * whether the removal is painted optimistically or left until the server
    * answers. What it buys is the landing: the row leaves the cache and the
-   * reader goes to the roll call the row left. A person who was already
-   * gone when the link was opened is not this — nothing here removed them,
-   * and they get the gone state.
+   * reader goes to the roll call the row left.
+   *
+   * The gone state at the foot of this file is for a row this screen has
+   * never had a press about — a stale link, or somebody taken off by
+   * another hand. Once this screen has pressed about a row, the row's
+   * disappearance is the roll call's, even if that press failed and the
+   * row came back: the flag is not cleared, so the rule is the press and
+   * not the write's outcome. Landing on the roll call is still the right
+   * answer for a row that left some other way, which is why the flag is
+   * left standing rather than chased back to null.
    */
   const [removedId, setRemovedId] = useState<string | null>(null);
 
