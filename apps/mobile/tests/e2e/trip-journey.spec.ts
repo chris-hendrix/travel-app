@@ -347,13 +347,13 @@ test.describe("Trip Journey", () => {
         page.getByRole("button", { name: "Cancel" }),
       ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
       await removeButton.click();
-      // The DELETE lands and the reader is taken off the card they pressed
-      // it on. The roster paints the row out of the cache before the server
-      // answers, which unmounts that card, so the landing is the screen's
-      // rather than a callback on the card the removal took away
-      // (app/trips/members/detail.tsx `removedId` and `LeavingTo`).
-      // Asserted on the address, because a landing is a navigation and the
-      // Vitest suite has no renderer to have an opinion about one.
+      // The DELETE lands and the reader is taken off the card they pressed it
+      // on. The roster paints the row out of the cache before the server
+      // answers, so the card would lose its subject mid-write; the screen
+      // holds that row for the length of the write, which is what lets the
+      // card's own `onSuccess` take this landing
+      // (app/trips/members/detail.tsx `heldMember`). So this resolves after
+      // the DELETE was answered, not after the press.
       await page.waitForURL("**/trips/members?id=*", {
         timeout: NAVIGATION_TIMEOUT,
       });
