@@ -65,9 +65,19 @@ updates:
     # by hand, verify with
     # `pnpm --filter @journiful/mobile exec expo export --platform android`,
     # and drop it from this list once that passes.
+    # `@fastify/jwt` stopped enforcing token expiry in 10.2.5 under the way
+    # apps/api registers the plugin, which no tool can see: the two
+    # integration tests that assert it, `should return 401 when token is
+    # expired` in GET /api/auth/me and in POST /api/auth/logout, come back 200
+    # instead. Bump it by hand, run `pnpm --filter @journiful/api test`, and
+    # drop it from this list once those two pass on the new version. The
+    # matching hold is the `@fastify/jwt: 10.2.4` override in the root
+    # package.json — lifting one without the other leaves the lockfile free to
+    # resolve 10.2.5 again on the next install.
     ignore:
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "@fastify/jwt"
       - dependency-name: "react"
       - dependency-name: "react-dom"
       - dependency-name: "react-native"
