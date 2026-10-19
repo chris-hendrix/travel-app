@@ -204,12 +204,15 @@ function event(
    * invented name and address, which is exactly the typed-text case.
    */
   picked: { name: string; address: string },
+  /** Prose, when the row has any: only the boat day does, because the public
+   *  demo is the one place an autolinked address is visible without a session. */
+  options: { description?: string } = {},
 ): ItineraryEvent {
   return {
     id,
     name,
     type,
-    description: null,
+    description: options.description ?? null,
     startTime: clock ? atClock(dayIso, clock) : atClock(dayIso, "09:00"),
     endTime: endClock ? atClock(dayIso, endClock) : null,
     allDay: clock === null,
@@ -266,7 +269,7 @@ export function buildDemoTrip(today: Date = new Date()): DemoTrip {
     // The lilac band's door code, answered: the way in lives in the
     // description, which is what the stay screen is for.
     description:
-      "Door code 4821, lockbox by the side gate. Wifi: CasaVerde-5G / tacos-tuesday.",
+      "Door code 4821, lockbox by the side gate. Wifi: CasaVerde-5G / tacos-tuesday. The listing and the house rules are on example.com/casa-verde.",
     checkIn: atClock(startDate, "16:00"),
     checkOut: atClock(endDate, "11:00"),
     image: null,
@@ -316,6 +319,10 @@ export function buildDemoTrip(today: Date = new Date()): DemoTrip {
       {
         name: "Marina Cabo San Lucas",
         address: "Blvd. Marina, Cabo San Lucas, BCS, Mexico",
+      },
+      {
+        description:
+          "Booked under Sam's name. Meet at the marina gate twenty minutes early, and the operator's check-in page is on example.com/marina-cabo.",
       },
     ),
     event(
@@ -391,7 +398,7 @@ export function buildDemoTrip(today: Date = new Date()): DemoTrip {
     startDate,
     endDate,
     description:
-      "Five days in Cabo San Lucas with the whole crew under one roof at Casa Verde. Mornings are unscheduled — beach, pool, or sleep in — and the group meets up for the dinners and the boat day on the shared itinerary. Bring reef-safe sunscreen and one nice outfit for the farewell dinner.",
+      "Five days in Cabo San Lucas with the whole crew under one roof at Casa Verde. Costs, splits and the packing list are on example.com/cabo. Mornings are unscheduled — beach, pool, or sleep in — and the group meets up for the dinners and the boat day on the shared itinerary. Bring reef-safe sunscreen and one nice outfit for the farewell dinner.",
     members,
     stay,
     events,

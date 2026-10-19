@@ -4,8 +4,10 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Image } from "@/components/ui/Image";
 import { Fact } from "@/components/ui/Fact";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
+import { LinkedText } from "@/components/ui/LinkedText";
 import { PhotoCredit } from "@/components/ui/PhotoCredit";
 import { PlaceActions } from "@/components/ui/PlaceActions";
+import { QuietAction } from "@/components/ui/QuietAction";
 import { formatDay } from "@/lib/dateRange";
 import {
   nightsLabel,
@@ -23,6 +25,7 @@ import { viewerOf } from "@/lib/members";
 import { useMembers } from "@/lib/queries/members";
 import { TripGate } from "@/components/trip/TripGate";
 import NotFound from "@/app/+not-found";
+import { useCopied } from "@/hooks/useCopied";
 import { useDismiss } from "@/hooks/useDismiss";
 import { joinFacts } from "@/lib/wording";
 import { placeRows } from "@/lib/place-rows";
@@ -39,8 +42,11 @@ import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
  * message, which is why the description carries more than an event's
  * note does. It is still the column the form names `Description`, and
  * the times are what a reader wants ahead of the prose — the order the
- * form asks for them in. It is selectable, because the password is the
- * one string on this screen somebody needs a copy of.
+ * form asks for them in. The prose itself is read through `LinkedText`,
+ * so an address the host pasted is pressable where it sits; the copy the
+ * password wants is the `Copy` word under the block rather than the
+ * platform's selection, because selection and links cannot share a `Text`
+ * (`LinkedText` argues it).
  *
  * The address leads out of the app rather than into a screen of ours,
  * for the same reason an event's place does: the trip is where it is,
@@ -51,6 +57,7 @@ import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
  * same bar, one word for the only thing left to do with a dialog you
  * have finished reading.
  */
+
 export default function StayDetail() {
   return (
     <TripGate label="Loading stay details">
@@ -88,6 +95,10 @@ function StayDetailDialog() {
   // account — never a query param.
   const { members } = useMembers(trip?.id);
   const organizer = viewerOf(members, user?.id)?.isOrganizer ?? false;
+  // The description's own answer, held for the word that gave it. Above the
+  // guards, because a hook called after a return is a hook called a
+  // different number of times.
+  const { copied, copy } = useCopied();
 
   if (!trip) {
     return <NotFound />;
@@ -109,6 +120,9 @@ function StayDetailDialog() {
   // address falling back to the stay's own column for rows that
   // predate the snapshot.
   const rows = placeRows(stay);
+  // The way-in, as the organizer pasted it. A stay with none draws neither
+  // the prose nor the copy that would take it.
+  const description = stay.description;
 
   return (
     <FullscreenDialog
@@ -227,20 +241,22 @@ function StayDetailDialog() {
         </RuledBlock>
       ) : null}
 
-      {/* Titled with the column's own word. The form labels this field
-          `Description` and keeps the arrival framing in its placeholder —
-          the code, the lockbox, the wifi — so this screen does not invent
-          a second name for one field. Selectable: the wifi password is
-          the one string here anybody needs to copy, and the platform's
-          own selection gives the copy without a clipboard dependency. */}
-      {stay.description ? (
+      {/* Titled with the column's own word: the form labels this field
+          `Description` and keeps the arrival framing in its placeholder, so
+          this screen does not invent a second name for one field. The prose
+          is read through `LinkedText`, so an address the host pasted presses
+          where it sits, and selection went because it and links cannot share
+          a `Text` (`LinkedText` argues it). The `Copy` is a sibling of the
+          prose rather than part of it, because it takes the description
+          whole and a press is not a word in a sentence. */}
+      {description ? (
         <RuledBlock title="Description">
-          <Text
-            selectable
-            className="font-body text-base leading-relaxed text-ink"
-          >
-            {stay.description}
-          </Text>
+          <LinkedText text={description} />
+          <QuietAction
+            label={copied ? "Copied" : "Copy"}
+            ariaLabel="Copy arrival details"
+            onPress={() => copy(description)}
+          />
         </RuledBlock>
       ) : null}
     </FullscreenDialog>

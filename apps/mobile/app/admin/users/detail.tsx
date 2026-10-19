@@ -11,6 +11,7 @@ import { InlineError } from "@/components/ui/InlineError";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
 import { Badge } from "@/components/ui/Badge";
 import { Fact } from "@/components/ui/Fact";
+import { LinkedText } from "@/components/ui/LinkedText";
 import { TextField } from "@/components/ui/TextField";
 import { Button } from "@/components/ui/Button";
 import { QuietAction } from "@/components/ui/QuietAction";
@@ -371,9 +372,10 @@ function AdminUserReports({
             </Fact>
             {report.note ? (
               <Fact label="Note">
-                <Text className="font-body text-base text-ink">
-                  {report.note}
-                </Text>
+                <LinkedText
+                  className="font-body text-base text-ink"
+                  text={report.note}
+                />
               </Fact>
             ) : null}
             <Fact label="Reported by">

@@ -1,8 +1,11 @@
 import { Text, View } from "react-native";
 
 import { Fact } from "@/components/ui/Fact";
+import { LinkedText } from "@/components/ui/LinkedText";
+import { QuietAction } from "@/components/ui/QuietAction";
 import { RuledBlock } from "@/components/ui/RuledBlock";
 import { RuledRows } from "@/components/ui/RuledRows";
+import { useCopied } from "@/hooks/useCopied";
 import { formatDay } from "@/lib/dateRange";
 import { formatCents } from "@/lib/money";
 import {
@@ -43,6 +46,7 @@ import {
  * (`payment.service.ts` joins them), so the split arrives with everything
  * it draws.
  */
+
 export function ExpenseDetail({
   payment,
   timeZone,
@@ -55,6 +59,12 @@ export function ExpenseDetail({
   /** The reader's own **member** id: the row that reads as "You". */
   viewerMemberId: string | null;
 }) {
+  // The note's own answer, held for the word that gave it, and the note
+  // itself read before it: the copy's press is a closure and TypeScript does
+  // not carry a property's narrowing into one.
+  const note = payment.note;
+  const { copied, copy } = useCopied();
+
   return (
     <View className="gap-6">
       <View className="gap-1">
@@ -88,14 +98,25 @@ export function ExpenseDetail({
         </Fact>
         {/* No note, no row: an absent fact is not an empty one, and a
             labelled blank reads as something the reader failed to fill
-            in. Selectable, because the handle in it is the one string on
-            this screen somebody copies. */}
-        {payment.note ? (
-          <Fact label="Note">
-            <Text selectable className="font-body text-base text-ink">
-              {payment.note}
-            </Text>
-          </Fact>
+            in. The prose is read through `LinkedText`, so an address in it
+            presses where it sits, and selection went because it and links
+            cannot share a `Text` (`LinkedText` argues it). The `Copy` is a
+            sibling of the `Fact` rather than its child because `Fact` is a
+            label and a value and nothing else. */}
+        {note ? (
+          <>
+            <Fact label="Note">
+              <LinkedText
+                className="font-body text-base text-ink"
+                text={note}
+              />
+            </Fact>
+            <QuietAction
+              label={copied ? "Copied" : "Copy"}
+              ariaLabel="Copy the note"
+              onPress={() => copy(note)}
+            />
+          </>
         ) : null}
       </View>
     </View>

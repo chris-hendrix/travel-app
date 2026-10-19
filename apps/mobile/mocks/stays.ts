@@ -57,7 +57,7 @@ const PICOS: Template[] = [
     toNight: 2,
     checkInClock: "16:00",
     description:
-      "No wifi and no signal up here.\n\nRing the bell — someone is in the kitchen until nine.\n\nBring cash. The card machine is a rumour.",
+      "No wifi and no signal up here.\n\nRing the bell — someone is in the kitchen until nine.\n\nBring cash. The card machine is a rumour. The hut's own page is on example.com/refugi-tuent.",
   },
   {
     name: "Son Moragues",

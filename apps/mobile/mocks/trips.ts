@@ -47,7 +47,7 @@ export const TRIPS: Trip[] = [
     coverImageUrl: null,
     going: 11,
     description:
-      "Three days for Dana's 30th. Two dinners booked, one day trip to Sintra, and nothing before noon.",
+      "Three days for Dana's 30th. Two dinners booked, one day trip to Sintra, and nothing before noon. The shortlist of bars is on example.com/dana-30th.",
     preferredTimezone: "Europe/Lisbon",
     ...dates(20, 3),
   },
