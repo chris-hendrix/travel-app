@@ -635,6 +635,7 @@ describe("toPayment", () => {
     description: "Dinner",
     note: "Venmo",
     amount: 13500,
+    splitScope: "custom",
     payerMemberId: "member-1",
     payerName: "Ava",
     date: new Date("2026-10-11T10:00:00.000Z"),

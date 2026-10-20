@@ -452,6 +452,7 @@ function paymentRow(
     description: plan.description,
     note: plan.note,
     amount: plan.amount,
+    splitScope: "custom",
     // `payerMemberId` and every `participants[].memberId` are **member**
     // ids, while `createdBy` is a **user** id (`userIdOf` in the fixture).
     // The two spaces are never compared to each other.
@@ -750,6 +751,7 @@ export function createPayment(
       typeof body.amount === "number" && Number.isInteger(body.amount)
         ? body.amount
         : 0,
+    splitScope: "custom",
     payerMemberId,
     payerName: nameOf(payerMemberId),
     date: (typeof body.date === "string"

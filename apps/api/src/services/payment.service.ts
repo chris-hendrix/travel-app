@@ -79,10 +79,13 @@ export class PaymentService implements IPaymentService {
       );
     }
 
+    // A scoped payload carries no participant list; the scope branch lands in the next phase.
+    const participants = data.participants ?? [];
+
     // Validate payer + all participants belong to this trip.
     // Guests are allowed as payer — the organizer records who paid;
     // `createdBy` stays the recording user.
-    const participantMemberIds = data.participants.map((p) => p.memberId);
+    const participantMemberIds = participants.map((p) => p.memberId);
     this.assertNoDuplicateParticipants(participantMemberIds);
     await this.assertMembersInTrip(
       tripId,
@@ -92,7 +95,7 @@ export class PaymentService implements IPaymentService {
     // Compute equal shares with cent rounding
     const shares = this.computeEqualShares(
       data.amount,
-      data.participants.length,
+      participants.length,
     );
 
     // Payment + participants insert atomically: a participants-insert
@@ -119,7 +122,7 @@ export class PaymentService implements IPaymentService {
         const participantRows = await tx
           .insert(paymentParticipants)
           .values(
-            data.participants.map((p, i) => ({
+            participants.map((p, i) => ({
               paymentId: payment.id,
               memberId: p.memberId,
               shareAmount: shares[i]!,

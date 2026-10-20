@@ -44,6 +44,7 @@ function apiPayment(overrides: Partial<ApiPayment> = {}): ApiPayment {
     description: "Dinner",
     note: "Venmo",
     amount: 10000,
+    splitScope: "custom",
     payerMemberId: "member-1",
     payerName: "Ava",
     date: new Date("2026-10-11T10:00:00.000Z"),

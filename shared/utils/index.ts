@@ -20,6 +20,9 @@ export type {
   FlightAutofillFields,
 } from "./travel";
 
+export { SPLIT_SCOPES, scopeMemberIds, equalShares } from "./split";
+export type { SplitScope, SplitMember, MemberRsvpStatus } from "./split";
+
 /**
  * Converts a date/time from a specific timezone to UTC
  * @param dateTime The date/time to convert (interpreted as being in the specified timezone)

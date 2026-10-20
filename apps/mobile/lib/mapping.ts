@@ -271,6 +271,7 @@ export function toPayment(payment: ApiPayment): Payment {
     description: payment.description,
     note: payment.note ?? null,
     amount: payment.amount,
+    splitScope: payment.splitScope,
     payerMemberId: payment.payerMemberId,
     payerName: payment.payerName ?? "",
     date: iso(payment.date),

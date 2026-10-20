@@ -12,6 +12,7 @@
 
 import { formatCents } from "@/lib/money";
 import { wallClock } from "@/lib/timezone";
+import type { SplitScope } from "@journiful/shared/utils";
 
 /** Someone on one side of a balance — a member row, guest or not. */
 export interface PaymentPerson {
@@ -34,7 +35,8 @@ export interface MyBalance {
 
 /** One person's share of an expense. */
 export interface PaymentParticipant {
-  id: string;
+  /** Absent on a participant the server resolved from a split scope. */
+  id?: string | undefined;
   memberId: string;
   name: string;
   /** This person's share, in cents, as the server computed it. */
@@ -59,6 +61,11 @@ export interface Payment {
   note: string | null;
   /** The whole expense, in cents. */
   amount: number;
+  /**
+   * How the cost is shared. Optional because the optimistic row the
+   * form paints before the server answers has no scope yet (Task 12).
+   */
+  splitScope?: SplitScope;
   payerMemberId: string;
   payerName: string;
   /** The day the expense belongs to, as an ISO instant (noon-anchored). */
