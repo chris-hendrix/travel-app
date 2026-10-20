@@ -9,6 +9,7 @@ import { useCopied } from "@/hooks/useCopied";
 import { formatDay } from "@/lib/dateRange";
 import { formatCents } from "@/lib/money";
 import {
+  SCOPE_LABEL,
   paymentDay,
   type Payment,
   type PaymentParticipant,
@@ -33,6 +34,14 @@ import {
  * block's rule is what separates the split from the amount above it. It is
  * the dialog's only rule: the facts below read down, and a list's rows
  * group by proximity alone.
+ *
+ * **The block's title is the rule the cost was shared by.** `Everyone
+ * going` and `Everyone invited` say why these particular people are on a
+ * row they never edited, and the list under the title is resolved live by
+ * the server (`payment-split.ts`) — so the title is the fact and the rows
+ * are its consequence, not a snapshot somebody froze. A `custom` split
+ * keeps the plain `Split` heading: the rows are the split, and there is no
+ * rule to name.
  *
  * **Two id spaces, and they are not interchangeable.** `payment.createdBy`
  * is a **user** id (`payments.created_by` references `users.id`) while a
@@ -76,11 +85,23 @@ export function ExpenseDetail({
         </Text>
       </View>
 
-      <RuledBlock title="Split">
+      <RuledBlock
+        title={
+          payment.splitScope === "custom"
+            ? "Split"
+            : SCOPE_LABEL[payment.splitScope]
+        }
+      >
         <RuledRows>
           {payment.participants.map((participant) => (
+            // Keyed by the **member** id, not the row's id: a participant the
+            // server resolved from a split scope has no row behind it
+            // (`PaymentParticipant.id`), and a key that is absent for every
+            // row is no key at all. The member id is also the only key the
+            // rows are guaranteed to differ by — the resolver emits one entry
+            // per person.
             <SplitRow
-              key={participant.id}
+              key={participant.memberId}
               participant={participant}
               viewerMemberId={viewerMemberId}
             />

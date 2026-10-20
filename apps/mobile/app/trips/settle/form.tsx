@@ -256,6 +256,10 @@ function ExpenseFormScreen() {
           // is null in, "" out (`lib/queries/payments.ts`).
           note: row.note ?? "",
           payerMemberId: row.payerMemberId,
+          // The row's own rule: an edit to a scoped expense opens on the
+          // scope it carries, so leaving it alone sends the same rule back
+          // rather than turning it into a snapshot of today's roster.
+          scope: row.splitScope,
           participantIds: row.participants.map(
             (participant) => participant.memberId,
           ),
@@ -271,6 +275,10 @@ function ExpenseFormScreen() {
             // (`balance.service.ts`), so this is the row that cancels the
             // debt rather than doubling it.
             payerMemberId: fromId,
+            // A settlement is a fixed list of one and never a rule: the move
+            // named two people, and the row it writes is between them. There
+            // is no scope control in this mode for the same reason.
+            scope: "custom",
             participantIds: [toId],
             day: todayIn(timeZone),
           }
@@ -324,10 +332,23 @@ function ExpenseFormScreen() {
           description: input.description.trim(),
           amount: cents,
           payerMemberId,
-          // The picker's own order, which is the order the shares above it
-          // were previewed in: the server hands the remainder cent to the
-          // first participant it receives (`splitPreview` mirrors that).
-          participants: input.participantIds.map((memberId) => ({ memberId })),
+          // The split is the rule or the list, never both
+          // (`shared/schemas/payment.ts` refuses the pair and the absence of
+          // both). `custom` travels as well as the people, because an edit
+          // may be turning a scoped row into a fixed one and the server has
+          // to be told that the rows are now the split; a create drops it
+          // and the rows are what is left (`lib/queries/payments.ts`).
+          splitScope: input.scope,
+          ...(input.scope === "custom"
+            ? {
+                // The order the shares above were previewed in: the server
+                // hands the remainder cent to the first participant it
+                // receives (`splitPreview` mirrors that).
+                participants: input.participantIds.map((memberId) => ({
+                  memberId,
+                })),
+              }
+            : null),
           date: stampDay(input.day, timeZone),
           // An emptied note is the clearing value rather than an omission:
           // the create side drops an empty one on the way out and the
@@ -349,10 +370,13 @@ function ExpenseFormScreen() {
           create.mutate(
             {
               input: payload,
-              // The same ids the body carries, handed over separately so
-              // the temporary row can be painted from them
-              // (`CreatePaymentVariables`): a scoped create's body names
-              // a rule and no people at all.
+              // The ids the form priced, handed over separately so the
+              // temporary row can be painted from them
+              // (`CreatePaymentVariables`). A scoped create's body names a
+              // rule and no people at all, so this is the only participant
+              // list the optimistic row has — and it is the resolved one, in
+              // member-id order, for a rule; the ticked one, in the roster's
+              // order, for a fixed list.
               splitMemberIds: input.participantIds,
             },
             {

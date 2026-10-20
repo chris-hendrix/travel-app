@@ -88,10 +88,10 @@ function PersonDetailDialog() {
    *
    * Held here for the length of the write instead. The card stays up with
    * its buttons disabled on `pending`, pops to the roll call when the DELETE
-   * lands, and reads "This trip has expenses recorded against them." when the
-   * server refuses — which is the rule every other delete in the app already
-   * follows ("A failed delete stays on the form with the failure instead of
-   * leaving", `app/trips/events/edit.tsx`).
+   * lands, and reads "This member paid for an expense — edit or delete it
+   * first." when the server refuses — which is the rule every other delete
+   * in the app already follows ("A failed delete stays on the form with the
+   * failure instead of leaving", `app/trips/events/edit.tsx`).
    *
    * The cache stays the authority: a live row always beats the held one, so
    * a rollback is what the card shows. `onRemoveSettled` releases the hold,
@@ -352,7 +352,9 @@ function GuestDialog({
             error.status === 409 &&
             error.code === "MEMBER_HAS_PAYMENTS"
           ) {
-            setRemoveError("This trip has expenses recorded against them.");
+            setRemoveError(
+              "This member paid for an expense — edit or delete it first.",
+            );
             return;
           }
           setRemoveError("Couldn't remove them.");
@@ -524,7 +526,9 @@ function MemberDialog({
             error.status === 409 &&
             error.code === "MEMBER_HAS_PAYMENTS"
           ) {
-            setRemoveError("This trip has expenses recorded against them.");
+            setRemoveError(
+              "This member paid for an expense — edit or delete it first.",
+            );
             return;
           }
           setRemoveError("Couldn't remove them.");
