@@ -82,6 +82,7 @@ function cachedPayment(overrides: Partial<Payment> = {}): Payment {
     description: "Dinner",
     note: "Venmo",
     amount: 10000,
+    splitScope: "custom",
     payerMemberId: "member-1",
     payerName: "Ava",
     date: "2026-10-11T10:00:00.000Z",
@@ -233,6 +234,48 @@ describe("createPayment", () => {
       { memberId: "member-1" },
     ]);
   });
+  it("posts the rule, and no participant list, for a scoped create", async () => {
+    // A rule is resolved on the server against the roster, so the wire
+    // carries the rule alone: sending a list too would be refused
+    // (`shared/schemas/payment.ts` — the scope and the list are exclusive).
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({
+      success: true,
+      payment: apiPayment({ splitScope: "all_going" }),
+    });
+
+    await createPayment("trip-1", {
+      description: "Dinner",
+      amount: 10000,
+      payerMemberId: "member-1",
+      splitScope: "all_going",
+      date: "2026-10-11T10:00:00.000Z",
+    });
+
+    const [, init] = mockedApiFetch.mock.calls[0] as [string, { body: string }];
+    const body = JSON.parse(init.body) as Record<string, unknown>;
+    expect(body.splitScope).toBe("all_going");
+    expect(body).not.toHaveProperty("participants");
+  });
+
+  it("posts the fixed list, and no scope, for a custom create", async () => {
+    // `custom` is the column default and it means "the rows are the
+    // split", so naming it on the wire says nothing the absence does
+    // not — and an edit is where the scope is sent when a rule has to be
+    // undone.
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({ success: true, payment: apiPayment() });
+
+    await createPayment("trip-1", { ...createInput, splitScope: "custom" });
+
+    const [, init] = mockedApiFetch.mock.calls[0] as [string, { body: string }];
+    const body = JSON.parse(init.body) as Record<string, unknown>;
+    expect(body.participants).toEqual([
+      { memberId: "member-1" },
+      { memberId: "member-2" },
+    ]);
+    expect(body).not.toHaveProperty("splitScope");
+  });
 });
 
 describe("useCreatePayment", () => {
@@ -253,7 +296,10 @@ describe("useCreatePayment", () => {
       cachedMember({ id: "member-2", name: "Priya", isOrganizer: false }),
     ]);
 
-    const pending = create.mutateAsync(createInput);
+    const pending = create.mutateAsync({
+      input: createInput,
+      splitMemberIds: ["member-1", "member-2"],
+    });
 
     await vi.waitFor(() => {
       expect(
@@ -290,13 +336,84 @@ describe("useCreatePayment", () => {
       cachedPayment({ id: "existing" }),
     ]);
 
-    await expect(create.mutateAsync(createInput)).rejects.toThrow();
+    await expect(
+      create.mutateAsync({
+        input: createInput,
+        splitMemberIds: ["member-1", "member-2"],
+      }),
+    ).rejects.toThrow();
 
     expect(
       client
         .getQueryData<Payment[]>(paymentKeys.list("trip-1"))
         ?.map((row) => row.id),
     ).toEqual(["existing"]);
+  });
+
+  it("paints a scoped row from the paint list the mutation carries", async () => {
+    // A scoped create's request has no participants to paint from — the
+    // rule is resolved elsewhere — so the ids the form resolved ride
+    // along with the mutation: they name and price the temporary row and
+    // are stripped from the body.
+    mockedApiFetch.mockReset();
+    let resolveFetch!: (value: unknown) => void;
+    mockedApiFetch.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveFetch = resolve;
+        }),
+    );
+
+    const { client, create } = captureCreatePayment();
+    client.setQueryData<Member[]>(memberKeys.list("trip-1"), [
+      cachedMember(),
+      cachedMember({ id: "member-2", name: "Priya", isOrganizer: false }),
+    ]);
+
+    const pending = create.mutateAsync({
+      input: {
+        description: "Dinner",
+        amount: 10001,
+        payerMemberId: "member-1",
+        splitScope: "all_going",
+      },
+      // Deliberately not the order the roster is cached in: the paint
+      // follows the list it was handed, which is the order the form
+      // priced.
+      splitMemberIds: ["member-2", "member-1"],
+    });
+
+    await vi.waitFor(() => {
+      expect(
+        client.getQueryData<Payment[]>(paymentKeys.list("trip-1")),
+      ).toHaveLength(1);
+    });
+
+    const painted = client.getQueryData<Payment[]>(
+      paymentKeys.list("trip-1"),
+    )![0]!;
+    expect(painted.splitScope).toBe("all_going");
+    expect(painted.participants.map((p) => p.memberId)).toEqual([
+      "member-2",
+      "member-1",
+    ]);
+    expect(painted.participants.map((p) => p.name)).toEqual(["Priya", "Ava"]);
+    // The remainder rides the paint list's order, as it does on the wire.
+    expect(painted.participants.map((p) => p.shareAmount)).toEqual([
+      5001, 5000,
+    ]);
+
+    // And the body the server sees carries the rule alone.
+    const [, init] = mockedApiFetch.mock.calls[0] as [string, { body: string }];
+    const body = JSON.parse(init.body) as Record<string, unknown>;
+    expect(body.splitScope).toBe("all_going");
+    expect(body).not.toHaveProperty("participants");
+
+    resolveFetch({
+      success: true,
+      payment: apiPayment({ id: "payment-9", splitScope: "all_going" }),
+    });
+    await pending;
   });
 
   it("settles through invalidateTripMoney, so the balances move too", async () => {
@@ -311,7 +428,10 @@ describe("useCreatePayment", () => {
       details: [],
     });
 
-    await create.mutateAsync(createInput);
+    await create.mutateAsync({
+      input: createInput,
+      splitMemberIds: ["member-1", "member-2"],
+    });
 
     expect(
       client.getQueryState(paymentKeys.list("trip-1"))?.isInvalidated,
@@ -394,6 +514,42 @@ describe("useUpdatePayment", () => {
       original,
     );
   });
+
+  it("settles through invalidateTripMoney, so the balances move too", async () => {
+    // A changed amount is a changed debt: the ledger and both balance
+    // reads are one domain, and a write that refetched only its own list
+    // would leave the headline showing the old arithmetic.
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({
+      success: true,
+      payment: apiPayment({ amount: 5000 }),
+    });
+
+    const { client, update } = captureUpdatePayment();
+    client.setQueryData<Payment[]>(paymentKeys.list("trip-1"), [
+      cachedPayment({ id: "payment-1" }),
+    ]);
+    client.setQueryData(balanceKeys.trip("trip-1"), []);
+    client.setQueryData(balanceKeys.me("trip-1"), {
+      netBalance: 0,
+      details: [],
+    });
+
+    await update.mutateAsync({
+      paymentId: "payment-1",
+      input: { amount: 5000, splitScope: "custom", participants: [{ memberId: "member-1" }, { memberId: "member-2" }] },
+    });
+
+    expect(
+      client.getQueryState(paymentKeys.list("trip-1"))?.isInvalidated,
+    ).toBe(true);
+    expect(
+      client.getQueryState(balanceKeys.trip("trip-1"))?.isInvalidated,
+    ).toBe(true);
+    expect(
+      client.getQueryState(balanceKeys.me("trip-1"))?.isInvalidated,
+    ).toBe(true);
+  });
 });
 
 describe("deletePayment", () => {
@@ -424,6 +580,11 @@ describe("useDeletePayment", () => {
     client.setQueryData<Payment[]>(paymentKeys.list("trip-1"), [
       cachedPayment({ id: "payment-1" }),
     ]);
+    client.setQueryData(balanceKeys.trip("trip-1"), []);
+    client.setQueryData(balanceKeys.me("trip-1"), {
+      netBalance: 0,
+      details: [],
+    });
 
     const pending = remove.mutateAsync({ paymentId: "payment-1" });
 
@@ -439,6 +600,14 @@ describe("useDeletePayment", () => {
 
     expect(
       client.getQueryState(paymentKeys.list("trip-1"))?.isInvalidated,
+    ).toBe(true);
+    // A deleted expense stops being owed, so the money domain goes stale
+    // together — the same settle the other two writes make.
+    expect(
+      client.getQueryState(balanceKeys.trip("trip-1"))?.isInvalidated,
+    ).toBe(true);
+    expect(
+      client.getQueryState(balanceKeys.me("trip-1"))?.isInvalidated,
     ).toBe(true);
   });
 

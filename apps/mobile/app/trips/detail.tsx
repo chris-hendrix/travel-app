@@ -19,7 +19,7 @@ import { todayIn } from "@/lib/timezone";
 import type { RsvpStatus } from "@/lib/rsvp";
 import { useTrip } from "@/lib/tripsStore";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { memberKeys, useMembers } from "@/lib/queries/members";
+import { invalidateTripPeople, useMembers } from "@/lib/queries/members";
 import { setRsvpOptions } from "@/lib/queries/rsvp";
 import { TripGate } from "@/components/trip/TripGate";
 import { useTravel } from "@/lib/travelStore";
@@ -244,9 +244,11 @@ function TripDetailScreen({ coverKind }: { coverKind: PlaceholderKind }) {
         onError: () => setRsvpOverride(null),
         onSuccess: () => setRsvpOverride(null),
         onSettled: () => {
-          queryClient.invalidateQueries({
-            queryKey: memberKeys.list(tripId),
-          });
+          // An answer moves more than the roll call: `going` decides who
+          // shares a scoped expense (`all_going`), so the same settle that
+          // refreshes the roster refreshes the expenses and both balance
+          // reads (`invalidateTripPeople` carries the money keys, `D7`).
+          void invalidateTripPeople(queryClient, tripId);
         },
       },
     );

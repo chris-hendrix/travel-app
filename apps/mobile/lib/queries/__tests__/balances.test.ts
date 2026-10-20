@@ -56,6 +56,30 @@ describe("balanceKeys", () => {
   });
 });
 
+describe("the money keys' one home", () => {
+  // `moneyKeys.ts` exists so `lib/queries/members.ts` can mark the money
+  // stale without importing either read module — `payments.ts` already
+  // imports `members.ts`, so the reverse import would be a cycle. The two
+  // modules re-export rather than re-declare, which is what keeps every
+  // existing call site working and every key identical.
+  it("is re-exported, not redeclared, by the two modules that read it", async () => {
+    const moneyKeys = await import("@/lib/queries/moneyKeys");
+    const payments = await import("@/lib/queries/payments");
+
+    expect(moneyKeys.balanceKeys).toBe(balanceKeys);
+    expect(payments.paymentKeys).toBe(moneyKeys.paymentKeys);
+    expect(payments.invalidateTripMoney).toBe(moneyKeys.invalidateTripMoney);
+  });
+
+  it("names the expenses per trip, under their own domain", async () => {
+    const { paymentKeys } = await import("@/lib/queries/moneyKeys");
+
+    expect(paymentKeys.all).toEqual(["payments"]);
+    expect(paymentKeys.list("t1")).toEqual(["payments", "list", "t1"]);
+    expect(paymentKeys.list("t1")).not.toEqual(paymentKeys.list("t2"));
+  });
+});
+
 describe("balancesOptions", () => {
   it("reads the trip's balances and maps them to {from, to} people", async () => {
     mockedApiFetch.mockReset();

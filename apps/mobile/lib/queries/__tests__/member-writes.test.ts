@@ -43,6 +43,8 @@ import * as membersModule from "@/lib/queries/members";
 import { invitationKeys, type TripInvitationRow } from "@/lib/queries/invitations";
 import { travelKeys } from "@/lib/queries/travel";
 import { tripKeys } from "@/lib/queries/trips";
+import { paymentKeys } from "@/lib/queries/payments";
+import { balanceKeys } from "@/lib/queries/balances";
 import { makeQueryClient } from "@/lib/queries/client";
 
 const mockedApiFetch = vi.mocked(apiFetch);
@@ -605,7 +607,7 @@ function cachedInvitation(
 }
 
 describe("invalidateTripPeople", () => {
-  it("invalidates the roster, invitations, travel board and trip detail in one call", async () => {
+  it("invalidates the roster, invitations, travel board, trip detail and the money in one call", async () => {
     mockedApiFetch.mockReset();
     const client = makeQueryClient();
     client.setQueryData(memberKeys.list("trip-1"), [cachedMember()]);
@@ -615,11 +617,21 @@ describe("invalidateTripPeople", () => {
     // No query ever sits exactly on `tripKeys.all`; the trips list
     // query below stands in for the domain the prefix covers.
     client.setQueryData(tripKeys.list(), []);
+    // The money the roster decides: a live split scope is resolved
+    // against this roster on every read, so a roster write changes what
+    // everyone owes.
+    client.setQueryData(paymentKeys.list("trip-1"), []);
+    client.setQueryData(balanceKeys.trip("trip-1"), []);
+    client.setQueryData(balanceKeys.me("trip-1"), {
+      netBalance: 0,
+      details: [],
+    });
 
     await invalidateTripPeople(client, "trip-1");
 
-    // A removal changes the roster, the invitations, the travel board
-    // and the trip's own counts, so a single call covers all four.
+    // A removal changes the roster, the invitations, the travel board,
+    // the trip's own counts — and, with a scoped split, the expenses and
+    // both balance reads — so a single call covers all of it.
     expect(
       client.getQueryState(memberKeys.list("trip-1"))?.isInvalidated,
     ).toBe(true);
@@ -633,6 +645,15 @@ describe("invalidateTripPeople", () => {
       client.getQueryState(tripKeys.detail("trip-1"))?.isInvalidated,
     ).toBe(true);
     expect(client.getQueryState(tripKeys.list())?.isInvalidated).toBe(true);
+    expect(
+      client.getQueryState(paymentKeys.list("trip-1"))?.isInvalidated,
+    ).toBe(true);
+    expect(
+      client.getQueryState(balanceKeys.trip("trip-1"))?.isInvalidated,
+    ).toBe(true);
+    expect(
+      client.getQueryState(balanceKeys.me("trip-1"))?.isInvalidated,
+    ).toBe(true);
   });
 });
 
@@ -645,6 +666,14 @@ describe("removeMember", () => {
     ]);
     // Seeded so the settle's shared invalidation has rows to mark.
     client.setQueryData(invitationKeys.trip("trip-1"), [cachedInvitation()]);
+    // A removed member leaves every scoped split on the next read, so the
+    // money is part of the same settle.
+    client.setQueryData(paymentKeys.list("trip-1"), []);
+    client.setQueryData(balanceKeys.trip("trip-1"), []);
+    client.setQueryData(balanceKeys.me("trip-1"), {
+      netBalance: 0,
+      details: [],
+    });
 
     const seen: {
       remove: ReturnType<typeof useRemoveMember> | null;
@@ -710,6 +739,18 @@ describe("removeMember", () => {
     ).toBe(true);
     expect(
       client.getQueryState(invitationKeys.trip("trip-1"))?.isInvalidated,
+    ).toBe(true);
+    // And so does the money: the roster is what a live split scope
+    // resolves against, so the expenses and both balance reads move with
+    // it.
+    expect(
+      client.getQueryState(paymentKeys.list("trip-1"))?.isInvalidated,
+    ).toBe(true);
+    expect(
+      client.getQueryState(balanceKeys.trip("trip-1"))?.isInvalidated,
+    ).toBe(true);
+    expect(
+      client.getQueryState(balanceKeys.me("trip-1"))?.isInvalidated,
     ).toBe(true);
   });
 

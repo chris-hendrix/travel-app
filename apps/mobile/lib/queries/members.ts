@@ -10,6 +10,7 @@ import { ApiError, apiFetch } from "@/lib/api";
 import { toMember } from "@/lib/mapping";
 import type { Member } from "@/lib/members";
 import { invitationKeys, invite, type TripInvitationRow } from "@/lib/queries/invitations";
+import { invalidateTripMoney } from "@/lib/queries/moneyKeys";
 import { travelKeys } from "@/lib/queries/travel";
 import { tripKeys } from "@/lib/queries/trips";
 import type { GetMembersResponse, MemberWithProfile } from "@journiful/shared/types";
@@ -24,8 +25,8 @@ import type { GetMembersResponse, MemberWithProfile } from "@journiful/shared/ty
  * write functions alongside `queryOptions`/`mutationOptions`
  * factories (a stronger justification than the plan's
  * accepted-as-risk). Do not lose `invalidateTripPeople`: its key set
- * spans four domains (members, invitations, travel, trips), and a
- * removal in one domain changes what the other three render.
+ * spans five domains (members, invitations, travel, trips, money), and
+ * a removal in one domain changes what the other four render.
  *
  * Deliberate difference from `lib/queries/events.ts`: the options
  * factories live there because the stores consume them, and the
@@ -91,10 +92,18 @@ export function useMembers(tripId: string | undefined): {
 }
 
 /**
- * One invalidation for a removal in the people domain: the roster,
- * the trip's invitations, the travel board and the trip's own counts
- * all change together, so every people write settles through this
+ * One invalidation for a write in the people domain: the roster, the
+ * trip's invitations, the travel board, the trip's own counts **and the
+ * money** all change together, so every people write settles through this
  * single call rather than invalidating its own key alone.
+ *
+ * The money is in here because a split scope is a **rule** resolved
+ * against this roster on every read (`D1`): adding, removing or answering
+ * somebody changes what everyone owes, and `D7` says the client has to
+ * learn that from the roster write — there is no other signal. The keys
+ * come from `lib/queries/moneyKeys.ts` rather than from
+ * `lib/queries/payments.ts`, which imports *this* module and so cannot be
+ * imported back.
  */
 export async function invalidateTripPeople(
   queryClient: QueryClient,
@@ -106,6 +115,7 @@ export async function invalidateTripPeople(
     queryClient.invalidateQueries({ queryKey: travelKeys.list(tripId) }),
     queryClient.invalidateQueries({ queryKey: tripKeys.detail(tripId) }),
     queryClient.invalidateQueries({ queryKey: tripKeys.all }),
+    invalidateTripMoney(queryClient, tripId),
   ]);
 }
 
@@ -128,9 +138,10 @@ export async function removeMember(
 /**
  * The remove half for a trip's roster: the row leaves
  * `memberKeys.list(tripId)` optimistically, comes back on error, and
- * the settle funnels through `invalidateTripPeople` so the roster,
- * the invitations, the travel board and the trip's own counts all go
- * stale together.
+ * the settle funnels through `invalidateTripPeople` so the roster, the
+ * invitations, the travel board, the trip's own counts and the money
+ * all go stale together — a removed member leaves every scoped split on
+ * the next read.
  */
 export function useRemoveMember(tripId: string) {
   const queryClient = useQueryClient();

@@ -346,11 +346,21 @@ function ExpenseFormScreen() {
             },
           );
         } else {
-          create.mutate(payload, {
-            onSuccess: () => dismiss(),
-            onError: (error: unknown) =>
-              spent(error, "Couldn't save the expense."),
-          });
+          create.mutate(
+            {
+              input: payload,
+              // The same ids the body carries, handed over separately so
+              // the temporary row can be painted from them
+              // (`CreatePaymentVariables`): a scoped create's body names
+              // a rule and no people at all.
+              splitMemberIds: input.participantIds,
+            },
+            {
+              onSuccess: () => dismiss(),
+              onError: (error: unknown) =>
+                spent(error, "Couldn't save the expense."),
+            },
+          );
         }
       }}
     />
