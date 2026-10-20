@@ -805,6 +805,13 @@ export const payments = pgTable(
     // "how was it paid" — a separate fact from what it was (nullable)
     note: varchar("note", { length: 280 }),
     amount: integer("amount").notNull(), // cents to avoid floating point
+    // How the cost is shared. `custom` is the only scope that stores rows in
+    // `payment_participants`; the two roster scopes store none and are
+    // resolved against the trip's members on every read, so a member added
+    // later is in a shared cost without an edit per expense.
+    splitScope: varchar("split_scope", { length: 12 })
+      .notNull()
+      .default("custom"),
     // Payer — a trip member (guests allowed; organizer records who paid)
     memberId: uuid("member_id")
       .notNull()
@@ -827,6 +834,15 @@ export const payments = pgTable(
       .on(table.tripId)
       .where(sql`${table.deletedAt} IS NULL`),
     index("payments_member_id_idx").on(table.memberId),
+    // `varchar({ length })` is type-only in Drizzle, as the enum is: nothing in
+    // the database rejects a fourth scope, and a row carrying one would make
+    // `paymentEntitySchema` (built from `SPLIT_SCOPES`) fail on read. The CHECK
+    // is the database half of the vocabulary, spelled to match
+    // `shared/utils/split.ts`'s `SPLIT_SCOPES`.
+    check(
+      "payments_split_scope_check",
+      sql`${table.splitScope} IN ('custom', 'all_going', 'all_invited')`,
+    ),
   ],
 );
 

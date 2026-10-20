@@ -6,6 +6,7 @@ import {
   type Payment,
 } from "@/db/schema/index.js";
 import { eq, and, isNull, inArray, sql } from "drizzle-orm";
+import { equalShares, type SplitScope } from "@journiful/shared/utils";
 import type {
   CreatePaymentInput,
   UpdatePaymentInput,
@@ -13,19 +14,34 @@ import type {
 import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
 import {
+  asSplitScope,
+  loadSplitMembers,
+  resolveScopedSplit,
+  splitForScope,
+} from "./payment-split.js";
+import {
   PaymentNotFoundError,
   PaymentMemberNotInTripError,
   DuplicateParticipantError,
   PermissionDeniedError,
+  EmptySplitError,
 } from "../errors.js";
 
+/**
+ * A participant as the service returns it.
+ *
+ * `id`, `paymentId` and `createdAt` are absent on a participant resolved from
+ * a split scope: a scope stores no rows, so the person is a fact about the
+ * roster rather than a record of its own. `ResolvedParticipant` is the arm
+ * that carries no row.
+ */
 interface PaymentParticipantView {
-  id: string;
-  paymentId: string;
+  id?: string;
+  paymentId?: string;
   memberId: string;
   shareAmount: number;
   name?: string;
-  createdAt: Date;
+  createdAt?: Date;
 }
 
 interface PaymentWithParticipants extends Payment {
@@ -79,24 +95,32 @@ export class PaymentService implements IPaymentService {
       );
     }
 
-    // A scoped payload carries no participant list; the scope branch lands in the next phase.
+    // Which split this is. Absent means `custom`, the column default, so an
+    // older client that knows nothing of scopes keeps filing the snapshot it
+    // always filed.
+    const scope: SplitScope = data.splitScope ?? "custom";
+
+    // The payer is checked on every path. A scoped split needs no membership
+    // check of its participants — they come from the trip's own roster, so
+    // they are members by construction — but a scope says nothing about who
+    // paid.
+    await this.assertMembersInTrip(tripId, [data.payerMemberId]);
+
+    if (scope !== "custom") {
+      return this.createScopedPayment(userId, tripId, data, scope);
+    }
+
     const participants = data.participants ?? [];
 
-    // Validate payer + all participants belong to this trip.
-    // Guests are allowed as payer — the organizer records who paid;
-    // `createdBy` stays the recording user.
+    // Validate the participants belong to this trip too.
+    // Guests are allowed — the organizer records who paid; `createdBy` stays
+    // the recording user.
     const participantMemberIds = participants.map((p) => p.memberId);
     this.assertNoDuplicateParticipants(participantMemberIds);
-    await this.assertMembersInTrip(
-      tripId,
-      [data.payerMemberId, ...participantMemberIds],
-    );
+    await this.assertMembersInTrip(tripId, participantMemberIds);
 
     // Compute equal shares with cent rounding
-    const shares = this.computeEqualShares(
-      data.amount,
-      participants.length,
-    );
+    const shares = this.computeEqualShares(data.amount, participants.length);
 
     // Payment + participants insert atomically: a participants-insert
     // failure must not leave an orphan payment row.
@@ -109,6 +133,7 @@ export class PaymentService implements IPaymentService {
             description: data.description,
             note: data.note ?? null,
             amount: data.amount,
+            splitScope: "custom",
             memberId: data.payerMemberId,
             date: data.date ? new Date(data.date) : new Date(),
             createdBy: userId,
@@ -136,6 +161,50 @@ export class PaymentService implements IPaymentService {
     return this.enrichPayment(tripId, payment, participantRows);
   }
 
+  /**
+   * A scoped create: the rule is resolved against the roster now, so an empty
+   * split is refused here (the read path falls back to the payer instead, see
+   * `payment-split.ts`), and no participant rows are written — the scope is
+   * the record, and the next read resolves it again.
+   */
+  private async createScopedPayment(
+    userId: string,
+    tripId: string,
+    data: CreatePaymentInput,
+    scope: Exclude<SplitScope, "custom">,
+  ): Promise<PaymentWithParticipants> {
+    const roster = await loadSplitMembers(this.db, tripId);
+    const participants = splitForScope(scope, roster, data.amount);
+
+    if (participants.length === 0) {
+      throw new EmptySplitError(
+        scope === "all_going"
+          ? "Nobody is going yet — choose who this cost was shared between"
+          : "Nobody is on this trip yet — choose who this cost was shared between",
+      );
+    }
+
+    const [payment] = await this.db
+      .insert(payments)
+      .values({
+        tripId,
+        description: data.description,
+        note: data.note ?? null,
+        amount: data.amount,
+        splitScope: scope,
+        memberId: data.payerMemberId,
+        date: data.date ? new Date(data.date) : new Date(),
+        createdBy: userId,
+      })
+      .returning();
+
+    if (!payment) {
+      throw new Error("Failed to create payment");
+    }
+
+    return this.enrichPayment(tripId, payment, participants);
+  }
+
   async getPaymentsByTrip(
     userId: string,
     tripId: string,
@@ -155,25 +224,26 @@ export class PaymentService implements IPaymentService {
 
     if (paymentRows.length === 0) return [];
 
-    const paymentIds = paymentRows.map((p) => p.id);
+    // One roster read serves both the names and every scoped payment in this
+    // list: a scope is re-resolved per read, so this *is* the read. A member
+    // added since the payment was filed is in it, and one removed is not.
+    const roster = await loadSplitMembers(this.db, tripId);
+    const nameById = new Map(roster.map((member) => [member.id, member.name]));
 
-    // Fetch all participants for these payments
-    const participantRows = await this.db
-      .select()
-      .from(paymentParticipants)
-      .where(inArray(paymentParticipants.paymentId, paymentIds));
+    // Only a `custom` payment has rows. Filtering the read by scope keeps a
+    // stray row on a scoped payment from widening its split: the scope is the
+    // record there, and the rows would be the artifact of a half-done switch.
+    const customPaymentIds = paymentRows
+      .filter((p) => asSplitScope(p.splitScope) === "custom")
+      .map((p) => p.id);
 
-    // Collect all member IDs for name lookup
-    const memberIds = new Set<string>();
-
-    for (const p of paymentRows) {
-      memberIds.add(p.memberId);
-    }
-    for (const pp of participantRows) {
-      memberIds.add(pp.memberId);
-    }
-
-    const nameMap = await this.buildMemberNameMap(tripId, Array.from(memberIds));
+    const participantRows =
+      customPaymentIds.length > 0
+        ? await this.db
+            .select()
+            .from(paymentParticipants)
+            .where(inArray(paymentParticipants.paymentId, customPaymentIds))
+        : [];
 
     // Group participants by payment
     const participantsByPayment = new Map<string, typeof participantRows>();
@@ -184,15 +254,19 @@ export class PaymentService implements IPaymentService {
     }
 
     return paymentRows.map((p) => {
-      const pParticipants = participantsByPayment.get(p.id) ?? [];
+      const scope = asSplitScope(p.splitScope);
       return {
         ...p,
+        splitScope: scope,
         payerMemberId: p.memberId,
-        payerName: nameMap.get(p.memberId) ?? "Unknown",
-        participants: pParticipants.map((pp) => ({
-          ...pp,
-          name: nameMap.get(pp.memberId) ?? "Unknown",
-        })),
+        payerName: nameById.get(p.memberId) ?? "Unknown",
+        participants:
+          scope === "custom"
+            ? (participantsByPayment.get(p.id) ?? []).map((pp) => ({
+                ...pp,
+                name: nameById.get(pp.memberId) ?? "Unknown",
+              }))
+            : resolveScopedSplit(scope, roster, p.amount, p.memberId),
       };
     });
   }
@@ -208,6 +282,7 @@ export class PaymentService implements IPaymentService {
         tripId: payments.tripId,
         createdBy: payments.createdBy,
         amount: payments.amount,
+        splitScope: payments.splitScope,
       })
       .from(payments)
       .where(and(eq(payments.id, paymentId), isNull(payments.deletedAt)))
@@ -237,6 +312,17 @@ export class PaymentService implements IPaymentService {
       );
     }
 
+    // What this row's split is once the update lands. A participant list means
+    // a custom split — the schema refuses a list beside a scope, so the two
+    // cannot disagree. A non-custom scope means the rows go. Neither field
+    // means the split is left alone (schema 400s on a bare `custom`).
+    const nextScope: SplitScope =
+      data.participants !== undefined
+        ? "custom"
+        : (data.splitScope ?? asSplitScope(existing.splitScope));
+    const splitExpressed =
+      data.participants !== undefined || data.splitScope !== undefined;
+
     // Build update data
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
     if (data.description !== undefined) updateData.description = data.description;
@@ -245,6 +331,7 @@ export class PaymentService implements IPaymentService {
     if (data.payerMemberId !== undefined)
       updateData.memberId = data.payerMemberId;
     if (data.date !== undefined) updateData.date = new Date(data.date);
+    if (splitExpressed) updateData.splitScope = nextScope;
 
     const [updated] = await this.db
       .update(payments)
@@ -256,21 +343,62 @@ export class PaymentService implements IPaymentService {
       throw new PaymentNotFoundError();
     }
 
-    // If participants or amount changed, recompute shares
-    let participantRows;
+    const participants = await this.writeSplitForUpdate(
+      paymentId,
+      existing.tripId,
+      updated,
+      nextScope,
+      data,
+    );
+
+    return this.enrichPayment(existing.tripId, updated, participants);
+  }
+
+  /**
+   * Bring `payment_participants` in line with the split the update asked for,
+   * and return the participants the response should carry.
+   *
+   * The invariant is one line — `custom` has rows, a scope has none — and the
+   * splits are re-derived rather than copied, so an amount change and a
+   * participant change go through the same arithmetic.
+   */
+  private async writeSplitForUpdate(
+    paymentId: string,
+    tripId: string,
+    updated: Payment,
+    nextScope: SplitScope,
+    data: UpdatePaymentInput,
+  ): Promise<PaymentParticipantView[]> {
+    if (nextScope !== "custom") {
+      // Switching (or staying) on a scope leaves no rows behind: a list that
+      // was stored under `custom` must not survive beside the rule.
+      if (data.splitScope !== undefined) {
+        await this.db
+          .delete(paymentParticipants)
+          .where(eq(paymentParticipants.paymentId, paymentId));
+      }
+
+      const roster = await loadSplitMembers(this.db, tripId);
+      return resolveScopedSplit(
+        nextScope,
+        roster,
+        updated.amount,
+        updated.memberId,
+      );
+    }
+
     if (data.participants !== undefined) {
       // Delete existing participants and insert new ones
       await this.db
         .delete(paymentParticipants)
         .where(eq(paymentParticipants.paymentId, paymentId));
 
-      const finalAmount = data.amount ?? existing.amount;
       const shares = this.computeEqualShares(
-        finalAmount,
+        updated.amount,
         data.participants.length,
       );
 
-      participantRows = await this.db
+      return this.db
         .insert(paymentParticipants)
         .values(
           data.participants.map((p, i) => ({
@@ -280,7 +408,9 @@ export class PaymentService implements IPaymentService {
           })),
         )
         .returning();
-    } else if (data.amount !== undefined) {
+    }
+
+    if (data.amount !== undefined) {
       // Amount changed but participants didn't — recompute shares for existing participants
       const existingParticipants = await this.db
         .select()
@@ -288,12 +418,12 @@ export class PaymentService implements IPaymentService {
         .where(eq(paymentParticipants.paymentId, paymentId));
 
       const shares = this.computeEqualShares(
-        data.amount,
+        updated.amount,
         existingParticipants.length,
       );
 
       // Update each participant's share
-      participantRows = [];
+      const participantRows: PaymentParticipantView[] = [];
       for (let i = 0; i < existingParticipants.length; i++) {
         const [updatedPp] = await this.db
           .update(paymentParticipants)
@@ -302,14 +432,13 @@ export class PaymentService implements IPaymentService {
           .returning();
         if (updatedPp) participantRows.push(updatedPp);
       }
-    } else {
-      participantRows = await this.db
-        .select()
-        .from(paymentParticipants)
-        .where(eq(paymentParticipants.paymentId, paymentId));
+      return participantRows;
     }
 
-    return this.enrichPayment(existing.tripId, updated, participantRows);
+    return this.db
+      .select()
+      .from(paymentParticipants)
+      .where(eq(paymentParticipants.paymentId, paymentId));
   }
 
   async deletePayment(userId: string, paymentId: string): Promise<void> {
@@ -382,24 +511,32 @@ export class PaymentService implements IPaymentService {
       throw new PaymentNotFoundError();
     }
 
-    const participantRows = await this.db
-      .select()
-      .from(paymentParticipants)
-      .where(eq(paymentParticipants.paymentId, paymentId));
+    const scope = asSplitScope(restored.splitScope);
+    const participantRows =
+      scope === "custom"
+        ? await this.db
+            .select()
+            .from(paymentParticipants)
+            .where(eq(paymentParticipants.paymentId, paymentId))
+        : resolveScopedSplit(
+            scope,
+            await loadSplitMembers(this.db, existing.tripId),
+            restored.amount,
+            restored.memberId,
+          );
 
     return this.enrichPayment(existing.tripId, restored, participantRows);
   }
 
   /**
-   * Compute equal shares with cent rounding.
-   * Remainder cents go to the first participant.
+   * Equal shares with cent rounding, in the order given.
+   *
+   * Delegates to `shared/utils/split.ts`'s `equalShares`: the form previews the
+   * same numbers and the demo serves them, so the arithmetic has one home and
+   * three callers cannot drift apart by a cent.
    */
   private computeEqualShares(amount: number, count: number): number[] {
-    const base = Math.floor(amount / count);
-    const remainder = amount - base * count;
-    return Array.from({ length: count }, (_, i) =>
-      i < remainder ? base + 1 : base,
-    );
+    return equalShares(amount, count);
   }
 
   /**
@@ -449,33 +586,36 @@ export class PaymentService implements IPaymentService {
     }
   }
 
+  /**
+   * Add the payer's name and the display names of any participant that does
+   * not already carry one.
+   *
+   * A participant resolved from a scope arrives named (the roster read that
+   * produced it had the names in hand); a stored `custom` row does not. So the
+   * lookup below is one query either way for the payer, and nothing extra for
+   * a scoped split.
+   */
   private async enrichPayment(
     tripId: string,
     payment: Payment,
-    participantRows: {
-      id: string;
-      paymentId: string;
-      memberId: string;
-      shareAmount: number;
-      createdAt: Date;
-    }[],
+    participants: PaymentParticipantView[],
   ): Promise<PaymentWithParticipants> {
-    const memberIds = new Set<string>();
+    const unnamed = participants
+      .filter((p) => p.name === undefined)
+      .map((p) => p.memberId);
 
-    memberIds.add(payment.memberId);
-    for (const pp of participantRows) {
-      memberIds.add(pp.memberId);
-    }
-
-    const nameMap = await this.buildMemberNameMap(tripId, Array.from(memberIds));
+    const nameMap = await this.buildMemberNameMap(tripId, [
+      payment.memberId,
+      ...unnamed,
+    ]);
 
     return {
       ...payment,
       payerMemberId: payment.memberId,
       payerName: nameMap.get(payment.memberId) ?? "Unknown",
-      participants: participantRows.map((pp) => ({
-        ...pp,
-        name: nameMap.get(pp.memberId) ?? "Unknown",
+      participants: participants.map((p) => ({
+        ...p,
+        name: p.name ?? nameMap.get(p.memberId) ?? "Unknown",
       })),
     };
   }
