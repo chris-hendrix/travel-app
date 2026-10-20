@@ -388,7 +388,11 @@ function GuestDialog({
       <View className="gap-1">
         <Text className="font-body-bold text-sm text-ink">Phone</Text>
         <PhoneFieldAction
-          label="Phone"
+          // No `label`: the row's own label is drawn above it (the paragraph
+          // above says why a label inside the row would stretch the button to
+          // the label's height). Passing one as well drew "Phone" twice —
+          // `InviteDialog`'s row is the same shape and omits it for this
+          // reason.
           ariaLabel="Phone"
           value={draftPhone}
           onChangeText={(value) => {
