@@ -3,8 +3,6 @@ import {
   members,
   users,
   events,
-  payments,
-  paymentParticipants,
   weatherCache,
   type Trip,
   type Member,
@@ -37,6 +35,10 @@ import {
   placeBlockPatch,
 } from "./place-block.service.js";
 import { blockedCounterpartIds } from "./moderation.service.js";
+import {
+  assertNoPaidExpenses,
+  cascadeMemberRemoval,
+} from "./member-removal.js";
 import { phoneForViewer } from "@/lib/phone-visibility.js";
 import {
   TripNotFoundError,
@@ -46,7 +48,6 @@ import {
   CannotRemoveCreatorError,
   CoOrganizerNotInTripError,
   DuplicateMemberError,
-  MemberHasPaymentsError,
 } from "../errors.js";
 import { z } from "zod";
 import { encodeCursor, decodeCursorAs } from "@/utils/pagination.js";
@@ -1244,29 +1245,19 @@ export class TripService implements ITripService {
       throw new CoOrganizerNotInTripError();
     }
 
-    // Payer/participant-protected: payments.member_id is ON DELETE RESTRICT
-    // (FK applies regardless of soft-delete) — pre-check so the clean 409
-    // path fires instead of a raw FK 500.
-    const [payerRow] = await this.db
-      .select({ id: payments.id })
-      .from(payments)
-      .where(eq(payments.memberId, memberRecord.id))
-      .limit(1);
-    const [participantRow] = await this.db
-      .select({ id: paymentParticipants.id })
-      .from(paymentParticipants)
-      .where(eq(paymentParticipants.memberId, memberRecord.id))
-      .limit(1);
-    if (payerRow ?? participantRow) {
-      throw new MemberHasPaymentsError(
-        "Member has payments — reassign or delete them first",
-      );
-    }
-
-    // 5. Delete member record
-    await this.db
-      .delete(members)
-      .where(and(eq(members.tripId, tripId), eq(members.userId, coOrgUserId)));
+    // The member row, their participant rows and the re-split shares land
+    // together — the co-organizer path had no transaction before this, which
+    // was survivable only while a participant row refused the delete outright
+    // (`member-removal.ts`). A co-organizer who **paid** is still refused.
+    await this.db.transaction(async (tx) => {
+      await assertNoPaidExpenses(tx, memberRecord.id);
+      await cascadeMemberRemoval(tx, memberRecord.id);
+      await tx
+        .delete(members)
+        .where(
+          and(eq(members.tripId, tripId), eq(members.userId, coOrgUserId)),
+        );
+    });
   }
 
   /**

@@ -4,8 +4,6 @@ import {
   users,
   trips,
   mutedMembers,
-  payments,
-  paymentParticipants,
   type Invitation as DBInvitation,
 } from "@/db/schema/index.js";
 import { eq, and, inArray, isNotNull, count, sql } from "drizzle-orm";
@@ -18,6 +16,10 @@ import {
   GuestMemberService,
   type IGuestMemberService,
 } from "./guest-member.service.js";
+import {
+  assertNoPaidExpenses,
+  cascadeMemberRemoval,
+} from "./member-removal.js";
 import type { Logger } from "@/types/logger.js";
 import { DEFAULT_FRONTEND_ORIGIN } from "@/config/env.js";
 import {
@@ -39,7 +41,6 @@ import {
   CannotDemoteCreatorError,
   CannotModifyOwnRoleError,
   LastOrganizerError,
-  MemberHasPaymentsError,
   NotAMutualError,
 } from "../errors.js";
 
@@ -935,28 +936,16 @@ export class InvitationService implements IInvitationService {
       );
     }
 
-    // Look up user by phone to delete member record.
-    // Task 4.4: this matches only claimed (userId) member rows — unclaimed
-    // guest rows (userId NULL, guest_phone) are never touched here; the
-    // invitation row alone is deleted.
-    const [inviteeUser] = await this.db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.phoneNumber, invitation.inviteePhone))
-      .limit(1);
-
-    if (inviteeUser) {
-      await this.db
-        .delete(members)
-        .where(
-          and(
-            eq(members.tripId, invitation.tripId),
-            eq(members.userId, inviteeUser.id),
-          ),
-        );
-    }
-
-    // Delete the invitation record
+    // Revoking cancels the invitation and nothing else.
+    //
+    // It used to delete the invitee's member row as well, and it was the one
+    // removal path with no money guard — a member who had paid (or merely owed
+    // a share) made this a raw FK 500, and a member who had not was silently
+    // thrown off the trip by a button that says "revoke invitation". Two
+    // fixes in one: removal now cascades the split (`member-removal.ts`) and
+    // only `removeMember` performs it, so this path stops deleting members
+    // rather than becoming a fourth caller of the cascade. An organizer who
+    // wants the member gone has `removeMember` for exactly that.
     await this.db.delete(invitations).where(eq(invitations.id, invitationId));
   }
 
@@ -1024,14 +1013,12 @@ export class InvitationService implements IInvitationService {
       }
     }
 
-    // Payer/participant-protected: payments.member_id is ON DELETE RESTRICT
-    // and payment_participants.member_id will be too — include soft-deleted
-    // payments in the pre-check (the FK applies regardless of deletedAt) so
-    // the clean 409 path fires instead of a raw FK 500.
-    await this.assertMemberHasNoPayments(memberId);
-
-    // Delete invitation and member in a transaction for consistency
+    // Delete invitation and member in a transaction for consistency. The
+    // money is settled in the same transaction (`member-removal.ts`): a payer
+    // is refused, a participant's rows go and the split is re-shared.
     await this.db.transaction(async (tx) => {
+      await assertNoPaidExpenses(tx, memberId);
+
       // Claimed guest rows (userId set, guestPhone NULL) take the userId
       // path below like any other member; unclaimed guest rows (userId
       // NULL) cancel the invitation keyed by their guestPhone.
@@ -1068,32 +1055,11 @@ export class InvitationService implements IInvitationService {
           );
       }
 
-      // Delete the member record (cascades to member_travel)
+      // Out of the money first (their participant rows, the re-split), then
+      // out of the trip: the member delete cascades to member_travel.
+      await cascadeMemberRemoval(tx, memberId);
       await tx.delete(members).where(eq(members.id, memberId));
     });
-  }
-
-  /**
-   * Throws MemberHasPaymentsError (409) if the member is referenced by any
-   * payment (as payer, including soft-deleted — the RESTRICT FK applies
-   * regardless of deletedAt) or any payment_participants row.
-   */
-  private async assertMemberHasNoPayments(memberId: string): Promise<void> {
-    const [payerRow] = await this.db
-      .select({ id: payments.id })
-      .from(payments)
-      .where(eq(payments.memberId, memberId))
-      .limit(1);
-    const [participantRow] = await this.db
-      .select({ id: paymentParticipants.id })
-      .from(paymentParticipants)
-      .where(eq(paymentParticipants.memberId, memberId))
-      .limit(1);
-    if (payerRow ?? participantRow) {
-      throw new MemberHasPaymentsError(
-        "Member has payments — reassign or delete them first",
-      );
-    }
   }
 
   /**

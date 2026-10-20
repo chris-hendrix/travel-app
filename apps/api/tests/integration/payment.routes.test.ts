@@ -116,6 +116,8 @@ describe("Payment Routes", () => {
       expect(body.payment.description).toBe("Dinner");
       expect(body.payment.amount).toBe(3000);
       expect(body.payment.payerMemberId).toBe(organizerMember.id);
+      // A payload with no scope is a custom split, the column default.
+      expect(body.payment.splitScope).toBe("custom");
       expect(body.payment.participants).toHaveLength(2);
       // Equal split: 1500 each
       expect(body.payment.participants[0].shareAmount).toBe(1500);
@@ -270,6 +272,129 @@ describe("Payment Routes", () => {
         (p: { memberId: string }) => p.memberId === guest!.id,
       );
       expect(claimedPart.name).toBe("Sarah Chen");
+    });
+
+    it("creates a scoped payment: resolved participants, no rows, scope echoed", async () => {
+      app = await buildApp();
+      const { organizer, trip, organizerMember, plainMember } =
+        await setupTrip();
+      const token = app.jwt.sign({
+        sub: organizer.id,
+        name: organizer.displayName,
+      });
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/trips/${trip.id}/payments`,
+        cookies: { auth_token: token },
+        payload: {
+          description: "Everyone going dinner",
+          amount: 3001,
+          payerMemberId: organizerMember.id,
+          splitScope: "all_going",
+        },
+      });
+
+      expect(response.statusCode).toBe(201);
+      const body = JSON.parse(response.body);
+      expect(body.payment.splitScope).toBe("all_going");
+
+      const participants = body.payment.participants as {
+        id?: string;
+        memberId: string;
+        shareAmount: number;
+        name: string;
+      }[];
+      expect(participants.map((p) => p.memberId).sort()).toEqual(
+        [organizerMember.id, plainMember.id].sort(),
+      );
+      // Equal shares to the cent, naming both people — and no row id, because
+      // a resolved participant is not a stored record.
+      expect(participants.reduce((sum, p) => sum + p.shareAmount, 0)).toBe(
+        3001,
+      );
+      expect(participants.map((p) => p.shareAmount).sort()).toEqual([
+        1500, 1501,
+      ]);
+      expect(participants.map((p) => p.name).sort()).toEqual([
+        "Member",
+        "Organizer",
+      ]);
+      expect(participants.every((p) => p.id === undefined)).toBe(true);
+
+      // The scope is the record: nothing was written to the row table.
+      expect(
+        await db
+          .select()
+          .from(paymentParticipants)
+          .where(eq(paymentParticipants.paymentId, body.payment.id)),
+      ).toHaveLength(0);
+    });
+
+    it("answers 400 EMPTY_SPLIT when the scope resolves to nobody", async () => {
+      app = await buildApp();
+      const { organizer, trip, organizerMember } = await setupTrip();
+      const token = app.jwt.sign({
+        sub: organizer.id,
+        name: organizer.displayName,
+      });
+
+      // Nobody said yes and there is no guest (a guest is in `all_going` by
+      // rule), so the scope is empty — a cost shared by nobody is refused.
+      await db
+        .update(members)
+        .set({ status: "maybe" })
+        .where(eq(members.tripId, trip.id));
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/api/trips/${trip.id}/payments`,
+        cookies: { auth_token: token },
+        payload: {
+          description: "Nobody's dinner",
+          amount: 2000,
+          payerMemberId: organizerMember.id,
+          splitScope: "all_going",
+        },
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(JSON.parse(response.body).error.code).toBe("EMPTY_SPLIT");
+    });
+
+    it("rejects a PUT that sends both splitScope and participants", async () => {
+      app = await buildApp();
+      const { organizer, trip, organizerMember } = await setupTrip();
+      const token = app.jwt.sign({
+        sub: organizer.id,
+        name: organizer.displayName,
+      });
+
+      const created = await app.inject({
+        method: "POST",
+        url: `/api/trips/${trip.id}/payments`,
+        cookies: { auth_token: token },
+        payload: {
+          description: "Dinner",
+          amount: 2000,
+          payerMemberId: organizerMember.id,
+          participants: [{ memberId: organizerMember.id }],
+        },
+      });
+      expect(created.statusCode).toBe(201);
+      const paymentId = JSON.parse(created.body).payment.id;
+
+      const response = await app.inject({
+        method: "PUT",
+        url: `/api/payments/${paymentId}`,
+        cookies: { auth_token: token },
+        payload: {
+          splitScope: "all_going",
+          participants: [{ memberId: organizerMember.id }],
+        },
+      });
+
+      expect(response.statusCode).toBe(400);
     });
 
     it("should reject legacy userId payloads with 400", async () => {

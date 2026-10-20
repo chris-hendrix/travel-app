@@ -407,7 +407,7 @@ describe("invitation.service", () => {
   });
 
   describe("revokeInvitation", () => {
-    it("should revoke an invitation and remove member record", async () => {
+    it("should revoke an invitation and leave the member record alone", async () => {
       // Create a user and invite them
       const inviteePhone = generateUniquePhone();
       const [inviteeUser] = await db
@@ -447,7 +447,9 @@ describe("invitation.service", () => {
         .where(eq(invitations.id, created[0].id));
       expect(remainingInvitations).toHaveLength(0);
 
-      // Verify member record deleted
+      // Verify member record survives: revoking an invitation cancels the
+      // invitation, not the membership (D4 — revoking stops deleting members,
+      // because it was the one removal path with no money guard).
       const membersAfter = await db
         .select()
         .from(members)
@@ -457,9 +459,12 @@ describe("invitation.service", () => {
             eq(members.userId, inviteeUser.id),
           ),
         );
-      expect(membersAfter).toHaveLength(0);
+      expect(membersAfter).toHaveLength(1);
 
       // Clean up
+      await db
+        .delete(members)
+        .where(eq(members.id, membersAfter[0]!.id));
       await db.delete(users).where(eq(users.phoneNumber, inviteePhone));
     });
 
@@ -1298,7 +1303,133 @@ describe("invitation.service", () => {
       await db.delete(payments).where(eq(payments.tripId, testTripId));
     });
 
-    it("removing a member with only participant rows -> 409 MemberHasPaymentsError", async () => {
+    it("removing a member with only participant rows cascades: their row goes, the remainder re-splits", async () => {
+      // D4: a participant row is no longer a reason to refuse the removal —
+      // the member leaves the group cost and the cost is re-split among the
+      // people still on the trip. Only a payer is refused.
+      const [organizerMember] = await db
+        .select()
+        .from(members)
+        .where(
+          and(
+            eq(members.tripId, testTripId),
+            eq(members.userId, testOrganizerId),
+          ),
+        );
+      const [memberRecord] = await db
+        .select()
+        .from(members)
+        .where(
+          and(eq(members.tripId, testTripId), eq(members.userId, testMemberId)),
+        );
+      const [guest] = await db
+        .insert(members)
+        .values({
+          tripId: testTripId,
+          userId: null,
+          guestDisplayName: "Guest Pal",
+          status: "no_response",
+        })
+        .returning();
+      const [payment] = await db
+        .insert(payments)
+        .values({
+          tripId: testTripId,
+          description: "Dinner",
+          amount: 4000,
+          memberId: organizerMember.id,
+          createdBy: testOrganizerId,
+        })
+        .returning();
+      await db.insert(paymentParticipants).values([
+        { paymentId: payment.id, memberId: memberRecord.id, shareAmount: 2000 },
+        { paymentId: payment.id, memberId: guest!.id, shareAmount: 2000 },
+      ]);
+
+      await invitationService.removeMember(
+        testOrganizerId,
+        testTripId,
+        memberRecord.id,
+      );
+
+      expect(
+        await db.select().from(members).where(eq(members.id, memberRecord.id)),
+      ).toHaveLength(0);
+
+      // The departed member's row is gone and the one that remains carries
+      // the whole amount.
+      const after = await db
+        .select()
+        .from(paymentParticipants)
+        .where(eq(paymentParticipants.paymentId, payment.id));
+      expect(after).toHaveLength(1);
+      expect(after[0]).toMatchObject({
+        memberId: guest!.id,
+        shareAmount: 4000,
+      });
+
+      await db.delete(payments).where(eq(payments.id, payment.id));
+    });
+
+    it("removing one of three participants re-splits the other two evenly", async () => {
+      const [organizerMember] = await db
+        .select()
+        .from(members)
+        .where(
+          and(
+            eq(members.tripId, testTripId),
+            eq(members.userId, testOrganizerId),
+          ),
+        );
+      const [memberRecord] = await db
+        .select()
+        .from(members)
+        .where(
+          and(eq(members.tripId, testTripId), eq(members.userId, testMemberId)),
+        );
+      const [guestA, guestB] = await db
+        .insert(members)
+        .values([
+          { tripId: testTripId, userId: null, guestDisplayName: "Guest A" },
+          { tripId: testTripId, userId: null, guestDisplayName: "Guest B" },
+        ])
+        .returning();
+      const [payment] = await db
+        .insert(payments)
+        .values({
+          tripId: testTripId,
+          description: "Boat",
+          amount: 3000,
+          memberId: organizerMember.id,
+          createdBy: testOrganizerId,
+        })
+        .returning();
+      await db.insert(paymentParticipants).values([
+        { paymentId: payment.id, memberId: memberRecord.id, shareAmount: 1000 },
+        { paymentId: payment.id, memberId: guestA!.id, shareAmount: 1000 },
+        { paymentId: payment.id, memberId: guestB!.id, shareAmount: 1000 },
+      ]);
+
+      await invitationService.removeMember(
+        testOrganizerId,
+        testTripId,
+        memberRecord.id,
+      );
+
+      const after = await db
+        .select()
+        .from(paymentParticipants)
+        .where(eq(paymentParticipants.paymentId, payment.id));
+      expect(after).toHaveLength(2);
+      expect(after.map((p) => p.memberId).sort()).toEqual(
+        [guestA!.id, guestB!.id].sort(),
+      );
+      expect(after.map((p) => p.shareAmount)).toEqual([1500, 1500]);
+
+      await db.delete(payments).where(eq(payments.id, payment.id));
+    });
+
+    it("removing the sole participant leaves the payer alone with the whole amount", async () => {
       const [organizerMember] = await db
         .select()
         .from(members)
@@ -1318,8 +1449,8 @@ describe("invitation.service", () => {
         .insert(payments)
         .values({
           tripId: testTripId,
-          description: "Dinner",
-          amount: 4000,
+          description: "Taxi",
+          amount: 2500,
           memberId: organizerMember.id,
           createdBy: testOrganizerId,
         })
@@ -1327,30 +1458,151 @@ describe("invitation.service", () => {
       await db.insert(paymentParticipants).values({
         paymentId: payment.id,
         memberId: memberRecord.id,
-        shareAmount: 4000,
+        shareAmount: 2500,
       });
 
-      await expect(
-        invitationService.removeMember(
-          testOrganizerId,
-          testTripId,
-          memberRecord.id,
-        ),
-      ).rejects.toThrow(MemberHasPaymentsError);
+      await invitationService.removeMember(
+        testOrganizerId,
+        testTripId,
+        memberRecord.id,
+      );
 
-      const membersAfter = await db
+      // D5: a split never resolves empty, so the payer falls back to owing
+      // it all rather than the expense dropping off the ledger.
+      const after = await db
         .select()
-        .from(members)
-        .where(eq(members.id, memberRecord.id));
-      expect(membersAfter).toHaveLength(1);
-
-      await db
-        .delete(paymentParticipants)
+        .from(paymentParticipants)
         .where(eq(paymentParticipants.paymentId, payment.id));
+      expect(after).toHaveLength(1);
+      expect(after[0]).toMatchObject({
+        memberId: organizerMember.id,
+        shareAmount: 2500,
+      });
+
       await db.delete(payments).where(eq(payments.id, payment.id));
     });
 
-    it("Task 4.4: organizer removes a guest by memberId — participant share blocks (409) until scrubbed, then member+travel gone", async () => {
+    it("soft-deleted payments are included in the cascade", async () => {
+      const [organizerMember] = await db
+        .select()
+        .from(members)
+        .where(
+          and(
+            eq(members.tripId, testTripId),
+            eq(members.userId, testOrganizerId),
+          ),
+        );
+      const [memberRecord] = await db
+        .select()
+        .from(members)
+        .where(
+          and(eq(members.tripId, testTripId), eq(members.userId, testMemberId)),
+        );
+      const [guest] = await db
+        .insert(members)
+        .values({ tripId: testTripId, userId: null, guestDisplayName: "Guest C" })
+        .returning();
+      const [payment] = await db
+        .insert(payments)
+        .values({
+          tripId: testTripId,
+          description: "Voided lunch",
+          amount: 2000,
+          memberId: organizerMember.id,
+          createdBy: testOrganizerId,
+          deletedAt: new Date(),
+          deletedBy: testOrganizerId,
+        })
+        .returning();
+      await db.insert(paymentParticipants).values([
+        { paymentId: payment.id, memberId: memberRecord.id, shareAmount: 1000 },
+        { paymentId: payment.id, memberId: guest!.id, shareAmount: 1000 },
+      ]);
+
+      // A soft-delete does not exempt the row from the RESTRICT FK, so it
+      // cannot exempt it from the cascade either.
+      await invitationService.removeMember(
+        testOrganizerId,
+        testTripId,
+        memberRecord.id,
+      );
+
+      const after = await db
+        .select()
+        .from(paymentParticipants)
+        .where(eq(paymentParticipants.paymentId, payment.id));
+      expect(after).toHaveLength(1);
+      expect(after[0]).toMatchObject({
+        memberId: guest!.id,
+        shareAmount: 2000,
+      });
+
+      await db.delete(payments).where(eq(payments.id, payment.id));
+    });
+
+    it("a scoped payment needs no rows touched and drops the member on the next read", async () => {
+      const { PaymentService } = await import("@/services/payment.service.js");
+      const paymentService = new PaymentService(db, permissionsService);
+
+      const [memberRecord] = await db
+        .select()
+        .from(members)
+        .where(
+          and(eq(members.tripId, testTripId), eq(members.userId, testMemberId)),
+        );
+      const [organizerMember] = await db
+        .select()
+        .from(members)
+        .where(
+          and(
+            eq(members.tripId, testTripId),
+            eq(members.userId, testOrganizerId),
+          ),
+        );
+
+      const created = await paymentService.createPayment(
+        testOrganizerId,
+        testTripId,
+        {
+          description: "Group dinner",
+          amount: 3000,
+          payerMemberId: organizerMember.id,
+          splitScope: "all_going",
+        },
+      );
+      expect(created.participants.map((p) => p.memberId).sort()).toEqual(
+        [organizerMember.id, memberRecord.id].sort(),
+      );
+
+      await invitationService.removeMember(
+        testOrganizerId,
+        testTripId,
+        memberRecord.id,
+      );
+
+      // No row to delete: the scope is the record.
+      expect(
+        await db
+          .select()
+          .from(paymentParticipants)
+          .where(eq(paymentParticipants.paymentId, created.id)),
+      ).toHaveLength(0);
+
+      // ...and the next read no longer includes the departed member.
+      const paymentsAfter = await paymentService.getPaymentsByTrip(
+        testOrganizerId,
+        testTripId,
+      );
+      const reread = paymentsAfter.find((p) => p.id === created.id)!;
+      expect(reread.participants.map((p) => p.memberId)).toEqual([
+        organizerMember.id,
+      ]);
+      expect(reread.participants[0]!.shareAmount).toBe(3000);
+
+      await db.delete(payments).where(eq(payments.id, created.id));
+    });
+
+    it("Task 4.4: organizer removes a guest by memberId — the member+travel go and the split re-splits", async () => {
       const guestPhone = generateUniquePhone();
       const [guest] = await db
         .insert(members)
@@ -1399,20 +1651,9 @@ describe("invitation.service", () => {
         shareAmount: 5000,
       });
 
-      // Participant share blocks removal: clean 409, guest row survives.
-      await expect(
-        invitationService.removeMember(testOrganizerId, testTripId, guest.id),
-      ).rejects.toThrow(MemberHasPaymentsError);
-      expect(
-        await db.select().from(members).where(eq(members.id, guest.id)),
-      ).toHaveLength(1);
-
-      // "Reassign or delete them first": scrub the guest share, then the
-      // removal succeeds. Must not throw on the users.phoneNumber lookup
-      // with NULL userId.
-      await db
-        .delete(paymentParticipants)
-        .where(eq(paymentParticipants.paymentId, payment.id));
+      // A participant row no longer blocks the removal (D4): the guest leaves
+      // the group cost, their row goes, and the payer keeps the whole amount.
+      // Must not throw on the users.phoneNumber lookup with a NULL userId.
       await invitationService.removeMember(
         testOrganizerId,
         testTripId,
@@ -1435,7 +1676,13 @@ describe("invitation.service", () => {
         .select()
         .from(paymentParticipants)
         .where(eq(paymentParticipants.paymentId, payment.id));
-      expect(participantsAfter).toHaveLength(0);
+      // The guest was the only participant, so the payer falls back to owing
+      // the whole amount rather than the expense losing its split.
+      expect(participantsAfter).toHaveLength(1);
+      expect(participantsAfter[0]).toMatchObject({
+        memberId: organizerMember.id,
+        shareAmount: 10000,
+      });
 
       // Organizer-paid payment itself survives (only the guest share cascades).
       const paymentAfter = await db
