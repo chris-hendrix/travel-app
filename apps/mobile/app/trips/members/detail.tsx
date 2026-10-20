@@ -88,10 +88,11 @@ function PersonDetailDialog() {
    *
    * Held here for the length of the write instead. The card stays up with
    * its buttons disabled on `pending`, pops to the roll call when the DELETE
-   * lands, and reads "This member paid for an expense — edit or delete it
+   * lands, and reads "This guest paid for an expense. Edit or delete it
    * first." when the server refuses — which is the rule every other delete
    * in the app already follows ("A failed delete stays on the form with the
-   * failure instead of leaving", `app/trips/events/edit.tsx`).
+   * failure instead of leaving", `app/trips/events/edit.tsx`). The member
+   * card says the same sentence with its own noun.
    *
    * The cache stays the authority: a live row always beats the held one, so
    * a rollback is what the card shows. `onRemoveSettled` releases the hold,
@@ -353,7 +354,7 @@ function GuestDialog({
             error.code === "MEMBER_HAS_PAYMENTS"
           ) {
             setRemoveError(
-              "This member paid for an expense — edit or delete it first.",
+              "This guest paid for an expense. Edit or delete it first.",
             );
             return;
           }
@@ -531,7 +532,7 @@ function MemberDialog({
             error.code === "MEMBER_HAS_PAYMENTS"
           ) {
             setRemoveError(
-              "This member paid for an expense — edit or delete it first.",
+              "This member paid for an expense. Edit or delete it first.",
             );
             return;
           }

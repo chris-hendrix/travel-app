@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   SCOPE_LABEL,
+  emptyScopeSentence,
   findMove,
   moveFor,
   paymentDay,
@@ -245,6 +246,30 @@ describe("SCOPE_LABEL", () => {
   it("labels every scope there is", () => {
     for (const scope of SPLIT_SCOPES) {
       expect(SCOPE_LABEL[scope].length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("emptyScopeSentence", () => {
+  it("says what the rule came back with, one noun per rule", () => {
+    // The form draws this where the rows would be, so it is the only thing
+    // saying why the save will refuse. `Everyone going` waits on an answer,
+    // `Everyone invited` on a roster.
+    expect(emptyScopeSentence("all_going")).toBe(
+      "Nobody is going yet, so there is no one to share it with.",
+    );
+    expect(emptyScopeSentence("all_invited")).toBe(
+      "Nobody is on the trip yet, so there is no one to share it with.",
+    );
+  });
+
+  it("reads as the app's copy: no em dash, and it ends in a full stop", () => {
+    // `apps/mobile/AGENTS.md` bans em dashes in copy, and a sentence the
+    // reader meets mid-form rather than as a title still ends.
+    for (const scope of SPLIT_SCOPES) {
+      const sentence = emptyScopeSentence(scope);
+      expect(sentence).not.toContain("—");
+      expect(sentence.endsWith(".")).toBe(true);
     }
   });
 });

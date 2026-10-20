@@ -427,8 +427,13 @@ export function useCreatePayment(tripId: string) {
  * `{memberId}` and the row needs each person's name and *share*, which
  * only the server can compute. Painting a guess there would show a
  * split that is about to change under the reader, so the invalidation
- * refetch is left to bring it. A `""` note becomes `null` here for the
- * same reason the server does it: that is what cleared means.
+ * refetch is left to bring it. `splitScope` **is** here, and for the
+ * opposite reason: it is not a guess about the split, it is the rule the
+ * request named, and the row's own heading reads it (`ExpenseDetail`'s
+ * block title). Without it, changing `Everyone going` to
+ * `Everyone invited` and reopening the row shows the old heading until
+ * the refetch lands. A `""` note becomes `null` here for the same reason
+ * the server does it: that is what cleared means.
  */
 function patchFrom(
   input: UpdatePaymentRequest,
@@ -452,6 +457,12 @@ function patchFrom(
           payerMemberId: input.payerMemberId,
           ...(payerName !== undefined ? { payerName } : null),
         }
+      : null),
+    // The rule the request named, so the row's heading follows the edit at
+    // once. The people it resolves to stay the refetch's job (`participants`
+    // above).
+    ...(input.splitScope !== undefined
+      ? { splitScope: input.splitScope }
       : null),
     ...(input.date !== undefined ? { date: input.date } : null),
     ...(input.note !== undefined

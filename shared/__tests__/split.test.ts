@@ -1,7 +1,12 @@
 // Tests for the split-scope rule (`shared/utils/split.ts`)
 
 import { describe, it, expect } from "vitest";
-import { SPLIT_SCOPES, equalShares, scopeMemberIds } from "../utils/split";
+import {
+  SPLIT_SCOPES,
+  equalShares,
+  scopeMemberIds,
+  withPayerFallback,
+} from "../utils/split";
 import type { SplitMember } from "../utils/split";
 
 /**
@@ -99,6 +104,22 @@ describe("scopeMemberIds", () => {
     scopeMemberIds("all_invited", rows);
 
     expect(rows).toEqual(snapshot);
+  });
+});
+
+describe("withPayerFallback", () => {
+  it("leaves a split that resolves to somebody untouched", () => {
+    // The floor only ever shows up where the rule gave nothing: a scope with
+    // people in it is the split, in the order it resolved.
+    expect(withPayerFallback(["m-3", "m-4"], "m-1")).toEqual(["m-3", "m-4"]);
+    expect(withPayerFallback(["m-9"], "m-1")).toEqual(["m-9"]);
+  });
+
+  it("reads an empty split as the payer owing the lot", () => {
+    // D5. The ledger nets a payment as "the payer paid, each participant owes
+    // their share", so nobody owing anything would leave the payer's credit
+    // standing and the row unshowable. One person owing it is the floor.
+    expect(withPayerFallback([], "m-1")).toEqual(["m-1"]);
   });
 });
 

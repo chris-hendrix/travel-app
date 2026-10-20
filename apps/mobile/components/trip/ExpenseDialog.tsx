@@ -14,11 +14,13 @@ import type { Member } from "@/lib/members";
 import { amountError, formatCents, parseAmount } from "@/lib/money";
 import {
   SCOPE_LABEL,
+  emptyScopeSentence,
   splitForScope,
   splitPreview,
   type SplitScope,
 } from "@/lib/payments";
 import { joinFacts } from "@/lib/wording";
+import { withPayerFallback } from "@journiful/shared/utils";
 
 /**
  * The expense form, in one place because there is one of it: adding,
@@ -35,8 +37,18 @@ import { joinFacts } from "@/lib/wording";
  * shares and **no boxes**: they are re-resolved against the roster on
  * every read, so they are a fact about who shares the cost rather than a
  * snapshot the reader is previewing. Only `Choose people` draws the
- * checkbox list, seeded with what the rule resolved to at the moment it
- * was picked — the reader edits the people they were just shown.
+ * checkbox list, seeded with what the rule resolved to the first time it
+ * was picked: once the reader has a list of their own, leaving the mode
+ * and coming back is a reader still editing it, not a fresh start. The
+ * reader edits the people they were just shown.
+ *
+ * **A split is never empty, and the two modes answer that differently.**
+ * The server refuses a create whose rule resolves to nobody
+ * (`EmptySplitError`), and every read of a scoped row falls back to the
+ * payer owing the whole amount (`withPayerFallback`). So a create draws
+ * the reason at the point the rows would be, where the reader can see why
+ * the save will refuse, and an edit draws the payer's row, which is the
+ * split the server will store and read back.
  *
  * **The split is previewed with the server's own arithmetic.** A rule
  * resolves through `splitForScope` — `scopeMemberIds` and then
@@ -94,7 +106,9 @@ export type ExpenseInput = {
    * array in its request to paint the optimistic row from.
    *
    * Empty is a form that was not finished, or a roster where nobody is
-   * going. Never a payload.
+   * going. Never a payload — except in one case, which is the payer floor:
+   * editing a scoped row whose rule resolves to nobody sends the payer
+   * alone, because that is the split the server stores and reads back.
    */
   participantIds: string[];
   /** yyyy-mm-dd, the day the expense belongs to. */
@@ -149,12 +163,15 @@ export function validateExpense(input: ExpenseInput): ExpenseErrors {
   // names the way out — the third answer in the menu above it — because a
   // scope with no people in it is a roster that has not said yes yet, not a
   // box the reader failed to tick. The resolved ids are the list either way,
-  // so this is one predicate and not two.
+  // so this is one predicate and not two. An **edit** never reaches it: the
+  // form puts the payer at the floor before the list is built, which is what
+  // the API does on the read and accepts on the update.
   if (input.participantIds.length === 0) {
     if (input.scope === "custom") {
       errors.participants = "Nobody is on the split.";
     } else {
-      errors.scope = "Nobody is going yet — choose who it was between";
+      errors.scope =
+        "Set Split with to Choose people, then tick who it was between.";
     }
   }
   if (!DAY.test(input.day)) errors.day = "Pick the day.";
@@ -273,6 +290,11 @@ export function ExpenseDialog({
   // Settle-up is a fixed list of one, so it has no rule to offer: the move
   // named two people and one amount, and the split is the person it owes.
   const locked = lockedParticipantId !== null;
+  // The form was opened on a row rather than on nothing: `initial.scope` is
+  // the rule that row carries, and its absence is exactly a new expense (see
+  // the prop). It is the one distinction the empty split below turns on,
+  // because the API answers the two cases differently.
+  const editing = initial?.scope !== undefined;
   // The rule a new expense starts on. Everyone going is who a group cost is
   // usually between, and it is a rule rather than a courtesy: the payer is
   // not forced in, so a reader whose own answer is "maybe" is legitimately
@@ -281,44 +303,61 @@ export function ExpenseDialog({
     ? "custom"
     : (initial?.scope ?? "all_going");
   const [scope, setScope] = useState<SplitScope>(initialScope);
-  const [checkedIds, setCheckedIds] = useState<string[]>(
-    () =>
-      initial?.participantIds ??
-      splitForScope(initialScope, members, 0).map((share) => share.memberId),
+  // The reader's own fixed list, and only theirs. Seeded once: from the row
+  // when the form opened on `Choose people`, from what the rule resolves to
+  // the first time they pick it otherwise, and never again — a list they have
+  // edited is theirs, and re-seeding it on the way back into the mode would
+  // silently re-tick everyone they had just unticked. `null` until they have
+  // been in the mode at all, which is what makes "seeded" and "touched" the
+  // same question.
+  const [customIds, setCustomIds] = useState<string[] | null>(() =>
+    initialScope === "custom"
+      ? (initial?.participantIds ??
+        splitForScope(initialScope, members, 0).map((share) => share.memberId))
+      : null,
   );
   const [day, setDay] = useState(initial?.day ?? "");
   const [submitted, setSubmitted] = useState(false);
 
   const cents = parseAmount(amount);
   const scoped = scope !== "custom";
+  // The rule's people, in member-id order, priced at whatever has been typed
+  // so far. The amount only decides the shares — the resolver divides after
+  // it has resolved the roster — so `0` is a stand-in until something is.
+  const resolved = scoped ? splitForScope(scope, members, cents ?? 0) : [];
+  // The payer floor (`withPayerFallback`, D5), on an edit only. Every read of
+  // a scoped row is floored to the payer and an update is accepted and read
+  // back the same way, while a create is refused (`EmptySplitError`). So an
+  // edit whose roster has moved out from under its rule shows the payer owing
+  // the lot, which is the split the server will store, and a create still
+  // refuses it and says why. A form with no payer at all has no floor to
+  // stand on, and that field is already asking its own question.
+  const scopedIds =
+    editing && payerMemberId !== null
+      ? withPayerFallback(
+          resolved.map((share) => share.memberId),
+          payerMemberId,
+        )
+      : resolved.map((share) => share.memberId);
   // The people the row will carry, in the order it carries them: a rule's
   // resolved list in member-id order, a fixed list in the roster's order,
   // filtered to what is ticked. Derived rather than stored, so no press can
-  // put the array out of the order the preview was computed in. The amount
-  // only decides the shares — the resolver divides after it has resolved
-  // the roster — so `0` here is a stand-in until something is typed, and
-  // the ids are the ids either way.
-  const resolved = scoped ? splitForScope(scope, members, cents ?? 0) : [];
+  // put the array out of the order the preview was computed in.
   const participantIds = scoped
-    ? resolved.map((share) => share.memberId)
+    ? scopedIds
     : members
-        .filter((member) => checkedIds.includes(member.id))
+        .filter((member) => (customIds ?? []).includes(member.id))
         .map((member) => member.id);
-  const customShares =
-    cents === null ? [] : splitPreview(cents, participantIds);
-  // What each of them owes, by member id. Empty until there is an amount to
-  // divide: a "$0.00" beside a name before anything has been typed reads as
-  // a share that is nothing rather than as a split that is not decided yet,
-  // and the amount field is already saying "Enter an amount."
+  // What each of them owes, in the order above: one division for both modes,
+  // because a rule's shares are `equalShares` over the list it resolved and a
+  // fixed list's are the same division over the ticked rows. Empty until
+  // there is an amount to divide: a "$0.00" beside a name before anything has
+  // been typed reads as a share that is nothing rather than as a split that is
+  // not decided yet, and the amount field is already saying "Enter an
+  // amount."
+  const shares = cents === null ? [] : splitPreview(cents, participantIds);
   const shareOf = new Map<string, number>(
-    cents === null
-      ? []
-      : scoped
-        ? resolved.map((share) => [share.memberId, share.shareAmount])
-        : participantIds.map((memberId, index) => [
-            memberId,
-            customShares[index] ?? 0,
-          ]),
+    participantIds.map((memberId, index) => [memberId, shares[index] ?? 0]),
   );
 
   const input: ExpenseInput = {
@@ -337,11 +376,12 @@ export function ExpenseDialog({
     : null;
 
   function toggle(memberId: string) {
-    setCheckedIds((ids) =>
-      ids.includes(memberId)
-        ? ids.filter((id) => id !== memberId)
-        : [...ids, memberId],
-    );
+    setCustomIds((ids) => {
+      const list = ids ?? [];
+      return list.includes(memberId)
+        ? list.filter((id) => id !== memberId)
+        : [...list, memberId];
+    });
   }
 
   /**
@@ -354,10 +394,14 @@ export function ExpenseDialog({
     if (!chosen || chosen === scope) return;
     // The boxes arrive ticked with what the rule resolved to at this
     // moment, in the same order — the reader adjusts the people they were
-    // just shown, rather than starting from nothing or from every row.
+    // just shown, rather than starting from nothing or from every row. Only
+    // the first time: a list the reader has edited is theirs, so leaving the
+    // mode and coming back must not re-tick what they unticked.
     if (chosen === "custom") {
-      setCheckedIds(
-        splitForScope(scope, members, 0).map((share) => share.memberId),
+      setCustomIds(
+        (ids) =>
+          ids ??
+          splitForScope(scope, members, 0).map((share) => share.memberId),
       );
     }
     setScope(chosen);
@@ -454,7 +498,6 @@ export function ExpenseDialog({
             onChange={changeScope}
             placeholder="Pick who shares it…"
             searchable={false}
-            error={errors.scope}
           />
         )}
         {lockedMember ? (
@@ -463,27 +506,44 @@ export function ExpenseDialog({
           // "you could" about something you cannot.
           <ShareRow label={memberLabel(lockedMember)} amount={cents} />
         ) : scoped ? (
-          // A rule's people are a fact, not a preview of a snapshot: the
-          // server re-resolves the scope against the roster on every read, so
-          // a box here would offer to change a split that is not this form's
-          // to fix. The shares beside them are the same resolver's answer, and
-          // the order is the order the payload sends.
-          participantIds.map((memberId) => {
-            const member = members.find((row) => row.id === memberId);
-            if (!member) return null;
-            return (
-              <ShareRow
-                key={memberId}
-                label={memberLabel(member)}
-                amount={shareOf.get(memberId) ?? null}
-              />
-            );
-          })
+          participantIds.length > 0 ? (
+            // A rule's people are a fact, not a preview of a snapshot: the
+            // server re-resolves the scope against the roster on every read,
+            // so a box here would offer to change a split that is not this
+            // form's to fix. The shares beside them are the same resolver's
+            // answer, and the order is the order the payload sends. On an
+            // edit a rule that resolves to nobody lands here too, as the
+            // payer alone: that is the row the server stores and reads back.
+            participantIds.map((memberId) => {
+              const member = members.find((row) => row.id === memberId);
+              if (!member) return null;
+              return (
+                <ShareRow
+                  key={memberId}
+                  label={memberLabel(member)}
+                  amount={shareOf.get(memberId) ?? null}
+                />
+              );
+            })
+          ) : (
+            // A create whose rule resolves to nobody: there is no row to
+            // draw, so the slot says what the rule came back with and why
+            // the save will refuse, at the point the reader is looking. The
+            // refusal is the second line of the same message rather than a
+            // line under the menu, because the empty slot is what it is
+            // about.
+            <View className="gap-1">
+              <Text className="font-body text-sm text-ink opacity-60">
+                {emptyScopeSentence(scope)}
+              </Text>
+              <FieldError message={errors.scope} />
+            </View>
+          )
         ) : (
           members.map((member) => (
             <Checkbox
               key={member.id}
-              checked={checkedIds.includes(member.id)}
+              checked={(customIds ?? []).includes(member.id)}
               onToggle={() => toggle(member.id)}
             >
               {/* The share sits opposite the name, and only for a row that

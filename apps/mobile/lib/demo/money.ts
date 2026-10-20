@@ -66,8 +66,20 @@ export type DemoPayment = {
    * out: **member** ids, and the order is load-bearing — the first
    * `amount % count` people in this list get one cent more than the
    * rest (`splitPreview`).
+   *
+   * Empty on a scoped row, and that is not an omission: a rule's people
+   * are the roster's, resolved on every read (`rowAsRead`), so a fixture
+   * that stated them would be the snapshot this file exists to avoid.
+   * Only `custom` rows state a list, because a fixed list **is** the
+   * split.
    */
   participants: string[];
+  /**
+   * How the cost is shared. `custom` (the column's own default) means the
+   * list above is the split; a rule means the roster resolves it, today
+   * and on every read after.
+   */
+  splitScope: SplitScope;
   /**
    * Who filed it: a **user** id (`userIdOf`), which is a different space
    * from the two above — `createdBy` matches a `member.userId` and never
@@ -96,6 +108,8 @@ function payment(
   dayIso: string,
   /** A **user** id — `userIdOf(memberId)`, never the member id itself. */
   createdBy: string,
+  /** The rule, for a row whose people are the roster's (`DemoPayment`). */
+  splitScope: SplitScope = "custom",
 ): DemoPayment {
   return {
     id,
@@ -104,6 +118,7 @@ function payment(
     amount,
     payerMemberId,
     participants,
+    splitScope,
     createdBy,
     date: atClock(dayIso, "12:00"),
   };
@@ -122,6 +137,10 @@ function payment(
  * people, where the remainder is 2 — the only kind of row that tells
  * the two readings of the split rule apart ([1667, 1667, 1666], one
  * cent each to the first two, not [1668, 1666, 1666]).
+ *
+ * One row is shared by a **rule** rather than by a list (the boat), which
+ * is the row that shows the demo resolving a scope against the roster
+ * instead of reading back a snapshot — see the row itself.
  *
  * The days arrive off the trip's builder rather than being derived here:
  * they are the same four the events, the stay and the arrivals are dated
@@ -145,9 +164,19 @@ export function caboLedger({
       "Paid by card",
       48000,
       "demo-sam",
-      [DEMO_VIEWER_MEMBER_ID, "demo-liz", "demo-marco", "demo-sam"],
+      // The one row that is a **rule** rather than a list: `all_going` is
+      // resolved against the roster on every read, so this row states the
+      // scope and no people at all. It is what the demo shows when it
+      // shows a split that follows the roster — Nina the guest is on it
+      // although she was seeded after the fact, and Marco (still deciding)
+      // is not, which is the difference between a rule and a snapshot in
+      // one row. $480.00 across four is $120.00 each, the same shares the
+      // fixed list it replaced gave out, so what moved is who and not how
+      // much.
+      [],
       sunday,
       userIdOf("demo-sam"),
+      "all_going",
     ),
     // A guest paid, and the viewer is the one who filed it — so this row
     // is one the viewer may edit without being its payer.
@@ -453,7 +482,7 @@ function paymentRow(
     description: plan.description,
     note: plan.note,
     amount: plan.amount,
-    splitScope: "custom",
+    splitScope: plan.splitScope,
     // `payerMemberId` and every `participants[].memberId` are **member**
     // ids, while `createdBy` is a **user** id (`userIdOf` in the fixture).
     // The two spaces are never compared to each other.
@@ -461,13 +490,62 @@ function paymentRow(
     payerName: nameOf(plan.payerMemberId),
     date: plan.date as unknown as Date,
     createdBy: plan.createdBy,
-    participants: plan.participants.map((memberId, index) =>
-      participantRow(plan.id, memberId, shares[index] ?? 0, nameOf, index),
-    ),
+    // A scoped row stores no people: the roster resolves them on the way
+    // out (`rowAsRead`), which is what keeps a rule a rule.
+    participants:
+      plan.splitScope === "custom"
+        ? plan.participants.map((memberId, index) =>
+            participantRow(
+              plan.id,
+              memberId,
+              shares[index] ?? 0,
+              nameOf,
+              index,
+            ),
+          )
+        : [],
     deletedAt: null,
     deletedBy: null,
     createdAt: nowIso() as unknown as Date,
     updatedAt: nowIso() as unknown as Date,
+  };
+}
+
+/**
+ * One stored row as a read serves it: a scoped row's people resolved
+ * against the roster **now**, a custom row's exactly as it was written.
+ *
+ * This is the one place the demo could disagree with the product on this
+ * feature, and it used to. A rule is re-resolved on every read — the API
+ * stores `split_scope` and no participant rows for it and resolves the
+ * roster in `payment-split.ts` — so an RSVP that lands after the expense
+ * joins or leaves the split with no edit to the row. Storing the people a
+ * rule resolved to would freeze them, and the demo's roster **does**
+ * move: its own adapter writes the viewer's answer on
+ * `POST /trips/:id/rsvp`. A snapshot would show an `all_going` expense
+ * keeping its original people after the reader said they could not go,
+ * while the product re-resolves. Hence resolution here, at read time,
+ * through the repo's own `splitForScope` — the rule the API and the form's
+ * preview use, so the three surfaces cannot disagree.
+ *
+ * The stored row is not modified: this returns a copy, and the store keeps
+ * the scope with no people, which is the column's own shape.
+ */
+function rowAsRead(store: DemoStore, row: Payment): Payment {
+  if (row.splitScope === "custom") return row;
+  const roster = rosterOf(store, row.tripId);
+  return {
+    ...row,
+    participants: splitForScope(row.splitScope, roster, row.amount).map(
+      (share, index) =>
+        participantRow(
+          row.id,
+          share.memberId,
+          share.shareAmount,
+          (memberId) => nameOfMember(roster, memberId),
+          index,
+        ),
+    ),
   };
 }
 
@@ -487,8 +565,12 @@ function paymentRow(
  */
 function netBalancesOf(store: DemoStore, tripId: string): Map<string, number> {
   const net = new Map<string, number>();
-  for (const payment of store.payments.get(tripId) ?? []) {
-    if (payment.deletedAt !== null) continue;
+  for (const stored of store.payments.get(tripId) ?? []) {
+    if (stored.deletedAt !== null) continue;
+    // The people are read, not stored: a scoped row's split is the roster's
+    // as it stands now (`rowAsRead`), so an RSVP moves every balance that
+    // row touches without an edit to it.
+    const payment = rowAsRead(store, stored);
     net.set(
       payment.payerMemberId,
       (net.get(payment.payerMemberId) ?? 0) + payment.amount,
@@ -627,33 +709,15 @@ function memberIdsFrom(value: unknown): string[] {
 }
 
 /**
- * The member ids one write's split resolves to.
- *
- * `custom` is the list the body carried, in the order it arrived — that
- * order is what hands the remainder cents out. A scope is **resolved**
- * against the demo store's roster through the repo's own rule,
- * `splitForScope` (`lib/payments.ts`): the client's half of the rule the
- * API applies to the same roster, so the people the form previewed are
- * the people the row stores. Its answer is in member-id order, which is
- * `setParticipants`' order too, so the ids resolved here are priced by
- * the one arithmetic (`equalShares`) in the same order they came in.
- */
-function splitMemberIdsFor(
-  scope: SplitScope,
-  body: DemoBody,
-  roster: readonly MemberWithProfile[],
-  amount: number,
-): string[] {
-  if (scope === "custom") return memberIdsFrom(body.participants);
-  return splitForScope(scope, roster, amount).map((share) => share.memberId);
-}
-
-/**
  * Replace a row's participants and recompute every share from the row's
  * own amount — the server's own update path: a participants list replaces
  * the rows, and the shares come from the final amount (`updatePayment`
  * recomputes for the new list, or for the existing one when only the
  * amount changed).
+ *
+ * **Custom rows only.** A scoped row stores no people at all: the roster
+ * resolves them when the row is read (`rowAsRead`), so there is nothing
+ * here to write and nothing to go stale.
  */
 function setParticipants(
   row: Payment,
@@ -714,10 +778,12 @@ export function listPayments(
       // Soft-deleted rows stop being served, exactly as the API's
       // own list filters them (`getPaymentsByTrip`, `deletedAt IS
       // NULL`). Nothing here asks for deleted rows: there is no
-      // Deleted-items view.
-      payments: (store.payments.get(tripId) ?? []).filter(
-        (payment) => payment.deletedAt === null,
-      ),
+      // Deleted-items view. And every row is resolved as it is served
+      // (`rowAsRead`): a scoped expense's people are the roster's now,
+      // which is what the detail sheet's split block reads.
+      payments: (store.payments.get(tripId) ?? [])
+        .filter((payment) => payment.deletedAt === null)
+        .map((payment) => rowAsRead(store, payment)),
     },
   };
 }
@@ -765,11 +831,12 @@ export function myBalance(
  * A new expense, as `POST /trips/:id/payments` serves it.
  *
  * The split arrives as one of the two things the wire allows: a scope the
- * server resolves, or a fixed list. A scope is resolved here against the
- * demo store's own members (`splitMemberIdsFor`) and the row stores the
- * **resolved snapshot**, with the scope it was resolved by beside it — the
- * demo's roster never moves, so a snapshot and a rule are the same thing
- * on this surface, and a read needs no resolver.
+ * server resolves, or a fixed list. A scope is stored **as a scope** and
+ * no people at all — the roster resolves it on the way out of every read
+ * (`rowAsRead`), exactly as the API's `split_scope` column works — so the
+ * demo can never disagree with the product about who shares a cost. A
+ * fixed list is the rows themselves, priced in the order the body sent
+ * (that order hands the remainder cents out).
  */
 export function createPayment(
   store: DemoStore,
@@ -821,15 +888,12 @@ export function createPayment(
   // The shares are the server's rule, over the participants in the
   // order they arrived — that order is what hands the remainder
   // cents out, and the form sent it for exactly this reason. A scoped
-  // create has no order of its own: the rule decides it
-  // (`splitMemberIdsFor`).
-  setParticipants(
-    row,
-    splitMemberIdsFor(scope, body, roster, amount),
-    nameOf,
-  );
+  // create stores no people at all: the read resolves them.
+  if (scope === "custom") {
+    setParticipants(row, memberIdsFrom(body.participants), nameOf);
+  }
   store.payments.get(tripId)?.push(row);
-  return { status: 201, body: { success: true, payment: row } };
+  return { status: 201, body: { success: true, payment: rowAsRead(store, row) } };
 }
 
 /**
@@ -865,36 +929,35 @@ export function updatePayment(
   }
   row.updatedAt = nowIso() as unknown as Date;
 
-  // The shares follow the amount, exactly as the server recomputes
-  // them, and a scope in the body re-resolves the split: a rule is
-  // resolved against the trip's roster and replaces the stored rows
-  // with the snapshot it names (`splitMemberIdsFor`), while `custom` —
-  // or no scope at all — leaves the participants branch below to say
-  // what the rows are. The order is load-bearing for a list, and it is
-  // the resolver's for a rule.
+  // The split a body names, and only that. A **rule** is stored as a rule:
+  // the row keeps the scope and drops every stored person, because the
+  // roster is what resolves it (`rowAsRead`) — a row that kept the people
+  // a rule used to name would go stale on the next RSVP. `custom` is the
+  // opposite: the rows are the split, so a list in the body replaces them
+  // and a bare amount repriced the ones already there. No scope at all
+  // leaves the row's own mode alone; a scoped row's shares are recomputed
+  // on the read either way, because they follow the amount.
   const scope = splitScopeOf(body.splitScope);
   if (scope === "all_going" || scope === "all_invited") {
     row.splitScope = scope;
-    setParticipants(
-      row,
-      splitMemberIdsFor(scope, body, roster, row.amount),
-      nameOf,
-    );
+    row.participants = [];
   } else {
     if (scope === "custom") {
       row.splitScope = "custom";
     }
-    if (Array.isArray(body.participants)) {
-      setParticipants(row, memberIdsFrom(body.participants), nameOf);
-    } else if (typeof body.amount === "number") {
-      setParticipants(
-        row,
-        row.participants.map((participant) => participant.memberId),
-        nameOf,
-      );
+    if (row.splitScope === "custom") {
+      if (Array.isArray(body.participants)) {
+        setParticipants(row, memberIdsFrom(body.participants), nameOf);
+      } else if (typeof body.amount === "number") {
+        setParticipants(
+          row,
+          row.participants.map((participant) => participant.memberId),
+          nameOf,
+        );
+      }
     }
   }
-  return { status: 200, body: { success: true, payment: row } };
+  return { status: 200, body: { success: true, payment: rowAsRead(store, row) } };
 }
 
 /**

@@ -20,7 +20,12 @@ export type {
   FlightAutofillFields,
 } from "./travel";
 
-export { SPLIT_SCOPES, scopeMemberIds, equalShares } from "./split";
+export {
+  SPLIT_SCOPES,
+  scopeMemberIds,
+  equalShares,
+  withPayerFallback,
+} from "./split";
 export type { SplitScope, SplitMember, MemberRsvpStatus } from "./split";
 
 /**

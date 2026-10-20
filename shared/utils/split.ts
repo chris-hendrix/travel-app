@@ -82,6 +82,32 @@ export function scopeMemberIds(
 }
 
 /**
+ * The floor under every read: a split is never empty, so an empty one is the
+ * payer owing the whole amount.
+ *
+ * Why it cannot be "nobody owes anything": the ledger nets a payment as
+ * "payer paid the amount, each participant owes their share"
+ * (`apps/api/src/services/balance.service.ts`). With no participants the
+ * payer's credit stands and nothing offsets it, so a debt simplification that
+ * skips a person it cannot pair would drop the row instead of showing the
+ * payer owed. One person owing the lot is the honest reading of "the roster
+ * this cost named is gone".
+ *
+ * It is a read rule, not a write rule. A create refuses an empty resolution
+ * (`EmptySplitError`) because a cost shared by nobody is not a cost; an
+ * update and every read apply this floor, so a scoped row whose scope has
+ * since emptied out reads back as the payer alone. That asymmetry is why the
+ * form needs it too: an edit previews what the server will store and read,
+ * and a create still refuses.
+ */
+export function withPayerFallback(
+  memberIds: string[],
+  payerMemberId: string,
+): string[] {
+  return memberIds.length > 0 ? memberIds : [payerMemberId];
+}
+
+/**
  * Each participant's share of an amount in cents, in the order given.
  *
  * The largest-remainder rule: every share is the integer division, and
@@ -95,7 +121,8 @@ export function scopeMemberIds(
  *
  * No participants is `[]`, not a division by zero. A split that resolves
  * to nobody is caught above this function (a create is refused, a read
- * falls back to the payer); this is the arithmetic only.
+ * falls back to the payer through `withPayerFallback`); this is the
+ * arithmetic only.
  */
 export function equalShares(total: number, count: number): number[] {
   if (count <= 0) return [];

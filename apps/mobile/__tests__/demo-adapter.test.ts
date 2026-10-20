@@ -809,12 +809,14 @@ describe("the demo data layer", () => {
     expect(getUnhandledApiUrls()).toEqual([]);
   });
 
-  it("resolves a split scope against the demo's own roster", async () => {
-    // The demo has no resolver on its read path — the roster never moves
-    // there — so a scoped write is where the rule runs: the ids are
-    // resolved through `splitForScope` (`lib/payments.ts`, the client's
-    // half of the rule the API applies) and the row stores the snapshot
-    // beside the scope it was resolved by.
+  it("resolves a split scope on every read, so the roster moves the split", async () => {
+    // A rule is a rule on this surface too. The row stores the scope and no
+    // people at all, and every read resolves the roster through
+    // `splitForScope` (`lib/payments.ts`) — the same rule the API applies in
+    // `payment-split.ts` — so the demo can show what the product does when
+    // the roster moves under an expense nobody edited. It used to store the
+    // snapshot a rule resolved to, which froze the people on a surface whose
+    // own RSVP handler moves them.
     const tripId = DEMO_TRIP_ID;
     const roster = await apiFetch<{ success: true; members: MemberRow[] }>(
       `/trips/${tripId}/members`,
@@ -852,9 +854,64 @@ describe("the demo data layer", () => {
       2501, 2500, 2500, 2500,
     ]);
 
-    // An edit re-resolves the scope it is sent rather than keeping the
-    // old list: `all_invited` is the whole roster, declines included, so
-    // Marco and Priya are on this one — six people, $200.00, which is
+    // The store keeps the rule and no rows, so the ledger read is where the
+    // people come from — the same four, and a `custom` row on the same trip
+    // read back exactly as it was written.
+    const listed = await apiFetch<{
+      success: true;
+      payments: PaymentRow[];
+    }>(`/trips/${tripId}/payments`);
+    const listedScoped = listed.payments.find(
+      (row) => row.id === created.payment.id,
+    );
+    expect(listedScoped?.splitScope).toBe("all_going");
+    expect(listedScoped?.participants.map((p) => p.memberId)).toHaveLength(4);
+    const tacosBefore = listed.payments.find(
+      (row) => row.id === "demo-payment-tacos",
+    )!;
+    expect(tacosBefore.splitScope).toBe("custom");
+    expect(tacosBefore.participants.map((p) => p.memberId)).toContain(
+      viewer.id,
+    );
+
+    // Now the roster moves: the viewer answers "can't go" through the demo's
+    // own RSVP handler — the same POST the roll call makes, which is what
+    // writes `store.members` and nothing else.
+    await apiFetch(`/trips/${tripId}/rsvp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "not_going" }),
+    });
+
+    const afterRsvp = await apiFetch<{
+      success: true;
+      payments: PaymentRow[];
+    }>(`/trips/${tripId}/payments`);
+    // The rule re-resolved without anybody editing the expense: the person
+    // who just left is off a cost shared by who is going. Three people now,
+    // and $100.01 across three is [3334, 3334, 3333].
+    const scopedAfter = afterRsvp.payments.find(
+      (row) => row.id === created.payment.id,
+    )!;
+    expect(scopedAfter.participants.map((p) => p.memberId)).toEqual([
+      "demo-guest-cabo",
+      "demo-liz",
+      "demo-sam",
+    ]);
+    expect(scopedAfter.participants.map((p) => p.shareAmount)).toEqual([
+      3334, 3334, 3333,
+    ]);
+    // A fixed list is not a rule and never re-resolves: the tacos keep the
+    // three people they were recorded between, the viewer included.
+    expect(
+      afterRsvp.payments
+        .find((row) => row.id === "demo-payment-tacos")!
+        .participants.map((p) => p.memberId),
+    ).toEqual(tacosBefore.participants.map((p) => p.memberId));
+
+    // An edit re-resolves the scope it is sent rather than keeping the old
+    // list: `all_invited` is the whole roster, declines included, so Marco
+    // and Priya are on this one — six people, $200.00, which is
     // [3334, 3334, 3333, 3333, 3333, 3333].
     const updated = await apiFetch<{ success: true; payment: PaymentRow }>(
       `/payments/${created.payment.id}`,
@@ -877,15 +934,16 @@ describe("the demo data layer", () => {
       3334, 3334, 3333, 3333, 3333, 3333,
     ]);
 
-    // And the ledger reads that snapshot, because that is all a demo read
-    // has: the row is in the trip's list with the six people on it.
-    const { payments } = await apiFetch<{
+    // And the read agrees with the write, because it is the same resolver.
+    const finalList = await apiFetch<{
       success: true;
       payments: PaymentRow[];
     }>(`/trips/${tripId}/payments`);
-    const listed = payments.find((row) => row.id === created.payment.id);
-    expect(listed?.splitScope).toBe("all_invited");
-    expect(listed?.participants.length).toBe(6);
+    const finalRow = finalList.payments.find(
+      (row) => row.id === created.payment.id,
+    );
+    expect(finalRow?.splitScope).toBe("all_invited");
+    expect(finalRow?.participants.length).toBe(6);
 
     expect(inner).not.toHaveBeenCalled();
     expect(getUnhandledApiUrls()).toEqual([]);

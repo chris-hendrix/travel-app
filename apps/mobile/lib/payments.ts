@@ -166,9 +166,11 @@ export function splitPreview(amount: number, memberIds: string[]): number[] {
  *
  * An empty answer is an answer: a roster where nobody is going resolves
  * to nobody, and the shares are `[]`. The floor that keeps a split from
- * being empty belongs to the API (`D5` — a create is refused, a read
- * falls back to the payer), so the screen is what says "nobody is going
- * yet" rather than this function inventing a participant.
+ * being empty is the shared `withPayerFallback` (D5): a create is refused
+ * because the API refuses it too, while an edit shows the payer owing the
+ * lot, because that is what the server stores and reads back. Either way
+ * the screen is what says why the rows are empty (`emptyScopeSentence`)
+ * rather than this function inventing a participant.
  */
 export function splitForScope(
   scope: SplitScope,
@@ -182,6 +184,27 @@ export function splitForScope(
     memberId,
     shareAmount: shares[index] ?? 0,
   }));
+}
+
+/**
+ * Why a rule can draw nobody, said where its rows would be.
+ *
+ * The scope still works as an answer — the trip fills up and the split
+ * follows — so the form does not take the option away. It says what the rule
+ * resolved to instead, because a body that draws no rows and refuses the save
+ * is a form that looks broken rather than a trip that has no answers yet.
+ *
+ * Two sentences rather than one, because the two rules empty out for
+ * different reasons: `Everyone going` waits on an answer, `Everyone invited`
+ * waits on a roster. One shape, two nouns, so the pair reads as the same
+ * statement twice rather than two messages. (`Choose people` never draws
+ * this: an empty fixed list is the boxes nobody ticked, which is the form's
+ * own message to give.)
+ */
+export function emptyScopeSentence(scope: SplitScope): string {
+  return scope === "all_invited"
+    ? "Nobody is on the trip yet, so there is no one to share it with."
+    : "Nobody is going yet, so there is no one to share it with.";
 }
 
 /**

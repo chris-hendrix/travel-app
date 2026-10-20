@@ -178,10 +178,15 @@ export class PaymentService implements IPaymentService {
     const participants = splitForScope(scope, roster, data.amount);
 
     if (participants.length === 0) {
+      // The same two sentences the form writes when a rule draws nobody
+      // (`lib/payments.ts:emptyScopeSentence`), so the refusal reads as one
+      // statement whether it arrives from the screen or from here. No em
+      // dash: these are user-facing copy if the app ever surfaces an API
+      // error (`apps/mobile/AGENTS.md`).
       throw new EmptySplitError(
         scope === "all_going"
-          ? "Nobody is going yet — choose who this cost was shared between"
-          : "Nobody is on this trip yet — choose who this cost was shared between",
+          ? "Nobody is going yet, so there is no one to share it with."
+          : "Nobody is on the trip yet, so there is no one to share it with.",
       );
     }
 

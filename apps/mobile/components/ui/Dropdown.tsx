@@ -217,6 +217,15 @@ function PickerField({
       <Text className="font-body-bold text-sm text-ink">{label}</Text>
       <Pressable
         role="button"
+        // Deliberately **not** `aria-label={label}`. The label is drawn above
+        // the box rather than bound to it, so this control's only accessible
+        // name is the value it shows ("Dana", not "Member: Dana") — which is
+        // what every picker in the app is named by, and what the specs locate
+        // (`travel-journey.spec.ts` finds a member picker by the member's
+        // name). Bound to the label it would announce the field and hide the
+        // choice. The gap — the field's own name is not part of the name — is
+        // real and pre-existing for every `PickerField`; it needs a change to
+        // the pickers' names and the specs together, not one attribute here.
         aria-expanded={open}
         onPress={onPress}
         className="flex-row items-center justify-between border border-ink bg-paper p-4"

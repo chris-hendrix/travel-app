@@ -497,6 +497,46 @@ describe("useUpdatePayment", () => {
     );
   });
 
+  it("patches a changed split rule but never the people it resolves to", async () => {
+    // The rule is the request's own answer, so the row's heading follows it
+    // at once — "Everyone going" must not keep reading after the reader
+    // chose "Everyone invited". The people are the other half: only the
+    // server can resolve a scope against the roster and price it, so
+    // `participants` stays exactly as the refetch will replace it.
+    mockedApiFetch.mockReset();
+    mockedApiFetch.mockResolvedValue({
+      success: true,
+      payment: apiPayment({ splitScope: "all_invited" }),
+    });
+
+    const { client, update } = captureUpdatePayment();
+    const cached = cachedPayment({
+      splitScope: "all_going",
+      participants: [
+        { id: "pp-1", memberId: "member-1", name: "Ava", shareAmount: 5000 },
+        { id: "pp-2", memberId: "member-2", name: "Priya", shareAmount: 5000 },
+      ],
+    });
+    client.setQueryData<Payment[]>(paymentKeys.list("trip-1"), [cached]);
+
+    await update.mutateAsync({
+      paymentId: "payment-1",
+      input: { splitScope: "all_invited" },
+    });
+
+    const painted = client.getQueryData<Payment[]>(
+      paymentKeys.list("trip-1"),
+    )![0]!;
+    expect(painted.splitScope).toBe("all_invited");
+    expect(painted.participants).toEqual(cached.participants);
+
+    // And the body says the same thing the row now reads.
+    const [, init] = mockedApiFetch.mock.calls[0] as [string, { body: string }];
+    const body = JSON.parse(init.body) as Record<string, unknown>;
+    expect(body.splitScope).toBe("all_invited");
+    expect(body).not.toHaveProperty("participants");
+  });
+
   it("reverts only the list it replaced when the server rejects", async () => {
     mockedApiFetch.mockReset();
     mockedApiFetch.mockRejectedValue(new ApiError(403, "Nope"));

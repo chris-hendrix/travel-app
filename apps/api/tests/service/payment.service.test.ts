@@ -635,6 +635,12 @@ describe("the split scope on a payment (Tasks 5-7)", () => {
       expect(err).toBeInstanceOf(EmptySplitError);
       expect(err.statusCode).toBe(400);
       expect(err.code).toBe("EMPTY_SPLIT");
+      // The copy is user-facing if the app ever surfaces it, so it is pinned
+      // here: no em dash (`apps/mobile/AGENTS.md`), and the same sentence the
+      // form writes when a rule draws nobody (`emptyScopeSentence`).
+      expect(err.message).toBe(
+        "Nobody is going yet, so there is no one to share it with.",
+      );
 
       // Nothing left behind
       const rows = await db

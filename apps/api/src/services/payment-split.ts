@@ -15,6 +15,7 @@ import { eq, sql } from "drizzle-orm";
 import {
   equalShares,
   scopeMemberIds,
+  withPayerFallback,
   type MemberRsvpStatus,
   type SplitScope,
 } from "@journiful/shared/utils";
@@ -110,7 +111,8 @@ function sharesFor(
  *
  * `[]` is a real answer, not an error: nobody satisfies the rule. The write
  * path refuses it (`EmptySplitError`, because a cost shared by nobody is not
- * a cost); the read path lets `withPayerFallback` put the payer back in.
+ * a cost); the read path lets the shared `withPayerFallback` put the payer
+ * back in.
  */
 export function splitForScope(
   scope: SplitScope,
@@ -121,26 +123,13 @@ export function splitForScope(
 }
 
 /**
- * The floor under every read: a split is never empty, so an empty one is the
- * payer owing the whole amount.
- *
- * Why it cannot be "nobody owes anything": the ledger nets a payment as
- * "payer paid the amount, each participant owes their share"
- * (`balance.service.ts`). With no participants the payer's credit stands and
- * nothing offsets it — a debt simplification that skips a person it cannot
- * pair would then drop the row instead of showing the payer owed. One person
- * owing the lot is the honest reading of "the roster this cost named is gone".
- */
-export function withPayerFallback(
-  memberIds: string[],
-  payerMemberId: string,
-): string[] {
-  return memberIds.length > 0 ? memberIds : [payerMemberId];
-}
-
-/**
  * A scoped payment's participants for a read: the rule, the payer floor, and
  * the shares — in one call, because every read path wants exactly this.
+ *
+ * `withPayerFallback` is the shared rule (`shared/utils/split.ts`), not this
+ * module's: the form shows the same floor on an edit, because a preview that
+ * disagreed with the read would offer to save a row the server would hand
+ * back differently.
  */
 export function resolveScopedSplit(
   scope: SplitScope,
