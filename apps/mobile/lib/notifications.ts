@@ -83,6 +83,33 @@ export function tripFor(
 }
 
 /**
+ * Where tapping a notification goes: the trip it is about.
+ *
+ * `null` means the row is not a door — the tap still marks it read, it
+ * just stays on the list. Every type the API raises about a live trip
+ * carries `tripId` (invites, messages, the daily itinerary), and the
+ * bare id is the route: this app's trip screen is `trips/detail` and
+ * reads `?id`.
+ *
+ * The id alone is enough because the screen fetches the trip itself
+ * (`useTrip`), so a row opens for a trip the local list has not loaded
+ * yet — or never will. `tripFor` is the cover lookup, not a gate.
+ *
+ * `trip_cancelled` is the one exception, and it is the API's rule, not
+ * this function's: the push payload builder
+ * (`apps/api/src/services/push-payload.builder.ts`) sends a deleted
+ * trip to the trip *list*, because `getTripById` answers 404 for it and
+ * the detail's gate renders "Nothing here". A row that opened that gate
+ * would be a dead end dressed as a door, so a delete notice only marks
+ * itself read.
+ */
+export function notificationTarget(notification: Notification): string | null {
+  if (!notification.tripId) return null;
+  if (notification.type === "trip_cancelled") return null;
+  return `/trips/detail?id=${encodeURIComponent(notification.tripId)}`;
+}
+
+/**
  * How long ago, in the app's verbal style: cards say "in 5 days", so a
  * row says "3 hours ago" rather than a bare timestamp.
  *

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   newestFirst,
+  notificationTarget,
   relativeTime,
   tripFor,
   unreadCount,
@@ -130,5 +131,47 @@ describe("tripFor", () => {
 
   it("has nothing to show for a trip the user has left", () => {
     expect(tripFor(trips, note("a", at(19), null, "kyoto"))).toBeUndefined();
+  });
+});
+
+describe("notificationTarget", () => {
+  it("opens the trip the notification is about", () => {
+    expect(notificationTarget(note("a", at(19)))).toBe(
+      "/trips/detail?id=picos",
+    );
+  });
+
+  it("opens the trip for every type the API raises about a live one", () => {
+    // The five types that name a trip this person can still open. An
+    // invite is already a membership by the time it can be read
+    // (`processPendingInvitations`), so its trip is a real door too —
+    // only the delete is not, and the next test is its case.
+    for (const type of [
+      "mutual_invite",
+      "sms_invite",
+      "trip_message",
+      "daily_itinerary",
+      "trip_update",
+    ] as const) {
+      expect(notificationTarget({ ...note("a", at(19)), type })).toBe(
+        "/trips/detail?id=picos",
+      );
+    }
+  });
+
+  it("escapes an id that would otherwise rewrite the query", () => {
+    expect(notificationTarget(note("a", at(19), null, "a&b=c"))).toBe(
+      "/trips/detail?id=a%26b%3Dc",
+    );
+  });
+
+  it("stays put for a deleted trip, which the detail answers 404 for", () => {
+    expect(
+      notificationTarget({ ...note("a", at(19)), type: "trip_cancelled" }),
+    ).toBeNull();
+  });
+
+  it("stays put for a notification about no trip at all", () => {
+    expect(notificationTarget(note("a", at(19), null, null))).toBeNull();
   });
 });

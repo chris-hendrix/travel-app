@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AppState, Platform, Text, View } from "react-native";
+import { useRouter } from "expo-router";
 import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { InlineError } from "@/components/ui/InlineError";
@@ -7,7 +8,7 @@ import { OfflineBlock } from "@/components/ui/OfflineBlock";
 import { NotificationRow } from "@/components/notification/NotificationRow";
 import { PushOptIn } from "@/components/notification/PushOptIn";
 import { permissionState, type PushPermission } from "@/lib/push";
-import { newestFirst, tripFor } from "@/lib/notifications";
+import { newestFirst, notificationTarget, tripFor } from "@/lib/notifications";
 import { useNotifications } from "@/lib/notificationsStore";
 import { useTrips } from "@/lib/tripsStore";
 import { toErrorCopy } from "@/lib/queries/errors";
@@ -24,8 +25,16 @@ import { toErrorCopy } from "@/lib/queries/errors";
  * The list read is the screen (Mockup §5): loading, error, and empty
  * are explicit — the store hook cannot suspend because the header's
  * bell reads it outside any Suspense boundary.
+ *
+ * A row is a door as well as a report: a notification is about one trip,
+ * so tapping it opens that trip and marks itself read on the way out
+ * (`notificationTarget` owns which rows have a trip to open). The push
+ * banner reaches the same screen from the other direction —
+ * `app/_layout.tsx` routes `data.url` on tap — so both ways in land on
+ * the trip rather than on the news that something happened.
  */
 export default function Notifications() {
+  const router = useRouter();
   const { notifications, markRead, markAllRead, unreadCount, status, error, retry } =
     useNotifications();
   const { trips } = useTrips();
@@ -98,10 +107,18 @@ export default function Notifications() {
               notification={notification}
               // The API sends a trip id; the cover comes from the trips on hand.
               trip={tripFor(trips, notification)}
-              // Tapping should open the trip it is about and then mark it
-              // read. Trip detail does not exist yet, so for now it only
-              // marks read.
-              onPress={() => void markRead(notification.id)}
+              // Tap opens the trip it is about, and marks it read on the
+              // way out. Read first: the mutation is optimistic and owned
+              // by the provider, so it outlives this screen — and a genuine
+              // failure (offline) must not swallow a door that still works.
+              // `replace`, not `push`: this dialog has delivered what it
+              // had, so back should return to the screen under it rather
+              // than to a list of what was already read.
+              onPress={() => {
+                void markRead(notification.id).catch(() => {});
+                const target = notificationTarget(notification);
+                if (target) router.replace(target);
+              }}
             />
           ))}
         </View>
