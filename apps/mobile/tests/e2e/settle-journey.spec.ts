@@ -4,7 +4,11 @@
  * Critical flow 7 (Money), one test: a member opens the trip, opens the
  * `Settle` door, adds an expense, reads it in the ledger, reloads, and
  * both the entry and the debt row are still there — a server
- * round-trip, not the cache.
+ * round-trip, not the cache. The last step then adds a **third member**
+ * through the API and reads the same expense again: the split is a rule
+ * (`Everyone going`, the form's default), so the new guest is on a cost
+ * they were never ticked into, and the arithmetic moves from `$22.50`
+ * to `$15.00` without anybody editing it.
  *
  * **The second party is a precondition, not decoration.** A trip whose
  * only member is the creator nets to zero: `computeNetBalances` credits
@@ -53,6 +57,7 @@ test.describe("Settle Journey", () => {
   }) => {
     const tripName = uniqueLabel("E2E Ledger");
     const guestName = uniqueLabel("Money Guest");
+    const laterGuestName = uniqueLabel("Later Guest");
     const description = uniqueLabel("Harbour dinner");
     // $45.00 between two people is $22.50 each with no remainder cent, so
     // the sentence below does not depend on which of the two the roster
@@ -60,6 +65,10 @@ test.describe("Settle Journey", () => {
     // participant it is sent — `lib/payments.ts:splitPreview`).
     const amount = "45.00";
     const share = "$22.50";
+    // The same $45.00 across three is $15.00 each, again with no remainder
+    // cent to hand out: the third person joins without re-dividing an odd
+    // cent, so the shares below are three equal numbers.
+    const thirdShare = "$15.00";
     let tripId: string;
     let token: string;
 
@@ -137,23 +146,13 @@ test.describe("Settle Journey", () => {
       await payerInput.pressSequentially(guestName);
       await page.getByRole("button", { name: guestName }).click();
 
-      // `Split with` — one `Checkbox` per member row, `role="checkbox"`
-      // with `aria-checked` (`components/ui/Checkbox.tsx`). The default
-      // split already carries every `going` member and every guest, so
-      // the loop only clicks what is not ticked: it is what makes "all
-      // participants" a fact of this expense rather than a fact of the
-      // default. Two rows, because the trip has exactly two members —
-      // asserted rather than assumed, since the arithmetic below is over
-      // the split.
-      const boxes = page.getByRole("checkbox");
-      await expect(boxes).toHaveCount(2);
-      for (let i = 0; i < 2; i += 1) {
-        const box = boxes.nth(i);
-        if ((await box.getAttribute("aria-checked")) !== "true") {
-          await box.click();
-        }
-        await expect(box).toHaveAttribute("aria-checked", "true");
-      }
+      // No split control is touched. The form's default scope is
+      // `Everyone going` (`components/trip/ExpenseDialog.tsx`), and it
+      // renders the resolved people and their shares rather than a box
+      // per person — the expense is between the whole roster by
+      // construction, and the roster here is exactly the two members
+      // seeded above: the creator (`going` at creation) and the guest
+      // (`user_id IS NULL`, which the rule counts as going).
 
       // components/ui/FullscreenDialog.tsx + ActionBar: the dialog's one
       // primary action, the same two words as its title.
@@ -193,6 +192,64 @@ test.describe("Settle Journey", () => {
       await expect(page.getByText(`You owe ${guestName} ${share}`)).toBeVisible({
         timeout: NAVIGATION_TIMEOUT,
       });
+    });
+
+    // **After** the step above, not before: a third participant turns the
+    // $22.50 shares into $15.00 ones, and every assertion up to here reads
+    // the two-person arithmetic. This is the dynamic half of the flow — the
+    // split is a rule resolved on every read, not a snapshot of who was
+    // ticked — so the cost has to be recorded first and the roster moved
+    // second, which is also the order a real trip happens in.
+    await test.step("a guest added later joins the split", async () => {
+      // The organizer's own guest endpoint (`helpers/members.ts`), the same
+      // POST the roster's "Add a guest" screen sends. The name is
+      // `uniqueLabel`d like every generated name here (the header's rule) and
+      // for a second reason: the split row is matched by its text, and the
+      // **hidden** ledger beneath the detail names this guest too — it is on
+      // the end of a simplified move — so the assertions below are
+      // visible-only rather than plain text matches.
+      await seedGuestViaAPI(request, token, tripId, laterGuestName);
+
+      // A **reload**, not a re-open. The ledger's three reads sit inside a
+      // 30s `staleTime`, so navigating back into the route would repaint the
+      // cached people; only a fresh load refetches the balances and the
+      // expenses, which is what a second phone's member has to reach.
+      await page.reload();
+      await expect(page.getByText(description).first()).toBeVisible({
+        timeout: NAVIGATION_TIMEOUT,
+      });
+
+      // The entry is the way in: `SettleLedger`'s `ExpenseRow` is a
+      // `Pressable role="button"` named by the words it carries, and the
+      // description is the one of them nothing else in the ledger shares.
+      // Substring, explicitly: the name is the whole row — description,
+      // payer line, day and amount — so an exact match would never find it.
+      await page
+        .getByRole("button", { name: description, exact: false })
+        .click();
+      await page.waitForURL("**/trips/settle/detail*", {
+        timeout: NAVIGATION_TIMEOUT,
+      });
+
+      // `components/trip/ExpenseDetail.tsx`: the split block lists the
+      // people the server resolved. Three rows, because the roster is now
+      // three — the viewer, the guest who paid, and the guest added a
+      // moment ago, who was never part of this expense as it was recorded.
+      // Visible-only, because the ledger stays mounted behind a pushed
+      // route (the admin and invitation specs' own fix).
+      await expect(
+        page
+          .getByText(laterGuestName)
+          .filter({ visible: true })
+          .first(),
+      ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+      // And the shares followed the roster: $45.00 across three, three
+      // times. `exact` so a row's sentence cannot count as one of them.
+      await expect(
+        page
+          .getByText(thirdShare, { exact: true })
+          .filter({ visible: true }),
+      ).toHaveCount(3, { timeout: ELEMENT_TIMEOUT });
     });
   });
 });
