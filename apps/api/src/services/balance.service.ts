@@ -7,6 +7,11 @@ import {
 import { eq, and, isNull, inArray, sql } from "drizzle-orm";
 import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
+import {
+  asSplitScope,
+  loadSplitMembers,
+  resolveScopedSplit,
+} from "./payment-split.js";
 import { PermissionDeniedError } from "../errors.js";
 
 interface BalancePerson {
@@ -119,6 +124,12 @@ export class BalanceService implements IBalanceService {
    * Positive = owed money (net payer). Negative = owes money (net debtor).
    * Key format: "member:<members.id>". The payer key comes straight from
    * payments.memberId — no join-through-user needed.
+   *
+   * A `custom` payment's split is its rows. A scoped one has none — the scope
+   * *is* the record — so it is resolved against the roster here (`payment-
+   * split.ts`), the same rule the ledger reads and the form previews: a member
+   * added since the expense was filed owes a share, one removed does not. The
+   * roster is read once for the whole trip, not once per payment.
    */
   private async computeNetBalances(
     tripId: string,
@@ -131,23 +142,33 @@ export class BalanceService implements IBalanceService {
         id: payments.id,
         amount: payments.amount,
         memberId: payments.memberId,
+        splitScope: payments.splitScope,
       })
       .from(payments)
       .where(and(eq(payments.tripId, tripId), isNull(payments.deletedAt)));
 
     if (paymentRows.length === 0) return net;
 
-    const paymentIds = paymentRows.map((p) => p.id);
+    // Only a `custom` payment has rows; a stray row on a scoped payment must
+    // not widen its split (the scope is the record there).
+    const customPaymentIds = paymentRows
+      .filter((p) => asSplitScope(p.splitScope) === "custom")
+      .map((p) => p.id);
 
-    // Get all participants
-    const participantRows = await this.db
-      .select({
-        paymentId: paymentParticipants.paymentId,
-        memberId: paymentParticipants.memberId,
-        shareAmount: paymentParticipants.shareAmount,
-      })
-      .from(paymentParticipants)
-      .where(inArray(paymentParticipants.paymentId, paymentIds));
+    const roster = await loadSplitMembers(this.db, tripId);
+
+    // Get the participants of the custom payments
+    const participantRows =
+      customPaymentIds.length > 0
+        ? await this.db
+            .select({
+              paymentId: paymentParticipants.paymentId,
+              memberId: paymentParticipants.memberId,
+              shareAmount: paymentParticipants.shareAmount,
+            })
+            .from(paymentParticipants)
+            .where(inArray(paymentParticipants.paymentId, customPaymentIds))
+        : [];
 
     // Group participants by payment
     const participantsByPayment = new Map<string, typeof participantRows>();
@@ -164,8 +185,18 @@ export class BalanceService implements IBalanceService {
       net.set(payerKey, (net.get(payerKey) ?? 0) + payment.amount);
 
       // Each participant owes their share
-      const pParticipants = participantsByPayment.get(payment.id) ?? [];
-      for (const pp of pParticipants) {
+      const scope = asSplitScope(payment.splitScope);
+      const participants =
+        scope === "custom"
+          ? (participantsByPayment.get(payment.id) ?? [])
+          : resolveScopedSplit(
+              scope,
+              roster,
+              payment.amount,
+              payment.memberId,
+            );
+
+      for (const pp of participants) {
         const participantKey = `member:${pp.memberId}`;
         net.set(
           participantKey,

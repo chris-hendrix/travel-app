@@ -80,6 +80,27 @@ describe("balance.service", () => {
     return payment!;
   };
 
+  /** Create a scoped payment: the rule is the record, so no rows. */
+  const createScopedPayment = async (
+    payerMemberId: string,
+    amount: number,
+    splitScope: "all_going" | "all_invited",
+    description = "Scoped payment",
+  ) => {
+    const [payment] = await db
+      .insert(payments)
+      .values({
+        tripId,
+        description,
+        amount,
+        splitScope,
+        memberId: payerMemberId,
+        createdBy: userAId,
+      })
+      .returning();
+    return payment!;
+  };
+
   beforeEach(async () => {
     phoneA = generateUniquePhone();
     phoneB = generateUniquePhone();
@@ -446,6 +467,120 @@ describe("balance.service", () => {
       .where(eq(paymentParticipants.memberId, guestMemberId));
     await db.delete(payments).where(eq(payments.tripId, tripId));
     await db.delete(users).where(eq(users.id, newUser!.id));
+  });
+
+  describe("scoped splits", () => {
+    /** The moves as comparable data, in a stable order. */
+    const shape = (
+      rows: { from: { id: string }; to: { id: string }; amount: number }[],
+    ) =>
+      rows
+        .map((row) => `${row.from.id}->${row.to.id}:${row.amount}`)
+        .sort();
+
+    it("a scoped expense produces the same moves as the equivalent custom one", async () => {
+      // Everyone is going, so `all_going` is the same three people a custom
+      // split would list — and the ledger must not be able to tell them apart.
+      const scoped = await createScopedPayment(memberAId, 3000, "all_going");
+      const scopedBalances = await balanceService.getTripBalances(
+        userAId,
+        tripId,
+      );
+      await db.delete(payments).where(eq(payments.id, scoped.id));
+
+      await createPayment(
+        memberAId,
+        3000,
+        [
+          { memberId: memberAId, shareAmount: 1000 },
+          { memberId: memberBId, shareAmount: 1000 },
+          { memberId: memberCId, shareAmount: 1000 },
+        ],
+        "Custom dinner",
+      );
+      const customBalances = await balanceService.getTripBalances(
+        userAId,
+        tripId,
+      );
+
+      expect(shape(scopedBalances)).toEqual(shape(customBalances));
+      expect(shape(scopedBalances)).toEqual(
+        shape([
+          { from: { id: memberBId }, to: { id: memberAId }, amount: 1000 },
+          { from: { id: memberCId }, to: { id: memberAId }, amount: 1000 },
+        ]),
+      );
+    });
+
+    it("adding a member changes the moves on the next read", async () => {
+      await createScopedPayment(memberAId, 3000, "all_going");
+
+      const before = await balanceService.getTripBalances(userAId, tripId);
+      expect(before).toHaveLength(2);
+      expect(before.reduce((sum, b) => sum + b.amount, 0)).toBe(2000);
+
+      // A guest is in `all_going` by rule (`userId === null`), so this is the
+      // roster moving under a stored expense — no edit, no new rows.
+      const [dave] = await db
+        .insert(members)
+        .values({ tripId, userId: null, guestDisplayName: "Dave" })
+        .returning();
+
+      const after = await balanceService.getTripBalances(userAId, tripId);
+      expect(after).toHaveLength(3);
+      expect(after.find((b) => b.from.id === dave!.id)).toMatchObject({
+        from: { id: dave!.id, name: "Dave" },
+        to: { id: memberAId, name: "Alice" },
+        amount: 750,
+      });
+      expect(after.reduce((sum, b) => sum + b.amount, 0)).toBe(2250);
+    });
+
+    it("a scope that resolves to nobody produces no moves", async () => {
+      // Nobody answered yes and there is no guest to carry the clause, so
+      // `all_going` is empty — the read falls back to the payer alone, which
+      // credits and debits the same person: net zero, no moves.
+      await db
+        .update(members)
+        .set({ status: "maybe" })
+        .where(eq(members.tripId, tripId));
+      await createScopedPayment(memberAId, 3000, "all_going");
+
+      expect(await balanceService.getTripBalances(userAId, tripId)).toEqual([]);
+
+      const mine = await balanceService.getMyBalance(userAId, tripId);
+      expect(mine.netBalance).toBe(0);
+      expect(mine.details).toEqual([]);
+    });
+
+    it("keeps the membership gate closed when a scoped payment exists", async () => {
+      await createScopedPayment(memberAId, 3000, "all_invited");
+
+      const outsiderPhone = generateUniquePhone();
+      const [outsider] = await db
+        .insert(users)
+        .values({
+          phoneNumber: outsiderPhone,
+          displayName: "Outsider",
+          timezone: "UTC",
+        })
+        .returning();
+      try {
+        const err = await balanceService
+          .getTripBalances(outsider!.id, tripId)
+          .catch((e) => e);
+        expect(err).toBeInstanceOf(PermissionDeniedError);
+        expect(err.statusCode).toBe(403);
+
+        const mineErr = await balanceService
+          .getMyBalance(outsider!.id, tripId)
+          .catch((e) => e);
+        expect(mineErr).toBeInstanceOf(PermissionDeniedError);
+        expect(mineErr.statusCode).toBe(403);
+      } finally {
+        await db.delete(users).where(eq(users.id, outsider!.id));
+      }
+    });
   });
 
   describe("getMyBalance", () => {

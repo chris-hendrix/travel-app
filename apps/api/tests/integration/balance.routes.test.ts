@@ -10,6 +10,7 @@ import {
   paymentParticipants,
 } from "@/db/schema/index.js";
 import { generateUniquePhone } from "../test-utils.js";
+import { eq } from "drizzle-orm";
 
 describe("Balance Routes", () => {
   let app: FastifyInstance;
@@ -94,6 +95,51 @@ describe("Balance Routes", () => {
         to: { name: "Alice" },
         amount: 1000,
       });
+    });
+
+    it("a scoped expense reaches the moves", async () => {
+      app = await buildApp();
+      const { userA, trip } = await setupTripWithPayment();
+      const token = app.jwt.sign({ sub: userA.id, name: userA.displayName });
+
+      // Replace the fixture's custom payment with a scoped one: the same two
+      // people, no participant rows. The wire must read the scope, not the
+      // rows it does not have.
+      await db.delete(payments).where(eq(payments.tripId, trip.id));
+      const [memberA] = await db
+        .select()
+        .from(members)
+        .where(eq(members.userId, userA.id));
+      await db.insert(payments).values({
+        tripId: trip.id,
+        description: "Dinner (everyone going)",
+        amount: 2000,
+        splitScope: "all_going",
+        memberId: memberA!.id,
+        createdBy: userA.id,
+      });
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/api/trips/${trip.id}/balances`,
+        cookies: { auth_token: token },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.balances).toHaveLength(1);
+      expect(body.balances[0]).toMatchObject({
+        from: { name: "Bob" },
+        to: { name: "Alice" },
+        amount: 1000,
+      });
+
+      const mine = await app.inject({
+        method: "GET",
+        url: `/api/trips/${trip.id}/balances/me`,
+        cookies: { auth_token: token },
+      });
+      expect(JSON.parse(mine.body).netBalance).toBe(1000);
     });
 
     it("should return 403 for a non-member", async () => {
