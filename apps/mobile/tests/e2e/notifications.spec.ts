@@ -18,14 +18,15 @@
  * user must be seeded FIRST, then invited — inviting an unknown number
  * leaves a pending invitation with no user and no notification.
  *
- * WHAT "TAP → NAVIGATE" MEANS HERE: the plan's shorthand says
- * "tap → navigate → marked read", but `app/notifications.tsx` wires
- * `onPress` to `markRead` only ("Tapping should open the trip it is
- * about and then mark it read. Trip detail does not exist yet, so for
- * now it only marks read."). There is no navigation to drive and the
- * plan forbids building UI, so the spec asserts the implemented half:
- * tap → marked read (row read server-side, badge count drops),
- * documented here rather than silently narrowed.
+ * WHAT "TAP → NAVIGATE" MEANS HERE: a row is a door. `app/notifications.tsx`
+ * wires `onPress` to `markRead` and then to the trip the notification is
+ * about — `notificationTarget` in `lib/notifications.ts` builds
+ * `/trips/detail?id=<tripId>`, the same screen the push banner's tap
+ * reaches through `app/_layout.tsx` + `lib/pushRoutes.ts`. So the spec
+ * asserts both halves: the URL lands on the invited trip, and the row is
+ * read server-side with the badge dropping 2 → 1. The detail's own header
+ * is the second proof — the trip title is what the landing renders, not
+ * the notification's body.
  *
  * SELECTOR NOTES (every selector names its screen match):
  * - The header bell (`components/ui/AppHeader.tsx` `BellButton`) is a
@@ -196,6 +197,9 @@ test.describe("Notifications", () => {
     const bodyA = `${HOST_NAME} invited you to ${tripA}`;
     const bodyB = `${HOST_NAME} invited you to ${tripB}`;
     let guestToken: string;
+    // The tapped row's trip, out of the seeding step: the navigation
+    // assertion names the id rather than "some trip detail".
+    let tripIdA: string;
     let guestPhone: string;
 
     await test.step("guest registers first, then is invited to two trips", async () => {
@@ -212,7 +216,7 @@ test.describe("Notifications", () => {
         generateUniquePhone(),
         HOST_NAME,
       );
-      const tripIdA = await seedTripViaAPI(request, orgToken, tripA);
+      tripIdA = await seedTripViaAPI(request, orgToken, tripA);
       const tripIdB = await seedTripViaAPI(request, orgToken, tripB);
       await seedInviteViaAPI(request, orgToken, tripIdA, guestPhone);
       await seedInviteViaAPI(request, orgToken, tripIdB, guestPhone);
@@ -274,11 +278,23 @@ test.describe("Notifications", () => {
       await expect(page.getByText(bodyB)).toBeVisible();
     });
 
-    await test.step("tap one notification → it is marked read, count drops", async () => {
+    await test.step("tap one notification → it opens its trip, marked read", async () => {
       // NotificationRow is a role-less Pressable: tap via its body
       // text (bubbles to onPress → markRead → PATCH
-      // /notifications/:id/read).
+      // /notifications/:id/read, then `router.replace` to the trip).
       await page.getByText(bodyA).click();
+      // The trip the row is about, not merely some trip detail: the id
+      // in the url is the one the invitation created.
+      await page.waitForURL(`**/trips/detail?id=${tripIdA}`, {
+        timeout: NAVIGATION_TIMEOUT,
+      });
+      // app/trips/detail.tsx: the header renders the trip title as
+      // display text (right column, date → name → place order).
+      // .last(): the app header echoes the same title in a hidden
+      // element, so the bare text matches twice.
+      await expect(page.getByText(tripA).last()).toBeVisible({
+        timeout: ELEMENT_TIMEOUT,
+      });
       // Server-side read proof: the row's readAt is stamped. Scoped
       // by body text so the sibling row cannot satisfy the poll.
       await expect
@@ -298,6 +314,10 @@ test.describe("Notifications", () => {
     });
 
     await test.step("mark-all-read clears the rest", async () => {
+      // The tap replaced the list with the trip, so the center is
+      // re-entered — the remaining row is still unread, which is what
+      // makes the bulk action the subject here.
+      await page.goto("/notifications");
       // app/notifications.tsx primaryTitle="Mark all read" →
       // ActionBar → Button (accessibilityRole="button" with the title
       // as its name, per components/ui/Button.tsx).
