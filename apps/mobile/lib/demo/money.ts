@@ -19,7 +19,8 @@
 import { atClock, DEMO_VIEWER_MEMBER_ID, userIdOf } from "@/lib/demo/fixture";
 import { findRowAnywhere, notFound, nowIso } from "@/lib/demo/store";
 import type { DemoBody, DemoStore } from "@/lib/demo/store";
-import { splitPreview } from "@/lib/payments";
+import { splitForScope, splitPreview } from "@/lib/payments";
+import type { SplitScope } from "@/lib/payments";
 import type {
   BalanceEntry,
   MemberWithProfile,
@@ -594,6 +595,23 @@ function viewerRowOf(
   return rosterOf(store, tripId).find((row) => row.userId === "demo-viewer");
 }
 
+/**
+ * The scope a write body names, or `null` when it names none.
+ *
+ * Exactly the three the wire carries, and nothing is inferred from
+ * anything else: the API answers a 400 for a value outside them
+ * (`split_scope`'s check constraint behind the request schema), so the
+ * demo has no reason to invent a meaning for one. `null` is "the body
+ * said nothing", which is a different thing from `custom` — a create
+ * defaults to `custom` (the column's own default), while an update
+ * leaves the row's current scope alone.
+ */
+function splitScopeOf(value: unknown): SplitScope | null {
+  return value === "custom" || value === "all_going" || value === "all_invited"
+    ? value
+    : null;
+}
+
 /** The member ids out of a write body's `participants` array. */
 function memberIdsFrom(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -606,6 +624,28 @@ function memberIdsFrom(value: unknown): string[] {
     if (typeof memberId === "string") ids.push(memberId);
   }
   return ids;
+}
+
+/**
+ * The member ids one write's split resolves to.
+ *
+ * `custom` is the list the body carried, in the order it arrived — that
+ * order is what hands the remainder cents out. A scope is **resolved**
+ * against the demo store's roster through the repo's own rule,
+ * `splitForScope` (`lib/payments.ts`): the client's half of the rule the
+ * API applies to the same roster, so the people the form previewed are
+ * the people the row stores. Its answer is in member-id order, which is
+ * `setParticipants`' order too, so the ids resolved here are priced by
+ * the one arithmetic (`equalShares`) in the same order they came in.
+ */
+function splitMemberIdsFor(
+  scope: SplitScope,
+  body: DemoBody,
+  roster: readonly MemberWithProfile[],
+  amount: number,
+): string[] {
+  if (scope === "custom") return memberIdsFrom(body.participants);
+  return splitForScope(scope, roster, amount).map((share) => share.memberId);
 }
 
 /**
@@ -723,6 +763,13 @@ export function myBalance(
 
 /**
  * A new expense, as `POST /trips/:id/payments` serves it.
+ *
+ * The split arrives as one of the two things the wire allows: a scope the
+ * server resolves, or a fixed list. A scope is resolved here against the
+ * demo store's own members (`splitMemberIdsFor`) and the row stores the
+ * **resolved snapshot**, with the scope it was resolved by beside it — the
+ * demo's roster never moves, so a snapshot and a rule are the same thing
+ * on this surface, and a read needs no resolver.
  */
 export function createPayment(
   store: DemoStore,
@@ -736,6 +783,13 @@ export function createPayment(
     typeof body.payerMemberId === "string"
       ? body.payerMemberId
       : DEMO_VIEWER_MEMBER_ID;
+  const amount =
+    typeof body.amount === "number" && Number.isInteger(body.amount)
+      ? body.amount
+      : 0;
+  // No scope in the body is the column's own default, exactly as the
+  // server's create would store it (`split_scope` defaults to `custom`).
+  const scope = splitScopeOf(body.splitScope) ?? "custom";
   const row: Payment = {
     id: `demo-payment-created-${store.counters.payment}`,
     tripId,
@@ -747,11 +801,8 @@ export function createPayment(
     // null; an absent note stays absent.
     note:
       typeof body.note === "string" && body.note !== "" ? body.note : null,
-    amount:
-      typeof body.amount === "number" && Number.isInteger(body.amount)
-        ? body.amount
-        : 0,
-    splitScope: "custom",
+    amount,
+    splitScope: scope,
     payerMemberId,
     payerName: nameOf(payerMemberId),
     date: (typeof body.date === "string"
@@ -769,8 +820,14 @@ export function createPayment(
   };
   // The shares are the server's rule, over the participants in the
   // order they arrived — that order is what hands the remainder
-  // cents out, and the form sent it for exactly this reason.
-  setParticipants(row, memberIdsFrom(body.participants), nameOf);
+  // cents out, and the form sent it for exactly this reason. A scoped
+  // create has no order of its own: the rule decides it
+  // (`splitMemberIdsFor`).
+  setParticipants(
+    row,
+    splitMemberIdsFor(scope, body, roster, amount),
+    nameOf,
+  );
   store.payments.get(tripId)?.push(row);
   return { status: 201, body: { success: true, payment: row } };
 }
@@ -785,8 +842,8 @@ export function updatePayment(
   row: Payment,
   body: DemoBody,
 ): { status: 200; body: DemoBody } {
-  const nameOf = (memberId: string) =>
-    nameOfMember(store.members.get(row.tripId) ?? [], memberId);
+  const roster = rosterOf(store, row.tripId);
+  const nameOf = (memberId: string) => nameOfMember(roster, memberId);
 
   if (typeof body.description === "string") {
     row.description = body.description;
@@ -809,17 +866,33 @@ export function updatePayment(
   row.updatedAt = nowIso() as unknown as Date;
 
   // The shares follow the amount, exactly as the server recomputes
-  // them: a new participants list replaces the rows with shares of
-  // the final amount, and an amount on its own recomputes the
-  // participants already on the row.
-  if (Array.isArray(body.participants)) {
-    setParticipants(row, memberIdsFrom(body.participants), nameOf);
-  } else if (typeof body.amount === "number") {
+  // them, and a scope in the body re-resolves the split: a rule is
+  // resolved against the trip's roster and replaces the stored rows
+  // with the snapshot it names (`splitMemberIdsFor`), while `custom` —
+  // or no scope at all — leaves the participants branch below to say
+  // what the rows are. The order is load-bearing for a list, and it is
+  // the resolver's for a rule.
+  const scope = splitScopeOf(body.splitScope);
+  if (scope === "all_going" || scope === "all_invited") {
+    row.splitScope = scope;
     setParticipants(
       row,
-      row.participants.map((participant) => participant.memberId),
+      splitMemberIdsFor(scope, body, roster, row.amount),
       nameOf,
     );
+  } else {
+    if (scope === "custom") {
+      row.splitScope = "custom";
+    }
+    if (Array.isArray(body.participants)) {
+      setParticipants(row, memberIdsFrom(body.participants), nameOf);
+    } else if (typeof body.amount === "number") {
+      setParticipants(
+        row,
+        row.participants.map((participant) => participant.memberId),
+        nameOf,
+      );
+    }
   }
   return { status: 200, body: { success: true, payment: row } };
 }

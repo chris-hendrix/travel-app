@@ -27,6 +27,8 @@ type PaymentRow = {
   id: string;
   amount: number;
   note: string | null;
+  /** The rule the cost is shared by — `custom` when the rows are it. */
+  splitScope: string;
   payerMemberId: string;
   payerName: string;
   date: string;
@@ -802,6 +804,88 @@ describe("the demo data layer", () => {
     await expect(
       apiFetch(`/payments/${created.payment.id}`, { method: "DELETE" }),
     ).rejects.toThrow();
+
+    expect(inner).not.toHaveBeenCalled();
+    expect(getUnhandledApiUrls()).toEqual([]);
+  });
+
+  it("resolves a split scope against the demo's own roster", async () => {
+    // The demo has no resolver on its read path — the roster never moves
+    // there — so a scoped write is where the rule runs: the ids are
+    // resolved through `splitForScope` (`lib/payments.ts`, the client's
+    // half of the rule the API applies) and the row stores the snapshot
+    // beside the scope it was resolved by.
+    const tripId = DEMO_TRIP_ID;
+    const roster = await apiFetch<{ success: true; members: MemberRow[] }>(
+      `/trips/${tripId}/members`,
+    );
+    const viewer = roster.members.find((row) => row.userId === "demo-viewer")!;
+
+    // `all_going` is every member who said going **plus every guest**, in
+    // member-id order (D2). Cabo's roster is You, Liz and Sam going and
+    // Nina the guest (no account behind her row), with Marco on `maybe`
+    // and Priya on `no_response` left out — so the split is four people
+    // even though one of them never answered anything. The order is also
+    // the order the remainder cent is handed out in: $100.01 across the
+    // four is [2501, 2500, 2500, 2500].
+    const created = await apiFetch<{ success: true; payment: PaymentRow }>(
+      `/trips/${tripId}/payments`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          description: "Scoped boat fuel",
+          amount: 10001,
+          payerMemberId: viewer.id,
+          splitScope: "all_going",
+        }),
+      },
+    );
+    expect(created.payment.splitScope).toBe("all_going");
+    expect(created.payment.participants.map((p) => p.memberId)).toEqual([
+      "demo-guest-cabo",
+      "demo-liz",
+      "demo-sam",
+      viewer.id,
+    ]);
+    expect(created.payment.participants.map((p) => p.shareAmount)).toEqual([
+      2501, 2500, 2500, 2500,
+    ]);
+
+    // An edit re-resolves the scope it is sent rather than keeping the
+    // old list: `all_invited` is the whole roster, declines included, so
+    // Marco and Priya are on this one — six people, $200.00, which is
+    // [3334, 3334, 3333, 3333, 3333, 3333].
+    const updated = await apiFetch<{ success: true; payment: PaymentRow }>(
+      `/payments/${created.payment.id}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: 20000, splitScope: "all_invited" }),
+      },
+    );
+    expect(updated.payment.splitScope).toBe("all_invited");
+    expect(updated.payment.participants.map((p) => p.memberId)).toEqual([
+      "demo-guest-cabo",
+      "demo-liz",
+      "demo-marco",
+      "demo-priya",
+      "demo-sam",
+      viewer.id,
+    ]);
+    expect(updated.payment.participants.map((p) => p.shareAmount)).toEqual([
+      3334, 3334, 3333, 3333, 3333, 3333,
+    ]);
+
+    // And the ledger reads that snapshot, because that is all a demo read
+    // has: the row is in the trip's list with the six people on it.
+    const { payments } = await apiFetch<{
+      success: true;
+      payments: PaymentRow[];
+    }>(`/trips/${tripId}/payments`);
+    const listed = payments.find((row) => row.id === created.payment.id);
+    expect(listed?.splitScope).toBe("all_invited");
+    expect(listed?.participants.length).toBe(6);
 
     expect(inner).not.toHaveBeenCalled();
     expect(getUnhandledApiUrls()).toEqual([]);
