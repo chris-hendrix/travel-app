@@ -100,24 +100,25 @@ export class PaymentService implements IPaymentService {
     // always filed.
     const scope: SplitScope = data.splitScope ?? "custom";
 
-    // The payer is checked on every path. A scoped split needs no membership
-    // check of its participants — they come from the trip's own roster, so
-    // they are members by construction — but a scope says nothing about who
-    // paid.
-    await this.assertMembersInTrip(tripId, [data.payerMemberId]);
-
     if (scope !== "custom") {
+      // A scoped split needs no membership check of its participants — they
+      // come from the trip's own roster, so they are members by construction —
+      // but a scope says nothing about who paid, so the payer is checked alone.
+      await this.assertMembersInTrip(tripId, [data.payerMemberId]);
       return this.createScopedPayment(userId, tripId, data, scope);
     }
 
     const participants = data.participants ?? [];
 
-    // Validate the participants belong to this trip too.
+    // Validate the payer and the participants belong to this trip in one query.
     // Guests are allowed — the organizer records who paid; `createdBy` stays
     // the recording user.
     const participantMemberIds = participants.map((p) => p.memberId);
     this.assertNoDuplicateParticipants(participantMemberIds);
-    await this.assertMembersInTrip(tripId, participantMemberIds);
+    await this.assertMembersInTrip(tripId, [
+      data.payerMemberId,
+      ...participantMemberIds,
+    ]);
 
     // Compute equal shares with cent rounding
     const shares = this.computeEqualShares(data.amount, participants.length);

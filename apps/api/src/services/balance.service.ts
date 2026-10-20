@@ -129,7 +129,8 @@ export class BalanceService implements IBalanceService {
    * *is* the record — so it is resolved against the roster here (`payment-
    * split.ts`), the same rule the ledger reads and the form previews: a member
    * added since the expense was filed owes a share, one removed does not. The
-   * roster is read once for the whole trip, not once per payment.
+   * roster is read once for the whole trip, not once per payment, and only when
+   * a scoped payment is actually in the list.
    */
   private async computeNetBalances(
     tripId: string,
@@ -155,7 +156,13 @@ export class BalanceService implements IBalanceService {
       .filter((p) => asSplitScope(p.splitScope) === "custom")
       .map((p) => p.id);
 
-    const roster = await loadSplitMembers(this.db, tripId);
+    // A trip whose payments are all `custom` resolves from their own rows, so
+    // the roster read is skipped there — `customPaymentIds` is that same
+    // decision read from the other side.
+    const roster =
+      customPaymentIds.length < paymentRows.length
+        ? await loadSplitMembers(this.db, tripId)
+        : [];
 
     // Get the participants of the custom payments
     const participantRows =
