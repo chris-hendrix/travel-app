@@ -840,7 +840,7 @@ export function handleDemoRequest(
     const row = paymentRowById(store, id);
     if (!row) return notFound("Payment not found");
     if (verb === "PUT") return updatePayment(store, row, body);
-    if (verb === "DELETE") return deletePayment(row);
+    if (verb === "DELETE") return deletePayment(store, row);
   }
 
   // Before the id matcher, because `/member-travel/locations` would

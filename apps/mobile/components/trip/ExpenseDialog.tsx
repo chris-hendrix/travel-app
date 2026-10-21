@@ -268,11 +268,19 @@ export function ExpenseDialog({
   serverError?: string | null;
   /** Handed an input that has already passed validation, and its cents. */
   onSubmit: (input: ExpenseInput, cents: number) => void;
-  /** Editing only. Soft on the server, so it needs no confirmation step. */
+  /**
+   * Editing only, and permanent on the server (`payment.service.ts`'s
+   * `deletePayment`): the foot row's danger button arms a confirmation
+   * rather than firing on the first press, because there is no undo.
+   */
   onDelete?: (() => void) | undefined;
   /** A write is in flight: the dialog's own two buttons stop. */
   pending?: boolean;
 }) {
+  // The delete's first press: the foot button inverts and a way out appears
+  // above it. The same two-step the member card takes, because a permanent
+  // write asks the same question wherever it lives.
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [description, setDescription] = useState(initial?.description ?? "");
   const [amount, setAmount] = useState(initial?.amount ?? "");
   // A `null` note reads as an empty field: the wire gives the read side
@@ -420,8 +428,21 @@ export function ExpenseDialog({
       primaryTitle={primaryTitle}
       onPrimary={submit}
       pending={pending}
-      dangerTitle={onDelete ? "Delete expense" : undefined}
-      onDanger={onDelete}
+      dangerTitle={
+        onDelete
+          ? confirmingDelete
+            ? "Delete expense, for good"
+            : "Delete expense"
+          : undefined
+      }
+      onDanger={
+        onDelete
+          ? () => {
+              if (confirmingDelete) onDelete();
+              else setConfirmingDelete(true);
+            }
+          : undefined
+      }
       dismissHref={dismissHref}
     >
       <Stack.Screen options={{ presentation: "modal" }} />
@@ -589,6 +610,23 @@ export function ExpenseDialog({
         />
         <FieldError message={errors.day} />
       </View>
+
+      {/* The confirmation, in the body rather than in the foot row: the
+          button that asks is the button that does it, and this is what it
+          says before it does. No undo exists to offer, so the way out has to
+          be visible while the finger is still on the button. */}
+      {onDelete && confirmingDelete ? (
+        <View className="gap-2">
+          <Text className="font-body text-base text-ink">
+            Deleting an expense is permanent.
+          </Text>
+          <QuietAction
+            label="Keep it"
+            ariaLabel="Keep this expense"
+            onPress={() => setConfirmingDelete(false)}
+          />
+        </View>
+      ) : null}
     </FullscreenDialog>
   );
 }

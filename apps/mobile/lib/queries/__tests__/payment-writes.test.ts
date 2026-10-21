@@ -49,8 +49,6 @@ function apiPayment(overrides: Partial<ApiPayment> = {}): ApiPayment {
     payerName: "Ava",
     date: new Date("2026-10-11T10:00:00.000Z"),
     createdBy: "user-1",
-    deletedAt: null,
-    deletedBy: null,
     createdAt: new Date("2026-10-11T10:00:00.000Z"),
     updatedAt: new Date("2026-10-11T10:00:00.000Z"),
     participants: [
@@ -92,7 +90,6 @@ function cachedPayment(overrides: Partial<Payment> = {}): Payment {
       { id: "pp-2", memberId: "member-2", name: "Priya", shareAmount: 5000 },
     ],
     createdAt: "2026-10-11T10:00:00.000Z",
-    deletedAt: null,
     ...overrides,
   };
 }
@@ -606,7 +603,7 @@ describe("deletePayment", () => {
 });
 
 describe("useDeletePayment", () => {
-  it("paints deletedAt so the ledger drops the row immediately", async () => {
+  it("drops the row immediately, because the delete is permanent", async () => {
     mockedApiFetch.mockReset();
     let resolveFetch!: (value: unknown) => void;
     mockedApiFetch.mockImplementation(
@@ -630,9 +627,8 @@ describe("useDeletePayment", () => {
 
     await vi.waitFor(() => {
       expect(
-        client.getQueryData<Payment[]>(paymentKeys.list("trip-1"))![0]!
-          .deletedAt,
-      ).not.toBeNull();
+        client.getQueryData<Payment[]>(paymentKeys.list("trip-1")),
+      ).toHaveLength(0);
     });
 
     resolveFetch({ success: true });
@@ -665,8 +661,8 @@ describe("useDeletePayment", () => {
     ).rejects.toThrow();
 
     expect(
-      client.getQueryData<Payment[]>(paymentKeys.list("trip-1"))![0]!.deletedAt,
-    ).toBeNull();
+      client.getQueryData<Payment[]>(paymentKeys.list("trip-1")),
+    ).toHaveLength(1);
   });
 });
 

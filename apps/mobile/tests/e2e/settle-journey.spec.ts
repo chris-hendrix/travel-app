@@ -1,8 +1,8 @@
 /**
  * E2E Journey: the ledger (mobile).
  *
- * Critical flow 7 (Money), two tests, because the split has two halves and
- * they fail differently.
+ * Critical flow 7 (Money), three tests, because the split has two halves and
+ * an exit, and they fail differently.
  *
  * **One: the rule.** A member opens the trip, opens the `Settle` door, adds
  * an expense, reads it in the ledger, reloads, and both the entry and the
@@ -24,6 +24,13 @@
  * each test's arithmetic readable — the first reads a split that grows, the
  * second a split the reader narrowed — and a reader debugging one of them
  * does not have to reason about the other's roster.
+ *
+ * **Three: the exit.** An expense is deleted from its own sheet and the
+ * ledger's X has to leave the ledger rather than walk back into the row that
+ * is gone. Deleting is permanent (`0059`), so the form asks first, and the
+ * two presses plus the X are the only coverage this flow has: nothing else in
+ * the suite deletes an expense at all, and the failure it guards is a door
+ * that opens onto a screen that no longer exists.
  *
  * **The second party is a precondition, not decoration.** A trip whose
  * only member is the creator nets to zero: `computeNetBalances` credits
@@ -67,6 +74,7 @@ import {
 } from "./helpers/timeouts";
 import { seedTripViaAPI } from "./helpers/trip";
 import { seedGuestViaAPI } from "./helpers/members";
+import { seedExpenseViaAPI } from "./helpers/payments";
 
 test.describe("Settle Journey", () => {
   test("record an expense → read the debt → reload keeps both", async ({
@@ -400,6 +408,110 @@ test.describe("Settle Journey", () => {
       // And the person who was unticked is not on the row at all.
       await expect(
         page.getByText(guestName).filter({ visible: true }),
+      ).toHaveCount(0);
+    });
+  });
+
+  test("delete an expense → the ledger's X leaves the ledger", async ({
+    page,
+    request,
+  }) => {
+    const tripName = uniqueLabel("E2E Delete");
+    const guestName = uniqueLabel("Delete Guest");
+    const description = uniqueLabel("Harbour lunch");
+    let tripId: string;
+    let token: string;
+
+    await test.step("seed a session, a trip and the expense to delete", async () => {
+      ({ token } = await seedUserViaAPI(
+        request,
+        generateUniquePhone(),
+        "Delete Host",
+      ));
+      ({ id: tripId } = await seedTripViaAPI(request, token, tripName));
+      const payerMemberId = await seedGuestViaAPI(
+        request,
+        token,
+        tripId,
+        guestName,
+      );
+      // The row, not the form: this test is about the exit. `all_invited` is
+      // the trip's whole roster, so the sheet has a split block to paint
+      // without the seeder having to name participants.
+      await seedExpenseViaAPI(request, token, tripId, {
+        description,
+        amount: 3000,
+        payerMemberId,
+        splitScope: "all_invited",
+      });
+    });
+
+    await test.step("open the ledger and the expense's own sheet", async () => {
+      await armSession(page, token);
+      // The path a reader actually takes: the trip, its `Settle` door, the
+      // row. The stack this builds is what the exit has to walk back down —
+      // trip → ledger → sheet — so a deep link to the sheet would test a
+      // stack the app never makes.
+      await page.goto(`/trips/detail?id=${tripId}`);
+      await expect(page.getByText(tripName).last()).toBeVisible({
+        timeout: NAVIGATION_TIMEOUT,
+      });
+      await page.getByRole("button", { name: "Settle" }).click();
+      // components/trip/SettleLedger.tsx: the row is the entry, pressed to
+      // open its sheet.
+      await page.getByText(description).first().click();
+      // The sheet's own door: the ledger behind it carries the description
+      // too, so the assertion names something only the sheet has.
+      await expect(
+        page.getByRole("button", { name: "Edit expense" }),
+      ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
+    });
+
+    await test.step("delete it: the first press asks, the second does it", async () => {
+      // components/trip/ExpenseDialog.tsx: the detail sheet's one primary
+      // action is the edit door (`canEdit` — the seeded row is the
+      // organizer's).
+      await page.getByRole("button", { name: "Edit expense" }).click();
+
+      // The danger button's first press arms the confirmation rather than
+      // firing: deleting is permanent, so there is no undo to offer.
+      await page
+        .getByRole("button", { name: "Delete expense", exact: true })
+        .last()
+        .click();
+      await expect(
+        page.getByText("Deleting an expense is permanent."),
+      ).toBeVisible({ timeout: ELEMENT_TIMEOUT });
+
+      // The second press is the delete. It lands on the ledger — the surface
+      // the row left (`useDismissTo`), not the sheet that read it.
+      await page
+        .getByRole("button", { name: "Delete expense, for good" })
+        .click();
+      await expect(page.getByText(description)).toHaveCount(0, {
+        timeout: SLOW_NAVIGATION_TIMEOUT,
+      });
+      await expect(
+        page.getByRole("button", { name: "Add expense" }).last(),
+      ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
+    });
+
+    await test.step("X on the ledger exits to the trip", async () => {
+      // components/ui/AppHeader.tsx: `aria-label="Close"`, the X in the
+      // dialog's header. Located by the label rather than by role: the X is a
+      // bare `Pressable` with no `accessibilityRole`, so RN Web gives it no
+      // button role — `getByRole` finds nothing, and this is the one selector
+      // in the suite that has to say so.
+      await page.locator('[aria-label="Close"]').last().click();
+
+      // The trip, and not the deleted row's sheet — which is what the exit
+      // used to reach, because the sheet stayed in the stack under the
+      // ledger. Its sentence is the tell.
+      await expect(page.getByText(tripName).last()).toBeVisible({
+        timeout: NAVIGATION_TIMEOUT,
+      });
+      await expect(
+        page.getByText("That expense is not here any more."),
       ).toHaveCount(0);
     });
   });

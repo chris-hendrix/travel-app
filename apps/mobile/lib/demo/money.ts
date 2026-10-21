@@ -504,8 +504,6 @@ function paymentRow(
             ),
           )
         : [],
-    deletedAt: null,
-    deletedBy: null,
     createdAt: nowIso() as unknown as Date,
     updatedAt: nowIso() as unknown as Date,
   };
@@ -559,14 +557,12 @@ function rowAsRead(store: DemoStore, row: Payment): Payment {
  * it, and the map's total is always zero — every cent paid is a cent
  * somebody owes.
  *
- * Soft-deleted rows are dropped here, exactly as the server drops them
- * in its query (`isNull(payments.deletedAt)`): that is what makes a
- * delete move the ledger rather than just hide a row.
+ * Nothing is filtered: settle hard-deletes, so every stored row is a row the
+ * server would return, and a delete moves the ledger by leaving the list.
  */
 function netBalancesOf(store: DemoStore, tripId: string): Map<string, number> {
   const net = new Map<string, number>();
   for (const stored of store.payments.get(tripId) ?? []) {
-    if (stored.deletedAt !== null) continue;
     // The people are read, not stored: a scoped row's split is the roster's
     // as it stands now (`rowAsRead`), so an RSVP moves every balance that
     // row touches without an edit to it.
@@ -749,19 +745,17 @@ export function seedLedger(
 }
 
 /**
- * The stored expense an id addresses, or `null` when no row carries that
- * id — or when the row is soft-deleted: the server's update and delete
- * both read through `deletedAt IS NULL`, so a second delete (or an edit
- * of a row somebody removed) is a 404 rather than a resurrection.
+ * The stored expense an id addresses, or `null` when no row carries that id.
+ *
+ * A deleted row is not a row: settle hard-deletes, so there is no mark to
+ * read past and a second delete is a 404 because the row is gone.
  *
  * The dispatcher resolves the row before it reads the verb, exactly as
  * the route always did, so an id nothing addresses answers the same 404
  * whatever the method is.
  */
 export function paymentRowById(store: DemoStore, id: string): Payment | null {
-  const found = findRowAnywhere(store.payments, id);
-  if (!found || found.row.deletedAt !== null) return null;
-  return found.row;
+  return findRowAnywhere(store.payments, id)?.row ?? null;
 }
 
 /**
@@ -775,15 +769,13 @@ export function listPayments(
     status: 200,
     body: {
       success: true,
-      // Soft-deleted rows stop being served, exactly as the API's
-      // own list filters them (`getPaymentsByTrip`, `deletedAt IS
-      // NULL`). Nothing here asks for deleted rows: there is no
-      // Deleted-items view. And every row is resolved as it is served
-      // (`rowAsRead`): a scoped expense's people are the roster's now,
-      // which is what the detail sheet's split block reads.
-      payments: (store.payments.get(tripId) ?? [])
-        .filter((payment) => payment.deletedAt === null)
-        .map((payment) => rowAsRead(store, payment)),
+      // Every stored row is served, because settle hard-deletes: a deleted
+      // expense is not hidden here, it is gone. And every row is resolved as
+      // it is served (`rowAsRead`): a scoped expense's people are the
+      // roster's now, which is what the detail sheet's split block reads.
+      payments: (store.payments.get(tripId) ?? []).map((payment) =>
+        rowAsRead(store, payment),
+      ),
     },
   };
 }
@@ -880,8 +872,6 @@ export function createPayment(
     // session's own (`DEMO_AUTH_USER.id`).
     createdBy: "demo-viewer",
     participants: [],
-    deletedAt: null,
-    deletedBy: null,
     createdAt: nowIso() as unknown as Date,
     updatedAt: nowIso() as unknown as Date,
   };
@@ -961,15 +951,20 @@ export function updatePayment(
 }
 
 /**
- * A soft delete of one stored expense, as `DELETE /payments/:id` serves
- * it.
+ * A delete of one stored expense, as `DELETE /payments/:id` serves it.
  *
- * Soft, as the API's is: the row keeps its place and stops being served,
- * which is what moves the balances — the net and the moves are recomputed
- * from the rows that are still there.
+ * A real removal, as the API's is (`0059`): the row leaves the list, which is
+ * what moves the balances and the moves — both are recomputed from the rows
+ * that are still there.
  */
-export function deletePayment(row: Payment): { status: 204; body: DemoBody } {
-  row.deletedAt = nowIso() as unknown as Date;
-  row.deletedBy = "demo-viewer";
+export function deletePayment(
+  store: DemoStore,
+  row: Payment,
+): { status: 204; body: DemoBody } {
+  const found = findRowAnywhere(store.payments, row.id);
+  if (found) {
+    const index = found.list.indexOf(found.row);
+    if (index >= 0) found.list.splice(index, 1);
+  }
   return { status: 204, body: { success: true } };
 }

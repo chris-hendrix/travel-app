@@ -108,7 +108,6 @@ export interface Payment {
   createdBy: string;
   participants: PaymentParticipant[];
   createdAt: string;
-  deletedAt: string | null;
 }
 
 /**

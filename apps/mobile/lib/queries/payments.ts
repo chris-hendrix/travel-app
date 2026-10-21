@@ -254,10 +254,9 @@ export async function deletePayment(paymentId: string): Promise<void> {
 }
 
 /**
- * `POST /payments/:id/restore` (organizer-only) is deliberately **not
- * wired**: there is no Deleted-items view and nothing asks for it (the
- * plan's "Considered and cut"), so a restore affordance would be a
- * button with nowhere to live. The route keeps its place in the API.
+ * There is no restore: settle hard-deletes (`payment.service.ts`'s
+ * `deletePayment`), so the app asks before it fires and there is nothing on
+ * the other side to undo.
  */
 
 /** Mutation wrapper for callers that fire `deletePayment` via TanStack Query. */
@@ -324,7 +323,6 @@ function temporaryPayment(
       shareAmount: shares[index] ?? 0,
     })),
     createdAt: new Date().toISOString(),
-    deletedAt: null,
   };
 }
 
@@ -512,9 +510,12 @@ export function useUpdatePayment(tripId: string) {
 }
 
 /**
- * The delete half: the row is painted with a `deletedAt` so the ledger
- * (which filters on it) drops it immediately, and a failure restores the
- * list.
+ * The delete half: the row leaves the list immediately, and a failure puts it
+ * back.
+ *
+ * Deleting is for good (`payment.service.ts`'s `deletePayment`), so the
+ * optimistic paint is a removal and not a mark — there is no half-deleted row
+ * for a reader to trip over.
  */
 export function useDeletePayment(tripId: string) {
   const queryClient = useQueryClient();
@@ -524,11 +525,7 @@ export function useDeletePayment(tripId: string) {
       deletePayment(paymentId),
     onMutate: async ({ paymentId }: { paymentId: string }) =>
       optimistically(queryClient, tripId, (rows) =>
-        rows.map((row) =>
-          row.id === paymentId
-            ? { ...row, deletedAt: new Date().toISOString() }
-            : row,
-        ),
+        rows.filter((row) => row.id !== paymentId),
       ),
     onError: (_error: unknown, _variables, context) =>
       rollBack(queryClient, tripId, context),

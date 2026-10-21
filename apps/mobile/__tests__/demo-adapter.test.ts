@@ -823,13 +823,12 @@ describe("the demo data layer", () => {
     );
     const viewer = roster.members.find((row) => row.userId === "demo-viewer")!;
 
-    // `all_going` is every member who said going **plus every guest**, in
-    // member-id order (D2). Cabo's roster is You, Liz and Sam going and
-    // Nina the guest (no account behind her row), with Marco on `maybe`
-    // and Priya on `no_response` left out — so the split is four people
-    // even though one of them never answered anything. The order is also
-    // the order the remainder cent is handed out in: $100.01 across the
-    // four is [2501, 2500, 2500, 2500].
+    // `all_going` is everyone who has not declined, in member-id order:
+    // Cabo's roster is You, Liz and Sam going, Marco on `maybe`, Priya on
+    // `no_response` and Nina the guest (no account behind her row) — six
+    // people, because silence and "maybe" are not a no. The order is also the
+    // order the remainder cent is handed out in: $100.01 across six is
+    // [1667, 1667, 1667, 1667, 1667, 1666].
     const created = await apiFetch<{ success: true; payment: PaymentRow }>(
       `/trips/${tripId}/payments`,
       {
@@ -847,11 +846,13 @@ describe("the demo data layer", () => {
     expect(created.payment.participants.map((p) => p.memberId)).toEqual([
       "demo-guest-cabo",
       "demo-liz",
+      "demo-marco",
+      "demo-priya",
       "demo-sam",
       viewer.id,
     ]);
     expect(created.payment.participants.map((p) => p.shareAmount)).toEqual([
-      2501, 2500, 2500, 2500,
+      1667, 1667, 1667, 1667, 1667, 1666,
     ]);
 
     // The store keeps the rule and no rows, so the ledger read is where the
@@ -865,7 +866,7 @@ describe("the demo data layer", () => {
       (row) => row.id === created.payment.id,
     );
     expect(listedScoped?.splitScope).toBe("all_going");
-    expect(listedScoped?.participants.map((p) => p.memberId)).toHaveLength(4);
+    expect(listedScoped?.participants.map((p) => p.memberId)).toHaveLength(6);
     const tacosBefore = listed.payments.find(
       (row) => row.id === "demo-payment-tacos",
     )!;
@@ -888,18 +889,20 @@ describe("the demo data layer", () => {
       payments: PaymentRow[];
     }>(`/trips/${tripId}/payments`);
     // The rule re-resolved without anybody editing the expense: the person
-    // who just left is off a cost shared by who is going. Three people now,
-    // and $100.01 across three is [3334, 3334, 3333].
+    // who just declined is off a cost shared by everyone else. Five people
+    // now, and $100.01 across five is [2001, 2000, 2000, 2000, 2000].
     const scopedAfter = afterRsvp.payments.find(
       (row) => row.id === created.payment.id,
     )!;
     expect(scopedAfter.participants.map((p) => p.memberId)).toEqual([
       "demo-guest-cabo",
       "demo-liz",
+      "demo-marco",
+      "demo-priya",
       "demo-sam",
     ]);
     expect(scopedAfter.participants.map((p) => p.shareAmount)).toEqual([
-      3334, 3334, 3333,
+      2001, 2000, 2000, 2000, 2000,
     ]);
     // A fixed list is not a rule and never re-resolves: the tacos keep the
     // three people they were recorded between, the viewer included.

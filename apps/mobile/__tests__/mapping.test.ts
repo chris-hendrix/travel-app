@@ -640,8 +640,6 @@ describe("toPayment", () => {
     payerName: "Ava",
     date: new Date("2026-10-11T10:00:00.000Z"),
     createdBy: "user-1",
-    deletedAt: null,
-    deletedBy: null,
     createdAt: new Date("2026-10-11T10:00:00.000Z"),
     updatedAt: new Date("2026-10-11T10:00:00.000Z"),
     participants: [
@@ -726,14 +724,6 @@ describe("toPayment", () => {
     ]);
   });
 
-  it("maps a soft-deleted row's timestamp to an ISO string", () => {
-    const deleted = toPayment({
-      ...payment,
-      deletedAt: new Date("2026-10-12T10:00:00.000Z"),
-    });
-
-    expect(deleted.deletedAt).toBe("2026-10-12T10:00:00.000Z");
-  });
 });
 
 describe("toBalance", () => {

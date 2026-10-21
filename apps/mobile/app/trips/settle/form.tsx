@@ -9,7 +9,7 @@ import { InlineError } from "@/components/ui/InlineError";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
 import { QuietAction } from "@/components/ui/QuietAction";
-import { useDismiss } from "@/hooks/useDismiss";
+import { useDismiss, useDismissTo } from "@/hooks/useDismiss";
 import { useAuth } from "@/lib/authStore";
 import { formatCents } from "@/lib/money";
 import { viewerOf } from "@/lib/members";
@@ -111,17 +111,13 @@ function ExpenseFormScreen() {
   const debts = useBalances(settleMode ? trip?.id : undefined);
 
   // A settled read is what makes "not here" a fact rather than a guess:
-  // while the list is still loading the row may simply not have arrived.
-  // Undeleted as well as present, because a delete paints `deletedAt`
-  // optimistically and the row stays in the list until the refetch lands
-  // (`useDeletePayment`) — the ledger filters on the same mark, and this is
-  // what makes a form over a just-deleted row impossible rather than
-  // brief.
+  // while the list is still loading the row may simply not have arrived. A
+  // delete removes the row outright (`useDeletePayment`), so presence is the
+  // whole test — this is what makes a form over a just-deleted row
+  // impossible rather than brief.
   const row =
     editMode && expenses.status === "success"
-      ? (expenses.payments.find(
-          (payment) => payment.id === paymentId && payment.deletedAt === null,
-        ) ?? null)
+      ? (expenses.payments.find((payment) => payment.id === paymentId) ?? null)
       : null;
   // The amount is the **move's**, never the URL's: a stale number in a
   // link is a lie about what is owed, and the ledger is what actually
@@ -146,6 +142,12 @@ function ExpenseFormScreen() {
 
   const ledgerHref = `/trips/settle?id=${trip.id}`;
   const detailHref = `/trips/settle/detail?id=${trip.id}&payment=${paymentId ?? ""}`;
+  // Where a delete lands. Not `dismiss` (one pop) and not `replace`: this form
+  // is the edit door, so the screen directly behind it is the deleted row's
+  // own sheet, and a `replace` would leave that sheet in the stack for the
+  // ledger's X to walk back into. `dismissTo` pops until the ledger, dropping
+  // both the sheet and this form (`useDismissTo`).
+  const dismissToLedger = useDismissTo(ledgerHref);
   const rowId = row?.id ?? null;
 
   const spent = (error: unknown, fallback: string) =>
@@ -307,14 +309,10 @@ function ExpenseFormScreen() {
               remove.mutate(
                 { paymentId: rowId },
                 {
-                  // The success path hangs off the router rather than
-                  // `dismiss`, which is `router.back()`: this form is the
-                  // edit door, so the screen behind it is the deleted
-                  // row's own sheet, and that sheet answers "That expense
-                  // is not here any more" over a row nobody can get back
-                  // to. The ledger is the surface the row left, which is
-                  // where the trip, the event and the stay each land.
-                  onSuccess: () => router.replace(ledgerHref),
+                  // The row is gone and so is the sheet that read it: the
+                  // ledger is the surface the row left, and it is the only
+                  // place behind this form that still exists.
+                  onSuccess: () => dismissToLedger(),
                   onError: (error: unknown) =>
                     spent(error, "Couldn't delete the expense."),
                 },

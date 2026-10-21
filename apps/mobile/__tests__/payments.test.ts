@@ -30,7 +30,6 @@ function makePayment(overrides: Partial<Payment> = {}): Payment {
     createdBy: "user-1",
     participants: [],
     createdAt: "2026-10-11T10:00:00.000Z",
-    deletedAt: null,
     ...overrides,
   };
 }
@@ -165,14 +164,17 @@ describe("splitForScope", () => {
     { id: "g-2", status: "no_response", userId: null },
   ];
 
-  it("splits an everyone-going cost between the going members and the guests", () => {
-    // `g-1` said not going and `g-2` never answered, but a guest has no
-    // RSVP to give — they are in the house's costs by definition. `m-2`
-    // and `m-3` answered something other than going, so they are out.
+  it("splits an everyone-going cost between everyone who has not declined", () => {
+    // Only an explicit `not_going` takes a person out, and only an account
+    // can give one: `m-3` (maybe), `m-2` (silence) and both guests are in.
+    // `g-1` carries `not_going` and is still in — a guest is never asked, and
+    // the guest clause is the rule.
     expect(splitForScope("all_going", roster, 10000)).toEqual([
-      { memberId: "g-1", shareAmount: 3334 },
-      { memberId: "g-2", shareAmount: 3333 },
-      { memberId: "m-1", shareAmount: 3333 },
+      { memberId: "g-1", shareAmount: 2000 },
+      { memberId: "g-2", shareAmount: 2000 },
+      { memberId: "m-1", shareAmount: 2000 },
+      { memberId: "m-2", shareAmount: 2000 },
+      { memberId: "m-3", shareAmount: 2000 },
     ]);
   });
 
@@ -192,9 +194,11 @@ describe("splitForScope", () => {
     // The order is load-bearing: it decides who gets the extra cent, and
     // it is the same order the API resolves and records in.
     expect(splitForScope("all_going", roster, 10001)).toEqual([
-      { memberId: "g-1", shareAmount: 3334 },
-      { memberId: "g-2", shareAmount: 3334 },
-      { memberId: "m-1", shareAmount: 3333 },
+      { memberId: "g-1", shareAmount: 2001 },
+      { memberId: "g-2", shareAmount: 2000 },
+      { memberId: "m-1", shareAmount: 2000 },
+      { memberId: "m-2", shareAmount: 2000 },
+      { memberId: "m-3", shareAmount: 2000 },
     ]);
   });
 
@@ -214,11 +218,13 @@ describe("splitForScope", () => {
     // back to the payer. This function reports the truth — nobody — and
     // the form is what refuses it.
     expect(splitForScope("all_going", roster, 10000)).not.toHaveLength(0);
+    // Everyone declined: the rule resolves nobody, and `withPayerFallback` is
+    // the read's answer rather than this function's.
     expect(
       splitForScope(
         "all_going",
         [
-          { id: "m-1", status: "maybe", userId: "user-1" },
+          { id: "m-1", status: "not_going", userId: "user-1" },
           { id: "m-2", status: "not_going", userId: "user-2" },
         ],
         10000,

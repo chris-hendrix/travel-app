@@ -283,7 +283,6 @@ export function toPayment(payment: ApiPayment): Payment {
       shareAmount: participant.shareAmount,
     })),
     createdAt: iso(payment.createdAt),
-    deletedAt: deletedAtOf(payment.deletedAt),
   };
 }
 
