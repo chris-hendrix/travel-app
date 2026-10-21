@@ -1872,6 +1872,115 @@ describe("trip.service", () => {
           tripService.removeCoOrganizer(fakeId, testCreatorId, newCoOrgUserId1),
         ).rejects.toThrow("Trip not found");
       });
+
+      it("removing a co-organizer who is a participant re-splits the remainder", async () => {
+        const { payments, paymentParticipants } = await import(
+          "@/db/schema/index.js"
+        );
+        const [creatorMember] = await db
+          .select()
+          .from(members)
+          .where(
+            and(
+              eq(members.tripId, testTripId),
+              eq(members.userId, testCreatorId),
+            ),
+          );
+        const [coOrg1] = await db
+          .select()
+          .from(members)
+          .where(
+            and(
+              eq(members.tripId, testTripId),
+              eq(members.userId, newCoOrgUserId1),
+            ),
+          );
+        const [coOrg2] = await db
+          .insert(members)
+          .values({ tripId: testTripId, userId: newCoOrgUserId2 })
+          .returning();
+
+        const [payment] = await db
+          .insert(payments)
+          .values({
+            tripId: testTripId,
+            description: "Dinner",
+            amount: 2000,
+            memberId: creatorMember!.id,
+            createdBy: testCreatorId,
+          })
+          .returning();
+        await db.insert(paymentParticipants).values([
+          {
+            paymentId: payment!.id,
+            memberId: coOrg1!.id,
+            shareAmount: 1000,
+          },
+          {
+            paymentId: payment!.id,
+            memberId: coOrg2!.id,
+            shareAmount: 1000,
+          },
+        ]);
+
+        await tripService.removeCoOrganizer(
+          testTripId,
+          testCreatorId,
+          newCoOrgUserId1,
+        );
+
+        // Same cascade the member and guest paths run: the departed row goes
+        // and the person left carries the amount.
+        expect(
+          await db.select().from(members).where(eq(members.id, coOrg1!.id)),
+        ).toHaveLength(0);
+        const participantsAfter = await db
+          .select()
+          .from(paymentParticipants)
+          .where(eq(paymentParticipants.paymentId, payment!.id));
+        expect(participantsAfter).toHaveLength(1);
+        expect(participantsAfter[0]).toMatchObject({
+          memberId: coOrg2!.id,
+          shareAmount: 2000,
+        });
+
+        await db.delete(payments).where(eq(payments.id, payment!.id));
+      });
+
+      it("removing a co-organizer who paid -> 409 MemberHasPaymentsError, member row survives", async () => {
+        const { payments } = await import("@/db/schema/index.js");
+        const { MemberHasPaymentsError } = await import("@/errors.js");
+        const [coOrg1] = await db
+          .select()
+          .from(members)
+          .where(
+            and(
+              eq(members.tripId, testTripId),
+              eq(members.userId, newCoOrgUserId1),
+            ),
+          );
+        const [payment] = await db
+          .insert(payments)
+          .values({
+            tripId: testTripId,
+            description: "Co-org paid",
+            amount: 2000,
+            memberId: coOrg1!.id,
+            createdBy: testCreatorId,
+          })
+          .returning();
+
+        const err = await tripService
+          .removeCoOrganizer(testTripId, testCreatorId, newCoOrgUserId1)
+          .catch((e) => e);
+        expect(err).toBeInstanceOf(MemberHasPaymentsError);
+        expect(err.statusCode).toBe(409);
+        expect(
+          await db.select().from(members).where(eq(members.id, coOrg1!.id)),
+        ).toHaveLength(1);
+
+        await db.delete(payments).where(eq(payments.id, payment!.id));
+      });
     });
 
     describe("getCoOrganizers", () => {

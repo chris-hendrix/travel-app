@@ -2,6 +2,7 @@ import { queryOptions, useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import { toBalance } from "@/lib/mapping";
 import { isOffline } from "@/lib/queries/errors";
+import { balanceKeys } from "@/lib/queries/moneyKeys";
 import type { BalanceMove, MyBalance } from "@/lib/payments";
 import type {
   GetBalancesResponse,
@@ -21,12 +22,14 @@ import type {
  * a non-member gets a 403 `ApiError` rather than an empty ledger.
  */
 
-/** Key factory for the money domain: `all` / `trip(tripId)` / `me(tripId)`. */
-export const balanceKeys = {
-  all: ["balances"] as const,
-  trip: (tripId: string) => [...balanceKeys.all, "trip", tripId] as const,
-  me: (tripId: string) => [...balanceKeys.all, "me", tripId] as const,
-};
+/**
+ * Key factory for the money domain: `all` / `trip(tripId)` / `me(tripId)`.
+ *
+ * Declared in `lib/queries/moneyKeys.ts` and re-exported here, alongside
+ * the expenses' keys, so a roster write can mark both stale without
+ * importing this module (`moneyKeys.ts`'s module note).
+ */
+export { balanceKeys };
 
 /**
  * The trip's simplified moves: `GET /trips/:tripId/balances`

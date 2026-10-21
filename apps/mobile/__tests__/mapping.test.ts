@@ -635,12 +635,11 @@ describe("toPayment", () => {
     description: "Dinner",
     note: "Venmo",
     amount: 13500,
+    splitScope: "custom",
     payerMemberId: "member-1",
     payerName: "Ava",
     date: new Date("2026-10-11T10:00:00.000Z"),
     createdBy: "user-1",
-    deletedAt: null,
-    deletedBy: null,
     createdAt: new Date("2026-10-11T10:00:00.000Z"),
     updatedAt: new Date("2026-10-11T10:00:00.000Z"),
     participants: [
@@ -682,6 +681,38 @@ describe("toPayment", () => {
     ]);
   });
 
+  it("carries the split scope the server resolved against", () => {
+    expect(toPayment(payment).splitScope).toBe("custom");
+    expect(toPayment({ ...payment, splitScope: "all_going" }).splitScope).toBe(
+      "all_going",
+    );
+  });
+
+  it("tolerates a participant the scope resolved, which has no row of its own", () => {
+    // A scoped split stores no `payment_participants` rows, so the server's
+    // resolved participant arrives without `id`, `paymentId` or
+    // `createdAt` — and the app must map it whole instead of dropping it.
+    const mapped = toPayment({
+      ...payment,
+      splitScope: "all_going",
+      participants: [
+        { memberId: "member-1", name: "Ava", shareAmount: 6750 },
+        { memberId: "member-2", name: "Priya", shareAmount: 6750 },
+      ],
+    });
+
+    expect(mapped.participants.map((p) => p.memberId)).toEqual([
+      "member-1",
+      "member-2",
+    ]);
+    expect(mapped.participants[0]).toMatchObject({
+      memberId: "member-1",
+      name: "Ava",
+      shareAmount: 6750,
+    });
+    expect(mapped.participants[0]!.id).toBeUndefined();
+  });
+
   it("keeps the two id spaces distinct", () => {
     const mapped = toPayment(payment);
 
@@ -693,14 +724,6 @@ describe("toPayment", () => {
     ]);
   });
 
-  it("maps a soft-deleted row's timestamp to an ISO string", () => {
-    const deleted = toPayment({
-      ...payment,
-      deletedAt: new Date("2026-10-12T10:00:00.000Z"),
-    });
-
-    expect(deleted.deletedAt).toBe("2026-10-12T10:00:00.000Z");
-  });
 });
 
 describe("toBalance", () => {

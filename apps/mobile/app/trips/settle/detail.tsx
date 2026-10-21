@@ -7,7 +7,7 @@ import { FullscreenDialog } from "@/components/ui/FullscreenDialog";
 import { InlineError } from "@/components/ui/InlineError";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
-import { useDismiss } from "@/hooks/useDismiss";
+import { useDismiss, useDismissTo } from "@/hooks/useDismiss";
 import { useAuth } from "@/lib/authStore";
 import { viewerOf } from "@/lib/members";
 import { usePayments } from "@/lib/queries/payments";
@@ -71,16 +71,12 @@ function ExpenseDetailScreen() {
     typeof paymentParam === "string" && paymentParam.length > 0
       ? paymentParam
       : null;
-  // Undelleted as well as present: a delete paints `deletedAt`
-  // optimistically and leaves the row in the list until the refetch lands
-  // (`useDeletePayment`), so a reader who deleted this row from the form
-  // lands back here on the sentence rather than on the expense they just
-  // removed. The ledger filters on the same mark.
+  // Present or not: a delete removes the row (`useDeletePayment`), so there
+  // is no mark to read past. The sentence below still has a job — a row
+  // deleted on another phone, or a link to one that never existed.
   const row =
     expenses.status === "success"
-      ? (expenses.payments.find(
-          (payment) => payment.id === paymentId && payment.deletedAt === null,
-        ) ?? null)
+      ? (expenses.payments.find((payment) => payment.id === paymentId) ?? null)
       : null;
 
   if (!trip) {
@@ -88,6 +84,12 @@ function ExpenseDetailScreen() {
   }
 
   const ledgerHref = `/trips/settle?id=${trip.id}`;
+  // A row that is gone leaves this sheet as the odd one out in the stack: the
+  // form that deleted it is popped and the ledger is behind, so one pop from
+  // here lands back on the ledger's own X, which lands here again. `dismissTo`
+  // walks to the ledger however deep it is, and replaces this sheet with it
+  // when it is not in the stack at all (a stale link, the deep-link case).
+  const dismissToLedger = useDismissTo(ledgerHref);
 
   if (expenses.status === "loading") {
     return (
@@ -118,7 +120,7 @@ function ExpenseDetailScreen() {
       <FullscreenDialog
         title="Expense"
         primaryTitle="Done"
-        onPrimary={dismiss}
+        onPrimary={() => dismissToLedger()}
         dismissHref={ledgerHref}
       >
         <Text className="font-body text-base text-ink">

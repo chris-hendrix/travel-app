@@ -12,6 +12,38 @@
 
 import { formatCents } from "@/lib/money";
 import { wallClock } from "@/lib/timezone";
+import { equalShares, scopeMemberIds } from "@journiful/shared/utils";
+import type { SplitMember, SplitScope } from "@journiful/shared/utils";
+
+/**
+ * The three ways a cost can be shared, re-exported from the shared rule
+ * (`shared/utils/split.ts`) so no screen has to reach into the workspace
+ * package to name one. `SPLIT_SCOPES` stays there: the form's control and
+ * `SCOPE_LABEL` below are both derived from it.
+ */
+export type { SplitScope };
+
+/**
+ * What each scope is called, in the words the form shows.
+ *
+ * A record over `SplitScope` rather than a list, so a fourth scope in
+ * `shared/utils/split.ts` fails to compile here instead of rendering
+ * blank. The labels are the product's, not the column's: `custom` reads
+ * as an invitation to pick people, which is what choosing it reveals.
+ */
+export const SCOPE_LABEL: Record<SplitScope, string> = {
+  all_going: "Everyone going",
+  all_invited: "Everyone invited",
+  custom: "Choose people",
+};
+
+/** One person's share of a scoped split, in the order the scope resolved. */
+export interface ScopedShare {
+  /** A **member** id — the same space as `participants[].memberId`. */
+  memberId: string;
+  /** This person's share, in cents. The shares sum to the amount. */
+  shareAmount: number;
+}
 
 /** Someone on one side of a balance — a member row, guest or not. */
 export interface PaymentPerson {
@@ -34,7 +66,8 @@ export interface MyBalance {
 
 /** One person's share of an expense. */
 export interface PaymentParticipant {
-  id: string;
+  /** Absent on a participant the server resolved from a split scope. */
+  id?: string | undefined;
   memberId: string;
   name: string;
   /** This person's share, in cents, as the server computed it. */
@@ -59,6 +92,14 @@ export interface Payment {
   note: string | null;
   /** The whole expense, in cents. */
   amount: number;
+  /**
+   * How the cost is shared. Always present, because every row the app can
+   * hold has one: the server's entity carries it (`payments.split_scope`
+   * defaults to `custom`), the demo's fixtures are custom, and the
+   * optimistic row the form paints is built from the request it is about
+   * to send (`lib/queries/payments.ts`).
+   */
+  splitScope: SplitScope;
   payerMemberId: string;
   payerName: string;
   /** The day the expense belongs to, as an ISO instant (noon-anchored). */
@@ -67,7 +108,6 @@ export interface Payment {
   createdBy: string;
   participants: PaymentParticipant[];
   createdAt: string;
-  deletedAt: string | null;
 }
 
 /**
@@ -93,25 +133,77 @@ export function paymentsInOrder(payments: Payment[]): Payment[] {
 /**
  * Each person's share of an equal split, in the order the ids are given.
  *
- * The server's rule, mirrored exactly
- * (`PaymentService.computeEqualShares`): every share is the integer
- * division, and the remainder cents go **one each to the first
- * `remainder` participants** — not all of them to the first. The two
- * readings agree whenever the remainder is 0 or 1, which is why the
- * difference is easy to miss: $100 between three people is `[34, 33,
- * 33]` either way, but $100.01 between three is `[34, 34, 33]` here and
- * `[35, 33, 33]` under the wrong one. A preview that used any other
- * order — or that piled the remainder on the first — would be a lie
- * about the row the reader is about to write, so the form sends this
- * same array in this same order.
+ * The arithmetic is **not** restated here. `equalShares`
+ * (`shared/utils/split.ts`) is the one rule, applied by the API when it
+ * records a split, by `splitForScope` below when the form previews a
+ * scope, and by the demo — so the preview and the row it previews cannot
+ * disagree. It is the largest-remainder rule: the integer division each,
+ * and the leftover cents one each to the first `remainder` entries, not
+ * all of them to the first. The two readings agree whenever the
+ * remainder is 0 or 1, which is why the difference is easy to miss —
+ * $100 between three is `[34, 33, 33]` either way, but $100.01 is
+ * `[34, 34, 33]` here and `[35, 33, 33]` under the wrong one.
+ *
+ * The order is the caller's, and it is load-bearing: it decides who gets
+ * the extra cent, and the form sends this same array in this same order.
  */
 export function splitPreview(amount: number, memberIds: string[]): number[] {
-  if (memberIds.length === 0) return [];
+  return equalShares(amount, memberIds.length);
+}
 
-  const base = Math.floor(amount / memberIds.length);
-  const remainder = amount - base * memberIds.length;
+/**
+ * A scope, resolved against the roster and priced: who shares the cost
+ * and what each of them owes, in member-id order.
+ *
+ * The client's half of the rule the API applies when it records a scoped
+ * expense (`PaymentService` through `payment-split.ts`), over the same
+ * two shared functions — `scopeMemberIds` for who, `equalShares` for how
+ * much — so the form's previewed split and the row the server stores are
+ * the same split. The roster arrives as the three facts the rule reads
+ * (`SplitMember`), which the app's `Member` already is, so no screen has
+ * to build a second shape.
+ *
+ * An empty answer is an answer: a roster where nobody is going resolves
+ * to nobody, and the shares are `[]`. The floor that keeps a split from
+ * being empty is the shared `withPayerFallback` (D5): a create is refused
+ * because the API refuses it too, while an edit shows the payer owing the
+ * lot, because that is what the server stores and reads back. Either way
+ * the screen is what says why the rows are empty (`emptyScopeSentence`)
+ * rather than this function inventing a participant.
+ */
+export function splitForScope(
+  scope: SplitScope,
+  members: readonly SplitMember[],
+  amount: number,
+): ScopedShare[] {
+  const memberIds = scopeMemberIds(scope, members);
+  const shares = equalShares(amount, memberIds.length);
 
-  return memberIds.map((_, index) => (index < remainder ? base + 1 : base));
+  return memberIds.map((memberId, index) => ({
+    memberId,
+    shareAmount: shares[index] ?? 0,
+  }));
+}
+
+/**
+ * Why a rule can draw nobody, said where its rows would be.
+ *
+ * The scope still works as an answer — the trip fills up and the split
+ * follows — so the form does not take the option away. It says what the rule
+ * resolved to instead, because a body that draws no rows and refuses the save
+ * is a form that looks broken rather than a trip that has no answers yet.
+ *
+ * Two sentences rather than one, because the two rules empty out for
+ * different reasons: `Everyone going` waits on an answer, `Everyone invited`
+ * waits on a roster. One shape, two nouns, so the pair reads as the same
+ * statement twice rather than two messages. (`Choose people` never draws
+ * this: an empty fixed list is the boxes nobody ticked, which is the form's
+ * own message to give.)
+ */
+export function emptyScopeSentence(scope: SplitScope): string {
+  return scope === "all_invited"
+    ? "Nobody is on the trip yet, so there is no one to share it with."
+    : "Nobody is going yet, so there is no one to share it with.";
 }
 
 /**

@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../helpers.js";
 import { db } from "@/config/database.js";
-import { users, trips, members, userBlocks } from "@/db/schema/index.js";
+import { users, trips, members, userBlocks, payments, paymentParticipants } from "@/db/schema/index.js";
 import { and, eq, inArray } from "drizzle-orm";
 import { generateUniquePhone } from "../test-utils.js";
 
@@ -543,6 +543,106 @@ describe("Guest Member Routes", () => {
         cookies: { auth_token: orgToken },
       });
       expect(deleted.statusCode).toBe(204);
+    });
+
+    it("should return 409 GUEST_HAS_PAYMENTS when the guest paid", async () => {
+      app = await buildApp();
+      const { organizer, trip } = await setupTripWithOrganizer();
+      const token = app.jwt.sign({
+        sub: organizer.id,
+        name: organizer.displayName,
+      });
+      const created = await app.inject({
+        method: "POST",
+        url: `/api/trips/${trip.id}/members/guests`,
+        cookies: { auth_token: token },
+        payload: { displayName: "Mom" },
+      });
+      const guestId = JSON.parse(created.body).member.id;
+
+      const [payment] = await db
+        .insert(payments)
+        .values({
+          tripId: trip.id,
+          description: "Mom paid",
+          amount: 3000,
+          memberId: guestId,
+          createdBy: organizer.id,
+        })
+        .returning();
+
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/api/trips/${trip.id}/members/guests/${guestId}`,
+        cookies: { auth_token: token },
+      });
+      expect(response.statusCode).toBe(409);
+      expect(JSON.parse(response.body).error.code).toBe("GUEST_HAS_PAYMENTS");
+      expect(
+        await db.select().from(members).where(eq(members.id, guestId)),
+      ).toHaveLength(1);
+
+      await db.delete(payments).where(eq(payments.id, payment!.id));
+    });
+
+    it("should return 204 for a guest who only owes a share, re-splitting the rest", async () => {
+      app = await buildApp();
+      const { organizer, trip } = await setupTripWithOrganizer();
+      const token = app.jwt.sign({
+        sub: organizer.id,
+        name: organizer.displayName,
+      });
+      const created = await app.inject({
+        method: "POST",
+        url: `/api/trips/${trip.id}/members/guests`,
+        cookies: { auth_token: token },
+        payload: { displayName: "Mom" },
+      });
+      const guestId = JSON.parse(created.body).member.id;
+
+      const [organizerMember] = await db
+        .select()
+        .from(members)
+        .where(
+          and(eq(members.tripId, trip.id), eq(members.userId, organizer.id)),
+        );
+      const [payment] = await db
+        .insert(payments)
+        .values({
+          tripId: trip.id,
+          description: "Dinner",
+          amount: 2000,
+          memberId: organizerMember!.id,
+          createdBy: organizer.id,
+        })
+        .returning();
+      await db.insert(paymentParticipants).values({
+        paymentId: payment!.id,
+        memberId: guestId,
+        shareAmount: 2000,
+      });
+
+      const response = await app.inject({
+        method: "DELETE",
+        url: `/api/trips/${trip.id}/members/guests/${guestId}`,
+        cookies: { auth_token: token },
+      });
+
+      expect(response.statusCode).toBe(204);
+      expect(
+        await db.select().from(members).where(eq(members.id, guestId)),
+      ).toHaveLength(0);
+      const participantsAfter = await db
+        .select()
+        .from(paymentParticipants)
+        .where(eq(paymentParticipants.paymentId, payment!.id));
+      expect(participantsAfter).toHaveLength(1);
+      expect(participantsAfter[0]).toMatchObject({
+        memberId: organizerMember!.id,
+        shareAmount: 2000,
+      });
+
+      await db.delete(payments).where(eq(payments.id, payment!.id));
     });
   });
 });

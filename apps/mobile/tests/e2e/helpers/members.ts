@@ -26,46 +26,14 @@
  *
  * The route carries the **write** rate limit (`guest-member.routes.ts:79`
  * — 30/min, keyed by the authenticated user), so the POST retries on 429
- * exactly as the seeding in `helpers/auth.ts:160-190` does: two projects
- * in parallel over one API is what trips a limiter, and no spec in this
- * suite exercises the limiter itself.
+ * through `helpers/http.ts`: two projects in parallel over one API is what
+ * trips a limiter, and no spec in this suite exercises the limiter itself.
  */
 
-import type { APIRequestContext, APIResponse } from "@playwright/test";
+import type { APIRequestContext } from "@playwright/test";
+import { postWithRetry } from "./http";
 import { API_BASE } from "./timeouts";
 import { generateUniquePhone, seedUserViaAPI } from "./auth";
-
-/**
- * POST with retry on 429. Parses the limiter's "retry in N seconds" hint
- * when present, else backs off linearly (~1s per attempt) — the same
- * shape as `helpers/auth.ts`'s `postWithRetry`, kept here rather than
- * imported because that one is private to the auth seeding.
- */
-async function postWithRetry(
-  request: APIRequestContext,
-  url: string,
-  options: Parameters<APIRequestContext["post"]>[1],
-  which: string,
-  maxAttempts = 6,
-): Promise<APIResponse> {
-  let last: APIResponse | undefined;
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    last = await request.post(url, options);
-    if (last.status() !== 429) {
-      return last;
-    }
-    if (attempt === maxAttempts) {
-      break;
-    }
-    const body = await last.text().catch(() => "");
-    const hint = body.match(/retry in (\d+(?:\.\d+)?) seconds?/i);
-    const waitMs = hint ? Math.ceil(Number(hint[1]) * 1000) + 500 : attempt * 1000;
-    await new Promise((resolve) => setTimeout(resolve, waitMs));
-  }
-  throw new Error(
-    `${which}: still rate limited after ${maxAttempts} attempts (${last?.status() ?? 429})`,
-  );
-}
 
 /**
  * Add one guest member to a trip through the real endpoint. Returns the

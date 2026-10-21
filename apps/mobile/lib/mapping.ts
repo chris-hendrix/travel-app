@@ -271,6 +271,7 @@ export function toPayment(payment: ApiPayment): Payment {
     description: payment.description,
     note: payment.note ?? null,
     amount: payment.amount,
+    splitScope: payment.splitScope,
     payerMemberId: payment.payerMemberId,
     payerName: payment.payerName ?? "",
     date: iso(payment.date),
@@ -282,7 +283,6 @@ export function toPayment(payment: ApiPayment): Payment {
       shareAmount: participant.shareAmount,
     })),
     createdAt: iso(payment.createdAt),
-    deletedAt: deletedAtOf(payment.deletedAt),
   };
 }
 

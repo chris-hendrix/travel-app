@@ -216,6 +216,14 @@ export const DuplicateParticipantError = createError(
   "%s",
   400,
 );
+/**
+ * A split that resolves to nobody cannot be created: a cost shared by nobody
+ * is not a cost, and the ledger would credit the payer against no one. The
+ * read path does not use this — it falls back to the payer alone
+ * (`payment-split.ts`), because a roster that empties later must not take an
+ * existing expense off the ledger.
+ */
+export const EmptySplitError = createError("EMPTY_SPLIT", "%s", 400);
 
 // Account errors
 export const UserNotFoundError = createError(

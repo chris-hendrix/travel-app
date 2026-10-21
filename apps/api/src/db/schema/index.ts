@@ -805,6 +805,13 @@ export const payments = pgTable(
     // "how was it paid" — a separate fact from what it was (nullable)
     note: varchar("note", { length: 280 }),
     amount: integer("amount").notNull(), // cents to avoid floating point
+    // How the cost is shared. `custom` is the only scope that stores rows in
+    // `payment_participants`; the two roster scopes store none and are
+    // resolved against the trip's members on every read, so a member added
+    // later is in a shared cost without an edit per expense.
+    splitScope: varchar("split_scope", { length: 12 })
+      .notNull()
+      .default("custom"),
     // Payer — a trip member (guests allowed; organizer records who paid)
     memberId: uuid("member_id")
       .notNull()
@@ -813,8 +820,14 @@ export const payments = pgTable(
     createdBy: uuid("created_by")
       .notNull()
       .references(() => users.id),
-    deletedAt: timestamp("deleted_at", { withTimezone: true }),
-    deletedBy: uuid("deleted_by"),
+    // No `deleted_at`: settle hard-deletes (`0059`), and payments are the one
+    // table where soft delete was actively harmful. `member_id` is a
+    // RESTRICT foreign key to `members`, so a soft-deleted expense still
+    // blocked removing the person who paid it — while every read filtered the
+    // row out, leaving no screen that could explain or undo the refusal. A row
+    // nobody can see must never block a roster change. Events, stays, travel
+    // and messages keep their soft deletes: nothing else's constraint reads
+    // them, and a message's deleted row is what holds its replies together.
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -823,10 +836,17 @@ export const payments = pgTable(
       .defaultNow(),
   },
   (table) => [
-    index("payments_trip_id_not_deleted_idx")
-      .on(table.tripId)
-      .where(sql`${table.deletedAt} IS NULL`),
+    index("payments_trip_id_idx").on(table.tripId),
     index("payments_member_id_idx").on(table.memberId),
+    // `varchar({ length })` is type-only in Drizzle, as the enum is: nothing in
+    // the database rejects a fourth scope, and a row carrying one would make
+    // `paymentEntitySchema` (built from `SPLIT_SCOPES`) fail on read. The CHECK
+    // is the database half of the vocabulary, spelled to match
+    // `shared/utils/split.ts`'s `SPLIT_SCOPES`.
+    check(
+      "payments_split_scope_check",
+      sql`${table.splitScope} IN ('custom', 'all_going', 'all_invited')`,
+    ),
   ],
 );
 

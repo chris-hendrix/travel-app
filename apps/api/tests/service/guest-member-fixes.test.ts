@@ -4,6 +4,7 @@ import { users, trips, members, invitations, payments } from "@/db/schema/index.
 import { eq } from "drizzle-orm";
 import { generateUniquePhone } from "../test-utils.js";
 import { GuestMemberService } from "@/services/guest-member.service.js";
+import { PaymentService } from "@/services/payment.service.js";
 import { PermissionsService } from "@/services/permissions.service.js";
 import { InvitationService } from "@/services/invitation.service.js";
 import type { ISMSService } from "@/services/sms.service.js";
@@ -18,7 +19,8 @@ import {
 /**
  * Fixes sweep: guest-member + invitation accept hardening.
  * - 23505 race backstop on claimGuestMember UPDATE
- * - soft-deleted payer payments block deleteGuest (409)
+ * - a live payer payment blocks deleteGuest (409), and deleting the expense
+ *   (a real delete, migration `0059`) releases the guest
  * - GuestHasPaymentsError replaces DuplicateMemberError for the payer block
  * - 25-member cap on the acceptInvitation insert leg
  * - createGuest rejects guestPhone with a pending/failed invitation
@@ -26,6 +28,7 @@ import {
 describe("guest-member fixes sweep", () => {
   const permissionsService = new PermissionsService(db);
   const guestMemberService = new GuestMemberService(db, permissionsService);
+  const paymentService = new PaymentService(db, permissionsService);
   // Mocked SMS + queue deps (boss-queue pattern from
   // invitation.service.test.ts): no live SMS or queue jobs fire in tests.
   const mockSmsService = {
@@ -114,32 +117,35 @@ describe("guest-member fixes sweep", () => {
     expect(result.member?.userId).toBe(claimUser.id);
   });
 
-  it("deleteGuest with only soft-deleted payer payments -> 409 GuestHasPaymentsError", async () => {
+  it("deleteGuest refuses a live payer, and deleting the expense releases them", async () => {
     const guest = await guestMemberService.createGuest(tripId, organizerId, {
       displayName: "Mom",
     });
-    const [orgMember] = await db
-      .select()
-      .from(members)
-      .where(eq(members.userId, organizerId));
-    await db.insert(payments).values({
-      tripId,
-      description: "Mom paid (voided)",
-      amount: 5000,
-      memberId: guest.id,
-      createdBy: organizerId,
-      deletedAt: new Date(),
-      deletedBy: organizerId,
-    });
-    void orgMember;
+    const [paid] = await db
+      .insert(payments)
+      .values({
+        tripId,
+        description: "Temple tickets",
+        amount: 4500,
+        memberId: guest.id,
+        createdBy: organizerId,
+      })
+      .returning();
 
     await expect(
       guestMemberService.deleteGuest(tripId, organizerId, guest.id),
     ).rejects.toThrow(GuestHasPaymentsError);
-    // Guest row still present after the blocked delete
+
+    // The refusal is only honest while the expense exists. Deleting it is a
+    // real delete (`0059`), so the act the message asks for actually clears
+    // the block: before this, a soft-deleted row kept the RESTRICT foreign key
+    // alive and the guest could never leave the trip again.
+    await paymentService.deletePayment(organizerId, paid!.id);
+
+    await guestMemberService.deleteGuest(tripId, organizerId, guest.id);
     expect(
       await db.select().from(members).where(eq(members.id, guest.id)),
-    ).toHaveLength(1);
+    ).toHaveLength(0);
   });
 
   it("payer-block error is GuestHasPaymentsError (409), not DuplicateMemberError", async () => {

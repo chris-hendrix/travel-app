@@ -1,0 +1,46 @@
+-- A cost records how it is shared: a fixed list (`custom`) or a rule over
+-- the trip's roster (`all_going`, `all_invited`).
+--
+-- One additive column and one CHECK. `NOT NULL DEFAULT 'custom'` is the
+-- whole backfill: every payment written before this column was a snapshot
+-- of ticked people, which is exactly the `custom` case, so there is
+-- deliberately no UPDATE statement against `payments` (which would be a
+-- full rewrite of a table the app is serving). The same default is what
+-- answers a client that sends no `splitScope` at all: an older build keeps
+-- filing custom expenses and gets the storage it already assumed. The CHECK
+-- is the database half of the vocabulary — `varchar` alone accepts a fourth
+-- scope, and `paymentEntitySchema` is built from `SPLIT_SCOPES`, so such a
+-- row would fail on read rather than at write.
+--
+-- ROLLBACK IS NOT SAFE WITHOUT A BACKFILL. A pre-scope API does not know
+-- this column exists; it reads `payment_participants` and nothing else. A
+-- scoped payment stores no rows there by design, so rolling the API back
+-- while leaving `split_scope` in place would make every scoped expense
+-- silently vanish from every balance and every ledger read — money that is
+-- still owed, no longer shown, with no error anywhere to say so. Before
+-- rolling back, materialise each scoped payment's resolved participants as
+-- `custom` rows (the same rule: `all_going` = `status = 'going' OR
+-- user_id IS NULL`, `all_invited` = every member, both in member-id order,
+-- shares by largest remainder), then mark the rows `custom`:
+--
+--   INSERT INTO "payment_participants" ("payment_id", "member_id", "share_amount")
+--   SELECT p."id", m."id",
+--          p."amount" / count(*) OVER (PARTITION BY p."id")
+--            + (row_number() OVER (PARTITION BY p."id" ORDER BY m."id")
+--               <= p."amount" % count(*) OVER (PARTITION BY p."id"))::int
+--   FROM "payments" p
+--   JOIN "members" m ON m."trip_id" = p."trip_id"
+--   WHERE p."split_scope" = 'all_going'
+--     AND (m."status" = 'going' OR m."user_id" IS NULL)
+--     AND NOT EXISTS (
+--       SELECT 1 FROM "payment_participants" pp WHERE pp."payment_id" = p."id"
+--     );
+--   -- repeat with the `all_going` predicate widened to every member row for
+--   -- `split_scope = 'all_invited'`
+--   UPDATE "payments" SET "split_scope" = 'custom' WHERE "split_scope" <> 'custom';
+--
+-- A scope that resolves to nobody has no rows to materialise: the write path
+-- refuses such a create, and the read path falls back to the payer alone, so
+-- the pre-scope API's "payer paid, nobody owes" is the same empty ledger.
+ALTER TABLE "payments" ADD COLUMN "split_scope" varchar(12) DEFAULT 'custom' NOT NULL;--> statement-breakpoint
+ALTER TABLE "payments" ADD CONSTRAINT "payments_split_scope_check" CHECK ("payments"."split_scope" IN ('custom', 'all_going', 'all_invited'));

@@ -1,8 +1,6 @@
 import {
   members,
   users,
-  payments,
-  paymentParticipants,
   invitations,
 } from "@/db/schema/index.js";
 import { eq, and, count, ne, inArray } from "drizzle-orm";
@@ -14,6 +12,10 @@ import type {
 } from "@journiful/shared/schemas";
 import { phoneNumberSchema } from "@journiful/shared/schemas";
 import { blockedCounterpartIds } from "./moderation.service.js";
+import {
+  assertNoPaidExpenses,
+  cascadeMemberRemoval,
+} from "./member-removal.js";
 import {
   PermissionDeniedError,
   MemberLimitExceededError,
@@ -238,45 +240,25 @@ export class GuestMemberService implements IGuestMemberService {
     await this.requireOrganizer(requesterUserId, tripId);
     const guest = await this.requireGuestRow(tripId, memberId);
 
-    // FK-protected: payments.member_id AND payment_participants.member_id
-    // are ON DELETE RESTRICT regardless of soft-delete — include soft-deleted
-    // payments in the pre-check so the clean 409 path fires instead of a raw
-    // FK 500.
-    const payerRows = await this.db
-      .select({ id: payments.id })
-      .from(payments)
-      .where(
-        and(
-          eq(payments.tripId, tripId),
-          eq(payments.memberId, guest.id),
-        ),
-      )
-      .limit(1);
-    if (payerRows.length > 0) {
-      throw new GuestHasPaymentsError(
-        "Guest has payments — reassign or delete them first",
-      );
-    }
-    const participantRows = await this.db
-      .select({ id: paymentParticipants.id })
-      .from(paymentParticipants)
-      .where(eq(paymentParticipants.memberId, guest.id))
-      .limit(1);
-    if (participantRows.length > 0) {
-      throw new GuestHasPaymentsError(
-        "Guest has payments — reassign or delete them first",
-      );
-    }
-
-    // Member delete cascades to member_travel rows (payments and payment
-    // participants are pre-checked above); balances recompute on read
-    // (member:<id> keys). A pending invitation for the guest's phone is
-    // cancelled in the same transaction — same row-delete semantics as
-    // revokeInvitation, scoped to this trip so an identical phone on
-    // another trip is never touched. Name-only guests (guestPhone NULL)
-    // and claimed rows (unreachable here: requireGuestRow rejects
+    // Member delete cascades to member_travel rows; the money is settled in
+    // the same transaction through `member-removal.ts` — a guest who **paid**
+    // is refused (`GuestHasPaymentsError`, including soft-deleted payments,
+    // because the RESTRICT FK applies regardless of deletedAt), a guest who
+    // merely owes a share has that share removed and the split re-shared.
+    // Balances recompute on read (member:<id> keys). A pending invitation for
+    // the guest's phone is cancelled in the same transaction — same row-delete
+    // semantics as `revokeInvitation`, scoped to this trip so an identical
+    // phone on another trip is never touched. Name-only guests (guestPhone
+    // NULL) and claimed rows (unreachable here: requireGuestRow rejects
     // userId !== null) skip the invitation cleanup.
     await this.db.transaction(async (tx) => {
+      await assertNoPaidExpenses(
+        tx,
+        guest.id,
+        GuestHasPaymentsError,
+        "Guest has payments — reassign or delete them first",
+      );
+
       if (guest.guestPhone) {
         await tx
           .delete(invitations)
@@ -287,6 +269,7 @@ export class GuestMemberService implements IGuestMemberService {
             ),
           );
       }
+      await cascadeMemberRemoval(tx, guest.id);
       await tx.delete(members).where(eq(members.id, guest.id));
     });
   }
@@ -353,6 +336,14 @@ export class GuestMemberService implements IGuestMemberService {
             claimedAt: new Date(),
             guestDisplayName: null,
             guestPhone: null,
+            // D7: a claim is a person's first real answer to the RSVP, so a
+            // guest nobody ever asked (`no_response`, the column default)
+            // joins `Everyone going` when they claim the row. An answer the
+            // organizer recorded explicitly — `maybe`, `not_going` — is kept:
+            // the organizer knows this trip better than the default does.
+            ...(guest.status === "no_response"
+              ? { status: "going" as const }
+              : {}),
           })
           .where(eq(members.id, guest.id))
           .returning();

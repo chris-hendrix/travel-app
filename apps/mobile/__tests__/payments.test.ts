@@ -1,16 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
+  SCOPE_LABEL,
+  emptyScopeSentence,
   findMove,
   moveFor,
   paymentDay,
   paymentsInOrder,
   positionFor,
+  splitForScope,
   splitPreview,
   type BalanceMove,
   type Payment,
 } from "@/lib/payments";
 import { formatDay } from "@/lib/dateRange";
 import { zoneOffsetMinutes } from "@/lib/timezone";
+import { SPLIT_SCOPES, type SplitMember } from "@journiful/shared/utils";
 
 function makePayment(overrides: Partial<Payment> = {}): Payment {
   return {
@@ -19,13 +23,13 @@ function makePayment(overrides: Partial<Payment> = {}): Payment {
     description: "Dinner",
     note: null,
     amount: 10000,
+    splitScope: "custom",
     payerMemberId: "member-1",
     payerName: "Ava",
     date: "2026-10-11T10:00:00.000Z",
     createdBy: "user-1",
     participants: [],
     createdAt: "2026-10-11T10:00:00.000Z",
-    deletedAt: null,
     ...overrides,
   };
 }
@@ -144,6 +148,134 @@ describe("splitPreview", () => {
         const ids = Array.from({ length: count }, (_, i) => `m${i}`);
         expect(splitPreview(amount, ids)).toEqual(serverShares(amount, count));
       }
+    }
+  });
+});
+
+describe("splitForScope", () => {
+  // Deliberately not in id order, and with the four answers spread across
+  // it: the resolver owes the caller one stable order, the member id's,
+  // and the row order of the roster is not it.
+  const roster: SplitMember[] = [
+    { id: "m-3", status: "maybe", userId: "user-3" },
+    { id: "g-1", status: "not_going", userId: null },
+    { id: "m-1", status: "going", userId: "user-1" },
+    { id: "m-2", status: "no_response", userId: "user-2" },
+    { id: "g-2", status: "no_response", userId: null },
+  ];
+
+  it("splits an everyone-going cost between everyone who has not declined", () => {
+    // Only an explicit `not_going` takes a person out, and only an account
+    // can give one: `m-3` (maybe), `m-2` (silence) and both guests are in.
+    // `g-1` carries `not_going` and is still in — a guest is never asked, and
+    // the guest clause is the rule.
+    expect(splitForScope("all_going", roster, 10000)).toEqual([
+      { memberId: "g-1", shareAmount: 2000 },
+      { memberId: "g-2", shareAmount: 2000 },
+      { memberId: "m-1", shareAmount: 2000 },
+      { memberId: "m-2", shareAmount: 2000 },
+      { memberId: "m-3", shareAmount: 2000 },
+    ]);
+  });
+
+  it("splits an everyone-invited cost between the whole roster", () => {
+    // Declines included: the house is shared by the invitees, not only by
+    // whoever answered yes.
+    expect(splitForScope("all_invited", roster, 10000)).toEqual([
+      { memberId: "g-1", shareAmount: 2000 },
+      { memberId: "g-2", shareAmount: 2000 },
+      { memberId: "m-1", shareAmount: 2000 },
+      { memberId: "m-2", shareAmount: 2000 },
+      { memberId: "m-3", shareAmount: 2000 },
+    ]);
+  });
+
+  it("hands the remainder cents out in the member-id order it resolved", () => {
+    // The order is load-bearing: it decides who gets the extra cent, and
+    // it is the same order the API resolves and records in.
+    expect(splitForScope("all_going", roster, 10001)).toEqual([
+      { memberId: "g-1", shareAmount: 2001 },
+      { memberId: "g-2", shareAmount: 2000 },
+      { memberId: "m-1", shareAmount: 2000 },
+      { memberId: "m-2", shareAmount: 2000 },
+      { memberId: "m-3", shareAmount: 2000 },
+    ]);
+  });
+
+  it("always sums back to the amount, whatever the scope and the roster", () => {
+    for (const amount of [1, 7, 100, 10001, 99999]) {
+      for (const scope of ["all_going", "all_invited"] as const) {
+        const shares = splitForScope(scope, roster, amount);
+        expect(shares.reduce((sum, share) => sum + share.shareAmount, 0)).toBe(
+          amount,
+        );
+      }
+    }
+  });
+
+  it("answers nothing for a scope that resolves nobody, and lets the screen decide", () => {
+    // The floor is the API's (`D5`): a create is refused and a read falls
+    // back to the payer. This function reports the truth — nobody — and
+    // the form is what refuses it.
+    expect(splitForScope("all_going", roster, 10000)).not.toHaveLength(0);
+    // Everyone declined: the rule resolves nobody, and `withPayerFallback` is
+    // the read's answer rather than this function's.
+    expect(
+      splitForScope(
+        "all_going",
+        [
+          { id: "m-1", status: "not_going", userId: "user-1" },
+          { id: "m-2", status: "not_going", userId: "user-2" },
+        ],
+        10000,
+      ),
+    ).toEqual([]);
+    expect(splitForScope("all_invited", [], 10000)).toEqual([]);
+  });
+
+  it("resolves nobody for a fixed list, which is the rows' job", () => {
+    // `custom` stores participant rows; the rule has nothing to resolve,
+    // and the form's picker is what names the people.
+    expect(splitForScope("custom", roster, 10000)).toEqual([]);
+  });
+});
+
+describe("SCOPE_LABEL", () => {
+  it("names the three scopes, in the words the form shows", () => {
+    expect(SCOPE_LABEL).toEqual({
+      custom: "Choose people",
+      all_going: "Everyone going",
+      all_invited: "Everyone invited",
+    });
+  });
+
+  it("labels every scope there is", () => {
+    for (const scope of SPLIT_SCOPES) {
+      expect(SCOPE_LABEL[scope].length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("emptyScopeSentence", () => {
+  it("says what the rule came back with, one noun per rule", () => {
+    // The form draws this where the rows would be, so it is the only thing
+    // saying why the save will refuse. `Everyone going` waits on an answer,
+    // `Everyone invited` on a roster.
+    expect(emptyScopeSentence("all_going")).toBe(
+      "Nobody is going yet, so there is no one to share it with.",
+    );
+    expect(emptyScopeSentence("all_invited")).toBe(
+      "Nobody is on the trip yet, so there is no one to share it with.",
+    );
+  });
+
+  it("reads as the app's copy: no em dash, and it ends in a full stop", () => {
+    // `apps/mobile/AGENTS.md` bans em dashes in copy, and a sentence the
+    // reader meets mid-form rather than as a title still ends.
+    for (const scope of SPLIT_SCOPES) {
+      const sentence = emptyScopeSentence(scope);
+      expect(sentence).not.toContain("—");
+      expect(sentence.endsWith(".")).toBe(true);
     }
   });
 });

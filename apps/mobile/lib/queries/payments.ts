@@ -8,10 +8,10 @@ import {
 } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import { toPayment } from "@/lib/mapping";
-import { balanceKeys } from "@/lib/queries/balances";
 import { isOffline } from "@/lib/queries/errors";
 import { memberKeys } from "@/lib/queries/members";
-import type { Payment } from "@/lib/payments";
+import { invalidateTripMoney, paymentKeys } from "@/lib/queries/moneyKeys";
+import type { Payment, SplitScope } from "@/lib/payments";
 import { splitPreview } from "@/lib/payments";
 import type { Member } from "@/lib/members";
 import type { Payment as ApiPayment } from "@journiful/shared/types";
@@ -29,13 +29,14 @@ import type { Payment as ApiPayment } from "@journiful/shared/types";
  * the ledger *and* both balance reads, so a write that invalidated only
  * its own list would leave the position headline and the debt rows
  * showing the old arithmetic.
+ *
+ * `paymentKeys` and `invalidateTripMoney` are **declared** in
+ * `lib/queries/moneyKeys.ts` and re-exported here, because the people
+ * writes invalidate the money too and cannot import this module
+ * (`moneyKeys.ts`'s module note). Every name below was already public.
  */
 
-/** Key factory for the payments domain: `all` / `list(tripId)`. */
-export const paymentKeys = {
-  all: ["payments"] as const,
-  list: (tripId: string) => [...paymentKeys.all, "list", tripId] as const,
-};
+export { invalidateTripMoney, paymentKeys };
 
 /**
  * The trip's expenses: `GET /trips/:tripId/payments`
@@ -90,35 +91,32 @@ export function usePayments(tripId: string | undefined): {
 }
 
 /**
- * One invalidation for a change in the money domain: the expense list,
- * the trip's simplified moves and the reader's own position all move
- * together, so every money write settles through this single call
- * rather than invalidating its own key alone. The people's twin is
- * `invalidateTripPeople` (`lib/queries/members.ts:99`).
- */
-export async function invalidateTripMoney(
-  queryClient: QueryClient,
-  tripId: string,
-): Promise<void> {
-  await Promise.all([
-    queryClient.invalidateQueries({ queryKey: paymentKeys.list(tripId) }),
-    queryClient.invalidateQueries({ queryKey: balanceKeys.trip(tripId) }),
-    queryClient.invalidateQueries({ queryKey: balanceKeys.me(tripId) }),
-  ]);
-}
-
-/**
- * The create body. `amount` is integer cents; `participants` is the
- * picker's order, and that order is load-bearing — the server gives the
- * remainder cent to the first participant in the array it is sent, so
- * the shares the form previewed (`splitPreview`) are the shares it
- * records only if this array is sent in the same order.
+ * The create body. `amount` is integer cents.
+ *
+ * The split is **one of two things**: `splitScope` names a rule the server
+ * resolves against the roster, and `participants` is a fixed list the
+ * server stores as rows. Both or neither is a 400
+ * (`shared/schemas/payment.ts` — one predicate, both directions), which is
+ * why `createPayment` sends exactly one no matter what it was handed.
  */
 export type CreatePaymentRequest = {
   description: string;
   amount: number;
   payerMemberId: string;
-  participants: { memberId: string }[];
+  /**
+   * The rule the cost is shared by, or absent for a fixed list. Both
+   * scopes resolve to the same people on the server: `all_going` is
+   * everyone going plus every guest, `all_invited` is the whole roster.
+   */
+  splitScope?: SplitScope | undefined;
+  /**
+   * The picker's order, and that order is load-bearing — the server gives
+   * the remainder cent to the first participant in the array it is sent,
+   * so the shares the form previewed (`splitPreview`) are the shares it
+   * records only if this array is sent in the same order. Absent when the
+   * request names a rule instead.
+   */
+  participants?: { memberId: string }[] | undefined;
   /** ISO instant, already anchored by the form. Omitted leaves the default. */
   date?: string;
   /** Omitted when empty — see `createPayment`. */
@@ -129,8 +127,31 @@ export type CreatePaymentRequest = {
 export type UpdatePaymentRequest = Partial<CreatePaymentRequest>;
 
 /**
+ * What a create mutation carries: the body, and the member ids the form
+ * resolved for it.
+ *
+ * The ids are **not sent**. They are here because the painted row needs
+ * them: a scoped create's request has no participant list to paint from
+ * (the rule is resolved server-side), and the form has already resolved
+ * that same rule against the same roster for its preview (`splitForScope`).
+ * So it hands the ids over with the mutation and the temporary row is
+ * painted from them — names off the cached roster, shares from
+ * `splitPreview`, in that order.
+ */
+export type CreatePaymentVariables = {
+  input: CreatePaymentRequest;
+  splitMemberIds: string[];
+};
+
+/**
  * `POST /trips/:tripId/payments` (201 `{success: true, payment}`),
  * mapped through `toPayment`.
+ *
+ * The split is sent as **one field or the other**: a rule when one was
+ * named (other than `custom`, which is the column's own default and means
+ * "the rows are the split"), the fixed list otherwise. A list handed over
+ * alongside a rule is dropped rather than sent: the rule re-resolves
+ * against the roster, so the pair is a contradiction the schema refuses.
  *
  * The note is carried **only when the field is non-empty**. The server
  * turns `""` into `null` anyway, so sending it would be harmless — but
@@ -142,11 +163,17 @@ export async function createPayment(
   tripId: string,
   input: CreatePaymentRequest,
 ): Promise<Payment> {
+  const scoped =
+    input.splitScope !== undefined && input.splitScope !== "custom";
+
   const body: CreatePaymentRequest = {
     description: input.description,
     amount: input.amount,
     payerMemberId: input.payerMemberId,
-    participants: input.participants,
+    ...(scoped ? { splitScope: input.splitScope } : null),
+    ...(!scoped && input.participants !== undefined
+      ? { participants: input.participants }
+      : null),
     ...(input.date !== undefined ? { date: input.date } : null),
     ...(input.note ? { note: input.note } : null),
   };
@@ -170,11 +197,20 @@ export async function createPayment(
  * that is how an edit clears a note. (`null` itself is a 400: the
  * update schema is the create schema `.partial()`, so `""` is the
  * clearing value, not `null`.)
+ *
+ * The split is the one place an edit differs from a create: `custom` **is**
+ * named when the body sends a list. The row may currently hold a rule, and
+ * the server has to be told that the new split is the rows — a bare
+ * `{participants}` on a scoped row would be refused. A rule and a list
+ * never travel together, the same way they do not on a create.
  */
 export async function updatePayment(
   paymentId: string,
   input: UpdatePaymentRequest,
 ): Promise<Payment> {
+  const scoped =
+    input.splitScope !== undefined && input.splitScope !== "custom";
+
   const body: UpdatePaymentRequest = {
     ...(input.description !== undefined
       ? { description: input.description }
@@ -183,7 +219,10 @@ export async function updatePayment(
     ...(input.payerMemberId !== undefined
       ? { payerMemberId: input.payerMemberId }
       : null),
-    ...(input.participants !== undefined
+    ...(input.splitScope !== undefined
+      ? { splitScope: input.splitScope }
+      : null),
+    ...(!scoped && input.participants !== undefined
       ? { participants: input.participants }
       : null),
     ...(input.date !== undefined ? { date: input.date } : null),
@@ -203,10 +242,10 @@ export async function updatePayment(
 }
 
 /**
- * `DELETE /payments/:id` (204, so `apiFetch` resolves `undefined` and
- * this resolves void). Soft server-side: the row keeps its place in the
- * database and stops being returned, and the ledger filters on
- * `deletedAt` so the optimistic paint below reads as a removal.
+ * `DELETE /payments/:id` (204, so `apiFetch` resolves `undefined` and this
+ * resolves void). A real delete server-side (`payment.service.ts`'s
+ * `deletePayment`), so the optimistic paint below is a removal and a second
+ * delete is a 404.
  */
 export async function deletePayment(paymentId: string): Promise<void> {
   await apiFetch<{ success: true }>(`/payments/${paymentId}`, {
@@ -215,10 +254,9 @@ export async function deletePayment(paymentId: string): Promise<void> {
 }
 
 /**
- * `POST /payments/:id/restore` (organizer-only) is deliberately **not
- * wired**: there is no Deleted-items view and nothing asks for it (the
- * plan's "Considered and cut"), so a restore affordance would be a
- * button with nowhere to live. The route keeps its place in the API.
+ * There is no restore: settle hard-deletes (`payment.service.ts`'s
+ * `deletePayment`), so the app asks before it fires and there is nothing on
+ * the other side to undo.
  */
 
 /** Mutation wrapper for callers that fire `deletePayment` via TanStack Query. */
@@ -239,10 +277,18 @@ export { deletePaymentOptions as deletePaymentMutation };
  * that the trip screen has already cached (`memberKeys.list`) — without
  * that, the row would flash blank and then fill in, which reads worse
  * than the half-second it saves.
+ *
+ * The people come from `splitMemberIds`, the list carried with the
+ * mutation, never from the body: a scoped create's body names a rule and
+ * no people at all, and a custom one's body is the same list by a
+ * different route. Either way the ids are the ones the form priced, in
+ * the order it priced them, which is what makes the painted shares the
+ * shares the server will record.
  */
 function temporaryPayment(
   tripId: string,
   input: CreatePaymentRequest,
+  splitMemberIds: string[],
   roster: Member[],
 ): Payment {
   const nameOf = (memberId: string) =>
@@ -250,10 +296,7 @@ function temporaryPayment(
 
   // The server's own remainder rule, so the painted row shows the shares
   // the form previewed rather than a guess that shifts under the reader.
-  const shares = splitPreview(
-    input.amount,
-    input.participants.map((participant) => participant.memberId),
-  );
+  const shares = splitPreview(input.amount, splitMemberIds);
 
   return {
     id: `pending-${Date.now()}`,
@@ -261,6 +304,10 @@ function temporaryPayment(
     description: input.description,
     note: input.note ? input.note : null,
     amount: input.amount,
+    // The scope the request is about to record: a scoped create sends the
+    // rule and the server resolves the people, so the painted row shows
+    // the rule it will come back with rather than a guess at `custom`.
+    splitScope: input.splitScope ?? "custom",
     payerMemberId: input.payerMemberId,
     payerName: nameOf(input.payerMemberId),
     date: input.date ?? new Date().toISOString(),
@@ -269,14 +316,13 @@ function temporaryPayment(
     // `viewer.userId`, so the detail's `createdBy === viewer.userId`
     // predicate cannot offer Edit on a row that is not there.
     createdBy: "",
-    participants: input.participants.map((participant, index) => ({
+    participants: splitMemberIds.map((memberId, index) => ({
       id: `pending-participant-${index}`,
-      memberId: participant.memberId,
-      name: nameOf(participant.memberId),
+      memberId,
+      name: nameOf(memberId),
       shareAmount: shares[index] ?? 0,
     })),
     createdAt: new Date().toISOString(),
-    deletedAt: null,
   };
 }
 
@@ -326,18 +372,29 @@ function rollBack(
  * for the server's row on success (the server assigns the real id and
  * the real shares), and removed on failure. The settle funnels through
  * `invalidateTripMoney`.
+ *
+ * The variables are the body **and** the ids the form resolved
+ * (`CreatePaymentVariables`): the body is what goes to the server and the
+ * ids are what the painted row is built from. `mutationFn` takes the body
+ * alone, so the ids can never reach the wire.
  */
 export function useCreatePayment(tripId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: CreatePaymentRequest) => createPayment(tripId, input),
-    onMutate: async (input: CreatePaymentRequest) => {
+    mutationFn: ({ input }: CreatePaymentVariables) =>
+      createPayment(tripId, input),
+    onMutate: async ({ input, splitMemberIds }: CreatePaymentVariables) => {
       // The roster names the painted row, so it is read before the paint
       // rather than leaving the row to flash blank.
       const roster =
         queryClient.getQueryData<Member[]>(memberKeys.list(tripId)) ?? [];
-      const temporary = temporaryPayment(tripId, input, roster);
+      const temporary = temporaryPayment(
+        tripId,
+        input,
+        splitMemberIds,
+        roster,
+      );
 
       const context = await optimistically(queryClient, tripId, (rows) => [
         temporary,
@@ -368,8 +425,13 @@ export function useCreatePayment(tripId: string) {
  * `{memberId}` and the row needs each person's name and *share*, which
  * only the server can compute. Painting a guess there would show a
  * split that is about to change under the reader, so the invalidation
- * refetch is left to bring it. A `""` note becomes `null` here for the
- * same reason the server does it: that is what cleared means.
+ * refetch is left to bring it. `splitScope` **is** here, and for the
+ * opposite reason: it is not a guess about the split, it is the rule the
+ * request named, and the row's own heading reads it (`ExpenseDetail`'s
+ * block title). Without it, changing `Everyone going` to
+ * `Everyone invited` and reopening the row shows the old heading until
+ * the refetch lands. A `""` note becomes `null` here for the same reason
+ * the server does it: that is what cleared means.
  */
 function patchFrom(
   input: UpdatePaymentRequest,
@@ -393,6 +455,12 @@ function patchFrom(
           payerMemberId: input.payerMemberId,
           ...(payerName !== undefined ? { payerName } : null),
         }
+      : null),
+    // The rule the request named, so the row's heading follows the edit at
+    // once. The people it resolves to stay the refetch's job (`participants`
+    // above).
+    ...(input.splitScope !== undefined
+      ? { splitScope: input.splitScope }
       : null),
     ...(input.date !== undefined ? { date: input.date } : null),
     ...(input.note !== undefined
@@ -442,9 +510,12 @@ export function useUpdatePayment(tripId: string) {
 }
 
 /**
- * The delete half: the row is painted with a `deletedAt` so the ledger
- * (which filters on it) drops it immediately, and a failure restores the
- * list.
+ * The delete half: the row leaves the list immediately, and a failure puts it
+ * back.
+ *
+ * Deleting is for good (`payment.service.ts`'s `deletePayment`), so the
+ * optimistic paint is a removal and not a mark — there is no half-deleted row
+ * for a reader to trip over.
  */
 export function useDeletePayment(tripId: string) {
   const queryClient = useQueryClient();
@@ -454,11 +525,7 @@ export function useDeletePayment(tripId: string) {
       deletePayment(paymentId),
     onMutate: async ({ paymentId }: { paymentId: string }) =>
       optimistically(queryClient, tripId, (rows) =>
-        rows.map((row) =>
-          row.id === paymentId
-            ? { ...row, deletedAt: new Date().toISOString() }
-            : row,
-        ),
+        rows.filter((row) => row.id !== paymentId),
       ),
     onError: (_error: unknown, _variables, context) =>
       rollBack(queryClient, tripId, context),

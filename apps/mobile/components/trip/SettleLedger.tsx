@@ -75,13 +75,9 @@ export function SettleLedger({
   const expenses = usePayments(tripId);
 
   // The server supplies no order at all (`getPaymentsByTrip` has no
-  // `ORDER BY`), so the reader's order comes from `paymentsInOrder`. The
-  // soft-deleted rows are dropped here rather than in the query: nothing
-  // requests them, and the delete paints `deletedAt` optimistically, so
-  // this is where a removal shows.
-  const entries = paymentsInOrder(
-    expenses.payments.filter((payment) => payment.deletedAt === null),
-  );
+  // `ORDER BY`), so the reader's order comes from `paymentsInOrder`. Nothing
+  // to filter: settle hard-deletes, so every row in this list exists.
+  const entries = paymentsInOrder(expenses.payments);
 
   return (
     <View className="gap-6">
@@ -216,20 +212,25 @@ export function SettleLedger({
 const HEADLINE = "font-display-bold text-display-sm uppercase text-ink";
 
 /**
- * A heading that leads a run of rows, with the line of air the run puts
- * under its own day headings (`pb-3`).
+ * A table's name, leading the run of rows it names.
  *
- * `heading-md` is one step below `RuledBlock`'s title and wears the
- * **body** face, which is the scale's own rule: the display face never
- * sets anything a reader reads in a sentence, and a section label inside
- * a dialog is not a section title. The ladder is then display 32 for the
- * answer, body-bold 20 for its labels, body 16 for the rows.
+ * The scale's **label** step (14px, +0.02em), not a heading: the ledger's one
+ * heading is the answer above (`HEADLINE`, display 32), and a block title in
+ * this app is `RuledBlock`'s display 28 — so a third display rank here would
+ * put two shouting marks four pixels apart and leave the number reading as the
+ * first of them rather than as the thing the sheet is for.
  *
- * The air belongs to the heading rather than to the table, because a
- * table whose first row already carries no mark has no opening of its
- * own to open on.
+ * It was `heading-md` (20px) uppercase until this, which was a tier no other
+ * surface drew: the app's only other 20px body-bold heading (`RunLocked`) is
+ * sentence case, and every other block is a `Section`. A label step is what
+ * the scale already has for a name that is not a heading, and taking it puts
+ * the ledger back on the ladder its rows were already written against:
+ * display 32 for the answer, label 14 for the names, body 16 for the rows.
+ *
+ * The air belongs to the name rather than to the table, because a name with
+ * no space under it reads as the first row's first line.
  */
-const SECTION_HEADING = `pb-3 font-body-bold text-heading-md uppercase text-ink`;
+const SECTION_HEADING = "pb-3 font-body-bold text-label uppercase text-ink";
 
 /** The row body: the sentence on the left, the door at the far edge. */
 const ROW = "flex-row items-center justify-between gap-4 py-3";

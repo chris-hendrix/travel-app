@@ -473,12 +473,15 @@ describe("guest-member.service update/delete (Task 3.2)", () => {
     ).rejects.toThrow(PermissionDeniedError);
   });
 
-  it("delete cascades travel + participant rows", async () => {
+  it("delete cascades travel + a participant share, re-splitting the rest", async () => {
     const { memberTravel, payments, paymentParticipants } = await import(
       "@/db/schema/index.js"
     );
     const guest = await guestMemberService.createGuest(tripId, organizerId, {
       displayName: "Mom",
+    });
+    const other = await guestMemberService.createGuest(tripId, organizerId, {
+      displayName: "Dad",
     });
     // Guest travel row
     await db.insert(memberTravel).values({
@@ -487,7 +490,8 @@ describe("guest-member.service update/delete (Task 3.2)", () => {
       travelType: "arrival",
       time: new Date(),
     });
-    // Payment recorded by organizer; guest is a participant (owes a share)
+    // Payment recorded by organizer; both guests are participants (each owes
+    // a share).
     const [payment] = await db
       .insert(payments)
       .values({
@@ -498,30 +502,21 @@ describe("guest-member.service update/delete (Task 3.2)", () => {
         createdBy: organizerId,
       })
       .returning();
-    await db.insert(paymentParticipants).values({
-      paymentId: payment!.id,
-      memberId: guest.id,
-      shareAmount: 5000,
-    });
+    await db.insert(paymentParticipants).values([
+      {
+        paymentId: payment!.id,
+        memberId: guest.id,
+        shareAmount: 5000,
+      },
+      {
+        paymentId: payment!.id,
+        memberId: other.id,
+        shareAmount: 5000,
+      },
+    ]);
 
-    // Guest is a participant: deletion is FK-restricted -> clean 409 until
-    // the share is reassigned/scrubbed.
-    const { GuestHasPaymentsError } = await import("@/errors.js");
-    await expect(
-      guestMemberService.deleteGuest(tripId, organizerId, guest.id),
-    ).rejects.toThrow(GuestHasPaymentsError);
-    expect(
-      await db
-        .select()
-        .from(members)
-        .where(eq(members.id, guest.id)),
-    ).toHaveLength(1);
-
-    // Scrub the share, then deletion succeeds.
-    await db
-      .delete(paymentParticipants)
-      .where(eq(paymentParticipants.memberId, guest.id));
-
+    // A participant share is not a reason to refuse (D4): the guest leaves the
+    // group cost and the remainder re-splits.
     await guestMemberService.deleteGuest(tripId, organizerId, guest.id);
 
     expect(
@@ -536,11 +531,58 @@ describe("guest-member.service update/delete (Task 3.2)", () => {
         .from(memberTravel)
         .where(eq(memberTravel.memberId, guest.id)),
     ).toHaveLength(0);
-    // The payment itself survives (only the guest's share row was scrubbed)
+    // The payment survives; the other participant now carries it all.
     expect(
       await db.select().from(payments).where(eq(payments.id, payment!.id)),
     ).toHaveLength(1);
+    const participantsAfter = await db
+      .select()
+      .from(paymentParticipants)
+      .where(eq(paymentParticipants.paymentId, payment!.id));
+    expect(participantsAfter).toHaveLength(1);
+    expect(participantsAfter[0]).toMatchObject({
+      memberId: other.id,
+      shareAmount: 10000,
+    });
     // Cleanup payment row (createdBy FK is user-keyed; delete explicitly)
+    await db.delete(payments).where(eq(payments.id, payment!.id));
+  });
+
+  it("delete of the sole participant falls back to the payer alone", async () => {
+    const { payments, paymentParticipants } = await import(
+      "@/db/schema/index.js"
+    );
+    const guest = await guestMemberService.createGuest(tripId, organizerId, {
+      displayName: "Mom",
+    });
+    const [payment] = await db
+      .insert(payments)
+      .values({
+        tripId,
+        description: "Dinner",
+        amount: 10000,
+        memberId: organizerMemberId,
+        createdBy: organizerId,
+      })
+      .returning();
+    await db.insert(paymentParticipants).values({
+      paymentId: payment!.id,
+      memberId: guest.id,
+      shareAmount: 10000,
+    });
+
+    await guestMemberService.deleteGuest(tripId, organizerId, guest.id);
+
+    const participantsAfter = await db
+      .select()
+      .from(paymentParticipants)
+      .where(eq(paymentParticipants.paymentId, payment!.id));
+    expect(participantsAfter).toHaveLength(1);
+    expect(participantsAfter[0]).toMatchObject({
+      memberId: organizerMemberId,
+      shareAmount: 10000,
+    });
+
     await db.delete(payments).where(eq(payments.id, payment!.id));
   });
 
@@ -903,6 +945,46 @@ describe("guest-member.service claimGuestMember (Task 4.1)", () => {
     );
     expect(miss.claimed).toBe(false);
     expect(miss.alreadyClaimed).toBeUndefined();
+  });
+
+  it("(e) claim sets going when the guest had not answered, and keeps an explicit maybe/not_going", async () => {
+    // D7: claiming is the guest's first answer. A row that was never asked
+    // (`no_response`, the column default) joins `Everyone going`; an answer
+    // the organizer recorded stays as it is.
+    const cases = [
+      { status: undefined, expected: "going" },
+      { status: "maybe", expected: "maybe" },
+      { status: "not_going", expected: "not_going" },
+    ] as const;
+
+    for (const { status, expected } of cases) {
+      const guestPhone = generateUniquePhone();
+      const [guest] = await db
+        .insert(members)
+        .values({
+          tripId,
+          userId: null,
+          guestDisplayName: "Celebrant",
+          guestPhone,
+          ...(status ? { status } : {}),
+        })
+        .returning();
+      expect(guest!.status).toBe(status ?? "no_response");
+
+      const claimUser = await createUser("Celebrant Real", guestPhone);
+      const result = await db.transaction(async (tx) =>
+        guestMemberService.claimGuestMember(tx, {
+          tripId,
+          userId: claimUser.id,
+          guestPhone,
+        }),
+      );
+
+      expect(result.claimed).toBe(true);
+      expect(result.member!.status).toBe(expected);
+
+      await db.delete(members).where(eq(members.id, guest!.id));
+    }
   });
 });
 

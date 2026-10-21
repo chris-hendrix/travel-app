@@ -9,7 +9,7 @@ import { InlineError } from "@/components/ui/InlineError";
 import { LoadingBlock } from "@/components/ui/LoadingBlock";
 import { OfflineBlock } from "@/components/ui/OfflineBlock";
 import { QuietAction } from "@/components/ui/QuietAction";
-import { useDismiss } from "@/hooks/useDismiss";
+import { useDismiss, useDismissTo } from "@/hooks/useDismiss";
 import { useAuth } from "@/lib/authStore";
 import { formatCents } from "@/lib/money";
 import { viewerOf } from "@/lib/members";
@@ -111,17 +111,13 @@ function ExpenseFormScreen() {
   const debts = useBalances(settleMode ? trip?.id : undefined);
 
   // A settled read is what makes "not here" a fact rather than a guess:
-  // while the list is still loading the row may simply not have arrived.
-  // Undeleted as well as present, because a delete paints `deletedAt`
-  // optimistically and the row stays in the list until the refetch lands
-  // (`useDeletePayment`) — the ledger filters on the same mark, and this is
-  // what makes a form over a just-deleted row impossible rather than
-  // brief.
+  // while the list is still loading the row may simply not have arrived. A
+  // delete removes the row outright (`useDeletePayment`), so presence is the
+  // whole test — this is what makes a form over a just-deleted row
+  // impossible rather than brief.
   const row =
     editMode && expenses.status === "success"
-      ? (expenses.payments.find(
-          (payment) => payment.id === paymentId && payment.deletedAt === null,
-        ) ?? null)
+      ? (expenses.payments.find((payment) => payment.id === paymentId) ?? null)
       : null;
   // The amount is the **move's**, never the URL's: a stale number in a
   // link is a lie about what is owed, and the ledger is what actually
@@ -146,6 +142,12 @@ function ExpenseFormScreen() {
 
   const ledgerHref = `/trips/settle?id=${trip.id}`;
   const detailHref = `/trips/settle/detail?id=${trip.id}&payment=${paymentId ?? ""}`;
+  // Where a delete lands. Not `dismiss` (one pop) and not `replace`: this form
+  // is the edit door, so the screen directly behind it is the deleted row's
+  // own sheet, and a `replace` would leave that sheet in the stack for the
+  // ledger's X to walk back into. `dismissTo` pops until the ledger, dropping
+  // both the sheet and this form (`useDismissTo`).
+  const dismissToLedger = useDismissTo(ledgerHref);
   const rowId = row?.id ?? null;
 
   const spent = (error: unknown, fallback: string) =>
@@ -256,6 +258,10 @@ function ExpenseFormScreen() {
           // is null in, "" out (`lib/queries/payments.ts`).
           note: row.note ?? "",
           payerMemberId: row.payerMemberId,
+          // The row's own rule: an edit to a scoped expense opens on the
+          // scope it carries, so leaving it alone sends the same rule back
+          // rather than turning it into a snapshot of today's roster.
+          scope: row.splitScope,
           participantIds: row.participants.map(
             (participant) => participant.memberId,
           ),
@@ -271,6 +277,10 @@ function ExpenseFormScreen() {
             // (`balance.service.ts`), so this is the row that cancels the
             // debt rather than doubling it.
             payerMemberId: fromId,
+            // A settlement is a fixed list of one and never a rule: the move
+            // named two people, and the row it writes is between them. There
+            // is no scope control in this mode for the same reason.
+            scope: "custom",
             participantIds: [toId],
             day: todayIn(timeZone),
           }
@@ -292,21 +302,18 @@ function ExpenseFormScreen() {
       onDelete={
         editMode && rowId
           ? () => {
-              // Deleting is soft on the server and needs no confirmation.
-              // A failed delete stays on the form with the failure instead
-              // of leaving, so the row is still there to try again on.
+              // The dialog asked first (`ExpenseDialog`'s armed danger
+              // button): this is the second press, and the row does not come
+              // back. A failed delete stays on the form with the failure
+              // instead of leaving, so the row is still there to try again.
               setServerError(null);
               remove.mutate(
                 { paymentId: rowId },
                 {
-                  // The success path hangs off the router rather than
-                  // `dismiss`, which is `router.back()`: this form is the
-                  // edit door, so the screen behind it is the deleted
-                  // row's own sheet, and that sheet answers "That expense
-                  // is not here any more" over a row nobody can get back
-                  // to. The ledger is the surface the row left, which is
-                  // where the trip, the event and the stay each land.
-                  onSuccess: () => router.replace(ledgerHref),
+                  // The row is gone and so is the sheet that read it: the
+                  // ledger is the surface the row left, and it is the only
+                  // place behind this form that still exists.
+                  onSuccess: () => dismissToLedger(),
                   onError: (error: unknown) =>
                     spent(error, "Couldn't delete the expense."),
                 },
@@ -324,10 +331,23 @@ function ExpenseFormScreen() {
           description: input.description.trim(),
           amount: cents,
           payerMemberId,
-          // The picker's own order, which is the order the shares above it
-          // were previewed in: the server hands the remainder cent to the
-          // first participant it receives (`splitPreview` mirrors that).
-          participants: input.participantIds.map((memberId) => ({ memberId })),
+          // The split is the rule or the list, never both
+          // (`shared/schemas/payment.ts` refuses the pair and the absence of
+          // both). `custom` travels as well as the people, because an edit
+          // may be turning a scoped row into a fixed one and the server has
+          // to be told that the rows are now the split; a create drops it
+          // and the rows are what is left (`lib/queries/payments.ts`).
+          splitScope: input.scope,
+          ...(input.scope === "custom"
+            ? {
+                // The order the shares above were previewed in: the server
+                // hands the remainder cent to the first participant it
+                // receives (`splitPreview` mirrors that).
+                participants: input.participantIds.map((memberId) => ({
+                  memberId,
+                })),
+              }
+            : null),
           date: stampDay(input.day, timeZone),
           // An emptied note is the clearing value rather than an omission:
           // the create side drops an empty one on the way out and the
@@ -346,11 +366,24 @@ function ExpenseFormScreen() {
             },
           );
         } else {
-          create.mutate(payload, {
-            onSuccess: () => dismiss(),
-            onError: (error: unknown) =>
-              spent(error, "Couldn't save the expense."),
-          });
+          create.mutate(
+            {
+              input: payload,
+              // The ids the form priced, handed over separately so the
+              // temporary row can be painted from them
+              // (`CreatePaymentVariables`). A scoped create's body names a
+              // rule and no people at all, so this is the only participant
+              // list the optimistic row has — and it is the resolved one, in
+              // member-id order, for a rule; the ticked one, in the roster's
+              // order, for a fixed list.
+              splitMemberIds: input.participantIds,
+            },
+            {
+              onSuccess: () => dismiss(),
+              onError: (error: unknown) =>
+                spent(error, "Couldn't save the expense."),
+            },
+          );
         }
       }}
     />
