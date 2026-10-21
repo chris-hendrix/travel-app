@@ -45,12 +45,16 @@ export interface SplitMember {
 /**
  * The member ids a scope resolves to, in ascending member-id order.
  *
- * - `all_going` — every member who said `going`, plus every guest
- *   (`userId === null`). A guest is seeded without a status, so the
- *   column default `no_response` would otherwise read as silence from
- *   someone who was never asked; the guest clause is the rule rather
- *   than a fallback, so a guest is in `all_going` whatever status the
- *   organizer gave the row.
+ * - `all_going` — everyone who has **not declined**: `going`, `maybe` and
+ *   `no_response`, plus every guest (`userId === null`). Only an explicit
+ *   `not_going` takes someone out. `maybe` and silence are both "we have
+ *   not heard a no", and the rule is resolved on every read, so an answer
+ *   that later turns into a decline takes the person back out on its own.
+ *   The alternative — counting only `going` — means a person the organizer
+ *   has just added owes nothing on the shared house until they open the app
+ *   and answer, which is a ledger that is wrong for as long as they are
+ *   busy. The guest clause stays explicit because a guest is never asked:
+ *   the column default on that row is silence, not a decision.
  * - `all_invited` — every member row, declines included: the house is
  *   shared by the invitees, not only by whoever answered yes.
  * - `custom` — nobody: a fixed list is the participant rows, which the
@@ -72,7 +76,7 @@ export function scopeMemberIds(
       ? members
       : scope === "all_going"
         ? members.filter(
-            (member) => member.status === "going" || member.userId === null,
+            (member) => member.status !== "not_going" || member.userId === null,
           )
         : [];
 

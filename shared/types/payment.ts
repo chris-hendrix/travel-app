@@ -38,8 +38,6 @@ export interface Payment {
   splitScope: SplitScope;
   date: Date;
   createdBy: string;
-  deletedAt: Date | null;
-  deletedBy: string | null;
   createdAt: Date;
   updatedAt: Date;
   payerName?: string;

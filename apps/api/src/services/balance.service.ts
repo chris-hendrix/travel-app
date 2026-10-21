@@ -4,7 +4,7 @@ import {
   members,
   users,
 } from "@/db/schema/index.js";
-import { eq, and, isNull, inArray, sql } from "drizzle-orm";
+import { eq, and, inArray, sql } from "drizzle-orm";
 import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
 import {
@@ -137,7 +137,8 @@ export class BalanceService implements IBalanceService {
   ): Promise<Map<string, number>> {
     const net = new Map<string, number>();
 
-    // Get all non-deleted payments for this trip
+    // Every payment this trip has: settle hard-deletes (`0059`), so there is
+    // no `deleted_at` to filter on and no half-visible money.
     const paymentRows = await this.db
       .select({
         id: payments.id,
@@ -146,7 +147,7 @@ export class BalanceService implements IBalanceService {
         splitScope: payments.splitScope,
       })
       .from(payments)
-      .where(and(eq(payments.tripId, tripId), isNull(payments.deletedAt)));
+      .where(eq(payments.tripId, tripId));
 
     if (paymentRows.length === 0) return net;
 

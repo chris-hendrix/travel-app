@@ -341,9 +341,11 @@ describe("Payment Routes", () => {
 
       // Nobody said yes and there is no guest (a guest is in `all_going` by
       // rule), so the scope is empty — a cost shared by nobody is refused.
+      // A decline is the only answer that takes someone out of `all_going`,
+      // so this is the roster that resolves to nobody.
       await db
         .update(members)
-        .set({ status: "maybe" })
+        .set({ status: "not_going" })
         .where(eq(members.tripId, trip.id));
 
       const response = await app.inject({
@@ -540,12 +542,13 @@ describe("Payment Routes", () => {
 
       expect(response.statusCode).toBe(200);
 
-      // Verify soft-deleted
-      const [deleted] = await db
+      // Gone, not marked: settle hard-deletes (`0059`), so a deleted expense
+      // cannot go on blocking the removal of the member who paid it.
+      const rows = await db
         .select()
         .from(payments)
         .where(eq(payments.id, payment!.id));
-      expect(deleted!.deletedAt).not.toBeNull();
+      expect(rows).toHaveLength(0);
     });
 
     it("should reject delete from non-creator non-organizer", async () => {
@@ -577,46 +580,6 @@ describe("Payment Routes", () => {
       });
 
       expect(response.statusCode).toBe(403);
-    });
-  });
-
-  describe("POST /api/payments/:id/restore", () => {
-    it("should restore a soft-deleted payment (organizer)", async () => {
-      app = await buildApp();
-      const { organizer, trip, organizerMember } = await setupTrip();
-      const token = app.jwt.sign({
-        sub: organizer.id,
-        name: organizer.displayName,
-      });
-
-      const [payment] = await db
-        .insert(payments)
-        .values({
-          tripId: trip.id,
-          description: "Deleted",
-          amount: 1000,
-          memberId: organizerMember.id,
-          createdBy: organizer.id,
-          deletedAt: new Date(),
-          deletedBy: organizer.id,
-        })
-        .returning();
-
-      await db.insert(paymentParticipants).values({
-        paymentId: payment!.id,
-        memberId: organizerMember.id,
-        shareAmount: 1000,
-      });
-
-      const response = await app.inject({
-        method: "POST",
-        url: `/api/payments/${payment!.id}/restore`,
-        cookies: { auth_token: token },
-      });
-
-      expect(response.statusCode).toBe(200);
-      const body = JSON.parse(response.body);
-      expect(body.payment.deletedAt).toBeNull();
     });
   });
 });

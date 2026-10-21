@@ -7,17 +7,13 @@ import type {
 
 export const paymentController = {
   async listPayments(
-    request: FastifyRequest<{
-      Params: { tripId: string };
-      Querystring: { includeDeleted?: boolean };
-    }>,
+    request: FastifyRequest<{ Params: { tripId: string } }>,
     reply: FastifyReply,
   ) {
     try {
       const paymentsList = await request.server.paymentService.getPaymentsByTrip(
         request.user.sub,
         request.params.tripId,
-        request.query.includeDeleted,
       );
       return reply.send({ success: true, payments: paymentsList });
     } catch (error) {
@@ -102,28 +98,6 @@ export const paymentController = {
       return reply.status(500).send({
         success: false,
         error: { code: "INTERNAL_SERVER_ERROR", message: "Failed to delete payment" },
-      });
-    }
-  },
-
-  async restorePayment(
-    request: FastifyRequest<{ Params: { id: string } }>,
-    reply: FastifyReply,
-  ) {
-    try {
-      const payment = await request.server.paymentService.restorePayment(
-        request.user.sub,
-        request.params.id,
-      );
-      return reply.send({ success: true, payment });
-    } catch (error) {
-      if (error && typeof error === "object" && "statusCode" in error) {
-        throw error;
-      }
-      request.log.error({ err: error }, "Failed to restore payment");
-      return reply.status(500).send({
-        success: false,
-        error: { code: "INTERNAL_SERVER_ERROR", message: "Failed to restore payment" },
       });
     }
   },

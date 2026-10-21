@@ -550,7 +550,7 @@ describe("the split scope on a payment (Tasks 5-7)", () => {
 
   // --- Task 5: create ---------------------------------------------------
 
-  it("a scoped create stores no participant rows and splits among every going member plus every guest", async () => {
+  it("a scoped create stores no participant rows and splits among everyone who did not decline", async () => {
     const payment = await paymentService.createPayment(organizerId, tripId, {
       description: "Villa",
       amount: 10000,
@@ -561,12 +561,19 @@ describe("the split scope on a payment (Tasks 5-7)", () => {
     expect(payment.splitScope).toBe("all_going");
     expect(await participantRows(payment.id)).toHaveLength(0);
 
-    // going + going + guest, in member-id order (`scopeMemberIds`)
-    const expected = [organizerMemberId, goingMemberId, guestId].sort();
+    // Everyone but the decline, in member-id order (`scopeMemberIds`):
+    // going, going, maybe, silence, and the guest.
+    const expected = [
+      organizerMemberId,
+      goingMemberId,
+      maybeMemberId,
+      silentMemberId,
+      guestId,
+    ].sort();
     expect(payment.participants.map((p) => p.memberId)).toEqual(expected);
     expect(
       payment.participants.map((p) => p.shareAmount).sort((a, b) => b - a),
-    ).toEqual([3334, 3333, 3333]);
+    ).toEqual([2000, 2000, 2000, 2000, 2000]);
     expect(
       payment.participants.reduce((sum, p) => sum + p.shareAmount, 0),
     ).toBe(10000);
@@ -619,7 +626,7 @@ describe("the split scope on a payment (Tasks 5-7)", () => {
       .returning();
     const [member] = await db
       .insert(members)
-      .values({ tripId: trip!.id, userId: lonely.id, status: "maybe" })
+      .values({ tripId: trip!.id, userId: lonely.id, status: "not_going" })
       .returning();
 
     try {
@@ -707,7 +714,13 @@ describe("the split scope on a payment (Tasks 5-7)", () => {
     expect(updated.splitScope).toBe("all_going");
     expect(await participantRows(payment.id)).toHaveLength(0);
     expect(updated.participants.map((p) => p.memberId)).toEqual(
-      [organizerMemberId, goingMemberId, guestId].sort(),
+      [
+        organizerMemberId,
+        goingMemberId,
+        maybeMemberId,
+        silentMemberId,
+        guestId,
+      ].sort(),
     );
     expect(
       updated.participants.reduce((sum, p) => sum + p.shareAmount, 0),
@@ -830,7 +843,7 @@ describe("the split scope on a payment (Tasks 5-7)", () => {
     expect(updated.splitScope).toBe("all_going");
     expect(updated.note).toBe("Wire transfer");
     expect(await participantRows(payment.id)).toHaveLength(0);
-    expect(updated.participants).toHaveLength(3);
+    expect(updated.participants).toHaveLength(5);
 
     // And the same for a custom row: its rows survive an unrelated edit
     const custom = await paymentService.createPayment(organizerId, tripId, {
@@ -891,7 +904,13 @@ describe("the split scope on a payment (Tasks 5-7)", () => {
     expect(listed!.payerMemberId).toBe(organizerMemberId);
     expect(listed!.payerName).toBe("Trip Organizer");
     expect(listed!.participants.map((p) => p.memberId)).toEqual(
-      [organizerMemberId, goingMemberId, guestId].sort(),
+      [
+        organizerMemberId,
+        goingMemberId,
+        maybeMemberId,
+        silentMemberId,
+        guestId,
+      ].sort(),
     );
     expect(
       listed!.participants.reduce((sum, p) => sum + p.shareAmount, 0),
@@ -902,6 +921,8 @@ describe("the split scope on a payment (Tasks 5-7)", () => {
     expect(nameById).toEqual({
       [organizerMemberId]: "Trip Organizer",
       [goingMemberId]: "Going Member",
+      [maybeMemberId]: "Maybe Member",
+      [silentMemberId]: "Silent Member",
       [guestId]: "Guest Marco",
     });
     expect(listed!.participants.every((p) => p.id === undefined)).toBe(true);
@@ -916,7 +937,7 @@ describe("the split scope on a payment (Tasks 5-7)", () => {
     });
 
     const before = await paymentService.getPaymentsByTrip(organizerId, tripId);
-    expect(before[0]!.participants).toHaveLength(3);
+    expect(before[0]!.participants).toHaveLength(5);
 
     const lateGuest = await guestMemberService.createGuest(tripId, organizerId, {
       displayName: "Late Guest",
@@ -924,7 +945,7 @@ describe("the split scope on a payment (Tasks 5-7)", () => {
 
     const after = await paymentService.getPaymentsByTrip(organizerId, tripId);
     const listed = after.find((p) => p.id === payment.id)!;
-    expect(listed.participants).toHaveLength(4);
+    expect(listed.participants).toHaveLength(6);
     expect(listed.participants.map((p) => p.memberId)).toContain(lateGuest.id);
     expect(
       listed.participants.reduce((sum, p) => sum + p.shareAmount, 0),
@@ -953,7 +974,7 @@ describe("the split scope on a payment (Tasks 5-7)", () => {
     const lonely = await createUser("Lonely Payer");
     const [payer] = await db
       .insert(members)
-      .values({ tripId, userId: lonely.id, status: "maybe", isOrganizer: true })
+      .values({ tripId, userId: lonely.id, status: "not_going", isOrganizer: true })
       .returning();
     await db
       .update(payments)
@@ -970,7 +991,7 @@ describe("the split scope on a payment (Tasks 5-7)", () => {
     expect(listed!.participants[0]!.shareAmount).toBe(4200);
   });
 
-  it("restore resolves a scoped payment the same way", async () => {
+  it("deletes the row for good, so nothing is left to read", async () => {
     const payment = await paymentService.createPayment(organizerId, tripId, {
       description: "Villa",
       amount: 9000,
@@ -979,16 +1000,38 @@ describe("the split scope on a payment (Tasks 5-7)", () => {
     });
 
     await paymentService.deletePayment(organizerId, payment.id);
-    const restored = await paymentService.restorePayment(organizerId, payment.id);
 
-    expect(restored.splitScope).toBe("all_going");
-    expect(restored.participants.map((p) => p.memberId)).toEqual(
-      [organizerMemberId, goingMemberId, guestId].sort(),
-    );
-    expect(
-      restored.participants.reduce((sum, p) => sum + p.shareAmount, 0),
-    ).toBe(9000);
-    expect(restored.participants.every((p) => p.id === undefined)).toBe(true);
+    // Hard delete (`0059`): the row is gone, not marked. A soft-deleted row
+    // still held the RESTRICT foreign key on its payer, which is what made a
+    // deleted expense able to block removing the member who paid for it.
+    const [row] = await db
+      .select()
+      .from(payments)
+      .where(eq(payments.id, payment.id));
+    expect(row).toBeUndefined();
+
+    const listed = await paymentService.getPaymentsByTrip(organizerId, tripId);
+    expect(listed.map((p) => p.id)).not.toContain(payment.id);
+  });
+
+  it("refuses a second delete and an edit of a deleted row", async () => {
+    const payment = await paymentService.createPayment(organizerId, tripId, {
+      description: "Boat",
+      amount: 5000,
+      payerMemberId: organizerMemberId,
+      splitScope: "all_going",
+    });
+
+    await paymentService.deletePayment(organizerId, payment.id);
+
+    await expect(
+      paymentService.deletePayment(organizerId, payment.id),
+    ).rejects.toThrow();
+    await expect(
+      paymentService.updatePayment(organizerId, payment.id, {
+        description: "Boat, again",
+      }),
+    ).rejects.toThrow();
   });
 
   it("a custom payment still reads its stored rows", async () => {

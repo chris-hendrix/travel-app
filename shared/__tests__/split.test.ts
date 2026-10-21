@@ -43,10 +43,18 @@ describe("SPLIT_SCOPES", () => {
 });
 
 describe("scopeMemberIds", () => {
-  it("resolves `all_going` to the going members and every guest", () => {
-    // m-6 is a guest with no answer; m-1/m-2/m-5 are accounts that answered
-    // otherwise, and an answer is what keeps them out.
-    expect(scopeMemberIds("all_going", roster)).toEqual(["m-3", "m-4", "m-6"]);
+  it("resolves `all_going` to everyone who has not declined", () => {
+    // m-2 said no and m-2 is the only one out. `maybe` (m-1), silence (m-5)
+    // and the guest (m-6) are all still in: the split follows the roster, and
+    // a rule that waited for an answer would leave a newly added person out of
+    // a cost they are already sharing.
+    expect(scopeMemberIds("all_going", roster)).toEqual([
+      "m-1",
+      "m-3",
+      "m-4",
+      "m-5",
+      "m-6",
+    ]);
   });
 
   it("includes a guest whatever status it holds: the guest clause is the rule", () => {
@@ -77,7 +85,13 @@ describe("scopeMemberIds", () => {
   it("sorts both scopes by member id, whatever order the rows arrive in", () => {
     const scrambled = [...roster].reverse();
 
-    expect(scopeMemberIds("all_going", scrambled)).toEqual(["m-3", "m-4", "m-6"]);
+    expect(scopeMemberIds("all_going", scrambled)).toEqual([
+      "m-1",
+      "m-3",
+      "m-4",
+      "m-5",
+      "m-6",
+    ]);
     expect(scopeMemberIds("all_invited", scrambled)).toEqual([
       "m-1",
       "m-2",

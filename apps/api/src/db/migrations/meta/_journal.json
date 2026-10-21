@@ -414,6 +414,13 @@
       "when": 1792462887432,
       "tag": "0058_bumpy_silver_sable",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1792550766147,
+      "tag": "0059_luxuriant_redwing",
+      "breakpoints": true
     }
   ]
 }

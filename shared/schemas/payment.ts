@@ -138,8 +138,6 @@ const paymentEntitySchema = z.object({
   splitScope: z.enum(SPLIT_SCOPES),
   date: z.date(),
   createdBy: z.string(),
-  deletedAt: z.date().nullable(),
-  deletedBy: z.string().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
   payerName: z.string().optional(),

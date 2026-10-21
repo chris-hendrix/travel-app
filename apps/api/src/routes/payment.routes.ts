@@ -30,27 +30,16 @@ const paymentIdParamsSchema = z.object({
   id: z.string().uuid({ message: "Invalid payment ID format" }),
 });
 
-const listPaymentsQuerySchema = z.object({
-  includeDeleted: z
-    .string()
-    .transform((val) => val === "true")
-    .optional(),
-});
-
 export async function paymentRoutes(fastify: FastifyInstance) {
   /**
    * GET /trips/:tripId/payments
    * List payments for a trip
    */
-  fastify.get<{
-    Params: { tripId: string };
-    Querystring: { includeDeleted?: boolean };
-  }>(
+  fastify.get<{ Params: { tripId: string } }>(
     "/trips/:tripId/payments",
     {
       schema: {
         params: tripIdParamsSchema,
-        querystring: listPaymentsQuerySchema,
         response: { 200: paymentListResponseSchema },
       },
       config: { rateLimit: defaultRateLimitConfig },
@@ -103,7 +92,7 @@ export async function paymentRoutes(fastify: FastifyInstance) {
 
     /**
      * DELETE /payments/:id
-     * Soft delete a payment
+     * Delete a payment, permanently: settle keeps no deleted rows (`0059`)
      */
     scope.delete<{ Params: { id: string } }>(
       "/payments/:id",
@@ -117,20 +106,5 @@ export async function paymentRoutes(fastify: FastifyInstance) {
       paymentController.deletePayment,
     );
 
-    /**
-     * POST /payments/:id/restore
-     * Restore a soft-deleted payment (organizer only)
-     */
-    scope.post<{ Params: { id: string } }>(
-      "/payments/:id/restore",
-      {
-        config: { rateLimit: writeRateLimitConfig },
-        schema: {
-          params: paymentIdParamsSchema,
-          response: { 200: paymentResponseSchema },
-        },
-      },
-      paymentController.restorePayment,
-    );
   });
 }

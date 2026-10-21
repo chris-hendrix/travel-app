@@ -5,7 +5,7 @@ import {
   users,
   type Payment,
 } from "@/db/schema/index.js";
-import { eq, and, isNull, inArray, sql } from "drizzle-orm";
+import { eq, and, inArray, sql } from "drizzle-orm";
 import { equalShares, type SplitScope } from "@journiful/shared/utils";
 import type {
   CreatePaymentInput,
@@ -60,7 +60,6 @@ export interface IPaymentService {
   getPaymentsByTrip(
     userId: string,
     tripId: string,
-    includeDeleted?: boolean,
   ): Promise<PaymentWithParticipants[]>;
 
   updatePayment(
@@ -70,11 +69,6 @@ export interface IPaymentService {
   ): Promise<PaymentWithParticipants>;
 
   deletePayment(userId: string, paymentId: string): Promise<void>;
-
-  restorePayment(
-    userId: string,
-    paymentId: string,
-  ): Promise<PaymentWithParticipants>;
 }
 
 export class PaymentService implements IPaymentService {
@@ -214,19 +208,13 @@ export class PaymentService implements IPaymentService {
   async getPaymentsByTrip(
     userId: string,
     tripId: string,
-    includeDeleted = false,
   ): Promise<PaymentWithParticipants[]> {
     await this.assertMember(userId, tripId);
-
-    const conditions = [eq(payments.tripId, tripId)];
-    if (!includeDeleted) {
-      conditions.push(isNull(payments.deletedAt));
-    }
 
     const paymentRows = await this.db
       .select()
       .from(payments)
-      .where(and(...conditions));
+      .where(eq(payments.tripId, tripId));
 
     if (paymentRows.length === 0) return [];
 
@@ -291,7 +279,7 @@ export class PaymentService implements IPaymentService {
         splitScope: payments.splitScope,
       })
       .from(payments)
-      .where(and(eq(payments.id, paymentId), isNull(payments.deletedAt)))
+      .where(eq(payments.id, paymentId))
       .limit(1);
 
     if (!existing) {
@@ -447,6 +435,16 @@ export class PaymentService implements IPaymentService {
       .where(eq(paymentParticipants.paymentId, paymentId));
   }
 
+  /**
+   * Delete an expense or a settlement, for good.
+   *
+   * A real `DELETE`, not a `deleted_at` mark: `payments.member_id` is a
+   * RESTRICT foreign key to `members`, so a soft-deleted row kept blocking the
+   * removal of the person who paid it while every read filtered it out of the
+   * ledger — an invisible refusal with no screen able to explain it.
+   * `payment_participants` rides on `ON DELETE CASCADE`, so the rows go with
+   * the payment. There is no restore, which is why the form asks first.
+   */
   async deletePayment(userId: string, paymentId: string): Promise<void> {
     const [existing] = await this.db
       .select({
@@ -455,7 +453,7 @@ export class PaymentService implements IPaymentService {
         createdBy: payments.createdBy,
       })
       .from(payments)
-      .where(and(eq(payments.id, paymentId), isNull(payments.deletedAt)))
+      .where(eq(payments.id, paymentId))
       .limit(1);
 
     if (!existing) {
@@ -469,69 +467,7 @@ export class PaymentService implements IPaymentService {
       );
     }
 
-    await this.db
-      .update(payments)
-      .set({
-        deletedAt: new Date(),
-        deletedBy: userId,
-        updatedAt: new Date(),
-      })
-      .where(eq(payments.id, paymentId));
-  }
-
-  async restorePayment(
-    userId: string,
-    paymentId: string,
-  ): Promise<PaymentWithParticipants> {
-    const [existing] = await this.db
-      .select({ id: payments.id, tripId: payments.tripId })
-      .from(payments)
-      .where(eq(payments.id, paymentId))
-      .limit(1);
-
-    if (!existing) {
-      throw new PaymentNotFoundError();
-    }
-
-    const isOrganizer = await this.permissionsService.isOrganizer(
-      userId,
-      existing.tripId,
-    );
-    if (!isOrganizer) {
-      throw new PermissionDeniedError(
-        "Permission denied: only organizers can restore payments",
-      );
-    }
-
-    const [restored] = await this.db
-      .update(payments)
-      .set({
-        deletedAt: null,
-        deletedBy: null,
-        updatedAt: new Date(),
-      })
-      .where(eq(payments.id, paymentId))
-      .returning();
-
-    if (!restored) {
-      throw new PaymentNotFoundError();
-    }
-
-    const scope = asSplitScope(restored.splitScope);
-    const participantRows =
-      scope === "custom"
-        ? await this.db
-            .select()
-            .from(paymentParticipants)
-            .where(eq(paymentParticipants.paymentId, paymentId))
-        : resolveScopedSplit(
-            scope,
-            await loadSplitMembers(this.db, existing.tripId),
-            restored.amount,
-            restored.memberId,
-          );
-
-    return this.enrichPayment(existing.tripId, restored, participantRows);
+    await this.db.delete(payments).where(eq(payments.id, paymentId));
   }
 
   /**

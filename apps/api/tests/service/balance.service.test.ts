@@ -319,8 +319,9 @@ describe("balance.service", () => {
     expect(balances.length).toBeLessThanOrEqual(2);
   });
 
-  it("should exclude soft-deleted payments from balances", async () => {
-    // Create a payment and soft-delete it
+  it("should drop a deleted payment out of the balances", async () => {
+    // Settle hard-deletes (`0059`), so a removal is the row leaving the table
+    // rather than a mark the balance query filters on.
     const [payment] = await db
       .insert(payments)
       .values({
@@ -329,8 +330,6 @@ describe("balance.service", () => {
         amount: 5000,
         memberId: memberAId,
         createdBy: userAId,
-        deletedAt: new Date(),
-        deletedBy: userAId,
       })
       .returning();
 
@@ -338,8 +337,11 @@ describe("balance.service", () => {
       { paymentId: payment!.id, memberId: memberBId, shareAmount: 5000 },
     ]);
 
-    const balances = await balanceService.getTripBalances(userAId, tripId);
-    expect(balances).toHaveLength(0);
+    expect(await balanceService.getTripBalances(userAId, tripId)).toHaveLength(1);
+
+    await db.delete(payments).where(eq(payments.id, payment!.id));
+
+    expect(await balanceService.getTripBalances(userAId, tripId)).toHaveLength(0);
   });
 
   it("guest participant appears in trip balances with guest name", async () => {
@@ -537,12 +539,12 @@ describe("balance.service", () => {
     });
 
     it("a scope that resolves to nobody produces no moves", async () => {
-      // Nobody answered yes and there is no guest to carry the clause, so
+      // Everyone declined and there is no guest to carry the clause, so
       // `all_going` is empty — the read falls back to the payer alone, which
       // credits and debits the same person: net zero, no moves.
       await db
         .update(members)
-        .set({ status: "maybe" })
+        .set({ status: "not_going" })
         .where(eq(members.tripId, tripId));
       await createScopedPayment(memberAId, 3000, "all_going");
 
