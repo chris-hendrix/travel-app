@@ -7,6 +7,7 @@ import { PaymentService } from "@/services/payment.service.js";
 import { PermissionsService } from "@/services/permissions.service.js";
 import { GuestMemberService } from "@/services/guest-member.service.js";
 import {
+  PaymentNotFoundError,
   PaymentMemberNotInTripError,
   DuplicateParticipantError,
   PermissionDeniedError,
@@ -1026,12 +1027,12 @@ describe("the split scope on a payment (Tasks 5-7)", () => {
 
     await expect(
       paymentService.deletePayment(organizerId, payment.id),
-    ).rejects.toThrow();
+    ).rejects.toThrow(PaymentNotFoundError);
     await expect(
       paymentService.updatePayment(organizerId, payment.id, {
         description: "Boat, again",
       }),
-    ).rejects.toThrow();
+    ).rejects.toThrow(PaymentNotFoundError);
   });
 
   it("a custom payment still reads its stored rows", async () => {

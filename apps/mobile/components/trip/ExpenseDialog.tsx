@@ -415,6 +415,20 @@ export function ExpenseDialog({
     setScope(chosen);
   }
 
+  // The danger button's two states, read once instead of as nested ternaries
+  // in the props: the first press arms the ask, the second does it.
+  const dangerTitle = onDelete
+    ? confirmingDelete
+      ? "Delete expense, for good"
+      : "Delete expense"
+    : undefined;
+  const onDanger = onDelete
+    ? () => {
+        if (confirmingDelete) onDelete();
+        else setConfirmingDelete(true);
+      }
+    : undefined;
+
   function submit() {
     setSubmitted(true);
     if (Object.keys(validateExpense(input)).length > 0) return;
@@ -428,21 +442,8 @@ export function ExpenseDialog({
       primaryTitle={primaryTitle}
       onPrimary={submit}
       pending={pending}
-      dangerTitle={
-        onDelete
-          ? confirmingDelete
-            ? "Delete expense, for good"
-            : "Delete expense"
-          : undefined
-      }
-      onDanger={
-        onDelete
-          ? () => {
-              if (confirmingDelete) onDelete();
-              else setConfirmingDelete(true);
-            }
-          : undefined
-      }
+      dangerTitle={dangerTitle}
+      onDanger={onDanger}
       dismissHref={dismissHref}
     >
       <Stack.Screen options={{ presentation: "modal" }} />

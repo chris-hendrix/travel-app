@@ -14,7 +14,8 @@
  * navigation and sign-out could never clear the session.
  */
 
-import type { Page, APIRequestContext, APIResponse } from "@playwright/test";
+import type { Page, APIRequestContext } from "@playwright/test";
+import { postWithRetry } from "./http";
 import { API_BASE } from "./timeouts";
 import type {
   CompleteProfileBody,
@@ -142,46 +143,6 @@ export function generateUniquePhone(): string {
   return `+1555${worker}${rand}${counter}`;
 }
 
-function throwOnRateLimit(status: number, which: string): void {
-  if (status === 429) {
-    throw new Error(`${which}: ${RATE_LIMIT_COPY}`);
-  }
-}
-
-/**
- * POST with retry on 429. Doubling the suite (chromium + phone projects
- * in parallel) pushes the API's global rate limiter (300/min per IP in
- * `apps/api/src/app.ts`, unauthenticated seeding keys by IP) into 429s
- * that have nothing to do with the spec under test. Back off and retry
- * instead of failing: parse the limiter's "retry in N seconds" hint
- * when present, else linear backoff (~1s per attempt). No spec in this
- * suite exercises the limiter itself, so retrying here masks nothing.
- */
-async function postWithRetry(
-  request: APIRequestContext,
-  url: string,
-  options: Parameters<APIRequestContext["post"]>[1],
-  which: string,
-  maxAttempts = 6,
-): Promise<APIResponse> {
-  let last: APIResponse | undefined;
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    last = await request.post(url, options);
-    if (last.status() !== 429) {
-      return last;
-    }
-    if (attempt === maxAttempts) {
-      break;
-    }
-    const body = await last.text().catch(() => "");
-    const hint = body.match(/retry in (\d+(?:\.\d+)?) seconds?/i);
-    const waitMs = hint ? Math.ceil(Number(hint[1]) * 1000) + 500 : attempt * 1000;
-    await new Promise((resolve) => setTimeout(resolve, waitMs));
-  }
-  throwOnRateLimit(last?.status() ?? 429, which);
-  return last as APIResponse;
-}
-
 /**
  * Seed one user through the real auth endpoints: request-code →
  * verify-code → complete-profile. Returns the number and its token.
@@ -201,7 +162,6 @@ export async function seedUserViaAPI(
     },
     "request-code",
   );
-  throwOnRateLimit(requestCode.status(), "request-code");
   if (!requestCode.ok()) {
     throw new Error(
       `request-code failed: ${requestCode.status()} ${await requestCode.text()}`,
@@ -220,7 +180,6 @@ export async function seedUserViaAPI(
     },
     "verify-code",
   );
-  throwOnRateLimit(verify.status(), "verify-code");
   if (!verify.ok()) {
     throw new Error(
       `verify-code failed: ${verify.status()} ${await verify.text()}`,

@@ -242,10 +242,10 @@ export async function updatePayment(
 }
 
 /**
- * `DELETE /payments/:id` (204, so `apiFetch` resolves `undefined` and
- * this resolves void). Soft server-side: the row keeps its place in the
- * database and stops being returned, and the ledger filters on
- * `deletedAt` so the optimistic paint below reads as a removal.
+ * `DELETE /payments/:id` (204, so `apiFetch` resolves `undefined` and this
+ * resolves void). A real delete server-side (`payment.service.ts`'s
+ * `deletePayment`), so the optimistic paint below is a removal and a second
+ * delete is a 404.
  */
 export async function deletePayment(paymentId: string): Promise<void> {
   await apiFetch<{ success: true }>(`/payments/${paymentId}`, {

@@ -302,9 +302,10 @@ function ExpenseFormScreen() {
       onDelete={
         editMode && rowId
           ? () => {
-              // Deleting is soft on the server and needs no confirmation.
-              // A failed delete stays on the form with the failure instead
-              // of leaving, so the row is still there to try again on.
+              // The dialog asked first (`ExpenseDialog`'s armed danger
+              // button): this is the second press, and the row does not come
+              // back. A failed delete stays on the form with the failure
+              // instead of leaving, so the row is still there to try again.
               setServerError(null);
               remove.mutate(
                 { paymentId: rowId },
