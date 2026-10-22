@@ -3,6 +3,7 @@ import fp from "fastify-plugin";
 import type { FastifyInstance } from "fastify";
 import { UploadService } from "@/services/upload.service.js";
 import {
+  isNotFoundError,
   LocalStorageService,
   S3StorageService,
 } from "@/services/storage.service.js";
@@ -52,16 +53,27 @@ export default fp(
       fastify.get<{ Params: { "*": string } }>(
         "/uploads/*",
         async (request, reply) => {
+          const key = request.params["*"];
           try {
-            const { body, contentType } = await s3Storage.getObject(
-              request.params["*"],
-            );
+            const { body, contentType } = await s3Storage.getObject(key);
             return reply
               .header("Content-Type", contentType ?? "application/octet-stream")
               .header("Cache-Control", "public, max-age=31536000, immutable")
               .send(body);
-          } catch {
-            return reply.code(404).send({ error: "Not found" });
+          } catch (error) {
+            // A revoked key, a wrong endpoint or a signature mismatch used to land
+            // here and answer 404 like a missing file, which is how a bucket
+            // credential reset looked like deleted photos for a day (2026-10-22).
+            // Only a genuine miss is a 404; everything else is an upstream failure
+            // and is logged, because an unreadable bucket is an incident, not a 404.
+            if (isNotFoundError(error)) {
+              return reply.code(404).send({ error: "Not found" });
+            }
+            request.log.error(
+              { err: error, key, bucket: AWS_S3_BUCKET_NAME },
+              "storage read failed — the bucket rejected the request",
+            );
+            return reply.code(502).send({ error: "Storage unavailable" });
           }
         },
       );

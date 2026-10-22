@@ -253,7 +253,7 @@ export class LocalStorageService implements IStorageService {
  * S3-compatible storage implementation
  * Works with AWS S3, Railway Storage Buckets, Cloudflare R2, etc.
  */
-function isNotFoundError(err: unknown): boolean {
+export function isNotFoundError(err: unknown): boolean {
   const code = (err as { Code?: unknown; name?: unknown })?.Code
     ?? (err as { name?: unknown })?.name;
   return code === "NoSuchKey" || code === "NotFound" || code === "NoSuchBucket";
