@@ -66,9 +66,9 @@ const DIRECTION_WORD = {
  * which set one of the leg's optional facts at display size and left the
  * record itself as a line at body size.
  *
- * The facts under it are the leg's, in the order a person coordinates a
- * landing: the row's own end — its where, then its when — then the far
- * end the same way, then the number. Each is a `Fact`, the mode's noun in
+ * The facts under it are the leg's, in the order the leg happens in: the
+ * departure side — its where, then its when — then the arrival side the
+ * same way, then the number. Each is a `Fact`, the mode's noun in
  * the quiet column and the value in ink, rather than a titled block:
  * `Lands at` is a field label, not a heading, and the display floor a
  * block title wears made the label half again the size of the fact under
@@ -249,27 +249,32 @@ function TravelDetailDialog() {
   // as it did before there was a mode at all: the name, the direction, and
   // `Not shared yet` where the leg's facts would be.
   const mode = row.transportMode;
-  // The leg's other side, and which of the two a hire calls its counter is
-  // the table's answer rather than this screen's: the direction names the
-  // side the record files and the validator requires, and the far end is
-  // the side it does not, in every mode and both directions. Same two
+  // The row's own side, and the side behind it. A side rather than a
+  // direction: the direction names the end the record files and the
+  // validator requires, and the far end is the side it does not, in every
+  // mode and both directions. Both are named here because the sheet draws
+  // both ends, and every word over one of them asks which side it is rather
+  // than which end the row is about — which of the two a hire calls its
+  // counter is then the table's answer rather than this screen's. Same two
   // lines as the form's own far end.
+  const ownSide: TravelSide = row.travelType;
   const farSide: TravelSide =
-    row.travelType === "arrival" ? "departure" : "arrival";
+    ownSide === "departure" ? "arrival" : "departure";
   // The far end is the one fact the board's row does not carry: `TravelRow`
   // holds the half the board shows, so the other half is read back off the
-  // record, by the same id the edit destination opens the form with. A
-  // pending row has no record behind its id, so this is undefined for it
-  // and nothing below renders.
+  // record, by the same id the edit destination opens the form with — and
+  // read **by side**, so the value a fact carries follows the side it is
+  // drawn beside rather than the order the facts are listed in. A pending
+  // row has no record behind its id, so this is undefined for it and
+  // nothing below renders.
   const record = travelById(trip, row.id);
-  const arrived = row.travelType === "arrival";
   const farPlace = record
-    ? arrived
+    ? farSide === "departure"
       ? record.departureLocation
       : record.arrivalLocation
     : null;
   const farIso = record
-    ? arrived
+    ? farSide === "departure"
       ? record.departureTime
       : record.arrivalTime
     : null;
@@ -298,20 +303,21 @@ function TravelDetailDialog() {
     : mode !== null && hasLookup(mode)
       ? formatFlightNumber(row.flightNumber)
       : row.flightNumber;
-  // The leg's facts, in the order the sheet reads them: the row's own end,
-  // its where and then its when, the far end the same way, and the number
-  // last. Each label is the end's own word out of the one table the form's
-  // fields come from — `whereLabel` over a place, `endLabel` over a time —
-  // read by the **side** the end is, and by whether the fact is the row's
-  // own end or its far one, which is what makes a hire read `Arrives at`
-  // over the trip end and `Pickup at` over the counter behind it. A fact
-  // that holds nothing is not in the list at all: a label over an empty
-  // line is a word about nothing.
-  //
-  // They are rows of one block rather than a block each, which is also
-  // what the rule census (check 9) counts: it counts the places a person
-  // chose a mark, not the rules that reach the screen, so a block per fact
-  // here would spend five marks on the one boundary this block draws.
+  // The leg's two ends, each read by **side** and in the order the leg
+  // happens in: it leaves, then it lands. A side takes its place and its when
+  // off whichever source holds that side — the board's row for the row's own
+  // end, the record for the other — so the order of the list decides the
+  // order and nothing else: no value moves between the words it sits under.
+  // `far` is the table's own question, whether this is the half the row is
+  // not about, which is what makes a hire read `Arrives at` over the end its
+  // row is about and `Pickup at` over the counter behind it.
+  const endOf = (side: TravelSide) => ({
+    place: side === ownSide ? (row.location ?? "") : (farPlace ?? ""),
+    when: side === ownSide ? when : farWhen,
+    far: side !== ownSide,
+  });
+  const departure = endOf("departure");
+  const arrival = endOf("arrival");
   // Whether a copy would replace rather than add, and it is not a
   // preference: the API's create upserts on (member, direction) — that
   // pair is the record's identity — so a copy aimed at a direction you
@@ -381,37 +387,52 @@ function TravelDetailDialog() {
   }
 
   /**
-   * The leg's facts, in the order the sheet reads them: the row's own end,
-   * its where and then its when, the far end the same way, and the number
-   * under the mode's own name for it. A fact that holds nothing is not in
-   * the list, and the block is not drawn where the list is empty — an
-   * owed row has no mode, so it has none of these words and says the one
-   * thing it can instead.
+   * The leg's facts, in the order the leg happens in: the departure side's
+   * where and then its when, the arrival side's the same way, and the number
+   * under the mode's own name for it. Each label is the end's own word out of
+   * the one table the form's fields come from — `whereLabel` over a place,
+   * `endLabel` over a time — read by the **side** the end is and by whether
+   * that side is the row's own end or the one behind it, both of which come
+   * off the one `endOf` above, so a word and the value under it cannot part
+   * company. A fact that holds nothing is not in the list, and the block is
+   * not drawn where the list is empty — an owed row has no mode, so it has
+   * none of these words and says the one thing it can instead.
+   *
+   * The four are rows of one block rather than a block each, which is also
+   * what the rule census (check 9) counts: it counts the places a person
+   * chose a mark, not the rules that reach the screen, so a block per fact
+   * here would spend five marks on the one boundary this block draws.
    *
    * `place` marks the two facts that name somewhere, which is what earns
    * them the one verb a place has (`Open in Maps`, the word the stay and
    * event sheets carry under their own address). Both ends wear it rather
-   * than the leg's own alone: which of the two somebody wants directions
-   * to depends on the direction they are travelling — for an arrival it is
-   * where the plane lands, and for a departure it is where the far end
-   * is — so neither is the more useful one to offer.
+   * than the row's own alone: which of the two somebody wants directions
+   * to depends on the direction they are travelling — the end an arrival
+   * lands at, or the one a departure is heading for — so neither is the
+   * more useful one to offer.
    */
   const facts: Array<{ label: string; value: string; place?: boolean }> =
     mode === null
       ? []
       : [
           {
-            label: whereLabel(mode, row.travelType),
-            value: row.location ?? "",
+            label: whereLabel(mode, "departure", departure.far),
+            value: departure.place,
             place: true,
           },
-          { label: endLabel(mode, row.travelType), value: when },
           {
-            label: whereLabel(mode, farSide, true),
-            value: farPlace ?? "",
+            label: endLabel(mode, "departure", departure.far),
+            value: departure.when,
+          },
+          {
+            label: whereLabel(mode, "arrival", arrival.far),
+            value: arrival.place,
             place: true,
           },
-          { label: endLabel(mode, farSide, true), value: farWhen },
+          {
+            label: endLabel(mode, "arrival", arrival.far),
+            value: arrival.when,
+          },
           ...(number && numberText
             ? [{ label: number, value: numberText }]
             : []),
@@ -449,12 +470,12 @@ function TravelDetailDialog() {
         </View>
       </View>
 
-      {/* The leg's facts, in one block: the row's own end first, its where
-          and then its when, the far end the same way, and the number under
-          the mode's own name for it. A fact that holds nothing is not in
-          the list, and the block is not drawn where the list is empty — an
-          owed row has no mode, so it has none of these words and says the
-          one thing it can instead.
+      {/* The leg's facts, in one block, in the order the leg happens in: the
+          departure side's where and then its when, the arrival side's the
+          same way, and the number under the mode's own name for it. A fact
+          that holds nothing is not in the list, and the block is not drawn
+          where the list is empty — an owed row has no mode, so it has none of
+          these words and says the one thing it can instead.
 
           A where carries the two verbs a place has, under it and inside the
           same row (`PlaceActions`): `Open in Maps` hands the string the leg

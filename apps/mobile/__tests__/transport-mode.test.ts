@@ -161,8 +161,10 @@ describe("the end's noun", () => {
   });
 
   it("reads the two sentences it is for in the field's own word", () => {
-    // The two sites: `Add the …` over a shut far pair, and `No … time`
-    // inside an open time field. A hire names the counter the way the
+    // The two sentences this noun composes: `No … time` inside a time
+    // field, and the `Add the …` line the far pair's trigger used to read
+    // — kept, because the noun still has to read right in that shape even
+    // though D1 drew the pair instead. A hire names the counter the way the
     // labels over that end name it.
     expect(`Add the ${endNoun("rental", "departure", true)}`).toBe(
       "Add the pickup",
@@ -188,15 +190,78 @@ describe("the end's noun", () => {
    * stayed green, because those pass it by hand — puts the side's word over
    * a pair that names the counter: `Add the departure` under `Pickup at`,
    * the drift this file's one table exists to prevent.
+   *
+   * One call site now that the trigger is gone (D1): the none row inside a
+   * time field. The trigger's own line — `endNoun(mode, farSide, true)`,
+   * which named the end the shut pair would fill — died with the pair it
+   * described, so nothing may hold it any more.
    */
-  it("asks for the half at both of the form's two call sites", () => {
+  it("asks for the half at the form's one remaining call site", () => {
     const form = fs.readFileSync(
       path.join(__dirname, "..", "components", "trip", "TravelDialog.tsx"),
       "utf8",
     );
-    // The shut far pair's line, and the no-choice row inside a time field.
-    expect(form).toMatch(/endNoun\(mode, farSide, true\)/);
+    // The no-choice row inside a time field.
     expect(form).toMatch(/endNoun\(mode, side, far\)/);
+    // And not the shut far pair's line, which has no renderer left.
+    expect(form).not.toMatch(/endNoun\(mode, farSide, true\)/);
+  });
+});
+
+/**
+ * Where the words live. Phase 1 moved the leg's vocabulary out of the app
+ * and into `@journiful/shared/utils`, because the calendar feed
+ * (`GET /calendar/:token.ics`) writes the same words into an event's
+ * description and the API cannot import `apps/mobile`. `lib/transportMode.ts`
+ * is a re-export of that table now, and what it may not do is keep a copy:
+ * a second set of words compiled into the app is exactly the drift the one
+ * table exists to stop. The assertions above stay green through the
+ * re-export and are the proof of that — this is the proof of the *move*.
+ */
+describe("the words' home", () => {
+  it("defines none of them itself — the one table is shared's", () => {
+    const file = fs.readFileSync(
+      path.join(__dirname, "..", "lib", "transportMode.ts"),
+      "utf8",
+    );
+
+    // The three families, as the string literals a table would define
+    // them with. Quoted, because the file still *says* where the words
+    // went in its own prose — what it may not do is hold one.
+    for (const word of [
+      "Leaves",
+      "Lands",
+      "Departs",
+      "Arrives",
+      "Pickup",
+      "Dropoff",
+    ]) {
+      expect(file).not.toContain(`"${word}"`);
+    }
+
+    // The mode names are the same vocabulary, and are read by the same
+    // chip, board and sheet.
+    for (const label of ["Flight", "Train", "Bus", "Car", "Rental", "Other"]) {
+      expect(file).not.toContain(`"${label}"`);
+    }
+
+    // And the composed labels a screen renders, whole: a hand-written
+    // pair of these is a second table that happens to be spelled out,
+    // which is the shape the drift takes when nobody is looking at the
+    // end of the leg it came from.
+    for (const phrase of [
+      "Leaves from",
+      "Lands at",
+      "Pickup at",
+      "Dropoff at",
+    ]) {
+      expect(file).not.toContain(phrase);
+    }
+
+    // The numbers it does keep are its own business and stay, so this is
+    // a re-export rather than an empty file: the module still names the
+    // table it now reads.
+    expect(file).toContain("@journiful/shared/utils");
   });
 });
 

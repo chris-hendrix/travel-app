@@ -1,99 +1,43 @@
-import type { TransportMode } from "@journiful/shared/utils";
-import type { TravelDirection, TravelLeg } from "@/lib/newTravel";
+import { TRANSPORT_MODES, type TransportMode } from "@journiful/shared/utils";
+import type { TravelLeg } from "@/lib/newTravel";
 
 /**
- * The words one leg wears, in one table, keyed by the mode and by the
- * **side** of the leg the word belongs to — and, for a hire, by which
- * half of the row is asking.
+ * The leg's vocabulary, in two halves: the **words** are
+ * `@journiful/shared/utils`'s now, and the **number** is still this
+ * module's.
  *
- * By the side, not by the position of the field on the screen:
- * everything that says a leg's words reads them from here — the form's
- * `Where` and time labels, the far-end trigger's words, the detail's
- * `Fact` labels and the chips — and a second table beside this one is the
- * drift this file exists to prevent.
+ * The words moved out of the app because a second surface reads them: the
+ * API's calendar feed (`GET /calendar/:token.ics`) writes the same words
+ * into an event's description, the API cannot import `apps/mobile`, and a
+ * table it had to copy would be a second vocabulary for one end of one
+ * leg. So the one table lives in `shared/utils/travel.ts`, and this file
+ * re-exports it — `modeLabel`, `endLabel`, `whereLabel`, `endNoun`,
+ * `farEndWord`, and the `TravelSide` they are keyed by — so no screen has
+ * to change an import, and still every one of them reads the shared table.
+ * Nothing here may hold a copy: the words are one table, and
+ * `__tests__/transport-mode.test.ts` reads this file off disk to keep it
+ * that way.
  *
- * A hire is the one mode whose two ends are not both a journey's, and it
- * is the whole reason the functions below take a `far`. Its **own** end —
- * the one its direction names, the one the validator requires, the plan
- * the group is owed — is a journey's: you arrive at the trip and you
- * leave it, so it wears the neutral pair a car wears. Its **far** end,
- * the optional one, is the counter: the car is collected at the end that
- * came before, and handed back at the end that comes after. So the side
- * alone cannot name a hire's end — the departure side reads `Departs` at
- * the own end and `Pickup` at the far one — and every word below is asked
- * for the half of the row it is about.
+ * What stays is the number field: which modes keep one at all, what it is
+ * called, what the field hints at, whether it can be looked up, and what a
+ * mode change does to a number the new mode cannot keep. The API has no
+ * number field and writes no number the mode does not own, so none of this
+ * has a second reader — it is the form's business, and `NUMBER_MAX_LENGTH`
+ * is the column's cap rather than a taste.
  *
- * The words are the person's, not the transport's: `Takeoff`/`Landing`
- * was considered and rejected (`components/trip/TravelDialog.tsx`),
- * because `Leaves 7:00 AM` and `Lands 8:40 PM` read as a sentence about
- * somebody, which is whose travel this is. They come in three families —
- * the flight's `Leaves`/`Lands`, the neutral `Departs`/`Arrives` that a
- * train, a bus, a car and anything else do, and the hire's
- * `Pickup`/`Dropoff` — and only the last is about what you do with the
- * transport rather than about the journey.
- *
- * Pure, with no renderer in it: the words are the feature, so they are
- * unit-tested rather than eyeballed at 390 and 1280.
+ * Pure, with no renderer in it: the mobile suite has none, so the words and
+ * the number's rules are both unit-tested rather than eyeballed at 390 and
+ * 1280.
  */
 
-/** One of the leg's two columns. */
-export type TravelSide = "departure" | "arrival";
-
-const END_WORDS: Record<TransportMode, Record<TravelSide, string>> = {
-  flight: { departure: "Leaves", arrival: "Lands" },
-  train: { departure: "Departs", arrival: "Arrives" },
-  bus: { departure: "Departs", arrival: "Arrives" },
-  // Nobody lands a car: `Leaves`/`Lands` stays the flight's, and the
-  // neutral pair is what a drive, a ferry and a walk all do.
-  car: { departure: "Departs", arrival: "Arrives" },
-  // A hire's own end is a journey's too — arriving at the trip is
-  // arriving and leaving it is leaving — so it reads as a car's does. The
-  // counter's two errands are the *far* end's, and they live in
-  // `HIRE_FAR_WORDS` below rather than in a row here.
-  rental: { departure: "Departs", arrival: "Arrives" },
-  other: { departure: "Departs", arrival: "Arrives" },
-};
-
-/**
- * The two errands a hire is not a journey for, keyed by the side they fall
- * on — which the row's direction decides. On an arrival row the far end is
- * the departure side, the end the car was collected from; on a departure
- * row it is the arrival side, the end it is handed back to.
- *
- * The only words in this file a mode reads from outside its own row, and
- * the only ones that pair a counter with a clock rather than a journey
- * with one.
- */
-const HIRE_FAR_WORDS: Record<TravelSide, string> = {
-  departure: "Pickup",
-  arrival: "Dropoff",
-};
-
-/**
- * The same two ends as nouns, for the two sentences about an end that
- * holds no value: `Add the pickup` over a shut far pair, and `No dropoff
- * time` inside an open time field.
- */
-const HIRE_FAR_NOUNS: Record<TravelSide, string> = {
-  departure: "pickup",
-  arrival: "dropoff",
-};
-
-/** Where you are at an end of the leg, or from it: you leave a place
- *  and arrive at one. */
-const WHERE_PREPOSITION: Record<TravelSide, string> = {
-  departure: "from",
-  arrival: "at",
-};
-
-const MODE_LABELS: Record<TransportMode, string> = {
-  flight: "Flight",
-  train: "Train",
-  bus: "Bus",
-  car: "Car",
-  rental: "Rental",
-  other: "Other",
-};
+export {
+  endLabel,
+  endNoun,
+  farEndWord,
+  modeLabel,
+  whereLabel,
+} from "@journiful/shared/utils";
+export type { TravelSide } from "@journiful/shared/utils";
 
 /**
  * The longest value the number field will take, and the column's own cap:
@@ -131,139 +75,43 @@ const NUMBER_FIELDS: Partial<
   bus: { label: "Bus service", placeholder: "FlixBus 42", lookup: false },
 };
 
-/** The leg's two columns, one from the other. */
-function otherSide(side: TravelSide): TravelSide {
-  return side === "departure" ? "arrival" : "departure";
-}
-
 /**
- * The modes the tables above have a row for — this file's one statement
- * of which modes it can read.
+ * The modes this file's own table has a row for — the wire's list, not a
+ * second copy of one: `TRANSPORT_MODES` is `shared`'s, and every mode in
+ * it is a mode the form draws a chip for.
  */
-const TABLE_MODES: ReadonlySet<string> = new Set(Object.keys(END_WORDS));
+const WIRE_MODES: ReadonlySet<string> = new Set(TRANSPORT_MODES);
 
 /**
- * The mode a table is read by: the one it was handed where the tables
- * have a row for it, the flight where they do not.
+ * The mode the number table is read by: the one it was handed where the
+ * wire knows it, the flight where it does not.
  *
- * **This is a deploy-window guard, not a default to store.** An EAS
- * Update lands on a phone the moment it is published while the API
- * deploys on its own schedule, so a bundle can meet an API that predates
- * the mode: the row carries no `transportMode`, the leg is handed
- * `undefined`, and every table in this file was indexed by it —
- * `END_WORDS[undefined]` is `undefined`, and reading `["departure"]` off
- * that is a `TypeError`, which is the travel form's white screen rather
- * than a word that reads a little oddly. The column is
+ * The same deploy-window guard the words' table keeps for itself, in the
+ * one place the words no longer cover: a bundle can meet an API that
+ * predates a mode — or a newer API can know one this bundle does not — and
+ * `NUMBER_FIELDS[mode]` is `undefined` for it, which would tell the form
+ * that a flight has no number field. `transport_mode` is
  * `NOT NULL DEFAULT 'flight'`, so the flight's row is what such a leg
- * honestly is: the reading the column's own default would have given it.
+ * honestly is.
  *
- * It is **not** a licence to file a default. Nothing that *writes* a leg
- * may read this: the form files the mode it was handed, as it found it
- * (`newTravel.ts`'s `legFromRecord` carries it through, and a payload
- * that omits it leaves the column alone), so an absent mode stays absent
- * rather than becoming a flight on the way out.
- *
- * An absent mode is the one case this admits. `null` stays out, because
- * a record with no mode to wear is a state this feature does have — a
- * row nobody has filed, which its callers draw without a chip and
- * without a block — and that is not a flight to be read into it.
+ * It is **not** a licence to file a default: nothing that writes a leg
+ * reads this, so an absent mode stays absent rather than becoming a flight
+ * on the way out.
  */
-function knownMode(mode: TransportMode | undefined): TransportMode {
-  // The tables' own keys, rather than `mode in END_WORDS`, which answers
-  // true for `constructor` and the rest of the prototype: a mode from the
-  // wire may be any string at all, and a table read through the prototype
-  // is the shape of hole this guard exists to close.
-  return mode !== undefined && TABLE_MODES.has(mode) ? mode : "flight";
-}
-
-/** The mode's own name: the chip's word and the board's badge. */
-export function modeLabel(mode: TransportMode | undefined): string {
-  return MODE_LABELS[knownMode(mode)];
-}
-
-/**
- * The end's word, on its own — what a time field is called, and the
- * first word of the line that reads a filed far end back.
- *
- * `far` asks for the other half of the row, which is a question only a
- * hire makes a difference to: its own end is a journey's, and `Pickup` /
- * `Dropoff` name the counter at the end the row is not about.
- */
-export function endLabel(
-  mode: TransportMode | undefined,
-  side: TravelSide,
-  far = false,
-): string {
-  if (far && knownMode(mode) === "rental") return HIRE_FAR_WORDS[side];
-  return END_WORDS[knownMode(mode)][side];
-}
-
-/**
- * The same word where a `Where` wears it: the end and the preposition
- * you are at it. One table, two renderings — the time field is the word
- * itself — so the form and the detail cannot title one fact twice.
- */
-export function whereLabel(
-  mode: TransportMode | undefined,
-  side: TravelSide,
-  far = false,
-): string {
-  // A hire's counter is *at* both its ends — the desk you collect from
-  // and the desk you hand back to — where a journey leaves *from* its
-  // departure end. The hire's own end is a journey's and takes the
-  // journey's preposition, which is why this asks about the half rather
-  // than about the mode.
-  const atCounter = far && knownMode(mode) === "rental";
-  const preposition = atCounter ? "at" : WHERE_PREPOSITION[side];
-  return `${endLabel(mode, side, far)} ${preposition}`;
-}
-
-/**
- * The end as a noun, for the two sentences about an end that holds no
- * value: the shut far pair's line (`Add the departure`) and the no-choice
- * row inside a time field (`No departure time`).
- *
- * It is the side's own name — which is why this is not a table, since
- * every mode's own end would fill it with the same six rows: the noun
- * cannot be the word above it, because "No lands time" is not English and
- * `Add the Leaves` reads as a category error. A hire's *far* end is the
- * exception, and the only one: `Pickup` and `Dropoff` are already nouns,
- * and calling that end "the departure" would put a second name for one
- * end on a screen.
- */
-export function endNoun(
-  mode: TransportMode | undefined,
-  side: TravelSide,
-  far = false,
-): string {
-  if (far && knownMode(mode) === "rental") return HIRE_FAR_NOUNS[side];
-  return side;
-}
-
-/**
- * The word the *far* end of this row wears, from the row's own direction:
- * an arrival's far end is its departure, a departure's is its arrival, and
- * on a hire those are the pickup and the dropoff. The caller knows its
- * direction and not which column that makes the far one, which is the
- * arithmetic this keeps out of the screens.
- */
-export function farEndWord(
-  mode: TransportMode | undefined,
-  direction: TravelDirection,
-): string {
-  return endLabel(mode, otherSide(direction), true);
+function numberMode(mode: TransportMode | undefined): TransportMode {
+  return mode !== undefined && WIRE_MODES.has(mode) ? mode : "flight";
 }
 
 /** The number field's label, or null where the mode keeps no number. */
 export function numberLabel(mode: TransportMode | undefined): string | null {
-  return NUMBER_FIELDS[knownMode(mode)]?.label ?? null;
+  return NUMBER_FIELDS[numberMode(mode)]?.label ?? null;
 }
 
 /** The number field's placeholder, or null where there is no field. */
 export function numberPlaceholder(
   mode: TransportMode | undefined,
 ): string | null {
-  return NUMBER_FIELDS[knownMode(mode)]?.placeholder ?? null;
+  return NUMBER_FIELDS[numberMode(mode)]?.placeholder ?? null;
 }
 
 /** Whether the mode has a number field at all — the render gate. */
@@ -273,7 +121,7 @@ export function hasNumberField(mode: TransportMode | undefined): boolean {
 
 /** Whether the number is looked up rather than typed: the flight alone. */
 export function hasLookup(mode: TransportMode | undefined): boolean {
-  return NUMBER_FIELDS[knownMode(mode)]?.lookup === true;
+  return NUMBER_FIELDS[numberMode(mode)]?.lookup === true;
 }
 
 /**
