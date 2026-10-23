@@ -161,8 +161,10 @@ describe("the end's noun", () => {
   });
 
   it("reads the two sentences it is for in the field's own word", () => {
-    // The two sites: `Add the …` over a shut far pair, and `No … time`
-    // inside an open time field. A hire names the counter the way the
+    // The two sentences this noun composes: `No … time` inside a time
+    // field, and the `Add the …` line the far pair's trigger used to read
+    // — kept, because the noun still has to read right in that shape even
+    // though D1 drew the pair instead. A hire names the counter the way the
     // labels over that end name it.
     expect(`Add the ${endNoun("rental", "departure", true)}`).toBe(
       "Add the pickup",
@@ -188,15 +190,21 @@ describe("the end's noun", () => {
    * stayed green, because those pass it by hand — puts the side's word over
    * a pair that names the counter: `Add the departure` under `Pickup at`,
    * the drift this file's one table exists to prevent.
+   *
+   * One call site now that the trigger is gone (D1): the none row inside a
+   * time field. The trigger's own line — `endNoun(mode, farSide, true)`,
+   * which named the end the shut pair would fill — died with the pair it
+   * described, so nothing may hold it any more.
    */
-  it("asks for the half at both of the form's two call sites", () => {
+  it("asks for the half at the form's one remaining call site", () => {
     const form = fs.readFileSync(
       path.join(__dirname, "..", "components", "trip", "TravelDialog.tsx"),
       "utf8",
     );
-    // The shut far pair's line, and the no-choice row inside a time field.
-    expect(form).toMatch(/endNoun\(mode, farSide, true\)/);
+    // The no-choice row inside a time field.
     expect(form).toMatch(/endNoun\(mode, side, far\)/);
+    // And not the shut far pair's line, which has no renderer left.
+    expect(form).not.toMatch(/endNoun\(mode, farSide, true\)/);
   });
 });
 

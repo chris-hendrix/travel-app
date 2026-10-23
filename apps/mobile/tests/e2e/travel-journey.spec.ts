@@ -46,11 +46,13 @@
  *
  * Selectors are accessible names, never `testID`. The form's fields are
  * named by the mode's own word for their end and for which half of the row
- * they are (`lib/transportMode.ts`, D3), so an arrival's `Where` reads
+ * they are (`shared/utils/travel.ts`, D3), so an arrival's `Where` reads
  * `Lands at` on the default flight and `Arrives at` on a hire — whose
- * counter is the `Pickup at` behind the trigger — the words are the
- * feature, and a spec that named a field by its position would be
- * asserting the shape this change removed. Nothing here re-verifies a unit
+ * counter is the `Pickup at` drawn above it — the words are the feature,
+ * and a spec that named a field by its position would be asserting a shape
+ * instead. Both ends are on screen, in the one order a leg happens in
+ * (departure side first), so position is asserted once as geometry and is
+ * never how a field is found. Nothing here re-verifies a unit
  * test:
  * `__tests__/travel-where.test.ts` owns the ranking, `travel-days.test.ts`
  * the strip's cells and `new-travel.test.ts` the D5 leg rule. Field-level
@@ -172,9 +174,12 @@ test.describe("Travel Journey", () => {
       await page.getByRole("radio", { name: dayCellLabel(startDate) }).click();
 
       // components/ui/TimeField.tsx: closed, the field is a button
-      // named by what it shows. The arrival's own end is `Lands`, the
-      // only one still asking — `Leaves` is optional for an arrival and
-      // says so — so the required field is the one to press.
+      // named by what it shows. Both ends are on screen now (D1), and
+      // exactly one of the two is *asking*: the arrival's own end reads
+      // `Pick a time` where the departure's says `No departure time`,
+      // because the departure is the optional half and an optional field's
+      // no-choice row is its answer rather than a blank (D2). So the
+      // required end is the only button wearing that name.
       await page.getByRole("button", { name: "Pick a time" }).click();
       // Open, the field is a column of `role="radio"` slots labelled the
       // way the itinerary prints them.
@@ -330,19 +335,37 @@ test.describe("Travel Journey", () => {
       await expect(
         page.getByRole("button", { name: clockIn(arrivalIso(), tripZone) }),
       ).toBeVisible();
-      // The far end was never filed, and its pair is shut behind its own
-      // trigger: a leg's counterpart is optional, so what says so is a
-      // line offering to add it — `Add the departure`, named by the side
-      // it would fill — rather than an empty pair of fields. The one
-      // field still asking is the arrival's own end, which is how this
-      // spec reads "the record's own values" without re-testing the
-      // formatter.
+      // The far end was never filed, and its pair is on screen anyway: a
+      // leg's counterpart is optional, so what says so is one quiet word
+      // over it rather than a line offering to add it (D1, D2). Both ends
+      // are drawn departure-first, so the panel reads an empty
+      // `Leaves from`, an empty `Leaves` whose closed row is its none
+      // choice, and only then the arrival the record holds. The one field
+      // still *asking* is the arrival's own end, which is how this spec
+      // reads "the record's own values" without re-testing the formatter.
+      const departureWhereField = page.getByRole("textbox", {
+        name: "Leaves from",
+      });
+      await expect(departureWhereField).toHaveValue("");
+      await expect(page.getByText("Leaves", { exact: true })).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "No departure time" }),
+      ).toBeVisible();
       await expect(page.getByRole("button", { name: "Pick a time" })).toHaveCount(
         0,
       );
-      await expect(
-        page.getByRole("button", { name: "Add the departure" }),
-      ).toBeVisible();
+      // The word belongs to the pair, not to a field, and this panel has
+      // one far end — so exactly one `Optional`, and it sits above the
+      // pair it marks rather than beside it.
+      const optionalWord = page.getByText("Optional", { exact: true });
+      await expect(optionalWord).toHaveCount(1);
+      const [optionalBox, departureWhereBox] = await Promise.all([
+        optionalWord.boundingBox(),
+        departureWhereField.boundingBox(),
+      ]);
+      expect(optionalBox).not.toBeNull();
+      expect(departureWhereBox).not.toBeNull();
+      expect(optionalBox?.y ?? 0).toBeLessThan(departureWhereBox?.y ?? 0);
       // Delete names the direction this URL is about. It is only
       // rendered for a filed direction, and it is the clearest signal
       // that the form resolved the record rather than the viewer.
@@ -491,14 +514,21 @@ test.describe("Travel Journey", () => {
         "",
       );
       // One field still asks — the arrival's own end, which is required —
-      // and the counterpart is optional, which the form draws as a pair
-      // shut behind its own trigger rather than as an empty field.
+      // and the counterpart is drawn beside it and marked rather than
+      // shut: an empty `Leaves from`, an empty `Leaves` whose closed row
+      // reads its none choice, and one `Optional` over the pair this row
+      // is not about.
       await expect(page.getByRole("button", { name: "Pick a time" })).toHaveCount(
         1,
       );
+      await expect(page.getByRole("textbox", { name: "Leaves from" })).toHaveValue(
+        "",
+      );
+      await expect(page.getByText("Leaves", { exact: true })).toBeVisible();
       await expect(
-        page.getByRole("button", { name: "Add the departure" }),
+        page.getByRole("button", { name: "No departure time" }),
       ).toBeVisible();
+      await expect(page.getByText("Optional", { exact: true })).toHaveCount(1);
       await expect(page.getByText("Not shared yet")).toHaveCount(1);
       await expect(
         page.getByRole("button", { name: "Delete arrival" }),
@@ -764,14 +794,15 @@ test.describe("Travel Journey", () => {
           exact: true,
         }),
       ).toBeVisible();
-      // The far end is open because it *holds* something rather than
-      // because it was asked (D4): the pair renders on the value, and the
-      // pickup is where the record put it.
+      // The departure side is drawn because every leg draws both its ends
+      // (D1), and it holds the counter the record put there, in the mode's
+      // own word for that end: `Pickup at` on a hire's arrival row.
       await expect(
         page.getByRole("textbox", { name: "Pickup at" }),
       ).toHaveValue(pickupWhere);
-      // Exact, because the shut line above reads the same clock back
-      // inside a sentence (`Pickup · 10:00 AM · PMI Desk`).
+      // Exact: the field is named by the clock and nothing else, so the
+      // assertion cannot pass on a longer string that happens to contain
+      // one.
       await expect(
         page.getByRole("button", {
           name: clockIn(pickupIso(), tripZone),
@@ -781,7 +812,9 @@ test.describe("Travel Journey", () => {
       // Both ends on the filed day, which is what the absence of the far
       // end's note says: `farEndNote` exists only when its day is not the
       // one the strip above shows, and its word comes from the same table
-      // as the labels.
+      // as the labels. On a crossing leg it is the only line under the
+      // fields that opens with that word and a day, which is what lets its
+      // absence be asserted at all.
       await expect(
         page.getByText(/^Pickup (Mon|Tue|Wed|Thu|Fri|Sat|Sun) /),
       ).toHaveCount(0);
@@ -790,13 +823,32 @@ test.describe("Travel Journey", () => {
       ).toHaveAttribute("aria-selected", "true");
     });
 
+    await test.step("the arrival row reads its departure side first", async () => {
+      // The order is the leg's, not the row's (D1): on an arrival row the
+      // pair the row is *not* about — the counter the car was collected
+      // from — is drawn above the pair it is. Nothing in the Vitest suite
+      // has a renderer, so two fields' order is only assertable here, as
+      // geometry. The departure row's half of the same rule is asserted
+      // below, after the mode has moved on.
+      const pickupField = page.getByRole("textbox", { name: "Pickup at" });
+      const arrivesField = page.getByRole("textbox", { name: "Arrives at" });
+      const [pickupBox, arrivesBox] = await Promise.all([
+        pickupField.boundingBox(),
+        arrivesField.boundingBox(),
+      ]);
+      expect(pickupBox).not.toBeNull();
+      expect(arrivesBox).not.toBeNull();
+      expect(pickupBox?.y ?? 0).toBeLessThan(arrivesBox?.y ?? 0);
+    });
+
     await test.step("a chip commits another mode, and the board wears that", async () => {
       // The chip renames the fields and never gates them (D2): the hire's
       // two ends stay where they are while the mode changes, so the own
       // where holds its value under a label it keeps — `Arrives at` is the
       // train's own arrival word and the hire's own end wears it too — and
-      // the counter behind the trigger becomes a journey's `Departs from`.
-      // One leg, two vocabularies, and the words come from the one table.
+      // the counter's pair, still drawn above it, becomes a journey's
+      // `Departs from` / `Departs`. One leg, two vocabularies, and the
+      // words come from the one table.
       await page.getByRole("radio", { name: "Train" }).click();
       await expect(
         page.getByRole("textbox", { name: "Arrives at" }),
@@ -819,12 +871,15 @@ test.describe("Travel Journey", () => {
       ).toBeVisible({ timeout: NAVIGATION_TIMEOUT });
     });
 
-    await test.step("the same hire's other direction reads its own end first", async () => {
-      // The own pair leads on every row, and a hire's departure row is no
-      // exception any more: it reads `Departs from` above the `Dropoff at`
-      // behind it, where it used to read pickup-first. Nothing in the
-      // Vitest suite has a renderer, so two fields' order is only
-      // assertable here, as geometry.
+    await test.step("the same hire's departure row reads its departure side first", async () => {
+      // The rule holds on both rows, and a hire's departure row is where
+      // the old order happened to look right: it read `Departs from` above
+      // the `Dropoff at` because the *own* end led, not because the
+      // departure did. Both pairs are drawn in the order the leg happens
+      // in now (D1), so the same two words keep their order for the other
+      // reason. Nothing in the Vitest suite has a renderer, so two fields'
+      // order is only assertable here, as geometry — and the arrival row's
+      // mirror, `Pickup at` above `Arrives at`, is asserted above.
       const departureTravelId = await seedTravelViaAPI(
         request,
         token,
@@ -846,21 +901,22 @@ test.describe("Travel Journey", () => {
         "true",
         { timeout: NAVIGATION_TIMEOUT },
       );
-      // The own end of a departure row is the leaving, which a hire calls
-      // `Departs from`; the far end is the dropoff the record holds.
-      const ownField = page.getByRole("textbox", { name: "Departs from" });
+      // The departure side of a departure row is the leaving, which a hire
+      // calls `Departs from`; the arrival side is the dropoff the record
+      // holds.
+      const departureField = page.getByRole("textbox", { name: "Departs from" });
       const dropoffField = page.getByRole("textbox", { name: "Dropoff at" });
-      await expect(ownField).toHaveValue(leaveWhere, {
+      await expect(departureField).toHaveValue(leaveWhere, {
         timeout: NAVIGATION_TIMEOUT,
       });
       await expect(dropoffField).toHaveValue(dropoffWhere);
-      const [ownBox, dropoffBox] = await Promise.all([
-        ownField.boundingBox(),
+      const [departureBox, dropoffBox] = await Promise.all([
+        departureField.boundingBox(),
         dropoffField.boundingBox(),
       ]);
-      expect(ownBox).not.toBeNull();
+      expect(departureBox).not.toBeNull();
       expect(dropoffBox).not.toBeNull();
-      expect(ownBox?.y ?? 0).toBeLessThan(dropoffBox?.y ?? 0);
+      expect(departureBox?.y ?? 0).toBeLessThan(dropoffBox?.y ?? 0);
     });
   });
 
