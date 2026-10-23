@@ -3,10 +3,11 @@ import {
   members,
   users,
   trips,
+  events,
   mutedMembers,
   type Invitation as DBInvitation,
 } from "@/db/schema/index.js";
-import { eq, and, inArray, isNotNull, count, sql } from "drizzle-orm";
+import { eq, and, inArray, isNotNull, isNull, count, sql } from "drizzle-orm";
 import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
 import type { ISMSService } from "./sms.service.js";
@@ -43,6 +44,46 @@ import {
   LastOrganizerError,
   NotAMutualError,
 } from "../errors.js";
+
+/**
+ * What the public invitation preview answers with: the trip's identity, and its
+ * breadth.
+ *
+ * Declared once and named, because it is read in three places with three
+ * different jobs — the interface below, the implementation, and the mobile
+ * client's inline mirror — and a shape copied twice in one file is a shape that
+ * drifts in one of the copies.
+ *
+ * `memberCount` is the roster, not attendance, and that is the same number the
+ * app already shows as `going`: `trip.service.ts` counts member rows the same
+ * way and `lib/mapping.ts` maps it onto a trip card's `going`. Counting only
+ * `status = 'going'` here would make the invite promise a smaller trip than the
+ * one the reader lands on — the invite is the same trip seen through a keyhole,
+ * so it has to be the same arithmetic. That the two labels disagree ("6 people"
+ * here, "6 going" on the card, for a roster containing pending invitations and
+ * `no_response` rows) is a product-wide question, not this route's to answer
+ * alone.
+ */
+export type InvitationPreviewPayload = {
+  tripName: string;
+  destination: string;
+  startDate: string | null;
+  endDate: string | null;
+  inviterName: string;
+  inviteePhone: string;
+  tripId: string;
+  description: string | null;
+  coverImageUrl: string | null;
+  /** Live (non-deleted) events on the itinerary — a count, never titles. */
+  eventCount: number;
+  /**
+   * Member rows on the trip — a count, never names. Roster, not attendance:
+   * a guest row with a pending invitation sits here, and an accepted
+   * invitation is written `no_response` until the invitee answers the RSVP
+   * control. The same arithmetic as the trip card's `going`.
+   */
+  memberCount: number;
+};
 
 /**
  * Invitation Service Interface
@@ -173,15 +214,7 @@ export interface IInvitationService {
    * @returns Preview data for pending, redirect hint for accepted, or null for declined/failed/not found
    */
   getInvitationPreview(invitationId: string): Promise<
-    | {
-        tripName: string;
-        destination: string;
-        startDate: string | null;
-        endDate: string | null;
-        inviterName: string;
-        inviteePhone: string;
-        tripId: string;
-      }
+    | InvitationPreviewPayload
     | { status: "accepted"; tripId: string }
     | null
   >;
@@ -1512,6 +1545,15 @@ export class InvitationService implements IInvitationService {
 
       // Batch: insert new members for trips where user isn't already a
       // member AND no guest row was claimed (invitation-only trips).
+      //
+      // `going`, not the column default, for the reason `D7` gives the claim
+      // path (`guest-member.service.ts`): signing in with the invited number is
+      // this product's acceptance — the invite's own copy is "Sign in to join"
+      // — so it is the person's first real answer to the RSVP. The default is
+      // right for a row the *organizer* created by inviting somebody who has
+      // not answered yet; it is wrong for a row the invitee's own sign-in
+      // creates. `canViewFullTrip` requires `going`, so the difference is
+      // whether the traveler lands on the trip or on a preview of it.
       const newMemberTrips = pendingInvitations.filter(
         (inv) =>
           !existingTripIds.has(inv.tripId) && !claimedTripIds.has(inv.tripId),
@@ -1522,7 +1564,7 @@ export class InvitationService implements IInvitationService {
           newMemberTrips.map((inv) => ({
             tripId: inv.tripId,
             userId,
-            status: "no_response" as const,
+            status: "going" as const,
             isOrganizer: false,
           })),
         );
@@ -1547,15 +1589,7 @@ export class InvitationService implements IInvitationService {
    * invitations, and null for declined/failed/not found.
    */
   async getInvitationPreview(invitationId: string): Promise<
-    | {
-        tripName: string;
-        destination: string;
-        startDate: string | null;
-        endDate: string | null;
-        inviterName: string;
-        inviteePhone: string;
-        tripId: string;
-      }
+    | InvitationPreviewPayload
     | { status: "accepted"; tripId: string }
     | null
   > {
@@ -1568,6 +1602,8 @@ export class InvitationService implements IInvitationService {
         destination: trips.destination,
         startDate: trips.startDate,
         endDate: trips.endDate,
+        description: trips.description,
+        coverImageUrl: trips.coverImageUrl,
         inviterName: users.displayName,
       })
       .from(invitations)
@@ -1585,6 +1621,31 @@ export class InvitationService implements IInvitationService {
     if (row.status !== "pending") {
       return null;
     }
+
+    // Two counts, not two lists. The card says "6 people" and "4 activities
+    // planned" and stops there: this route is public and un-authenticated, so
+    // a roster, itinerary titles, a lodging address or a member's phone would
+    // be a stranger's reading of somebody else's travel plans. `showAllMembers`
+    // is not consulted either — nothing in the API enforces it yet, so keying
+    // the preview's privacy on it would invent semantics rather than respect
+    // them.
+    //
+    // The member count is `count(*)` on purpose, and it is the number the trip
+    // card already calls `going` (`trip.service.ts:getMemberCount`,
+    // `lib/mapping.ts`). Filtering to `status = 'going'` would read as more
+    // honest and would in fact understate the trip the reader lands on, since
+    // accepting an invitation writes `no_response` until the invitee answers
+    // the RSVP control.
+    const [eventRow, memberRow] = await Promise.all([
+      this.db
+        .select({ value: count() })
+        .from(events)
+        .where(and(eq(events.tripId, row.tripId), isNull(events.deletedAt))),
+      this.db
+        .select({ value: count() })
+        .from(members)
+        .where(eq(members.tripId, row.tripId)),
+    ]);
 
     // Mask phone: show last 4 digits only (e.g. "+1555****890"). A released
     // number's marker is not a number and its tail is not one either, so there
@@ -1607,6 +1668,10 @@ export class InvitationService implements IInvitationService {
       inviterName: row.inviterName,
       inviteePhone: maskedPhone,
       tripId: row.tripId,
+      description: row.description,
+      coverImageUrl: row.coverImageUrl,
+      eventCount: eventRow?.[0]?.value ?? 0,
+      memberCount: memberRow?.[0]?.value ?? 0,
     };
   }
 
@@ -1682,7 +1747,11 @@ export class InvitationService implements IInvitationService {
           await tx.insert(members).values({
             tripId: invitation.tripId,
             userId,
-            status: "no_response",
+            // `going`: this path runs for an explicit acceptance, which is an
+            // answer. Same rule as the claim leg above and as `D7` in
+            // `guest-member.service.ts` — the no-answer default belongs to a
+            // row an organizer created, never to one an acceptance does.
+            status: "going",
             isOrganizer: false,
           });
         }

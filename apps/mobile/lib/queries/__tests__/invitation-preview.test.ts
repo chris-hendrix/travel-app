@@ -21,7 +21,8 @@ const INVITE_ID = "123e4567-e89b-12d3-a456-426614174000";
 
 /**
  * The server's preview body is flat — `{success: true, tripName,
- * destination, startDate, endDate, inviterName, inviteePhone, tripId}`
+ * destination, startDate, endDate, inviterName, inviteePhone, tripId,
+ * description, coverImageUrl, eventCount, memberCount}`
  * (`invitationController.getInvitationPreview` spreads the service row
  * into the reply; there is no shared preview schema, so the shape is
  * declared inline in `lib/queries/invitations.ts`). Dates are ISO
@@ -37,6 +38,10 @@ function previewBody(overrides: Record<string, unknown> = {}) {
     inviterName: "Ana Kovac",
     inviteePhone: "+1555****4567",
     tripId: "trip-1",
+    description: "Eight days on the Dalmatian coast.",
+    coverImageUrl: "https://api.journiful.test/uploads/covers/croatia.jpg",
+    eventCount: 4,
+    memberCount: 6,
     ...overrides,
   };
 }
@@ -68,7 +73,40 @@ describe("invitationPreviewOptions", () => {
       startDate: "2026-06-04",
       endDate: "2026-06-09",
       tripId: "trip-1",
+      description: "Eight days on the Dalmatian coast.",
+      coverImageUrl: "https://api.journiful.test/uploads/covers/croatia.jpg",
+      eventCount: 4,
+      memberCount: 6,
     });
+  });
+
+  it("resolves a relative cover path against the API origin", async () => {
+    // The API stores an upload as the path it came back as, so the card would
+    // hand an image component a relative `uri` and render nothing
+    // (`lib/uploads.ts`). The trip card resolves its own the same way.
+    //
+    // The origin is stubbed rather than assumed: `resolveUploadUrl` never
+    // throws, and with no `EXPO_PUBLIC_API_URL` and `NODE_ENV=test` it hands
+    // back the path untouched — so an unstubbed test would assert the very
+    // bug it exists to catch.
+    vi.stubEnv("EXPO_PUBLIC_API_URL", "https://api.journiful.test/api");
+    try {
+      mockedApiFetch.mockReset();
+      mockedApiFetch.mockResolvedValue(
+        previewBody({ coverImageUrl: "/uploads/covers/croatia.jpg" }),
+      );
+
+      const options = invitationPreviewOptions(INVITE_ID);
+      const preview = await options.queryFn!({
+        queryKey: options.queryKey,
+      } as never);
+
+      expect(preview?.coverImageUrl).toBe(
+        "https://api.journiful.test/uploads/covers/croatia.jpg",
+      );
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("maps an already-accepted invitation to the gone state", async () => {

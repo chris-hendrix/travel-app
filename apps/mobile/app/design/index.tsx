@@ -1452,8 +1452,8 @@ function DesignSystemScreen() {
 
             <Specimen
               name="InviteCard"
-              contract="inviterName · tripName · destination · startDate · endDate"
-              note="The trip as somebody who has not signed in reads it: the four facts the invitation preview returns, in the same order the trip page's own column uses, because this is that page seen through a keyhole. No itinerary, no roll call, no cover: those are what joining is for, and the endpoint does not send them."
+              contract="inviterName · tripName · destination · startDate · endDate · description · coverImageUrl · eventCount · memberCount"
+              note="The trip as somebody who has not signed in reads it, in the same order the trip page's own column uses, because this is that page seen through a keyhole — and this screen is the product's only growth surface, so it carries the trip's breadth (cover, prose, two counts) rather than four facts and a sign-in button. Its contents stay out: counts, never roster names, itinerary titles or addresses, because the route is public and un-authenticated."
             >
               <InviteCard
                 inviterName={INVITATIONS[0]!.inviterName}
@@ -1461,6 +1461,10 @@ function DesignSystemScreen() {
                 destination={TRIPS[0]!.location}
                 startDate={TRIPS[0]!.startDate}
                 endDate={TRIPS[0]!.endDate}
+                description={TRIPS[0]!.description}
+                coverImageUrl={TRIPS[0]!.coverImageUrl}
+                eventCount={4}
+                memberCount={6}
               />
             </Specimen>
 

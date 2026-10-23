@@ -171,6 +171,165 @@ describe("invitation.service", () => {
 
   afterEach(cleanup);
 
+  describe("getInvitationPreview", () => {
+    /**
+     * The public invite page is the one route that answers to nobody: no
+     * `authenticate`, no cookie, a UUID in the URL and that is all. So the
+     * things these tests hold are the privacy line as much as the shape —
+     * the trip's *breadth* (cover, prose, two counts) is public, and its
+     * *contents* (who is going, what is planned, where they are staying)
+     * are not.
+     */
+    const invitePending = async () => {
+      const [invitation] = await db
+        .insert(invitations)
+        .values({
+          tripId: testTripId,
+          inviterId: testOrganizerId,
+          inviteePhone: generateUniquePhone(),
+          status: "pending",
+        })
+        .returning();
+      return invitation;
+    };
+
+    it("returns the trip's breadth for a pending invitation", async () => {
+      await db
+        .update(trips)
+        .set({
+          description: "Eight days on the Dalmatian coast.",
+          coverImageUrl: "/uploads/covers/croatia.jpg",
+          startDate: "2026-06-04",
+          endDate: "2026-06-12",
+        })
+        .where(eq(trips.id, testTripId));
+
+      // A fourth member who has not answered Going; the setup's two are both
+      // `going`. Asserted below as "3", because this count is the roster and
+      // not attendance — the same number the trip card renders as `going`
+      // (`trip.service.ts:getMemberCount` → `lib/mapping.ts`), so filtering to
+      // `status = 'going'` here would promise a smaller trip than the one the
+      // reader lands on.
+      await db.insert(members).values({
+        tripId: testTripId,
+        guestDisplayName: "Undecided",
+        status: "no_response",
+      });
+
+      const invitation = await invitePending();
+
+      const preview = await invitationService.getInvitationPreview(
+        invitation.id,
+      );
+
+      expect(preview).toMatchObject({
+        tripName: "Test Trip",
+        destination: "Test Destination",
+        startDate: "2026-06-04",
+        endDate: "2026-06-12",
+        inviterName: "Test Organizer",
+        tripId: testTripId,
+        description: "Eight days on the Dalmatian coast.",
+        coverImageUrl: "/uploads/covers/croatia.jpg",
+        // The organizer, the regular member the setup adds, and the
+        // undecided third — a roster count, deliberately.
+        memberCount: 3,
+        eventCount: 0,
+      });
+    });
+
+    it("carries no roster names, and reports roster size not attendance", async () => {
+      // The shape a stranger must never be handed: `members` holds guest rows
+      // for invitations that were never answered, and the read layer presents
+      // those as INVITED. Counting rows would turn them into attendees.
+      await db.insert(members).values({
+        tripId: testTripId,
+        guestDisplayName: "Pending Guest",
+        status: "no_response",
+      });
+
+      const invitation = await invitePending();
+
+      const preview = await invitationService.getInvitationPreview(
+        invitation.id,
+      );
+
+      // Membership is a count, never a list: the regular member the setup
+      // added must not be named anywhere in a body anyone on the internet can
+      // GET. The *organizer* is named on purpose — the card's whole premise is
+      // "Ana invited you" — so only the roster stays out of it.
+      const serialised = JSON.stringify(preview);
+      expect(serialised).not.toContain("Test Member");
+      expect(serialised).not.toContain("Pending Guest");
+      expect(preview).not.toHaveProperty("memberNames");
+      expect(preview).not.toHaveProperty("members");
+
+      // The roster size, which includes the pending guest row above: the
+      // number is `count(*)` so that it matches the trip card's `going`.
+      expect(preview).toMatchObject({ memberCount: 3 });
+
+      const { inviteePhone } = preview as { inviteePhone: string };
+      expect(inviteePhone).toMatch(/^\+\**\d{4}$/);
+      expect(inviteePhone.slice(-4)).toBe(invitation.inviteePhone.slice(-4));
+    });
+
+    it("counts live events only", async () => {
+      await db.insert(events).values([
+        {
+          tripId: testTripId,
+          createdBy: testOrganizerId,
+          name: "Boat day",
+          eventType: "outdoors",
+          startTime: new Date("2026-06-05T10:00:00Z"),
+        },
+        {
+          tripId: testTripId,
+          createdBy: testOrganizerId,
+          name: "Deleted dinner",
+          eventType: "food_and_drink",
+          startTime: new Date("2026-06-06T19:00:00Z"),
+          deletedAt: new Date(),
+          deletedBy: testOrganizerId,
+        },
+      ]);
+
+      const invitation = await invitePending();
+
+      const preview = await invitationService.getInvitationPreview(
+        invitation.id,
+      );
+
+      // The soft-deleted event is not part of what a stranger is promised.
+      expect(preview).toMatchObject({ eventCount: 1 });
+    });
+
+    it("returns a redirect hint for an already-accepted invitation", async () => {
+      const [invitation] = await db
+        .insert(invitations)
+        .values({
+          tripId: testTripId,
+          inviterId: testOrganizerId,
+          inviteePhone: generateUniquePhone(),
+          status: "accepted",
+        })
+        .returning();
+
+      const preview = await invitationService.getInvitationPreview(
+        invitation.id,
+      );
+
+      expect(preview).toEqual({ status: "accepted", tripId: testTripId });
+    });
+
+    it("returns null for an unknown invitation", async () => {
+      const preview = await invitationService.getInvitationPreview(
+        "00000000-0000-4000-8000-000000000000",
+      );
+
+      expect(preview).toBeNull();
+    });
+  });
+
   describe("createInvitations", () => {
     it("should create invitations for new phone numbers", async () => {
       const phone1 = generateUniquePhone();
@@ -935,7 +1094,13 @@ describe("invitation.service", () => {
           and(eq(members.tripId, testTripId), eq(members.userId, newUser.id)),
         );
       expect(memberRecords).toHaveLength(1);
-      expect(memberRecords[0].status).toBe("no_response");
+      // `going`, because signing in with the invited number *is* the
+      // acceptance — and `canViewFullTrip` requires `going`, so a
+      // `no_response` here would hand a brand-new member a preview of the trip
+      // they had just joined. The organizer-side path (inviting an existing
+      // user who has not answered) still writes the default; see the mutual
+      // invite below.
+      expect(memberRecords[0].status).toBe("going");
       expect(memberRecords[0].isOrganizer).toBe(false);
 
       // Clean up
@@ -1176,6 +1341,62 @@ describe("invitation.service", () => {
 
       // Clean up
       await db.delete(users).where(eq(users.phoneNumber, guestPhone));
+    });
+  });
+
+  describe("acceptInvitation — the RSVP an acceptance implies", () => {
+    it("makes the acceptant going, so the trip they joined is readable", async () => {
+      // An acceptance is an answer. Before this, both accept paths wrote the
+      // column default (`no_response`), and `canViewFullTrip` requires
+      // `going` — so the loop this product is built on, invite → sign in → see
+      // the trip, ended in a preview of the trip. Nothing asserted the status,
+      // which is why it survived; the mutual-invite assertion below
+      // `processPendingInvitations` holds the other half of the rule (an
+      // organizer-side add stays unanswered).
+      const inviteePhone = generateUniquePhone();
+      const [invitee] = await db
+        .insert(users)
+        .values({
+          phoneNumber: inviteePhone,
+          displayName: "Invitee Accepts",
+          timezone: "UTC",
+        })
+        .returning();
+
+      const [invitation] = await db
+        .insert(invitations)
+        .values({
+          tripId: testTripId,
+          inviterId: testOrganizerId,
+          inviteePhone,
+          status: "pending",
+        })
+        .returning();
+
+      const result = await invitationService.acceptInvitation(
+        invitation.id,
+        invitee.id,
+      );
+      expect(result).toEqual({ tripId: testTripId });
+
+      const [row] = await db
+        .select()
+        .from(members)
+        .where(
+          and(eq(members.tripId, testTripId), eq(members.userId, invitee.id)),
+        );
+      expect(row?.status).toBe("going");
+
+      // The status is not cosmetic: this is the gate the itinerary reads
+      // through, so the assertion that matters is what the traveler can see
+      // once they are in.
+      await expect(
+        permissionsService.canViewFullTrip(invitee.id, testTripId),
+      ).resolves.toBe(true);
+
+      // Deleting the invitee cascades the member row; the invitation row is
+      // swept by the suite's own cleanup.
+      await db.delete(users).where(eq(users.phoneNumber, inviteePhone));
     });
   });
 
@@ -2152,6 +2373,10 @@ describe("invitation.service", () => {
           and(eq(members.tripId, testTripId), eq(members.userId, mutualUserId)),
         );
       expect(memberRecords).toHaveLength(1);
+      // The default, and deliberately so: the *organizer* added this member by
+      // inviting them, and they have not answered yet. `D7` flips this to
+      // `going` when the person claims the row or signs in — which is the
+      // asymmetry the two assertions around this one exist to hold.
       expect(memberRecords[0].status).toBe("no_response");
       expect(memberRecords[0].isOrganizer).toBe(false);
 

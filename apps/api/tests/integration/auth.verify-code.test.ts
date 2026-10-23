@@ -482,7 +482,11 @@ describe("POST /api/auth/verify-code", () => {
         .where(and(eq(members.tripId, trip.id), eq(members.userId, userId)));
 
       expect(memberRecords).toHaveLength(1);
-      expect(memberRecords[0].status).toBe("no_response");
+      // `going`: verifying with the invited number is this product's
+      // acceptance, so it is an answer to the RSVP. The visible consequence is
+      // that `canViewFullTrip` — which requires `going` — lets the brand-new
+      // member read the trip rather than a preview of it.
+      expect(memberRecords[0].status).toBe("going");
       expect(memberRecords[0].isOrganizer).toBe(false);
 
       // Verify the invitation status was updated to accepted

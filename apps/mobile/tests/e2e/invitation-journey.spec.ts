@@ -359,15 +359,24 @@ test.describe("Invitation Journey", () => {
       await expect(page.getByText(tripName).last()).toBeVisible({
         timeout: NAVIGATION_TIMEOUT,
       });
-      // components/trip/RunLocked.tsx: the guest has not answered the
-      // RSVP, and the API reads full trip data only to members who are
-      // going (`canViewFullTrip`, 403 PREVIEW_ACCESS_ONLY for the rest),
-      // so the trip page renders the locked state in place of the run.
-      // Asserting it proves the screen mounted and that the server's rule
-      // is honoured rather than shown as a failed section.
+      // components/trip/Itinerary.tsx: signing in with the invited number is
+      // this product's acceptance, and an acceptance is an answer — so the
+      // member is `going`, the API reads the full trip to them
+      // (`canViewFullTrip`), and the run renders its own empty state instead
+      // of `RunLocked`.
+      //
+      // This step used to assert the opposite ("Answer above to see the
+      // itinerary"), because accepting wrote the RSVP column's default and the
+      // traveler who had just joined was shown a second prompt to answer the
+      // question they had just answered. The empty state is the positive
+      // assertion: `toBeHidden` alone would pass on a screen that rendered
+      // nothing at all.
+      await expect(page.getByText("Nothing planned yet")).toBeVisible({
+        timeout: NAVIGATION_TIMEOUT,
+      });
       await expect(
         page.getByText("Answer above to see the itinerary"),
-      ).toBeVisible();
+      ).toBeHidden();
     });
   });
 
