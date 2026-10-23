@@ -171,6 +171,138 @@ describe("invitation.service", () => {
 
   afterEach(cleanup);
 
+  describe("getInvitationPreview", () => {
+    /**
+     * The public invite page is the one route that answers to nobody: no
+     * `authenticate`, no cookie, a UUID in the URL and that is all. So the
+     * things these tests hold are the privacy line as much as the shape —
+     * the trip's *breadth* (cover, prose, two counts) is public, and its
+     * *contents* (who is going, what is planned, where they are staying)
+     * are not.
+     */
+    const invitePending = async () => {
+      const [invitation] = await db
+        .insert(invitations)
+        .values({
+          tripId: testTripId,
+          inviterId: testOrganizerId,
+          inviteePhone: generateUniquePhone(),
+          status: "pending",
+        })
+        .returning();
+      return invitation;
+    };
+
+    it("returns the trip's breadth for a pending invitation", async () => {
+      await db
+        .update(trips)
+        .set({
+          description: "Eight days on the Dalmatian coast.",
+          coverImageUrl: "/uploads/covers/croatia.jpg",
+          startDate: "2026-06-04",
+          endDate: "2026-06-12",
+        })
+        .where(eq(trips.id, testTripId));
+
+      const invitation = await invitePending();
+
+      const preview = await invitationService.getInvitationPreview(
+        invitation.id,
+      );
+
+      expect(preview).toMatchObject({
+        tripName: "Test Trip",
+        destination: "Test Destination",
+        startDate: "2026-06-04",
+        endDate: "2026-06-12",
+        inviterName: "Test Organizer",
+        tripId: testTripId,
+        description: "Eight days on the Dalmatian coast.",
+        coverImageUrl: "/uploads/covers/croatia.jpg",
+        // The organizer and the regular member the setup adds.
+        memberCount: 2,
+        eventCount: 0,
+      });
+    });
+
+    it("masks the invitee's number and carries no roster", async () => {
+      const invitation = await invitePending();
+
+      const preview = await invitationService.getInvitationPreview(
+        invitation.id,
+      );
+
+      // Membership is a count, never a list: the regular member the setup
+      // added must not be named anywhere in a body anyone on the internet can
+      // GET. The *organizer* is named on purpose — the card's whole premise is
+      // "Ana invited you" — so only the roster stays out of it.
+      const serialised = JSON.stringify(preview);
+      expect(serialised).not.toContain("Test Member");
+      expect(preview).not.toHaveProperty("memberNames");
+      expect(preview).not.toHaveProperty("members");
+
+      const { inviteePhone } = preview as { inviteePhone: string };
+      expect(inviteePhone).toMatch(/^\+\**\d{4}$/);
+      expect(inviteePhone.slice(-4)).toBe(invitation.inviteePhone.slice(-4));
+    });
+
+    it("counts live events only", async () => {
+      await db.insert(events).values([
+        {
+          tripId: testTripId,
+          createdBy: testOrganizerId,
+          name: "Boat day",
+          eventType: "outdoors",
+          startTime: new Date("2026-06-05T10:00:00Z"),
+        },
+        {
+          tripId: testTripId,
+          createdBy: testOrganizerId,
+          name: "Deleted dinner",
+          eventType: "food_and_drink",
+          startTime: new Date("2026-06-06T19:00:00Z"),
+          deletedAt: new Date(),
+          deletedBy: testOrganizerId,
+        },
+      ]);
+
+      const invitation = await invitePending();
+
+      const preview = await invitationService.getInvitationPreview(
+        invitation.id,
+      );
+
+      // The soft-deleted event is not part of what a stranger is promised.
+      expect(preview).toMatchObject({ eventCount: 1 });
+    });
+
+    it("returns a redirect hint for an already-accepted invitation", async () => {
+      const [invitation] = await db
+        .insert(invitations)
+        .values({
+          tripId: testTripId,
+          inviterId: testOrganizerId,
+          inviteePhone: generateUniquePhone(),
+          status: "accepted",
+        })
+        .returning();
+
+      const preview = await invitationService.getInvitationPreview(
+        invitation.id,
+      );
+
+      expect(preview).toEqual({ status: "accepted", tripId: testTripId });
+    });
+
+    it("returns null for an unknown invitation", async () => {
+      const preview = await invitationService.getInvitationPreview(
+        "00000000-0000-4000-8000-000000000000",
+      );
+
+      expect(preview).toBeNull();
+    });
+  });
+
   describe("createInvitations", () => {
     it("should create invitations for new phone numbers", async () => {
       const phone1 = generateUniquePhone();

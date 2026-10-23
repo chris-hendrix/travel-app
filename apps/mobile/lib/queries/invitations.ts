@@ -1,5 +1,6 @@
 import { mutationOptions, queryOptions, useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
+import { resolveUploadUrl } from "@/lib/uploads";
 
 /**
  * One invite suggestion, mirroring `mutualEntitySchema`
@@ -38,12 +39,15 @@ export const invitationKeys = {
 
 /**
  * One invitation preview, mirroring what `getInvitationPreview` in
- * `apps/api/src/services/invitation.service.ts:1491-1548` selects:
- * the trip's name, destination, dates, the inviter's name, the
- * invitee phone masked to its last four digits, and the trip id the
- * signed-in card navigates to. There is no shared preview schema, so
- * the shape is declared inline (the trips/auth precedent). Dates are
- * ISO yyyy-mm-dd, null when nobody has set them yet.
+ * `apps/api/src/services/invitation.service.ts` selects: the trip's
+ * name, destination, dates, description and cover, the inviter's name,
+ * the invitee phone masked to its last four digits, and the trip id the
+ * signed-in card navigates to — plus two counts (members, events) and
+ * nothing else. There are no member names and no itinerary titles: the
+ * route is public, so what it carries is the shape of the trip, never
+ * its contents. There is no shared preview schema, so the shape is
+ * declared inline (the trips/auth precedent). Dates are ISO yyyy-mm-dd,
+ * null when nobody has set them yet.
  */
 export type InvitationPreview = {
   tripName: string;
@@ -53,6 +57,14 @@ export type InvitationPreview = {
   inviterName: string;
   inviteePhone: string;
   tripId: string;
+  /** Organizer-authored prose, null until somebody writes it. */
+  description: string | null;
+  /** The trip's uploaded cover, resolved against the API origin; null when it has none. */
+  coverImageUrl: string | null;
+  /** Live (non-deleted) events on the itinerary — a count, never titles. */
+  eventCount: number;
+  /** Everyone on the roster — a count, never names. */
+  memberCount: number;
 };
 
 /**
@@ -99,6 +111,14 @@ export const invitationPreviewOptions = (id: string | undefined) =>
         inviterName: body.inviterName,
         inviteePhone: body.inviteePhone,
         tripId: body.tripId,
+        description: body.description,
+        // The API stores the upload as the path it came back as, so it is
+        // resolved here exactly as the trip card resolves its own
+        // (`lib/mapping.ts`): a relative path is not an `uri` an image
+        // component can load.
+        coverImageUrl: resolveUploadUrl(body.coverImageUrl),
+        eventCount: body.eventCount,
+        memberCount: body.memberCount,
       };
     },
     enabled: typeof id === "string" && id.length > 0,

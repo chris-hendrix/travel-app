@@ -3,10 +3,11 @@ import {
   members,
   users,
   trips,
+  events,
   mutedMembers,
   type Invitation as DBInvitation,
 } from "@/db/schema/index.js";
-import { eq, and, inArray, isNotNull, count, sql } from "drizzle-orm";
+import { eq, and, inArray, isNotNull, isNull, count, sql } from "drizzle-orm";
 import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
 import type { ISMSService } from "./sms.service.js";
@@ -181,6 +182,10 @@ export interface IInvitationService {
         inviterName: string;
         inviteePhone: string;
         tripId: string;
+        description: string | null;
+        coverImageUrl: string | null;
+        eventCount: number;
+        memberCount: number;
       }
     | { status: "accepted"; tripId: string }
     | null
@@ -1555,6 +1560,10 @@ export class InvitationService implements IInvitationService {
         inviterName: string;
         inviteePhone: string;
         tripId: string;
+        description: string | null;
+        coverImageUrl: string | null;
+        eventCount: number;
+        memberCount: number;
       }
     | { status: "accepted"; tripId: string }
     | null
@@ -1568,6 +1577,8 @@ export class InvitationService implements IInvitationService {
         destination: trips.destination,
         startDate: trips.startDate,
         endDate: trips.endDate,
+        description: trips.description,
+        coverImageUrl: trips.coverImageUrl,
         inviterName: users.displayName,
       })
       .from(invitations)
@@ -1585,6 +1596,25 @@ export class InvitationService implements IInvitationService {
     if (row.status !== "pending") {
       return null;
     }
+
+    // Two counts, not two lists. The card says "6 people" and "4 activities
+    // planned" and stops there: this route is public and un-authenticated, so
+    // a roster, itinerary titles, a lodging address or a member's phone would
+    // be a stranger's reading of somebody else's travel plans. `showAllMembers`
+    // is not consulted either — nothing in the API enforces it yet, so keying
+    // the preview's privacy on it would invent semantics rather than respect
+    // them. What signing in buys is the content; these are the two numbers
+    // that make signing in worth it.
+    const [eventRow, memberRow] = await Promise.all([
+      this.db
+        .select({ value: count() })
+        .from(events)
+        .where(and(eq(events.tripId, row.tripId), isNull(events.deletedAt))),
+      this.db
+        .select({ value: count() })
+        .from(members)
+        .where(eq(members.tripId, row.tripId)),
+    ]);
 
     // Mask phone: show last 4 digits only (e.g. "+1555****890"). A released
     // number's marker is not a number and its tail is not one either, so there
@@ -1607,6 +1637,10 @@ export class InvitationService implements IInvitationService {
       inviterName: row.inviterName,
       inviteePhone: maskedPhone,
       tripId: row.tripId,
+      description: row.description,
+      coverImageUrl: row.coverImageUrl,
+      eventCount: eventRow?.[0]?.value ?? 0,
+      memberCount: memberRow?.[0]?.value ?? 0,
     };
   }
 

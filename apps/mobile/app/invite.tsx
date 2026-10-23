@@ -116,6 +116,10 @@ function InviteScreen() {
         destination={preview.destination}
         startDate={preview.startDate}
         endDate={preview.endDate}
+        description={preview.description}
+        coverImageUrl={preview.coverImageUrl}
+        eventCount={preview.eventCount}
+        memberCount={preview.memberCount}
       />
       {user ? (
         // Signed in already, so there is no number to ask for. The trip
