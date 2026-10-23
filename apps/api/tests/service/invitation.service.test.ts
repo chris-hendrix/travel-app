@@ -204,6 +204,18 @@ describe("invitation.service", () => {
         })
         .where(eq(trips.id, testTripId));
 
+      // A fourth member who has not answered Going; the setup's two are both
+      // `going`. Asserted below as "3", because this count is the roster and
+      // not attendance — the same number the trip card renders as `going`
+      // (`trip.service.ts:getMemberCount` → `lib/mapping.ts`), so filtering to
+      // `status = 'going'` here would promise a smaller trip than the one the
+      // reader lands on.
+      await db.insert(members).values({
+        tripId: testTripId,
+        guestDisplayName: "Undecided",
+        status: "no_response",
+      });
+
       const invitation = await invitePending();
 
       const preview = await invitationService.getInvitationPreview(
@@ -219,13 +231,23 @@ describe("invitation.service", () => {
         tripId: testTripId,
         description: "Eight days on the Dalmatian coast.",
         coverImageUrl: "/uploads/covers/croatia.jpg",
-        // The organizer and the regular member the setup adds.
-        memberCount: 2,
+        // The organizer, the regular member the setup adds, and the
+        // undecided third — a roster count, deliberately.
+        memberCount: 3,
         eventCount: 0,
       });
     });
 
-    it("masks the invitee's number and carries no roster", async () => {
+    it("carries no roster names, and reports roster size not attendance", async () => {
+      // The shape a stranger must never be handed: `members` holds guest rows
+      // for invitations that were never answered, and the read layer presents
+      // those as INVITED. Counting rows would turn them into attendees.
+      await db.insert(members).values({
+        tripId: testTripId,
+        guestDisplayName: "Pending Guest",
+        status: "no_response",
+      });
+
       const invitation = await invitePending();
 
       const preview = await invitationService.getInvitationPreview(
@@ -238,8 +260,13 @@ describe("invitation.service", () => {
       // "Ana invited you" — so only the roster stays out of it.
       const serialised = JSON.stringify(preview);
       expect(serialised).not.toContain("Test Member");
+      expect(serialised).not.toContain("Pending Guest");
       expect(preview).not.toHaveProperty("memberNames");
       expect(preview).not.toHaveProperty("members");
+
+      // The roster size, which includes the pending guest row above: the
+      // number is `count(*)` so that it matches the trip card's `going`.
+      expect(preview).toMatchObject({ memberCount: 3 });
 
       const { inviteePhone } = preview as { inviteePhone: string };
       expect(inviteePhone).toMatch(/^\+\**\d{4}$/);

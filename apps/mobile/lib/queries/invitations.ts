@@ -42,12 +42,12 @@ export const invitationKeys = {
  * `apps/api/src/services/invitation.service.ts` selects: the trip's
  * name, destination, dates, description and cover, the inviter's name,
  * the invitee phone masked to its last four digits, and the trip id the
- * signed-in card navigates to — plus two counts (members, events) and
- * nothing else. There are no member names and no itinerary titles: the
- * route is public, so what it carries is the shape of the trip, never
- * its contents. There is no shared preview schema, so the shape is
- * declared inline (the trips/auth precedent). Dates are ISO yyyy-mm-dd,
- * null when nobody has set them yet.
+ * signed-in card navigates to — plus two counts (member rows, live events)
+ * and nothing else. There are no member names and no itinerary titles: the
+ * route is public, so what it carries is the shape of the trip, never its
+ * contents. There is no shared preview schema, so the shape is declared
+ * inline (the trips/auth precedent). Dates are ISO yyyy-mm-dd, null when
+ * nobody has set them yet.
  */
 export type InvitationPreview = {
   tripName: string;
@@ -63,7 +63,17 @@ export type InvitationPreview = {
   coverImageUrl: string | null;
   /** Live (non-deleted) events on the itinerary — a count, never titles. */
   eventCount: number;
-  /** Everyone on the roster — a count, never names. */
+  /**
+   * Member rows on the trip — a count, never names. This is the **roster, not
+   * attendance**: a guest row with a pending invitation sits in `members` and
+   * is presented as INVITED by the read layer, and an accepted invitation is
+   * written `no_response` until the invitee answers the RSVP control.
+   *
+   * It is `count(*)` on purpose, matching `trip.service.ts:getMemberCount`,
+   * which `lib/mapping.ts` turns into a trip card's `going`. Counting strictly
+   * would make the invite promise a smaller trip than the one the reader lands
+   * on.
+   */
   memberCount: number;
 };
 

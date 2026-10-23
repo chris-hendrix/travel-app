@@ -46,6 +46,46 @@ import {
 } from "../errors.js";
 
 /**
+ * What the public invitation preview answers with: the trip's identity, and its
+ * breadth.
+ *
+ * Declared once and named, because it is read in three places with three
+ * different jobs — the interface below, the implementation, and the mobile
+ * client's inline mirror — and a shape copied twice in one file is a shape that
+ * drifts in one of the copies.
+ *
+ * `memberCount` is the roster, not attendance, and that is the same number the
+ * app already shows as `going`: `trip.service.ts` counts member rows the same
+ * way and `lib/mapping.ts` maps it onto a trip card's `going`. Counting only
+ * `status = 'going'` here would make the invite promise a smaller trip than the
+ * one the reader lands on — the invite is the same trip seen through a keyhole,
+ * so it has to be the same arithmetic. That the two labels disagree ("6 people"
+ * here, "6 going" on the card, for a roster containing pending invitations and
+ * `no_response` rows) is a product-wide question, not this route's to answer
+ * alone.
+ */
+export type InvitationPreviewPayload = {
+  tripName: string;
+  destination: string;
+  startDate: string | null;
+  endDate: string | null;
+  inviterName: string;
+  inviteePhone: string;
+  tripId: string;
+  description: string | null;
+  coverImageUrl: string | null;
+  /** Live (non-deleted) events on the itinerary — a count, never titles. */
+  eventCount: number;
+  /**
+   * Member rows on the trip — a count, never names. Roster, not attendance:
+   * a guest row with a pending invitation sits here, and an accepted
+   * invitation is written `no_response` until the invitee answers the RSVP
+   * control. The same arithmetic as the trip card's `going`.
+   */
+  memberCount: number;
+};
+
+/**
  * Invitation Service Interface
  * Defines the contract for invitation and RSVP management operations
  */
@@ -174,19 +214,7 @@ export interface IInvitationService {
    * @returns Preview data for pending, redirect hint for accepted, or null for declined/failed/not found
    */
   getInvitationPreview(invitationId: string): Promise<
-    | {
-        tripName: string;
-        destination: string;
-        startDate: string | null;
-        endDate: string | null;
-        inviterName: string;
-        inviteePhone: string;
-        tripId: string;
-        description: string | null;
-        coverImageUrl: string | null;
-        eventCount: number;
-        memberCount: number;
-      }
+    | InvitationPreviewPayload
     | { status: "accepted"; tripId: string }
     | null
   >;
@@ -1552,19 +1580,7 @@ export class InvitationService implements IInvitationService {
    * invitations, and null for declined/failed/not found.
    */
   async getInvitationPreview(invitationId: string): Promise<
-    | {
-        tripName: string;
-        destination: string;
-        startDate: string | null;
-        endDate: string | null;
-        inviterName: string;
-        inviteePhone: string;
-        tripId: string;
-        description: string | null;
-        coverImageUrl: string | null;
-        eventCount: number;
-        memberCount: number;
-      }
+    | InvitationPreviewPayload
     | { status: "accepted"; tripId: string }
     | null
   > {
@@ -1603,8 +1619,14 @@ export class InvitationService implements IInvitationService {
     // be a stranger's reading of somebody else's travel plans. `showAllMembers`
     // is not consulted either — nothing in the API enforces it yet, so keying
     // the preview's privacy on it would invent semantics rather than respect
-    // them. What signing in buys is the content; these are the two numbers
-    // that make signing in worth it.
+    // them.
+    //
+    // The member count is `count(*)` on purpose, and it is the number the trip
+    // card already calls `going` (`trip.service.ts:getMemberCount`,
+    // `lib/mapping.ts`). Filtering to `status = 'going'` would read as more
+    // honest and would in fact understate the trip the reader lands on, since
+    // accepting an invitation writes `no_response` until the invitee answers
+    // the RSVP control.
     const [eventRow, memberRow] = await Promise.all([
       this.db
         .select({ value: count() })

@@ -54,12 +54,16 @@ export function InviteCard({
   coverImageUrl: string | null;
   /** Live events on the itinerary — a count, never titles. */
   eventCount: number;
-  /** Everyone on the roster — a count, never names. */
+  /**
+   * Member rows on the trip — a count, never names. Roster, not attendance,
+   * and the same number the trip card calls `going`; see
+   * `InvitationPreview` in `lib/queries/invitations.ts` for why that
+   * arithmetic is shared rather than stricter here.
+   */
   memberCount: number;
 }) {
-  // Pluralised in place rather than through a helper: there are two nouns
-  // here and one of them ("activities") is irregular, so a shared pluraliser
-  // would be three lines of exception handling to save one.
+  // "Activities" is the only irregular noun here, so the plural is spelled at
+  // the one site that needs it rather than through a shared pluraliser.
   const counts = [
     memberCount > 0
       ? `${memberCount} ${memberCount === 1 ? "person" : "people"}`
@@ -91,6 +95,16 @@ export function InviteCard({
               source={{ uri: coverImageUrl }}
               className="h-full w-full"
               contentFit="cover"
+              // Decorative, and empty is the answer rather than an omission:
+              // the trip is named in text directly below, so reading a cover
+              // photo's description would be noise for a screen reader — the
+              // same reasoning `PlaceholderImage` writes down for the stock
+              // photos. Both props are set because `expo-image` 57's web build
+              // forwards only `accessibilityLabel` to the element a crawler
+              // reads, so `alt` alone leaves the attribute off the `<img>`.
+              alt=""
+              accessibilityLabel=""
+              accessibilityIgnoresInvertColors
             />
           ) : (
             <PlaceholderImage kind="trip" />
