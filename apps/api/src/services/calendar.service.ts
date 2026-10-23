@@ -3,6 +3,7 @@ import { eq, and, isNull, ne, inArray } from "drizzle-orm";
 import ical, {
   ICalCalendarMethod,
   ICalEventTransparency,
+  type ICalCalendar,
 } from "ical-generator";
 import {
   users,
@@ -10,17 +11,42 @@ import {
   trips,
   events,
   accommodations,
+  memberTravel,
   type User,
   type Trip,
   type Event,
   type Accommodation,
+  type MemberTravel,
 } from "@/db/schema/index.js";
 import type { AppDatabase } from "@/types/index.js";
+import {
+  formatFlightNumber,
+  mapsSearchUrl,
+  modeLabel,
+  whereLabel,
+  type TransportMode,
+  type TravelSide,
+} from "@journiful/shared/utils";
 
 interface TripCalendarData {
   trip: Trip;
   events: Event[];
   accommodations: Accommodation[];
+  /**
+   * The viewer's own legs on this trip — never a co-member's.
+   *
+   * Travel hangs off a member row, not off the trip, and the feed is one
+   * person's calendar: a co-traveller's flight is not the subscriber's
+   * occupation, and an event for it would tell them they are busy when
+   * they are not. So this is the caller's `members.id` rows and nothing
+   * else, which is why `getCalendarTripsAndEvents` reads it from the
+   * member rows it has already resolved rather than from the trip ids.
+   *
+   * Already filtered: no tombstones. A leg is deleted, not muted (there
+   * is no per-leg switch), so a soft-deleted row is absent rather than
+   * hidden by the renderer.
+   */
+  travel: MemberTravel[];
 }
 
 export interface ICalendarService {
@@ -46,6 +72,151 @@ export interface ICalendarService {
 function toTimezoneDate(utcDate: Date, timezone: string): Date {
   const local = utcDate.toLocaleString("en-US", { timeZone: timezone });
   return new Date(local);
+}
+
+/**
+ * The emoji a leg wears in the calendar, one per mode, beside the stay's
+ * 🏨.
+ *
+ * The calendar's own presentation, deliberately not in `shared`: the app's
+ * board names a mode with a word and a chip, and a table every surface
+ * reads would make an emoji someone else's commitment. The six are the
+ * column's own modes (`member_travel_transport_mode`, built from
+ * `TRANSPORT_MODES`), so the map is total over what a row can carry — the
+ * database cannot hand this an unknown mode, which is why there is no
+ * fallback row here the way the words' module needs one for phone bundles
+ * older than the API.
+ *
+ * A hire reads as the car you drive away in: 🚙, with the counter named by
+ * the leg's own words (`Pickup at`). `other` is a taxi because a leg filed
+ * as "something else" is, in practice, the ride nobody put a mode on.
+ */
+const TRAVEL_EMOJI: Record<TransportMode, string> = {
+  flight: "✈️",
+  train: "🚆",
+  bus: "🚌",
+  car: "🚗",
+  rental: "🚙",
+  other: "🚕",
+};
+
+/** The hour a leg brackets around the one end it filed. */
+const TRAVEL_BRACKET_MS = 60 * 60 * 1000;
+
+/**
+ * One filed leg, as one event — D5's span and D6's words.
+ *
+ * **Spans when both ends are known**, because a leg is a block of time you
+ * cannot be somewhere else for; a calendar that only marked each end
+ * could not answer "am I free at 9am". **Brackets** an hour when the
+ * member filed only one end: an arrival ends at the landing it was filed
+ * with, a departure starts at the takeoff. An inverted pair falls back on
+ * the same hour an event with no end uses, which is the honest answer —
+ * the duration is missing, not negative.
+ *
+ * The event is **busy**, unlike the trip block and the stay: those are
+ * context, a leg is occupation.
+ *
+ * `LOCATION` is the end you end up at (arrival, else departure), because a
+ * week view shows it and makes it tappable; the description is the only
+ * place both ends can be offered, one `Open in Maps` line per end that has
+ * a where, labelled with the same words the form and the sheet use
+ * (`whereLabel`, so a hire's far end reads `Pickup at`).
+ *
+ * A row with neither end makes no event: there is no time to place it at,
+ * and no place to name it after.
+ */
+function travelEvent(
+  calendar: ICalCalendar,
+  trip: Trip,
+  travel: MemberTravel,
+  timezone: string,
+): void {
+  const { departureTime, arrivalTime } = travel;
+
+  let start: Date;
+  let end: Date;
+  if (departureTime && arrivalTime) {
+    start = departureTime;
+    end = arrivalTime;
+    if (end.getTime() <= start.getTime()) {
+      end = new Date(start.getTime() + TRAVEL_BRACKET_MS);
+    }
+  } else if (arrivalTime) {
+    // The hour spent travelling into the landing.
+    end = arrivalTime;
+    start = new Date(arrivalTime.getTime() - TRAVEL_BRACKET_MS);
+  } else if (departureTime) {
+    start = departureTime;
+    end = new Date(departureTime.getTime() + TRAVEL_BRACKET_MS);
+  } else {
+    return;
+  }
+
+  const mode = travel.transportMode;
+
+  // The ends the member filed a where for, departure side first so the two
+  // lines read in the order the leg happens.
+  const ends: { side: TravelSide; location: string }[] = [];
+  if (travel.departureLocation) {
+    ends.push({ side: "departure", location: travel.departureLocation });
+  }
+  if (travel.arrivalLocation) {
+    ends.push({ side: "arrival", location: travel.arrivalLocation });
+  }
+
+  const name = `${TRAVEL_EMOJI[mode]} ${modeLabel(mode)}`;
+  const arrival = ends.find((end) => end.side === "arrival");
+  const departure = ends.find((end) => end.side === "departure");
+  let summary = name;
+  if (arrival) {
+    summary = `${name} to ${arrival.location}`;
+  } else if (departure) {
+    summary = `${name} from ${departure.location}`;
+  }
+
+  const descriptionParts: string[] = [];
+
+  const number = travel.flightNumber?.trim();
+  if (number) {
+    // The flight's is the one number the app formats (the sheet's own
+    // rule); a train's, a bus's or a hire's is prose the member typed, and
+    // running it through the airline formatter would mangle it.
+    descriptionParts.push(
+      mode === "flight" ? formatFlightNumber(number) : number,
+    );
+  }
+
+  if (travel.details) {
+    descriptionParts.push(travel.details);
+  }
+
+  if (ends.length > 0) {
+    descriptionParts.push(
+      "Open in Maps:\n" +
+        ends
+          .map(
+            ({ side, location }) =>
+              `${whereLabel(mode, side, side !== travel.travelType)}: ${location} — ${mapsSearchUrl(location)}`,
+          )
+          .join("\n"),
+    );
+  }
+
+  descriptionParts.push(`View trip: https://journiful.app/trips?id=${trip.id}`);
+
+  calendar.createEvent({
+    id: `travel-${travel.id}@journiful.app`,
+    summary,
+    description: descriptionParts.join("\n\n"),
+    location: travel.arrivalLocation || travel.departureLocation || null,
+    start: toTimezoneDate(start, timezone),
+    end: toTimezoneDate(end, timezone),
+    timezone,
+    lastModified: travel.updatedAt,
+    categories: [{ name: "travel" }],
+    x: [{ key: "X-JOURNIFUL-TRIP", value: trip.name }],
+  });
 }
 
 export class CalendarService implements ICalendarService {
@@ -77,9 +248,12 @@ export class CalendarService implements ICalendarService {
   }
 
   async getCalendarTripsAndEvents(userId: string): Promise<TripCalendarData[]> {
-    // Get all trips where user is a member, not excluded from calendar, and not "not_going"
+    // Get all trips where user is a member, not excluded from calendar, and not "not_going".
+    // The member row's own id is selected too: it is what scopes the travel
+    // read below to this caller, and it is the only handle on "mine".
     const memberRows = await this.db
       .select({
+        id: members.id,
         tripId: members.tripId,
       })
       .from(members)
@@ -94,6 +268,7 @@ export class CalendarService implements ICalendarService {
     if (memberRows.length === 0) return [];
 
     const tripIds = memberRows.map((m) => m.tripId);
+    const memberIds = memberRows.map((m) => m.id);
 
     // Batch-fetch all non-cancelled trips
     const tripRows = await this.db
@@ -124,6 +299,21 @@ export class CalendarService implements ICalendarService {
         ),
       );
 
+    // Batch-fetch the caller's own non-deleted travel rows. Scoped by member
+    // id rather than by trip id on purpose: on a trip the caller shares with
+    // eight people, a trip-scoped read is eight other people's legs in their
+    // calendar. The tombstone check is here because a feed request never runs
+    // the travel service, which is the only other place that filters it.
+    const travelRows = await this.db
+      .select()
+      .from(memberTravel)
+      .where(
+        and(
+          inArray(memberTravel.memberId, memberIds),
+          isNull(memberTravel.deletedAt),
+        ),
+      );
+
     // Group events by tripId
     const eventsByTrip = new Map<string, Event[]>();
     for (const event of eventRows) {
@@ -140,10 +330,20 @@ export class CalendarService implements ICalendarService {
       accommodationsByTrip.set(acc.tripId, list);
     }
 
+    // Group the caller's travel by tripId. Rows on a trip that did not
+    // survive the cancelled filter above simply have no trip to land on.
+    const travelByTrip = new Map<string, MemberTravel[]>();
+    for (const travel of travelRows) {
+      const list = travelByTrip.get(travel.tripId) ?? [];
+      list.push(travel);
+      travelByTrip.set(travel.tripId, list);
+    }
+
     return tripRows.map((trip) => ({
       trip,
       events: eventsByTrip.get(trip.id) ?? [],
       accommodations: accommodationsByTrip.get(trip.id) ?? [],
+      travel: travelByTrip.get(trip.id) ?? [],
     }));
   }
 
@@ -165,6 +365,7 @@ export class CalendarService implements ICalendarService {
       trip,
       events: tripEvents,
       accommodations: tripAccommodations,
+      travel: tripTravel,
     } of tripsWithEvents) {
       const timezone = trip.preferredTimezone || "UTC";
 
@@ -289,6 +490,12 @@ export class CalendarService implements ICalendarService {
           categories: [{ name: "accommodation" }],
           x: [{ key: "X-JOURNIFUL-TRIP", value: trip.name }],
         });
+      }
+
+      // The viewer's own legs — one event per filed row, after the stays, so
+      // the feed reads trip, then what happens at it, then how you got there.
+      for (const travel of tripTravel) {
+        travelEvent(calendar, trip, travel, timezone);
       }
     }
 
