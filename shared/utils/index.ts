@@ -13,10 +13,20 @@ export {
   MY_TRAVEL_LOCATIONS_LIMIT,
   TRANSPORT_MODES,
   mapsSearchUrl,
+  otherSide,
+  modeLabel,
+  endLabel,
+  whereLabel,
+  endNoun,
+  farEndWord,
+  normalizeFlightNumber,
+  formatFlightNumber,
+  isFlightNumber,
 } from "./travel";
 export type {
   MemberTravelType,
   TransportMode,
+  TravelSide,
   FlightAutofillFields,
 } from "./travel";
 

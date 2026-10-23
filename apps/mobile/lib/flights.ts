@@ -2,54 +2,29 @@ import type {
   FlightLookupResponse,
   FlightLookupResult,
 } from "@journiful/shared/types";
+import {
+  formatFlightNumber,
+  isFlightNumber,
+  normalizeFlightNumber,
+} from "@journiful/shared/utils";
 import { ApiError, apiFetch } from "@/lib/api";
 
-const FLIGHT_NUMBER_REGEX = /^(?:[A-Z\d]{2}\d{1,4}|[A-Z]{3}\d{1,4})$/i;
-
-/** Compact form the API wants: spaces/hyphens stripped, uppercased. */
-export function normalizeFlightNumber(value: string): string {
-  return value.replace(/[\s-]+/g, "").toUpperCase();
-}
-
 /**
- * The number the way a person writes it, and the way the field's own
- * placeholder writes it: the airline code, a space, the number
- * ("UA 1842"). The space is not decoration — it is where the code ends,
- * and a run of six characters gives the eye nowhere to rest.
+ * The flight's number, in two halves: the **words** that format and
+ * validate it are `@journiful/shared/utils`'s, and the **lookup** is this
+ * module's.
  *
- * The code is two characters (letters and digits mix — U2, 4U) or three
- * ICAO letters, so the split is read the same way `isFlightNumber`
- * reads it, in the same order: three letters first, then two
- * characters. That order is what keeps "U2123" as U2 + 123 rather than
- * a one-letter code with a four-digit number, which is not a code at
- * all.
- *
- * Idempotent, and total: an empty, partial or malformed value comes
- * back compact rather than rejected, because this runs on every
- * keystroke. Mid-typing "UA" is not a wrong number, it is an unfinished
- * one — and the trailing space is not added until there is a digit to
- * put after it, so the field never holds "UA " with nothing following.
+ * The three helpers moved out of the app because the API writes the same
+ * number into a calendar event's description, and one number formatted two
+ * ways — `UA 1842` in the form's field, `UA1842` in the feed — is the drift
+ * the shared table exists to stop. They are re-exported here so the form,
+ * the sheet and `newTravel.ts` keep their imports and still read the one
+ * implementation. What stays is `lookupFlight`, because a network call is
+ * not a word: the base URL, the timeout and the auth header all live at
+ * the one network boundary, and the shared package has no fetch.
  */
-export function formatFlightNumber(value: string): string {
-  const compact = normalizeFlightNumber(value);
-  const code = /^[A-Z]{3}/.test(compact)
-    ? compact.slice(0, 3)
-    : compact.slice(0, 2);
-  const number = compact.slice(code.length);
-  return number ? `${code} ${number}` : code;
-}
 
-/**
- * Airline code + number, the way the API wants it: "UA123". The code
- * is two characters (letters and digits mix — U2, 4U — but never
- * digits alone) or three ICAO letters, then one to four digits. The
- * alternation pins the split so a fifth digit cannot hide inside the
- * code the way `[A-Z\d]{2,3}\d{1,4}` allowed ("UA12345").
- */
-export function isFlightNumber(value: string): boolean {
-  const compact = normalizeFlightNumber(value.trim());
-  return FLIGHT_NUMBER_REGEX.test(compact) && /[A-Z]/i.test(compact.slice(0, 2));
-}
+export { formatFlightNumber, isFlightNumber, normalizeFlightNumber };
 
 /**
  * One flight on one date, or null when there is nothing to fill in

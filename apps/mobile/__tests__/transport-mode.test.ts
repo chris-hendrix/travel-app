@@ -200,6 +200,63 @@ describe("the end's noun", () => {
   });
 });
 
+/**
+ * Where the words live. Phase 1 moved the leg's vocabulary out of the app
+ * and into `@journiful/shared/utils`, because the calendar feed
+ * (`GET /calendar/:token.ics`) writes the same words into an event's
+ * description and the API cannot import `apps/mobile`. `lib/transportMode.ts`
+ * is a re-export of that table now, and what it may not do is keep a copy:
+ * a second set of words compiled into the app is exactly the drift the one
+ * table exists to stop. The assertions above stay green through the
+ * re-export and are the proof of that — this is the proof of the *move*.
+ */
+describe("the words' home", () => {
+  it("defines none of them itself — the one table is shared's", () => {
+    const file = fs.readFileSync(
+      path.join(__dirname, "..", "lib", "transportMode.ts"),
+      "utf8",
+    );
+
+    // The three families, as the string literals a table would define
+    // them with. Quoted, because the file still *says* where the words
+    // went in its own prose — what it may not do is hold one.
+    for (const word of [
+      "Leaves",
+      "Lands",
+      "Departs",
+      "Arrives",
+      "Pickup",
+      "Dropoff",
+    ]) {
+      expect(file).not.toContain(`"${word}"`);
+    }
+
+    // The mode names are the same vocabulary, and are read by the same
+    // chip, board and sheet.
+    for (const label of ["Flight", "Train", "Bus", "Car", "Rental", "Other"]) {
+      expect(file).not.toContain(`"${label}"`);
+    }
+
+    // And the composed labels a screen renders, whole: a hand-written
+    // pair of these is a second table that happens to be spelled out,
+    // which is the shape the drift takes when nobody is looking at the
+    // end of the leg it came from.
+    for (const phrase of [
+      "Leaves from",
+      "Lands at",
+      "Pickup at",
+      "Dropoff at",
+    ]) {
+      expect(file).not.toContain(phrase);
+    }
+
+    // The numbers it does keep are its own business and stay, so this is
+    // a re-export rather than an empty file: the module still names the
+    // table it now reads.
+    expect(file).toContain("@journiful/shared/utils");
+  });
+});
+
 describe("the number the mode keeps", () => {
   it("has a field for the modes that have a number", () => {
     expect(hasNumberField("flight")).toBe(true);
