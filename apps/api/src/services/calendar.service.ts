@@ -21,6 +21,7 @@ import {
 import type { AppDatabase } from "@/types/index.js";
 import {
   formatFlightNumber,
+  knownMode,
   mapsSearchUrl,
   modeLabel,
   whereLabel,
@@ -82,10 +83,13 @@ function toTimezoneDate(utcDate: Date, timezone: string): Date {
  * board names a mode with a word and a chip, and a table every surface
  * reads would make an emoji someone else's commitment. The six are the
  * column's own modes (`member_travel_transport_mode`, built from
- * `TRANSPORT_MODES`), so the map is total over what a row can carry — the
- * database cannot hand this an unknown mode, which is why there is no
- * fallback row here the way the words' module needs one for phone bundles
- * older than the API.
+ * `TRANSPORT_MODES`), so the map is total over what a row can carry today
+ * and needs no fallback row of its own: the read goes through the words'
+ * `knownMode`, the one guard that turns a mode it has no row for into
+ * `flight`. That window is not hypothetical — a mode retired from
+ * `TRANSPORT_MODES` leaves its old value in the Postgres enum until a
+ * migration rewrites the column, and a summary reading `undefined Flight
+ * to LIS T1` is plausible enough to ship.
  *
  * A hire reads as the car you drive away in: 🚙, with the counter named by
  * the leg's own words (`Pickup at`). `other` is a taxi because a leg filed
@@ -165,7 +169,10 @@ function travelEvent(
     ends.push({ side: "arrival", location: travel.arrivalLocation });
   }
 
-  const name = `${TRAVEL_EMOJI[mode]} ${modeLabel(mode)}`;
+  // Both halves of the title read through the one guard: the words' table
+  // guards itself, so the map keyed by the same mode has to as well.
+  const known = knownMode(mode);
+  const name = `${TRAVEL_EMOJI[known]} ${modeLabel(mode)}`;
   const arrival = ends.find((end) => end.side === "arrival");
   const departure = ends.find((end) => end.side === "departure");
   let summary = name;

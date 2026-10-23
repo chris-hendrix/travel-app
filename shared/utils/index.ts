@@ -14,6 +14,7 @@ export {
   TRANSPORT_MODES,
   mapsSearchUrl,
   otherSide,
+  knownMode,
   modeLabel,
   endLabel,
   whereLabel,

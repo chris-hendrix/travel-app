@@ -551,6 +551,27 @@ describe("CalendarService.generateIcsFeed", () => {
       expect(ics).not.toContain("TRANSP:TRANSPARENT");
     });
 
+    it("should name a mode it has no row for as a flight", () => {
+      // The emoji map is total over today's `member_travel_transport_mode`,
+      // but the guard is the words' `knownMode` and not the column: a mode
+      // retired from `TRANSPORT_MODES` leaves its old value in the Postgres
+      // enum until a migration rewrites it, and an ungated map read puts
+      // `undefined Flight to LIS T1` in somebody's calendar — plausible
+      // enough to ship, and unrecoverable for the reader.
+      const trip = makeTrip({ startDate: null });
+      const travel = makeTravel({
+        transportMode: "teleport" as MemberTravel["transportMode"],
+      });
+      const ics = unfold(
+        service.generateIcsFeed([
+          { trip, events: [], accommodations: [], travel: [travel] },
+        ]),
+      );
+
+      expect(ics).toContain("SUMMARY:✈️ Flight to LIS T1");
+      expect(ics).not.toContain("undefined");
+    });
+
     it("should make one event per filed row", () => {
       const trip = makeTrip({ startDate: null });
       const outbound = makeTravel({

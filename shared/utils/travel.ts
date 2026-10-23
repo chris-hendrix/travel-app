@@ -316,8 +316,13 @@ const TABLE_MODES: ReadonlySet<string> = new Set(Object.keys(END_WORDS));
  * record with no mode to wear is a state this feature does have — a row
  * nobody has filed, which its callers draw without a chip and without a
  * block — and that is not a flight to be read into it.
+ *
+ * Exported for the feed, which holds a presentation table of its own keyed
+ * by mode (`TRAVEL_EMOJI`) and must read it through this guard rather than
+ * straight through the column's type: both readers name the same string
+ * off the same row, so half a guard would be no guard.
  */
-function knownMode(mode: TransportMode | undefined): TransportMode {
+export function knownMode(mode: TransportMode | undefined): TransportMode {
   // The tables' own keys, rather than `mode in END_WORDS`, which answers
   // true for `constructor` and the rest of the prototype: a mode from the
   // wire may be any string at all, and a table read through the prototype
