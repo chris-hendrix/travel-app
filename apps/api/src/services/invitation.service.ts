@@ -1545,6 +1545,15 @@ export class InvitationService implements IInvitationService {
 
       // Batch: insert new members for trips where user isn't already a
       // member AND no guest row was claimed (invitation-only trips).
+      //
+      // `going`, not the column default, for the reason `D7` gives the claim
+      // path (`guest-member.service.ts`): signing in with the invited number is
+      // this product's acceptance — the invite's own copy is "Sign in to join"
+      // — so it is the person's first real answer to the RSVP. The default is
+      // right for a row the *organizer* created by inviting somebody who has
+      // not answered yet; it is wrong for a row the invitee's own sign-in
+      // creates. `canViewFullTrip` requires `going`, so the difference is
+      // whether the traveler lands on the trip or on a preview of it.
       const newMemberTrips = pendingInvitations.filter(
         (inv) =>
           !existingTripIds.has(inv.tripId) && !claimedTripIds.has(inv.tripId),
@@ -1555,7 +1564,7 @@ export class InvitationService implements IInvitationService {
           newMemberTrips.map((inv) => ({
             tripId: inv.tripId,
             userId,
-            status: "no_response" as const,
+            status: "going" as const,
             isOrganizer: false,
           })),
         );
@@ -1738,7 +1747,11 @@ export class InvitationService implements IInvitationService {
           await tx.insert(members).values({
             tripId: invitation.tripId,
             userId,
-            status: "no_response",
+            // `going`: this path runs for an explicit acceptance, which is an
+            // answer. Same rule as the claim leg above and as `D7` in
+            // `guest-member.service.ts` — the no-answer default belongs to a
+            // row an organizer created, never to one an acceptance does.
+            status: "going",
             isOrganizer: false,
           });
         }

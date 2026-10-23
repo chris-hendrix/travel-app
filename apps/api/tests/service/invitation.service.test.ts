@@ -1094,7 +1094,13 @@ describe("invitation.service", () => {
           and(eq(members.tripId, testTripId), eq(members.userId, newUser.id)),
         );
       expect(memberRecords).toHaveLength(1);
-      expect(memberRecords[0].status).toBe("no_response");
+      // `going`, because signing in with the invited number *is* the
+      // acceptance — and `canViewFullTrip` requires `going`, so a
+      // `no_response` here would hand a brand-new member a preview of the trip
+      // they had just joined. The organizer-side path (inviting an existing
+      // user who has not answered) still writes the default; see the mutual
+      // invite below.
+      expect(memberRecords[0].status).toBe("going");
       expect(memberRecords[0].isOrganizer).toBe(false);
 
       // Clean up
@@ -1335,6 +1341,62 @@ describe("invitation.service", () => {
 
       // Clean up
       await db.delete(users).where(eq(users.phoneNumber, guestPhone));
+    });
+  });
+
+  describe("acceptInvitation — the RSVP an acceptance implies", () => {
+    it("makes the acceptant going, so the trip they joined is readable", async () => {
+      // An acceptance is an answer. Before this, both accept paths wrote the
+      // column default (`no_response`), and `canViewFullTrip` requires
+      // `going` — so the loop this product is built on, invite → sign in → see
+      // the trip, ended in a preview of the trip. Nothing asserted the status,
+      // which is why it survived; the mutual-invite assertion below
+      // `processPendingInvitations` holds the other half of the rule (an
+      // organizer-side add stays unanswered).
+      const inviteePhone = generateUniquePhone();
+      const [invitee] = await db
+        .insert(users)
+        .values({
+          phoneNumber: inviteePhone,
+          displayName: "Invitee Accepts",
+          timezone: "UTC",
+        })
+        .returning();
+
+      const [invitation] = await db
+        .insert(invitations)
+        .values({
+          tripId: testTripId,
+          inviterId: testOrganizerId,
+          inviteePhone,
+          status: "pending",
+        })
+        .returning();
+
+      const result = await invitationService.acceptInvitation(
+        invitation.id,
+        invitee.id,
+      );
+      expect(result).toEqual({ tripId: testTripId });
+
+      const [row] = await db
+        .select()
+        .from(members)
+        .where(
+          and(eq(members.tripId, testTripId), eq(members.userId, invitee.id)),
+        );
+      expect(row?.status).toBe("going");
+
+      // The status is not cosmetic: this is the gate the itinerary reads
+      // through, so the assertion that matters is what the traveler can see
+      // once they are in.
+      await expect(
+        permissionsService.canViewFullTrip(invitee.id, testTripId),
+      ).resolves.toBe(true);
+
+      // Deleting the invitee cascades the member row; the invitation row is
+      // swept by the suite's own cleanup.
+      await db.delete(users).where(eq(users.phoneNumber, inviteePhone));
     });
   });
 
@@ -2311,6 +2373,10 @@ describe("invitation.service", () => {
           and(eq(members.tripId, testTripId), eq(members.userId, mutualUserId)),
         );
       expect(memberRecords).toHaveLength(1);
+      // The default, and deliberately so: the *organizer* added this member by
+      // inviting them, and they have not answered yet. `D7` flips this to
+      // `going` when the person claims the row or signs in — which is the
+      // asymmetry the two assertions around this one exist to hold.
       expect(memberRecords[0].status).toBe("no_response");
       expect(memberRecords[0].isOrganizer).toBe(false);
 
