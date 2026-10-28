@@ -296,6 +296,13 @@ function temporaryPayment(
   // The trip's own spread, over the rows already in hand — the same call the
   // form previews with (`previewShares`), so the painted row shows the shares
   // the form showed and the server will record.
+  //
+  // `existing` being the *whole* list is load-bearing, and it is the form that
+  // guarantees it: `ExpenseDialog` draws no shares until its payments read has
+  // landed (`payments !== null`), so a submit always comes after the cache was
+  // filled. An empty list here would paint a split computed as if this were
+  // the trip's only cost, which is off by the odd cent until the invalidation
+  // refetch lands.
   const createdAt = new Date().toISOString();
   const shares = previewShares(existing, {
     amount: input.amount,

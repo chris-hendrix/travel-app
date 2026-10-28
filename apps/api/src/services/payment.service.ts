@@ -120,12 +120,12 @@ export class PaymentService implements IPaymentService {
     // (`loadTripSplits`), and `enrichPayment` below reads the spread back,
     // which is what makes a write's response identical to a later read's. The
     // `share_amount` written beside each row is for the *previous* release
-    // only (`payment_participants`' table comment in `db/schema`): nothing here
-    // reads it, and a rollback is the image that does.
-    const legacyShares = equalShares(data.amount, participants.length);
-
-    // Payment + participants insert atomically: a participants-insert
+    // only (`payment_participants`' table comment in `db/schema`): nothing
+    // here reads it, and a rollback is the image that does.
+    //
+    // Payment and participants insert atomically: a participants-insert
     // failure must not leave an orphan payment row.
+    const legacyShares = equalShares(data.amount, participants.length);
     const { payment } = await this.db.transaction(
       async (tx) => {
         const [payment] = await tx
