@@ -67,8 +67,8 @@ describe("Balance Routes", () => {
       .returning();
 
     await db.insert(paymentParticipants).values([
-      { paymentId: payment!.id, memberId: memberAId, shareAmount: 1000 },
-      { paymentId: payment!.id, memberId: memberBId, shareAmount: 1000 },
+      { paymentId: payment!.id, memberId: memberAId },
+      { paymentId: payment!.id, memberId: memberBId },
     ]);
 
     return { userA: userA!, userB: userB!, trip: trip! };

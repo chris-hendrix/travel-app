@@ -474,15 +474,17 @@ describe("the demo data layer", () => {
     }
 
     // The one row that tells the two readings of the split rule apart:
-    // $50.00 across three is [1667, 1667, 1666] — the remainder cent goes
-    // one each to the first two — and never [1668, 1666, 1666].
+    // $50.00 across three is two shares of 1667 and one of 1666 — a cent
+    // each, never [1668, 1666, 1666]. *Which* of the three carries it is the
+    // trip's spread's call (`spreadShares`: the leftover goes to whoever is
+    // furthest behind on the trip), not the row's, so this is a set.
     const tacos = payments.find(
       (payment) => payment.id === "demo-payment-tacos",
     );
     expect(tacos?.amount).toBe(5000);
-    expect(tacos?.participants.map((p) => p.shareAmount)).toEqual([
-      1667, 1667, 1666,
-    ]);
+    expect(
+      [...tacos!.participants.map((p) => p.shareAmount)].sort(),
+    ).toEqual([1666, 1667, 1667]);
 
     // The arithmetic the balances have to be: what each member paid, less
     // what they owe. Recomputing it here is the point — a hardcoded
@@ -717,9 +719,10 @@ describe("the demo data layer", () => {
       `/trips/${tripId}/balances/me`,
     );
 
-    // $100.01 across three: the remainder is 2, so the shares are
-    // [3334, 3334, 3333]. The form previews this and the server records
-    // it, so the demo's own write has to answer with it too.
+    // $100.01 across three: two people carry a cent more than the third
+    // (3334/3334/3333). Which two is the trip's spread's call, so the reader's
+    // own share is read off the answer rather than assumed — the balance
+    // below is the assertion that would notice either one moving.
     const created = await apiFetch<{ success: true; payment: PaymentRow }>(
       `/trips/${tripId}/payments`,
       {
@@ -738,9 +741,9 @@ describe("the demo data layer", () => {
         }),
       },
     );
-    expect(created.payment.participants.map((p) => p.shareAmount)).toEqual([
-      3334, 3334, 3333,
-    ]);
+    expect(
+      [...created.payment.participants.map((p) => p.shareAmount)].sort(),
+    ).toEqual([3333, 3334, 3334]);
     expect(created.payment.payerName).toBe("You");
     expect(created.payment.note).toBe("Venmo");
     expect(created.payment.createdBy).toBe("demo-viewer");
@@ -764,10 +767,13 @@ describe("the demo data layer", () => {
     const afterCreate = await apiFetch<{ success: true; netBalance: number }>(
       `/trips/${tripId}/balances/me`,
     );
-    expect(afterCreate.netBalance).toBe(before.netBalance + (10001 - 3334));
+    const myShare = created.payment.participants.find(
+      (participant) => participant.memberId === viewer.id,
+    )!.shareAmount;
+    expect(afterCreate.netBalance).toBe(before.netBalance + (10001 - myShare));
 
-    // An edit recomputes the shares from the new amount — $90.01 across
-    // three is [3001, 3000, 3000] — and an empty note is the clearing
+    // An edit re-spreads from the new amount — $90.01 across three is one
+    // share of 3001 and two of 3000 — and an empty note is the clearing
     // value the server stores as null.
     const updated = await apiFetch<{ success: true; payment: PaymentRow }>(
       `/payments/${created.payment.id}`,
@@ -778,14 +784,17 @@ describe("the demo data layer", () => {
       },
     );
     expect(updated.payment.amount).toBe(9001);
-    expect(updated.payment.participants.map((p) => p.shareAmount)).toEqual([
-      3001, 3000, 3000,
-    ]);
+    expect(
+      [...updated.payment.participants.map((p) => p.shareAmount)].sort(),
+    ).toEqual([3000, 3000, 3001]);
     expect(updated.payment.note).toBeNull();
     const afterEdit = await apiFetch<{ success: true; netBalance: number }>(
       `/trips/${tripId}/balances/me`,
     );
-    expect(afterEdit.netBalance).toBe(before.netBalance + (9001 - 3001));
+    const myEditedShare = updated.payment.participants.find(
+      (participant) => participant.memberId === viewer.id,
+    )!.shareAmount;
+    expect(afterEdit.netBalance).toBe(before.netBalance + (9001 - myEditedShare));
 
     // The delete is soft: the row leaves the list and the arithmetic with
     // it, and a second delete is a 404 rather than a resurrection.
@@ -826,9 +835,9 @@ describe("the demo data layer", () => {
     // `all_going` is everyone who has not declined, in member-id order:
     // Cabo's roster is You, Liz and Sam going, Marco on `maybe`, Priya on
     // `no_response` and Nina the guest (no account behind her row) — six
-    // people, because silence and "maybe" are not a no. The order is also the
-    // order the remainder cent is handed out in: $100.01 across six is
-    // [1667, 1667, 1667, 1667, 1667, 1666].
+    // people, because silence and "maybe" are not a no. $100.01 across six is
+    // five shares of 1667 and one of 1666; which person carries it is the
+    // trip's spread's call.
     const created = await apiFetch<{ success: true; payment: PaymentRow }>(
       `/trips/${tripId}/payments`,
       {
@@ -851,9 +860,9 @@ describe("the demo data layer", () => {
       "demo-sam",
       viewer.id,
     ]);
-    expect(created.payment.participants.map((p) => p.shareAmount)).toEqual([
-      1667, 1667, 1667, 1667, 1667, 1666,
-    ]);
+    expect(
+      [...created.payment.participants.map((p) => p.shareAmount)].sort(),
+    ).toEqual([1666, 1667, 1667, 1667, 1667, 1667]);
 
     // The store keeps the rule and no rows, so the ledger read is where the
     // people come from — the same four, and a `custom` row on the same trip
@@ -890,7 +899,7 @@ describe("the demo data layer", () => {
     }>(`/trips/${tripId}/payments`);
     // The rule re-resolved without anybody editing the expense: the person
     // who just declined is off a cost shared by everyone else. Five people
-    // now, and $100.01 across five is [2001, 2000, 2000, 2000, 2000].
+    // now, and $100.01 across five is one share of 2001 and four of 2000.
     const scopedAfter = afterRsvp.payments.find(
       (row) => row.id === created.payment.id,
     )!;
@@ -901,9 +910,9 @@ describe("the demo data layer", () => {
       "demo-priya",
       "demo-sam",
     ]);
-    expect(scopedAfter.participants.map((p) => p.shareAmount)).toEqual([
-      2001, 2000, 2000, 2000, 2000,
-    ]);
+    expect(
+      [...scopedAfter.participants.map((p) => p.shareAmount)].sort(),
+    ).toEqual([2000, 2000, 2000, 2000, 2001]);
     // A fixed list is not a rule and never re-resolves: the tacos keep the
     // three people they were recorded between, the viewer included.
     expect(
@@ -914,8 +923,8 @@ describe("the demo data layer", () => {
 
     // An edit re-resolves the scope it is sent rather than keeping the old
     // list: `all_invited` is the whole roster, declines included, so Marco
-    // and Priya are on this one — six people, $200.00, which is
-    // [3334, 3334, 3333, 3333, 3333, 3333].
+    // and Priya are on this one — six people, $200.00, which is two shares of
+    // 3334 and four of 3333.
     const updated = await apiFetch<{ success: true; payment: PaymentRow }>(
       `/payments/${created.payment.id}`,
       {
@@ -933,9 +942,9 @@ describe("the demo data layer", () => {
       "demo-sam",
       viewer.id,
     ]);
-    expect(updated.payment.participants.map((p) => p.shareAmount)).toEqual([
-      3334, 3334, 3333, 3333, 3333, 3333,
-    ]);
+    expect(
+      [...updated.payment.participants.map((p) => p.shareAmount)].sort(),
+    ).toEqual([3333, 3333, 3333, 3333, 3334, 3334]);
 
     // And the read agrees with the write, because it is the same resolver.
     const finalList = await apiFetch<{

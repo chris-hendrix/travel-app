@@ -400,21 +400,6 @@ async function main() {
     })
     .returning();
 
-  /**
-   * The server's own rule (`PaymentService.computeEqualShares`): integer
-   * division, with the remainder cents going one each to the first
-   * `remainder` participants. Spelled out here rather than imported,
-   * because that method is private — but it has to stay in step, or the
-   * seeded shares stop summing to the seeded amounts.
-   */
-  const equalShares = (amount: number, count: number): number[] => {
-    const base = Math.floor(amount / count);
-    const remainder = amount - base * count;
-    return Array.from({ length: count }, (_, i) =>
-      i < remainder ? base + 1 : base,
-    );
-  };
-
   const tokyoAlice = memberOf(tokyo.id, alice.id);
   const tokyoBob = memberOf(tokyo.id, bob.id);
   const tokyoCarol = memberOf(tokyo.id, carol.id);
@@ -576,12 +561,12 @@ async function main() {
       })
       .returning();
 
-    const shares = equalShares(plan.amount, plan.participants.length);
+    // Who shares it, not how much: the shares are the trip's spread, resolved
+    // on every read (`payment-split.ts`), so a seed has nothing to round.
     await db.insert(schema.paymentParticipants).values(
-      plan.participants.map((memberId, i) => ({
+      plan.participants.map((memberId) => ({
         paymentId: payment!.id,
         memberId,
-        shareAmount: shares[i]!,
       })),
     );
   }

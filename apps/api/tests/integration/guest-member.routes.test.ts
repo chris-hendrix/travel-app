@@ -619,7 +619,6 @@ describe("Guest Member Routes", () => {
       await db.insert(paymentParticipants).values({
         paymentId: payment!.id,
         memberId: guestId,
-        shareAmount: 2000,
       });
 
       const response = await app.inject({
@@ -639,7 +638,6 @@ describe("Guest Member Routes", () => {
       expect(participantsAfter).toHaveLength(1);
       expect(participantsAfter[0]).toMatchObject({
         memberId: organizerMember!.id,
-        shareAmount: 2000,
       });
 
       await db.delete(payments).where(eq(payments.id, payment!.id));

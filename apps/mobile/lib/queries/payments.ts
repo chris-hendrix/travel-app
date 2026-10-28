@@ -11,8 +11,7 @@ import { toPayment } from "@/lib/mapping";
 import { isOffline } from "@/lib/queries/errors";
 import { memberKeys } from "@/lib/queries/members";
 import { invalidateTripMoney, paymentKeys } from "@/lib/queries/moneyKeys";
-import type { Payment, SplitScope } from "@/lib/payments";
-import { splitPreview } from "@/lib/payments";
+import { previewShares, type Payment, type SplitScope } from "@/lib/payments";
 import type { Member } from "@/lib/members";
 import type { Payment as ApiPayment } from "@journiful/shared/types";
 
@@ -110,11 +109,10 @@ export type CreatePaymentRequest = {
    */
   splitScope?: SplitScope | undefined;
   /**
-   * The picker's order, and that order is load-bearing — the server gives
-   * the remainder cent to the first participant in the array it is sent,
-   * so the shares the form previewed (`splitPreview`) are the shares it
-   * records only if this array is sent in the same order. Absent when the
-   * request names a rule instead.
+   * The people on a fixed list. The order is the form's, and it is not
+   * load-bearing for the amount: a share is the trip's spread, decided by the
+   * trip and not by the array (`shared/utils/split.ts:spreadShares`). Absent
+   * when the request names a rule instead.
    */
   participants?: { memberId: string }[] | undefined;
   /** ISO instant, already anchored by the form. Omitted leaves the default. */
@@ -133,10 +131,10 @@ export type UpdatePaymentRequest = Partial<CreatePaymentRequest>;
  * The ids are **not sent**. They are here because the painted row needs
  * them: a scoped create's request has no participant list to paint from
  * (the rule is resolved server-side), and the form has already resolved
- * that same rule against the same roster for its preview (`splitForScope`).
+ * that same rule against the same roster for its preview (`previewShares`).
  * So it hands the ids over with the mutation and the temporary row is
- * painted from them — names off the cached roster, shares from
- * `splitPreview`, in that order.
+ * painted from them — names off the cached roster, shares from the same
+ * `previewShares` over the rows already cached, in that order.
  */
 export type CreatePaymentVariables = {
   input: CreatePaymentRequest;
@@ -290,13 +288,27 @@ function temporaryPayment(
   input: CreatePaymentRequest,
   splitMemberIds: string[],
   roster: Member[],
+  existing: readonly Payment[],
 ): Payment {
   const nameOf = (memberId: string) =>
     roster.find((member) => member.id === memberId)?.name ?? "";
 
-  // The server's own remainder rule, so the painted row shows the shares
-  // the form previewed rather than a guess that shifts under the reader.
-  const shares = splitPreview(input.amount, splitMemberIds);
+  // The trip's own spread, over the rows already in hand — the same call the
+  // form previews with (`previewShares`), so the painted row shows the shares
+  // the form showed and the server will record.
+  //
+  // `existing` being the *whole* list is load-bearing, and it is the form that
+  // guarantees it: `ExpenseDialog` draws no shares until its payments read has
+  // landed (`payments !== null`), so a submit always comes after the cache was
+  // filled. An empty list here would paint a split computed as if this were
+  // the trip's only cost, which is off by the odd cent until the invalidation
+  // refetch lands.
+  const createdAt = new Date().toISOString();
+  const shares = previewShares(existing, {
+    amount: input.amount,
+    participantIds: splitMemberIds,
+    createdAt,
+  }).map((share) => share.shareAmount);
 
   return {
     id: `pending-${Date.now()}`,
@@ -310,7 +322,7 @@ function temporaryPayment(
     splitScope: input.splitScope ?? "custom",
     payerMemberId: input.payerMemberId,
     payerName: nameOf(input.payerMemberId),
-    date: input.date ?? new Date().toISOString(),
+    date: input.date ?? createdAt,
     // No user id exists for a row the server has not accepted yet. The
     // empty string is deliberate: it can never equal a real
     // `viewer.userId`, so the detail's `createdBy === viewer.userId`
@@ -322,7 +334,7 @@ function temporaryPayment(
       name: nameOf(memberId),
       shareAmount: shares[index] ?? 0,
     })),
-    createdAt: new Date().toISOString(),
+    createdAt,
   };
 }
 
@@ -389,11 +401,16 @@ export function useCreatePayment(tripId: string) {
       // rather than leaving the row to flash blank.
       const roster =
         queryClient.getQueryData<Member[]>(memberKeys.list(tripId)) ?? [];
+      // The list as it stands: the painted row's shares are the trip's spread,
+      // so they need the rows it is being added to (`previewShares`).
+      const existing =
+        queryClient.getQueryData<Payment[]>(paymentKeys.list(tripId)) ?? [];
       const temporary = temporaryPayment(
         tripId,
         input,
         splitMemberIds,
         roster,
+        existing,
       );
 
       const context = await optimistically(queryClient, tripId, (rows) => [

@@ -14,6 +14,7 @@ import {
 } from "@/db/schema/index.js";
 import { eq, or, and } from "drizzle-orm";
 import { InvitationService } from "@/services/invitation.service.js";
+import { loadTripSplits } from "@/services/payment-split.js";
 import { PermissionsService } from "@/services/permissions.service.js";
 import { SMSService } from "@/services/sms.service.js";
 import { NotificationService } from "@/services/notification.service.js";
@@ -1563,8 +1564,8 @@ describe("invitation.service", () => {
         })
         .returning();
       await db.insert(paymentParticipants).values([
-        { paymentId: payment.id, memberId: memberRecord.id, shareAmount: 2000 },
-        { paymentId: payment.id, memberId: guest!.id, shareAmount: 2000 },
+        { paymentId: payment.id, memberId: memberRecord.id },
+        { paymentId: payment.id, memberId: guest!.id },
       ]);
 
       await invitationService.removeMember(
@@ -1586,7 +1587,6 @@ describe("invitation.service", () => {
       expect(after).toHaveLength(1);
       expect(after[0]).toMatchObject({
         memberId: guest!.id,
-        shareAmount: 4000,
       });
 
       await db.delete(payments).where(eq(payments.id, payment.id));
@@ -1626,9 +1626,9 @@ describe("invitation.service", () => {
         })
         .returning();
       await db.insert(paymentParticipants).values([
-        { paymentId: payment.id, memberId: memberRecord.id, shareAmount: 1000 },
-        { paymentId: payment.id, memberId: guestA!.id, shareAmount: 1000 },
-        { paymentId: payment.id, memberId: guestB!.id, shareAmount: 1000 },
+        { paymentId: payment.id, memberId: memberRecord.id },
+        { paymentId: payment.id, memberId: guestA!.id },
+        { paymentId: payment.id, memberId: guestB!.id },
       ]);
 
       await invitationService.removeMember(
@@ -1645,7 +1645,12 @@ describe("invitation.service", () => {
       expect(after.map((p) => p.memberId).sort()).toEqual(
         [guestA!.id, guestB!.id].sort(),
       );
-      expect(after.map((p) => p.shareAmount)).toEqual([1500, 1500]);
+      // The rows are the people; the cents are the trip's spread, read back.
+      // 3000 between the two who are left is 1500 each.
+      const split = await loadTripSplits(db, testTripId);
+      expect(
+        (split.participants.get(payment.id) ?? []).map((p) => p.shareAmount),
+      ).toEqual([1500, 1500]);
 
       await db.delete(payments).where(eq(payments.id, payment.id));
     });
@@ -1679,7 +1684,6 @@ describe("invitation.service", () => {
       await db.insert(paymentParticipants).values({
         paymentId: payment.id,
         memberId: memberRecord.id,
-        shareAmount: 2500,
       });
 
       await invitationService.removeMember(
@@ -1697,7 +1701,6 @@ describe("invitation.service", () => {
       expect(after).toHaveLength(1);
       expect(after[0]).toMatchObject({
         memberId: organizerMember.id,
-        shareAmount: 2500,
       });
 
       await db.delete(payments).where(eq(payments.id, payment.id));
@@ -1736,8 +1739,8 @@ describe("invitation.service", () => {
         })
         .returning();
       await db.insert(paymentParticipants).values([
-        { paymentId: payment.id, memberId: memberRecord.id, shareAmount: 1000 },
-        { paymentId: payment.id, memberId: guest!.id, shareAmount: 1000 },
+        { paymentId: payment.id, memberId: memberRecord.id },
+        { paymentId: payment.id, memberId: guest!.id },
       ]);
 
       // A soft-delete does not exempt the row from the RESTRICT FK, so it
@@ -1755,7 +1758,6 @@ describe("invitation.service", () => {
       expect(after).toHaveLength(1);
       expect(after[0]).toMatchObject({
         memberId: guest!.id,
-        shareAmount: 2000,
       });
 
       await db.delete(payments).where(eq(payments.id, payment.id));
@@ -1869,7 +1871,6 @@ describe("invitation.service", () => {
       await db.insert(paymentParticipants).values({
         paymentId: payment.id,
         memberId: guest.id,
-        shareAmount: 5000,
       });
 
       // A participant row no longer blocks the removal (D4): the guest leaves
@@ -1902,7 +1903,6 @@ describe("invitation.service", () => {
       expect(participantsAfter).toHaveLength(1);
       expect(participantsAfter[0]).toMatchObject({
         memberId: organizerMember.id,
-        shareAmount: 10000,
       });
 
       // Organizer-paid payment itself survives (only the guest share cascades).

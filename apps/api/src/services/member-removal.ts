@@ -15,9 +15,8 @@
 //   somebody else's record too, and there is no honest reassignment we can
 //   guess at — the 409 names the reason and the organizer decides.
 // - **A participant is not.** They leave the group cost, their row goes, and
-//   the rest of the split is recomputed among the people still on the trip.
-//   Refusing here would have made every member unremovable once a group
-//   expense existed.
+//   the people still on the trip share it instead. Refusing here would have
+//   made every member unremovable once a group expense existed.
 //
 // Both run inside the caller's transaction (`tx`), never on `db`: the member
 // row, the participant rows and the re-split shares have to land together, and
@@ -76,17 +75,15 @@ export async function assertNoPaidExpenses(
 
 /**
  * Take the member out of every split they are only a participant of: their
- * rows go, and each affected payment is re-split among the rows that remain.
+ * rows go, the remaining rows are re-shared, and a payment left with nobody
+ * falls back to the payer.
  *
- * The re-split is the same arithmetic the write path uses (`equalShares`,
- * via `shared/utils/split.ts`), in the order the rows were created
- * (`createdAt, id`), so the member who has been in the split longest keeps the
- * odd cent — the same rule as a fresh create, applied to a shrunken list.
- *
- * A payment whose only participant was the departing member falls back to
- * **the payer alone, owing the whole amount** (D5). Deleting the payment would
- * hide money others spent; leaving the split empty would credit the payer
- * against nobody and drop the row from the simplified ledger.
+ * The re-share is **not** what anyone reads — shares are the trip-wide spread
+ * (`shared/utils/split.ts:spreadShares`, applied by `payment-split.ts` on every
+ * read), so the ledger already follows the trip. It maintains
+ * `share_amount`, which only the *previous* release reads
+ * (`payment_participants`' table comment): leaving it stale would make a
+ * rollback show wrong numbers for a payment somebody just left.
  *
  * Scoped payments (`split_scope <> 'custom'`) hold no rows, so they are
  * untouched here — the roster is the split, and the next read of the scope
@@ -109,12 +106,19 @@ export async function cascadeMemberRemoval(
     .where(eq(paymentParticipants.memberId, memberId));
 
   for (const paymentId of affectedPaymentIds) {
-    await resplitPayment(tx, paymentId);
+    await resplitRemainingRows(tx, paymentId);
   }
 }
 
-/** Re-share one payment's remaining rows, or hand it to the payer. */
-async function resplitPayment(
+/**
+ * Re-share one payment's remaining rows, or hand it to the payer.
+ *
+ * The amounts are the previous release's (`payment_participants`' table
+ * comment): `equalShares` in `(createdAt, id)` order, so the member who has
+ * been in the split longest keeps the odd cent — the same rule as a fresh
+ * create, applied to a shrunken list, which is what that image expects to read.
+ */
+async function resplitRemainingRows(
   tx: RemovalExecutor,
   paymentId: string,
 ): Promise<void> {
@@ -125,7 +129,7 @@ async function resplitPayment(
     .limit(1);
 
   // The payment row is gone (cascade delete raced the removal) — nothing to
-  // re-split, and nothing to resurrect.
+  // re-share, and nothing to resurrect.
   if (!payment) return;
 
   const remaining = await tx

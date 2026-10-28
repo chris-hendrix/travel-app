@@ -854,6 +854,21 @@ export type Payment = typeof payments.$inferSelect;
 export type NewPayment = typeof payments.$inferInsert;
 
 // Payment Participants (who owes for a payment)
+//
+// A row is a person on a cost. The **amounts are not stored**: a share is a
+// fact about the whole trip (`shared/utils/split.ts:spreadShares` — the
+// leftover cents follow the trip's running rounding debt, not the row order),
+// so `payment_participants.share_amount` is a second, staler opinion and no
+// read consults it any more.
+//
+// The column is still there, and still written (`PaymentService`,
+// `member-removal.ts`), for one release: the *previous* image reads it, and a
+// release that drops a column cannot also be the one that stops maintaining it
+// or a rollback lands an image that is wrong about the schema
+// (`DEPLOYMENT.md`, the expand/contract rule). It is `DEFAULT 0` so a row that
+// omits it — a fixture, the seed — still inserts; that zero is read by nobody
+// on this release. Drop the column in the release after the one that stops
+// writing it, and `equalShares` with it.
 export const paymentParticipants = pgTable(
   "payment_participants",
   {
@@ -865,7 +880,11 @@ export const paymentParticipants = pgTable(
     memberId: uuid("member_id")
       .notNull()
       .references(() => members.id, { onDelete: "restrict" }),
-    shareAmount: integer("share_amount").notNull(), // cents — computed at write time
+    /**
+     * Vestigial: kept and maintained for the previous release's read only.
+     * See the table comment above.
+     */
+    shareAmount: integer("share_amount").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

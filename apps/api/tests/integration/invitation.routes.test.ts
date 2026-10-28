@@ -1253,7 +1253,6 @@ describe("Invitation Routes", () => {
       await db.insert(paymentParticipants).values({
         paymentId: payment!.id,
         memberId: debtorMember!.id,
-        shareAmount: 2000,
       });
 
       const token = app.jwt.sign({
@@ -1281,7 +1280,6 @@ describe("Invitation Routes", () => {
       expect(participantsAfter).toHaveLength(1);
       expect(participantsAfter[0]).toMatchObject({
         memberId: organizerMember!.id,
-        shareAmount: 2000,
       });
 
       await db.delete(payments).where(eq(payments.id, payment!.id));

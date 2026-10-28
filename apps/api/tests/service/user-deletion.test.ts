@@ -105,7 +105,6 @@ describe("user.service deleteAccount (Task 26)", () => {
     await db.insert(paymentParticipants).values({
       paymentId,
       memberId,
-      shareAmount: 4000,
     });
   });
 

@@ -171,7 +171,8 @@ describe("payment.service member-keyed write path (Task 6.1)", () => {
       payment.participants.map((p) => p.memberId).sort(),
     ).toEqual([organizerMemberId, memberAMemberId, guest.id].sort());
 
-    // Equal split with remainder cents to the first participant: 3334/3334/3333
+    // Equal split, with the leftover cent spread over the trip
+    // (`spreadShares`): 3334/3334/3333.
     const shares = payment.participants.map((p) => p.shareAmount);
     expect(shares.reduce((a, b) => a + b, 0)).toBe(10001);
     expect([...shares].sort((a, b) => b - a)).toEqual([3334, 3334, 3333]);
@@ -673,7 +674,7 @@ describe("the split scope on a payment (Tasks 5-7)", () => {
     expect(payment.splitScope).toBe("custom");
     const rows = await participantRows(payment.id);
     expect(rows).toHaveLength(2);
-    expect(rows.map((r) => r.shareAmount).sort()).toEqual([2500, 2500]);
+    // The rows are the people; the shares are the trip's spread, read back.
     expect(payment.participants.map((p) => p.shareAmount).sort()).toEqual([
       2500, 2500,
     ]);
@@ -749,7 +750,9 @@ describe("the split scope on a payment (Tasks 5-7)", () => {
     expect(rows.map((r) => r.memberId).sort()).toEqual(
       [organizerMemberId, maybeMemberId].sort(),
     );
-    expect(rows.map((r) => r.shareAmount).sort()).toEqual([4500, 4500]);
+    expect(updated.participants.map((p) => p.shareAmount).sort()).toEqual([
+      4500, 4500,
+    ]);
     expect(updated.participants.map((p) => p.memberId).sort()).toEqual(
       [organizerMemberId, maybeMemberId].sort(),
     );
@@ -866,7 +869,7 @@ describe("the split scope on a payment (Tasks 5-7)", () => {
     ]);
   });
 
-  it("a custom amount change still re-splits the stored rows", async () => {
+  it("a custom amount change re-splits without rewriting the rows", async () => {
     const payment = await paymentService.createPayment(organizerId, tripId, {
       description: "Dinner",
       amount: 6000,
@@ -885,7 +888,14 @@ describe("the split scope on a payment (Tasks 5-7)", () => {
     expect(updated.splitScope).toBe("custom");
     const rows = await participantRows(payment.id);
     expect(rows).toHaveLength(3);
-    expect(rows.reduce((sum, r) => sum + r.shareAmount, 0)).toBe(9001);
+    // 9001/3 has a cent over, and it lands somewhere: the shares still sum to
+    // the amount, and the stored rows hold no number that could disagree.
+    expect(
+      updated.participants.reduce((sum, p) => sum + p.shareAmount, 0),
+    ).toBe(9001);
+    expect(
+      [...updated.participants.map((p) => p.shareAmount)].sort((a, b) => b - a),
+    ).toEqual([3001, 3000, 3000]);
   });
 
   // --- Task 7: read -----------------------------------------------------

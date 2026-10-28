@@ -13,7 +13,7 @@ import { useDismiss, useDismissTo } from "@/hooks/useDismiss";
 import { useAuth } from "@/lib/authStore";
 import { formatCents } from "@/lib/money";
 import { viewerOf } from "@/lib/members";
-import { findMove, paymentDay } from "@/lib/payments";
+import { findMove, paymentDay, paymentInstant } from "@/lib/payments";
 import { useBalances } from "@/lib/queries/balances";
 import { toErrorCopy } from "@/lib/queries/errors";
 import { useMembers } from "@/lib/queries/members";
@@ -23,7 +23,7 @@ import {
   usePayments,
   useUpdatePayment,
 } from "@/lib/queries/payments";
-import { todayIn, zoneOffsetMinutes } from "@/lib/timezone";
+import { todayIn } from "@/lib/timezone";
 import { useTripSettings } from "@/lib/tripSettingsStore";
 import { useTrip } from "@/lib/tripsStore";
 import NotFound from "@/app/+not-found";
@@ -107,7 +107,11 @@ function ExpenseFormScreen() {
   const fromId = typeof from === "string" && from.length > 0 ? from : null;
   const toId = typeof to === "string" && to.length > 0 ? to : null;
 
-  const expenses = usePayments(editMode ? trip?.id : undefined);
+  // Read in every mode, not only an edit: the split the form previews is
+  // spread over the trip's history (`previewShares`), so a new expense and a
+  // settlement need the same list an edit does — and `row` below is just the
+  // edit's use of it.
+  const expenses = usePayments(trip?.id);
   const debts = useBalances(settleMode ? trip?.id : undefined);
 
   // A settled read is what makes "not here" a fact rather than a guess:
@@ -291,6 +295,8 @@ function ExpenseFormScreen() {
       title={title}
       primaryTitle={primaryTitle}
       members={members}
+      payments={expenses.status === "success" ? expenses.payments : null}
+      editedRow={row ? { id: row.id, createdAt: row.createdAt } : null}
       viewerMemberId={viewer?.id ?? null}
       isOrganizer={viewer?.isOrganizer ?? false}
       dismissHref={editMode ? detailHref : ledgerHref}
@@ -340,15 +346,16 @@ function ExpenseFormScreen() {
           splitScope: input.scope,
           ...(input.scope === "custom"
             ? {
-                // The order the shares above were previewed in: the server
-                // hands the remainder cent to the first participant it
-                // receives (`splitPreview` mirrors that).
+                // The order the shares above were previewed in. Not
+                // load-bearing for the amount — a share is the trip's spread,
+                // not the array's order — but it is the order the form showed
+                // and the list is the split's own record.
                 participants: input.participantIds.map((memberId) => ({
                   memberId,
                 })),
               }
             : null),
-          date: stampDay(input.day, timeZone),
+          date: paymentInstant(input.day, timeZone),
           // An emptied note is the clearing value rather than an omission:
           // the create side drops an empty one on the way out and the
           // update side stores `""` as null (`lib/queries/payments.ts`).
@@ -388,28 +395,6 @@ function ExpenseFormScreen() {
       }}
     />
   );
-}
-
-/**
- * A day the API will read back as that same day, anywhere.
- *
- * `lib/newStay.ts`'s `stamp` rule with the clock fixed at noon: the offset
- * is taken from the zone the day was read in, at noon on the day itself,
- * so the instant is the middle of that day rather than an edge of it. Noon
- * because the ledger reads the day back in the same zone (`paymentDay`)
- * and a midnight would be the day before for anybody far enough east.
- */
-function stampDay(day: string, timeZone: string | null): string {
-  const [year, month, date] = day.split("-").map(Number) as [
-    number,
-    number,
-    number,
-  ];
-  const offsetMinutes = zoneOffsetMinutes(timeZone, `${day}T12:00:00.000Z`);
-
-  return new Date(
-    Date.UTC(year, month - 1, date, 12, 0) - offsetMinutes * 60_000,
-  ).toISOString();
 }
 
 /**
