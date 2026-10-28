@@ -118,6 +118,39 @@ export function withPayerFallback(
 }
 
 /**
+ * Each participant's share of an amount in cents, in the order given.
+ *
+ * The largest-remainder rule for **one cost with no history**: every share is
+ * the integer division, and the leftover cents go one each to the first
+ * `remainder` entries. The shares always sum to the amount.
+ *
+ * This is *not* what a trip's shares are — a trip has many costs, and
+ * `spreadShares` below is the rule that keeps their leftovers from piling onto
+ * the same people. Read that comment before using this one for anything a
+ * person sees.
+ *
+ * It survives for exactly one caller, and temporarily: the compatibility write
+ * in `payment.service.ts` and `member-removal.ts` still fills
+ * `payment_participants.share_amount` with this rule's answer. Nothing reads
+ * that column any more — `payment-split.ts` derives every share — but the
+ * *previous* release does, and a release that drops a column cannot also be
+ * the one that stops maintaining it, because the previous image is what a
+ * rollback puts back in front of the database (`DEPLOYMENT.md`, the
+ * expand/contract rule). Delete this function in the release that stops
+ * writing the column.
+ */
+export function equalShares(total: number, count: number): number[] {
+  if (count <= 0) return [];
+
+  const base = Math.floor(total / count);
+  const remainder = total - base * count;
+
+  return Array.from({ length: count }, (_, index) =>
+    index < remainder ? base + 1 : base,
+  );
+}
+
+/**
  * The one fact the ledger's order is built from: when the row was recorded.
  *
  * A string, not a `Date`, so the API (which holds `Date`s) and the app (which

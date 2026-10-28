@@ -1,0 +1,1 @@
+ALTER TABLE "payment_participants" ALTER COLUMN "share_amount" SET DEFAULT 0;

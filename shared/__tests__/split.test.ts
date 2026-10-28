@@ -3,6 +3,7 @@
 import { describe, it, expect } from "vitest";
 import {
   SPLIT_SCOPES,
+  equalShares,
   ledgerOrder,
   scopeMemberIds,
   spreadShares,
@@ -135,6 +136,35 @@ describe("withPayerFallback", () => {
     // their share", so nobody owing anything would leave the payer's credit
     // standing and the row unshowable. One person owing it is the floor.
     expect(withPayerFallback([], "m-1")).toEqual(["m-1"]);
+  });
+});
+
+describe("equalShares", () => {
+  it("splits evenly when the amount divides", () => {
+    expect(equalShares(300, 3)).toEqual([100, 100, 100]);
+    expect(equalShares(100, 1)).toEqual([100]);
+  });
+
+  it("gives the remainder cents one each to the first rows, in order", () => {
+    expect(equalShares(100, 3)).toEqual([34, 33, 33]);
+    // The reading that piles the whole remainder on the first share would
+    // say [35, 33, 33]; the server says [34, 34, 33] and the form must too.
+    expect(equalShares(10001, 3)).toEqual([3334, 3334, 3333]);
+    expect(equalShares(101, 3)).toEqual([34, 34, 33]);
+  });
+
+  it("always sums to the amount", () => {
+    for (const count of [1, 2, 3, 4, 7, 13]) {
+      for (const total of [1, 99, 100, 12345, 10001]) {
+        const shares = equalShares(total, count);
+        expect(shares).toHaveLength(count);
+        expect(shares.reduce((sum, share) => sum + share, 0)).toBe(total);
+      }
+    }
+  });
+
+  it("has no shares for nobody — the floor of one is the caller's job", () => {
+    expect(equalShares(100, 0)).toEqual([]);
   });
 });
 

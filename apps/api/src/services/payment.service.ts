@@ -5,7 +5,11 @@ import {
   type Payment,
 } from "@/db/schema/index.js";
 import { eq, and, inArray } from "drizzle-orm";
-import { scopeMemberIds, type SplitScope } from "@journiful/shared/utils";
+import {
+  equalShares,
+  scopeMemberIds,
+  type SplitScope,
+} from "@journiful/shared/utils";
 import type {
   CreatePaymentInput,
   UpdatePaymentInput,
@@ -112,10 +116,13 @@ export class PaymentService implements IPaymentService {
       ...participantMemberIds,
     ]);
 
-    // Shares are not computed here: a share depends on the rest of the trip
-    // (`loadTripSplits`), so the only thing a write stores is who is in the
-    // split. `enrichPayment` below reads the spread back, which is what makes
-    // a write's response identical to a later read's.
+    // A share is not computed here — it depends on the rest of the trip
+    // (`loadTripSplits`), and `enrichPayment` below reads the spread back,
+    // which is what makes a write's response identical to a later read's. The
+    // `share_amount` written beside each row is for the *previous* release
+    // only (`payment_participants`' table comment in `db/schema`): nothing here
+    // reads it, and a rollback is the image that does.
+    const legacyShares = equalShares(data.amount, participants.length);
 
     // Payment + participants insert atomically: a participants-insert
     // failure must not leave an orphan payment row.
@@ -140,9 +147,10 @@ export class PaymentService implements IPaymentService {
         }
 
         await tx.insert(paymentParticipants).values(
-          participants.map((p) => ({
+          participants.map((p, index) => ({
             paymentId: payment.id,
             memberId: p.memberId,
+            shareAmount: legacyShares[index]!,
           })),
         );
         return { payment };
@@ -301,7 +309,7 @@ export class PaymentService implements IPaymentService {
       throw new PaymentNotFoundError();
     }
 
-    await this.writeSplitForUpdate(paymentId, nextScope, data);
+    await this.writeSplitForUpdate(paymentId, nextScope, updated, data);
 
     return this.enrichPayment(existing.tripId, updated);
   }
@@ -309,14 +317,16 @@ export class PaymentService implements IPaymentService {
   /**
    * Bring `payment_participants` in line with the split the update asked for.
    *
-   * The invariant is one line — `custom` has rows, a scope has none — and the
-   * rows are now **only the list of people**: the shares are the trip's spread
-   * (`loadTripSplits`), recomputed on every read, so nothing here has an
-   * amount to write and an amount change has nothing to update.
+   * The invariant is one line — `custom` has rows, a scope has none. The rows
+   * are the list of people; the amount beside each one is maintained only for
+   * the previous release's read (`payment_participants`' table comment), which
+   * is why an amount change still rewrites it here rather than leaving it
+   * stale for the image a rollback would put back.
    */
   private async writeSplitForUpdate(
     paymentId: string,
     nextScope: SplitScope,
+    updated: Payment,
     data: UpdatePaymentInput,
   ): Promise<void> {
     if (nextScope !== "custom") {
@@ -335,8 +345,37 @@ export class PaymentService implements IPaymentService {
         .delete(paymentParticipants)
         .where(eq(paymentParticipants.paymentId, paymentId));
 
+      const shares = equalShares(updated.amount, data.participants.length);
       await this.db.insert(paymentParticipants).values(
-        data.participants.map((p) => ({ paymentId, memberId: p.memberId })),
+        data.participants.map((p, index) => ({
+          paymentId,
+          memberId: p.memberId,
+          shareAmount: shares[index]!,
+        })),
+      );
+      return;
+    }
+
+    if (data.amount !== undefined) {
+      // The list did not change but the total did, so the legacy amount is now
+      // wrong for the people on it. One statement instead of a read and a
+      // write per row: the shares are a function of the row's position in a
+      // list ordered by `createdAt, id`, which is the order `equalShares`
+      // hands its leftover cents out in.
+      const rows = await this.db
+        .select({ id: paymentParticipants.id })
+        .from(paymentParticipants)
+        .where(eq(paymentParticipants.paymentId, paymentId))
+        .orderBy(paymentParticipants.createdAt, paymentParticipants.id);
+      const shares = equalShares(updated.amount, rows.length);
+
+      await Promise.all(
+        rows.map((row, index) =>
+          this.db
+            .update(paymentParticipants)
+            .set({ shareAmount: shares[index]! })
+            .where(eq(paymentParticipants.id, row.id)),
+        ),
       );
     }
   }

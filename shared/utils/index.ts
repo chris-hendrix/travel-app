@@ -34,6 +34,7 @@ export type {
 export {
   SPLIT_SCOPES,
   scopeMemberIds,
+  equalShares,
   spreadShares,
   ledgerOrder,
   withPayerFallback,

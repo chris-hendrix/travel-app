@@ -1,5 +1,5 @@
 {
-  "id": "18572cd6-5aeb-486f-90ce-26303afd6ba4",
+  "id": "9bba1c2e-f170-4e7d-b46d-30e797c2821a",
   "prevId": "23d69ff8-aef3-478b-9c86-2a0dece7aeaa",
   "version": "7",
   "dialect": "postgresql",
@@ -2185,6 +2185,13 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
+        },
+        "share_amount": {
+          "name": "share_amount",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
         },
         "created_at": {
           "name": "created_at",
