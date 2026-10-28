@@ -1,8 +1,11 @@
-import { members, users } from "@/db/schema/index.js";
-import { eq, and, sql } from "drizzle-orm";
+import { members, type Payment } from "@/db/schema/index.js";
+import { eq, and } from "drizzle-orm";
 import type { AppDatabase } from "@/types/index.js";
 import type { IPermissionsService } from "./permissions.service.js";
-import { loadTripSplits } from "./payment-split.js";
+import {
+  loadTripSplits,
+  type ResolvedParticipant,
+} from "./payment-split.js";
 import { PermissionDeniedError } from "../errors.js";
 
 interface BalancePerson {
@@ -103,10 +106,28 @@ export class BalanceService implements IBalanceService {
     }
   }
 
-  /** The unguarded compute path — callers must have passed `assertMember`. */
+  /**
+   * The unguarded compute path — callers must have passed `assertMember`.
+   *
+   * One `loadTripSplits` serves both halves: the shares *and* the names. The
+   * resolver already read the roster to resolve the scopes, so a second query
+   * for the same rows would be the ledger asking a question it has the answer
+   * to — and two reads of a roster that can move underneath it.
+   */
   private async computeTripBalances(tripId: string): Promise<BalanceEntry[]> {
-    const netBalances = await this.computeNetBalances(tripId);
-    const personMap = await this.buildPersonMap(tripId);
+    const { roster, payments, participants } = await loadTripSplits(
+      this.db,
+      tripId,
+    );
+    const netBalances = this.computeNetBalances(payments, participants);
+
+    const personMap = new Map<string, BalancePerson>(
+      roster.map((member) => [
+        `member:${member.id}`,
+        { id: member.id, name: member.name },
+      ]),
+    );
+
     return this.simplifyDebts(netBalances, personMap);
   }
 
@@ -129,11 +150,11 @@ export class BalanceService implements IBalanceService {
    * them against nobody. `payments` is hard-deleted on settle, so there is no
    * `deleted_at` to filter and no half-visible money.
    */
-  private async computeNetBalances(
-    tripId: string,
-  ): Promise<Map<string, number>> {
+  private computeNetBalances(
+    payments: Payment[],
+    participants: Map<string, ResolvedParticipant[]>,
+  ): Map<string, number> {
     const net = new Map<string, number>();
-    const { payments, participants } = await loadTripSplits(this.db, tripId);
 
     for (const payment of payments) {
       const payerKey = `member:${payment.memberId}`;
@@ -212,36 +233,4 @@ export class BalanceService implements IBalanceService {
     return result;
   }
 
-  /**
-   * Build a lookup map of member keys to person info for all members of
-   * the trip. Names resolve via members LEFT JOIN users with
-   * COALESCE(users.display_name, members.guest_display_name) — before a
-   * guest is claimed the guest name shows; after claim the profile name
-   * shows under the same member:<id> key.
-   */
-  private async buildPersonMap(
-    tripId: string,
-  ): Promise<Map<string, BalancePerson>> {
-    const personMap = new Map<string, BalancePerson>();
-
-    const memberRows = await this.db
-      .select({
-        id: members.id,
-        name: sql<
-          string
-        >`coalesce(${users.displayName}, ${members.guestDisplayName}, 'Unknown')`,
-      })
-      .from(members)
-      .leftJoin(users, eq(members.userId, users.id))
-      .where(eq(members.tripId, tripId));
-
-    for (const m of memberRows) {
-      personMap.set(`member:${m.id}`, {
-        id: m.id,
-        name: m.name,
-      });
-    }
-
-    return personMap;
-  }
 }

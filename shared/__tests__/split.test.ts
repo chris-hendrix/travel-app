@@ -3,7 +3,6 @@
 import { describe, it, expect } from "vitest";
 import {
   SPLIT_SCOPES,
-  equalShares,
   ledgerOrder,
   scopeMemberIds,
   spreadShares,
@@ -139,43 +138,6 @@ describe("withPayerFallback", () => {
   });
 });
 
-describe("equalShares", () => {
-  it("splits evenly when the amount divides", () => {
-    expect(equalShares(300, 3)).toEqual([100, 100, 100]);
-    expect(equalShares(100, 1)).toEqual([100]);
-  });
-
-  it("gives the remainder cents one each to the first rows, in order", () => {
-    expect(equalShares(100, 3)).toEqual([34, 33, 33]);
-    // The reading that piles the whole remainder on the first share would
-    // say [35, 33, 33]; the server says [34, 34, 33] and the form must too.
-    expect(equalShares(10001, 3)).toEqual([3334, 3334, 3333]);
-    expect(equalShares(101, 3)).toEqual([34, 34, 33]);
-  });
-
-  it("always sums to the amount", () => {
-    for (const count of [1, 2, 3, 4, 7, 13]) {
-      for (const total of [1, 99, 100, 12345, 10001]) {
-        const shares = equalShares(total, count);
-        expect(shares).toHaveLength(count);
-        expect(shares.reduce((sum, share) => sum + share, 0)).toBe(total);
-      }
-    }
-  });
-
-  it("has no shares for nobody — the floor of one is the caller's job", () => {
-    expect(equalShares(100, 0)).toEqual([]);
-  });
-});
-
-/**
- * The trip-wide spread (`spreadShares`).
- *
- * The unit under test is deliberately not "the shares of one expense" — that
- * is `equalShares`, and it is exactly what this rule exists to stop doing on a
- * trip. Every assertion here is about what a *person's total* looks like once
- * several costs have gone by.
- */
 describe("spreadShares", () => {
   /** A trip's costs, in the order the ledger spreads them. */
   const costs = (amounts: number[], participantIds: string[]): LedgerStep[] =>
@@ -196,19 +158,23 @@ describe("spreadShares", () => {
     return sums;
   };
 
-  it("is `equalShares` when the trip has one cost and no history", () => {
-    for (const count of [1, 2, 3, 4, 7, 13]) {
-      for (const amount of [1, 99, 100, 10001, 123457]) {
-        const ids = Array.from({ length: count }, (_, i) => `m-${i}`);
-        const [step] = spreadShares([{ id: "p", amount, participantIds: ids }]);
-        // The multiset, not the index order: a single cost has no history to
-        // order by, so the stray cents follow member id (as every scoped split
-        // has since the scope was introduced) rather than the order the caller
-        // happened to hold the people in.
-        expect([...step!.shares].sort((a, b) => a - b)).toEqual(
-          equalShares(amount, count).sort((a, b) => a - b),
-        );
-      }
+  it("rounds a single cost the way largest-remainder rounds it", () => {
+    // No history to spread, so this is the plain rule: the integer division
+    // each, and the leftover cents one apiece. The multiset is what is fixed —
+    // which of them carries a cent follows member id, since a bare trip has
+    // nothing else to order by.
+    const cases: [number, number, number[]][] = [
+      [100, 3, [33, 33, 34]],
+      [10001, 3, [3333, 3334, 3334]],
+      [101, 3, [33, 34, 34]],
+      [100, 1, [100]],
+      [7, 7, [1, 1, 1, 1, 1, 1, 1]],
+    ];
+    for (const [amount, count, expected] of cases) {
+      const ids = Array.from({ length: count }, (_, i) => `m-${i}`);
+      const [step] = spreadShares([{ id: "p", amount, participantIds: ids }]);
+      expect([...step!.shares].sort((a, b) => a - b)).toEqual(expected);
+      expect(step!.shares.reduce((sum, share) => sum + share, 0)).toBe(amount);
     }
   });
 
@@ -299,6 +265,34 @@ describe("spreadShares", () => {
         Math.max(...Object.values(totals)) - Math.min(...Object.values(totals)),
       ).toBeLessThanOrEqual(1);
     }
+  });
+
+  it("leaves the past alone when a cost is appended", () => {
+    // The reason `ledgerOrder` sorts by *recorded* order rather than by the day
+    // the money went: a row added at the end cannot reach back into the rows
+    // before it. This is the property that makes "adding an expense moves my
+    // balance by exactly minus my share of it" true, and the property a
+    // back-dated receipt depends on.
+    const before = [
+      { id: "p-1", amount: 2800, createdAt: "2026-10-22T12:00:00.000Z" },
+      { id: "p-2", amount: 7650, createdAt: "2026-10-26T12:00:00.000Z" },
+      { id: "p-3", amount: 4011, createdAt: "2026-10-26T13:00:00.000Z" },
+    ].map((row) => ({ ...row, participantIds: ["m-1", "m-2", "m-3", "m-4"] }));
+
+    // A cost spent a week earlier, recorded now — the back-dated receipt.
+    const appended = {
+      id: "p-4",
+      amount: 12442,
+      date: "2026-10-19T12:00:00.000Z",
+      createdAt: "2026-10-27T09:00:00.000Z",
+      participantIds: ["m-1", "m-2", "m-3", "m-4"],
+    };
+
+    const beforeShares = spreadShares(ledgerOrder(before));
+    const afterShares = spreadShares(ledgerOrder([...before, appended]));
+
+    // The earlier rows' cents, byte for byte. Not just "still sums right".
+    expect(afterShares.slice(0, before.length)).toEqual(beforeShares);
   });
 
   it("does not depend on the order the people arrive in", () => {

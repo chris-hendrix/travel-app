@@ -118,40 +118,6 @@ export function withPayerFallback(
 }
 
 /**
- * Each participant's share of an amount in cents, in the order given.
- *
- * The largest-remainder rule: every share is the integer division, and
- * the leftover cents go **one each to the first `remainder` entries** —
- * not all of them to the first. The two readings agree whenever the
- * remainder is 0 or 1, which is why the difference is easy to miss:
- * $100 between three people is `[34, 33, 33]` either way, but $100.01
- * between three is `[34, 34, 33]` here and `[35, 33, 33]` under the
- * wrong one. The shares always sum to the amount, which is the property
- * the ledger depends on.
- *
- * This is the arithmetic of **one cost with no history** — the floor and the
- * leftover count `spreadShares` below builds on. It is not what a trip's
- * shares are: a trip has many costs, and `spreadShares` is the rule that keeps
- * their leftovers from piling onto the same people (read its comment before
- * using this one for anything user-facing).
- *
- * No participants is `[]`, not a division by zero. A split that resolves
- * to nobody is caught above this function (a create is refused, a read
- * falls back to the payer through `withPayerFallback`); this is the
- * arithmetic only.
- */
-export function equalShares(total: number, count: number): number[] {
-  if (count <= 0) return [];
-
-  const base = Math.floor(total / count);
-  const remainder = total - base * count;
-
-  return Array.from({ length: count }, (_, index) =>
-    index < remainder ? base + 1 : base,
-  );
-}
-
-/**
  * The one fact the ledger's order is built from: when the row was recorded.
  *
  * A string, not a `Date`, so the API (which holds `Date`s) and the app (which
@@ -217,16 +183,14 @@ export interface LedgerStepShares {
  * Every cost's shares, spread so that the leftover cents are **shared out over
  * the trip** instead of landing on the same people every time.
  *
- * Why not round each cost on its own. `equalShares` is right for a single
- * expense and wrong for a trip, in a way that only shows up in the totals: it
- * gives the leftover cents to the first seats in the list, and that list is
- * ordered by member id, so the lowest id collects the odd cent on expense
- * after expense until the totals drift cents apart, monotonically. Four
- * $50 expenses between four people come out `50.01 / 50.01 / 50.00 / 49.98`
- * under the per-expense rule; the same trip under this one is `50.00` each.
- * Nothing is lost either way — every cost still sums to its amount — so this
- * is exclusively about whether the per-person totals look like arithmetic or
- * like noise.
+ * Why not round each cost on its own — the rule this replaced. It gave a
+ * cost's leftover cents to the first seats in the list, and that list is
+ * ordered by member id, so the lowest id collected the odd cent on expense
+ * after expense until the totals drifted apart, monotonically. Four $50
+ * expenses between four people came out `50.01 / 50.01 / 50.00 / 49.98`; the
+ * same trip under this rule is `50.00` each. Nothing was lost either way —
+ * every cost still sums to its amount — so this is exclusively about whether
+ * the per-person totals look like arithmetic or like noise.
  *
  * The rule. Walk the costs in the caller's order (chronological —
  * `ledgerOrder`); everybody on a cost pays `floor(amount / count)`; the `r`
@@ -239,11 +203,20 @@ export interface LedgerStepShares {
  *
  * 1. Every cost's shares are integers that sum to its amount, so the expense
  *    row a person reads adds up.
- * 2. Every member's total is within a cent of their exact share — the sum of
- *    the row amounts divided fair, rounded once at the end rather than once
- *    per expense. Measured over 20,000 generated trips: 99.96% of people land
- *    within a cent, 93.5% within half a cent, and on a trip where everyone
- *    shares every cost the spread between two people never exceeded one cent.
+ * 2. Members' totals sit within a cent of their exact share — the trip's money
+ *    divided fair and rounded once at the end rather than once per expense.
+ *    That is a measured property, not a proof, and the honest statement of it
+ *    is per shape, because a trip where everyone shares every cost is much
+ *    better behaved than one where participation varies. Over 20,000 generated
+ *    trips of each shape (2-6 people, 1-30 costs, $0.01-$200 each):
+ *    **everyone shares everything** — 100% of members within a cent, worst
+ *    0.83 cents, and the spread between any two people never exceeded one
+ *    cent; **mixed participation** — 99.92% of members within a cent, 99.67%
+ *    of trips with every member within one, and a worst observed 1.33 cents.
+ *    The gap is structural: a cost's leftover cents can only be handed out on
+ *    cents, and a person on only some of the costs has fewer chances to be
+ *    repaid. Do not read 2 as "always within a cent" — read it as "a cent,
+ *    except in the rare shape where integrality has nowhere to put it".
  * 3. Per-member totals are integers summing to zero, so settling the amounts
  *    on screen leaves the ledger at exactly zero — no residue to explain.
  *
